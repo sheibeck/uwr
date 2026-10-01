@@ -35,6 +35,10 @@ import {
 } from './llm_apply';
 import { serializePerkEffect } from './renown';
 import { LLM_RESTING_LINE } from './llm_queue';
+import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE } from './world_gen';
+import { setLlmEnabled } from './llm_admin_state';
+import { utcDay } from './llm_budget';
+import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 
 const T0 = 1_700_000_000_000_000n;
@@ -596,7 +600,8 @@ describe('Phase 41 (plan 14): world-gen failures end in ERROR, never PENDING', (
     updatedAt: ts(T0 - 1000n),
     ...over,
   });
-  const worldJob = { domain: 'world_gen', playerId: alice, contextJson: JSON.stringify({ genStateId: '5' }) } as any;
+  // Stage 1 (world_gen_start) fails a GENERATING state; stage 2 (world_gen) is covered in the staged block below.
+  const worldJob = { domain: 'world_gen_start', playerId: alice, contextJson: JSON.stringify({ genStateId: '5' }) } as any;
 
   it('failWorldGen sets ERROR, stores the in-voice message and appends the [explore] line for a placed character', () => {
     const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
@@ -628,7 +633,7 @@ describe('Phase 41 (plan 14): world-gen failures end in ERROR, never PENDING', (
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 
-  it('a failed world_gen job (call failure, sweeper expiry) ends in ERROR through applyLlmFailure', () => {
+  it('a failed world_gen_start job (call failure, sweeper expiry) ends in ERROR through applyLlmFailure', () => {
     const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
     applyLlmFailure(ctx, worldJob);
     const state = rows(ctx, 'world_gen_state')[0];
@@ -707,15 +712,25 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
     }
   });
 
-  it.each(CODES)('world_gen (%s): ERROR with the resting errorMessage and one line that starts with it and names [explore]', (code) => {
+  it.each(CODES)('world_gen_start (%s): ERROR with the resting errorMessage and one line that starts with it and names [explore]', (code) => {
     const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
-    applyLlmFailure(ctx, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
+    applyLlmFailure(ctx, restingJob('world_gen_start', JSON.stringify({ genStateId: '5' }), code));
     expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'ERROR', errorMessage: LLM_RESTING_LINE });
     const events = rows(ctx, 'event_private');
     expect(events).toHaveLength(1);
     expect(events[0].message.startsWith(LLM_RESTING_LINE)).toBe(true);
     expect(events[0].message).toContain('[explore]');
     expect(events[0].message).not.toContain('falters');
+  });
+
+  it.each(CODES)('world_gen (%s): FILL_ERROR with the resting errorMessage and one line that starts with it and names [explore]', (code) => {
+    const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [{ ...genRow(), step: 'FILLING' }] });
+    applyLlmFailure(ctx, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'FILL_ERROR', errorMessage: LLM_RESTING_LINE });
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0].message).toBe(`${LLM_RESTING_LINE} Type [explore] to try again.`);
+    expect(events[0].message).not.toContain('thread');
   });
 
   it.each(CODES)('skill_gen (%s): one line that starts with the resting line and names [skills]', (code) => {
@@ -761,10 +776,14 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
       );
 
       const world = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
-      applyLlmFailure(world, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
+      applyLlmFailure(world, restingJob('world_gen_start', JSON.stringify({ genStateId: '5' }), code));
       expect(rows(world, 'world_gen_state')[0].errorMessage).toBe(
         'The Keeper falters. "The world refuses to be remembered right now."',
       );
+
+      const fill = moduleCtx({ character: [characterRow()], world_gen_state: [{ ...genRow(), step: 'FILLING' }] });
+      applyLlmFailure(fill, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
+      expect(rows(fill, 'world_gen_state')[0].errorMessage).toBe(WORLD_FILL_FAILED_MESSAGE);
 
       const skills = moduleCtx({ character: [characterRow()] });
       applyLlmFailure(skills, restingJob('skill_gen', JSON.stringify({ characterId: '10' }), code));
@@ -783,5 +802,293 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
     expect(LLM_RESTING_LINE).not.toMatch(/\d/);
     expect(LLM_RESTING_LINE).not.toMatch(/anthropic|claude|budget|limit|ceiling|daily/i);
     expect(LLM_RESTING_LINE).not.toMatch(/\b(it|its|they|them)\b/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 43 (plan 08): staged world generation (LAT-03, LAT-05)
+// ---------------------------------------------------------------------------
+
+describe('Phase 43 (plan 08): staged world apply', () => {
+  const PERSONALITY = { traits: ['quiet'], speechPattern: 'slow', knowledgeDomains: ['ferries'], secrets: [], affinityMultiplier: 1.0 };
+  const START_REPLY = {
+    regionName: 'Cinderfall',
+    regionDescription: 'Ash drifts down like a slow, grey snowfall.',
+    biome: 'volcanic',
+    startLocation: { name: 'Ember Hollow', description: 'A sheltered town.', terrainType: 'town', levelOffset: 0 },
+    firstNpc: { name: 'Vessa', gender: 'female', npcType: 'vendor', description: 'A soot-streaked trader.', greeting: 'Buy something.', personality: PERSONALITY },
+  };
+  const FILL_REPLY = {
+    dominantFaction: 'Ash Court',
+    landmarks: ['The Slag Spire'],
+    threats: ['ember wolves'],
+    locations: [
+      { name: 'Slag Road', description: 'A cracked road.', terrainType: 'plains', isSafe: false, levelOffset: 0, connectsTo: ['Ember Hollow', 'Ashen Pit'] },
+      { name: 'Ashen Pit', description: 'A smoking crater.', terrainType: 'mountains', isSafe: false, levelOffset: 1, connectsTo: ['Slag Road'] },
+    ],
+    npcs: [
+      { name: 'Vessa', gender: 'female', npcType: 'vendor', locationName: 'Ember Hollow', description: 'Again.', greeting: 'Again.', personality: PERSONALITY },
+      { name: 'Old Brann', gender: 'male', npcType: 'lore', locationName: 'Slag Road', description: 'A hermit.', greeting: 'Hm.', personality: PERSONALITY },
+    ],
+    enemies: [
+      { name: 'Ember Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'plains', groupMin: 1, groupMax: 2, level: 1 },
+    ],
+  };
+
+  const genRow = (over: Record<string, unknown> = {}) => ({
+    id: 5n,
+    playerId: alice,
+    characterId: 10n,
+    sourceLocationId: 0n,
+    sourceRegionId: 0n,
+    step: 'GENERATING',
+    createdAt: ts(T0 - 1000n),
+    updatedAt: ts(T0 - 1000n),
+    ...over,
+  });
+  const unplaced = () => ({ ...characterRow(), locationId: 0n, boundLocationId: 0n });
+  const CTX = JSON.stringify({ genStateId: '5' });
+  const startJob = { domain: 'world_gen_start', playerId: alice, contextJson: CTX } as any;
+  const fillJob = { domain: 'world_gen', playerId: alice, contextJson: CTX } as any;
+  const newCtx = (over: Record<string, any[]> = {}) =>
+    moduleCtx({ player: [{ id: alice, userId: 7n }], character: [unplaced()], world_gen_state: [genRow()], ...over });
+  const state = (ctx: any) => rows(ctx, 'world_gen_state')[0];
+
+  it('stage 1 then stage 2 on one context: stage 1 is playable before stage 2, stage 2 completes the region', () => {
+    const ctx = newCtx();
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+
+    // Stage 1: the region, the start location and the first NPC, one transaction
+    const region = rows(ctx, 'region')[0];
+    expect(region).toMatchObject({ name: 'Cinderfall', dangerMultiplier: 100n, isGenerated: true, starterForRace: 'ashkin', generatedByCharacterId: 10n });
+    const locations = rows(ctx, 'location');
+    expect(locations.map((l: any) => l.name)).toEqual(['Ember Hollow']);
+    expect(locations[0]).toMatchObject({ isSafe: true, bindStone: true, craftingAvailable: true, regionId: region.id });
+    expect(rows(ctx, 'npc').map((n: any) => [n.name, n.gender, n.locationId])).toEqual([['Vessa', 'female', locations[0].id]]);
+    expect(rows(ctx, 'enemy_template')).toHaveLength(0);
+    // The player stands on the start location and meets the first NPC while the fill is still pending
+    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: locations[0].id, boundLocationId: locations[0].id });
+    expect(state(ctx)).toMatchObject({ step: 'FILLING', generatedRegionId: region.id });
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ route: 'world_gen', status: 'pending', playerId: alice, characterId: 10n });
+    expect(JSON.parse(jobs[0].requestJson).genStateId).toBe('5');
+    // The fill input is read back from the stored rows
+    const input = JSON.parse(jobs[0].requestJson).input;
+    expect(input.regionName).toBe('Cinderfall');
+    expect(input.startLocation.name).toBe('Ember Hollow');
+    expect(input.npcsPresent).toEqual([{ name: 'Vessa', npcType: 'vendor', gender: 'female' }]);
+
+    const lines = rows(ctx, 'event_private');
+    expect(lines.map((e: any) => e.kind)).toEqual(['narrative', 'system', 'system']);
+    expect(lines[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
+    expect(lines[0].message).toContain('Ash drifts down like a slow, grey snowfall.');
+    expect(lines[0].message).toContain('You notice Vessa nearby. Perhaps she has something to say.');
+    expect(lines[0].message).toContain('Try [look] to examine your surroundings. The Keeper is still remembering the roads out.');
+    expect(lines[0].message).not.toContain('Paths lead to');
+    expect(lines[2].message).toBe(
+      'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
+    );
+    expect(rows(ctx, 'event_world')).toHaveLength(1);
+
+    // Stage 2
+    applyLlmResult(ctx, fillJob, JSON.stringify(FILL_REPLY));
+    expect(state(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: region.id });
+    expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual([
+      'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
+    ]);
+    expect(rows(ctx, 'enemy_template')).toHaveLength(1);
+    // The stage-1 NPC is not repeated, the safety net adds the banker, the model vendor is kept
+    expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'Old Brann', 'The Ledger Keeper']);
+    expect(rows(ctx, 'region')[0]).toMatchObject({ dominantFaction: 'Ash Court', name: 'Cinderfall' });
+    expect(rows(ctx, 'llm_job')).toHaveLength(1); // stage 2 enqueued nothing
+    const all = rows(ctx, 'event_private');
+    expect(all[all.length - 1]).toMatchObject({
+      kind: 'system',
+      message: 'The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.',
+    });
+    expect(all).toHaveLength(4);
+  });
+
+  it('a non-starter stage 1 turns the uncharted source edge into a passage and connects the start location to it', () => {
+    const ctx = newCtx({
+      world_gen_state: [genRow({ sourceRegionId: 100n, sourceLocationId: 50n })],
+      character: [{ ...characterRow(), locationId: 50n }],
+      region: [{ id: 100n, name: 'Old Reach', dangerMultiplier: 300n }],
+      location: [{ id: 50n, name: 'The Edge Beyond Old Reach', regionId: 100n, isSafe: true, terrainType: 'uncharted' }],
+    });
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    const edge = rows(ctx, 'location').find((l: any) => l.id === 50n);
+    expect(edge).toMatchObject({ terrainType: 'passage', name: 'The Passage to Cinderfall' });
+    const start = rows(ctx, 'location').find((l: any) => l.name === 'Ember Hollow');
+    const conns = rows(ctx, 'location_connection').map((c: any) => [c.fromLocationId, c.toLocationId]);
+    expect(conns).toContainEqual([start.id, 50n]);
+    expect(conns).toContainEqual([50n, start.id]);
+    // The character already had a location: no placement, no arrival message; the discovery and milestone lines still post.
+    expect(rows(ctx, 'character')[0].locationId).toBe(50n);
+    expect(rows(ctx, 'event_private').map((e: any) => e.kind)).toEqual(['system', 'system']);
+    expect(rows(ctx, 'event_world')[0].message).toContain('Old Reach');
+    expect(state(ctx).step).toBe('FILLING');
+  });
+
+  it('a late or stale result never touches a state that has moved on', () => {
+    const results: [any, any, string[]][] = [
+      [startJob, START_REPLY, ['PENDING', 'FILLING', 'FILL_ERROR', 'COMPLETE', 'ERROR']],
+      [fillJob, FILL_REPLY, ['PENDING', 'GENERATING', 'FILL_ERROR', 'COMPLETE', 'ERROR']],
+    ];
+    for (const [j, reply, steps] of results) {
+      for (const step of steps) {
+        const ctx = newCtx({ world_gen_state: [genRow({ step })] });
+        const before = snapshotDb(ctx.db);
+        applyLlmResult(ctx, j, JSON.stringify(reply));
+        expect(snapshotDb(ctx.db)).toBe(before);
+      }
+    }
+    // A failure is guarded the same way: a stage-1 failure after stage 1 landed, a stage-2 failure before it started.
+    const failures: [any, string][] = [
+      [startJob, 'FILLING'],
+      [startJob, 'COMPLETE'],
+      [fillJob, 'GENERATING'],
+      [fillJob, 'COMPLETE'],
+      [fillJob, 'FILL_ERROR'],
+    ];
+    for (const [j, step] of failures) {
+      const ctx = newCtx({ world_gen_state: [genRow({ step })] });
+      const before = snapshotDb(ctx.db);
+      applyLlmFailure(ctx, j);
+      expect(snapshotDb(ctx.db)).toBe(before);
+    }
+  });
+
+  it('stage 1: a malformed reply or one without regionName or startLocation.name ends in ERROR with the grimace or incomplete line', () => {
+    const replies: [string, string][] = [
+      ['not json at all', 'came out wrong'],
+      [JSON.stringify({ ...START_REPLY, regionName: '' }), 'incomplete'],
+      [JSON.stringify({ ...START_REPLY, startLocation: undefined }), 'incomplete'],
+      [JSON.stringify({ ...START_REPLY, startLocation: { description: 'No name.' } }), 'incomplete'],
+      ['null', 'incomplete'],
+    ];
+    for (const [reply, word] of replies) {
+      const ctx = newCtx();
+      applyLlmResult(ctx, startJob, reply);
+      expect(state(ctx).step).toBe('ERROR');
+      expect(rows(ctx, 'region')).toHaveLength(0);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      expect(rows(ctx, 'event_creation')[0].message).toContain(word);
+      expect(rows(ctx, 'event_creation')[0].message).toContain('Type [explore] to try again.');
+    }
+  });
+
+  it('stage 1 with the enqueue refused (kill switch) leaves the stage-1 rows and a FILL_ERROR state with the resting line', () => {
+    const ctx = newCtx();
+    setLlmEnabled(ctx, false);
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+
+    expect(state(ctx)).toMatchObject({ step: 'FILL_ERROR', errorMessage: LLM_RESTING_LINE });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'region').map((r: any) => r.name)).toEqual(['Cinderfall']);
+    const start = rows(ctx, 'location').find((l: any) => l.name === 'Ember Hollow');
+    expect(start).toBeDefined();
+    expect(rows(ctx, 'character')[0].locationId).toBe(start.id);
+    // The start location is playable with its services
+    const here = rows(ctx, 'npc').filter((n: any) => n.locationId === start.id).map((n: any) => n.npcType).sort();
+    expect(here).toEqual(['banker', 'vendor']);
+    const last = rows(ctx, 'event_private').slice(-1)[0];
+    expect(last.message).toBe(`${LLM_RESTING_LINE} Type [explore] to try again.`);
+  });
+
+  it('stage 1 with the enqueue refused (player day exhausted) stores the refused message and posts one line naming [explore]', () => {
+    const ctx = newCtx();
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: alice,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    expect(state(ctx)).toMatchObject({ step: 'FILL_ERROR', errorMessage: WORLD_FILL_REFUSED_MESSAGE });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow']);
+    const last = rows(ctx, 'event_private').slice(-1)[0];
+    expect(last.message).toBe(`${WORLD_FILL_REFUSED_MESSAGE} Type [explore] to try again.`);
+  });
+
+  function filling() {
+    const ctx = newCtx();
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    expect(state(ctx).step).toBe('FILLING');
+    return ctx;
+  }
+
+  it.each([
+    ['unparseable text', 'the world did not say anything useful'],
+    ['a reply without a locations array', JSON.stringify({ ...FILL_REPLY, locations: undefined })],
+    ['a reply whose locations is not an array', JSON.stringify({ ...FILL_REPLY, locations: 'Slag Road' })],
+    ['a reply that is JSON null', 'null'],
+  ])('stage 2: %s fails the fill, keeps every stage-1 row and enqueues nothing', (_label, reply) => {
+    const ctx = filling();
+    const locationsBefore = rows(ctx, 'location').map((l: any) => l.name);
+    const regionBefore = { ...rows(ctx, 'region')[0] };
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    applyLlmResult(ctx, fillJob, reply);
+
+    expect(state(ctx)).toMatchObject({ step: 'FILL_ERROR', errorMessage: WORLD_FILL_FAILED_MESSAGE });
+    expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(locationsBefore);
+    expect(rows(ctx, 'region')[0]).toEqual(regionBefore);
+    expect(rows(ctx, 'enemy_template')).toHaveLength(0);
+    // The stage-1 NPC stays; the vendor is there already, the banker is added so the region is playable
+    expect(rows(ctx, 'npc').map((n: any) => n.name).sort()).toEqual(['The Ledger Keeper', 'Vessa']);
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore); // never retried on its own
+    const last = rows(ctx, 'event_private').slice(-1)[0];
+    expect(last).toMatchObject({ kind: 'system', message: `${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.` });
+  });
+
+  it('stage 2: a failed fill job (call failure, sweeper expiry) ends in FILL_ERROR and starts no new job', () => {
+    const ctx = filling();
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    applyLlmFailure(ctx, fillJob);
+    expect(state(ctx)).toMatchObject({ step: 'FILL_ERROR', errorMessage: WORLD_FILL_FAILED_MESSAGE });
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(jobsBefore);
+    // A late stage-2 success for the same state does nothing now
+    const before = snapshotDb(ctx.db);
+    applyLlmResult(ctx, fillJob, JSON.stringify(FILL_REPLY));
+    expect(snapshotDb(ctx.db)).toBe(before);
+  });
+
+  it('every line the staged flow posts or stores is in voice: no digit on the public state, no it or they for the Keeper', () => {
+    const ctx = filling();
+    applyLlmResult(ctx, fillJob, 'not json');
+    expect(state(ctx).errorMessage).not.toMatch(/\d/);
+    for (const e of rows(ctx, 'event_private')) {
+      expect(e.message).not.toMatch(/\bKeeper\b[^.]*\b(its|itself|they|them|their|themselves)\b/);
+    }
+  });
+
+  it('only the stage-1 apply and the explore retry start a fill (no stage-2 retry of its own)', () => {
+    const srcDir = fileURLToPath(new URL('../', import.meta.url)).replace(/\\/g, '/');
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules' || entry.name === '__snapshots__') continue;
+        const full = dir + entry.name + (entry.isDirectory() ? '/' : '');
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) files.push(full);
+      }
+    };
+    walk(srcDir);
+    const code = (text: string) =>
+      text
+        .split('\n')
+        .filter((l: string) => !/^\s*(\/\/|\/\*|\*)/.test(l))
+        .join('\n');
+    const callers = files
+      .filter((f) => /\bstartWorldFill\(/.test(code(readFileSync(f, 'utf8'))))
+      .map((f) => f.slice(srcDir.length))
+      .sort();
+    expect(callers).toEqual(['helpers/llm_apply.ts', 'helpers/world_gen.ts']);
   });
 });

@@ -15,6 +15,11 @@
  * a bigint goes through toBigIntSafe (a throw rolls back the whole apply), the renown
  * static fallback is the shared bigint-safe insertStaticRenownPerkOptions, and a
  * terminal renown_perk_gen failure delivers the static options instead of nothing.
+ *
+ * Phase 43 (plan 08) stages world generation: world_gen_start (stage 1) writes the region, its
+ * start location and the first NPC and enqueues world_gen (stage 2) in the same transaction;
+ * world_gen fills in the rest. Each result touches only a state at its own step (stage 1 needs
+ * GENERATING, stage 2 needs FILLING), and a failed stage 2 leaves the stage-1 region playable.
  */
 import {
   appendWorldEvent,
@@ -22,7 +27,18 @@ import {
   appendNpcDialog,
   appendCreationEvent,
 } from './events';
-import { pickRippleMessage, pickDiscoveryMessage, writeGeneratedRegion } from './world_gen';
+import {
+  pickRippleMessage,
+  pickDiscoveryMessage,
+  writeRegionStart,
+  writeRegionFill,
+  findRegionStart,
+  startWorldFill,
+  failWorldFill,
+  WORLD_START_MILESTONE_LINE,
+  WORLD_FILL_FAILED_MESSAGE,
+  worldFillCompleteLine,
+} from './world_gen';
 import { ensureSpawnsForLocation } from './location';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { processGeneratedSkill, validateSkillFields, type SkillFields } from './skill_budget';
@@ -137,12 +153,21 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
       resting ? LLM_RESTING_LINE : 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
     const back = job.domain === 'creation_race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
     ctx.db.character_creation_state.id.update({ ...s, step: back, updatedAt: ctx.timestamp });
-  } else if (job.domain === 'world_gen') {
+  } else if (job.domain === 'world_gen_start') {
+    // Stage 1 failed: nothing was written. Only a state still waiting on stage 1 is failed.
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
     const genStateId = BigInt(context.genStateId);
     const genState = ctx.db.world_gen_state.id.find(genStateId);
-    if (genState) {
+    if (genState && (genState.step === 'PENDING' || genState.step === 'GENERATING')) {
       failWorldGen(ctx, genState, resting ? LLM_RESTING_LINE : 'The Keeper falters. "The world refuses to be remembered right now."');
+    }
+  } else if (job.domain === 'world_gen') {
+    // Stage 2 failed: the stage-1 region stays playable. Only a FILLING state is failed, and never retried here.
+    const context = job.contextJson ? JSON.parse(job.contextJson) : {};
+    const genStateId = BigInt(context.genStateId);
+    const genState = ctx.db.world_gen_state.id.find(genStateId);
+    if (genState && genState.step === 'FILLING') {
+      failWorldFill(ctx, genState, resting ? LLM_RESTING_LINE : WORLD_FILL_FAILED_MESSAGE);
     }
   } else if (job.domain === 'skill_gen') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -293,8 +318,16 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
   }
 }
 
-/** world_gen success. */
-export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string): void {
+/**
+ * world_gen_start success (stage 1 of world generation, Phase 43).
+ *
+ * Writes the region, its safe start location and the first NPC, connects the start location to the
+ * source edge, places a still-unplaced character there and tells the player, then enqueues the
+ * world_gen fill (stage 2) in the same transaction. The state is FILLING with one pending fill job,
+ * or FILL_ERROR when that enqueue is refused (the stage-1 rows stay). Only a GENERATING state is
+ * touched: a late or stale stage-1 result does nothing.
+ */
+export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: string): void {
   const context = job.contextJson ? JSON.parse(job.contextJson) : {};
   const genStateId = BigInt(context.genStateId);
   const currentGenState = ctx.db.world_gen_state.id.find(genStateId);
@@ -310,24 +343,22 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
     return;
   }
 
-  if (!data.regionName || !data.locations || data.locations.length < 1) {
+  if (!data?.regionName || !data.startLocation?.name) {
     failWorldGen(ctx, currentGenState,
       'The Keeper shakes his head. "The world beyond is... incomplete."');
     return;
   }
 
-  // Write generated region content into game tables
-  // For starter regions (sourceRegionId=0n), mark region with race so same-race chars reuse it
+  // For starter regions (sourceRegionId=0n), mark the region with the race so same-race chars reuse it
   const genCharacter = ctx.db.character.id.find(currentGenState.characterId);
   const starterRace = currentGenState.sourceRegionId === 0n && genCharacter?.race
     ? genCharacter.race.toLowerCase()
     : undefined;
-  const region = writeGeneratedRegion(ctx, data, currentGenState, starterRace);
+  const { region, startLocation } = writeRegionStart(ctx, data, currentGenState, starterRace);
 
-  // Update WorldGenState to COMPLETE
+  // Record the region now, so the fill input can be read back from the stored rows
   ctx.db.world_gen_state.id.update({
     ...currentGenState,
-    step: 'COMPLETE',
     generatedRegionId: region.id,
     updatedAt: ctx.timestamp,
   });
@@ -338,64 +369,33 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
     ctx.db.location.id.update({
       ...sourceEdge,
       terrainType: 'passage',
-      name: `The Passage to ${data.regionName || 'the Beyond'}`,
+      name: `The Passage to ${region.name || 'the Beyond'}`,
       description: `The mists have parted. What was once the edge of the known world is now a well-trodden path between regions. The air still carries a faint shimmer of remembered possibility.`,
     });
   }
 
-  // Place character in the new region if they have no location (first region)
+  // Place character on the start location if they have no location (first region)
   const character = ctx.db.character.id.find(currentGenState.characterId);
   if (character && character.locationId === 0n) {
-    let homeLocation: any = null;
-    for (const loc of ctx.db.location.iter()) {
-      if (loc.regionId === region.id && loc.isSafe && loc.terrainType !== 'uncharted') {
-        homeLocation = loc;
-        break;
-      }
-    }
-    if (!homeLocation) {
-      for (const loc of ctx.db.location.iter()) {
-        if (loc.regionId === region.id && loc.terrainType !== 'uncharted') {
-          homeLocation = loc;
-          break;
-        }
-      }
-    }
-    if (homeLocation) {
-      ctx.db.character.id.update({
-        ...ctx.db.character.id.find(character.id),
-        locationId: homeLocation.id,
-        boundLocationId: homeLocation.id,
-      });
-      ensureSpawnsForLocation(ctx, homeLocation.id);
+    ctx.db.character.id.update({
+      ...ctx.db.character.id.find(character.id),
+      locationId: startLocation.id,
+      boundLocationId: startLocation.id,
+    });
+    ensureSpawnsForLocation(ctx, startLocation.id);
 
-      const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
-      const locationNpcs: { name: string; gender: NpcGender }[] = [];
-      for (const npc of ctx.db.npc.iter()) {
-        if (npc.locationId === homeLocation.id) {
-          locationNpcs.push({ name: npc.name, gender: npcGender(npc) });
-        }
-      }
-      const nearbySet = new Set<string>();
-      for (const conn of ctx.db.location_connection.by_from.filter(homeLocation.id)) {
-        const loc = ctx.db.location.id.find(conn.toLocationId);
-        if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
-      }
-      for (const conn of ctx.db.location_connection.by_to.filter(homeLocation.id)) {
-        const loc = ctx.db.location.id.find(conn.fromLocationId);
-        if (loc && loc.terrainType !== 'uncharted') nearbySet.add(loc.name);
-      }
-      const nearbyLocations = [...nearbySet];
-
-      let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${data.regionName}.\n\n${regionDesc}`;
-      if (locationNpcs.length > 0) {
-        arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
-      }
-      if (nearbyLocations.length > 0) {
-        arrivalMsg += `\n\nPaths lead to ${nearbyLocations.join(', ')}. Try [look] to examine your surroundings, or [travel] to move.`;
-      }
-      appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', arrivalMsg);
+    const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
+    const locationNpcs: { name: string; gender: NpcGender }[] = [];
+    for (const npc of ctx.db.npc.by_location.filter(startLocation.id)) {
+      locationNpcs.push({ name: npc.name, gender: npcGender(npc) });
     }
+
+    let arrivalMsg = `You open your eyes in ${startLocation.name}, ${region.name}.\n\n${regionDesc}`;
+    if (locationNpcs.length > 0) {
+      arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
+    }
+    arrivalMsg += `\n\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.`;
+    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', arrivalMsg);
   }
 
   // Read source region name for ripple message
@@ -407,7 +407,61 @@ export function applyWorldGenResult(ctx: any, job: ApplyJob, resultText: string)
 
   if (character) {
     appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
-      pickDiscoveryMessage(data.regionName, ctx.timestamp.microsSinceUnixEpoch));
+      pickDiscoveryMessage(region.name, ctx.timestamp.microsSinceUnixEpoch));
+    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
+      WORLD_START_MILESTONE_LINE);
+  }
+
+  // Stage 2, in this same transaction: FILLING with one pending job, or FILL_ERROR when refused
+  startWorldFill(ctx, ctx.db.world_gen_state.id.find(genStateId));
+}
+
+/**
+ * world_gen success (stage 2 of world generation, Phase 43): the rest of the region around the
+ * stage-1 start location. Only a FILLING state is touched. A malformed reply, or one without a
+ * locations array, fails the fill (FILL_ERROR) and leaves every stage-1 row as it was.
+ */
+export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string): void {
+  const context = job.contextJson ? JSON.parse(job.contextJson) : {};
+  const genStateId = BigInt(context.genStateId);
+  const currentGenState = ctx.db.world_gen_state.id.find(genStateId);
+  if (!currentGenState || currentGenState.step !== 'FILLING') return;
+
+  let data: any;
+  try {
+    data = extractJson(resultText);
+  } catch (parseErr) {
+    console.error(`World fill JSON parse error: ${parseErr}`);
+    failWorldFill(ctx, currentGenState, WORLD_FILL_FAILED_MESSAGE);
+    return;
+  }
+  if (!data || !Array.isArray(data.locations)) {
+    failWorldFill(ctx, currentGenState, WORLD_FILL_FAILED_MESSAGE);
+    return;
+  }
+
+  const region = currentGenState.generatedRegionId != null
+    ? ctx.db.region.id.find(currentGenState.generatedRegionId)
+    : undefined;
+  const startLocation = region ? findRegionStart(ctx, region.id) : null;
+  if (!region || !startLocation) {
+    failWorldFill(ctx, currentGenState, WORLD_FILL_FAILED_MESSAGE);
+    return;
+  }
+
+  writeRegionFill(ctx, data, currentGenState, region, startLocation);
+
+  ctx.db.world_gen_state.id.update({
+    ...currentGenState,
+    step: 'COMPLETE',
+    errorMessage: undefined,
+    updatedAt: ctx.timestamp,
+  });
+
+  const character = ctx.db.character.id.find(currentGenState.characterId);
+  if (character) {
+    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
+      worldFillCompleteLine(region.name));
   }
 }
 
@@ -889,8 +943,10 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
 export function applyLlmResult(ctx: any, job: ApplyJob, resultText: string): void {
   if (job.domain === 'creation_race' || job.domain === 'creation_class') {
     applyCreationResult(ctx, job, resultText);
+  } else if (job.domain === 'world_gen_start') {
+    applyWorldStartResult(ctx, job, resultText);
   } else if (job.domain === 'world_gen') {
-    applyWorldGenResult(ctx, job, resultText);
+    applyWorldFillResult(ctx, job, resultText);
   } else if (job.domain === 'skill_gen') {
     applySkillGenResult(ctx, job, resultText);
   } else if (job.domain === 'npc_conversation') {

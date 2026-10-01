@@ -6452,49 +6452,362 @@ exports[`llm apply skill_gen success > unparseable text writes the grimace messa
 }"
 `;
 
-exports[`llm apply world_gen failure path > routes the message to the creation events when the character has no location yet 1`] = `
+exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (COMPLETE) is left alone 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "event_creation": [
+  "location": [
     {
-      "createdAt": "ts:1700000000000000n",
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
       "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
     }
   ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
-      "updatedAt": "ts:1700000000000000n"
+      "step": "COMPLETE",
+      "updatedAt": "ts:1600000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen failure path > routes to the creation events when the character row is gone 1`] = `
+exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (ERROR) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (FILL_ERROR) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (GENERATING) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "GENERATING",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (PENDING) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "PENDING",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen (fill) failure path > routes the message to the creation events when the character row is gone 1`] = `
 "{
   "character": [],
   "event_creation": [
@@ -6502,37 +6815,86 @@ exports[`llm apply world_gen failure path > routes to the creation events when t
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
     }
   ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
+      "step": "FILL_ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen failure path > sets the state to ERROR and tells a placed character through a private system event 1`] = `
+exports[`llm apply world_gen (fill) failure path > sets the state to FILL_ERROR, adds the banker and tells a placed character through a private system event 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "100n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
+      "level": "1n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
@@ -6545,33 +6907,82 @@ exports[`llm apply world_gen failure path > sets the state to ERROR and tells a 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
       "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
     }
   ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
+      "step": "FILL_ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen failure path > writes nothing when the generation state is gone 1`] = `
+exports[`llm apply world_gen (fill) failure path > writes nothing when the generation state is gone 1`] = `
 "{
   "world_gen_state": []
 }"
 `;
 
-exports[`llm apply world_gen success > QUIRK: a missing character still gets the region written, but no private events and no starter mark 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing character still gets the fill written, but no private events 1`] = `
 "{
   "character": [],
   "enemy_ability": [
@@ -6658,14 +7069,6 @@ exports[`llm apply world_gen success > QUIRK: a missing character still gets the
       "xpReward": "25n"
     }
   ],
-  "event_world": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "world",
-      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
-    }
-  ],
   "location": [
     {
       "bindStone": true,
@@ -6718,14 +7121,14 @@ exports[`llm apply world_gen success > QUIRK: a missing character still gets the
   ],
   "location_connection": [
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "1n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "2n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
       "fromLocationId": "2n",
@@ -6779,17 +7182,17 @@ exports[`llm apply world_gen success > QUIRK: a missing character still gets the
       "locationId": "1n",
       "name": "Vessa",
       "npcType": "vendor",
-      "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+      "personalityJson": "{}"
     },
     {
-      "description": "A mysterious figure.",
-      "gender": "female",
-      "greeting": "Greetings, traveler.",
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
       "id": "2n",
       "locationId": "1n",
       "name": "Old Brann",
       "npcType": "lore",
-      "personalityJson": "{\\"traits\\":[\\"reserved\\"],\\"speechPattern\\":\\"speaks plainly\\",\\"knowledgeDomains\\":[\\"local area\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
@@ -6813,6 +7216,7 @@ exports[`llm apply world_gen success > QUIRK: a missing character still gets the
       "landmarks": "[\\"The Slag Spire\\"]",
       "name": "Cinderfall",
       "regionType": "generated",
+      "starterForRace": "ashkin",
       "threats": "[\\"ember wolves\\"]"
     }
   ],
@@ -6832,27 +7236,66 @@ exports[`llm apply world_gen success > QUIRK: a missing character still gets the
 }"
 `;
 
-exports[`llm apply world_gen success > QUIRK: a state in step COMPLETE returns silently 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a state in step COMPLETE returns silently 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -6864,27 +7307,66 @@ exports[`llm apply world_gen success > QUIRK: a state in step COMPLETE returns s
 }"
 `;
 
-exports[`llm apply world_gen success > QUIRK: a state in step ERROR returns silently 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a state in step ERROR returns silently 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -6896,27 +7378,208 @@ exports[`llm apply world_gen success > QUIRK: a state in step ERROR returns sile
 }"
 `;
 
-exports[`llm apply world_gen success > QUIRK: a state in step PENDING returns silently 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a state in step FILL_ERROR returns silently 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a state in step GENERATING returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "GENERATING",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a state in step PENDING returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -6928,49 +7591,180 @@ exports[`llm apply world_gen success > QUIRK: a state in step PENDING returns si
 }"
 `;
 
-exports[`llm apply world_gen success > a missing regionName ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > a FILLING state whose stored region is gone fails the fill instead of throwing 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "event_creation": [
+  "event_private": [
     {
+      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "kind": "system",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "ownerUserId": "7n"
     }
   ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
+      "step": "FILL_ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen success > accepts a code-fenced reply 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > a locations value that is not an array fails the fill and keeps stage 1 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced reply 1`] = `
 "{
   "character": [
     {
@@ -7076,25 +7870,9 @@ exports[`llm apply world_gen success > accepts a code-fenced reply 1`] = `
       "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
       "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "message": "The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.",
       "ownerUserId": "7n"
-    }
-  ],
-  "event_world": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "world",
-      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
   "location": [
@@ -7149,14 +7927,14 @@ exports[`llm apply world_gen success > accepts a code-fenced reply 1`] = `
   ],
   "location_connection": [
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "1n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "2n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
       "fromLocationId": "2n",
@@ -7210,17 +7988,17 @@ exports[`llm apply world_gen success > accepts a code-fenced reply 1`] = `
       "locationId": "1n",
       "name": "Vessa",
       "npcType": "vendor",
-      "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+      "personalityJson": "{}"
     },
     {
-      "description": "A mysterious figure.",
-      "gender": "female",
-      "greeting": "Greetings, traveler.",
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
       "id": "2n",
       "locationId": "1n",
       "name": "Old Brann",
       "npcType": "lore",
-      "personalityJson": "{\\"traits\\":[\\"reserved\\"],\\"speechPattern\\":\\"speaks plainly\\",\\"knowledgeDomains\\":[\\"local area\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     },
     {
       "description": "A meticulous figure who guards your valuables with obsessive precision.",
@@ -7264,143 +8042,229 @@ exports[`llm apply world_gen success > accepts a code-fenced reply 1`] = `
 }"
 `;
 
-exports[`llm apply world_gen success > an empty locations array ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > an empty locations array is still a usable fill (services and boundary on the start location) 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "event_creation": [
+  "enemy_ability": [
     {
+      "abilityKey": "slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "6n",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "6n",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    }
+  ],
+  "enemy_role_template": [
+    {
+      "abilityProfile": "melee",
+      "displayName": "Ember Wolf",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "role": "melee",
+      "roleDetail": "melee",
+      "roleKey": "melee"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Slag Caster",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    }
+  ],
+  "enemy_template": [
+    {
+      "abilityProfile": "melee",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "2n",
+      "groupMin": "1n",
+      "id": "1n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Ember Wolf",
+      "role": "melee",
+      "roleDetail": "melee",
+      "socialGroup": "Ember Wolf",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "2n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Slag Caster",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Slag Caster",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "kind": "system",
+      "message": "The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
+      "id": "2n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "The Edge Beyond Cinderfall",
+      "regionId": "1n",
+      "terrainType": "uncharted",
+      "zone": "Uncharted"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "1n",
+      "id": "1n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "2n",
+      "id": "2n",
+      "toLocationId": "1n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "Old Brann",
+      "npcType": "lore",
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "3n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "dominantFaction": "Ash Court",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "landmarks": "[\\"The Slag Spire\\"]",
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin",
+      "threats": "[\\"ember wolves\\"]"
     }
   ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
+      "step": "COMPLETE",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen success > an empty regionName ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > invalid JSON fails the fill: state FILL_ERROR, every stage-1 row intact, one private line naming [explore] 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "ERROR",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ]
-}"
-`;
-
-exports[`llm apply world_gen success > invalid JSON fails the generation: state ERROR, creation_error for a character without a location 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "0n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "1n",
-      "locationId": "0n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "ERROR",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ]
-}"
-`;
-
-exports[`llm apply world_gen success > invalid JSON fails through a private system event for a placed character 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "0n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "1n",
-      "locationId": "100n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
@@ -7413,79 +8277,456 @@ exports[`llm apply world_gen success > invalid JSON fails through a private syst
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
       "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
     }
   ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
+      "step": "FILL_ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen success > no locations key ends in ERROR with the "incomplete" message 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > never renames or duplicates stage-1 content 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "0n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "0n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "event_creation": [
+  "enemy_ability": [
     {
+      "abilityKey": "slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "6n",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "6n",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    }
+  ],
+  "enemy_role_template": [
+    {
+      "abilityProfile": "melee",
+      "displayName": "Ember Wolf",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "role": "melee",
+      "roleDetail": "melee",
+      "roleKey": "melee"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Slag Caster",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    }
+  ],
+  "enemy_template": [
+    {
+      "abilityProfile": "melee",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "2n",
+      "groupMin": "1n",
+      "id": "1n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Ember Wolf",
+      "role": "melee",
+      "roleDetail": "melee",
+      "socialGroup": "Ember Wolf",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "2n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Slag Caster",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Slag Caster",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "kind": "system",
+      "message": "The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A cracked road.",
+      "id": "2n",
+      "isSafe": false,
+      "levelOffset": "0n",
+      "name": "Slag Road",
+      "regionId": "1n",
+      "terrainType": "plains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A smoking crater.",
+      "id": "3n",
+      "isSafe": false,
+      "levelOffset": "1n",
+      "name": "Ashen Pit",
+      "regionId": "1n",
+      "terrainType": "mountains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
+      "id": "4n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "The Edge Beyond Cinderfall",
+      "regionId": "1n",
+      "terrainType": "uncharted",
+      "zone": "Uncharted"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "2n",
+      "id": "1n",
+      "toLocationId": "1n"
+    },
+    {
+      "fromLocationId": "1n",
+      "id": "2n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "2n",
+      "id": "3n",
+      "toLocationId": "3n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "4n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "5n",
+      "toLocationId": "4n"
+    },
+    {
+      "fromLocationId": "4n",
+      "id": "6n",
+      "toLocationId": "3n"
+    }
+  ],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "1n",
+      "id": "2n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "3n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "4n",
+      "locationId": "3n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "Old Brann",
+      "npcType": "lore",
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "3n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "dominantFaction": "Ash Court",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "landmarks": "[\\"The Slag Spire\\"]",
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin",
+      "threats": "[\\"ember wolves\\"]"
     }
   ],
   "world_gen_state": [
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "generatedRegionId": "1n",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "ERROR",
+      "step": "COMPLETE",
       "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
 `;
 
-exports[`llm apply world_gen success > non-starter region: raises danger from the source, clamps enemy levels, turns the uncharted edge into a passage 1`] = `
+exports[`llm apply world_gen success (stage 2, the fill) > no locations key fails the fill and keeps stage 1 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "100n",
+      "boundLocationId": "1n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
-      "level": "3n",
-      "locationId": "50n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: clamps enemy levels from the stored region danger 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
@@ -7556,15 +8797,15 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
   "enemy_template": [
     {
       "abilityProfile": "melee",
-      "armorClass": "10n",
+      "armorClass": "12n",
       "awareness": "normal",
-      "baseDamage": "17n",
+      "baseDamage": "20n",
       "creatureType": "beast",
       "groupMax": "3n",
       "groupMin": "1n",
       "id": "1n",
-      "level": "4n",
-      "maxHp": "68n",
+      "level": "5n",
+      "maxHp": "80n",
       "name": "Way Too Big",
       "role": "melee",
       "roleDetail": "melee",
@@ -7572,19 +8813,19 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "socialRadius": "0n",
       "terrainTypes": "plains",
       "timeOfDay": "any",
-      "xpReward": "70n"
+      "xpReward": "85n"
     },
     {
       "abilityProfile": "ranged",
-      "armorClass": "6n",
+      "armorClass": "8n",
       "awareness": "normal",
-      "baseDamage": "11n",
+      "baseDamage": "14n",
       "creatureType": "beast",
       "groupMax": "3n",
       "groupMin": "1n",
       "id": "2n",
-      "level": "2n",
-      "maxHp": "44n",
+      "level": "3n",
+      "maxHp": "56n",
       "name": "Way Too Small",
       "role": "ranged",
       "roleDetail": "ranged",
@@ -7592,19 +8833,19 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "socialRadius": "0n",
       "terrainTypes": "plains",
       "timeOfDay": "any",
-      "xpReward": "40n"
+      "xpReward": "55n"
     },
     {
       "abilityProfile": "melee",
-      "armorClass": "8n",
+      "armorClass": "10n",
       "awareness": "normal",
-      "baseDamage": "14n",
+      "baseDamage": "17n",
       "creatureType": "beast",
       "groupMax": "3n",
       "groupMin": "1n",
       "id": "3n",
-      "level": "3n",
-      "maxHp": "56n",
+      "level": "4n",
+      "maxHp": "68n",
       "name": "Just Right",
       "role": "melee",
       "roleDetail": "melee",
@@ -7612,7 +8853,1597 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "socialRadius": "0n",
       "terrainTypes": "plains",
       "timeOfDay": "any",
-      "xpReward": "55n"
+      "xpReward": "70n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A cracked road.",
+      "id": "2n",
+      "isSafe": false,
+      "levelOffset": "0n",
+      "name": "Slag Road",
+      "regionId": "1n",
+      "terrainType": "plains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A smoking crater.",
+      "id": "3n",
+      "isSafe": false,
+      "levelOffset": "1n",
+      "name": "Ashen Pit",
+      "regionId": "1n",
+      "terrainType": "mountains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
+      "id": "4n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "The Edge Beyond Cinderfall",
+      "regionId": "1n",
+      "terrainType": "uncharted",
+      "zone": "Uncharted"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "2n",
+      "id": "1n",
+      "toLocationId": "1n"
+    },
+    {
+      "fromLocationId": "1n",
+      "id": "2n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "2n",
+      "id": "3n",
+      "toLocationId": "3n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "4n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "5n",
+      "toLocationId": "4n"
+    },
+    {
+      "fromLocationId": "4n",
+      "id": "6n",
+      "toLocationId": "3n"
+    }
+  ],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "1n",
+      "id": "2n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "3n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "4n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "id": "5n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "id": "6n",
+      "locationId": "3n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "Old Brann",
+      "npcType": "lore",
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "3n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "400n",
+      "dominantFaction": "Ash Court",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "landmarks": "[\\"The Slag Spire\\"]",
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "threats": "[\\"ember wolves\\"]"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "COMPLETE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen success (stage 2, the fill) > returns silently when the generation state is gone 1`] = `
+"{
+  "world_gen_state": []
+}"
+`;
+
+exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of the region around the stage-1 start location, completes the state and posts one line 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "enemy_ability": [
+    {
+      "abilityKey": "slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "6n",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "6n",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    }
+  ],
+  "enemy_role_template": [
+    {
+      "abilityProfile": "melee",
+      "displayName": "Ember Wolf",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "role": "melee",
+      "roleDetail": "melee",
+      "roleKey": "melee"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Slag Caster",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    }
+  ],
+  "enemy_template": [
+    {
+      "abilityProfile": "melee",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "2n",
+      "groupMin": "1n",
+      "id": "1n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Ember Wolf",
+      "role": "melee",
+      "roleDetail": "melee",
+      "socialGroup": "Ember Wolf",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "2n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Slag Caster",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Slag Caster",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A cracked road.",
+      "id": "2n",
+      "isSafe": false,
+      "levelOffset": "0n",
+      "name": "Slag Road",
+      "regionId": "1n",
+      "terrainType": "plains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A smoking crater.",
+      "id": "3n",
+      "isSafe": false,
+      "levelOffset": "1n",
+      "name": "Ashen Pit",
+      "regionId": "1n",
+      "terrainType": "mountains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
+      "id": "4n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "The Edge Beyond Cinderfall",
+      "regionId": "1n",
+      "terrainType": "uncharted",
+      "zone": "Uncharted"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "2n",
+      "id": "1n",
+      "toLocationId": "1n"
+    },
+    {
+      "fromLocationId": "1n",
+      "id": "2n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "2n",
+      "id": "3n",
+      "toLocationId": "3n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "4n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "5n",
+      "toLocationId": "4n"
+    },
+    {
+      "fromLocationId": "4n",
+      "id": "6n",
+      "toLocationId": "3n"
+    }
+  ],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "1n",
+      "id": "2n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "3n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "4n",
+      "locationId": "3n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "Old Brann",
+      "npcType": "lore",
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "3n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "dominantFaction": "Ash Court",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "landmarks": "[\\"The Slag Spire\\"]",
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin",
+      "threats": "[\\"ember wolves\\"]"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "COMPLETE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > a PENDING state is failed too 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > a state already past stage 1 (COMPLETE) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "COMPLETE",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > a state already past stage 1 (ERROR) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > a state already past stage 1 (FILL_ERROR) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > a state already past stage 1 (FILLING) is left alone 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILLING",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > routes the message to the creation events when the character has no location yet 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > routes to the creation events when the character row is gone 1`] = `
+"{
+  "character": [],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > sets the state to ERROR and tells a placed character through a private system event 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start failure path > writes nothing when the generation state is gone 1`] = `
+"{
+  "world_gen_state": []
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: a missing character still gets the region written and the fill started, but no private events and no starter mark 1`] = `
+"{
+  "character": [],
+  "character_creation_state": [],
+  "event_world": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "world",
+      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "_jobs": [
+    "world_gen:pending"
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: a state in step COMPLETE returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "COMPLETE",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: a state in step ERROR returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: a state in step FILL_ERROR returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: a state in step FILLING returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILLING",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: a state in step PENDING returns silently 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "PENDING",
+      "updatedAt": "ts:1600000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gate closed the stage-1 rows stay and the state ends FILL_ERROR with the resting line 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "2n",
+      "kind": "system",
+      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "3n",
+      "kind": "system",
+      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "4n",
+      "kind": "system",
+      "message": "The Keeper is resting. Return later. Type [explore] to try again.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "event_world": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "world",
+      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
+    }
+  ],
+  "llm_job": [],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "player": [],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper is resting. Return later.",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > a missing regionName ends in ERROR with the "incomplete" message 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > a reply without a first NPC writes the region and start location and still starts the fill 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "2n",
+      "kind": "system",
+      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "3n",
+      "kind": "system",
+      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "event_world": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "world",
+      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [],
+  "player": [],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "_jobs": [
+    "world_gen:pending"
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > a startLocation without a name ends in ERROR with the "incomplete" message 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced reply 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "2n",
+      "kind": "system",
+      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "3n",
+      "kind": "system",
+      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "event_world": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "world",
+      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "player": [],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "_jobs": [
+    "world_gen:pending"
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > an empty regionName ends in ERROR with the "incomplete" message 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails the generation: state ERROR, creation_error for a character without a location 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails through a private system event for a placed character 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "system",
+      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > no startLocation ends in ERROR with the "incomplete" message 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "0n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "0n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply world_gen_start success (stage 1) > non-starter region: raises danger from the source, turns the uncharted edge into a passage, connects the start location to it 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "50n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
     }
   ],
   "event_private": [
@@ -7622,6 +10453,14 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "id": "1n",
       "kind": "system",
       "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "2n",
+      "kind": "system",
+      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
       "ownerUserId": "7n"
     }
   ],
@@ -7653,116 +10492,18 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "regionId": "101n",
       "terrainType": "town",
       "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A cracked road.",
-      "id": "52n",
-      "isSafe": false,
-      "levelOffset": "0n",
-      "name": "Slag Road",
-      "regionId": "101n",
-      "terrainType": "plains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A smoking crater.",
-      "id": "53n",
-      "isSafe": false,
-      "levelOffset": "1n",
-      "name": "Ashen Pit",
-      "regionId": "101n",
-      "terrainType": "mountains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
-      "id": "54n",
-      "isSafe": true,
-      "levelOffset": "0n",
-      "name": "The Edge Beyond Cinderfall",
-      "regionId": "101n",
-      "terrainType": "uncharted",
-      "zone": "Uncharted"
     }
   ],
   "location_connection": [
     {
       "fromLocationId": "51n",
       "id": "1n",
-      "toLocationId": "52n"
-    },
-    {
-      "fromLocationId": "52n",
-      "id": "2n",
-      "toLocationId": "51n"
-    },
-    {
-      "fromLocationId": "52n",
-      "id": "3n",
-      "toLocationId": "53n"
-    },
-    {
-      "fromLocationId": "53n",
-      "id": "4n",
-      "toLocationId": "52n"
-    },
-    {
-      "fromLocationId": "51n",
-      "id": "5n",
       "toLocationId": "50n"
     },
     {
       "fromLocationId": "50n",
-      "id": "6n",
-      "toLocationId": "51n"
-    },
-    {
-      "fromLocationId": "53n",
-      "id": "7n",
-      "toLocationId": "54n"
-    },
-    {
-      "fromLocationId": "54n",
-      "id": "8n",
-      "toLocationId": "53n"
-    }
-  ],
-  "location_enemy_template": [
-    {
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "locationId": "52n"
-    },
-    {
-      "enemyTemplateId": "1n",
       "id": "2n",
-      "locationId": "53n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "3n",
-      "locationId": "52n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "4n",
-      "locationId": "53n"
-    },
-    {
-      "enemyTemplateId": "3n",
-      "id": "5n",
-      "locationId": "52n"
-    },
-    {
-      "enemyTemplateId": "3n",
-      "id": "6n",
-      "locationId": "53n"
+      "toLocationId": "51n"
     }
   ],
   "npc": [
@@ -7775,28 +10516,9 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "name": "Vessa",
       "npcType": "vendor",
       "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A mysterious figure.",
-      "gender": "female",
-      "greeting": "Greetings, traveler.",
-      "id": "2n",
-      "locationId": "51n",
-      "name": "Old Brann",
-      "npcType": "lore",
-      "personalityJson": "{\\"traits\\":[\\"reserved\\"],\\"speechPattern\\":\\"speaks plainly\\",\\"knowledgeDomains\\":[\\"local area\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A meticulous figure who guards your valuables with obsessive precision.",
-      "gender": "female",
-      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
-      "id": "3n",
-      "locationId": "51n",
-      "name": "The Ledger Keeper",
-      "npcType": "banker",
-      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
+  "player": [],
   "region": [
     {
       "dangerMultiplier": "300n",
@@ -7806,14 +10528,11 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
     {
       "biome": "volcanic",
       "dangerMultiplier": "367n",
-      "dominantFaction": "Ash Court",
       "generatedByCharacterId": "10n",
       "id": "101n",
       "isGenerated": true,
-      "landmarks": "[\\"The Slag Spire\\"]",
       "name": "Cinderfall",
-      "regionType": "generated",
-      "threats": "[\\"ember wolves\\"]"
+      "regionType": "generated"
     }
   ],
   "world_gen_state": [
@@ -7825,316 +10544,23 @@ exports[`llm apply world_gen success > non-starter region: raises danger from th
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "50n",
       "sourceRegionId": "100n",
-      "step": "COMPLETE",
+      "step": "FILLING",
       "updatedAt": "ts:1700000000000000n"
     }
+  ],
+  "_jobs": [
+    "world_gen:pending"
   ]
 }"
 `;
 
-exports[`llm apply world_gen success > places the character in a non-safe home location when the region has no safe one 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "1n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "1n",
-      "locationId": "1n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "enemy_ability": [
-    {
-      "abilityKey": "slash",
-      "castSeconds": "0n",
-      "cooldownSeconds": "6n",
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "kind": "damage",
-      "name": "Slash",
-      "targetRule": "single_enemy"
-    },
-    {
-      "abilityKey": "bolt",
-      "castSeconds": "2n",
-      "cooldownSeconds": "6n",
-      "enemyTemplateId": "2n",
-      "id": "2n",
-      "kind": "damage",
-      "name": "Bolt",
-      "targetRule": "single_enemy"
-    }
-  ],
-  "enemy_role_template": [
-    {
-      "abilityProfile": "melee",
-      "displayName": "Ember Wolf",
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
-    },
-    {
-      "abilityProfile": "caster",
-      "displayName": "Slag Caster",
-      "enemyTemplateId": "2n",
-      "id": "2n",
-      "role": "caster",
-      "roleDetail": "caster",
-      "roleKey": "caster"
-    }
-  ],
-  "enemy_spawn": [],
-  "enemy_template": [
-    {
-      "abilityProfile": "melee",
-      "armorClass": "4n",
-      "awareness": "normal",
-      "baseDamage": "8n",
-      "creatureType": "beast",
-      "groupMax": "2n",
-      "groupMin": "1n",
-      "id": "1n",
-      "level": "1n",
-      "maxHp": "32n",
-      "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
-      "socialGroup": "Ember Wolf",
-      "socialRadius": "0n",
-      "terrainTypes": "plains",
-      "timeOfDay": "any",
-      "xpReward": "25n"
-    },
-    {
-      "abilityProfile": "caster",
-      "armorClass": "4n",
-      "awareness": "normal",
-      "baseDamage": "8n",
-      "creatureType": "humanoid",
-      "groupMax": "1n",
-      "groupMin": "1n",
-      "id": "2n",
-      "level": "1n",
-      "maxHp": "32n",
-      "name": "Slag Caster",
-      "role": "caster",
-      "roleDetail": "caster",
-      "socialGroup": "Slag Caster",
-      "socialRadius": "0n",
-      "terrainTypes": "mountains",
-      "timeOfDay": "any",
-      "xpReward": "25n"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice The Reluctant Merchant and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
-      "ownerUserId": "7n"
-    }
-  ],
-  "event_world": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "world",
-      "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
-    }
-  ],
-  "location": [
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A sheltered town.",
-      "id": "1n",
-      "isSafe": false,
-      "levelOffset": "0n",
-      "name": "Ember Hollow",
-      "regionId": "1n",
-      "terrainType": "town",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A cracked road.",
-      "id": "2n",
-      "isSafe": false,
-      "levelOffset": "0n",
-      "name": "Slag Road",
-      "regionId": "1n",
-      "terrainType": "plains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A smoking crater.",
-      "id": "3n",
-      "isSafe": false,
-      "levelOffset": "1n",
-      "name": "Ashen Pit",
-      "regionId": "1n",
-      "terrainType": "mountains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
-      "id": "4n",
-      "isSafe": true,
-      "levelOffset": "0n",
-      "name": "The Edge Beyond Cinderfall",
-      "regionId": "1n",
-      "terrainType": "uncharted",
-      "zone": "Uncharted"
-    }
-  ],
-  "location_connection": [
-    {
-      "fromLocationId": "1n",
-      "id": "1n",
-      "toLocationId": "2n"
-    },
-    {
-      "fromLocationId": "2n",
-      "id": "2n",
-      "toLocationId": "1n"
-    },
-    {
-      "fromLocationId": "2n",
-      "id": "3n",
-      "toLocationId": "3n"
-    },
-    {
-      "fromLocationId": "3n",
-      "id": "4n",
-      "toLocationId": "2n"
-    },
-    {
-      "fromLocationId": "3n",
-      "id": "5n",
-      "toLocationId": "4n"
-    },
-    {
-      "fromLocationId": "4n",
-      "id": "6n",
-      "toLocationId": "3n"
-    }
-  ],
-  "location_enemy_template": [
-    {
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "locationId": "1n"
-    },
-    {
-      "enemyTemplateId": "1n",
-      "id": "2n",
-      "locationId": "2n"
-    },
-    {
-      "enemyTemplateId": "1n",
-      "id": "3n",
-      "locationId": "3n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "4n",
-      "locationId": "1n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "5n",
-      "locationId": "2n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "6n",
-      "locationId": "3n"
-    }
-  ],
-  "npc": [
-    {
-      "description": "A merchant who seems mildly annoyed by the concept of commerce.",
-      "gender": "male",
-      "greeting": "Fine. I suppose you want to buy something. Let us get this over with.",
-      "id": "1n",
-      "locationId": "1n",
-      "name": "The Reluctant Merchant",
-      "npcType": "vendor",
-      "personalityJson": "{\\"traits\\":[\\"reluctant\\",\\"sardonic\\"],\\"speechPattern\\":\\"speaks with weary resignation\\",\\"knowledgeDomains\\":[\\"trade goods\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A meticulous figure who guards your valuables with obsessive precision.",
-      "gender": "female",
-      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
-      "id": "2n",
-      "locationId": "1n",
-      "name": "The Ledger Keeper",
-      "npcType": "banker",
-      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    }
-  ],
-  "player": [],
-  "region": [
-    {
-      "biome": "volcanic",
-      "dangerMultiplier": "100n",
-      "dominantFaction": "Ash Court",
-      "generatedByCharacterId": "10n",
-      "id": "1n",
-      "isGenerated": true,
-      "landmarks": "[\\"The Slag Spire\\"]",
-      "name": "Cinderfall",
-      "regionType": "generated",
-      "starterForRace": "ashkin",
-      "threats": "[\\"ember wolves\\"]"
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "generatedRegionId": "1n",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "COMPLETE",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ]
-}"
-`;
-
-exports[`llm apply world_gen success > returns silently when the generation state is gone 1`] = `
+exports[`llm apply world_gen_start success (stage 1) > returns silently when the generation state is gone 1`] = `
 "{
   "world_gen_state": []
 }"
 `;
 
-exports[`llm apply world_gen success > starter region: writes region, locations, NPCs, enemies, completes the state and places the character 1`] = `
+exports[`llm apply world_gen_start success (stage 1) > starter region: writes the region, start location and first NPC, places the character and starts the fill 1`] = `
 "{
   "character": [
     {
@@ -8151,97 +10577,13 @@ exports[`llm apply world_gen success > starter region: writes region, locations,
       "xp": "0n"
     }
   ],
-  "enemy_ability": [
-    {
-      "abilityKey": "slash",
-      "castSeconds": "0n",
-      "cooldownSeconds": "6n",
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "kind": "damage",
-      "name": "Slash",
-      "targetRule": "single_enemy"
-    },
-    {
-      "abilityKey": "bolt",
-      "castSeconds": "2n",
-      "cooldownSeconds": "6n",
-      "enemyTemplateId": "2n",
-      "id": "2n",
-      "kind": "damage",
-      "name": "Bolt",
-      "targetRule": "single_enemy"
-    }
-  ],
-  "enemy_role_template": [
-    {
-      "abilityProfile": "melee",
-      "displayName": "Ember Wolf",
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
-    },
-    {
-      "abilityProfile": "caster",
-      "displayName": "Slag Caster",
-      "enemyTemplateId": "2n",
-      "id": "2n",
-      "role": "caster",
-      "roleDetail": "caster",
-      "roleKey": "caster"
-    }
-  ],
-  "enemy_template": [
-    {
-      "abilityProfile": "melee",
-      "armorClass": "4n",
-      "awareness": "normal",
-      "baseDamage": "8n",
-      "creatureType": "beast",
-      "groupMax": "2n",
-      "groupMin": "1n",
-      "id": "1n",
-      "level": "1n",
-      "maxHp": "32n",
-      "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
-      "socialGroup": "Ember Wolf",
-      "socialRadius": "0n",
-      "terrainTypes": "plains",
-      "timeOfDay": "any",
-      "xpReward": "25n"
-    },
-    {
-      "abilityProfile": "caster",
-      "armorClass": "4n",
-      "awareness": "normal",
-      "baseDamage": "8n",
-      "creatureType": "humanoid",
-      "groupMax": "1n",
-      "groupMin": "1n",
-      "id": "2n",
-      "level": "1n",
-      "maxHp": "32n",
-      "name": "Slag Caster",
-      "role": "caster",
-      "roleDetail": "caster",
-      "socialGroup": "Slag Caster",
-      "socialRadius": "0n",
-      "terrainTypes": "mountains",
-      "timeOfDay": "any",
-      "xpReward": "25n"
-    }
-  ],
   "event_private": [
     {
       "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nPaths lead to Slag Road. Try [look] to examine your surroundings, or [travel] to move.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
       "ownerUserId": "7n"
     },
     {
@@ -8250,6 +10592,14 @@ exports[`llm apply world_gen success > starter region: writes region, locations,
       "id": "2n",
       "kind": "system",
       "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "ownerUserId": "7n"
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "3n",
+      "kind": "system",
+      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
       "ownerUserId": "7n"
     }
   ],
@@ -8273,96 +10623,6 @@ exports[`llm apply world_gen success > starter region: writes region, locations,
       "regionId": "1n",
       "terrainType": "town",
       "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A cracked road.",
-      "id": "2n",
-      "isSafe": false,
-      "levelOffset": "0n",
-      "name": "Slag Road",
-      "regionId": "1n",
-      "terrainType": "plains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "A smoking crater.",
-      "id": "3n",
-      "isSafe": false,
-      "levelOffset": "1n",
-      "name": "Ashen Pit",
-      "regionId": "1n",
-      "terrainType": "mountains",
-      "zone": "Cinderfall"
-    },
-    {
-      "bindStone": false,
-      "craftingAvailable": false,
-      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
-      "id": "4n",
-      "isSafe": true,
-      "levelOffset": "0n",
-      "name": "The Edge Beyond Cinderfall",
-      "regionId": "1n",
-      "terrainType": "uncharted",
-      "zone": "Uncharted"
-    }
-  ],
-  "location_connection": [
-    {
-      "fromLocationId": "1n",
-      "id": "1n",
-      "toLocationId": "2n"
-    },
-    {
-      "fromLocationId": "2n",
-      "id": "2n",
-      "toLocationId": "1n"
-    },
-    {
-      "fromLocationId": "2n",
-      "id": "3n",
-      "toLocationId": "3n"
-    },
-    {
-      "fromLocationId": "3n",
-      "id": "4n",
-      "toLocationId": "2n"
-    },
-    {
-      "fromLocationId": "3n",
-      "id": "5n",
-      "toLocationId": "4n"
-    },
-    {
-      "fromLocationId": "4n",
-      "id": "6n",
-      "toLocationId": "3n"
-    }
-  ],
-  "location_enemy_template": [
-    {
-      "enemyTemplateId": "1n",
-      "id": "1n",
-      "locationId": "2n"
-    },
-    {
-      "enemyTemplateId": "1n",
-      "id": "2n",
-      "locationId": "3n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "3n",
-      "locationId": "2n"
-    },
-    {
-      "enemyTemplateId": "2n",
-      "id": "4n",
-      "locationId": "3n"
     }
   ],
   "npc": [
@@ -8375,41 +10635,19 @@ exports[`llm apply world_gen success > starter region: writes region, locations,
       "name": "Vessa",
       "npcType": "vendor",
       "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A mysterious figure.",
-      "gender": "female",
-      "greeting": "Greetings, traveler.",
-      "id": "2n",
-      "locationId": "1n",
-      "name": "Old Brann",
-      "npcType": "lore",
-      "personalityJson": "{\\"traits\\":[\\"reserved\\"],\\"speechPattern\\":\\"speaks plainly\\",\\"knowledgeDomains\\":[\\"local area\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    },
-    {
-      "description": "A meticulous figure who guards your valuables with obsessive precision.",
-      "gender": "female",
-      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
-      "id": "3n",
-      "locationId": "1n",
-      "name": "The Ledger Keeper",
-      "npcType": "banker",
-      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
+  "player": [],
   "region": [
     {
       "biome": "volcanic",
       "dangerMultiplier": "100n",
-      "dominantFaction": "Ash Court",
       "generatedByCharacterId": "10n",
       "id": "1n",
       "isGenerated": true,
-      "landmarks": "[\\"The Slag Spire\\"]",
       "name": "Cinderfall",
       "regionType": "generated",
-      "starterForRace": "ashkin",
-      "threats": "[\\"ember wolves\\"]"
+      "starterForRace": "ashkin"
     }
   ],
   "world_gen_state": [
@@ -8421,9 +10659,12 @@ exports[`llm apply world_gen success > starter region: writes region, locations,
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
       "sourceRegionId": "0n",
-      "step": "COMPLETE",
+      "step": "FILLING",
       "updatedAt": "ts:1700000000000000n"
     }
+  ],
+  "_jobs": [
+    "world_gen:pending"
   ]
 }"
 `;
