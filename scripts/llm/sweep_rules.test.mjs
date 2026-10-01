@@ -581,6 +581,27 @@ function functionBody(src, name) {
   return '';
 }
 
+/** The balanced-parenthesis text of every `say(` call (the definition `function say(` is skipped). */
+function sayCalls(src) {
+  const out = [];
+  const re = /(?<!function )\bsay\(/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    let depth = 0;
+    for (let i = m.index + 3; i < src.length; i += 1) {
+      if (src[i] === '(') depth += 1;
+      else if (src[i] === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          out.push(src.slice(m.index, i + 1));
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
+
 const count = (src, re) => (src.match(re) ?? []).length;
 
 describe('the pure modules', () => {
@@ -593,6 +614,8 @@ describe('the pure modules', () => {
 describe('the sweep harness source', () => {
   const skip = !HARNESS_EXISTS;
   const src = HARNESS_EXISTS ? fs.readFileSync(HARNESS_PATH, 'utf8') : '';
+  // Imports and whole-line comments are not code: the header names loadAnthropicKey() and fetch in prose.
+  const code = src.replace(/^import .*$/gm, '').replace(/^\s*\/\/.*$/gm, '');
 
   it.skipIf(skip)('prints through one scrubbing say helper: console.log appears exactly once, inside say', () => {
     expect(count(src, /\bconsole\.(log|info|warn|error|debug)\s*\(/g)).toBe(1);
@@ -610,7 +633,7 @@ describe('the sweep harness source', () => {
   });
 
   it.skipIf(skip)('calls loadAnthropicKey only inside the check-key and paid branches', () => {
-    const calls = count(src.replace(/^import .*$/gm, ''), /\bloadAnthropicKey\s*\(/g);
+    const calls = count(code, /\bloadAnthropicKey\s*\(/g);
     const inBranches = count(functionBody(src, 'runCheckKey'), /\bloadAnthropicKey\s*\(/g) + count(functionBody(src, 'runPaid'), /\bloadAnthropicKey\s*\(/g);
     expect(calls).toBeGreaterThan(0);
     expect(calls).toBe(inBranches);
@@ -618,8 +641,7 @@ describe('the sweep harness source', () => {
   });
 
   it.skipIf(skip)('reaches the network only from the paid call helper, never from dry or check-key', () => {
-    const body = src.replace(/^import .*$/gm, '');
-    expect(count(body, /\bfetch\s*\(/g)).toBe(count(functionBody(src, 'callClaude'), /\bfetch\s*\(/g));
+    expect(count(code, /\bfetch\s*\(/g)).toBe(count(functionBody(src, 'callClaude'), /\bfetch\s*\(/g));
     expect(functionBody(src, 'runDry')).not.toMatch(/\bfetch\s*\(/);
     expect(functionBody(src, 'runCheckKey')).not.toMatch(/\bfetch\s*\(/);
     expect(functionBody(src, 'callClaude')).toMatch(/ANTHROPIC_MESSAGES_URL/);
@@ -634,9 +656,14 @@ describe('the sweep harness source', () => {
   });
 
   it.skipIf(skip)('does not print prompts, replies, headers or bodies', () => {
-    // say() takes only short status text; nothing passes a request body, a reply text or headers to it.
-    for (const line of src.split(/\r?\n/).filter((l) => /\bsay\(/.test(l))) {
-      expect(line).not.toMatch(/bodyText|\.text\b|volatile|routeBlock|headers|apiKey|\bkey\b(?!Present|Needles|Format)/);
+    // Every say(...) call is short status text: no interpolated expression names a key, a request body,
+    // a reply, a prompt layer or headers.
+    const calls = sayCalls(src);
+    expect(calls.length).toBeGreaterThan(5);
+    for (const call of calls) {
+      for (const expr of call.match(/\$\{[^}]*\}/g) ?? []) {
+        expect(expr).not.toMatch(/\b(key|apiKey|bodyText|replyText|replyJson|volatile|routeBlock|headers|body|text|prompt|completion)\b/);
+      }
     }
   });
 
