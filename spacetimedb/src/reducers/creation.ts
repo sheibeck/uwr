@@ -1,6 +1,6 @@
 import { ensureDefaultHotbar } from '../helpers/items';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
-import { startCreationGeneration } from '../helpers/creation_generation';
+import { startCreationGeneration, retryClassFill, CLASS_FILL_PATIENCE_LINE } from '../helpers/creation_generation';
 import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
 
 // Character creation state machine — narrative flow from greeting to character finalization
@@ -14,12 +14,17 @@ const GO_BACK_PATTERNS = [
   'different race', 'different archetype',
 ];
 
-function isGoBackIntent(text: string): boolean {
+function isGoBackIntent(text: string, step?: string): boolean {
   const lower = text.toLowerCase();
-  return GO_BACK_PATTERNS.some(p => lower.includes(p));
+  // At CLASS_FILL_ERROR the Keeper says "say anything and he will try again": "try again" there asks
+  // for the retry (any other go-back phrase still goes back).
+  const patterns = step === 'CLASS_FILL_ERROR' ? GO_BACK_PATTERNS.filter(p => p !== 'try again') : GO_BACK_PATTERNS;
+  return patterns.some(p => lower.includes(p));
 }
 
 function determineGoBackTarget(currentStep: string): string | null {
+  // A failed class fill goes back to the archetype choice (the reveal is discarded with it).
+  if (currentStep === 'CLASS_FILL_ERROR') return 'AWAITING_ARCHETYPE';
   switch (currentStep) {
     case 'AWAITING_ARCHETYPE': return 'AWAITING_RACE';
     case 'GENERATING_CLASS': return 'AWAITING_ARCHETYPE';
@@ -339,6 +344,10 @@ export const registerCreationReducers = (deps: any) => {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is still working. Patience is a virtue you clearly lack, but try anyway.');
       } else if (step === 'AWAITING_ARCHETYPE') {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
+      } else if (step === 'CLASS_FILLING') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is still working out the rest of what you can do. Patience is a virtue you clearly lack, but try anyway.');
+      } else if (step === 'CLASS_FILL_ERROR') {
+        appendCreationEvent(ctx, ctx.sender, 'creation', 'The rest of your abilities slipped away from the Keeper. Say anything and he will try again, or type "go back."');
       } else if (step === 'CLASS_REVEALED') {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
       } else if (step === 'AWAITING_NAME') {
@@ -454,8 +463,8 @@ export const registerCreationReducers = (deps: any) => {
       return;
     }
 
-    // Go-back detection (not allowed during AWAITING_NAME or COMPLETE)
-    if (state.step !== 'AWAITING_NAME' && state.step !== 'CONFIRMING' && state.step !== 'COMPLETE' && state.step !== 'GENERATING_RACE' && state.step !== 'GENERATING_CLASS' && isGoBackIntent(trimmed)) {
+    // Go-back detection (not allowed during AWAITING_NAME, COMPLETE or while a generation runs)
+    if (state.step !== 'AWAITING_NAME' && state.step !== 'CONFIRMING' && state.step !== 'COMPLETE' && state.step !== 'GENERATING_RACE' && state.step !== 'GENERATING_CLASS' && state.step !== 'CLASS_FILLING' && isGoBackIntent(trimmed, state.step)) {
       const goBackTarget = determineGoBackTarget(state.step);
       if (goBackTarget) {
         const thingBeingLost = state.className
@@ -531,6 +540,23 @@ export const registerCreationReducers = (deps: any) => {
         // Waiting for LLM — player shouldn't be submitting input here.
         // The server-side executor is generating; results arrive through character_creation_state.
         appendCreationEvent(ctx, ctx.sender, 'creation', 'I am crafting something that has never existed before. These things take time. Unlike you, I do not rush.');
+        break;
+      }
+
+      case 'CLASS_FILLING': {
+        // Stage 2 of the class is running: the stats and the other abilities are not here yet, so
+        // nothing the player types can change anything (confirmation waits for the fill).
+        appendCreationEvent(ctx, ctx.sender, 'creation', CLASS_FILL_PATIENCE_LINE);
+        break;
+      }
+
+      case 'CLASS_FILL_ERROR': {
+        // Stage 2 failed and the reveal stands: any input retries the fill only (never the reveal).
+        // A refused retry has already posted its refusal or resting line and left CLASS_FILL_ERROR.
+        const outcome = retryClassFill(ctx, state);
+        if (outcome === 'duplicate') {
+          appendCreationEvent(ctx, ctx.sender, 'creation', CLASS_FILL_PATIENCE_LINE);
+        }
         break;
       }
 

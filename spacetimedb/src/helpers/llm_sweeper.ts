@@ -14,10 +14,13 @@
 // - pending past 10 minutes (24 hours for renown_perk_gen): expired with the
 //   reservation and call refunded and the failure message; younger and without a
 //   dispatch row (an orphan, including Phase 40's queued renown jobs): one dispatch
-// - stranded generation locks: a creation step GENERATING_RACE/GENERATING_CLASS or a
+// - stranded generation locks: a creation step GENERATING_RACE/GENERATING_CLASS/CLASS_FILLING or a
 //   world-gen state with no active job for 60 s (its failure message threw, so the job is
 //   terminal but the lock was never released) is released directly with the in-voice "try
 //   again" line, never through applyFailure (a message bug must not keep a lock forever).
+//   The class has two stages: a creation_class_reveal job holds GENERATING_CLASS (released to
+//   AWAITING_ARCHETYPE) and a creation_class job holds CLASS_FILLING (released to the playable
+//   CLASS_FILL_ERROR with the stage-1 class kept, never retried here).
 //   Stage 1 (PENDING/GENERATING, held by a world_gen_start job) degrades to ERROR; stage 2
 //   (FILLING, held by a world_gen job) degrades to the playable FILL_ERROR, never to ERROR,
 //   and the sweeper never retries it (only the player's explore re-enqueues a fill)
@@ -51,6 +54,7 @@ import {
 import { redactSecrets } from './measurement';
 import { applyLlmFailure, failWorldGen, toApplyJob, type ApplyJob } from './llm_apply';
 import { failWorldFill, WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { appendCreationEvent } from './events';
 import { activeLlmJobs } from './llm_queue';
 import { chargeLedgerUnknownBilling, prunePlayerBudgets, releaseLlmReservation } from './llm_budget';
@@ -246,14 +250,20 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
   return report;
 }
 
-/** The creation step each creation route holds, and the step a released lock returns to. */
-const CREATION_LOCKS: Readonly<Record<string, { route: string; back: string }>> = Object.freeze({
-  GENERATING_RACE: { route: 'creation_race', back: 'AWAITING_RACE' },
-  GENERATING_CLASS: { route: 'creation_class', back: 'AWAITING_ARCHETYPE' },
-});
-
 /** The same in-voice lines the per-route failure handling posts. */
 const CREATION_LOCK_RELEASED = 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."';
+
+/**
+ * The creation step each creation route holds, the step a released lock returns to and the line it
+ * posts. The class has two stages (Phase 43, plan 13): the reveal job holds GENERATING_CLASS and
+ * returns to AWAITING_ARCHETYPE; the fill job holds CLASS_FILLING and degrades to CLASS_FILL_ERROR
+ * (the class name, description and first ability stay; only the player's input re-enqueues a fill).
+ */
+const CREATION_LOCKS: Readonly<Record<string, { route: string; back: string; line: string }>> = Object.freeze({
+  GENERATING_RACE: { route: 'creation_race', back: 'AWAITING_RACE', line: CREATION_LOCK_RELEASED },
+  GENERATING_CLASS: { route: 'creation_class_reveal', back: 'AWAITING_ARCHETYPE', line: CREATION_LOCK_RELEASED },
+  CLASS_FILLING: { route: 'creation_class', back: 'CLASS_FILL_ERROR', line: CLASS_FILL_FAILED_LINE },
+});
 const WORLD_GEN_LOCK_RELEASED = 'The Keeper falters. "The world refuses to be remembered right now."';
 
 function genStateIdOf(job: any): string | undefined {
@@ -279,7 +289,7 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
   const worldGenHeld = new Set<string>(); // stage 1: world_gen_start
   const worldFillHeld = new Set<string>(); // stage 2: world_gen
   for (const job of active) {
-    if (job.route === 'creation_race' || job.route === 'creation_class') {
+    if (job.route === 'creation_race' || job.route === 'creation_class_reveal' || job.route === 'creation_class') {
       creationHeld.add(`${job.route}|${job.playerId.toHexString()}`);
     } else if (job.route === 'world_gen_start') {
       const id = genStateIdOf(job);
@@ -298,7 +308,7 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
     if (creationHeld.has(`${lock.route}|${state.playerId.toHexString()}`)) continue;
     try {
       ctx.db.character_creation_state.id.update({ ...state, step: lock.back, updatedAt: ctx.timestamp });
-      appendCreationEvent(ctx, state.playerId, 'creation_error', CREATION_LOCK_RELEASED);
+      appendCreationEvent(ctx, state.playerId, 'creation_error', lock.line);
       released += 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

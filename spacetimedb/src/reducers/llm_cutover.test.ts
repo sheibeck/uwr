@@ -1456,11 +1456,11 @@ describe('staged class reveal (LAT-04)', () => {
     it('a malformed fill reply keeps the reveal at CLASS_FILL_ERROR and a retry is one input away', () => {
       const { proc, reducerCtx } = setup(stateRow('AWAITING_ARCHETYPE'), [
         okJsonReply(REVEAL_JSON),
-        okJsonReply({ nothing: 'useful' }),
+        okJsonReply({ stats: FILL_JSON.stats, abilities: [] }),
       ]);
       submit(reducerCtx, 'Mystic');
       expect(run(proc)).toBe('completed');
-      expect(run(proc)).toBe('completed'); // the call succeeded; the reply was unusable
+      expect(run(proc)).toBe('completed'); // the call succeeded; the reply added no ability
       expect(state(proc)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
       expect(JSON.parse(state(proc).abilities)).toHaveLength(1);
       expect(events(proc).slice(-1)[0].message).toBe(CLASS_FILL_FAILED_LINE);
