@@ -11,15 +11,18 @@ import {
   PROOF_SPEND_MARGIN_MICRO_USD,
   PROOF_STEPS,
   excerpt,
+  heldTodayMicroUsd,
   isTerminalJobStatus,
   nextProofStep,
   proofCharacterName,
   proofEmail,
   shouldStopForSpend,
   summarizeSmoke,
+  todayUtcString,
 } from './proof_rules.mjs';
 import { REPO_ROOT } from './cli.mjs';
 
+// A sample ceiling for the pure spend rule (the real one is the admin-set daily ceiling).
 const CAP = 2_000_000n;
 
 describe('PROOF_STEPS', () => {
@@ -45,6 +48,44 @@ describe('PROOF_STEPS', () => {
     expect(nextProofStep('renown_perk_gen')).toBe('skill_gen');
     expect(nextProofStep('skill_gen')).toBeNull();
     expect(nextProofStep('nonsense')).toBeNull();
+  });
+});
+
+describe('todayUtcString', () => {
+  it('returns the UTC date as YYYY-MM-DD', () => {
+    expect(todayUtcString(Date.UTC(2026, 8, 30, 12, 0, 0))).toBe('2026-09-30');
+    expect(todayUtcString(Date.UTC(2026, 0, 5))).toBe('2026-01-05');
+  });
+
+  it('23:59:59.999 and 00:00:00.000 land on different days', () => {
+    expect(todayUtcString(Date.UTC(2026, 8, 30, 23, 59, 59, 999))).toBe('2026-09-30');
+    expect(todayUtcString(Date.UTC(2026, 9, 1, 0, 0, 0, 0))).toBe('2026-10-01');
+  });
+});
+
+describe('heldTodayMicroUsd', () => {
+  const row = { spendDayUtc: '2026-09-30', daySpentMicroUsd: 700n, phaseReservedMicroUsd: 50n };
+
+  it('adds today spent and the reservations when the ledger day is today', () => {
+    expect(heldTodayMicroUsd(row, '2026-09-30')).toBe(750n);
+  });
+
+  it('counts only the reservations when the ledger day is another day (the counter rolls lazily)', () => {
+    expect(heldTodayMicroUsd(row, '2026-10-01')).toBe(50n);
+    expect(heldTodayMicroUsd({ ...row, spendDayUtc: '' }, '2026-09-30')).toBe(50n);
+  });
+
+  it('accepts integer numbers as well as bigint and always returns a bigint', () => {
+    const held = heldTodayMicroUsd({ spendDayUtc: '2026-09-30', daySpentMicroUsd: 700, phaseReservedMicroUsd: 50 }, '2026-09-30');
+    expect(held).toBe(750n);
+    expect(typeof held).toBe('bigint');
+  });
+
+  it('feeds the spend guard: held reaching ceiling minus margin stops the paid step', () => {
+    const ceiling = 1_000_000n;
+    const held = (spent) => heldTodayMicroUsd({ spendDayUtc: 'd', daySpentMicroUsd: spent, phaseReservedMicroUsd: 0n }, 'd');
+    expect(shouldStopForSpend(held(799_999n), 0n, ceiling, 200_000n)).toBe(false);
+    expect(shouldStopForSpend(held(800_000n), 0n, ceiling, 200_000n)).toBe(true);
   });
 });
 
@@ -180,6 +221,10 @@ describe('the live harness source', () => {
   it('checks the spend ledger before paid steps and has a dry mode', () => {
     expect(harness).toContain('shouldStopForSpend(');
     expect(harness).toContain('PROVE_LIVE_DRY');
+    // Phase 43: the guard reads today's held spend and the daily ceiling, never the retired phase cap.
+    expect(harness).toContain('heldTodayMicroUsd(');
+    expect(harness).toContain('dailyCeilingMicroUsd');
+    expect(harness).not.toContain('phaseCapMicroUsd');
   });
 
   it('never prints the token or the key directly', () => {

@@ -4,8 +4,9 @@
 //   pnpm exec vitest run --config scripts/llm/vitest.live.config.ts                     # paid (Plan 41-16)
 //
 // It drives the REAL player reducers through the generated bindings as the CLI identity (an admin),
-// waits on the player's own job view (my_llm_jobs) and on domain tables, and checks the phase ledger
-// before every paid step. Local server only. The CLI token is obtained in-process and never printed;
+// waits on the player's own job view (my_llm_jobs) and on domain tables, and checks today's held spend
+// against the global daily ceiling before every paid step (Phase 43: the daily ceiling replaces the old
+// phase cap). Local server only. The CLI token is obtained in-process and never printed;
 // every printed or recorded string goes through scrub() and a 120 character cap; prompts,
 // completions, the token and the key are never printed or written.
 //
@@ -25,8 +26,10 @@ import {
   isTerminalJobStatus,
   proofCharacterName,
   proofEmail,
+  heldTodayMicroUsd,
   shouldStopForSpend,
   summarizeSmoke,
+  todayUtcString,
 } from './proof_rules.mjs';
 
 const DRY = process.env.PROVE_LIVE_DRY === '1';
@@ -119,7 +122,8 @@ function statusRows(conn: any): Row[] {
 function statusLine(s: Row): string {
   return (
     `keySet=${s.keySet} keyValid=${s.keyValid} keyLength=${s.keyLength} ` +
-    `spent=${s.phaseSpentMicroUsd} reserved=${s.phaseReservedMicroUsd} cap=${s.phaseCapMicroUsd} ` +
+    `spentToday=${heldTodayMicroUsd({ ...s, phaseReservedMicroUsd: 0n }, todayUtcString(Date.now()))} ` +
+    `reserved=${s.phaseReservedMicroUsd} ceiling=${s.dailyCeilingMicroUsd} enabled=${s.llmEnabled} ` +
     `calls=${s.phaseCalls} inFlight=${s.inFlight}`
   );
 }
@@ -150,7 +154,7 @@ describe('live proof (local server only)', () => {
 
     if (DRY) {
       out('dry mode: no reducer is called. Step plan: ' + PROOF_STEPS.join(' > '));
-      out('spend margin: ' + PROOF_SPEND_MARGIN_MICRO_USD + ' micro-USD under the cap');
+      out('spend margin: ' + PROOF_SPEND_MARGIN_MICRO_USD + ' micro-USD under the daily ceiling');
       session.conn.disconnect();
       return;
     }
@@ -185,11 +189,11 @@ describe('live proof (local server only)', () => {
       return rows(session.conn, 'character').find((c) => c.ownerUserId === me.userId);
     };
 
-    /** The ledger check before every paid step. Returns true when the step may run. */
+    /** The spend check (today's held spend against the daily ceiling) before every paid step. Returns true when the step may run. */
     const paidStep = (step: string): boolean => {
       const s = status();
-      if (shouldStopForSpend(s.phaseSpentMicroUsd, s.phaseReservedMicroUsd, s.phaseCapMicroUsd, PROOF_SPEND_MARGIN_MICRO_USD)) {
-        stopped = `spend guard before ${step}: spent+reserved reached cap minus margin`;
+      if (shouldStopForSpend(heldTodayMicroUsd(s, todayUtcString(Date.now())), 0n, s.dailyCeilingMicroUsd, PROOF_SPEND_MARGIN_MICRO_USD)) {
+        stopped = `spend guard before ${step}: today's held spend reached the daily ceiling minus margin`;
         return false;
       }
       return true;

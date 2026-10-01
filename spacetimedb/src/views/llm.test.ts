@@ -11,7 +11,7 @@ import { LLM_JOB_STATUSES, isSmokeJob, LLM_RESTING_LINE } from '../helpers/llm_q
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
 import { findSecretLeaks } from '../helpers/measurement';
 import { ADMIN_IDENTITIES } from '../data/admin';
-import { LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import { LLM_DAILY_CEILING_DEFAULT_MICRO_USD } from '../data/llm_limits';
 import { registerLlmViews, projectMyLlmJob, MY_LLM_JOB_KEYS, projectAdminLlmStatus, ADMIN_LLM_STATUS_KEYS } from './llm';
 import { registerViews } from './index';
 
@@ -386,7 +386,8 @@ describe('admin_llm_status view', () => {
 
   it('returns the defaults to an admin with no state or ledger yet', () => {
     const v = registeredAdminView();
-    const rows = v.fn({ sender: adminIdent, db: noScanDb({}) });
+    // The shared mock seeds a default state row unless told otherwise, so the missing-row case seeds it empty.
+    const rows = v.fn({ sender: adminIdent, db: noScanDb({ llm_admin_state: [] }) });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual({
       keySet: false,
@@ -399,7 +400,12 @@ describe('admin_llm_status view', () => {
       phaseSpentMicroUsd: 0n,
       phaseReservedMicroUsd: 0n,
       phaseCalls: 0n,
-      phaseCapMicroUsd: 2_000_000n,
+      // Phase 43 replaces the phase cap with the daily ceiling and the kill switch.
+      // A missing state row is halted with a zero ceiling (fails closed).
+      dailyCeilingMicroUsd: 0n,
+      llmEnabled: false,
+      spendDayUtc: '',
+      daySpentMicroUsd: 0n,
       inFlight: 0n,
     });
   });
@@ -419,8 +425,35 @@ describe('admin_llm_status view', () => {
       phaseSpentMicroUsd: 1234n,
       phaseReservedMicroUsd: 567n,
       phaseCalls: 8n,
-      phaseCapMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+      // An older seed without the Phase 43 fields reads the column defaults: enabled, the default ceiling, no day yet.
+      dailyCeilingMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
+      llmEnabled: true,
+      spendDayUtc: '',
+      daySpentMicroUsd: 0n,
       inFlight: 2n,
+    });
+  });
+
+  it('shows the stored kill switch, ceiling and today spend next to the all-time ledger figures', () => {
+    const v = registeredAdminView();
+    const state = adminSeed().llm_admin_state[0];
+    const ledger = adminSeed().llm_spend[0];
+    const rows = v.fn({
+      sender: adminIdent,
+      db: noScanDb(
+        adminSeed({
+          llm_admin_state: [{ ...state, llmEnabled: false, dailyCeilingMicroUsd: 3_500_000n }],
+          llm_spend: [{ ...ledger, dayUtc: '2026-09-30', daySpentMicroUsd: 321n }],
+        }),
+      ),
+    });
+    expect(rows[0]).toMatchObject({
+      llmEnabled: false,
+      dailyCeilingMicroUsd: 3_500_000n,
+      spendDayUtc: '2026-09-30',
+      daySpentMicroUsd: 321n,
+      phaseSpentMicroUsd: 1234n,
+      phaseReservedMicroUsd: 567n,
     });
   });
 
@@ -436,10 +469,13 @@ describe('admin_llm_status view', () => {
     expect(valid({ keySet: false })).toBe(false);
   });
 
-  it('exposes exactly the twelve documented keys', () => {
+  it('exposes exactly the fifteen documented keys', () => {
     const v = registeredAdminView();
     const row = v.fn({ sender: adminIdent, db: noScanDb(adminSeed()) })[0];
-    expect(ADMIN_LLM_STATUS_KEYS).toHaveLength(12);
+    // Phase 43 replaces the phase cap with the daily ceiling and the kill switch: twelve keys became fifteen.
+    expect(ADMIN_LLM_STATUS_KEYS).toHaveLength(15);
+    expect([...ADMIN_LLM_STATUS_KEYS]).not.toContain('phaseCapMicroUsd');
+    expect([...ADMIN_LLM_STATUS_KEYS]).toEqual(expect.arrayContaining(['dailyCeilingMicroUsd', 'llmEnabled', 'spendDayUtc', 'daySpentMicroUsd']));
     expect(Object.keys(row).sort()).toEqual([...ADMIN_LLM_STATUS_KEYS].sort());
     expect(Object.keys(projectAdminLlmStatus(undefined, undefined, 0)).sort()).toEqual([...ADMIN_LLM_STATUS_KEYS].sort());
   });

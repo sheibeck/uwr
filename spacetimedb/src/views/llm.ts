@@ -3,7 +3,7 @@ import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
 import { isKeyValid } from '../helpers/llm_admin_state';
 import { isSmokeJob } from '../helpers/llm_queue';
 import { ADMIN_IDENTITIES } from '../data/admin';
-import { LLM_ADMIN_STATE_ID, LLM_SPEND_ID, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import { LLM_ADMIN_STATE_ID, LLM_SPEND_ID, LLM_DAILY_CEILING_DEFAULT_MICRO_USD } from '../data/llm_limits';
 
 // ============================================================================
 // my_llm_jobs: per-sender projection of the private llm_job table (SEC-01)
@@ -44,6 +44,12 @@ export function projectMyLlmJob(job: any) {
 // the phase ledger singleton (primary-key lookups) and the in_flight jobs
 // (by_status index). It never reads the key table and never scans a table, so
 // no part of the key can reach the output: only set/valid, length and timestamps.
+//
+// Phase 43 replaces the old phase cap with the kill switch (llmEnabled) and the
+// global daily ceiling (dailyCeilingMicroUsd). The phaseSpent/phaseReserved/
+// phaseCalls fields stay as the all-time ledger record. A view has no
+// transaction clock, so spendDayUtc and daySpentMicroUsd are the raw day
+// fields of the ledger: readers compare spendDayUtc with today themselves.
 // ============================================================================
 
 export const ADMIN_LLM_STATUS_KEYS = [
@@ -57,7 +63,10 @@ export const ADMIN_LLM_STATUS_KEYS = [
   'phaseSpentMicroUsd',
   'phaseReservedMicroUsd',
   'phaseCalls',
-  'phaseCapMicroUsd',
+  'dailyCeilingMicroUsd',
+  'llmEnabled',
+  'spendDayUtc',
+  'daySpentMicroUsd',
   'inFlight',
 ] as const;
 
@@ -73,7 +82,11 @@ export function projectAdminLlmStatus(state: any, ledger: any, inFlight: number 
     phaseSpentMicroUsd: ledger?.spentMicroUsd ?? 0n,
     phaseReservedMicroUsd: ledger?.reservedMicroUsd ?? 0n,
     phaseCalls: ledger?.calls ?? 0n,
-    phaseCapMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+    // A missing row is halted with a zero ceiling (it fails closed, like llmGate).
+    dailyCeilingMicroUsd: state ? (state.dailyCeilingMicroUsd ?? LLM_DAILY_CEILING_DEFAULT_MICRO_USD) : 0n,
+    llmEnabled: state ? state.llmEnabled !== false : false,
+    spendDayUtc: ledger?.dayUtc ?? '',
+    daySpentMicroUsd: ledger?.daySpentMicroUsd ?? 0n,
     inFlight: BigInt(inFlight),
   };
 }
@@ -109,7 +122,10 @@ export const registerLlmViews = ({ spacetimedb, t }: ViewDeps) => {
     phaseSpentMicroUsd: t.u64(),
     phaseReservedMicroUsd: t.u64(),
     phaseCalls: t.u64(),
-    phaseCapMicroUsd: t.u64(),
+    dailyCeilingMicroUsd: t.u64(),
+    llmEnabled: t.bool(),
+    spendDayUtc: t.string(),
+    daySpentMicroUsd: t.u64(),
     inFlight: t.u64(),
   });
 

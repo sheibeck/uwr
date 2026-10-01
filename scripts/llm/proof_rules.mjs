@@ -13,14 +13,15 @@ export const PROOF_STEPS = Object.freeze([
   'skill_gen',
 ]);
 
-/** The harness stops before any paid step that would bring spent + reserved within this of the cap ($0.20). */
+/** The harness stops before any paid step that would bring today's held spend within this of the daily ceiling ($0.20). */
 export const PROOF_SPEND_MARGIN_MICRO_USD = 200_000n;
 
 /** Longest piece of player-visible text the harness prints or records. */
 export const PROOF_EXCERPT_MAX = 120;
 
 /**
- * True when the next paid step must not start: spent + reserved has reached (cap - margin).
+ * True when the next paid step must not start: spent + reserved has reached (cap - margin), where the cap is
+ * the global daily ceiling and spent + reserved is today's held spend (see heldTodayMicroUsd).
  * At cap - margin - 1 it is false; at exactly cap - margin it is true. Accepts bigint or integer numbers.
  */
 export function shouldStopForSpend(spent, reserved, cap, margin = PROOF_SPEND_MARGIN_MICRO_USD) {
@@ -82,4 +83,21 @@ export function excerpt(text, max = PROOF_EXCERPT_MAX) {
 export function nextProofStep(current) {
   const i = PROOF_STEPS.indexOf(current);
   return i >= 0 && i + 1 < PROOF_STEPS.length ? PROOF_STEPS[i + 1] : null;
+}
+
+/** The UTC day (YYYY-MM-DD) of a millisecond timestamp. Pure; the harness passes Date.now(). */
+export function todayUtcString(ms) {
+  const d = new Date(Number(ms));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+/**
+ * What the daily ceiling counts for today, from an admin_llm_status row: today's spent (only when the row's
+ * spendDayUtc is today; the counter rolls lazily, so a stale day counts 0) plus every reservation still held.
+ * Accepts bigint or integer numbers and returns a bigint.
+ */
+export function heldTodayMicroUsd(status, todayUtc) {
+  const reserved = BigInt(status?.phaseReservedMicroUsd ?? 0);
+  if (status?.spendDayUtc !== todayUtc) return reserved;
+  return BigInt(status?.daySpentMicroUsd ?? 0) + reserved;
 }
