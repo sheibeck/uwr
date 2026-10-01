@@ -3,6 +3,7 @@ import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { detectPrimarySecondary } from '../data/class_stats';
+import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
@@ -291,6 +292,8 @@ export const registerCommandReducers = (deps: any) => {
       }
       return;
     }
+
+    if (handleLlmAdminCommand(ctx, character, trimmed)) return;
 
     ctx.db.command.insert({
       id: 0n,
