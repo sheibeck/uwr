@@ -12,6 +12,10 @@ import {
   LLM_INDICATOR_ACTIVE_STATUSES,
   LLM_CREATION_CONSOLE_ROUTES,
   LLM_CREATION_ONLY_ROUTES,
+  LLM_PROGRESS_ROTATE_MS,
+  LLM_INDICATOR_POOLS,
+  LLM_INPUT_LOCKING_WORLD_GEN_STEPS,
+  LLM_INPUT_LOCKING_CREATION_STEPS,
 } from './llm_indicator_lines';
 import { LLM_ROUTE_NAMES } from './llm_routes';
 import { KEEPER_BANNED_PHRASES } from './keeper_bible';
@@ -185,6 +189,118 @@ describe('indicator line voice and pronoun rule', () => {
       });
     });
   }
+});
+
+// ============================================================================
+// Progress-line pools (Plan 43-09, LAT-05)
+// ============================================================================
+
+const POOLS_WITH_AT_LEAST_THREE = [
+  'creation_race',
+  'creation_class_reveal',
+  'creation_class',
+  'world_gen_start',
+  'world_gen',
+];
+
+const poolLines: Array<[string, string]> = Object.entries(LLM_INDICATOR_POOLS).flatMap(
+  ([route, pool]) => pool.map((line): [string, string] => [route, line]),
+);
+
+describe('LLM_PROGRESS_ROTATE_MS', () => {
+  it('is five seconds', () => {
+    expect(LLM_PROGRESS_ROTATE_MS).toBe(5000);
+  });
+});
+
+describe('LLM_INDICATOR_POOLS', () => {
+  it('has exactly one key per route in LLM_ROUTE_NAMES', () => {
+    expect(Object.keys(LLM_INDICATOR_POOLS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
+  });
+
+  it('maps silent routes to an empty array', () => {
+    for (const route of LLM_INDICATOR_SILENT_ROUTES) expect(LLM_INDICATOR_POOLS[route]).toEqual([]);
+  });
+
+  it('starts every non-silent pool with the Phase 42 line (rotation 0 is unchanged)', () => {
+    for (const [route, line] of nonNullLines) {
+      expect(LLM_INDICATOR_POOLS[route][0]).toBe(line);
+    }
+  });
+
+  it('gives the staged and creation routes at least three lines', () => {
+    for (const route of POOLS_WITH_AT_LEAST_THREE) {
+      expect(LLM_INDICATOR_POOLS[route].length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('gives every other non-silent route exactly its one Phase 42 line', () => {
+    for (const [route, line] of nonNullLines) {
+      if (POOLS_WITH_AT_LEAST_THREE.includes(route)) continue;
+      expect([...LLM_INDICATOR_POOLS[route]]).toEqual([line]);
+    }
+  });
+
+  it('has unique lines within each pool', () => {
+    for (const [route, pool] of Object.entries(LLM_INDICATOR_POOLS)) {
+      expect(new Set(pool).size, route).toBe(pool.length);
+    }
+  });
+
+  it('is frozen, including every pool', () => {
+    expect(Object.isFrozen(LLM_INDICATOR_POOLS)).toBe(true);
+    for (const pool of Object.values(LLM_INDICATOR_POOLS)) expect(Object.isFrozen(pool)).toBe(true);
+  });
+
+  it('has pool lines to check', () => {
+    expect(poolLines.length).toBeGreaterThan(nonNullLines.length);
+  });
+
+  for (const [route, line] of poolLines) {
+    describe(`${route}: ${line}`, () => {
+      it('starts with The Keeper and ends with three ASCII dots', () => {
+        expect(line.startsWith('The Keeper')).toBe(true);
+        expect(line.endsWith('...')).toBe(true);
+        expect(line.endsWith('....')).toBe(false);
+        expect(line).not.toContain('…');
+      });
+
+      it('has no exclamation mark and no banned phrase', () => {
+        expect(line).not.toContain('!');
+        for (const phrase of KEEPER_BANNED_PHRASES) {
+          expect(line.toLowerCase()).not.toContain(phrase.toLowerCase());
+        }
+      });
+
+      it('never uses it, its, they, them, their, she or her', () => {
+        expect(line).not.toMatch(KEEPER_IT_OR_THEY);
+        expect(line).not.toMatch(NEUTRAL_OR_FEMALE_PRONOUN);
+      });
+
+      it('addresses the player only as you or your', () => {
+        expect(line).not.toMatch(SECOND_PERSON_OTHER);
+      });
+    });
+  }
+});
+
+describe('input-locking step lists (stage 2 never locks input)', () => {
+  it('lists the stage-1 world-gen steps and the creation generating steps only', () => {
+    expect([...LLM_INPUT_LOCKING_WORLD_GEN_STEPS]).toEqual(['PENDING', 'GENERATING']);
+    expect([...LLM_INPUT_LOCKING_CREATION_STEPS]).toEqual(['GENERATING_RACE', 'GENERATING_CLASS']);
+  });
+
+  it('never contains a stage-2 step', () => {
+    for (const step of ['FILLING', 'FILL_ERROR', 'CLASS_FILLING', 'CLASS_FILL_ERROR']) {
+      expect(LLM_INPUT_LOCKING_WORLD_GEN_STEPS).not.toContain(step);
+      expect(LLM_INPUT_LOCKING_CREATION_STEPS).not.toContain(step);
+    }
+  });
+
+  it('is frozen', () => {
+    expect(Object.isFrozen(LLM_INPUT_LOCKING_WORLD_GEN_STEPS)).toBe(true);
+    expect(Object.isFrozen(LLM_INPUT_LOCKING_CREATION_STEPS)).toBe(true);
+  });
 });
 
 describe('module source', () => {
