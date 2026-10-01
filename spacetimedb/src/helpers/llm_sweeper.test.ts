@@ -14,6 +14,7 @@ import { hasLlmDispatch, scheduledMicros } from './llm_schedule';
 import { LLM_SPEND_ID } from '../data/llm_limits';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -658,7 +659,7 @@ describe('stranded generation locks (a lost failure message)', () => {
   ])('a %s creation step whose job ended failed is returned to %s with the try again line', (step, back) => {
     const ctx = makeCtx({ character_creation_state: [creationState(step, NOW - 2n * MIN)] });
     ctx.db.llm_job.insert(
-      jobRow({ route: step === 'GENERATING_RACE' ? 'creation_race' : 'creation_class', status: 'failed', characterId: 0n }),
+      jobRow({ route: step === 'GENERATING_RACE' ? 'creation_race' : 'creation_class_reveal', status: 'failed', characterId: 0n }),
     );
     const report = sweepLlmJobs(ctx, makeDeps());
 
@@ -693,6 +694,102 @@ describe('stranded generation locks (a lost failure message)', () => {
     const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_CLASS', NOW - 30n * SEC)] });
     sweepLlmJobs(ctx, makeDeps());
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_CLASS');
+  });
+
+  // ---- Phase 43 (plan 13, LAT-04): the class has two stages, each held by its own route ----
+  describe('the staged class locks', () => {
+    const REVEALED = {
+      raceName: 'Saltkin',
+      archetype: 'mystic',
+      className: 'Tidecaller',
+      classDescription: 'Speaks to the sea.',
+      abilities: JSON.stringify([{ name: 'Brine Lash' }]),
+    };
+    const classJob = (route: string, status: string, over: Record<string, any> = {}) =>
+      jobRow({ route, status, characterId: 0n, createdAt: ts(NOW - 10n * SEC), ...over });
+
+    it('GENERATING_CLASS with no active creation_class_reveal job goes back to AWAITING_ARCHETYPE with the flicker line', () => {
+      const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_CLASS', NOW - 2n * MIN)] });
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual({ ...ZERO, releasedLocks: 1 });
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+      expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
+        alice,
+        'creation_error',
+        'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."',
+      ]);
+    });
+
+    it.each(['pending', 'in_flight', 'received'])('GENERATING_CLASS with a %s creation_class_reveal job is left alone', (status) => {
+      const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_CLASS', NOW - 30n * MIN)] });
+      ctx.db.llm_job.insert(classJob('creation_class_reveal', status));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('GENERATING_CLASS');
+      expect(appendCreationEvent).not.toHaveBeenCalled();
+    });
+
+    it('GENERATING_CLASS is not held by an active stage-2 creation_class job (that job holds CLASS_FILLING only)', () => {
+      const ctx = makeCtx({ character_creation_state: [creationState('GENERATING_CLASS', NOW - 2n * MIN)] });
+      ctx.db.llm_job.insert(classJob('creation_class', 'in_flight'));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    });
+
+    it('CLASS_FILLING with no active creation_class job becomes CLASS_FILL_ERROR with the failed line and keeps stage 1', () => {
+      const ctx = makeCtx({ character_creation_state: [creationState('CLASS_FILLING', NOW - 2n * MIN, REVEALED)] });
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual({ ...ZERO, releasedLocks: 1 });
+      const s = rows(ctx, 'character_creation_state')[0];
+      expect(s.step).toBe('CLASS_FILL_ERROR');
+      expect(s).toMatchObject({ className: 'Tidecaller', classDescription: 'Speaks to the sea.', raceName: 'Saltkin' });
+      expect(JSON.parse(s.abilities)).toHaveLength(1);
+      expect(appendCreationEvent).toHaveBeenCalledTimes(1);
+      expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([alice, 'creation_error', CLASS_FILL_FAILED_LINE]);
+      // The sweeper never retries: no job was created, and the next sweep finds nothing.
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+    });
+
+    it.each(['pending', 'in_flight', 'received'])('CLASS_FILLING with a %s creation_class job is left alone', (status) => {
+      const ctx = makeCtx({ character_creation_state: [creationState('CLASS_FILLING', NOW - 30n * MIN, REVEALED)] });
+      ctx.db.llm_job.insert(classJob('creation_class', status));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('CLASS_FILLING');
+      expect(appendCreationEvent).not.toHaveBeenCalled();
+    });
+
+    it('CLASS_FILLING is not held by an active stage-1 creation_class_reveal job', () => {
+      const ctx = makeCtx({ character_creation_state: [creationState('CLASS_FILLING', NOW - 2n * MIN, REVEALED)] });
+      ctx.db.llm_job.insert(classJob('creation_class_reveal', 'in_flight'));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('CLASS_FILL_ERROR');
+    });
+
+    it("another identity's active creation_class job does not hold this CLASS_FILLING state", () => {
+      const ctx = makeCtx({ character_creation_state: [creationState('CLASS_FILLING', NOW - 2n * MIN, REVEALED)] });
+      ctx.db.llm_job.insert(classJob('creation_class', 'pending', { playerId: bob }));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('CLASS_FILL_ERROR');
+    });
+
+    it('a CLASS_FILLING lock younger than the grace is left alone', () => {
+      const ctx = makeCtx({ character_creation_state: [creationState('CLASS_FILLING', NOW - 30n * SEC, REVEALED)] });
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe('CLASS_FILLING');
+    });
+
+    it('CLASS_FILL_ERROR, CLASS_REVEALED and AWAITING_ARCHETYPE are never touched', () => {
+      for (const step of ['CLASS_FILL_ERROR', 'CLASS_REVEALED', 'AWAITING_ARCHETYPE']) {
+        const ctx = makeCtx({ character_creation_state: [creationState(step, NOW - HOUR, REVEALED)] });
+        const before = snap(ctx);
+        expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+        expect(snap(ctx)).toBe(before);
+      }
+    });
+
+    it('the sweeper source has no startClassFill or retryClassFill call (it never re-enqueues a fill)', () => {
+      const src = readFileSync(fileURLToPath(new URL('./llm_sweeper.ts', import.meta.url)), 'utf8');
+      const code = src.split('\n').filter((l: string) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+      expect(code).not.toMatch(/(startClassFill|retryClassFill|enqueueLlmJob)\s*\(/);
+    });
   });
 
   it.each(['PENDING', 'GENERATING'])('a %s world-gen state with no active job goes to ERROR with the [explore] line', (step) => {

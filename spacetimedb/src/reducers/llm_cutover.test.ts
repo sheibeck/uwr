@@ -25,6 +25,12 @@ import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { PLAYER_INPUT_MAX_CHARS } from '../data/llm_layers';
 import { STRANDED_CHARACTER_HINT } from './creation';
 import { WORLD_FILL_RETRY_LINE } from '../helpers/world_gen';
+import {
+  CLASS_FILL_FAILED_LINE,
+  CLASS_FILL_PATIENCE_LINE,
+  CLASS_FILL_RETRY_LINE,
+  CLASS_REVEAL_MILESTONE_LINE,
+} from '../helpers/creation_generation';
 import { setLlmEnabled, patchAdminState } from '../helpers/llm_admin_state';
 import { LLM_RESTING_LINE } from '../helpers/llm_queue';
 
@@ -44,7 +50,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown', 'submit_creation_input', 'choose_skill']) {
+  for (const name of ['talk_to_npc', 'apply_level_up', 'request_skill_offer', 'submit_intent', 'grant_test_renown', 'submit_creation_input', 'start_creation', 'choose_skill']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(
@@ -967,12 +973,13 @@ describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
     expect(allRowsMatchSchema(ctx, ['character_creation_state', 'event_creation'])).toEqual([]);
   });
 
-  it('at AWAITING_ARCHETYPE moves to GENERATING_CLASS and enqueues one creation_class job', () => {
+  // Phase 43 stages the class: the small reveal job comes first (the creation_class fill is enqueued by its apply).
+  it('at AWAITING_ARCHETYPE moves to GENERATING_CLASS and enqueues one creation_class_reveal job', () => {
     const ctx = newCtx(creationSeed('AWAITING_ARCHETYPE', { raceName: 'Saltkin', raceNarrative: 'Marsh dwellers.' }));
     submit(ctx, 'Mystic');
 
-    const job = expectEnqueued(ctx, 'creation_class');
-    expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'creation_class', '1:class']);
+    const job = expectEnqueued(ctx, 'creation_class_reveal');
+    expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'creation_class_reveal', '1:class']);
     expect(resolveRouteInput(ctx, job)).toEqual({
       raceName: 'Saltkin',
       raceNarrative: 'Marsh dwellers.',
@@ -1115,6 +1122,351 @@ describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
       expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
       expect(rows(proc, 'character_creation_state')[0].step).toBe('GENERATING_RACE');
       expect(proc.http.calls).toHaveLength(1);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Staged class reveal (43-13, LAT-04)
+// ---------------------------------------------------------------------------
+
+describe('staged class reveal (LAT-04)', () => {
+  const FAKE_KEY = ['sk', '-ant-', 'api03-', 'CLASSSTAGEKEY'.repeat(3)].join('');
+  const T = { microsSinceUnixEpoch: T0 };
+
+  const ability = (name: string, over: Record<string, unknown> = {}) => ({
+    name,
+    description: `${name} description.`,
+    kind: 'damage',
+    targetRule: 'single_enemy',
+    damageType: 'fire',
+    resourceType: 'mana',
+    resourceCost: 15,
+    castSeconds: 1,
+    cooldownSeconds: 6,
+    value1: 12,
+    scaling: 'int',
+    effectType: null,
+    effectMagnitude: null,
+    effectDuration: null,
+    ...over,
+  });
+  const REVEAL_JSON = {
+    className: 'Tidecaller',
+    classDescription: 'Speaks to the sea and is rarely answered.',
+    firstAbility: ability('Brine Lash'),
+  };
+  const FILL_JSON = {
+    stats: {
+      primaryStat: 'int',
+      secondaryStat: 'wis',
+      bonusHp: 4,
+      bonusMana: 20,
+      weaponProficiencies: ['staff'],
+      armorProficiencies: ['cloth'],
+      usesMana: true,
+    },
+    abilities: [ability('Undertow'), ability('Salt Ward')],
+  };
+
+  const okJsonReply = (payload: unknown) => {
+    const reply = JSON.parse(
+      readFileSync(new URL('../helpers/__fixtures__/claude/ok_json.json', import.meta.url), 'utf-8'),
+    );
+    reply.body.content = [{ type: 'text', text: JSON.stringify(payload) }];
+    return reply;
+  };
+  const err529 = () =>
+    JSON.parse(readFileSync(new URL('../helpers/__fixtures__/claude/err_529.json', import.meta.url), 'utf-8'));
+
+  const stateRow = (step: string, over: Record<string, unknown> = {}) => ({
+    id: 1n,
+    playerId: alice,
+    step,
+    raceName: 'Saltkin',
+    raceNarrative: 'Marsh dwellers.',
+    raceBonuses: '{"primary":{"stat":"wis","value":2},"secondary":{"stat":"con","value":1},"flavor":""}',
+    archetype: 'mystic',
+    createdAt: T,
+    updatedAt: T,
+    ...over,
+  });
+  /** A state that holds the stage-1 reveal (name, description, one ability). */
+  const revealedRow = (step: string, over: Record<string, unknown> = {}) =>
+    stateRow(step, {
+      className: 'Tidecaller',
+      classDescription: 'Speaks to the sea and is rarely answered.',
+      abilities: JSON.stringify([ability('Brine Lash')]),
+      ...over,
+    });
+  const seedFor = (row: Record<string, unknown>): Seed => ({ ...playerSeed(), character_creation_state: [row] });
+
+  const submit = (ctx: any, text: string) => handlers.submit_creation_input(ctx, { text });
+  const events = (ctx: any) => rows(ctx, 'event_creation');
+  const messages = (ctx: any): string[] => events(ctx).map((e: any) => e.message);
+  const state = (ctx: any) => rows(ctx, 'character_creation_state')[0];
+
+  const setup = (row: Record<string, unknown>, responses: any[]) => {
+    const proc = createMockProcCtx({
+      seed: { ...seedFor(row), llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: T }] },
+      timestampMicros: T0,
+      responses,
+      strict: true,
+    });
+    const reducerCtx = {
+      db: proc.db,
+      sender: alice,
+      get timestamp() {
+        return proc.ctx.timestamp;
+      },
+    };
+    return { proc, reducerCtx };
+  };
+  const run = (proc: any) => {
+    const dispatch = rows(proc, 'llm_dispatch').shift();
+    return runLlmJob(proc.ctx, dispatch, { nowMs: () => Number(proc.clock.now() / 1000n), log: () => {} });
+  };
+
+  describe('the reducer at the two new steps', () => {
+    it('input at CLASS_FILLING posts the patience line and writes nothing else', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILLING')));
+      const before = { ...state(ctx) };
+      submit(ctx, 'Brine Lash');
+
+      expect(messages(ctx)).toEqual([CLASS_FILL_PATIENCE_LINE]);
+      expect(state(ctx)).toEqual(before);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    });
+
+    it.each(['go back', 'start over', 'try again', 'undo'])(
+      'a "%s" at CLASS_FILLING is not offered as a go-back: patience line, same step',
+      (text) => {
+        const ctx = newCtx(seedFor(revealedRow('CLASS_FILLING')));
+        submit(ctx, text);
+        expect(state(ctx).step).toBe('CLASS_FILLING');
+        expect(messages(ctx)).toEqual([CLASS_FILL_PATIENCE_LINE]);
+        expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      },
+    );
+
+    it('any input at CLASS_FILL_ERROR starts one creation_class job (no reveal job), moves to CLASS_FILLING and posts the retry line', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      submit(ctx, 'ok then');
+
+      const job = expectEnqueued(ctx, 'creation_class');
+      expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'creation_class', '1:class']);
+      const input = resolveRouteInput(ctx, job) as any;
+      expect(input).toMatchObject({ raceName: 'Saltkin', archetype: 'mystic', className: 'Tidecaller' });
+      expect(input.firstAbility).toMatchObject({ name: 'Brine Lash', resourceType: 'mana' });
+      expect(() => buildRouteLayers('creation_class', input)).not.toThrow();
+      expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_class_reveal')).toBe(false);
+      expect(state(ctx)).toMatchObject({ step: 'CLASS_FILLING', className: 'Tidecaller' });
+      expect(JSON.parse(state(ctx).abilities)).toHaveLength(1);
+      expect(messages(ctx)).toEqual([CLASS_FILL_RETRY_LINE]);
+      expect(allRowsMatchSchema(ctx, ['character_creation_state', 'event_creation'])).toEqual([]);
+    });
+
+    it('"try again" at CLASS_FILL_ERROR retries the fill (it is not a go-back there)', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      submit(ctx, 'try again');
+      expectEnqueued(ctx, 'creation_class');
+      expect(state(ctx).step).toBe('CLASS_FILLING');
+      expect(messages(ctx)).toEqual([CLASS_FILL_RETRY_LINE]);
+    });
+
+    it('a second input while the retry runs only gets the patience line (one fill job at a time)', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      submit(ctx, 'ok then');
+      submit(ctx, 'hello?');
+      expectEnqueued(ctx, 'creation_class');
+      expect(messages(ctx)).toEqual([CLASS_FILL_RETRY_LINE, CLASS_FILL_PATIENCE_LINE]);
+    });
+
+    it('with the kill switch off a retry creates no job, stays CLASS_FILL_ERROR and posts the resting line', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      setLlmEnabled(ctx, false);
+      submit(ctx, 'ok then');
+
+      expectNothingReserved(ctx);
+      expect(state(ctx)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
+      expect(events(ctx).map((e: any) => [e.kind, e.message])).toEqual([['creation_error', LLM_RESTING_LINE]]);
+    });
+
+    it('with the daily cost spent a retry stays CLASS_FILL_ERROR with only the refusal line', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      ctx.db.llm_player_budget.insert({
+        id: 0n,
+        playerId: alice,
+        dayUtc: utcDay(ctx.timestamp),
+        reservedMicroUsd: 0n,
+        spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+        calls: 1n,
+      });
+      submit(ctx, 'ok then');
+      expectNothingReserved(ctx);
+      expect(state(ctx).step).toBe('CLASS_FILL_ERROR');
+      expect(messages(ctx)).toEqual([llmRefusalMessage('daily_cost')]);
+    });
+
+    it('"go back" at CLASS_FILL_ERROR asks to confirm going back to AWAITING_ARCHETYPE; yes clears the class fields', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      submit(ctx, 'go back');
+      expect(state(ctx)).toMatchObject({ step: 'CONFIRMING_GO_BACK', goBackTarget: 'AWAITING_ARCHETYPE', previousStep: 'CLASS_FILL_ERROR' });
+      expect(events(ctx)[0].kind).toBe('creation_warning');
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+
+      submit(ctx, 'yes');
+      const s = state(ctx);
+      expect(s.step).toBe('AWAITING_ARCHETYPE');
+      expect(s.className).toBeUndefined();
+      expect(s.classDescription).toBeUndefined();
+      expect(s.abilities).toBeUndefined();
+      expect(s.classStats).toBeUndefined();
+      expect(s.archetype).toBeUndefined();
+      expect(s.raceName).toBe('Saltkin');
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    });
+
+    it('declining the go-back at CLASS_FILL_ERROR restores CLASS_FILL_ERROR with the reveal intact', () => {
+      const ctx = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      submit(ctx, 'go back');
+      submit(ctx, 'no');
+      expect(state(ctx)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
+      expect(JSON.parse(state(ctx).abilities)).toHaveLength(1);
+    });
+
+    it('start_creation resumes CLASS_FILLING and CLASS_FILL_ERROR with their own lines and writes nothing else', () => {
+      const filling = newCtx(seedFor(revealedRow('CLASS_FILLING')));
+      handlers.start_creation(filling, {});
+      expect(messages(filling)).toEqual([
+        'The Keeper is still working out the rest of what you can do. Patience is a virtue you clearly lack, but try anyway.',
+      ]);
+      expect(state(filling).step).toBe('CLASS_FILLING');
+
+      const failed = newCtx(seedFor(revealedRow('CLASS_FILL_ERROR')));
+      handlers.start_creation(failed, {});
+      expect(messages(failed)).toEqual([
+        'The rest of your abilities slipped away from the Keeper. Say anything and he will try again, or type "go back."',
+      ]);
+      expect(state(failed).step).toBe('CLASS_FILL_ERROR');
+      expect(rows(failed, 'llm_job')).toHaveLength(0);
+    });
+
+    it('a state at CLASS_FILLING or CLASS_FILL_ERROR can never be confirmed or named: the ability choice is not reachable', () => {
+      for (const step of ['CLASS_FILLING', 'CLASS_FILL_ERROR']) {
+        const ctx = newCtx(seedFor(revealedRow(step)));
+        submit(ctx, 'Brine Lash');
+        expect(['CLASS_FILLING', 'CLASS_FILL_ERROR']).toContain(state(ctx).step);
+        expect(state(ctx).chosenAbilityIndex).toBeUndefined();
+        expect(state(ctx).characterName).toBeUndefined();
+      }
+    });
+  });
+
+  describe('end to end through the reducers and the executor', () => {
+    it('archetype, reveal, patience while filling, fill, ability choice: the player cannot pass stage 2', () => {
+      const { proc, reducerCtx } = setup(stateRow('AWAITING_ARCHETYPE'), [okJsonReply(REVEAL_JSON), okJsonReply(FILL_JSON)]);
+
+      submit(reducerCtx, 'Mystic');
+      expect(state(proc).step).toBe('GENERATING_CLASS');
+      expect(rows(proc, 'llm_job').map((j: any) => j.route)).toEqual(['creation_class_reveal']);
+
+      // Stage 1 lands: the class identity and the first ability are visible, the fill job is pending.
+      expect(run(proc)).toBe('completed');
+      expect(state(proc)).toMatchObject({ step: 'CLASS_FILLING', className: 'Tidecaller' });
+      expect(JSON.parse(state(proc).abilities).map((a: any) => a.name)).toEqual(['Brine Lash']);
+      expect(rows(proc, 'llm_job').map((j: any) => [j.route, j.status])).toEqual([
+        ['creation_class_reveal', 'completed'],
+        ['creation_class', 'pending'],
+      ]);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+      const reveal = messages(proc).slice(-1)[0];
+      expect(reveal).toContain('Speaks to the sea and is rarely answered.');
+      expect(reveal).toContain('**Tidecaller**');
+      expect(reveal).toContain('Your first ability:');
+      expect(reveal).toContain('Brine Lash');
+      expect(reveal).toContain(CLASS_REVEAL_MILESTONE_LINE);
+      expect(proc.http.calls).toHaveLength(1);
+
+      // Input during CLASS_FILLING cannot reach AWAITING_NAME: patience, nothing changes.
+      submit(reducerCtx, 'Brine Lash');
+      expect(state(proc).step).toBe('CLASS_FILLING');
+      expect(state(proc).chosenAbilityIndex).toBeUndefined();
+      expect(messages(proc).slice(-1)).toEqual([CLASS_FILL_PATIENCE_LINE]);
+      expect(rows(proc, 'llm_job')).toHaveLength(2);
+
+      // Stage 2 lands: three abilities, and only now can one be chosen.
+      expect(run(proc)).toBe('completed');
+      expect(state(proc).step).toBe('CLASS_REVEALED');
+      expect(JSON.parse(state(proc).abilities).map((a: any) => a.name)).toEqual(['Brine Lash', 'Undertow', 'Salt Ward']);
+      expect(JSON.parse(state(proc).classStats)).toMatchObject({ primaryStat: 'int', usesMana: true });
+      expect(messages(proc).slice(-1)[0]).toContain('Choose one.');
+
+      submit(reducerCtx, 'Undertow');
+      expect(state(proc)).toMatchObject({ step: 'AWAITING_NAME', chosenAbilityIndex: 1n });
+      expect(rows(proc, 'llm_job')).toHaveLength(2);
+      expect(proc.http.calls).toHaveLength(2);
+      expect(allRowsMatchSchema(proc, ['character_creation_state', 'event_creation', 'llm_job', 'llm_dispatch'])).toEqual([]);
+    });
+
+    it('a fill that fails keeps the reveal; one input retries the fill only and a scripted reply completes the class', () => {
+      const { proc, reducerCtx } = setup(stateRow('AWAITING_ARCHETYPE'), [
+        okJsonReply(REVEAL_JSON),
+        err529(),
+        okJsonReply(FILL_JSON),
+      ]);
+      submit(reducerCtx, 'Mystic');
+      expect(run(proc)).toBe('completed');
+      expect(run(proc)).toBe('failed');
+
+      expect(state(proc)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
+      expect(JSON.parse(state(proc).abilities)).toHaveLength(1);
+      expect(rows(proc, 'llm_job')).toHaveLength(2); // nothing retried it
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+      const failedLine = events(proc).slice(-1)[0];
+      expect(failedLine).toMatchObject({ kind: 'creation_error', message: CLASS_FILL_FAILED_LINE });
+      expect(proc.http.calls).toHaveLength(2);
+
+      submit(reducerCtx, 'ok then');
+      expect(state(proc).step).toBe('CLASS_FILLING');
+      expect(rows(proc, 'llm_job').map((j: any) => [j.route, j.status])).toEqual([
+        ['creation_class_reveal', 'completed'],
+        ['creation_class', 'failed'],
+        ['creation_class', 'pending'],
+      ]);
+      expect(messages(proc).slice(-1)).toEqual([CLASS_FILL_RETRY_LINE]);
+      expect(state(proc).className).toBe('Tidecaller');
+
+      expect(run(proc)).toBe('completed');
+      expect(state(proc).step).toBe('CLASS_REVEALED');
+      expect(JSON.parse(state(proc).abilities)).toHaveLength(3);
+      expect(proc.http.calls).toHaveLength(3);
+    });
+
+    it('a failed reveal returns to AWAITING_ARCHETYPE and never queues a fill', () => {
+      const { proc, reducerCtx } = setup(stateRow('AWAITING_ARCHETYPE'), [err529()]);
+      submit(reducerCtx, 'Warrior');
+      expect(run(proc)).toBe('failed');
+      expect(state(proc).step).toBe('AWAITING_ARCHETYPE');
+      expect(rows(proc, 'llm_job').map((j: any) => j.route)).toEqual(['creation_class_reveal']);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    });
+
+    it('a malformed fill reply keeps the reveal at CLASS_FILL_ERROR and a retry is one input away', () => {
+      const { proc, reducerCtx } = setup(stateRow('AWAITING_ARCHETYPE'), [
+        okJsonReply(REVEAL_JSON),
+        okJsonReply({ nothing: 'useful' }),
+      ]);
+      submit(reducerCtx, 'Mystic');
+      expect(run(proc)).toBe('completed');
+      expect(run(proc)).toBe('completed'); // the call succeeded; the reply was unusable
+      expect(state(proc)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
+      expect(JSON.parse(state(proc).abilities)).toHaveLength(1);
+      expect(events(proc).slice(-1)[0].message).toBe(CLASS_FILL_FAILED_LINE);
+
+      submit(reducerCtx, 'go on');
+      expect(state(proc).step).toBe('CLASS_FILLING');
     });
   });
 });
