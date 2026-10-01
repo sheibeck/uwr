@@ -94,7 +94,10 @@ export const AdminLlmStatusRow = __t.object("AdminLlmStatusRow", {
   phaseSpentMicroUsd: __t.u64(),
   phaseReservedMicroUsd: __t.u64(),
   phaseCalls: __t.u64(),
-  phaseCapMicroUsd: __t.u64(),
+  dailyCeilingMicroUsd: __t.u64(),
+  llmEnabled: __t.bool(),
+  spendDayUtc: __t.string(),
+  daySpentMicroUsd: __t.u64(),
   inFlight: __t.u64(),
 });
 export type AdminLlmStatusRow = __Infer<typeof AdminLlmStatusRow>;
@@ -783,6 +786,8 @@ export const LlmAdminState = __t.object("LlmAdminState", {
   keyLastCheckOk: __t.bool(),
   lastSmokeAt: __t.option(__t.timestamp()),
   lastSmokeJson: __t.string(),
+  llmEnabled: __t.bool(),
+  dailyCeilingMicroUsd: __t.u64(),
 });
 export type LlmAdminState = __Infer<typeof LlmAdminState>;
 
@@ -868,6 +873,8 @@ export const LlmSpend = __t.object("LlmSpend", {
   reservedMicroUsd: __t.u64(),
   calls: __t.u64(),
   updatedAt: __t.timestamp(),
+  dayUtc: __t.string(),
+  daySpentMicroUsd: __t.u64(),
 });
 export type LlmSpend = __Infer<typeof LlmSpend>;
 

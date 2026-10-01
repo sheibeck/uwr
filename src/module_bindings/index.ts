@@ -136,6 +136,8 @@ import IncrementEventCounterReducer from "./increment_event_counter_reducer";
 import DepositToBankReducer from "./deposit_to_bank_reducer";
 import WithdrawFromBankReducer from "./withdraw_from_bank_reducer";
 import SetApiKeyReducer from "./set_api_key_reducer";
+import LlmSetEnabledReducer from "./llm_set_enabled_reducer";
+import LlmSetDailyCeilingReducer from "./llm_set_daily_ceiling_reducer";
 import LlmSmokeTestReducer from "./llm_smoke_test_reducer";
 import GrantTestPendingLevelReducer from "./grant_test_pending_level_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
@@ -1873,6 +1875,8 @@ const reducersSchema = __reducers(
   __reducerSchema("deposit_to_bank", DepositToBankReducer),
   __reducerSchema("withdraw_from_bank", WithdrawFromBankReducer),
   __reducerSchema("set_api_key", SetApiKeyReducer),
+  __reducerSchema("llm_set_enabled", LlmSetEnabledReducer),
+  __reducerSchema("llm_set_daily_ceiling", LlmSetDailyCeilingReducer),
   __reducerSchema("llm_smoke_test", LlmSmokeTestReducer),
   __reducerSchema("grant_test_pending_level", GrantTestPendingLevelReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),

@@ -21,6 +21,9 @@ export default __t.row({
   phaseSpentMicroUsd: __t.u64().name("phase_spent_micro_usd"),
   phaseReservedMicroUsd: __t.u64().name("phase_reserved_micro_usd"),
   phaseCalls: __t.u64().name("phase_calls"),
-  phaseCapMicroUsd: __t.u64().name("phase_cap_micro_usd"),
+  dailyCeilingMicroUsd: __t.u64().name("daily_ceiling_micro_usd"),
+  llmEnabled: __t.bool().name("llm_enabled"),
+  spendDayUtc: __t.string().name("spend_day_utc"),
+  daySpentMicroUsd: __t.u64().name("day_spent_micro_usd"),
   inFlight: __t.u64().name("in_flight"),
 });
