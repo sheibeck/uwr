@@ -117,6 +117,16 @@ A world that writes itself around its players — every character is unique, eve
 - Tests: server 2161, client 2245.
 - The local live proof and the maincloud checklist are deferred to the user, and Phase 44 picks them up.
 
+**Phase 42 (Client Cutover and Legacy Removal)** is code-complete as of 2026-09-30. Verification is human_needed (browser, visual and live checks deferred by the user).
+
+- The client-trusted `submit_llm_result` and `validate_llm_request` reducers are gone, so no client can submit or forge LLM output.
+- The browser holds no LLM credential or plumbing: `llm-proxy/`, `useLlmProxy`, `useLlm` and the stale `client/` bindings are deleted, and `main.ts` removes any stored `llm_proxy_secret` on load.
+- `pnpm build` now ends with `scripts/check-bundle.mjs`, which fails the build if `dist/` contains a proxy secret, proxy URL, proxy env name or key-shaped string (one `removeItem` of the retired key name is allowed).
+- The narrative console reads only the player's own `my_llm_jobs` view through `useLlmStatus`. Each route shows its Keeper line from `data/llm_indicator_lines.ts` (combat narration and smoke are silent; admin smoke jobs are filtered out), scoped per console, in an always-mounted `role="status"` region. Only creation and world gen lock input.
+- The `llm_task`, `llm_request`, `llm_budget` and `llm_cleanup_tick` tables were dropped locally with two `--break-clients` publishes and an admin purge in between, with no clear; the stored key survived (length 108).
+- The user cleanup and maincloud two-publish steps are in `42-USER-CHECKLIST.md` (user-run only). The old proxy secret is treated as burned.
+- Tests: 2411 across client and server. The code review fixed 4 warnings; per-character indicator binding is deferred (needs a schema change), and `llm_job` retention is a todo.
+
 ## Current Milestone: v2.2 LLM — Claude Engine
 
 **Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
@@ -211,4 +221,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-30 after Phase 41*
+*Last updated: 2026-09-30 after Phase 42*

@@ -53,13 +53,13 @@
 ### Security
 
 - [x] **SEC-01**: No client can read another player's prompts, NPC secrets or LLM outputs. Job and prompt tables are private in SpacetimeDB, and clients see only their own job status through a view.
-- [ ] **SEC-02**: No client can submit or forge LLM results (`submit_llm_result` removed).
-- [ ] **SEC-03**: No LLM credential exists in the browser.
+- [x] **SEC-02**: No client can submit or forge LLM results (`submit_llm_result` removed).
+- [x] **SEC-03**: No LLM credential exists in the browser.
   - `llm-proxy/`, `useLlmProxy` and the proxy env vars are removed.
   - Existing `localStorage.llm_proxy_secret` values are cleared once.
   - The built bundle greps clean.
 - [x] **SEC-04**: The Anthropic credential is held server-side only and is never logged. On go, the API key lives in the private SpacetimeDB `llm_config` table. On no-go, the backend service uses WIF and there is no static Anthropic key; its service-identity secret is covered by the runbook. Key setup and `--clear-database` recovery are documented in a runbook.
-- [ ] **SEC-05**: The old `llm_task`/`llm_request` tables and dead v2.0 pipeline code are removed without `--clear-database`, using a two-publish removal.
+- [x] **SEC-05**: The old `llm_task`/`llm_request` tables and dead v2.0 pipeline code are removed without `--clear-database`, using a two-publish removal.
 
 ### Cost
 
@@ -133,10 +133,10 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | PIPE-08 | Phase 40 | Complete (job enqueued + regression test; the Phase 41 executor sends it to Claude) |
 | PIPE-09 | Phase 41 | Complete |
 | SEC-01 | Phase 40 | Complete (llm_* tables private + own-jobs view; public `npc`/`npc_memory`/`npc_dialog` exposure tracked in todo 2026-09-29-make-npc-secret-and-memory-tables-private; `llm_task` closes in Phase 42) |
-| SEC-02 | Phase 42 | Pending |
-| SEC-03 | Phase 42 | Pending |
+| SEC-02 | Phase 42 | Complete |
+| SEC-03 | Phase 42 | Complete |
 | SEC-04 | Phase 41 | Complete |
-| SEC-05 | Phase 42 | Pending |
+| SEC-05 | Phase 42 | Complete |
 | COST-01 | Phase 41 | Complete |
 | COST-02 | Phase 41 | Complete |
 | COST-03 | Phase 43 | Pending |

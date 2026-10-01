@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: LLM — Claude Engine
-current_phase: 42
-current_phase_name: Client Cutover and Legacy Removal
-status: verifying
-stopped_at: Completed 42-07-PLAN.md
+current_phase: 43
+current_phase_name: Latency Tuning, Staged Generation and Budget
+status: planning
+stopped_at: Phase 42 executed and verified at code level (human items deferred); next Phase 43 planning
 last_updated: "2026-09-30T23:34:28.355Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 42 execution started
@@ -24,13 +24,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-30)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 42 — Client Cutover and Legacy Removal
+**Current focus:** Phase 43 — Latency Tuning, Staged Generation and Budget
 
 ## Current Position
 
-Phase: 42 (Client Cutover and Legacy Removal) — EXECUTING
-Plan: 7 of 7
-Status: Phase complete — ready for verification
+Phase: 43 (Latency Tuning, Staged Generation and Budget) — PLANNING
+Plan: 0/TBD (context gathered; UI-SPEC, research and plans next)
+Status: Phase 42 complete at code level (verification deferred: /gsd-verify-work 42). Phase 41 verification also deferred. Next: plan Phase 43
 Last activity: 2026-09-30 — Phase 42 execution started
 
 Progress: [██████████] 98% (2/6 phases)
@@ -158,8 +158,11 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 | Phase | State | Resume |
 |-------|-------|--------|
 | 41 | verification_deferred_human | /gsd-verify-work 41 |
+| 42 | verification_deferred_human | /gsd-verify-work 42 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
+
+Phase 42 is code-complete and verified at code level (42-VERIFICATION.md: human_needed, 4/4 criteria, no gaps). On 2026-09-30 the user chose to defer the 5 human items in 42-UAT.md and keep going: real-browser secret cleanup, the per-route indicator walk-through, narrow-viewport/screen-reader/reduced-motion checks, the live smoke test, and the user checklist (42-USER-CHECKLIST.md: Worker, OpenAI key, env lines, leftover llm-proxy/ folder, maincloud two-publish).
 
 ## Session Continuity
 
