@@ -22,7 +22,7 @@ import { applyLlmFailure, applyLlmResult } from './llm_apply';
 import { runLlmJob, claimLlmJob, BILLED_FAILURE_CLASSES, type ExecutorDeps } from './llm_executor';
 import { sweepLlmJobs } from './llm_sweeper';
 import { isKeyValid, patchAdminState, setLlmEnabled } from './llm_admin_state';
-import { utcDay } from './llm_budget';
+import { addLedgerSpend, utcDay } from './llm_budget';
 import { retryDelayMs, msToMicros } from './llm_retry';
 import { awardRenown } from './renown';
 import { appendPrivateEvent, appendCreationEvent } from './events';
@@ -167,6 +167,7 @@ function jobRow(over: Record<string, any> = {}): Record<string, any> {
     budgetDay: '',
     applyAttempts: 0n,
     ledgerChargedMicroUsd: 0n,
+    ledgerChargedDayUtc: '',
     ...over,
   };
 }
@@ -1610,7 +1611,47 @@ describe('stale arrival (T-41-08)', () => {
     run(proc, jobId);
     expect(seen.job.status).toBe('expired');
     expect(seen.job.ledgerChargedMicroUsd).toBe(reserved);
+    expect(seen.job.ledgerChargedDayUtc).toBe(utcDay({ microsSinceUnixEpoch: T0 }));
     expect(seen.spent).toBe(reserved);
+  });
+
+  it("a late reply after UTC midnight never takes yesterday's stand-in out of today's figure (review WR-A01)", () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const reserved: bigint = jobOf(proc, jobId).reservedMicroUsd;
+    const todaysSpend = reserved * 3n; // real spend already booked on the new day
+    let chargedDay = '';
+    const originalFetch = proc.ctx.http.fetch.bind(proc.ctx.http);
+    proc.ctx.http.fetch = (url: string, init: any) => {
+      const res = originalFetch(url, init);
+      proc.clock.advance(BigInt(LLM_ROUTES.npc_conversation.timeoutMs) * 1000n + 31_000_000n);
+      proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: () => {}, log: () => {} }));
+      chargedDay = jobOf(proc, jobId).ledgerChargedDayUtc;
+      // Cross UTC midnight; another write rolls the day counter to the new day first.
+      const dayMicros = 86_400_000_000n;
+      proc.clock.advance(dayMicros - (proc.clock.now() % dayMicros) + 1_000_000n);
+      proc.ctx.withTx((tx: any) => addLedgerSpend(tx, todaysSpend));
+      return res;
+    };
+
+    expect(run(proc, jobId)).toBe('stale');
+
+    const today = utcDay({ microsSinceUnixEpoch: proc.clock.now() });
+    expect(chargedDay).toBe(utcDay({ microsSinceUnixEpoch: T0 }));
+    expect(chargedDay).not.toBe(today);
+    // Today's figure is today's real spend plus the real cost: never below it.
+    expect(ledger(proc)).toMatchObject({ dayUtc: today, daySpentMicroUsd: todaysSpend + FIXTURE_COST });
+    // The all-time figure swaps the stand-in for the real cost.
+    expect(ledger(proc).spentMicroUsd).toBe(todaysSpend + FIXTURE_COST);
+    expect(jobOf(proc, jobId)).toMatchObject({ ledgerChargedMicroUsd: 0n, ledgerChargedDayUtc: '' });
+  });
+
+  it('a late reply on the same UTC day swaps the stand-in out of the day figure too', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    sweepMidCall(proc);
+    expect(run(proc, jobId)).toBe('stale');
+    expect(ledger(proc)).toMatchObject({ spentMicroUsd: FIXTURE_COST, daySpentMicroUsd: FIXTURE_COST });
   });
 
   it('a late reply with no usage keeps the conservative charge and adds nothing', () => {

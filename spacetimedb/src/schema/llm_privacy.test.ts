@@ -32,6 +32,7 @@ const JOB_COLUMNS: Record<string, { kind: string; optional?: boolean; primaryKey
   budgetDay: { kind: 'string' },
   applyAttempts: { kind: 'u64' },
   ledgerChargedMicroUsd: { kind: 'u64' }, // review WR-A02: the sweeper's conservative ledger charge
+  ledgerChargedDayUtc: { kind: 'string' }, // review WR-A01 (43): the UTC day that charge was booked on
 };
 
 const LOG_COLUMNS: Record<string, { kind: string; optional?: boolean; primaryKey?: boolean; autoInc?: boolean }> = {

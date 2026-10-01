@@ -268,19 +268,22 @@ export function addLedgerSpend(ctx: any, micro: bigint): void {
 
 /**
  * Take back an earlier ledger charge (floored at zero): the late-arrival swap of a conservative charge.
- * A swap that lands after UTC midnight floors the new day's figure at 0 (the charge was made on the
- * previous day), which can only over-count today, the safe direction. The all-time figure stays exact.
+ * The all-time figure always gives the charge back. Today's figure gives it back only when the charge
+ * was booked today (chargedDayUtc === today): a charge booked on an earlier UTC day was never part of
+ * today's figure, so taking it out of today would under-count today (review WR-A01). An unknown day
+ * ('') is treated as an earlier day, which can only over-count today, the safe direction.
  */
-export function subtractLedgerSpend(ctx: any, micro: bigint): void {
+export function subtractLedgerSpend(ctx: any, micro: bigint, chargedDayUtc: string): void {
   if (micro <= 0n) return;
   const ledger = getPhaseLedger(ctx);
   if (!ledger) return;
-  const day = rolledDay(ledger, utcDay(ctx.timestamp));
+  const today = utcDay(ctx.timestamp);
+  const day = rolledDay(ledger, today);
   ctx.db.llm_spend.id.update({
     ...ledger,
     spentMicroUsd: subFloor(ledger.spentMicroUsd, micro),
     dayUtc: day.dayUtc,
-    daySpentMicroUsd: subFloor(day.daySpentMicroUsd, micro),
+    daySpentMicroUsd: chargedDayUtc === today ? subFloor(day.daySpentMicroUsd, micro) : day.daySpentMicroUsd,
     updatedAt: ctx.timestamp,
   });
 }

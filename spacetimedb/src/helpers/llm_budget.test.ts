@@ -418,10 +418,10 @@ describe('global day counter', () => {
     chargeLedgerUnknownBilling(ctx, job);
     expect(ledger(ctx)).toMatchObject({ spentMicroUsd: R, daySpentMicroUsd: R });
     releaseLlmReservation(ctx, job, { refundCall: true });
-    subtractLedgerSpend(ctx, R);
+    subtractLedgerSpend(ctx, R, '2026-09-30');
     addLedgerSpend(ctx, 123n);
     expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 123n, daySpentMicroUsd: 123n, reservedMicroUsd: 0n });
-    subtractLedgerSpend(ctx, 10_000n);
+    subtractLedgerSpend(ctx, 10_000n, '2026-09-30');
     expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 0n, daySpentMicroUsd: 0n });
   });
 
@@ -430,8 +430,31 @@ describe('global day counter', () => {
       timestampMicros: micros('2026-10-01T00:00:05.000Z'),
       seed: { llm_spend: [todayLedger(900n)] }, // counter belongs to 2026-09-30
     });
-    subtractLedgerSpend(ctx, 400n);
+    subtractLedgerSpend(ctx, 400n, '2026-09-30');
     expect(ledger(ctx)).toMatchObject({ dayUtc: '2026-10-01', daySpentMicroUsd: 0n, spentMicroUsd: 500n });
+  });
+
+  it('review WR-A01: a swap after the ledger already rolled to the new day never takes the old charge out of today', () => {
+    // Day D charged the stand-in R; day D+1 already booked real spend X before the late reply.
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30, seed: { llm_spend: [todayLedger(0n)] } });
+    addLedgerSpend(ctx, R); // the sweeper's stand-in on 2026-09-30
+    const X = 700n;
+    const next = createMockCtx({
+      timestampMicros: micros('2026-10-01T00:00:05.000Z'),
+      seed: { llm_spend: [{ ...ledger(ctx) }] },
+    });
+    addLedgerSpend(next, X); // another write rolls the counter to 2026-10-01
+    expect(ledger(next)).toMatchObject({ dayUtc: '2026-10-01', daySpentMicroUsd: X });
+
+    subtractLedgerSpend(next, R, '2026-09-30'); // the reply arrived: billing is known now
+    addLedgerSpend(next, 123n);
+    expect(ledger(next)).toMatchObject({ dayUtc: '2026-10-01', daySpentMicroUsd: X + 123n, spentMicroUsd: X + 123n });
+  });
+
+  it('review WR-A01: an unknown charge day (rows from before the column) never lowers today', () => {
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30, seed: { llm_spend: [todayLedger(900n)] } });
+    subtractLedgerSpend(ctx, 400n, '');
+    expect(ledger(ctx)).toMatchObject({ dayUtc: '2026-09-30', daySpentMicroUsd: 900n, spentMicroUsd: 500n });
   });
 });
 
@@ -759,14 +782,14 @@ describe('unknown billing and late arrivals', () => {
 
   it('subtractLedgerSpend takes back an earlier charge, floored at zero, and never creates the row', () => {
     const empty = createMockCtx({ timestampMicros: T_2026_09_30 });
-    subtractLedgerSpend(empty, 5n);
+    subtractLedgerSpend(empty, 5n, '2026-09-30');
     expect(rows(empty, 'llm_spend')).toHaveLength(0);
 
     const ctx = createMockCtx({ timestampMicros: T_2026_09_30 });
     addLedgerSpend(ctx, 80n);
-    subtractLedgerSpend(ctx, 30n);
+    subtractLedgerSpend(ctx, 30n, '2026-09-30');
     expect(ledger(ctx).spentMicroUsd).toBe(50n);
-    subtractLedgerSpend(ctx, 500n);
+    subtractLedgerSpend(ctx, 500n, '2026-09-30');
     expect(ledger(ctx).spentMicroUsd).toBe(0n);
   });
 
@@ -775,7 +798,7 @@ describe('unknown billing and late arrivals', () => {
     const job = reservedJob(ctx);
     chargeLedgerUnknownBilling(ctx, job); // the sweeper's stand-in
     releaseLlmReservation(ctx, job, { refundCall: true });
-    subtractLedgerSpend(ctx, R); // the reply arrived: billing is known now
+    subtractLedgerSpend(ctx, R, '2026-09-30'); // the reply arrived: billing is known now
     addLedgerSpend(ctx, 123n);
     expect(ledger(ctx).spentMicroUsd).toBe(123n);
     expect(ledger(ctx).reservedMicroUsd).toBe(0n);

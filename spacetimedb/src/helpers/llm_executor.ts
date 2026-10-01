@@ -395,9 +395,15 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: Executor
       // With no usage the stand-in stays (the call was still billed), and nothing is added.
       const charged: bigint = job && job.attempt === c.attempt ? (job.ledgerChargedMicroUsd ?? 0n) : 0n;
       if (charged > 0n && !usageMissing) {
-        subtractLedgerSpend(tx, charged);
+        // Today's figure gives the charge back only when it was booked today (review WR-A01).
+        subtractLedgerSpend(tx, charged, job.ledgerChargedDayUtc ?? '');
         addLedgerSpend(tx, realCost);
-        tx.db.llm_job.id.update({ ...job, ledgerChargedMicroUsd: 0n, costMicroUsd: job.costMicroUsd + realCost });
+        tx.db.llm_job.id.update({
+          ...job,
+          ledgerChargedMicroUsd: 0n,
+          ledgerChargedDayUtc: '',
+          costMicroUsd: job.costMicroUsd + realCost,
+        });
       } else if (charged === 0n) {
         addLedgerSpend(tx, realCost);
       }

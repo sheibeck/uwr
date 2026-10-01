@@ -65,6 +65,7 @@ describe('rowColumnProblems', () => {
     budgetDay: '',
     applyAttempts: 0n,
     ledgerChargedMicroUsd: 0n,
+    ledgerChargedDayUtc: '',
   };
   const withExtras = {
     ...validJobRow,
@@ -179,6 +180,7 @@ describe('llm_run and llm_sweep registration (PIPE-09, PIPE-05)', () => {
     budgetDay: '',
     applyAttempts: 0n,
     ledgerChargedMicroUsd: 0n,
+    ledgerChargedDayUtc: '',
   });
 
   it('captures llm_run as a procedure and llm_sweep as a reducer', () => {

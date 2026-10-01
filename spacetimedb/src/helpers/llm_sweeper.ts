@@ -57,7 +57,7 @@ import { failWorldFill, WORLD_FILL_FAILED_MESSAGE } from './world_gen';
 import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { appendCreationEvent } from './events';
 import { activeLlmJobs } from './llm_queue';
-import { chargeLedgerUnknownBilling, prunePlayerBudgets, releaseLlmReservation } from './llm_budget';
+import { chargeLedgerUnknownBilling, prunePlayerBudgets, releaseLlmReservation, utcDay } from './llm_budget';
 import { hasLlmDispatch, insertLlmDispatch } from './llm_schedule';
 import { recordSmokeResult } from './llm_admin_state';
 
@@ -171,6 +171,8 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
         errorCode: 'timeout',
         finishedAt: ctx.timestamp,
         ledgerChargedMicroUsd: (job.ledgerChargedMicroUsd ?? 0n) + charged,
+        // The day the charge landed on: a late reply takes it back from the day counter only on that day.
+        ledgerChargedDayUtc: charged > 0n ? utcDay(ctx.timestamp) : (job.ledgerChargedDayUtc ?? ''),
       };
       ctx.db.llm_job.id.update(expired);
       report.expiredInFlight += 1;

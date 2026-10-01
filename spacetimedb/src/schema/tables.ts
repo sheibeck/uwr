@@ -2099,6 +2099,9 @@ export const LlmJob = table(
     // The sweeper's conservative ledger charge for an in_flight attempt it expired (billing unknown).
     // A reply that arrives later swaps it for the real cost, so the ledger never counts the call twice.
     ledgerChargedMicroUsd: t.u64().default(0n),
+    // The UTC day (YYYY-MM-DD) that charge was booked on. The late-reply swap takes the charge back from
+    // the day counter only when it is still that day (review WR-A01); '' (rows before the column) never does.
+    ledgerChargedDayUtc: t.string().default(''),
   }
 );
 
