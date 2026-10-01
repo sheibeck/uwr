@@ -1,13 +1,25 @@
-// World generation helpers: build region context and write generated content into game tables
+// World generation helpers: build region context and write generated content into game tables.
+//
+// World generation runs in two jobs (Phase 43, LAT-03). world_gen_state.step is a plain string:
+//   PENDING     inserted by a trigger, not yet started
+//   GENERATING  stage 1 (route world_gen_start) is running: region, start location, first NPC
+//   FILLING     stage 1 landed and stage 2 (route world_gen) is running: the rest of the region
+//   COMPLETE    stage 2 landed
+//   FILL_ERROR  stage 2 failed or was refused; the stage-1 region stays playable (the start
+//               location has its vendor and banker) and only the player's [explore] starts a
+//               new fill job, so no automatic retry loop exists
+//   ERROR       stage 1 failed or was refused; nothing was written
+// world_gen_state is public: errorMessage only ever holds a fixed in-voice line.
 
 import { connectLocations, ensureSpawnsForLocation } from './location';
-import type { WorldGenInput } from '../data/llm_layers';
+import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
 import { isRestingErrorCode } from './llm_status';
 import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './llm_inputs';
 import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
+import { toBigIntSafe } from './safe_numbers';
 
 // ---------------------------------------------------------------------------
 // Relocated from data/world_gen.ts -- these are active generation functions
@@ -146,8 +158,9 @@ const WORLD_GEN_REFUSED_MESSAGE = 'The Keeper strains but cannot shape this real
  * transaction (Phase 41, plan 14, PIPE-01):
  *  - a starter state (sourceRegionId 0n) reuses an existing starter region for the character's
  *    race at no cost ('reused');
- *  - otherwise one world_gen job and its dispatch are enqueued and the state becomes GENERATING
- *    ('enqueued', or 'duplicate' when a job for this state is already active);
+ *  - otherwise one world_gen_start job (stage 1) and its dispatch are enqueued and the state becomes
+ *    GENERATING ('enqueued', or 'duplicate' when a job for this state is already active); the
+ *    stage-1 apply enqueues the world_gen fill (stage 2);
  *  - a refused enqueue (budget or per-player cap) puts the state in ERROR with an in-voice
  *    message and tells the player to [explore] again later ('refused').
  * World generation never retries itself: only the player's explore starts a new job.
@@ -172,7 +185,7 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
   };
 
   const result = enqueueLlmJob(ctx, {
-    route: 'world_gen',
+    route: 'world_gen_start',
     playerId: genState.playerId,
     characterId: genState.characterId,
     sourceKey: SOURCE_KEYS.worldGen(genState.id),
@@ -313,127 +326,435 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
   return true;
 }
 
-/**
- * Find the "home" location for a generated region — the first safe, non-uncharted location.
- * This is the location that gets bindStone, crafting, and required NPCs.
- * Falls back to first non-uncharted location if no safe locations exist.
- */
-export function findHomeLocation(locationsByName: Record<string, any>): any | null {
-  const locationNames = Object.keys(locationsByName);
-  // First pass: safe + non-uncharted
-  for (const name of locationNames) {
-    const loc = locationsByName[name];
-    if (loc.isSafe && loc.terrainType !== 'uncharted') return loc;
+// ---------------------------------------------------------------------------
+// Staged world generation (Phase 43, LAT-03)
+// ---------------------------------------------------------------------------
+
+/** Posted to the triggering player when stage 1 lands. The Keeper is he. */
+export const WORLD_START_MILESTONE_LINE =
+  'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.';
+/** Stored (public) and posted when the stage-2 reply is unusable. */
+export const WORLD_FILL_FAILED_MESSAGE =
+  'The Keeper loses the thread of the rest of the map. What he has already shown you will hold.';
+/** Stored (public) and posted when the stage-2 enqueue is refused for a reason other than resting. */
+export const WORLD_FILL_REFUSED_MESSAGE =
+  'The Keeper cannot finish remembering this region right now. What he has shown you will hold.';
+/** Posted by the explore intent (Plan 43-11) when a fill retry starts. */
+export const WORLD_FILL_RETRY_LINE = 'The Keeper squints at the half-remembered land and tries again...';
+
+/** Posted to the triggering player when stage 2 lands. */
+export function worldFillCompleteLine(regionName: string): string {
+  return `The rest of ${regionName} settles into place. Try [travel] to see where the roads lead.`;
+}
+
+const lower = (v: unknown): string => String(v ?? '').trim().toLowerCase();
+
+function isConnected(tx: any, fromId: bigint, toId: bigint): boolean {
+  for (const conn of tx.db.location_connection.by_from.filter(fromId)) {
+    if (conn.toLocationId === toId) return true;
   }
-  // Fallback: any non-uncharted
-  for (const name of locationNames) {
-    const loc = locationsByName[name];
-    if (loc.terrainType !== 'uncharted') return loc;
+  return false;
+}
+
+/** Locations reachable from `startId` through connections that stay inside `allowed`. */
+function reachableWithin(tx: any, startId: bigint, allowed: Set<bigint>): Set<bigint> {
+  const seen = new Set<bigint>([startId]);
+  const queue: bigint[] = [startId];
+  while (queue.length > 0) {
+    const id = queue.shift() as bigint;
+    for (const conn of tx.db.location_connection.by_from.filter(id)) {
+      if (allowed.has(conn.toLocationId) && !seen.has(conn.toLocationId)) {
+        seen.add(conn.toLocationId);
+        queue.push(conn.toLocationId);
+      }
+    }
   }
-  return null;
+  return seen;
 }
 
 /**
- * Write all generated region content into game tables.
- * Takes parsed LLM JSON and the WorldGenState row, returns the inserted Region row.
- * Optional starterRace: when provided, marks the region as the starter for that race.
+ * Stage 1: write the region, its one safe start location (bind stone and crafting) and the first
+ * NPC (when the reply has one) into the public tables. A non-starter region is connected both
+ * ways to the source location. The caller records generatedRegionId and starts the fill.
+ * Optional starterRace: marks the region as the starter for that race.
  */
-export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starterRace?: string): any {
-  // 1. Compute danger multiplier from source region
+export function writeRegionStart(
+  tx: any,
+  reply: any,
+  genState: any,
+  starterRace?: string,
+): { region: any; startLocation: any; firstNpc: any | null } {
   const isStarter = genState.sourceRegionId === 0n;
   const sourceRegion = tx.db.region.id.find(genState.sourceRegionId);
-  const sourceRegionDanger = sourceRegion?.dangerMultiplier ?? 100n;
   const dangerMultiplier = computeRegionDanger(
-    sourceRegionDanger,
+    sourceRegion?.dangerMultiplier ?? 100n,
     tx.timestamp.microsSinceUnixEpoch,
-    isStarter
+    isStarter,
   );
 
-  // 2. Insert Region with canonical facts
+  const regionName = reply.regionName || 'Unknown Region';
   const region = tx.db.region.insert({
     id: 0n,
-    name: parsed.regionName || 'Unknown Region',
+    name: regionName,
     dangerMultiplier,
     regionType: 'generated',
-    biome: parsed.biome || 'plains',
-    dominantFaction: parsed.dominantFaction || undefined,
-    landmarks: parsed.landmarks ? JSON.stringify(parsed.landmarks) : undefined,
-    threats: parsed.threats ? JSON.stringify(parsed.threats) : undefined,
+    biome: reply.biome || 'plains',
     generatedByCharacterId: genState.characterId,
     isGenerated: true,
     starterForRace: starterRace ?? undefined,
   });
 
-  // 3. Insert Locations (3-5), each with its own unique description
-  const locationsByName: Record<string, any> = {};
-  const locations = parsed.locations || [];
-  const regionDescription = parsed.regionDescription || `A ${parsed.biome || 'mysterious'} region.`;
+  const regionDescription = reply.regionDescription || `A ${reply.biome || 'mysterious'} region.`;
+  const start = reply.startLocation ?? {};
+  const terrain = start.terrainType && start.terrainType !== 'uncharted' ? start.terrainType : 'plains';
+  const startLocation = tx.db.location.insert({
+    id: 0n,
+    name: start.name || 'Unknown Location',
+    description: start.description || regionDescription,
+    zone: regionName,
+    regionId: region.id,
+    levelOffset: toBigIntSafe(start.levelOffset, { min: -10n, max: 10n, fallback: 0n }),
+    isSafe: true,
+    terrainType: terrain,
+    bindStone: true,
+    craftingAvailable: true,
+  });
 
-  let firstSafeSet = false;
-  for (const loc of locations) {
-    const isSafe = loc.isSafe === true;
-    const locationDescription = loc.description || regionDescription;
-    const inserted = tx.db.location.insert({
-      id: 0n,
-      name: loc.name || 'Unknown Location',
-      description: locationDescription,
-      zone: parsed.regionName || 'Generated',
-      regionId: region.id,
-      levelOffset: BigInt(loc.levelOffset || 0),
-      isSafe,
-      terrainType: loc.terrainType || 'plains',
-      bindStone: isSafe && !firstSafeSet,    // First safe location gets a bind stone
-      craftingAvailable: isSafe && !firstSafeSet, // and crafting
-    });
-    if (isSafe && !firstSafeSet) firstSafeSet = true;
-    locationsByName[loc.name] = inserted;
+  if (genState.sourceLocationId !== 0n) {
+    connectLocations(tx, startLocation.id, genState.sourceLocationId);
   }
 
-  // 4. Connect locations within region per connectsTo arrays
-  for (const loc of locations) {
-    const fromLocation = locationsByName[loc.name];
-    if (!fromLocation || !loc.connectsTo) continue;
-    for (const targetName of loc.connectsTo) {
-      const toLocation = locationsByName[targetName];
-      if (toLocation && fromLocation.id !== toLocation.id) {
-        // Only connect if not already connected (connectLocations creates bidirectional)
-        let alreadyConnected = false;
-        for (const conn of tx.db.location_connection.by_from.filter(fromLocation.id)) {
-          if (conn.toLocationId === toLocation.id) {
-            alreadyConnected = true;
-            break;
-          }
-        }
-        if (!alreadyConnected) {
-          connectLocations(tx, fromLocation.id, toLocation.id);
-        }
+  let firstNpc: any | null = null;
+  const npc = reply.firstNpc;
+  if (npc && typeof npc === 'object') {
+    firstNpc = insertRegionNpc(tx, npc, startLocation.id);
+  }
+  return { region, startLocation, firstNpc };
+}
+
+/** One model NPC at one location. Gender always goes through resolveNpcGender. */
+function insertRegionNpc(tx: any, npc: any, locationId: bigint): any {
+  const storedName = npc.name || 'Unknown NPC';
+  const storedDescription = npc.description || 'A mysterious figure.';
+  const storedGreeting = npc.greeting || 'Greetings, traveler.';
+  return tx.db.npc.insert({
+    id: 0n,
+    name: storedName,
+    npcType: npc.npcType || 'lore',
+    locationId,
+    description: storedDescription,
+    greeting: storedGreeting,
+    gender: resolveNpcGender(npc.gender, storedName, storedDescription + ' ' + storedGreeting),
+    personalityJson: npc.personality ? JSON.stringify(npc.personality) : JSON.stringify({
+      traits: ['reserved'],
+      speechPattern: 'speaks plainly',
+      knowledgeDomains: ['local area'],
+      secrets: [],
+      affinityMultiplier: 1.0,
+    }),
+  });
+}
+
+/**
+ * The vendor and banker safety net: the start location always has both, whatever the model
+ * wrote (or did not write). Safe to run more than once.
+ */
+export function ensureRegionServices(tx: any, startLocation: any): void {
+  const npcsAtHome = [...tx.db.npc.by_location.filter(startLocation.id)];
+  const hasVendor = npcsAtHome.some((n: any) => n.npcType === 'vendor');
+  const hasBanker = npcsAtHome.some((n: any) => n.npcType === 'banker');
+
+  if (!hasVendor) {
+    tx.db.npc.insert({
+      id: 0n,
+      name: 'The Reluctant Merchant',
+      gender: resolveNpcGender(undefined, 'The Reluctant Merchant'),
+      npcType: 'vendor',
+      locationId: startLocation.id,
+      description: 'A merchant who seems mildly annoyed by the concept of commerce.',
+      greeting: 'Fine. I suppose you want to buy something. Let us get this over with.',
+      personalityJson: JSON.stringify({ traits: ['reluctant', 'sardonic'], speechPattern: 'speaks with weary resignation', knowledgeDomains: ['trade goods'], secrets: [], affinityMultiplier: 1.0 }),
+    });
+  }
+
+  if (!hasBanker) {
+    tx.db.npc.insert({
+      id: 0n,
+      name: 'The Ledger Keeper',
+      gender: resolveNpcGender(undefined, 'The Ledger Keeper'),
+      npcType: 'banker',
+      locationId: startLocation.id,
+      description: 'A meticulous figure who guards your valuables with obsessive precision.',
+      greeting: 'Your assets are safe. They are always safe. I do not make mistakes.',
+      personalityJson: JSON.stringify({ traits: ['meticulous', 'protective'], speechPattern: 'speaks in clipped precise sentences', knowledgeDomains: ['banking', 'valuables'], secrets: [], affinityMultiplier: 1.0 }),
+    });
+  }
+}
+
+/**
+ * The start location of a region: its lowest-id non-uncharted location (stage 1 writes it first).
+ * Iterates location (no region index); callers are rare, per-region paths.
+ */
+export function findRegionStart(tx: any, regionId: bigint): any | null {
+  let found: any | null = null;
+  for (const loc of tx.db.location.iter()) {
+    if (loc.regionId !== regionId || loc.terrainType === 'uncharted') continue;
+    if (found === null || loc.id < found.id) found = loc;
+  }
+  return found;
+}
+
+/**
+ * The stage-2 input, read back from the rows stage 1 stored (never from the model reply, so
+ * stage 2 sees exactly what the players see). Throws a plain Error when the region or its start
+ * location is missing.
+ */
+export function buildWorldFillInput(tx: any, genState: any): WorldFillInput {
+  const region =
+    genState.generatedRegionId !== undefined && genState.generatedRegionId !== null
+      ? tx.db.region.id.find(genState.generatedRegionId)
+      : undefined;
+  if (!region) throw new Error('World fill: the generated region is missing');
+  const start = findRegionStart(tx, region.id);
+  if (!start) throw new Error('World fill: the region has no start location');
+
+  const character = tx.db.character.id.find(genState.characterId);
+  const sourceRegion = tx.db.region.id.find(genState.sourceRegionId);
+  const npcsPresent = [...tx.db.npc.by_location.filter(start.id)].map((n: any) => ({
+    name: n.name,
+    npcType: n.npcType,
+    gender: npcGender(n),
+  }));
+
+  return {
+    regionName: region.name,
+    biome: region.biome ?? 'plains',
+    startLocation: { name: start.name, description: start.description, terrainType: start.terrainType },
+    npcsPresent,
+    characterRace: character?.race ?? 'Unknown',
+    characterClass: character?.className ?? 'Unknown',
+    characterArchetype: character
+      ? archetypeForCharacter(tx, character, genState.playerId)
+      : archetypeForPlayer(tx, genState.playerId),
+    sourceRegionName: sourceRegion?.name ?? 'the known world',
+    // The start location is now connected to the source region, so the new region would otherwise list itself.
+    neighborRegions: buildRegionContext(tx, genState.sourceRegionId).filter((r) => r.name !== region.name),
+  };
+}
+
+/**
+ * Stage 2 start, in the caller's transaction: enqueue the world_gen fill job for this state and
+ * move it to FILLING. A refused enqueue (kill switch, ceiling, budget, cap) or an unreadable
+ * stage 1 fails the fill instead (FILL_ERROR, stage-1 region stays playable). Nothing retries
+ * itself: the only callers are the stage-1 apply and the player's explore.
+ */
+export function startWorldFill(tx: any, genState: any): 'enqueued' | 'duplicate' | 'refused' {
+  let input: WorldFillInput;
+  try {
+    input = buildWorldFillInput(tx, genState);
+  } catch {
+    failWorldFill(tx, genState, WORLD_FILL_FAILED_MESSAGE);
+    return 'refused';
+  }
+
+  const result = enqueueLlmJob(tx, {
+    route: 'world_gen',
+    playerId: genState.playerId,
+    characterId: genState.characterId,
+    sourceKey: SOURCE_KEYS.worldGen(genState.id),
+    request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
+  });
+
+  if (result.refused) {
+    failWorldFill(
+      tx,
+      genState,
+      isRestingErrorCode(result.refused) ? LLM_RESTING_LINE : WORLD_FILL_REFUSED_MESSAGE,
+    );
+    return 'refused';
+  }
+
+  const current = tx.db.world_gen_state.id.find(genState.id) ?? genState;
+  tx.db.world_gen_state.id.update({
+    ...current,
+    step: 'FILLING',
+    errorMessage: undefined,
+    updatedAt: tx.timestamp,
+  });
+  return result.created ? 'enqueued' : 'duplicate';
+}
+
+/**
+ * Stage 2 failed (call failure, malformed reply, refused enqueue): the state becomes FILL_ERROR
+ * with the in-voice message, the start location keeps its vendor and banker, and the player gets
+ * one line that names [explore]. The stage-1 rows are never touched.
+ */
+export function failWorldFill(tx: any, genState: any, message: string): void {
+  const current = tx.db.world_gen_state.id.find(genState.id);
+  if (current) {
+    tx.db.world_gen_state.id.update({
+      ...current,
+      step: 'FILL_ERROR',
+      errorMessage: message,
+      updatedAt: tx.timestamp,
+    });
+  }
+
+  const regionId = (current ?? genState).generatedRegionId;
+  if (regionId !== undefined && regionId !== null) {
+    const start = findRegionStart(tx, regionId);
+    if (start) ensureRegionServices(tx, start);
+  }
+
+  const char = tx.db.character.id.find(genState.characterId);
+  const line = `${message} Type [explore] to try again.`;
+  if (char && char.locationId !== 0n) {
+    appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', line);
+  } else {
+    appendCreationEvent(tx, genState.playerId, 'creation_error', line);
+  }
+}
+
+/**
+ * Stage 2 retry for the explore intent (Plan 43-11). A state matches the character when its
+ * source location is the character's location or its generated region is the location's region.
+ *  - 'busy':    a matching state is FILLING (nothing written);
+ *  - 'started': a matching FILL_ERROR state was handed to the explorer and its fill re-enqueued;
+ *  - 'refused': that enqueue was refused (the state is FILL_ERROR again, the refusal line posted);
+ *  - 'none':    nothing matches.
+ */
+export function retryWorldFill(
+  tx: any,
+  character: any,
+  playerId: any,
+): 'none' | 'busy' | 'started' | 'refused' {
+  if (character.locationId === 0n) return 'none';
+  const here = tx.db.location.id.find(character.locationId);
+
+  const matching = new Map<bigint, any>();
+  for (const s of tx.db.world_gen_state.by_source_location.filter(character.locationId)) {
+    matching.set(s.id, s);
+  }
+  if (here) {
+    // world_gen_state has no region index; the table is small and this path is rare.
+    for (const s of tx.db.world_gen_state.iter()) {
+      if (s.generatedRegionId !== undefined && s.generatedRegionId === here.regionId) matching.set(s.id, s);
+    }
+  }
+  const states = [...matching.values()];
+
+  if (states.some((s: any) => s.step === 'FILLING')) return 'busy';
+  const failed = states
+    .filter((s: any) => s.step === 'FILL_ERROR')
+    .sort((a: any, b: any) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))[0];
+  if (!failed) return 'none';
+
+  const handed = {
+    ...failed,
+    playerId,
+    characterId: character.id,
+    updatedAt: tx.timestamp,
+  };
+  tx.db.world_gen_state.id.update(handed);
+  return startWorldFill(tx, handed) === 'refused' ? 'refused' : 'started';
+}
+
+/**
+ * Stage 2 write: the rest of the region around the start location stage 1 wrote. Never renames or
+ * duplicates stage-1 content (a location with the start location's name, or an earlier one, is
+ * skipped; an NPC whose name already stands at its location is skipped). Every new location ends up
+ * connected to the region, the start location keeps its vendor and banker, and an uncharted
+ * boundary closes the region.
+ */
+export function writeRegionFill(
+  tx: any,
+  fill: any,
+  genState: any,
+  region: any,
+  startLocation: any,
+): { locations: any[]; boundary: any | null } {
+  // 1. Canonical facts the stage-1 reply did not carry
+  const current = tx.db.region.id.find(region.id) ?? region;
+  tx.db.region.id.update({
+    ...current,
+    dominantFaction: fill.dominantFaction || current.dominantFaction || undefined,
+    landmarks: fill.landmarks ? JSON.stringify(fill.landmarks) : current.landmarks,
+    threats: fill.threats ? JSON.stringify(fill.threats) : current.threats,
+  });
+  const dangerMultiplier: bigint = current.dangerMultiplier;
+
+  // 2. New locations: skip a name already taken, case-insensitively, by the start location or an earlier one
+  const taken = new Set<string>([lower(startLocation.name)]);
+  const byExactName = new Map<string, any>([[startLocation.name, startLocation]]);
+  const byLowerName = new Map<string, any>([[lower(startLocation.name), startLocation]]);
+  const newLocations: any[] = [];
+  const planned: { item: any; row: any }[] = [];
+  const locationItems: any[] = Array.isArray(fill.locations) ? fill.locations : [];
+  for (const loc of locationItems) {
+    if (!loc || typeof loc !== 'object') continue;
+    const name = String(loc.name || 'Unknown Location');
+    if (taken.has(lower(name))) continue;
+    taken.add(lower(name));
+    const isSafe = loc.isSafe === true;
+    const row = tx.db.location.insert({
+      id: 0n,
+      name,
+      description: loc.description || `A ${current.biome || 'mysterious'} stretch of ${region.name}.`,
+      zone: region.name,
+      regionId: region.id,
+      levelOffset: toBigIntSafe(loc.levelOffset, { min: -10n, max: 10n, fallback: 0n }),
+      isSafe,
+      terrainType: loc.terrainType && loc.terrainType !== 'uncharted' ? loc.terrainType : 'plains',
+      bindStone: false,
+      craftingAvailable: false,
+    });
+    newLocations.push(row);
+    planned.push({ item: loc, row });
+    byExactName.set(name, row);
+    byLowerName.set(lower(name), row);
+  }
+
+  // 3. connectsTo against the start location plus the new names
+  for (const { item, row } of planned) {
+    if (!Array.isArray(item.connectsTo)) continue;
+    for (const targetName of item.connectsTo) {
+      const target = byLowerName.get(lower(targetName));
+      if (target && target.id !== row.id && !isConnected(tx, row.id, target.id)) {
+        connectLocations(tx, row.id, target.id);
       }
     }
   }
 
-  // 5. Connect the new region's first location to the source location (if not first region)
-  const locationNames = Object.keys(locationsByName);
-  if (locationNames.length > 0 && genState.sourceLocationId !== 0n) {
-    const firstLocation = locationsByName[locationNames[0]];
-    connectLocations(tx, firstLocation.id, genState.sourceLocationId);
+  // 4. Every new location is reachable from the start location: connect any that are not
+  //    (the first new location to the start location when no new location reached it)
+  const inRegion = new Set<bigint>([startLocation.id, ...newLocations.map((l: any) => l.id)]);
+  let reached = reachableWithin(tx, startLocation.id, inRegion);
+  for (const loc of newLocations) {
+    if (reached.has(loc.id)) continue;
+    connectLocations(tx, startLocation.id, loc.id);
+    reached = reachableWithin(tx, startLocation.id, inRegion);
   }
 
-  // 6. Insert EnemyTemplates with role templates and abilities
-  const enemies = parsed.enemies || [];
+  // 5. Enemy templates with role templates and abilities
   const enemyTemplateRows: any[] = [];
-  for (const enemy of enemies) {
-    // Clamp enemy level to region danger range: baseLevel ± 1
+  const enemyItems: any[] = Array.isArray(fill.enemies) ? fill.enemies : [];
+  for (const enemy of enemyItems) {
+    if (!enemy || typeof enemy !== 'object') continue;
+    // Clamp enemy level to region danger range: baseLevel +- 1
     // In starter regions (baseLevel=1), force all enemies to exactly level 1
     const baseLevel = dangerMultiplier / 100n;
     const minLevel = baseLevel <= 1n ? 1n : baseLevel - 1n;
     const maxLevel = baseLevel <= 1n ? 1n : baseLevel + 1n;
-    let level = BigInt(enemy.level || 1);
+    let level = toBigIntSafe(enemy.level, { min: -1_000_000n, max: 1_000_000n, fallback: 1n });
     if (level < minLevel) level = minLevel;
     if (level > maxLevel) level = maxLevel;
     const maxHp = level * 12n + 20n;
     const baseDamage = level * 3n + 5n;
     const xpReward = level * 15n + 10n;
     const role = enemy.role || 'melee';
+    const groupMin = toBigIntSafe(enemy.groupMin, { min: 1n, max: 20n, fallback: 1n });
+    let groupMax = toBigIntSafe(enemy.groupMax, { min: 1n, max: 20n, fallback: 3n });
+    if (groupMax < groupMin) groupMax = groupMin;
 
     const enemyRow = tx.db.enemy_template.insert({
       id: 0n,
@@ -447,8 +768,8 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
       socialGroup: enemy.name || 'generated',
       socialRadius: 0n,
       awareness: 'normal',
-      groupMin: BigInt(enemy.groupMin || 1),
-      groupMax: BigInt(enemy.groupMax || 3),
+      groupMin,
+      groupMax,
       armorClass: level * 2n + 2n,
       level,
       maxHp,
@@ -457,7 +778,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
     });
     enemyTemplateRows.push(enemyRow);
 
-    // Insert EnemyRoleTemplate (required for spawn system)
+    // EnemyRoleTemplate (required for spawn system)
     tx.db.enemy_role_template.insert({
       id: 0n,
       enemyTemplateId: enemyRow.id,
@@ -468,7 +789,7 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
       abilityProfile: role,
     });
 
-    // Insert EnemyAbility (basic attack matching role)
+    // EnemyAbility (basic attack matching role)
     const abilityMap: Record<string, { key: string; name: string; kind: string }> = {
       melee: { key: 'slash', name: 'Slash', kind: 'damage' },
       ranged: { key: 'shoot', name: 'Shoot', kind: 'damage' },
@@ -487,11 +808,8 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
     });
   }
 
-  // 7. Insert LocationEnemyTemplate rows linking enemies to non-safe locations
-  const nonSafeLocations = locationNames
-    .map(n => locationsByName[n])
-    .filter(loc => !loc.isSafe);
-
+  // 6. Link enemies to the new non-safe locations
+  const nonSafeLocations = newLocations.filter((loc: any) => !loc.isSafe);
   for (const enemyRow of enemyTemplateRows) {
     for (const loc of nonSafeLocations) {
       tx.db.location_enemy_template.insert({
@@ -502,90 +820,38 @@ export function writeGeneratedRegion(tx: any, parsed: any, genState: any, starte
     }
   }
 
-  // 8. Insert NPCs at safe locations (or first location if none are safe)
-  const npcs = parsed.npcs || [];
-  for (const npc of npcs) {
-    let npcLocation = locationsByName[npc.locationName];
-    if (!npcLocation) {
-      // Fall back to first safe location, or first location overall
-      const safeLocations = locationNames.map(n => locationsByName[n]).filter(l => l.isSafe);
-      npcLocation = safeLocations[0] || (locationNames.length > 0 ? locationsByName[locationNames[0]] : null);
-    }
-    if (!npcLocation) continue;
-
+  // 7. NPCs: by exact locationName, else at the start location; never a repeat of a name already there
+  const npcItems: any[] = Array.isArray(fill.npcs) ? fill.npcs : [];
+  for (const npc of npcItems) {
+    if (!npc || typeof npc !== 'object') continue;
+    const npcLocation = byExactName.get(npc.locationName) ?? startLocation;
     const storedName = npc.name || 'Unknown NPC';
-    const storedDescription = npc.description || 'A mysterious figure.';
-    const storedGreeting = npc.greeting || 'Greetings, traveler.';
-    tx.db.npc.insert({
-      id: 0n,
-      name: storedName,
-      npcType: npc.npcType || 'lore',
-      locationId: npcLocation.id,
-      description: storedDescription,
-      greeting: storedGreeting,
-      gender: resolveNpcGender(npc.gender, storedName, storedDescription + ' ' + storedGreeting),
-      personalityJson: npc.personality ? JSON.stringify(npc.personality) : JSON.stringify({
-        traits: ['reserved'],
-        speechPattern: 'speaks plainly',
-        knowledgeDomains: ['local area'],
-        secrets: [],
-        affinityMultiplier: 1.0,
-      }),
-    });
+    const alreadyThere = [...tx.db.npc.by_location.filter(npcLocation.id)].some(
+      (n: any) => lower(n.name) === lower(storedName),
+    );
+    if (alreadyThere) continue;
+    insertRegionNpc(tx, npc, npcLocation.id);
   }
 
-  // 8b. Ensure home location has vendor + banker NPCs (safety net for LLM omissions)
-  const homeLocation = findHomeLocation(locationsByName);
-  if (homeLocation) {
-    const npcsAtHome = [...tx.db.npc.by_location.filter(homeLocation.id)];
-    const hasVendor = npcsAtHome.some((n: any) => n.npcType === 'vendor');
-    const hasBanker = npcsAtHome.some((n: any) => n.npcType === 'banker');
+  // 8. Vendor and banker at the start location
+  ensureRegionServices(tx, startLocation);
 
-    if (!hasVendor) {
-      tx.db.npc.insert({
-        id: 0n,
-        name: 'The Reluctant Merchant',
-        gender: resolveNpcGender(undefined, 'The Reluctant Merchant'),
-        npcType: 'vendor',
-        locationId: homeLocation.id,
-        description: 'A merchant who seems mildly annoyed by the concept of commerce.',
-        greeting: 'Fine. I suppose you want to buy something. Let us get this over with.',
-        personalityJson: JSON.stringify({ traits: ['reluctant', 'sardonic'], speechPattern: 'speaks with weary resignation', knowledgeDomains: ['trade goods'], secrets: [], affinityMultiplier: 1.0 }),
-      });
-    }
-
-    if (!hasBanker) {
-      tx.db.npc.insert({
-        id: 0n,
-        name: 'The Ledger Keeper',
-        gender: resolveNpcGender(undefined, 'The Ledger Keeper'),
-        npcType: 'banker',
-        locationId: homeLocation.id,
-        description: 'A meticulous figure who guards your valuables with obsessive precision.',
-        greeting: 'Your assets are safe. They are always safe. I do not make mistakes.',
-        personalityJson: JSON.stringify({ traits: ['meticulous', 'protective'], speechPattern: 'speaks in clipped precise sentences', knowledgeDomains: ['banking', 'valuables'], secrets: [], affinityMultiplier: 1.0 }),
-      });
-    }
-  }
-
-  // 9. Seed 1 uncharted boundary location at the edge of the new region
+  // 9. The uncharted boundary at the edge of the region
   const lastNonSafe = nonSafeLocations[nonSafeLocations.length - 1];
-  const boundaryAnchor = lastNonSafe || (locationNames.length > 0 ? locationsByName[locationNames[locationNames.length - 1]] : null);
-  if (boundaryAnchor) {
-    const boundary = tx.db.location.insert({
-      id: 0n,
-      name: `The Edge Beyond ${parsed.regionName || 'the Region'}`,
-      description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
-      zone: 'Uncharted',
-      regionId: region.id,
-      levelOffset: 0n,
-      isSafe: true,
-      terrainType: 'uncharted',
-      bindStone: false,
-      craftingAvailable: false,
-    });
-    connectLocations(tx, boundaryAnchor.id, boundary.id);
-  }
+  const boundaryAnchor = lastNonSafe ?? newLocations[newLocations.length - 1] ?? startLocation;
+  const boundary = tx.db.location.insert({
+    id: 0n,
+    name: `The Edge Beyond ${region.name || 'the Region'}`,
+    description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
+    zone: 'Uncharted',
+    regionId: region.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'uncharted',
+    bindStone: false,
+    craftingAvailable: false,
+  });
+  connectLocations(tx, boundaryAnchor.id, boundary.id);
 
-  return region;
+  return { locations: newLocations, boundary };
 }
