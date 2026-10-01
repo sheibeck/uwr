@@ -177,7 +177,7 @@ describe('llm_smoke_test', () => {
     expect(rows(ctx, 'llm_spend')).toHaveLength(0);
   });
 
-  it('enqueues six phase-only smoke jobs with dispatch rows and reserves against the ledger only', () => {
+  it('enqueues one phase-only smoke job per smoke route with dispatch rows and reserves against the ledger only', () => {
     const ctx = adminCtx({
       llm_admin_state: [
         { id: 1n, keySet: true, keyLength: 40n, keyLastCheckOk: true, lastSmokeJson: '{"old":1}' },
@@ -193,7 +193,7 @@ describe('llm_smoke_test', () => {
       expect(j.playerId).toBe(admin);
       expect(j.status).toBe('pending');
     }
-    expect(rows(ctx, 'llm_dispatch')).toHaveLength(6);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(LLM_SMOKE_ROUTES.length);
     expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
 
     const expectedReserved = LLM_SMOKE_ROUTES.reduce((sum, r) => sum + reservationMicroUsd(r, '{"smoke":true}'), 0n);
@@ -220,11 +220,11 @@ describe('llm_smoke_test', () => {
     reducer('llm_smoke_test')(ctx, {});
 
     expect(jsonOf(ctx.db._tables)).toBe(before);
-    expect(rows(ctx, 'llm_job')).toHaveLength(6);
+    expect(rows(ctx, 'llm_job')).toHaveLength(LLM_SMOKE_ROUTES.length);
     expect(rows(ctx, 'llm_admin_state')[0].lastSmokeJson).toBe('{"smoke_test":{"ok":true}}');
   });
 
-  it('a new run enqueues six again once every smoke job is terminal', () => {
+  it('a new run enqueues the smoke routes again once every smoke job is terminal', () => {
     const ctx = adminCtx();
     reducer('llm_smoke_test')(ctx, {});
     for (const j of rows(ctx, 'llm_job')) ctx.db.llm_job.id.update({ ...j, status: 'completed' });
@@ -232,8 +232,8 @@ describe('llm_smoke_test', () => {
     reducer('llm_smoke_test')(ctx, {});
 
     const jobs = rows(ctx, 'llm_job');
-    expect(jobs).toHaveLength(12);
-    expect(jobs.filter((j) => j.status === 'pending')).toHaveLength(6);
+    expect(jobs).toHaveLength(LLM_SMOKE_ROUTES.length * 2);
+    expect(jobs.filter((j) => j.status === 'pending')).toHaveLength(LLM_SMOKE_ROUTES.length);
   });
 
   it('is still refused while only one smoke job remains active', () => {
@@ -242,7 +242,7 @@ describe('llm_smoke_test', () => {
     const list = rows(ctx, 'llm_job');
     for (const j of list.slice(1)) ctx.db.llm_job.id.update({ ...j, status: 'completed' });
     reducer('llm_smoke_test')(ctx, {});
-    expect(rows(ctx, 'llm_job')).toHaveLength(6);
+    expect(rows(ctx, 'llm_job')).toHaveLength(LLM_SMOKE_ROUTES.length);
   });
 
   it('is not blocked by an active non-smoke job of the admin', () => {
@@ -250,7 +250,7 @@ describe('llm_smoke_test', () => {
       llm_job: [{ id: 1n, playerId: admin, route: 'renown_perk_gen', status: 'pending', requestJson: '{"rank":2}', dedupeKey: 'other' }],
     });
     reducer('llm_smoke_test')(ctx, {});
-    expect(rows(ctx, 'llm_job')).toHaveLength(7);
+    expect(rows(ctx, 'llm_job')).toHaveLength(LLM_SMOKE_ROUTES.length + 1);
   });
 
   it('at the phase cap creates no jobs and does not throw', () => {

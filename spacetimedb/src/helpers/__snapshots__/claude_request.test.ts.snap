@@ -75,8 +75,13 @@ exports[`buildClaudeRequest > creation_class: body snapshot (Keeper Bible replac
       "content": "Race: plain world text race
 Race description: plain world text narrative
 Archetype: mystic
+Class: plain world text class
+Class description: plain world text class description
+First ability: plain world text first ability
+First ability description: plain world text first ability description
+First ability kind: damage, damage type: physical, resource type: mana
 
-Generate the class for this mystic plain world text race, following the mystic archetype paragraph.",
+Generate the stats and two more starting abilities for this class.",
       "role": "user",
     },
   ],
@@ -88,7 +93,7 @@ Generate the class for this mystic plain world text race, following the mystic a
         "additionalProperties": false,
         "properties": {
           "abilities": {
-            "description": "Exactly 3 abilities",
+            "description": "Exactly 2 more abilities",
             "items": {
               "additionalProperties": false,
               "properties": {
@@ -241,14 +246,6 @@ Generate the class for this mystic plain world text race, following the mystic a
             },
             "type": "array",
           },
-          "classDescription": {
-            "description": "2-3 sentences of sardonic class description",
-            "type": "string",
-          },
-          "className": {
-            "description": "1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' -- NOT 'Mire-Crowned Gatebreaker')",
-            "type": "string",
-          },
           "stats": {
             "additionalProperties": false,
             "properties": {
@@ -330,8 +327,6 @@ Generate the class for this mystic plain world text race, following the mystic a
           },
         },
         "required": [
-          "className",
-          "classDescription",
           "stats",
           "abilities",
         ],
@@ -352,13 +347,11 @@ Generate the class for this mystic plain world text race, following the mystic a
       "cache_control": {
         "type": "ephemeral",
       },
-      "text": "TASK: CHARACTER CREATION, CLASS
+      "text": "TASK: CHARACTER CREATION, CLASS DETAILS
 
-Generate a creative and unique class for a new arrival, given the arrival's race, the race description and the chosen archetype in the user message. The class should feel born specifically from THIS race and THIS archetype combination.
+The arrival's class already has a name, a description and a first ability. The user message lists them, along with the race, the race description and the archetype, as facts. Finish the class: write its stats and exactly 2 more starting abilities for level 1. Use the given names exactly, and never repeat, rename or restate the class or the first ability.
 
-Class naming: the class name is 1-2 words only, no adjective phrases or titles. Good: "Gatebreaker", "Pyroclast", "Voidcaller", "Ashweaver". Bad: "Mire-Crowned Gatebreaker", "Ember-Blooded Pyroclast", "Ash Whisperer of the Burnt Meridian". Keep it punchy and evocative. The class description is 2-3 sentences that drip with personality and speak to the arrival as you, in the second person.
-
-Abilities: generate exactly 3 starting abilities for level 1. Each should feel meaningfully different: vary damage types, effects and playstyles. Ability names are 2-3 words max, punchy and action-oriented, never narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves".
+Abilities: the 2 more abilities must differ from the first ability and from each other: vary damage types, effects and playstyles so the three together make a meaningfully varied kit. Ability names are 2-3 words max, punchy and action-oriented, never narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves". Ability descriptions speak to the arrival as you.
 
 Valid values:
 - kind: damage, heal, dot, hot, buff, debuff, shield, taunt, aoe_damage, aoe_heal, summon, cc, drain, execute, utility, song, aura, travel, fear, bandage, potion, food_summon, resurrect, group_heal, craft_boost, gather_boost, pet_command
@@ -374,6 +367,239 @@ Mechanical guidance (the server validates and clamps everything):
 - The kind must match what the ability does: over-time damage is dot, not damage; over-time healing is hot, not heal.
 
 Class stats: bonusHp is 0-20 (warrior types get more) and bonusMana is 0-30 (mystic types get more). weaponProficiencies lists 2-4 types from: dagger, rapier, sword, blade, mace, axe, bow, staff, greatsword, wand. armorProficiencies lists 1-2 types from: cloth, leather, chain, plate. Pick proficiencies that match the class fantasy: physical classes favor melee or ranged weapons and heavier armor, magical classes favor staves and wands and lighter armor, hybrids may mix. Set usesMana to true only for classes with mana abilities.
+
+Archetypes. The user message names the archetype; follow the matching paragraph.
+WARRIOR archetype: covers the full spectrum of physical and martial classes: fighters, barbarians, rogues, thieves, assassins, rangers, bards, monks, paladins, berserkers, swashbucklers, and anything else that fights with body, blade or cunning rather than pure magic. The race and archetype combination should inspire something unique. Lean toward physical stats (str or dex as the primary stat), higher HP, and melee or ranged physical abilities. Mana costs should be low or zero. Pick heavier armor (chain or plate for tanks, leather for agile types) and physical weapons (sword, axe, mace, dagger, bow, rapier, greatsword).
+MYSTIC archetype: covers the full spectrum of magical and spiritual classes: wizards, sorcerers, necromancers, druids, clerics, shamans, warlocks, enchanters, summoners, healers, elementalists, and anything else that channels arcane, divine or natural power. The race and archetype combination should inspire something unique. Lean toward magical stats (int or wis as the primary stat), higher mana, and spell-oriented abilities. Embrace the magical damage types (arcane, divine, nature, fire, ice, shadow). Pick lighter armor (cloth or leather) and magical weapons (staff, wand, dagger).
+
+Reply with the JSON object only.",
+      "type": "text",
+    },
+  ],
+}
+`;
+
+exports[`buildClaudeRequest > creation_class_reveal: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
+{
+  "max_tokens": 2048,
+  "messages": [
+    {
+      "content": "Race: plain world text race
+Race description: plain world text narrative
+Archetype: mystic
+
+Generate the class name, description and first ability for this mystic plain world text race, following the mystic archetype paragraph.",
+      "role": "user",
+    },
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": {
+    "effort": "low",
+    "format": {
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "classDescription": {
+            "description": "2-3 sentences of sardonic class description",
+            "type": "string",
+          },
+          "className": {
+            "description": "1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' -- NOT 'Mire-Crowned Gatebreaker')",
+            "type": "string",
+          },
+          "firstAbility": {
+            "additionalProperties": false,
+            "properties": {
+              "castSeconds": {
+                "description": "Cast time in seconds. Mana abilities MUST be >= 1 (use 1-3). Only stamina/physical abilities can be 0 (instant).",
+                "type": "number",
+              },
+              "cooldownSeconds": {
+                "description": "4-12",
+                "type": "number",
+              },
+              "damageType": {
+                "enum": [
+                  "physical",
+                  "arcane",
+                  "divine",
+                  "nature",
+                  "fire",
+                  "ice",
+                  "shadow",
+                  "none",
+                ],
+                "type": "string",
+              },
+              "description": {
+                "description": "Sardonic description of the ability",
+                "type": "string",
+              },
+              "effectDuration": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "Duration in seconds. Combat rounds are 3s, so dot/hot/buff/debuff need 9-12 for 3-4 ticks. Stun uses 3. null for damage/heal.",
+              },
+              "effectMagnitude": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "Effect strength per tick. null for damage/heal.",
+              },
+              "effectType": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "For dot/hot/buff/debuff kinds (e.g. dot, regen, str_bonus, armor_down, stun). null for damage/heal.",
+              },
+              "kind": {
+                "enum": [
+                  "damage",
+                  "heal",
+                  "dot",
+                  "hot",
+                  "buff",
+                  "debuff",
+                  "shield",
+                  "taunt",
+                  "aoe_damage",
+                  "aoe_heal",
+                  "summon",
+                  "cc",
+                  "drain",
+                  "execute",
+                  "utility",
+                  "song",
+                  "aura",
+                  "travel",
+                  "fear",
+                  "bandage",
+                  "potion",
+                  "food_summon",
+                  "resurrect",
+                  "group_heal",
+                  "craft_boost",
+                  "gather_boost",
+                  "pet_command",
+                ],
+                "type": "string",
+              },
+              "name": {
+                "description": "2-3 words max, punchy action name",
+                "type": "string",
+              },
+              "resourceCost": {
+                "description": "Mana abilities: 10-30, stamina abilities: 5-15, 0 for 'none' resource type",
+                "type": "number",
+              },
+              "resourceType": {
+                "enum": [
+                  "mana",
+                  "stamina",
+                  "none",
+                ],
+                "type": "string",
+              },
+              "scaling": {
+                "enum": [
+                  "str",
+                  "dex",
+                  "int",
+                  "wis",
+                  "cha",
+                ],
+                "type": "string",
+              },
+              "targetRule": {
+                "enum": [
+                  "single_enemy",
+                  "single_ally",
+                  "self",
+                ],
+                "type": "string",
+              },
+              "value1": {
+                "description": "8-15 for level 1, primary power value",
+                "type": "number",
+              },
+            },
+            "required": [
+              "name",
+              "description",
+              "kind",
+              "damageType",
+              "targetRule",
+              "resourceType",
+              "resourceCost",
+              "castSeconds",
+              "cooldownSeconds",
+              "value1",
+              "scaling",
+              "effectType",
+              "effectMagnitude",
+              "effectDuration",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "className",
+          "classDescription",
+          "firstAbility",
+        ],
+        "type": "object",
+      },
+      "type": "json_schema",
+    },
+  },
+  "system": [
+    {
+      "cache_control": {
+        "type": "ephemeral",
+      },
+      "text": "<KEEPER_BIBLE>",
+      "type": "text",
+    },
+    {
+      "cache_control": {
+        "type": "ephemeral",
+      },
+      "text": "TASK: CHARACTER CREATION, CLASS REVEAL
+
+Generate the name, the description and the first ability of a creative and unique class for a new arrival, given the arrival's race, the race description and the chosen archetype in the user message. The class should feel born specifically from THIS race and THIS archetype combination. The stats and the other abilities are written in a later step, so ask for nothing beyond the reveal: reply with className, classDescription and firstAbility only.
+
+Class naming: the class name is 1-2 words only, no adjective phrases or titles. Good: "Gatebreaker", "Pyroclast", "Voidcaller", "Ashweaver". Bad: "Mire-Crowned Gatebreaker", "Ember-Blooded Pyroclast", "Ash Whisperer of the Burnt Meridian". Keep it punchy and evocative. The class description is 2-3 sentences that drip with personality and speak to the arrival as you, in the second person.
+
+First ability: generate exactly 1 starting ability for level 1, the one that best shows what this class is. Ability names are 2-3 words max, punchy and action-oriented, never narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves". The ability description speaks to the arrival as you.
+
+Valid values:
+- kind: damage, heal, dot, hot, buff, debuff, shield, taunt, aoe_damage, aoe_heal, summon, cc, drain, execute, utility, song, aura, travel, fear, bandage, potion, food_summon, resurrect, group_heal, craft_boost, gather_boost, pet_command
+- damageType: physical, arcane, divine, nature, fire, ice, shadow, none
+- targetRule for these starting abilities: single_enemy, single_ally, self
+- resourceType for these starting abilities: mana, stamina, none
+- scaling: str, dex, int, wis, cha, hybrid, none
+
+Mechanical guidance (the server validates and clamps everything):
+- Mana abilities cost 10-30 and MUST have castSeconds >= 1 (use 1-3). Stamina abilities cost 5-15 and only stamina or physical abilities may be instant (castSeconds 0). A resourceType of none costs 0.
+- cooldownSeconds is 4-12. value1, the primary power value, is 8-15 at level 1.
+- dot, hot, buff and debuff abilities need effectType, effectMagnitude and effectDuration. Combat rounds are 3 seconds, so durations of 9-12 give 3-4 ticks. Stun uses 3. Damage and heal abilities leave the effect fields null.
+- The kind must match what the ability does: over-time damage is dot, not damage; over-time healing is hot, not heal.
 
 Archetypes. The user message names the archetype; follow the matching paragraph.
 WARRIOR archetype: covers the full spectrum of physical and martial classes: fighters, barbarians, rogues, thieves, assassins, rangers, bards, monks, paladins, berserkers, swashbucklers, and anything else that fights with body, blade or cunning rather than pure magic. The race and archetype combination should inspire something unique. Lean toward physical stats (str or dex as the primary stat), higher HP, and melee or ranged physical abilities. Mana costs should be low or zero. Pick heavier armor (chain or plate for tanks, leather for agile types) and physical weapons (sword, axe, mace, dagger, bow, rapier, greatsword).
@@ -1197,13 +1423,13 @@ exports[`buildClaudeRequest > world_gen: body snapshot (Keeper Bible replaced by
   "max_tokens": 8192,
   "messages": [
     {
-      "content": "World context:
-plain world text context
-second line
+      "content": "Region: plain world text region (plain world text biome)
+Arrival point: plain world text start (plains): plain world text start description
+People already there: plain world text first npc (vendor, she)
 
 A plain world text race plain world text class (warrior) wandered beyond plain world text source. Neighboring regions: plain world text neighbor (plain world text biome, threats: plain world text threats)
 
-Generate a region linked to this character.",
+Fill in the rest of this region.",
       "role": "user",
     },
   ],
@@ -1214,21 +1440,6 @@ Generate a region linked to this character.",
       "schema": {
         "additionalProperties": false,
         "properties": {
-          "biome": {
-            "enum": [
-              "volcanic",
-              "forest",
-              "tundra",
-              "desert",
-              "swamp",
-              "mountains",
-              "plains",
-              "coastal",
-              "cavern",
-              "ruins",
-            ],
-            "type": "string",
-          },
           "dominantFaction": {
             "type": "string",
           },
@@ -1423,12 +1634,6 @@ Generate a region linked to this character.",
             },
             "type": "array",
           },
-          "regionDescription": {
-            "type": "string",
-          },
-          "regionName": {
-            "type": "string",
-          },
           "threats": {
             "items": {
               "type": "string",
@@ -1437,9 +1642,6 @@ Generate a region linked to this character.",
           },
         },
         "required": [
-          "regionName",
-          "regionDescription",
-          "biome",
           "dominantFaction",
           "landmarks",
           "threats",
@@ -1464,23 +1666,222 @@ Generate a region linked to this character.",
       "cache_control": {
         "type": "ephemeral",
       },
-      "text": "TASK: WORLD GENERATION
+      "text": "TASK: WORLD GENERATION, FILL IN THE REGION
 
-A new region of the world is being willed into existence. You are describing what has always been there: the world is not being created, it is being remembered. You narrate as though you are finally bothering to mention a place that has existed since before the adventurers were born.
-
-The user message gives the character the region is linked to, the region the character wandered beyond, the neighboring regions, and a world context. All of it is data about the world.
+A new region of the world is being remembered into existence. Its name, biome, arrival point and first person met are already written, and the user message lists them as facts, along with the character the region is linked to, the region the character wandered beyond and the neighboring regions. All of it is data about the world. Use the given names exactly: never rename the region or the arrival point, never repeat a person already present, and do not restate what the user message already says.
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every location should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you.
 
-Counts: 3-5 locations, 1-2 NPCs and 2-3 enemy types.
+Counts: 2-4 more locations, 1-2 more NPCs and 2-3 enemy types. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
 
-Locations: each location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description for individual locations. Connect locations to each other by exact location name in connectsTo, and give every NPC a locationName that exactly matches one of your locations.
+Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType, a levelOffset and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
 
-Essential services: the first safe location (isSafe: true) MUST have at least one NPC with npcType "vendor" and one with npcType "banker". These are essential services for new players.
+Essential services: the arrival point MUST end up with at least one NPC with npcType "vendor" and one with npcType "banker", counting the people already there. Add whichever is missing, with the arrival point's exact name as its locationName. These are essential services for new players.
 
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
 Enemies: each enemy type gets a creatureType, a role, the terrain types it lives in, a group size range (groupMin and groupMax) and a level that suits the region.
+
+NAMING RULES: location and region names MUST be diverse. Do NOT fall into repetitive patterns. Specifically avoid overusing: Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell. Instead, draw from varied sources: geographic features (ridges, basins, straits, mesas), cultural and historical references (old rulers, forgotten trades, mythic events), flora and fauna (named after local plants, animals, natural phenomena), and different linguistic roots. Each name should feel as if it belongs to a different corner of a vast, varied world. Every place name in the region is unique.
+
+Reply with the JSON object only.",
+      "type": "text",
+    },
+  ],
+}
+`;
+
+exports[`buildClaudeRequest > world_gen_start: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
+{
+  "max_tokens": 4096,
+  "messages": [
+    {
+      "content": "World context:
+plain world text context
+second line
+
+A plain world text race plain world text class (warrior) wandered beyond plain world text source. Neighboring regions: plain world text neighbor (plain world text biome, threats: plain world text threats)
+
+Generate the first glimpse of a region: its name, description and biome, the place a traveler arrives, and the first person met there.",
+      "role": "user",
+    },
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": {
+    "effort": "low",
+    "format": {
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "biome": {
+            "enum": [
+              "volcanic",
+              "forest",
+              "tundra",
+              "desert",
+              "swamp",
+              "mountains",
+              "plains",
+              "coastal",
+              "cavern",
+              "ruins",
+            ],
+            "type": "string",
+          },
+          "firstNpc": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "gender": {
+                "enum": [
+                  "male",
+                  "female",
+                ],
+                "type": "string",
+              },
+              "greeting": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "npcType": {
+                "enum": [
+                  "vendor",
+                  "questgiver",
+                  "lore",
+                  "trainer",
+                  "guard",
+                  "crafter",
+                  "banker",
+                ],
+                "type": "string",
+              },
+              "personality": {
+                "additionalProperties": false,
+                "properties": {
+                  "affinityMultiplier": {
+                    "type": "number",
+                  },
+                  "knowledgeDomains": {
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  "secrets": {
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  "speechPattern": {
+                    "type": "string",
+                  },
+                  "traits": {
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                },
+                "required": [
+                  "traits",
+                  "speechPattern",
+                  "knowledgeDomains",
+                  "secrets",
+                  "affinityMultiplier",
+                ],
+                "type": "object",
+              },
+            },
+            "required": [
+              "name",
+              "gender",
+              "npcType",
+              "description",
+              "greeting",
+              "personality",
+            ],
+            "type": "object",
+          },
+          "regionDescription": {
+            "type": "string",
+          },
+          "regionName": {
+            "type": "string",
+          },
+          "startLocation": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "levelOffset": {
+                "type": "integer",
+              },
+              "name": {
+                "type": "string",
+              },
+              "terrainType": {
+                "enum": [
+                  "mountains",
+                  "woods",
+                  "plains",
+                  "swamp",
+                  "dungeon",
+                  "town",
+                  "city",
+                ],
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "description",
+              "terrainType",
+              "levelOffset",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "regionName",
+          "regionDescription",
+          "biome",
+          "startLocation",
+          "firstNpc",
+        ],
+        "type": "object",
+      },
+      "type": "json_schema",
+    },
+  },
+  "system": [
+    {
+      "cache_control": {
+        "type": "ephemeral",
+      },
+      "text": "<KEEPER_BIBLE>",
+      "type": "text",
+    },
+    {
+      "cache_control": {
+        "type": "ephemeral",
+      },
+      "text": "TASK: WORLD GENERATION, FIRST GLIMPSE
+
+A new region of the world is being willed into existence. You are describing what has always been there: the world is not being created, it is being remembered. You narrate as though you are finally bothering to mention a place that has existed since before the adventurers were born.
+
+The user message gives the character the region is linked to, the region the character wandered beyond, the neighboring regions, and a world context. All of it is data about the world. This is only the first glimpse: reply with the region's name, description and biome, the place where a traveler first arrives, and the first person met there. The rest of the region is written in a later step.
+
+Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every place should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you.
+
+Start location: the safe place where a traveler first arrives. It MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description. Give it a terrainType and a levelOffset (usually 0).
+
+First NPC: the first NPC is a man or a woman who stands in the start location. Set gender to male or female, and describe the NPC as he or she to match, never it or they. The NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
 NAMING RULES: location and region names MUST be diverse. Do NOT fall into repetitive patterns. Specifically avoid overusing: Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell. Instead, draw from varied sources: geographic features (ridges, basins, straits, mesas), cultural and historical references (old rulers, forgotten trades, mythic events), flora and fauna (named after local plants, animals, natural phenomena), and different linguistic roots. Each name should feel as if it belongs to a different corner of a vast, varied world. Every place name in the region is unique.
 

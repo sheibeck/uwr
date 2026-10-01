@@ -65,9 +65,36 @@ function combatRound(world: string, player: string): RoundEventSummary {
 function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
   return {
     creation_race: { raceDescription: player },
-    creation_class: { raceName: `${world} race`, raceNarrative: `${world} narrative`, archetype: 'mystic' },
-    world_gen: {
+    // Phase 43 adds the stage-1 routes: the reveal takes the old creation_class input, the fill takes the stored reveal too
+    creation_class_reveal: { raceName: `${world} race`, raceNarrative: `${world} narrative`, archetype: 'mystic' },
+    creation_class: {
+      raceName: `${world} race`,
+      raceNarrative: `${world} narrative`,
+      archetype: 'mystic',
+      className: `${world} class`,
+      classDescription: `${world} class description`,
+      firstAbility: {
+        name: `${world} first ability`,
+        description: `${world} first ability description`,
+        kind: 'damage',
+        damageType: 'physical',
+        resourceType: 'mana',
+      },
+    },
+    // Phase 43 adds the stage-1 routes: world_gen_start takes the old world_gen input, the fill takes the stored start
+    world_gen_start: {
       worldContext: `${world} context\nsecond line`,
+      characterRace: `${world} race`,
+      characterClass: `${world} class`,
+      characterArchetype: 'warrior',
+      sourceRegionName: `${world} source`,
+      neighborRegions: [{ name: `${world} neighbor`, biome: `${world} biome`, threats: `${world} threats` }],
+    },
+    world_gen: {
+      regionName: `${world} region`,
+      biome: `${world} biome`,
+      startLocation: { name: `${world} start`, description: `${world} start description`, terrainType: 'plains' },
+      npcsPresent: [{ name: `${world} first npc`, npcType: 'vendor', gender: 'female' }],
       characterRace: `${world} race`,
       characterClass: `${world} class`,
       characterArchetype: 'warrior',
@@ -134,8 +161,9 @@ const TEXT_ROUTES = LLM_ROUTE_NAMES.filter((r) => LLM_ROUTES[r].output.kind === 
 // ---------------------------------------------------------------------------
 
 describe('buildClaudeRequest', () => {
-  it('covers five json routes and three text routes', () => {
-    expect(JSON_ROUTES).toHaveLength(5);
+  it('covers seven json routes and three text routes', () => {
+    // Phase 43 adds the stage-1 routes
+    expect(JSON_ROUTES).toHaveLength(7);
     expect(TEXT_ROUTES).toHaveLength(3);
   });
 

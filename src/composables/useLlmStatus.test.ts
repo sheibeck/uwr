@@ -88,10 +88,13 @@ describe('selectLlmIndicator', () => {
   });
 
   it('follows the documented priority order across every route', () => {
+    // Phase 43 adds the stage-1 routes
     const order = [
-      'world_gen',
+      'world_gen_start',
       'creation_race',
+      'creation_class_reveal',
       'creation_class',
+      'world_gen',
       'skill_gen',
       'renown_perk_gen',
       'npc_conversation',
@@ -218,7 +221,8 @@ describe('useLlmStatus', () => {
 
 describe('console scoping (WR-02)', () => {
   it('the creation console shows only creation and world-gen routes', () => {
-    for (const route of ['creation_race', 'creation_class', 'world_gen']) {
+    // Phase 43 adds the stage-1 routes
+    for (const route of ['creation_race', 'creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen']) {
       expect(routeInConsoleScope(route, 'creation')).toBe(true);
     }
     for (const route of ['skill_gen', 'renown_perk_gen', 'npc_conversation', 'combat_narration', 'unknown_route']) {
@@ -227,11 +231,13 @@ describe('console scoping (WR-02)', () => {
   });
 
   it('the game console shows everything except creation routes', () => {
-    for (const route of ['world_gen', 'skill_gen', 'renown_perk_gen', 'npc_conversation', 'unknown_route']) {
+    // Phase 43 adds the stage-1 routes
+    for (const route of ['world_gen_start', 'world_gen', 'skill_gen', 'renown_perk_gen', 'npc_conversation', 'unknown_route']) {
       expect(routeInConsoleScope(route, 'game')).toBe(true);
     }
     expect(routeInConsoleScope('creation_race', 'game')).toBe(false);
     expect(routeInConsoleScope('creation_class', 'game')).toBe(false);
+    expect(routeInConsoleScope('creation_class_reveal', 'game')).toBe(false);
   });
 
   it('a background renown job from another character never shows in the creation console', () => {
