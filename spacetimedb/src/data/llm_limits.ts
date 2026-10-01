@@ -35,12 +35,15 @@ export const LLM_RETRY_MAX_MS = 60_000;
 /** Jitter added to a retry delay, as a fraction of the base delay. */
 export const LLM_RETRY_JITTER_FRACTION = 0.2;
 /**
- * Routes that never auto-retry: creation and world gen (the player gets an
- * in-voice "try again"), combat narration (one attempt) and the smoke test.
+ * Routes that never auto-retry: creation and world gen, stage 1 and stage 2
+ * alike (the player gets an in-voice "try again"), combat narration (one
+ * attempt) and the smoke test. Phase 43 adds the two stage-1 routes.
  */
 export const LLM_NO_AUTO_RETRY_ROUTES: readonly LlmRoute[] = Object.freeze([
   'creation_race',
+  'creation_class_reveal',
   'creation_class',
+  'world_gen_start',
   'world_gen',
   'combat_narration',
   'smoke_test',
@@ -94,11 +97,17 @@ export const LLM_DAILY_CEILING_MAX_MICRO_USD = 1_000_000_000n;
 
 // -- Smoke test ----------------------------------------------------------------
 
-/** One text call plus one minimal call per JSON schema (warms the grammar cache). */
+/**
+ * One text call plus one minimal call per JSON schema (warms the grammar cache).
+ * Phase 43 splits class creation and world generation in two stages, so both
+ * stage schemas of each split route are warmed.
+ */
 export const LLM_SMOKE_ROUTES: readonly LlmRoute[] = Object.freeze([
   'smoke_test',
   'creation_race',
+  'creation_class_reveal',
   'creation_class',
+  'world_gen_start',
   'world_gen',
   'skill_gen',
   'renown_perk_gen',

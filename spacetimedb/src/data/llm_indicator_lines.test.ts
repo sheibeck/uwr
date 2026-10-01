@@ -33,10 +33,13 @@ vi.mock('spacetimedb/server', async () =>
 // and parity with the server's active job statuses.
 // ============================================================================
 
+// Phase 43 adds the stage-1 routes
 const EXPECTED_LINES: Record<string, string | null> = {
   creation_race: 'The Keeper is considering your fate...',
-  creation_class: 'The Keeper is deciding what you are good for...',
-  world_gen: 'The Keeper is unrolling a map, with visible reluctance...',
+  creation_class_reveal: 'The Keeper is deciding what you are good for...',
+  creation_class: 'The Keeper is sorting out the rest of what you can do...',
+  world_gen_start: 'The Keeper is unrolling a map, with visible reluctance...',
+  world_gen: 'The Keeper is filling in the rest of the map, grudgingly...',
   skill_gen: 'The Keeper is weighing what you might become...',
   renown_perk_gen: 'The Keeper is tallying what your name is worth...',
   npc_conversation: 'The Keeper leans in to listen...',
@@ -77,11 +80,14 @@ describe('LLM_INDICATOR_FALLBACK_LINE', () => {
 });
 
 describe('LLM_INDICATOR_PRIORITY and LLM_INDICATOR_SILENT_ROUTES', () => {
-  it('orders the six non-silent routes world_gen first, npc_conversation last', () => {
+  it('orders the eight non-silent routes world_gen_start first, npc_conversation last', () => {
+    // Phase 43 adds the stage-1 routes
     expect([...LLM_INDICATOR_PRIORITY]).toEqual([
-      'world_gen',
+      'world_gen_start',
       'creation_race',
+      'creation_class_reveal',
       'creation_class',
+      'world_gen',
       'skill_gen',
       'renown_perk_gen',
       'npc_conversation',
@@ -106,13 +112,22 @@ describe('LLM_INDICATOR_PRIORITY and LLM_INDICATOR_SILENT_ROUTES', () => {
 
 describe('console scoping routes (WR-02)', () => {
   it('the creation console shows creation work and world generation only', () => {
-    expect([...LLM_CREATION_CONSOLE_ROUTES]).toEqual(['creation_race', 'creation_class', 'world_gen']);
+    // Phase 43 adds the stage-1 routes
+    expect([...LLM_CREATION_CONSOLE_ROUTES]).toEqual([
+      'creation_race',
+      'creation_class_reveal',
+      'creation_class',
+      'world_gen_start',
+      'world_gen',
+    ]);
   });
 
-  it('creation-only routes are the creation console routes minus world_gen', () => {
-    expect([...LLM_CREATION_ONLY_ROUTES]).toEqual(['creation_race', 'creation_class']);
+  it('creation-only routes are the creation console routes minus the world generation routes', () => {
+    // Phase 43 adds the stage-1 routes
+    expect([...LLM_CREATION_ONLY_ROUTES]).toEqual(['creation_race', 'creation_class_reveal', 'creation_class']);
     for (const route of LLM_CREATION_ONLY_ROUTES) expect(LLM_CREATION_CONSOLE_ROUTES).toContain(route);
     expect(LLM_CREATION_ONLY_ROUTES).not.toContain('world_gen');
+    expect(LLM_CREATION_ONLY_ROUTES).not.toContain('world_gen_start');
   });
 
   it('every scoped route is a real, non-silent route', () => {
@@ -136,8 +151,9 @@ describe('LLM_INDICATOR_ACTIVE_STATUSES', () => {
 });
 
 describe('indicator line voice and pronoun rule', () => {
-  it('has six non-null lines to check', () => {
-    expect(nonNullLines).toHaveLength(6);
+  it('has eight non-null lines to check', () => {
+    // Phase 43 adds the stage-1 routes
+    expect(nonNullLines).toHaveLength(8);
   });
 
   for (const [route, line] of nonNullLines) {

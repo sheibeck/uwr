@@ -27,7 +27,16 @@ const okResult: ClaudeResult = {
 
 describe('maxAttempts', () => {
   it('is 1 for the no-auto-retry routes and 3 for every other route', () => {
-    for (const route of ['creation_race', 'creation_class', 'world_gen', 'combat_narration', 'smoke_test'] as const) {
+    // Phase 43 adds the stage-1 routes
+    for (const route of [
+      'creation_race',
+      'creation_class_reveal',
+      'creation_class',
+      'world_gen_start',
+      'world_gen',
+      'combat_narration',
+      'smoke_test',
+    ] as const) {
       expect(maxAttempts(route)).toBe(1);
     }
     for (const route of ['npc_conversation', 'skill_gen', 'renown_perk_gen'] as const) {
@@ -35,8 +44,9 @@ describe('maxAttempts', () => {
     }
   });
 
-  it('covers all eight routes with exactly the LLM_NO_AUTO_RETRY_ROUTES set at 1', () => {
-    expect(LLM_ROUTE_NAMES).toHaveLength(8);
+  it('covers all ten routes with exactly the LLM_NO_AUTO_RETRY_ROUTES set at 1', () => {
+    // Phase 43 adds the stage-1 routes
+    expect(LLM_ROUTE_NAMES).toHaveLength(10);
     const ones = LLM_ROUTE_NAMES.filter((r) => maxAttempts(r) === 1).sort();
     expect(ones).toEqual([...LLM_NO_AUTO_RETRY_ROUTES].sort());
   });

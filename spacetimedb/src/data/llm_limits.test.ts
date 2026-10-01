@@ -49,11 +49,31 @@ describe('llm_limits constants (Phase 41)', () => {
     }
     for (const r of L.LLM_NO_AUTO_RETRY_ROUTES) expect(isLlmRoute(r), r).toBe(true);
     for (const r of L.LLM_SMOKE_ROUTES) expect(isLlmRoute(r), r).toBe(true);
+    // Phase 43 adds the stage-1 routes
     expect([...L.LLM_NO_AUTO_RETRY_ROUTES].sort()).toEqual(
-      ['combat_narration', 'creation_class', 'creation_race', 'smoke_test', 'world_gen'].sort(),
+      [
+        'combat_narration',
+        'creation_class',
+        'creation_class_reveal',
+        'creation_race',
+        'smoke_test',
+        'world_gen',
+        'world_gen_start',
+      ].sort(),
     );
     expect(L.LLM_SMOKE_ROUTES[0]).toBe('smoke_test');
-    expect(L.LLM_SMOKE_ROUTES).toHaveLength(6);
+    // Phase 43 adds the stage-1 routes: the smoke test warms both stage schemas of each split route
+    expect([...L.LLM_SMOKE_ROUTES]).toEqual([
+      'smoke_test',
+      'creation_race',
+      'creation_class_reveal',
+      'creation_class',
+      'world_gen_start',
+      'world_gen',
+      'skill_gen',
+      'renown_perk_gen',
+    ]);
+    expect(L.LLM_SMOKE_ROUTES).toHaveLength(8);
   });
 
   it('retry lifetime bound: a retrying route always finishes before the pending expiry', () => {
