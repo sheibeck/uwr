@@ -5,15 +5,25 @@
  * Pure duck-typed module, exercised through a strict mock db (recorded schema).
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { createMockCtx } from './test-utils';
+import { createMockCtx, defaultLlmAdminStateRow } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { LLM_SMOKE_JSON_MAX_CHARS } from '../data/llm_limits';
+import {
+  LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
+  LLM_DAILY_CEILING_MAX_MICRO_USD,
+  LLM_DAILY_CEILING_MIN_MICRO_USD,
+} from '../data/llm_limits';
 import {
   getAdminState,
   patchAdminState,
   markKeyCheck,
   recordSmokeResult,
   isKeyValid,
+  ensureLlmAdminState,
+  llmGate,
+  setLlmEnabled,
+  dailyCeilingProblem,
+  setDailyCeiling,
 } from './llm_admin_state';
 
 vi.mock('spacetimedb/server', async () =>
@@ -29,6 +39,10 @@ const FAKE_KEY = ['sk', '-ant-', 'api03-', 'ADMINSTATEKEY'.repeat(3)].join('');
 
 const makeCtx = (over: { seed?: Record<string, any[]>; timestampMicros?: bigint } = {}) =>
   createMockCtx({ seed: over.seed ?? {}, timestampMicros: over.timestampMicros ?? T0, strict: true });
+
+// The shared mock now carries a default enabled admin-state row; the "row absent" cases opt out.
+const makeEmptyCtx = (over: { timestampMicros?: bigint } = {}) =>
+  makeCtx({ seed: { llm_admin_state: [] }, ...over });
 
 const stateRow = (ctx: any): any => ctx.db._tables.llm_admin_state[0];
 const smoke = (ctx: any): any => JSON.parse(stateRow(ctx).lastSmokeJson);
@@ -46,24 +60,26 @@ const okEntry = (over: Record<string, unknown> = {}) => ({
 
 describe('getAdminState and patchAdminState', () => {
   it('getAdminState is undefined on an empty table', () => {
-    const ctx = makeCtx();
+    const ctx = makeEmptyCtx();
     expect(getAdminState(ctx)).toBeUndefined();
   });
 
   it('patchAdminState on an empty table inserts the defaults, then applies the patch', async () => {
-    const ctx = makeCtx();
+    const ctx = makeEmptyCtx();
     const row = patchAdminState(ctx, { keySet: true, keyLength: 108n });
     expect(row.id).toBe(1n);
     expect(row.keySet).toBe(true);
     expect(row.keyLength).toBe(108n);
     expect(row.keyLastCheckOk).toBe(false);
     expect(row.lastSmokeJson).toBe('{}');
+    expect(row.llmEnabled).toBe(true);
+    expect(row.dailyCeilingMicroUsd).toBe(10_000_000n);
     expect(ctx.db._tables.llm_admin_state).toHaveLength(1);
     expect(getAdminState(ctx)).toEqual(row);
   });
 
   it('the inserted row has exactly the recorded columns', () => {
-    const ctx = makeCtx();
+    const ctx = makeEmptyCtx();
     patchAdminState(ctx, {});
     expect(rowColumnProblems('llm_admin_state', stateRow(ctx))).toEqual([]);
   });
@@ -75,6 +91,115 @@ describe('getAdminState and patchAdminState', () => {
     expect(ctx.db._tables.llm_admin_state).toHaveLength(1);
     expect(stateRow(ctx).keySet).toBe(true);
     expect(stateRow(ctx).keyLength).toBe(60n);
+  });
+});
+
+describe('ensureLlmAdminState', () => {
+  it('on an empty table inserts one default enabled row with the $10 ceiling and no column problems', () => {
+    const ctx = makeEmptyCtx();
+    ensureLlmAdminState(ctx);
+    expect(ctx.db._tables.llm_admin_state).toHaveLength(1);
+    expect(stateRow(ctx)).toEqual({
+      id: 1n,
+      keySet: false,
+      keyLength: 0n,
+      keyLastCheckOk: false,
+      lastSmokeJson: '{}',
+      llmEnabled: true,
+      dailyCeilingMicroUsd: 10_000_000n,
+    });
+    expect(rowColumnProblems('llm_admin_state', stateRow(ctx))).toEqual([]);
+  });
+
+  it('a second call inserts nothing', () => {
+    const ctx = makeEmptyCtx();
+    ensureLlmAdminState(ctx);
+    ensureLlmAdminState(ctx);
+    expect(ctx.db._tables.llm_admin_state).toHaveLength(1);
+  });
+});
+
+describe('llmGate (kill switch and ceiling)', () => {
+  it('fails closed on a missing row: halted with a zero ceiling', () => {
+    expect(llmGate(makeEmptyCtx())).toEqual({ halted: true, ceilingMicroUsd: 0n });
+  });
+
+  it('llmEnabled false is halted', () => {
+    const ctx = makeCtx({ seed: { llm_admin_state: [{ ...defaultLlmAdminStateRow(), llmEnabled: false }] } });
+    expect(llmGate(ctx).halted).toBe(true);
+  });
+
+  it('llmEnabled true is not halted and carries the stored ceiling', () => {
+    const ctx = makeCtx({
+      seed: { llm_admin_state: [{ ...defaultLlmAdminStateRow(), dailyCeilingMicroUsd: 25_000_000n }] },
+    });
+    expect(llmGate(ctx)).toEqual({ halted: false, ceilingMicroUsd: 25_000_000n });
+  });
+
+  it('a row without the two new fields reads them as their column defaults (enabled, $10)', () => {
+    const ctx = makeCtx({
+      seed: {
+        llm_admin_state: [{ id: 1n, keySet: false, keyLength: 0n, keyLastCheckOk: false, lastSmokeJson: '{}' }],
+      },
+    });
+    expect(llmGate(ctx)).toEqual({ halted: false, ceilingMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD });
+  });
+
+  it('the default seeded row is not halted and has the default ceiling', () => {
+    expect(llmGate(makeCtx())).toEqual({ halted: false, ceilingMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD });
+  });
+});
+
+describe('setLlmEnabled and setDailyCeiling', () => {
+  it('setLlmEnabled(false) halts and setLlmEnabled(true) lifts it', () => {
+    const ctx = makeCtx();
+    setLlmEnabled(ctx, false);
+    expect(llmGate(ctx).halted).toBe(true);
+    expect(stateRow(ctx).llmEnabled).toBe(false);
+    setLlmEnabled(ctx, true);
+    expect(llmGate(ctx).halted).toBe(false);
+    expect(ctx.db._tables.llm_admin_state).toHaveLength(1);
+  });
+
+  it('setLlmEnabled keeps the key status fields', () => {
+    const ctx = makeCtx({
+      seed: { llm_admin_state: [{ ...defaultLlmAdminStateRow(), keySet: true, keyLength: 108n }] },
+    });
+    setLlmEnabled(ctx, false);
+    expect(stateRow(ctx).keySet).toBe(true);
+    expect(stateRow(ctx).keyLength).toBe(108n);
+  });
+
+  it('dailyCeilingProblem: text at MIN - 1 and MAX + 1, null at MIN and MAX', () => {
+    expect(dailyCeilingProblem(LLM_DAILY_CEILING_MIN_MICRO_USD - 1n)).toBe(
+      'Daily ceiling must be between $0.01 and $1000.00.',
+    );
+    expect(dailyCeilingProblem(LLM_DAILY_CEILING_MAX_MICRO_USD + 1n)).toBe(
+      'Daily ceiling must be between $0.01 and $1000.00.',
+    );
+    expect(dailyCeilingProblem(0n)).not.toBeNull();
+    expect(dailyCeilingProblem(LLM_DAILY_CEILING_MIN_MICRO_USD)).toBeNull();
+    expect(dailyCeilingProblem(LLM_DAILY_CEILING_MAX_MICRO_USD)).toBeNull();
+    expect(dailyCeilingProblem(LLM_DAILY_CEILING_DEFAULT_MICRO_USD)).toBeNull();
+  });
+
+  it('setDailyCeiling throws a plain Error out of range and writes nothing', () => {
+    const ctx = makeCtx();
+    expect(() => setDailyCeiling(ctx, LLM_DAILY_CEILING_MIN_MICRO_USD - 1n)).toThrow(
+      'Daily ceiling must be between $0.01 and $1000.00.',
+    );
+    expect(() => setDailyCeiling(ctx, LLM_DAILY_CEILING_MAX_MICRO_USD + 1n)).toThrow(Error);
+    expect(stateRow(ctx).dailyCeilingMicroUsd).toBe(10_000_000n);
+  });
+
+  it('setDailyCeiling writes dailyCeilingMicroUsd in range and the gate reads it', () => {
+    const ctx = makeCtx();
+    setDailyCeiling(ctx, 3_000_000n);
+    expect(stateRow(ctx).dailyCeilingMicroUsd).toBe(3_000_000n);
+    expect(llmGate(ctx).ceilingMicroUsd).toBe(3_000_000n);
+    setDailyCeiling(ctx, LLM_DAILY_CEILING_MIN_MICRO_USD);
+    setDailyCeiling(ctx, LLM_DAILY_CEILING_MAX_MICRO_USD);
+    expect(stateRow(ctx).dailyCeilingMicroUsd).toBe(LLM_DAILY_CEILING_MAX_MICRO_USD);
   });
 });
 
@@ -95,7 +220,7 @@ describe('markKeyCheck', () => {
   });
 
   it('false on an empty table creates the row with the check cleared and no verified time', () => {
-    const ctx = makeCtx();
+    const ctx = makeEmptyCtx();
     markKeyCheck(ctx, false);
     expect(stateRow(ctx).keyLastCheckOk).toBe(false);
     expect(stateRow(ctx).keyVerifiedAt).toBeUndefined();

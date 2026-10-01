@@ -2175,7 +2175,8 @@ export const LlmPlayerBudget = table(
   }
 );
 
-// Hard phase spend ledger (singleton id 1).
+// Spend ledger (singleton id 1): all-time spent, reserved and calls (the record, no longer a limit),
+// plus the current UTC day's spent figure that the global daily ceiling counts (Phase 43).
 export const LlmSpend = table(
   { name: 'llm_spend' },
   {
@@ -2184,10 +2185,13 @@ export const LlmSpend = table(
     reservedMicroUsd: t.u64(),
     calls: t.u64(),
     updatedAt: t.timestamp(),
+    dayUtc: t.string().default(''),            // UTC day the day counter belongs to; '' until the first spend
+    daySpentMicroUsd: t.u64().default(0n),     // spent on dayUtc; rolls lazily at UTC midnight
   }
 );
 
-// Admin key status and last smoke result (singleton id 1). Never holds the key itself.
+// Admin key status, last smoke result, kill switch and global daily ceiling (singleton id 1).
+// Never holds the key itself.
 export const LlmAdminState = table(
   { name: 'llm_admin_state' },
   {
@@ -2199,6 +2203,8 @@ export const LlmAdminState = table(
     keyLastCheckOk: t.bool(),
     lastSmokeAt: t.timestamp().optional(),
     lastSmokeJson: t.string(),
+    llmEnabled: t.bool().default(true),                      // kill switch: true means calls run
+    dailyCeilingMicroUsd: t.u64().default(10_000_000n),      // global daily ceiling (= LLM_DAILY_CEILING_DEFAULT_MICRO_USD)
   }
 );
 

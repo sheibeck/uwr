@@ -71,12 +71,26 @@ export const LLM_PLAYER_DAILY_COST_MICRO_USD = 1_000_000n;
 export const LLM_PLAYER_DAILY_CALLS = 200n;
 /** Active non-narration jobs per player. */
 export const LLM_PLAYER_MAX_ACTIVE_JOBS = 3;
-/** Hard $2 phase spend cap: a code constant no reducer can change. */
+/**
+ * The old $2 phase spend cap. No longer a limit: Phase 43 replaced it with the
+ * global daily ceiling below, and llm_spend now only records all-time spent,
+ * reserved and calls. Plan 43-06 removes its last readers and this constant
+ * (reducers/llm.ts and views/llm.ts still import it until then).
+ */
 export const LLM_PHASE_SPEND_CAP_MICRO_USD = 2_000_000n;
 /** llm_player_budget rows older than this many UTC days are prunable. */
 export const LLM_BUDGET_RETENTION_DAYS = 2;
 /** Apply runs at most this many times (the second re-runs from stored text, no second billed call). */
 export const LLM_APPLY_MAX_ATTEMPTS = 2;
+
+// -- Global ceiling and kill switch (Phase 43, COST-03) --------------------------
+
+/** Default global spend ceiling per UTC day across all players ($10.00). */
+export const LLM_DAILY_CEILING_DEFAULT_MICRO_USD = 10_000_000n;
+/** The lowest ceiling an admin may set ($0.01). */
+export const LLM_DAILY_CEILING_MIN_MICRO_USD = 10_000n;
+/** The highest ceiling an admin may set ($1,000.00). */
+export const LLM_DAILY_CEILING_MAX_MICRO_USD = 1_000_000_000n;
 
 // -- Smoke test ----------------------------------------------------------------
 

@@ -33,6 +33,12 @@ describe('llm_limits constants (Phase 41)', () => {
     expect(L.LLM_SPEND_ID).toBe(1n);
   });
 
+  it('holds the global daily ceiling default and its admin bounds (Phase 43, COST-03)', () => {
+    expect(L.LLM_DAILY_CEILING_DEFAULT_MICRO_USD).toBe(10_000_000n);
+    expect(L.LLM_DAILY_CEILING_MIN_MICRO_USD).toBe(10_000n);
+    expect(L.LLM_DAILY_CEILING_MAX_MICRO_USD).toBe(1_000_000_000n);
+  });
+
   it('narration cap is the global cap minus one', () => {
     expect(L.LLM_NARRATION_MAX_IN_FLIGHT).toBe(L.LLM_MAX_IN_FLIGHT - 1);
   });

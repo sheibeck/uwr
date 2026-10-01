@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { TimeDuration } from 'spacetimedb';
-import { createMockDb, createMockCtx, createMockProcCtx, makeSyncResponse } from './test-utils';
+import {
+  createMockDb,
+  createMockCtx,
+  createMockProcCtx,
+  makeSyncResponse,
+  defaultLlmAdminStateRow,
+} from './test-utils';
 
 describe('createMockDb', () => {
   it('auto-creates tables on first access', () => {
@@ -137,6 +143,28 @@ describe('createMockDb', () => {
     expect(db.nonexistent._rows()).toHaveLength(0);
     expect(db.nonexistent.iter()).toHaveLength(0);
     expect(db.nonexistent.by_location.filter(1n)).toHaveLength(0);
+  });
+
+  it('seeds one default enabled llm_admin_state row when the seed has no llm_admin_state key', () => {
+    const db = createMockDb({});
+    expect(db.llm_admin_state._rows()).toEqual([defaultLlmAdminStateRow()]);
+    expect(db.llm_admin_state._rows()[0].llmEnabled).toBe(true);
+    expect(db.llm_admin_state._rows()[0].dailyCeilingMicroUsd).toBe(10_000_000n);
+    // another table in the seed does not change that
+    expect(createMockDb({ character: [] }).llm_admin_state._rows()).toHaveLength(1);
+  });
+
+  it('llm_admin_state: [] keeps the table empty (the missing-row case)', () => {
+    const db = createMockDb({ llm_admin_state: [] });
+    expect(db.llm_admin_state._rows()).toHaveLength(0);
+  });
+
+  it('an explicit llm_admin_state row replaces the default, and each mock gets a fresh default object', () => {
+    const own = { id: 1n, llmEnabled: false };
+    expect(createMockDb({ llm_admin_state: [own] }).llm_admin_state._rows()).toEqual([own]);
+    const a = createMockDb();
+    const b = createMockDb();
+    expect(a.llm_admin_state._rows()[0]).not.toBe(b.llm_admin_state._rows()[0]);
   });
 });
 

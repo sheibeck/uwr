@@ -223,6 +223,7 @@ import {
   ensureInactivityTickScheduled,
 } from './helpers/scheduling';
 import { ensureLlmSweepScheduled } from './helpers/llm_schedule';
+import { ensureLlmAdminState } from './helpers/llm_admin_state';
 
 import { myBankSlotsView } from './schema/tables';
 
@@ -573,6 +574,8 @@ spacetimedb.init((ctx) => {
   }
   // Ensure starter item templates exist
   ensureStarterItemTemplates(ctx);
+  // A fresh database starts with the kill switch on (calls run) and the default daily ceiling.
+  ensureLlmAdminState(ctx);
   initScheduledTables(ctx);
 });
 

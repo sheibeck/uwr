@@ -17,8 +17,27 @@ import { strictTableSpec } from './schema_recorder';
  */
 export type MockDbOptions = { strict?: boolean };
 
-export function createMockDb(seed: Record<string, any[]> = {}, dbOpts: MockDbOptions = {}) {
+/** A fresh default llm_admin_state singleton row: calls enabled, $10 daily ceiling. */
+export function defaultLlmAdminStateRow() {
+  return {
+    id: 1n,
+    keySet: false,
+    keyLength: 0n,
+    keyLastCheckOk: false,
+    lastSmokeJson: '{}',
+    llmEnabled: true,
+    dailyCeilingMicroUsd: 10_000_000n,
+  };
+}
+
+export function createMockDb(rawSeed: Record<string, any[]> = {}, dbOpts: MockDbOptions = {}) {
   const strict = dbOpts.strict === true;
+  // A missing llm_admin_state row fails closed (Phase 43 PLANNING-NOTES item 9), so the shared
+  // mock carries an enabled row by default. Tests that need the missing-row case opt out with
+  // `llm_admin_state: []`; an explicit row replaces the default.
+  const seed: Record<string, any[]> = Object.prototype.hasOwnProperty.call(rawSeed, 'llm_admin_state')
+    ? rawSeed
+    : { ...rawSeed, llm_admin_state: [defaultLlmAdminStateRow()] };
   const tables: Record<string, any[]> = {};
   const nextIds: Record<string, bigint> = {};
 
