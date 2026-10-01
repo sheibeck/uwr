@@ -22,6 +22,8 @@ import {
   samplePasses,
   shouldStopSweep,
   structuralCheck,
+  sweepCallCostMicroUsd,
+  sweepRetryAllowed,
   toneLint,
 } from './sweep_rules.mjs';
 import { SWEEP_FIXTURES, classFillInputFrom, worldFillInputFrom } from './sweep_fixtures.mjs';
@@ -358,6 +360,41 @@ describe('shouldStopSweep', () => {
   });
 });
 
+describe('sweepCallCostMicroUsd (review WR-A05)', () => {
+  const R = 40_000n;
+  const call = (over) => ({ usageCostMicroUsd: null, ok: false, failureClass: 'server', httpStatus: 500, ...over });
+
+  it('charges the usage cost when the reply carried usage', () => {
+    expect(sweepCallCostMicroUsd(call({ ok: true, failureClass: null, httpStatus: 200, usageCostMicroUsd: 1234n }), R)).toBe(1234n);
+    expect(sweepCallCostMicroUsd(call({ usageCostMicroUsd: 77 }), R)).toBe(77n);
+  });
+
+  it('charges the reservation when billing is unknown: timeout, transport failure, or a 2xx with no usable usage', () => {
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'timeout', httpStatus: 0 }), R)).toBe(R);
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'network', httpStatus: 0 }), R)).toBe(R);
+    // The executor's billedButUnparsed case: Anthropic ran the request, the body could not be used.
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'malformed', httpStatus: 200 }), R)).toBe(R);
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'malformed', httpStatus: 299 }), R)).toBe(R);
+    expect(sweepCallCostMicroUsd(call({ ok: true, failureClass: null, httpStatus: 200 }), R)).toBe(R);
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'malformed', httpStatus: 200, usageCostMicroUsd: 0n }), R)).toBe(R);
+  });
+
+  it('charges nothing for a failure the API answered with a non-2xx status', () => {
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'rate_limit', httpStatus: 429 }), R)).toBe(0n);
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'server', httpStatus: 500 }), R)).toBe(0n);
+    expect(sweepCallCostMicroUsd(call({ failureClass: 'bad_request', httpStatus: 400 }), R)).toBe(0n);
+  });
+});
+
+describe('sweepRetryAllowed (review WR-A05)', () => {
+  it('lets the retry run only while spent + the failed attempt + the retry reservation stays within the stop line', () => {
+    expect(sweepRetryAllowed(4_000_000n, 100_000n, 400_000n)).toBe(true); // exactly at the line
+    expect(sweepRetryAllowed(4_000_000n, 100_001n, 400_000n)).toBe(false);
+    expect(sweepRetryAllowed(4_400_000n, 0n, 100_001n)).toBe(false);
+    expect(sweepRetryAllowed(0, 0, 1)).toBe(true);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // buildMeasurementRecord
 // ---------------------------------------------------------------------------
@@ -665,6 +702,17 @@ describe('the sweep harness source', () => {
         expect(expr).not.toMatch(/\b(key|apiKey|bodyText|replyText|replyJson|volatile|routeBlock|headers|body|text|prompt|completion)\b/);
       }
     }
+  });
+
+  it.skipIf(skip)('review WR-A05: charges each call through sweepCallCostMicroUsd and gates the retry on the stop line', () => {
+    expect(functionBody(src, 'callClaude')).toMatch(/sweepCallCostMicroUsd\(/);
+    expect(functionBody(src, 'callClaude')).toMatch(/httpStatus = res\.status/);
+    const retry = functionBody(src, 'callWithRetry');
+    expect(retry).toMatch(/sweepRetryAllowed\(spent, first\.costMicroUsd, reservation\)/);
+    // The gate comes before the second paid call.
+    expect(retry.indexOf('sweepRetryAllowed(')).toBeLessThan(retry.lastIndexOf('callClaude('));
+    // Both runs pass their running spend in.
+    expect(count(src, /callWithRetry\(key, route, bodyText, reservation, spent\)/g)).toBe(2);
   });
 
   it.skipIf(skip)('keeps the model id out of the harness (it comes from CLAUDE_MODEL)', () => {

@@ -60,6 +60,34 @@ export function shouldStopSweep(spentMicroUsd, nextReserveMicroUsd) {
   return BigInt(spentMicroUsd) + BigInt(nextReserveMicroUsd) > SWEEP_STOP_AT_MICRO_USD;
 }
 
+/**
+ * What one sweep call adds to the running spend (review WR-A05), mirroring the executor's billing rule:
+ *  - usage that costs something: that cost;
+ *  - otherwise the billing is unknown and the reservation is charged, never under-counted, when the call
+ *    succeeded without usage, timed out, failed in transport, or got a 2xx whose body could not be used
+ *    (the executor's billedButUnparsed case);
+ *  - any other failure (a non-2xx status the API answered) costs 0.
+ * `usageCostMicroUsd` is null when the reply carried no usage. Accepts bigint or integer numbers.
+ */
+export function sweepCallCostMicroUsd({ usageCostMicroUsd, ok, failureClass, httpStatus }, reservationMicroUsd) {
+  const usage = usageCostMicroUsd === null || usageCostMicroUsd === undefined ? 0n : BigInt(usageCostMicroUsd);
+  if (usage > 0n) return usage;
+  const reservation = BigInt(reservationMicroUsd);
+  if (ok === true) return reservation;
+  if (failureClass === 'timeout' || failureClass === 'network') return reservation;
+  const status = Number(httpStatus ?? 0);
+  if (status >= 200 && status < 300) return reservation;
+  return 0n;
+}
+
+/**
+ * True when the automatic retry of a failed call may run: the spend so far plus the failed first attempt
+ * plus the retry's reservation stays within the stop line (review WR-A05).
+ */
+export function sweepRetryAllowed(spentMicroUsd, firstCostMicroUsd, reservationMicroUsd) {
+  return !shouldStopSweep(BigInt(spentMicroUsd) + BigInt(firstCostMicroUsd), reservationMicroUsd);
+}
+
 // -- Cache verdict -----------------------------------------------------------
 
 const n = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);

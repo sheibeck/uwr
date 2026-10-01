@@ -42,6 +42,8 @@ import {
   resolveSweepMode,
   shouldStopSweep,
   structuralCheck,
+  sweepCallCostMicroUsd,
+  sweepRetryAllowed,
   toneLint,
 } from './sweep_rules.mjs';
 import { SWEEP_FIXTURES, classFillInputFrom, worldFillInputFrom } from './sweep_fixtures.mjs';
@@ -187,6 +189,7 @@ interface CallOutcome {
 /** One request to the API. The only place that reaches the network. */
 async function callClaude(key: string, route: LlmRoute, bodyText: string, reservation: bigint): Promise<CallOutcome> {
   const started = Date.now();
+  let httpStatus = 0;
   let result: ReturnType<typeof classifyClaudeError>;
   try {
     const res = await fetch(ANTHROPIC_MESSAGES_URL, {
@@ -195,6 +198,7 @@ async function callClaude(key: string, route: LlmRoute, bodyText: string, reserv
       body: bodyText,
       signal: AbortSignal.timeout(LLM_ROUTE_BASELINES[route].timeoutMs),
     });
+    httpStatus = res.status;
     const text = await res.text();
     result = classifyClaudeResponse(
       route,
@@ -207,10 +211,17 @@ async function callClaude(key: string, route: LlmRoute, bodyText: string, reserv
   const latencyMs = Date.now() - started;
   const usage = result.usage ?? { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
 
-  // Billing is unknown after a timeout or a transport failure: charge the reservation, never under-count.
-  let cost = 0n;
-  if (result.usage) cost = BigInt(estimateCostMicroUsd(result.usage));
-  else if (!result.ok && (result.class === 'timeout' || result.class === 'network')) cost = reservation;
+  // Billing is unknown after a timeout, a transport failure or a 2xx without usable usage (the executor's
+  // billedButUnparsed case): charge the reservation, never under-count (review WR-A05).
+  const cost = sweepCallCostMicroUsd(
+    {
+      usageCostMicroUsd: result.usage ? BigInt(estimateCostMicroUsd(result.usage)) : null,
+      ok: result.ok,
+      failureClass: result.ok ? null : result.class,
+      httpStatus,
+    },
+    reservation,
+  );
 
   return {
     ok: result.ok,
@@ -227,16 +238,28 @@ async function callClaude(key: string, route: LlmRoute, bodyText: string, reserv
   };
 }
 
-/** callClaude, once more after 5 s only for a retryable failure class. Both attempts count toward the spend. */
+/** One call with its optional retry: the outcome kept and the cost of a failed first attempt. */
+type RetryResult = { outcome: CallOutcome; extraCost: bigint };
+
+/**
+ * callClaude, once more after 5 s only for a retryable failure class, and only when the spend so far plus the
+ * failed attempt plus the retry's reservation stays within the stop line (review WR-A05). Both attempts count
+ * toward the spend.
+ */
 async function callWithRetry(
   key: string,
   route: LlmRoute,
   bodyText: string,
   reservation: bigint,
-): Promise<{ outcome: CallOutcome; extraCost: bigint }> {
+  spent: bigint,
+): Promise<RetryResult> {
   const first = await callClaude(key, route, bodyText, reservation);
   const retryable = ['rate_limit', 'overloaded', 'server', 'timeout', 'network'].includes(first.failureClass ?? '');
   if (first.ok || !retryable) return { outcome: first, extraCost: 0n };
+  if (!sweepRetryAllowed(spent, first.costMicroUsd, reservation)) {
+    say(`  no retry: spent ${usd(spent + first.costMicroUsd)} plus the retry's reservation would pass the stop line`);
+    return { outcome: first, extraCost: 0n };
+  }
   say(`  retrying after ${RETRY_DELAY_MS / 1000}s (class ${first.failureClass})`);
   await sleep(RETRY_DELAY_MS);
   const second = await callClaude(key, route, bodyText, reservation);
@@ -305,7 +328,7 @@ async function runA(key: string): Promise<void> {
             stopped = true;
             break outer;
           }
-          const { outcome, extraCost } = await callWithRetry(key, route, bodyText, reservation);
+          const { outcome, extraCost } = await callWithRetry(key, route, bodyText, reservation, spent);
           spent += outcome.costMicroUsd + extraCost;
           calls += 1;
           const sample = sampleOf(route, outcome);
@@ -363,7 +386,7 @@ async function runB(key: string): Promise<void> {
           say(`Run B stopped before ${route} call ${c + 1}: spent ${usd(spent)} plus the next reservation would pass the stop line`);
           break outer;
         }
-        const { outcome, extraCost } = await callWithRetry(key, route, bodyText, reservation);
+        const { outcome, extraCost } = await callWithRetry(key, route, bodyText, reservation, spent);
         spent += outcome.costMicroUsd + extraCost;
         calls += 1;
         const s = sampleOf(route, outcome);
