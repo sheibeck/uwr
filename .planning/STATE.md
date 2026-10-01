@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
 status: executing
-stopped_at: Completed 43-02-PLAN.md
-last_updated: "2026-10-01T02:00:16.100Z"
+stopped_at: Completed 43-03-PLAN.md
+last_updated: "2026-10-01T02:07:58.163Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 43 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 63
-  completed_plans: 48
+  completed_plans: 49
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 43 (Latency Tuning, Staged Generation and Budget) — EXECUTING
-Plan: 3 of 15
+Plan: 4 of 15
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 43 execution started
 
-Progress: [████████░░] 76% (2/6 phases)
+Progress: [████████░░] 78% (2/6 phases)
 
 ## Previous Milestones
 
@@ -102,6 +102,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [42-07] Publish 2 ran local with --break-clients only (no clear, key intact len 108) and dropped llm_budget, llm_cleanup_tick, llm_request, llm_task; re-publish and second bindings regeneration are no-ops; local server stopped (PID 13620); user checklist 42-USER-CHECKLIST.md holds all Cloudflare/OpenAI/env/maincloud steps
 - [Phase ?]: 43-01: global ceiling and kill switch checked in enqueueLlmJob before busy and before any write; missing llm_admin_state row fails closed; $2 phase cap constant kept until Plan 43-06
 - [Phase ?]: 43-02: /llm stats aggregation is pure (imports only ./measurement); p50/p95 over ok calls only, money and latency truncate; route names stripped of [ ] < > { } for the v-html console
+- [Phase ?]: 43-03: claim-time halted/ceiling end a pending job as failed (not expired) through failAtClaim so applyLlmFailure releases the domain lock; one shared resting line, public bucket unavailable
 
 ### Roadmap Evolution
 
@@ -170,8 +171,8 @@ Phase 42 verification passed on 2026-09-30, after the user resolved every UAT it
 
 **Resume file:** None
 
-Last session: 2026-10-01T02:00:16.071Z
-Stopped at: Completed 43-02-PLAN.md
+Last session: 2026-10-01T02:07:58.133Z
+Stopped at: Completed 43-03-PLAN.md
 
 ## Performance Metrics
 
@@ -233,6 +234,7 @@ Stopped at: Completed 43-02-PLAN.md
 | Phase 42 P07 | 25min | 3 tasks | 8 files |
 | Phase 43 P01 | 15min | 3 tasks | 16 files |
 | Phase 43 P02 | 12min | 2 tasks | 2 files |
+| Phase 43 P03 | 25min | 2 tasks | 9 files |
 
 ## Operator Next Steps
 

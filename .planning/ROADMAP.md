@@ -310,7 +310,7 @@ Plans:
   5. Admin can flip a kill switch that halts all LLM calls with an in-voice player message, and a global daily spend ceiling halts calls automatically when reached
 
 **Testing**: Unit tests for the stats aggregation, staged apply (stage 1 visible before stage 2 completes, and stage 2 failure leaves a playable stage 1), progress-line emission, the parallel-class path if built, ceiling and kill-switch enforcement at enqueue, and cost math against recalibrated prices.
-**Plans**: 2/15 plans executed
+**Plans**: 3/15 plans executed
 **UI hint**: yes
 
 Plans:
@@ -322,7 +322,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 43-03-PLAN.md — Kill switch and ceiling at claim through failAtClaim (refund once, claim order), resting copy in every failure path
+- [x] 43-03-PLAN.md — Kill switch and ceiling at claim through failAtClaim (refund once, claim order), resting copy in every failure path
 - [ ] 43-04-PLAN.md — Stage routes core data layer: world_gen_start and creation_class_reveal, stage schemas, blocks, tolerant builders, inputs
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -380,7 +380,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
 | 42. Client Cutover and Legacy Removal | v2.2 | 7/7 | Complete    | 2026-09-30 |
-| 43. Latency Tuning, Staged Generation and Budget | v2.2 | 2/15 | In Progress|  |
+| 43. Latency Tuning, Staged Generation and Budget | v2.2 | 3/15 | In Progress|  |
 | 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
 
 ## Backlog
