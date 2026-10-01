@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: LLM — Claude Engine
-current_phase: 43
-current_phase_name: Latency Tuning, Staged Generation and Budget
-status: verifying
-stopped_at: Completed 43-15-PLAN.md
+current_phase: 44
+current_phase_name: Live Verification and Tone Eval
+status: planning
+stopped_at: Phase 43 executed and verified at code level (human items deferred); next Phase 44 planning
 last_updated: "2026-10-01T09:04:14.887Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 43 execution started
@@ -24,13 +24,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-30)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 43 — Latency Tuning, Staged Generation and Budget
+**Current focus:** Phase 44 — Live Verification and Tone Eval
 
 ## Current Position
 
-Phase: 43 (Latency Tuning, Staged Generation and Budget) — EXECUTING
-Plan: 15 of 15
-Status: Phase complete — ready for verification
+Phase: 44 (Live Verification and Tone Eval) — PLANNING
+Plan: 0/TBD (context gathered; research and plans next)
+Status: Phase 43 complete at code level (verification deferred: /gsd-verify-work 43). Next: plan Phase 44
 Last activity: 2026-09-30 — Phase 43 execution started
 
 Progress: [██████████] 97% (2/6 phases)
@@ -175,10 +175,13 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 | Phase | State | Resume |
 |-------|-------|--------|
 | 41 | verification_deferred_human | /gsd-verify-work 41 |
+| 43 | verification_deferred_human | /gsd-verify-work 43 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
 
 Phase 42 verification passed on 2026-09-30, after the user resolved every UAT item: 4 passed and 1 skipped. Its maincloud two-publish is deferred to the end of the milestone (see Blockers/Concerns).
+
+Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_needed, 5/5 criteria, no gaps). On 2026-10-01 the user chose "Defer all and keep going" for the 7 items in 43-UAT.md: staged region and class reveal live, line rotation, the /llm admin console, WR-A01 money logic, the WR-A04/WR-B01 limits, and maincloud. Phase 44 live verification can pick up items 1 to 4.
 
 ## Session Continuity
 

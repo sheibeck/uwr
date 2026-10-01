@@ -127,6 +127,17 @@ A world that writes itself around its players — every character is unique, eve
 - The user cleanup and maincloud two-publish steps are in `42-USER-CHECKLIST.md` (user-run only). The old proxy secret is treated as burned.
 - Tests: 2411 across client and server. The code review fixed 4 warnings; per-character indicator binding is deferred (needs a schema change), and `llm_job` retention is a todo.
 
+**Phase 43 (Latency Tuning, Staged Generation and Budget)** is code-complete as of 2026-10-01. Verification is human_needed; the user deferred the live checks.
+
+- Spend controls: a global daily ceiling ($10 by default, UTC day, counting reserved plus spent) and an admin kill switch, checked at enqueue and again at claim. The player sees one in-voice line, "The Keeper is resting. Return later." The $2 phase cap is retired.
+- Admin console: `/llm stats` (per-route calls, cost, p50/p95 latency and errors), `/llm on|off`, and `/llm ceiling <dollars>`. Reducers `llm_set_enabled` and `llm_set_daily_ceiling`; the admin view shows the new fields.
+- Staged world gen: `world_gen_start` reveals the region, start location and first NPC (about 10 s p50, down from 23.5 s for the whole region), then the `world_gen` fill completes it. A failed fill leaves the region playable, and explore retries it.
+- Staged class reveal: `creation_class_reveal` shows the identity and first ability (p50 4.7 s), then the `creation_class` fill finishes it. LAT-06 parallel archetypes were measured and left out.
+- Keeper progress lines rotate every 5 s from server-data pools. Stage-2 steps never lock input.
+- Measured tuning: a user-approved sweep (108 calls, $0.92) picked low effort for all routes. `max_tokens` comes from p99, with 512 tokens of headroom on routes that never auto-retry. Prompt caching is proven on all 9 routes. The values trace to `spacetimedb/src/data/llm_measurements.json`.
+- Fixes: combat outro narration stays in the second person and strips leaked self-corrections; the `time` command no longer panics.
+- Tests: 3148. The code review fixed 9 warnings (14 info remain).
+
 ## Current Milestone: v2.2 LLM — Claude Engine
 
 **Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
@@ -221,4 +232,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-30 after Phase 42*
+*Last updated: 2026-10-01 after Phase 43*

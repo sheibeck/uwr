@@ -65,21 +65,21 @@
 
 - [x] **COST-01**: Every call's usage (input, output, cache-write, cache-read tokens) is recorded per route.
 - [x] **COST-02**: The per-player daily budget is cost-weighted, with a call-count backstop. Cost is reserved at enqueue and settled on result.
-- [ ] **COST-03**: A global daily spend ceiling and an admin kill switch halt all LLM calls.
+- [x] **COST-03**: A global daily spend ceiling and an admin kill switch halt all LLM calls.
 
 ### Latency
 
-- [ ] **LAT-01**: Each route's effort and `max_tokens` are tuned from measured latency and output size, using an effort sweep and `max_tokens` from the measured p99.
-- [ ] **LAT-02**: Prompt caching is active on the stable prefix and verified per route (`cache_read_input_tokens > 0`).
-- [ ] **LAT-03**: World gen is staged. The player can enter a new region, with its start location and first NPC, before the rest finishes generating.
-- [ ] **LAT-04**: Class reveal is staged. The player sees class identity and first ability before the full class finishes.
-- [ ] **LAT-05**: The player sees in-voice Keeper progress lines while generation runs.
-- [ ] **LAT-06**: Classes for both archetypes are generated in parallel once race is interpreted. This applies only if the measured class reveal is still over ~10 s after LAT-04.
+- [x] **LAT-01**: Each route's effort and `max_tokens` are tuned from measured latency and output size, using an effort sweep and `max_tokens` from the measured p99.
+- [x] **LAT-02**: Prompt caching is active on the stable prefix and verified per route (`cache_read_input_tokens > 0`).
+- [x] **LAT-03**: World gen is staged. The player can enter a new region, with its start location and first NPC, before the rest finishes generating.
+- [x] **LAT-04**: Class reveal is staged. The player sees class identity and first ability before the full class finishes.
+- [x] **LAT-05**: The player sees in-voice Keeper progress lines while generation runs.
+- [x] **LAT-06**: Classes for both archetypes are generated in parallel once race is interpreted. This applies only if the measured class reveal is still over ~10 s after LAT-04.
 
 ### Operations
 
 - [x] **OPS-01**: Admin can fire a live smoke-test call and see key status (set / valid). The smoke test also warms schemas.
-- [ ] **OPS-02**: Admin can view `/llm stats`: calls, cost, p50/p95 latency and errors by route.
+- [x] **OPS-02**: Admin can view `/llm stats`: calls, cost, p50/p95 latency and errors by route.
 
 ### Quality & Verification
 
@@ -139,15 +139,15 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | SEC-05 | Phase 42 | Complete |
 | COST-01 | Phase 41 | Complete |
 | COST-02 | Phase 41 | Complete |
-| COST-03 | Phase 43 | Pending |
-| LAT-01 | Phase 43 | Pending |
-| LAT-02 | Phase 43 | Pending |
-| LAT-03 | Phase 43 | Pending |
-| LAT-04 | Phase 43 | Pending |
-| LAT-05 | Phase 43 | Pending |
-| LAT-06 | Phase 43 | Pending |
+| COST-03 | Phase 43 | Complete |
+| LAT-01 | Phase 43 | Complete |
+| LAT-02 | Phase 43 | Complete |
+| LAT-03 | Phase 43 | Complete |
+| LAT-04 | Phase 43 | Complete |
+| LAT-05 | Phase 43 | Complete |
+| LAT-06 | Phase 43 | Complete |
 | OPS-01 | Phase 41 | Complete (code; live smoke test with the real key deferred by the user, see 41-VERIFICATION.md) |
-| OPS-02 | Phase 43 | Pending |
+| OPS-02 | Phase 43 | Complete |
 | QUAL-01 | Phase 44 | Pending |
 | QUAL-02 | Phase 44 | Pending |
 | QUAL-03 | Phase 44 | Pending |
