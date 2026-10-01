@@ -44,7 +44,7 @@ progress: 2026-09-30.
 - No Cloudflare Worker was ever deployed: the user's account has no projects.
 - The user has revoked all OpenAI API keys.
 - Claude deleted the local `llm-proxy/` folder and its `.git/info/exclude` line, at the user's request.
-- Still to do: remove the `VITE_LLM_PROXY_*` lines from `.env.local` and the hosting settings; run the maincloud two-publish.
+- The user removed the unused `VITE_OPENAI_API_KEY` and `VITE_CLAUDE_API_KEY` from the root `.env.local`. Neither was ever referenced in code, so neither was ever in a bundle. Still to do: confirm the `VITE_LLM_PROXY_*` lines are gone from `.env.local` and the hosting settings; run the maincloud two-publish.
 
 ## Summary
 
