@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { ref } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { effectScope, ref } from 'vue';
 // This tsconfig loads @types/node, and vitest runs the file in Node.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  indicatorLineFor,
   resolveDisplayedLine,
   routeInConsoleScope,
   selectLlmIndicator,
@@ -13,6 +14,8 @@ import {
 import {
   LLM_INDICATOR_FALLBACK_LINE,
   LLM_INDICATOR_LINES,
+  LLM_INDICATOR_POOLS,
+  LLM_PROGRESS_ROTATE_MS,
 } from '../../spacetimedb/src/data/llm_indicator_lines';
 
 const INACTIVE = { active: false, route: null, indicatorLine: null };
@@ -281,7 +284,142 @@ describe('console scoping (WR-02)', () => {
   });
 });
 
+// ============================================================================
+// Progress-line rotation (Plan 43-09, LAT-05)
+// ============================================================================
+
+describe('indicatorLineFor', () => {
+  it('returns pool[rotation % pool.length] for a route with a pool', () => {
+    const pool = LLM_INDICATOR_POOLS.world_gen;
+    expect(pool.length).toBe(4);
+    for (let r = 0; r < 9; r += 1) {
+      expect(indicatorLineFor('world_gen', r)).toBe(pool[r % pool.length]);
+    }
+  });
+
+  it('rotation 0 is the Phase 42 line for every non-silent route', () => {
+    for (const [route, line] of Object.entries(LLM_INDICATOR_LINES)) {
+      if (line === null) continue;
+      expect(indicatorLineFor(route, 0)).toBe(line);
+    }
+  });
+
+  it('returns null for a silent route at any rotation', () => {
+    for (const r of [0, 1, 7]) {
+      expect(indicatorLineFor('combat_narration', r)).toBeNull();
+      expect(indicatorLineFor('smoke_test', r)).toBeNull();
+    }
+  });
+
+  it('returns the fallback line for an unknown route at every rotation', () => {
+    for (const r of [0, 1, 2, 5]) {
+      expect(indicatorLineFor('mystery_route', r)).toBe(LLM_INDICATOR_FALLBACK_LINE);
+    }
+  });
+
+  it('does not treat an Object.prototype key as a known route', () => {
+    expect(indicatorLineFor('toString', 1)).toBe(LLM_INDICATOR_FALLBACK_LINE);
+  });
+});
+
+describe('selectLlmIndicator rotation', () => {
+  it('defaults to rotation 0 (identical to the Phase 42 result)', () => {
+    const rows = [row(1n, 'world_gen', 'pending')];
+    expect(selectLlmIndicator(rows)).toEqual(selectLlmIndicator(rows, undefined, 0));
+    expect(selectLlmIndicator(rows).indicatorLine).toBe(LLM_INDICATOR_LINES.world_gen);
+  });
+
+  it('shows pool lines 1 and 2 for an active world_gen job at rotation 1 and 2', () => {
+    const rows = [row(1n, 'world_gen', 'in_flight')];
+    const pool = LLM_INDICATOR_POOLS.world_gen;
+    expect(selectLlmIndicator(rows, undefined, 1).indicatorLine).toBe(pool[1]);
+    expect(selectLlmIndicator(rows, undefined, 2).indicatorLine).toBe(pool[2]);
+  });
+
+  it('wraps rotation 4 on a four-line pool back to line 0', () => {
+    const rows = [row(1n, 'world_gen', 'pending')];
+    expect(selectLlmIndicator(rows, 'game', 4).indicatorLine).toBe(LLM_INDICATOR_POOLS.world_gen[0]);
+  });
+
+  it('never changes which job wins', () => {
+    const rows = [row(1n, 'npc_conversation', 'pending'), row(2n, 'world_gen', 'pending')];
+    for (let r = 0; r < 6; r += 1) {
+      expect(selectLlmIndicator(rows, undefined, r).route).toBe('world_gen');
+    }
+  });
+
+  it('still skips a silent route at any rotation', () => {
+    expect(selectLlmIndicator([row(1n, 'combat_narration', 'pending')], undefined, 3)).toEqual(INACTIVE);
+  });
+});
+
+describe('useLlmStatus rotation', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('recomputes when an injected rotation ref changes', () => {
+    const llmJobs = ref<readonly LlmJobStatusRow[]>([row(1n, 'world_gen', 'pending')]);
+    const rotation = ref(0);
+    const { status, gameStatus, creationStatus } = useLlmStatus({ llmJobs, rotation });
+    const pool = LLM_INDICATOR_POOLS.world_gen;
+    expect(status.value.indicatorLine).toBe(pool[0]);
+    rotation.value = 1;
+    expect(status.value.indicatorLine).toBe(pool[1]);
+    expect(gameStatus.value.indicatorLine).toBe(pool[1]);
+    expect(creationStatus.value.indicatorLine).toBe(pool[1]);
+    rotation.value = 3;
+    expect(status.value.indicatorLine).toBe(pool[3]);
+  });
+
+  it('advances the line after 5000 ms inside an effect scope and stops ticking after scope.stop()', () => {
+    vi.useFakeTimers();
+    const llmJobs = ref<readonly LlmJobStatusRow[]>([row(1n, 'world_gen', 'pending')]);
+    const scope = effectScope();
+    const result = scope.run(() => useLlmStatus({ llmJobs }))!;
+    const pool = LLM_INDICATOR_POOLS.world_gen;
+
+    expect(LLM_PROGRESS_ROTATE_MS).toBe(5000);
+    expect(vi.getTimerCount()).toBe(1);
+    expect(result.status.value.indicatorLine).toBe(pool[0]);
+
+    vi.advanceTimersByTime(4999);
+    expect(result.status.value.indicatorLine).toBe(pool[0]);
+    vi.advanceTimersByTime(1);
+    expect(result.status.value.indicatorLine).toBe(pool[1]);
+    vi.advanceTimersByTime(5000);
+    expect(result.gameStatus.value.indicatorLine).toBe(pool[2]);
+
+    scope.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('starts no timer and does not throw when called outside any scope', () => {
+    vi.useFakeTimers();
+    const llmJobs = ref<readonly LlmJobStatusRow[]>([row(1n, 'world_gen', 'pending')]);
+    expect(() => useLlmStatus({ llmJobs })).not.toThrow();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('starts no timer when a rotation ref is injected', () => {
+    vi.useFakeTimers();
+    const llmJobs = ref<readonly LlmJobStatusRow[]>([]);
+    const scope = effectScope();
+    scope.run(() => useLlmStatus({ llmJobs, rotation: ref(0) }));
+    expect(vi.getTimerCount()).toBe(0);
+    scope.stop();
+  });
+});
+
 describe('useLlmStatus source', () => {
+  it('imports the pool and the rotation interval from the server data module', () => {
+    const path = fileURLToPath(new URL('./useLlmStatus.ts', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    expect(source).toContain('LLM_INDICATOR_POOLS');
+    expect(source).toContain('LLM_PROGRESS_ROTATE_MS');
+    expect(source).toContain('onScopeDispose');
+  });
+
   it('reads no error detail and never mentions userMessage or errorCode', () => {
     const path = fileURLToPath(new URL('./useLlmStatus.ts', import.meta.url));
     const source = readFileSync(path, 'utf8');
