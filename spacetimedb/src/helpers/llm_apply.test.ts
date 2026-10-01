@@ -34,7 +34,7 @@ import {
   toApplyJob,
   creationStateForJob,
 } from './llm_apply';
-import { CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE } from './creation_generation';
+import { CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE, CLASS_FILL_RETRY_HINT } from './creation_generation';
 import { serializePerkEffect } from './renown';
 import { LLM_RESTING_LINE } from './llm_queue';
 import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE } from './world_gen';
@@ -729,7 +729,9 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
       expect(rows(ctx, 'character_creation_state')[0].step).toBe(back);
       const events = rows(ctx, 'event_creation');
       expect(events).toHaveLength(1);
-      expect(events[0]).toMatchObject({ playerId: alice, kind: 'creation_error', message: LLM_RESTING_LINE });
+      // Review WR-B03: CLASS_FILL_ERROR waits for input, so its resting line also says how to retry.
+      const expected = domain === 'creation_class' ? `${LLM_RESTING_LINE} ${CLASS_FILL_RETRY_HINT}` : LLM_RESTING_LINE;
+      expect(events[0]).toMatchObject({ playerId: alice, kind: 'creation_error', message: expected });
     }
   });
 
@@ -1305,7 +1307,8 @@ describe('Phase 43 (plan 13): staged class apply', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     const evs = events(ctx);
     expect(evs.map((e: any) => e.kind)).toEqual(['creation', 'creation_error']);
-    expect(evs[1].message).toBe(LLM_RESTING_LINE);
+    // Review WR-B03: after "do not touch anything", the refusal tells the player that any input retries.
+    expect(evs[1].message).toBe(`${LLM_RESTING_LINE} ${CLASS_FILL_RETRY_HINT}`);
   });
 
   it.each(['CLASS_FILLING', 'CLASS_FILL_ERROR', 'CLASS_REVEALED', 'AWAITING_ARCHETYPE', 'COMPLETE'])(
@@ -1379,7 +1382,9 @@ describe('Phase 43 (plan 13): staged class apply', () => {
       const r = revealed();
       applyLlmFailure(r, { ...fillJob, errorCode: code });
       expect(state(r).step).toBe('CLASS_FILL_ERROR');
-      expect(events(r)).toEqual([expect.objectContaining({ kind: 'creation_error', message: LLM_RESTING_LINE })]);
+      expect(events(r)).toEqual([
+        expect.objectContaining({ kind: 'creation_error', message: `${LLM_RESTING_LINE} ${CLASS_FILL_RETRY_HINT}` }),
+      ]);
     }
   });
 

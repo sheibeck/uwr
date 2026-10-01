@@ -17,6 +17,8 @@ import {
   CLASS_FILL_FAILED_LINE,
   CLASS_FILL_PATIENCE_LINE,
   CLASS_FILL_RETRY_LINE,
+  CLASS_FILL_RETRY_HINT,
+  classFillRetryLine,
 } from './creation_generation';
 import { resolveRouteInput } from './llm_inputs';
 import { llmRefusalMessage, LLM_RESTING_LINE } from './llm_queue';
@@ -357,7 +359,9 @@ describe('startClassFill', () => {
     expect(JSON.parse(s.abilities)).toHaveLength(1);
     const events = creationEvents(ctx);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ kind: 'creation_error', message: llmRefusalMessage('daily_cost') });
+    // Review WR-B03: the refusal is followed by what the player must do, since nothing retries on its own.
+    expect(events[0]).toMatchObject({ kind: 'creation_error', message: classFillRetryLine(llmRefusalMessage('daily_cost')) });
+    expect(events[0].message).toBe(`${llmRefusalMessage('daily_cost')} Say anything when you want him to try the rest again.`);
   });
 
   it('a halted fill posts the resting line and becomes CLASS_FILL_ERROR', () => {
@@ -365,7 +369,21 @@ describe('startClassFill', () => {
     setLlmEnabled(ctx, false);
     expect(startClassFill(ctx, stateOf(ctx))).toBe('refused');
     expect(stateOf(ctx).step).toBe('CLASS_FILL_ERROR');
-    expect(creationEvents(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: LLM_RESTING_LINE })]);
+    expect(creationEvents(ctx)).toEqual([
+      expect.objectContaining({ kind: 'creation_error', message: `${LLM_RESTING_LINE} ${CLASS_FILL_RETRY_HINT}` }),
+    ]);
+  });
+
+  it('review WR-B03: every refusal into CLASS_FILL_ERROR ends with the retry hint (busy included)', () => {
+    for (const reason of ['busy', 'halted', 'ceiling', 'daily_cost', 'daily_calls'] as const) {
+      const line = classFillRetryLine(llmRefusalMessage(reason));
+      expect(line.startsWith(llmRefusalMessage(reason))).toBe(true);
+      expect(line.endsWith(CLASS_FILL_RETRY_HINT)).toBe(true);
+    }
+    // In voice: the Keeper is he, no exclamation, nothing the console would read as markup.
+    expect(CLASS_FILL_RETRY_HINT).toMatch(/\bhim\b/);
+    expect(CLASS_FILL_RETRY_HINT).not.toMatch(/[!<]/);
+    expect(CLASS_FILL_RETRY_HINT).not.toMatch(/\b(it|its|they|them|their)\b/i);
   });
 
   it('with no stored first ability it refuses without a job and becomes CLASS_FILL_ERROR', () => {
@@ -397,7 +415,9 @@ describe('retryClassFill', () => {
     expect(retryClassFill(ctx, stateOf(ctx))).toBe('refused');
     expect(stateOf(ctx).step).toBe('CLASS_FILL_ERROR');
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
-    expect(creationEvents(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: LLM_RESTING_LINE })]);
+    expect(creationEvents(ctx)).toEqual([
+      expect.objectContaining({ kind: 'creation_error', message: classFillRetryLine(LLM_RESTING_LINE) }),
+    ]);
   });
 });
 

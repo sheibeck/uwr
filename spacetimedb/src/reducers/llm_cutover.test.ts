@@ -29,6 +29,7 @@ import {
   CLASS_FILL_FAILED_LINE,
   CLASS_FILL_PATIENCE_LINE,
   CLASS_FILL_RETRY_LINE,
+  classFillRetryLine,
   CLASS_REVEAL_MILESTONE_LINE,
 } from '../helpers/creation_generation';
 import { setLlmEnabled, patchAdminState } from '../helpers/llm_admin_state';
@@ -1290,7 +1291,7 @@ describe('staged class reveal (LAT-04)', () => {
 
       expectNothingReserved(ctx);
       expect(state(ctx)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
-      expect(events(ctx).map((e: any) => [e.kind, e.message])).toEqual([['creation_error', LLM_RESTING_LINE]]);
+      expect(events(ctx).map((e: any) => [e.kind, e.message])).toEqual([['creation_error', classFillRetryLine(LLM_RESTING_LINE)]]);
     });
 
     it('with the daily cost spent a retry stays CLASS_FILL_ERROR with only the refusal line', () => {
@@ -1306,7 +1307,7 @@ describe('staged class reveal (LAT-04)', () => {
       submit(ctx, 'ok then');
       expectNothingReserved(ctx);
       expect(state(ctx).step).toBe('CLASS_FILL_ERROR');
-      expect(messages(ctx)).toEqual([llmRefusalMessage('daily_cost')]);
+      expect(messages(ctx)).toEqual([classFillRetryLine(llmRefusalMessage('daily_cost'))]);
     });
 
     it('"go back" at CLASS_FILL_ERROR asks to confirm going back to AWAITING_ARCHETYPE; yes clears the class fields', () => {

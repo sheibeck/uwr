@@ -56,6 +56,16 @@ export const CLASS_FILL_FAILED_LINE =
 export const CLASS_FILL_PATIENCE_LINE = 'The Keeper is still working out the rest of what you can do. Patience.';
 /** Posted when a retry of the fill starts. */
 export const CLASS_FILL_RETRY_LINE = 'The Keeper picks the thread of your finer details back up...';
+/**
+ * Appended to every refusal or resting line that leaves the state at CLASS_FILL_ERROR (review WR-B03):
+ * nothing retries the fill on its own there, only the player's next input does. The Keeper is he.
+ */
+export const CLASS_FILL_RETRY_HINT = 'Say anything when you want him to try the rest again.';
+
+/** A refusal or resting line followed by the CLASS_FILL_ERROR retry hint. */
+export function classFillRetryLine(message: string): string {
+  return `${message} ${CLASS_FILL_RETRY_HINT}`;
+}
 
 /** The step a failed or refused generation returns to. */
 const AWAITING_STEP: Record<CreationGenerationType, string> = {
@@ -178,7 +188,8 @@ export function startClassFill(ctx: any, state: any): 'enqueued' | 'duplicate' |
     sourceKey: SOURCE_KEYS.creation(state.id, 'class'),
     request: { creationStateId: state.id.toString(), generationType: 'class', input: encodeRouteInput(input) },
   });
-  if (result.refused) return toError(llmRefusalMessage(result.refused));
+  // CLASS_FILL_ERROR waits for the player's input, so the refusal line must say so (review WR-B03).
+  if (result.refused) return toError(classFillRetryLine(llmRefusalMessage(result.refused)));
 
   const current = ctx.db.character_creation_state.id.find(state.id) ?? state;
   ctx.db.character_creation_state.id.update({ ...current, step: 'CLASS_FILLING', updatedAt: ctx.timestamp });

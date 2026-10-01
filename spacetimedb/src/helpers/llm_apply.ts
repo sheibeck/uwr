@@ -66,6 +66,7 @@ import {
   startClassFill,
   CLASS_REVEAL_MILESTONE_LINE,
   CLASS_FILL_FAILED_LINE,
+  classFillRetryLine,
 } from './creation_generation';
 import { EFFECT_TYPES, QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
@@ -177,7 +178,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     // Stage 2 failed: the reveal (name, description, first ability) stays, any input retries the fill.
     const s = creationStateForJob(ctx, job);
     if (!s) return;
-    failClassFill(ctx, s, resting ? LLM_RESTING_LINE : CLASS_FILL_FAILED_LINE);
+    failClassFill(ctx, s, resting ? classFillRetryLine(LLM_RESTING_LINE) : CLASS_FILL_FAILED_LINE);
   } else if (job.domain === 'world_gen_start') {
     // Stage 1 failed: nothing was written. Only a state still waiting on stage 1 is failed.
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
