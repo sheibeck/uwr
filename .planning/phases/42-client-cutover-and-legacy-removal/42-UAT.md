@@ -24,7 +24,8 @@ result: [pending]
 ### 2. Keeper indicator per LLM action
 Trigger creation race, class, world gen, skill, renown perk and NPC chat; watch the narrative console.
 expected: The route's Keeper line shows with the pulse while the job is pending/in_flight/received and clears when it ends; creation and world gen lock input, other routes do not; a forced failure/expiry shows the server-written in-voice Keeper line and no error chip
-result: [pending]
+result: pass
+evidence: 2026-09-30. The user ran the local dev stack and reported "step 2 done. Looks good. we can adjust later, it's all working." The copy may be adjusted later (UX overhaul). The forced-failure path was not exercised by hand; unit tests cover it.
 
 ### 3. Narrow viewport, screen reader, reduced motion
 About 320px wide with the longest indicator line; NVDA/VoiceOver on the role=status region.
@@ -50,9 +51,9 @@ progress: 2026-09-30.
 ## Summary
 
 total: 5
-passed: 1
+passed: 2
 issues: 0
-pending: 4
+pending: 3
 skipped: 0
 blocked: 0
 
