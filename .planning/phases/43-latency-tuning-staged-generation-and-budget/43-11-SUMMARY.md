@@ -102,10 +102,8 @@ completed: 2026-10-01
 
 1. **Task 1 RED:** `3efb5961` (test) - sweeper tests (stranded FILLING, world_gen_start holding, FILL_ERROR untouched, no-retry source guard)
 2. **Task 1 GREEN:** `152f9af3` (feat) - sweeper change
-3. **Task 2 RED:** the cutover test commit (test) - explore retry, patience, resting (kill switch and ceiling), nothing-to-retry, ERROR retry unchanged, travel, look/travel keep-playing, end-to-end
-4. **Task 2 GREEN:** the intent commit (feat) - explore retry wiring
-
-(Hashes for the two Task 2 commits are in `git log`: subjects "test(43-11): add failing tests for explore retrying stage 2 ..." and "feat(43-11): explore retries stage 2 of a FILL_ERROR region through retryWorldFill".)
+3. **Task 2 RED:** `c1acd068` (test) - explore retry, patience, resting (kill switch and ceiling), nothing-to-retry, ERROR retry unchanged, travel, look/travel keep-playing, end-to-end
+4. **Task 2 GREEN:** `fc04280f` (feat) - explore retry wiring
 
 ## Verification
 
@@ -143,5 +141,5 @@ None. T-43-36 (one fill job per state through the dedupe key, enqueue path appli
 
 ## Self-Check: PASSED
 
-- Commits `3efb5961` and `152f9af3` exist; the two Task 2 commits are the latest on master after them.
+- Commits `3efb5961`, `152f9af3`, `c1acd068` and `fc04280f` exist on master.
 - All four modified files exist and are committed; `.claude/settings.local.json`, `public/assets/logo.png` and `public/assets/logo_old.png` were never staged.
