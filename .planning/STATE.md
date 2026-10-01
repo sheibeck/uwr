@@ -4,16 +4,16 @@ milestone: v2.2
 milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
-status: ready_to_execute
-stopped_at: Phase 43 planned (15 plans, 7 waves; plan checker passed)
-last_updated: "2026-10-01T01:00:10.113Z"
+status: executing
+stopped_at: Completed 43-01-PLAN.md
+last_updated: "2026-10-01T01:56:20.739Z"
 last_activity: 2026-09-30
-last_activity_desc: Phase 42 complete, transitioned to Phase 43
+last_activity_desc: Phase 43 execution started
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 48
-  completed_plans: 46
+  total_plans: 63
+  completed_plans: 47
   percent: 50
 ---
 
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 
 ## Current Position
 
-Phase: 43 — Latency Tuning, Staged Generation and Budget
-Plan: 0/15 (7 waves; 43-12 is the paid-sweep checkpoint)
-Status: Phase 43 planned and checked. Next: execute Phase 43
-Last activity: 2026-09-30 — Phase 42 complete, transitioned to Phase 43
+Phase: 43 (Latency Tuning, Staged Generation and Budget) — EXECUTING
+Plan: 2 of 15
+Status: Ready to execute
+Last activity: 2026-09-30 — Phase 43 execution started
 
-Progress: [██████████] 98% (2/6 phases)
+Progress: [████████░░] 75% (2/6 phases)
 
 ## Previous Milestones
 
@@ -100,6 +100,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [42-05] Publish 1 ran local with --break-clients only (no clear, key intact len 108); purge_legacy_llm emptied the four legacy tables (tick row removed); publish-1 commit 5968d54f; local server left running (PID 13620)
 - [Phase ?]: [42-06] Publish-2 code: four legacy LLM tables, sweep_llm_errors and purge_legacy_llm deleted; public llm_* set is [] with exactly 8 private tables; absence checked at schema level (recorder, __defs, scheduledReducers, strict initScheduledTables) since the mock returns [] for unknown tables; model-literal allowlist is empty
 - [Phase ?]: [42-07] Publish 2 ran local with --break-clients only (no clear, key intact len 108) and dropped llm_budget, llm_cleanup_tick, llm_request, llm_task; re-publish and second bindings regeneration are no-ops; local server stopped (PID 13620); user checklist 42-USER-CHECKLIST.md holds all Cloudflare/OpenAI/env/maincloud steps
+- [Phase ?]: 43-01: global ceiling and kill switch checked in enqueueLlmJob before busy and before any write; missing llm_admin_state row fails closed; $2 phase cap constant kept until Plan 43-06
 
 ### Roadmap Evolution
 
@@ -168,8 +169,8 @@ Phase 42 verification passed on 2026-09-30, after the user resolved every UAT it
 
 **Resume file:** None
 
-Last session: 2026-09-30T23:34:28.329Z
-Stopped at: Completed 42-07-PLAN.md
+Last session: 2026-10-01T01:56:20.703Z
+Stopped at: Completed 43-01-PLAN.md
 
 ## Performance Metrics
 
@@ -229,6 +230,7 @@ Stopped at: Completed 42-07-PLAN.md
 | Phase 42 P05 | 25min | 2 tasks | 7 files |
 | Phase 42 P06 | 25min | 3 tasks | 15 files |
 | Phase 42 P07 | 25min | 3 tasks | 8 files |
+| Phase 43 P01 | 15min | 3 tasks | 16 files |
 
 ## Operator Next Steps
 
