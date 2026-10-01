@@ -8,7 +8,16 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
-import { startCreationGeneration } from './creation_generation';
+import {
+  startCreationGeneration,
+  buildClassFillInput,
+  startClassFill,
+  retryClassFill,
+  CLASS_REVEAL_MILESTONE_LINE,
+  CLASS_FILL_FAILED_LINE,
+  CLASS_FILL_PATIENCE_LINE,
+  CLASS_FILL_RETRY_LINE,
+} from './creation_generation';
 import { resolveRouteInput } from './llm_inputs';
 import { llmRefusalMessage, LLM_RESTING_LINE } from './llm_queue';
 import { setLlmEnabled } from './llm_admin_state';
@@ -197,18 +206,18 @@ describe('startCreationGeneration: class', () => {
       ...over,
     });
 
-  it('enqueues one creation_class job with race and archetype from the state', () => {
+  it('enqueues one creation_class_reveal job with race and archetype from the state (Phase 43 stage 1)', () => {
     const ctx = newCtx({ character_creation_state: [classState()] });
     expect(startCreationGeneration(ctx, stateOf(ctx), 'class')).toBe('enqueued');
 
     const jobs = rows(ctx, 'llm_job');
     expect(jobs).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
-    expect(jobs[0]).toMatchObject({ route: 'creation_class', playerId: alice, characterId: 0n });
-    expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'creation_class', '1:class']);
+    expect(jobs[0]).toMatchObject({ route: 'creation_class_reveal', playerId: alice, characterId: 0n });
+    expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'creation_class_reveal', '1:class']);
     const input = resolveRouteInput(ctx, jobs[0]) as any;
     expect(input).toEqual({ raceName: 'Saltkin', raceNarrative: 'Marsh dwellers.', archetype: 'mystic' });
-    expect(() => buildRouteLayers('creation_class', input)).not.toThrow();
+    expect(() => buildRouteLayers('creation_class_reveal', input)).not.toThrow();
     expect(stateOf(ctx).step).toBe('GENERATING_CLASS');
   });
 
@@ -252,5 +261,166 @@ describe('startCreationGeneration: class', () => {
     const events = creationEvents(ctx);
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: 'creation_error', message: llmRefusalMessage('daily_cost') });
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Phase 43, plan 13: the class fill (stage 2) helpers
+// ----------------------------------------------------------------------------
+
+const FIRST_ABILITY = {
+  name: 'Brine Lash',
+  description: 'A whip of salt water.',
+  kind: 'damage',
+  damageType: 'magic',
+  targetRule: 'single_enemy',
+  resourceType: 'mana',
+  resourceCost: 15,
+  castSeconds: 1,
+  cooldownSeconds: 6,
+  value1: 12,
+};
+
+const revealedState = (over: Record<string, unknown> = {}) =>
+  stateRow({
+    step: 'CLASS_FILLING',
+    raceName: 'Saltkin',
+    raceNarrative: 'Marsh dwellers.',
+    archetype: 'mystic',
+    className: 'Tidecaller',
+    classDescription: 'Speaks to the sea and is rarely answered.',
+    abilities: JSON.stringify([FIRST_ABILITY]),
+    ...over,
+  });
+
+describe('buildClassFillInput', () => {
+  it('reads the race, archetype, class and the first stored ability', () => {
+    expect(buildClassFillInput(revealedState())).toEqual({
+      raceName: 'Saltkin',
+      raceNarrative: 'Marsh dwellers.',
+      archetype: 'mystic',
+      className: 'Tidecaller',
+      classDescription: 'Speaks to the sea and is rarely answered.',
+      firstAbility: {
+        name: 'Brine Lash',
+        description: 'A whip of salt water.',
+        kind: 'damage',
+        damageType: 'magic',
+        resourceType: 'mana',
+      },
+    });
+  });
+
+  it('throws a plain Error when there is no first ability', () => {
+    expect(() => buildClassFillInput(revealedState({ abilities: undefined }))).toThrow(Error);
+    expect(() => buildClassFillInput(revealedState({ abilities: '[]' }))).toThrow(Error);
+    expect(() => buildClassFillInput(revealedState({ abilities: 'not json' }))).toThrow(Error);
+  });
+});
+
+describe('startClassFill', () => {
+  it('enqueues one creation_class job with the stored reveal and moves to CLASS_FILLING', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState({ step: 'GENERATING_CLASS' })] });
+    expect(startClassFill(ctx, stateOf(ctx))).toBe('enqueued');
+
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ route: 'creation_class', playerId: alice, characterId: 0n, status: 'pending' });
+    expect(JSON.parse(jobs[0].dedupeKey)).toEqual([alice.toHexString(), 'creation_class', '1:class']);
+    expect(rowColumnProblems('llm_job', jobs[0])).toEqual([]);
+    expect(JSON.parse(jobs[0].requestJson)).toMatchObject({ creationStateId: '1', generationType: 'class' });
+    const input = resolveRouteInput(ctx, jobs[0]) as any;
+    expect(input.className).toBe('Tidecaller');
+    expect(input.firstAbility.name).toBe('Brine Lash');
+    expect(() => buildRouteLayers('creation_class', input)).not.toThrow();
+    expect(stateOf(ctx).step).toBe('CLASS_FILLING');
+    expect(creationEvents(ctx)).toHaveLength(0);
+  });
+
+  it('a second start while the fill is active is a duplicate and writes nothing more', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState()] });
+    expect(startClassFill(ctx, stateOf(ctx))).toBe('enqueued');
+    expect(startClassFill(ctx, stateOf(ctx))).toBe('duplicate');
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+  });
+
+  it('a refused fill (daily cost) becomes CLASS_FILL_ERROR, keeps the reveal and posts the refusal once', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState()] });
+    exhaustDay(ctx);
+    expect(startClassFill(ctx, stateOf(ctx))).toBe('refused');
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    const s = stateOf(ctx);
+    expect(s.step).toBe('CLASS_FILL_ERROR');
+    expect(s.className).toBe('Tidecaller');
+    expect(JSON.parse(s.abilities)).toHaveLength(1);
+    const events = creationEvents(ctx);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'creation_error', message: llmRefusalMessage('daily_cost') });
+  });
+
+  it('a halted fill posts the resting line and becomes CLASS_FILL_ERROR', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState()] });
+    setLlmEnabled(ctx, false);
+    expect(startClassFill(ctx, stateOf(ctx))).toBe('refused');
+    expect(stateOf(ctx).step).toBe('CLASS_FILL_ERROR');
+    expect(creationEvents(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: LLM_RESTING_LINE })]);
+  });
+
+  it('with no stored first ability it refuses without a job and becomes CLASS_FILL_ERROR', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState({ abilities: undefined })] });
+    expect(startClassFill(ctx, stateOf(ctx))).toBe('refused');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(stateOf(ctx).step).toBe('CLASS_FILL_ERROR');
+    expect(creationEvents(ctx)).toHaveLength(1);
+  });
+});
+
+describe('retryClassFill', () => {
+  it('enqueues only the creation_class fill, moves to CLASS_FILLING and posts the retry line', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState({ step: 'CLASS_FILL_ERROR' })] });
+    expect(retryClassFill(ctx, stateOf(ctx))).toBe('enqueued');
+
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].route).toBe('creation_class');
+    expect(jobs.some((j: any) => j.route === 'creation_class_reveal')).toBe(false);
+    expect(stateOf(ctx).step).toBe('CLASS_FILLING');
+    expect(stateOf(ctx).className).toBe('Tidecaller');
+    expect(creationEvents(ctx)).toEqual([expect.objectContaining({ kind: 'creation', message: CLASS_FILL_RETRY_LINE })]);
+  });
+
+  it('a refused retry posts only the refusal line, not the retry line', () => {
+    const ctx = newCtx({ character_creation_state: [revealedState({ step: 'CLASS_FILL_ERROR' })] });
+    setLlmEnabled(ctx, false);
+    expect(retryClassFill(ctx, stateOf(ctx))).toBe('refused');
+    expect(stateOf(ctx).step).toBe('CLASS_FILL_ERROR');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(creationEvents(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: LLM_RESTING_LINE })]);
+  });
+});
+
+describe('class stage lines', () => {
+  it('has the agreed copy', () => {
+    expect(CLASS_REVEAL_MILESTONE_LINE).toBe(
+      'That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.',
+    );
+    expect(CLASS_FILL_FAILED_LINE).toBe(
+      'The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.',
+    );
+    expect(CLASS_FILL_PATIENCE_LINE).toBe('The Keeper is still working out the rest of what you can do. Patience.');
+    expect(CLASS_FILL_RETRY_LINE).toBe('The Keeper picks the thread of your finer details back up...');
+  });
+
+  it.each([
+    ['reveal milestone', CLASS_REVEAL_MILESTONE_LINE],
+    ['fill failed', CLASS_FILL_FAILED_LINE],
+    ['patience', CLASS_FILL_PATIENCE_LINE],
+    ['retry', CLASS_FILL_RETRY_LINE],
+  ])('%s: the Keeper is he, never it/they, and the player is never "your name"', (_n, line) => {
+    expect(line).not.toMatch(/\b(it|its|they|them|their|she|her)\b/i);
+    expect(line).not.toMatch(/your name/i);
+    expect(line).not.toContain('!');
   });
 });
