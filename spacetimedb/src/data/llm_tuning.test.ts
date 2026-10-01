@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CLAUDE_MODEL } from './llm_models';
 import { LLM_ROUTE_NAMES, LLM_ROUTES, validateRoutes, type LlmRoute } from './llm_routes';
+import { LLM_NO_AUTO_RETRY_ROUTES } from './llm_limits';
 import {
   LLM_TUNING,
   LLM_ROUTE_BASELINES,
@@ -16,6 +17,8 @@ import {
   LLM_POOL_MEAN_TOLERANCE,
   LLM_DISPATCH_ALLOWANCE_MS,
   LLM_CLASS_REVEAL_THRESHOLD_MS,
+  LLM_NO_RETRY_HEADROOM_TOKENS,
+  noRetryMaxTokens,
   tunedMaxTokens,
   samplePasses,
   chooseEffort,
@@ -297,10 +300,17 @@ describe('deriveRouteTuning', () => {
 
   it('tunes effort and max_tokens from the record and keeps the baseline timeout', () => {
     const rec = routeRecord([1000, 1100, 900, 1000, 1000], [1000, 1000, 1000, 1000, 1000]);
+    // skill_gen auto-retries: max_tokens is the plain p99 x 1.25 rule.
+    expect(deriveRouteTuning('skill_gen', rec, LLM_ROUTE_BASELINES.skill_gen)).toMatchObject({
+      status: 'tuned',
+      maxTokens: 1536,
+      timeoutMs: LLM_ROUTE_BASELINES.skill_gen.timeoutMs,
+    });
+    // world_gen never auto-retries: p99 1100 + 512 headroom = 1612, rounded up to 1792 (review WR-A04).
     const out = deriveRouteTuning('world_gen', rec, base);
     expect(out).toEqual({
       effort: 'low',
-      maxTokens: 1536,
+      maxTokens: 1792,
       timeoutMs: 150_000,
       status: 'tuned',
       source: LLM_TUNING_SOURCE,
@@ -313,7 +323,47 @@ describe('deriveRouteTuning', () => {
   it('a medium win is carried through with its own cell', () => {
     const lowBad = { samples: [sample(300, { schemaOk: false }), ...cell([300, 300, 300, 300]).samples] };
     const rec: SweepRouteRecord = { ...routeRecord([], [300, 300, 300, 300, 300]), efforts: { low: lowBad, medium: cell([300, 300, 300, 300, 300]) } };
-    expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'tuned', effort: 'medium', maxTokens: 512, tie: false });
+    // p99 300: x1.25 gives 512, the no-retry floor gives 300 + 512 = 812, rounded up to 1024 (review WR-A04).
+    expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'tuned', effort: 'medium', maxTokens: 1024, tie: false });
+    expect(deriveRouteTuning('skill_gen', rec, LLM_ROUTE_BASELINES.skill_gen)).toMatchObject({ effort: 'medium', maxTokens: 512 });
+  });
+
+  describe('review WR-A04: the no-retry headroom floor', () => {
+    it('is 512 tokens and applies to exactly the routes that never auto-retry', () => {
+      expect(LLM_NO_RETRY_HEADROOM_TOKENS).toBe(512);
+      const rec = routeRecord([200, 200, 200, 200, 200], [200, 200, 200, 200, 200]);
+      for (const name of LLM_SWEEP_ROUTES) {
+        const out = deriveRouteTuning(name, rec, LLM_ROUTE_BASELINES[name]);
+        const noRetry = (LLM_NO_AUTO_RETRY_ROUTES as readonly string[]).includes(name);
+        // p99 200: x1.25 gives 256; the floor gives 200 + 512 = 712, rounded up to 768.
+        expect(out.maxTokens, name).toBe(noRetry ? 768 : 256);
+      }
+    });
+
+    it('noRetryMaxTokens keeps the larger of x1.25 and p99 + 512, both rounded up to 256', () => {
+      expect(noRetryMaxTokens([168])).toBe(768); // combat_narration's recorded p99
+      expect(noRetryMaxTokens([818])).toBe(1536); // world_gen_start
+      expect(noRetryMaxTokens([1988])).toBe(2560); // world_gen
+      expect(noRetryMaxTokens([4000])).toBe(tunedMaxTokens([4000])); // x1.25 wins on a large p99
+      expect(() => noRetryMaxTokens([])).toThrow();
+    });
+
+    it('leaves at least 512 tokens above the p99 on every tuned no-retry route in LLM_TUNING', () => {
+      for (const name of LLM_NO_AUTO_RETRY_ROUTES) {
+        const t = LLM_TUNING[name];
+        if (t.status !== 'tuned' || t.p99OutputTokens === null) continue;
+        expect(t.maxTokens - t.p99OutputTokens, name).toBeGreaterThanOrEqual(LLM_NO_RETRY_HEADROOM_TOKENS);
+      }
+    });
+
+    it('the floor alone never lifts max_tokens above the baseline, and never lowers the x1.25 figure', () => {
+      // combat_narration baseline 1024. p99 700: x1.25 gives 1024, the floor 1212 -> 1280 is capped at 1024.
+      const mid = routeRecord([700, 700, 700, 700, 700], [700, 700, 700, 700, 700]);
+      expect(deriveRouteTuning('combat_narration', mid, LLM_ROUTE_BASELINES.combat_narration).maxTokens).toBe(1024);
+      // p99 900: x1.25 gives 1280, above the baseline as before; the floor does not cut it down.
+      const big = routeRecord([900, 900, 900, 900, 900], [900, 900, 900, 900, 900]);
+      expect(deriveRouteTuning('combat_narration', big, LLM_ROUTE_BASELINES.combat_narration).maxTokens).toBe(1280);
+    });
   });
 });
 

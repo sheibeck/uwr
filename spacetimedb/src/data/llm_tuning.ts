@@ -24,7 +24,10 @@
 //     Both cells are pooled only when each has at least LLM_TUNING_MIN_SAMPLES
 //     successful samples and their means differ by at most 15 percent of the
 //     larger mean; otherwise the chosen cell alone is used.
-//   - max_tokens: p99 x 1.25, rounded up to a multiple of 256, floor 256.
+//   - max_tokens: p99 x 1.25, rounded up to a multiple of 256, floor 256. A route
+//     that never auto-retries (LLM_NO_AUTO_RETRY_ROUTES) also gets at least
+//     LLM_NO_RETRY_HEADROOM_TOKENS above its p99 (deriveRouteTuning only; the
+//     record's own maxTokens field stays the route-agnostic sample figure).
 //   - fewer than LLM_TUNING_MIN_SAMPLES successful samples in the chosen cell, a
 //     Run A sample in either cell that stopped at max_tokens (its true size is
 //     unknown, and it is the tail the p99 must cover), or a recorded Run B call
@@ -33,11 +36,13 @@
 //     information only.
 //
 // Imports are type-only from llm_routes (llm_routes reads LLM_TUNING, so a value
-// import would be circular) plus the dependency-free percentile helper.
+// import would be circular), the dependency-free percentile helper, and the
+// no-retry route list from llm_limits (which imports llm_routes as a type only).
 // ============================================================================
 
 import type { LlmRoute, LlmEffort } from './llm_routes';
 import { percentile } from '../helpers/measurement';
+import { LLM_NO_AUTO_RETRY_ROUTES } from './llm_limits';
 
 // -- Constants ---------------------------------------------------------------
 
@@ -49,6 +54,15 @@ export const LLM_TUNING_MIN_SAMPLES = 5;
 
 /** Both effort cells are pooled for p99 when their mean output sizes differ by at most this share of the larger mean. */
 export const LLM_POOL_MEAN_TOLERANCE = 0.15;
+
+/**
+ * The least headroom, in output tokens above the measured p99, that a route which never auto-retries
+ * gets (review WR-A04). On those routes a reply cut off at max_tokens is billed, never retried, and fails
+ * its stage; with 5 to 10 samples the nearest-rank p99 is just the sample maximum, so x1.25 alone left as
+ * little as 88 tokens (combat_narration) to 206 (world_gen_start). 512 tokens is about one more location
+ * and enemy block of the region fill schema, which the static sweep fixtures may not reach.
+ */
+export const LLM_NO_RETRY_HEADROOM_TOKENS = 512;
 
 /** Dispatch allowance added to each class-reveal API latency (enqueue to apply, beyond the API call), in ms. */
 export const LLM_DISPATCH_ALLOWANCE_MS = 300;
@@ -171,6 +185,15 @@ export function tunedMaxTokens(outputTokens: readonly number[]): number {
   return Math.max(256, Math.ceil((p99 * 1.25) / 256) * 256);
 }
 
+/**
+ * max_tokens for a route that never auto-retries: the tuned x1.25 figure, but never less than
+ * p99 + LLM_NO_RETRY_HEADROOM_TOKENS rounded up to a multiple of 256. Throws on an empty set.
+ */
+export function noRetryMaxTokens(outputTokens: readonly number[]): number {
+  const p99 = percentile(outputTokens, 99);
+  return Math.max(tunedMaxTokens(outputTokens), Math.ceil((p99 + LLM_NO_RETRY_HEADROOM_TOKENS) / 256) * 256);
+}
+
 /** A sample passes when it was ok, ended on end_turn, had valid structure and no tone-lint failure. */
 export function samplePasses(s: SweepSample): boolean {
   return s.ok === true && s.stopReason === 'end_turn' && s.schemaOk === true && s.toneFailures.length === 0;
@@ -256,7 +279,9 @@ export function deriveRecordFields(rec: SweepRouteRecord): RecordFields {
 /**
  * The tuning for one route. smoke_test is never swept; a missing or thin record
  * keeps the baseline; otherwise the chosen effort and the derived max_tokens,
- * with the baseline timeout.
+ * with the baseline timeout. A route in LLM_NO_AUTO_RETRY_ROUTES gets the
+ * no-retry headroom floor on top (noRetryMaxTokens); the floor alone never lifts
+ * max_tokens above the route's baseline, and never lowers the x1.25 figure.
  */
 export function deriveRouteTuning(route: LlmRoute, rec: SweepRouteRecord | undefined, base: RouteBaseline): TunedRoute {
   const keep = (status: TuningStatus): TunedRoute => ({
@@ -273,9 +298,13 @@ export function deriveRouteTuning(route: LlmRoute, rec: SweepRouteRecord | undef
   if (rec === undefined) return keep('insufficient_data');
   const f = deriveRecordFields(rec);
   if (f.insufficientData || f.chosenEffort === null || f.maxTokens === null) return keep('insufficient_data');
+  const noRetry = (LLM_NO_AUTO_RETRY_ROUTES as readonly string[]).includes(route);
+  const maxTokens = noRetry
+    ? Math.max(f.maxTokens, Math.min(base.maxTokens, noRetryMaxTokens(p99Samples(rec.efforts, f.chosenEffort))))
+    : f.maxTokens;
   return {
     effort: f.chosenEffort,
-    maxTokens: f.maxTokens,
+    maxTokens,
     timeoutMs: base.timeoutMs,
     status: 'tuned',
     source: LLM_TUNING_SOURCE,
@@ -306,6 +335,8 @@ export function lat06Decision(latenciesMs: readonly number[]): {
 //
 // Plan 43-14 wrote these literals from deriveRouteTuning over the committed record
 // (status 'applied'); llm_tuning.test.ts asserts every entry equals that derivation.
+// Review WR-A04 re-derived them with the no-retry headroom floor (the record is unchanged):
+// the six swept no-retry routes moved from 512/512/768/1024/2560/256 to 1024/1024/1024/1536/2560/768.
 // A route the derivation cannot tune keeps its baseline as 'insufficient_data'
 // (smoke_test is 'not_swept').
 
@@ -330,14 +361,14 @@ const entry = (
   });
 
 export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze({
-  creation_race: entry('low', 512, 90_000, 'tuned', 265, 10, true),
-  creation_class_reveal: entry('low', 512, 60_000, 'tuned', 327, 10, true),
-  creation_class: entry('low', 768, 90_000, 'tuned', 465, 10, true),
-  world_gen_start: entry('low', 1024, 90_000, 'tuned', 818, 10, true),
+  creation_race: entry('low', 1024, 90_000, 'tuned', 265, 10, true),
+  creation_class_reveal: entry('low', 1024, 60_000, 'tuned', 327, 10, true),
+  creation_class: entry('low', 1024, 90_000, 'tuned', 465, 10, true),
+  world_gen_start: entry('low', 1536, 90_000, 'tuned', 818, 10, true),
   world_gen: entry('low', 2560, 150_000, 'tuned', 1988, 10, true),
   skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
   npc_conversation: entry('low', 512, 30_000, 'tuned', 379, 10, true),
-  combat_narration: entry('low', 256, 20_000, 'tuned', 168, 5, true),
+  combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),
   renown_perk_gen: entry('low', 1024, 60_000, 'tuned', 756, 10, false),
   smoke_test: entry('low', 256, 30_000, 'not_swept'),
 });

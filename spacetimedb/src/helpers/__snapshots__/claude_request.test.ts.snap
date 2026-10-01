@@ -2,7 +2,7 @@
 
 exports[`buildClaudeRequest > combat_narration: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 256,
+  "max_tokens": 768,
   "messages": [
     {
       "content": "Round 3 of combat:
@@ -69,7 +69,7 @@ When the user message says combat ended in VICTORY or DEFEAT, write a brief narr
 
 exports[`buildClaudeRequest > creation_class: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 768,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "Race: plain world text race
@@ -381,7 +381,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > creation_class_reveal: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 512,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "Race: plain world text race
@@ -614,7 +614,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > creation_race: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 512,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "The new arrival describes the race as:
@@ -1693,7 +1693,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > world_gen_start: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 1024,
+  "max_tokens": 1536,
   "messages": [
     {
       "content": "World context:
