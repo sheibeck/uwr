@@ -72,10 +72,10 @@ files_reviewed_list:
   - src/composables/useWorldGeneration.ts
 findings:
   critical: 0
-  warning: 0
-  info: 0
-  total: 0
-status: clean
+  warning: 9
+  info: 11
+  total: 20
+status: issues_found
 ---
 # Phase 43: Code Review Report (merged from two parallel partial reviews)
 
