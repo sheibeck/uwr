@@ -12,6 +12,7 @@ import {
   WORLD_FILL_RETRY_LINE,
 } from '../helpers/world_gen';
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
+import { getWorldState } from '../helpers/location';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';

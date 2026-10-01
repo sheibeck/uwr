@@ -2429,3 +2429,19 @@ describe('the legacy task table is no longer written or reached (41-15)', () => 
     expect(keys).toEqual([]);
   });
 });
+
+describe('time intent (regression: getWorldState was not imported in intent.ts)', () => {
+  const levelSeed = (): Seed => ({
+    ...playerSeed(),
+    ...worldSeed(),
+    ...characterSeed({ level: 2n, pendingLevels: 0n, str: 10n, dex: 10n, cha: 10n, wis: 10n, int: 10n, hp: 50n, maxHp: 50n }),
+    world_state: [{ id: 1n, startingLocationId: 1n, isNight: false, nextTransitionAtMicros: T0 + 90_000_000n }],
+  });
+
+  it('answers "time" with the day or night line instead of throwing', () => {
+    const ctx = newCtx(levelSeed());
+    expect(() => handlers.submit_intent(ctx, { characterId: 1n, text: 'time' })).not.toThrow();
+    const lines = rows(ctx, 'event_private').map((e: any) => e.message);
+    expect(lines.some((m: string) => /^It is daytime\. 1m 30s until dusk\.$/.test(m))).toBe(true);
+  });
+});
