@@ -539,5 +539,26 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.7: Natural-language input is hijacked by bare command words (BACKLOG)
+
+**Goal:** Typing a sentence that starts with a command word reaches the conversation or intent handler, not the command system.
+
+- Example: in an NPC conversation, "Who is that over there?" does nothing, because the first word `who` routes the whole line to the `who` command.
+- **Cause:** `onNarrativeSubmit` in `src/App.vue` (about lines 1181-1188) sends any input whose first word is in `clientHandledCommands` to `submitCommand()`. The list is `who`, `accept`, `decline`, `leave`, `invite`, `kick`, `promote`, `whisper`, `w`, `friend`, `endcombat`, `end`, `endc`, `group`, `renown`, `factions`, `faction` and `events`. So "Leave him alone", "End this now", "Accept my apology" and "Group up behind me" are all swallowed too.
+- **Fix directions:**
+  - Require the `/` prefix for these commands.
+  - Or treat a bare word as a command only when the whole input matches the command's exact syntax, such as `who` alone or `invite <name>`.
+  - Or always route to the conversation while the player is talking to an NPC.
+  - Also check `useCommands.ts` (`/who` or `who`), and check that `NarrativeInput.vue` command hints stay consistent.
+- Add tests: every listed word at the start of a natural sentence goes to the intent/conversation path, and the exact command forms still work.
+- Captured 2026-09-30 by user report. It may fold into 999.5 (UX Polish) or 999.6 (UX Overhaul).
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
 *Last updated: 2026-09-29 after v2.2 roadmap creation (Backlog 999.1-999.5 preserved)*
