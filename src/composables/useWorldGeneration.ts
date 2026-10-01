@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue';
+import { LLM_INPUT_LOCKING_WORLD_GEN_STEPS } from '../../spacetimedb/src/data/llm_indicator_lines';
 
 type UseWorldGenerationArgs = {
   connActive: Ref<boolean>;
@@ -12,7 +13,10 @@ export const useWorldGeneration = ({
   connActive: _connActive,
   worldGenStates,
 }: UseWorldGenerationArgs) => {
-  // Get the current player's active generation state (PENDING or GENERATING)
+  // The current player's input-locking generation state. The step list comes from server data
+  // (LLM_INPUT_LOCKING_WORLD_GEN_STEPS: PENDING and GENERATING). FILLING and FILL_ERROR are not
+  // in it on purpose: the player can play in the stage-1 region while the rest fills in, and
+  // after a failed fill.
   const activeGeneration = computed(() => {
     const identity = window.__my_identity;
     if (!identity) return null;
@@ -20,7 +24,7 @@ export const useWorldGeneration = ({
     return worldGenStates.value.find(
       (s: any) =>
         s.playerId?.toHexString?.() === hex &&
-        (s.step === 'PENDING' || s.step === 'GENERATING')
+        LLM_INPUT_LOCKING_WORLD_GEN_STEPS.includes(s.step)
     ) ?? null;
   });
 

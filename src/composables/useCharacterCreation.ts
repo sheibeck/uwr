@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import type { DbConnection } from '../module_bindings';
 import type { Character } from '../module_bindings/types';
+import { LLM_INPUT_LOCKING_CREATION_STEPS } from '../../spacetimedb/src/data/llm_indicator_lines';
 
 type UseCharacterCreationArgs = {
   connActive: Ref<boolean>;
@@ -100,6 +101,9 @@ export const useCharacterCreation = ({
   // The server enqueues generation inside submit_creation_input and the executor applies the result
   // through character_creation_state, so the client only mirrors the step. Deriving the flag from the
   // GENERATING_* step keeps it right after a refresh (the applied result shows on return).
+  // The step list comes from server data (LLM_INPUT_LOCKING_CREATION_STEPS). CLASS_FILLING and
+  // CLASS_FILL_ERROR are not in it on purpose: the server answers input during the class fill
+  // with a patience line, so the input stays open.
   watch(characterCreationStates, (states) => {
     const identity = window.__my_identity;
     if (!identity || !connActive.value) return;
@@ -109,7 +113,7 @@ export const useCharacterCreation = ({
     if (!myState) return;
 
     const step = myState.step;
-    isCreationLlmProcessing.value = step === 'GENERATING_RACE' || step === 'GENERATING_CLASS';
+    isCreationLlmProcessing.value = LLM_INPUT_LOCKING_CREATION_STEPS.includes(step);
   }, { deep: true });
 
   // Submit text input for creation
