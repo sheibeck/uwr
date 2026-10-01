@@ -40,6 +40,11 @@ result: [pending]
 Delete the Cloudflare Worker, revoke the OpenAI key, remove VITE_LLM_PROXY_* from the root .env.local and hosting settings, delete the leftover llm-proxy/ folder (and its .git/info/exclude line), rebuild and redeploy, and run the maincloud two-publish yourself.
 expected: No deployed proxy, no live proxy credential, maincloud matches local
 result: [pending]
+progress: 2026-09-30.
+- No Cloudflare Worker was ever deployed: the user's account has no projects.
+- The user has revoked all OpenAI API keys.
+- Claude deleted the local `llm-proxy/` folder and its `.git/info/exclude` line, at the user's request.
+- Still to do: remove the `VITE_LLM_PROXY_*` lines from `.env.local` and the hosting settings; run the maincloud two-publish.
 
 ## Summary
 
