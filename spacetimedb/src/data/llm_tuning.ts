@@ -25,8 +25,10 @@
 //     successful samples and their means differ by at most 15 percent of the
 //     larger mean; otherwise the chosen cell alone is used.
 //   - max_tokens: p99 x 1.25, rounded up to a multiple of 256, floor 256.
-//   - fewer than LLM_TUNING_MIN_SAMPLES successful samples in the chosen cell, or
-//     a recorded Run B call that stopped at max_tokens, keeps the baseline.
+//   - fewer than LLM_TUNING_MIN_SAMPLES successful samples in the chosen cell, a
+//     Run A sample in either cell that stopped at max_tokens (its true size is
+//     unknown, and it is the tail the p99 must cover), or a recorded Run B call
+//     that stopped at max_tokens, keeps the baseline.
 //   - timeouts stay at baseline; the record keeps a suggested timeout for
 //     information only.
 //
@@ -219,9 +221,15 @@ export function suggestedTimeoutMs(latenciesMs: readonly number[]): number {
 
 const hasSamples = (r: SweepRouteRecord): boolean => r.efforts.low.samples.length + r.efforts.medium.samples.length > 0;
 
+/** True when any sample in either Run A cell stopped at max_tokens (review WR-A03). */
+const truncatedInRunA = (efforts: { low: SweepCell; medium: SweepCell }): boolean =>
+  [efforts.low, efforts.medium].some((c) => c.samples.some((s) => s.stopReason === 'max_tokens'));
+
 /**
  * Every derived field of a route's record, from its raw samples and Run B calls only.
- * No samples, too few in the chosen cell, or a Run B call that stopped at max_tokens is insufficient data.
+ * No samples, too few in the chosen cell, a Run A sample in either cell that stopped at max_tokens, or a
+ * Run B call that stopped at max_tokens is insufficient data. A truncated Run A sample is not ok, so it
+ * would otherwise drop out of the p99 while being exactly the long output the p99 has to cover.
  */
 export function deriveRecordFields(rec: SweepRouteRecord): RecordFields {
   if (!hasSamples(rec)) {
@@ -230,7 +238,7 @@ export function deriveRecordFields(rec: SweepRouteRecord): RecordFields {
   const { effort, tie } = chooseEffort(rec.efforts);
   const chosenOutputs = successfulOutputs(rec.efforts[effort]);
   const truncatedInRunB = (rec.runB ?? []).some((c) => c.stopReason === 'max_tokens');
-  if (chosenOutputs.length < LLM_TUNING_MIN_SAMPLES || truncatedInRunB) {
+  if (chosenOutputs.length < LLM_TUNING_MIN_SAMPLES || truncatedInRunB || truncatedInRunA(rec.efforts)) {
     return { chosenEffort: effort, tie, p99OutputTokens: null, maxTokens: null, suggestedTimeoutMs: null, insufficientData: true };
   }
   const pooled = p99Samples(rec.efforts, effort);

@@ -278,6 +278,23 @@ describe('deriveRouteTuning', () => {
     expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'insufficient_data', maxTokens: 8192, effort: 'low' });
   });
 
+  it.each(['low', 'medium'] as const)(
+    'review WR-A03: a Run A sample in the %s cell that stopped at max_tokens keeps the baseline',
+    (cellName) => {
+      const rec = routeRecord([500, 500, 500, 500, 500, 500], [500, 500, 500, 500, 500, 500]);
+      // The truncated sample is not ok, so the chosen cell still has enough successful samples without it.
+      rec.efforts[cellName].samples.push(sample(4096, { ok: false, stopReason: 'max_tokens', schemaOk: false }));
+      expect(deriveRecordFields(rec)).toMatchObject({ insufficientData: true, p99OutputTokens: null, maxTokens: null });
+      expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'insufficient_data', maxTokens: 8192, effort: 'low' });
+    },
+  );
+
+  it('review WR-A03: the same record without the truncated sample is tuned (the truncation alone decides)', () => {
+    const rec = routeRecord([500, 500, 500, 500, 500, 500], [500, 500, 500, 500, 500, 500]);
+    rec.efforts.medium.samples.push(sample(500, { ok: false, stopReason: 'refusal', schemaOk: false }));
+    expect(deriveRouteTuning('world_gen', rec, base).status).toBe('tuned');
+  });
+
   it('tunes effort and max_tokens from the record and keeps the baseline timeout', () => {
     const rec = routeRecord([1000, 1100, 900, 1000, 1000], [1000, 1000, 1000, 1000, 1000]);
     const out = deriveRouteTuning('world_gen', rec, base);
