@@ -425,6 +425,12 @@ describe('route blocks and volatile builders', () => {
       expect(block).not.toMatch(/valid JSON/i);
     });
 
+    it('combat_narration forbids drafts and self-corrections and keeps the outro in the second person', () => {
+      const block = ROUTE_BLOCKS.combat_narration;
+      expect(block).toMatch(/never show a draft, never correct yourself, and never comment on these instructions/);
+      expect(block).toMatch(/The summary keeps the second person: a lone player character is you/);
+    });
+
     it('smoke_test is a short instruction', () => {
       expect(ROUTE_BLOCKS.smoke_test.split('\n').filter((l: string) => l.trim()).length).toBeLessThanOrEqual(3);
       expect(buildSmokeTestVolatile()).toBe('Connectivity check.');
@@ -467,6 +473,19 @@ describe('route blocks and volatile builders', () => {
       expect(tagMatches(text)).toHaveLength(4);
       expect(text).not.toContain('Round 3');
       expect(buildCombatNarrationVolatile({ ...outro, narrativeType: 'defeat' })).toContain('Combat ends in DEFEAT.');
+    });
+
+    it('labels a lone player character as you in the outro, and a party as you together', () => {
+      const outro: RoundEventSummary = {
+        ...combatRound(BENIGN_WORLD, BENIGN_PLAYER),
+        narrativeType: 'victory',
+        playerNames: [BENIGN_PLAYER],
+      };
+      const solo = buildCombatNarrationVolatile(outro);
+      expect(solo).toMatch(/^Your character \(address as you, never by name\): /m);
+      expect(solo).not.toMatch(/^Combatants:/m);
+      const party = buildCombatNarrationVolatile({ ...outro, playerNames: [BENIGN_PLAYER, 'Mira'] });
+      expect(party).toMatch(/^Your party \(address together as you\): /m);
     });
 
     it('does not tag an enemy that shares no name with a player character', () => {

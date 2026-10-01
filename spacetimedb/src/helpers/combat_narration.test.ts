@@ -298,3 +298,48 @@ describe('combat_narration.ts static shape', () => {
     expect(source).toMatch(/export type RoundEventSummary/);
   });
 });
+
+describe('stripNarrationSelfCorrection: a leaked self-check never reaches the player', () => {
+  // The exact shape seen live on 2026-09-30 (victory outro).
+  const LEAKED = [
+    'Elfansworth walked out of the Cut with all their limbs still attached, which the Skitterer had not planned for.',
+    'Wait: that uses "their" for a single player character, which the rules forbid. Corrected below.',
+    'You walked out of the Cut with every limb still attached, which the Skitterer had clearly not planned for.',
+  ].join('\n\n');
+
+  it('keeps only the corrected text after the self-check paragraph', async () => {
+    const { stripNarrationSelfCorrection } = await import('./combat_narration');
+    expect(stripNarrationSelfCorrection(LEAKED)).toBe(
+      'You walked out of the Cut with every limb still attached, which the Skitterer had clearly not planned for.',
+    );
+  });
+
+  it('drops a trailing note and keeps the narration before it', async () => {
+    const { stripNarrationSelfCorrection } = await import('./combat_narration');
+    expect(stripNarrationSelfCorrection('You won, barely.\n\nNote: kept to two sentences.')).toBe('You won, barely.');
+  });
+
+  it('leaves clean narration unchanged, including words like "wait" mid-sentence', async () => {
+    const { stripNarrationSelfCorrection } = await import('./combat_narration');
+    const clean = 'You did not wait for the second blow. The creature regrets that, briefly.';
+    expect(stripNarrationSelfCorrection(clean)).toBe(clean);
+    expect(stripNarrationSelfCorrection('  You won.  ')).toBe('You won.');
+  });
+
+  it('handleCombatNarrationResult stores only the cleaned narrative', async () => {
+    const { handleCombatNarrationResult } = await import('./combat_narration');
+    const inserted: any[] = [];
+    const ctx: any = {
+      db: {
+        combat_narrative: { insert: (row: any) => inserted.push(row) },
+        character: { id: { find: () => undefined } },
+      },
+      timestamp: { microsSinceUnixEpoch: 0n },
+    };
+    handleCombatNarrationResult(ctx, { contextJson: JSON.stringify({ combatId: '1', narrativeType: 'victory' }) }, LEAKED, true);
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].narrativeText).toBe(
+      'You walked out of the Cut with every limb still attached, which the Skitterer had clearly not planned for.',
+    );
+  });
+});

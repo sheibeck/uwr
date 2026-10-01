@@ -410,9 +410,9 @@ Combat vocabulary for damage types:
 - Arcane: raw magical force, eldritch energy, the fabric of reality tearing
 Healing is restoration, mending, the knitting of flesh, light washing over wounds; never clinical, it is magic, not medicine. Buffs are empowerment and the surge of new strength. Debuffs are weakening, the creeping grip of affliction, something vital draining away.
 
-Format: reply with 2-4 sentences of plain prose and nothing else. No JSON, no quotation marks around the whole reply, no labels.
+Format: reply with 2-4 sentences of plain prose and nothing else. No JSON, no quotation marks around the whole reply, no labels. The reply is the finished narration only: never show a draft, never correct yourself, and never comment on these instructions.
 
-When the user message says combat ended in VICTORY or DEFEAT, write a brief narrative summary of the whole fight in a literary style, with no game mechanics, no numbers, no HP, mana, damage amounts or stats. Be sardonic about a triumph and darkly amused at a demise. Do not start with the location name; the location is context, not the opening word. Vary your openings.`;
+When the user message says combat ended in VICTORY or DEFEAT, write a brief narrative summary of the whole fight in a literary style, with no game mechanics, no numbers, no HP, mana, damage amounts or stats. Be sardonic about a triumph and darkly amused at a demise. Do not start with the location name; the location is context, not the opening word. Vary your openings. The summary keeps the second person: a lone player character is you from the first word to the last, never named and never he or she.`;
 
 const SMOKE_TEST_BLOCK = `TASK: CONNECTIVITY CHECK
 
@@ -680,7 +680,11 @@ function buildCombatOutroVolatile(events: RoundEventSummary, isVictory: boolean)
   lines.push(`Combat ends in ${isVictory ? 'VICTORY' : 'DEFEAT'}.`);
   if (events.locationName) lines.push(`Setting: ${w(events.locationName)}`);
   if (events.enemyNames?.length) lines.push(`Enemies faced: ${events.enemyNames.map(render).join(', ')}`);
-  if (events.playerNames?.length) lines.push(`Combatants: ${events.playerNames.map(render).join(', ')}`);
+  if (events.playerNames?.length === 1) {
+    lines.push(`Your character (address as you, never by name): ${render(events.playerNames[0])}`);
+  } else if (events.playerNames?.length) {
+    lines.push(`Your party (address together as you): ${events.playerNames.map(render).join(', ')}`);
+  }
   if (events.deaths.length > 0) lines.push(`Fallen: ${events.deaths.map(render).join(', ')}`);
   if (events.participantHpSummary.length > 0) {
     const survivorNames = events.participantHpSummary

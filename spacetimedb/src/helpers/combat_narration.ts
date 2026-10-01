@@ -155,6 +155,27 @@ export function enqueueCombatOutroNarration(
 
 // ── Result Handler ──
 
+/** A paragraph in which the model talks about its own draft instead of narrating. */
+const SELF_CORRECTION_RE =
+  /^\s*(wait|note|correction|edit|revised|revision)\b[\s:,.!-]|\b(corrected|revised|fixed) (below|version|text)\b|\b(the|these) (rules|instructions) (forbid|say|require)/i;
+
+/**
+ * Plain-prose narration can leak a self-check ("Wait: that uses their... Corrected below.")
+ * followed by a second draft. Keep only the text after the last such paragraph; when the
+ * marker is the final paragraph, keep the text before it. Clean text comes back unchanged.
+ */
+export function stripNarrationSelfCorrection(text: string): string {
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 0);
+  let last = -1;
+  paragraphs.forEach((p, i) => {
+    if (SELF_CORRECTION_RE.test(p)) last = i;
+  });
+  if (last === -1) return text.trim();
+  const after = paragraphs.slice(last + 1);
+  const kept = after.length > 0 ? after : paragraphs.slice(0, last);
+  return kept.filter((p) => !SELF_CORRECTION_RE.test(p)).join('\n\n');
+}
+
 /**
  * Handle the LLM result for combat narration domain.
  * Parses the narrative, inserts CombatNarrative row, broadcasts to all participants.
@@ -194,6 +215,7 @@ export function handleCombatNarrationResult(
     narrative = resultText.trim();
   }
 
+  narrative = stripNarrationSelfCorrection(narrative);
   if (!narrative || narrative.length === 0) return;
 
   // Insert CombatNarrative row
