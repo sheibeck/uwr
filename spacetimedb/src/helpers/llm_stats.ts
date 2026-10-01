@@ -93,3 +93,67 @@ export function aggregateLlmStats(
     allTime: summarizeRoute(allTime.get(route) ?? []),
   }));
 }
+
+// ---------------------------------------------------------------------------
+// Formatting (plain text for the admin console)
+// ---------------------------------------------------------------------------
+//
+// NarrativeMessage renders with v-html and turns [text] into a clickable link, so
+// the printed block must hold no square brackets and no angle brackets. Only
+// route names, numbers and fixed words are printed.
+
+/** Ledger figures printed on the last line. All money is bigint micro-USD. */
+export type LlmLedgerSummary = {
+  allTimeSpentMicroUsd: bigint;
+  allTimeCalls: bigint;
+  todaySpentMicroUsd: bigint;
+  reservedMicroUsd: bigint;
+  dailyCeilingMicroUsd: bigint;
+  enabled: boolean;
+};
+
+/** Dollars with four decimal places from bigint micro-USD, by string math only. */
+export function formatMicroUsd(micro: bigint): string {
+  const safe = micro < 0n ? 0n : micro;
+  const dollars = safe / 1_000_000n;
+  const fraction = (safe % 1_000_000n) / 100n;
+  return `$${dollars.toString()}.${fraction.toString().padStart(4, '0')}`;
+}
+
+/** Seconds with one decimal place, by integer math (tenths truncate). */
+export function formatLatencyMs(ms: number): string {
+  const whole = Number.isFinite(ms) && ms > 0 ? Math.floor(ms) : 0;
+  const tenths = Math.floor(whole / 100);
+  return `${Math.floor(tenths / 10)}.${tenths % 10}s`;
+}
+
+/** A route name with every link or markup character replaced. */
+function plainName(name: string): string {
+  return name.replace(/[[\]<>{}]/g, '_');
+}
+
+function statsText(s: RouteStats): string {
+  return (
+    `${s.calls} calls, ${formatMicroUsd(s.costMicroUsd)}, ` +
+    `p50 ${formatLatencyMs(s.p50Ms)}, p95 ${formatLatencyMs(s.p95Ms)}, ` +
+    `${s.errors} errors, ${s.truncated} truncated`
+  );
+}
+
+/** The whole /llm stats block: a header, one line per route, and the ledger line. */
+export function formatLlmStatsText(
+  stats: readonly { route: string; last24h: RouteStats; allTime: RouteStats }[],
+  ledger: LlmLedgerSummary,
+): string {
+  const lines: string[] = ['LLM stats by route, last 24 h | all time:'];
+  for (const entry of stats) {
+    lines.push(`${plainName(entry.route)}: ${statsText(entry.last24h)} | all time: ${statsText(entry.allTime)}`);
+  }
+  lines.push(
+    `Ledger: all time ${formatMicroUsd(ledger.allTimeSpentMicroUsd)} over ${ledger.allTimeCalls.toString()} calls. ` +
+      `Today ${formatMicroUsd(ledger.todaySpentMicroUsd)} spent and ${formatMicroUsd(ledger.reservedMicroUsd)} reserved ` +
+      `of a ${formatMicroUsd(ledger.dailyCeilingMicroUsd)} daily ceiling. ` +
+      `LLM calls are ${ledger.enabled ? 'on' : 'off'}.`,
+  );
+  return lines.join('\n');
+}
