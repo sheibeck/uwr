@@ -15,10 +15,12 @@
 //   reservation and call refunded and the failure message; younger and without a
 //   dispatch row (an orphan, including Phase 40's queued renown jobs): one dispatch
 // - stranded generation locks: a creation step GENERATING_RACE/GENERATING_CLASS or a
-//   world-gen state PENDING/GENERATING with no active job for 60 s (its failure message
-//   threw, so the job is terminal but the lock was never released) is released directly
-//   with the in-voice "try again" line, never through applyFailure (a message bug must
-//   not keep a lock forever)
+//   world-gen state with no active job for 60 s (its failure message threw, so the job is
+//   terminal but the lock was never released) is released directly with the in-voice "try
+//   again" line, never through applyFailure (a message bug must not keep a lock forever).
+//   Stage 1 (PENDING/GENERATING, held by a world_gen_start job) degrades to ERROR; stage 2
+//   (FILLING, held by a world_gen job) degrades to the playable FILL_ERROR, never to ERROR,
+//   and the sweeper never retries it (only the player's explore re-enqueues a fill)
 // - budget rows older than the retention window are pruned
 //
 // Rules this module keeps:
@@ -48,6 +50,7 @@ import {
 } from '../data/llm_limits';
 import { redactSecrets } from './measurement';
 import { applyLlmFailure, failWorldGen, toApplyJob, type ApplyJob } from './llm_apply';
+import { failWorldFill, WORLD_FILL_FAILED_MESSAGE } from './world_gen';
 import { appendCreationEvent } from './events';
 import { activeLlmJobs } from './llm_queue';
 import { chargeLedgerUnknownBilling, prunePlayerBudgets, releaseLlmReservation } from './llm_budget';
@@ -264,7 +267,8 @@ function genStateIdOf(job: any): string | undefined {
 
 /**
  * Release generation locks whose job is gone. A creation state is locked by an active
- * creation job of its own identity; a world-gen state by an active world_gen job naming its id.
+ * creation job of its own identity; a world-gen state by an active job naming its id: a
+ * world_gen_start job holds PENDING/GENERATING (stage 1), a world_gen job holds FILLING (stage 2).
  * Only locks older than the grace are touched (a lock and its job are always written in the
  * same transaction, so a younger lock without a job cannot exist, but the grace keeps the rule
  * conservative). Iterates both state tables: the only caller is the sweeper reducer.
@@ -272,13 +276,17 @@ function genStateIdOf(job: any): string | undefined {
 function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
   const active = activeLlmJobs(ctx);
   const creationHeld = new Set<string>();
-  const worldGenHeld = new Set<string>();
+  const worldGenHeld = new Set<string>(); // stage 1: world_gen_start
+  const worldFillHeld = new Set<string>(); // stage 2: world_gen
   for (const job of active) {
     if (job.route === 'creation_race' || job.route === 'creation_class') {
       creationHeld.add(`${job.route}|${job.playerId.toHexString()}`);
-    } else if (job.route === 'world_gen') {
+    } else if (job.route === 'world_gen_start') {
       const id = genStateIdOf(job);
       if (id !== undefined) worldGenHeld.add(id);
+    } else if (job.route === 'world_gen') {
+      const id = genStateIdOf(job);
+      if (id !== undefined) worldFillHeld.add(id);
     }
   }
   const stale = (row: any): boolean => now - row.updatedAt.microsSinceUnixEpoch > LLM_SWEEP_STRANDED_LOCK_GRACE_MICROS;
@@ -298,10 +306,14 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
     }
   }
   for (const state of [...ctx.db.world_gen_state.iter()]) {
-    if (state.step !== 'PENDING' && state.step !== 'GENERATING') continue;
-    if (!stale(state) || worldGenHeld.has(state.id.toString())) continue;
+    const isStage1 = state.step === 'PENDING' || state.step === 'GENERATING';
+    const isStage2 = state.step === 'FILLING';
+    if (!isStage1 && !isStage2) continue; // ERROR, FILL_ERROR and COMPLETE are never touched
+    const held = isStage1 ? worldGenHeld : worldFillHeld;
+    if (!stale(state) || held.has(state.id.toString())) continue;
     try {
-      failWorldGen(ctx, state, WORLD_GEN_LOCK_RELEASED);
+      if (isStage1) failWorldGen(ctx, state, WORLD_GEN_LOCK_RELEASED);
+      else failWorldFill(ctx, state, WORLD_FILL_FAILED_MESSAGE);
       released += 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
