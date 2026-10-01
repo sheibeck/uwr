@@ -184,9 +184,29 @@ const RACE_JSON = {
   },
 };
 
-const CLASS_JSON = {
+// Phase 43 (plan 13): the class is two replies. Stage 1 (creation_class_reveal) carries the name, the
+// description and the first ability; stage 2 (creation_class) carries the stats and two more abilities.
+const CLASS_FIRST_ABILITY = {
+  name: 'Ember Slash',
+  description: 'A burning cut.',
+  kind: 'damage',
+  damageType: 'fire',
+  value1: 12,
+  castSeconds: 0,
+  cooldownSeconds: 6,
+  resourceCost: 5,
+  resourceType: 'stamina',
+  effectType: 'dot',
+  effectDuration: 9,
+};
+
+const CLASS_REVEAL_JSON = {
   className: 'Emberblade',
   classDescription: 'A duelist who fights like a grudge.',
+  firstAbility: CLASS_FIRST_ABILITY,
+};
+
+const CLASS_FILL_JSON = {
   stats: {
     primaryStat: 'str',
     secondaryStat: 'dex',
@@ -198,19 +218,6 @@ const CLASS_JSON = {
     usesMana: false,
   },
   abilities: [
-    {
-      name: 'Ember Slash',
-      description: 'A burning cut.',
-      kind: 'damage',
-      damageType: 'fire',
-      value1: 12,
-      castSeconds: 0,
-      cooldownSeconds: 6,
-      resourceCost: 5,
-      resourceType: 'stamina',
-      effectType: 'dot',
-      effectDuration: 9,
-    },
     {
       name: 'Ash Veil',
       description: 'A curtain of soot.',
@@ -297,13 +304,34 @@ describe('llm apply failure path: creation and skill_gen', () => {
     expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
   });
 
-  it('creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE', () => {
+  it('creation_class_reveal failure appends creation_error and reverts the step to AWAITING_ARCHETYPE', () => {
     const ctx = newCtx({
       character_creation_state: [creationState('GENERATING_CLASS')],
     });
-    exec(ctx, applyJob('creation_class'), { success: false });
+    exec(ctx, applyJob('creation_class_reveal'), { success: false });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
+  });
+
+  // Phase 43 (plan 13): a failed fill keeps the reveal and waits for the player's next input.
+  it('creation_class (fill) failure sets CLASS_FILL_ERROR, keeps the class name and first ability and posts one in-voice line', () => {
+    const ctx = newCtx({
+      character_creation_state: [
+        creationState('CLASS_FILLING', {
+          className: 'Emberblade',
+          classDescription: 'A duelist who fights like a grudge.',
+          abilities: JSON.stringify([CLASS_FIRST_ABILITY]),
+        }),
+      ],
+    });
+    exec(ctx, applyJob('creation_class'), { success: false });
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('CLASS_FILL_ERROR');
+    expect(state.className).toBe('Emberblade');
+    expect(JSON.parse(state.abilities)).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
   });
 
   it('skill_gen failure writes an in-voice private narrative for the character owner', () => {
@@ -423,19 +451,106 @@ describe('llm apply creation_race success', () => {
 });
 
 // ---------------------------------------------------------------------------
-// creation_class success
+// creation_class_reveal and creation_class success (two stages, Phase 43)
 // ---------------------------------------------------------------------------
 
-describe('llm apply creation_class success', () => {
+describe('llm apply creation_class_reveal success (stage 1)', () => {
   const seed = () => ({
     character_creation_state: [
       creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.' }),
     ],
   });
 
-  it('applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event', () => {
+  it('applies a valid reply: CLASS_FILLING, the class identity, one ability, one pending fill job and the reveal event', () => {
+    const ctx = openGateCtx(seed());
+    exec(ctx, applyJob('creation_class_reveal'), { resultText: JSON.stringify(CLASS_REVEAL_JSON) });
+
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state).toMatchObject({
+      step: 'CLASS_FILLING',
+      className: 'Emberblade',
+      classDescription: 'A duelist who fights like a grudge.',
+      raceName: 'Ashkin',
+    });
+    expect(state.classStats).toBeUndefined();
+    expect(JSON.parse(state.abilities)).toHaveLength(1);
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ route: 'creation_class', status: 'pending' });
+    const msg = rows(ctx, 'event_creation')[0].message as string;
+    expect(msg).toContain('**Emberblade**');
+    expect(msg).toContain('Your first ability:');
+    expect(msg).toContain('Ember Slash');
+    expect(msg).not.toContain('[Ember Slash]');
+    expect(msg).toContain('fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)');
+    expect(msg).toContain('That is the shape of you.');
+  });
+
+  it('Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mystic first ability', () => {
+    const ctx = openGateCtx({
+      character_creation_state: [
+        creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.', archetype: 'mystic' }),
+      ],
+    });
+    const legacy = {
+      className: 'Cinder Mystic',
+      classDescription: 'Glows unpleasantly.',
+      firstAbility: { name: 'Spark', description: 'A spark.', baseDamage: 6, manaCost: 3, effect: 'stun', castSeconds: 1, cooldownSeconds: 4 },
+    };
+    exec(ctx, applyJob('creation_class_reveal'), { resultText: JSON.stringify(legacy) });
+    const msg = rows(ctx, 'event_creation')[0].message as string;
+    // baseDamage, manaCost and effect are ignored: kind defaults to damage, value1 to 15, a mystic
+    // ability costs mana (15 by default), and no effect line is printed.
+    expect(msg).toContain('physical damage, 15 base, 1s cast, 4s cooldown, 15 mana');
+    expect(msg).not.toContain('stun');
+  });
+
+  it('Phase 41: a reply with only firstAbility {} stores "Unknown Class" and "Unknown Ability" with defaults', () => {
+    const ctx = openGateCtx(seed());
+    exec(ctx, applyJob('creation_class_reveal'), { resultText: JSON.stringify({ firstAbility: {} }) });
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('CLASS_FILLING');
+    expect(state.className).toBe('Unknown Class');
+    expect(JSON.parse(state.abilities)).toHaveLength(1);
+    expect(JSON.parse(state.abilities)[0].name).toBe('Unknown Ability');
+    expect(rows(ctx, 'event_creation')[0].message).toContain('**Unknown Class**');
+  });
+
+  it('malformed JSON reverts to AWAITING_ARCHETYPE and enqueues nothing', () => {
+    const ctx = openGateCtx(seed());
+    exec(ctx, applyJob('creation_class_reveal'), { resultText: 'not json at all' });
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a reply without a usable firstAbility reverts to AWAITING_ARCHETYPE and enqueues nothing', () => {
+    const ctx = openGateCtx(seed());
+    exec(ctx, applyJob('creation_class_reveal'), { resultText: JSON.stringify({ className: 'Half Built', firstAbility: null }) });
+    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    expect(rows(ctx, 'character_creation_state')[0].className).toBeUndefined();
+    expect(rows(ctx, 'event_creation')).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+});
+
+describe('llm apply creation_class success (stage 2, the fill)', () => {
+  const seed = () => ({
+    character_creation_state: [
+      creationState('CLASS_FILLING', {
+        raceName: 'Ashkin',
+        raceNarrative: 'Born of cinders.',
+        className: 'Emberblade',
+        classDescription: 'A duelist who fights like a grudge.',
+        abilities: JSON.stringify([CLASS_FIRST_ABILITY]),
+      }),
+    ],
+  });
+
+  it('applies a valid reply: CLASS_REVEALED, stats, three abilities with the first kept first, presentation event', () => {
     const ctx = newCtx(seed());
-    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(CLASS_JSON) });
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(CLASS_FILL_JSON) });
 
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state).toMatchObject({
@@ -445,7 +560,9 @@ describe('llm apply creation_class success', () => {
       raceName: 'Ashkin',
     });
     expect(JSON.parse(state.classStats).primaryStat).toBe('str');
-    expect(JSON.parse(state.abilities)).toHaveLength(3);
+    const abilities = JSON.parse(state.abilities);
+    expect(abilities).toHaveLength(3);
+    expect(abilities[0].name).toBe('Ember Slash');
     const msg = rows(ctx, 'event_creation')[0].message as string;
     // Phase 41: 'mail' is not a vocabulary armor type, so the validator drops it.
     expect(msg).toContain('Primary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)');
@@ -456,12 +573,17 @@ describe('llm apply creation_class success', () => {
   it('Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line', () => {
     const ctx = newCtx({
       character_creation_state: [
-        creationState('GENERATING_CLASS', { raceName: 'Ashkin', raceNarrative: 'Born of cinders.', archetype: 'mystic' }),
+        creationState('CLASS_FILLING', {
+          raceName: 'Ashkin',
+          raceNarrative: 'Born of cinders.',
+          archetype: 'mystic',
+          className: 'Cinder Mystic',
+          classDescription: 'Glows unpleasantly.',
+          abilities: JSON.stringify([{ ...CLASS_FIRST_ABILITY, name: 'Flare', resourceType: 'mana', resourceCost: 10, castSeconds: 1 }]),
+        }),
       ],
     });
     const legacy = {
-      className: 'Cinder Mystic',
-      classDescription: 'Glows unpleasantly.',
       stats: { primaryStat: 'int', secondaryStat: 'none', usesMana: true, bonusMana: 15, armorProficiency: 'cloth' },
       abilities: [
         { name: 'Spark', description: 'A spark.', baseDamage: 6, manaCost: 3, effect: 'stun', castSeconds: 1, cooldownSeconds: 4 },
@@ -471,17 +593,17 @@ describe('llm apply creation_class success', () => {
     const msg = rows(ctx, 'event_creation')[0].message as string;
     expect(msg).toContain('Primary: INT | Armor: cloth | Mana user (+15 bonus mana)');
     // baseDamage, manaCost and effect are ignored: kind defaults to damage, value1 to 15, the
-    // mana cost to 15, and no effect line is printed.
+    // mana cost to 15, and no effect line is printed for it.
     expect(msg).toContain('physical damage, 15 base, 1s cast, 4s cooldown, 15 mana');
     expect(msg).not.toContain('stun');
   });
 
-  it('Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**"', () => {
+  it('Phase 41: stats missing from the reply take the archetype defaults when the reply adds an ability', () => {
     const ctx = newCtx(seed());
-    exec(ctx, applyJob('creation_class'), { resultText: '{}' });
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify({ abilities: [CLASS_FILL_JSON.abilities[0]] }) });
     const state = rows(ctx, 'character_creation_state')[0];
     expect(state.step).toBe('CLASS_REVEALED');
-    expect(state.className).toBe('Unknown Class');
+    expect(state.className).toBe('Emberblade');
     expect(JSON.parse(state.classStats)).toEqual({
       primaryStat: 'str',
       secondaryStat: 'dex',
@@ -491,26 +613,38 @@ describe('llm apply creation_class success', () => {
       weaponProficiencies: [],
       armorProficiencies: [],
     });
-    expect(state.abilities).toBe('[]');
-    expect(rows(ctx, 'event_creation')[0].message).toContain('**Unknown Class**');
+    expect(JSON.parse(state.abilities)).toHaveLength(2);
   });
 
-  it('malformed JSON reverts to AWAITING_ARCHETYPE', () => {
+  it('an empty object adds no ability: CLASS_FILL_ERROR, the reveal stays', () => {
     const ctx = newCtx(seed());
-    exec(ctx, applyJob('creation_class'), { resultText: 'not json at all' });
-    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    exec(ctx, applyJob('creation_class'), { resultText: '{}' });
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('CLASS_FILL_ERROR');
+    expect(state.className).toBe('Emberblade');
+    expect(JSON.parse(state.abilities)).toHaveLength(1);
+    expect(state.classStats).toBeUndefined();
     expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
   });
 
-  it('Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone)', () => {
+  it('malformed JSON sets CLASS_FILL_ERROR and keeps the reveal (it does not revert to AWAITING_ARCHETYPE)', () => {
     const ctx = newCtx(seed());
-    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify({ className: 'Half Built', abilities: [null] }) });
+    exec(ctx, applyJob('creation_class'), { resultText: 'not json at all' });
     const state = rows(ctx, 'character_creation_state')[0];
-    expect(state.step).toBe('CLASS_REVEALED');
-    expect(state.className).toBe('Half Built');
-    expect(state.abilities).toBe('[]');
+    expect(state.step).toBe('CLASS_FILL_ERROR');
+    expect(state.className).toBe('Emberblade');
+    expect(JSON.parse(state.abilities)).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
+  });
+
+  it('Phase 41: a null ability entry is dropped, not fatal; with no usable extra ability the fill fails and the reveal stays', () => {
+    const ctx = newCtx(seed());
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify({ abilities: [null] }) });
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('CLASS_FILL_ERROR');
+    expect(JSON.parse(state.abilities)).toHaveLength(1);
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
-    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation');
+    expect(rows(ctx, 'event_creation')[0].kind).toBe('creation_error');
   });
 });
 
@@ -1742,22 +1876,49 @@ describe('llm apply creation replies: Phase 41 clamped', () => {
     expect(rows(ctx, 'event_creation')[0].message).toContain('+3 STR, +1 DEX');
   });
 
-  it('Phase 41: clamped - a class reply with over-budget ability values is stored clamped', () => {
-    const ctx = newCtx({
+  it('Phase 41: clamped - a class reveal with over-budget ability values is stored clamped', () => {
+    const ctx = openGateCtx({
       character_creation_state: [creationState('GENERATING_CLASS')],
     });
     const reply = {
-      ...CLASS_JSON,
-      stats: { ...CLASS_JSON.stats, bonusHp: 9999 },
-      abilities: [{ ...CLASS_JSON.abilities[0], value1: 99999, kind: 'nonsense', resourceCost: 9999 }],
+      ...CLASS_REVEAL_JSON,
+      firstAbility: { ...CLASS_FIRST_ABILITY, value1: 99999, kind: 'nonsense', resourceCost: 9999 },
     };
-    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(reply) });
+    exec(ctx, applyJob('creation_class_reveal'), { resultText: JSON.stringify(reply) });
     const state = rows(ctx, 'character_creation_state')[0];
     // kind 'nonsense' becomes 'damage'; value1 is capped at the level-1 damage budget maximum;
     // a stamina cost is capped at 15.
     const budgetMax = Number(clampToBudget('damage', 1, { value1: 99999 }).value1);
     expect(JSON.parse(state.abilities)[0]).toMatchObject({ value1: budgetMax, kind: 'damage', resourceCost: 15 });
     expect(budgetMax).toBeLessThan(99999);
+  });
+
+  it('Phase 41: clamped - a class fill with out-of-range stats and over-budget abilities is stored clamped, at most three abilities', () => {
+    const ctx = newCtx({
+      character_creation_state: [
+        creationState('CLASS_FILLING', {
+          className: 'Emberblade',
+          classDescription: 'A duelist who fights like a grudge.',
+          abilities: JSON.stringify([CLASS_FIRST_ABILITY]),
+        }),
+      ],
+    });
+    const reply = {
+      stats: { ...CLASS_FILL_JSON.stats, bonusHp: 9999 },
+      abilities: [
+        { ...CLASS_FILL_JSON.abilities[0], value1: 99999, kind: 'nonsense', resourceCost: 9999, resourceType: 'stamina' },
+        CLASS_FILL_JSON.abilities[1],
+        { ...CLASS_FILL_JSON.abilities[1], name: 'One Too Many' },
+      ],
+    };
+    exec(ctx, applyJob('creation_class'), { resultText: JSON.stringify(reply) });
+    const state = rows(ctx, 'character_creation_state')[0];
+    const budgetMax = Number(clampToBudget('damage', 1, { value1: 99999 }).value1);
+    const abilities = JSON.parse(state.abilities);
+    expect(state.step).toBe('CLASS_REVEALED');
+    expect(abilities).toHaveLength(3);
+    expect(abilities[0].name).toBe('Ember Slash');
+    expect(abilities[1]).toMatchObject({ value1: budgetMax, kind: 'damage', resourceCost: 15 });
     expect(JSON.parse(state.classStats).bonusHp).toBe(20);
   });
 });

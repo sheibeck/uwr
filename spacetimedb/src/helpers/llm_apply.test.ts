@@ -32,7 +32,9 @@ import {
   applyNpcConversationResult,
   extractJson,
   toApplyJob,
+  creationStateForJob,
 } from './llm_apply';
+import { CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { serializePerkEffect } from './renown';
 import { LLM_RESTING_LINE } from './llm_queue';
 import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE } from './world_gen';
@@ -178,9 +180,9 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
   });
 
-  it('applyLlmFailure creation_class reverts alice state and writes alice event', () => {
+  it('applyLlmFailure creation_class_reveal reverts alice state and writes alice event', () => {
     const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_CLASS')] });
-    applyLlmFailure(ctx, job('creation_class'));
+    applyLlmFailure(ctx, job('creation_class_reveal'));
     expect(rows(ctx, 'character_creation_state')[0]).toMatchObject({ playerId: alice, step: 'AWAITING_ARCHETYPE' });
     const events = rows(ctx, 'event_creation');
     expect(events).toHaveLength(1);
@@ -698,10 +700,11 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
   });
   const NPC_CTX = JSON.stringify({ characterId: '10', npcId: '20', memoryId: '30' });
 
-  it.each(CODES)('creation_race and creation_class (%s): one creation_error equal to the resting line, the step reverts', (code) => {
+  it.each(CODES)('creation_race, creation_class_reveal and creation_class (%s): one creation_error equal to the resting line, the step reverts or becomes CLASS_FILL_ERROR', (code) => {
     for (const [domain, from, back] of [
       ['creation_race', 'GENERATING_RACE', 'AWAITING_RACE'],
-      ['creation_class', 'GENERATING_CLASS', 'AWAITING_ARCHETYPE'],
+      ['creation_class_reveal', 'GENERATING_CLASS', 'AWAITING_ARCHETYPE'],
+      ['creation_class', 'CLASS_FILLING', 'CLASS_FILL_ERROR'],
     ]) {
       const ctx = moduleCtx({ character_creation_state: [creationState(from)] });
       applyLlmFailure(ctx, restingJob(domain, undefined, code));
@@ -1090,5 +1093,276 @@ describe('Phase 43 (plan 08): staged world apply', () => {
       .map((f) => f.slice(srcDir.length))
       .sort();
     expect(callers).toEqual(['helpers/llm_apply.ts', 'helpers/world_gen.ts']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 43 (plan 13): staged class reveal (LAT-04, LAT-05)
+// ---------------------------------------------------------------------------
+
+describe('Phase 43 (plan 13): staged class apply', () => {
+  const FIRST = {
+    name: 'Brine Lash',
+    description: 'A whip of salt water.',
+    kind: 'damage',
+    targetRule: 'single_enemy',
+    damageType: 'fire',
+    resourceType: 'mana',
+    resourceCost: 15,
+    castSeconds: 1,
+    cooldownSeconds: 6,
+    value1: 12,
+    scaling: 'int',
+    effectType: null,
+    effectMagnitude: null,
+    effectDuration: null,
+  };
+  const REVEAL = { className: 'Tidecaller', classDescription: 'Speaks to the sea and is rarely answered.', firstAbility: FIRST };
+  const more = (name: string) => ({ ...FIRST, name, description: `${name} description.`, value1: 9 });
+  const FILL = {
+    stats: {
+      primaryStat: 'int',
+      secondaryStat: 'wis',
+      bonusHp: 4,
+      bonusMana: 20,
+      weaponProficiencies: ['staff', 'dagger'],
+      armorProficiencies: ['cloth'],
+      usesMana: true,
+    },
+    abilities: [more('Undertow'), more('Salt Ward')],
+  };
+
+  const ctxJson = JSON.stringify({ creationStateId: '2', generationType: 'class', input: {} });
+  const revealJob = { domain: 'creation_class_reveal', playerId: alice, contextJson: ctxJson } as any;
+  const fillJob = { domain: 'creation_class', playerId: alice, contextJson: ctxJson } as any;
+  const base = (over: Record<string, unknown> = {}) => ({
+    ...creationState('GENERATING_CLASS'),
+    raceName: 'Saltkin',
+    raceNarrative: 'Marsh dwellers.',
+    archetype: 'mystic',
+    ...over,
+  });
+  const newCtx = (over: Record<string, unknown> = {}) =>
+    moduleCtx({ player: [{ id: alice, userId: 7n }], character_creation_state: [base(over)] });
+  const state = (ctx: any) => rows(ctx, 'character_creation_state')[0];
+  const events = (ctx: any) => rows(ctx, 'event_creation');
+  const MALFORMED = 'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."';
+  const FLICKER = 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."';
+
+  it('creationStateForJob maps each route to its own step and ignores every other step', () => {
+    const cases: [string, string][] = [
+      ['creation_race', 'GENERATING_RACE'],
+      ['creation_class_reveal', 'GENERATING_CLASS'],
+      ['creation_class', 'CLASS_FILLING'],
+    ];
+    for (const [domain, step] of cases) {
+      const ctx = moduleCtx({ character_creation_state: [creationState(step)] });
+      expect(creationStateForJob(ctx, { domain, playerId: alice, contextJson: ctxJson } as any)).not.toBeNull();
+      for (const other of ['GENERATING_RACE', 'GENERATING_CLASS', 'CLASS_FILLING', 'CLASS_FILL_ERROR', 'CLASS_REVEALED', 'AWAITING_NAME', 'COMPLETE']) {
+        if (other === step) continue;
+        const c2 = moduleCtx({ character_creation_state: [creationState(other)] });
+        expect(creationStateForJob(c2, { domain, playerId: alice, contextJson: ctxJson } as any)).toBeNull();
+      }
+    }
+  });
+
+  it('the reveal stores the class name, description and exactly one ability, and queues the fill in the same apply', () => {
+    const ctx = newCtx();
+    applyLlmResult(ctx, revealJob, JSON.stringify(REVEAL));
+
+    const s = state(ctx);
+    expect(s).toMatchObject({ step: 'CLASS_FILLING', className: 'Tidecaller', classDescription: 'Speaks to the sea and is rarely answered.' });
+    const abilities = JSON.parse(s.abilities);
+    expect(abilities).toHaveLength(1);
+    expect(abilities[0]).toMatchObject({ name: 'Brine Lash', kind: 'damage', resourceType: 'mana' });
+    expect(s.classStats).toBeUndefined();
+
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ route: 'creation_class', status: 'pending', playerId: alice });
+    const req = JSON.parse(jobs[0].requestJson);
+    expect(req.creationStateId).toBe('2');
+    expect(req.input).toMatchObject({ className: 'Tidecaller', raceName: 'Saltkin', archetype: 'mystic' });
+    expect(req.input.firstAbility).toMatchObject({ name: 'Brine Lash', resourceType: 'mana' });
+
+    const evs = events(ctx);
+    expect(evs).toHaveLength(1);
+    expect(evs[0].kind).toBe('creation');
+    const m = evs[0].message as string;
+    expect(m).toContain('Speaks to the sea and is rarely answered.');
+    expect(m).toContain('**Tidecaller**');
+    expect(m).toContain('Your first ability:');
+    expect(m).toContain('Brine Lash');
+    expect(m).toContain('A whip of salt water.');
+    expect(m).toContain('fire damage, 12 base, 1s cast, 6s cooldown, 15 mana');
+    expect(m).not.toContain('[Brine Lash]');
+    expect(m.endsWith(CLASS_REVEAL_MILESTONE_LINE)).toBe(true);
+    expect(m).not.toContain('Choose one');
+  });
+
+  it('reveal then fill on one context: the class is complete only after the fill (CLASS_REVEALED, three abilities)', () => {
+    const ctx = newCtx();
+    applyLlmResult(ctx, revealJob, JSON.stringify(REVEAL));
+    expect(state(ctx).step).toBe('CLASS_FILLING');
+
+    applyLlmResult(ctx, fillJob, JSON.stringify(FILL));
+    const s = state(ctx);
+    expect(s.step).toBe('CLASS_REVEALED');
+    expect(s).toMatchObject({ className: 'Tidecaller', classDescription: 'Speaks to the sea and is rarely answered.' });
+    const abilities = JSON.parse(s.abilities);
+    expect(abilities.map((a: any) => a.name)).toEqual(['Brine Lash', 'Undertow', 'Salt Ward']);
+    expect(JSON.parse(s.classStats)).toMatchObject({ primaryStat: 'int', secondaryStat: 'wis', bonusHp: 4, bonusMana: 20, usesMana: true });
+    expect(rows(ctx, 'llm_job')).toHaveLength(1); // the fill enqueued nothing
+    const evs = events(ctx);
+    expect(evs).toHaveLength(2);
+    const full = evs[1].message as string;
+    expect(full).toContain('**Tidecaller**');
+    expect(full).toContain('Your starting abilities:');
+    expect(full).toContain('[Brine Lash]');
+    expect(full).toContain('[Undertow]');
+    expect(full).toContain('[Salt Ward]');
+    expect(full).toContain('Choose one.');
+  });
+
+  it('the fill clamps its numbers and keeps at most three abilities with the stage-1 ability first', () => {
+    const ctx = newCtx();
+    applyLlmResult(ctx, revealJob, JSON.stringify(REVEAL));
+    applyLlmResult(
+      ctx,
+      fillJob,
+      JSON.stringify({
+        stats: { ...FILL.stats, bonusHp: 9999, bonusMana: -5 },
+        abilities: [more('A'), more('B'), more('C'), more('D')],
+      }),
+    );
+    const s = state(ctx);
+    expect(s.step).toBe('CLASS_REVEALED');
+    expect(JSON.parse(s.abilities).map((a: any) => a.name)).toEqual(['Brine Lash', 'A', 'B']);
+    expect(JSON.parse(s.classStats)).toMatchObject({ bonusHp: 20, bonusMana: 0 });
+  });
+
+  it.each([
+    ['not JSON', 'the cosmos mumbles'],
+    ['an empty object', '{}'],
+    ['no firstAbility', JSON.stringify({ className: 'Tidecaller', classDescription: 'x' })],
+    ['a non-object firstAbility', JSON.stringify({ className: 'Tidecaller', classDescription: 'x', firstAbility: 'Brine Lash' })],
+    ['an array firstAbility', JSON.stringify({ className: 'Tidecaller', classDescription: 'x', firstAbility: [FIRST] })],
+  ])('a reveal reply that is %s reverts to AWAITING_ARCHETYPE with the malformed line and enqueues nothing', (_n, reply) => {
+    const ctx = newCtx();
+    applyLlmResult(ctx, revealJob, reply);
+    expect(state(ctx).step).toBe('AWAITING_ARCHETYPE');
+    expect(state(ctx).className).toBeUndefined();
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(events(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: MALFORMED })]);
+  });
+
+  it('a refused fill enqueue (kill switch) leaves CLASS_FILL_ERROR with the reveal kept and the resting line after it', () => {
+    const ctx = newCtx();
+    setLlmEnabled(ctx, false);
+    applyLlmResult(ctx, revealJob, JSON.stringify(REVEAL));
+    expect(state(ctx)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
+    expect(JSON.parse(state(ctx).abilities)).toHaveLength(1);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    const evs = events(ctx);
+    expect(evs.map((e: any) => e.kind)).toEqual(['creation', 'creation_error']);
+    expect(evs[1].message).toBe(LLM_RESTING_LINE);
+  });
+
+  it.each(['CLASS_FILLING', 'CLASS_FILL_ERROR', 'CLASS_REVEALED', 'AWAITING_ARCHETYPE', 'COMPLETE'])(
+    'a stale reveal result never touches a state at %s',
+    (step) => {
+      const ctx = newCtx({ step });
+      const before = { ...state(ctx) };
+      applyLlmResult(ctx, revealJob, JSON.stringify(REVEAL));
+      expect(state(ctx)).toEqual(before);
+      expect(events(ctx)).toHaveLength(0);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    },
+  );
+
+  const revealed = (step = 'CLASS_FILLING') =>
+    newCtx({
+      step,
+      className: 'Tidecaller',
+      classDescription: 'Speaks to the sea and is rarely answered.',
+      abilities: JSON.stringify([FIRST]),
+    });
+
+  it.each([
+    ['not JSON', 'the cosmos mumbles'],
+    ['an empty object (no extra abilities)', '{}'],
+    ['stats but no abilities', JSON.stringify({ stats: FILL.stats })],
+    ['abilities that are all unusable', JSON.stringify({ stats: FILL.stats, abilities: ['x', null, 3] })],
+  ])('a fill reply that is %s sets CLASS_FILL_ERROR, keeps the reveal and posts the failed line', (_n, reply) => {
+    const ctx = revealed();
+    applyLlmResult(ctx, fillJob, reply);
+    const s = state(ctx);
+    expect(s.step).toBe('CLASS_FILL_ERROR');
+    expect(s).toMatchObject({ className: 'Tidecaller', classDescription: 'Speaks to the sea and is rarely answered.' });
+    expect(JSON.parse(s.abilities)).toHaveLength(1);
+    expect(s.classStats).toBeUndefined();
+    expect(events(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: CLASS_FILL_FAILED_LINE })]);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it.each(['CLASS_FILL_ERROR', 'CLASS_REVEALED', 'GENERATING_CLASS', 'AWAITING_NAME', 'COMPLETE'])(
+    'a stale fill result never touches a state at %s',
+    (step) => {
+      const ctx = revealed(step);
+      const before = { ...state(ctx) };
+      applyLlmResult(ctx, fillJob, JSON.stringify(FILL));
+      expect(state(ctx)).toEqual(before);
+      expect(events(ctx)).toHaveLength(0);
+    },
+  );
+
+  it('a fill with no stored first ability fails to CLASS_FILL_ERROR (nothing is invented)', () => {
+    const ctx = newCtx({ step: 'CLASS_FILLING', className: 'Tidecaller', classDescription: 'x' });
+    applyLlmResult(ctx, fillJob, JSON.stringify(FILL));
+    expect(state(ctx).step).toBe('CLASS_FILL_ERROR');
+    expect(events(ctx)).toEqual([expect.objectContaining({ kind: 'creation_error', message: CLASS_FILL_FAILED_LINE })]);
+  });
+
+  it('failures: reveal reverts to AWAITING_ARCHETYPE; fill keeps stage 1 as CLASS_FILL_ERROR; resting codes use the resting line', () => {
+    const rev = newCtx();
+    applyLlmFailure(rev, revealJob);
+    expect(state(rev).step).toBe('AWAITING_ARCHETYPE');
+    expect(events(rev)).toEqual([expect.objectContaining({ kind: 'creation_error', message: FLICKER })]);
+
+    const fill = revealed();
+    applyLlmFailure(fill, fillJob);
+    expect(state(fill)).toMatchObject({ step: 'CLASS_FILL_ERROR', className: 'Tidecaller' });
+    expect(JSON.parse(state(fill).abilities)).toHaveLength(1);
+    expect(events(fill)).toEqual([expect.objectContaining({ kind: 'creation_error', message: CLASS_FILL_FAILED_LINE })]);
+
+    for (const code of ['halted', 'ceiling']) {
+      const r = revealed();
+      applyLlmFailure(r, { ...fillJob, errorCode: code });
+      expect(state(r).step).toBe('CLASS_FILL_ERROR');
+      expect(events(r)).toEqual([expect.objectContaining({ kind: 'creation_error', message: LLM_RESTING_LINE })]);
+    }
+  });
+
+  it('a late failure never touches a state that moved on', () => {
+    for (const [job2, step] of [
+      [fillJob, 'CLASS_REVEALED'],
+      [fillJob, 'CLASS_FILL_ERROR'],
+      [fillJob, 'GENERATING_CLASS'],
+      [revealJob, 'CLASS_FILLING'],
+      [revealJob, 'COMPLETE'],
+    ] as const) {
+      const ctx = newCtx({ step });
+      applyLlmFailure(ctx, job2);
+      expect(state(ctx).step).toBe(step);
+      expect(events(ctx)).toHaveLength(0);
+    }
+  });
+
+  it('the new class lines never call the Keeper it or they, and never say your name', () => {
+    const all = [CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE];
+    for (const l of all) {
+      expect(l).not.toMatch(/\b(it|its|they|them|their)\b/i);
+      expect(l).not.toMatch(/your name/i);
+    }
   });
 });

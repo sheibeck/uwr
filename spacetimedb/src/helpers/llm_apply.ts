@@ -20,6 +20,12 @@
  * start location and the first NPC and enqueues world_gen (stage 2) in the same transaction;
  * world_gen fills in the rest. Each result touches only a state at its own step (stage 1 needs
  * GENERATING, stage 2 needs FILLING), and a failed stage 2 leaves the stage-1 region playable.
+ *
+ * Phase 43 (plan 13) stages the class the same way: creation_class_reveal (stage 1, at
+ * GENERATING_CLASS) stores the class name, description and one ability and enqueues the
+ * creation_class fill in the same transaction; creation_class (stage 2, at CLASS_FILLING) merges
+ * the stats and the other abilities through validateClassReply and only then moves to
+ * CLASS_REVEALED. A failed fill keeps the reveal (CLASS_FILL_ERROR).
  */
 import {
   appendWorldEvent,
@@ -56,6 +62,11 @@ import { toBigIntSafe } from './safe_numbers';
 import { validateRaceReply, validateClassReply } from './creation_validate';
 import { isRestingErrorCode } from './llm_status';
 import { LLM_RESTING_LINE } from './llm_queue';
+import {
+  startClassFill,
+  CLASS_REVEAL_MILESTONE_LINE,
+  CLASS_FILL_FAILED_LINE,
+} from './creation_generation';
 import { EFFECT_TYPES, QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
@@ -110,16 +121,25 @@ export function failWorldGen(tx: any, genState: any, message: string) {
   }
 }
 
+/** The step each creation route's job holds the state at while it runs. */
+const CREATION_JOB_STEP: Readonly<Record<string, string>> = Object.freeze({
+  creation_race: 'GENERATING_RACE',
+  creation_class_reveal: 'GENERATING_CLASS',
+  creation_class: 'CLASS_FILLING',
+});
+
 /**
- * The creation state a creation_race / creation_class job belongs to, but only while that state
- * is still at the job's GENERATING step. A stale result or failure (a sweeper expiry racing a late
+ * The creation state a creation_race / creation_class_reveal / creation_class job belongs to, but
+ * only while that state is still at the job's own step (GENERATING_RACE, GENERATING_CLASS or
+ * CLASS_FILLING). A stale result or failure (a sweeper expiry racing a late
  * apply, a re-run) never touches a state that has moved on: it cannot reopen a COMPLETE creation
  * or overwrite race data after the player reached the class or name step. The job names its state
  * by creationStateId; a job without one (as in older rows and the tests) falls back to the
  * player's creation state, still behind the step check.
  */
 export function creationStateForJob(ctx: any, job: ApplyJob): any | null {
-  const expected = job.domain === 'creation_race' ? 'GENERATING_RACE' : 'GENERATING_CLASS';
+  const expected = CREATION_JOB_STEP[job.domain];
+  if (!expected) return null;
   let context: any = {};
   try {
     context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -146,13 +166,18 @@ export function creationStateForJob(ctx: any, job: ApplyJob): any | null {
 export function applyLlmFailure(ctx: any, job: ApplyJob): void {
   // The kill switch or the global ceiling stopped this job: one resting line, never the generic copy.
   const resting = isRestingErrorCode(job.errorCode);
-  if (job.domain === 'creation_race' || job.domain === 'creation_class') {
+  if (job.domain === 'creation_race' || job.domain === 'creation_class_reveal') {
     const s = creationStateForJob(ctx, job);
     if (!s) return; // the state has moved on: nothing to revert, nothing to say
     appendCreationEvent(ctx, s.playerId, 'creation_error',
       resting ? LLM_RESTING_LINE : 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
     const back = job.domain === 'creation_race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
     ctx.db.character_creation_state.id.update({ ...s, step: back, updatedAt: ctx.timestamp });
+  } else if (job.domain === 'creation_class') {
+    // Stage 2 failed: the reveal (name, description, first ability) stays, any input retries the fill.
+    const s = creationStateForJob(ctx, job);
+    if (!s) return;
+    failClassFill(ctx, s, resting ? LLM_RESTING_LINE : CLASS_FILL_FAILED_LINE);
   } else if (job.domain === 'world_gen_start') {
     // Stage 1 failed: nothing was written. Only a state still waiting on stage 1 is failed.
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -216,106 +241,211 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
   }
 }
 
-/** creation_race and creation_class success. */
+/** The malformed-reply line, shared by the race and the class reveal. */
+const CREATION_MALFORMED_LINE =
+  'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."';
+
+/** creation_race success (the class has its own two stages: applyClassRevealResult and applyClassFillResult). */
 export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string): void {
-  const generationType = job.domain === 'creation_race' ? 'race' : 'class';
+  if (job.domain !== 'creation_race') return;
   const s = creationStateForJob(ctx, job);
   if (!s) return;
 
   try {
     const raw = extractJson(resultText);
 
-    if (generationType === 'race') {
-      // Clamp, never reject: everything below is built from the validated reply only.
-      const race = validateRaceReply(raw);
-      const { primary, secondary, flavor } = race.bonuses;
-      ctx.db.character_creation_state.id.update({
-        ...s,
-        step: 'AWAITING_ARCHETYPE',
-        raceName: race.raceName,
-        raceNarrative: race.narrative,
-        raceBonuses: JSON.stringify(race.bonuses),
-        updatedAt: ctx.timestamp,
-      });
+    // Clamp, never reject: everything below is built from the validated reply only.
+    const race = validateRaceReply(raw);
+    const { primary, secondary, flavor } = race.bonuses;
+    ctx.db.character_creation_state.id.update({
+      ...s,
+      step: 'AWAITING_ARCHETYPE',
+      raceName: race.raceName,
+      raceNarrative: race.narrative,
+      raceBonuses: JSON.stringify(race.bonuses),
+      updatedAt: ctx.timestamp,
+    });
 
-      const bonusText =
-        `\n+${primary.value} ${primary.stat.toUpperCase()}, +${secondary.value} ${secondary.stat.toUpperCase()}${flavor ? `. ${flavor}` : ''}`;
+    const bonusText =
+      `\n+${primary.value} ${primary.stat.toUpperCase()}, +${secondary.value} ${secondary.stat.toUpperCase()}${flavor ? `. ${flavor}` : ''}`;
 
-      appendCreationEvent(ctx, job.playerId, 'creation',
-        `${race.narrative || 'An interesting choice.'}\n\n` +
-        `**${race.raceName}**${bonusText}\n\n` +
-        `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
-        `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
-      );
+    appendCreationEvent(ctx, job.playerId, 'creation',
+      `${race.narrative || 'An interesting choice.'}\n\n` +
+      `**${race.raceName}**${bonusText}\n\n` +
+      `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
+      `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
+    );
 
-      // Persist race definition for reuse by future players. A reply that named no race
-      // (validated to the placeholder 'Unknown') is not saved for reuse.
-      const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== '';
-      const raceLower = namedRace ? race.raceName.toLowerCase() : '';
-      if (raceLower) {
-        let alreadySaved = false;
-        for (const existing of ctx.db.race_definition.by_name.filter(raceLower)) {
-          alreadySaved = true;
-          break;
-        }
-        if (!alreadySaved) {
-          ctx.db.race_definition.insert({
-            id: 0n,
-            name: race.raceName,
-            nameLower: raceLower,
-            narrative: race.narrative,
-            bonusesJson: JSON.stringify(race.bonuses),
-            createdAt: ctx.timestamp,
-          });
-        }
+    // Persist race definition for reuse by future players. A reply that named no race
+    // (validated to the placeholder 'Unknown') is not saved for reuse.
+    const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== '';
+    const raceLower = namedRace ? race.raceName.toLowerCase() : '';
+    if (raceLower) {
+      let alreadySaved = false;
+      for (const existing of ctx.db.race_definition.by_name.filter(raceLower)) {
+        alreadySaved = true;
+        break;
       }
-
-    } else if (generationType === 'class') {
-      // Clamp, never reject: everything below is built from the validated reply only.
-      const cls = validateClassReply(raw, s.archetype ?? 'warrior');
-      ctx.db.character_creation_state.id.update({
-        ...s,
-        step: 'CLASS_REVEALED',
-        className: cls.className,
-        classDescription: cls.classDescription,
-        classStats: JSON.stringify(cls.stats),
-        abilities: JSON.stringify(cls.abilities),
-        updatedAt: ctx.timestamp,
-      });
-
-      const stats = cls.stats;
-      const statLine = `Primary: ${stats.primaryStat.toUpperCase()}${stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
-      const weaponLine = stats.weaponProficiencies.length > 0
-        ? `Weapons: ${stats.weaponProficiencies.join(', ')}` : '';
-      const armorLine = stats.armorProficiencies.length > 0
-        ? `Armor: ${stats.armorProficiencies.join(', ')}` : 'Armor: cloth';
-      const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana} bonus mana)` : `Physical (+${stats.bonusHp} bonus HP)`;
-
-      let abilityText = '\n\nYour starting abilities:\n';
-      for (const a of cls.abilities) {
-        abilityText += `\n[${a.name}] — ${a.description}\n`;
-        const castTime = a.castSeconds > 0 ? `${a.castSeconds}s cast` : 'instant';
-        abilityText += `  ${a.damageType} ${a.kind}, ${a.value1} base, ${castTime}, ${a.cooldownSeconds}s cooldown`;
-        if (a.resourceCost > 0) abilityText += `, ${a.resourceCost} ${a.resourceType}`;
-        if (a.effectType && a.effectType !== 'none') abilityText += `, ${a.effectType} (${a.effectDuration ?? '?'}s)`;
-        abilityText += '\n';
+      if (!alreadySaved) {
+        ctx.db.race_definition.insert({
+          id: 0n,
+          name: race.raceName,
+          nameLower: raceLower,
+          narrative: race.narrative,
+          bonusesJson: JSON.stringify(race.bonuses),
+          createdAt: ctx.timestamp,
+        });
       }
-
-      appendCreationEvent(ctx, job.playerId, 'creation',
-        `${cls.classDescription || 'A unique class emerges.'}\n\n` +
-        `**${cls.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
-        abilityText +
-        `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
-        `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
-      );
     }
   } catch (parseErr) {
-    console.error(`Creation LLM JSON parse error [${generationType}]: ${parseErr}`);
-    appendCreationEvent(ctx, job.playerId, 'creation_error',
-      'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
-    const revertStep = generationType === 'race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
-    ctx.db.character_creation_state.id.update({ ...s, step: revertStep, updatedAt: ctx.timestamp });
+    console.error(`Creation LLM JSON parse error [race]: ${parseErr}`);
+    appendCreationEvent(ctx, job.playerId, 'creation_error', CREATION_MALFORMED_LINE);
+    ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_RACE', updatedAt: ctx.timestamp });
   }
+}
+
+/** One ability's mechanics line, shared by the stage-1 reveal and the full class message. */
+function abilityMechanicsLine(a: any): string {
+  const castTime = a.castSeconds > 0 ? `${a.castSeconds}s cast` : 'instant';
+  let line = `  ${a.damageType} ${a.kind}, ${a.value1} base, ${castTime}, ${a.cooldownSeconds}s cooldown`;
+  if (a.resourceCost > 0) line += `, ${a.resourceCost} ${a.resourceType}`;
+  if (a.effectType && a.effectType !== 'none') line += `, ${a.effectType} (${a.effectDuration ?? '?'}s)`;
+  return line;
+}
+
+/**
+ * The fill failed (call failure, malformed reply, expiry, refusal): the state becomes
+ * CLASS_FILL_ERROR, the class name, description and first ability stay on it, and the player gets
+ * one in-voice line. Nothing is retried here: only the player's next input starts a new fill.
+ */
+export function failClassFill(ctx: any, state: any, message: string): void {
+  const current = ctx.db.character_creation_state.id.find(state.id) ?? state;
+  ctx.db.character_creation_state.id.update({ ...current, step: 'CLASS_FILL_ERROR', updatedAt: ctx.timestamp });
+  appendCreationEvent(ctx, state.playerId, 'creation_error', message);
+}
+
+/**
+ * creation_class_reveal success (stage 1 of the class, Phase 43).
+ *
+ * Stores the class name, description and exactly one ability (clamped by validateClassReply), shows
+ * the player the class identity and the first ability with the milestone line, and enqueues the
+ * creation_class fill in the same transaction (CLASS_FILLING with one pending job, or
+ * CLASS_FILL_ERROR when that enqueue is refused). Only a GENERATING_CLASS state is touched. A reply
+ * that is not JSON or has no usable firstAbility object reverts to AWAITING_ARCHETYPE.
+ */
+export function applyClassRevealResult(ctx: any, job: ApplyJob, resultText: string): void {
+  const s = creationStateForJob(ctx, job);
+  if (!s || job.domain !== 'creation_class_reveal') return;
+
+  let cls: ReturnType<typeof validateClassReply>;
+  try {
+    const raw = extractJson(resultText);
+    const first = raw?.firstAbility;
+    if (first === null || typeof first !== 'object' || Array.isArray(first)) {
+      throw new Error('class reveal has no firstAbility object');
+    }
+    // Clamp, never reject: the reveal carries one ability, whatever else the reply held.
+    cls = validateClassReply(
+      { className: raw.className, classDescription: raw.classDescription, abilities: [first] },
+      s.archetype ?? 'warrior',
+    );
+  } catch (parseErr) {
+    console.error(`Creation LLM JSON parse error [class reveal]: ${parseErr}`);
+    appendCreationEvent(ctx, job.playerId, 'creation_error', CREATION_MALFORMED_LINE);
+    ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_ARCHETYPE', updatedAt: ctx.timestamp });
+    return;
+  }
+
+  const revealed = {
+    ...s,
+    step: 'CLASS_FILLING',
+    className: cls.className,
+    classDescription: cls.classDescription,
+    abilities: JSON.stringify(cls.abilities.slice(0, 1)),
+    updatedAt: ctx.timestamp,
+  };
+  ctx.db.character_creation_state.id.update(revealed);
+
+  const a = cls.abilities[0];
+  appendCreationEvent(ctx, job.playerId, 'creation',
+    `${cls.classDescription || 'A unique class emerges.'}\n\n` +
+    `**${cls.className}**\n\n` +
+    `Your first ability:\n\n${a.name} — ${a.description}\n${abilityMechanicsLine(a)}\n\n` +
+    CLASS_REVEAL_MILESTONE_LINE
+  );
+
+  // Stage 2, in this same transaction: CLASS_FILLING with one pending job, or CLASS_FILL_ERROR when refused
+  startClassFill(ctx, revealed);
+}
+
+/**
+ * creation_class success (stage 2 of the class, Phase 43): the stats and the other abilities.
+ *
+ * Merges the reply with the stored reveal and clamps the result through validateClassReply (never
+ * rejects a number; at most three abilities, the stage-1 ability first). Only a CLASS_FILLING state
+ * is touched. A reply that is not JSON, or that adds no usable ability, fails the fill
+ * (CLASS_FILL_ERROR) and leaves the reveal as it was: a class never reaches CLASS_REVEALED with only
+ * the stage-1 ability.
+ */
+export function applyClassFillResult(ctx: any, job: ApplyJob, resultText: string): void {
+  const s = creationStateForJob(ctx, job);
+  if (!s || job.domain !== 'creation_class') return;
+
+  let cls: ReturnType<typeof validateClassReply>;
+  try {
+    const stored = JSON.parse(String(s.abilities ?? ''));
+    const first = Array.isArray(stored) ? stored[0] : undefined;
+    if (first === null || typeof first !== 'object' || Array.isArray(first)) {
+      throw new Error('class fill has no stored first ability');
+    }
+    const raw = extractJson(resultText);
+    const extra = Array.isArray(raw?.abilities) ? raw.abilities : [];
+    cls = validateClassReply(
+      {
+        className: s.className,
+        classDescription: s.classDescription,
+        stats: raw?.stats,
+        abilities: [first, ...extra],
+      },
+      s.archetype ?? 'warrior',
+    );
+    if (cls.abilities.length < 2) throw new Error('class fill added no usable ability');
+  } catch (parseErr) {
+    console.error(`Creation LLM JSON parse error [class fill]: ${parseErr}`);
+    failClassFill(ctx, s, CLASS_FILL_FAILED_LINE);
+    return;
+  }
+
+  ctx.db.character_creation_state.id.update({
+    ...s,
+    step: 'CLASS_REVEALED',
+    className: cls.className,
+    classDescription: cls.classDescription,
+    classStats: JSON.stringify(cls.stats),
+    abilities: JSON.stringify(cls.abilities),
+    updatedAt: ctx.timestamp,
+  });
+
+  const stats = cls.stats;
+  const statLine = `Primary: ${stats.primaryStat.toUpperCase()}${stats.secondaryStat !== 'none' ? `, Secondary: ${stats.secondaryStat.toUpperCase()}` : ''}`;
+  const weaponLine = stats.weaponProficiencies.length > 0
+    ? `Weapons: ${stats.weaponProficiencies.join(', ')}` : '';
+  const armorLine = stats.armorProficiencies.length > 0
+    ? `Armor: ${stats.armorProficiencies.join(', ')}` : 'Armor: cloth';
+  const resourceLine = stats.usesMana ? `Mana user (+${stats.bonusMana} bonus mana)` : `Physical (+${stats.bonusHp} bonus HP)`;
+
+  let abilityText = '\n\nYour starting abilities:\n';
+  for (const a of cls.abilities) {
+    abilityText += `\n[${a.name}] — ${a.description}\n${abilityMechanicsLine(a)}\n`;
+  }
+
+  appendCreationEvent(ctx, job.playerId, 'creation',
+    `${cls.classDescription || 'A unique class emerges.'}\n\n` +
+    `**${cls.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
+    abilityText +
+    `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
+    `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
+  );
 }
 
 /**
@@ -941,8 +1071,12 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
 
 /** Success dispatcher. An unknown domain (for example smoke_test) does nothing. */
 export function applyLlmResult(ctx: any, job: ApplyJob, resultText: string): void {
-  if (job.domain === 'creation_race' || job.domain === 'creation_class') {
+  if (job.domain === 'creation_race') {
     applyCreationResult(ctx, job, resultText);
+  } else if (job.domain === 'creation_class_reveal') {
+    applyClassRevealResult(ctx, job, resultText);
+  } else if (job.domain === 'creation_class') {
+    applyClassFillResult(ctx, job, resultText);
   } else if (job.domain === 'world_gen_start') {
     applyWorldStartResult(ctx, job, resultText);
   } else if (job.domain === 'world_gen') {

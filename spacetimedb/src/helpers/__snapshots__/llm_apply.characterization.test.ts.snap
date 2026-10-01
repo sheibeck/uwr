@@ -270,11 +270,11 @@ exports[`llm apply combat_narration > success with raw prose falls back to the t
 }"
 `;
 
-exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a class reply with over-budget ability values is stored clamped 1`] = `
+exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a class fill with out-of-range stats and over-budget abilities is stored clamped, at most three abilities 1`] = `
 "{
   "character_creation_state": [
     {
-      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":15,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":23,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":5,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":12,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9},{\\"name\\":\\"Ash Veil\\",\\"description\\":\\"A curtain of soot.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":15,\\"castSeconds\\":2,\\"cooldownSeconds\\":12,\\"value1\\":23},{\\"name\\":\\"Old Style\\",\\"description\\":\\"A legacy-shaped ability.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":10,\\"castSeconds\\":0,\\"cooldownSeconds\\":4,\\"value1\\":15}]",
       "classDescription": "A duelist who fights like a grudge.",
       "className": "Emberblade",
       "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":20,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[\\"sword\\",\\"dagger\\"],\\"armorProficiencies\\":[\\"leather\\"]}",
@@ -290,8 +290,107 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 23 base, instant, 6s cooldown, 15 stamina, dot (9s)\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical damage, 23 base, 2s cast, 12s cooldown, 15 stamina\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a class reveal with over-budget ability values is stored clamped 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":15,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":23,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "CLASS_FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\n\\nYour first ability:\\n\\nEmber Slash — A burning cut.\\n  fire damage, 23 base, instant, 6s cooldown, 15 stamina, dot (9s)\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_admin_state": [
+    {
+      "dailyCeilingMicroUsd": "10000000n",
+      "id": "1n",
+      "keyLastCheckOk": false,
+      "keyLength": "0n",
+      "keySet": false,
+      "lastSmokeJson": "{}",
+      "llmEnabled": true
+    }
+  ],
+  "llm_dispatch": [
+    {
+      "jobId": "1n",
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000000000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ],
+  "llm_job": [
+    {
+      "applyAttempts": "0n",
+      "attempt": "0n",
+      "budgetDay": "2023-11-14",
+      "cacheReadTokens": "0n",
+      "cacheWriteTokens": "0n",
+      "characterId": "0n",
+      "costMicroUsd": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "dedupeKey": "[\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\",\\"creation_class\\",\\"2:class\\"]",
+      "id": "1n",
+      "inputTokens": "0n",
+      "ledgerChargedMicroUsd": "0n",
+      "outputTokens": "0n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Unknown\\",\\"raceNarrative\\":\\"\\",\\"archetype\\":\\"warrior\\",\\"className\\":\\"Emberblade\\",\\"classDescription\\":\\"A duelist who fights like a grudge.\\",\\"firstAbility\\":{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"resourceType\\":\\"stamina\\"}}}",
+      "reservedMicroUsd": "51055n",
+      "route": "creation_class",
+      "status": "pending"
+    }
+  ],
+  "llm_player_budget": [
+    {
+      "calls": "1n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reservedMicroUsd": "51055n",
+      "spentMicroUsd": "0n"
+    }
+  ],
+  "llm_spend": [
+    {
+      "calls": "1n",
+      "daySpentMicroUsd": "0n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "reservedMicroUsd": "51055n",
+      "spentMicroUsd": "0n",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "llm_sweep_tick": [
+    {
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000030000000n"
+      },
+      "scheduledId": "1n"
     }
   ]
 }"
@@ -333,20 +432,19 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a ra
 }"
 `;
 
-exports[`llm apply creation_class success > Phase 41: a null ability entry is dropped, not fatal (the old midway throw and revert is gone) 1`] = `
+exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: a null ability entry is dropped, not fatal; with no usable extra ability the fill fails and the reveal stays 1`] = `
 "{
   "character_creation_state": [
     {
-      "abilities": "[]",
-      "classDescription": "",
-      "className": "Half Built",
-      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":0,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[],\\"armorProficiencies\\":[]}",
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"value1\\":12,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "raceName": "Ashkin",
       "raceNarrative": "Born of cinders.",
-      "step": "CLASS_REVEALED",
+      "step": "CLASS_FILL_ERROR",
       "updatedAt": "ts:1700000000000000n"
     }
   ],
@@ -354,48 +452,19 @@ exports[`llm apply creation_class success > Phase 41: a null ability entry is dr
     {
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "creation",
-      "message": "A unique class emerges.\\n\\n**Half Built**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "kind": "creation_error",
+      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ]
 }"
 `;
 
-exports[`llm apply creation_class success > Phase 41: an empty object stores "Unknown Class" with default stats and prints "**Unknown Class**" 1`] = `
+exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line 1`] = `
 "{
   "character_creation_state": [
     {
-      "abilities": "[]",
-      "classDescription": "",
-      "className": "Unknown Class",
-      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":0,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[],\\"armorProficiencies\\":[]}",
-      "createdAt": "ts:1600000000000000n",
-      "id": "2n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceName": "Ashkin",
-      "raceNarrative": "Born of cinders.",
-      "step": "CLASS_REVEALED",
-      "updatedAt": "ts:1700000000000000n"
-    }
-  ],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation",
-      "message": "A unique class emerges.\\n\\n**Unknown Class**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ]
-}"
-`;
-
-exports[`llm apply creation_class success > Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mana-user class line 1`] = `
-"{
-  "character_creation_state": [
-    {
-      "abilities": "[{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":15,\\"castSeconds\\":1,\\"cooldownSeconds\\":4,\\"value1\\":15}]",
+      "abilities": "[{\\"name\\":\\"Flare\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":10,\\"castSeconds\\":1,\\"cooldownSeconds\\":6,\\"value1\\":12,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9},{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":15,\\"castSeconds\\":1,\\"cooldownSeconds\\":4,\\"value1\\":15}]",
       "archetype": "mystic",
       "classDescription": "Glows unpleasantly.",
       "className": "Cinder Mystic",
@@ -414,14 +483,71 @@ exports[`llm apply creation_class success > Phase 41: legacy ability field names
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Flare] — A burning cut.\\n  fire damage, 12 base, 1s cast, 6s cooldown, 10 mana, dot (9s)\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ]
 }"
 `;
 
-exports[`llm apply creation_class success > applies a valid reply: CLASS_REVEALED, stats, abilities, presentation event 1`] = `
+exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: stats missing from the reply take the archetype defaults when the reply adds an ability 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":5,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":12,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9},{\\"name\\":\\"Ash Veil\\",\\"description\\":\\"A curtain of soot.\\",\\"kind\\":\\"shield\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":10,\\"castSeconds\\":2,\\"cooldownSeconds\\":12,\\"value1\\":10}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "classStats": "{\\"primaryStat\\":\\"str\\",\\"secondaryStat\\":\\"dex\\",\\"bonusHp\\":0,\\"bonusMana\\":0,\\"usesMana\\":false,\\"weaponProficiencies\\":[],\\"armorProficiencies\\":[]}",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_REVEALED",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class success (stage 2, the fill) > an empty object adds no ability: CLASS_FILL_ERROR, the reveal stays 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"value1\\":12,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class success (stage 2, the fill) > applies a valid reply: CLASS_REVEALED, stats, three abilities with the first kept first, presentation event 1`] = `
 "{
   "character_creation_state": [
     {
@@ -450,7 +576,238 @@ exports[`llm apply creation_class success > applies a valid reply: CLASS_REVEALE
 }"
 `;
 
-exports[`llm apply creation_class success > malformed JSON reverts to AWAITING_ARCHETYPE 1`] = `
+exports[`llm apply creation_class success (stage 2, the fill) > malformed JSON sets CLASS_FILL_ERROR and keeps the reveal (it does not revert to AWAITING_ARCHETYPE) 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"value1\\":12,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: a reply with only firstAbility {} stores "Unknown Class" and "Unknown Ability" with defaults 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Unknown Ability\\",\\"description\\":\\"\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":10,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":15}]",
+      "classDescription": "",
+      "className": "Unknown Class",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A unique class emerges.\\n\\n**Unknown Class**\\n\\nYour first ability:\\n\\nUnknown Ability — \\n  physical damage, 15 base, instant, 6s cooldown, 10 stamina\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_admin_state": [
+    {
+      "dailyCeilingMicroUsd": "10000000n",
+      "id": "1n",
+      "keyLastCheckOk": false,
+      "keyLength": "0n",
+      "keySet": false,
+      "lastSmokeJson": "{}",
+      "llmEnabled": true
+    }
+  ],
+  "llm_dispatch": [
+    {
+      "jobId": "1n",
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000000000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ],
+  "llm_job": [
+    {
+      "applyAttempts": "0n",
+      "attempt": "0n",
+      "budgetDay": "2023-11-14",
+      "cacheReadTokens": "0n",
+      "cacheWriteTokens": "0n",
+      "characterId": "0n",
+      "costMicroUsd": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "dedupeKey": "[\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\",\\"creation_class\\",\\"2:class\\"]",
+      "id": "1n",
+      "inputTokens": "0n",
+      "ledgerChargedMicroUsd": "0n",
+      "outputTokens": "0n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Ashkin\\",\\"raceNarrative\\":\\"Born of cinders.\\",\\"archetype\\":\\"warrior\\",\\"className\\":\\"Unknown Class\\",\\"classDescription\\":\\"\\",\\"firstAbility\\":{\\"name\\":\\"Unknown Ability\\",\\"description\\":\\"\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"resourceType\\":\\"stamina\\"}}}",
+      "reservedMicroUsd": "51038n",
+      "route": "creation_class",
+      "status": "pending"
+    }
+  ],
+  "llm_player_budget": [
+    {
+      "calls": "1n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reservedMicroUsd": "51038n",
+      "spentMicroUsd": "0n"
+    }
+  ],
+  "llm_spend": [
+    {
+      "calls": "1n",
+      "daySpentMicroUsd": "0n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "reservedMicroUsd": "51038n",
+      "spentMicroUsd": "0n",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "llm_sweep_tick": [
+    {
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000030000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: legacy ability field names are not read (vocabulary defaults apply) on a mystic first ability 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"mana\\",\\"resourceCost\\":15,\\"castSeconds\\":1,\\"cooldownSeconds\\":4,\\"value1\\":15}]",
+      "archetype": "mystic",
+      "classDescription": "Glows unpleasantly.",
+      "className": "Cinder Mystic",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\n\\nYour first ability:\\n\\nSpark — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_admin_state": [
+    {
+      "dailyCeilingMicroUsd": "10000000n",
+      "id": "1n",
+      "keyLastCheckOk": false,
+      "keyLength": "0n",
+      "keySet": false,
+      "lastSmokeJson": "{}",
+      "llmEnabled": true
+    }
+  ],
+  "llm_dispatch": [
+    {
+      "jobId": "1n",
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000000000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ],
+  "llm_job": [
+    {
+      "applyAttempts": "0n",
+      "attempt": "0n",
+      "budgetDay": "2023-11-14",
+      "cacheReadTokens": "0n",
+      "cacheWriteTokens": "0n",
+      "characterId": "0n",
+      "costMicroUsd": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "dedupeKey": "[\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\",\\"creation_class\\",\\"2:class\\"]",
+      "id": "1n",
+      "inputTokens": "0n",
+      "ledgerChargedMicroUsd": "0n",
+      "outputTokens": "0n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Ashkin\\",\\"raceNarrative\\":\\"Born of cinders.\\",\\"archetype\\":\\"mystic\\",\\"className\\":\\"Cinder Mystic\\",\\"classDescription\\":\\"Glows unpleasantly.\\",\\"firstAbility\\":{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"resourceType\\":\\"mana\\"}}}",
+      "reservedMicroUsd": "51048n",
+      "route": "creation_class",
+      "status": "pending"
+    }
+  ],
+  "llm_player_budget": [
+    {
+      "calls": "1n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reservedMicroUsd": "51048n",
+      "spentMicroUsd": "0n"
+    }
+  ],
+  "llm_spend": [
+    {
+      "calls": "1n",
+      "daySpentMicroUsd": "0n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "reservedMicroUsd": "51048n",
+      "spentMicroUsd": "0n",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "llm_sweep_tick": [
+    {
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000030000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class_reveal success (stage 1) > a reply without a usable firstAbility reverts to AWAITING_ARCHETYPE and enqueues nothing 1`] = `
 "{
   "character_creation_state": [
     {
@@ -470,6 +827,154 @@ exports[`llm apply creation_class success > malformed JSON reverts to AWAITING_A
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_admin_state": [
+    {
+      "dailyCeilingMicroUsd": "10000000n",
+      "id": "1n",
+      "keyLastCheckOk": false,
+      "keyLength": "0n",
+      "keySet": false,
+      "lastSmokeJson": "{}",
+      "llmEnabled": true
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class_reveal success (stage 1) > applies a valid reply: CLASS_FILLING, the class identity, one ability, one pending fill job and the reveal event 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"targetRule\\":\\"single_enemy\\",\\"resourceType\\":\\"stamina\\",\\"resourceCost\\":5,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"value1\\":12,\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "CLASS_FILLING",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\n\\nYour first ability:\\n\\nEmber Slash — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_admin_state": [
+    {
+      "dailyCeilingMicroUsd": "10000000n",
+      "id": "1n",
+      "keyLastCheckOk": false,
+      "keyLength": "0n",
+      "keySet": false,
+      "lastSmokeJson": "{}",
+      "llmEnabled": true
+    }
+  ],
+  "llm_dispatch": [
+    {
+      "jobId": "1n",
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000000000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ],
+  "llm_job": [
+    {
+      "applyAttempts": "0n",
+      "attempt": "0n",
+      "budgetDay": "2023-11-14",
+      "cacheReadTokens": "0n",
+      "cacheWriteTokens": "0n",
+      "characterId": "0n",
+      "costMicroUsd": "0n",
+      "createdAt": "ts:1700000000000000n",
+      "dedupeKey": "[\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\",\\"creation_class\\",\\"2:class\\"]",
+      "id": "1n",
+      "inputTokens": "0n",
+      "ledgerChargedMicroUsd": "0n",
+      "outputTokens": "0n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Ashkin\\",\\"raceNarrative\\":\\"Born of cinders.\\",\\"archetype\\":\\"warrior\\",\\"className\\":\\"Emberblade\\",\\"classDescription\\":\\"A duelist who fights like a grudge.\\",\\"firstAbility\\":{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"resourceType\\":\\"stamina\\"}}}",
+      "reservedMicroUsd": "51068n",
+      "route": "creation_class",
+      "status": "pending"
+    }
+  ],
+  "llm_player_budget": [
+    {
+      "calls": "1n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reservedMicroUsd": "51068n",
+      "spentMicroUsd": "0n"
+    }
+  ],
+  "llm_spend": [
+    {
+      "calls": "1n",
+      "daySpentMicroUsd": "0n",
+      "dayUtc": "2023-11-14",
+      "id": "1n",
+      "reservedMicroUsd": "51068n",
+      "spentMicroUsd": "0n",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "llm_sweep_tick": [
+    {
+      "scheduledAt": {
+        "tag": "Time",
+        "value": "ts:1700000030000000n"
+      },
+      "scheduledId": "1n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply creation_class_reveal success (stage 1) > malformed JSON reverts to AWAITING_ARCHETYPE and enqueues nothing 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "raceName": "Ashkin",
+      "raceNarrative": "Born of cinders.",
+      "step": "AWAITING_ARCHETYPE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "llm_admin_state": [
+    {
+      "dailyCeilingMicroUsd": "10000000n",
+      "id": "1n",
+      "keyLastCheckOk": false,
+      "keyLength": "0n",
+      "keySet": false,
+      "lastSmokeJson": "{}",
+      "llmEnabled": true
     }
   ]
 }"
@@ -762,7 +1267,33 @@ exports[`llm apply failure path: creation and skill_gen > Phase 41: renown_perk_
 }"
 `;
 
-exports[`llm apply failure path: creation and skill_gen > creation_class failure appends creation_error and reverts the step to AWAITING_ARCHETYPE 1`] = `
+exports[`llm apply failure path: creation and skill_gen > creation_class (fill) failure sets CLASS_FILL_ERROR, keeps the class name and first ability and posts one in-voice line 1`] = `
+"{
+  "character_creation_state": [
+    {
+      "abilities": "[{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"value1\\":12,\\"castSeconds\\":0,\\"cooldownSeconds\\":6,\\"resourceCost\\":5,\\"resourceType\\":\\"stamina\\",\\"effectType\\":\\"dot\\",\\"effectDuration\\":9}]",
+      "classDescription": "A duelist who fights like a grudge.",
+      "className": "Emberblade",
+      "createdAt": "ts:1600000000000000n",
+      "id": "2n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "step": "CLASS_FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply failure path: creation and skill_gen > creation_class_reveal failure appends creation_error and reverts the step to AWAITING_ARCHETYPE 1`] = `
 "{
   "character_creation_state": [
     {
