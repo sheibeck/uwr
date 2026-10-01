@@ -4,7 +4,13 @@ import { buildLookOutput } from '../helpers/look';
 import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
-import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
+import {
+  retryStarterWorldGen,
+  retryWorldFill,
+  startWorldGeneration,
+  STARTER_RETRY_MESSAGES,
+  WORLD_FILL_RETRY_LINE,
+} from '../helpers/world_gen';
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 
 // Re-export for any existing consumers that import from intent.ts
@@ -1400,7 +1406,8 @@ export const registerIntentReducers = (deps: any) => {
       return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', offer.text);
     }
 
-    // --- EXPLORE: the player's retry for world gen (only useful after errors; generation never retries itself) ---
+    // --- EXPLORE: the player's retry for world gen (only useful after errors; generation never retries itself).
+    // It retries the first region, the second half of a region that failed to fill, or a failed uncharted edge. ---
     if (lower === 'explore') {
       // A character still at location 0 is waiting on the starter region: retry it from its own ERROR state
       // (looked up by character, so another identity of the same user can retry too).
@@ -1415,6 +1422,16 @@ export const registerIntentReducers = (deps: any) => {
         }
         return;
       }
+      // Phase 43: the second half of a region (stage 2). A FILLING state answers with patience, a FILL_ERROR
+      // state at the start location or the passage gets its fill job re-enqueued (stage 2 only, never stage 1).
+      const fill = retryWorldFill(ctx, character, ctx.sender);
+      if (fill === 'busy') {
+        return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', STARTER_RETRY_MESSAGES.busy);
+      }
+      if (fill === 'started') {
+        return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', WORLD_FILL_RETRY_LINE);
+      }
+      if (fill === 'refused') return; // failWorldFill already posted the in-voice line
       const currentLoc = ctx.db.location.id.find(character.locationId);
       if (!currentLoc || currentLoc.terrainType !== 'uncharted') {
         return fail(ctx, character, 'There is nothing uncharted to explore here.');
