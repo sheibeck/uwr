@@ -54,7 +54,7 @@ In-flight calls finish on the old key (the executor reads the key when it claims
 
 ## Recovery after --clear-database
 
-A local `--clear-database` wipes `llm_config`, `llm_admin_state` and the `llm_spend` ledger. The key is gone and the $2 phase ledger restarts at zero.
+A local `--clear-database` wipes `llm_config`, `llm_admin_state` and the `llm_spend` ledger. The key is gone and the all-time spend ledger restarts at zero.
 
 1. BEFORE clearing, write down the phase totals from `admin_llm_status` (`phaseSpentMicroUsd` and `phaseReservedMicroUsd`). The $2.00 phase budget is then tracked by hand across the clear.
 2. After the clear and republish, re-run `node scripts/llm/set-key.mjs --dry-run` and `node scripts/llm/set-key.mjs`.
@@ -66,7 +66,7 @@ A local `--clear-database` wipes `llm_config`, `llm_admin_state` and the `llm_sp
 `llm_smoke_test` enqueues six calls, one per route: `smoke_test` (a short text call), then one minimal call per JSON schema: `creation_race`, `creation_class`, `world_gen`, `skill_gen` and `renown_perk_gen`.
 
 - Cost is roughly $0.05 to $0.08 per run, charged to the phase ledger only (no player budget).
-- Run one at a time. A second run is refused while any smoke job is still active, and a run that would exceed the phase cap creates nothing.
+- Run one at a time. A second run is refused while any smoke job is still active, and a run that would push today's held spend past the daily ceiling (or that runs while the kill switch is off) creates nothing.
 - `lastSmokeJson` has one entry per route with: `ok`, `class` (the failure class when not ok), `latencyMs`, token counts (`input`, `output`, `cacheWrite`, `cacheRead`), `costMicroUsd` and `atMicros`. The `smoke_test` entry also carries a short `reply`.
 - The `smoke_test` route succeeding is what marks the key valid (`keyValid` true, `keyVerifiedAt` set).
 
