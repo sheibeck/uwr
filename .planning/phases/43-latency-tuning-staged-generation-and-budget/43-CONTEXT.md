@@ -64,6 +64,11 @@ Requirements: LAT-01 to LAT-06, COST-03, OPS-02. Depends on Phase 41 (the live e
   - The block lifts on its own at the UTC reset.
 - **Phase 41's $2 phase ledger:** retired as a limit and replaced by the global daily ceiling. The `llm_spend` ledger stays as the all-time spend record shown by `/llm stats`.
 
+### UI scope (user decision, 2026-09-30)
+- **No UI-SPEC for this phase.** A full UX overhaul milestone is coming (backlog 999.6), so this phase adds no new screens, components or styling.
+- Staged-generation progress lines reuse the Phase 42 Keeper indicator as-is: the same `NarrativeConsole` region, with copy living in `spacetimedb/src/data/` and guarded by the existing voice and pronoun tests.
+- `/llm stats` and the kill switch are admin slash commands that print plain text into the existing console, following the current admin-command pattern.
+
 ### Claude's Discretion
 - The Keeper-tone lint rules used to judge the sweep. They should build on the Keeper Bible's banned-phrases list.
 - The exact stage-1 and stage-2 JSON schemas. They must stay compatible with Phase 40's schema lint and structured-output limits, and a stage-1 schema should be as small as possible.
