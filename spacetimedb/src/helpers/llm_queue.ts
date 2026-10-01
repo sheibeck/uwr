@@ -7,8 +7,9 @@
 // the in-transaction dedupe lookup plus insert cannot race: two tabs on one
 // identity produce exactly one job per action.
 //
-// Order: validate, serialize, dedupe (an active hit merges), per-player cap
-// (busy), budget reservation (daily_cost, daily_calls, phase_cap), then write
+// Order: validate, serialize, dedupe (an active hit merges), halted (the kill
+// switch or a missing admin-state row), per-player cap (busy), budget
+// reservation (halted, daily_calls, daily_cost, ceiling), then write
 // the pending job (carrying its reservation and budget day), one llm_dispatch
 // row at the transaction timestamp, and make sure the sweep tick exists. Every
 // refusal returns before any write, so a refusal leaves no job, no dispatch
@@ -29,6 +30,7 @@ import { CLAUDE_MODEL } from '../data/llm_models';
 import { LLM_PLAYER_MAX_ACTIVE_JOBS } from '../data/llm_limits';
 import { redactSecrets } from './measurement';
 import { reserveLlmBudget, type LlmBudgetMode, type LlmBudgetRefusal } from './llm_budget';
+import { llmGate } from './llm_admin_state';
 import { insertLlmDispatch, ensureLlmSweepScheduled } from './llm_schedule';
 
 export const LLM_JOB_STATUSES = [
@@ -154,13 +156,20 @@ export const LLM_CAP_EXEMPT_ROUTES: readonly LlmRoute[] = Object.freeze([
 ] as LlmRoute[]);
 
 /**
+ * The one line shown when the kill switch is off or the global daily ceiling is
+ * reached. Numberless and in voice: it never says which of the two refused.
+ */
+export const LLM_RESTING_LINE = 'The Keeper is resting. Return later.';
+
+/**
  * Fixed in-voice refusal lines. None reveals which limit was hit, an amount, a
  * provider or an account state.
  */
 export const LLM_REFUSAL_MESSAGES: Readonly<Record<LlmRefusal, string>> = Object.freeze({
   daily_cost: 'The Keeper grows weary of your demands. Return tomorrow.',
   daily_calls: 'The Keeper grows weary of your demands. Return tomorrow.',
-  phase_cap: 'The Keeper has fallen silent for now. Return later.',
+  halted: LLM_RESTING_LINE,
+  ceiling: LLM_RESTING_LINE,
   busy: 'The Keeper is already considering something for you. Patience.',
 });
 
@@ -214,6 +223,9 @@ export function enqueueLlmJob(ctx: any, a: EnqueueArgs): EnqueueResult {
   for (const existing of ctx.db.llm_job.by_dedupe_key.filter(dedupeKey)) {
     if (isActiveJobStatus(existing.status)) return { created: false, job: existing };
   }
+
+  // Halted before busy: a halted game never answers "busy" (reserveLlmBudget checks the gate again).
+  if (llmGate(ctx).halted) return { created: false, job: null, refused: 'halted' };
 
   const mode: LlmBudgetMode = a.budget ?? 'player';
   if (

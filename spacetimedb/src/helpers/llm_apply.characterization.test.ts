@@ -72,8 +72,11 @@ function mergeSeeds(...parts: Seed[]): Seed {
   return out;
 }
 
+// The shared mock seeds a default llm_admin_state row (Phase 43). These snapshots dump the whole
+// database and the apply path never reads the gate, so the table is seeded empty (and dropped from
+// the dump while empty) to keep every stored snapshot unchanged.
 function newCtx(seed: Seed, sender: any = alice) {
-  return createMockCtx({ seed, sender, timestampMicros: T0 });
+  return createMockCtx({ seed: { llm_admin_state: [], ...seed }, sender, timestampMicros: T0 });
 }
 
 function rows(ctx: any, table: string): any[] {
@@ -106,7 +109,11 @@ function insertProblems(ctx: any, before: Record<string, number>): string[] {
 }
 
 function dump(ctx: any): string {
-  return JSON.stringify(JSON.parse(snapshotDb(ctx.db)), null, 2);
+  const all = JSON.parse(snapshotDb(ctx.db));
+  // newCtx seeds llm_admin_state empty (see there); an empty table is left out so the stored snapshots
+  // stay as they were, while any row the apply path wrote to it would still show up.
+  if (Array.isArray(all.llm_admin_state) && all.llm_admin_state.length === 0) delete all.llm_admin_state;
+  return JSON.stringify(all, null, 2);
 }
 
 /**

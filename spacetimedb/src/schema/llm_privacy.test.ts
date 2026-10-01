@@ -82,6 +82,8 @@ const NEW_TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
     reservedMicroUsd: { kind: 'u64' },
     calls: { kind: 'u64' },
     updatedAt: { kind: 'timestamp' },
+    dayUtc: { kind: 'string' },
+    daySpentMicroUsd: { kind: 'u64' },
   },
   llm_admin_state: {
     id: { kind: 'u64', primaryKey: true },
@@ -92,6 +94,8 @@ const NEW_TABLE_COLUMNS: Record<string, Record<string, ColSpec>> = {
     keyLastCheckOk: { kind: 'bool' },
     lastSmokeAt: { kind: 'timestamp', optional: true },
     lastSmokeJson: { kind: 'string' },
+    llmEnabled: { kind: 'bool' },
+    dailyCeilingMicroUsd: { kind: 'u64' },
   },
 };
 const NEW_TABLES = Object.keys(NEW_TABLE_COLUMNS);

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { rowColumnProblems } from './schema_recorder';
-import { createMockCtx as createLenientMockCtx } from './test-utils';
+import { createMockCtx as createLenientMockCtx, defaultLlmAdminStateRow } from './test-utils';
 import { findSecretLeaks } from './measurement';
 import { CLAUDE_MODEL } from '../data/llm_models';
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
@@ -20,6 +20,7 @@ import {
   logLlmCall,
   LLM_CAP_EXEMPT_ROUTES,
   LLM_REFUSAL_MESSAGES,
+  LLM_RESTING_LINE,
   llmRefusalMessage,
   countActiveCappedJobs,
   type LlmRefusal,
@@ -29,9 +30,10 @@ import { scheduledMicros } from './llm_schedule';
 import {
   LLM_PLAYER_DAILY_CALLS,
   LLM_PLAYER_DAILY_COST_MICRO_USD,
-  LLM_PHASE_SPEND_CAP_MICRO_USD,
+  LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
   LLM_PLAYER_MAX_ACTIVE_JOBS,
 } from '../data/llm_limits';
+import { KEEPER_BANNED_PHRASES } from '../data/keeper_bible';
 
 // Records the real column definitions so rowColumnProblems can validate inserted rows.
 vi.mock('spacetimedb/server', async () =>
@@ -494,8 +496,19 @@ const ledgerRow = (over: Record<string, unknown> = {}) => ({
   reservedMicroUsd: 0n,
   calls: 0n,
   updatedAt: { microsSinceUnixEpoch: 1n },
+  dayUtc: TODAY,
+  daySpentMicroUsd: 0n,
   ...over,
 });
+
+/** A ledger whose today figure sits at the global daily ceiling (reserved plus spent = the ceiling). */
+const ceilingLedger = () =>
+  ledgerRow({
+    spentMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
+    daySpentMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
+  });
+
+const haltedRow = () => ({ ...defaultLlmAdminStateRow(), llmEnabled: false });
 
 const ctxAt = (seed: Record<string, any[]> = {}) => createMockCtx({ timestampMicros: T_NOW, seed });
 
@@ -700,7 +713,10 @@ describe('budget refusals write nothing', () => {
       { llm_player_budget: [budgetRow({ spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD, calls: 1n })] },
     ],
     ['200 calls', 'daily_calls', { llm_player_budget: [budgetRow({ calls: LLM_PLAYER_DAILY_CALLS })] }],
-    ['phase cap', 'phase_cap', { llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })] }],
+    // Phase 43 CONTEXT retires the $2 phase cap as a limit; the global daily ceiling replaces it.
+    ['global daily ceiling', 'ceiling', { llm_spend: [ceilingLedger()] }],
+    ['kill switch off', 'halted', { llm_admin_state: [haltedRow()] }],
+    ['missing admin-state row (fails closed)', 'halted', { llm_admin_state: [] }],
   ];
 
   it.each(cases)('%s gives refused %s and leaves the database unchanged', (_n, reason, seed) => {
@@ -715,7 +731,7 @@ describe('budget refusals write nothing', () => {
   });
 
   it('a refused renown job is also traceless', () => {
-    const ctx = ctxAt({ llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })] });
+    const ctx = ctxAt({ llm_spend: [ceilingLedger()] });
     const before = snap(ctx);
     const r = enqueueLlmJob(ctx, {
       route: 'renown_perk_gen',
@@ -723,8 +739,107 @@ describe('budget refusals write nothing', () => {
       sourceKey: SOURCE_KEYS.renownPerk(3n, 2),
       request: { rank: 2 },
     } as any);
-    expect(r.refused).toBe('phase_cap');
+    expect(r.refused).toBe('ceiling');
     expect(snap(ctx)).toBe(before);
+  });
+});
+
+describe('kill switch and ceiling at enqueue', () => {
+  const stateSeed = (seed: Record<string, any[]>) => ctxAt(seed);
+
+  it('halted wins over busy: a player at the active-job cap still sees halted, with nothing written', () => {
+    const active = [1n, 2n, 3n].map((id) => seededJob(id, 'npc_conversation'));
+    const ctx = stateSeed({ llm_admin_state: [haltedRow()], llm_job: active });
+    const before = snap(ctx);
+    expect(npc(ctx, 1)).toEqual({ created: false, job: null, refused: 'halted' });
+    expect(snap(ctx)).toBe(before);
+  });
+
+  it('the same player at the cap with the switch on is busy (control)', () => {
+    const active = [1n, 2n, 3n].map((id) => seededJob(id, 'npc_conversation'));
+    expect(npc(stateSeed({ llm_job: active }), 1).refused).toBe('busy');
+  });
+
+  it('kill switch off: no job, no dispatch row, no sweep tick, no reservation, no player budget row', () => {
+    const ctx = stateSeed({ llm_admin_state: [haltedRow()] });
+    const r = npc(ctx);
+    expect(r).toEqual({ created: false, job: null, refused: 'halted' });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(0);
+    expect(rows(ctx, 'llm_spend')).toHaveLength(0);
+    expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+  });
+
+  it('smoke (phase_only) jobs are halted too', () => {
+    const ctx = stateSeed({ llm_admin_state: [haltedRow()] });
+    const r = npc(ctx, 0, { budget: 'phase_only', route: 'smoke_test', sourceKey: SOURCE_KEYS.smokeTest() });
+    expect(r.refused).toBe('halted');
+  });
+
+  it('kill switch and ceiling together give one refusal reason and one resting line', () => {
+    const ctx = stateSeed({ llm_admin_state: [haltedRow()], llm_spend: [ceilingLedger()] });
+    const r = npc(ctx);
+    expect(r.refused).toBe('halted');
+    expect(llmRefusalMessage(r.refused as LlmRefusal)).toBe(LLM_RESTING_LINE);
+    expect(llmRefusalMessage('ceiling')).toBe(llmRefusalMessage('halted'));
+  });
+
+  it('a dedupe hit on an active job still merges while halted, and writes nothing', () => {
+    const live = stateSeed({});
+    const first = npc(live);
+    expect(first.created).toBe(true);
+    const ctx = stateSeed({ llm_job: [first.job], llm_admin_state: [haltedRow()] });
+    const before = snap(ctx);
+    const again = npc(ctx);
+    expect(again.created).toBe(false);
+    expect(again.refused).toBeUndefined();
+    expect(again.job.id).toBe(first.job.id);
+    expect(snap(ctx)).toBe(before);
+  });
+
+  it('the per-player limits still refuse under the global ceiling', () => {
+    const ctx = stateSeed({
+      llm_player_budget: [budgetRow({ calls: LLM_PLAYER_DAILY_CALLS })],
+      llm_spend: [ledgerRow({ spentMicroUsd: 5n, daySpentMicroUsd: 5n })],
+    });
+    expect(npc(ctx).refused).toBe('daily_calls');
+  });
+
+  it('a smoke job at the ceiling is refused as ceiling', () => {
+    const ctx = stateSeed({ llm_spend: [ceilingLedger()] });
+    const r = npc(ctx, 0, { budget: 'phase_only', route: 'smoke_test', sourceKey: SOURCE_KEYS.smokeTest() });
+    expect(r.refused).toBe('ceiling');
+  });
+
+  it('the global ceiling counts every players reservations, not only this one', () => {
+    const ctx = stateSeed({
+      llm_player_budget: [budgetRow({ playerId: OTHER, reservedMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD, calls: 1n })],
+      llm_spend: [ledgerRow({ reservedMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD, calls: 1n })],
+    });
+    expect(npc(ctx).refused).toBe('ceiling');
+  });
+});
+
+describe('LLM_RESTING_LINE', () => {
+  it('is the exact numberless in-voice line', () => {
+    expect(LLM_RESTING_LINE).toBe('The Keeper is resting. Return later.');
+  });
+
+  it('has no digit, dollar sign or exclamation mark, no banned phrase and no it/they for the Keeper', () => {
+    expect(LLM_RESTING_LINE).not.toMatch(/\d/);
+    expect(LLM_RESTING_LINE).not.toMatch(/\$/);
+    expect(LLM_RESTING_LINE).not.toMatch(/!/);
+    for (const phrase of KEEPER_BANNED_PHRASES) {
+      expect(LLM_RESTING_LINE.toLowerCase()).not.toContain(phrase.toLowerCase());
+    }
+    // The pattern the repository pronoun guard scans for (pronoun_rules.test.ts KEEPER_IT_OR_THEY).
+    expect(LLM_RESTING_LINE).not.toMatch(/\bKeeper\b[^.]*\b(its|itself|they|them|their|theirs|themselves)\b/);
+  });
+
+  it('halted and ceiling both map to it', () => {
+    expect(LLM_REFUSAL_MESSAGES.halted).toBe(LLM_RESTING_LINE);
+    expect(LLM_REFUSAL_MESSAGES.ceiling).toBe(LLM_RESTING_LINE);
   });
 });
 
@@ -748,7 +863,7 @@ describe("budget 'phase_only' (smoke)", () => {
 });
 
 describe('llmRefusalMessage', () => {
-  const reasons: LlmRefusal[] = ['daily_cost', 'daily_calls', 'phase_cap', 'busy'];
+  const reasons: LlmRefusal[] = ['daily_cost', 'daily_calls', 'halted', 'ceiling', 'busy'];
 
   it.each(reasons)('%s is a non-empty in-voice line with no numbers, currency or provider words', (reason) => {
     const msg = llmRefusalMessage(reason);
@@ -761,7 +876,9 @@ describe('llmRefusalMessage', () => {
 
   it('never reveals which daily limit was hit', () => {
     expect(llmRefusalMessage('daily_cost')).toBe(llmRefusalMessage('daily_calls'));
+    expect(Object.keys(LLM_REFUSAL_MESSAGES).sort()).toEqual(['busy', 'ceiling', 'daily_calls', 'daily_cost', 'halted']);
     expect(Object.keys(LLM_REFUSAL_MESSAGES).sort()).toEqual([...reasons].sort());
+    expect(llmRefusalMessage('halted')).toBe(llmRefusalMessage('ceiling'));
     expect(Object.isFrozen(LLM_REFUSAL_MESSAGES)).toBe(true);
   });
 });

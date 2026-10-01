@@ -95,7 +95,8 @@ describe('the admin identity used by these tests', () => {
 
 describe('set_api_key', () => {
   it('rejects a non-admin with "Admin only" and writes nothing', () => {
-    const ctx = createMockCtx({ sender: stranger });
+    // Seeded empty: the shared mock otherwise carries a default admin-state row (Phase 43).
+    const ctx = createMockCtx({ sender: stranger, seed: { llm_admin_state: [] } });
     expect(() => reducer('set_api_key')(ctx, { apiKey: FAKE_KEY })).toThrow('Admin only');
     expect(rows(ctx, 'llm_config')).toHaveLength(0);
     expect(rows(ctx, 'llm_admin_state')).toHaveLength(0);
@@ -133,7 +134,7 @@ describe('set_api_key', () => {
   });
 
   it('rejects a blank key with a SenderError and writes nothing', () => {
-    const ctx = adminCtx();
+    const ctx = adminCtx({ llm_admin_state: [] });
     expect(() => reducer('set_api_key')(ctx, { apiKey: '   ' })).toThrow('API key cannot be empty');
     expect(rows(ctx, 'llm_config')).toHaveLength(0);
     expect(rows(ctx, 'llm_admin_state')).toHaveLength(0);
@@ -168,7 +169,7 @@ describe('set_api_key', () => {
 
 describe('llm_smoke_test', () => {
   it('rejects a non-admin and writes nothing', () => {
-    const ctx = createMockCtx({ sender: stranger });
+    const ctx = createMockCtx({ sender: stranger, seed: { llm_admin_state: [] } });
     expect(() => reducer('llm_smoke_test')(ctx, {})).toThrow('Admin only');
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);

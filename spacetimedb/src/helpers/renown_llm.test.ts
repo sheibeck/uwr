@@ -9,7 +9,7 @@ import { appendPrivateEvent, appendSystemMessage } from './events';
 import { applyRenownPerkResult, toApplyJob } from './llm_apply';
 import { chooseRenownPerkLogic } from '../reducers/renown_perk';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
-import { LLM_PLAYER_DAILY_COST_MICRO_USD, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import { LLM_PLAYER_DAILY_COST_MICRO_USD, LLM_DAILY_CEILING_DEFAULT_MICRO_USD } from '../data/llm_limits';
 import {
   awardRenown,
   triggerRenownPerkGeneration,
@@ -301,14 +301,18 @@ describe('renown enqueue: snapshot, dispatch and refusal fallback (41-05)', () =
     expect(line()[0][1]).toBe(1n);
   });
 
-  it('a refusal at the phase cap falls back to static options too', () => {
+  // Phase 43 CONTEXT retires the $2 phase cap as a limit; the global daily ceiling replaces it, so this
+  // case now reaches the ceiling today (an earned offer still falls back to the static options).
+  it('a refusal at the global daily ceiling falls back to static options too', () => {
     const ctx = seededCtx();
     ctx.db.llm_spend.insert({
       id: 1n,
-      spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+      spentMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
       reservedMicroUsd: 0n,
       calls: 0n,
       updatedAt: ctx.timestamp,
+      dayUtc: utcDay(ctx.timestamp),
+      daySpentMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
     });
     eventMock.mockClear();
     triggerRenownPerkGeneration(ctx, character(), 2);
@@ -328,10 +332,12 @@ describe('renown enqueue: snapshot, dispatch and refusal fallback (41-05)', () =
     const ctx = seededCtx();
     ctx.db.llm_spend.insert({
       id: 1n,
-      spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD,
+      spentMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
       reservedMicroUsd: 0n,
       calls: 0n,
       updatedAt: ctx.timestamp,
+      dayUtc: utcDay(ctx.timestamp),
+      daySpentMicroUsd: LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
     });
     eventMock.mockClear();
     triggerRenownPerkGeneration(ctx, character(), rank);
