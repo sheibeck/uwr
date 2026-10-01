@@ -4,8 +4,8 @@ milestone: v2.2
 milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
-status: planning
-stopped_at: Completed 42-07-PLAN.md
+status: ready_to_execute
+stopped_at: Phase 43 planned (15 plans, 7 waves; plan checker passed)
 last_updated: "2026-10-01T01:00:10.113Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 42 complete, transitioned to Phase 43
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 43 — Latency Tuning, Staged Generation and Budget
-Plan: Not started
-Status: Ready to plan
+Plan: 0/15 (7 waves; 43-12 is the paid-sweep checkpoint)
+Status: Phase 43 planned and checked. Next: execute Phase 43
 Last activity: 2026-09-30 — Phase 42 complete, transitioned to Phase 43
 
 Progress: [██████████] 98% (2/6 phases)
