@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { createMockCtx as createLenientMockCtx } from './test-utils';
+import { createMockCtx as createLenientMockCtx, defaultLlmAdminStateRow } from './test-utils';
 import { reserveCostMicroUsd } from './measurement';
 import { LLM_ROUTES, LLM_ROUTE_NAMES } from '../data/llm_routes';
 import { KEEPER_BIBLE } from '../data/keeper_bible';
@@ -8,8 +8,12 @@ import {
   LLM_PLAYER_DAILY_COST_MICRO_USD,
   LLM_PLAYER_DAILY_CALLS,
   LLM_PHASE_SPEND_CAP_MICRO_USD,
+  LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
 } from '../data/llm_limits';
 import {
+  ledgerDaySpent,
+  globalDayHeld,
+  globalCeilingClaimHeld,
   utcDay,
   estimatePromptChars,
   reservationMicroUsd,
@@ -76,9 +80,18 @@ function ledgerRow(over: Record<string, unknown> = {}) {
     reservedMicroUsd: 0n,
     calls: 0n,
     updatedAt: { microsSinceUnixEpoch: 1n },
+    dayUtc: '2026-09-30',
+    daySpentMicroUsd: 0n,
     ...over,
   };
 }
+
+const CEILING = LLM_DAILY_CEILING_DEFAULT_MICRO_USD;
+const adminRow = (over: Record<string, unknown> = {}) => ({ ...defaultLlmAdminStateRow(), ...over });
+
+/** A ledger whose today figure (2026-09-30) is `spentToday`, with `reserved` held on top. */
+const todayLedger = (spentToday: bigint, reserved = 0n) =>
+  ledgerRow({ spentMicroUsd: spentToday, daySpentMicroUsd: spentToday, reservedMicroUsd: reserved });
 
 function reserve(ctx: any, over: Record<string, unknown> = {}) {
   return reserveLlmBudget(ctx, {
@@ -217,25 +230,70 @@ describe('reserveLlmBudget: player daily calls boundary', () => {
   });
 });
 
-describe('reserveLlmBudget: phase cap boundary', () => {
-  it('allows a reservation that brings the ledger to exactly $2.00', () => {
-    const held = LLM_PHASE_SPEND_CAP_MICRO_USD - R;
+// Phase 43 CONTEXT retires the $2 phase cap as a limit and replaces it with the global daily ceiling
+// (default $10 per UTC day). These cases were the phase_cap cases; they now pin the ceiling instead.
+describe('reserveLlmBudget: global daily ceiling boundary', () => {
+  it('allows a reservation that brings reserved plus spent to exactly the ceiling', () => {
+    const held = CEILING - R;
     const ctx = createMockCtx({
       timestampMicros: T_2026_09_30,
-      seed: { llm_spend: [ledgerRow({ spentMicroUsd: held - 5n, reservedMicroUsd: 5n })] },
+      seed: { llm_spend: [todayLedger(held - 5n, 5n)] },
     });
     expect(reserve(ctx).ok).toBe(true);
     const ledger = getPhaseLedger(ctx);
-    expect(ledger.spentMicroUsd + ledger.reservedMicroUsd).toBe(LLM_PHASE_SPEND_CAP_MICRO_USD);
+    expect(ledger.daySpentMicroUsd + ledger.reservedMicroUsd).toBe(CEILING);
   });
 
-  it('refuses one micro-USD over $2.00 as phase_cap', () => {
-    const held = LLM_PHASE_SPEND_CAP_MICRO_USD - R + 1n;
+  it('ceiling minus 1: a reservation that ends one micro-USD under the ceiling is allowed', () => {
     const ctx = createMockCtx({
       timestampMicros: T_2026_09_30,
-      seed: { llm_spend: [ledgerRow({ spentMicroUsd: held })] },
+      seed: { llm_spend: [todayLedger(CEILING - R - 1n)] },
     });
-    expect(reserve(ctx)).toEqual({ ok: false, reason: 'phase_cap' });
+    expect(reserve(ctx).ok).toBe(true);
+    const ledger = getPhaseLedger(ctx);
+    expect(ledger.daySpentMicroUsd + ledger.reservedMicroUsd).toBe(CEILING - 1n);
+  });
+
+  it('ceiling plus 1: a reservation that ends one micro-USD over the ceiling is refused as ceiling', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: { llm_spend: [todayLedger(CEILING - R + 1n)] },
+    });
+    const before = snapshotDb(ctx);
+    expect(reserve(ctx)).toEqual({ ok: false, reason: 'ceiling' });
+    expect(snapshotDb(ctx)).toBe(before);
+  });
+
+  it('counts every player: reservations held by others push this player over', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: {
+        llm_player_budget: [budgetRow({ playerId: OTHER, reservedMicroUsd: CEILING - R + 1n, calls: 1n })],
+        llm_spend: [todayLedger(0n, CEILING - R + 1n)],
+      },
+    });
+    expect(reserve(ctx)).toEqual({ ok: false, reason: 'ceiling' });
+  });
+
+  it('a custom ceiling from the admin row applies', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: { llm_admin_state: [adminRow({ dailyCeilingMicroUsd: R })] },
+    });
+    expect(reserve(ctx).ok).toBe(true);
+    expect(reserve(ctx)).toEqual({ ok: false, reason: 'ceiling' });
+  });
+
+  it('the old $2 phase figure no longer refuses anything', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: {
+        llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD * 3n, dayUtc: '2026-09-29', daySpentMicroUsd: 0n })],
+      },
+    });
+    expect(reserve(ctx).ok).toBe(true);
+    // all-time spent is kept as the record
+    expect(getPhaseLedger(ctx).spentMicroUsd).toBe(LLM_PHASE_SPEND_CAP_MICRO_USD * 3n);
   });
 
   it('phase_only counts against the ledger and leaves player rows untouched', () => {
@@ -252,44 +310,228 @@ describe('reserveLlmBudget: phase cap boundary', () => {
     expect(rows(ctx, 'llm_spend')[0]).toMatchObject({ reservedMicroUsd: R, calls: 1n });
   });
 
-  it('phase_only is still refused by the phase cap', () => {
+  it('phase_only is still refused by the ceiling (smoke jobs count and obey it)', () => {
     const ctx = createMockCtx({
       timestampMicros: T_2026_09_30,
-      seed: { llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })] },
+      seed: { llm_spend: [todayLedger(CEILING)] },
     });
-    expect(reserve(ctx, { mode: 'phase_only' })).toEqual({ ok: false, reason: 'phase_cap' });
+    expect(reserve(ctx, { mode: 'phase_only' })).toEqual({ ok: false, reason: 'ceiling' });
     expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
   });
 });
 
+describe('reserveLlmBudget: kill switch and missing state', () => {
+  it('llmEnabled false refuses halted in both modes and writes nothing', () => {
+    for (const mode of ['player', 'phase_only']) {
+      const ctx = createMockCtx({
+        timestampMicros: T_2026_09_30,
+        seed: { llm_admin_state: [adminRow({ llmEnabled: false })] },
+      });
+      const before = snapshotDb(ctx);
+      expect(reserve(ctx, { mode })).toEqual({ ok: false, reason: 'halted' });
+      expect(snapshotDb(ctx)).toBe(before);
+    }
+  });
+
+  it('a missing admin-state row fails closed as halted with nothing written', () => {
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30, seed: { llm_admin_state: [] } });
+    const before = snapshotDb(ctx);
+    expect(reserve(ctx)).toEqual({ ok: false, reason: 'halted' });
+    expect(snapshotDb(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_spend')).toHaveLength(0);
+  });
+
+  it('halted wins over every other refusal', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: {
+        llm_admin_state: [adminRow({ llmEnabled: false })],
+        llm_player_budget: [budgetRow({ calls: LLM_PLAYER_DAILY_CALLS })],
+        llm_spend: [todayLedger(CEILING)],
+      },
+    });
+    expect(reserve(ctx)).toEqual({ ok: false, reason: 'halted' });
+  });
+});
+
+describe('global day counter', () => {
+  it('no llm_spend row: day spend is 0 and the call proceeds, creating the ledger on today', () => {
+    expect(ledgerDaySpent(undefined, '2026-09-30')).toBe(0n);
+    expect(globalDayHeld(undefined, '2026-09-30')).toBe(0n);
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30 });
+    expect(reserve(ctx).ok).toBe(true);
+    expect(getPhaseLedger(ctx)).toMatchObject({ dayUtc: '2026-09-30', daySpentMicroUsd: 0n, reservedMicroUsd: R });
+  });
+
+  it('a ledger on an earlier day counts 0 spent today but still counts its reservations', () => {
+    const led = ledgerRow({ dayUtc: '2026-09-29', daySpentMicroUsd: 5_000_000n, reservedMicroUsd: 40n });
+    expect(ledgerDaySpent(led, '2026-09-30')).toBe(0n);
+    expect(ledgerDaySpent(led, '2026-09-29')).toBe(5_000_000n);
+    expect(globalDayHeld(led, '2026-09-30')).toBe(40n);
+    expect(globalDayHeld(led, '2026-09-29')).toBe(5_000_040n);
+  });
+
+  it('a migrated ledger (empty dayUtc) counts 0 spent today', () => {
+    const led = ledgerRow({ dayUtc: '', daySpentMicroUsd: 0n, spentMicroUsd: 1_234_567n });
+    expect(ledgerDaySpent(led, '2026-09-30')).toBe(0n);
+  });
+
+  it('UTC rollover: reserved at 23:59:59 on day D, settled at 00:00:01 on D+1 lands the cost on the new day', () => {
+    const t1 = micros('2026-09-30T23:59:59.000Z');
+    const t2 = micros('2026-10-01T00:00:01.000Z');
+    const ctx = createMockCtx({
+      timestampMicros: t1,
+      seed: { llm_spend: [todayLedger(3_000_000n)] },
+    });
+    const job = reservedJob(ctx);
+    expect(ledger(ctx)).toMatchObject({ dayUtc: '2026-09-30', daySpentMicroUsd: 3_000_000n, reservedMicroUsd: R });
+
+    (ctx as any).timestamp = { microsSinceUnixEpoch: t2 };
+    settleLlmCost(ctx, job, { actualMicroUsd: 777n, chargePlayer: true });
+    expect(ledger(ctx)).toMatchObject({
+      dayUtc: '2026-10-01',
+      daySpentMicroUsd: 777n,
+      spentMicroUsd: 3_000_000n + 777n,
+      reservedMicroUsd: 0n,
+    });
+    // the previous day's spend stops counting
+    expect(globalDayHeld(ledger(ctx), '2026-10-01')).toBe(777n);
+  });
+
+  it('reserve then release leaves the day figure and the all-time figure untouched', () => {
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30, seed: { llm_spend: [todayLedger(500n)] } });
+    const job = reservedJob(ctx);
+    releaseLlmReservation(ctx, job, { refundCall: true });
+    expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 500n, daySpentMicroUsd: 500n, reservedMicroUsd: 0n });
+  });
+
+  it('reserve then settle: day and all-time spent both grow by the actual cost', () => {
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30, seed: { llm_spend: [todayLedger(500n)] } });
+    const job = reservedJob(ctx);
+    settleLlmCost(ctx, job, { actualMicroUsd: 100n, chargePlayer: true });
+    expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 600n, daySpentMicroUsd: 600n, reservedMicroUsd: 0n });
+  });
+
+  it('unknown-billing charge then late swap keeps both figures consistent and never negative', () => {
+    const ctx = createMockCtx({ timestampMicros: T_2026_09_30 });
+    const job = reservedJob(ctx);
+    chargeLedgerUnknownBilling(ctx, job);
+    expect(ledger(ctx)).toMatchObject({ spentMicroUsd: R, daySpentMicroUsd: R });
+    releaseLlmReservation(ctx, job, { refundCall: true });
+    subtractLedgerSpend(ctx, R);
+    addLedgerSpend(ctx, 123n);
+    expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 123n, daySpentMicroUsd: 123n, reservedMicroUsd: 0n });
+    subtractLedgerSpend(ctx, 10_000n);
+    expect(ledger(ctx)).toMatchObject({ spentMicroUsd: 0n, daySpentMicroUsd: 0n });
+  });
+
+  it('a late swap after midnight floors the new day at 0 and keeps the all-time figure exact', () => {
+    const ctx = createMockCtx({
+      timestampMicros: micros('2026-10-01T00:00:05.000Z'),
+      seed: { llm_spend: [todayLedger(900n)] }, // counter belongs to 2026-09-30
+    });
+    subtractLedgerSpend(ctx, 400n);
+    expect(ledger(ctx)).toMatchObject({ dayUtc: '2026-10-01', daySpentMicroUsd: 0n, spentMicroUsd: 500n });
+  });
+});
+
+describe('globalCeilingClaimHeld', () => {
+  const job = (id: bigint, status: string, reservedMicroUsd: bigint) => ({
+    id,
+    status,
+    reservedMicroUsd,
+  });
+
+  it('counts today spent, other in_flight and received reservations, and the job own reservation', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: {
+        llm_spend: [todayLedger(1_000n, 999n)],
+        llm_job: [
+          job(1n, 'in_flight', 10n),
+          job(2n, 'received', 20n),
+          job(3n, 'pending', 5_000n),
+          job(4n, 'done', 7_000n),
+          job(5n, 'pending', 300n), // the job itself
+        ],
+      },
+    });
+    expect(globalCeilingClaimHeld(ctx, { id: 5n, reservedMicroUsd: 300n }, '2026-09-30')).toBe(1_000n + 10n + 20n + 300n);
+  });
+
+  it('excludes the job itself even when it is in_flight', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: { llm_job: [job(1n, 'in_flight', 10n), job(2n, 'in_flight', 30n)] },
+    });
+    expect(globalCeilingClaimHeld(ctx, { id: 2n, reservedMicroUsd: 30n }, '2026-09-30')).toBe(40n);
+  });
+
+  it('an earlier-day ledger counts 0 spent and an empty database counts only the job', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: { llm_spend: [ledgerRow({ dayUtc: '2026-09-29', daySpentMicroUsd: 9_000_000n })] },
+    });
+    expect(globalCeilingClaimHeld(ctx, { id: 1n, reservedMicroUsd: 50n }, '2026-09-30')).toBe(50n);
+    expect(globalCeilingClaimHeld(createMockCtx(), { id: 1n, reservedMicroUsd: 50n }, '2026-09-30')).toBe(50n);
+  });
+});
+
 describe('reserveLlmBudget: refusal order and no writes', () => {
-  it('reports daily_calls before daily_cost before phase_cap', () => {
+  it('reports halted, then daily_calls, then daily_cost, then ceiling', () => {
     const everything = {
+      llm_admin_state: [adminRow({ llmEnabled: false })],
       llm_player_budget: [
         budgetRow({ calls: LLM_PLAYER_DAILY_CALLS, spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD }),
       ],
-      llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })],
+      llm_spend: [todayLedger(CEILING)],
     };
     expect(reserve(createMockCtx({ timestampMicros: T_2026_09_30, seed: everything }))).toEqual({
+      ok: false,
+      reason: 'halted',
+    });
+
+    const callsCostAndCeiling = {
+      llm_player_budget: [
+        budgetRow({ calls: LLM_PLAYER_DAILY_CALLS, spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD }),
+      ],
+      llm_spend: [todayLedger(CEILING)],
+    };
+    expect(reserve(createMockCtx({ timestampMicros: T_2026_09_30, seed: callsCostAndCeiling }))).toEqual({
       ok: false,
       reason: 'daily_calls',
     });
 
-    const costAndCap = {
+    const costAndCeiling = {
       llm_player_budget: [budgetRow({ calls: 1n, spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD })],
-      llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })],
+      llm_spend: [todayLedger(CEILING)],
     };
-    expect(reserve(createMockCtx({ timestampMicros: T_2026_09_30, seed: costAndCap }))).toEqual({
+    expect(reserve(createMockCtx({ timestampMicros: T_2026_09_30, seed: costAndCeiling }))).toEqual({
       ok: false,
       reason: 'daily_cost',
     });
+
+    const ceilingOnly = { llm_spend: [todayLedger(CEILING)] };
+    expect(reserve(createMockCtx({ timestampMicros: T_2026_09_30, seed: ceilingOnly }))).toEqual({
+      ok: false,
+      reason: 'ceiling',
+    });
+  });
+
+  it('the per-player limits still refuse under the global ceiling', () => {
+    const ctx = createMockCtx({
+      timestampMicros: T_2026_09_30,
+      seed: { llm_player_budget: [budgetRow({ calls: LLM_PLAYER_DAILY_CALLS })], llm_spend: [todayLedger(10n)] },
+    });
+    expect(reserve(ctx)).toEqual({ ok: false, reason: 'daily_calls' });
   });
 
   it('every refusal leaves the database snapshot identical', () => {
     const seeds: Record<string, any[]>[] = [
       { llm_player_budget: [budgetRow({ calls: LLM_PLAYER_DAILY_CALLS })] },
       { llm_player_budget: [budgetRow({ calls: 1n, spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD })] },
-      { llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD })] },
+      { llm_spend: [todayLedger(CEILING)] },
+      { llm_admin_state: [adminRow({ llmEnabled: false })] },
       // Refused on an empty database: no ledger row may be created either.
       {},
     ];
