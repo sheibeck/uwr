@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
 status: executing
-stopped_at: Completed 43-07-PLAN.md
-last_updated: "2026-10-01T02:35:05.540Z"
+stopped_at: Completed 43-08-PLAN.md
+last_updated: "2026-10-01T02:54:46.856Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 43 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 63
-  completed_plans: 53
+  completed_plans: 54
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 43 (Latency Tuning, Staged Generation and Budget) — EXECUTING
-Plan: 8 of 15
+Plan: 9 of 15
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 43 execution started
 
-Progress: [████████░░] 84% (2/6 phases)
+Progress: [█████████░] 86% (2/6 phases)
 
 ## Previous Milestones
 
@@ -106,6 +106,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 43-04: stage-1 schemas are the smallest reveal (no isSafe on the start location, no locationName on the first NPC); stage-2 builders tolerate older stored inputs so apply, executor and cutover suites stay green unchanged
 - [Phase ?]: [43-06] Smoke test checks kill switch then today's held spend plus all smoke reservations against the ceiling (exactly at ceiling allowed); view reads a missing state row as halted with zero ceiling; $2 phase cap constant and helper deleted
 - [Phase ?]: 43-07: /llm slash commands are admin-gated by ADMIN_IDENTITIES on ctx.sender with an in-voice fail() refusal; malformed /llm forms answer usage rather than falling through to the command row
+- [Phase ?]: [43-08] World generation is staged: world_gen_start reveals region, safe start location and first NPC and enqueues the world_gen fill in the same apply transaction; a failed fill is FILL_ERROR with the stage-1 region playable and no automatic retry
+- [Phase ?]: [43-08] writeRegionFill connects every new location to the start location by graph reachability; startWorldFill turns an unreadable stage 1 into FILL_ERROR instead of throwing; Plan 43-11 must teach the sweeper that GENERATING is held by world_gen_start and FILLING by world_gen
 
 ### Roadmap Evolution
 
@@ -174,8 +176,8 @@ Phase 42 verification passed on 2026-09-30, after the user resolved every UAT it
 
 **Resume file:** None
 
-Last session: 2026-10-01T02:35:05.505Z
-Stopped at: Completed 43-07-PLAN.md
+Last session: 2026-10-01T02:54:46.826Z
+Stopped at: Completed 43-08-PLAN.md
 
 ## Performance Metrics
 
@@ -242,6 +244,7 @@ Stopped at: Completed 43-07-PLAN.md
 | Phase 43 P05 | 25min | 2 tasks | 10 files |
 | Phase 43 P06 | 15min | 3 tasks | 11 files |
 | Phase 43 P07 | 14min | 2 tasks | 4 files |
+| Phase 43 P08 | 55min | 3 tasks | 7 files |
 
 ## Operator Next Steps
 
