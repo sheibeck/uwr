@@ -1,7 +1,7 @@
 import { enqueueLlmJob, SOURCE_KEYS, isActiveJobStatus, isSmokeJob, serializeRequest } from '../helpers/llm_queue';
-import { patchAdminState } from '../helpers/llm_admin_state';
-import { getPhaseLedger, reservationMicroUsd } from '../helpers/llm_budget';
-import { LLM_SMOKE_ROUTES, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import { patchAdminState, llmGate, setLlmEnabled, setDailyCeiling, dailyCeilingProblem } from '../helpers/llm_admin_state';
+import { getPhaseLedger, globalDayHeld, reservationMicroUsd, utcDay } from '../helpers/llm_budget';
+import { LLM_SMOKE_ROUTES } from '../data/llm_limits';
 
 /** Logged by set_api_key: the prefix plus the key length and nothing else. The key script confirms against this exact prefix. */
 export const LLM_KEY_SET_LOG_PREFIX = 'llm key set, len=';
@@ -40,6 +40,22 @@ export const registerLlmReducers = (deps: any) => {
     console.info(LLM_KEY_SET_LOG_PREFIX + trimmed.length);
   });
 
+  // Admin-only: the kill switch. Off refuses every new LLM request; on lets them run again.
+  spacetimedb.reducer('llm_set_enabled', { enabled: t.bool() }, (ctx: any, { enabled }: { enabled: boolean }) => {
+    requireAdmin(ctx);
+    setLlmEnabled(ctx, enabled);
+    console.log(enabled ? 'llm calls on' : 'llm calls off');
+  });
+
+  // Admin-only: the global daily ceiling in micro-USD ($0.01 to $1,000.00). No character context, so SenderError.
+  spacetimedb.reducer('llm_set_daily_ceiling', { microUsd: t.u64() }, (ctx: any, { microUsd }: { microUsd: bigint }) => {
+    requireAdmin(ctx);
+    const problem = dailyCeilingProblem(microUsd);
+    if (problem) throw new SenderError(problem);
+    setDailyCeiling(ctx, microUsd);
+    console.log('llm daily ceiling set, micro_usd=' + microUsd);
+  });
+
   // Admin-only: one phase-only job per smoke route (a text call plus one minimal call per JSON schema).
   // The executor skips apply for these and records each route's result in llm_admin_state.
   spacetimedb.reducer('llm_smoke_test', {}, (ctx: any) => {
@@ -52,14 +68,17 @@ export const registerLlmReducers = (deps: any) => {
       }
     }
 
-    // All or nothing against the phase cap: never leave a half-run behind.
+    // All or nothing against the kill switch and the global daily ceiling: never leave a half-run behind.
+    const gate = llmGate(ctx);
+    if (gate.halted) {
+      console.log('llm smoke test refused: llm calls are off');
+      return;
+    }
     const requestJson = serializeRequest({ ...SMOKE_REQUEST });
-    const ledger = getPhaseLedger(ctx);
-    const held: bigint = ledger ? ledger.spentMicroUsd + ledger.reservedMicroUsd : 0n;
     let needed = 0n;
     for (const route of LLM_SMOKE_ROUTES) needed += reservationMicroUsd(route, requestJson);
-    if (held + needed > LLM_PHASE_SPEND_CAP_MICRO_USD) {
-      console.log('llm smoke test refused: phase spend cap');
+    if (globalDayHeld(getPhaseLedger(ctx), utcDay(ctx.timestamp)) + needed > gate.ceilingMicroUsd) {
+      console.log('llm smoke test refused: daily ceiling');
       return;
     }
 

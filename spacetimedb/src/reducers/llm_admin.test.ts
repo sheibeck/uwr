@@ -2,8 +2,12 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import { createMockCtx as createLenientMockCtx } from '../helpers/test-utils';
 import { capturedReducer, createRecordingServerMock } from '../helpers/schema_recorder';
 import { findSecretLeaks } from '../helpers/measurement';
-import { reservationMicroUsd } from '../helpers/llm_budget';
-import { LLM_SMOKE_ROUTES, LLM_PHASE_SPEND_CAP_MICRO_USD } from '../data/llm_limits';
+import { reservationMicroUsd, utcDay } from '../helpers/llm_budget';
+import {
+  LLM_SMOKE_ROUTES,
+  LLM_DAILY_CEILING_MIN_MICRO_USD,
+  LLM_DAILY_CEILING_MAX_MICRO_USD,
+} from '../data/llm_limits';
 import { ADMIN_IDENTITIES, requireAdmin } from '../data/admin';
 import { requireCharacterOwnedBy } from '../helpers/events';
 import { registerLlmReducers, LLM_KEY_SET_LOG_PREFIX } from './llm';
@@ -167,6 +171,88 @@ describe('set_api_key', () => {
   });
 });
 
+describe('llm_set_enabled', () => {
+  const stateRow = (extra: Record<string, unknown> = {}) => ({
+    id: 1n, keySet: true, keyLength: 40n, keyLastCheckOk: true, lastSmokeJson: '{}', llmEnabled: true, dailyCeilingMicroUsd: 7_000_000n, ...extra,
+  });
+
+  it('rejects a non-admin with "Admin only" and writes nothing', () => {
+    const ctx = createMockCtx({ sender: stranger, seed: { llm_admin_state: [] } });
+    expect(() => reducer('llm_set_enabled')(ctx, { enabled: false })).toThrow('Admin only');
+    expect(rows(ctx, 'llm_admin_state')).toHaveLength(0);
+    expect(output.lines).toEqual([]);
+  });
+
+  it('a stranger cannot change an existing row', () => {
+    const ctx = createMockCtx({ sender: stranger, seed: { llm_admin_state: [stateRow()] } });
+    const before = jsonOf(ctx.db._tables);
+    expect(() => reducer('llm_set_enabled')(ctx, { enabled: false })).toThrow('Admin only');
+    expect(jsonOf(ctx.db._tables)).toBe(before);
+  });
+
+  it('the admin turns calls off and on, logging only the plain line', () => {
+    const ctx = adminCtx();
+    reducer('llm_set_enabled')(ctx, { enabled: false });
+    expect(rows(ctx, 'llm_admin_state')[0].llmEnabled).toBe(false);
+    reducer('llm_set_enabled')(ctx, { enabled: true });
+    expect(rows(ctx, 'llm_admin_state')[0].llmEnabled).toBe(true);
+    expect(output.lines).toEqual(['llm calls off', 'llm calls on']);
+  });
+
+  it('keeps the key status and the ceiling when flipping', () => {
+    const ctx = adminCtx({ llm_admin_state: [stateRow()] });
+    reducer('llm_set_enabled')(ctx, { enabled: false });
+    expect(rows(ctx, 'llm_admin_state')[0]).toMatchObject({
+      keySet: true, keyLength: 40n, dailyCeilingMicroUsd: 7_000_000n, llmEnabled: false,
+    });
+  });
+});
+
+describe('llm_set_daily_ceiling', () => {
+  const stateRow = (ceiling: bigint) => ({
+    id: 1n, keySet: false, keyLength: 0n, keyLastCheckOk: false, lastSmokeJson: '{}', llmEnabled: true, dailyCeilingMicroUsd: ceiling,
+  });
+
+  it('rejects a non-admin with "Admin only" and writes nothing', () => {
+    const ctx = createMockCtx({ sender: stranger, seed: { llm_admin_state: [stateRow(10_000_000n)] } });
+    const before = jsonOf(ctx.db._tables);
+    expect(() => reducer('llm_set_daily_ceiling')(ctx, { microUsd: 5_000_000n })).toThrow('Admin only');
+    expect(jsonOf(ctx.db._tables)).toBe(before);
+    expect(output.lines).toEqual([]);
+  });
+
+  it('refuses MIN - 1, MAX + 1 and 0 with the range message and writes nothing', () => {
+    for (const bad of [LLM_DAILY_CEILING_MIN_MICRO_USD - 1n, LLM_DAILY_CEILING_MAX_MICRO_USD + 1n, 0n]) {
+      const ctx = adminCtx({ llm_admin_state: [stateRow(10_000_000n)] });
+      const before = jsonOf(ctx.db._tables);
+      expect(() => reducer('llm_set_daily_ceiling')(ctx, { microUsd: bad })).toThrow(
+        'Daily ceiling must be between $0.01 and $1000.00.',
+      );
+      expect(jsonOf(ctx.db._tables)).toBe(before);
+    }
+    expect(output.lines).toEqual([]);
+  });
+
+  it('stores MIN and MAX and logs the new ceiling in micro-USD only', () => {
+    const ctx = adminCtx({ llm_admin_state: [stateRow(10_000_000n)] });
+    reducer('llm_set_daily_ceiling')(ctx, { microUsd: LLM_DAILY_CEILING_MIN_MICRO_USD });
+    expect(rows(ctx, 'llm_admin_state')[0].dailyCeilingMicroUsd).toBe(LLM_DAILY_CEILING_MIN_MICRO_USD);
+    reducer('llm_set_daily_ceiling')(ctx, { microUsd: LLM_DAILY_CEILING_MAX_MICRO_USD });
+    expect(rows(ctx, 'llm_admin_state')[0].dailyCeilingMicroUsd).toBe(LLM_DAILY_CEILING_MAX_MICRO_USD);
+    expect(output.lines).toEqual([
+      `llm daily ceiling set, micro_usd=${LLM_DAILY_CEILING_MIN_MICRO_USD}`,
+      `llm daily ceiling set, micro_usd=${LLM_DAILY_CEILING_MAX_MICRO_USD}`,
+    ]);
+  });
+
+  it('never carries the key in a table or a log line', () => {
+    const ctx = adminCtx({ llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: 1n } }] });
+    reducer('llm_set_enabled')(ctx, { enabled: false });
+    reducer('llm_set_daily_ceiling')(ctx, { microUsd: 5_000_000n });
+    expect(leaksOutsideConfig(ctx, FAKE_KEY)).toBe(0);
+  });
+});
+
 describe('llm_smoke_test', () => {
   it('rejects a non-admin and writes nothing', () => {
     const ctx = createMockCtx({ sender: stranger, seed: { llm_admin_state: [] } });
@@ -253,37 +339,88 @@ describe('llm_smoke_test', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(LLM_SMOKE_ROUTES.length + 1);
   });
 
-  it('at the phase cap creates no jobs and does not throw', () => {
+  // Phase 43 CONTEXT retires the phase cap: the smoke test now follows the kill switch and the global daily ceiling.
+  // (The two earlier phase-cap cases are flipped on purpose to the ceiling below.)
+  const smokeNeeded = () =>
+    LLM_SMOKE_ROUTES.reduce((sum, r) => sum + reservationMicroUsd(r, '{"smoke":true}'), 0n);
+  const stateRow = (ceiling: bigint, extra: Record<string, unknown> = {}) => ({
+    id: 1n,
+    keySet: true,
+    keyLength: 40n,
+    keyLastCheckOk: true,
+    lastSmokeJson: '{"keep":true}',
+    llmEnabled: true,
+    dailyCeilingMicroUsd: ceiling,
+    ...extra,
+  });
+  const spendRow = (ctx: any, daySpent: bigint, reserved = 0n) => ({
+    id: 1n,
+    spentMicroUsd: daySpent,
+    reservedMicroUsd: reserved,
+    calls: 1n,
+    updatedAt: { microsSinceUnixEpoch: 1n },
+    dayUtc: utcDay(ctx.timestamp),
+    daySpentMicroUsd: daySpent,
+  });
+
+  it('at the daily ceiling creates no jobs, logs the refusal and does not throw', () => {
+    const base = adminCtx();
     const ctx = adminCtx({
-      llm_spend: [
-        { id: 1n, spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD, reservedMicroUsd: 0n, calls: 9n, updatedAt: { microsSinceUnixEpoch: 1n } },
-      ],
-      llm_admin_state: [
-        { id: 1n, keySet: true, keyLength: 40n, keyLastCheckOk: true, lastSmokeJson: '{"keep":true}' },
-      ],
+      llm_spend: [spendRow(base, 5_000_000n)],
+      llm_admin_state: [stateRow(5_000_000n)],
     });
     expect(() => reducer('llm_smoke_test')(ctx, {})).not.toThrow();
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
     expect(rows(ctx, 'llm_spend')[0].reservedMicroUsd).toBe(0n);
     expect(rows(ctx, 'llm_admin_state')[0].lastSmokeJson).toBe('{"keep":true}');
+    expect(output.lines).toEqual(['llm smoke test refused: daily ceiling']);
   });
 
-  it('with headroom for only some routes creates none (never a half run)', () => {
-    const one = reservationMicroUsd('smoke_test', '{"smoke":true}');
+  it('one micro-USD over the ceiling creates no job at all (never a half run)', () => {
+    const base = adminCtx();
+    const held = 1_000_000n;
     const ctx = adminCtx({
-      llm_spend: [
-        {
-          id: 1n,
-          spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD - one - 1n,
-          reservedMicroUsd: 0n,
-          calls: 1n,
-          updatedAt: { microsSinceUnixEpoch: 1n },
-        },
-      ],
+      llm_spend: [spendRow(base, held)],
+      llm_admin_state: [stateRow(held + smokeNeeded() - 1n)],
     });
     expect(() => reducer('llm_smoke_test')(ctx, {})).not.toThrow();
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(output.lines).toEqual(['llm smoke test refused: daily ceiling']);
+  });
+
+  it('exactly at the ceiling creates one job per smoke route', () => {
+    const base = adminCtx();
+    const held = 1_000_000n;
+    const needed = smokeNeeded();
+    const ctx = adminCtx({
+      llm_spend: [spendRow(base, held)],
+      llm_admin_state: [stateRow(held + needed)],
+    });
+    reducer('llm_smoke_test')(ctx, {});
+    expect(rows(ctx, 'llm_job')).toHaveLength(LLM_SMOKE_ROUTES.length);
+    expect(rows(ctx, 'llm_spend')[0].reservedMicroUsd).toBe(needed);
+  });
+
+  it('counts reservations still held toward the ceiling', () => {
+    const base = adminCtx();
+    const ctx = adminCtx({
+      llm_spend: [spendRow(base, 0n, 10n)],
+      llm_admin_state: [stateRow(smokeNeeded() + 9n)],
+    });
+    reducer('llm_smoke_test')(ctx, {});
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('while llm calls are off creates no job, dispatch or reservation, logs the refusal and does not throw', () => {
+    const ctx = adminCtx({ llm_admin_state: [stateRow(10_000_000n, { llmEnabled: false })] });
+    expect(() => reducer('llm_smoke_test')(ctx, {})).not.toThrow();
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'llm_spend')).toHaveLength(0);
+    expect(rows(ctx, 'llm_admin_state')[0].lastSmokeJson).toBe('{"keep":true}');
+    expect(output.lines).toEqual(['llm smoke test refused: llm calls are off']);
   });
 
   it('never logs a key', () => {
