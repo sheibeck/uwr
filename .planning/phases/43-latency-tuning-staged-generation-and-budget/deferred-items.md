@@ -2,7 +2,7 @@
 
 Out-of-scope discoveries, logged and not fixed (scope boundary).
 
-## 1. `time` command panics: `getWorldState` is not imported in intent.ts
+## 1. RESOLVED (commit d094d5c0): `time` command panics: `getWorldState` is not imported in intent.ts
 
 - **Found during:** Plan 43-15, post-publish log check (`spacetime logs --server local uwr`).
 - **Where:** `spacetimedb/src/reducers/intent.ts` line 108 (`const ws = getWorldState(ctx);` in the `time` command). The file does not import `getWorldState`; it is exported from `spacetimedb/src/helpers/location.ts`.

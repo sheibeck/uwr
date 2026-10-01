@@ -83,9 +83,9 @@ A local `--clear-database` wipes `llm_config`, `llm_admin_state` and the `llm_sp
 | Symptom | Meaning | What to do |
 |---|---|---|
 | Smoke result class `auth` | The key is invalid or revoked | Create a new key in the Console, then follow Rotation |
-| Smoke or job class `billing` | The Console spend limit is reached, or the $2 phase ledger is exhausted | Raise the Console limit or wait for the next period; for the ledger, decide with the phase owner (do not clear the database just to reset it) |
+| Smoke or job class `billing` | The Anthropic Console spend limit is reached | Raise the Console limit or wait for the next period (do not clear the database) |
 | Class `overloaded` or `rate_limit` | Anthropic is busy or throttling | Wait and retry; jobs retry on their own |
-| Player sees "The Keeper has fallen silent for now. Return later." | The phase ledger cap was reached | Check `phaseSpentMicroUsd` against `phaseCapMicroUsd` in `admin_llm_status` |
+| Player sees "The Keeper is resting. Return later." | The admin kill switch is off, or today's global spend ceiling (default $10, UTC day) is reached | Check `llmEnabled`, `daySpentMicroUsd` and `dailyCeilingMicroUsd` in `admin_llm_status`, or run `/llm stats` as admin. `/llm on` re-enables; `/llm ceiling <dollars>` changes the ceiling; the ceiling resets at UTC midnight |
 | Player sees "The Keeper grows weary of your demands. Return tomorrow." | That player hit the $1.00 or 200 call daily limit (UTC day) | Nothing to do; resets at UTC midnight |
 | `set-key.mjs` prints `key stored: unconfirmed` | The call was accepted but no `llm key set, len=<n>` line was found in the last 200 log lines | Check `spacetime logs uwr --server local` for errors and that the identity is an admin |
 | `set-key.mjs` prints `spacetime login token: not found` | Not logged in | Run `spacetime login` |
