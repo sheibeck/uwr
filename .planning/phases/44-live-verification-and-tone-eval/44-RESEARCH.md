@@ -540,8 +540,9 @@ el.textContent = item.output;          // never innerHTML
 | A7 | The user's Console workspace for this project is dedicated (runbook says it should be) so no unrelated usage pollutes the reconciliation window | Reconciliation | Unrelated usage inflates the Console total; ask the user at CP4 |
 | A8 | 50 ms is a long enough tiny timeout to fail every real fetch (Phase 39 used it) | Timeout drill | Use 1 ms; never needs a real key |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
+All are resolved in 44-PLANNING-NOTES.md: Q1 is item 1 (the user chose the scratch DB), Q2 is item 2, Q3 is item 3, Q4 is item 4, Q5 is item 5 and Q6 is item 6.
 1. **401 drill method (needs a user decision before planning is final).**
    - What we know: CONTEXT locks "set a bad key, then restore the real one with `set-key.mjs`". The phase's hard constraint is that the real key in `llm_config` is never overwritten.
    - What's unclear: whether the user meant the `uwr` DB or any local DB.
