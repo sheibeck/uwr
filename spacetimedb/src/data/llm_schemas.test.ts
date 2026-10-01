@@ -8,8 +8,10 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   RACE_SCHEMA,
-  CLASS_SCHEMA,
-  REGION_GENERATION_SCHEMA,
+  CLASS_REVEAL_SCHEMA,
+  CLASS_FILL_SCHEMA,
+  WORLD_START_SCHEMA,
+  REGION_FILL_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   LLM_JSON_SCHEMAS,
@@ -29,8 +31,10 @@ import {
 
 const ALL: Array<[string, any]> = [
   ['RACE_SCHEMA', RACE_SCHEMA],
-  ['CLASS_SCHEMA', CLASS_SCHEMA],
-  ['REGION_GENERATION_SCHEMA', REGION_GENERATION_SCHEMA],
+  ['CLASS_REVEAL_SCHEMA', CLASS_REVEAL_SCHEMA],
+  ['CLASS_FILL_SCHEMA', CLASS_FILL_SCHEMA],
+  ['WORLD_START_SCHEMA', WORLD_START_SCHEMA],
+  ['REGION_FILL_SCHEMA', REGION_FILL_SCHEMA],
   ['SKILL_GENERATION_SCHEMA', SKILL_GENERATION_SCHEMA],
   ['RENOWN_PERK_SCHEMA', RENOWN_PERK_SCHEMA],
 ];
@@ -49,10 +53,12 @@ describe('lint and determinism', () => {
 
   it('parameter counts per schema', () => {
     expect(countUnionParams(RACE_SCHEMA)).toBe(0);
-    expect(countUnionParams(CLASS_SCHEMA)).toBe(3);
+    expect(countUnionParams(CLASS_REVEAL_SCHEMA)).toBe(3);
+    expect(countUnionParams(CLASS_FILL_SCHEMA)).toBe(3);
     expect(countUnionParams(SKILL_GENERATION_SCHEMA)).toBe(4);
     expect(countUnionParams(RENOWN_PERK_SCHEMA)).toBe(6);
-    expect(countUnionParams(REGION_GENERATION_SCHEMA)).toBe(0);
+    expect(countUnionParams(WORLD_START_SCHEMA)).toBe(0);
+    expect(countUnionParams(REGION_FILL_SCHEMA)).toBe(0);
     for (const [, schema] of ALL) expect(countOptionalParams(schema)).toBe(0);
   });
 
@@ -70,16 +76,30 @@ describe('lint and determinism', () => {
   });
 
   it('spot-checks frozen nested nodes', () => {
-    const ability = (CLASS_SCHEMA as any).properties.abilities.items;
+    const ability = (CLASS_FILL_SCHEMA as any).properties.abilities.items;
     expect(Object.isFrozen(ability)).toBe(true);
     expect(Object.isFrozen(ability.properties.effectType.anyOf)).toBe(true);
+    const first = (CLASS_REVEAL_SCHEMA as any).properties.firstAbility;
+    expect(Object.isFrozen(first.properties.effectType.anyOf)).toBe(true);
+    expect(Object.isFrozen((WORLD_START_SCHEMA as any).properties.firstNpc.properties.personality.required)).toBe(true);
     expect(Object.isFrozen((SKILL_GENERATION_SCHEMA as any).properties.skills.items.required)).toBe(true);
   });
 
   it('LLM_JSON_SCHEMAS references the same frozen objects', () => {
     expect(LLM_JSON_SCHEMAS.race).toBe(RACE_SCHEMA);
-    expect(LLM_JSON_SCHEMAS.class).toBe(CLASS_SCHEMA);
-    expect(LLM_JSON_SCHEMAS.region).toBe(REGION_GENERATION_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.classReveal).toBe(CLASS_REVEAL_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.classFill).toBe(CLASS_FILL_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.worldStart).toBe(WORLD_START_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.regionFill).toBe(REGION_FILL_SCHEMA);
+    expect(Object.keys(LLM_JSON_SCHEMAS).sort()).toEqual([
+      'classFill',
+      'classReveal',
+      'race',
+      'regionFill',
+      'renown',
+      'skill',
+      'worldStart',
+    ]);
     expect(LLM_JSON_SCHEMAS.skill).toBe(SKILL_GENERATION_SCHEMA);
     expect(LLM_JSON_SCHEMAS.renown).toBe(RENOWN_PERK_SCHEMA);
     expect(Object.isFrozen(LLM_JSON_SCHEMAS)).toBe(true);
@@ -108,18 +128,24 @@ describe('enums are subsets of the mechanical vocabulary', () => {
 
   it('class enums come from the vocabulary', () => {
     const stats = ['stats'];
-    expect(sorted(enumAt(CLASS_SCHEMA, ...stats, 'primaryStat'))).toEqual(sorted(STAT_TYPES));
-    expect(sorted(enumAt(CLASS_SCHEMA, ...stats, 'secondaryStat'))).toEqual(sorted([...STAT_TYPES, 'none']));
-    expect(sorted(enumAt(CLASS_SCHEMA, ...stats, 'weaponProficiencies'))).toEqual(sorted(WEAPON_TYPES));
-    expect(sorted(enumAt(CLASS_SCHEMA, ...stats, 'armorProficiencies'))).toEqual(
+    expect(sorted(enumAt(CLASS_FILL_SCHEMA, ...stats, 'primaryStat'))).toEqual(sorted(STAT_TYPES));
+    expect(sorted(enumAt(CLASS_FILL_SCHEMA, ...stats, 'secondaryStat'))).toEqual(sorted([...STAT_TYPES, 'none']));
+    expect(sorted(enumAt(CLASS_FILL_SCHEMA, ...stats, 'weaponProficiencies'))).toEqual(sorted(WEAPON_TYPES));
+    expect(sorted(enumAt(CLASS_FILL_SCHEMA, ...stats, 'armorProficiencies'))).toEqual(
       sorted(ARMOR_TYPES.filter((a) => a !== 'shield')),
     );
-    const ab = ['abilities', '[]'];
-    expect(sorted(enumAt(CLASS_SCHEMA, ...ab, 'kind'))).toEqual(sorted(ABILITY_KINDS));
-    expect(sorted(enumAt(CLASS_SCHEMA, ...ab, 'damageType'))).toEqual(sorted(DAMAGE_TYPES));
-    expect(sorted(enumAt(CLASS_SCHEMA, ...ab, 'scaling'))).toEqual(sorted(STAT_TYPES));
-    subset(enumAt(CLASS_SCHEMA, ...ab, 'targetRule'), TARGET_RULES);
-    subset(enumAt(CLASS_SCHEMA, ...ab, 'resourceType'), RESOURCE_TYPES);
+    const fillAb = ['abilities', '[]'];
+    const revealAb = ['firstAbility'];
+    for (const [schema, ab] of [
+      [CLASS_FILL_SCHEMA, fillAb],
+      [CLASS_REVEAL_SCHEMA, revealAb],
+    ] as Array<[any, string[]]>) {
+      expect(sorted(enumAt(schema, ...ab, 'kind'))).toEqual(sorted(ABILITY_KINDS));
+      expect(sorted(enumAt(schema, ...ab, 'damageType'))).toEqual(sorted(DAMAGE_TYPES));
+      expect(sorted(enumAt(schema, ...ab, 'scaling'))).toEqual(sorted(STAT_TYPES));
+      subset(enumAt(schema, ...ab, 'targetRule'), TARGET_RULES);
+      subset(enumAt(schema, ...ab, 'resourceType'), RESOURCE_TYPES);
+    }
   });
 
   it('skill enums come from the vocabulary', () => {
@@ -145,7 +171,7 @@ describe('enums are subsets of the mechanical vocabulary', () => {
   });
 
   it('race, class, skill and renown schemas contain no non-vocabulary values (holy, lightning, stun)', () => {
-    for (const schema of [RACE_SCHEMA, CLASS_SCHEMA, SKILL_GENERATION_SCHEMA, RENOWN_PERK_SCHEMA]) {
+    for (const schema of [RACE_SCHEMA, CLASS_REVEAL_SCHEMA, CLASS_FILL_SCHEMA, SKILL_GENERATION_SCHEMA, RENOWN_PERK_SCHEMA]) {
       const enums: string[] = [];
       const walk = (n: any) => {
         if (Array.isArray(n)) return n.forEach(walk);
@@ -202,8 +228,107 @@ describe('removed v2.0 prompt builders', () => {
   });
 });
 
+describe('staged generation schemas (Plan 43-04)', () => {
+  const props = (schema: any) => Object.keys(schema.properties);
+
+  it('WORLD_START_SCHEMA requires exactly the five reveal fields', () => {
+    expect((WORLD_START_SCHEMA as any).required).toEqual([
+      'regionName',
+      'regionDescription',
+      'biome',
+      'startLocation',
+      'firstNpc',
+    ]);
+    expect((WORLD_START_SCHEMA as any).additionalProperties).toBe(false);
+  });
+
+  it('WORLD_START_SCHEMA is the smallest reveal: no landmarks, threats, enemies, extra locations or isSafe', () => {
+    for (const key of ['landmarks', 'threats', 'enemies', 'locations', 'npcs', 'dominantFaction']) {
+      expect(props(WORLD_START_SCHEMA)).not.toContain(key);
+    }
+    const loc = (WORLD_START_SCHEMA as any).properties.startLocation;
+    expect(loc.required).toEqual(['name', 'description', 'terrainType', 'levelOffset']);
+    expect(loc.properties.terrainType.enum).toEqual(['mountains', 'woods', 'plains', 'swamp', 'dungeon', 'town', 'city']);
+    expect(props(loc)).not.toContain('isSafe');
+    expect(props(loc)).not.toContain('connectsTo');
+  });
+
+  it('firstNpc keeps the male/female gender enum right after name and has no locationName', () => {
+    const npc = (WORLD_START_SCHEMA as any).properties.firstNpc;
+    expect(npc.properties.gender).toEqual({ type: 'string', enum: ['male', 'female'] });
+    expect(npc.required[0]).toBe('name');
+    expect(npc.required[1]).toBe('gender');
+    expect(props(npc)).not.toContain('locationName');
+    expect(npc.required).toEqual(['name', 'gender', 'npcType', 'description', 'greeting', 'personality']);
+    expect(npc.properties.personality.required).toEqual([
+      'traits',
+      'speechPattern',
+      'knowledgeDomains',
+      'secrets',
+      'affinityMultiplier',
+    ]);
+  });
+
+  it('biome enum is the existing ten values on the start schema', () => {
+    expect((WORLD_START_SCHEMA as any).properties.biome.enum).toEqual([
+      'volcanic',
+      'forest',
+      'tundra',
+      'desert',
+      'swamp',
+      'mountains',
+      'plains',
+      'coastal',
+      'cavern',
+      'ruins',
+    ]);
+  });
+
+  it('REGION_FILL_SCHEMA has no regionName, regionDescription or biome and requires NPC gender', () => {
+    expect((REGION_FILL_SCHEMA as any).required).toEqual([
+      'dominantFaction',
+      'landmarks',
+      'threats',
+      'locations',
+      'npcs',
+      'enemies',
+    ]);
+    for (const key of ['regionName', 'regionDescription', 'biome']) {
+      expect(props(REGION_FILL_SCHEMA)).not.toContain(key);
+    }
+    const item = (REGION_FILL_SCHEMA as any).properties.npcs.items;
+    expect(item.properties.gender).toEqual({ type: 'string', enum: ['male', 'female'] });
+    expect(item.required[0]).toBe('name');
+    expect(item.required[1]).toBe('gender');
+    expect(item.required).toContain('locationName');
+    const loc = (REGION_FILL_SCHEMA as any).properties.locations.items;
+    expect(loc.required).toEqual(['name', 'description', 'terrainType', 'isSafe', 'levelOffset', 'connectsTo']);
+  });
+
+  it('CLASS_REVEAL_SCHEMA carries no stats and exactly one ability object', () => {
+    expect((CLASS_REVEAL_SCHEMA as any).required).toEqual(['className', 'classDescription', 'firstAbility']);
+    expect(props(CLASS_REVEAL_SCHEMA)).not.toContain('stats');
+    expect(props(CLASS_REVEAL_SCHEMA)).not.toContain('abilities');
+    expect((CLASS_REVEAL_SCHEMA as any).properties.firstAbility.type).toBe('object');
+  });
+
+  it('CLASS_FILL_SCHEMA has stats and an abilities array of the same ability item', () => {
+    expect((CLASS_FILL_SCHEMA as any).required).toEqual(['stats', 'abilities']);
+    const abilities = (CLASS_FILL_SCHEMA as any).properties.abilities;
+    expect(abilities.type).toBe('array');
+    expect(abilities.description).toContain('Exactly 2');
+    expect(abilities.items).toEqual((CLASS_REVEAL_SCHEMA as any).properties.firstAbility);
+  });
+
+  it('the old one-shot schemas are gone', () => {
+    const src = readFileSync(join(REPO_ROOT, 'spacetimedb/src/data/llm_schemas.ts'), 'utf8');
+    expect(src).not.toContain('REGION_GENERATION_SCHEMA');
+    expect(src).not.toMatch(/export const CLASS_SCHEMA/);
+  });
+});
+
 describe('region npc gender (Plan 41-18, PR-02)', () => {
-  const item = (REGION_GENERATION_SCHEMA as any).properties.npcs.items;
+  const item = (REGION_FILL_SCHEMA as any).properties.npcs.items;
 
   it('requires a male/female gender enum right after name', () => {
     expect(item.properties.gender).toEqual({ type: 'string', enum: ['male', 'female'] });
@@ -212,9 +337,11 @@ describe('region npc gender (Plan 41-18, PR-02)', () => {
   });
 
   it('still lints clean with no optional or union parameters', () => {
-    expect(lintSchema(REGION_GENERATION_SCHEMA)).toEqual([]);
-    expect(countOptionalParams(REGION_GENERATION_SCHEMA)).toBe(0);
-    expect(countUnionParams(REGION_GENERATION_SCHEMA)).toBe(0);
+    for (const schema of [REGION_FILL_SCHEMA, WORLD_START_SCHEMA]) {
+      expect(lintSchema(schema)).toEqual([]);
+      expect(countOptionalParams(schema)).toBe(0);
+      expect(countUnionParams(schema)).toBe(0);
+    }
   });
 
   it('RACE_SCHEMA raceName speaks of the player, not a singular they', () => {

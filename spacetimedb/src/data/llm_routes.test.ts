@@ -3,17 +3,21 @@ import { CLAUDE_MODEL, ANTHROPIC_MAX_TIMEOUT_MS, ANTHROPIC_VERSION, ANTHROPIC_ME
 import { LLM_ROUTE_NAMES, LLM_ROUTES, validateRoutes, isLlmRoute, type LlmRoute } from './llm_routes';
 import {
   RACE_SCHEMA,
-  CLASS_SCHEMA,
-  REGION_GENERATION_SCHEMA,
+  CLASS_REVEAL_SCHEMA,
+  CLASS_FILL_SCHEMA,
+  WORLD_START_SCHEMA,
+  REGION_FILL_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
 } from './llm_schemas';
 import { lintSchema } from '../helpers/schema_lint';
 
 const LOCKED_MAX_TOKENS: Record<LlmRoute, number> = {
-  world_gen: 8192,
   creation_race: 4096,
+  creation_class_reveal: 2048,
   creation_class: 4096,
+  world_gen_start: 4096,
+  world_gen: 8192,
   skill_gen: 4096,
   renown_perk_gen: 2048,
   npc_conversation: 1024,
@@ -23,8 +27,10 @@ const LOCKED_MAX_TOKENS: Record<LlmRoute, number> = {
 
 const JSON_SCHEMAS: Partial<Record<LlmRoute, object>> = {
   creation_race: RACE_SCHEMA,
-  creation_class: CLASS_SCHEMA,
-  world_gen: REGION_GENERATION_SCHEMA,
+  creation_class_reveal: CLASS_REVEAL_SCHEMA,
+  creation_class: CLASS_FILL_SCHEMA,
+  world_gen_start: WORLD_START_SCHEMA,
+  world_gen: REGION_FILL_SCHEMA,
   skill_gen: SKILL_GENERATION_SCHEMA,
   renown_perk_gen: RENOWN_PERK_SCHEMA,
 };
@@ -46,9 +52,21 @@ describe('llm_models', () => {
 });
 
 describe('LLM_ROUTES', () => {
-  it('has eight unique route names matching the table keys', () => {
-    expect(LLM_ROUTE_NAMES).toHaveLength(8);
-    expect(new Set(LLM_ROUTE_NAMES).size).toBe(8);
+  it('has ten unique route names in the fixed order matching the table keys', () => {
+    expect([...LLM_ROUTE_NAMES]).toEqual([
+      'creation_race',
+      'creation_class_reveal',
+      'creation_class',
+      'world_gen_start',
+      'world_gen',
+      'skill_gen',
+      'npc_conversation',
+      'combat_narration',
+      'renown_perk_gen',
+      'smoke_test',
+    ]);
+    expect(LLM_ROUTE_NAMES).toHaveLength(10);
+    expect(new Set(LLM_ROUTE_NAMES).size).toBe(10);
     expect(Object.keys(LLM_ROUTES).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
@@ -100,6 +118,13 @@ describe('LLM_ROUTES', () => {
   it('is valid', () => {
     expect(validateRoutes(LLM_ROUTES)).toEqual([]);
   });
+
+  it('stage timeouts follow the contract', () => {
+    expect(LLM_ROUTES.creation_class_reveal.timeoutMs).toBe(60_000);
+    expect(LLM_ROUTES.creation_class.timeoutMs).toBe(90_000);
+    expect(LLM_ROUTES.world_gen_start.timeoutMs).toBe(90_000);
+    expect(LLM_ROUTES.world_gen.timeoutMs).toBe(150_000);
+  });
 });
 
 describe('validateRoutes', () => {
@@ -116,7 +141,7 @@ describe('validateRoutes', () => {
 
   it('reports every route missing on an empty table', () => {
     const problems = validateRoutes({});
-    expect(problems).toHaveLength(8);
+    expect(problems).toHaveLength(10);
     for (const name of LLM_ROUTE_NAMES) expect(problems).toContain(`${name}: missing route`);
   });
 

@@ -1,24 +1,14 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`lint and determinism > CLASS_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+exports[`lint and determinism > CLASS_FILL_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
 "{
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "className",
-    "classDescription",
     "stats",
     "abilities"
   ],
   "properties": {
-    "className": {
-      "type": "string",
-      "description": "1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' -- NOT 'Mire-Crowned Gatebreaker')"
-    },
-    "classDescription": {
-      "type": "string",
-      "description": "2-3 sentences of sardonic class description"
-    },
     "stats": {
       "type": "object",
       "additionalProperties": false,
@@ -250,7 +240,179 @@ exports[`lint and determinism > CLASS_SCHEMA serialization is deterministic and 
           }
         }
       },
-      "description": "Exactly 3 abilities"
+      "description": "Exactly 2 more abilities"
+    }
+  }
+}"
+`;
+
+exports[`lint and determinism > CLASS_REVEAL_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "className",
+    "classDescription",
+    "firstAbility"
+  ],
+  "properties": {
+    "className": {
+      "type": "string",
+      "description": "1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' -- NOT 'Mire-Crowned Gatebreaker')"
+    },
+    "classDescription": {
+      "type": "string",
+      "description": "2-3 sentences of sardonic class description"
+    },
+    "firstAbility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "kind",
+        "damageType",
+        "targetRule",
+        "resourceType",
+        "resourceCost",
+        "castSeconds",
+        "cooldownSeconds",
+        "value1",
+        "scaling",
+        "effectType",
+        "effectMagnitude",
+        "effectDuration"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "2-3 words max, punchy action name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Sardonic description of the ability"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "damage",
+            "heal",
+            "dot",
+            "hot",
+            "buff",
+            "debuff",
+            "shield",
+            "taunt",
+            "aoe_damage",
+            "aoe_heal",
+            "summon",
+            "cc",
+            "drain",
+            "execute",
+            "utility",
+            "song",
+            "aura",
+            "travel",
+            "fear",
+            "bandage",
+            "potion",
+            "food_summon",
+            "resurrect",
+            "group_heal",
+            "craft_boost",
+            "gather_boost",
+            "pet_command"
+          ]
+        },
+        "damageType": {
+          "type": "string",
+          "enum": [
+            "physical",
+            "arcane",
+            "divine",
+            "nature",
+            "fire",
+            "ice",
+            "shadow",
+            "none"
+          ]
+        },
+        "targetRule": {
+          "type": "string",
+          "enum": [
+            "single_enemy",
+            "single_ally",
+            "self"
+          ]
+        },
+        "resourceType": {
+          "type": "string",
+          "enum": [
+            "mana",
+            "stamina",
+            "none"
+          ]
+        },
+        "resourceCost": {
+          "type": "number",
+          "description": "Mana abilities: 10-30, stamina abilities: 5-15, 0 for 'none' resource type"
+        },
+        "castSeconds": {
+          "type": "number",
+          "description": "Cast time in seconds. Mana abilities MUST be >= 1 (use 1-3). Only stamina/physical abilities can be 0 (instant)."
+        },
+        "cooldownSeconds": {
+          "type": "number",
+          "description": "4-12"
+        },
+        "value1": {
+          "type": "number",
+          "description": "8-15 for level 1, primary power value"
+        },
+        "scaling": {
+          "type": "string",
+          "enum": [
+            "str",
+            "dex",
+            "int",
+            "wis",
+            "cha"
+          ]
+        },
+        "effectType": {
+          "description": "For dot/hot/buff/debuff kinds (e.g. dot, regen, str_bonus, armor_down, stun). null for damage/heal.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effectMagnitude": {
+          "description": "Effect strength per tick. null for damage/heal.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effectDuration": {
+          "description": "Duration in seconds. Combat rounds are 3s, so dot/hot/buff/debuff need 9-12 for 3-4 ticks. Stun uses 3. null for damage/heal.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     }
   }
 }"
@@ -341,14 +503,11 @@ exports[`lint and determinism > RACE_SCHEMA serialization is deterministic and m
 }"
 `;
 
-exports[`lint and determinism > REGION_GENERATION_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
 "{
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "regionName",
-    "regionDescription",
-    "biome",
     "dominantFaction",
     "landmarks",
     "threats",
@@ -357,27 +516,6 @@ exports[`lint and determinism > REGION_GENERATION_SCHEMA serialization is determ
     "enemies"
   ],
   "properties": {
-    "regionName": {
-      "type": "string"
-    },
-    "regionDescription": {
-      "type": "string"
-    },
-    "biome": {
-      "type": "string",
-      "enum": [
-        "volcanic",
-        "forest",
-        "tundra",
-        "desert",
-        "swamp",
-        "mountains",
-        "plains",
-        "coastal",
-        "cavern",
-        "ruins"
-      ]
-    },
     "dominantFaction": {
       "type": "string"
     },
@@ -972,6 +1110,155 @@ exports[`lint and determinism > SKILL_GENERATION_SCHEMA serialization is determi
                 "type": "null"
               }
             ]
+          }
+        }
+      }
+    }
+  }
+}"
+`;
+
+exports[`lint and determinism > WORLD_START_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "regionName",
+    "regionDescription",
+    "biome",
+    "startLocation",
+    "firstNpc"
+  ],
+  "properties": {
+    "regionName": {
+      "type": "string"
+    },
+    "regionDescription": {
+      "type": "string"
+    },
+    "biome": {
+      "type": "string",
+      "enum": [
+        "volcanic",
+        "forest",
+        "tundra",
+        "desert",
+        "swamp",
+        "mountains",
+        "plains",
+        "coastal",
+        "cavern",
+        "ruins"
+      ]
+    },
+    "startLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "terrainType",
+        "levelOffset"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "terrainType": {
+          "type": "string",
+          "enum": [
+            "mountains",
+            "woods",
+            "plains",
+            "swamp",
+            "dungeon",
+            "town",
+            "city"
+          ]
+        },
+        "levelOffset": {
+          "type": "integer"
+        }
+      }
+    },
+    "firstNpc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "gender",
+        "npcType",
+        "description",
+        "greeting",
+        "personality"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "gender": {
+          "type": "string",
+          "enum": [
+            "male",
+            "female"
+          ]
+        },
+        "npcType": {
+          "type": "string",
+          "enum": [
+            "vendor",
+            "questgiver",
+            "lore",
+            "trainer",
+            "guard",
+            "crafter",
+            "banker"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "greeting": {
+          "type": "string"
+        },
+        "personality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "traits",
+            "speechPattern",
+            "knowledgeDomains",
+            "secrets",
+            "affinityMultiplier"
+          ],
+          "properties": {
+            "traits": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "speechPattern": {
+              "type": "string"
+            },
+            "knowledgeDomains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "secrets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "affinityMultiplier": {
+              "type": "number"
+            }
           }
         }
       }

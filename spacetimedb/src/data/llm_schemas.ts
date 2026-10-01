@@ -1,5 +1,5 @@
 // ============================================================================
-// JSON Schemas for the five Claude JSON routes (pure module)
+// JSON Schemas for the Claude JSON routes (pure module)
 // ============================================================================
 //
 // Every schema is built ONCE at module load and deep-frozen: Anthropic caches
@@ -7,8 +7,13 @@
 // rebuilt or mutated per request would defeat the cache (RESEARCH Pitfall 5).
 //
 // Enums come from mechanical_vocabulary (the server is the source of truth).
-// The region schema is the proven Phase 39 spike schema and keeps its own
-// biome/npcType enums.
+// The region schemas keep the proven Phase 39 spike enums (biome, npcType, ...).
+//
+// Staged generation (Phase 43): class creation and world generation each run
+// as two requests. The stage-1 schema is the smallest one that serves the
+// reveal (WORLD_START_SCHEMA, CLASS_REVEAL_SCHEMA); the stage-2 schema fills in
+// the rest (REGION_FILL_SCHEMA, CLASS_FILL_SCHEMA). Stage 1 facts reach stage 2
+// only through the volatile user message.
 //
 // Structured-output subset: no numeric/string bounds, no array-valued `type`,
 // nullable fields are `anyOf: [X, { type: 'null' }]`. See helpers/schema_lint.ts.
@@ -83,7 +88,7 @@ export const RACE_SCHEMA: Node = deepFreeze(
 );
 
 // ----------------------------------------------------------------------------
-// Class generation
+// Class generation (two stages)
 // ----------------------------------------------------------------------------
 
 const CLASS_ABILITY: Node = obj({
@@ -108,94 +113,140 @@ const CLASS_ABILITY: Node = obj({
   ),
 });
 
-export const CLASS_SCHEMA: Node = deepFreeze(
+const CLASS_STATS: Node = obj({
+  primaryStat: STATS,
+  secondaryStat: enumOf([...STAT_TYPES, 'none']),
+  bonusHp: num('0-20, warrior types get more'),
+  bonusMana: num('0-30, mystic types get more'),
+  weaponProficiencies: {
+    type: 'array',
+    items: enumOf(WEAPON_TYPES),
+    description: '2-4 allowed weapon types that fit the class fantasy',
+  },
+  armorProficiencies: {
+    type: 'array',
+    items: enumOf(ARMOR_TYPES.filter((a) => a !== 'shield')),
+    description: '1-2 allowed armor types; warriors get heavier, mystics get lighter',
+  },
+  usesMana: BOOL,
+});
+
+/** Stage 1: the name, the description and the first ability, so the player sees the class fast. */
+export const CLASS_REVEAL_SCHEMA: Node = deepFreeze(
   obj({
     className: str(
       "1-2 words, no adjective phrases (e.g. 'Gatebreaker', 'Pyroclast', 'Voidcaller' -- NOT 'Mire-Crowned Gatebreaker')",
     ),
     classDescription: str('2-3 sentences of sardonic class description'),
-    stats: obj({
-      primaryStat: STATS,
-      secondaryStat: enumOf([...STAT_TYPES, 'none']),
-      bonusHp: num('0-20, warrior types get more'),
-      bonusMana: num('0-30, mystic types get more'),
-      weaponProficiencies: {
-        type: 'array',
-        items: enumOf(WEAPON_TYPES),
-        description: '2-4 allowed weapon types that fit the class fantasy',
-      },
-      armorProficiencies: {
-        type: 'array',
-        items: enumOf(ARMOR_TYPES.filter((a) => a !== 'shield')),
-        description: '1-2 allowed armor types; warriors get heavier, mystics get lighter',
-      },
-      usesMana: BOOL,
-    }),
-    abilities: { type: 'array', items: CLASS_ABILITY, description: 'Exactly 3 abilities' },
+    firstAbility: CLASS_ABILITY,
+  }),
+);
+
+/** Stage 2: the stats and the two remaining abilities, for the class stage 1 already named. */
+export const CLASS_FILL_SCHEMA: Node = deepFreeze(
+  obj({
+    stats: CLASS_STATS,
+    abilities: { type: 'array', items: CLASS_ABILITY, description: 'Exactly 2 more abilities' },
   }),
 );
 
 // ----------------------------------------------------------------------------
-// Region generation (Phase 39 spike schema plus the NPC gender enum (Plan 41-18); compiled live on Sonnet 5.5)
+// World generation (two stages; Phase 39 spike schema plus the NPC gender enum (Plan 41-18); compiled live on Sonnet 5.5)
 // ----------------------------------------------------------------------------
 
-const REGION_CORE_PROPS: Record<string, Node> = {
-  regionName: S,
-  regionDescription: S,
-  biome: {
-    type: 'string',
-    enum: ['volcanic', 'forest', 'tundra', 'desert', 'swamp', 'mountains', 'plains', 'coastal', 'cavern', 'ruins'],
-  },
-  dominantFaction: S,
-  landmarks: strs,
-  threats: strs,
-  locations: {
-    type: 'array',
-    items: obj({
-      name: S,
-      description: S,
-      terrainType: { type: 'string', enum: ['mountains', 'woods', 'plains', 'swamp', 'dungeon', 'town', 'city'] },
-      isSafe: BOOL,
-      levelOffset: INT,
-      connectsTo: strs,
-    }),
-  },
+const REGION_BIOME: Node = {
+  type: 'string',
+  enum: ['volcanic', 'forest', 'tundra', 'desert', 'swamp', 'mountains', 'plains', 'coastal', 'cavern', 'ruins'],
 };
 
-const REGION_POPULATION_PROPS: Record<string, Node> = {
-  npcs: {
-    type: 'array',
-    items: obj({
+const LOCATION_TERRAIN: Node = {
+  type: 'string',
+  enum: ['mountains', 'woods', 'plains', 'swamp', 'dungeon', 'town', 'city'],
+};
+
+const NPC_TYPE: Node = {
+  type: 'string',
+  enum: ['vendor', 'questgiver', 'lore', 'trainer', 'guard', 'crafter', 'banker'],
+};
+
+const NPC_PERSONALITY: Node = obj({
+  traits: strs,
+  speechPattern: S,
+  knowledgeDomains: strs,
+  secrets: strs,
+  affinityMultiplier: NUM,
+});
+
+/** A region location with its safety flag and the names it connects to (stage 2). */
+const LOCATION_ITEM: Node = obj({
+  name: S,
+  description: S,
+  terrainType: LOCATION_TERRAIN,
+  isSafe: BOOL,
+  levelOffset: INT,
+  connectsTo: strs,
+});
+
+/** A region NPC with the location they stand in (stage 2). */
+const REGION_NPC_ITEM: Node = obj({
+  name: S,
+  gender: enumOf(NPC_GENDERS),
+  npcType: NPC_TYPE,
+  locationName: S,
+  description: S,
+  greeting: S,
+  personality: NPC_PERSONALITY,
+});
+
+const ENEMY_ITEM: Node = obj({
+  name: S,
+  creatureType: { type: 'string', enum: ['beast', 'undead', 'humanoid', 'elemental', 'construct', 'aberration'] },
+  role: { type: 'string', enum: ['melee', 'ranged', 'caster'] },
+  terrainTypes: S,
+  groupMin: INT,
+  groupMax: INT,
+  level: INT,
+});
+
+/**
+ * Stage 1: the region's name and look, the safe place a traveler arrives and
+ * the first person met there. The start location is always safe (the bind
+ * stone and crafting go there), so it has no isSafe and no connectsTo; the
+ * first NPC always stands in the start location, so it has no locationName.
+ */
+export const WORLD_START_SCHEMA: Node = deepFreeze(
+  obj({
+    regionName: S,
+    regionDescription: S,
+    biome: REGION_BIOME,
+    startLocation: obj({
+      name: S,
+      description: S,
+      terrainType: LOCATION_TERRAIN,
+      levelOffset: INT,
+    }),
+    firstNpc: obj({
       name: S,
       gender: enumOf(NPC_GENDERS),
-      npcType: { type: 'string', enum: ['vendor', 'questgiver', 'lore', 'trainer', 'guard', 'crafter', 'banker'] },
-      locationName: S,
+      npcType: NPC_TYPE,
       description: S,
       greeting: S,
-      personality: obj({
-        traits: strs,
-        speechPattern: S,
-        knowledgeDomains: strs,
-        secrets: strs,
-        affinityMultiplier: NUM,
-      }),
+      personality: NPC_PERSONALITY,
     }),
-  },
-  enemies: {
-    type: 'array',
-    items: obj({
-      name: S,
-      creatureType: { type: 'string', enum: ['beast', 'undead', 'humanoid', 'elemental', 'construct', 'aberration'] },
-      role: { type: 'string', enum: ['melee', 'ranged', 'caster'] },
-      terrainTypes: S,
-      groupMin: INT,
-      groupMax: INT,
-      level: INT,
-    }),
-  },
-};
+  }),
+);
 
-export const REGION_GENERATION_SCHEMA: Node = deepFreeze(obj({ ...REGION_CORE_PROPS, ...REGION_POPULATION_PROPS }));
+/** Stage 2: everything else in the region, for the region and arrival point stage 1 already named. */
+export const REGION_FILL_SCHEMA: Node = deepFreeze(
+  obj({
+    dominantFaction: S,
+    landmarks: strs,
+    threats: strs,
+    locations: { type: 'array', items: LOCATION_ITEM },
+    npcs: { type: 'array', items: REGION_NPC_ITEM },
+    enemies: { type: 'array', items: ENEMY_ITEM },
+  }),
+);
 
 // ----------------------------------------------------------------------------
 // Skill generation (the inner schema of the legacy buildSkillGenResponseFormat)
@@ -268,8 +319,10 @@ export const RENOWN_PERK_SCHEMA: Node = deepFreeze(
 
 export const LLM_JSON_SCHEMAS = deepFreeze({
   race: RACE_SCHEMA,
-  class: CLASS_SCHEMA,
-  region: REGION_GENERATION_SCHEMA,
+  classReveal: CLASS_REVEAL_SCHEMA,
+  classFill: CLASS_FILL_SCHEMA,
+  worldStart: WORLD_START_SCHEMA,
+  regionFill: REGION_FILL_SCHEMA,
   skill: SKILL_GENERATION_SCHEMA,
   renown: RENOWN_PERK_SCHEMA,
 });

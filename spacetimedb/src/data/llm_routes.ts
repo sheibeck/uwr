@@ -7,6 +7,10 @@
 // CONTEXT; timeouts are recommendations that may be tuned in Phase 43 but must
 // never exceed ANTHROPIC_MAX_TIMEOUT_MS.
 //
+// Staged generation (Phase 43): creation_class_reveal and world_gen_start are
+// the stage-1 routes (small schema, fast reveal); creation_class and world_gen
+// are the stage-2 fill routes that complete the class and the region.
+//
 // npc_conversation is a text route: it is prompt-instructed JSON parsed by the
 // existing tolerant extractor (no output_config.format).
 // ============================================================================
@@ -14,8 +18,10 @@
 import { CLAUDE_MODEL, ANTHROPIC_MAX_TIMEOUT_MS } from './llm_models';
 import {
   RACE_SCHEMA,
-  CLASS_SCHEMA,
-  REGION_GENERATION_SCHEMA,
+  CLASS_REVEAL_SCHEMA,
+  CLASS_FILL_SCHEMA,
+  WORLD_START_SCHEMA,
+  REGION_FILL_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   deepFreeze,
@@ -23,7 +29,9 @@ import {
 
 export const LLM_ROUTE_NAMES = [
   'creation_race',
+  'creation_class_reveal',
   'creation_class',
+  'world_gen_start',
   'world_gen',
   'skill_gen',
   'npc_conversation',
@@ -62,8 +70,10 @@ function route(maxTokens: number, timeoutMs: number, output: RouteConfig['output
 
 export const LLM_ROUTES: Readonly<Record<LlmRoute, RouteConfig>> = deepFreeze({
   creation_race: route(4096, 90_000, { kind: 'json', schema: RACE_SCHEMA }),
-  creation_class: route(4096, 90_000, { kind: 'json', schema: CLASS_SCHEMA }),
-  world_gen: route(8192, 150_000, { kind: 'json', schema: REGION_GENERATION_SCHEMA }),
+  creation_class_reveal: route(2048, 60_000, { kind: 'json', schema: CLASS_REVEAL_SCHEMA }),
+  creation_class: route(4096, 90_000, { kind: 'json', schema: CLASS_FILL_SCHEMA }),
+  world_gen_start: route(4096, 90_000, { kind: 'json', schema: WORLD_START_SCHEMA }),
+  world_gen: route(8192, 150_000, { kind: 'json', schema: REGION_FILL_SCHEMA }),
   skill_gen: route(4096, 60_000, { kind: 'json', schema: SKILL_GENERATION_SCHEMA }),
   npc_conversation: route(1024, 30_000, { kind: 'text' }),
   combat_narration: route(1024, 20_000, { kind: 'text' }),
