@@ -524,27 +524,29 @@ All fields required (no optional params), nullable via `anyOf` only where the ex
 | A7 | Timeout rule `max(30 s, 4 x measured p99 latency)` for the new routes | Effort Sweep | Too tight a timeout fails a slow but valid call (no auto-retry on creation and world routes); the sweep records latency so it can be loosened |
 | A8 | Dollar figures in this file use the current Sonnet 5.5 price table | Standard Stack | Verified against the docs on 2026-09-30; a later price change needs the one constant updated |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **View vs reducer for `/llm stats`**
+All five are resolved in 43-PLANNING-NOTES.md. The plans follow those resolutions.
+
+1. **RESOLVED: View vs reducer for `/llm stats`** (reducer scan with a plain-text system event (planning note 1))
    - What we know: CONTEXT says "an admin-only view aggregates `llm_call_log`" and "prints as a table in the log". Views cannot scan; `llm_call_log` has no route/time index; a client must still format the rows into console text; the no-clear probe shows an added index is safe.
    - What's unclear: whether the user cares about the mechanism or only the outcome.
    - Recommendation: reducer scan plus a private `system` event line (one tx, no standing subscription, no index change). State the interpretation in the plan; if the planner wants the literal view, add `by_route` and make the view return per-route rows.
 
-2. **Retention of `llm_call_log` and `llm_job`**
+2. **RESOLVED: Retention of `llm_call_log` and `llm_job`** (accept for now; retention todo stays open (planning note: accepted))
    - What we know: neither is pruned (Phase 42 left a retention todo); `/llm stats` iterates all call-log rows in one reducer.
    - What's unclear: when the table becomes large enough to matter (thousands of rows is fine for one reducer call).
    - Recommendation: accept now; the stats code should not assume row order and the plan can add the existing retention todo reference. Do not add pruning in this phase.
 
-3. **Where the committed measurements live**
+3. **RESOLVED: Where the committed measurements live** (spacetimedb/src/data/llm_measurements.json, not the phase directory (planning note 3))
    - What we know: CONTEXT says "committed to a measurements file in the phase directory"; a unit test that reads it for traceability would break if the phase directory is archived by the milestone cleanup.
    - Recommendation: keep `43-measurements.json` in the phase directory as the canonical record (per CONTEXT) and have the traceability test read it from there. To survive archival, either also commit an identical copy under `spacetimedb/src/data/` that the test reads instead (and a second assertion that the two files are byte-equal while the phase directory exists), or note in the plan that archival must move the file and update the test path together. The planner should pick one and write it into the plan.
 
-4. **Who runs the paid sweep**
+4. **RESOLVED: Who runs the paid sweep** (checkpoint:human-verify with cost approval (planning note 4))
    - What we know: the user deferred live proofs and the sweep costs about $1; research made no live call. The harness reads the key from `spacetimedb/.env.local` inside its own process, which the user must have set up.
    - Recommendation: make the sweep a `checkpoint:human-verify` (cost approval and key presence) before it runs, and make every plan before it independent of its results (route values land in a later plan that consumes the file).
 
-5. **Unsure: should `submit_intent`'s `/` branch run the admin commands?**
+5. **RESOLVED: Unsure: should `submit_intent`'s `/` branch run the admin commands?** (submit_command only (planning note 5))
    - What we know: it currently only logs a command row; `/synccontent` and `/unlockrace` live in `submit_command` and the client uses that path.
    - Recommendation: handle `/llm` in `submit_command`; low-cost parity in `submit_intent` is optional.
 
