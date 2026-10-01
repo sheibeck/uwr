@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
 status: executing
-stopped_at: Completed 43-05-PLAN.md
-last_updated: "2026-10-01T02:23:18.085Z"
+stopped_at: Completed 43-06-PLAN.md
+last_updated: "2026-10-01T02:30:07.748Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 43 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 63
-  completed_plans: 51
+  completed_plans: 52
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 43 (Latency Tuning, Staged Generation and Budget) — EXECUTING
-Plan: 6 of 15
+Plan: 7 of 15
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 43 execution started
 
-Progress: [████████░░] 81% (2/6 phases)
+Progress: [████████░░] 83% (2/6 phases)
 
 ## Previous Milestones
 
@@ -104,6 +104,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 43-02: /llm stats aggregation is pure (imports only ./measurement); p50/p95 over ok calls only, money and latency truncate; route names stripped of [ ] < > { } for the v-html console
 - [Phase ?]: 43-03: claim-time halted/ceiling end a pending job as failed (not expired) through failAtClaim so applyLlmFailure releases the domain lock; one shared resting line, public bucket unavailable
 - [Phase ?]: 43-04: stage-1 schemas are the smallest reveal (no isSafe on the start location, no locationName on the first NPC); stage-2 builders tolerate older stored inputs so apply, executor and cutover suites stay green unchanged
+- [Phase ?]: [43-06] Smoke test checks kill switch then today's held spend plus all smoke reservations against the ceiling (exactly at ceiling allowed); view reads a missing state row as halted with zero ceiling; $2 phase cap constant and helper deleted
 
 ### Roadmap Evolution
 
@@ -172,8 +173,8 @@ Phase 42 verification passed on 2026-09-30, after the user resolved every UAT it
 
 **Resume file:** None
 
-Last session: 2026-10-01T02:23:18.056Z
-Stopped at: Completed 43-05-PLAN.md
+Last session: 2026-10-01T02:30:07.719Z
+Stopped at: Completed 43-06-PLAN.md
 
 ## Performance Metrics
 
@@ -238,6 +239,7 @@ Stopped at: Completed 43-05-PLAN.md
 | Phase 43 P03 | 25min | 2 tasks | 9 files |
 | Phase 43 P04 | 40min | 2 tasks | 9 files |
 | Phase 43 P05 | 25min | 2 tasks | 10 files |
+| Phase 43 P06 | 15min | 3 tasks | 11 files |
 
 ## Operator Next Steps
 
