@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "status": "not_run",
+  "model": null,
+  "recordedAt": null,
+  "environment": "local",
+  "totals": {
+    "calls": 0,
+    "costMicroUsd": "0"
+  },
+  "routes": {
+    "creation_race": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "creation_class_reveal": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "creation_class": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "world_gen_start": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "world_gen": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "skill_gen": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "renown_perk_gen": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "npc_conversation": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    },
+    "combat_narration": {
+      "efforts": {
+        "low": {
+          "samples": []
+        },
+        "medium": {
+          "samples": []
+        }
+      },
+      "chosenEffort": null,
+      "tie": false,
+      "p99OutputTokens": null,
+      "maxTokens": null,
+      "suggestedTimeoutMs": null,
+      "insufficientData": true,
+      "runB": []
+    }
+  },
+  "caching": {},
+  "classReveal": {
+    "latenciesMs": [],
+    "p50Ms": null,
+    "p95Ms": null,
+    "thresholdMs": 10000,
+    "verdict": "not_measured",
+    "parallelBuilt": false
+  }
+}

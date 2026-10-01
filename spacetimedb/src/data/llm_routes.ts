@@ -3,9 +3,10 @@
 // ============================================================================
 //
 // One typed table holds every per-route request parameter. The request builder
-// (Plan 40-03) reads only from here. max_tokens values are LOCKED by the phase
-// CONTEXT; timeouts are recommendations that may be tuned in Phase 43 but must
-// never exceed ANTHROPIC_MAX_TIMEOUT_MS.
+// (Plan 40-03) reads only from here. Effort, max_tokens and timeout are tuned in
+// llm_tuning.ts (LLM_TUNING) and trace to llm_measurements.json, or are the
+// documented baseline while a route has no measurement; no timeout may exceed
+// ANTHROPIC_MAX_TIMEOUT_MS.
 //
 // Staged generation (Phase 43): creation_class_reveal and world_gen_start are
 // the stage-1 routes (small schema, fast reveal); creation_class and world_gen
@@ -16,6 +17,7 @@
 // ============================================================================
 
 import { CLAUDE_MODEL, ANTHROPIC_MAX_TIMEOUT_MS } from './llm_models';
+import { LLM_TUNING } from './llm_tuning';
 import {
   RACE_SCHEMA,
   CLASS_REVEAL_SCHEMA,
@@ -55,30 +57,29 @@ export interface RouteConfig {
   cache: { bible: boolean; route: boolean };
 }
 
-const DEFAULT_EFFORT: LlmEffort = 'low';
-
-function route(maxTokens: number, timeoutMs: number, output: RouteConfig['output']): RouteConfig {
+function route(name: LlmRoute, output: RouteConfig['output']): RouteConfig {
+  const tuned = LLM_TUNING[name];
   return {
     model: CLAUDE_MODEL,
-    effort: DEFAULT_EFFORT,
-    maxTokens,
-    timeoutMs,
+    effort: tuned.effort,
+    maxTokens: tuned.maxTokens,
+    timeoutMs: tuned.timeoutMs,
     output,
     cache: { bible: true, route: true },
   };
 }
 
 export const LLM_ROUTES: Readonly<Record<LlmRoute, RouteConfig>> = deepFreeze({
-  creation_race: route(4096, 90_000, { kind: 'json', schema: RACE_SCHEMA }),
-  creation_class_reveal: route(2048, 60_000, { kind: 'json', schema: CLASS_REVEAL_SCHEMA }),
-  creation_class: route(4096, 90_000, { kind: 'json', schema: CLASS_FILL_SCHEMA }),
-  world_gen_start: route(4096, 90_000, { kind: 'json', schema: WORLD_START_SCHEMA }),
-  world_gen: route(8192, 150_000, { kind: 'json', schema: REGION_FILL_SCHEMA }),
-  skill_gen: route(4096, 60_000, { kind: 'json', schema: SKILL_GENERATION_SCHEMA }),
-  npc_conversation: route(1024, 30_000, { kind: 'text' }),
-  combat_narration: route(1024, 20_000, { kind: 'text' }),
-  renown_perk_gen: route(2048, 60_000, { kind: 'json', schema: RENOWN_PERK_SCHEMA }),
-  smoke_test: route(256, 30_000, { kind: 'text' }),
+  creation_race: route('creation_race', { kind: 'json', schema: RACE_SCHEMA }),
+  creation_class_reveal: route('creation_class_reveal', { kind: 'json', schema: CLASS_REVEAL_SCHEMA }),
+  creation_class: route('creation_class', { kind: 'json', schema: CLASS_FILL_SCHEMA }),
+  world_gen_start: route('world_gen_start', { kind: 'json', schema: WORLD_START_SCHEMA }),
+  world_gen: route('world_gen', { kind: 'json', schema: REGION_FILL_SCHEMA }),
+  skill_gen: route('skill_gen', { kind: 'json', schema: SKILL_GENERATION_SCHEMA }),
+  npc_conversation: route('npc_conversation', { kind: 'text' }),
+  combat_narration: route('combat_narration', { kind: 'text' }),
+  renown_perk_gen: route('renown_perk_gen', { kind: 'json', schema: RENOWN_PERK_SCHEMA }),
+  smoke_test: route('smoke_test', { kind: 'text' }),
 });
 
 export function isLlmRoute(x: unknown): x is LlmRoute {

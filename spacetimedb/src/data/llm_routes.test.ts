@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CLAUDE_MODEL, ANTHROPIC_MAX_TIMEOUT_MS, ANTHROPIC_VERSION, ANTHROPIC_MESSAGES_URL } from './llm_models';
 import { LLM_ROUTE_NAMES, LLM_ROUTES, validateRoutes, isLlmRoute, type LlmRoute } from './llm_routes';
+import { LLM_TUNING, LLM_ROUTE_BASELINES } from './llm_tuning';
 import {
   RACE_SCHEMA,
   CLASS_REVEAL_SCHEMA,
@@ -12,7 +13,9 @@ import {
 } from './llm_schemas';
 import { lintSchema } from '../helpers/schema_lint';
 
-const LOCKED_MAX_TOKENS: Record<LlmRoute, number> = {
+// Phase 43 tunes routes from measurements (llm_tuning.ts, traced to llm_measurements.json). The baselines
+// are the Phase 40 and 43-04 values, kept for a route whose measurement is missing or too thin.
+const BASELINE_MAX_TOKENS: Record<LlmRoute, number> = {
   creation_race: 4096,
   creation_class_reveal: 2048,
   creation_class: 4096,
@@ -70,15 +73,24 @@ describe('LLM_ROUTES', () => {
     expect(Object.keys(LLM_ROUTES).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
-  it('uses the locked max_tokens per route', () => {
-    const actual = Object.fromEntries(LLM_ROUTE_NAMES.map((r) => [r, LLM_ROUTES[r].maxTokens]));
-    expect(actual).toEqual(LOCKED_MAX_TOKENS);
+  it('reads effort, max_tokens and timeout from LLM_TUNING for every route', () => {
+    for (const r of LLM_ROUTE_NAMES) {
+      expect(LLM_ROUTES[r].effort).toBe(LLM_TUNING[r].effort);
+      expect(LLM_ROUTES[r].maxTokens).toBe(LLM_TUNING[r].maxTokens);
+      expect(LLM_ROUTES[r].timeoutMs).toBe(LLM_TUNING[r].timeoutMs);
+    }
+  });
+
+  it('pins the baselines to the Phase 40 and 43-04 max_tokens', () => {
+    const actual = Object.fromEntries(LLM_ROUTE_NAMES.map((r) => [r, LLM_ROUTE_BASELINES[r].maxTokens]));
+    expect(actual).toEqual(BASELINE_MAX_TOKENS);
   });
 
   it.each([...LLM_ROUTE_NAMES])('%s: model, effort, timeout and cache flags', (name) => {
     const cfg = LLM_ROUTES[name];
     expect(cfg.model).toBe(CLAUDE_MODEL);
-    expect(cfg.effort).toBe('low');
+    expect(cfg.effort).toBe(LLM_TUNING[name].effort);
+    expect(['low', 'medium']).toContain(cfg.effort);
     expect(cfg.timeoutMs).toBeGreaterThan(0);
     expect(cfg.timeoutMs).toBeLessThanOrEqual(ANTHROPIC_MAX_TIMEOUT_MS);
     expect(cfg.cache).toEqual({ bible: true, route: true });
@@ -119,7 +131,7 @@ describe('LLM_ROUTES', () => {
     expect(validateRoutes(LLM_ROUTES)).toEqual([]);
   });
 
-  it('stage timeouts follow the contract', () => {
+  it('stage timeouts follow the contract (timeouts stay at baseline; only effort and max_tokens are tuned)', () => {
     expect(LLM_ROUTES.creation_class_reveal.timeoutMs).toBe(60_000);
     expect(LLM_ROUTES.creation_class.timeoutMs).toBe(90_000);
     expect(LLM_ROUTES.world_gen_start.timeoutMs).toBe(90_000);
