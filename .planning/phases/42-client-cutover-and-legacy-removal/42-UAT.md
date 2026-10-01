@@ -34,7 +34,8 @@ result: [pending]
 ### 4. Live LLM smoke test (deferred by the user)
 Run llm_smoke_test as admin on the local stack.
 expected: A job completes end to end with the stored Anthropic key (keyValid true)
-result: [pending]
+result: pass
+evidence: 2026-09-30, run by Claude at the user's request, on the local server only. All 6 jobs completed, each with HTTP 200, `end_turn` and model `claude-sonnet-5-5`. `key_valid` is true. Latency: smoke_test 4.0 s, creation_race 6.5 s, creation_class 10.1 s, skill_gen 8.5 s, renown_perk_gen 7.6 s, world_gen 23.5 s. Total cost about $0.11. Cache reads were 0 because these were first calls; the caching proof is Phase 43 LAT-02.
 
 ### 5. User cleanup checklist (42-USER-CHECKLIST.md)
 Delete the Cloudflare Worker, revoke the OpenAI key, remove VITE_LLM_PROXY_* from the root .env.local and hosting settings, delete the leftover llm-proxy/ folder (and its .git/info/exclude line), rebuild and redeploy, and run the maincloud two-publish yourself.
@@ -49,9 +50,9 @@ progress: 2026-09-30.
 ## Summary
 
 total: 5
-passed: 0
+passed: 1
 issues: 0
-pending: 5
+pending: 4
 skipped: 0
 blocked: 0
 
