@@ -854,6 +854,7 @@ export const LlmJob = __t.object("LlmJob", {
   budgetDay: __t.string(),
   applyAttempts: __t.u64(),
   ledgerChargedMicroUsd: __t.u64(),
+  ledgerChargedDayUtc: __t.string(),
 });
 export type LlmJob = __Infer<typeof LlmJob>;
 
