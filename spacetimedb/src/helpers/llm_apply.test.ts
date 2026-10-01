@@ -34,6 +34,7 @@ import {
   toApplyJob,
 } from './llm_apply';
 import { serializePerkEffect } from './renown';
+import { LLM_RESTING_LINE } from './llm_queue';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
 
 const T0 = 1_700_000_000_000_000n;
@@ -238,6 +239,13 @@ describe('toApplyJob', () => {
   it('maps an llm_job row (route, requestJson) to { domain, playerId, contextJson }', () => {
     const row = { id: 1n, playerId: alice, route: 'skill_gen', requestJson: '{"a":1}', status: 'pending' };
     expect(toApplyJob(row)).toEqual({ domain: 'skill_gen', playerId: alice, contextJson: '{"a":1}' });
+  });
+
+  it('carries the stored errorCode, and undefined when the row has none (Phase 43)', () => {
+    const base = { id: 1n, playerId: alice, route: 'skill_gen', requestJson: '{}', status: 'failed' };
+    expect(toApplyJob({ ...base, errorCode: 'halted' }).errorCode).toBe('halted');
+    expect(toApplyJob(base).errorCode).toBeUndefined();
+    expect(toApplyJob({ ...base, errorCode: undefined }).errorCode).toBeUndefined();
   });
 });
 
@@ -662,5 +670,118 @@ describe('Phase 41 (plan 14): world-gen failures end in ERROR, never PENDING', (
     expect(source).not.toContain('retryWorldGen');
     expect(source).not.toContain("step: 'PENDING'");
     expect(source).toContain('export function failWorldGen');
+  });
+});
+
+describe('Phase 43: a failure caused by the kill switch or the ceiling shows the resting line', () => {
+  const restingJob = (domain: string, contextJson: string | undefined, errorCode: string | undefined) =>
+    ({ ...job(domain, contextJson), errorCode }) as any;
+  const CODES = ['halted', 'ceiling'];
+  const genRow = () => ({
+    id: 5n,
+    playerId: alice,
+    characterId: 10n,
+    sourceLocationId: 0n,
+    sourceRegionId: 0n,
+    step: 'GENERATING',
+    createdAt: ts(T0 - 1000n),
+    updatedAt: ts(T0 - 1000n),
+  });
+  const npcSeed = () => ({
+    character: [characterRow()],
+    npc: [{ id: 20n, name: 'Marta', npcType: 'lore', locationId: 100n, description: 'A baker.', greeting: 'Hello.', personalityJson: '{}' }],
+  });
+  const NPC_CTX = JSON.stringify({ characterId: '10', npcId: '20', memoryId: '30' });
+
+  it.each(CODES)('creation_race and creation_class (%s): one creation_error equal to the resting line, the step reverts', (code) => {
+    for (const [domain, from, back] of [
+      ['creation_race', 'GENERATING_RACE', 'AWAITING_RACE'],
+      ['creation_class', 'GENERATING_CLASS', 'AWAITING_ARCHETYPE'],
+    ]) {
+      const ctx = moduleCtx({ character_creation_state: [creationState(from)] });
+      applyLlmFailure(ctx, restingJob(domain, undefined, code));
+      expect(rows(ctx, 'character_creation_state')[0].step).toBe(back);
+      const events = rows(ctx, 'event_creation');
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ playerId: alice, kind: 'creation_error', message: LLM_RESTING_LINE });
+    }
+  });
+
+  it.each(CODES)('world_gen (%s): ERROR with the resting errorMessage and one line that starts with it and names [explore]', (code) => {
+    const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+    applyLlmFailure(ctx, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'ERROR', errorMessage: LLM_RESTING_LINE });
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0].message.startsWith(LLM_RESTING_LINE)).toBe(true);
+    expect(events[0].message).toContain('[explore]');
+    expect(events[0].message).not.toContain('falters');
+  });
+
+  it.each(CODES)('skill_gen (%s): one line that starts with the resting line and names [skills]', (code) => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyLlmFailure(ctx, restingJob('skill_gen', JSON.stringify({ characterId: '10' }), code));
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n });
+    expect(events[0].message.startsWith(LLM_RESTING_LINE)).toBe(true);
+    expect(events[0].message).toContain('[skills]');
+    expect(events[0].message).not.toContain('eludes');
+  });
+
+  it.each(CODES)('npc_conversation (%s): one system line equal to the resting line and no distracted dialog line', (code) => {
+    const ctx = moduleCtx(npcSeed());
+    applyLlmFailure(ctx, restingJob('npc_conversation', NPC_CTX, code));
+    expect(rows(ctx, 'npc_dialog')).toHaveLength(0);
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'system', characterId: 10n, ownerUserId: 7n, message: LLM_RESTING_LINE });
+  });
+
+  it.each(CODES)('renown_perk_gen (%s) still inserts the static options; combat_narration stays silent', (code) => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyLlmFailure(ctx, restingJob('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }), code));
+    expect(rows(ctx, 'pending_renown_perk')).toHaveLength(3);
+    expect(rows(ctx, 'event_private')).toHaveLength(1);
+    expect(rows(ctx, 'event_private')[0].message).toContain('standard options');
+
+    const quiet = moduleCtx({ character: [characterRow()] });
+    const before = snapshotDb(quiet.db);
+    applyLlmFailure(quiet, restingJob('combat_narration', JSON.stringify({ characterId: '10', round: '1' }), code));
+    expect(rows(quiet, 'event_private')).toHaveLength(0);
+    expect(snapshotDb(quiet.db)).toBe(before);
+  });
+
+  it('any other error code, or none, keeps the Phase 41 lines byte for byte', () => {
+    for (const code of ['rate_limit', 'billing', 'auth', 'expired', '', undefined]) {
+      const race = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
+      applyLlmFailure(race, restingJob('creation_race', undefined, code));
+      expect(rows(race, 'event_creation')[0].message).toBe(
+        'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."',
+      );
+
+      const world = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
+      applyLlmFailure(world, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
+      expect(rows(world, 'world_gen_state')[0].errorMessage).toBe(
+        'The Keeper falters. "The world refuses to be remembered right now."',
+      );
+
+      const skills = moduleCtx({ character: [characterRow()] });
+      applyLlmFailure(skills, restingJob('skill_gen', JSON.stringify({ characterId: '10' }), code));
+      expect(rows(skills, 'event_private')[0].message).toBe(
+        'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."',
+      );
+
+      const npc = moduleCtx(npcSeed());
+      applyLlmFailure(npc, restingJob('npc_conversation', NPC_CTX, code));
+      expect(rows(npc, 'npc_dialog')[0].text).toBe('Marta seems distracted.');
+      expect(rows(npc, 'event_private')[0].message).toBe('Marta seems distracted. Try again.');
+    }
+  });
+
+  it('the resting line carries no digit, no provider word and no wrong-gender pronoun', () => {
+    expect(LLM_RESTING_LINE).not.toMatch(/\d/);
+    expect(LLM_RESTING_LINE).not.toMatch(/anthropic|claude|budget|limit|ceiling|daily/i);
+    expect(LLM_RESTING_LINE).not.toMatch(/\b(it|its|they|them)\b/i);
   });
 });

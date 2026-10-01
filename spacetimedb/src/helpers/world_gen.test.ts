@@ -26,6 +26,8 @@ import { rowColumnProblems } from './schema_recorder';
 import { resolveRouteInput } from './llm_inputs';
 import { buildRouteLayers } from '../data/llm_layers';
 import { utcDay } from './llm_budget';
+import { setLlmEnabled, patchAdminState } from './llm_admin_state';
+import { LLM_RESTING_LINE } from './llm_queue';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 
 beforeAll(async () => {
@@ -480,6 +482,85 @@ describe('startWorldGeneration', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: 'creation_error', playerId: alice, message: REFUSED_LINE });
     expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+});
+
+describe('startWorldGeneration: resting refusals (Phase 43)', () => {
+  const T0 = 1_700_000_000_000_000n;
+  const alice = { toHexString: () => 'a'.repeat(64) };
+  const ts = { microsSinceUnixEpoch: T0 };
+  const genStateRow = () => ({
+    id: 5n,
+    playerId: alice,
+    characterId: 10n,
+    sourceLocationId: 100n,
+    sourceRegionId: 1n,
+    step: 'PENDING',
+    createdAt: ts,
+    updatedAt: ts,
+  });
+  const newCtx = (placed: boolean) =>
+    createMockCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n }],
+        character: [
+          { id: 10n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver', locationId: placed ? 100n : 0n },
+        ],
+        location: [{ id: 100n, name: 'The Crossing', regionId: 1n }],
+        region: [{ id: 1n, name: 'Ashen Reach', dangerMultiplier: 100n }],
+        world_gen_state: [genStateRow()],
+      },
+      sender: alice,
+      timestampMicros: T0,
+      strict: true,
+    });
+  const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+  const RESTING_EXPLORE = `${LLM_RESTING_LINE} Type [explore] to try again.`;
+
+  it.each([
+    ['halted', (ctx: any) => setLlmEnabled(ctx, false)],
+    ['ceiling', (ctx: any) => patchAdminState(ctx, { dailyCeilingMicroUsd: 1n })],
+  ])('a %s refusal for a placed character stores the resting line and posts one private line that names [explore]', (_name, trip) => {
+    const ctx = newCtx(true);
+    trip(ctx);
+    expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[0])).toBe('refused');
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'ERROR', errorMessage: LLM_RESTING_LINE });
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'system', characterId: 10n, message: RESTING_EXPLORE });
+    expect(events[0].message.startsWith(LLM_RESTING_LINE)).toBe(true);
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+  });
+
+  it('a halted refusal for a character not yet placed posts one creation_error line starting with the resting line', () => {
+    const ctx = newCtx(false);
+    setLlmEnabled(ctx, false);
+    expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[0])).toBe('refused');
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'ERROR', errorMessage: LLM_RESTING_LINE });
+    const events = rows(ctx, 'event_creation');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'creation_error', playerId: alice, message: RESTING_EXPLORE });
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+
+  it('a daily_cost refusal still uses the old strains-but-cannot-shape message', () => {
+    const ctx = newCtx(true);
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: alice,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+    expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[0])).toBe('refused');
+    expect(rows(ctx, 'world_gen_state')[0].errorMessage).toBe('The Keeper strains but cannot shape this realm right now.');
+    expect(rows(ctx, 'event_private')[0].message).toBe(
+      'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.',
+    );
   });
 });
 

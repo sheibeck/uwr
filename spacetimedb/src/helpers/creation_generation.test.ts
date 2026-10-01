@@ -10,7 +10,8 @@ import { createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { startCreationGeneration } from './creation_generation';
 import { resolveRouteInput } from './llm_inputs';
-import { llmRefusalMessage } from './llm_queue';
+import { llmRefusalMessage, LLM_RESTING_LINE } from './llm_queue';
+import { setLlmEnabled } from './llm_admin_state';
 import { utcDay } from './llm_budget';
 import { buildRouteLayers } from '../data/llm_layers';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
@@ -156,6 +157,33 @@ describe('startCreationGeneration: race', () => {
     expect(events).toHaveLength(1);
     expect(events[0].kind).toBe('creation_error');
     expect(events[0].message).toBe(llmRefusalMessage('daily_cost'));
+  });
+});
+
+describe('startCreationGeneration: kill switch refusal (Phase 43)', () => {
+  it('a halted race request reverts the step and posts exactly one creation_error equal to the resting line', () => {
+    const ctx = newCtx();
+    setLlmEnabled(ctx, false);
+    expect(startCreationGeneration(ctx, stateOf(ctx), 'race')).toBe('refused');
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(stateOf(ctx).step).toBe('AWAITING_RACE');
+    const events = creationEvents(ctx);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'creation_error', message: LLM_RESTING_LINE });
+  });
+
+  it('a halted class request reverts to AWAITING_ARCHETYPE with the same single resting line', () => {
+    const ctx = newCtx({
+      character_creation_state: [stateRow({ step: 'GENERATING_CLASS', raceName: 'Saltkin', archetype: 'mystic' })],
+    });
+    setLlmEnabled(ctx, false);
+    expect(startCreationGeneration(ctx, stateOf(ctx), 'class')).toBe('refused');
+    expect(stateOf(ctx).step).toBe('AWAITING_ARCHETYPE');
+    const events = creationEvents(ctx);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'creation_error', message: LLM_RESTING_LINE });
   });
 });
 

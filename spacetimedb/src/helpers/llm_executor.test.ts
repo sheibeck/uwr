@@ -25,7 +25,7 @@ import { isKeyValid, patchAdminState, setLlmEnabled } from './llm_admin_state';
 import { utcDay } from './llm_budget';
 import { retryDelayMs, msToMicros } from './llm_retry';
 import { awardRenown } from './renown';
-import { appendPrivateEvent } from './events';
+import { appendPrivateEvent, appendCreationEvent } from './events';
 import { estimateCostMicroUsd, findSecretLeaks } from './measurement';
 import { LLM_ROUTES, type LlmRoute } from '../data/llm_routes';
 import { ANTHROPIC_MESSAGES_URL } from '../data/llm_models';
@@ -617,6 +617,7 @@ describe('claim failures (no call, no spend)', () => {
     const applyJob = deps.applyFailure.mock.calls[0][1];
     expect(applyJob.playerId).toBe(alice);
     expect(applyJob.domain).toBe('npc_conversation');
+    expect(applyJob.errorCode).toBe(code);
     expect(proc.http.calls).toHaveLength(0);
     expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
   }
@@ -702,6 +703,7 @@ describe('claim failures (no call, no spend)', () => {
     expect(playerDay(proc).reservedMicroUsd).toBe(2n * r);
     expect(playerDay(proc).calls).toBe(2n);
     expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(deps.applyFailure.mock.calls[0][1].errorCode).toBe('ceiling');
     expect(proc.http.calls).toHaveLength(0);
   });
 
@@ -729,6 +731,21 @@ describe('claim failures (no call, no spend)', () => {
       expect(ledger(proc).calls).toBe(0n);
       expect(jobOf(proc, jobId).status).toBe('failed');
     }
+  });
+
+  it('a creation_race job halted at claim returns the creation state to AWAITING_RACE through the real failure apply and posts the resting line once', () => {
+    const proc = makeProc([], { seed: { character_creation_state: [{ id: 1n, playerId: alice, step: 'GENERATING_RACE' }] } });
+    const jobId = enqueue(proc, 'creation_race', { sourceKey: SOURCE_KEYS.creation(1n, 'race') });
+    const arg = takeDispatch(proc, jobId);
+    proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+    const deps = makeDeps(proc, { applyFailure: applyLlmFailure as any });
+
+    expect(runLlmJob(proc.ctx, arg, deps)).toBe('failed');
+
+    expect(rows(proc, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
+    const posted = (appendCreationEvent as any).mock.calls;
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toContain(LLM_RESTING_LINE);
   });
 
   it('in-flight finishes: flipping the kill switch off after the claim committed does not stop the job (it completes, applies and settles)', () => {

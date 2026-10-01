@@ -3,7 +3,8 @@
 import { connectLocations, ensureSpawnsForLocation } from './location';
 import type { WorldGenInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
-import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
+import { enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
+import { isRestingErrorCode } from './llm_status';
 import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './llm_inputs';
 import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
@@ -181,13 +182,16 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
   const current = ctx.db.world_gen_state.id.find(genState.id) ?? genState;
 
   if (result.refused) {
+    // The kill switch or the global ceiling: the one shared resting line. Any other refusal keeps the old message.
+    const resting = isRestingErrorCode(result.refused);
+    const message = resting ? LLM_RESTING_LINE : WORLD_GEN_REFUSED_MESSAGE;
     ctx.db.world_gen_state.id.update({
       ...current,
       step: 'ERROR',
-      errorMessage: WORLD_GEN_REFUSED_MESSAGE,
+      errorMessage: message,
       updatedAt: ctx.timestamp,
     });
-    const line = `${WORLD_GEN_REFUSED_MESSAGE} Type [explore] to try again later.`;
+    const line = resting ? `${message} Type [explore] to try again.` : `${message} Type [explore] to try again later.`;
     if (character && character.locationId !== 0n) {
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', line);
     } else {

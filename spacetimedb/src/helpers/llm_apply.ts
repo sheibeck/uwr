@@ -38,16 +38,26 @@ import { handleCombatNarrationResult } from './combat_narration';
 import { insertStaticRenownPerkOptions, renownRankSettled } from './renown';
 import { toBigIntSafe } from './safe_numbers';
 import { validateRaceReply, validateClassReply } from './creation_validate';
+import { isRestingErrorCode } from './llm_status';
+import { LLM_RESTING_LINE } from './llm_queue';
 import { EFFECT_TYPES, QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 
-/** The fields of a stored llm_job the apply step needs. */
-export type ApplyJob = { domain: string; playerId: any; contextJson?: string };
+/**
+ * The fields of a stored llm_job the apply step needs. errorCode is set on a failed job only; the
+ * resting codes 'halted' and 'ceiling' (Phase 43) pick the one in-voice resting line over the generic copy.
+ */
+export type ApplyJob = { domain: string; playerId: any; contextJson?: string; errorCode?: string };
 
-/** Map a stored llm_job row (route, requestJson, playerId) to ApplyJob. */
+/** Map a stored llm_job row (route, requestJson, playerId, errorCode) to ApplyJob. */
 export function toApplyJob(row: any): ApplyJob {
-  return { domain: row.route, playerId: row.playerId, contextJson: row.requestJson };
+  return {
+    domain: row.route,
+    playerId: row.playerId,
+    contextJson: row.requestJson,
+    errorCode: row.errorCode ?? undefined,
+  };
 }
 
 // Helper: extract JSON robustly from LLM response text
@@ -118,11 +128,13 @@ export function creationStateForJob(ctx: any, job: ApplyJob): any | null {
 
 /** Failure handling per domain (the former `if (!success)` block). */
 export function applyLlmFailure(ctx: any, job: ApplyJob): void {
+  // The kill switch or the global ceiling stopped this job: one resting line, never the generic copy.
+  const resting = isRestingErrorCode(job.errorCode);
   if (job.domain === 'creation_race' || job.domain === 'creation_class') {
     const s = creationStateForJob(ctx, job);
     if (!s) return; // the state has moved on: nothing to revert, nothing to say
     appendCreationEvent(ctx, s.playerId, 'creation_error',
-      'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
+      resting ? LLM_RESTING_LINE : 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
     const back = job.domain === 'creation_race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
     ctx.db.character_creation_state.id.update({ ...s, step: back, updatedAt: ctx.timestamp });
   } else if (job.domain === 'world_gen') {
@@ -130,7 +142,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const genStateId = BigInt(context.genStateId);
     const genState = ctx.db.world_gen_state.id.find(genStateId);
     if (genState) {
-      failWorldGen(ctx, genState, 'The Keeper falters. "The world refuses to be remembered right now."');
+      failWorldGen(ctx, genState, resting ? LLM_RESTING_LINE : 'The Keeper falters. "The world refuses to be remembered right now."');
     }
   } else if (job.domain === 'skill_gen') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -138,7 +150,9 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const character = ctx.db.character.id.find(charId);
     if (character) {
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-        'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."');
+        resting
+          ? `${LLM_RESTING_LINE} Type [skills] when you want him to try again.`
+          : 'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."');
     }
   } else if (job.domain === 'npc_conversation') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -146,7 +160,10 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const npcIdVal = BigInt(context.npcId);
     const character = ctx.db.character.id.find(charId);
     const npc = ctx.db.npc.id.find(npcIdVal);
-    if (character && npc) {
+    if (resting) {
+      // One system line, no NPC dialog line: the NPC did not fail to answer, the Keeper is resting.
+      if (character) appendPrivateEvent(ctx, charId, character.ownerUserId, 'system', LLM_RESTING_LINE);
+    } else if (character && npc) {
       appendNpcDialog(ctx, charId, npc.id, `${npc.name} seems distracted.`);
       appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
         `${npc.name} seems distracted. Try again.`);
