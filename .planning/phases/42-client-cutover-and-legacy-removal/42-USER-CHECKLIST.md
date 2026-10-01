@@ -6,17 +6,19 @@ Never paste a key, token, secret or env value anywhere (chat, commits, issues). 
 
 Nothing here is urgent for local play. Sections A to C are cleanup. Section E is the only step that changes production data, so read it fully before you start.
 
-## A. Retire the proxy (Cloudflare and OpenAI)
+## A. Retire the proxy (OpenAI key)
 
-The game no longer calls the proxy. The Worker still exists and still holds an OpenAI key.
+**Update (2026-09-30):** the user's Cloudflare account has no projects, so the Worker was most likely never deployed. The evidence agrees:
+- The old client fell back to `http://localhost:8787` when `VITE_LLM_PROXY_URL` was unset.
+- The last pre-cutover build contained `localhost:8787` and no `workers.dev` host.
+- The OpenAI key lived only in the local `llm-proxy/.dev.vars`, which `wrangler dev` read.
 
-1. Open the Cloudflare dashboard, Workers and Pages, and find the deployed Worker. Its name in the old `llm-proxy/wrangler.toml` was `uwr-llm-proxy`. That is recorded from research only (assumption A1), so confirm the name in the dashboard first.
-2. Delete it, either from the dashboard or from inside the leftover `llm-proxy/` folder (its `node_modules` still holds wrangler):
-   `pnpm exec wrangler delete uwr-llm-proxy`
-3. Revoke the OpenAI key the Worker held (OpenAI platform, API keys, revoke). Do this even after the Worker is deleted.
-4. Treat the old proxy secret as burned. Vite inlined `VITE_LLM_PROXY_SECRET` into every client build that was ever deployed, so anyone who downloaded an old bundle could read it. Deleting the Worker and revoking the OpenAI key is what makes that harmless.
+There is no Worker to delete. Because no deployed proxy existed, the old proxy secret protected nothing reachable, so it does not need to be treated as burned.
 
-Good: the Worker is gone from the dashboard and the OpenAI key shows as revoked.
+1. Revoke the OpenAI key that was in `llm-proxy/.dev.vars`: OpenAI platform, API keys, revoke. It is out of credits but still a live credential on disk.
+2. Only if you ever ran `wrangler deploy` from another account: check that account for a Worker named `uwr-llm-proxy` and delete it.
+
+Good: the OpenAI key shows as revoked.
 
 ## B. Environment variables
 
