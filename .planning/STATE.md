@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
 status: executing
-stopped_at: Completed 43-13-PLAN.md
-last_updated: "2026-10-01T08:41:40.688Z"
+stopped_at: Completed 43-14-PLAN.md
+last_updated: "2026-10-01T08:51:43.993Z"
 last_activity: 2026-09-30
 last_activity_desc: Phase 43 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 63
-  completed_plans: 59
+  completed_plans: 60
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 43 (Latency Tuning, Staged Generation and Budget) — EXECUTING
-Plan: 14 of 15
+Plan: 15 of 15
 Status: Ready to execute
 Last activity: 2026-09-30 — Phase 43 execution started
 
-Progress: [█████████░] 94% (2/6 phases)
+Progress: [██████████] 95% (2/6 phases)
 
 ## Previous Milestones
 
@@ -114,6 +114,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [43-11] Sweeper keeps two holder sets: world_gen_start holds PENDING/GENERATING, world_gen holds FILLING; a stranded FILLING lock goes to FILL_ERROR, never ERROR; only the player's explore retries stage 2
 - [Phase ?]: 43-12: paid sweep approved and run once (108 calls, $0.9221 of $5 cap); low effort chosen on all 9 routes; caching passes on all 9; LAT-06 verdict leave_out (class reveal p50 4665 ms, p95 7113 ms)
 - [Phase ?]: 43-13: a class fill adding no usable ability is malformed (CLASS_FILL_ERROR); 'try again' at CLASS_FILL_ERROR retries the fill instead of going back
+- [Phase ?]: [43-14] Measured tuning applied: low effort on all 9 routes, max_tokens 256-2560 derived; caching passed 9/9; LAT-06 leave_out (class reveal p50 4665 ms), parallel not built
 
 ### Roadmap Evolution
 
@@ -182,8 +183,8 @@ Phase 42 verification passed on 2026-09-30, after the user resolved every UAT it
 
 **Resume file:** None
 
-Last session: 2026-10-01T08:41:40.655Z
-Stopped at: Completed 43-13-PLAN.md
+Last session: 2026-10-01T08:51:43.931Z
+Stopped at: Completed 43-14-PLAN.md
 
 ## Performance Metrics
 
@@ -256,6 +257,7 @@ Stopped at: Completed 43-13-PLAN.md
 | Phase 43 P11 | 25min | 2 tasks | 4 files |
 | Phase 43 P12 | 25min | 3 tasks | 2 files |
 | Phase 43 P13 | 55min | 3 tasks | 10 files |
+| Phase 43 P14 | ~15min | 2 tasks | 6 files |
 
 ## Operator Next Steps
 
