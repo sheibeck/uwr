@@ -4,9 +4,10 @@
 //   pnpm exec vitest run --config scripts/llm/vitest.live.config.ts                     # paid (Plan 41-16)
 //
 // It drives the REAL player reducers through the generated bindings as the CLI identity (an admin),
-// waits on the player's own job view (my_llm_jobs) and on domain tables, and checks today's held spend
-// against the global daily ceiling before every paid step (Phase 43: the daily ceiling replaces the old
-// phase cap). Local server only. The CLI token is obtained in-process and never printed;
+// waits on the player's own job view (my_llm_jobs) and on domain tables, and before every paid step checks
+// both today's held spend against the global daily ceiling and this run's own spend against the fixed
+// PROOF_RUN_CAP_MICRO_USD (review WR-A02: the admin-set ceiling is never the harness's only bound).
+// Local server only. The CLI token is obtained in-process and never printed;
 // every printed or recorded string goes through scrub() and a 120 character cap; prompts,
 // completions, the token and the key are never printed or written.
 //
@@ -20,13 +21,16 @@ import { describe, expect, it } from 'vitest';
 import { DbConnection } from '../../src/module_bindings/index.ts';
 import { REPO_ROOT, TARGETS, getCliToken, scrub } from './cli.mjs';
 import {
+  PROOF_RUN_CAP_MICRO_USD,
   PROOF_SPEND_MARGIN_MICRO_USD,
   PROOF_STEPS,
   excerpt,
   isTerminalJobStatus,
   proofCharacterName,
   proofEmail,
+  heldAllTimeMicroUsd,
   heldTodayMicroUsd,
+  shouldStopForRunCap,
   shouldStopForSpend,
   summarizeSmoke,
   todayUtcString,
@@ -154,7 +158,7 @@ describe('live proof (local server only)', () => {
 
     if (DRY) {
       out('dry mode: no reducer is called. Step plan: ' + PROOF_STEPS.join(' > '));
-      out('spend margin: ' + PROOF_SPEND_MARGIN_MICRO_USD + ' micro-USD under the daily ceiling');
+      out('spend margin: ' + PROOF_SPEND_MARGIN_MICRO_USD + ' micro-USD under the daily ceiling and under the run cap of ' + PROOF_RUN_CAP_MICRO_USD + ' micro-USD');
       session.conn.disconnect();
       return;
     }
@@ -165,6 +169,8 @@ describe('live proof (local server only)', () => {
     const results: StepResult[] = [];
     const notes: string[] = [];
     let stopped = '';
+    // This run's own spend is measured from here, on all-time figures (they never reset at UTC midnight).
+    const runStartHeld = heldAllTimeMicroUsd(first[0]);
 
     const waitFor = async <T>(pred: () => T | null | undefined | false, timeoutMs: number): Promise<T | null> => {
       const deadline = Date.now() + timeoutMs;
@@ -189,11 +195,18 @@ describe('live proof (local server only)', () => {
       return rows(session.conn, 'character').find((c) => c.ownerUserId === me.userId);
     };
 
-    /** The spend check (today's held spend against the daily ceiling) before every paid step. Returns true when the step may run. */
+    /**
+     * The spend checks before every paid step: today's held spend against the daily ceiling, and this run's own
+     * spend against the fixed run cap (both minus the margin). Returns true when the step may run.
+     */
     const paidStep = (step: string): boolean => {
       const s = status();
       if (shouldStopForSpend(heldTodayMicroUsd(s, todayUtcString(Date.now())), 0n, s.dailyCeilingMicroUsd, PROOF_SPEND_MARGIN_MICRO_USD)) {
         stopped = `spend guard before ${step}: today's held spend reached the daily ceiling minus margin`;
+        return false;
+      }
+      if (shouldStopForRunCap(runStartHeld, heldAllTimeMicroUsd(s), PROOF_RUN_CAP_MICRO_USD, PROOF_SPEND_MARGIN_MICRO_USD)) {
+        stopped = `spend guard before ${step}: this run reached its own cap minus margin`;
         return false;
       }
       return true;

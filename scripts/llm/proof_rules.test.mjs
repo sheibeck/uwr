@@ -8,14 +8,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PROOF_EXCERPT_MAX,
+  PROOF_RUN_CAP_MICRO_USD,
   PROOF_SPEND_MARGIN_MICRO_USD,
   PROOF_STEPS,
   excerpt,
+  heldAllTimeMicroUsd,
   heldTodayMicroUsd,
   isTerminalJobStatus,
   nextProofStep,
   proofCharacterName,
   proofEmail,
+  shouldStopForRunCap,
   shouldStopForSpend,
   summarizeSmoke,
   todayUtcString,
@@ -86,6 +89,39 @@ describe('heldTodayMicroUsd', () => {
     const held = (spent) => heldTodayMicroUsd({ spendDayUtc: 'd', daySpentMicroUsd: spent, phaseReservedMicroUsd: 0n }, 'd');
     expect(shouldStopForSpend(held(799_999n), 0n, ceiling, 200_000n)).toBe(false);
     expect(shouldStopForSpend(held(800_000n), 0n, ceiling, 200_000n)).toBe(true);
+  });
+});
+
+describe('the run cap (review WR-A02)', () => {
+  it('is a fixed $2.00 per run, separate from the admin-set daily ceiling', () => {
+    expect(PROOF_RUN_CAP_MICRO_USD).toBe(2_000_000n);
+  });
+
+  it('heldAllTimeMicroUsd adds all-time spent and the reservations, as a bigint', () => {
+    expect(heldAllTimeMicroUsd({ phaseSpentMicroUsd: 900n, phaseReservedMicroUsd: 100n })).toBe(1_000n);
+    expect(heldAllTimeMicroUsd({ phaseSpentMicroUsd: 900, phaseReservedMicroUsd: 100 })).toBe(1_000n);
+    expect(heldAllTimeMicroUsd(undefined)).toBe(0n);
+  });
+
+  it('stops once this run has used the cap minus the margin, measured from the run start', () => {
+    const start = 50_000_000n; // spend from earlier runs or earlier days never counts against this run
+    expect(shouldStopForRunCap(start, start + 1_799_999n)).toBe(false);
+    expect(shouldStopForRunCap(start, start + 1_800_000n)).toBe(true);
+    expect(shouldStopForRunCap(start, start + 2_500_000n)).toBe(true);
+  });
+
+  it('a raised daily ceiling does not raise the run bound: the run cap still stops a run at $1.80', () => {
+    const ceiling = 1_000_000_000n; // the highest ceiling an admin may set
+    const start = { phaseSpentMicroUsd: 0n, phaseReservedMicroUsd: 0n, spendDayUtc: 'd', daySpentMicroUsd: 0n };
+    const now = { phaseSpentMicroUsd: 1_800_000n, phaseReservedMicroUsd: 0n, spendDayUtc: 'd', daySpentMicroUsd: 1_800_000n };
+    expect(shouldStopForSpend(heldTodayMicroUsd(now, 'd'), 0n, ceiling)).toBe(false);
+    expect(shouldStopForRunCap(heldAllTimeMicroUsd(start), heldAllTimeMicroUsd(now))).toBe(true);
+  });
+
+  it('does not reset at UTC midnight (the day figure does)', () => {
+    const start = { phaseSpentMicroUsd: 0n, phaseReservedMicroUsd: 0n, spendDayUtc: 'd1', daySpentMicroUsd: 0n };
+    const afterMidnight = { phaseSpentMicroUsd: 1_900_000n, phaseReservedMicroUsd: 0n, spendDayUtc: 'd2', daySpentMicroUsd: 100_000n };
+    expect(shouldStopForRunCap(heldAllTimeMicroUsd(start), heldAllTimeMicroUsd(afterMidnight))).toBe(true);
   });
 });
 
@@ -225,6 +261,9 @@ describe('the live harness source', () => {
     expect(harness).toContain('heldTodayMicroUsd(');
     expect(harness).toContain('dailyCeilingMicroUsd');
     expect(harness).not.toContain(['phaseCap', 'MicroUsd'].join(''));
+    // Review WR-A02: the harness's own fixed run cap applies alongside the ceiling, measured from the run start.
+    expect(harness).toContain('shouldStopForRunCap(runStartHeld, heldAllTimeMicroUsd(s), PROOF_RUN_CAP_MICRO_USD');
+    expect(harness).toMatch(/const runStartHeld = heldAllTimeMicroUsd\(/);
   });
 
   it('never prints the token or the key directly', () => {

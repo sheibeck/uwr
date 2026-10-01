@@ -16,6 +16,14 @@ export const PROOF_STEPS = Object.freeze([
 /** The harness stops before any paid step that would bring today's held spend within this of the daily ceiling ($0.20). */
 export const PROOF_SPEND_MARGIN_MICRO_USD = 200_000n;
 
+/**
+ * The harness's own fixed spend cap for one paid run ($2.00), checked alongside the daily ceiling (review WR-A02).
+ * The daily ceiling is an admin-set production knob (default $10, up to $1,000) that resets every UTC day, so it
+ * must never be the harness's only bound. With the margin above, a run stops once it has used $1.80, the same
+ * bound as the retired $2 phase cap. Measured from the run's own start, on all-time figures that never reset.
+ */
+export const PROOF_RUN_CAP_MICRO_USD = 2_000_000n;
+
 /** Longest piece of player-visible text the harness prints or records. */
 export const PROOF_EXCERPT_MAX = 120;
 
@@ -100,4 +108,21 @@ export function heldTodayMicroUsd(status, todayUtc) {
   const reserved = BigInt(status?.phaseReservedMicroUsd ?? 0);
   if (status?.spendDayUtc !== todayUtc) return reserved;
   return BigInt(status?.daySpentMicroUsd ?? 0) + reserved;
+}
+
+/**
+ * All-time spent plus every reservation still held, from an admin_llm_status row. Unlike the day figure it never
+ * resets at UTC midnight, so the difference between two readings is what was spent or reserved in between.
+ * Accepts bigint or integer numbers and returns a bigint.
+ */
+export function heldAllTimeMicroUsd(status) {
+  return BigInt(status?.phaseSpentMicroUsd ?? 0) + BigInt(status?.phaseReservedMicroUsd ?? 0);
+}
+
+/**
+ * True when the next paid step must not start because this run has reached its own cap minus the margin:
+ * (held now - held at the run's start) >= runCap - margin. Independent of the daily ceiling (review WR-A02).
+ */
+export function shouldStopForRunCap(startHeld, nowHeld, runCap = PROOF_RUN_CAP_MICRO_USD, margin = PROOF_SPEND_MARGIN_MICRO_USD) {
+  return shouldStopForSpend(BigInt(nowHeld) - BigInt(startHeld), 0n, runCap, margin);
 }
