@@ -364,7 +364,34 @@ Plans:
 
 **Also recorded**: the streaming decision (Out of Scope stands unless measured NPC-chat latency or a no-go backend build reopens it) is written into PROJECT.md.
 **Testing**: The golden-set harness runs offline against recorded or mocked responses in the normal suite. Failure drills are automated unit tests over the mock procedure context, with the live drills as operator-run confirmation.
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 44-01-PLAN.md — Golden set (27 frozen items, 5 adversarial with canaries) and mechanical rules with inclusive boundaries, mutation tests and pronoun checks
+- [ ] 44-02-PLAN.md — Unified failure-drill matrix: 7 classes by lock-holding routes through the real failure apply, plus the five edge families
+- [ ] 44-03-PLAN.md — Allowlisted local-only --db (uwr, uwr-verify) for the key script and HTTP helpers, and the call-log report math (p50/p95/p99, ±2% reconciliation, streaming verdict)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 44-04-PLAN.md — Golden run record, owner review page (self-contained, db verdicts, paste fallback) and the dry-by-default golden live harness
+- [ ] 44-05-PLAN.md — Staged end-to-end live-proof harness on the scratch database (stage timings, second region, 20-turn NPC burst, skipped domains fail)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 44-06-PLAN.md — Live drills on the scratch database (401 fake key, $0.01 ceiling, kill switch, temporary tiny timeout), every state restored and asserted
+- [ ] 44-07-PLAN.md — [checkpoint] Owner reviews the 27-prompt list and the cost bound, then one approved paid golden run (or recorded as declined or deferred)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 44-08-PLAN.md — [checkpoint] Owner tone review through the orchestrator-published page, verdicts recorded (approved, needs_fixes or deferred)
+- [ ] 44-09-PLAN.md — [checkpoint] Paid end-to-end run on uwr-verify after cost approval: every domain, per-route latency percentiles, token totals, bundle check
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 44-10-PLAN.md — [checkpoint] Streaming decision in PROJECT.md, Console reconciliation (±2% or deferred), maincloud and user checklists, evidence summary, scratch database removed
 
 ## Progress
 
@@ -381,7 +408,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
 | 42. Client Cutover and Legacy Removal | v2.2 | 7/7 | Complete    | 2026-09-30 |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 15/15 | In Progress|  |
-| 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
+| 44. Live Verification and Tone Eval | v2.2 | 0/10 | Planned | - |
 
 ## Backlog
 
