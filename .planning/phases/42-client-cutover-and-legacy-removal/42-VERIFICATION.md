@@ -1,7 +1,7 @@
 ---
 phase: 42-client-cutover-and-legacy-removal
 verified: 2026-09-30T20:10:00Z
-status: human_needed
+status: passed
 score: 4/4 roadmap criteria verified (code and local-server evidence); 5 browser/visual/live items deferred to human
 behavior_unverified: 0
 overrides_applied: 0
@@ -84,3 +84,7 @@ No gaps. Every roadmap criterion holds in the codebase and on the local server u
 
 _Verified: 2026-09-30_
 _Verifier: Claude (gsd-verifier)_
+
+## Human Verification Outcome (2026-09-30)
+
+The user resolved all 5 items (see 42-UAT.md): 4 passed and 1 skipped (layout and assistive checks, left to the UX overhaul). The live smoke test passed: 6/6 routes, `key_valid` true. The maincloud two-publish is deferred by the user to the end of the milestone. Status is set to passed.

@@ -5,14 +5,14 @@ milestone_name: LLM — Claude Engine
 current_phase: 43
 current_phase_name: Latency Tuning, Staged Generation and Budget
 status: planning
-stopped_at: Phase 42 executed and verified at code level (human items deferred); next Phase 43 planning
-last_updated: "2026-09-30T23:34:28.355Z"
+stopped_at: Completed 42-07-PLAN.md
+last_updated: "2026-10-01T01:00:10.113Z"
 last_activity: 2026-09-30
-last_activity_desc: Phase 42 execution started
+last_activity_desc: Phase 42 complete, transitioned to Phase 43
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 47
+  total_plans: 48
   completed_plans: 46
   percent: 50
 ---
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 
 ## Current Position
 
-Phase: 43 (Latency Tuning, Staged Generation and Budget) — PLANNING
-Plan: 0/TBD (context gathered; UI-SPEC, research and plans next)
-Status: Phase 42 complete at code level (verification deferred: /gsd-verify-work 42). Phase 41 verification also deferred. Next: plan Phase 43
-Last activity: 2026-09-30 — Phase 42 execution started
+Phase: 43 — Latency Tuning, Staged Generation and Budget
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-30 — Phase 42 complete, transitioned to Phase 43
 
 Progress: [██████████] 98% (2/6 phases)
 
@@ -118,6 +118,7 @@ See MILESTONES.md for full delivery summaries.
 
 ### Blockers/Concerns
 
+- **[Milestone end, user action] Maincloud migration.** On 2026-09-30 the user deferred it "until we're all done". Run section E of 42-USER-CHECKLIST.md: publish 1 from 5968d54f, deploy the client and `/setappversion`, `purge_legacy_llm` with COUNT 0 checks, then publish 2. Publish 1 also covers 41-MAINCLOUD-CHECKLIST.md. Phase 43 adds only additive, defaulted schema, so publish 2 from the final HEAD still needs no clear.
 - **[Phase 41 PARTLY DONE 2026-09-30] Smoke test passed locally (6/6 routes ok, key_valid true, ~$0.11; world_gen 23.5 s, creation_class 10.1 s). The rest of the local live proof (41-16 Task 2) is still deferred.** The user set the Anthropic key locally (keySet true, len 108, `keyValid` false until a smoke test passes) and decided on 2026-09-30 "we can skip the live proof for now". Nothing has been proven against real Claude: no smoke test, no real action per domain, no real-response usage or latency figures, no he/she pronoun check on real output. Resume: `41-LOCAL-PROOF.md` ("How to resume later"): `spacetime call uwr llm_smoke_test --server local`, then `pnpm exec vitest run --config scripts/llm/vitest.live.config.ts` (PROVE_LIVE_DRY unset). The key stays stored locally, so local play makes real calls within the caps ($1/day and 200 calls per player, $2 phase ledger). Do not `--clear-database` locally without need (it wipes the key).
 - **[Phase 41 DEFERRED, user action] Maincloud proof (41-17) not run.** `41-MAINCLOUD-CHECKLIST.md` is written for the user; the user chose to defer the run. The Phase 39 gate re-check on maincloud (dispatch p95 under 250 ms, zero reliability failures, region schema, responsiveness, no browser request to Anthropic or a proxy) is deferred too. Run the local live proof first. A maincloud publish adds `npc.gender` (default '') and needs `--break-clients` (no data loss, no clear); the first publish after the 2.10 upgrade may also need it.
 - [Phase 41 follow-up, cosmetic] `set-key.mjs` prints Node warning `MODULE_TYPELESS_PACKAGE_JSON` for `spacetimedb/src/helpers/measurement.ts`; adding `"type": "module"` to `spacetimedb/package.json` would silence it.
@@ -158,11 +159,10 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 | Phase | State | Resume |
 |-------|-------|--------|
 | 41 | verification_deferred_human | /gsd-verify-work 41 |
-| 42 | verification_deferred_human | /gsd-verify-work 42 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
 
-Phase 42 is code-complete and verified at code level (42-VERIFICATION.md: human_needed, 4/4 criteria, no gaps). On 2026-09-30 the user chose to defer the 5 human items in 42-UAT.md and keep going: real-browser secret cleanup, the per-route indicator walk-through, narrow-viewport/screen-reader/reduced-motion checks, the live smoke test, and the user checklist (42-USER-CHECKLIST.md: Worker, OpenAI key, env lines, leftover llm-proxy/ folder, maincloud two-publish).
+Phase 42 verification passed on 2026-09-30, after the user resolved every UAT item: 4 passed and 1 skipped. Its maincloud two-publish is deferred to the end of the milestone (see Blockers/Concerns).
 
 ## Session Continuity
 

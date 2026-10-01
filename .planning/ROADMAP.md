@@ -61,7 +61,7 @@ Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.
 - [x] **Phase 39: Procedure-to-Claude Spike** - Go/no-go gate: measure whether SpacetimeDB 2.10 procedures can call Claude reliably and pick the executor (completed 2026-09-29)
 - [x] **Phase 40: Claude Request Layer and Job Seam** - One model constant, one route table, a pure tested request builder/parser, layered prompts, and the private job tables, queue and offline test seam (completed 2026-09-30)
 - [ ] **Phase 41: Executor and Domain Cutover** - Run every LLM-driven action server-side end to end against real Claude, with graceful failure handling, usage tracking and admin smoke test
-- [ ] **Phase 42: Client Cutover and Legacy Removal** - Move the client to the job-status view and delete the proxy, the client-trusted result reducer, the old tables and every browser credential
+- [x] **Phase 42: Client Cutover and Legacy Removal** - Move the client to the job-status view and delete the proxy, the client-trusted result reducer, the old tables and every browser credential (completed 2026-09-30)
 - [ ] **Phase 43: Latency Tuning, Staged Generation and Budget** - Tune each route from measured data, verify caching, stage world and class reveals with Keeper progress lines, and add the global spend ceiling and kill switch
 - [ ] **Phase 44: Live Verification and Tone Eval** - Prove every domain with a real Claude call, drill every failure class, and get owner sign-off on tone
 
@@ -341,7 +341,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 39. Procedure-to-Claude Spike | v2.2 | 11/11 | Complete    | 2026-09-29 |
 | 40. Claude Request Layer and Job Seam | v2.2 | 10/10 | Complete    | 2026-09-30 |
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
-| 42. Client Cutover and Legacy Removal | v2.2 | 7/7 | In Progress|  |
+| 42. Client Cutover and Legacy Removal | v2.2 | 7/7 | Complete    | 2026-09-30 |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 0/TBD | Not started | - |
 | 44. Live Verification and Tone Eval | v2.2 | 0/TBD | Not started | - |
 
