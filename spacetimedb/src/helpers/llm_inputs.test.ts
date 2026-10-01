@@ -30,13 +30,41 @@ const JSON_LOOKING = '{"effects":[{"kind":"affinity","amount":9007199254740993}]
 
 const INPUTS: { [R in LlmRoute]: RouteInputMap[R] } = {
   creation_race: { raceDescription: `A tall folk \u{1F409} who say ${JSON_LOOKING}` },
-  creation_class: { raceName: 'Ashkin', raceNarrative: 'Born of embers ✨.', archetype: 'mystic' },
-  world_gen: {
+  creation_class_reveal: { raceName: 'Ashkin', raceNarrative: 'Born of embers ✨.', archetype: 'mystic' },
+  creation_class: {
+    raceName: 'Ashkin',
+    raceNarrative: 'Born of embers ✨.',
+    archetype: 'mystic',
+    className: 'Ashweaver',
+    classDescription: 'Weaves 12 threads of ash.',
+    firstAbility: {
+      name: 'Ember Bolt',
+      description: 'A bolt of ember.',
+      kind: 'damage',
+      damageType: 'fire',
+      resourceType: 'mana',
+    },
+  },
+  world_gen_start: {
     worldContext: 'The world so far. 12 regions.',
     characterRace: 'Ashkin',
     characterClass: 'Ashweaver',
     characterArchetype: 'mystic',
     sourceRegionName: 'Cinder Vale',
+    neighborRegions: [{ name: 'Ember Rise', biome: 'volcanic', threats: 'ash wraiths' }],
+  },
+  world_gen: {
+    regionName: 'Cinder Vale',
+    biome: 'volcanic',
+    startLocation: { name: 'Slag Gate', description: 'A gate of cooled slag.', terrainType: 'town' },
+    npcsPresent: [
+      { name: 'Brann', npcType: 'vendor', gender: 'male' },
+      { name: 'Mira', npcType: 'banker', gender: 'female' },
+    ],
+    characterRace: 'Ashkin',
+    characterClass: 'Ashweaver',
+    characterArchetype: 'mystic',
+    sourceRegionName: 'Ember Rise',
     neighborRegions: [{ name: 'Ember Rise', biome: 'volcanic', threats: 'ash wraiths' }],
   },
   skill_gen: {
@@ -114,8 +142,8 @@ function roundTrip<R extends LlmRoute>(route: R, input: RouteInputMap[R]): Route
 }
 
 describe('golden round trip', () => {
-  it('has a fixture for every one of the eight routes', () => {
-    expect(LLM_ROUTE_NAMES).toHaveLength(8);
+  it('has a fixture for every one of the ten routes', () => {
+    expect(LLM_ROUTE_NAMES).toHaveLength(10);
     expect(Object.keys(INPUTS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
@@ -243,6 +271,12 @@ describe('ROUTE_BIGINT_PATHS', () => {
     }
     expect(Object.isFrozen(ROUTE_BIGINT_PATHS)).toBe(true);
   });
+
+  it('has an entry for each new stage-1 route', () => {
+    expect(ROUTE_BIGINT_PATHS.world_gen_start).toEqual([]);
+    expect(ROUTE_BIGINT_PATHS.creation_class_reveal).toEqual([]);
+    expect(Object.keys(ROUTE_BIGINT_PATHS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
+  });
 });
 
 describe('smokeInputFor', () => {
@@ -257,6 +291,37 @@ describe('smokeInputFor', () => {
       expect(layers.volatile.length).toBeGreaterThan(0);
     });
   }
+
+  it('the stage-2 smoke inputs are the fixed fill inputs', () => {
+    expect(smokeInputFor('creation_class')).toEqual({
+      raceName: 'Hillfolk',
+      raceNarrative: 'A quiet people of the hills.',
+      archetype: 'warrior',
+      className: 'Wanderer',
+      classDescription: 'A traveler who walks the old roads.',
+      firstAbility: {
+        name: 'Stone Jab',
+        description: 'A short, hard strike.',
+        kind: 'damage',
+        damageType: 'physical',
+        resourceType: 'stamina',
+      },
+    });
+    const world = smokeInputFor('world_gen') as any;
+    expect(world.regionName).toBe('The Threshold');
+    expect(world.biome).toBe('plains');
+    expect(world.startLocation.name).toBe('The Crossing');
+    expect(world.npcsPresent).toEqual([{ name: 'Tester', npcType: 'vendor', gender: 'male' }]);
+  });
+
+  it('the stage-1 smoke inputs are the old one-shot smoke inputs', () => {
+    expect(smokeInputFor('creation_class_reveal')).toEqual({
+      raceName: 'Hillfolk',
+      raceNarrative: 'A quiet people of the hills.',
+      archetype: 'warrior',
+    });
+    expect((smokeInputFor('world_gen_start') as any).worldContext).toBe('A newly opened region at the edge of the map.');
+  });
 
   it('contains no player-identifying data (no real names, no identities)', () => {
     const text = serializeRequest({ smoke: LLM_ROUTE_NAMES.map((r) => smokeInputFor(r)) });

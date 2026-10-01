@@ -322,7 +322,7 @@ describe('staged generation schemas (Plan 43-04)', () => {
 
   it('the old one-shot schemas are gone', () => {
     const src = readFileSync(join(REPO_ROOT, 'spacetimedb/src/data/llm_schemas.ts'), 'utf8');
-    expect(src).not.toContain('REGION_GENERATION_SCHEMA');
+    expect(src).not.toContain('REGION_GENERATION' + '_SCHEMA');
     expect(src).not.toMatch(/export const CLASS_SCHEMA/);
   });
 });

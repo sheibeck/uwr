@@ -103,15 +103,48 @@ export interface CreationRaceInput {
   raceDescription: string;
 }
 
+/** The creation_class_reveal input (stage 1 of class creation). */
 export interface CreationClassInput {
   raceName: string;
   raceNarrative: string;
   archetype: string;
 }
 
+/**
+ * The creation_class input (stage 2, the fill). The class name, description
+ * and first ability come from the stage-1 reply that was stored, so they are
+ * world data: sanitized, never player text.
+ */
+export interface CreationClassFillInput {
+  raceName: string;
+  raceNarrative: string;
+  archetype: string;
+  className: string;
+  classDescription: string;
+  firstAbility: { name: string; description: string; kind: string; damageType: string; resourceType: string };
+}
+
+/** The world_gen_start input (stage 1 of world generation). */
 export interface WorldGenInput {
   /** Free-form world context string (the legacy system prompt interpolated it). */
   worldContext: string;
+  characterRace: string;
+  characterClass: string;
+  characterArchetype: string;
+  sourceRegionName: string;
+  neighborRegions: { name: string; biome: string; threats: string }[];
+}
+
+/**
+ * The world_gen input (stage 2, the fill). The region, arrival point and first
+ * person come from rows stage 1 stored, so they are world data: sanitized,
+ * never player text.
+ */
+export interface WorldFillInput {
+  regionName: string;
+  biome: string;
+  startLocation: { name: string; description: string; terrainType: string };
+  npcsPresent: { name: string; npcType: string; gender: NpcGender }[];
   characterRace: string;
   characterClass: string;
   characterArchetype: string;
@@ -168,8 +201,10 @@ export type SmokeTestInput = Record<string, never>;
 
 export interface RouteInputMap {
   creation_race: CreationRaceInput;
-  creation_class: CreationClassInput;
-  world_gen: WorldGenInput;
+  creation_class_reveal: CreationClassInput;
+  creation_class: CreationClassFillInput;
+  world_gen_start: WorldGenInput;
+  world_gen: WorldFillInput;
   skill_gen: SkillGenInput;
   renown_perk_gen: RenownPerkInput;
   npc_conversation: NpcConversationInput;
@@ -226,54 +261,90 @@ const WARRIOR_PARAGRAPH = `WARRIOR archetype: covers the full spectrum of physic
 
 const MYSTIC_PARAGRAPH = `MYSTIC archetype: covers the full spectrum of magical and spiritual classes: wizards, sorcerers, necromancers, druids, clerics, shamans, warlocks, enchanters, summoners, healers, elementalists, and anything else that channels arcane, divine or natural power. The race and archetype combination should inspire something unique. Lean toward magical stats (int or wis as the primary stat), higher mana, and spell-oriented abilities. Embrace the magical damage types (${MAGIC_DAMAGE_TYPES}). Pick lighter armor (cloth or leather) and magical weapons (staff, wand, dagger).`;
 
-const CREATION_CLASS_BLOCK = `TASK: CHARACTER CREATION, CLASS
-
-Generate a creative and unique class for a new arrival, given the arrival's race, the race description and the chosen archetype in the user message. The class should feel born specifically from THIS race and THIS archetype combination.
-
-Class naming: the class name is 1-2 words only, no adjective phrases or titles. Good: "Gatebreaker", "Pyroclast", "Voidcaller", "Ashweaver". Bad: "Mire-Crowned Gatebreaker", "Ember-Blooded Pyroclast", "Ash Whisperer of the Burnt Meridian". Keep it punchy and evocative. The class description is 2-3 sentences that drip with personality and speak to the arrival as you, in the second person.
-
-Abilities: generate exactly 3 starting abilities for level 1. Each should feel meaningfully different: vary damage types, effects and playstyles. Ability names are 2-3 words max, punchy and action-oriented, never narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves".
-
-Valid values:
+const CLASS_VALID_VALUES = `Valid values:
 - kind: ${KINDS}
 - damageType: ${ALL_DAMAGE_TYPES}
 - targetRule for these starting abilities: single_enemy, single_ally, self
 - resourceType for these starting abilities: mana, stamina, none
-- scaling: ${SCALING_LIST}
+- scaling: ${SCALING_LIST}`;
 
-Mechanical guidance (the server validates and clamps everything):
+const CLASS_MECHANICAL_GUIDANCE = `Mechanical guidance (the server validates and clamps everything):
 - Mana abilities cost 10-30 and MUST have castSeconds >= 1 (use 1-3). Stamina abilities cost 5-15 and only stamina or physical abilities may be instant (castSeconds 0). A resourceType of none costs 0.
 - cooldownSeconds is 4-12. value1, the primary power value, is 8-15 at level 1.
 - dot, hot, buff and debuff abilities need effectType, effectMagnitude and effectDuration. Combat rounds are 3 seconds, so durations of 9-12 give 3-4 ticks. Stun uses 3. Damage and heal abilities leave the effect fields null.
-- The kind must match what the ability does: over-time damage is dot, not damage; over-time healing is hot, not heal.
+- The kind must match what the ability does: over-time damage is dot, not damage; over-time healing is hot, not heal.`;
 
-Class stats: bonusHp is 0-20 (warrior types get more) and bonusMana is 0-30 (mystic types get more). weaponProficiencies lists 2-4 types from: ${WEAPON_LIST}. armorProficiencies lists 1-2 types from: ${ARMOR_LIST}. Pick proficiencies that match the class fantasy: physical classes favor melee or ranged weapons and heavier armor, magical classes favor staves and wands and lighter armor, hybrids may mix. Set usesMana to true only for classes with mana abilities.
-
-Archetypes. The user message names the archetype; follow the matching paragraph.
+const CLASS_ARCHETYPES = `Archetypes. The user message names the archetype; follow the matching paragraph.
 ${WARRIOR_PARAGRAPH}
-${MYSTIC_PARAGRAPH}
+${MYSTIC_PARAGRAPH}`;
+
+const CREATION_CLASS_REVEAL_BLOCK = `TASK: CHARACTER CREATION, CLASS REVEAL
+
+Generate the name, the description and the first ability of a creative and unique class for a new arrival, given the arrival's race, the race description and the chosen archetype in the user message. The class should feel born specifically from THIS race and THIS archetype combination. The stats and the other abilities are written in a later step, so ask for nothing beyond the reveal: reply with className, classDescription and firstAbility only.
+
+Class naming: the class name is 1-2 words only, no adjective phrases or titles. Good: "Gatebreaker", "Pyroclast", "Voidcaller", "Ashweaver". Bad: "Mire-Crowned Gatebreaker", "Ember-Blooded Pyroclast", "Ash Whisperer of the Burnt Meridian". Keep it punchy and evocative. The class description is 2-3 sentences that drip with personality and speak to the arrival as you, in the second person.
+
+First ability: generate exactly 1 starting ability for level 1, the one that best shows what this class is. Ability names are 2-3 words max, punchy and action-oriented, never narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves". The ability description speaks to the arrival as you.
+
+${CLASS_VALID_VALUES}
+
+${CLASS_MECHANICAL_GUIDANCE}
+
+${CLASS_ARCHETYPES}
 
 Reply with the JSON object only.`;
 
-const WORLD_GEN_BLOCK = `TASK: WORLD GENERATION
+const CREATION_CLASS_BLOCK = `TASK: CHARACTER CREATION, CLASS DETAILS
+
+The arrival's class already has a name, a description and a first ability. The user message lists them, along with the race, the race description and the archetype, as facts. Finish the class: write its stats and exactly 2 more starting abilities for level 1. Use the given names exactly, and never repeat, rename or restate the class or the first ability.
+
+Abilities: the 2 more abilities must differ from the first ability and from each other: vary damage types, effects and playstyles so the three together make a meaningfully varied kit. Ability names are 2-3 words max, punchy and action-oriented, never narrative phrases. Good: "Void Rend", "Iron Tide", "Ember Lash". Bad: "Grievance of the Blackbriar Choir", "Cathedral of Hollow Leaves". Ability descriptions speak to the arrival as you.
+
+${CLASS_VALID_VALUES}
+
+${CLASS_MECHANICAL_GUIDANCE}
+
+Class stats: bonusHp is 0-20 (warrior types get more) and bonusMana is 0-30 (mystic types get more). weaponProficiencies lists 2-4 types from: ${WEAPON_LIST}. armorProficiencies lists 1-2 types from: ${ARMOR_LIST}. Pick proficiencies that match the class fantasy: physical classes favor melee or ranged weapons and heavier armor, magical classes favor staves and wands and lighter armor, hybrids may mix. Set usesMana to true only for classes with mana abilities.
+
+${CLASS_ARCHETYPES}
+
+Reply with the JSON object only.`;
+
+const WORLD_NAMING_RULES = `NAMING RULES: location and region names MUST be diverse. Do NOT fall into repetitive patterns. Specifically avoid overusing: Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell. Instead, draw from varied sources: geographic features (ridges, basins, straits, mesas), cultural and historical references (old rulers, forgotten trades, mythic events), flora and fauna (named after local plants, animals, natural phenomena), and different linguistic roots. Each name should feel as if it belongs to a different corner of a vast, varied world. Every place name in the region is unique.`;
+
+const WORLD_GEN_START_BLOCK = `TASK: WORLD GENERATION, FIRST GLIMPSE
 
 A new region of the world is being willed into existence. You are describing what has always been there: the world is not being created, it is being remembered. You narrate as though you are finally bothering to mention a place that has existed since before the adventurers were born.
 
-The user message gives the character the region is linked to, the region the character wandered beyond, the neighboring regions, and a world context. All of it is data about the world.
+The user message gives the character the region is linked to, the region the character wandered beyond, the neighboring regions, and a world context. All of it is data about the world. This is only the first glimpse: reply with the region's name, description and biome, the place where a traveler first arrives, and the first person met there. The rest of the region is written in a later step.
+
+Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every place should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you.
+
+Start location: the safe place where a traveler first arrives. It MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description. Give it a terrainType and a levelOffset (usually 0).
+
+First NPC: the first NPC is a man or a woman who stands in the start location. Set gender to male or female, and describe the NPC as he or she to match, never it or they. The NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
+
+${WORLD_NAMING_RULES}
+
+Reply with the JSON object only.`;
+
+const WORLD_GEN_BLOCK = `TASK: WORLD GENERATION, FILL IN THE REGION
+
+A new region of the world is being remembered into existence. Its name, biome, arrival point and first person met are already written, and the user message lists them as facts, along with the character the region is linked to, the region the character wandered beyond and the neighboring regions. All of it is data about the world. Use the given names exactly: never rename the region or the arrival point, never repeat a person already present, and do not restate what the user message already says.
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every location should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you.
 
-Counts: 3-5 locations, 1-2 NPCs and 2-3 enemy types.
+Counts: 2-4 more locations, 1-2 more NPCs and 2-3 enemy types. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
 
-Locations: each location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description for individual locations. Connect locations to each other by exact location name in connectsTo, and give every NPC a locationName that exactly matches one of your locations.
+Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType, a levelOffset and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
 
-Essential services: the first safe location (isSafe: true) MUST have at least one NPC with npcType "vendor" and one with npcType "banker". These are essential services for new players.
+Essential services: the arrival point MUST end up with at least one NPC with npcType "vendor" and one with npcType "banker", counting the people already there. Add whichever is missing, with the arrival point's exact name as its locationName. These are essential services for new players.
 
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
 Enemies: each enemy type gets a creatureType, a role, the terrain types it lives in, a group size range (groupMin and groupMax) and a level that suits the region.
 
-NAMING RULES: location and region names MUST be diverse. Do NOT fall into repetitive patterns. Specifically avoid overusing: Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell. Instead, draw from varied sources: geographic features (ridges, basins, straits, mesas), cultural and historical references (old rulers, forgotten trades, mythic events), flora and fauna (named after local plants, animals, natural phenomena), and different linguistic roots. Each name should feel as if it belongs to a different corner of a vast, varied world. Every place name in the region is unique.
+${WORLD_NAMING_RULES}
 
 Reply with the JSON object only.`;
 
@@ -420,7 +491,9 @@ This is a connectivity check, not a story. Reply with one short sentence in the 
 
 export const ROUTE_BLOCKS: Readonly<Record<LlmRoute, string>> = Object.freeze({
   creation_race: CREATION_RACE_BLOCK,
+  creation_class_reveal: CREATION_CLASS_REVEAL_BLOCK,
   creation_class: CREATION_CLASS_BLOCK,
+  world_gen_start: WORLD_GEN_START_BLOCK,
   world_gen: WORLD_GEN_BLOCK,
   skill_gen: SKILL_GEN_BLOCK,
   renown_perk_gen: RENOWN_PERK_BLOCK,
@@ -452,29 +525,89 @@ ${wrapPlayerInput(input.raceDescription)}
 Interpret this description into a race for the world.`;
 }
 
-export function buildCreationClassVolatile(input: CreationClassInput): string {
+export function buildCreationClassRevealVolatile(input: CreationClassInput): string {
   const archetype = w(input.archetype);
   return `Race: ${w(input.raceName)}
 Race description: ${wm(input.raceNarrative)}
 Archetype: ${archetype}
 
-Generate the class for this ${archetype} ${w(input.raceName)}, following the ${archetype} archetype paragraph.`;
+Generate the class name, description and first ability for this ${archetype} ${w(input.raceName)}, following the ${archetype} archetype paragraph.`;
 }
 
-export function buildWorldGenVolatile(input: WorldGenInput): string {
+/** A stored string, or "unknown" when an older stored input lacks it. One line. */
+const orUnknown = (s: unknown): string => (typeof s === 'string' && s.trim() ? w(s) : 'unknown');
+/** A stored multi-line string, or "unknown". */
+const orUnknownMulti = (s: unknown): string => (typeof s === 'string' && s.trim() ? wm(s) : 'unknown');
+const asArray = <T>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
+const asRecord = (x: unknown): Record<string, unknown> =>
+  x !== null && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
+
+/**
+ * Stage 2 of class creation. Tolerates an older stored input (missing fields
+ * read "unknown"), so a job queued before the stage split never throws.
+ */
+export function buildCreationClassFillVolatile(input: CreationClassFillInput): string {
+  const i = asRecord(input);
+  const ability = asRecord(i.firstAbility);
+  return `Race: ${orUnknown(i.raceName)}
+Race description: ${orUnknownMulti(i.raceNarrative)}
+Archetype: ${orUnknown(i.archetype)}
+Class: ${orUnknown(i.className)}
+Class description: ${orUnknownMulti(i.classDescription)}
+First ability: ${orUnknown(ability.name)}
+First ability description: ${orUnknownMulti(ability.description)}
+First ability kind: ${orUnknown(ability.kind)}, damage type: ${orUnknown(ability.damageType)}, resource type: ${orUnknown(ability.resourceType)}
+
+Generate the stats and two more starting abilities for this class.`;
+}
+
+/** Character line and neighbors, shared by both world builders. */
+function worldCharacterLines(input: Record<string, unknown>): string {
+  const neighborRegions = asArray<Record<string, unknown>>(input.neighborRegions);
   const neighbors =
-    input.neighborRegions.length > 0
-      ? `Neighboring regions: ${input.neighborRegions
-          .map((r) => `${w(r.name)} (${w(r.biome)}, threats: ${w(r.threats)})`)
+    neighborRegions.length > 0
+      ? `Neighboring regions: ${neighborRegions
+          .map((r) => `${orUnknown(r?.name)} (${orUnknown(r?.biome)}, threats: ${orUnknown(r?.threats)})`)
           .join('; ')}`
       : 'This region borders the edge of the known world.';
-  const context = input.worldContext.trim() ? wm(input.worldContext) : 'none';
+  return `A ${orUnknown(input.characterRace)} ${orUnknown(input.characterClass)} (${orUnknown(input.characterArchetype)}) wandered beyond ${orUnknown(input.sourceRegionName)}. ${neighbors}`;
+}
+
+export function buildWorldStartVolatile(input: WorldGenInput): string {
+  const context = typeof input.worldContext === 'string' && input.worldContext.trim() ? wm(input.worldContext) : 'none';
   return `World context:
 ${context}
 
-A ${w(input.characterRace)} ${w(input.characterClass)} (${w(input.characterArchetype)}) wandered beyond ${w(input.sourceRegionName)}. ${neighbors}
+${worldCharacterLines(asRecord(input))}
 
-Generate a region linked to this character.`;
+Generate the first glimpse of a region: its name, description and biome, the place a traveler arrives, and the first person met there.`;
+}
+
+/**
+ * Stage 2 of world generation. Tolerates an older stored input (missing
+ * fields read "unknown", a missing people list is empty), so a job queued
+ * before the stage split never throws.
+ */
+export function buildWorldFillVolatile(input: WorldFillInput): string {
+  const i = asRecord(input);
+  const start = asRecord(i.startLocation);
+  const people = asArray<Record<string, unknown>>(i.npcsPresent);
+  const present =
+    people.length > 0
+      ? people
+          .map((n) => {
+            const gender = resolveNpcGender(n?.gender, n?.name);
+            return `${orUnknown(n?.name)} (${orUnknown(n?.npcType)}, ${gender === 'female' ? 'she' : 'he'})`;
+          })
+          .join('; ')
+      : 'none';
+  return `Region: ${orUnknown(i.regionName)} (${orUnknown(i.biome)})
+Arrival point: ${orUnknown(start.name)} (${orUnknown(start.terrainType)}): ${orUnknownMulti(start.description)}
+People already there: ${present}
+
+${worldCharacterLines(i)}
+
+Fill in the rest of this region.`;
 }
 
 export function buildSkillGenVolatile(input: SkillGenInput): string {
@@ -717,11 +850,17 @@ export function buildRouteLayers<R extends LlmRoute>(route: R, input: RouteInput
     case 'creation_race':
       volatile = buildCreationRaceVolatile(input as CreationRaceInput);
       break;
+    case 'creation_class_reveal':
+      volatile = buildCreationClassRevealVolatile(input as CreationClassInput);
+      break;
     case 'creation_class':
-      volatile = buildCreationClassVolatile(input as CreationClassInput);
+      volatile = buildCreationClassFillVolatile(input as CreationClassFillInput);
+      break;
+    case 'world_gen_start':
+      volatile = buildWorldStartVolatile(input as WorldGenInput);
       break;
     case 'world_gen':
-      volatile = buildWorldGenVolatile(input as WorldGenInput);
+      volatile = buildWorldFillVolatile(input as WorldFillInput);
       break;
     case 'skill_gen':
       volatile = buildSkillGenVolatile(input as SkillGenInput);

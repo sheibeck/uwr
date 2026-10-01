@@ -6,6 +6,8 @@ import type { RoundEventSummary } from '../helpers/combat_narration';
 import {
   ROUTE_BLOCKS,
   buildRouteLayers,
+  buildWorldFillVolatile,
+  buildCreationClassFillVolatile,
   buildCombatNarrationVolatile,
   buildSmokeTestVolatile,
   PLAYER_INPUT_MAX_CHARS,
@@ -191,7 +193,9 @@ const BENIGN_PLAYER = 'Hero One';
 /** Tag matches expected per route (each pair is 2 matches). Player-authored fields only. */
 const EXPECTED_TAG_MATCHES: Record<LlmRoute, number> = {
   creation_race: 2, // one pair: the race description
+  creation_class_reveal: 0,
   creation_class: 0,
+  world_gen_start: 0,
   world_gen: 0,
   skill_gen: 2, // one pair: the character name
   renown_perk_gen: 2, // one pair: the character name
@@ -226,9 +230,37 @@ function combatRound(world: string, player: string): RoundEventSummary {
 function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
   return {
     creation_race: { raceDescription: player },
-    creation_class: { raceName: `${world} race`, raceNarrative: `${world} narrative`, archetype: 'mystic' },
-    world_gen: {
+    creation_class_reveal: { raceName: `${world} race`, raceNarrative: `${world} narrative`, archetype: 'mystic' },
+    creation_class: {
+      raceName: `${world} race`,
+      raceNarrative: `${world} narrative`,
+      archetype: 'mystic',
+      className: `${world} class`,
+      classDescription: `${world} class description\nsecond line`,
+      firstAbility: {
+        name: `${world} ability`,
+        description: `${world} ability description`,
+        kind: 'damage',
+        damageType: 'fire',
+        resourceType: 'mana',
+      },
+    },
+    world_gen_start: {
       worldContext: `${world} context\nsecond line`,
+      characterRace: `${world} race`,
+      characterClass: `${world} class`,
+      characterArchetype: 'warrior',
+      sourceRegionName: `${world} source`,
+      neighborRegions: [{ name: `${world} neighbor`, biome: `${world} biome`, threats: `${world} threats` }],
+    },
+    world_gen: {
+      regionName: `${world} region`,
+      biome: `${world} biome`,
+      startLocation: { name: `${world} arrival`, description: `${world} arrival description\nsecond line`, terrainType: 'town' },
+      npcsPresent: [
+        { name: `${world} greeter`, npcType: 'lore', gender: 'female' },
+        { name: `${world} smith`, npcType: 'vendor', gender: 'male' },
+      ],
       characterRace: `${world} race`,
       characterClass: `${world} class`,
       characterArchetype: 'warrior',
@@ -286,12 +318,19 @@ function stripRealTags(text: string): string {
 
 describe('route blocks and volatile builders', () => {
   describe('ROUTE_BLOCKS', () => {
-    it('is frozen and has a non-empty string for each of the eight routes', () => {
+    it('is frozen and has a non-empty string for each of the ten routes', () => {
       expect(Object.isFrozen(ROUTE_BLOCKS)).toBe(true);
       expect(Object.keys(ROUTE_BLOCKS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
       for (const route of LLM_ROUTE_NAMES) {
         expect(typeof ROUTE_BLOCKS[route]).toBe('string');
         expect(ROUTE_BLOCKS[route].length).toBeGreaterThan(50);
+      }
+    });
+
+    it('the four stage blocks start with TASK: and end with the JSON-only line', () => {
+      for (const route of ['creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen'] as const) {
+        expect(ROUTE_BLOCKS[route], route).toMatch(/^TASK: /);
+        expect(ROUTE_BLOCKS[route].endsWith('Reply with the JSON object only.'), route).toBe(true);
       }
     });
 
@@ -371,27 +410,62 @@ describe('route blocks and volatile builders', () => {
       expect(ROUTE_BLOCKS.creation_race).toMatch(/vague description/);
     });
 
-    it('creation_class keeps both archetype paragraphs, naming rules, ability count and cast rule', () => {
-      const block = ROUTE_BLOCKS.creation_class;
+    it('creation_class_reveal keeps both archetype paragraphs, naming rules and the cast rule, and asks only for the reveal', () => {
+      const block = ROUTE_BLOCKS.creation_class_reveal;
       expect(block).toMatch(/WARRIOR archetype/);
       expect(block).toMatch(/MYSTIC archetype/);
       expect(block).toMatch(/1-2 words/);
       expect(block).toMatch(/2-3 words/);
-      expect(block).toMatch(/exactly 3 starting abilities/);
       expect(block).toMatch(/castSeconds >= 1/);
+      expect(block).toMatch(/exactly 1 starting ability/);
+      expect(block).toMatch(/className, classDescription and firstAbility/);
+      expect(block).not.toMatch(/exactly 3 starting abilities/);
+      expect(block).not.toMatch(/weaponProficiencies/);
       expect(block).not.toMatch(/\bholy\b/i);
       expect(block).not.toMatch(/\blightning\b/i);
       expect(block).toMatch(/\bdivine\b/);
     });
 
-    it('world_gen keeps naming rules, uniqueness, vendor and banker rule and counts', () => {
-      const block = ROUTE_BLOCKS.world_gen;
-      expect(block).toMatch(/Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell/);
+    it('creation_class (fill) keeps stats rules, both archetype paragraphs and asks for exactly 2 more abilities', () => {
+      const block = ROUTE_BLOCKS.creation_class;
+      expect(block).toMatch(/WARRIOR archetype/);
+      expect(block).toMatch(/MYSTIC archetype/);
+      expect(block).toMatch(/exactly 2 more starting abilities/);
+      expect(block).toMatch(/differ from the first ability/);
+      expect(block).toMatch(/bonusHp is 0-20/);
+      expect(block).toMatch(/weaponProficiencies lists 2-4 types/);
+      expect(block).toMatch(/castSeconds >= 1/);
+      expect(block).toMatch(/never repeat, rename or restate the class or the first ability/);
+      expect(block).not.toMatch(/exactly 3 starting abilities/);
+      expect(block).not.toMatch(/\bholy\b/i);
+      expect(block).not.toMatch(/\blightning\b/i);
+    });
+
+    const NAMING = /Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell/;
+
+    it('world_gen_start keeps the remembered framing, naming rules, the safe arrival point and the first NPC', () => {
+      const block = ROUTE_BLOCKS.world_gen_start;
+      expect(block).toMatch(NAMING);
+      expect(block).toMatch(/remembered/);
       expect(block).toMatch(/unique 2-3 sentence description/);
-      expect(block).toMatch(/first safe location/);
+      expect(block).toMatch(/safe place where a traveler first arrives/);
+      expect(block).toMatch(/first NPC/);
+      expect(block).toMatch(/a man or a woman/);
+      expect(block).not.toMatch(/3-5 locations/);
+      expect(block).not.toMatch(/enemy types/);
+    });
+
+    it('world_gen (fill) keeps naming rules, the vendor and banker rule and the counts, and never renames stage-1 facts', () => {
+      const block = ROUTE_BLOCKS.world_gen;
+      expect(block).toMatch(NAMING);
+      expect(block).toMatch(/unique 2-3 sentence description/);
+      expect(block).toMatch(/arrival point/);
       expect(block).toMatch(/"vendor"/);
       expect(block).toMatch(/"banker"/);
-      expect(block).toMatch(/3-5 locations, 1-2 NPCs and 2-3 enemy types/);
+      expect(block).toMatch(/2-4 more locations, 1-2 more NPCs and 2-3 enemy types/);
+      expect(block).toMatch(/use the given names exactly/i);
+      expect(block).toMatch(/never rename the region or the arrival point/);
+      expect(block).toMatch(/repeat a person already present/);
     });
 
     it('skill_gen keeps the duration and cast rules', () => {
@@ -494,6 +568,83 @@ describe('route blocks and volatile builders', () => {
       expect(text).not.toContain('<player_input>plain world text Grub');
     });
 
+    it('the stage-1 volatile texts ask only for the reveal', () => {
+      expect(buildRouteLayers('world_gen_start', benign.world_gen_start).volatile).toMatch(
+        /first glimpse of a region: its name, description and biome, the place a traveler arrives, and the first person met there/,
+      );
+      const cls = buildRouteLayers('creation_class_reveal', benign.creation_class_reveal).volatile;
+      expect(cls).toContain('Archetype: mystic');
+      expect(cls).toMatch(/class name, description and first ability/);
+    });
+
+    it('buildWorldFillVolatile renders the stage-1 facts and asks for the rest of the region', () => {
+      const text = buildRouteLayers('world_gen', benign.world_gen).volatile;
+      expect(text).toContain('Region: plain world text region (plain world text biome)');
+      expect(text).toContain('Arrival point: plain world text arrival (town): plain world text arrival description');
+      expect(text).toContain('People already there: plain world text greeter (lore, she); plain world text smith (vendor, he)');
+      expect(text).toContain('wandered beyond plain world text source');
+      expect(text).toContain('Neighboring regions: plain world text neighbor');
+      expect(text.trimEnd().endsWith('Fill in the rest of this region.')).toBe(true);
+    });
+
+    it('buildCreationClassFillVolatile renders the class and the first ability and asks for stats and two more abilities', () => {
+      const text = buildRouteLayers('creation_class', benign.creation_class).volatile;
+      expect(text).toContain('Race: plain world text race');
+      expect(text).toContain('Archetype: mystic');
+      expect(text).toContain('Class: plain world text class');
+      expect(text).toContain('First ability: plain world text ability');
+      expect(text).toContain('First ability description: plain world text ability description');
+      expect(text).toContain('kind: damage');
+      expect(text).toContain('damage type: fire');
+      expect(text).toContain('resource type: mana');
+      expect(text.trimEnd().endsWith('Generate the stats and two more starting abilities for this class.')).toBe(true);
+    });
+
+    describe('stage-2 builders tolerate an older stored input (Plan 43-04)', () => {
+      it('buildWorldFillVolatile accepts the old world_gen input shape', () => {
+        const old = benign.world_gen_start; // the old one-shot world_gen input
+        const text = buildWorldFillVolatile(old as never);
+        expect(text).toContain('Region: unknown (unknown)');
+        expect(text).toContain('Arrival point: unknown (unknown): unknown');
+        expect(text).toContain('People already there: none');
+        expect(text).toContain('wandered beyond plain world text source');
+        expect(text).not.toContain('undefined');
+      });
+
+      it('buildWorldFillVolatile accepts missing fields and a missing npcsPresent array', () => {
+        for (const input of [{}, { regionName: 'Vale' }, { startLocation: {} }, { npcsPresent: null }, { neighborRegions: undefined }]) {
+          const text = buildWorldFillVolatile(input as never);
+          expect(text).not.toContain('undefined');
+          expect(text).not.toContain('null');
+          expect(text).toContain('Fill in the rest of this region.');
+        }
+        expect(buildWorldFillVolatile({ regionName: 'Vale' } as never)).toContain('Region: Vale (unknown)');
+      });
+
+      it('buildCreationClassFillVolatile accepts the old class input shape', () => {
+        const old = benign.creation_class_reveal; // the old one-shot creation_class input
+        const text = buildCreationClassFillVolatile(old as never);
+        expect(text).toContain('Class: unknown');
+        expect(text).toContain('First ability: unknown');
+        expect(text).toContain('Archetype: mystic');
+        expect(text).not.toContain('undefined');
+      });
+
+      it('buildCreationClassFillVolatile accepts missing fields', () => {
+        for (const input of [{}, { raceName: 'Ashkin' }, { firstAbility: null }]) {
+          const text = buildCreationClassFillVolatile(input as never);
+          expect(text).not.toContain('undefined');
+          expect(text).not.toContain('null');
+          expect(text).toContain('Generate the stats and two more starting abilities for this class.');
+        }
+      });
+
+      it('a person present with no gender still gets a deterministic pronoun', () => {
+        const text = buildWorldFillVolatile({ npcsPresent: [{ name: 'Oswin Tarr', npcType: 'lore' }] } as never);
+        expect(text).toMatch(/Oswin Tarr \(lore, (he|she)\)/);
+      });
+    });
+
     it('creation_race keeps the empty tag pair for empty input', () => {
       const text = buildRouteLayers('creation_race', { raceDescription: '' }).volatile;
       expect(text).toContain('<player_input>\n\n</player_input>');
@@ -513,19 +664,31 @@ describe('pronoun rule in route blocks and volatile builders (Plan 41-18)', () =
   it('every route the player reads tells the model to address the character as you', () => {
     for (const route of [
       'creation_race',
+      'creation_class_reveal',
       'creation_class',
+      'world_gen_start',
       'skill_gen',
       'renown_perk_gen',
       'npc_conversation',
       'combat_narration',
     ] as const) {
-      expect(ROUTE_BLOCKS[route], route).toMatch(/\bas you\b/);
+      expect(ROUTE_BLOCKS[route], route).toMatch(/\bas you\b|it says you\b/);
     }
   });
 
-  it('world_gen asks for a gender on every NPC and says you for the traveler', () => {
-    expect(ROUTE_BLOCKS.world_gen).toContain('Set gender to male or female');
-    expect(ROUTE_BLOCKS.world_gen).toContain('When a description speaks of the traveler, it says you.');
+  it('both world blocks ask for a gender on every NPC and say you for the traveler', () => {
+    for (const route of ['world_gen_start', 'world_gen'] as const) {
+      expect(ROUTE_BLOCKS[route], route).toContain('Set gender to male or female');
+      expect(ROUTE_BLOCKS[route], route).toContain('he or she');
+      expect(ROUTE_BLOCKS[route], route).toContain('When a description speaks of the traveler, it says you.');
+    }
+  });
+
+  it('no stage block calls the Keeper or an NPC it or they', () => {
+    for (const route of ['creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen'] as const) {
+      expect(ROUTE_BLOCKS[route], route).not.toMatch(/\bKeeper\b[^.]*\b(its|itself|they|them|their|theirs|themselves)\b/);
+      expect(ROUTE_BLOCKS[route], route).not.toMatch(/\b(themselves|themself)\b/);
+    }
   });
 
   it('npc_conversation points at the Gender line and combat_narration allows a beast to be it', () => {

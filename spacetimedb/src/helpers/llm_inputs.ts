@@ -43,7 +43,9 @@ export function encodeRouteInput<T>(input: T): Json {
  */
 export const ROUTE_BIGINT_PATHS: Readonly<Record<LlmRoute, readonly string[]>> = Object.freeze({
   creation_race: Object.freeze([]),
+  creation_class_reveal: Object.freeze([]),
   creation_class: Object.freeze([]),
+  world_gen_start: Object.freeze([]),
   world_gen: Object.freeze([]),
   skill_gen: Object.freeze(['level']),
   renown_perk_gen: Object.freeze([]),
@@ -109,9 +111,34 @@ export function decodeRouteInput<R extends LlmRoute>(route: R, value: unknown): 
 export function smokeInputFor<R extends LlmRoute>(route: R): RouteInputMap[R] {
   const inputs: { [K in LlmRoute]: RouteInputMap[K] } = {
     creation_race: { raceDescription: 'A small, quiet folk of the hills.' },
-    creation_class: { raceName: 'Hillfolk', raceNarrative: 'A quiet people of the hills.', archetype: 'warrior' },
-    world_gen: {
+    creation_class_reveal: { raceName: 'Hillfolk', raceNarrative: 'A quiet people of the hills.', archetype: 'warrior' },
+    creation_class: {
+      raceName: 'Hillfolk',
+      raceNarrative: 'A quiet people of the hills.',
+      archetype: 'warrior',
+      className: 'Wanderer',
+      classDescription: 'A traveler who walks the old roads.',
+      firstAbility: {
+        name: 'Stone Jab',
+        description: 'A short, hard strike.',
+        kind: 'damage',
+        damageType: 'physical',
+        resourceType: 'stamina',
+      },
+    },
+    world_gen_start: {
       worldContext: 'A newly opened region at the edge of the map.',
+      characterRace: 'Hillfolk',
+      characterClass: 'Wanderer',
+      characterArchetype: 'warrior',
+      sourceRegionName: 'The Threshold',
+      neighborRegions: [],
+    },
+    world_gen: {
+      regionName: 'The Threshold',
+      biome: 'plains',
+      startLocation: { name: 'The Crossing', description: 'A quiet crossroads.', terrainType: 'plains' },
+      npcsPresent: [{ name: 'Tester', npcType: 'vendor', gender: 'male' }],
       characterRace: 'Hillfolk',
       characterClass: 'Wanderer',
       characterArchetype: 'warrior',
