@@ -36,7 +36,6 @@ import { ROUTE_BLOCKS } from '../data/llm_layers';
 import {
   LLM_PLAYER_DAILY_COST_MICRO_USD,
   LLM_PLAYER_DAILY_CALLS,
-  LLM_PHASE_SPEND_CAP_MICRO_USD,
   LLM_BUDGET_RETENTION_DAYS,
   LLM_SPEND_ID,
 } from '../data/llm_limits';
@@ -321,14 +320,8 @@ export function chargeLedgerUnknownBilling(ctx: any, job: { reservedMicroUsd: bi
 }
 
 // ---------------------------------------------------------------------------
-// Ledger status and pruning
+// Pruning
 // ---------------------------------------------------------------------------
-
-export function isPhaseLedgerExhausted(ctx: any): boolean {
-  const ledger = getPhaseLedger(ctx);
-  if (!ledger) return false;
-  return ledger.spentMicroUsd + ledger.reservedMicroUsd > LLM_PHASE_SPEND_CAP_MICRO_USD;
-}
 
 /**
  * Delete llm_player_budget rows older than the retention window. Iterates the

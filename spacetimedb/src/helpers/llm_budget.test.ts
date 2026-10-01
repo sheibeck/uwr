@@ -7,7 +7,6 @@ import { ROUTE_BLOCKS } from '../data/llm_layers';
 import {
   LLM_PLAYER_DAILY_COST_MICRO_USD,
   LLM_PLAYER_DAILY_CALLS,
-  LLM_PHASE_SPEND_CAP_MICRO_USD,
   LLM_DAILY_CEILING_DEFAULT_MICRO_USD,
 } from '../data/llm_limits';
 import {
@@ -24,7 +23,6 @@ import {
   addLedgerSpend,
   subtractLedgerSpend,
   getPhaseLedger,
-  isPhaseLedgerExhausted,
   prunePlayerBudgets,
 } from './llm_budget';
 
@@ -286,15 +284,16 @@ describe('reserveLlmBudget: global daily ceiling boundary', () => {
   });
 
   it('the old $2 phase figure no longer refuses anything', () => {
+    const OLD_PHASE_FIGURE = 2_000_000n; // the retired phase cap, kept here only as a plain figure
     const ctx = createMockCtx({
       timestampMicros: T_2026_09_30,
       seed: {
-        llm_spend: [ledgerRow({ spentMicroUsd: LLM_PHASE_SPEND_CAP_MICRO_USD * 3n, dayUtc: '2026-09-29', daySpentMicroUsd: 0n })],
+        llm_spend: [ledgerRow({ spentMicroUsd: OLD_PHASE_FIGURE * 3n, dayUtc: '2026-09-29', daySpentMicroUsd: 0n })],
       },
     });
     expect(reserve(ctx).ok).toBe(true);
     // all-time spent is kept as the record
-    expect(getPhaseLedger(ctx).spentMicroUsd).toBe(LLM_PHASE_SPEND_CAP_MICRO_USD * 3n);
+    expect(getPhaseLedger(ctx).spentMicroUsd).toBe(OLD_PHASE_FIGURE * 3n);
   });
 
   it('phase_only counts against the ledger and leaves player rows untouched', () => {
@@ -789,23 +788,6 @@ describe('unknown billing and late arrivals', () => {
     settleLlmCost(ctx, job, { actualMicroUsd: 0n, chargePlayer: false }); // final settle, player exempt
     expect(playerRow(ctx).spentMicroUsd).toBe(0n);
     expect(ledger(ctx).spentMicroUsd).toBe(R);
-  });
-});
-
-describe('isPhaseLedgerExhausted', () => {
-  it('is false when the ledger row is absent', () => {
-    expect(isPhaseLedgerExhausted(createMockCtx())).toBe(false);
-  });
-
-  it('is false at exactly the cap and true one micro-USD above it', () => {
-    const at = createMockCtx({
-      seed: { llm_spend: [ledgerRow({ spentMicroUsd: 1_500_000n, reservedMicroUsd: 500_000n })] },
-    });
-    expect(isPhaseLedgerExhausted(at)).toBe(false);
-    const over = createMockCtx({
-      seed: { llm_spend: [ledgerRow({ spentMicroUsd: 1_500_000n, reservedMicroUsd: 500_001n })] },
-    });
-    expect(isPhaseLedgerExhausted(over)).toBe(true);
   });
 });
 

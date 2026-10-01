@@ -25,7 +25,8 @@ describe('llm_limits constants (Phase 41)', () => {
     expect(L.LLM_PLAYER_DAILY_COST_MICRO_USD).toBe(1_000_000n);
     expect(L.LLM_PLAYER_DAILY_CALLS).toBe(200n);
     expect(L.LLM_PLAYER_MAX_ACTIVE_JOBS).toBe(3);
-    expect(L.LLM_PHASE_SPEND_CAP_MICRO_USD).toBe(2_000_000n);
+    // Retired in Phase 43 (the global daily ceiling replaced the $2 phase cap); name built from parts so no source line reads it.
+    expect(L).not.toHaveProperty(['LLM_PHASE', 'SPEND_CAP', 'MICRO_USD'].join('_'));
     expect(L.LLM_BUDGET_RETENTION_DAYS).toBe(2);
     expect(L.LLM_APPLY_MAX_ATTEMPTS).toBe(2);
     expect(L.LLM_SMOKE_JSON_MAX_CHARS).toBe(4096);

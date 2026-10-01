@@ -474,7 +474,7 @@ describe('admin_llm_status view', () => {
     const row = v.fn({ sender: adminIdent, db: noScanDb(adminSeed()) })[0];
     // Phase 43 replaces the phase cap with the daily ceiling and the kill switch: twelve keys became fifteen.
     expect(ADMIN_LLM_STATUS_KEYS).toHaveLength(15);
-    expect([...ADMIN_LLM_STATUS_KEYS]).not.toContain('phaseCapMicroUsd');
+    expect([...ADMIN_LLM_STATUS_KEYS]).not.toContain(['phaseCap', 'MicroUsd'].join(''));
     expect([...ADMIN_LLM_STATUS_KEYS]).toEqual(expect.arrayContaining(['dailyCeilingMicroUsd', 'llmEnabled', 'spendDayUtc', 'daySpentMicroUsd']));
     expect(Object.keys(row).sort()).toEqual([...ADMIN_LLM_STATUS_KEYS].sort());
     expect(Object.keys(projectAdminLlmStatus(undefined, undefined, 0)).sort()).toEqual([...ADMIN_LLM_STATUS_KEYS].sort());

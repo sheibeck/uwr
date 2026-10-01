@@ -74,13 +74,6 @@ export const LLM_PLAYER_DAILY_COST_MICRO_USD = 1_000_000n;
 export const LLM_PLAYER_DAILY_CALLS = 200n;
 /** Active non-narration jobs per player. */
 export const LLM_PLAYER_MAX_ACTIVE_JOBS = 3;
-/**
- * The old $2 phase spend cap. No longer a limit: Phase 43 replaced it with the
- * global daily ceiling below, and llm_spend now only records all-time spent,
- * reserved and calls. Plan 43-06 removes its last readers and this constant
- * (reducers/llm.ts and views/llm.ts still import it until then).
- */
-export const LLM_PHASE_SPEND_CAP_MICRO_USD = 2_000_000n;
 /** llm_player_budget rows older than this many UTC days are prunable. */
 export const LLM_BUDGET_RETENTION_DAYS = 2;
 /** Apply runs at most this many times (the second re-runs from stored text, no second billed call). */

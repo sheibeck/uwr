@@ -224,7 +224,7 @@ describe('the live harness source', () => {
     // Phase 43: the guard reads today's held spend and the daily ceiling, never the retired phase cap.
     expect(harness).toContain('heldTodayMicroUsd(');
     expect(harness).toContain('dailyCeilingMicroUsd');
-    expect(harness).not.toContain('phaseCapMicroUsd');
+    expect(harness).not.toContain(['phaseCap', 'MicroUsd'].join(''));
   });
 
   it('never prints the token or the key directly', () => {
