@@ -533,3 +533,43 @@ describe('measurement record hygiene', () => {
     expect(recordHygieneProblems({ ...RECORD, status: 'running' }).some((p) => p.includes('status'))).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tuning end state (Plan 43-14). The terminal-status assertion is the Phase 43 end state: a
+// later re-measurement passes through 'measured' and back to 'applied'.
+// ---------------------------------------------------------------------------
+
+describe('tuning end state', () => {
+  it('the record status is applied, declined or deferred (the apply step ran)', () => {
+    expect(['applied', 'declined', 'deferred']).toContain(RECORD.status);
+  });
+
+  it('parallel class generation is built only on a build verdict', () => {
+    if (RECORD.classReveal.verdict !== 'build') expect(RECORD.classReveal.parallelBuilt).toBe(false);
+  });
+
+  it('a declined or deferred record has verdict not_measured', () => {
+    if (RECORD.status === 'declined' || RECORD.status === 'deferred') {
+      expect(RECORD.classReveal.verdict).toBe('not_measured');
+    }
+  });
+
+  it('when applied, every tuned route cites the measurement file with its p99 and sample count', () => {
+    if (RECORD.status !== 'applied') return;
+    for (const name of LLM_ROUTE_NAMES as readonly LlmRoute[]) {
+      const t = LLM_TUNING[name];
+      if (t.status !== 'tuned') continue;
+      expect(t.source).toBe(LLM_TUNING_SOURCE);
+      expect(t.p99OutputTokens).not.toBeNull();
+      expect(t.samples).toBeGreaterThanOrEqual(LLM_TUNING_MIN_SAMPLES);
+    }
+  });
+
+  it('when applied, every swept route passed the caching proof or is recorded as not cacheable', () => {
+    if (RECORD.status !== 'applied') return;
+    for (const name of LLM_SWEEP_ROUTES) {
+      const c = RECORD.caching[name];
+      expect(c.pass === true || c.notCacheable === true).toBe(true);
+    }
+  });
+});

@@ -296,31 +296,40 @@ export function lat06Decision(latenciesMs: readonly number[]): {
 
 // -- The tuning table the route table reads ----------------------------------
 //
-// Plan 43-14 rewrites these literals from the record (status 'applied'). Until a
-// measurement is applied every entry is its baseline: 'insufficient_data'
-// (smoke_test 'not_swept'), no p99, no samples.
+// Plan 43-14 wrote these literals from deriveRouteTuning over the committed record
+// (status 'applied'); llm_tuning.test.ts asserts every entry equals that derivation.
+// A route the derivation cannot tune keeps its baseline as 'insufficient_data'
+// (smoke_test is 'not_swept').
 
-const entry = (effort: LlmEffort, maxTokens: number, timeoutMs: number, status: TuningStatus): TunedRoute =>
+const entry = (
+  effort: LlmEffort,
+  maxTokens: number,
+  timeoutMs: number,
+  status: TuningStatus,
+  p99OutputTokens: number | null = null,
+  samples = 0,
+  tie = false,
+): TunedRoute =>
   Object.freeze({
     effort,
     maxTokens,
     timeoutMs,
     status,
     source: LLM_TUNING_SOURCE,
-    p99OutputTokens: null,
-    samples: 0,
-    tie: false,
+    p99OutputTokens,
+    samples,
+    tie,
   });
 
 export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze({
-  creation_race: entry('low', 4096, 90_000, 'insufficient_data'),
-  creation_class_reveal: entry('low', 2048, 60_000, 'insufficient_data'),
-  creation_class: entry('low', 4096, 90_000, 'insufficient_data'),
-  world_gen_start: entry('low', 4096, 90_000, 'insufficient_data'),
-  world_gen: entry('low', 8192, 150_000, 'insufficient_data'),
-  skill_gen: entry('low', 4096, 60_000, 'insufficient_data'),
-  npc_conversation: entry('low', 1024, 30_000, 'insufficient_data'),
-  combat_narration: entry('low', 1024, 20_000, 'insufficient_data'),
-  renown_perk_gen: entry('low', 2048, 60_000, 'insufficient_data'),
+  creation_race: entry('low', 512, 90_000, 'tuned', 265, 10, true),
+  creation_class_reveal: entry('low', 512, 60_000, 'tuned', 327, 10, true),
+  creation_class: entry('low', 768, 90_000, 'tuned', 465, 10, true),
+  world_gen_start: entry('low', 1024, 90_000, 'tuned', 818, 10, true),
+  world_gen: entry('low', 2560, 150_000, 'tuned', 1988, 10, true),
+  skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
+  npc_conversation: entry('low', 512, 30_000, 'tuned', 379, 10, true),
+  combat_narration: entry('low', 256, 20_000, 'tuned', 168, 5, true),
+  renown_perk_gen: entry('low', 1024, 60_000, 'tuned', 756, 10, false),
   smoke_test: entry('low', 256, 30_000, 'not_swept'),
 });

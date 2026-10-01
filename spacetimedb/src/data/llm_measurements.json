@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "measured",
+  "status": "applied",
   "model": "claude-sonnet-5-5",
   "recordedAt": "2026-10-01T08:17:08.802Z",
   "environment": "local",

@@ -2,7 +2,7 @@
 
 exports[`buildClaudeRequest > combat_narration: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 1024,
+  "max_tokens": 256,
   "messages": [
     {
       "content": "Round 3 of combat:
@@ -69,7 +69,7 @@ When the user message says combat ended in VICTORY or DEFEAT, write a brief narr
 
 exports[`buildClaudeRequest > creation_class: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 4096,
+  "max_tokens": 768,
   "messages": [
     {
       "content": "Race: plain world text race
@@ -381,7 +381,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > creation_class_reveal: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 2048,
+  "max_tokens": 512,
   "messages": [
     {
       "content": "Race: plain world text race
@@ -614,7 +614,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > creation_race: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 4096,
+  "max_tokens": 512,
   "messages": [
     {
       "content": "The new arrival describes the race as:
@@ -747,7 +747,7 @@ Rules:
 
 exports[`buildClaudeRequest > npc_conversation: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 1024,
+  "max_tokens": 512,
   "messages": [
     {
       "content": "You are plain world text npc.
@@ -856,7 +856,7 @@ Reply format: respond with ONLY a JSON object of this shape, with no text before
 
 exports[`buildClaudeRequest > renown_perk_gen: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 2048,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "Character: <player_input>Hero One</player_input>
@@ -1131,7 +1131,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > skill_gen: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 4096,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "Character: <player_input>Hero One</player_input>
@@ -1420,7 +1420,7 @@ This is a connectivity check, not a story. Reply with one short sentence in the 
 
 exports[`buildClaudeRequest > world_gen: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 8192,
+  "max_tokens": 2560,
   "messages": [
     {
       "content": "Region: plain world text region (plain world text biome)
@@ -1693,7 +1693,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > world_gen_start: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 4096,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "World context:

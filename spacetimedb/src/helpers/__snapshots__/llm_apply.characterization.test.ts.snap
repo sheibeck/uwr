@@ -358,7 +358,7 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "outputTokens": "0n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Unknown\\",\\"raceNarrative\\":\\"\\",\\"archetype\\":\\"warrior\\",\\"className\\":\\"Emberblade\\",\\"classDescription\\":\\"A duelist who fights like a grudge.\\",\\"firstAbility\\":{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"resourceType\\":\\"stamina\\"}}}",
-      "reservedMicroUsd": "51055n",
+      "reservedMicroUsd": "17775n",
       "route": "creation_class",
       "status": "pending"
     }
@@ -369,7 +369,7 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "dayUtc": "2023-11-14",
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "reservedMicroUsd": "51055n",
+      "reservedMicroUsd": "17775n",
       "spentMicroUsd": "0n"
     }
   ],
@@ -379,7 +379,7 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "daySpentMicroUsd": "0n",
       "dayUtc": "2023-11-14",
       "id": "1n",
-      "reservedMicroUsd": "51055n",
+      "reservedMicroUsd": "17775n",
       "spentMicroUsd": "0n",
       "updatedAt": "ts:1700000000000000n"
     }
@@ -667,7 +667,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: a reply w
       "outputTokens": "0n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Ashkin\\",\\"raceNarrative\\":\\"Born of cinders.\\",\\"archetype\\":\\"warrior\\",\\"className\\":\\"Unknown Class\\",\\"classDescription\\":\\"\\",\\"firstAbility\\":{\\"name\\":\\"Unknown Ability\\",\\"description\\":\\"\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"resourceType\\":\\"stamina\\"}}}",
-      "reservedMicroUsd": "51038n",
+      "reservedMicroUsd": "17758n",
       "route": "creation_class",
       "status": "pending"
     }
@@ -678,7 +678,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: a reply w
       "dayUtc": "2023-11-14",
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "reservedMicroUsd": "51038n",
+      "reservedMicroUsd": "17758n",
       "spentMicroUsd": "0n"
     }
   ],
@@ -688,7 +688,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: a reply w
       "daySpentMicroUsd": "0n",
       "dayUtc": "2023-11-14",
       "id": "1n",
-      "reservedMicroUsd": "51038n",
+      "reservedMicroUsd": "17758n",
       "spentMicroUsd": "0n",
       "updatedAt": "ts:1700000000000000n"
     }
@@ -769,7 +769,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: legacy ab
       "outputTokens": "0n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Ashkin\\",\\"raceNarrative\\":\\"Born of cinders.\\",\\"archetype\\":\\"mystic\\",\\"className\\":\\"Cinder Mystic\\",\\"classDescription\\":\\"Glows unpleasantly.\\",\\"firstAbility\\":{\\"name\\":\\"Spark\\",\\"description\\":\\"A spark.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"physical\\",\\"resourceType\\":\\"mana\\"}}}",
-      "reservedMicroUsd": "51048n",
+      "reservedMicroUsd": "17768n",
       "route": "creation_class",
       "status": "pending"
     }
@@ -780,7 +780,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: legacy ab
       "dayUtc": "2023-11-14",
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "reservedMicroUsd": "51048n",
+      "reservedMicroUsd": "17768n",
       "spentMicroUsd": "0n"
     }
   ],
@@ -790,7 +790,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: legacy ab
       "daySpentMicroUsd": "0n",
       "dayUtc": "2023-11-14",
       "id": "1n",
-      "reservedMicroUsd": "51048n",
+      "reservedMicroUsd": "17768n",
       "spentMicroUsd": "0n",
       "updatedAt": "ts:1700000000000000n"
     }
@@ -906,7 +906,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > applies a valid rep
       "outputTokens": "0n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "requestJson": "{\\"creationStateId\\":\\"2\\",\\"generationType\\":\\"class\\",\\"input\\":{\\"raceName\\":\\"Ashkin\\",\\"raceNarrative\\":\\"Born of cinders.\\",\\"archetype\\":\\"warrior\\",\\"className\\":\\"Emberblade\\",\\"classDescription\\":\\"A duelist who fights like a grudge.\\",\\"firstAbility\\":{\\"name\\":\\"Ember Slash\\",\\"description\\":\\"A burning cut.\\",\\"kind\\":\\"damage\\",\\"damageType\\":\\"fire\\",\\"resourceType\\":\\"stamina\\"}}}",
-      "reservedMicroUsd": "51068n",
+      "reservedMicroUsd": "17788n",
       "route": "creation_class",
       "status": "pending"
     }
@@ -917,7 +917,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > applies a valid rep
       "dayUtc": "2023-11-14",
       "id": "1n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "reservedMicroUsd": "51068n",
+      "reservedMicroUsd": "17788n",
       "spentMicroUsd": "0n"
     }
   ],
@@ -927,7 +927,7 @@ exports[`llm apply creation_class_reveal success (stage 1) > applies a valid rep
       "daySpentMicroUsd": "0n",
       "dayUtc": "2023-11-14",
       "id": "1n",
-      "reservedMicroUsd": "51068n",
+      "reservedMicroUsd": "17788n",
       "spentMicroUsd": "0n",
       "updatedAt": "ts:1700000000000000n"
     }

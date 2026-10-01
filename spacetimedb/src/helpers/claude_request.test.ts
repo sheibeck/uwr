@@ -245,6 +245,7 @@ describe('buildClaudeRequest', () => {
   it('mutating a returned body does not change the next one', () => {
     const route: LlmRoute = 'skill_gen';
     const reference = buildFor(route).bodyText;
+    const maxTokensBefore = LLM_ROUTES[route].maxTokens;
     const first = buildFor(route);
     first.body.max_tokens = 1;
     first.body.system[0].text = 'tampered';
@@ -252,7 +253,7 @@ describe('buildClaudeRequest', () => {
     first.body.output_config.effort = 'high';
     first.body.messages[0].content = 'tampered';
     expect(buildFor(route).bodyText).toBe(reference);
-    expect(LLM_ROUTES[route].maxTokens).toBe(4096);
+    expect(LLM_ROUTES[route].maxTokens).toBe(maxTokensBefore);
   });
 
   it('building in forward and reversed route order gives the same body per route', () => {
