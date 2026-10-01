@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 // @ts-ignore
 import { fileURLToPath } from 'node:url';
+import { CLAUDE_MODEL } from './llm_models';
 import { LLM_ROUTE_NAMES, LLM_ROUTES, validateRoutes, type LlmRoute } from './llm_routes';
 import {
   LLM_TUNING,
@@ -443,5 +444,92 @@ describe('traceability: llm_measurements.json', () => {
     expect(cr.p95Ms).toBe(d.p95Ms);
     expect(cr.thresholdMs).toBe(LLM_CLASS_REVEAL_THRESHOLD_MS);
     if (d.verdict !== 'build') expect(cr.parallelBuilt).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Measurement record hygiene (Plan 43-12): the committed record may hold only counts, sizes,
+// timings, stop reasons, pass flags and lint rule ids, never text or key material.
+// ---------------------------------------------------------------------------
+
+const RECORD_STATUSES = ['not_run', 'measured', 'declined', 'deferred', 'applied'];
+const FORBIDDEN_RECORD_KEYS = ['prompt', 'completion', 'text', 'body', 'system', 'messages', 'apiKey', 'headers'];
+const RECORD_SPEND_CAP_MICRO_USD = 5_000_000n;
+
+function recordHygieneProblems(record: any): string[] {
+  const problems: string[] = [];
+  if (!record || typeof record !== 'object') return ['record is not an object'];
+  if (!RECORD_STATUSES.includes(record.status)) problems.push(`status ${String(record.status)} is not allowed`);
+
+  const walk = (value: any, path: string): void => {
+    if (typeof value === 'string') {
+      if (/sk-ant/i.test(value)) problems.push(`key-shaped string at ${path}`);
+      if (value.toLowerCase().includes('x-api-key')) problems.push(`x-api-key text at ${path}`);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((v, i) => walk(v, `${path}[${i}]`));
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) {
+        if (FORBIDDEN_RECORD_KEYS.includes(k)) problems.push(`forbidden key ${k} at ${path}`);
+        walk(v, `${path}.${k}`);
+      }
+    }
+  };
+  walk(record, '$');
+
+  let cost: bigint | null = null;
+  try {
+    cost = BigInt(record?.totals?.costMicroUsd);
+  } catch {
+    problems.push('totals.costMicroUsd is not a BigInt string');
+  }
+  if (cost !== null && cost >= RECORD_SPEND_CAP_MICRO_USD) problems.push('total cost is not below $5');
+
+  if (record.status === 'measured' || record.status === 'applied') {
+    if (record.model !== CLAUDE_MODEL) problems.push('model is not CLAUDE_MODEL');
+    if (JSON.stringify(Object.keys(record.routes ?? {})) !== JSON.stringify([...LLM_SWEEP_ROUTES])) {
+      problems.push('routes are not the LLM_SWEEP_ROUTES keys');
+    }
+    for (const name of LLM_SWEEP_ROUTES) {
+      if (!record.caching || record.caching[name] === undefined) problems.push(`no caching entry for ${name}`);
+    }
+    if (!Array.isArray(record.classReveal?.latenciesMs)) problems.push('classReveal.latenciesMs is not an array');
+  }
+  return problems;
+}
+
+describe('measurement record hygiene', () => {
+  it('the committed record has no hygiene problems', () => {
+    expect(recordHygieneProblems(RECORD)).toEqual([]);
+  });
+
+  it('fails on a record that carries a prompt key', () => {
+    const bad = { ...RECORD, routes: { ...RECORD.routes, creation_race: { ...RECORD.routes.creation_race, ['pro' + 'mpt']: 'x' } } };
+    expect(recordHygieneProblems(bad).some((p) => p.includes('forbidden key prompt'))).toBe(true);
+  });
+
+  it('fails on a record that carries a key-shaped string', () => {
+    const fragment = ['sk', 'ant', 'abc'].join('-');
+    const bad = { ...RECORD, environment: fragment };
+    expect(recordHygieneProblems(bad).some((p) => p.includes('key-shaped string'))).toBe(true);
+  });
+
+  it('fails on a record whose cost is 5_000_000 micro-USD', () => {
+    const bad = { ...RECORD, totals: { ...RECORD.totals, costMicroUsd: '5000000' } };
+    expect(recordHygieneProblems(bad).some((p) => p.includes('not below $5'))).toBe(true);
+  });
+
+  it('fails on a measured record that lacks caching entries or the model', () => {
+    const bad = { ...RECORD, status: 'measured', model: 'other' };
+    const problems = recordHygieneProblems(bad);
+    expect(problems.some((p) => p.includes('model'))).toBe(true);
+    expect(problems.some((p) => p.includes('no caching entry'))).toBe(true);
+  });
+
+  it('fails on a status outside the allowed set', () => {
+    expect(recordHygieneProblems({ ...RECORD, status: 'running' }).some((p) => p.includes('status'))).toBe(true);
   });
 });
