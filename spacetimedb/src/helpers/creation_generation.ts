@@ -22,17 +22,40 @@
 // job after one attempt, applyLlmFailure returns the state to the awaiting step,
 // and only the player's next submission starts a new call.
 //
+// Phase 43 (plan 13) stages the class. The class machine is
+//
+//   AWAITING_ARCHETYPE -> GENERATING_CLASS   (creation_class_reveal job: name, description, first ability)
+//   GENERATING_CLASS   -> CLASS_FILLING      (reveal applied; startClassFill enqueues creation_class in the same transaction)
+//   CLASS_FILLING      -> CLASS_REVEALED     (fill applied: stats and two more abilities, then the player chooses one)
+//   CLASS_FILLING      -> CLASS_FILL_ERROR   (fill failed, malformed, expired or refused; the reveal stays)
+//   CLASS_FILL_ERROR   -> CLASS_FILLING      (any input: retryClassFill re-enqueues the fill only, never the reveal)
+//   CLASS_FILL_ERROR   -> AWAITING_ARCHETYPE (go back)
+//
+// A failed or stranded reveal returns to AWAITING_ARCHETYPE. Confirmation waits for the fill:
+// nothing reaches CLASS_REVEALED, AWAITING_NAME or COMPLETE with only the stage-1 ability.
+//
 // Imports are limited to ./events, ./llm_queue and ./llm_inputs, so this module
 // loads in plain Node vitest (with the spacetimedb/server mock).
 // ============================================================================
 
-import type { CreationClassInput, CreationRaceInput } from '../data/llm_layers';
+import type { CreationClassFillInput, CreationClassInput, CreationRaceInput } from '../data/llm_layers';
 import { appendCreationEvent } from './events';
 import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
 
 export type CreationGenerationType = 'race' | 'class';
 export type CreationGenerationOutcome = 'reused' | 'enqueued' | 'duplicate' | 'refused';
+
+/** Posted with the class reveal: the player is told to wait for the rest of the kit. */
+export const CLASS_REVEAL_MILESTONE_LINE =
+  'That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.';
+/** The fill failed, expired, was malformed or was refused: the reveal stands and any input retries. */
+export const CLASS_FILL_FAILED_LINE =
+  'The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.';
+/** Input while the fill is running changes nothing. */
+export const CLASS_FILL_PATIENCE_LINE = 'The Keeper is still working out the rest of what you can do. Patience.';
+/** Posted when a retry of the fill starts. */
+export const CLASS_FILL_RETRY_LINE = 'The Keeper picks the thread of your finer details back up...';
 
 /** The step a failed or refused generation returns to. */
 const AWAITING_STEP: Record<CreationGenerationType, string> = {
@@ -50,7 +73,7 @@ export function startCreationGeneration(
   state: any,
   generationType: CreationGenerationType,
 ): CreationGenerationOutcome {
-  let route: 'creation_race' | 'creation_class';
+  let route: 'creation_race' | 'creation_class_reveal';
   let input: CreationRaceInput | CreationClassInput;
 
   if (generationType === 'race') {
@@ -63,7 +86,7 @@ export function startCreationGeneration(
     route = 'creation_race';
     input = { raceDescription: description };
   } else {
-    route = 'creation_class';
+    route = 'creation_class_reveal';
     input = {
       raceName: state.raceName ?? 'Unknown',
       raceNarrative: state.raceNarrative ?? '',
@@ -91,6 +114,85 @@ export function startCreationGeneration(
     return 'refused';
   }
   return result.created ? 'enqueued' : 'duplicate';
+}
+
+/**
+ * The stage-2 input, read back from the stored stage-1 reveal: race, archetype, class name and
+ * description, and the first ability (the first element of the stored abilities JSON). Throws a
+ * plain Error when the state holds no first ability. The values were clamped by validateClassReply
+ * and are sanitized again by buildCreationClassFillVolatile.
+ */
+export function buildClassFillInput(state: any): CreationClassFillInput {
+  let first: any;
+  try {
+    const parsed = JSON.parse(String(state?.abilities ?? ''));
+    first = Array.isArray(parsed) ? parsed[0] : undefined;
+  } catch {
+    first = undefined;
+  }
+  if (first === null || typeof first !== 'object' || Array.isArray(first)) {
+    throw new Error('class fill has no first ability on the creation state');
+  }
+  return {
+    raceName: state.raceName ?? 'Unknown',
+    raceNarrative: state.raceNarrative ?? '',
+    archetype: state.archetype ?? 'warrior',
+    className: state.className ?? '',
+    classDescription: state.classDescription ?? '',
+    firstAbility: {
+      name: String(first.name ?? ''),
+      description: String(first.description ?? ''),
+      kind: String(first.kind ?? ''),
+      damageType: String(first.damageType ?? ''),
+      resourceType: String(first.resourceType ?? ''),
+    },
+  };
+}
+
+/**
+ * Stage 2 of the class: enqueue the creation_class fill for the stored reveal and move the state to
+ * CLASS_FILLING. Called in the same transaction as the reveal apply. A refused enqueue (budget, cap,
+ * kill switch, ceiling) or a state without a first ability sets CLASS_FILL_ERROR and posts one
+ * creation_error line; the reveal on the state is never touched.
+ */
+export function startClassFill(ctx: any, state: any): 'enqueued' | 'duplicate' | 'refused' {
+  const toError = (message: string): 'refused' => {
+    const current = ctx.db.character_creation_state.id.find(state.id) ?? state;
+    ctx.db.character_creation_state.id.update({ ...current, step: 'CLASS_FILL_ERROR', updatedAt: ctx.timestamp });
+    appendCreationEvent(ctx, state.playerId, 'creation_error', message);
+    return 'refused';
+  };
+
+  let input: CreationClassFillInput;
+  try {
+    input = buildClassFillInput(state);
+  } catch {
+    return toError(CLASS_FILL_FAILED_LINE);
+  }
+
+  const result = enqueueLlmJob(ctx, {
+    route: 'creation_class',
+    playerId: state.playerId,
+    characterId: 0n,
+    // Same source key as the reveal: the route is part of the dedupe key, so the two never merge.
+    sourceKey: SOURCE_KEYS.creation(state.id, 'class'),
+    request: { creationStateId: state.id.toString(), generationType: 'class', input: encodeRouteInput(input) },
+  });
+  if (result.refused) return toError(llmRefusalMessage(result.refused));
+
+  const current = ctx.db.character_creation_state.id.find(state.id) ?? state;
+  ctx.db.character_creation_state.id.update({ ...current, step: 'CLASS_FILLING', updatedAt: ctx.timestamp });
+  return result.created ? 'enqueued' : 'duplicate';
+}
+
+/**
+ * Retry the fill from CLASS_FILL_ERROR (any player input). Only the creation_class fill is
+ * enqueued: the reveal is never regenerated. The retry line is posted when a job was enqueued.
+ */
+export function retryClassFill(ctx: any, state: any): 'enqueued' | 'duplicate' | 'refused' {
+  const outcome = startClassFill(ctx, state);
+  if (outcome === 'enqueued') appendCreationEvent(ctx, state.playerId, 'creation', CLASS_FILL_RETRY_LINE);
+  return outcome;
 }
 
 /** The known-race branch: the state advances and the reuse text is posted. */
