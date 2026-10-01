@@ -2,10 +2,12 @@
 phase: 42-client-cutover-and-legacy-removal
 reviewed: 2026-09-30T00:00:00Z
 depth: standard
-files_reviewed: 40
+iteration: 2
+files_reviewed: 44
 files_reviewed_list:
   - .claude/skills/run-local/SKILL.md
   - README.md
+  - package.json
   - scripts/check-bundle.mjs
   - scripts/check-bundle.test.mjs
   - spacetimedb/src/data/llm_indicator_lines.test.ts
@@ -20,6 +22,7 @@ files_reviewed_list:
   - spacetimedb/src/helpers/llm_apply.test.ts
   - spacetimedb/src/helpers/llm_apply.ts
   - spacetimedb/src/helpers/llm_budget.ts
+  - spacetimedb/src/helpers/llm_queue.ts
   - spacetimedb/src/helpers/llm_seam.test.ts
   - spacetimedb/src/helpers/renown_llm.test.ts
   - spacetimedb/src/helpers/scheduling.ts
@@ -34,6 +37,8 @@ files_reviewed_list:
   - spacetimedb/src/schema/llm_privacy.test.ts
   - spacetimedb/src/schema/scheduled_tables.ts
   - spacetimedb/src/schema/tables.ts
+  - spacetimedb/src/views/llm.ts
+  - spacetimedb/src/views/llm.test.ts
   - src/App.vue
   - src/components/NarrativeConsole.vue
   - src/composables/data/useCoreData.ts
@@ -46,120 +51,116 @@ files_reviewed_list:
   - src/main.ts
 findings:
   critical: 0
-  warning: 4
-  info: 5
+  warning: 0
+  info: 9
   total: 9
 status: issues_found
 ---
 
-# Phase 42: Code Review Report
+# Phase 42: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-09-30
 **Depth:** standard
-**Files Reviewed:** 40
-**Status:** issues_found
+**Files Reviewed:** 44
+**Status:** issues_found (Info only)
 
 ## Narrative Findings (AI reviewer)
 
 ## Summary
 
-Reviewed the phase diff `a5abd392..HEAD` for the 40 listed files (generated bindings and the snapshot excluded). Removing the legacy path is thorough. `submit_llm_result`, `validate_llm_request`, `purge_llm_tasks`, `sweep_llm_errors`, the four legacy tables, `helpers/llm.ts`, `useLlm.ts` and `useLlmProxy.ts` are all gone. A repo-wide `git grep` finds no production reference left to any of them. The client stores exactly one legacy credential key, and `clearLegacyLlmCredential` removes it. The server still settles budget through the reservation path in `llm_queue`/`llm_executor`/`llm_sweeper`, so removing `incrementBudget` from `llm_apply.ts` does not lose any spend accounting.
+This re-review covers the iteration-1 fixes (caeae065, 70fc2877, e2279386, 935eaa77) and the rest of the phase diff `a5abd392..HEAD` for the listed files. All four warnings are fixed correctly, and I found no regressions.
 
-Checks run (single worker):
-- Client phase tests: 4 files, 120 tests, all pass.
-- Server phase tests: 11 files, 438 tests, all pass.
+**WR-01 (smoke jobs in `my_llm_jobs`): fixed.**
+- `isSmokeJob` in `helpers/llm_queue.ts:112-120` matches only a job with `characterId` 0n (or no `characterId`) whose request parses to `{ smoke: true }`.
+- `llm_job.characterId` is a non-optional `t.u64()`, and `enqueueLlmJob` defaults it to `0n` (`llm_queue.ts:238`). Real character jobs therefore never match.
+- Real character-less `world_gen` jobs are not dropped, because their request carries `genStateId`, not `smoke`.
+- `isActiveSmokeJob` in `reducers/llm.ts:12-14` is now slightly stricter (character-less smoke jobs only). Every smoke job the reducer enqueues is character-less, so its behaviour does not change.
+- The view still reads only through the `by_player` index, and its source still names no payload column.
+
+**WR-02 (per-console scoping): fixed for the console part.**
+- `routeInConsoleScope` and the two new constants scope the creation console to `creation_race`, `creation_class` and `world_gen`.
+- The game console shows every route except `creation_race` and `creation_class`. Unknown routes still reach the game console and use the fallback line.
+- The two consoles are mutually exclusive (`v-if="!selectedCharacter"` / `v-else`, App.vue:32/50), so each console gets the matching line.
+- The per-character part is deferred by design and appears below only as Info (IN-06).
+
+**WR-03 (live region): fixed.**
+- The `role="status"` div is now unconditional inside the always-rendered scroll area.
+- When the line changes, Vue's style patch removes the idle-only properties (`position`, `clip`, ...) when it switches to `consideringStyle`.
+- An empty region announces nothing.
+
+**WR-04 (guard not run): fixed.**
+- `"build": "vue-tsc -b && vite build && node scripts/check-bundle.mjs"` fails the build when the guard exits 1 or 2.
+- Vite's default `outDir` (`dist`, no override in `vite.config.ts`) matches the guard's default directory.
+- I checked that the guard's main-module detection fires under upper-case and lower-case drive letters. I used a nonexistent directory argument (exit 2, message printed), so `dist/` was never read.
+
+**Checks run (single worker):**
+- Client phase tests (`useLlmStatus`, `legacyCredentials`, `legacyLlmRemoval`, `check-bundle`): 4 files, 132 tests, all pass.
+- Server phase tests: 12 files, 472 tests, all pass.
 - `vue-tsc -b`: clean.
-- Server `tsc`: no new errors in the phase's production files. The existing SDK typing noise in `index.ts` is unchanged.
+- Server `tsc --noEmit`: no errors in `views/llm.ts`, `reducers/llm.ts`, `llm_queue.ts`, `llm_indicator_lines.ts`, `llm_apply.ts` or `llm_budget.ts`.
+- `git grep` finds no remaining production reference to the proxy, `llm_task`, `submit_llm_result` or `useLlmProxy`, apart from the single allowed `removeItem` call in `src/legacyCredentials.ts`.
 
-No blockers. The main defects are in the new indicator:
-- It shows lines for admin smoke-test jobs.
-- It is not scoped to the active character.
-- The live region is mounted with `v-if`.
-
-The bundle credential guard (SEC-03) exists and is well tested. Nothing in build or deploy runs it.
-
-## Warnings
-
-### WR-01: Admin smoke test lights up the admin's player indicator with real-route lines
-
-**File:** `spacetimedb/src/reducers/llm.ts:72-83`, `src/composables/useLlmStatus.ts:52-60`, `spacetimedb/src/data/llm_indicator_lines.ts:27-36`
-**Issue:** `llm_smoke_test` enqueues one job per `LLM_SMOKE_ROUTES` entry with `playerId: ctx.sender`. The list is `smoke_test`, `creation_race`, `creation_class`, `world_gen`, `skill_gen` and `renown_perk_gen`. The `my_llm_jobs` view returns every `llm_job` row for the sender (`views/llm.ts:93`). It projects only `id/route/status/createdAt/errorCode/userMessage`, so the client cannot tell a smoke job from a real one. `selectLlmIndicator` checks only route and status. While a smoke run is active, the admin's console shows "The Keeper is unrolling a map, with visible reluctance...", even though no world generation is happening for them. The design treats smoke work as silent, but only the `smoke_test` route is actually silent. The tests do not cover this, because `useLlmStatus.test.ts` never builds a smoke-flagged job on a real route.
-**Fix:** Filter smoke jobs out on the server so the view never sends them. The smoke request body is `{ smoke: true }` and smoke jobs use `characterId: 0n`:
-```ts
-(ctx: any) => [...ctx.db.llm_job.by_player.filter(ctx.sender)]
-  .filter((j: any) => !isSmokeRequest(j.requestJson))   // shared helper with reducers/llm.ts isActiveSmokeJob
-  .map(projectMyLlmJob)
-```
-Alternatively, project a `silent: t.bool()` column and skip silent rows in `selectLlmIndicator`. Add a `useLlmStatus`/view test with a smoke job on `world_gen`.
-
-### WR-02: Indicator is per identity, not per character or console, so it shows other characters' background work
-
-**File:** `src/App.vue:742-746`, `src/composables/useLlmStatus.ts:50-86`
-**Issue:** `my_llm_jobs` is keyed by identity and carries no `characterId`. The same `llmIndicatorLine` goes to both consoles. The creation console (App.vue:41) and the game console (App.vue:66) therefore both show any active job for the player, for any character. Two cases:
-- A player leaves character A while A's `renown_perk_gen` or `skill_gen` job is in flight, then starts creating a new character. The creation console shows "The Keeper is tallying what your name is worth...".
-- A player switches from A to B during A's NPC chat. B's console shows "The Keeper leans in to listen...".
-
-Either way the text is wrong for what the player is doing. The input lock is correctly scoped (creation and world-gen state rows), so this is display-only, but the view shape cannot support scoping on the client.
-**Fix:** Add `characterId` to `MyLlmJob`/`projectMyLlmJob` (a schema change to the view and regenerated bindings). Then filter before selection. In the game console, keep rows with `characterId === selectedCharacter.id`. In the creation console, keep only `creation_race`, `creation_class` and `world_gen`. Example: `useLlmStatus({ llmJobs: computed(() => llmJobs.value.filter(scopeFor(consoleMode, selectedCharacterId))) })`.
-
-### WR-03: `role="status"` live region is created with `v-if`, so screen readers often do not announce it
-
-**File:** `src/components/NarrativeConsole.vue:92-99`
-**Issue:** The indicator gets `role="status"` and `aria-live="polite"`, but it is mounted by `v-if="llmIndicatorLine"` with its text already in place. Live regions are only announced reliably when the region already exists in the DOM and its content then changes. A region inserted together with its text is often silent, notably in NVDA/JAWS with Chromium and in VoiceOver. The first "The Keeper is ..." line, which is the one the accessibility attributes were added for, may never be read out. Only later route-to-route text swaps would be announced.
-**Fix:** Keep the live region mounted permanently and toggle only its content and visibility:
-```vue
-<div class="llm-indicator" role="status" aria-live="polite"
-     :style="llmIndicatorLine ? consideringStyle : srOnlyStyle">{{ llmIndicatorLine ?? '' }}</div>
-```
-The static test in `legacyLlmRemoval.test.ts` asserts `v-if="llmIndicatorLine"` on the div. Update it to assert that the region is always present.
-
-### WR-04: The bundle credential guard is never run by build, deploy or `pnpm test` docs
-
-**File:** `scripts/check-bundle.mjs:1-8`, `README.md:126-135`, `README.md:166-173`, `package.json` (`"build": "vue-tsc -b && vite build"`)
-**Issue:** `check-bundle.mjs` is the SEC-03 control that stops a provider key, proxy secret or proxy URL from shipping in `dist/`. Nothing invokes it:
-- `pnpm build` does not run it.
-- There is no `postbuild` script.
-- The README's "Available Scripts" and "Frontend — GitHub Pages" manual deploy steps (`pnpm build`, then push `dist/`) do not mention it.
-- No workflow in `.github/workflows` runs it.
-
-The guard's unit tests prove that it works, but nothing guarantees it runs against a real bundle before deploy. A future `import.meta.env.VITE_*` secret would ship silently. The earlier build already inlined a secret this way.
-**Fix:** Wire it into the build so a failing guard fails the build:
-```json
-"build": "vue-tsc -b && vite build && node scripts/check-bundle.mjs"
-```
-Or add `"postbuild": "node scripts/check-bundle.mjs"`. Also list it under README "Available Scripts" and in the manual deploy steps.
+There are no blockers and no warnings. The remaining items are Info: five carried over from iteration 1 because they are still accurate (IN-01..IN-05), and four new low-impact notes on the fixes (IN-06..IN-09).
 
 ## Info
 
-### IN-01: `LLM_INDICATOR_SILENT_ROUTES` is a second source of truth that no production code reads
+### IN-01: `LLM_INDICATOR_SILENT_ROUTES` is a second source of truth that no production code reads (carried over)
 
 **File:** `spacetimedb/src/data/llm_indicator_lines.ts:48-52`
-**Issue:** "Silent" is decided in `useLlmStatus.ts:59` by a `null` entry in `LLM_INDICATOR_LINES`. The exported `LLM_INDICATOR_SILENT_ROUTES` list is read only by tests. The two can drift, although the test at line 95 currently pins them together.
-**Fix:** Derive the list (`Object.keys(LLM_INDICATOR_LINES).filter(k => LLM_INDICATOR_LINES[k] === null)`) or drop the export.
+**Issue:** Silence is decided in `useLlmStatus.ts:84` by a `null` entry in `LLM_INDICATOR_LINES`. Only tests read the exported list.
+**Fix:** Derive it with `Object.keys(LLM_INDICATOR_LINES).filter(k => LLM_INDICATOR_LINES[k] === null)`, or drop the export.
 
-### IN-02: `utcDay` is a pure alias of the newly moved `utcDateString`
+### IN-02: `utcDay` is a pure alias of the moved `utcDateString` (carried over)
 
 **File:** `spacetimedb/src/helpers/llm_budget.ts:46-56`
-**Issue:** When `helpers/llm.ts` was deleted, `utcDateString` moved in beside `utcDay`, which only forwards to it. That leaves two exported names for the same function.
+**Issue:** Two exported names now exist for the same function.
 **Fix:** Keep one name and update callers.
 
-### IN-03: Enabling source maps later would trip the guard on `legacyCredentials.ts` itself
+### IN-03: Enabling source maps later would trip the guard on `legacyCredentials.ts` itself (carried over)
 
-**File:** `src/legacyCredentials.ts:5`, `scripts/check-bundle.mjs:59-71`
-**Issue:** The header comment names the retired key in quotes. `blankAllowedSpan` blanks only the first `removeItem(...)` span in sorted path order. If `build.sourcemap` is ever enabled, the `.map` file's `sourcesContent` carries the comment line and a second `removeItem` call. `proxy-key-name` then fails on the map file. The failure is safe (fail-closed), but it would push someone to narrow the rule.
-**Fix:** Describe the key in the comment without spelling it out, for example "the retired proxy-secret storage key". Optionally, have the guard strip `sourcesContent` from `.map` files before scanning, with a matching unit test.
+**File:** `src/legacyCredentials.ts:5`, `scripts/check-bundle.mjs:64-75`
+**Issue:** The header comment spells out the retired key in quotes, and `blankAllowedSpan` blanks only one `removeItem(...)` span. If `build.sourcemap` is ever enabled, the `.map` file's `sourcesContent` would fail the `proxy-key-name` rule. `pnpm build` now runs the guard, so this would fail the build outright. That is fail-closed, but it is confusing.
+**Fix:** Describe the key without spelling it out (for example "the retired proxy-secret storage key"), or strip `sourcesContent` before scanning `.map` files.
 
-### IN-04: `my_llm_jobs` sends the player's whole job history, including terminal rows
+### IN-04: `my_llm_jobs` sends the player's whole job history, including terminal rows (carried over)
 
-**File:** `src/composables/data/useCoreData.ts:68,155` (consumer), `spacetimedb/src/views/llm.ts:93` (source)
-**Issue:** The client uses only active statuses. The view still returns every terminal job the player ever had, with its `userMessage`, and `rebind` re-spreads the full array on every insert and delete. This grows without bound until the `llm_job` retention todo lands.
-**Fix:** Once retention exists, consider limiting the view to active rows plus recent terminal ones (by index), or making sure retention prunes aggressively.
+**File:** `spacetimedb/src/views/llm.ts:94-98`, `src/composables/data/useCoreData.ts:68,155`
+**Issue:** The client uses only active rows. The view returns every terminal row with its `userMessage`, and this grows without bound until the `llm_job` retention todo lands.
+**Fix:** Once retention exists, limit the view to active rows plus recent terminal ones, or prune aggressively.
 
-### IN-05: Only event changes auto-scroll the console, so the indicator can appear below the fold
+### IN-05: Only event changes auto-scroll the console, so the indicator can appear below the fold (carried over)
 
-**File:** `src/components/NarrativeConsole.vue:265-272`
-**Issue:** The auto-scroll watch tracks only `combinedEvents`. When a background job's indicator appears without a new event in the same update, the new line is added under the visible area. `checkIfAtBottom` then reports "not at bottom" and later events stop auto-scrolling.
-**Fix:** Also watch `() => props.llmIndicatorLine` and call `scrollToBottom()` when `isAtBottom` is true.
+**File:** `src/components/NarrativeConsole.vue:265-273`
+**Issue:** The auto-scroll watch tracks only `combinedEvents`. When the indicator switches from the idle (absolute, zero-flow) style to `consideringStyle`, it adds a line under the visible area without scrolling. After that, `checkIfAtBottom` stops later auto-scrolls.
+**Fix:** Also watch `() => props.llmIndicatorLine`, and call `scrollToBottom()` while `isAtBottom` is true.
+
+### IN-06: Indicator is still not bound to the selected character (deferred by design)
+
+**File:** `src/composables/useLlmStatus.ts:54-58`, `spacetimedb/src/views/llm.ts:17-24`
+**Issue:** Two cases remain:
+- If the player switches from A to B while A's `npc_conversation`, `skill_gen` or `renown_perk_gen` job is active, B's game console still shows A's line.
+- A game-time `world_gen` (explore) job for an existing character still shows in the creation console if the player returns to character select.
+
+This is display-only. The fix needs `characterId` on the `MyLlmJob` view row, which is a schema change, and the user deliberately deferred it.
+**Fix:** When a schema change is next allowed, add `characterId` to `MyLlmJob`/`projectMyLlmJob`, regenerate the bindings, and filter the game scope by `selectedCharacter.id`.
+
+### IN-07: The unscoped `status` output of `useLlmStatus` has no production consumer
+
+**File:** `src/composables/useLlmStatus.ts:117-131`
+**Issue:** `App.vue:743` uses only `creationStatus` and `gameStatus`. The unscoped `status`, which ignores console scope (the WR-02 behaviour), is still returned and used only by `useLlmStatus.test.ts:207`. A future caller could pick it up and bring back cross-console lines.
+**Fix:** Drop `status` from the return value and update the test to use a scoped status, or document it as test-only.
+
+### IN-08: Smoke detection now has three definitions with different rules
+
+**File:** `spacetimedb/src/helpers/llm_queue.ts:112-120`, `spacetimedb/src/helpers/llm_executor.ts:123-128`, `spacetimedb/src/helpers/llm_sweeper.ts:81-86`
+**Issue:** The view and the smoke reducer use `isSmokeJob`, which requires a character-less job. The executor (skip apply) and the sweeper keep private `isSmokeRequest` copies that check only the request body. These cannot diverge today, because only `llm_smoke_test` builds `{ smoke: true }` and it always passes `characterId: 0n`. A future change to one copy would still be easy to miss in the others.
+**Fix:** Have the executor and sweeper call `isSmokeJob(job)` from `llm_queue.ts` and delete the private copies.
+
+### IN-09: README advertises a GitHub Actions deploy that does not exist, so "CI must run `pnpm build`" cannot be enforced
+
+**File:** `README.md:171-181`
+**Issue:** The README says "The frontend deploys automatically via GitHub Actions on push to `master`". That line predates this phase, but the WR-04 text builds on it. `.github/workflows/` contains only `claude.yml` and `claude-code-review.yml`, with no build or deploy job. In practice the guard protects only manual `pnpm build` deploys. The README wording suggests there is also an automatic path, and nothing protects that path.
+**Fix:** Correct the sentence to describe the real deploy path (manual push of `dist/` to `gh-pages`). Alternatively, add a Pages workflow that runs `pnpm build`, which would make the guard mandatory for every deploy.
 
 ---
 
