@@ -60,6 +60,32 @@ export function shouldStopSweep(spentMicroUsd, nextReserveMicroUsd) {
   return BigInt(spentMicroUsd) + BigInt(nextReserveMicroUsd) > SWEEP_STOP_AT_MICRO_USD;
 }
 
+// -- Record guard (review WR-A06) --------------------------------------------
+
+/**
+ * Why a paid run must not start over the existing measurements record, or '' when it may. A paid record is
+ * never replaced: an 'applied' record (LLM_TUNING traces to it) refuses both runs, and a 'measured' record
+ * that already holds paid calls refuses Run A. Run B needs Run A's record ('measured', at least one call).
+ * To measure again on purpose, reset the record to 'not_run' first (git history keeps the old one).
+ */
+export function sweepRunRefusal(mode, existing) {
+  const status = isObject(existing) ? existing.status : undefined;
+  const calls = Number(isObject(existing) && isObject(existing.totals) ? existing.totals.calls ?? 0 : 0);
+  if (status === 'applied') return 'the record is applied and LLM_TUNING traces to it';
+  if (mode === 'A' && status === 'measured' && calls > 0) return 'the record already holds a measured paid run';
+  if (mode === 'B' && (status !== 'measured' || !(calls >= 1))) return 'Run B needs the record from Run A (status measured, at least one call)';
+  return '';
+}
+
+/**
+ * True when a paid run may write the record as it ends: it made at least one paid call this run, and the
+ * record on disk right now is not 'applied'. A run that stops or crashes before its first call writes nothing.
+ */
+export function sweepMayWriteRecord(existingOnDisk, callsThisRun) {
+  if (!(Number(callsThisRun) > 0)) return false;
+  return !(isObject(existingOnDisk) && existingOnDisk.status === 'applied');
+}
+
 /**
  * What one sweep call adds to the running spend (review WR-A05), mirroring the executor's billing rule:
  *  - usage that costs something: that cost;

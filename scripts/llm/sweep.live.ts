@@ -22,6 +22,10 @@
 //   SWEEP_LIVE_RUN=A pnpm exec vitest run --config scripts/llm/vitest.live.config.ts sweep  # PAID (Plan 43-12, after approval)
 //   SWEEP_LIVE_RUN=B pnpm exec vitest run --config scripts/llm/vitest.live.config.ts sweep  # PAID (Plan 43-12, after approval)
 //
+// Record guard (review WR-A06): a paid run refuses to start, before the key is read, when it would replace a
+// paid record ('applied' refuses A and B; 'measured' with calls refuses A), and a run writes the record only
+// after at least one paid call and never over an 'applied' record. To measure again, reset it to 'not_run'.
+//
 // Safety: the key comes only from loadAnthropicKey() (never the process environment) and only in the
 // check-key and paid modes; every printed line goes through one say() helper that scrubs; no prompt, reply,
 // header or request body is ever printed or recorded. The record holds counts, sizes, timings, stop reasons,
@@ -43,7 +47,9 @@ import {
   shouldStopSweep,
   structuralCheck,
   sweepCallCostMicroUsd,
+  sweepMayWriteRecord,
   sweepRetryAllowed,
+  sweepRunRefusal,
   toneLint,
 } from './sweep_rules.mjs';
 import { SWEEP_FIXTURES, classFillInputFrom, worldFillInputFrom } from './sweep_fixtures.mjs';
@@ -286,8 +292,24 @@ function sampleOf(route: LlmRoute, o: CallOutcome) {
   };
 }
 
-function writeRecord(record: unknown): void {
+/** The measurements record on disk, or undefined when it is missing or not JSON. */
+function readRecord(): Row | undefined {
+  try {
+    return JSON.parse(fs.readFileSync(MEASUREMENTS_PATH, 'utf8')) as Row;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Write the record only when this run made a paid call and the record on disk is not 'applied'
+ * (review WR-A06: a paid, applied record is never replaced, and a run that ends before its first call
+ * leaves the file untouched). Returns true when the file was written.
+ */
+function writeRecord(record: unknown, callsThisRun: number): boolean {
+  if (!sweepMayWriteRecord(readRecord(), callsThisRun)) return false;
   fs.writeFileSync(MEASUREMENTS_PATH, JSON.stringify(record, null, 2) + '\n');
+  return true;
 }
 
 type CellSamples = Record<string, { low: { samples: any[] }; medium: { samples: any[] } }>;
@@ -304,6 +326,7 @@ async function runA(key: string): Promise<void> {
   let spent = 0n;
   let calls = 0;
   let stopped = false;
+  let written = false;
 
   const inputFor = (route: LlmRoute, effort: LlmEffort, i: number): unknown => {
     if (route === 'world_gen') {
@@ -343,7 +366,7 @@ async function runA(key: string): Promise<void> {
       }
     }
   } finally {
-    writeRecord(
+    written = writeRecord(
       buildMeasurementRecord({
         status: 'measured',
         model: CLAUDE_MODEL,
@@ -356,18 +379,20 @@ async function runA(key: string): Promise<void> {
         caching: {},
         classReveal: { latenciesMs: [], parallelBuilt: false },
       }),
+      calls,
     );
   }
-  say(`Run A done: ${calls} calls, spent ${usd(spent)}${stopped ? ' (stopped at the spend line)' : ''}; record written (status measured)`);
+  say(`Run A done: ${calls} calls, spent ${usd(spent)}${stopped ? ' (stopped at the spend line)' : ''}; ${written ? 'record written (status measured)' : 'record left untouched'}`);
 }
 
 async function runB(key: string): Promise<void> {
-  const rec = JSON.parse(fs.readFileSync(MEASUREMENTS_PATH, 'utf8')) as Row;
-  if (rec.status !== 'measured' || !rec.totals || rec.totals.calls < 1) {
-    throw new Error('Run B needs the record from Run A (status measured, at least one call)');
-  }
+  const rec = readRecord() as Row;
+  const refusal = sweepRunRefusal('B', rec);
+  if (refusal) throw new Error(refusal);
   let spent = BigInt(rec.totals.costMicroUsd);
-  let calls = Number(rec.totals.calls);
+  const startCalls = Number(rec.totals.calls);
+  let calls = startCalls;
+  let written = false;
   const routes: Row = {};
   const caching: Row = {};
   let revealRunB: number[] = [];
@@ -404,7 +429,7 @@ async function runB(key: string): Promise<void> {
     const chosen = deriveRecordFields(reveal).chosenEffort;
     const runALatencies: number[] =
       chosen === null ? [] : reveal.efforts[chosen].samples.filter((s: Row) => s.ok === true).map((s: Row) => s.latencyMs);
-    writeRecord(
+    written = writeRecord(
       buildMeasurementRecord({
         status: 'measured',
         model: CLAUDE_MODEL,
@@ -417,12 +442,19 @@ async function runB(key: string): Promise<void> {
         caching,
         classReveal: { latenciesMs: [...runALatencies, ...revealRunB], parallelBuilt: false },
       }),
+      calls - startCalls,
     );
   }
-  say(`Run B done: ${calls} calls in total, spent ${usd(spent)}; record rewritten (status measured)`);
+  say(`Run B done: ${calls} calls in total, spent ${usd(spent)}; ${written ? 'record rewritten (status measured)' : 'record left untouched'}`);
 }
 
 async function runPaid(mode: 'A' | 'B'): Promise<void> {
+  // Review WR-A06: refuse before the key is read or anything is sent when the run would replace a paid record.
+  const refusal = sweepRunRefusal(mode, readRecord());
+  if (refusal) {
+    say(`Run ${mode} refused: ${refusal}; nothing was sent or written`);
+    throw new Error('sweep run refused');
+  }
   const key = loadAnthropicKey();
   if (key === null) {
     say('no Anthropic key is stored for the local module; nothing was sent');

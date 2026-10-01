@@ -23,7 +23,9 @@ import {
   shouldStopSweep,
   structuralCheck,
   sweepCallCostMicroUsd,
+  sweepMayWriteRecord,
   sweepRetryAllowed,
+  sweepRunRefusal,
   toneLint,
 } from './sweep_rules.mjs';
 import { SWEEP_FIXTURES, classFillInputFrom, worldFillInputFrom } from './sweep_fixtures.mjs';
@@ -386,6 +388,46 @@ describe('sweepCallCostMicroUsd (review WR-A05)', () => {
   });
 });
 
+describe('the record guard (review WR-A06)', () => {
+  const rec = (status, calls) => ({ status, totals: { calls, costMicroUsd: 0 } });
+
+  it('refuses both runs over an applied record', () => {
+    expect(sweepRunRefusal('A', rec('applied', 126))).not.toBe('');
+    expect(sweepRunRefusal('B', rec('applied', 126))).not.toBe('');
+  });
+
+  it('refuses Run A over a measured record that holds paid calls, and allows it over an empty one', () => {
+    expect(sweepRunRefusal('A', rec('measured', 90))).not.toBe('');
+    expect(sweepRunRefusal('A', rec('measured', 0))).toBe('');
+    for (const status of ['not_run', 'declined', 'deferred']) expect(sweepRunRefusal('A', rec(status, 0))).toBe('');
+    expect(sweepRunRefusal('A', undefined)).toBe('');
+  });
+
+  it('lets Run B run only over a measured record with at least one call', () => {
+    expect(sweepRunRefusal('B', rec('measured', 90))).toBe('');
+    expect(sweepRunRefusal('B', rec('measured', 0))).not.toBe('');
+    expect(sweepRunRefusal('B', rec('not_run', 0))).not.toBe('');
+    expect(sweepRunRefusal('B', undefined)).not.toBe('');
+  });
+
+  it('writes only after a paid call this run, and never over an applied record', () => {
+    expect(sweepMayWriteRecord(rec('not_run', 0), 0)).toBe(false); // a crash before the first call
+    expect(sweepMayWriteRecord(rec('not_run', 0), 1)).toBe(true);
+    expect(sweepMayWriteRecord(rec('measured', 90), 2)).toBe(true); // Run B's own calls
+    expect(sweepMayWriteRecord(rec('applied', 126), 5)).toBe(false);
+    expect(sweepMayWriteRecord(undefined, 1)).toBe(true);
+  });
+
+  it('the committed record is protected from both paid runs', () => {
+    const committed = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'spacetimedb', 'src', 'data', 'llm_measurements.json'), 'utf8'));
+    if (committed.status === 'applied') {
+      expect(sweepRunRefusal('A', committed)).not.toBe('');
+      expect(sweepRunRefusal('B', committed)).not.toBe('');
+      expect(sweepMayWriteRecord(committed, 1)).toBe(false);
+    }
+  });
+});
+
 describe('sweepRetryAllowed (review WR-A05)', () => {
   it('lets the retry run only while spent + the failed attempt + the retry reservation stays within the stop line', () => {
     expect(sweepRetryAllowed(4_000_000n, 100_000n, 400_000n)).toBe(true); // exactly at the line
@@ -713,6 +755,19 @@ describe('the sweep harness source', () => {
     expect(retry.indexOf('sweepRetryAllowed(')).toBeLessThan(retry.lastIndexOf('callClaude('));
     // Both runs pass their running spend in.
     expect(count(src, /callWithRetry\(key, route, bodyText, reservation, spent\)/g)).toBe(2);
+  });
+
+  it.skipIf(skip)('review WR-A06: guards the record before the key is read and before every write', () => {
+    const paid = functionBody(src, 'runPaid');
+    expect(paid).toMatch(/sweepRunRefusal\(mode, readRecord\(\)\)/);
+    expect(paid.indexOf('sweepRunRefusal(')).toBeLessThan(paid.indexOf('loadAnthropicKey('));
+    // The one write goes through writeRecord, which checks the record on disk and this run's call count first.
+    const write = functionBody(src, 'writeRecord');
+    expect(write).toMatch(/sweepMayWriteRecord\(readRecord\(\), callsThisRun\)/);
+    expect(write.indexOf('sweepMayWriteRecord(')).toBeLessThan(write.indexOf('writeFileSync('));
+    expect(functionBody(src, 'runA')).toMatch(/writeRecord\([\s\S]*,\s*calls,\s*\)/);
+    expect(functionBody(src, 'runB')).toMatch(/writeRecord\([\s\S]*,\s*calls - startCalls,\s*\)/);
+    expect(functionBody(src, 'runB')).toMatch(/sweepRunRefusal\('B', rec\)/);
   });
 
   it.skipIf(skip)('keeps the model id out of the harness (it comes from CLAUDE_MODEL)', () => {
