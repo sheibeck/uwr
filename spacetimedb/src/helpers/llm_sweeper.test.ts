@@ -12,7 +12,10 @@ import { sweepLlmJobs, type SweepDeps } from './llm_sweeper';
 import { applyLlmFailure } from './llm_apply';
 import { hasLlmDispatch, scheduledMicros } from './llm_schedule';
 import { LLM_SPEND_ID } from '../data/llm_limits';
-import { appendCreationEvent } from './events';
+import { appendCreationEvent, appendPrivateEvent } from './events';
+import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -707,15 +710,28 @@ describe('stranded generation locks (a lost failure message)', () => {
     expect((appendCreationEvent as any).mock.calls[0][3]).toContain('Type [explore] to try again.');
   });
 
-  it('a GENERATING world-gen state whose world_gen job is still active is left alone', () => {
-    const ctx = makeCtx({ world_gen_state: [genState('GENERATING', NOW - 5n * MIN), genState('GENERATING', NOW - 5n * MIN, { id: 6n })] });
+  // Phase 43 (plan 11): stage 1 is the world_gen_start job, stage 2 the world_gen job.
+  it.each(['PENDING', 'GENERATING'])(
+    'a %s world-gen state whose world_gen_start job is still active (stage 1) is left alone',
+    (step) => {
+      const ctx = makeCtx({ world_gen_state: [genState(step, NOW - 5n * MIN), genState(step, NOW - 5n * MIN, { id: 6n })] });
+      ctx.db.llm_job.insert(
+        jobRow({ route: 'world_gen_start', status: 'in_flight', attempt: 1n, startedAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
+      );
+      sweepLlmJobs(ctx, makeDeps());
+      const states = rows(ctx, 'world_gen_state');
+      expect(states.find((s: any) => s.id === 5n).step).toBe(step);
+      expect(states.find((s: any) => s.id === 6n).step).toBe('ERROR');
+    },
+  );
+
+  it('a GENERATING state is not held by an active stage-2 world_gen job (that job holds FILLING only)', () => {
+    const ctx = makeCtx({ world_gen_state: [genState('GENERATING', NOW - 5n * MIN)] });
     ctx.db.llm_job.insert(
       jobRow({ route: 'world_gen', status: 'in_flight', attempt: 1n, startedAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
     );
     sweepLlmJobs(ctx, makeDeps());
-    const states = rows(ctx, 'world_gen_state');
-    expect(states.find((s: any) => s.id === 5n).step).toBe('GENERATING');
-    expect(states.find((s: any) => s.id === 6n).step).toBe('ERROR');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('ERROR');
   });
 
   it('COMPLETE and ERROR states are never touched', () => {
@@ -726,5 +742,85 @@ describe('stranded generation locks (a lost failure message)', () => {
     const before = snap(ctx);
     expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
     expect(snap(ctx)).toBe(before);
+  });
+
+  // ---- Phase 43 (plan 11, LAT-03): a stranded stage-2 lock degrades to the playable FILL_ERROR ----
+  describe('a FILLING world-gen state (stage 2)', () => {
+    const fillingSeed = (over: Record<string, any> = {}, updatedAt: bigint = NOW - 5n * MIN) => ({
+      character: [{ ...character(), locationId: 10n }],
+      region: [{ id: 7n, name: 'Emberdeep', dangerMultiplier: 100n }],
+      location: [{ id: 10n, name: 'The Gate', regionId: 7n, terrainType: 'town' }],
+      world_gen_state: [genState('FILLING', updatedAt, { generatedRegionId: 7n, ...over })],
+    });
+
+    it('with no active world_gen job past the grace becomes FILL_ERROR with the failed message, services and one line', () => {
+      const ctx = makeCtx(fillingSeed());
+      const report = sweepLlmJobs(ctx, makeDeps());
+
+      expect(report).toEqual({ ...ZERO, releasedLocks: 1 });
+      const state = rows(ctx, 'world_gen_state')[0];
+      expect(state.step).toBe('FILL_ERROR');
+      expect(state.step).not.toBe('ERROR');
+      expect(state.errorMessage).toBe(WORLD_FILL_FAILED_MESSAGE);
+      expect(state.generatedRegionId).toBe(7n);
+      // The stage-1 rows are untouched and the start location gained the safety net.
+      expect(rows(ctx, 'location')).toHaveLength(1);
+      expect(rows(ctx, 'region')).toHaveLength(1);
+      expect(rows(ctx, 'npc').map((n: any) => n.npcType).sort()).toEqual(['banker', 'vendor']);
+      expect(appendPrivateEvent).toHaveBeenCalledTimes(1);
+      expect((appendPrivateEvent as any).mock.calls[0][4]).toBe(`${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.`);
+      // Idempotent, and nothing is ever re-enqueued by the sweeper.
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    });
+
+    it('whose world_gen job ended (failed or expired) is released too', () => {
+      const ctx = makeCtx(fillingSeed());
+      ctx.db.llm_job.insert(
+        jobRow({ route: 'world_gen', status: 'expired', requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
+      );
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual({ ...ZERO, releasedLocks: 1 });
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILL_ERROR');
+    });
+
+    it.each(['pending', 'in_flight', 'received'])('with a %s world_gen job is left alone', (status) => {
+      const ctx = makeCtx(fillingSeed());
+      ctx.db.llm_job.insert(
+        jobRow({ route: 'world_gen', status, createdAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
+      );
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING');
+      expect(appendPrivateEvent).not.toHaveBeenCalled();
+    });
+
+    it("another state's active world_gen job does not hold this one", () => {
+      const ctx = makeCtx(fillingSeed());
+      ctx.db.llm_job.insert(
+        jobRow({ route: 'world_gen', status: 'in_flight', startedAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '6', input: {} }) }),
+      );
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILL_ERROR');
+    });
+
+    it('younger than the grace is left alone', () => {
+      const ctx = makeCtx(fillingSeed({}, NOW - 30n * SEC));
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING');
+    });
+  });
+
+  it('a FILL_ERROR state is never touched and no llm_job row is created for it', () => {
+    const ctx = makeCtx({
+      world_gen_state: [genState('FILL_ERROR', NOW - HOUR, { generatedRegionId: 7n, errorMessage: 'kept' })],
+    });
+    const before = snap(ctx);
+    expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+    expect(snap(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('never retries stage 2 by itself: the sweeper source has no fill enqueue', () => {
+    const source = readFileSync(fileURLToPath(new URL('./llm_sweeper.ts', import.meta.url)), 'utf8');
+    expect(source).not.toMatch(/startWorldFill\(|retryWorldFill\(|enqueueLlmJob\(/);
   });
 });
