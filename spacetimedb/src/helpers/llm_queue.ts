@@ -147,12 +147,19 @@ export type EnqueueResult =
 /**
  * Routes the per-player cap never refuses. Narration is silent and lowest
  * priority; a renown offer is earned, not requested, so it must not be lost to
- * the cap. Narration is also not counted; a held renown job is counted (it is a
- * real active job), it just is never the one refused.
+ * the cap. The two stage-2 fills (world_gen, creation_class) continue a request
+ * the cap already admitted at stage 1: they are enqueued from inside the stage-1
+ * apply while the stage-1 job still counts as active, so the cap must not count
+ * that request twice (review WR-B01). Narration is also not counted; a held
+ * renown job or fill job is counted (it is a real active job), it just is never
+ * the one refused. The kill switch, the ceiling and the player's daily budget
+ * still apply to every route.
  */
 export const LLM_CAP_EXEMPT_ROUTES: readonly LlmRoute[] = Object.freeze([
   'combat_narration',
   'renown_perk_gen',
+  'world_gen',
+  'creation_class',
 ] as LlmRoute[]);
 
 /**

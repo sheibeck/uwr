@@ -616,9 +616,52 @@ describe('per-player active-job cap', () => {
     seededJob(3n, 'creation_race', { status: 'received' }),
   ];
 
-  it('the limit is three and the exempt routes are narration and renown', () => {
+  it('the limit is three and the exempt routes are narration, renown and the two stage-2 fills', () => {
     expect(LLM_PLAYER_MAX_ACTIVE_JOBS).toBe(3);
-    expect([...LLM_CAP_EXEMPT_ROUTES].sort()).toEqual(['combat_narration', 'renown_perk_gen']);
+    // Review WR-B01: world_gen and creation_class continue a request the cap admitted at stage 1.
+    expect([...LLM_CAP_EXEMPT_ROUTES].sort()).toEqual(['combat_narration', 'creation_class', 'renown_perk_gen', 'world_gen']);
+  });
+
+  it('review WR-B01: a stage-2 fill is never refused busy, whatever else the player holds', () => {
+    // The stage-1 job being applied (received) plus two other capped jobs: the cap is full.
+    const held = [
+      seededJob(1n, 'world_gen_start', { status: 'received' }),
+      seededJob(2n, 'npc_conversation'),
+      seededJob(3n, 'skill_gen', { status: 'in_flight' }),
+      seededJob(4n, 'renown_perk_gen'),
+    ];
+    const ctx = ctxAt({ llm_job: held });
+    expect(countActiveCappedJobs(ctx, PLAYER)).toBeGreaterThanOrEqual(LLM_PLAYER_MAX_ACTIVE_JOBS);
+    expect(npc(ctx).refused).toBe('busy'); // control: a new player request is still capped
+    const fill = enqueueLlmJob(ctx, {
+      route: 'world_gen',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.worldGen(5n),
+      request: { genStateId: '5' },
+    } as any);
+    expect(fill.created).toBe(true);
+    const classFill = enqueueLlmJob(ctx, {
+      route: 'creation_class',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.creation(2n, 'class'),
+      request: { creationStateId: '2' },
+    } as any);
+    expect(classFill.created).toBe(true);
+  });
+
+  it('review WR-B01: the kill switch, the ceiling and the daily budget still refuse a stage-2 fill', () => {
+    const fill = (ctx: any) =>
+      enqueueLlmJob(ctx, {
+        route: 'world_gen',
+        playerId: PLAYER,
+        sourceKey: SOURCE_KEYS.worldGen(5n),
+        request: { genStateId: '5' },
+      } as any);
+    expect(fill(ctxAt({ llm_admin_state: [haltedRow()], llm_job: threeActive() })).refused).toBe('halted');
+    expect(fill(ctxAt({ llm_spend: [ceilingLedger()], llm_job: threeActive() })).refused).toBe('ceiling');
+    expect(
+      fill(ctxAt({ llm_player_budget: [budgetRow({ spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD, calls: 1n })] })).refused,
+    ).toBe('daily_cost');
   });
 
   it('a fourth player-requested job is refused busy and the database is unchanged', () => {

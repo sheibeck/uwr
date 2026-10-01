@@ -85,6 +85,24 @@ const creationState = (step: string) => ({
 
 const job = (domain: string, contextJson?: string) => ({ domain, playerId: alice, contextJson });
 
+/**
+ * Review WR-B01: the player's other active capped jobs while a stage-1 result is applied. The stage-1 job
+ * itself is still 'received' (the executor completes it after apply returns), so with two more the cap is full.
+ */
+const heldJobs = (stage1Route: string) =>
+  [
+    [1n, stage1Route, 'received'],
+    [2n, 'npc_conversation', 'pending'],
+    [3n, 'skill_gen', 'in_flight'],
+  ].map(([id, route, status]) => ({
+    id,
+    playerId: alice,
+    route,
+    dedupeKey: `held-${String(id)}`,
+    status,
+    budgetDay: utcDay(ts(T0)),
+  }));
+
 let errorSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -913,6 +931,16 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(all).toHaveLength(4);
   });
 
+  it('review WR-B01: stage 1 still reaches FILLING when the player already holds the stage-1 job and two others', () => {
+    const ctx = newCtx({ llm_job: heldJobs('world_gen_start') });
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    expect(state(ctx).step).toBe('FILLING');
+    const fill = rows(ctx, 'llm_job').filter((j: any) => j.route === 'world_gen');
+    expect(fill).toHaveLength(1);
+    expect(fill[0]).toMatchObject({ status: 'pending', playerId: alice });
+    expect(rows(ctx, 'event_private').map((e: any) => e.message).join('\n')).not.toContain(WORLD_FILL_REFUSED_MESSAGE);
+  });
+
   it('a non-starter stage 1 turns the uncharted source edge into a passage and connects the start location to it', () => {
     const ctx = newCtx({
       world_gen_state: [genRow({ sourceRegionId: 100n, sourceLocationId: 50n })],
@@ -1164,6 +1192,18 @@ describe('Phase 43 (plan 13): staged class apply', () => {
         expect(creationStateForJob(c2, { domain, playerId: alice, contextJson: ctxJson } as any)).toBeNull();
       }
     }
+  });
+
+  it('review WR-B01: the reveal still reaches CLASS_FILLING when the player already holds the reveal job and two others', () => {
+    const ctx = moduleCtx({
+      player: [{ id: alice, userId: 7n }],
+      character_creation_state: [base()],
+      llm_job: heldJobs('creation_class_reveal'),
+    });
+    applyLlmResult(ctx, revealJob, JSON.stringify(REVEAL));
+    expect(state(ctx).step).toBe('CLASS_FILLING');
+    expect(rows(ctx, 'llm_job').filter((j: any) => j.route === 'creation_class')).toHaveLength(1);
+    expect(events(ctx).filter((e: any) => e.kind === 'creation_error')).toHaveLength(0);
   });
 
   it('the reveal stores the class name, description and exactly one ability, and queues the fill in the same apply', () => {
