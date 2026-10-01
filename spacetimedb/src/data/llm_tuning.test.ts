@@ -523,7 +523,7 @@ describe('measurement record hygiene', () => {
   });
 
   it('fails on a measured record that lacks caching entries or the model', () => {
-    const bad = { ...RECORD, status: 'measured', model: 'other' };
+    const bad = { ...RECORD, status: 'measured', model: 'other', caching: {} };
     const problems = recordHygieneProblems(bad);
     expect(problems.some((p) => p.includes('model'))).toBe(true);
     expect(problems.some((p) => p.includes('no caching entry'))).toBe(true);
