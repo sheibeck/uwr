@@ -1,175 +1,1567 @@
 {
   "schemaVersion": 1,
-  "status": "not_run",
-  "model": null,
-  "recordedAt": null,
+  "status": "measured",
+  "model": "claude-sonnet-5-5",
+  "recordedAt": "2026-10-01T08:17:08.802Z",
   "environment": "local",
   "totals": {
-    "calls": 0,
-    "costMicroUsd": "0"
+    "calls": 108,
+    "costMicroUsd": "922050"
   },
   "routes": {
     "creation_race": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4700,
+              "inputTokens": 80,
+              "outputTokens": 254,
+              "cacheWriteTokens": 3883,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3353,
+              "inputTokens": 49,
+              "outputTokens": 252,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3803,
+              "inputTokens": 49,
+              "outputTokens": 205,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3712,
+              "inputTokens": 69,
+              "outputTokens": 265,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3974,
+              "inputTokens": 69,
+              "outputTokens": 228,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2855,
+              "inputTokens": 80,
+              "outputTokens": 230,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3239,
+              "inputTokens": 49,
+              "outputTokens": 194,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2974,
+              "inputTokens": 49,
+              "outputTokens": 222,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3814,
+              "inputTokens": 69,
+              "outputTokens": 242,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2877,
+              "inputTokens": 69,
+              "outputTokens": 223,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3883,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 265,
+      "maxTokens": 512,
+      "suggestedTimeoutMs": 30000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 4068,
+          "inputTokens": 80,
+          "outputTokens": 243,
+          "cacheWriteTokens": 3883,
+          "cacheReadTokens": 0
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3526,
+          "inputTokens": 80,
+          "outputTokens": 255,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 3883
+        }
+      ]
     },
     "creation_class_reveal": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5726,
+              "inputTokens": 96,
+              "outputTokens": 307,
+              "cacheWriteTokens": 5510,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4125,
+              "inputTokens": 97,
+              "outputTokens": 305,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3883,
+              "inputTokens": 111,
+              "outputTokens": 302,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5097,
+              "inputTokens": 99,
+              "outputTokens": 322,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6813,
+              "inputTokens": 102,
+              "outputTokens": 324,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4131,
+              "inputTokens": 96,
+              "outputTokens": 312,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3343,
+              "inputTokens": 97,
+              "outputTokens": 279,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4182,
+              "inputTokens": 111,
+              "outputTokens": 327,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3803,
+              "inputTokens": 99,
+              "outputTokens": 316,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3779,
+              "inputTokens": 102,
+              "outputTokens": 320,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5510,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 327,
+      "maxTokens": 512,
+      "suggestedTimeoutMs": 30000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3469,
+          "inputTokens": 96,
+          "outputTokens": 283,
+          "cacheWriteTokens": 5510,
+          "cacheReadTokens": 0
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 4365,
+          "inputTokens": 96,
+          "outputTokens": 320,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5510
+        }
+      ]
     },
     "creation_class": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 7259,
+              "inputTokens": 291,
+              "outputTokens": 464,
+              "cacheWriteTokens": 6038,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4868,
+              "inputTokens": 287,
+              "outputTokens": 451,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 12273,
+              "inputTokens": 293,
+              "outputTokens": 449,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4042,
+              "inputTokens": 306,
+              "outputTokens": 450,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4545,
+              "inputTokens": 306,
+              "outputTokens": 453,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4046,
+              "inputTokens": 296,
+              "outputTokens": 452,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5153,
+              "inputTokens": 261,
+              "outputTokens": 451,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4451,
+              "inputTokens": 317,
+              "outputTokens": 465,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4619,
+              "inputTokens": 297,
+              "outputTokens": 455,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4049,
+              "inputTokens": 304,
+              "outputTokens": 462,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 6038,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 465,
+      "maxTokens": 768,
+      "suggestedTimeoutMs": 50000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3969,
+          "inputTokens": 189,
+          "outputTokens": 442,
+          "cacheWriteTokens": 6038,
+          "cacheReadTokens": 0
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3805,
+          "inputTokens": 189,
+          "outputTokens": 424,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 6038
+        }
+      ]
     },
     "world_gen_start": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 11131,
+              "inputTokens": 145,
+              "outputTokens": 721,
+              "cacheWriteTokens": 4347,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 8550,
+              "inputTokens": 163,
+              "outputTokens": 727,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 10048,
+              "inputTokens": 195,
+              "outputTokens": 771,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 9673,
+              "inputTokens": 164,
+              "outputTokens": 794,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 9418,
+              "inputTokens": 159,
+              "outputTokens": 775,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 9166,
+              "inputTokens": 145,
+              "outputTokens": 752,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 8793,
+              "inputTokens": 163,
+              "outputTokens": 759,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 9192,
+              "inputTokens": 195,
+              "outputTokens": 717,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 10324,
+              "inputTokens": 164,
+              "outputTokens": 818,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 9997,
+              "inputTokens": 159,
+              "outputTokens": 806,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4347,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 818,
+      "maxTokens": 1024,
+      "suggestedTimeoutMs": 45000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 9530,
+          "inputTokens": 145,
+          "outputTokens": 762,
+          "cacheWriteTokens": 4347,
+          "cacheReadTokens": 0
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 9164,
+          "inputTokens": 145,
+          "outputTokens": 758,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 4347
+        }
+      ]
     },
     "world_gen": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 20955,
+              "inputTokens": 230,
+              "outputTokens": 1824,
+              "cacheWriteTokens": 5007,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 17724,
+              "inputTokens": 234,
+              "outputTokens": 1765,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 18137,
+              "inputTokens": 309,
+              "outputTokens": 1902,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 15703,
+              "inputTokens": 271,
+              "outputTokens": 1658,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 17173,
+              "inputTokens": 236,
+              "outputTokens": 1794,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 20001,
+              "inputTokens": 249,
+              "outputTokens": 1988,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 16346,
+              "inputTokens": 265,
+              "outputTokens": 1662,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 17240,
+              "inputTokens": 274,
+              "outputTokens": 1729,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 18969,
+              "inputTokens": 254,
+              "outputTokens": 1985,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 18835,
+              "inputTokens": 267,
+              "outputTokens": 1876,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5007,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 1988,
+      "maxTokens": 2560,
+      "suggestedTimeoutMs": 85000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 16176,
+          "inputTokens": 139,
+          "outputTokens": 1750,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5007
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 17438,
+          "inputTokens": 139,
+          "outputTokens": 1869,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5007
+        }
+      ]
     },
     "skill_gen": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5833,
+              "inputTokens": 149,
+              "outputTokens": 574,
+              "cacheWriteTokens": 5901,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5542,
+              "inputTokens": 160,
+              "outputTokens": 556,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5897,
+              "inputTokens": 153,
+              "outputTokens": 624,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6696,
+              "inputTokens": 182,
+              "outputTokens": 576,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4621,
+              "inputTokens": 152,
+              "outputTokens": 532,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4901,
+              "inputTokens": 149,
+              "outputTokens": 573,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4665,
+              "inputTokens": 160,
+              "outputTokens": 578,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5372,
+              "inputTokens": 153,
+              "outputTokens": 609,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6341,
+              "inputTokens": 182,
+              "outputTokens": 565,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4902,
+              "inputTokens": 152,
+              "outputTokens": 557,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5901,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 624,
+      "maxTokens": 1024,
+      "suggestedTimeoutMs": 30000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 5145,
+          "inputTokens": 149,
+          "outputTokens": 579,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5901
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 5682,
+          "inputTokens": 149,
+          "outputTokens": 569,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5901
+        }
+      ]
     },
     "renown_perk_gen": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6172,
+              "inputTokens": 87,
+              "outputTokens": 673,
+              "cacheWriteTokens": 5553,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6201,
+              "inputTokens": 100,
+              "outputTokens": 747,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6772,
+              "inputTokens": 91,
+              "outputTokens": 653,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5963,
+              "inputTokens": 112,
+              "outputTokens": 696,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6920,
+              "inputTokens": 106,
+              "outputTokens": 736,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5322,
+              "inputTokens": 87,
+              "outputTokens": 660,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5372,
+              "inputTokens": 100,
+              "outputTokens": 702,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 6300,
+              "inputTokens": 91,
+              "outputTokens": 756,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": [
+                "ability_name_words"
+              ]
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5719,
+              "inputTokens": 112,
+              "outputTokens": 718,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 5888,
+              "inputTokens": 106,
+              "outputTokens": 720,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 5553,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
+      "chosenEffort": "low",
       "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "p99OutputTokens": 756,
+      "maxTokens": 1024,
+      "suggestedTimeoutMs": 30000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 5746,
+          "inputTokens": 87,
+          "outputTokens": 692,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5553
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 5221,
+          "inputTokens": 87,
+          "outputTokens": 632,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 5553
+        }
+      ]
     },
     "npc_conversation": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3611,
+              "inputTokens": 376,
+              "outputTokens": 379,
+              "cacheWriteTokens": 4003,
+              "cacheReadTokens": 0,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3564,
+              "inputTokens": 295,
+              "outputTokens": 274,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": [
+                "exclamation"
+              ]
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 9659,
+              "inputTokens": 404,
+              "outputTokens": 370,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3349,
+              "inputTokens": 296,
+              "outputTokens": 243,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3464,
+              "inputTokens": 368,
+              "outputTokens": 264,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3356,
+              "inputTokens": 376,
+              "outputTokens": 333,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3033,
+              "inputTokens": 295,
+              "outputTokens": 232,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": [
+                "exclamation"
+              ]
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4424,
+              "inputTokens": 404,
+              "outputTokens": 346,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 4376,
+              "inputTokens": 296,
+              "outputTokens": 215,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3877,
+              "inputTokens": 368,
+              "outputTokens": 307,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 4003,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 379,
+      "maxTokens": 512,
+      "suggestedTimeoutMs": 40000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3629,
+          "inputTokens": 376,
+          "outputTokens": 351,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 4003
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3491,
+          "inputTokens": 376,
+          "outputTokens": 359,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 4003
+        }
+      ]
     },
     "combat_narration": {
       "efforts": {
         "low": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2837,
+              "inputTokens": 123,
+              "outputTokens": 168,
+              "cacheWriteTokens": 1083,
+              "cacheReadTokens": 2548,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2687,
+              "inputTokens": 91,
+              "outputTokens": 159,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2680,
+              "inputTokens": 130,
+              "outputTokens": 158,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2493,
+              "inputTokens": 126,
+              "outputTokens": 152,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2007,
+              "inputTokens": 106,
+              "outputTokens": 97,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         },
         "medium": {
-          "samples": []
+          "samples": [
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3094,
+              "inputTokens": 123,
+              "outputTokens": 179,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2843,
+              "inputTokens": 91,
+              "outputTokens": 176,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3272,
+              "inputTokens": 130,
+              "outputTokens": 194,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 3088,
+              "inputTokens": 126,
+              "outputTokens": 199,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            },
+            {
+              "ok": true,
+              "stopReason": "end_turn",
+              "latencyMs": 2844,
+              "inputTokens": 106,
+              "outputTokens": 170,
+              "cacheWriteTokens": 0,
+              "cacheReadTokens": 3631,
+              "schemaOk": true,
+              "toneFailures": []
+            }
+          ]
         }
       },
-      "chosenEffort": null,
-      "tie": false,
-      "p99OutputTokens": null,
-      "maxTokens": null,
-      "suggestedTimeoutMs": null,
-      "insufficientData": true,
-      "runB": []
+      "chosenEffort": "low",
+      "tie": true,
+      "p99OutputTokens": 168,
+      "maxTokens": 256,
+      "suggestedTimeoutMs": 30000,
+      "insufficientData": false,
+      "runB": [
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 3050,
+          "inputTokens": 123,
+          "outputTokens": 182,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 3631
+        },
+        {
+          "ok": true,
+          "stopReason": "end_turn",
+          "latencyMs": 2824,
+          "inputTokens": 123,
+          "outputTokens": 158,
+          "cacheWriteTokens": 0,
+          "cacheReadTokens": 3631
+        }
+      ]
     }
   },
-  "caching": {},
+  "caching": {
+    "creation_race": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 4068,
+        "inputTokens": 80,
+        "outputTokens": 243,
+        "cacheWriteTokens": 3883,
+        "cacheReadTokens": 0
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3526,
+        "inputTokens": 80,
+        "outputTokens": 255,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 3883
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "creation_class_reveal": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3469,
+        "inputTokens": 96,
+        "outputTokens": 283,
+        "cacheWriteTokens": 5510,
+        "cacheReadTokens": 0
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 4365,
+        "inputTokens": 96,
+        "outputTokens": 320,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5510
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "creation_class": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3969,
+        "inputTokens": 189,
+        "outputTokens": 442,
+        "cacheWriteTokens": 6038,
+        "cacheReadTokens": 0
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3805,
+        "inputTokens": 189,
+        "outputTokens": 424,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 6038
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "world_gen_start": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 9530,
+        "inputTokens": 145,
+        "outputTokens": 762,
+        "cacheWriteTokens": 4347,
+        "cacheReadTokens": 0
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 9164,
+        "inputTokens": 145,
+        "outputTokens": 758,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 4347
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "world_gen": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 16176,
+        "inputTokens": 139,
+        "outputTokens": 1750,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5007
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 17438,
+        "inputTokens": 139,
+        "outputTokens": 1869,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5007
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "skill_gen": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 5145,
+        "inputTokens": 149,
+        "outputTokens": 579,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5901
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 5682,
+        "inputTokens": 149,
+        "outputTokens": 569,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5901
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "renown_perk_gen": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 5746,
+        "inputTokens": 87,
+        "outputTokens": 692,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5553
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 5221,
+        "inputTokens": 87,
+        "outputTokens": 632,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 5553
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "npc_conversation": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3629,
+        "inputTokens": 376,
+        "outputTokens": 351,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 4003
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3491,
+        "inputTokens": 376,
+        "outputTokens": 359,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 4003
+      },
+      "pass": true,
+      "notCacheable": false
+    },
+    "combat_narration": {
+      "call1": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 3050,
+        "inputTokens": 123,
+        "outputTokens": 182,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 3631
+      },
+      "call2": {
+        "ok": true,
+        "stopReason": "end_turn",
+        "latencyMs": 2824,
+        "inputTokens": 123,
+        "outputTokens": 158,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 3631
+      },
+      "pass": true,
+      "notCacheable": false
+    }
+  },
   "classReveal": {
-    "latenciesMs": [],
-    "p50Ms": null,
-    "p95Ms": null,
+    "latenciesMs": [
+      5726,
+      4125,
+      3883,
+      5097,
+      6813,
+      3469,
+      4365
+    ],
+    "p50Ms": 4665,
+    "p95Ms": 7113,
     "thresholdMs": 10000,
-    "verdict": "not_measured",
+    "verdict": "leave_out",
     "parallelBuilt": false
   }
 }
