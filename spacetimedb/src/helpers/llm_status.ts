@@ -7,10 +7,24 @@
 // weary) and never name a provider, an HTTP status, a key or any error internals.
 // ============================================================================
 
+import { LLM_RESTING_LINE } from './llm_queue';
+
+/**
+ * Error codes a job carries when the admin kill switch or the global daily
+ * ceiling stopped it at claim (Phase 43). They share one in-voice resting line
+ * and are never exposed to a player as a raw reason.
+ */
+export const LLM_RESTING_ERROR_CODES: readonly string[] = Object.freeze(['halted', 'ceiling']);
+
+/** True only for the two claim-time stop codes, 'halted' and 'ceiling'. */
+export function isRestingErrorCode(code: unknown): boolean {
+  return typeof code === 'string' && LLM_RESTING_ERROR_CODES.includes(code);
+}
+
 /** Transient failures: worth waiting out. */
 const TRANSIENT_CLASSES = new Set(['rate_limit', 'overloaded', 'server', 'timeout', 'network']);
-/** Account-side failures: phrased without revealing what is wrong. */
-const ACCOUNT_CLASSES = new Set(['auth', 'billing']);
+/** Account-side failures (and the claim-time stops): phrased without revealing what is wrong. */
+const ACCOUNT_CLASSES = new Set(['auth', 'billing', ...LLM_RESTING_ERROR_CODES]);
 /** The model produced something unusable. */
 const MALFORMED_CLASSES = new Set([
   'truncated',
@@ -71,6 +85,7 @@ export function keeperMessageForJob(
       return 'The Keeper lost interest and moved on. Ask again if you must.';
     case 'failed': {
       const code = errorCode ?? '';
+      if (isRestingErrorCode(code)) return LLM_RESTING_LINE;
       if (TRANSIENT_CLASSES.has(code)) return FAILED_TRANSIENT;
       if (ACCOUNT_CLASSES.has(code)) return FAILED_ACCOUNT;
       if (code === 'refusal') return FAILED_REFUSAL;

@@ -15,13 +15,14 @@ import { join } from 'node:path';
 import { ScheduleAt } from 'spacetimedb';
 import { createMockProcCtx, type MockReply, type MockThrow } from './test-utils';
 import { snapshotDb, rowColumnProblems } from './schema_recorder';
-import { enqueueLlmJob, SOURCE_KEYS } from './llm_queue';
+import { enqueueLlmJob, SOURCE_KEYS, LLM_RESTING_LINE } from './llm_queue';
 import { encodeRouteInput, smokeInputFor } from './llm_inputs';
 import { insertLlmDispatch, scheduledMicros } from './llm_schedule';
 import { applyLlmFailure, applyLlmResult } from './llm_apply';
 import { runLlmJob, claimLlmJob, BILLED_FAILURE_CLASSES, type ExecutorDeps } from './llm_executor';
 import { sweepLlmJobs } from './llm_sweeper';
-import { isKeyValid } from './llm_admin_state';
+import { isKeyValid, patchAdminState, setLlmEnabled } from './llm_admin_state';
+import { utcDay } from './llm_budget';
 import { retryDelayMs, msToMicros } from './llm_retry';
 import { awardRenown } from './renown';
 import { appendPrivateEvent } from './events';
@@ -593,35 +594,198 @@ describe('combat narration claim rules (PIPE-07)', () => {
 // ----------------------------------------------------------------------------
 
 describe('claim failures (no call, no spend)', () => {
-  it("phase ledger exhausted: failed 'billing', reservation and call refunded, applyFailure once for the job's player, no call", () => {
-    const proc = makeProc();
-    const jobId = enqueue(proc, 'npc_conversation');
-    const arg = takeDispatch(proc, jobId);
-    // The ledger overshoots the cap after the reservation was accepted.
-    proc.ctx.withTx((tx: any) => {
-      const l = tx.db.llm_spend.id.find(1n);
-      tx.db.llm_spend.id.update({ ...l, spentMicroUsd: 2_000_001n });
-    });
-    const deps = makeDeps(proc);
-
-    const outcome = runLlmJob(proc.ctx, arg, deps);
-
+  // Phase 43 retires the $2 phase cap: the kill switch and the global ceiling replace it at claim
+  // (PLANNING-NOTES item 2). The case that used to pin "phase ledger exhausted: failed 'billing'" is
+  // flipped on purpose into the kill-switch case below: the old assertion was errorCode 'billing' after
+  // the phase ledger passed $2; the new one is errorCode 'halted' after llmEnabled is turned off.
+  /** A claim-time refusal ends the job as failed with the code, no call, and every reservation and call refunded. */
+  function expectClaimRefusal(proc: Proc, jobId: bigint, outcome: string, deps: any, code: string): void {
     expect(outcome).toBe('failed');
     const job = jobOf(proc, jobId);
     expect(job.status).toBe('failed');
-    expect(job.errorCode).toBe('billing');
+    expect(job.errorCode).toBe(code);
     expect(job.finishedAt).toBeDefined();
     expect(job.reservedMicroUsd).toBe(0n);
+    expect(job.attempt).toBe(0n);
     expect(playerDay(proc).reservedMicroUsd).toBe(0n);
     expect(playerDay(proc).calls).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(0n);
     expect(ledger(proc).reservedMicroUsd).toBe(0n);
     expect(ledger(proc).calls).toBe(0n);
-    expect(ledger(proc).spentMicroUsd).toBe(2_000_001n);
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
     expect(deps.applyFailure).toHaveBeenCalledTimes(1);
     const applyJob = deps.applyFailure.mock.calls[0][1];
     expect(applyJob.playerId).toBe(alice);
     expect(applyJob.domain).toBe('npc_conversation');
     expect(proc.http.calls).toHaveLength(0);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+  }
+
+  it("kill switch off after enqueue: failed 'halted', reservation and call refunded, applyFailure once for the job's player, no call", () => {
+    const proc = makeProc();
+    const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
+    expect(ledger(proc).reservedMicroUsd).toBeGreaterThan(0n);
+    proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+    const deps = makeDeps(proc);
+
+    const outcome = runLlmJob(proc.ctx, arg, deps);
+
+    expectClaimRefusal(proc, jobId, outcome, deps, 'halted');
+  });
+
+  it("a missing admin-state row after enqueue fails closed: failed 'halted' with the same refunds", () => {
+    const proc = makeProc();
+    const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
+    proc.ctx.withTx((tx: any) => tx.db.llm_admin_state.id.delete(1n));
+    expect(rows(proc, 'llm_admin_state')).toHaveLength(0);
+    const deps = makeDeps(proc);
+
+    const outcome = runLlmJob(proc.ctx, arg, deps);
+
+    expectClaimRefusal(proc, jobId, outcome, deps, 'halted');
+  });
+
+  it("ceiling lowered below the job's own reservation after enqueue: failed 'ceiling' with the same refunds and no call", () => {
+    const proc = makeProc();
+    const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
+    const reserved = jobOf(proc, jobId).reservedMicroUsd as bigint;
+    proc.ctx.withTx((tx: any) => patchAdminState(tx, { dailyCeilingMicroUsd: reserved - 1n }));
+    const deps = makeDeps(proc);
+
+    const outcome = runLlmJob(proc.ctx, arg, deps);
+
+    expectClaimRefusal(proc, jobId, outcome, deps, 'ceiling');
+  });
+
+  it('a ceiling exactly equal to the job reservation still admits it (the boundary is inclusive)', () => {
+    const proc = makeProc();
+    const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
+    const reserved = jobOf(proc, jobId).reservedMicroUsd as bigint;
+    proc.ctx.withTx((tx: any) => patchAdminState(tx, { dailyCeilingMicroUsd: reserved }));
+    expect(claimLlmJob(proc.ctx, arg, makeDeps(proc)).kind).toBe('run');
+  });
+
+  it('claim order: queued jobs competing for the last headroom are admitted in claim order and the rest refused, each refund once', () => {
+    const proc = makeProc();
+    const ids = [enqueue(proc, 'npc_conversation'), enqueue(proc, 'npc_conversation'), enqueue(proc, 'npc_conversation')];
+    const args = ids.map((id) => takeDispatch(proc, id));
+    const r = jobOf(proc, ids[0]).reservedMicroUsd as bigint;
+    expect(jobOf(proc, ids[1]).reservedMicroUsd).toBe(r);
+    expect(jobOf(proc, ids[2]).reservedMicroUsd).toBe(r);
+    const s = 500n;
+    // Today's spend s, then the ceiling set to s + 2r: room for exactly two of the three.
+    proc.ctx.withTx((tx: any) => {
+      const l = tx.db.llm_spend.id.find(1n);
+      tx.db.llm_spend.id.update({ ...l, dayUtc: utcDay({ microsSinceUnixEpoch: T0 }), daySpentMicroUsd: s, spentMicroUsd: s });
+      patchAdminState(tx, { dailyCeilingMicroUsd: s + 2n * r });
+    });
+    const deps = makeDeps(proc);
+
+    const first = claimLlmJob(proc.ctx, args[0], deps);
+    const second = claimLlmJob(proc.ctx, args[1], deps);
+    const third = claimLlmJob(proc.ctx, args[2], deps);
+
+    expect(first.kind).toBe('run');
+    expect(second.kind).toBe('run');
+    expect(third.kind).toBe('failed');
+    expect(jobOf(proc, ids[0]).status).toBe('in_flight');
+    expect(jobOf(proc, ids[1]).status).toBe('in_flight');
+    expect(jobOf(proc, ids[2]).status).toBe('failed');
+    expect(jobOf(proc, ids[2]).errorCode).toBe('ceiling');
+    // The ledger holds only what the two admitted jobs still hold; the refused job's call is refunded.
+    expect(ledger(proc).reservedMicroUsd).toBe(2n * r);
+    expect(ledger(proc).calls).toBe(2n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(2n * r);
+    expect(playerDay(proc).calls).toBe(2n);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(proc.http.calls).toHaveLength(0);
+  });
+
+  it('refund once: the sweeper leaves the ledger and the player day unchanged after a claim-time halted or ceiling refusal', () => {
+    for (const code of ['halted', 'ceiling'] as const) {
+      const proc = makeProc();
+      const jobId = enqueue(proc, 'npc_conversation');
+      const arg = takeDispatch(proc, jobId);
+      proc.ctx.withTx((tx: any) => (code === 'halted' ? setLlmEnabled(tx, false) : patchAdminState(tx, { dailyCeilingMicroUsd: 1n })));
+      expect(runLlmJob(proc.ctx, arg, makeDeps(proc))).toBe('failed');
+      expect(jobOf(proc, jobId).errorCode).toBe(code);
+      const ledgerBefore = { ...ledger(proc) };
+      const dayBefore = { ...playerDay(proc) };
+
+      proc.clock.advance(3_600_000_000n);
+      proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: () => {}, log: () => {} }));
+
+      expect(ledger(proc).reservedMicroUsd).toBe(ledgerBefore.reservedMicroUsd);
+      expect(ledger(proc).calls).toBe(ledgerBefore.calls);
+      expect(ledger(proc).spentMicroUsd).toBe(ledgerBefore.spentMicroUsd);
+      expect(playerDay(proc).reservedMicroUsd).toBe(dayBefore.reservedMicroUsd);
+      expect(playerDay(proc).calls).toBe(dayBefore.calls);
+      expect(playerDay(proc).spentMicroUsd).toBe(dayBefore.spentMicroUsd);
+      expect(ledger(proc).reservedMicroUsd).toBe(0n);
+      expect(ledger(proc).calls).toBe(0n);
+      expect(jobOf(proc, jobId).status).toBe('failed');
+    }
+  });
+
+  it('in-flight finishes: flipping the kill switch off after the claim committed does not stop the job (it completes, applies and settles)', () => {
+    const proc = makeProc([reply('ok_text')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
+    let flipped = false;
+    const deps = makeDeps(proc, {
+      nowMs: () => {
+        if (!flipped) {
+          flipped = true;
+          proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+        }
+        return Number(proc.clock.now() / 1000n);
+      },
+    });
+
+    const outcome = runLlmJob(proc.ctx, arg, deps);
+
+    expect(flipped).toBe(true);
+    expect(rows(proc, 'llm_admin_state')[0].llmEnabled).toBe(false);
+    expect(outcome).toBe('completed');
+    expect(proc.http.calls).toHaveLength(1);
+    expect(jobOf(proc, jobId).status).toBe('completed');
+    expect(deps.apply).toHaveBeenCalledTimes(1);
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    expect(jobOf(proc, jobId).costMicroUsd).toBe(FIXTURE_COST);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+  });
+
+  it("a smoke job halted at claim records a smoke failure with class 'halted' and never calls applyFailure", () => {
+    const proc = makeProc();
+    const jobId = enqueue(proc, 'smoke_test', { request: { smoke: true }, budget: 'phase_only' });
+    const arg = takeDispatch(proc, jobId);
+    proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+    const deps = makeDeps(proc);
+
+    expect(runLlmJob(proc.ctx, arg, deps)).toBe('failed');
+
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    expect(jobOf(proc, jobId).errorCode).toBe('halted');
+    const smoke = JSON.parse(rows(proc, 'llm_admin_state')[0].lastSmokeJson);
+    expect(smoke.smoke_test.ok).toBe(false);
+    expect(smoke.smoke_test.class).toBe('halted');
+    expect(proc.http.calls).toHaveLength(0);
+  });
+
+  it('the kill switch is checked before the ceiling, and both before the in-flight cap (a stopped job is refunded, never deferred)', () => {
+    const proc = makeProc();
+    seedInFlight(proc, 4);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const arg = takeDispatch(proc, jobId);
+    proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+    expect(runLlmJob(proc.ctx, arg, makeDeps(proc))).toBe('failed');
+    expect(jobOf(proc, jobId).errorCode).toBe('halted');
     expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
   });
 

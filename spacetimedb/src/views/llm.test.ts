@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createMockDb } from '../helpers/test-utils';
 import { capturedViews, createRecordingServerMock } from '../helpers/schema_recorder';
-import { keeperMessageForJob, publicErrorBucket } from '../helpers/llm_status';
-import { LLM_JOB_STATUSES, isSmokeJob } from '../helpers/llm_queue';
+import { keeperMessageForJob, publicErrorBucket, isRestingErrorCode, LLM_RESTING_ERROR_CODES } from '../helpers/llm_status';
+import { LLM_JOB_STATUSES, isSmokeJob, LLM_RESTING_LINE } from '../helpers/llm_queue';
 import { LLM_ROUTE_NAMES } from '../data/llm_routes';
 import { findSecretLeaks } from '../helpers/measurement';
 import { ADMIN_IDENTITIES } from '../data/admin';
@@ -151,6 +151,32 @@ describe('keeperMessageForJob', () => {
     expect(line('truncated')).toBe(line('schema_mismatch'));
     expect(new Set([line('timeout'), line('auth'), line('refusal'), line('truncated')]).size).toBe(4);
   });
+
+  it('a failed job stopped by the kill switch or the ceiling shows the resting line on every route, never the generic copy', () => {
+    for (const code of ['halted', 'ceiling']) {
+      for (const route of [...LLM_ROUTE_NAMES, 'unknown_route']) {
+        const msg = keeperMessageForJob('failed', code, route);
+        expect(msg).toBe(LLM_RESTING_LINE);
+        expect(msg).not.toBe(keeperMessageForJob('failed', 'something_new', route));
+        expect(msg).not.toBe(keeperMessageForJob('failed', 'auth', route));
+      }
+    }
+  });
+});
+
+describe('isRestingErrorCode', () => {
+  it('is true only for halted and ceiling', () => {
+    expect([...LLM_RESTING_ERROR_CODES]).toEqual(['halted', 'ceiling']);
+    expect(isRestingErrorCode('halted')).toBe(true);
+    expect(isRestingErrorCode('ceiling')).toBe(true);
+    for (const c of [...FAILURE_CLASSES, 'late', 'expired', 'apply_error', '', undefined, null, 42, 'HALTED']) {
+      expect(isRestingErrorCode(c)).toBe(false);
+    }
+  });
+
+  it('the list is frozen', () => {
+    expect(Object.isFrozen(LLM_RESTING_ERROR_CODES)).toBe(true);
+  });
 });
 
 describe('publicErrorBucket', () => {
@@ -172,6 +198,11 @@ describe('publicErrorBucket', () => {
     for (const c of ['truncated', 'invalid_json', 'schema_mismatch', 'bad_request', 'something_new']) {
       expect(publicErrorBucket(c)).toBe('failed');
     }
+  });
+
+  it('buckets halted and ceiling as unavailable, so the raw reason never reaches the player', () => {
+    expect(publicErrorBucket('halted')).toBe('unavailable');
+    expect(publicErrorBucket('ceiling')).toBe('unavailable');
   });
 
   it('is undefined when there is no error', () => {
@@ -282,6 +313,15 @@ describe('my_llm_jobs view', () => {
   it('projectMyLlmJob keeps only the six keys from a full row', () => {
     const p = projectMyLlmJob(job(9n, alice));
     expect(Object.keys(p).sort()).toEqual([...MY_LLM_JOB_KEYS].sort());
+  });
+
+  it('a halted or ceiling failure is exposed only as the unavailable bucket with the resting line, never the raw reason', () => {
+    for (const code of ['halted', 'ceiling']) {
+      const p = projectMyLlmJob(job(11n, alice, { status: 'failed', errorCode: code }));
+      expect(p.errorCode).toBe('unavailable');
+      expect(p.userMessage).toBe(LLM_RESTING_LINE);
+      expect(JSON.stringify(p, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).not.toMatch(/halted|ceiling/);
+    }
   });
 
   it('the source never scans a table and never names a payload column', () => {

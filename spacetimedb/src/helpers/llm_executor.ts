@@ -49,15 +49,16 @@ import { applyLlmFailure, applyLlmResult, toApplyJob, type ApplyJob } from './ll
 import {
   addLedgerSpend,
   chargeLedgerUnknownBilling,
-  isPhaseLedgerExhausted,
+  globalCeilingClaimHeld,
   releaseLlmReservation,
   settleLlmCost,
   subtractLedgerSpend,
+  utcDay,
 } from './llm_budget';
 import { deferDelayMs, msToMicros, retryDelayMs, shouldRetry } from './llm_retry';
 import { hasLlmDispatch, insertLlmDispatch, scheduledMicros } from './llm_schedule';
 import { resolveRouteInput } from './llm_inputs';
-import { markKeyCheck, recordSmokeResult, type SmokeEntry } from './llm_admin_state';
+import { llmGate, markKeyCheck, recordSmokeResult, type SmokeEntry } from './llm_admin_state';
 import { logLlmCall } from './llm_queue';
 
 /** What one llm_run invocation ended up doing. */
@@ -183,7 +184,12 @@ function withFailureTx<T>(
 
 /**
  * Claim (tx1): one serializable transaction that reads the job and the key and
- * flips the job to in_flight. Because the count of in-flight jobs is read and
+ * flips the job to in_flight. The kill switch (llmEnabled off, or no admin-state
+ * row) and the global daily ceiling are re-checked here: a pending job that fails
+ * either ends as failed with code 'halted' or 'ceiling' through failAtClaim (one
+ * refund of its reservation and call, one resting line, domain lock released),
+ * while queued jobs competing for the last headroom are admitted in claim order.
+ * Because the count of in-flight jobs is read and
  * the claim written in this one transaction, two racing llm_run invocations
  * cannot both take the last slot. Checks run in a fixed order; every check that
  * ends the run without a call leaves money consistent (release with a call
@@ -232,7 +238,11 @@ export function claimLlmJob(ctx: any, arg: DispatchArg, deps: ExecutorDeps): Cla
       return { kind: 'failed' };
     };
 
-    if (isPhaseLedgerExhausted(tx)) return failAtClaim('billing');
+    // Kill switch, then the global daily ceiling (Phase 43). Both come before the in-flight cap so a stopped
+    // job is refunded here instead of being deferred forever. A job already in flight is never touched.
+    const gate = llmGate(tx);
+    if (gate.halted) return failAtClaim('halted');
+    if (globalCeilingClaimHeld(tx, job, utcDay(tx.timestamp)) > gate.ceilingMicroUsd) return failAtClaim('ceiling');
 
     // The count is derived from the by_status index inside this transaction (never a table-level count).
     const inFlight = [...tx.db.llm_job.by_status.filter('in_flight')].length;
