@@ -1121,6 +1121,8 @@ describe('submit_creation_input (creation cutover, PIPE-01 / PIPE-04)', () => {
 // ---------------------------------------------------------------------------
 
 describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
+  // Phase 43 stages world generation: every trigger enqueues the small reveal job (world_gen_start) first;
+  // the world_gen fill job is enqueued by the stage-1 apply (see "staged world generation (LAT-03)" below).
   const T = { microsSinceUnixEpoch: T0 };
   const RIPPLE = 'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...';
   const PATIENCE = 'The world is already taking shape around you. Patience.';
@@ -1199,7 +1201,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       ],
     });
 
-    it('confirm creates the character at location 0 and starts one GENERATING world_gen job in the same transaction', () => {
+    it('confirm creates the character at location 0 and starts one GENERATING world_gen_start job in the same transaction', () => {
       const ctx = newCtx(confirmSeed());
       handlers.submit_creation_input(ctx, { text: 'confirm' });
 
@@ -1210,10 +1212,10 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states).toHaveLength(1);
       expect(states[0]).toMatchObject({ step: 'GENERATING', sourceLocationId: 0n, sourceRegionId: 0n, characterId: chars[0].id });
 
-      const job = expectEnqueued(ctx, 'world_gen');
+      const job = expectEnqueued(ctx, 'world_gen_start');
       expect(job.characterId).toBe(chars[0].id);
       expect(JSON.parse(job.requestJson).genStateId).toBe(states[0].id.toString());
-      expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'world_gen', states[0].id.toString()]);
+      expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'world_gen_start', states[0].id.toString()]);
       const input = resolveRouteInput(ctx, job) as any;
       expect(input).toMatchObject({
         characterRace: 'Saltkin',
@@ -1222,7 +1224,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
         sourceRegionName: 'the known world',
         neighborRegions: [],
       });
-      expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
+      expect(() => buildRouteLayers('world_gen_start', input)).not.toThrow();
       expect(allRowsMatchSchema(ctx, ['world_gen_state', 'character'])).toEqual([]);
     });
 
@@ -1254,7 +1256,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       const states = worldGenStates(ctx);
       expect(states).toHaveLength(1);
       expect(states[0]).toMatchObject({ step: 'GENERATING', sourceLocationId: 11n, sourceRegionId: 1n, characterId: 1n });
-      const job = expectEnqueued(ctx, 'world_gen');
+      const job = expectEnqueued(ctx, 'world_gen_start');
       const input = resolveRouteInput(ctx, job) as any;
       expect(input.sourceRegionName).toBe('Ashen Reach');
       expect(input.characterRace).toBe('Kobold');
@@ -1285,7 +1287,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states).toHaveLength(2);
       expect(states[0].step).toBe('ERROR');
       expect(states[1]).toMatchObject({ step: 'GENERATING', sourceLocationId: 11n, sourceRegionId: 1n });
-      expectEnqueued(ctx, 'world_gen');
+      expectEnqueued(ctx, 'world_gen_start');
       expect(systemLines(ctx)).toEqual([RIPPLE]);
     });
 
@@ -1295,7 +1297,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       explore(ctx);
 
       expect(worldGenStates(ctx)).toHaveLength(2);
-      expectEnqueued(ctx, 'world_gen');
+      expectEnqueued(ctx, 'world_gen_start');
       expect(systemLines(ctx)).toEqual([RIPPLE, PATIENCE]);
     });
 
@@ -1312,7 +1314,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
         sourceRegionId: 0n,
         characterId: 1n,
       });
-      const job = expectEnqueued(ctx, 'world_gen');
+      const job = expectEnqueued(ctx, 'world_gen_start');
       expect(JSON.parse(job.requestJson).genStateId).toBe(states[1].id.toString());
       expect(systemLines(ctx)).toEqual([RIPPLE]);
     });
@@ -1373,7 +1375,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       const states = worldGenStates(ctx);
       expect(states).toHaveLength(2);
       expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n, sourceRegionId: 0n });
-      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(bob);
+      expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(bob);
       expect(systemLines(ctx)).toEqual([RIPPLE]);
     });
   });
@@ -1401,7 +1403,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states).toHaveLength(2);
       expect(states[0].step).toBe('ERROR');
       expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: alice, characterId: 1n, sourceRegionId: 0n });
-      const job = expectEnqueued(ctx, 'world_gen');
+      const job = expectEnqueued(ctx, 'world_gen_start');
       expect(JSON.parse(job.requestJson).genStateId).toBe(states[1].id.toString());
       expect(creationLines(ctx)).toEqual([['creation', RIPPLE]]);
       // The finished creation is untouched: no new creation, no "already created" line.
@@ -1447,7 +1449,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       const states = worldGenStates(ctx);
       expect(states).toHaveLength(2);
       expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n });
-      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(bob);
+      expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(bob);
       expect(rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.message])).toEqual([[bob, RIPPLE]]);
     });
 
@@ -1467,7 +1469,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       submitCreation(ctx, 'explore');
       expect(rows(ctx, 'character_creation_state')).toHaveLength(0);
       expect(worldGenStates(ctx)[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n });
-      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(bob);
+      expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(bob);
       expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_race')).toBe(false);
       expect(rows(ctx, 'event_creation').map((e: any) => e.message)).toEqual([STRANDED_CHARACTER_HINT, RIPPLE]);
     });
@@ -1479,7 +1481,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
 
       expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_race')).toBe(false);
       expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
-      expect(expectEnqueued(ctx, 'world_gen').playerId).toBe(alice);
+      expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(alice);
       expect(creationLines(ctx)).toEqual([['creation', RIPPLE]]);
     });
 
@@ -1561,7 +1563,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       // The line the player is told to type goes to the reducer the client calls.
       handlers.submit_creation_input(reducerCtx, { text: 'explore' });
       expect(rows(proc, 'llm_job')).toHaveLength(2);
-      expect(rows(proc, 'llm_job')[1]).toMatchObject({ route: 'world_gen', status: 'pending', characterId: character.id });
+      expect(rows(proc, 'llm_job')[1]).toMatchObject({ route: 'world_gen_start', status: 'pending', characterId: character.id });
       expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
       expect(worldGenStates(proc)).toHaveLength(2);
       expect(worldGenStates(proc)[1].step).toBe('GENERATING');
@@ -1633,6 +1635,177 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
 
   it('the old prepare reducer is gone from the module', () => {
     expect(capturedReducer('prepare_world_gen_llm')).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Staged world generation (Phase 43, LAT-03)
+// ---------------------------------------------------------------------------
+
+describe('staged world generation (LAT-03)', () => {
+  const FAKE_KEY = ['sk', '-ant-', 'api03-', 'STAGEDKEY'.repeat(4)].join('');
+  const T = { microsSinceUnixEpoch: T0 };
+  const PERSONALITY = { traits: ['brisk'], speechPattern: 'clipped', knowledgeDomains: ['trade'], secrets: [], affinityMultiplier: 1.0 };
+
+  // The same replies the apply characterization uses (copied: that file does not export them).
+  const WORLD_START_JSON = {
+    regionName: 'Cinderfall',
+    regionDescription: 'Ash drifts down like a slow, grey snowfall.',
+    biome: 'volcanic',
+    startLocation: { name: 'Ember Hollow', description: 'A sheltered town.', terrainType: 'town', levelOffset: 0 },
+    firstNpc: { name: 'Vessa', gender: 'female', npcType: 'vendor', description: 'A soot-streaked trader.', greeting: 'Buy something.', personality: PERSONALITY },
+  };
+  const REGION_FILL_JSON = {
+    dominantFaction: 'Ash Court',
+    landmarks: ['The Slag Spire'],
+    threats: ['ember wolves'],
+    locations: [
+      { name: 'Slag Road', description: 'A cracked road.', terrainType: 'plains', isSafe: false, levelOffset: 0, connectsTo: ['Ember Hollow', 'Ashen Pit'] },
+      { name: 'Ashen Pit', description: 'A smoking crater.', terrainType: 'mountains', isSafe: false, levelOffset: 1, connectsTo: ['Slag Road'] },
+    ],
+    npcs: [
+      { name: 'Old Brann', gender: 'male', npcType: 'lore', locationName: 'Slag Road', description: 'A hermit.', greeting: 'Hm.', personality: PERSONALITY },
+    ],
+    enemies: [
+      { name: 'Ember Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'plains', groupMin: 1, groupMax: 2, level: 1 },
+    ],
+  };
+
+  const okJsonReply = (payload: unknown) => {
+    const reply = JSON.parse(
+      readFileSync(new URL('../helpers/__fixtures__/claude/ok_json.json', import.meta.url), 'utf-8'),
+    );
+    reply.body.content = [{ type: 'text', text: JSON.stringify(payload) }];
+    return reply;
+  };
+
+  const setup = (responses: any[]) => {
+    const proc = createMockProcCtx({
+      seed: {
+        ...playerSeed(),
+        character_creation_state: [
+          {
+            id: 1n,
+            playerId: alice,
+            step: 'CONFIRMING',
+            raceName: 'Saltkin',
+            raceNarrative: 'Marsh dwellers.',
+            raceBonuses: '{"primary":{"stat":"wis","value":2},"secondary":{"stat":"con","value":1},"flavor":""}',
+            archetype: 'mystic',
+            className: 'Tidecaller',
+            characterName: 'Mirel',
+            createdAt: T,
+            updatedAt: T,
+          },
+        ],
+        llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+      },
+      timestampMicros: T0,
+      responses,
+      strict: true,
+    });
+    const reducerCtx = {
+      db: proc.db,
+      sender: alice,
+      get timestamp() {
+        return proc.ctx.timestamp;
+      },
+    };
+    return { proc, reducerCtx };
+  };
+  const run = (proc: any) => {
+    const dispatch = rows(proc, 'llm_dispatch').shift();
+    return runLlmJob(proc.ctx, dispatch, { nowMs: () => Number(proc.clock.now() / 1000n), log: () => {} });
+  };
+  const state = (proc: any) => rows(proc, 'world_gen_state')[0];
+
+  it('stage 1 makes the region playable while the fill job is still pending; stage 2 then completes it', () => {
+    const { proc, reducerCtx } = setup([okJsonReply(WORLD_START_JSON), okJsonReply(REGION_FILL_JSON)]);
+
+    // Finishing the character enqueues the small reveal job first.
+    handlers.submit_creation_input(reducerCtx, { text: 'confirm' });
+    const character = rows(proc, 'character')[0];
+    expect(character.locationId).toBe(0n);
+    expect(rows(proc, 'llm_job').map((j: any) => j.route)).toEqual(['world_gen_start']);
+    expect(state(proc).step).toBe('GENERATING');
+
+    // Stage 1 lands: the player stands on the start location with the first NPC; the fill job is pending.
+    expect(run(proc)).toBe('completed');
+    const start = rows(proc, 'location').find((l: any) => l.name === 'Ember Hollow');
+    expect(start).toBeDefined();
+    expect(rows(proc, 'character')[0]).toMatchObject({ locationId: start.id, boundLocationId: start.id });
+    expect(rows(proc, 'region').map((r: any) => r.name)).toEqual(['Cinderfall']);
+    expect(rows(proc, 'location')).toHaveLength(1);
+    expect(rows(proc, 'npc').map((n: any) => [n.name, n.locationId, n.gender])).toEqual([['Vessa', start.id, 'female']]);
+    expect(state(proc)).toMatchObject({ step: 'FILLING', generatedRegionId: rows(proc, 'region')[0].id });
+    const pendingFills = rows(proc, 'llm_job').filter((j: any) => j.route === 'world_gen' && j.status === 'pending');
+    expect(pendingFills).toHaveLength(1);
+    expect(rows(proc, 'llm_job').find((j: any) => j.route === 'world_gen_start').status).toBe('completed');
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+    expect(rows(proc, 'enemy_template')).toHaveLength(0);
+    expect(rows(proc, 'event_private').map((e: any) => e.message)).toContain(
+      'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
+    );
+    expect(proc.http.calls).toHaveLength(1);
+
+    // Stage 2 lands: the rest of the region.
+    expect(run(proc)).toBe('completed');
+    expect(state(proc).step).toBe('COMPLETE');
+    expect(rows(proc, 'location').map((l: any) => l.name)).toEqual([
+      'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
+    ]);
+    expect(rows(proc, 'location').length).toBeGreaterThan(1);
+    expect(rows(proc, 'enemy_template').length).toBeGreaterThan(0);
+    expect(rows(proc, 'location').some((l: any) => l.terrainType === 'uncharted')).toBe(true);
+    expect(rows(proc, 'llm_job').map((j: any) => [j.route, j.status])).toEqual([
+      ['world_gen_start', 'completed'],
+      ['world_gen', 'completed'],
+    ]);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(proc.http.calls).toHaveLength(2);
+
+    // Every row the flow inserted matches the recorded schema.
+    expect(
+      allRowsMatchSchema(proc, ['region', 'location', 'npc', 'world_gen_state', 'llm_job', 'llm_dispatch']),
+    ).toEqual([]);
+  });
+
+  it('the fill job names the stage-1 facts it was started from', () => {
+    const { proc, reducerCtx } = setup([okJsonReply(WORLD_START_JSON)]);
+    handlers.submit_creation_input(reducerCtx, { text: 'confirm' });
+    expect(run(proc)).toBe('completed');
+    const fill = rows(proc, 'llm_job').find((j: any) => j.route === 'world_gen');
+    expect(JSON.parse(fill.requestJson).genStateId).toBe(state(proc).id.toString());
+    const input = resolveRouteInput(proc, fill) as any;
+    expect(input).toMatchObject({
+      regionName: 'Cinderfall',
+      biome: 'volcanic',
+      startLocation: { name: 'Ember Hollow' },
+      npcsPresent: [{ name: 'Vessa', npcType: 'vendor', gender: 'female' }],
+      characterClass: 'Tidecaller',
+    });
+    expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
+  });
+
+  it('a stage-2 call failure leaves the stage-1 region playable with one [explore] line and no new job', () => {
+    const err529 = JSON.parse(
+      readFileSync(new URL('../helpers/__fixtures__/claude/err_529.json', import.meta.url), 'utf-8'),
+    );
+    const { proc, reducerCtx } = setup([okJsonReply(WORLD_START_JSON), err529]);
+    handlers.submit_creation_input(reducerCtx, { text: 'confirm' });
+    expect(run(proc)).toBe('completed');
+    expect(run(proc)).toBe('failed');
+
+    expect(state(proc).step).toBe('FILL_ERROR');
+    expect(state(proc).errorMessage).not.toMatch(/\d/);
+    const start = rows(proc, 'location').find((l: any) => l.name === 'Ember Hollow');
+    const here = rows(proc, 'npc').filter((n: any) => n.locationId === start.id).map((n: any) => n.npcType).sort();
+    expect(here).toEqual(['banker', 'vendor']);
+    expect(rows(proc, 'character')[0].locationId).toBe(start.id);
+    expect(rows(proc, 'llm_job')).toHaveLength(2); // nothing retried it
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(proc, 'event_private').slice(-1)[0].message).toContain('Type [explore] to try again.');
+    expect(proc.http.calls).toHaveLength(2);
   });
 });
 
