@@ -192,8 +192,11 @@ describe('golden set integrity', () => {
       const closes = tags.filter((t) => t.includes('/'));
       expect(opens, item.id).toHaveLength(item.expectations.wrappedFieldCount);
       expect(closes, item.id).toHaveLength(item.expectations.wrappedFieldCount);
-      expect(volatile, item.id).toContain('&lt;/player_input&gt;');
+      if (item.payload.includes('</player_input>')) {
+        expect(volatile, item.id).toContain('&lt;/player_input&gt;');
+      }
     }
+    expect(adversarial.filter((i) => i.payload.includes('</player_input>')).map((i) => i.id)).toEqual(['adv-1', 'adv-2', 'adv-5']);
   });
 
   it('keeps the canary and the injected instruction inside the first 40 code points of the two name payloads', () => {
