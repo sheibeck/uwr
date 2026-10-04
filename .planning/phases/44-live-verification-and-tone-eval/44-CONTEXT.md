@@ -72,6 +72,9 @@ Requirements: QUAL-01, QUAL-02, QUAL-03. Depends on Phase 43 (tuned routes, kill
 - The review page design.
 - The exact adversarial payloads. Draw them from the Keeper Bible's player-input section and the Phase 40 injection tests.
 
+### UI design contract: skipped
+- No UI-SPEC for this phase (`--skip-ui`). The UI gate flags it as frontend, but the phase adds no game screen. Its only page is the private tone-review Artifact. This follows the user's rule to skip UI-SPECs before the UX overhaul (backlog 999.6). Recorded 2026-10-04.
+
 </decisions>
 
 <code_context>
