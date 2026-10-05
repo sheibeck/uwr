@@ -511,3 +511,97 @@ describe('replay of the committed golden run (vacuous until a record exists)', (
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Static guards on the harness source (T-44-04-02, T-44-04-03)
+// ---------------------------------------------------------------------------
+
+describe('golden harness source', () => {
+  const harness = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'llm', 'golden.live.ts'), 'utf8');
+
+  /** The text of one top-level function, from its declaration to the closing brace at column 0. */
+  const bodyOf = (name) => {
+    const start = harness.search(new RegExp(`^(async )?function ${name}\\b`, 'm'));
+    expect(start, `function ${name} exists`).toBeGreaterThanOrEqual(0);
+    const rest = harness.slice(start);
+    const end = rest.search(/\n}\n/);
+    return rest.slice(0, end + 3);
+  };
+
+  it('selects the mode through resolveGoldenMode at import time', () => {
+    expect(harness).toContain('resolveGoldenMode(');
+    expect(harness).toMatch(/const MODE = resolveGoldenMode\(process\.env\.GOLDEN_LIVE_RUN\)/);
+  });
+
+  it('the dry body never loads the key and stubs fetch', () => {
+    const dry = bodyOf('runDry');
+    expect(dry).not.toContain('loadAnthropicKey');
+    expect(dry).toContain('globalThis.fetch =');
+    expect(dry).toContain('network is disabled');
+  });
+
+  it('only the check-key and paid bodies load the key', () => {
+    expect(bodyOf('runCheckKey')).toContain('loadAnthropicKey(');
+    expect(bodyOf('runPaid')).toContain('loadAnthropicKey(');
+    expect(bodyOf('runPaid').indexOf('goldenRunRefusal(')).toBeLessThan(bodyOf('runPaid').indexOf('loadAnthropicKey('));
+    const outside = harness
+      .replace(bodyOf('runCheckKey'), '')
+      .replace(bodyOf('runPaid'), '')
+      .split(/\r?\n/)
+      .filter((l) => !l.trimStart().startsWith('//'))
+      .join(' ');
+    expect(outside.match(/loadAnthropicKey\(/g) ?? []).toHaveLength(0);
+  });
+
+  it('makes at most one direct console call (the scrubbing say helper)', () => {
+    const direct = harness.split(/\r?\n/).filter((l) => /\bconsole\.(log|info|warn|error)\s*\(/.test(l));
+    expect(direct.length).toBeLessThanOrEqual(1);
+  });
+
+  it('never names the hosted target and never reads an env file itself', () => {
+    expect(harness.toLowerCase()).not.toContain('maincloud');
+    expect(harness).not.toMatch(/\.env(?!\.GOLDEN_)/);
+    expect(harness).not.toMatch(/ANTHROPIC_API_KEY/);
+    expect(harness).not.toMatch(/process\.env\.(?!GOLDEN_LIVE_RUN|GOLDEN_ONLY)/);
+  });
+
+  it('judges with evaluateGoldenItem and classifies with classifyClaudeResponse, like the executor', () => {
+    expect(harness).toMatch(/import \{[^}]*\bevaluateGoldenItem\b[^}]*\} from '\.\/golden_rules\.mjs'/);
+    expect(harness).toMatch(/import \{[^}]*\bclassifyClaudeResponse\b[^}]*\} from/);
+    expect(harness).toContain('classifyClaudeResponse(');
+    expect(harness).toContain('buildClaudeRequest(');
+    expect(harness).toContain('buildRouteLayers(');
+    expect(harness).toContain('goldenInputFor(');
+    expect(harness).toContain('evaluateGoldenItem(');
+  });
+
+  it('uses the tuned route settings, not sweep overrides, and has no automatic retry', () => {
+    expect(harness).toContain('LLM_ROUTES[route].maxTokens');
+    expect(harness).toContain('request.timeoutMs');
+    expect(harness).toContain('AbortSignal.timeout(timeoutMs)');
+    expect(harness).not.toMatch(/SWEEP_MAX_TOKENS|output_config\.effort\s*=|body\.max_tokens\s*=/);
+    expect(harness).not.toMatch(/\bsleep\s*\(|\bsetTimeout\s*\(|callWithRetry|sweepRetryAllowed/);
+  });
+
+  it('guards the spend and the record before any paid call', () => {
+    expect(harness).toContain('goldenShouldStop(');
+    expect(harness).toContain('goldenRunRefusal(');
+    expect(harness).toContain('parseGoldenOnly(');
+    expect(harness).toContain('mergeRerun(');
+    expect(harness).toContain('recordHygieneProblems(');
+    // The record is written in finally, and only when a paid call was made.
+    expect(harness).toMatch(/finally \{\s*if \(calls > 0\)/);
+  });
+
+  it('never prints or records a request body, header, key or reply text', () => {
+    const says = harness.split(/\r?\n/).filter((l) => /\bsay\(/.test(l));
+    for (const line of says) {
+      expect(line, line).not.toMatch(/bodyText|headers|outcome\.text|outcome\.json|\.text\b/);
+    }
+    expect(harness).not.toContain('requestBody');
+  });
+
+  it('is never picked up by the root suite: the file name is *.live.ts', () => {
+    expect(fs.existsSync(path.join(REPO_ROOT, 'scripts', 'llm', 'golden.live.ts'))).toBe(true);
+  });
+});
