@@ -364,14 +364,14 @@ Plans:
 
 **Also recorded**: the streaming decision (Out of Scope stands unless measured NPC-chat latency or a no-go backend build reopens it) is written into PROJECT.md.
 **Testing**: The golden-set harness runs offline against recorded or mocked responses in the normal suite. Failure drills are automated unit tests over the mock procedure context, with the live drills as operator-run confirmation.
-**Plans**: 1/10 plans executed
+**Plans**: 2/10 plans executed
 
 Plans:
 
 **Wave 1**
 
 - [x] 44-01-PLAN.md — Golden set (27 frozen items, 5 adversarial with canaries) and mechanical rules with inclusive boundaries, mutation tests and pronoun checks
-- [ ] 44-02-PLAN.md — Unified failure-drill matrix: 7 classes by lock-holding routes through the real failure apply, plus the five edge families
+- [x] 44-02-PLAN.md — Unified failure-drill matrix: 7 classes by lock-holding routes through the real failure apply, plus the five edge families
 - [ ] 44-03-PLAN.md — Allowlisted local-only --db (uwr, uwr-verify) for the key script and HTTP helpers, and the call-log report math (p50/p95/p99, ±2% reconciliation, streaming verdict)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -408,7 +408,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
 | 42. Client Cutover and Legacy Removal | v2.2 | 7/7 | Complete    | 2026-09-30 |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 15/15 | In Progress|  |
-| 44. Live Verification and Tone Eval | v2.2 | 1/10 | In Progress|  |
+| 44. Live Verification and Tone Eval | v2.2 | 2/10 | In Progress|  |
 
 ## Backlog
 
