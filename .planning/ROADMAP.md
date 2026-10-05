@@ -101,7 +101,31 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   5. Buttons, tabs, inputs and panels show Nocturne hover, pressed and keyboard focus-visible states with Inter and Phosphor icons; no component hard-codes a color (a test fails if one does), and rarity and enemy-difficulty colors keep their current hues.
   6. The splash / sign-in screen shows the 16:9 key-art logo large and undistorted, scaled to fit the viewport at 1280×800 and 390×844, with no pixelated rendering.
 
-**Plans**: TBD
+**Plans**: 11 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 45-01-PLAN.md — Cutover: tag `v2.2-client`, toolchain and config (port 5173 strict, `@game-data` alias), vendored Nocturne, seven screen shells, old UI deleted, new entry point and guards
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 45-02-PLAN.md — Client tokens, frame overrides and static design-contract guards (no literal colors, pinned hues, type/spacing scale, Phosphor and Inter only)
+- [ ] 45-03-PLAN.md — Auth fixes (expired token, URL cleanup) and the connection controller (backoff 1-30 s, rejected token, resume on online/visible)
+- [ ] 45-04-PLAN.md — bindTable (rows survive reconnect), deriveScreen, version rule and frame-view projections
+- [ ] 45-05-PLAN.md — Screen state, breakpoint, focus trap, Drawer, Sheet and More sheet
+- [ ] 45-06-PLAN.md — Vitals rail, mobile vitals strip, context rail and feed shells
+- [ ] 45-07-PLAN.md — Header with account menu, tab bar and mapping, location row, Reconnecting and version notice bars
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 45-08-PLAN.md — Splash with the 16:9 logo and seven states, character picker, no-characters note
+- [ ] 45-09-PLAN.md — Session: login_email, set_active_character, logout, subscriptions, derived screen and frame view
+- [ ] 45-10-PLAN.md — AppFrame composition (desktop and mobile at 900px), drawer/sheet integration and static frame contract
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 45-11-PLAN.md — App screen switch, phase gate (suite vs baseline, build, dev server) and owner UAT in real Chrome
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Nocturne tokens and components, and the frame shown in Ledger 2i/2j and Console & Combat 1a, desktop and mobile.
 **Notes**:
