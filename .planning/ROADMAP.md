@@ -101,7 +101,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   5. Buttons, tabs, inputs and panels show Nocturne hover, pressed and keyboard focus-visible states with Inter and Phosphor icons; no component hard-codes a color (a test fails if one does), and rarity and enemy-difficulty colors keep their current hues.
   6. The splash / sign-in screen shows the 16:9 key-art logo large and undistorted, scaled to fit the viewport at 1280×800 and 390×844, with no pixelated rendering.
 
-**Plans**: 9/11 plans executed
+**Plans**: 10/11 plans executed
 
 Plans:
 **Wave 1**
@@ -121,7 +121,7 @@ Plans:
 
 - [x] 45-08-PLAN.md — Splash with the 16:9 logo and seven states, character picker, no-characters note
 - [x] 45-09-PLAN.md — Session: login_email, set_active_character, logout, subscriptions, derived screen and frame view
-- [ ] 45-10-PLAN.md — AppFrame composition (desktop and mobile at 900px), drawer/sheet integration and static frame contract
+- [x] 45-10-PLAN.md — AppFrame composition (desktop and mobile at 900px), drawer/sheet integration and static frame contract
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -322,7 +322,7 @@ Plans:
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
-| 45. Foundation, Frame and Auth | v3.0 | 9/11 | In Progress|  |
+| 45. Foundation, Frame and Auth | v3.0 | 10/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 0/TBD | Not started | - |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 0/TBD | Not started | - |
