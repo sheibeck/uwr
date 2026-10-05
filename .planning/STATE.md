@@ -4,9 +4,9 @@ milestone: v3.0
 milestone_name: UX Overhaul
 current_phase: 45
 current_phase_name: Foundation, Frame and Auth
-status: verifying
+status: executing
 stopped_at: Completed 45-10-PLAN.md
-last_updated: "2026-10-05T16:22:06.960Z"
+last_updated: "2026-10-05T18:19:31.911Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 45 execution started
 progress:
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 
 Phase: 45 (Foundation, Frame and Auth) — EXECUTING
 Plan: 11 of 11
-Status: Phase complete — ready for verification
+Status: Ready to execute
 Last activity: 2026-10-05 — Phase 45 execution started
 
 Progress: [██████████] 100%
@@ -249,7 +249,6 @@ Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed
 - Execution mode: sequential on the main checkout (local master is ahead of origin, so the worktree base check degrades). Executors must never push or publish to maincloud.
 - Baseline test failures to ignore: scripts/llm/call_log_report, golden_run and proof_rules tests, plus spacetimedb/src/helpers/measurement.results.test.ts.
 - Open todo: CR-01 / login_email trusts client email (.planning/todos/pending/2026-10-05-login-email-trusts-client-supplied-email.md).
-
 
 **Resume file:** None
 

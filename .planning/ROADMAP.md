@@ -154,15 +154,44 @@ Plans:
 **Plans**: 10 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 46-01-PLAN.md — Segment contract (segments.ts), KeeperSegment column on three event tables, event helpers, local publish and bindings
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 46-02-PLAN.md — Apply layer: NPC replies as segments, Keeper narration segments on creation, arrival, skill, renown and fallback rows
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 46-03-PLAN.md — Segment-aware combat narration, SEG-04 malformed-reply matrix and invariant, failure-drill segment checks
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 46-04-PLAN.md — Golden rules for the segment shape (missing_segments, segments_invalid, keeper_first_person, allowed speakers)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 46-05-PLAN.md — Golden harness: labelled-line review page, Phase 46 record paths, Phase 44 replay guard, dry run
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 46-06-PLAN.md — Voice package 46-VOICE-CHANGES.md and the blocking owner approval (SEG-03, OQ1-OQ7)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 46-07-PLAN.md — Approved Keeper Bible and non-combat route blocks, NPC reply shape with segments
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 46-08-PLAN.md — Combat narration JSON route (COMBAT_NARRATION_SCHEMA) with its approved block, OQ7 allow-list
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 46-09-PLAN.md — Approved fixed Keeper strings, fallback wording, segment formatting rules, OQ2
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
 - [ ] 46-10-PLAN.md — OQ3 (44 Fix 2) decision, phase gate, code-only local publish, deferred owner verification list
 
 **Notes**:
