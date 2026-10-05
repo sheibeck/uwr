@@ -2,44 +2,43 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: LLM — Claude Engine
-current_phase: 44
-current_phase_name: Live Verification and Tone Eval
-status: verifying
+status: Awaiting next milestone
 stopped_at: Completed 44-10-PLAN.md
-last_updated: "2026-10-05T11:56:15.786Z"
-last_activity: 2026-10-04
-last_activity_desc: Phase 44 execution resumed (wave continue)
+last_updated: "2026-10-05T12:07:47.055Z"
+last_activity: 2026-10-05
+last_activity_desc: Milestone v2.2 completed and archived
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 74
   completed_plans: 71
   percent: 50
+current_phase: 44
+current_phase_name: Live Verification and Tone Eval
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-30)
+See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 44 — Live Verification and Tone Eval
+**Current focus:** Planning next milestone: UX overhaul (backlog 999.6, UWR Ledger Screens / Nocturne)
 
 ## Current Position
 
-Phase: 44 (Live Verification and Tone Eval) — EXECUTING
-Plan: 10 of 10
-Status: Phase complete — ready for verification
-Last activity: 2026-10-04 — Phase 44 execution resumed (wave continue)
-
-Progress: [██████████] 96% (2/6 phases)
+Phase: Milestone v2.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-10-05 — Milestone v2.2 completed and archived
 
 ## Previous Milestones
 
 - v1.0 RPG Milestone -- Phases 1-23 (shipped 2026-02-25)
 - v2.0 The Living World -- Phases 24-30 (shipped 2026-03-09)
 - v2.1 Project Cleanup -- Phases 31, 32, 38 (shipped 2026-09-29; 33-37 parked in Backlog 999.1-999.5)
+- v2.2 LLM — Claude Engine -- Phases 39-44 (shipped 2026-10-05; override closeout, 41/43/44 human verification deferred)
 
 See MILESTONES.md for full delivery summaries.
 
@@ -182,6 +181,16 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 | todo | 5 pending todos (2 are LLM milestone seeds) | carried forward |
 | requirements | COMB-05, COMB-08, NARR-03, EQUIP-01-05, UX-01-03 | carried with parked Backlog phases 999.1-999.5 |
 
+Items acknowledged and deferred at the v2.2 close on 2026-10-05 (owner chose to move to the UX overhaul):
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification | Phase 41: 41-VERIFICATION.md (milestones/v2.2-phases) | human_needed |
+| verification | Phase 43: 43-VERIFICATION.md, 43-UAT.md 7 pending (milestones/v2.2-phases) | human_needed |
+| verification | Phase 44: 44-VERIFICATION.md, 44-UAT.md 5 pending (milestones/v2.2-phases) | human_needed |
+| requirements | QUAL-01 (tone sign-off: needs_fixes, 44-TONE-FIXES.md proposal), QUAL-02 (e2e run, Console reconciliation, maincloud) | open |
+| user action | Maincloud migration (42-USER-CHECKLIST.md section E, 44-MAINCLOUD-CHECKLIST.md) | pending |
+
 ## Deferred Verification
 
 | Phase | State | Resume |
@@ -289,6 +298,4 @@ Stopped at: Completed 44-10-PLAN.md
 
 ## Operator Next Steps
 
-- Review and approve the v2.2 roadmap (.planning/ROADMAP.md)
-- Then run /gsd-plan-phase 39 (spike; research flagged) to plan the go/no-go gate
-- Have an Anthropic API key ready for the spike (supply via environment variable, never commit it)
+- Start the next milestone with /gsd-new-milestone

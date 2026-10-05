@@ -48,12 +48,15 @@ A world that writes itself around its players — every character is unique, eve
 - ✓ Combat log completeness, balance tuning, multi-enemy and mid-combat pull (COMB-01–04, 06, 07) — v2.1
 - ✓ Sell commands and persistent multi-hotbars in narrative UI (NARR-01, 02, 04, 05) — v2.1
 - ✓ Ability type expansion, race abilities and renown perks as dynamic abilities (ABIL-01–11) — v2.1
+- ✓ LLM engine on Claude Sonnet 5.5 for every generation call, run server-side by a scheduled SpacetimeDB procedure (llm-proxy retired) — v2.2
+- ✓ No LLM credential or plumbing in the browser; client reads only its own job status — v2.2
+- ✓ Spend controls ($10/day global ceiling, kill switch, /llm admin console) and measured latency tuning with staged world and class reveals — v2.2
+- ✓ Failure classes show the right player-facing behavior (QUAL-03: 364 offline drills plus 4 live drills) — v2.2
 
 ### Active
 
-- [ ] LLM engine migrated from OpenAI to Claude Sonnet 5.5 for every LLM call, with the lowest possible latency for real-time narrative — v2.2
-- [ ] SpacetimeDB procedures call Claude directly (retire llm-proxy) if the 2.10 spike proves reliable; otherwise a backend LLM service authenticated via Workload Identity Federation — v2.2
-- [ ] No LLM credentials in the browser — v2.2
+- [ ] Complete UX overhaul to the UWR Ledger Screens design (Nocturne design system), which also decides LLM reply shape (speaker attribution, narration vs dialogue) — next milestone, from backlog 999.6
+- [ ] Carried from v2.2: owner tone sign-off (QUAL-01; first-person, story-like Keeper proposal in 44-TONE-FIXES.md) and live end-to-end verification, Console reconciliation and maincloud run (QUAL-02)
 
 ### Parked (Backlog 999.1-999.5, on hold while core concepts are re-imagined)
 
@@ -75,82 +78,17 @@ A world that writes itself around its players — every character is unique, eve
 
 ## Current State
 
-**Shipped:** v2.1 Project Cleanup (2026-09-29). The v2.0 foundation now has test coverage and no v1.0 legacy code, and runs on SpacetimeDB 2.10.1 with current tooling. Live LLM calls are currently broken: the OpenAI account returns 429 "no credits".
+**Shipped:** v2.2 LLM — Claude Engine (2026-10-05, override closeout). Every narrative generation call (creation, world gen, skills, NPC chat, combat narration, renown) runs server-side on Claude Sonnet 5.5 through the scheduled procedure `llm_run`, with private job tables, retry by failure class, in-voice failures, a $10/day global ceiling, an admin kill switch and the `/llm` console. The browser holds no LLM credential. World and class generation are staged so players see a first reveal in about 5-10 s.
 
-**v2.2 in progress:** Phase 39 (Procedure-to-Claude Spike) is complete as of 2026-09-29.
+- Verification: phases 39, 40 and 42 passed; 41, 43 and 44 are code-complete with live checks deferred by the owner (see `.planning/MILESTONES.md` Known Gaps). QUAL-03 is proven; QUAL-01 (tone: needs_fixes) and QUAL-02 (live e2e, Console reconciliation, maincloud) are open.
+- The maincloud migration has not been run; production still runs the pre-v2.2 build. Steps: `42-USER-CHECKLIST.md` section E and `44-MAINCLOUD-CHECKLIST.md` (archived under `.planning/milestones/v2.2-phases/`).
+- Full per-phase detail: `.planning/milestones/v2.2-ROADMAP.md`.
+- Tests: 3888 across client and server (single worker on this host).
 
-- SpacetimeDB 2.10 procedures called Claude Sonnet 5.5 reliably on maincloud: 0 failures, dispatch p95 3 ms, no ping or tick degradation with 8 calls in flight.
-- Decision, confirmed by the user: Phase 41 builds the scheduled-procedure executor with an in-flight cap of at most 8, and `llm-proxy/` is retired in Phase 42.
-- Evidence is in `.planning/phases/39-procedure-to-claude-spike/39-SPIKE-RECORD.md`.
+## Next Milestone Goals
 
-**Phase 40 (Claude Request Layer and Job Seam)** is complete as of 2026-09-30.
-
-- Every future Claude call now goes through one tested layer:
-  - one model constant (`claude-sonnet-5-5`) and an 8-route table
-  - 5 structured-output JSON Schemas, checked by a subset linter
-  - a pure request builder and response classifier
-  - the user-approved Keeper Bible as the cached system prefix
-
-  Player text is escaped and wrapped in `<player_input>` tags.
-- Private `llm_job` and `llm_call_log` tables, with a dedupe-aware `enqueueLlmJob` and a `my_llm_jobs` own-jobs view that shows only coarse error buckets.
-- `submit_llm_result`'s apply logic now lives in `helpers/llm_apply.ts`, keyed on the stored player. Renown rank-ups enqueue a valid job.
-- An offline mock procedure context makes every LLM path testable without network. 1454 tests pass.
-- Live call sites still use the legacy `llm_task` path until Phase 41 moves each domain over.
-
-**Phase 41 (Executor and Domain Cutover)** is code-complete as of 2026-09-30. Verification is human_needed, because the user deferred the live proofs.
-
-- Every LLM action runs on the server through the scheduled procedure `llm_run`. That covers creation, world gen, skills, NPC chat, the combat victory/defeat outro and renown.
-  - Each action is enqueued inside its own reducer's transaction. Enqueueing reserves budget and writes a dispatch row.
-  - The procedure claims the job under a global in-flight cap of 4, then calls Claude with no transaction open.
-  - It persists the result with retry by class and settles the cost.
-  - Apply runs from the stored text, and a failure produces an in-voice Keeper line.
-- `llm_sweep` runs every 30 s. It expires stuck jobs, refunds reservations and releases stranded generation locks.
-- Budget: $1 and 200 calls per player per day, plus a $2 phase ledger. Phase 43 replaces the ledger with a $10/day global ceiling and a kill switch.
-- Admin controls: `set_api_key` (set via `scripts/llm/set-key.mjs`, with the key sent only in the HTTP body), `llm_smoke_test` and the `admin_llm_status` view. Runbook: `docs/runbooks/llm-key.md`.
-- The `prepare_*` reducers and their client calls are deleted. The browser no longer takes part in any LLM call; Phase 42 removes the idle `useLlmProxy`, `llm_task` and `submit_llm_result`.
-- In-game pronoun rule (user decision, 2026-09-30):
-  - The Keeper is "he".
-  - Every NPC has a stored gender, male or female, and is "he" or "she".
-  - The player's own character is always "you".
-  - Beasts may be "it".
-- The code review ran 3 rounds and 15 findings were fixed. One Phase 36 defect is recorded as a todo: renown passive perks have no effect.
-- Tests: server 2161, client 2245.
-- The local live proof and the maincloud checklist are deferred to the user, and Phase 44 picks them up.
-
-**Phase 42 (Client Cutover and Legacy Removal)** is code-complete as of 2026-09-30. Verification is human_needed (browser, visual and live checks deferred by the user).
-
-- The client-trusted `submit_llm_result` and `validate_llm_request` reducers are gone, so no client can submit or forge LLM output.
-- The browser holds no LLM credential or plumbing: `llm-proxy/`, `useLlmProxy`, `useLlm` and the stale `client/` bindings are deleted, and `main.ts` removes any stored `llm_proxy_secret` on load.
-- `pnpm build` now ends with `scripts/check-bundle.mjs`, which fails the build if `dist/` contains a proxy secret, proxy URL, proxy env name or key-shaped string (one `removeItem` of the retired key name is allowed).
-- The narrative console reads only the player's own `my_llm_jobs` view through `useLlmStatus`. Each route shows its Keeper line from `data/llm_indicator_lines.ts` (combat narration and smoke are silent; admin smoke jobs are filtered out), scoped per console, in an always-mounted `role="status"` region. Only creation and world gen lock input.
-- The `llm_task`, `llm_request`, `llm_budget` and `llm_cleanup_tick` tables were dropped locally with two `--break-clients` publishes and an admin purge in between, with no clear; the stored key survived (length 108).
-- The user cleanup and maincloud two-publish steps are in `42-USER-CHECKLIST.md` (user-run only). The old proxy secret is treated as burned.
-- Tests: 2411 across client and server. The code review fixed 4 warnings; per-character indicator binding is deferred (needs a schema change), and `llm_job` retention is a todo.
-
-**Phase 43 (Latency Tuning, Staged Generation and Budget)** is code-complete as of 2026-10-01. Verification is human_needed; the user deferred the live checks.
-
-- Spend controls: a global daily ceiling ($10 by default, UTC day, counting reserved plus spent) and an admin kill switch, checked at enqueue and again at claim. The player sees one in-voice line, "The Keeper is resting. Return later." The $2 phase cap is retired.
-- Admin console: `/llm stats` (per-route calls, cost, p50/p95 latency and errors), `/llm on|off`, and `/llm ceiling <dollars>`. Reducers `llm_set_enabled` and `llm_set_daily_ceiling`; the admin view shows the new fields.
-- Staged world gen: `world_gen_start` reveals the region, start location and first NPC (about 10 s p50, down from 23.5 s for the whole region), then the `world_gen` fill completes it. A failed fill leaves the region playable, and explore retries it.
-- Staged class reveal: `creation_class_reveal` shows the identity and first ability (p50 4.7 s), then the `creation_class` fill finishes it. LAT-06 parallel archetypes were measured and left out.
-- Keeper progress lines rotate every 5 s from server-data pools. Stage-2 steps never lock input.
-- Measured tuning: a user-approved sweep (108 calls, $0.92) picked low effort for all routes. `max_tokens` comes from p99, with 512 tokens of headroom on routes that never auto-retry. Prompt caching is proven on all 9 routes. The values trace to `spacetimedb/src/data/llm_measurements.json`.
-- Fixes: combat outro narration stays in the second person and strips leaked self-corrections; the `time` command no longer panics.
-- Tests: 3148. The code review fixed 9 warnings (14 info remain).
-
-## Current Milestone: v2.2 LLM — Claude Engine
-
-**Goal:** Replace OpenAI with Claude as the engine behind all narrative generation, with the lowest possible response latency for real-time storytelling.
-
-**Target features:**
-- Model swap: Claude Sonnet 5.5 (`claude-sonnet-5-5`) replaces both gpt-5.4 and gpt-5-mini for every LLM call (character creation, world gen, skill gen, NPC conversation, combat narration, renown). No Haiku. Model ID centralized in one constants module
-- Structured outputs mapped to Claude (`output_config.format`); token usage, pricing and per-player budget recalibrated for Claude
-- Architecture, direct first with fallback: spike SpacetimeDB 2.10 procedures calling Claude via `ctx.http.fetch`. If reliable and fast, move LLM calls into procedures and retire `llm-proxy/`, the client polling composable and the localStorage proxy secret. If still buggy, keep a backend LLM service authenticated to Anthropic via Workload Identity Federation
-- Latency levers researched and applied: prompt caching, effort settings, hop count; streaming recorded as indicative only in Phase 44 (no live NPC-chat sample, Out of Scope stands for v2.2)
-- No LLM credentials in browser storage
-- Live end-to-end verification with a real Claude call
-
-**Key context:** A previous attempt at procedure HTTP (2.0.1) failed, likely due to its 500 ms HTTP timeout (2.10 defaults to 30 s, max 180 s). Loopback/private IPs are blocked from procedures. WIF needs an OIDC token that a WASM procedure likely cannot mint, so the direct path probably means an API key held server-side in SpacetimeDB.
+- Complete UX overhaul to the "UWR Ledger Screens" design on the Nocturne design system (backlog 999.6; import via the claude_design MCP, re-import fresh). Reconcile or supersede parked 999.2 and 999.5.
+- Decide LLM reply shape as part of the UX (speaker attribution, narration vs dialogue, highlighting and journals), then apply the owner-approved Keeper voice: first person, story-like prose with attributed speech.
 
 ---
 
@@ -233,4 +171,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-01 after Phase 43*
+*Last updated: 2026-10-05 after v2.2 milestone*

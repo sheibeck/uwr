@@ -1,5 +1,32 @@
 # Milestones
 
+## v2.2 LLM — Claude Engine (Shipped: 2026-10-05)
+
+**Phases completed:** 6 phases (39-44), 71 plans, 80 tasks
+**Timeline:** 2026-09-29 to 2026-10-05
+**Commits:** 426 | **Files changed:** 704 (non-planning) | **Lines:** +67,755 / -17,234
+**Git range:** `a088f28f..v2.2`
+**Closeout:** override_closeout. No formal audit was run. Phases 39, 40 and 42 verified (passed); 41, 43 and 44 are code-complete with owner-deferred human verification (human_needed). Known verification overrides: 3 (see STATE.md Deferred Verification and Deferred Items).
+
+**Key accomplishments:**
+
+1. Spike and decision: a scheduled SpacetimeDB procedure calls Claude Sonnet 5.5 directly (maincloud gate go: dispatch p95 3.0 ms, 0/164 failures, 8 in flight with no tick or ping regression).
+2. One tested Claude layer: Keeper Bible, route layers, request builder, private job table with dedupe, retry and failure classes, and an apply layer keyed on the requesting player.
+3. Every LLM domain (creation, world gen, skills, NPC chat, combat narration, renown) runs server-side; results survive tab close and failures answer in the Keeper's voice.
+4. The browser holds no LLM credential or plumbing; the OpenAI proxy, its four tables and the client-trusted result reducer are deleted.
+5. Spend and speed: $10/day global ceiling, admin kill switch and `/llm` console; measured tuning (low effort on all routes, caching on 9/9); staged world and class reveals.
+6. Live verification tooling: 27-item golden set with mechanical rules (paid run $0.26, no injection succeeded), 364 offline failure drills plus 4 live drills (all passed, $0), scratch-database harnesses and call-log reconciliation math.
+
+### Known Gaps
+
+Deferred by the owner on 2026-10-05 to move to the UX overhaul. Resume with `/gsd-verify-work 41`, `43`, `44` (UAT files under `milestones/v2.2-phases/`):
+
+- QUAL-01: owner tone sign-off. Review recorded needs_fixes (12 fail, 14 pass, skl-02 unrated); `44-TONE-FIXES.md` is a proposal (first-person, story-like Keeper; range budgets). Reply shape moved to backlog 999.6.
+- QUAL-02: paid end-to-end run, per-route latency percentiles, Anthropic Console reconciliation (golden window 2026-10-05T08:29:21Z-08:32:10Z), and the maincloud run (`44-MAINCLOUD-CHECKLIST.md`, `42-USER-CHECKLIST.md` section E).
+- Phase 41 and 43 live checks (local live proof, staged reveal timings, line rotation, `/llm` console, network-tab check).
+
+---
+
 ## v2.1 Project Cleanup (Shipped: 2026-09-29)
 
 **Phases completed:** 3 phases (31, 32, 38), 14 plans, 19 tasks, plus quick tasks 392-405
