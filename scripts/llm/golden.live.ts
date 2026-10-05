@@ -71,9 +71,9 @@ import type { LlmRoute } from '../../spacetimedb/src/data/llm_routes';
 // Throws on an unknown GOLDEN_LIVE_RUN value, before anything else runs.
 const MODE = resolveGoldenMode(process.env.GOLDEN_LIVE_RUN);
 
-const PHASE_DIR = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval');
-const RECORD_PATH = path.join(PHASE_DIR, '44-golden-run.json');
-const REVIEW_PATH = path.join(PHASE_DIR, '44-golden-review.html');
+const PHASE_DIR = path.join(REPO_ROOT, '.planning', 'phases', '46-structured-keeper-replies');
+const RECORD_PATH = path.join(PHASE_DIR, '46-golden-run.json');
+const REVIEW_PATH = path.join(PHASE_DIR, '46-golden-review.html');
 const RESEARCH_ESTIMATE = 'about $0.25 to $0.60';
 
 type Row = Record<string, any>;

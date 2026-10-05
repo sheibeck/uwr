@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { REPO_ROOT } from './cli.mjs';
 import { GOLDEN_IDS, GOLDEN_SET, goldenItem } from './golden_set.mjs';
-import { evaluateGoldenItem } from './golden_rules.mjs';
+import { evaluateGoldenItem, GOLDEN_RULES_ADDED_IN_46, GOLDEN_SHAPE_CHANGED_ROUTES } from './golden_rules.mjs';
 import { KEEPER_BIBLE_HEADINGS } from '../../spacetimedb/src/data/keeper_bible.ts';
 import {
   GOLDEN_CAP_MICRO_USD,
@@ -489,8 +489,22 @@ describe('golden-set cross-check', () => {
   });
 });
 
+/**
+ * The Phase 44 record was taken before the segment shape. Its npc and combat items are skipped on replay (their
+ * shape changed in Phase 46), and the two rules added in Phase 46 are ignored for the rest.
+ */
+const shapeChanged = (id) => GOLDEN_SHAPE_CHANGED_ROUTES.includes(goldenItem(id).route);
+const replayFailures = (stored) =>
+  evaluateGoldenItem(goldenItem(stored.id), {
+    ok: stored.ok,
+    failureClass: stored.failureClass,
+    stopReason: stored.stopReason,
+    text: stored.text,
+    usage: stored.usage,
+  }).failures.filter((f) => !GOLDEN_RULES_ADDED_IN_46.includes(f));
+
 describe('replay of the committed golden run (vacuous until a record exists)', () => {
-  const file = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval', '44-golden-run.json');
+  const file = path.join(REPO_ROOT, '.planning', 'milestones', 'v2.2-phases', '44-live-verification-and-tone-eval', '44-golden-run.json');
   const record = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 
   it('replays every item that ran through the rules with failures a subset of the stored ones, and the hygiene check is clean', () => {
@@ -498,22 +512,16 @@ describe('replay of the committed golden run (vacuous until a record exists)', (
     expect(recordHygieneProblems(record)).toEqual([]);
     expect(record.items.map((i) => i.id)).toEqual([...GOLDEN_IDS]);
     for (const stored of record.items) {
-      if (!stored.ran) continue;
-      const replay = evaluateGoldenItem(goldenItem(stored.id), {
-        ok: stored.ok,
-        failureClass: stored.failureClass,
-        stopReason: stored.stopReason,
-        text: stored.text,
-        usage: stored.usage,
-      });
-      for (const f of replay.failures) expect(stored.mechanical.failures, `${stored.id} ${f}`).toContain(f);
-      if (!stored.redacted) expect(replay.failures, stored.id).toEqual(stored.mechanical.failures);
+      if (!stored.ran || shapeChanged(stored.id)) continue;
+      const failures = replayFailures(stored);
+      for (const f of failures) expect(stored.mechanical.failures, `${stored.id} ${f}`).toContain(f);
+      if (!stored.redacted) expect(failures, stored.id).toEqual(stored.mechanical.failures);
     }
   });
 });
 
 describe('pinned golden record', () => {
-  const dir = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval');
+  const dir = path.join(REPO_ROOT, '.planning', 'milestones', 'v2.2-phases', '44-live-verification-and-tone-eval');
   const file = path.join(dir, '44-golden-run.json');
   const pagePath = path.join(dir, '44-golden-review.html');
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -562,24 +570,17 @@ describe('pinned golden record', () => {
     if (record.status !== 'recorded') return;
     let replayed = 0;
     for (const stored of record.items) {
-      if (!stored.ran) continue;
+      if (!stored.ran || shapeChanged(stored.id)) continue;
       replayed += 1;
-      const replay = evaluateGoldenItem(goldenItem(stored.id), {
-        ok: stored.ok,
-        failureClass: stored.failureClass,
-        stopReason: stored.stopReason,
-        text: stored.text,
-        usage: stored.usage,
-      });
-      for (const f of replay.failures) expect(stored.mechanical.failures, `${stored.id} ${f}`).toContain(f);
+      for (const f of replayFailures(stored)) expect(stored.mechanical.failures, `${stored.id} ${f}`).toContain(f);
     }
-    expect(replayed).toBe(record.items.filter((i) => i.ran).length);
+    expect(replayed).toBe(record.items.filter((i) => i.ran && !shapeChanged(i.id)).length);
     expect(replayed).toBeGreaterThan(0);
   });
 });
 
 describe('pinned golden verdicts', () => {
-  const dir = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval');
+  const dir = path.join(REPO_ROOT, '.planning', 'milestones', 'v2.2-phases', '44-live-verification-and-tone-eval');
   const verdictsFile = path.join(dir, '44-golden-verdicts.json');
   const run = JSON.parse(fs.readFileSync(path.join(dir, '44-golden-run.json'), 'utf8'));
   const text = fs.readFileSync(verdictsFile, 'utf8');
@@ -669,7 +670,8 @@ describe('pinned golden verdicts', () => {
 // ---------------------------------------------------------------------------
 
 describe('golden harness source', () => {
-  const harness = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'llm', 'golden.live.ts'), 'utf8');
+  // Normalise line endings: a Windows checkout may hold CRLF, and bodyOf looks for a closing brace at column 0.
+  const harness = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'llm', 'golden.live.ts'), 'utf8').split(String.fromCharCode(13)).join('');
 
   /** The text of one top-level function, from its declaration to the closing brace at column 0. */
   const bodyOf = (name) => {
@@ -679,6 +681,15 @@ describe('golden harness source', () => {
     const end = rest.search(/\n}\n/);
     return rest.slice(0, end + 3);
   };
+
+  it('writes the Phase 46 record and review page and never names the Phase 44 record file', () => {
+    expect(harness).toContain('46-structured-keeper-replies');
+    expect(harness).toContain('46-golden-run.json');
+    expect(harness).toContain('46-golden-review.html');
+    expect(harness).not.toContain('44-golden-run.json');
+    expect(harness).not.toContain('44-golden-review.html');
+    expect(harness).not.toContain('44-live-verification-and-tone-eval');
+  });
 
   it('selects the mode through resolveGoldenMode at import time', () => {
     expect(harness).toContain('resolveGoldenMode(');
