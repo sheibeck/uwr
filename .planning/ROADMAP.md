@@ -101,7 +101,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   5. Buttons, tabs, inputs and panels show Nocturne hover, pressed and keyboard focus-visible states with Inter and Phosphor icons; no component hard-codes a color (a test fails if one does), and rarity and enemy-difficulty colors keep their current hues.
   6. The splash / sign-in screen shows the 16:9 key-art logo large and undistorted, scaled to fit the viewport at 1280×800 and 390×844, with no pixelated rendering.
 
-**Plans**: 10/11 plans executed
+**Plans**: 11/11 plans executed
 
 Plans:
 **Wave 1**
@@ -125,7 +125,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 45-11-PLAN.md — App screen switch, phase gate (suite vs baseline, build, dev server) and owner UAT in real Chrome
+- [x] 45-11-PLAN.md — App screen switch, phase gate (suite vs baseline, build, dev server) and owner UAT in real Chrome
 
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Nocturne tokens and components, and the frame shown in Ledger 2i/2j and Console & Combat 1a, desktop and mobile.
@@ -322,7 +322,7 @@ Plans:
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
-| 45. Foundation, Frame and Auth | v3.0 | 10/11 | In Progress|  |
+| 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 0/TBD | Not started | - |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 0/TBD | Not started | - |
