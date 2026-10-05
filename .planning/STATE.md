@@ -252,6 +252,11 @@ Phase 46 is code-complete and verified in code (46-VERIFICATION.md: human_needed
 
 ## Session Continuity
 
+### Run order decision (2026-10-05)
+
+The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
+
+
 ### Resume note (2026-10-05, before /compact)
 
 - Running: /gsd-autonomous --from 45 (v3.0). Resume with `/gsd-autonomous --from 46`.
