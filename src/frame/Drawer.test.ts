@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import Drawer from './Drawer.vue';
 
@@ -77,7 +78,7 @@ describe('Drawer', () => {
   });
 
   it('style block has the 252px inset and a reduced-motion rule', () => {
-    const source = readFileSync(new URL('./Drawer.vue', import.meta.url), 'utf8');
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/Drawer.vue'), 'utf8');
     expect(source).toContain('inset: 0 0 0 252px');
     expect(source).toContain('prefers-reduced-motion');
   });
