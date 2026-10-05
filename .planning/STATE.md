@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 44
 current_phase_name: Live Verification and Tone Eval
 status: executing
-stopped_at: Completed 44-03-PLAN.md
-last_updated: "2026-10-05T03:43:31.580Z"
+stopped_at: Completed 44-04-PLAN.md
+last_updated: "2026-10-05T04:17:32.850Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 44 execution resumed (wave continue)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 74
-  completed_plans: 64
+  completed_plans: 65
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 44 (Live Verification and Tone Eval) — EXECUTING
-Plan: 4 of 10
+Plan: 5 of 10
 Status: Ready to execute
 Last activity: 2026-10-04 — Phase 44 execution resumed (wave continue)
 
-Progress: [█████████░] 86% (2/6 phases)
+Progress: [█████████░] 88% (2/6 phases)
 
 ## Previous Milestones
 
@@ -119,6 +119,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [Phase 44-01]: validateRenownActivePerk lives in pure renown_perk_validate.ts (re-exported by llm_apply.ts) so offline harnesses reuse the server clamp without the server runtime
 - [Phase ?]: [Phase 44-02]: Failure drills use the real applyLlmFailure and events-mock lines; leak pattern is whole-word; four inline apply lines are pinned against llm_apply.ts source
 - [Phase ?]: [Phase 44-03]: --db accepts only uwr or uwr-verify, local only, refused with any hosted flag; Console reconciliation is BigInt exact (2.00% passes, 2.01% fails, 50-token floor for categories under 2000, deferred/invalid never pass); plain node loads the route table through ts_resolve_hook.mjs
+- [Phase ?]: 44-04: approvalAllowed needs overall approvedBy user; the review page's verdicts/overall is not itself an approval, the orchestrator adds approvedBy only when the owner approves in chat
+- [Phase ?]: 44-04: golden harness dry by default (worst-case $0.5744 of a $2.00 cap, $1.80 stop line, no retry); run refuses over a recorded run, use rerun with GOLDEN_ONLY
 
 ### Roadmap Evolution
 
@@ -190,8 +192,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T03:43:31.533Z
-Stopped at: Completed 44-03-PLAN.md
+Last session: 2026-10-05T04:17:32.370Z
+Stopped at: Completed 44-04-PLAN.md
 
 ## Performance Metrics
 
@@ -269,6 +271,7 @@ Stopped at: Completed 44-03-PLAN.md
 | Phase 44 P01 | resumed | 2 tasks | 5 files |
 | Phase 44 P02 | 55min | 2 tasks | 1 files |
 | Phase 44 P03 | 40min | 2 tasks | 7 files |
+| Phase 44 P04 | 1 session | 3 tasks | 5 files |
 
 ## Operator Next Steps
 
