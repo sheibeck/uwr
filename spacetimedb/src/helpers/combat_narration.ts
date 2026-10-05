@@ -179,7 +179,7 @@ export function stripNarrationSelfCorrection(text: string): string {
 }
 
 /** Same text as the skipped-narration line; wording is an owner decision (46-06). */
-export const COMBAT_NARRATION_FALLBACK_LINE = 'The Keeper of Knowledge has lost interest in your skirmish.';
+export const COMBAT_NARRATION_FALLBACK_LINE = 'The skirmish carries on, and none of it is worth the ink.';
 
 /**
  * Who may speak in a combat dialogue segment, and which names are the player's. Total: never throws.

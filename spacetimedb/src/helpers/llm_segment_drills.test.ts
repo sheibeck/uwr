@@ -282,8 +282,8 @@ const MODEL_ROUTES: ModelRoute[] = [
     playerNames: ['Tester'],
     rowKind: 'npc',
     rowCount: 1,
-    fallbackText: 'Marta mutters something unintelligible.',
-    notJsonText: 'Marta mutters something unintelligible. (Try again.)',
+    fallbackText: 'Marta mutters something you cannot make out.',
+    notJsonText: 'Marta mutters something you cannot make out. (Try again.)',
     absentName: 'Nobody',
   },
   {

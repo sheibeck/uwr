@@ -265,7 +265,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
 
 /** The malformed-reply line, shared by the race and the class reveal. */
 const CREATION_MALFORMED_LINE =
-  'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."';
+  'The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.';
 
 /** creation_race success (the class has its own two stages: applyClassRevealResult and applyClassFillResult). */
 export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string): void {
@@ -684,7 +684,7 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
     present,
     playerNames: [character.name],
     legacyDialogueSpeaker: { name: npc.name, id: npc.id },
-    fallbackLine: `${npc.name} mutters something unintelligible.`,
+    fallbackLine: `${npc.name} mutters something you cannot make out.`,
   });
 
   if (result.parsed === undefined) {
@@ -692,7 +692,7 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
     console.error('NPC conversation [npc_conversation]: reply was not a JSON object');
     appendNpcDialog(ctx, charId, npc.id, `${npc.name} mutters something unintelligible.`);
     writePrivateSegments(ctx, charId, character.ownerUserId, 'npc',
-      keeperFallback(`${npc.name} mutters something unintelligible. (Try again.)`));
+      keeperFallback(`${npc.name} mutters something you cannot make out. (Try again.)`));
     return;
   }
 

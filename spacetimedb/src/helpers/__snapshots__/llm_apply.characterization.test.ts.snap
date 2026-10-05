@@ -22,7 +22,7 @@ exports[`llm apply combat_narration > Phase 46: JSON without a segments or narra
       "combatId": "77n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "narrativeText": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "narrativeText": "The skirmish carries on, and none of it is worth the ink.",
       "narrativeType": "round",
       "roundNumber": "2n"
     }
@@ -33,13 +33,13 @@ exports[`llm apply combat_narration > Phase 46: JSON without a segments or narra
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "combat_narration",
-      "message": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "message": "The skirmish carries on, and none of it is worth the ink.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge has lost interest in your skirmish."
+          "text": "The skirmish carries on, and none of it is worth the ink."
         }
       ]
     }
@@ -171,7 +171,7 @@ exports[`llm apply combat_narration > Phase 46: an empty reply stores one fallba
       "combatId": "77n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "narrativeText": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "narrativeText": "The skirmish carries on, and none of it is worth the ink.",
       "narrativeType": "round",
       "roundNumber": "2n"
     }
@@ -182,13 +182,13 @@ exports[`llm apply combat_narration > Phase 46: an empty reply stores one fallba
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "combat_narration",
-      "message": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "message": "The skirmish carries on, and none of it is worth the ink.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge has lost interest in your skirmish."
+          "text": "The skirmish carries on, and none of it is worth the ink."
         }
       ]
     }
@@ -411,7 +411,7 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical damage, 23 base, 2s cast, 12s cooldown, 15 stamina\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical damage, 23 base, 2s cast, 12s cooldown, 15 stamina\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -437,12 +437,12 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -596,7 +596,7 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a ra
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -617,7 +617,7 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a ra
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -656,13 +656,13 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: a null
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "message": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+          "text": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again."
         }
       ]
     }
@@ -693,7 +693,7 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: legacy
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Flare] — A burning cut.\\n  fire damage, 12 base, 1s cast, 6s cooldown, 10 mana, dot (9s)\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Flare] — A burning cut.\\n  fire damage, 12 base, 1s cast, 6s cooldown, 10 mana, dot (9s)\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -719,12 +719,12 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: legacy
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -754,7 +754,7 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: stats 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -780,12 +780,12 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: stats 
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -814,13 +814,13 @@ exports[`llm apply creation_class success (stage 2, the fill) > an empty object 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "message": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+          "text": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again."
         }
       ]
     }
@@ -850,7 +850,7 @@ exports[`llm apply creation_class success (stage 2, the fill) > applies a valid 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -876,12 +876,12 @@ exports[`llm apply creation_class success (stage 2, the fill) > applies a valid 
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -910,13 +910,13 @@ exports[`llm apply creation_class success (stage 2, the fill) > malformed JSON s
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "message": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+          "text": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again."
         }
       ]
     }
@@ -1201,13 +1201,13 @@ exports[`llm apply creation_class_reveal success (stage 1) > a reply without a u
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "message": "The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\""
+          "text": "The answer comes back garbled, as though the cosmic machinery had choked on it. Try again."
         }
       ]
     }
@@ -1373,13 +1373,13 @@ exports[`llm apply creation_class_reveal success (stage 1) > malformed JSON reve
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "message": "The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\""
+          "text": "The answer comes back garbled, as though the cosmic machinery had choked on it. Try again."
         }
       ]
     }
@@ -1417,7 +1417,7 @@ exports[`llm apply creation_race success > Phase 41: a reply without raceName st
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1438,7 +1438,7 @@ exports[`llm apply creation_race success > Phase 41: a reply without raceName st
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -1465,7 +1465,7 @@ exports[`llm apply creation_race success > accepts a reply with prose around the
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1486,7 +1486,7 @@ exports[`llm apply creation_race success > accepts a reply with prose around the
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -1523,7 +1523,7 @@ exports[`llm apply creation_race success > accepts a reply wrapped in a markdown
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1544,7 +1544,7 @@ exports[`llm apply creation_race success > accepts a reply wrapped in a markdown
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -1581,7 +1581,7 @@ exports[`llm apply creation_race success > applies a valid reply: state, creatio
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1602,7 +1602,7 @@ exports[`llm apply creation_race success > applies a valid reply: state, creatio
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -1639,7 +1639,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1660,7 +1660,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+          "text": "(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)"
         }
       ]
     }
@@ -1694,13 +1694,13 @@ exports[`llm apply creation_race success > malformed JSON reverts the step and r
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
+      "message": "The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\""
+          "text": "The answer comes back garbled, as though the cosmic machinery had choked on it. Try again."
         }
       ]
     }
@@ -1738,13 +1738,13 @@ exports[`llm apply failure path: creation and skill_gen > Phase 41: renown_perk_
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -1828,13 +1828,13 @@ exports[`llm apply failure path: creation and skill_gen > creation_class (fill) 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
+      "message": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+          "text": "The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again."
         }
       ]
     }
@@ -1858,13 +1858,13 @@ exports[`llm apply failure path: creation and skill_gen > creation_class_reveal 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
+      "message": "The page flickers. Something went wrong in the cosmic machinery. Try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\""
+          "text": "The page flickers. Something went wrong in the cosmic machinery. Try again."
         }
       ]
     }
@@ -1888,13 +1888,13 @@ exports[`llm apply failure path: creation and skill_gen > creation_race failure 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
+      "message": "The page flickers. Something went wrong in the cosmic machinery. Try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\""
+          "text": "The page flickers. Something went wrong in the cosmic machinery. Try again."
         }
       ]
     }
@@ -1937,13 +1937,13 @@ exports[`llm apply failure path: creation and skill_gen > skill_gen failure writ
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper flickers. \\"Your potential eludes crystallization. Type [skills] when you want me to try again.\\"",
+      "message": "The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper flickers. \\"Your potential eludes crystallization. Type [skills] when you want me to try again.\\""
+          "text": "The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt."
         }
       ]
     }
@@ -4895,7 +4895,7 @@ exports[`llm apply npc_conversation offer_quest effects > skips an offer when th
 }"
 `;
 
-exports[`llm apply npc_conversation success > Phase 46: QUIRK: invalid JSON writes the "unintelligible" messages (one Keeper narration segment) and no memory change 1`] = `
+exports[`llm apply npc_conversation success > Phase 46: QUIRK: invalid JSON writes the mutter messages (one Keeper narration segment) and no memory change 1`] = `
 "{
   "character": [
     {
@@ -4918,13 +4918,13 @@ exports[`llm apply npc_conversation success > Phase 46: QUIRK: invalid JSON writ
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "npc",
-      "message": "Marta mutters something unintelligible. (Try again.)",
+      "message": "Marta mutters something you cannot make out. (Try again.)",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Marta mutters something unintelligible. (Try again.)"
+          "text": "Marta mutters something you cannot make out. (Try again.)"
         }
       ]
     }
@@ -4995,13 +4995,13 @@ exports[`llm apply npc_conversation success > Phase 46: falls back to "..." in t
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "npc",
-      "message": "Marta mutters something unintelligible.",
+      "message": "Marta mutters something you cannot make out.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Marta mutters something unintelligible."
+          "text": "Marta mutters something you cannot make out."
         }
       ]
     }
@@ -6389,13 +6389,13 @@ exports[`llm apply renown_perk_gen success > Phase 41: the rank-2 static fallbac
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -6484,7 +6484,7 @@ exports[`llm apply renown_perk_gen success > QUIRK: a missing rank defaults to 2
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
+      "message": "Your renown has grown. The world takes notice.\\n\\nSomething resembling mild respect stirs in the air.\\n\\nRank 2. The world owes you something. Choose your due:\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\nChoose wisely. Your reputation preceded you here. Don't let it down.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -6495,12 +6495,12 @@ exports[`llm apply renown_perk_gen success > QUIRK: a missing rank defaults to 2
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+          "text": "Something resembling mild respect stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+          "text": "Rank 2. The world owes you something. Choose your due:"
         },
         {
           "kind": "narration",
@@ -6515,7 +6515,7 @@ exports[`llm apply renown_perk_gen success > QUIRK: a missing rank defaults to 2
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+          "text": "Choose wisely. Your reputation preceded you here. Don't let it down."
         }
       ]
     }
@@ -6627,7 +6627,7 @@ exports[`llm apply renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
+      "message": "Your renown has grown. The world takes notice.\\n\\nSomething resembling mild respect stirs in the air.\\n\\nRank 2. The world owes you something. Choose your due:\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\nChoose wisely. Your reputation preceded you here. Don't let it down.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -6638,12 +6638,12 @@ exports[`llm apply renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+          "text": "Something resembling mild respect stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+          "text": "Rank 2. The world owes you something. Choose your due:"
         },
         {
           "kind": "narration",
@@ -6658,7 +6658,7 @@ exports[`llm apply renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+          "text": "Choose wisely. Your reputation preceded you here. Don't let it down."
         }
       ]
     }
@@ -6747,13 +6747,13 @@ exports[`llm apply renown_perk_gen success > QUIRK: fewer than three VALID perks
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -6842,13 +6842,13 @@ exports[`llm apply renown_perk_gen success > an empty perks array takes the stat
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -6937,23 +6937,18 @@ exports[`llm apply renown_perk_gen success > inserts three valid perks for the r
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[Second Wind] -- Second Wind description.\\n  Active ability | 10 stamina | 300s cooldown\\n\\n[Thick Skin] -- Thick Skin description.\\n  Passive bonus\\n\\n[Deft Hands] -- Deft Hands description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
+      "message": "Your renown has grown. The world takes notice.\\n\\nSomething resembling mild respect stirs in the air.\\n\\nRank 2. The world owes you something. Choose your due:\\n\\n[Second Wind] -- Second Wind description.\\n  Active ability | 10 stamina | 300s cooldown\\n\\n[Thick Skin] -- Thick Skin description.\\n  Passive bonus\\n\\n[Deft Hands] -- Deft Hands description.\\n  Passive bonus\\n\\nChoose wisely. Your reputation preceded you here. Don't let it down.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Your renown has grown. The world takes notice."
+          "text": "Your renown has grown. The world takes notice.\\n\\nSomething resembling mild respect stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+          "text": "Rank 2. The world owes you something. Choose your due:"
         },
         {
           "kind": "narration",
@@ -6963,12 +6958,17 @@ exports[`llm apply renown_perk_gen success > inserts three valid perks for the r
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "[Thick Skin] -- Thick Skin description.\\n  Passive bonus\\n\\n[Deft Hands] -- Deft Hands description.\\n  Passive bonus"
+          "text": "[Thick Skin] -- Thick Skin description.\\n  Passive bonus"
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+          "text": "[Deft Hands] -- Deft Hands description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Choose wisely. Your reputation preceded you here. Don't let it down."
         }
       ]
     }
@@ -7056,7 +7056,7 @@ exports[`llm apply renown_perk_gen success > only the first three valid perks ar
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
+      "message": "Your renown has grown. The world takes notice.\\n\\nSomething resembling mild respect stirs in the air.\\n\\nRank 2. The world owes you something. Choose your due:\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\nChoose wisely. Your reputation preceded you here. Don't let it down.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -7067,12 +7067,12 @@ exports[`llm apply renown_perk_gen success > only the first three valid perks ar
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+          "text": "Something resembling mild respect stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+          "text": "Rank 2. The world owes you something. Choose your due:"
         },
         {
           "kind": "narration",
@@ -7087,7 +7087,7 @@ exports[`llm apply renown_perk_gen success > only the first three valid perks ar
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+          "text": "Choose wisely. Your reputation preceded you here. Don't let it down."
         }
       ]
     }
@@ -7176,13 +7176,13 @@ exports[`llm apply renown_perk_gen success > perks that is not an array takes th
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -7277,13 +7277,13 @@ exports[`llm apply renown_perk_gen success > static fallback for an active-first
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -7371,13 +7371,13 @@ exports[`llm apply renown_perk_gen success > unparseable text takes the static f
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
+      "message": "The cosmos shrugs and offers some... standard options for your consideration.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+          "text": "The cosmos shrugs and offers some... standard options for your consideration."
         }
       ]
     }
@@ -7466,7 +7466,7 @@ exports[`llm apply renown_perk_gen success > uses the rank from the job context 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 5. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
+      "message": "Your renown has grown. The world takes notice.\\n\\nSomething resembling mild respect stirs in the air.\\n\\nRank 5. The world owes you something. Choose your due:\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\nChoose wisely. Your reputation preceded you here. Don't let it down.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -7477,12 +7477,12 @@ exports[`llm apply renown_perk_gen success > uses the rank from the job context 
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+          "text": "Something resembling mild respect stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Rank 5. The world owes you something. Choose your due:\\""
+          "text": "Rank 5. The world owes you something. Choose your due:"
         },
         {
           "kind": "narration",
@@ -7497,7 +7497,7 @@ exports[`llm apply renown_perk_gen success > uses the rank from the job context 
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+          "text": "Choose wisely. Your reputation preceded you here. Don't let it down."
         }
       ]
     }
@@ -7585,13 +7585,13 @@ exports[`llm apply skill_gen success > QUIRK: a skill missing name or kind is sk
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
+      "message": "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\""
+          "text": "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."
         }
       ]
     }
@@ -7623,13 +7623,13 @@ exports[`llm apply skill_gen success > QUIRK: fewer than three skills writes the
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
+      "message": "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\""
+          "text": "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."
         }
       ]
     }
@@ -7661,18 +7661,18 @@ exports[`llm apply skill_gen success > QUIRK: only the first three skills are co
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "message": "Something resembling interest stirs in the air.\\n\\nLevel 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\nChoose wisely. Or don't. The rejected skills will dissolve into the void, never to return.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling interest."
+          "text": "Something resembling interest stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+          "text": "Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"
         },
         {
           "kind": "narration",
@@ -7692,7 +7692,7 @@ exports[`llm apply skill_gen success > QUIRK: only the first three skills are co
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+          "text": "Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."
         }
       ]
     }
@@ -7782,18 +7782,18 @@ exports[`llm apply skill_gen success > accepts the Claude structured-output shap
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "message": "Something resembling interest stirs in the air.\\n\\nLevel 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\nChoose wisely. Or don't. The rejected skills will dissolve into the void, never to return.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling interest."
+          "text": "Something resembling interest stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+          "text": "Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"
         },
         {
           "kind": "narration",
@@ -7813,7 +7813,7 @@ exports[`llm apply skill_gen success > accepts the Claude structured-output shap
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+          "text": "Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."
         }
       ]
     }
@@ -7897,18 +7897,18 @@ exports[`llm apply skill_gen success > applies the v2.0 validators on the way in
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Overkill] -- Overkill description.\\n  damage | 5 stamina | instant | 6s cooldown | 36 power\\n\\n[Mystery] -- Mystery description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Instant Mana] -- Instant Mana description.\\n  damage | 5 mana | 1s cast | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "message": "Something resembling interest stirs in the air.\\n\\nLevel 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\n\\n[Overkill] -- Overkill description.\\n  damage | 5 stamina | instant | 6s cooldown | 36 power\\n\\n[Mystery] -- Mystery description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Instant Mana] -- Instant Mana description.\\n  damage | 5 mana | 1s cast | 6s cooldown | 18 power\\n\\nChoose wisely. Or don't. The rejected skills will dissolve into the void, never to return.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling interest."
+          "text": "Something resembling interest stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+          "text": "Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"
         },
         {
           "kind": "narration",
@@ -7928,7 +7928,7 @@ exports[`llm apply skill_gen success > applies the v2.0 validators on the way in
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+          "text": "Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."
         }
       ]
     }
@@ -8012,18 +8012,18 @@ exports[`llm apply skill_gen success > inserts three pending skills and presents
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Cinder Cut] -- Cinder Cut description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Ash Ward] -- Ash Ward description.\\n  shield | 5 mana | 1s cast | 6s cooldown | 15 power\\n\\n[Ember Pulse] -- Ember Pulse description.\\n  heal | 5 stamina | instant | 6s cooldown | 15 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
+      "message": "Something resembling interest stirs in the air.\\n\\nLevel 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\n\\n[Cinder Cut] -- Cinder Cut description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Ash Ward] -- Ash Ward description.\\n  shield | 5 mana | 1s cast | 6s cooldown | 15 power\\n\\n[Ember Pulse] -- Ember Pulse description.\\n  heal | 5 stamina | instant | 6s cooldown | 15 power\\n\\nChoose wisely. Or don't. The rejected skills will dissolve into the void, never to return.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper of Knowledge regards you with something resembling interest."
+          "text": "Something resembling interest stirs in the air."
         },
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+          "text": "Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"
         },
         {
           "kind": "narration",
@@ -8043,7 +8043,7 @@ exports[`llm apply skill_gen success > inserts three pending skills and presents
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+          "text": "Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."
         }
       ]
     }
@@ -8181,13 +8181,13 @@ exports[`llm apply skill_gen success > unparseable text writes the grimace messa
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
+      "message": "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.",
       "ownerUserId": "7n",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\""
+          "text": "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."
         }
       ]
     }
@@ -11099,13 +11099,13 @@ exports[`llm apply world_gen_start failure path > a PENDING state is failed too 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "message": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again."
+          "text": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again."
         }
       ]
     }
@@ -11114,7 +11114,7 @@ exports[`llm apply world_gen_start failure path > a PENDING state is failed too 
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "errorMessage": "The map blurs and will not settle. The world refuses to be remembered right now.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -11276,13 +11276,13 @@ exports[`llm apply world_gen_start failure path > routes the message to the crea
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "message": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again."
+          "text": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again."
         }
       ]
     }
@@ -11291,7 +11291,7 @@ exports[`llm apply world_gen_start failure path > routes the message to the crea
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "errorMessage": "The map blurs and will not settle. The world refuses to be remembered right now.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -11311,13 +11311,13 @@ exports[`llm apply world_gen_start failure path > routes to the creation events 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "message": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again."
+          "text": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again."
         }
       ]
     }
@@ -11326,7 +11326,7 @@ exports[`llm apply world_gen_start failure path > routes to the creation events 
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "errorMessage": "The map blurs and will not settle. The world refuses to be remembered right now.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -11361,7 +11361,7 @@ exports[`llm apply world_gen_start failure path > sets the state to ERROR and te
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
+      "message": "The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -11369,7 +11369,7 @@ exports[`llm apply world_gen_start failure path > sets the state to ERROR and te
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper falters. \\"The world refuses to be remembered right now.\\"",
+      "errorMessage": "The map blurs and will not settle. The world refuses to be remembered right now.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -11638,7 +11638,7 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -11659,7 +11659,7 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
         }
       ]
     },
@@ -11785,13 +11785,13 @@ exports[`llm apply world_gen_start success (stage 1) > a missing regionName ends
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "message": "The world beyond is... incomplete. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+          "text": "The world beyond is... incomplete. Type [explore] to try again."
         }
       ]
     }
@@ -11800,7 +11800,7 @@ exports[`llm apply world_gen_start success (stage 1) > a missing regionName ends
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "errorMessage": "The world beyond is... incomplete.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -11835,7 +11835,7 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -11851,7 +11851,7 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
         }
       ]
     },
@@ -11949,13 +11949,13 @@ exports[`llm apply world_gen_start success (stage 1) > a startLocation without a
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "message": "The world beyond is... incomplete. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+          "text": "The world beyond is... incomplete. Type [explore] to try again."
         }
       ]
     }
@@ -11964,7 +11964,7 @@ exports[`llm apply world_gen_start success (stage 1) > a startLocation without a
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "errorMessage": "The world beyond is... incomplete.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -11999,7 +11999,7 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -12020,7 +12020,7 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
         }
       ]
     },
@@ -12129,13 +12129,13 @@ exports[`llm apply world_gen_start success (stage 1) > an empty regionName ends 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "message": "The world beyond is... incomplete. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+          "text": "The world beyond is... incomplete. Type [explore] to try again."
         }
       ]
     }
@@ -12144,7 +12144,7 @@ exports[`llm apply world_gen_start success (stage 1) > an empty regionName ends 
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "errorMessage": "The world beyond is... incomplete.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -12178,13 +12178,13 @@ exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails the ge
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
+      "message": "The world tried to take shape but... it came out wrong. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again."
+          "text": "The world tried to take shape but... it came out wrong. Type [explore] to try again."
         }
       ]
     }
@@ -12193,7 +12193,7 @@ exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails the ge
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
+      "errorMessage": "The world tried to take shape but... it came out wrong.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -12228,7 +12228,7 @@ exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails throug
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
+      "message": "The world tried to take shape but... it came out wrong. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -12236,7 +12236,7 @@ exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails throug
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\"",
+      "errorMessage": "The world tried to take shape but... it came out wrong.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -12270,13 +12270,13 @@ exports[`llm apply world_gen_start success (stage 1) > no startLocation ends in 
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation_error",
-      "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
+      "message": "The world beyond is... incomplete. Type [explore] to try again.",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+          "text": "The world beyond is... incomplete. Type [explore] to try again."
         }
       ]
     }
@@ -12285,7 +12285,7 @@ exports[`llm apply world_gen_start success (stage 1) > no startLocation ends in 
     {
       "characterId": "10n",
       "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\"",
+      "errorMessage": "The world beyond is... incomplete.",
       "id": "5n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "sourceLocationId": "0n",
@@ -12451,7 +12451,7 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
       "ownerUserId": "7n",
       "segments": [
         {
@@ -12472,7 +12472,7 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
         }
       ]
     },

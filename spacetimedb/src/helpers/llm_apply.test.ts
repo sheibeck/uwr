@@ -1176,7 +1176,7 @@ describe('Phase 43 (plan 13): staged class apply', () => {
     moduleCtx({ player: [{ id: alice, userId: 7n }], character_creation_state: [base(over)] });
   const state = (ctx: any) => rows(ctx, 'character_creation_state')[0];
   const events = (ctx: any) => rows(ctx, 'event_creation');
-  const MALFORMED = 'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."';
+  const MALFORMED = 'The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.';
   const FLICKER = 'The page flickers. Something went wrong in the cosmic machinery. Try again.';
 
   it('creationStateForJob maps each route to its own step and ignores every other step', () => {
@@ -1519,9 +1519,9 @@ describe('Phase 46: NPC replies as segments', () => {
       const stored = npcRows(ctx);
       expect(stored).toHaveLength(1);
       expect(stored[0].segments).toEqual([
-        { kind: 'narration', speaker: KEEPER, text: 'Marta mutters something unintelligible. (Try again.)' },
+        { kind: 'narration', speaker: KEEPER, text: 'Marta mutters something you cannot make out. (Try again.)' },
       ]);
-      expect(stored[0].message).toBe('Marta mutters something unintelligible. (Try again.)');
+      expect(stored[0].message).toBe('Marta mutters something you cannot make out. (Try again.)');
       expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
       expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(1_600_000_000_000_000n));
       expect(rows(ctx, 'npc_affinity')[0].lastInteraction).toEqual(ts(1_600_000_000_000_000n));
@@ -1536,8 +1536,8 @@ describe('Phase 46: NPC replies as segments', () => {
       internalThought: 'curious',
     }));
     const [row] = npcRows(ctx);
-    expect(row.segments).toEqual([{ kind: 'narration', speaker: KEEPER, text: 'Marta mutters something unintelligible.' }]);
-    expect(row.message).toBe('Marta mutters something unintelligible.');
+    expect(row.segments).toEqual([{ kind: 'narration', speaker: KEEPER, text: 'Marta mutters something you cannot make out.' }]);
+    expect(row.message).toBe('Marta mutters something you cannot make out.');
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "..."');
     expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(2n);
     expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(T0));
@@ -1658,7 +1658,7 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
     applyCreationResult(ctx, stateJob('creation_race'), 'not json at all');
     const [row] = rows(ctx, 'event_creation');
     expect(row.kind).toBe('creation_error');
-    expect(row.message).toBe('The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
+    expect(row.message).toBe('The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.');
     expectOneFallback(row);
   });
 

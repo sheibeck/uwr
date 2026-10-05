@@ -532,7 +532,7 @@ describe('Phase 46: combatPresentSpeakers is total', () => {
 describe('Phase 46: the shared fallback line', () => {
   it('sendNarrationSkippedMessage writes the same text as before, through the constant', async () => {
     const { sendNarrationSkippedMessage, COMBAT_NARRATION_FALLBACK_LINE } = await import('./combat_narration');
-    expect(COMBAT_NARRATION_FALLBACK_LINE).toBe('The Keeper of Knowledge has lost interest in your skirmish.');
+    expect(COMBAT_NARRATION_FALLBACK_LINE).toBe('The skirmish carries on, and none of it is worth the ink.');
     const ctx = newCtx();
     sendNarrationSkippedMessage(ctx, 1n, participantsOf(ctx));
     expect(sentCalls().map((c) => [c[3], c[4]])).toEqual([

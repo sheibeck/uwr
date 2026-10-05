@@ -34,6 +34,13 @@
  * combat_narrative row) instead of nothing. The world_gen (fill) failure line for a character
  * whose row is gone now carries one Keeper narration segment (same wording).
  *
+ * Phase 46 (plan 09) applied the owner-approved voice wording (46-VOICE-CHANGES.md ids string-* and
+ * fallback-*): the fixed Keeper lines these cases quote now read in the approved second-person
+ * narrator voice (no third-person Keeper, no first person, quotation marks dropped from the
+ * skill and renown presentations). The re-recorded snapshots differ from the Plan 02 and 03
+ * snapshots only in those lines, and every message and its segments changed together. The
+ * behavior pinned by each case is unchanged.
+ *
  * Known limits of the mock DB that these tests inherit: the `by_name` index accessor is
  * mapped to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
  * is exercised through a row whose `name` equals the lowercase race name.
@@ -380,7 +387,7 @@ describe('llm apply failure path: creation and skill_gen', () => {
     const ev = rows(ctx, 'event_private');
     expect(ev).toHaveLength(1);
     expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'narrative' });
-    expect(ev[0].message).toContain('The cosmos provided some... standard options');
+    expect(ev[0].message).toContain('The cosmos shrugs and offers some... standard options');
   });
 });
 
@@ -455,7 +462,7 @@ describe('llm apply creation_race success', () => {
     exec(ctx, applyJob('creation_race'), { resultText: 'the cosmos declined to answer' });
     expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
     expect(rows(ctx, 'event_creation')[0]).toMatchObject({ kind: 'creation_error' });
-    expect(rows(ctx, 'event_creation')[0].message).toContain('malformed');
+    expect(rows(ctx, 'event_creation')[0].message).toBe('The answer comes back garbled, as though the cosmic machinery had choked on it. Try again.');
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 
@@ -934,7 +941,7 @@ describe('llm apply world_gen_start failure path', () => {
     exec(ctx, applyJob('world_gen_start', GEN_CTX), { success: false });
     expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({
       step: 'ERROR',
-      errorMessage: 'The Keeper falters. "The world refuses to be remembered right now."',
+      errorMessage: 'The map blurs and will not settle. The world refuses to be remembered right now.',
     });
     expect(rows(ctx, 'event_private')).toHaveLength(1);
     expect(rows(ctx, 'event_private')[0]).toMatchObject({ kind: 'system', characterId: 10n, ownerUserId: 7n });
@@ -1060,7 +1067,7 @@ describe('llm apply world_gen_start success (stage 1)', () => {
     expect(priv.map((e: any) => e.kind)).toEqual(['narrative', 'system', 'system']);
     expect(priv[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
     expect(priv[0].message).toContain('You notice Vessa nearby.');
-    expect(priv[0].message).toContain('The Keeper is still remembering the roads out.');
+    expect(priv[0].message).toContain('The roads out are still being remembered.');
     expect(priv[2].message).toBe(
       'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
     );
@@ -1445,9 +1452,9 @@ describe('llm apply npc_conversation success', () => {
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: JSON.stringify({ effects: 'lots', memoryUpdate: null }) });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "..."');
     expect(rows(ctx, 'event_private')).toHaveLength(1);
-    expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something unintelligible.');
+    expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something you cannot make out.');
     expect(rows(ctx, 'event_private')[0].segments).toEqual([
-      { kind: 'narration', speaker: 'The Keeper', text: 'Marta mutters something unintelligible.' },
+      { kind: 'narration', speaker: 'The Keeper', text: 'Marta mutters something you cannot make out.' },
     ]);
   });
 
@@ -1467,13 +1474,13 @@ describe('llm apply npc_conversation success', () => {
     expect(rows(ctx, 'npc_affinity')).toHaveLength(0);
   });
 
-  it('Phase 46: QUIRK: invalid JSON writes the "unintelligible" messages (one Keeper narration segment) and no memory change', () => {
+  it('Phase 46: QUIRK: invalid JSON writes the mutter messages (one Keeper narration segment) and no memory change', () => {
     const ctx = newCtx(npcSeed());
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: 'Marta hums a tune' });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
-    expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something unintelligible. (Try again.)');
+    expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something you cannot make out. (Try again.)');
     expect(rows(ctx, 'event_private')[0].segments).toEqual([
-      { kind: 'narration', speaker: 'The Keeper', text: 'Marta mutters something unintelligible. (Try again.)' },
+      { kind: 'narration', speaker: 'The Keeper', text: 'Marta mutters something you cannot make out. (Try again.)' },
     ]);
     expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(T_OLD));
     expect(rows(ctx, 'npc_affinity')[0].lastInteraction).toEqual(ts(T_OLD));
@@ -1682,7 +1689,7 @@ describe('llm apply combat_narration', () => {
     expect(nonEmptyTables(ctx)).toEqual(['character']);
   });
 
-  const FALLBACK = 'The Keeper of Knowledge has lost interest in your skirmish.';
+  const FALLBACK = 'The skirmish carries on, and none of it is worth the ink.';
   const keeper = (text: string) => ({ kind: 'narration', speaker: 'The Keeper', text });
 
   it('Phase 46: success with a JSON narrative stores the row and broadcasts an unprefixed private event with one Keeper narration segment to known participants', () => {
@@ -1811,7 +1818,7 @@ describe('llm apply renown_perk_gen success', () => {
     expect(perks[1]).toMatchObject({ kind: '', perkEffectJson: '{"maxHp":10}', perkDomain: 'crafting', targetRule: 'self', resourceType: 'none' });
     expect(perks[2].perkDomain).toBe('combat');
     const msg = rows(ctx, 'event_private')[0].message as string;
-    expect(msg).toContain('"Rank 2. The world owes you something. Choose your due:"');
+    expect(msg).toContain('Rank 2. The world owes you something. Choose your due:');
     expect(msg).toContain('Active ability | 10 stamina | 300s cooldown');
     expect(msg).toContain('Passive bonus');
   });
@@ -1846,7 +1853,7 @@ describe('llm apply renown_perk_gen success', () => {
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks.map((p: any) => p.name)).toEqual(['Bloodthirst', "Prospector's Luck", "Wanderer's Pace"]);
     expect(perks.every((p: any) => p.rank === 4n && p.kind === '')).toBe(true);
-    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
+    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos shrugs and offers some... standard options');
   });
 
   it.each([
@@ -1877,7 +1884,7 @@ describe('llm apply renown_perk_gen success', () => {
     expect(perks.map((p: any) => p.perkEffectJson)).toEqual(
       RENOWN_PERK_POOLS[2].slice(0, 3).map((p) => serializePerkEffect(p.effect)),
     );
-    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
+    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos shrugs and offers some... standard options');
   });
 
   it.each([3, 5, 9, 11])('Phase 41: the rank-%s static fallback inserts three options with serialized effects', (rank) => {
