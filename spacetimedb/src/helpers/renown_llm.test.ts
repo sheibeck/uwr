@@ -55,6 +55,7 @@ const character = () => ({
   name: 'Aldric',
   race: 'Kobold',
   className: 'Ashweaver',
+  level: 6n,
 });
 
 function seededCtx(over: Record<string, any[]> = {}, withPlayer = true) {
@@ -96,6 +97,7 @@ describe('renown rank-up enqueues a job (PIPE-08)', () => {
         className: 'Ashweaver',
         raceName: 'Kobold',
         rank: 2,
+        characterLevel: 6,
         existingPerks: [],
       }),
     });
@@ -258,6 +260,7 @@ describe('renown enqueue: snapshot, dispatch and refusal fallback (41-05)', () =
       className: 'Ashweaver',
       raceName: 'Kobold',
       rank: 2,
+      characterLevel: 6,
       existingPerks: [],
     });
     const dispatch = rows(ctx, 'llm_dispatch');
@@ -268,6 +271,16 @@ describe('renown enqueue: snapshot, dispatch and refusal fallback (41-05)', () =
     expect(job.budgetDay).toBe(utcDay(ctx.timestamp));
     expect(rows(ctx, 'llm_sweep_tick')).toHaveLength(1);
     expect(rows(ctx, 'pending_renown_perk')).toHaveLength(0);
+  });
+
+  it('carries the character level into the job input, so the prompt can state the power budget (46-10)', () => {
+    const ctx = seededCtx();
+    triggerRenownPerkGeneration(ctx, character(), 2);
+    expect((resolveRouteInput(ctx, rows(ctx, 'llm_job')[0]) as any).characterLevel).toBe(6);
+    // A character row without a usable level is clamped at level 1 when the perk is applied, so the input says 1.
+    const ctx2 = seededCtx({ character: [{ ...character(), level: undefined }] });
+    triggerRenownPerkGeneration(ctx2, { ...character(), level: undefined }, 2);
+    expect((resolveRouteInput(ctx2, rows(ctx2, 'llm_job')[0]) as any).characterLevel).toBe(1);
   });
 
   it('a refusal at the daily cost limit inserts the static rank 2 options and one Keeper line, and no job, dispatch or reservation', () => {

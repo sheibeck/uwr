@@ -124,6 +124,22 @@ describe('golden set integrity', () => {
     expect(goldenItem('cmb-02').input).toBe(SWEEP_FIXTURES.combat_narration[3]);
   });
 
+  it('the golden request states the power budget at each item level (Phase 46-10, OQ3 a), and only for the four ability routes', () => {
+    const budgetRoutes = new Set(['creation_class_reveal', 'creation_class', 'skill_gen', 'renown_perk_gen']);
+    for (const item of GOLDEN_SET) {
+      const { volatile } = buildRouteLayers(item.route, goldenInputFor(item, {}));
+      expect(volatile.includes('Power budget at level '), item.id).toBe(budgetRoutes.has(item.route));
+    }
+    const levelOf = (id) => /Power budget at level (\d+)\./.exec(buildRouteLayers(goldenItem(id).route, goldenInputFor(goldenItem(id), {})).volatile)?.[1];
+    expect(['skl-01', 'skl-02', 'skl-03'].map(levelOf)).toEqual(['2', '5', '8']);
+    expect(['ren-01', 'ren-02'].map(levelOf)).toEqual(['5', '10']);
+    expect(['cre-03', 'cre-04', 'cre-05'].map(levelOf)).toEqual(['1', '1', '1']);
+    // The renown level rides on the request only: the fixture itself is not touched.
+    expect(goldenItem('ren-01').input.characterLevel).toBeUndefined();
+    expect(goldenInputFor(goldenItem('ren-01'), {}).characterLevel).toBe(5);
+    expect(goldenInputFor(goldenItem('ren-02'), {}).characterLevel).toBe(10);
+  });
+
   it('covers the intended shapes: skill levels 2, 5, 8; rank 2 with no perks and rank 5 with two; NPC genders and tiers', () => {
     expect(['skl-01', 'skl-02', 'skl-03'].map((id) => goldenItem(id).input.level)).toEqual([2n, 5n, 8n]);
     expect(goldenItem('ren-01').input.rank).toBe(2);

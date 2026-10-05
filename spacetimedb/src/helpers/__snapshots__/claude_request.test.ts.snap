@@ -120,7 +120,9 @@ First ability: plain world text first ability
 First ability description: plain world text first ability description
 First ability kind: damage, damage type: physical, resource type: mana
 
-Generate the stats and two more starting abilities for this class.",
+Generate the stats and two more starting abilities for this class.
+
+Power budget at level 1. value1, the primary power number, must fall inside the range for the ability's kind, and effectMagnitude, when used, inside the range shown after it. castSeconds is a whole number. A buff, debuff, taunt or hot still needs a value1 inside its range, never 0. Ranges: damage 11-23 (effectMagnitude 5-12); heal 9-19 (effectMagnitude 4-10); dot 7-16 (effectMagnitude 3-8); hot 7-16 (effectMagnitude 3-8); buff 4-11 (effectMagnitude 2-6); debuff 4-11 (effectMagnitude 2-6); shield 9-19 (effectMagnitude 4-10); taunt 16-26 (effectMagnitude 8-13); aoe_damage 6-14 (effectMagnitude 3-7); aoe_heal 4-10 (effectMagnitude 2-5); summon 9-19 (effectMagnitude 4-10); cc 2-6 (effectMagnitude 1-3); drain 9-19 (effectMagnitude 4-10); execute 14-28 (effectMagnitude 7-14); utility 3-14 (effectMagnitude 1-7); song 2-8 (effectMagnitude 1-4); aura 2-8 (effectMagnitude 1-4); travel 3-14 (effectMagnitude 1-7); fear 1-5 (effectMagnitude 0-3); bandage 7-15 (effectMagnitude 3-8); potion 9-19 (effectMagnitude 4-10); food_summon 3-14 (effectMagnitude 1-7); resurrect 1-1 (effectMagnitude 0-1); group_heal 4-10 (effectMagnitude 2-5); craft_boost 3-14 (effectMagnitude 1-7); gather_boost 3-14 (effectMagnitude 1-7); pet_command 3-14 (effectMagnitude 1-7).",
       "role": "user",
     },
   ],
@@ -427,7 +429,9 @@ exports[`buildClaudeRequest > creation_class_reveal: body snapshot (Keeper Bible
 Race description: plain world text narrative
 Archetype: mystic
 
-Generate the class name, description and first ability for this mystic plain world text race, following the mystic archetype paragraph.",
+Generate the class name, description and first ability for this mystic plain world text race, following the mystic archetype paragraph.
+
+Power budget at level 1. value1, the primary power number, must fall inside the range for the ability's kind, and effectMagnitude, when used, inside the range shown after it. castSeconds is a whole number. A buff, debuff, taunt or hot still needs a value1 inside its range, never 0. Ranges: damage 11-23 (effectMagnitude 5-12); heal 9-19 (effectMagnitude 4-10); dot 7-16 (effectMagnitude 3-8); hot 7-16 (effectMagnitude 3-8); buff 4-11 (effectMagnitude 2-6); debuff 4-11 (effectMagnitude 2-6); shield 9-19 (effectMagnitude 4-10); taunt 16-26 (effectMagnitude 8-13); aoe_damage 6-14 (effectMagnitude 3-7); aoe_heal 4-10 (effectMagnitude 2-5); summon 9-19 (effectMagnitude 4-10); cc 2-6 (effectMagnitude 1-3); drain 9-19 (effectMagnitude 4-10); execute 14-28 (effectMagnitude 7-14); utility 3-14 (effectMagnitude 1-7); song 2-8 (effectMagnitude 1-4); aura 2-8 (effectMagnitude 1-4); travel 3-14 (effectMagnitude 1-7); fear 1-5 (effectMagnitude 0-3); bandage 7-15 (effectMagnitude 3-8); potion 9-19 (effectMagnitude 4-10); food_summon 3-14 (effectMagnitude 1-7); resurrect 1-1 (effectMagnitude 0-1); group_heal 4-10 (effectMagnitude 2-5); craft_boost 3-14 (effectMagnitude 1-7); gather_boost 3-14 (effectMagnitude 1-7); pet_command 3-14 (effectMagnitude 1-7).",
       "role": "user",
     },
   ],
@@ -912,7 +916,9 @@ New Renown Rank: 3
 Existing renown perks (do NOT duplicate):
 - plain world text perk
 
-Generate exactly 3 renown perk options for rank 3.",
+Generate exactly 3 renown perk options for rank 3.
+
+Power budget at level 6. value1, the primary power number, must fall inside the range for the ability's kind, and effectMagnitude, when used, inside the range shown after it. castSeconds is a whole number. A buff, debuff, taunt or hot still needs a value1 inside its range, never 0. Ranges: damage 29-55 (effectMagnitude 14-28); heal 23-45 (effectMagnitude 11-23); dot 18-37 (effectMagnitude 9-19); hot 18-37 (effectMagnitude 9-19); buff 10-26 (effectMagnitude 5-13); debuff 10-26 (effectMagnitude 5-13); shield 23-45 (effectMagnitude 11-23); taunt 40-62 (effectMagnitude 20-31); aoe_damage 15-32 (effectMagnitude 7-16); aoe_heal 10-22 (effectMagnitude 5-11); summon 23-45 (effectMagnitude 11-23); cc 4-14 (effectMagnitude 2-7); drain 23-45 (effectMagnitude 11-23); execute 35-67 (effectMagnitude 17-34); utility 8-34 (effectMagnitude 4-17); song 5-15 (effectMagnitude 2-8); aura 4-18 (effectMagnitude 2-9); travel 8-34 (effectMagnitude 4-17); fear 4-12 (effectMagnitude 2-6); bandage 18-34 (effectMagnitude 9-17); potion 23-45 (effectMagnitude 11-23); food_summon 8-34 (effectMagnitude 4-17); resurrect 1-1 (effectMagnitude 0-1); group_heal 10-22 (effectMagnitude 5-11); craft_boost 8-34 (effectMagnitude 4-17); gather_boost 8-34 (effectMagnitude 4-17); pet_command 8-34 (effectMagnitude 4-17).",
       "role": "user",
     },
   ],
@@ -1188,7 +1194,9 @@ Level: 5 (the level just reached)
 Existing abilities (avoid duplicating these):
 - plain world text ability (damage)
 
-Generate 3 abilities appropriate for level 5. Make them distinct from existing abilities and from each other. At least 2 of the 3 should be different kinds.",
+Generate 3 abilities appropriate for level 5. Make them distinct from existing abilities and from each other. At least 2 of the 3 should be different kinds.
+
+Power budget at level 5. value1, the primary power number, must fall inside the range for the ability's kind, and effectMagnitude, when used, inside the range shown after it. castSeconds is a whole number. A buff, debuff, taunt or hot still needs a value1 inside its range, never 0. Ranges: damage 25-49 (effectMagnitude 12-25); heal 21-39 (effectMagnitude 10-20); dot 16-33 (effectMagnitude 8-17); hot 16-33 (effectMagnitude 8-17); buff 9-23 (effectMagnitude 4-12); debuff 9-23 (effectMagnitude 4-12); shield 21-39 (effectMagnitude 10-20); taunt 36-54 (effectMagnitude 18-27); aoe_damage 13-28 (effectMagnitude 6-14); aoe_heal 9-20 (effectMagnitude 4-10); summon 21-39 (effectMagnitude 10-20); cc 4-12 (effectMagnitude 2-6); drain 21-39 (effectMagnitude 10-20); execute 31-59 (effectMagnitude 15-30); utility 7-30 (effectMagnitude 3-15); song 4-14 (effectMagnitude 2-7); aura 4-16 (effectMagnitude 2-8); travel 7-30 (effectMagnitude 3-15); fear 3-11 (effectMagnitude 1-6); bandage 16-30 (effectMagnitude 8-15); potion 21-39 (effectMagnitude 10-20); food_summon 7-30 (effectMagnitude 3-15); resurrect 1-1 (effectMagnitude 0-1); group_heal 9-20 (effectMagnitude 4-10); craft_boost 7-30 (effectMagnitude 3-15); gather_boost 7-30 (effectMagnitude 3-15); pet_command 7-30 (effectMagnitude 3-15).",
       "role": "user",
     },
   ],

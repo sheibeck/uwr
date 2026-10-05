@@ -22,6 +22,7 @@ import type { LlmRoute } from './llm_routes';
 import type { NpcGender } from './npc_gender';
 import { resolveNpcGender } from './npc_gender';
 import type { RoundEventSummary } from '../helpers/combat_narration';
+import { clampToBudget } from '../helpers/skill_budget';
 import {
   STAT_TYPES,
   ABILITY_KINDS,
@@ -168,6 +169,11 @@ export interface RenownPerkInput {
   className: string;
   raceName: string;
   rank: number;
+  /**
+   * The character's level when the offer is queued (the level the server clamps a chosen perk at).
+   * Optional: a job stored before Phase 46 lacks it, and its prompt then states no power budget.
+   */
+  characterLevel?: number;
   existingPerks: { name: string; perkKey?: string }[];
 }
 
@@ -524,6 +530,56 @@ function safeJson(value: unknown): string {
   return JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v));
 }
 
+/** Inclusive bounds of the two numbers the server clamps for one ability kind at one level. */
+export interface AbilityBudgetBounds {
+  value1: { min: number; max: number };
+  effectMagnitude: { min: number; max: number };
+}
+
+const PROBE = 1_000_000_000;
+
+/** A new character's abilities are clamped at level 1 (creation_validate.ts), whatever the stage. */
+const CREATION_LEVEL = 1;
+
+/**
+ * The bounds the server's own clamp enforces for a kind at a level, read by running clampToBudget on one
+ * value far below and one far above every range. Nothing is copied from the budget table, so the numbers
+ * the model is told can never drift from the numbers the server applies (44 Fix 2, OQ3 a).
+ */
+export function abilityBudgetBounds(kind: string, level: number): AbilityBudgetBounds {
+  const low = clampToBudget(kind, level, { value1: -PROBE, effectMagnitude: -PROBE });
+  const high = clampToBudget(kind, level, { value1: PROBE, effectMagnitude: PROBE });
+  return {
+    value1: { min: Number(low.value1), max: Number(high.value1) },
+    effectMagnitude: { min: Number(low.effectMagnitude), max: Number(high.effectMagnitude) },
+  };
+}
+
+/** A usable character level for the budget text: a whole number of at least 1, or null (no budget stated). */
+function budgetLevel(level: unknown): number | null {
+  const n = typeof level === 'bigint' ? Number(level) : typeof level === 'number' ? level : NaN;
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
+
+/**
+ * The per-call power budget section (44 Fix 2, owner answer OQ3 a): the clamp ranges for every ability kind
+ * at the call's level, plus the whole-second cast time and the value1 reminder. It depends on the level, so it
+ * lives in the volatile user message and never in the cached route block.
+ */
+export function buildPowerBudgetText(level: number): string {
+  const ranges = ABILITY_KINDS.map((kind) => {
+    const b = abilityBudgetBounds(kind, level);
+    return `${kind} ${b.value1.min}-${b.value1.max} (effectMagnitude ${b.effectMagnitude.min}-${b.effectMagnitude.max})`;
+  }).join('; ');
+  return `Power budget at level ${level}. value1, the primary power number, must fall inside the range for the ability's kind, and effectMagnitude, when used, inside the range shown after it. castSeconds is a whole number. A buff, debuff, taunt or hot still needs a value1 inside its range, never 0. Ranges: ${ranges}.`;
+}
+
+/** The budget section as a trailing paragraph, or nothing when the level is unknown. */
+function powerBudgetParagraph(level: unknown): string {
+  const lvl = budgetLevel(level);
+  return lvl === null ? '' : `\n\n${buildPowerBudgetText(lvl)}`;
+}
+
 export function buildCreationRaceVolatile(input: CreationRaceInput): string {
   return `The new arrival describes the race as:
 ${wrapPlayerInput(input.raceDescription)}
@@ -537,7 +593,7 @@ export function buildCreationClassRevealVolatile(input: CreationClassInput): str
 Race description: ${wm(input.raceNarrative)}
 Archetype: ${archetype}
 
-Generate the class name, description and first ability for this ${archetype} ${w(input.raceName)}, following the ${archetype} archetype paragraph.`;
+Generate the class name, description and first ability for this ${archetype} ${w(input.raceName)}, following the ${archetype} archetype paragraph.${powerBudgetParagraph(CREATION_LEVEL)}`;
 }
 
 /** A stored string, or "unknown" when an older stored input lacks it. One line. */
@@ -564,7 +620,7 @@ First ability: ${orUnknown(ability.name)}
 First ability description: ${orUnknownMulti(ability.description)}
 First ability kind: ${orUnknown(ability.kind)}, damage type: ${orUnknown(ability.damageType)}, resource type: ${orUnknown(ability.resourceType)}
 
-Generate the stats and two more starting abilities for this class.`;
+Generate the stats and two more starting abilities for this class.${powerBudgetParagraph(CREATION_LEVEL)}`;
 }
 
 /** Character line and neighbors, shared by both world builders. */
@@ -632,7 +688,7 @@ Level: ${level} (the level just reached)
 
 ${existing}
 
-Generate 3 abilities appropriate for level ${level}. Make them distinct from existing abilities and from each other. At least 2 of the 3 should be different kinds.`;
+Generate 3 abilities appropriate for level ${level}. Make them distinct from existing abilities and from each other. At least 2 of the 3 should be different kinds.${powerBudgetParagraph(input.level)}`;
 }
 
 export function buildRenownPerkVolatile(input: RenownPerkInput): string {
@@ -648,7 +704,7 @@ New Renown Rank: ${rank}
 
 ${existing}
 
-Generate exactly 3 renown perk options for rank ${rank}.`;
+Generate exactly 3 renown perk options for rank ${rank}.${powerBudgetParagraph(input.characterLevel)}`;
 }
 
 // Affinity tier -> the unlocks available at that level (cumulative).

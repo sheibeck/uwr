@@ -391,7 +391,14 @@ export function goldenItem(id) {
  * back to the static fixture, exactly as the sweep does.
  */
 export function goldenInputFor(item, repliesById = {}) {
-  if (!item.chain) return item.input;
+  if (!item.chain) {
+    // A renown offer states its power budget at the character's level (Phase 46, OQ3 a). The production input
+    // carries it as characterLevel; the fixture does not, so the golden request adds it from the item's level.
+    if (item.route === 'renown_perk_gen' && Number.isInteger(item.expectations?.characterLevel)) {
+      return { ...item.input, characterLevel: item.expectations.characterLevel };
+    }
+    return item.input;
+  }
   const source = goldenItem(item.chain.from);
   const reply = repliesById ? repliesById[item.chain.from] : undefined;
   return item.chain.builder === 'class_fill'

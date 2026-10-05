@@ -167,6 +167,8 @@ export function triggerRenownPerkGeneration(ctx: any, character: any, rank: numb
     className,
     raceName,
     rank,
+    // The level the chosen perk is clamped at (applyRenownPerkResult), so the prompt can state its budget.
+    characterLevel: Number(typeof character.level === 'bigint' && character.level > 0n ? character.level : 1n),
     existingPerks,
   };
 

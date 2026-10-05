@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { KEEPER_BIBLE } from './keeper_bible';
 import { LLM_ROUTE_NAMES, type LlmRoute } from './llm_routes';
-import { EFFECT_TYPES } from './mechanical_vocabulary';
+import { ABILITY_KINDS, EFFECT_TYPES } from './mechanical_vocabulary';
+import { BASE_BUDGET, clampToBudget } from '../helpers/skill_budget';
 import type { RoundEventSummary } from '../helpers/combat_narration';
 import {
   ROUTE_BLOCKS,
@@ -10,6 +11,8 @@ import {
   buildCreationClassFillVolatile,
   buildCombatNarrationVolatile,
   buildSmokeTestVolatile,
+  buildPowerBudgetText,
+  abilityBudgetBounds,
   PLAYER_INPUT_MAX_CHARS,
   PLAYER_NAME_MAX_CHARS,
   PLAYER_INPUT_TAG_PATTERN,
@@ -609,7 +612,8 @@ describe('route blocks and volatile builders', () => {
       expect(text).toContain('kind: damage');
       expect(text).toContain('damage type: fire');
       expect(text).toContain('resource type: mana');
-      expect(text.trimEnd().endsWith('Generate the stats and two more starting abilities for this class.')).toBe(true);
+      // 46-10 (OQ3 a): the level 1 power budget now follows the request line as its own paragraph.
+      expect(text.split('\n\nPower budget at level 1.')[0].trimEnd().endsWith('Generate the stats and two more starting abilities for this class.')).toBe(true);
     });
 
     describe('stage-2 builders tolerate an older stored input (Plan 43-04)', () => {
@@ -757,5 +761,141 @@ describe('pronoun rule in route blocks and volatile builders (Plan 41-18)', () =
       expect(volatile).not.toContain('<system>');
       expect(volatile).toMatch(/Gender: (male \(he, him, his\)|female \(she, her, hers\))/);
     });
+  });
+});
+
+// ============================================================================
+// Phase 46-10: the per-call power budget (44 Fix 2, owner answer OQ3 a)
+// ============================================================================
+
+describe('power budget in the per-call text (OQ3 a)', () => {
+  /** The server clamp, recomputed here from BASE_BUDGET with its own formula (floor of the low edge, ceil of the high edge, half again for effectMagnitude). */
+  function expectedBounds(kind: string, level: number) {
+    const b = BASE_BUDGET[kind];
+    const midpoint = b.base + b.perLevel * level;
+    const min = Math.floor(midpoint * b.minMult);
+    const max = Math.ceil(midpoint * b.maxMult);
+    return { value1: [min, max], effectMagnitude: [Math.floor(min * 0.5), Math.ceil(max * 0.5)] };
+  }
+
+  const rangesOf = (text: string): Map<string, string> => {
+    const list = text.split('Ranges: ')[1]?.replace(/\.$/, '') ?? '';
+    const out = new Map<string, string>();
+    for (const entry of list.split('; ')) {
+      const m = /^(\w+) (\d+-\d+) \(effectMagnitude (\d+-\d+)\)$/.exec(entry);
+      if (!m) throw new Error(`unparsable budget entry: ${entry}`);
+      out.set(m[1], `${m[2]} ${m[3]}`);
+    }
+    return out;
+  };
+
+  it('covers every ability kind the server budget table knows, and no other', () => {
+    expect([...ABILITY_KINDS].sort()).toEqual(Object.keys(BASE_BUDGET).sort());
+    const stated = rangesOf(buildPowerBudgetText(5));
+    expect([...stated.keys()]).toEqual([...ABILITY_KINDS]);
+  });
+
+  it('states, for every kind at levels 1 to 12, exactly the bounds the server clamp applies', () => {
+    for (let level = 1; level <= 12; level++) {
+      const stated = rangesOf(buildPowerBudgetText(level));
+      for (const kind of ABILITY_KINDS) {
+        const e = expectedBounds(kind, level);
+        // The formula recomputed independently ...
+        expect(stated.get(kind), `${kind} at ${level}`).toBe(`${e.value1[0]}-${e.value1[1]} ${e.effectMagnitude[0]}-${e.effectMagnitude[1]}`);
+        // ... and the clamp itself: the edges are fixed points, one step outside moves to the edge.
+        const edgeLow = clampToBudget(kind, level, { value1: e.value1[0], effectMagnitude: e.effectMagnitude[0] });
+        const edgeHigh = clampToBudget(kind, level, { value1: e.value1[1], effectMagnitude: e.effectMagnitude[1] });
+        expect([Number(edgeLow.value1), Number(edgeLow.effectMagnitude)]).toEqual([e.value1[0], e.effectMagnitude[0]]);
+        expect([Number(edgeHigh.value1), Number(edgeHigh.effectMagnitude)]).toEqual([e.value1[1], e.effectMagnitude[1]]);
+        const below = clampToBudget(kind, level, { value1: e.value1[0] - 1, effectMagnitude: e.effectMagnitude[0] - 1 });
+        const above = clampToBudget(kind, level, { value1: e.value1[1] + 1, effectMagnitude: e.effectMagnitude[1] + 1 });
+        expect(Number(below.value1)).toBe(e.value1[0]);
+        expect(Number(above.value1)).toBe(e.value1[1]);
+        expect(Number(below.effectMagnitude)).toBe(e.effectMagnitude[0]);
+        expect(Number(above.effectMagnitude)).toBe(e.effectMagnitude[1]);
+        expect(abilityBudgetBounds(kind, level)).toEqual({
+          value1: { min: e.value1[0], max: e.value1[1] },
+          effectMagnitude: { min: e.effectMagnitude[0], max: e.effectMagnitude[1] },
+        });
+      }
+    }
+  });
+
+  it('matches the owner-approved sample at level 5 and the Phase 44 cross-check', () => {
+    const text = buildPowerBudgetText(5);
+    expect(text).toContain(
+      "Power budget at level 5. value1, the primary power number, must fall inside the range for the ability's kind, and effectMagnitude, when used, inside the range shown after it. castSeconds is a whole number. A buff, debuff, taunt or hot still needs a value1 inside its range, never 0. Ranges: damage 25-49 (effectMagnitude 12-25); heal 21-39 (effectMagnitude 10-20); dot 16-33 (effectMagnitude 8-17);",
+    );
+    for (const entry of [
+      'hot 16-33 (effectMagnitude 8-17)',
+      'buff 9-23 (effectMagnitude 4-12)',
+      'debuff 9-23 (effectMagnitude 4-12)',
+      'shield 21-39 (effectMagnitude 10-20)',
+      'taunt 36-54 (effectMagnitude 18-27)',
+      'aoe_damage 13-28 (effectMagnitude 6-14)',
+      'aoe_heal 9-20 (effectMagnitude 4-10)',
+      'summon 21-39 (effectMagnitude 10-20)',
+      'cc 4-12 (effectMagnitude 2-6)',
+      'drain 21-39 (effectMagnitude 10-20)',
+      'execute 31-59 (effectMagnitude 15-30)',
+      'utility 7-30 (effectMagnitude 3-15)',
+    ]) {
+      expect(text, entry).toContain(entry);
+    }
+    expect(buildPowerBudgetText(2)).toContain('dot 9-20 ');
+  });
+
+  it('skill_gen states the budget at the level of its input, at levels 2, 5 and 8', () => {
+    for (const level of [2n, 5n, 8n]) {
+      const { volatile } = buildRouteLayers('skill_gen', { ...benign.skill_gen, level });
+      expect(volatile).toContain(buildPowerBudgetText(Number(level)));
+      expect(volatile).toContain(`Power budget at level ${level}.`);
+      expect(volatile).toContain('castSeconds is a whole number.');
+      expect(volatile).toContain('A buff, debuff, taunt or hot still needs a value1 inside its range, never 0.');
+      // The facts the call already carried are all still there, ahead of the budget.
+      expect(volatile).toContain(`Level: ${level} (the level just reached)`);
+      expect(volatile.indexOf('Generate 3 abilities')).toBeLessThan(volatile.indexOf('Power budget'));
+    }
+  });
+
+  it('renown_perk_gen states the budget at the character level of its input, and nothing without one', () => {
+    const withLevel = buildRouteLayers('renown_perk_gen', { ...benign.renown_perk_gen, characterLevel: 7 }).volatile;
+    expect(withLevel).toContain(buildPowerBudgetText(7));
+    expect(withLevel).toContain('New Renown Rank: 3');
+    // A job stored before Phase 46 has no characterLevel: its text is unchanged.
+    expect(buildRouteLayers('renown_perk_gen', benign.renown_perk_gen).volatile).not.toContain('Power budget');
+    for (const bad of [0, -2, 2.5, Number.NaN, '5']) {
+      expect(buildRouteLayers('renown_perk_gen', { ...benign.renown_perk_gen, characterLevel: bad as never }).volatile).not.toContain('Power budget');
+    }
+  });
+
+  it('both class routes state the level 1 budget, because the server clamps creation abilities at level 1', () => {
+    const reveal = buildRouteLayers('creation_class_reveal', benign.creation_class_reveal).volatile;
+    const fill = buildRouteLayers('creation_class', benign.creation_class).volatile;
+    expect(reveal).toContain(buildPowerBudgetText(1));
+    expect(fill).toContain(buildPowerBudgetText(1));
+    expect(reveal.indexOf('Generate the class name')).toBeLessThan(reveal.indexOf('Power budget'));
+    expect(fill.indexOf('Generate the stats')).toBeLessThan(fill.indexOf('Power budget'));
+  });
+
+  it('the budget appears only in the per-call text: route blocks, the cached Bible and every other route are unchanged', () => {
+    const budgetRoutes: LlmRoute[] = ['creation_class_reveal', 'creation_class', 'skill_gen'];
+    for (const route of LLM_ROUTE_NAMES) {
+      expect(ROUTE_BLOCKS[route], route).not.toContain('Power budget');
+      expect(ROUTE_BLOCKS[route], route).not.toMatch(/\b\d+-\d+ \(effectMagnitude/);
+      const layers = buildRouteLayers(route, benign[route]);
+      expect(layers.routeBlock, route).not.toContain('Power budget');
+      expect(layers.volatile.includes('Power budget'), route).toBe(budgetRoutes.includes(route));
+    }
+    expect(KEEPER_BIBLE).not.toContain('Power budget');
+  });
+
+  it('is deterministic and carries no player text', () => {
+    expect(buildPowerBudgetText(5)).toBe(buildPowerBudgetText(5));
+    expect(buildPowerBudgetText(5)).not.toMatch(/[<>]/);
+    // Hostile world and player text change nothing in the budget section.
+    const a = buildRouteLayers('skill_gen', benign.skill_gen).volatile.split('Power budget')[1];
+    const b = buildRouteLayers('skill_gen', hostile.skill_gen).volatile.split('Power budget')[1];
+    expect(a).toBe(b);
   });
 });

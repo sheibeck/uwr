@@ -114,6 +114,7 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       className: `${world} class`,
       raceName: `${world} race`,
       rank: 3,
+      characterLevel: 6, // 46-10 (OQ3 a): the renown prompt states the power budget at this level
       existingPerks: [{ name: `${world} perk`, perkKey: 'k' }],
     },
     npc_conversation: {
