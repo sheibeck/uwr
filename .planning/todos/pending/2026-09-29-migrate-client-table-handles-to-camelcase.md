@@ -3,6 +3,7 @@ created: 2026-09-29T00:00:00.000Z
 title: Migrate client table handles to camelCase
 area: ui
 priority: low
+resolves_phase: 45
 files:
   - src/composables/
   - src/components/
