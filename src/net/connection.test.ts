@@ -184,6 +184,17 @@ describe('retry backoff', () => {
     expect(c.status.value).toBe('unreachable');
     expect(c.conn.value).toBeNull();
   });
+
+  it('onConnect reports whether the controller accepted the connection', async () => {
+    const h = harness();
+    const c = createConnectionController(h.deps);
+    c.connect();
+    h.builds[0].handlers.onConnectError(networkError());
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(h.builds[0].handlers.onConnect(h.builds[0].conn)).toBe(false);
+    expect(h.builds[1].handlers.onConnect(h.builds[1].conn)).toBe(true);
+    expect(c.conn.value).toBe(h.builds[1].conn);
+  });
 });
 
 describe('disconnect', () => {

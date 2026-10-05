@@ -26,7 +26,8 @@ export type ConnectionStatus =
   | 'expired';
 
 export interface ConnectionHandlers<C> {
-  onConnect(conn: C): void;
+  /** Returns true when the controller accepted the connection, false when it was stale. */
+  onConnect(conn: C): boolean;
   onDisconnect(err?: Error): void;
   onConnectError(err: Error): void;
 }
@@ -168,7 +169,7 @@ export function createConnectionController<C extends { disconnect(): void }>(
       onConnect(c) {
         if (record !== current || record.intentional) {
           c.disconnect();
-          return;
+          return false;
         }
         record.conn = c;
         attempt = 0;
@@ -177,6 +178,7 @@ export function createConnectionController<C extends { disconnect(): void }>(
         conn.value = c;
         status.value = 'connected';
         clearTimer();
+        return true;
       },
       onDisconnect(err) {
         handleFailure(record, err);
@@ -267,9 +269,12 @@ export function buildDbConnection(
     .withDatabaseName(SPACETIMEDB_DB_NAME)
     .withToken(token)
     .onConnect((conn, identity) => {
-      window.__db_conn = conn;
-      window.__my_identity = identity;
-      handlers.onConnect(conn);
+      // Publish the debug globals only for an accepted connection: a superseded
+      // attempt's late onConnect must not clobber the live one.
+      if (handlers.onConnect(conn)) {
+        window.__db_conn = conn;
+        window.__my_identity = identity;
+      }
     })
     .onDisconnect((_ctx, err) => {
       logDisconnect(err);
