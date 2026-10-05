@@ -1275,3 +1275,34 @@ Reading of the reply, as the package defined it ("approved" takes every recommen
 - No pair is rejected, so no marker was changed to `voice:rejected`. No after block was edited by the owner, so every after text stands exactly as drafted.
 - OQ3 (b) (treating range_violation as a note, a rule change) was not chosen.
 - Nothing in the reply needs work outside plans 46-07 to 46-10, so no REPLAN REQUIRED.
+
+### Addendum (post-review WR-01, approved 2026-10-05)
+
+Source: `46-REVIEW.md` WR-01 (the NPC conversation request told the model both that it is the Keeper and that it is the NPC). Owner approved in chat via the WR-01 question: Apply as proposed. The wording below is the owner-approved wording, applied exactly. `{NAME}` is the existing `${w(npc.name)}` interpolation.
+
+`buildNpcConversationVolatile` (`spacetimedb/src/data/llm_layers.ts`):
+
+| Before | After |
+|---|---|
+| `You are {NAME}.` | `The NPC in this conversation is {NAME}.` |
+| `Your region: ...` | `{NAME}'s region: ...` (rest of the line unchanged) |
+| `Your secrets (only share at trusted+ affinity): ...` | `{NAME}'s secrets (share only at trusted+ affinity): ...` |
+| `You have no particular secrets to share.` | `{NAME} has no particular secrets to share.` |
+| `At this affinity you are willing to: ...` | `At this affinity {NAME} is willing to: ...` |
+| `Previously completed quests from you: ...` | `Quests {NAME} gave that the player completed: ...` |
+| `... You can reference these for narrative continuity and offer follow-up quests that build on past adventures.` | `... {NAME} can reference these for narrative continuity and offer follow-up quests that build on past adventures.` |
+| `You have already given this player a task that is not yet complete. Do NOT offer another quest.` | `{NAME} has already given this player a task that is not yet complete. Do NOT offer another quest.` |
+| `Respond in character.` | `Reply with the segments JSON object: {NAME}'s words in dialogue segments, your narration in the second person.` |
+
+All other lines are unchanged, including "Memory of past interactions", the quest-count line and "The player says:".
+
+`NPC_CONVERSATION_BLOCK` (2 lines):
+
+| Before | After |
+|---|---|
+| `What you know: your own region, its landmarks and threats, and your secrets. Share secrets only at trusted affinity or higher.` | `What the NPC knows: his or her own region, its landmarks and threats, and his or her secrets. Share secrets only at trusted affinity or higher.` |
+| `What you DO NOT know: other regions you have never visited, the player's private thoughts or inventory details, events in distant parts of the world, game mechanics or system rules.` | `What the NPC does NOT know: other regions he or she has never visited, the player's private thoughts or inventory details, events in distant parts of the world, game mechanics or system rules.` |
+
+The owner approved the head words of the second line ("What the NPC does NOT know: ..."). Changing "you have never visited" to "he or she has never visited" is the minimal grammatical follow-through, recorded here as such.
+
+Pins that moved: `llm_layers.test.ts` (new assertions that the volatile text starts with "The NPC in this conversation is" and no longer contains "You are " + name or "Respond in character.") and the `claude_request.test.ts` snapshot (only the npc_conversation entry changed).

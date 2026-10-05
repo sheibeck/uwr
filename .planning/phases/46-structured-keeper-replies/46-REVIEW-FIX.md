@@ -4,8 +4,8 @@ fixed_at: 2026-10-05T17:10:00Z
 review_path: .planning/phases/46-structured-keeper-replies/46-REVIEW.md
 iteration: 1
 findings_in_scope: 8
-fixed: 6
-skipped: 2
+fixed: 7
+skipped: 1
 status: partial
 ---
 
@@ -17,10 +17,10 @@ status: partial
 
 **Summary:**
 - Findings in scope: 8 (Critical 0, Warning 8; Info excluded by `fix_scope: critical_warning`)
-- Fixed: 6
-- Skipped: 2 (both by orchestrator scope decision)
+- Fixed: 7 (WR-01 after owner approval, see below)
+- Skipped: 1 (WR-07, owner decision G3)
 
-No approved wording was changed. No characterization or other snapshot was re-recorded: no stored-output snapshot changed, so there are no re-recorded cases to list. Three sweeper assertions in `llm_sweeper.test.ts` were updated by hand because the sweeper's lock-release row now carries segments (see WR-06).
+No approved wording was changed in the first pass. WR-01 was then applied after the owner approved its wording on 2026-10-05 (chat, "Apply as proposed"); the verbatim before/after pairs are recorded in `46-VOICE-CHANGES.md` section H, "Addendum (post-review WR-01, approved 2026-10-05)". That commit re-recorded the `claude_request` snapshot; only the npc_conversation entry changed. No characterization or other snapshot was re-recorded: no stored-output snapshot changed, so there are no re-recorded cases to list. Three sweeper assertions in `llm_sweeper.test.ts` were updated by hand because the sweeper's lock-release row now carries segments (see WR-06).
 
 Verification: full `spacetimedb` suite (`vitest run --maxWorkers=1`) 3404 passed, 2 failed, both in the known-baseline `measurement.results.test.ts`. `scripts/llm` 486 passed, with only the known-baseline `call_log_report.test.mjs` and `proof_rules.test.mjs` failing to load. `tsc --noEmit` reports nothing for the touched files. No new failures.
 
@@ -70,13 +70,14 @@ No export was added to `events.ts`; `segments.ts` (pure, never mocked) is the on
 **Commit:** c2a02be2
 **Applied fix:** `isUsableProse` returns false when the text contains `"segments"`, `"kind"`, `"speaker"` or `"text"` followed by a colon. The test reproduces the probe (`Sure, here: {"segments":[{"kind":"narration","speaker":"The Keeper","text":"You walk`), checks the ladder reaches the in-voice fallback with `salvageProse`, and checks ordinary prose containing the words "speaker" and "kind" is still accepted.
 
-## Skipped Issues
-
 ### WR-01: The NPC conversation request contradicts itself about who the model is
 
-**File:** `spacetimedb/src/data/llm_layers.ts:446` and `:767-790`
-**Reason:** prompt wording needs owner approval; escalated to orchestrator
-**Original issue:** `NPC_CONVERSATION_BLOCK` says the model is the Keeper narrating, while `buildNpcConversationVolatile` still opens with `You are ${npc.name}.` and speaks in the NPC's first person; the block's "What you know" lines also address the NPC as "you".
+**Files modified:** `spacetimedb/src/data/llm_layers.ts`, `spacetimedb/src/data/llm_layers.test.ts`, `spacetimedb/src/helpers/__snapshots__/claude_request.test.ts.snap`
+**Commit:** 4deb65c8
+**Status:** fixed (owner-approved). The owner approved this exact wording on 2026-10-05 in chat via the WR-01 question: Apply as proposed.
+**Applied fix:** `buildNpcConversationVolatile` now names the NPC in the third person ("The NPC in this conversation is {NAME}.", "{NAME}'s region", "{NAME}'s secrets (share only at trusted+ affinity)", "{NAME} has no particular secrets to share.", "At this affinity {NAME} is willing to", "Quests {NAME} gave that the player completed", "{NAME} can reference these", "{NAME} has already given this player a task ...") and ends with "Reply with the segments JSON object: {NAME}'s words in dialogue segments, your narration in the second person." Two lines of `NPC_CONVERSATION_BLOCK` ("What the NPC knows" and "What the NPC does NOT know") are in the third person. The change from "you have never visited" to "he or she has never visited" is the minimal grammatical follow-through of the approved head words. All other lines are unchanged. Tests: a new case in `llm_layers.test.ts` (volatile starts with "The NPC in this conversation is", no "You are " + name, no "Respond in character.", no "Your region/secrets", the block lines, the unfinished-task line); the `claude_request` snapshot was re-recorded and the diff shows only the npc_conversation entry. Verification: `spacetimedb` full suite 3405 passed and 2 failed (known-baseline `measurement.results.test.ts` only); root `scripts/llm` 486 passed with only the known-baseline `call_log_report.test.mjs` and `proof_rules.test.mjs` failing to load; free golden dry run passed (27 requests built, validated, byte-stable, none sent). No new failures. The model-facing effect (first-person slips, `segments_invalid`) remains for the deferred paid golden run to judge.
+
+## Skipped Issues
 
 ### WR-07: The `keeper_first_person` golden rule false-positives on the ordinary noun "mine"
 
