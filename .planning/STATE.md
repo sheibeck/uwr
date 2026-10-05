@@ -188,6 +188,7 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 |-------|-------|--------|
 | 41 | verification_deferred_human | /gsd-verify-work 41 |
 | 43 | verification_deferred_human | /gsd-verify-work 43 |
+| 44 | verification_deferred_human | /gsd-verify-work 44 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
 
