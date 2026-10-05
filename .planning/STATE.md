@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 46
 current_phase_name: Structured Keeper Replies
 status: executing
-stopped_at: Completed 46-03-PLAN.md
-last_updated: "2026-10-05T18:48:22.593Z"
+stopped_at: Completed 46-04-PLAN.md
+last_updated: "2026-10-05T18:56:16.129Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 46 execution started
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 21
-  completed_plans: 14
+  completed_plans: 15
   percent: 11
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 46 (Structured Keeper Replies) — EXECUTING
-Plan: 4 of 10
+Plan: 5 of 10
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 46 execution started
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 71%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -151,6 +151,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46-02: NPC replies use segmentsFromReply with present speakers from npc.by_location; non-JSON NPC reply is one Keeper segment with no memory write; world_gen stage 2 writes no model prose so stays unwrapped
 - [Phase ?]: Phase 46-03: combat round prefix removed; message always equals flattenSegments(segments); unusable successful combat replies store one Keeper fallback line per participant
 - [Phase ?]: Phase 46-03: failWorldFill creation_error line wrapped with keeperFallback segments (wording unchanged)
+- [Phase ?]: 46-04: narration segment speaker must be exactly 'The Keeper'; dialogue speakers compared by speakerKey against item allowedSpeakers
+- [Phase ?]: 46-04: keeper_first_person also lints plain combat prose so the rule holds before and after the 46-08 combat route flip
 
 ### Roadmap Evolution
 
@@ -257,8 +259,8 @@ Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed
 
 **Resume file:** None
 
-Last session: 2026-10-05T18:48:22.567Z
-Stopped at: Completed 46-03-PLAN.md
+Last session: 2026-10-05T18:56:16.101Z
+Stopped at: Completed 46-04-PLAN.md
 
 ## Performance Metrics
 
@@ -356,6 +358,7 @@ Stopped at: Completed 46-03-PLAN.md
 | Phase 46 P01 | 20min | 3 tasks | 10 files |
 | Phase 46 P02 | 35min | 3 tasks | 4 files |
 | Phase 46 P03 | 40min | 3 tasks | 7 files |
+| Phase 46 P04 | 35min | 2 tasks | 5 files |
 
 ## Operator Next Steps
 
