@@ -236,6 +236,21 @@ Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed
 
 ## Session Continuity
 
+### Resume note (2026-10-05, before /compact)
+
+- Running: /gsd-autonomous --from 45 (v3.0). Resume with `/gsd-autonomous --from 46`.
+- Phase 45: built (11/11 plans), code review clean after 3 iterations, verification human_needed. Hands-on UAT deferred to the end of the milestone (45-UAT.md; owner wants ALL testing in one pass at the end).
+- Phase 46: CONTEXT committed (discuss done) and RESEARCH committed. Next: VALIDATION.md (Nyquist, from the RESEARCH Validation Architecture), pattern-mapper, planner, plan-checker. Plan with --skip-ui: backend only, and the UI gate is a keyword false positive.
+- Phase 46 research facts:
+  - The optional segments column on event tables publishes locally with --break-clients and needs no clear.
+  - npc_conversation stays a prompt-JSON text route.
+  - SEG-04 drills go in a new llm_segment_drills.test.ts.
+  - Owner open questions OQ1-OQ7 (see 46-RESEARCH.md) belong in the single 46-VOICE-CHANGES.md approval checkpoint, along with the 44 Fix 2 range decision (OQ3).
+- Execution mode: sequential on the main checkout (local master is ahead of origin, so the worktree base check degrades). Executors must never push or publish to maincloud.
+- Baseline test failures to ignore: scripts/llm/call_log_report, golden_run and proof_rules tests, plus spacetimedb/src/helpers/measurement.results.test.ts.
+- Open todo: CR-01 / login_email trusts client email (.planning/todos/pending/2026-10-05-login-email-trusts-client-supplied-email.md).
+
+
 **Resume file:** None
 
 Last session: 2026-10-05T16:11:35.878Z
