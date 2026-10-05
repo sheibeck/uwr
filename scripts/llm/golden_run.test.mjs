@@ -512,6 +512,72 @@ describe('replay of the committed golden run (vacuous until a record exists)', (
   });
 });
 
+describe('pinned golden record', () => {
+  const dir = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval');
+  const file = path.join(dir, '44-golden-run.json');
+  const pagePath = path.join(dir, '44-golden-review.html');
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+  it('has a recorded, declined or deferred status', () => {
+    expect(['recorded', 'declined', 'deferred']).toContain(record.status);
+  });
+
+  it('holds exactly the 27 golden ids in set order, each with a reason when it did not run or failed', () => {
+    expect(record.items.map((i) => i.id)).toEqual([...GOLDEN_IDS]);
+    for (const item of record.items) {
+      if (!item.ran) expect(typeof item.failureClass, item.id).toBe('string');
+      if (item.ran && item.ok === false) expect(item.failureClass ?? item.stopReason, item.id).toBeTruthy();
+      if (item.mechanical && item.mechanical.pass === false) expect(item.mechanical.failures.length, item.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('records the window and keeps the total cost exactly equal to the sum of the item costs', () => {
+    if (record.status === 'recorded') {
+      expect(typeof record.window.startedAt).toBe('string');
+      expect(typeof record.window.endedAt).toBe('string');
+      expect(Number.isNaN(Date.parse(record.window.startedAt))).toBe(false);
+      expect(Number.isNaN(Date.parse(record.window.endedAt))).toBe(false);
+    }
+    const sum = record.items.reduce((acc, i) => acc + BigInt(i.costMicroUsd), 0n);
+    expect(BigInt(record.totals.costMicroUsd)).toBe(sum);
+    expect(BigInt(record.totals.costMicroUsd) <= GOLDEN_STOP_AT_MICRO_USD).toBe(true);
+    expect(record.totals.calls).toBe(record.items.filter((i) => i.ran).length);
+  });
+
+  it('is hygiene-clean and carries no approval', () => {
+    expect(recordHygieneProblems(record)).toEqual([]);
+    expect(record.approval).toBeNull();
+  });
+
+  it('has a review page with no key-shaped string and exactly two script elements (recorded run)', () => {
+    if (record.status !== 'recorded') return;
+    expect(fs.existsSync(pagePath)).toBe(true);
+    const page = fs.readFileSync(pagePath, 'utf8');
+    expect(page).not.toMatch(/sk-ant-[A-Za-z0-9_-]{8,}/);
+    expect(page).not.toMatch(/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/);
+    expect(page.match(/<script\b/gi) ?? []).toHaveLength(2);
+  });
+
+  it('replays every item that ran within its stored mechanical result, non-vacuously', () => {
+    if (record.status !== 'recorded') return;
+    let replayed = 0;
+    for (const stored of record.items) {
+      if (!stored.ran) continue;
+      replayed += 1;
+      const replay = evaluateGoldenItem(goldenItem(stored.id), {
+        ok: stored.ok,
+        failureClass: stored.failureClass,
+        stopReason: stored.stopReason,
+        text: stored.text,
+        usage: stored.usage,
+      });
+      for (const f of replay.failures) expect(stored.mechanical.failures, `${stored.id} ${f}`).toContain(f);
+    }
+    expect(replayed).toBe(record.items.filter((i) => i.ran).length);
+    expect(replayed).toBeGreaterThan(0);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Static guards on the harness source (T-44-04-02, T-44-04-03)
 // ---------------------------------------------------------------------------
