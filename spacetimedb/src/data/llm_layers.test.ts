@@ -486,7 +486,9 @@ describe('route blocks and volatile builders', () => {
 
     it('npc_conversation describes the JSON reply and lists effects and quest types from the vocabulary', () => {
       const block = ROUTE_BLOCKS.npc_conversation;
-      for (const key of ['dialogue', 'internalThought', 'effects', 'memoryUpdate']) expect(block).toContain(`"${key}"`);
+      // 46-07 (route-npc_conversation-4): the single "dialogue" string became a segments array.
+      for (const key of ['segments', 'internalThought', 'effects', 'memoryUpdate']) expect(block).toContain(`"${key}"`);
+      expect(block).not.toContain('"dialogue":');
       for (const effect of ['offer_quest', 'reveal_location', 'affinity_change', 'open_shop', 'none']) expect(block).toContain(effect);
       for (const quest of ['kill', 'delivery', 'boss_kill', 'discover']) expect(block).toContain(quest);
     });

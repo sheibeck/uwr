@@ -78,7 +78,7 @@ export const RACE_SCHEMA: Node = deepFreeze(
     raceName: str(
       "Use the EXACT race name the player gave. Do NOT expand, embellish, or add adjectives. If the player said 'Cyclops', the raceName is 'Cyclops'. If the player said 'fire goblin', the raceName is 'Fire Goblin' (just capitalize). Only invent a name if the player gave a vague description like 'some kind of shadow creature' rather than a specific race name.",
     ),
-    narrative: str('2-3 sentences of sardonic Keeper commentary about this race'),
+    narrative: str('2-3 sentences of dry second-person narration about this race, no first person'),
     bonuses: obj({
       primary: obj({ stat: STATS, value: { type: 'integer', description: 'Typically 2' } }),
       secondary: obj({ stat: STATS, value: { type: 'integer', description: 'Typically 1' } }),
@@ -254,7 +254,7 @@ export const REGION_FILL_SCHEMA: Node = deepFreeze(
 
 const SKILL_ITEM: Node = obj({
   name: str('2-3 words max, punchy action name'),
-  description: str('Sardonic Keeper narrator description, 1-2 sentences'),
+  description: str('Dry second-person narration of what the ability does, 1-2 sentences, no first person'),
   kind: enumOf(
     ABILITY_KINDS,
     'damage=single-hit direct damage, dot=damage over time (burning, bleeding, poisoning), hot=heal over time, heal=instant heal, buff=apply positive effect, debuff=apply negative effect, shield=absorb barrier, taunt=force target, aoe_damage=multi-target damage, aoe_heal=multi-target heal, cc=crowd control, drain=damage+self-heal, execute=bonus vs low HP, utility=non-combat, song=toggle party-wide persistent buff (bards), aura=passive area effect from caster, travel=movement speed/reveal buff, fear=CC causing enemy to flee/stun, bandage=self-heal consumable-like (long cooldown), potion=self-heal/buff consumable-like (long cooldown), food_summon=conjure food items for buffs, resurrect=revive dead party member, group_heal=heal all party members, craft_boost=boost next crafting quality, gather_boost=boost next gathering yield, pet_command=command active pet',
@@ -288,7 +288,7 @@ export const SKILL_GENERATION_SCHEMA: Node = deepFreeze(
 
 const RENOWN_PERK_ITEM: Node = obj({
   name: str("2-3 words, punchy reputation-flavored name (e.g. 'Merchant's Favor', 'Whisper Network')"),
-  description: str('Sardonic Keeper narrator description, 1-2 sentences'),
+  description: str('Dry second-person narration of what the perk does, 1-2 sentences, no first person'),
   kind: enumOf(['', ...ABILITY_KINDS], 'Ability kind, OR empty string for a passive bonus perk'),
   targetRule: enumOf(['single_enemy', 'single_ally', 'self', 'all_enemies', 'all_allies', 'all_party']),
   resourceType: enumOf(RESOURCE_TYPES),

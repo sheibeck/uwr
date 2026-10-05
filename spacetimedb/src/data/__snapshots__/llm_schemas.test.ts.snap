@@ -434,7 +434,7 @@ exports[`lint and determinism > RACE_SCHEMA serialization is deterministic and m
     },
     "narrative": {
       "type": "string",
-      "description": "2-3 sentences of sardonic Keeper commentary about this race"
+      "description": "2-3 sentences of dry second-person narration about this race, no first person"
     },
     "bonuses": {
       "type": "object",
@@ -759,7 +759,7 @@ exports[`lint and determinism > RENOWN_PERK_SCHEMA serialization is deterministi
           },
           "description": {
             "type": "string",
-            "description": "Sardonic Keeper narrator description, 1-2 sentences"
+            "description": "Dry second-person narration of what the perk does, 1-2 sentences, no first person"
           },
           "kind": {
             "type": "string",
@@ -968,7 +968,7 @@ exports[`lint and determinism > SKILL_GENERATION_SCHEMA serialization is determi
           },
           "description": {
             "type": "string",
-            "description": "Sardonic Keeper narrator description, 1-2 sentences"
+            "description": "Dry second-person narration of what the ability does, 1-2 sentences, no first person"
           },
           "kind": {
             "type": "string",
