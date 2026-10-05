@@ -91,6 +91,11 @@ Run order (owner, 2026-10-05): Phase 47 runs before 46.1. After Phase 47 the run
   - Party members show health and an Invite button.
 - **Mobile.** The compact strip and the tab bar reach the vitals, routes, Nearby, quests and the active event, at 390×844.
 
+### Owner decisions after research (2026-10-05)
+- **World event card.** There is no faction split. The server has only success/failure counters, and nothing in normal play moves them. The card shows the event's real objective progress instead (for example "Wolves culled 12/40") from `event_objective` (`currentCount/targetCount`), which kills already update. The For/Against bar appears only when the success or failure counter is non-zero. Client-only, no server change.
+- **Info commands.** The new client ports the old client formatters. `renown`, `factions`, `faction <name>`, `events` and bare `group` print their information into the feed from data the client already subscribes to: renown, faction standings, active events and the group roster. `who` and `/who` go to the server intent path (`submit_intent`), which answers per location. `submit_command` only echoes, so no command relies on it for a result.
+- **Dev slash commands** (`/level`, `/createitem` and the like) are not mapped in this phase. They wait for the Phase 52 parity checklist, consistent with the Phase 45 decision on admin commands.
+
 ### Claude's Discretion
 - Component and file layout inside `src/` (for example `src/console/`, `src/input/`, `src/rails/`).
 - How the feed store is built (a composable with a capped array).
