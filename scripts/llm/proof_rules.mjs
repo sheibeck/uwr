@@ -1,17 +1,185 @@
-// Pure rules for the local live-proof harness (Plan 41-15, OPS-01). No I/O, no SDK, no secrets.
-// The harness (prove-live.live.ts) imports these; tests live in proof_rules.test.mjs.
+// Pure rules for the local live-proof harness (Plan 41-15, OPS-01; staged for Phase 43 in Plan 44-05, QUAL-02).
+// No I/O, no SDK, no secrets. The harness (prove-live.live.ts) imports these; tests live in proof_rules.test.mjs.
+//
+// The smoke expectation is read from the server (LLM_SMOKE_ROUTES) and the database name goes through
+// resolveLiveDb in cli.mjs; neither is copied here.
 
-/** The live-proof steps, in the order the harness runs them (one real action per domain). */
+import { resolveLiveDb } from './cli.mjs';
+import { LLM_SMOKE_ROUTES } from '../../spacetimedb/src/data/llm_limits.ts';
+
+/**
+ * The live-proof steps, in the order the harness runs them: the Phase 43 staged flow. Stage 1 (reveal, start)
+ * and stage 2 (fill) are separate steps so they are timed separately.
+ */
 export const PROOF_STEPS = Object.freeze([
   'smoke',
   'creation_race',
+  'creation_class_reveal',
   'creation_class',
+  'world_gen_start',
   'world_gen',
+  'explore_region',
   'npc_conversation',
+  'npc_burst',
   'combat_narration',
   'renown_perk_gen',
   'skill_gen',
+  'llm_stats',
 ]);
+
+/**
+ * Domain to the steps that must all pass for it. llm_stats is in no domain: it is a free command whose line
+ * may only be accepted (not read back) through the bindings, so it is recorded and left to the user checklist.
+ */
+export const PROOF_DOMAINS = Object.freeze({
+  smoke: Object.freeze(['smoke']),
+  creation: Object.freeze(['creation_race', 'creation_class_reveal', 'creation_class']),
+  world_gen: Object.freeze(['world_gen_start', 'world_gen', 'explore_region']),
+  npc_chat: Object.freeze(['npc_conversation', 'npc_burst']),
+  combat_narration: Object.freeze(['combat_narration']),
+  renown: Object.freeze(['renown_perk_gen']),
+  skills: Object.freeze(['skill_gen']),
+});
+
+/** Steps that cause no model job of their own to observe: they pass on the documented observable instead. */
+const FREE_STEPS = Object.freeze(['explore_region', 'llm_stats']);
+
+/** How many sequential NPC chat turns the burst makes (the report's indicative threshold is the same number). */
+export const NPC_BURST_TURNS = 20;
+
+/**
+ * The creation state machine in order (spacetimedb/src/helpers/creation_generation.ts comment block, plus the
+ * reducer's name and confirm steps). CLASS_FILL_ERROR is the failed side of the stage-2 fill; it sits before
+ * CLASS_REVEALED so reaching CLASS_REVEALED is never confused with the error state. A drift test reads the
+ * server source to keep every name here real.
+ */
+export const CREATION_ORDER = Object.freeze([
+  'AWAITING_RACE',
+  'GENERATING_RACE',
+  'AWAITING_ARCHETYPE',
+  'GENERATING_CLASS',
+  'CLASS_FILLING',
+  'CLASS_FILL_ERROR',
+  'CLASS_REVEALED',
+  'AWAITING_NAME',
+  'CONFIRMING',
+  'COMPLETE',
+]);
+
+/** PROVE_LIVE_RUN to a mode. Unset or empty is the free dry run, run is paid, anything else throws. */
+export function resolveProveMode(value) {
+  if (value === undefined || value === null || value === '') return 'dry';
+  if (value === 'run') return 'run';
+  throw new Error('PROVE_LIVE_RUN must be unset (dry run) or run (paid)');
+}
+
+/** LLM_LIVE_DB to a database name: scratch database by default, otherwise exactly an allowlisted local one. */
+export function resolveProofDb(value) {
+  if (value === undefined || value === null || value === '') return 'uwr-verify';
+  return resolveLiveDb(value);
+}
+
+/** The number of routes the smoke test must report, read from the server list. */
+export function expectedSmokeCount() {
+  return LLM_SMOKE_ROUTES.length;
+}
+
+/** The sample count below which a latency figure is only indicative. */
+export function burstSampleVerdict(okCount) {
+  const n = Number.isFinite(okCount) ? Number(okCount) : 0;
+  return { okCount: n, indicative: n < NPC_BURST_TURNS };
+}
+
+/**
+ * Real model calls the whole run makes, per route, in the server route order: the smoke routes once each, then
+ * creation race, class reveal and fill once each, world start and fill twice each (the starter region and the
+ * explored one), one NPC chat turn plus the burst, one narration, one renown call and one skill call.
+ * The harness prices these for the worst-case bound it prints before any spend.
+ */
+export function plannedCallCounts() {
+  const counts = {};
+  const add = (route, n) => {
+    counts[route] = (counts[route] ?? 0) + n;
+  };
+  for (const route of LLM_SMOKE_ROUTES) add(route, 1);
+  add('creation_race', 1);
+  add('creation_class_reveal', 1);
+  add('creation_class', 1);
+  add('world_gen_start', 2);
+  add('world_gen', 2);
+  add('npc_conversation', 1 + NPC_BURST_TURNS);
+  add('combat_narration', 1);
+  add('renown_perk_gen', 1);
+  add('skill_gen', 1);
+  const order = [
+    'creation_race',
+    'creation_class_reveal',
+    'creation_class',
+    'world_gen_start',
+    'world_gen',
+    'skill_gen',
+    'npc_conversation',
+    'combat_narration',
+    'renown_perk_gen',
+    'smoke_test',
+  ];
+  const ordered = {};
+  for (const route of order) if (counts[route] !== undefined) ordered[route] = counts[route];
+  for (const route of Object.keys(counts)) if (ordered[route] === undefined) ordered[route] = counts[route];
+  return Object.freeze(ordered);
+}
+
+const isObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
+
+/**
+ * True when one recorded step result counts as observed and passing: the harness marked it ok, it measured a
+ * positive latency (zero latency never passes), and the job status is completed (a job step) or completed or
+ * observed (a free step). skipped, missing, none, timeout, error and anything else fail.
+ */
+function stepPassed(result) {
+  if (!isObject(result) || result.ok !== true) return false;
+  if (typeof result.elapsedMs !== 'number' || !Number.isFinite(result.elapsedMs) || result.elapsedMs <= 0) return false;
+  if (FREE_STEPS.includes(result.step)) return result.jobStatus === 'completed' || result.jobStatus === 'observed';
+  return result.jobStatus === 'completed';
+}
+
+/**
+ * The overall verdict over the recorded step results. Per domain: passed (every step passed), not_run (no step
+ * has a result) or failed (anything else, including a step that never ran inside a domain that did). The last
+ * result recorded for a step wins. Any domain not passed makes the run a failure; nothing skipped passes.
+ */
+export function proofVerdict(results) {
+  const last = new Map();
+  for (const r of Array.isArray(results) ? results : []) {
+    if (isObject(r) && typeof r.step === 'string') last.set(r.step, r);
+  }
+  const domains = {};
+  const missingSteps = {};
+  const notRun = [];
+  const failed = [];
+  for (const [domain, steps] of Object.entries(PROOF_DOMAINS)) {
+    const present = steps.filter((s) => last.has(s));
+    if (present.length === 0) {
+      domains[domain] = 'not_run';
+      notRun.push(domain);
+      continue;
+    }
+    const missing = steps.filter((s) => !last.has(s));
+    if (missing.length > 0) missingSteps[domain] = missing;
+    if (missing.length === 0 && steps.every((s) => stepPassed(last.get(s)))) domains[domain] = 'passed';
+    else {
+      domains[domain] = 'failed';
+      failed.push(domain);
+    }
+  }
+  return { pass: notRun.length === 0 && failed.length === 0, domains, notRun, failed, missingSteps };
+}
+
+/** True only when lastSmokeJson holds exactly expectedSmokeCount() routes and every one is ok. */
+export function smokeAllOk(json) {
+  const s = summarizeSmoke(json);
+  return s.total === expectedSmokeCount() && s.ok === s.total;
+}
 
 /** The harness stops before any paid step that would bring today's held spend within this of the daily ceiling ($0.20). */
 export const PROOF_SPEND_MARGIN_MICRO_USD = 200_000n;
