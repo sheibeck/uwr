@@ -19,11 +19,11 @@ afterEach(() => {
 });
 
 describe('Drawer', () => {
-  it('is a labelled modal dialog titled by an h4', () => {
+  it('is a labelled non-modal dialog titled by an h4', () => {
     const w = mountDrawer();
     const root = w.get('section');
     expect(root.attributes('role')).toBe('dialog');
-    expect(root.attributes('aria-modal')).toBe('true');
+    expect(root.attributes('aria-modal')).toBe('false');
     const heading = w.get('h4');
     expect(heading.text()).toBe('Map');
     expect(root.attributes('aria-labelledby')).toBe(heading.attributes('id'));
@@ -103,6 +103,42 @@ describe('Drawer', () => {
     inner.element.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(w.get('button.btn-icon').element);
+  });
+
+  it('Tab from a header or tab-bar control outside the dialog is not intercepted', () => {
+    const chrome = document.createElement('button');
+    chrome.type = 'button';
+    document.body.appendChild(chrome);
+    const w = mountDrawer();
+    chrome.focus();
+    expect(document.activeElement).toBe(chrome);
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true, bubbles: true });
+    chrome.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(chrome);
+    const back = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true });
+    chrome.dispatchEvent(back);
+    expect(back.defaultPrevented).toBe(false);
+    expect(w.emitted('close')).toBeUndefined();
+  });
+
+  it('Tab with focus lost on the body is pulled into the dialog', () => {
+    const w = mountDrawer();
+    (document.activeElement as HTMLElement | null)?.blur();
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true, bubbles: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(w.get('section').element.contains(document.activeElement)).toBe(true);
+  });
+
+  it('Tab on the first focusable element with Shift wraps to the last', () => {
+    const w = mountDrawer();
+    const close = w.get('button.btn-icon');
+    (close.element as HTMLElement).focus();
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true });
+    close.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(w.get('button.inner').element);
   });
 
   it('renders the slot inside the scrolling body', () => {

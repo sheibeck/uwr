@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, useId, useTemplateRef } from 'vue';
 import { PhX } from '@phosphor-icons/vue';
-import { trapTabKey } from './focusTrap';
+import { trapTabKeyAtDocument } from './focusTrap';
 
 const props = defineProps<{ title: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -11,11 +11,11 @@ const closeButton = useTemplateRef<HTMLButtonElement>('closeButton');
 const root = useTemplateRef<HTMLElement>('root');
 
 function onDocumentKeydown(event: KeyboardEvent): void {
-  // Tab is trapped at the document, not on the dialog: with focus on <body> (or anywhere
-  // outside) a dialog-level handler never sees the event and Tab would walk out of an
-  // aria-modal dialog.
+  // Tab is handled at the document, not on the dialog: with focus lost on <body> a
+  // dialog-level handler never sees the event and Tab would walk out. Focus that is on the
+  // header or tab bar beside the dialog is left alone so those controls stay reachable.
   if (event.key === 'Tab') {
-    if (root.value) trapTabKey(event, root.value);
+    if (root.value) trapTabKeyAtDocument(event, root.value);
     return;
   }
   if (event.key !== 'Escape' || event.defaultPrevented) return;
@@ -33,7 +33,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section ref="root" class="drawer" role="dialog" aria-modal="true" :aria-labelledby="titleId">
+  <!-- Non-modal: the rail and header stay visible and operable beside the drawer (inset 252px). -->
+  <section ref="root" class="drawer" role="dialog" aria-modal="false" :aria-labelledby="titleId">
     <div class="drawer-header">
       <h4 :id="titleId">{{ props.title }}</h4>
       <span class="drawer-meta"><slot name="meta" /></span>

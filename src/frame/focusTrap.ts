@@ -40,3 +40,17 @@ export function trapTabKey(event: KeyboardEvent, container: HTMLElement): void {
     first.focus();
   }
 }
+
+/**
+ * Document-level variant of `trapTabKey` for dialogs that sit beside live app chrome (the
+ * header, rail and tab bar stay operable next to an open drawer or sheet). Tab is trapped only
+ * when focus is lost (on <body> or nothing) or already inside the dialog; focus that is
+ * deliberately on a control outside the dialog is left alone so Tab can move between that chrome.
+ */
+export function trapTabKeyAtDocument(event: KeyboardEvent, container: HTMLElement): void {
+  if (event.key !== 'Tab') return;
+  const active = document.activeElement;
+  const lost = active === null || active === document.body;
+  const inside = active instanceof Node && container.contains(active);
+  if (lost || inside) trapTabKey(event, container);
+}

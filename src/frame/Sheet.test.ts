@@ -103,6 +103,33 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(w.get('button.btn-icon').element);
   });
 
+  it('Tab from a tab-bar control outside the dialog is not intercepted', () => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    document.body.appendChild(tab);
+    const w = mountSheet();
+    tab.focus();
+    expect(document.activeElement).toBe(tab);
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true, bubbles: true });
+    tab.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(tab);
+    const back = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true });
+    tab.dispatchEvent(back);
+    expect(back.defaultPrevented).toBe(false);
+    expect(w.emitted('close')).toBeUndefined();
+  });
+
+  it('Shift+Tab on the first focusable element wraps to the last', () => {
+    const w = mountSheet();
+    const close = w.get('button.btn-icon');
+    (close.element as HTMLElement).focus();
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true });
+    close.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(w.get('button.inner').element);
+  });
+
   it('style has the 20px top radius, 44px close button and a reduced-motion rule', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/frame/Sheet.vue'), 'utf8');
     expect(source).toContain('border-radius: 20px 20px 0 0');
