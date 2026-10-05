@@ -6,6 +6,7 @@
 
 import { KEEPER_BANNED_PHRASES } from '../../spacetimedb/src/data/keeper_bible.ts';
 import { inferGenderFromText } from '../../spacetimedb/src/data/npc_gender.ts';
+import { SEGMENT_KINDS } from '../../spacetimedb/src/helpers/segments.ts';
 import {
   LLM_ROUTE_BASELINES,
   LLM_SWEEP_EFFORTS,
@@ -180,7 +181,7 @@ const OVERUSED_NAME_WORDS = Object.freeze(['verge', 'veil', 'ashen', 'dusk', 'sh
 const MARKDOWN = /\*\*|`|^[ \t]*#{1,6}[ \t]|^[ \t]*-[ \t]/m;
 
 /** Fields whose text is narrative: no exclamation marks. */
-const NARRATIVE_KEY = /description$|^(dialogue|narrative|narration)$/i;
+const NARRATIVE_KEY = /description$|^(dialogue|narrative|narration|text)$/i;
 
 /**
  * The model talking about its own output instead of staying in voice: a self-correction ("Wait:",
@@ -240,7 +241,7 @@ function placeNamesOf(parsed) {
  */
 export function toneLint(route, text, parsed) {
   const raw = typeof text === 'string' ? text : '';
-  const obj = isObject(parsed) ? parsed : route === 'npc_conversation' ? extractJsonObject(raw) : undefined;
+  const obj = isObject(parsed) ? parsed : route === 'npc_conversation' || route === 'combat_narration' ? extractJsonObject(raw) : undefined;
   const fields = obj ? collectStrings(obj) : [];
   const all = [raw, ...fields.map((f) => f.value)];
   const failed = new Set();
@@ -253,7 +254,16 @@ export function toneLint(route, text, parsed) {
 
   if (all.some((s) => MARKDOWN.test(s))) failed.add('markdown');
 
-  if (route === 'combat_narration' && raw.includes('!')) failed.add('exclamation');
+  // Combat on a segment reply lints the joined narration text (the JSON punctuation is not prose);
+  // NARRATIVE_KEY (which includes `text`) covers every segment's exclamation marks below.
+  const segmented = route === 'combat_narration' && Array.isArray(obj?.segments);
+  const narration = segmented
+    ? obj.segments
+        .filter((s) => isObject(s) && s.kind === 'narration' && typeof s.text === 'string')
+        .map((s) => s.text)
+        .join(' ')
+    : raw;
+  if (route === 'combat_narration' && narration.includes('!')) failed.add('exclamation');
   if (fields.some((f) => NARRATIVE_KEY.test(f.key) && f.value.includes('!'))) failed.add('exclamation');
 
   for (const name of placeNamesOf(obj)) {
@@ -279,7 +289,7 @@ export function toneLint(route, text, parsed) {
   }
 
   if (route === 'combat_narration') {
-    const trimmed = raw.trim();
+    const trimmed = narration.trim();
     if (trimmed.startsWith('{')) failed.add('text_json_wrapper');
     if (/^["'“‘]/.test(trimmed) && /["'”’]$/.test(trimmed)) failed.add('text_quotes');
     const sentences = sentenceCount(trimmed);
@@ -333,14 +343,16 @@ export function structuralCheck(route, parsedOrText) {
     case 'renown_perk_gen':
       if (!isObject(p) || !Array.isArray(p.perks) || p.perks.length < 1) bad.push('missing_perks');
       break;
-    case 'npc_conversation': {
+    case 'npc_conversation':
+    case 'combat_narration': {
       const obj = typeof p === 'string' ? extractJsonObject(p) : isObject(p) ? p : undefined;
-      if (!obj || !isNonEmptyString(obj.dialogue)) bad.push('missing_dialogue');
+      const usable =
+        isObject(obj) &&
+        Array.isArray(obj.segments) &&
+        obj.segments.some((x) => isObject(x) && SEGMENT_KINDS.includes(x.kind) && isNonEmptyString(x.text));
+      if (!usable) bad.push('missing_segments');
       break;
     }
-    case 'combat_narration':
-      if (typeof p !== 'string' || p.trim() === '') bad.push('empty_text');
-      break;
     default:
       bad.push('unknown_route');
   }

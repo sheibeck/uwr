@@ -83,9 +83,17 @@ const CLEAN = {
   },
   skill_gen: { skills: [{ ...ABILITY, name: 'Pry Bar Swing' }] },
   renown_perk_gen: { perks: [{ ...ABILITY, name: 'Merchant Favor', description: 'Shopkeepers remember you kindly.' }] },
-  npc_conversation: '{"dialogue":"The tide table is on the wall. Read it or do not.","internalThought":"A stranger.","effects":[]}',
-  combat_narration:
-    'Your blade finds the hound twice before it understands the question. It falls with an expression of mild disappointment. You are left standing, slightly out of breath and entirely unimpressed.',
+  npc_conversation:
+    '{"segments":[{"kind":"dialogue","speaker":"Maren Voss","text":"The tide table is on the wall. Read it or do not."}],"internalThought":"A stranger.","effects":[]}',
+  combat_narration: JSON.stringify({
+    segments: [
+      {
+        kind: 'narration',
+        speaker: 'The Keeper',
+        text: 'Your blade finds the hound twice before it understands the question. It falls with an expression of mild disappointment. You are left standing, slightly out of breath and entirely unimpressed.',
+      },
+    ],
+  }),
 };
 
 const replyTextOf = (route) => (typeof CLEAN[route] === 'string' ? CLEAN[route] : JSON.stringify(CLEAN[route]));
@@ -169,6 +177,16 @@ describe('toneLint', () => {
     expect(toneLint('combat_narration', 'You win! It dies. Sad.')).toContain('exclamation');
   });
 
+  it('exclamation: inside any segment text, on both segment routes', () => {
+    const seg = (kind, text) => ({ kind, speaker: kind === 'dialogue' ? 'Maren Voss' : 'The Keeper', text });
+    const npc = JSON.stringify({ segments: [seg('narration', 'She nods.'), seg('dialogue', 'Buy something!')] });
+    expect(toneLint('npc_conversation', npc)).toContain('exclamation');
+    const cmbDialogue = JSON.stringify({ segments: [seg('narration', 'You win. It dies. Sad.'), seg('dialogue', 'Stop!')] });
+    expect(toneLint('combat_narration', cmbDialogue)).toContain('exclamation');
+    const cmbNarration = JSON.stringify({ segments: [seg('narration', 'You win! It dies. Sad.')] });
+    expect(toneLint('combat_narration', cmbNarration)).toContain('exclamation');
+  });
+
   it('naming_overuse: an overused word in a region or location name, whole words only', () => {
     const bad = { ...CLEAN.world_gen_start, regionName: 'Ashen Verge' };
     expect(toneLint('world_gen_start', JSON.stringify(bad), bad)).toContain('naming_overuse');
@@ -207,6 +225,39 @@ describe('toneLint', () => {
   it('text_json_wrapper and text_quotes on combat narration', () => {
     expect(toneLint('combat_narration', '{"narrative":"You win. It dies. Sad."}')).toContain('text_json_wrapper');
     expect(toneLint('combat_narration', '"You win. It dies. Sad."')).toContain('text_quotes');
+  });
+
+  describe('combat tone lints on segment replies (joined narration text)', () => {
+    const narr = (...texts) => JSON.stringify({ segments: texts.map((text) => ({ kind: 'narration', speaker: 'The Keeper', text })) });
+
+    it('a JSON reply with two to four narration sentences and no exclamation lints clean', () => {
+      expect(toneLint('combat_narration', narr('You win. It dies.'))).toEqual([]);
+      expect(toneLint('combat_narration', narr('You win. It dies.', 'Silence. Dust.'))).toEqual([]);
+    });
+
+    it('does not flag the JSON wrapper of a segment reply', () => {
+      expect(toneLint('combat_narration', narr('You win. It dies. Sad.'))).not.toContain('text_json_wrapper');
+    });
+
+    it('counts sentences over the narration segments joined with one space', () => {
+      expect(toneLint('combat_narration', narr('You win.'))).toContain('narration_sentences');
+      expect(toneLint('combat_narration', narr('One. Two.', 'Three.', 'Four. Five.'))).toContain('narration_sentences');
+      expect(toneLint('combat_narration', narr('One. Two.', 'Three.'))).not.toContain('narration_sentences');
+    });
+
+    it('text_quotes fires when the joined narration is wrapped in quotes', () => {
+      expect(toneLint('combat_narration', narr('"You win. It dies. Sad."'))).toContain('text_quotes');
+    });
+
+    it('a parsed object is linted the same as its text', () => {
+      const parsed = JSON.parse(narr('You win. It dies.'));
+      expect(toneLint('combat_narration', JSON.stringify(parsed), parsed)).toEqual([]);
+    });
+
+    it('a reply without a segments array keeps the raw-text behavior', () => {
+      expect(toneLint('combat_narration', '{"narrative":"You win. It dies. Sad."}')).toContain('text_json_wrapper');
+      expect(toneLint('combat_narration', 'One. Two.')).not.toContain('narration_sentences');
+    });
   });
 
   it('narration_sentences: 2 to 4 sentences', () => {
@@ -283,16 +334,48 @@ describe('structuralCheck', () => {
     expect(structuralCheck('renown_perk_gen', { perks: [] })).toEqual(['missing_perks']);
   });
 
-  it('npc_conversation text must contain a JSON object with a non-empty string dialogue', () => {
-    expect(structuralCheck('npc_conversation', 'Sure: {"dialogue":"Hello."} done')).toEqual([]);
-    expect(structuralCheck('npc_conversation', '{"dialogue":""}')).toEqual(['missing_dialogue']);
-    expect(structuralCheck('npc_conversation', 'no json here')).toEqual(['missing_dialogue']);
-    expect(structuralCheck('npc_conversation', '{"dialogue":5}')).toEqual(['missing_dialogue']);
+  describe.each(['npc_conversation', 'combat_narration'])('%s needs a usable segment', (route) => {
+    const good = { segments: [{ kind: 'narration', speaker: 'The Keeper', text: 'It dies.' }] };
+
+    it('a valid segment passes as text, text around JSON and a parsed object', () => {
+      expect(structuralCheck(route, JSON.stringify(good))).toEqual([]);
+      expect(structuralCheck(route, 'Sure: ' + JSON.stringify(good) + ' done')).toEqual([]);
+      expect(structuralCheck(route, good)).toEqual([]);
+      expect(structuralCheck(route, { segments: [{ kind: 'dialogue', speaker: 'Marta', text: 'Hello.' }] })).toEqual([]);
+    });
+
+    it.each([
+      ['no json', 'no json here'],
+      ['empty string', ''],
+      ['undefined', undefined],
+      ['no segments key', '{"dialogue":"Hello."}'],
+      ['segments not an array', { segments: 'x' }],
+      ['empty array', { segments: [] }],
+      ['blank text', { segments: [{ kind: 'narration', text: '   ' }] }],
+      ['non-string text', { segments: [{ kind: 'narration', text: 5 }] }],
+      ['unknown kind', { segments: [{ kind: 'shout', text: 'Hi.' }] }],
+      ['non-object item', { segments: ['x', null] }],
+    ])('flags %s as missing_segments', (_label, value) => {
+      expect(structuralCheck(route, value)).toEqual(['missing_segments']);
+    });
+
+    it('one usable segment among bad ones is enough', () => {
+      expect(structuralCheck(route, { segments: [{ kind: 'x', text: 'a' }, { kind: 'narration', text: 'b b' }] })).toEqual([]);
+    });
   });
 
-  it('combat_narration text must be non-empty', () => {
-    expect(structuralCheck('combat_narration', '   ')).toEqual(['empty_text']);
-    expect(structuralCheck('combat_narration', undefined)).toEqual(['empty_text']);
+  it('combat prose with no segments is missing_segments', () => {
+    expect(structuralCheck('combat_narration', 'Your blade falls. It dies.')).toEqual(['missing_segments']);
+  });
+
+  it('no longer produces missing_dialogue or empty_text', () => {
+    for (const route of ['npc_conversation', 'combat_narration']) {
+      for (const v of ['', '   ', undefined, '{"dialogue":""}', { segments: [] }]) {
+        const ids = structuralCheck(route, v);
+        expect(ids).not.toContain('missing_dialogue');
+        expect(ids).not.toContain('empty_text');
+      }
+    }
   });
 
   it('extractJsonObject never throws', () => {
