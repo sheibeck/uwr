@@ -219,22 +219,108 @@ export function normalizeSegments(
   return out;
 }
 
-/** Merge the adjacent pair with the smallest combined length (leftmost on ties) until at most `max` remain. */
-function packParagraphs(paragraphs: string[], max: number): string[] {
+const cpLength = (s: string): number => Array.from(s).length;
+
+/**
+ * Merge the adjacent pair with the smallest combined length (leftmost on ties) until at most `max`
+ * remain. `capped` refuses any merge whose result (with its blank-line joint) would pass the
+ * per-segment cap; it stops when no pair fits.
+ */
+function mergeSmallestPairs(paragraphs: string[], max: number, capped: boolean): string[] {
   const parts = paragraphs.slice();
   while (parts.length > max) {
-    let best = 0;
+    let best = -1;
     let bestLen = Infinity;
     for (let i = 0; i < parts.length - 1; i++) {
-      const len = Array.from(parts[i]).length + Array.from(parts[i + 1]).length;
+      const len = cpLength(parts[i]) + cpLength(parts[i + 1]) + 2;
+      if (capped && len > MAX_SEGMENT_CHARS) continue;
       if (len < bestLen) {
         bestLen = len;
         best = i;
       }
     }
+    if (best < 0) break;
     parts.splice(best, 2, parts[best] + '\n\n' + parts[best + 1]);
   }
   return parts;
+}
+
+/** A unit of text for re-chunking: the text and the joint that precedes it when it shares a segment with its neighbour. */
+type PackUnit = { text: string; joint: string };
+
+/**
+ * Break paragraphs into sentence (or word) units, keeping the original joint (blank line between
+ * paragraphs, newline or space inside one). A unit longer than the cap is cut at the cap.
+ */
+function packUnits(paragraphs: readonly string[], by: 'sentence' | 'word' | 'char'): PackUnit[] {
+  const units: PackUnit[] = [];
+  if (by === 'char') {
+    // Last resort before truncating: unbroken text is cut at the cap, nothing is dropped.
+    for (const paragraph of paragraphs) {
+      Array.from(paragraph).forEach((ch, at) => units.push({ text: ch, joint: at === 0 ? '\n\n' : '' }));
+    }
+    return units;
+  }
+  const splitter = by === 'sentence' ? /(?<=[.!?…]["'”’)]{0,3})(\s+)/ : /(\s+)/;
+  for (const paragraph of paragraphs) {
+    const pieces = paragraph.split(splitter); // [text, joint, text, joint, ...]
+    for (let i = 0; i < pieces.length; i += 2) {
+      const text = pieces[i];
+      if (text === '') continue;
+      const joint = i === 0 ? '\n\n' : pieces[i - 1].includes('\n') ? '\n' : ' ';
+      const cps = Array.from(text);
+      for (let at = 0; at < cps.length; at += MAX_SEGMENT_CHARS) {
+        units.push({ text: cps.slice(at, at + MAX_SEGMENT_CHARS).join(''), joint: at === 0 ? joint : '' });
+      }
+    }
+  }
+  return units;
+}
+
+/** Fill segments greedily up to the cap. null when more than `max` are needed. */
+function fillChunks(units: readonly PackUnit[], max: number): string[] | null {
+  const chunks: string[] = [];
+  let cur = '';
+  let curLen = 0;
+  for (const unit of units) {
+    const unitLen = cpLength(unit.text);
+    if (cur === '') {
+      cur = unit.text;
+      curLen = unitLen;
+      continue;
+    }
+    const joinedLen = curLen + cpLength(unit.joint) + unitLen;
+    if (joinedLen <= MAX_SEGMENT_CHARS) {
+      cur = cur + unit.joint + unit.text;
+      curLen = joinedLen;
+    } else {
+      chunks.push(cur);
+      cur = unit.text;
+      curLen = unitLen;
+      if (chunks.length >= max) return null; // the pending unit would be a segment past the limit
+    }
+  }
+  if (cur !== '') chunks.push(cur);
+  return chunks.length <= max ? chunks : null;
+}
+
+/**
+ * Pack paragraphs into at most `max` segments of at most 600 code points without losing text when
+ * that is possible: cap-aware pair merging first, then sentence units, word units and code points. Only when the
+ * text cannot fit (more than max times the cap) does it fall back to merging past the cap, which the
+ * clamp then cuts.
+ */
+function packParagraphs(paragraphs: string[], max: number): string[] {
+  const merged = mergeSmallestPairs(paragraphs, max, true);
+  if (merged.length <= max) return merged;
+  // Text beyond max full segments cannot be saved by re-chunking; skip the work and let the clamp cut it.
+  const total = paragraphs.reduce((n, p) => n + cpLength(p) + 2, 0);
+  if (total > max * MAX_SEGMENT_CHARS) return mergeSmallestPairs(merged, max, false);
+  for (const by of ['sentence', 'word', 'char'] as const) {
+    const chunks = fillChunks(packUnits(paragraphs, by), max);
+    if (chunks) return chunks;
+  }
+  return mergeSmallestPairs(merged, max, false);
 }
 
 /**

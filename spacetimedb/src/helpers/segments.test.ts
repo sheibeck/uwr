@@ -292,6 +292,42 @@ describe('keeperSegments', () => {
     expect(out).toHaveLength(6);
     expect(out.map((s) => s.text)).toContain('x\n\ny');
   });
+  it('never merges past the cap: seven 300-character paragraphs lose no text (WR-05)', () => {
+    const paragraphs = Array.from({ length: 7 }, (_, i) => String(i).repeat(300));
+    const out = keeperSegments(paragraphs.join('\n\n'));
+    expect(out.length).toBeLessThanOrEqual(MAX_SEGMENTS);
+    for (const s of out) expect(cp(s.text)).toBeLessThanOrEqual(MAX_SEGMENT_CHARS);
+    const kept = out.map((s) => s.text).join('');
+    expect(kept.includes(TRUNCATION_MARK)).toBe(false);
+    expect(kept.replace(/\s/g, '')).toBe(paragraphs.join(''));
+  });
+  it('re-chunks at sentence boundaries when pair merging cannot fit (WR-05)', () => {
+    const sentence = (n: number) => `Sentence ${n} of the mechanics text runs on for a good while here and there.`;
+    const paragraph = (p: number) => [0, 1, 2, 3, 4].map((k) => sentence(p * 10 + k)).join(' ');
+    const paragraphs = Array.from({ length: 7 }, (_, i) => paragraph(i));
+    expect(paragraphs.every((p) => cp(p) > 350 && cp(p) < 420)).toBe(true);
+    const out = keeperSegments(paragraphs.join('\n\n'));
+    expect(out.length).toBeLessThanOrEqual(MAX_SEGMENTS);
+    for (const s of out) {
+      expect(cp(s.text)).toBeLessThanOrEqual(MAX_SEGMENT_CHARS);
+      expect(s.text.endsWith('.')).toBe(true); // cut on a sentence end, never mid-sentence
+    }
+    expect(flattenSegments(out).replace(/\s+/g, ' ')).toBe(paragraphs.join(' '));
+  });
+  it('keeps a short instruction paragraph intact next to long ones (WR-05)', () => {
+    const long = (c: string) => `${c.repeat(280)}`;
+    const text = [long('a'), long('b'), long('c'), long('d'), long('e'), long('f'), 'Choose one. Type the name of the ability.'].join('\n\n');
+    const out = keeperSegments(text);
+    expect(out.length).toBeLessThanOrEqual(MAX_SEGMENTS);
+    expect(out.map((s) => s.text).join('\n\n')).toContain('Choose one. Type the name of the ability.');
+  });
+  it('text that cannot fit in six segments is still clamped, never over the cap (WR-05)', () => {
+    const out = keeperSegments(Array.from({ length: 7 }, () => 'x'.repeat(599)).join('\n\n'));
+    expect(out).toHaveLength(MAX_SEGMENTS);
+    for (const s of out) expect(cp(s.text)).toBeLessThanOrEqual(MAX_SEGMENT_CHARS);
+    const huge = keeperSegments(Array.from({ length: 2000 }, () => 'word word word').join('\n\n'));
+    expect(huge.length).toBeLessThanOrEqual(MAX_SEGMENTS);
+  });
   it('round-trips through flatten for up to 6 paragraphs and for 7 and 8', () => {
     for (const n of [1, 2, 6, 7, 8]) {
       const text = Array.from({ length: n }, (_, i) => `Paragraph ${i + 1} of the tale.`).join('\n\n');
