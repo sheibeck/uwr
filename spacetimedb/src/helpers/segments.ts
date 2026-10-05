@@ -60,8 +60,15 @@ const CUT_WINDOW = 120;
 
 /** A lone (unpaired) surrogate half. Local copy: llm_layers.ts does not export it and must not change. */
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
-/** C0 controls except LF (CR and tab are converted first), DEL and C1, bidi controls, zero-width space, BOM. */
-const STRIPPED_CHARS = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F‪-‮⁦-⁩​﻿]/g;
+/**
+ * C0 controls except LF (CR and tab are converted first), DEL and C1 (incl. NEL), soft hyphen, Arabic letter
+ * mark, Mongolian vowel separator, zero-width space, LRM and RLM, the line and paragraph separators and
+ * every bidi embedding/override control (U+2028 to U+202E), word joiner and the invisible/isolate
+ * formatting block (U+2060 to U+206F), BOM. ZWNJ and ZWJ (U+200C, U+200D) stay so emoji joiners survive.
+ * Written as escapes on purpose: raw invisible characters in source are fragile and unreviewable.
+ */
+const STRIPPED_CHARS =
+  /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B\u200E\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/g;
 
 const PLAYER_SPEAKER_KEYS = ['you', 'yourself', 'player', 'the player'];
 const KEEPER_SPEAKER_KEYS = ['the keeper', 'keeper', 'keeper of knowledge', 'the keeper of knowledge'];

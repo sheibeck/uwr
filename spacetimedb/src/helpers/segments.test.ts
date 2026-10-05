@@ -76,6 +76,22 @@ describe('cleanSegmentText', () => {
     const dirty = 'a\u0000b\u0007c\u007Fd\u0085e\u009Ff‪g‮h⁦i⁩j​k﻿l';
     expect(cleanSegmentText(dirty, 'narration')).toBe('abcdefghijkl');
   });
+  it('strips every listed control, bidi, separator and invisible code point, each on its own (WR-04)', () => {
+    const stripped = [
+      0x0000, 0x0008, 0x000b, 0x001f, 0x007f, 0x0085, 0x009f, 0x00ad, 0x061c, 0x180e, 0x200b, 0x200e, 0x200f,
+      0x2028, 0x2029, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2060, 0x2061, 0x2064, 0x2066, 0x2069, 0x206a,
+      0x206f, 0xfeff,
+    ];
+    for (const code of stripped) {
+      const ch = String.fromCharCode(code);
+      expect(cleanSegmentText(`a${ch}b`, 'narration'), `U+${code.toString(16)}`).toBe('ab');
+      expect(cleanSegmentText(`a${ch}b`, 'dialogue'), `U+${code.toString(16)} dialogue`).toBe('ab');
+    }
+  });
+  it('keeps LF, ZWNJ and ZWJ (emoji joiners survive) (WR-04)', () => {
+    const family = '\u{1F468}‍\u{1F469}‍\u{1F467}';
+    expect(cleanSegmentText(`a\n${family}‌b`, 'narration')).toBe(`a\n${family}‌b`);
+  });
   it('keeps LF and collapses three or more newlines to two', () => {
     expect(cleanSegmentText('a\n\n\n\n\nb\nc', 'narration')).toBe('a\n\nb\nc');
   });
