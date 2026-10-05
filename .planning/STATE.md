@@ -130,9 +130,9 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 44-07: one approved paid golden run recorded (27 calls, $0.2604); 13 of 27 items fail a mechanical rule and are left as data for the owner's 44-08 review; no rule or item weakened; approval stays null
 - [Phase ?]: [44-08] QUAL-01 tone NOT approved (needs_fixes: 12 fails, skl-02 unrated); nothing applied; response shape (speaker field) deferred to UX overhaul 999.6
 - [Phase ?]: 44-10: Console token reconciliation deferred by the owner for both windows (golden 2026-10-05T08:29:21Z to 08:32:10Z, log totals 5667/41325/83717/12903); recorded deferred, not passed; streaming indicative (n=0)
-- [v3.0] Fresh `client/` app (Vite + Vue 3) on Nocturne; the old `src/` UI keeps running until the Phase 52 cutover, then is deleted (owner, 2026-10-05)
+- [v3.0] Fresh client (Vite + Vue 3) on Nocturne, built at the repo root after Phase 45 deletes the old `src/` UI (tagged `v2.2-client`); it takes over port 5173, the SpacetimeAuth redirect and deploy path; no side-by-side clients (owner, 2026-10-05: greenfield)
 - [v3.0] The Keeper is a second-person scene narrator (first-person direction retracted); narrative LLM replies become speaker-attributed segments (SEG, Phase 46); Keeper Bible and route-block edits need explicit owner approval, tone sign-off is SEG-05
-- [v3.0] Combat stays real-time; the mock's rounds become beat grouping in the feed
+- [v3.0] ~~Combat stays real-time~~ superseded 2026-10-05: combat becomes round-based (10s rounds that end early once every player has chosen, auto-attack default, Keeper narrates big moments and the end of the fight; Phase 46.1). The old src/ client is not updated for rounds
 - [v3.0] Character creation order is race, class, name (last), enter the realm; mock 2a's name-first order and its "First words" step are dropped (owner, 2026-10-05)
 
 ### Roadmap Evolution
@@ -173,7 +173,7 @@ See MILESTONES.md for full delivery summaries.
 - [Env] On 2026-09-30 the machine briefly ran out of committed virtual memory (0.5 GB free), which crashed multi-worker vitest runs. It cleared after a restart (40.8 GB free). Single-worker runs (`--maxWorkers=1`, about 19 s, 1454 tests green) stay the safe default for agents on this low-end host.
 - [v3.0 scoping] Server surface gaps found while roadmapping, to scope in plan-phase (additive and tested): `aggro_entry` is private and not in the bindings (CMB-02, Phase 48); `group` has no loot mode and there is no travel-with-party reducer (LDG-05, LDG-06, Phase 51); no buy-back reducer (LDG-09, Phase 50); creation has no race-suggestion step (CRE-03, Phase 49)
 - [v3.0 deploy/auth] How master deploys to GitHub Pages is not visible in `.github/workflows` (only claude.yml and claude-code-review.yml); SpacetimeAuth needs redirect URIs for the new client's dev origin (Phase 45) and the production origin (Phase 52)
-- [v3.0 bindings] The root `spacetime:generate` writes to `src/module_bindings`; the new client generates into `client/src/module_bindings` so deleting `src/` in Phase 52 does not remove them
+- [v3.0 bindings] The root `spacetime:generate` keeps writing to `src/module_bindings`, which the new client uses
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant since deleted by the user on 2026-09-29)
 - QUAL-01 open: owner tone not approved (44-golden-verdicts.json needs_fixes); owner must decide on 44-TONE-FIXES.md; skl-02 unrated (carried into v3.0 as SEG-05, Phase 46)

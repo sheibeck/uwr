@@ -65,17 +65,17 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 
 **Milestone rules** (apply to every phase below):
 
-- **Fresh client.** The new client is built from scratch in `client/` (Vite + Vue 3) against the existing module and generated bindings. `src/` is not retrofitted; the old client keeps running until Phase 52 cuts over and deletes it.
+- **Fresh client, old one deleted.** Phase 45 deletes the old `src/` UI and builds the new client from scratch at the repo root (Vite + Vue 3) against the existing module and generated bindings. It takes over the old client's dev port (5173), SpacetimeAuth redirect URI, build scripts and deploy path. Nothing keeps the old client running (owner, 2026-10-05: greenfield). The local git tag `v2.2-client` keeps the old code as the parity reference.
 - **Design is re-imported every phase.** Each UI phase starts with `/gsd-ui-phase`, which imports the design fresh from the claude_design MCP (project `1a7a975f-7b14-488b-9a38-188bc56294cf`: `UWR Ledger Screens.dc.html`, `UWR Console & Combat.dc.html` Ledger direction 1a/1c only, Nocturne `_ds/…/styles.css` and `_ds_bundle.js`). Never a cached copy.
 - **Mobile is in every UI phase.** Each screen works at 390×844 as part of its own phase; there is no trailing mobile phase.
 - **Unit tests are required in every phase** (project rule): tests enforce the rules the phase implements.
-- **Combat becomes round-based.** Rounds last at most 10 seconds and end early once every player has chosen; a player who has not chosen auto-attacks (owner decision 2026-10-05, Phase 46.1). The old `src/` client is not updated for rounds.
+- **Combat becomes round-based.** Rounds last at most 10 seconds and end early once every player has chosen; a player who has not chosen auto-attacks (owner decision 2026-10-05, Phase 46.1).
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
 **Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phase 52 is last.
 
-- [ ] **Phase 45: Foundation, Frame and Auth** - Fresh `client/` app with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
+- [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
 - [ ] **Phase 46.1: Round-Based Combat Engine** (INSERTED) - 10-second rounds that end early once every player has chosen, auto-attack when no action is chosen, Keeper narration at big moments and the end of the fight
 - [ ] **Phase 47: Console, Rails, Hotbar and Input** - Labelled feed with keywords, vitals and context rails, hotbar, LLM progress lines, and the command-word input fix
@@ -83,18 +83,18 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 49: Character Creation Interview** - Keeper interview in the feed (race, archetype, class, then the name last) with a step indicator, race suggestion cards and a live character sheet
 - [ ] **Phase 50: Ledger Screens: Character and Economy** - Inventory, stats, vendor and crafting as drawers and sheets
 - [ ] **Phase 51: Ledger Screens: World and People** - Map and travel, group and social, and world events as drawers and sheets
-- [ ] **Phase 52: Parity and Cutover** - Parity checklist (including undesigned surfaces), production serves the new client, old `src/` UI deleted
+- [ ] **Phase 52: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client
 
 ## Phase Details
 
 ### Phase 45: Foundation, Frame and Auth
 
-**Goal**: A player can sign in to the fresh `client/` app and see the Nocturne frame: header, persistent vitals rail, feed and context rail on desktop; compact vitals strip, feed and tab bar on mobile; secondary screens open as drawers or sheets.
+**Goal**: The old UI is gone, and a player can sign in to the fresh client and see the Nocturne frame: header, persistent vitals rail, feed and context rail on desktop; compact vitals strip, feed and tab bar on mobile; secondary screens open as drawers or sheets.
 **Depends on**: Nothing (first phase)
-**Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05, FND-06, FND-07
+**Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05, FND-06, FND-07, CUT-03
 **Success Criteria** (what must be TRUE):
 
-  1. The player runs the new `client/` app, signs in with SpacetimeAuth, sees their character connected through the existing module and generated bindings, reconnects after a reload or dropped connection, and logs out; the old `src/` client still runs unchanged beside it.
+  1. The old `src/` UI (components, composables, entry point, styles and their tests) is deleted after tagging it `v2.2-client`. The player runs the new client with `pnpm dev` on port 5173, signs in with SpacetimeAuth (existing redirect URI), sees their character connected through the existing module and generated bindings, reconnects after a reload or dropped connection, and logs out.
   2. At 1280×800 the player sees the header (location, time of day, level-up and new-skill tags, screen buttons), a vitals rail that stays put, the center feed and the context rail.
   3. Clicking a screen button opens a drawer over the center and right columns while the header and vitals rail stay visible; Esc or the close button dismisses it.
   4. At 390×844 the player sees a compact vitals strip, the story feed and a bottom tab bar (Story, Map, Bag, Party, More); a secondary screen opens as a full-height sheet above the tab bar.
@@ -107,8 +107,9 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 **Notes**:
 
   - The rails and feed are shells here; Phase 47 fills them. The header and the auth flow carry real data.
-  - Bindings: generate into `client/src/module_bindings` (the layout in CLAUDE.md) so deleting `src/` at cutover does not remove them. The root `spacetime:generate` script currently writes to `src/module_bindings`.
-  - `client/` is a third standalone pnpm project (beside the root and `spacetimedb/`).
+  - Build in place: the root project (package.json, vite.config.ts, index.html, `src/`) becomes the new client. Keep `src/module_bindings` (regenerated by the root `spacetime:generate`); remove dependencies only the old UI used (for example `html2canvas`).
+  - Non-UI modules worth keeping (SpacetimeAuth PKCE flow, connection logging, legacy-credential clear, app-version check) may be carried over with their tests; everything else is rebuilt. Read old code from the `v2.2-client` tag.
+  - Character creation arrives in Phase 49; until then a new player is told to wait, and existing local characters are used for testing.
   - SpacetimeAuth needs the new client's dev origin registered as a redirect URI (owner action if it is not already allowed); Phase 52 repeats this for the production origin.
   - Tests: layout and breakpoint behavior, drawer and sheet open/close (Esc, close button), auth token and reconnect handling, and a guard that fails on hard-coded colors.
 
@@ -120,7 +121,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 **Success Criteria** (what must be TRUE):
 
   1. NPC chat, world and scene narration, combat outro and creation replies come back as segments shaped `{kind: narration|dialogue, speaker, text}`, and NPC speech appears only in dialogue segments.
-  2. Segments are stored with the event: talking to an NPC yields a "The Keeper" narration line and a separate "The Ferryman says, “…”" dialogue line in the event data a client reads; until cutover the current client keeps showing every reply as it does today.
+  2. Segments are stored with the event: talking to an NPC yields a "The Keeper" narration line and a separate "The Ferryman says, “…”" dialogue line in the event data a client reads.
   3. A malformed reply (bad JSON, unknown kind, missing speaker, empty text) is stored as a single Keeper narration line and never breaks the feed; the offline failure drills cover it.
   4. The Keeper narrates what happens around the player in the second person, as in the Ledger console mock, and the owner approved every Keeper Bible and route-block change before it landed.
   5. A golden run in the narrator voice passes its mechanical rules and the owner signs off on the tone (QUAL-01 carry-over).
@@ -148,7 +149,6 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 **Plans**: TBD
 **Notes**:
   - This reverses the v2.0 "real-time combat" decision. The v2.0 round experiment (Phase 30, commits `8a94bf47`, `74137f46`) used fixed 30-second rounds and was reverted in quick-348 as sluggish; early resolution and the 10-second cap address that. Check those commits for reusable code.
-  - Owner decision: the old `src/` client is not updated for rounds. Its combat may break until Phase 52 deletes it.
   - The combat_loop / round_timer_tick schedulers and the legacy round constants in `combat_constants.ts` are the starting point; remove real-time-only code that becomes dead.
   - Keep schema changes additive where possible: a `--clear-database` publish wipes the stored Anthropic key, so ask the owner first if one is needed.
   - Tests: early resolution when all players have chosen, timeout resolution, auto-attack fallback, round-based cooldown and effect counting, deterministic action order, big-moment narration triggers and the budget cap.
@@ -171,7 +171,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Ledger 2i/2j and Console & Combat 1a (exploring), desktop and mobile.
 **Notes**:
 
-  - INP-01/02 promote backlog 999.7. Command words to cover in both sentence and exact form: who, accept, decline, leave, invite, kick, promote, whisper, w, friend, endcombat, end, endc, group, renown, factions, faction, events. The old routing in `src/App.vue` (`onNarrativeSubmit`, `clientHandledCommands`) is reference for behavior, not code to port.
+  - INP-01/02 promote backlog 999.7. Command words to cover in both sentence and exact form: who, accept, decline, leave, invite, kick, promote, whisper, w, friend, endcombat, end, endc, group, renown, factions, faction, events. The old routing in `src/App.vue` at tag `v2.2-client` (`onNarrativeSubmit`, `clientHandledCommands`) is reference for behavior, not code to port.
   - CON-06 consumes the Phase 43 indicator lines and the world and class staged-reveal steps; those server flows already exist.
   - Tests: command-word routing matrix (sentence form vs exact form for every word), segment-to-line rendering by kind, keyword click actions, hotbar switching and cooldown display, rail data derivation.
 
@@ -264,27 +264,27 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   - Server gaps to scope in plan-phase: the `group` table has no loot mode (LDG-06); there is no dedicated "travel with party" reducer (`move_character` moves the party when the leader travels), so the Travel versus Travel with party semantics for grouped players need a decision; confirm the data for "upcoming" events and the ripple timeline. The percentile can be derived client-side from the public `event_contribution` rows.
   - Tests: route graph and legend states from location data, travel cost and party-travel rules, party actions by role (leader vs member), loot-mode control, friend and invite lists, event timers and sections, contribution percentile math.
 
-### Phase 52: Parity and Cutover
+### Phase 52: Parity and Production
 
-**Goal**: The new client does everything the old client did, becomes what production serves, and the old client is deleted.
+**Goal**: The new client does everything the old client did and is what production serves.
 **Depends on**: Phases 45-51
-**Requirements**: CUT-01, CUT-02, CUT-03
+**Requirements**: CUT-01, CUT-02
 **Success Criteria** (what must be TRUE):
 
-  1. A written parity checklist lists every action the old client offers, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: bank, loot, player trade, help, bug report and the /llm admin commands, built from Nocturne components.
+  1. A written parity checklist lists every action the old client (tag `v2.2-client`) offered, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: bank, loot, player trade, help, bug report and the /llm admin commands, built from Nocturne components.
   2. The production build and the GitHub Pages deploy configuration serve the new client; this is verified locally by building and previewing the production output (the push to master stays an owner action).
-  3. The old client (the `src/` UI, its entry point and its tests) is deleted, nothing in the repo references it, and the build and the full test suite pass.
+  3. Nothing in the repo references the old UI, and the build and the full test suite pass.
 
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`; the undesigned surfaces (bank, loot, trade, help, bug report, /llm admin) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
 **Notes**:
 
-  - Seed the parity checklist at the start of the phase from an audit of the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
-  - Deploy: `.github/workflows` holds only `claude.yml` and `claude-code-review.yml`, so find how master builds and publishes to GitHub Pages before changing it. The root `package.json` build and `spacetime:generate` scripts belong to the old client and must be replaced. The SpacetimeAuth redirect URI for the production origin must be registered (owner action).
+  - Seed the parity checklist at the start of the phase from an audit of the `v2.2-client` tag: the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
+  - Deploy: `.github/workflows` holds only `claude.yml` and `claude-code-review.yml`, so find how master builds and publishes to GitHub Pages before changing it. The root build scripts already belong to the new client (Phase 45). The SpacetimeAuth redirect URI for the production origin must be registered (owner action).
   - No push to master and no maincloud publish without the owner. The maincloud run, live end-to-end verification and Console reconciliation stay owner manual items (QUAL-02).
-  - If this phase proves too heavy at plan time, split it with `/gsd-phase --insert` (undesigned surfaces versus cutover and deletion) rather than trimming the parity checklist.
-  - Tests: parity checklist completeness check, admin gating for /llm commands, bank, loot and trade flows, and a repo guard that fails if anything references the removed `src/` UI.
+  - If this phase proves too heavy at plan time, split it with `/gsd-phase --insert` (undesigned surfaces versus production deploy) rather than trimming the parity checklist.
+  - Tests: parity checklist completeness check, admin gating for /llm commands, bank, loot and trade flows, and a repo guard that fails if anything references the removed old UI.
 
 ## Progress
 
@@ -302,7 +302,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |
 | 51. Ledger Screens: World and People | v3.0 | 0/TBD | Not started | - |
-| 52. Parity and Cutover | v3.0 | 0/TBD | Not started | - |
+| 52. Parity and Production | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
 

@@ -5,13 +5,13 @@
 
 **Source design:** claude_design project `1a7a975f-7b14-488b-9a38-188bc56294cf`. Files: `UWR Ledger Screens.dc.html` (screens 2a–2j), `UWR Console & Combat.dc.html` (Ledger direction 1a/1c only; Folio 1b/1d not chosen), and the Nocturne `_ds/nocturne-67cd9946-…/styles.css`. Each phase re-imports from the MCP and never works from a cached copy.
 
-**Approach (owner, 2026-10-05):** Build a fresh client from scratch. Do not retrofit the existing `src/` UI. Cut over to the new client, then delete the old one entirely. The UX is independent of SpacetimeDB internals: the new client only consumes the generated bindings and the reducers.
+**Approach (owner, 2026-10-05):** Build a fresh client from scratch. Do not retrofit the existing `src/` UI: delete it at the start of the milestone (tag `v2.2-client` keeps it for reference) and build the new client in its place, taking over its port, auth redirect and deploy path. Nothing keeps the old client running (owner, 2026-10-05: greenfield). The UX is independent of SpacetimeDB internals: the new client only consumes the generated bindings and the reducers.
 
 ## v3.0 Requirements
 
 ### Foundation (FND)
 
-- [ ] **FND-01**: The new client runs from a fresh `client/` app (Vite + Vue 3), using the same SpacetimeDB module and generated bindings. The old client keeps working until cutover.
+- [ ] **FND-01**: The new client is a fresh Vite + Vue 3 app at the repo root, replacing the old UI, using the same SpacetimeDB module and generated bindings, dev port 5173 and SpacetimeAuth redirect URI.
 - [ ] **FND-02**: Every screen takes its styling from Nocturne tokens and components (Inter, Phosphor icons, themed hover, pressed and focus-visible states). Nothing hard-codes a color. Rarity and enemy-difficulty colors keep their current hues.
 - [ ] **FND-03**: On desktop (1280×800), the player sees the frame:
   - a header: location, time of day, level-up and new-skill tags, screen buttons
@@ -89,11 +89,11 @@
 - [ ] **SEG-04**: A malformed segment reply falls back to a single Keeper narration line and never breaks the feed.
 - [ ] **SEG-05**: (QUAL-01 carry-over) A golden run in the narrator voice passes its mechanical rules, and the owner signs off on the tone.
 
-### Cutover (CUT)
+### Parity and Production (CUT)
 
-- [ ] **CUT-01**: Every action the old client offers can be done in the new client, per a written parity checklist. That includes surfaces not in the design (bank, loot, player trade, help, bug report, /llm admin commands), which get built from Nocturne components.
+- [ ] **CUT-01**: Every action the old client (tag `v2.2-client`) offered can be done in the new client, per a written parity checklist. That includes surfaces not in the design (bank, loot, player trade, help, bug report, /llm admin commands), which get built from Nocturne components.
 - [ ] **CUT-02**: The production build and GitHub Pages deploy serve the new client.
-- [ ] **CUT-03**: The old client (the `src/` UI, its entry point and its tests) is deleted, and nothing in the repo references it.
+- [ ] **CUT-03**: The old client (the `src/` UI, its entry point, styles and tests) is deleted at the start of the milestone, after tagging it `v2.2-client`, and nothing in the repo references it.
 
 ## Future Requirements
 
@@ -110,10 +110,9 @@ Deferred. Tracked, not in this roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| Round-based combat support in the old `src/` client | Owner decision: old-client combat may break after Phase 46.1 until Phase 52 deletes it. |
 | Fixed, browsable race list ("show all fifteen") | Races stay freeform, which keeps every character unique. |
 | First-person Keeper voice | Retracted by the owner. The Keeper is a second-person scene narrator. |
-| Retrofitting the existing `src/` UI | Owner decision: build fresh, cut over, delete the old UI. |
+| Retrofitting or keeping the existing `src/` UI | Owner decision: delete it in Phase 45 and build fresh; no side-by-side clients. |
 | Folio design direction (1b/1d) | The Ledger direction was chosen. |
 | Native mobile app | Web-first. The responsive mobile web layout is in scope. |
 
@@ -173,14 +172,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEG-05 | Phase 46 | Pending |
 | CUT-01 | Phase 52 | Pending |
 | CUT-02 | Phase 52 | Pending |
-| CUT-03 | Phase 52 | Pending |
+| CUT-03 | Phase 45 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 45 total
 - Mapped to phases: 45
 - Unmapped: 0
 
-**By phase:** 45 Foundation (6), 46 Structured Keeper Replies (5), 47 Console, Rails, Hotbar and Input (8), 48 Combat Encounter (5), 49 Character Creation Interview (3), 50 Ledger: Character and Economy (7), 51 Ledger: World and People (7), 52 Parity and Cutover (3).
+**By phase:** 45 Foundation (8), 46 Structured Keeper Replies (5), 47 Console, Rails, Hotbar and Input (8), 48 Combat Encounter (5), 49 Character Creation Interview (3), 50 Ledger: Character and Economy (7), 51 Ledger: World and People (7), 52 Parity and Production (2).
 
 ---
 *Requirements defined: 2026-10-05*
