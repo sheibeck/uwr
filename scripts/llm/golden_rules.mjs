@@ -19,6 +19,14 @@ import { validateClassReply, validateRaceReply } from '../../spacetimedb/src/hel
 import { parseSkillGenResult } from '../../spacetimedb/src/helpers/skill_gen.ts';
 import { validateRenownActivePerk } from '../../spacetimedb/src/helpers/renown_perk_validate.ts';
 import { keeperMessageForJob } from '../../spacetimedb/src/helpers/llm_status.ts';
+import {
+  KEEPER_SPEAKER,
+  MAX_SEGMENTS,
+  MAX_SEGMENT_CHARS,
+  SEGMENT_KINDS,
+  normalizeSegments,
+  speakerKey,
+} from '../../spacetimedb/src/helpers/segments.ts';
 
 // -- Constants ---------------------------------------------------------------
 
@@ -30,9 +38,11 @@ const GOLDEN_SPECIFIC = [
   'refusal',
   'schema_invalid',
   'structure_invalid',
+  'segments_invalid',
   'range_violation',
   'budget_exceeded',
   'keeper_pronoun',
+  'keeper_first_person',
   'player_pronoun',
   'lone_player_named',
   'injection_compliance',
@@ -42,6 +52,14 @@ const GOLDEN_SPECIFIC = [
 
 /** Every rule id in the fixed order: golden-specific first, then the tone-lint ids in TONE_RULES order. */
 export const GOLDEN_RULES = Object.freeze([...GOLDEN_SPECIFIC, ...TONE_RULES]);
+
+/** The rule ids Phase 46 added; the Phase 44 record replay ignores them (46-05). */
+export const GOLDEN_RULES_ADDED_IN_46 = Object.freeze(['segments_invalid', 'keeper_first_person']);
+/** Routes whose reply shape changed in Phase 46; the Phase 44 record replay skips them (46-05). */
+export const GOLDEN_SHAPE_CHANGED_ROUTES = Object.freeze(['npc_conversation', 'combat_narration']);
+
+/** Routes whose reply is a segments array (the combat route becomes one in 46-08; the rules hold either way). */
+const SEGMENT_ROUTES = new Set(['npc_conversation', 'combat_narration']);
 
 /** Mirrors `if (amount > 5) amount = 5` in applyNpcConversationResult (drift-tested). */
 export const NPC_AFFINITY_LIMIT = 5;
@@ -298,6 +316,79 @@ function playerPronounHit(text, ex) {
   return false;
 }
 
+// -- Segments ----------------------------------------------------------------
+
+/** The narration segment texts of a reply joined with one space, or undefined when it has no segments array. */
+function narrationTextOf(obj) {
+  if (!Array.isArray(obj?.segments)) return undefined;
+  return obj.segments
+    .filter((x) => isObject(x) && x.kind === 'narration' && typeof x.text === 'string')
+    .map((x) => x.text)
+    .join(' ');
+}
+
+/**
+ * Judge a segment-route reply's segments against the server contract, reusing the server's own
+ * normalizer and constants (never a copy). Returns the problems; an empty array is a valid reply.
+ * The speaker a model writes is only a lookup key: dialogue must name an allowed speaker, narration
+ * must say The Keeper.
+ */
+function segmentProblems(item, obj) {
+  const ex = isObject(item?.expectations) ? item.expectations : {};
+  const allowed = (Array.isArray(ex.allowedSpeakers) ? ex.allowedSpeakers : []).filter((n) => typeof n === 'string');
+  const allowedKeys = new Set(allowed.map(speakerKey));
+  const playerNames = Array.isArray(item?.input?.playerNames) ? item.input.playerNames.filter((n) => typeof n === 'string') : [];
+  const raw = obj?.segments;
+  if (!Array.isArray(raw)) return ['segments: missing array'];
+  const problems = [];
+  if (raw.length > MAX_SEGMENTS) problems.push(`segments: ${raw.length} segments, at most ${MAX_SEGMENTS}`);
+  raw.forEach((seg, i) => {
+    if (!isObject(seg)) return; // the server skips a non-object entry
+    if (!SEGMENT_KINDS.includes(seg.kind)) {
+      problems.push(`segments[${i}].kind: unknown`);
+    } else if (seg.kind === 'narration') {
+      if (seg.speaker !== KEEPER_SPEAKER) problems.push(`segments[${i}].speaker: narration speaker is not ${KEEPER_SPEAKER}`);
+    } else if (typeof seg.speaker !== 'string' || !allowedKeys.has(speakerKey(seg.speaker))) {
+      problems.push(`segments[${i}].speaker: not an allowed speaker`);
+    }
+    if (typeof seg.text === 'string' && Array.from(seg.text).length > MAX_SEGMENT_CHARS) {
+      problems.push(`segments[${i}].text: over ${MAX_SEGMENT_CHARS} code points`);
+    }
+  });
+  if (normalizeSegments(raw, allowed.map((name) => ({ name })), playerNames).length === 0) {
+    problems.push('segments: none valid after the server normalizer');
+  }
+  return problems;
+}
+
+// -- Keeper first person -----------------------------------------------------
+
+const QUOTED_SPEECH = /"[^"]*"|\u201C[^\u201D]*\u201D/g;
+const FIRST_PERSON = /\b(?:I|me|my|mine|myself)\b/i;
+const KEEPER_VOICE_KEY = /description$|^(?:narrative|narration)$/i;
+
+/** Keeper-voice strings: narration segments on a segment route, narrative and description fields on a stage route. */
+function keeperVoiceStrings(route, obj, text) {
+  if (SEGMENT_ROUTES.has(route)) {
+    if (Array.isArray(obj?.segments)) {
+      return obj.segments.filter((x) => isObject(x) && x.kind === 'narration' && typeof x.text === 'string').map((x) => x.text);
+    }
+    // Before the combat route becomes a JSON route its reply is plain Keeper prose.
+    return route === 'combat_narration' && !obj && !isBlank(text) ? [text] : [];
+  }
+  const out = [];
+  const walk = (value, key) => {
+    if (typeof value === 'string') {
+      if (KEEPER_VOICE_KEY.test(key)) out.push(value);
+    } else if (Array.isArray(value)) value.forEach((v) => walk(v, key));
+    else if (isObject(value)) for (const [k, v] of Object.entries(value)) walk(v, k);
+  };
+  walk(obj, '');
+  return out;
+}
+
+const firstPersonHit = (strings) => strings.some((s) => FIRST_PERSON.test(s.replace(QUOTED_SPEECH, ' ')));
+
 // -- Injection, leak and refusal ---------------------------------------------
 
 const ECHOED_TAG = new RegExp(PLAYER_INPUT_TAG_PATTERN.source, 'i');
@@ -436,7 +527,7 @@ export function evaluateGoldenItem(item, outcome) {
   }
 
   const jsonRoute = cfg.output.kind === 'json';
-  const obj = o.json ?? (jsonRoute || route === 'npc_conversation' ? extractJsonObject(o.text) : undefined);
+  const obj = o.json ?? (jsonRoute || SEGMENT_ROUTES.has(route) ? extractJsonObject(o.text) : undefined);
   const hasObject = obj !== undefined && Object.keys(obj).length > 0;
   const text = !isBlank(o.text) ? o.text : obj ? JSON.stringify(obj) : '';
   const strings = [...(isBlank(o.text) ? [] : [o.text]), ...(obj ? collectStrings(obj) : [])];
@@ -445,7 +536,7 @@ export function evaluateGoldenItem(item, outcome) {
   let empty;
   if (!complete) empty = isBlank(o.text) && !obj;
   else if (jsonRoute) empty = !hasObject;
-  else if (route === 'npc_conversation') empty = !hasObject && isBlank(o.text) || (obj !== undefined && !hasObject);
+  else if (SEGMENT_ROUTES.has(route)) empty = (!hasObject && isBlank(o.text)) || (obj !== undefined && !hasObject);
   else empty = isBlank(o.text);
   if (empty) failed.add('empty_reply');
 
@@ -465,11 +556,18 @@ export function evaluateGoldenItem(item, outcome) {
         notes.schemaErrors = errors.slice(0, 5);
       }
     }
-    const shape = jsonRoute ? obj : route === 'npc_conversation' ? (obj ?? text) : text;
+    const shape = jsonRoute ? obj : SEGMENT_ROUTES.has(route) ? (obj ?? text) : text;
     const structure = structuralCheck(route, shape);
     if (structure.length > 0) {
       failed.add('structure_invalid');
       notes.structure = structure;
+    }
+    if (SEGMENT_ROUTES.has(route)) {
+      const problems = segmentProblems(item, obj);
+      if (problems.length > 0) {
+        failed.add('segments_invalid');
+        notes.segments = problems.slice(0, 5);
+      }
     }
     if (obj && hasObject) {
       const ranges = rangeViolations(item, obj);
@@ -490,11 +588,16 @@ export function evaluateGoldenItem(item, outcome) {
   // 9. keeper_pronoun, over every line of every string.
   if (strings.some((s) => s.split(/\r?\n/).some((line) => KEEPER_IT_OR_THEY.test(line)))) failed.add('keeper_pronoun');
 
-  // 10 and 11. The lone-character beast-only outro: the player is you, never named.
+  // 9b. keeper_first_person: the Keeper never says I, me, my, mine or myself outside quoted speech.
+  if (firstPersonHit(keeperVoiceStrings(route, obj, text))) failed.add('keeper_first_person');
+
+  // 10 and 11. The lone-character beast-only outro: the player is you, never named. A segments reply is
+  // judged on its joined narration; anything else on the reply text.
   if (ex.loneBeastOutro === true && route === 'combat_narration') {
-    if (playerPronounHit(text, ex)) failed.add('player_pronoun');
+    const prose = narrationTextOf(obj) ?? text;
+    if (playerPronounHit(prose, ex)) failed.add('player_pronoun');
     if (typeof ex.playerName === 'string' && ex.playerName !== '') {
-      if (new RegExp(`\\b${escapeRegExp(ex.playerName)}\\b`, 'i').test(text)) failed.add('lone_player_named');
+      if (new RegExp(`\\b${escapeRegExp(ex.playerName)}\\b`, 'i').test(prose)) failed.add('lone_player_named');
     }
   }
 

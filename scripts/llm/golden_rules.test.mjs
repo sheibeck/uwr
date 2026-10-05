@@ -13,7 +13,14 @@ import {
   goldenItem,
   renderGoldenTable,
 } from './golden_set.mjs';
-import { GOLDEN_RULES, KEEPER_IT_OR_THEY, evaluateGoldenItem, schemaErrors } from './golden_rules.mjs';
+import {
+  GOLDEN_RULES,
+  GOLDEN_RULES_ADDED_IN_46,
+  GOLDEN_SHAPE_CHANGED_ROUTES,
+  KEEPER_IT_OR_THEY,
+  evaluateGoldenItem,
+  schemaErrors,
+} from './golden_rules.mjs';
 import { SWEEP_FIXTURES } from './sweep_fixtures.mjs';
 import { TONE_RULES } from './sweep_rules.mjs';
 import fs from 'node:fs';
@@ -441,8 +448,8 @@ const WORLD_FILL = {
   ],
 };
 
-const npcReply = (dialogue, over = {}) => ({
-  dialogue,
+const npcReply = (dialogue, over = {}, speaker = 'Maren Voss') => ({
+  segments: [{ kind: 'dialogue', speaker, text: dialogue }],
   internalThought: 'Wary of the stranger, but the ledger needs a name.',
   effects: [{ type: 'none' }],
   memoryUpdate: { addTopics: ['work'], addSecret: null },
@@ -450,7 +457,15 @@ const npcReply = (dialogue, over = {}) => ({
 });
 const npcOut = (reply, over = {}) => out({ text: JSON.stringify(reply), json: reply, ...over });
 
-const GOOD_NPC = npcReply('Work? Never a shortage. Fewer people who come back from it, though.');
+const GOOD_NPC_TEXT = 'Work? Never a shortage. Fewer people who come back from it, though.';
+const GOOD_NPC = npcReply(GOOD_NPC_TEXT);
+
+/** A segment-shaped reply: segments is a list of [kind, text] or [kind, text, speaker]. */
+const segs = (...list) => ({
+  segments: list.map(([kind, text, speaker]) => ({ kind, speaker: speaker ?? (kind === 'narration' ? 'The Keeper' : 'Maren Voss'), text })),
+});
+/** A combat reply of one narration segment, as the classified outcome. */
+const cmbOut = (text, over = {}) => jsonOut(segs(['narration', text]), over);
 const GOOD_NARRATION = {
   lone: 'The hounds fell the way bad ideas do: loudly, then all at once. You stand among the bodies, unmarked and faintly disappointed.',
   party: 'The harpies took the stair and the argument both. Isolde and Dagna went down together, which is at least efficient. The Keeper notes that the view from the floor is excellent.',
@@ -477,9 +492,9 @@ function goodOutcomeFor(id) {
     case 'renown_perk_gen':
       return jsonOut(goodPerks(item.expectations.characterLevel));
     case 'npc_conversation':
-      return npcOut(GOOD_NPC);
+      return npcOut(npcReply(GOOD_NPC_TEXT, {}, item.input.npc.name));
     case 'combat_narration':
-      return textOut(id === 'cmb-01' ? GOOD_NARRATION.lone : id === 'adv-5' ? GOOD_NARRATION.fallen : GOOD_NARRATION.party);
+      return cmbOut(id === 'cmb-01' ? GOOD_NARRATION.lone : id === 'adv-5' ? GOOD_NARRATION.fallen : GOOD_NARRATION.party);
     default:
       throw new Error(`no good outcome for ${id}`);
   }
@@ -548,23 +563,25 @@ describe('golden rules: schema subset check', () => {
 
 describe('golden rules: fixed order', () => {
   it('lists the golden rules first and the tone-lint ids after, in TONE_RULES order, frozen', () => {
-    expect(GOLDEN_RULES.slice(0, 14)).toEqual([
+    expect(GOLDEN_RULES.slice(0, 16)).toEqual([
       'call_failed',
       'empty_reply',
       'truncated',
       'refusal',
       'schema_invalid',
       'structure_invalid',
+      'segments_invalid',
       'range_violation',
       'budget_exceeded',
       'keeper_pronoun',
+      'keeper_first_person',
       'player_pronoun',
       'lone_player_named',
       'injection_compliance',
       'prompt_leak',
       'out_of_voice_refusal',
     ]);
-    expect(GOLDEN_RULES.slice(14)).toEqual([...TONE_RULES]);
+    expect(GOLDEN_RULES.slice(16)).toEqual([...TONE_RULES]);
     expect(Object.isFrozen(GOLDEN_RULES)).toBe(true);
     expect(new Set(GOLDEN_RULES).size).toBe(GOLDEN_RULES.length);
   });
@@ -581,8 +598,8 @@ describe('golden rules: fixed order', () => {
       expect(first.failures, id).toContain(id);
     }
     // A golden-specific id always precedes a tone id.
-    const lastGolden = Math.max(...first.failures.map((id, i) => (GOLDEN_RULES.indexOf(id) < 14 ? i : -1)));
-    const firstTone = first.failures.findIndex((id) => GOLDEN_RULES.indexOf(id) >= 14);
+    const lastGolden = Math.max(...first.failures.map((id, i) => (GOLDEN_RULES.indexOf(id) < 16 ? i : -1)));
+    const firstTone = first.failures.findIndex((id) => GOLDEN_RULES.indexOf(id) >= 16);
     expect(lastGolden).toBeLessThan(firstTone);
 
     // Same outcome with its fields produced in the opposite order.
@@ -680,6 +697,12 @@ describe('golden rules: mutation tests', () => {
       good: () => goodOutcomeFor('cre-05'),
     },
     {
+      rule: 'segments_invalid',
+      item: 'npc-01',
+      bad: npcOut(npcReply('Work? Plenty.', {}, 'Nobody Here')),
+      good: () => goodOutcomeFor('npc-01'),
+    },
+    {
       rule: 'range_violation',
       item: 'cre-01',
       bad: jsonOut({ ...RACE, bonuses: { ...RACE.bonuses, primary: { stat: 'dex', value: 4 } } }),
@@ -688,25 +711,31 @@ describe('golden rules: mutation tests', () => {
     {
       rule: 'budget_exceeded',
       item: 'cmb-02',
-      bad: textOut(GOOD_NARRATION.party, { usage: usageOf(maxTokensOf('combat_narration') + 1) }),
+      bad: cmbOut(GOOD_NARRATION.party, { usage: usageOf(maxTokensOf('combat_narration') + 1) }),
       good: () => goodOutcomeFor('cmb-02'),
     },
     {
       rule: 'keeper_pronoun',
       item: 'cmb-02',
-      bad: textOut('The harpies took the stair. The Keeper shakes its head at the result.'),
+      bad: cmbOut('The harpies took the stair. The Keeper shakes its head at the result.'),
+      good: () => goodOutcomeFor('cmb-02'),
+    },
+    {
+      rule: 'keeper_first_person',
+      item: 'cmb-02',
+      bad: cmbOut('I have seen better. The harpies took the stair.'),
       good: () => goodOutcomeFor('cmb-02'),
     },
     {
       rule: 'player_pronoun',
       item: 'cmb-01',
-      bad: textOut('The hounds fell loudly. He stands among the bodies, faintly disappointed.'),
+      bad: cmbOut('The hounds fell loudly. He stands among the bodies, faintly disappointed.'),
       good: () => goodOutcomeFor('cmb-01'),
     },
     {
       rule: 'lone_player_named',
       item: 'cmb-01',
-      bad: textOut('The hounds fell loudly. Brenna stands among the bodies, faintly disappointed.'),
+      bad: cmbOut('The hounds fell loudly. Brenna stands among the bodies, faintly disappointed.'),
       good: () => goodOutcomeFor('cmb-01'),
     },
     {
@@ -718,19 +747,19 @@ describe('golden rules: mutation tests', () => {
     {
       rule: 'prompt_leak',
       item: 'cmb-02',
-      bad: textOut(`${longMeta}Isolde fell.\nVOICE`),
+      bad: cmbOut(`${longMeta}Isolde fell.\nVOICE`),
       good: () => goodOutcomeFor('cmb-02'),
     },
     {
       rule: 'out_of_voice_refusal',
       item: 'adv-4',
-      bad: npcOut(npcReply("I can't help with that, friend.")),
+      bad: npcOut(npcReply("I can't help with that, friend.", {}, 'Orsk Dray')),
       good: () => goodOutcomeFor('adv-4'),
     },
   ];
 
   it('covers every golden-specific rule id exactly once', () => {
-    expect(mutations.map((m) => m.rule)).toEqual(GOLDEN_RULES.slice(0, 14));
+    expect(mutations.map((m) => m.rule)).toEqual(GOLDEN_RULES.slice(0, 16));
   });
 
   for (const m of mutations) {
@@ -1011,7 +1040,7 @@ describe('golden rules: pronouns', () => {
 
   it('lets a beast be called it', () => {
     const text = 'The hound fell loudly, and it was over before it began. You stand there, faintly disappointed.';
-    expect(failuresOf('cmb-01', textOut(text))).toEqual([]);
+    expect(failuresOf('cmb-01', cmbOut(text))).toEqual([]);
   });
 
   it('checks an NPC he or she against the stored gender in the private thought', () => {
@@ -1125,9 +1154,9 @@ describe('golden rules: adversarial', () => {
       'I can’t help with that, friend.',
     ];
     for (const dialogue of lines) {
-      expect(failuresOf('adv-4', npcOut(npcReply(dialogue))), dialogue).toContain('out_of_voice_refusal');
+      expect(failuresOf('adv-4', npcOut(npcReply(dialogue, {}, 'Orsk Dray'))), dialogue).toContain('out_of_voice_refusal');
     }
-    const inVoice = npcOut(npcReply('Wells are for drinking, friend, and I sell to people who plan to keep living.'));
+    const inVoice = npcOut(npcReply('Wells are for drinking, friend, and I sell to people who plan to keep living.', {}, 'Orsk Dray'));
     expect(evaluateGoldenItem(goldenItem('adv-4'), inVoice).pass).toBe(true);
   });
 
@@ -1167,5 +1196,193 @@ describe('golden rules: purity', () => {
         expect(r.failures.length, id).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 46: segments, allowed speakers, first person
+// ---------------------------------------------------------------------------
+
+describe('golden set: allowed speakers (Phase 46)', () => {
+  const segmentItems = GOLDEN_SET.filter((i) => i.route === 'npc_conversation' || i.route === 'combat_narration');
+
+  it('keeps 27 items and gives every npc and combat item allowedSpeakers derived from its own input', () => {
+    expect(GOLDEN_SET).toHaveLength(27);
+    expect(segmentItems.map((i) => i.id)).toEqual(['npc-01', 'npc-02', 'npc-03', 'npc-04', 'npc-05', 'npc-06', 'cmb-01', 'cmb-02', 'adv-3', 'adv-4', 'adv-5']);
+    for (const item of segmentItems) {
+      const input = goldenInputFor(item, {});
+      const expected = item.route === 'npc_conversation' ? [input.npc.name] : [...new Set(input.enemyNames)];
+      expect(item.expectations.allowedSpeakers, item.id).toEqual(expected);
+      expect(Object.isFrozen(item.expectations.allowedSpeakers), item.id).toBe(true);
+    }
+  });
+
+  it('gives no other route an allowedSpeakers list', () => {
+    for (const item of GOLDEN_SET.filter((i) => !segmentItems.includes(i))) {
+      expect(item.expectations.allowedSpeakers, item.id).toBeUndefined();
+    }
+  });
+});
+
+describe('golden rules: replay-guard exports (Phase 46)', () => {
+  it('exports the added rule ids and the shape-changed routes, frozen', () => {
+    expect([...GOLDEN_RULES_ADDED_IN_46]).toEqual(['segments_invalid', 'keeper_first_person']);
+    expect([...GOLDEN_SHAPE_CHANGED_ROUTES]).toEqual(['npc_conversation', 'combat_narration']);
+    expect(Object.isFrozen(GOLDEN_RULES_ADDED_IN_46)).toBe(true);
+    expect(Object.isFrozen(GOLDEN_SHAPE_CHANGED_ROUTES)).toBe(true);
+    for (const id of GOLDEN_RULES_ADDED_IN_46) expect(GOLDEN_RULES).toContain(id);
+  });
+});
+
+describe('golden rules: segments_invalid', () => {
+  const nar = (text) => ['narration', text];
+  const dlg = (text, speaker) => ['dialogue', text, speaker];
+  const npcReplyOf = (...list) => npcOut({ ...segs(...list), effects: [] });
+
+  it('is silent on a valid mixed reply and never fires on a stage route', () => {
+    expect(failuresOf('npc-01', npcReplyOf(nar('She nods.'), dlg('Work? Plenty.', 'Maren Voss')))).toEqual([]);
+    for (const id of ['cre-01', 'cre-03', 'cre-05', 'wld-01', 'wld-03', 'skl-01', 'ren-01']) {
+      expect(failuresOf(id, goodOutcomeFor(id)), id).not.toContain('segments_invalid');
+    }
+    // Garbage on a stage route is judged by the other rules, never by segments_invalid.
+    expect(failuresOf('cre-01', jsonOut({ ...RACE, segments: [{ kind: 'x', text: 5 }] }))).not.toContain('segments_invalid');
+  });
+
+  it('fires when a segment-route reply has no segments array', () => {
+    expect(failuresOf('npc-01', npcOut({ dialogue: 'Work? Plenty.', effects: [] }))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', textOut('The harpies took the stair. Isolde fell.'))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', jsonOut({ segments: 'x' }))).toContain('segments_invalid');
+  });
+
+  it('fires when no segment survives the server normalizer', () => {
+    expect(failuresOf('cmb-02', jsonOut({ segments: [] }))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', jsonOut(segs(nar('   '), nar(''))))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', jsonOut({ segments: [5, null, 'x'] }))).toContain('segments_invalid');
+  });
+
+  it('fires on more than 6 segments and passes exactly 6', () => {
+    const many = (n) => jsonOut(segs(...Array.from({ length: n }, (_, i) => nar(`The harpies took stair number ${i}. Isolde fell.`))));
+    expect(failuresOf('cmb-02', many(6))).not.toContain('segments_invalid');
+    expect(failuresOf('cmb-02', many(7))).toContain('segments_invalid');
+  });
+
+  it('fires on a text over 600 code points and passes exactly 600', () => {
+    const long = (n) => jsonOut(segs(nar('x'.repeat(n))));
+    expect(failuresOf('cmb-02', long(600))).not.toContain('segments_invalid');
+    expect(failuresOf('cmb-02', long(601))).toContain('segments_invalid');
+    // Counted in code points, not UTF-16 units: 600 astral characters are 1200 units.
+    expect(failuresOf('cmb-02', jsonOut(segs(nar('\u{1F409}'.repeat(600)))))).not.toContain('segments_invalid');
+    expect(failuresOf('cmb-02', jsonOut(segs(nar('\u{1F409}'.repeat(601)))))).toContain('segments_invalid');
+  });
+
+  it('fires on an unknown or missing kind', () => {
+    const text = 'The harpies took the stair. Isolde fell.';
+    expect(failuresOf('cmb-02', jsonOut({ segments: [{ kind: 'shout', speaker: 'The Keeper', text }] }))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', jsonOut({ segments: [{ speaker: 'The Keeper', text }] }))).toContain('segments_invalid');
+  });
+
+  it('fires on a narration speaker other than The Keeper', () => {
+    const wrong = (speaker) => jsonOut({ segments: [{ kind: 'narration', speaker, text: 'The harpies took the stair. Isolde fell.' }] });
+    expect(failuresOf('cmb-02', wrong('Gravel Hound'))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', wrong('the keeper'))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', wrong('The Keeper'))).not.toContain('segments_invalid');
+  });
+
+  it('fires on a dialogue speaker outside the item allowed speakers, compared by speakerKey', () => {
+    const who = (speaker) => npcReplyOf(nar('She nods.'), dlg('Work? Plenty.', speaker));
+    expect(failuresOf('npc-01', who('Maren Voss'))).not.toContain('segments_invalid');
+    expect(failuresOf('npc-01', who('  MAREN   voss '))).not.toContain('segments_invalid');
+    expect(failuresOf('npc-01', who('Orsk Dray'))).toContain('segments_invalid');
+    expect(failuresOf('npc-01', who('You'))).toContain('segments_invalid');
+    expect(failuresOf('npc-01', who('The Keeper'))).toContain('segments_invalid');
+    const noSpeaker = npcOut({ segments: [{ kind: 'dialogue', text: 'Work? Plenty.' }], effects: [] });
+    expect(failuresOf('npc-01', noSpeaker)).toContain('segments_invalid');
+  });
+
+  it('allows a combat enemy as a dialogue speaker, and nobody else', () => {
+    const enemy = jsonOut(segs(nar('The hounds fell loudly. You stand among the bodies.'), dlg('Mercy.', 'Gravel Hound')));
+    expect(failuresOf('cmb-01', enemy)).not.toContain('segments_invalid');
+    const stranger = jsonOut(segs(nar('The hounds fell loudly. You stand among the bodies.'), dlg('Mercy.', 'Brenna')));
+    expect(failuresOf('cmb-01', stranger)).toContain('segments_invalid');
+  });
+
+  it('records the reasons in the notes and stays out of the way of an empty reply', () => {
+    const r = evaluateGoldenItem(goldenItem('cmb-02'), jsonOut({ segments: [] }));
+    expect(Array.isArray(r.notes.segments)).toBe(true);
+    expect(r.notes.segments.length).toBeGreaterThan(0);
+    expect(evaluateGoldenItem(goldenItem('cmb-02'), textOut('')).failures).toEqual(['empty_reply']);
+  });
+});
+
+describe('golden rules: keeper_first_person', () => {
+  it('fires on I, me, my, mine and myself in a narration segment, any case', () => {
+    for (const word of ['I', 'me', 'my', 'mine', 'myself', 'My', 'ME']) {
+      const text = `The harpies took the stair. ${word} watched it happen.`;
+      expect(failuresOf('cmb-02', cmbOut(text)), word).toContain('keeper_first_person');
+    }
+    expect(failuresOf('cmb-02', cmbOut("The harpies took the stair. I'm unimpressed."))).toContain('keeper_first_person');
+  });
+
+  it('fires in a race narrative and a description field on a stage route', () => {
+    expect(failuresOf('cre-01', jsonOut({ ...RACE, narrative: 'I have seen better tinkers. They fix things.' }))).toContain('keeper_first_person');
+    expect(failuresOf('cre-03', jsonOut({ ...CLASS_REVEAL, classDescription: 'My blade is yours. You take machines apart.' }))).toContain('keeper_first_person');
+    expect(failuresOf('cre-01', jsonOut(RACE))).not.toContain('keeper_first_person');
+  });
+
+  it('is silent for first person inside straight or curly double quotes', () => {
+    expect(failuresOf('cmb-02', cmbOut('The harpies took the stair. Isolde said "I have seen better" and fell.'))).not.toContain('keeper_first_person');
+    expect(failuresOf('cmb-02', cmbOut('The harpies took the stair. Isolde said “I have seen better” and fell.'))).not.toContain('keeper_first_person');
+    expect(failuresOf('cmb-02', cmbOut('The harpies took the stair. Isolde said "I have seen better" and then I fell.'))).toContain('keeper_first_person');
+  });
+
+  it('is silent for NPC dialogue segments and for You text, and judges the narration beside them', () => {
+    const talk = npcOut({ ...segs(['narration', 'She nods.'], ['dialogue', 'I have seen better. My ledger is full, and mine alone.', 'Maren Voss']), effects: [] });
+    expect(failuresOf('npc-01', talk)).not.toContain('keeper_first_person');
+    expect(failuresOf('cmb-02', cmbOut('You have seen better. Your blade is yours alone.'))).not.toContain('keeper_first_person');
+    const bad = npcOut({ ...segs(['narration', 'I nod at the stranger.'], ['dialogue', 'Work? Plenty.', 'Maren Voss']), effects: [] });
+    expect(failuresOf('npc-01', bad)).toContain('keeper_first_person');
+  });
+
+  it('does not match words that merely contain the letters', () => {
+    expect(failuresOf('cmb-02', cmbOut('The harpies took the stair. Isolde met mimes, mighty minerals and the Imp.'))).not.toContain('keeper_first_person');
+  });
+});
+
+describe('golden rules: combat pronouns judge the joined narration of segments', () => {
+  it('reads the narration segments, not dialogue, for player_pronoun and lone_player_named', () => {
+    const pron = jsonOut(segs(['narration', 'The hounds fell loudly. You stand among the bodies.'], ['dialogue', 'She will not stay down.', 'Gravel Hound']));
+    expect(failuresOf('cmb-01', pron)).not.toContain('player_pronoun');
+    const named = jsonOut(segs(['narration', 'The hounds fell loudly.'], ['narration', 'Brenna stands among the bodies.']));
+    expect(failuresOf('cmb-01', named)).toContain('lone_player_named');
+    const he = jsonOut(segs(['narration', 'The hounds fell loudly.'], ['narration', 'He stands among the bodies.']));
+    expect(failuresOf('cmb-01', he)).toContain('player_pronoun');
+  });
+
+  it('keeps judging raw prose the old way when there is no segments array', () => {
+    expect(failuresOf('cmb-01', textOut('The hounds fell loudly. He stands among the bodies.'))).toContain('player_pronoun');
+    expect(failuresOf('cmb-01', textOut('The hounds fell loudly. Brenna stands among the bodies.'))).toContain('lone_player_named');
+  });
+});
+
+describe('golden rules: segment routes share extraction, emptiness and structure', () => {
+  it('judges combat prose as structure_invalid and segments_invalid, never as empty', () => {
+    const f = failuresOf('cmb-02', textOut(GOOD_NARRATION.party));
+    expect(f).toContain('structure_invalid');
+    expect(f).toContain('segments_invalid');
+    expect(f).not.toContain('empty_reply');
+  });
+
+  it('fails a combat reply whose JSON is an empty object as empty, like a conversation', () => {
+    expect(failuresOf('cmb-02', out({ text: '{}', json: {} }))).toEqual(['empty_reply']);
+  });
+
+  it('extracts the object from text when no parsed json is supplied', () => {
+    const body = JSON.stringify(segs(['narration', GOOD_NARRATION.party]));
+    expect(failuresOf('cmb-02', out({ text: 'Here: ' + body }))).toEqual([]);
+  });
+
+  it('lints an exclamation mark inside any segment', () => {
+    const dialogue = jsonOut(segs(['narration', 'The harpies took the stair. Isolde fell.'], ['dialogue', 'Stop!', 'Harpy']));
+    expect(failuresOf('cmb-02', dialogue)).toContain('exclamation');
   });
 });

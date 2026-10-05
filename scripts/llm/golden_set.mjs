@@ -341,8 +341,24 @@ const ITEMS = [
   },
 ];
 
+/**
+ * Who may speak in a dialogue segment of this item's reply, derived from the item's own input (never
+ * hand-copied): the NPC being talked to, or the enemies in the fight. The player is never a speaker.
+ */
+function allowedSpeakersOf(item) {
+  if (item.route === 'npc_conversation') return [item.input.npc.name];
+  if (item.route === 'combat_narration') return [...new Set(item.input.enemyNames)];
+  return undefined;
+}
+
+/** Every segment-route item carries its allowed speakers in its expectations. */
+const WITH_SPEAKERS = ITEMS.map((item) => {
+  const allowedSpeakers = allowedSpeakersOf(item);
+  return allowedSpeakers === undefined ? item : { ...item, expectations: { ...item.expectations, allowedSpeakers } };
+});
+
 /** The 27 frozen items, in run order. */
-export const GOLDEN_SET = deepFreeze(ITEMS);
+export const GOLDEN_SET = deepFreeze(WITH_SPEAKERS);
 
 /** Stable ids in run order. */
 export const GOLDEN_IDS = deepFreeze(GOLDEN_SET.map((item) => item.id));
