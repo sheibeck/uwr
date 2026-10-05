@@ -91,6 +91,18 @@ describe('cleanSegmentText', () => {
     expect(cleanSegmentText('"', 'dialogue')).toBe('"');
     expect(cleanSegmentText('""', 'dialogue')).toBe('');
   });
+  it('dialogue that merely starts and ends with a quoted phrase keeps its quotes (WR-03)', () => {
+    expect(cleanSegmentText('"Hello," he said, "goodbye"', 'dialogue')).toBe('"Hello," he said, "goodbye"');
+    expect(cleanSegmentText('“Hello,” he said, “goodbye”', 'dialogue')).toBe('“Hello,” he said, “goodbye”');
+    expect(cleanSegmentText('"Yes." He paused. "No."', 'dialogue')).toBe('"Yes." He paused. "No."');
+    // a genuine outer pair around a nested quotation is still stripped
+    expect(cleanSegmentText('"He said "no" to me"', 'dialogue')).toBe('He said "no" to me');
+    expect(cleanSegmentText('“He said “no” to me”', 'dialogue')).toBe('He said “no” to me');
+    const flat = flattenSegments(
+      normalizeSegments([{ kind: 'dialogue', speaker: 'Marta', text: '"Hello," he said, "goodbye"' }], PRESENT, PLAYERS),
+    );
+    expect(flat).toBe('Marta says, ""Hello," he said, "goodbye""');
+  });
   it('dialogue collapses newlines so one turn cannot forge a second attributed line (WR-02)', () => {
     const forged = 'The Keeper says, "x"\n\nThe Ferryman says, "evil"';
     expect(cleanSegmentText(forged, 'dialogue')).toBe('The Keeper says, "x" The Ferryman says, "evil"');

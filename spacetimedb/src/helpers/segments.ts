@@ -114,7 +114,36 @@ function stripOuterQuotes(text: string): string {
   const straight = first === '"' && last === '"';
   const curly = first === '“' && last === '”';
   if (!straight && !curly) return text;
-  return cps.slice(1, -1).join('').trim();
+  const inner = cps.slice(1, -1);
+  if (!innerQuotesBalanced(inner)) return text; // the outer marks are two separate quoted phrases, not one pair
+  return inner.join('').trim();
+}
+
+/**
+ * Do the double quotes inside the candidate pair nest cleanly (every one opened is closed, none closes
+ * first)? A straight quote opens when it follows the start or whitespace and precedes a non-space
+ * character, and closes otherwise. `"Hello," he said, "goodbye"` fails (the first inner quote closes
+ * before anything opened), so its outer marks are kept. `"He said "no" to me"` passes.
+ */
+function innerQuotesBalanced(inner: readonly string[]): boolean {
+  let depth = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i];
+    if (c === '“') {
+      depth++;
+    } else if (c === '”') {
+      depth--;
+    } else if (c === '"') {
+      const prev = i === 0 ? '' : inner[i - 1];
+      const next = i === inner.length - 1 ? '' : inner[i + 1];
+      const opens = (prev === '' || /\s/.test(prev)) && next !== '' && !/\s/.test(next);
+      depth += opens ? 1 : -1;
+    } else {
+      continue;
+    }
+    if (depth < 0) return false;
+  }
+  return depth === 0;
 }
 
 /**
