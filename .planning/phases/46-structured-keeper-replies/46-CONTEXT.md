@@ -105,3 +105,7 @@ Out of scope: client rendering of segments (Phase 47, CON-01), and the round-bas
 - The `login_email` email-trust fix (CR-01 from the Phase 45 review) is a separate high-priority todo and is not part of this phase.
 
 </deferred>
+
+## Planning notes
+
+- UI design contract skipped (`--skip-ui`): the UI gate flagged this phase as frontend because of client keywords, but Phase 46 is backend only and has no screens. Segment rendering is designed in Phase 47.
