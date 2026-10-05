@@ -60,6 +60,39 @@ describe('Sheet', () => {
     expect(w.emitted('close')).toHaveLength(1);
   });
 
+  it('Tab with focus outside the dialog is pulled to the close button', () => {
+    const w = mountSheet();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true, bubbles: true });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(w.get('button.btn-icon').element);
+  });
+
+  it('Shift+Tab with focus outside the dialog is pulled to the last focusable element', () => {
+    const w = mountSheet();
+    (document.activeElement as HTMLElement | null)?.blur();
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey: true,
+      cancelable: true,
+      bubbles: true,
+    });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(w.get('button.inner').element);
+  });
+
+  it('stops trapping Tab after unmount', () => {
+    const w = mountSheet();
+    w.unmount();
+    wrapper = null;
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true, bubbles: true });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('Tab on the last focusable element wraps to the close button', () => {
     const w = mountSheet();
     const inner = w.get('button.inner');

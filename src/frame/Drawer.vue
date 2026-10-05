@@ -11,12 +11,15 @@ const closeButton = useTemplateRef<HTMLButtonElement>('closeButton');
 const root = useTemplateRef<HTMLElement>('root');
 
 function onDocumentKeydown(event: KeyboardEvent): void {
+  // Tab is trapped at the document, not on the dialog: with focus on <body> (or anywhere
+  // outside) a dialog-level handler never sees the event and Tab would walk out of an
+  // aria-modal dialog.
+  if (event.key === 'Tab') {
+    if (root.value) trapTabKey(event, root.value);
+    return;
+  }
   if (event.key !== 'Escape' || event.defaultPrevented) return;
   emit('close');
-}
-
-function onKeydown(event: KeyboardEvent): void {
-  if (root.value) trapTabKey(event, root.value);
 }
 
 onMounted(() => {
@@ -30,7 +33,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section ref="root" class="drawer" role="dialog" aria-modal="true" :aria-labelledby="titleId" @keydown="onKeydown">
+  <section ref="root" class="drawer" role="dialog" aria-modal="true" :aria-labelledby="titleId">
     <div class="drawer-header">
       <h4 :id="titleId">{{ props.title }}</h4>
       <span class="drawer-meta"><slot name="meta" /></span>
