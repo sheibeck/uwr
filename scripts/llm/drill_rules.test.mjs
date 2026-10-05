@@ -22,6 +22,7 @@ import {
   failedJobProblems,
   isDrillDb,
   isGeneratingStep,
+  leakHits,
   localRefusalProblems,
   lockProblems,
   makeFakeKey,
@@ -280,6 +281,30 @@ describe('failedJobProblems', () => {
   });
 });
 
+describe('leakHits', () => {
+  it('an in-voice line trips nothing, including the word narrate', () => {
+    expect(leakHits('The Keeper loses the thread. Say anything and he will narrate it again.')).toEqual([]);
+    expect(leakHits('The Keeper is unavailable at the moment. Try again shortly.')).toEqual([]);
+    expect(leakHits('')).toEqual([]);
+    expect(leakHits(undefined)).toEqual([]);
+  });
+
+  it.each([
+    ['Error 401 from the server', 'http_status'],
+    ['HTTP 529 overloaded', 'http_word'],
+    ['Claude refused', 'provider_name'],
+    ['Anthropic says no', 'provider_name'],
+    ['your API key is bad', 'api_key'],
+    ['rate limit hit', 'rate_limit'],
+    ['billing problem', 'billing'],
+    ['the daily ceiling is reached', 'spend_cap'],
+    ['unauthorized', 'unauthorized'],
+    ['the kill switch is off', 'kill_switch'],
+  ])('flags %j as %s', (text, id) => {
+    expect(leakHits(text)).toContain(id);
+  });
+});
+
 describe('localRefusalProblems', () => {
   it('no job and no call-log row is clean', () => {
     expect(localRefusalProblems({ newJobCount: 0, newCallRowCount: 0 })).toEqual([]);
@@ -438,8 +463,8 @@ describe('the drill harness source', () => {
   it('restores through the key script and the reducers, never a direct table write', () => {
     expect(harness).toContain('set-key.mjs');
     expect(harness).toContain("'--db'");
-    expect(harness).toContain('llmSetEnabled');
-    expect(harness).toContain('llmSetDailyCeiling');
+    expect(harness).toContain('llm_set_enabled');
+    expect(harness).toContain('llm_set_daily_ceiling');
     expect(harness).toMatch(/callReducerHttp\(/);
     expect(harness).not.toMatch(/\.db\.\w+\.(insert|update|delete)\(/);
     expect(harness).not.toMatch(/llm_config|llmConfig/);
