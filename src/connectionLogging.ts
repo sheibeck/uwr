@@ -1,4 +1,4 @@
-// Connection logging helpers used by src/main.ts.
+// Connection logging helpers used by src/net/connection.ts.
 //
 // SpacetimeDB 2.10.0 (PR #5707) delivers a websocket error on an ESTABLISHED
 // connection to `onDisconnect(ctx, err)` instead of `onConnectError`. Errors

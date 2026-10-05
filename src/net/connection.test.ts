@@ -1,10 +1,17 @@
+// @vitest-environment happy-dom
+import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createConnectionController, MAX_TOKEN_FAILURES } from './connection';
+import {
+  createConnectionController,
+  defaultControllerDeps,
+  MAX_TOKEN_FAILURES,
+  toHttpBase,
+} from './connection';
 import type { ConnectionHandlers, ControllerDeps } from './connection';
 
 interface FakeConn {
   id: number;
-  disconnect: ReturnType<typeof vi.fn>;
+  disconnect: Mock<() => void>;
 }
 
 interface Harness {
@@ -23,7 +30,7 @@ function harness(overrides: Partial<ControllerDeps<FakeConn>> = {}): Harness {
   });
   const deps: ControllerDeps<FakeConn> = {
     build(token, handlers) {
-      const conn: FakeConn = { id: builds.length, disconnect: vi.fn() };
+      const conn: FakeConn = { id: builds.length, disconnect: vi.fn<() => void>() };
       builds.push({ token, handlers, conn });
       return conn;
     },
@@ -294,5 +301,65 @@ describe('recovery from terminal states', () => {
     c.connect();
     c.connect();
     expect(h.builds).toHaveLength(1);
+  });
+});
+
+describe('toHttpBase', () => {
+  it('maps websocket schemes to http and drops a trailing slash', () => {
+    expect(toHttpBase('ws://localhost:3000')).toBe('http://localhost:3000');
+    expect(toHttpBase('wss://maincloud.spacetimedb.com/')).toBe('https://maincloud.spacetimedb.com');
+    expect(toHttpBase('https://example.com/')).toBe('https://example.com');
+    expect(toHttpBase('http://example.com')).toBe('http://example.com');
+  });
+});
+
+describe('resume listeners', () => {
+  const setup = (visible = true) => {
+    const windowTarget = new EventTarget();
+    const documentTarget = new EventTarget();
+    const isVisible = vi.fn(() => visible);
+    const h = harness({ windowTarget, documentTarget, isVisible });
+    const c = createConnectionController(h.deps);
+    c.connect();
+    h.builds[0].handlers.onConnectError(networkError());
+    return { h, c, windowTarget, documentTarget, isVisible };
+  };
+
+  it('rebuilds at once on online while waiting', () => {
+    const { h, windowTarget } = setup();
+    windowTarget.dispatchEvent(new Event('online'));
+    expect(h.builds).toHaveLength(2);
+  });
+
+  it('rebuilds on visibilitychange when the tab is visible', () => {
+    const { h, documentTarget } = setup(true);
+    documentTarget.dispatchEvent(new Event('visibilitychange'));
+    expect(h.builds).toHaveLength(2);
+  });
+
+  it('does nothing on visibilitychange when the tab is hidden', () => {
+    const { h, documentTarget } = setup(false);
+    documentTarget.dispatchEvent(new Event('visibilitychange'));
+    expect(h.builds).toHaveLength(1);
+  });
+
+  it('stops reacting after dispose', () => {
+    const { h, c, windowTarget, documentTarget } = setup();
+    c.dispose();
+    windowTarget.dispatchEvent(new Event('online'));
+    documentTarget.dispatchEvent(new Event('visibilitychange'));
+    expect(h.builds).toHaveLength(1);
+    expect(c.status.value).toBe('idle');
+  });
+});
+
+describe('defaultControllerDeps', () => {
+  it('wires the real session functions', () => {
+    const deps = defaultControllerDeps();
+    expect(typeof deps.build).toBe('function');
+    expect(typeof deps.getToken).toBe('function');
+    expect(typeof deps.hasExpiredToken).toBe('function');
+    expect(typeof deps.clearSession).toBe('function');
+    expect(typeof deps.probe).toBe('function');
   });
 });

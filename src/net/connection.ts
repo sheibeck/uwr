@@ -1,6 +1,20 @@
 import { ref, shallowRef } from 'vue';
 import type { Ref, ShallowRef } from 'vue';
+import type { Identity } from 'spacetimedb';
+import { DbConnection } from '../module_bindings';
+import { clearAuthSession, getStoredIdToken, hasExpiredToken } from '../auth/spacetimeAuth';
+import { logConnectError, logDisconnect } from '../connectionLogging';
 import { backoffDelayMs } from './backoff';
+
+declare global {
+  interface Window {
+    __db_conn?: DbConnection | null;
+    __my_identity?: Identity | null;
+  }
+}
+
+export const SPACETIMEDB_HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'ws://localhost:3000';
+export const SPACETIMEDB_DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'uwr';
 
 export type ConnectionStatus =
   | 'idle'
@@ -54,7 +68,7 @@ export function createConnectionController<C extends { disconnect(): void }>(
   deps: ControllerDeps<C>,
 ): ConnectionController<C> {
   const status = ref<ConnectionStatus>('idle');
-  const conn = shallowRef<C | null>(null);
+  const conn = shallowRef<C | null>(null) as ShallowRef<C | null>;
   const nextRetryAt = ref<number | null>(null);
 
   let attempt = 0;
@@ -207,8 +221,18 @@ export function createConnectionController<C extends { disconnect(): void }>(
     attemptConnect();
   };
 
+  const onOnline = () => retryNow();
+  const onVisibilityChange = () => {
+    if (deps.isVisible && !deps.isVisible()) return;
+    retryNow();
+  };
+  deps.windowTarget?.addEventListener('online', onOnline);
+  deps.documentTarget?.addEventListener('visibilitychange', onVisibilityChange);
+
   const dispose = () => {
     disconnect();
+    deps.windowTarget?.removeEventListener('online', onOnline);
+    deps.documentTarget?.removeEventListener('visibilitychange', onVisibilityChange);
   };
 
   return {
@@ -219,5 +243,69 @@ export function createConnectionController<C extends { disconnect(): void }>(
     disconnect,
     retryNow,
     dispose,
+  };
+}
+
+export function toHttpBase(wsHost: string): string {
+  const base = wsHost.replace(/^ws(s?):\/\//i, 'http$1://');
+  return base.replace(/\/+$/, '');
+}
+
+export function buildDbConnection(
+  token: string,
+  handlers: ConnectionHandlers<DbConnection>,
+): DbConnection {
+  // Handler context parameters stay unannotated: the generated context types
+  // make TS 5.6 report TS2589 against the 2.10.1 bindings.
+  let built: DbConnection | undefined;
+  built = DbConnection.builder()
+    .withUri(SPACETIMEDB_HOST)
+    .withDatabaseName(SPACETIMEDB_DB_NAME)
+    .withToken(token)
+    .onConnect((conn, identity) => {
+      window.__db_conn = conn;
+      window.__my_identity = identity;
+      handlers.onConnect(conn);
+    })
+    .onDisconnect((_ctx, err) => {
+      logDisconnect(err);
+      if (window.__db_conn === built) {
+        window.__db_conn = null;
+        window.__my_identity = null;
+      }
+      handlers.onDisconnect(err);
+    })
+    .onConnectError((_ctx, err) => {
+      logConnectError(err);
+      handlers.onConnectError(err);
+    })
+    .build();
+  return built;
+}
+
+async function probeReachable(): Promise<boolean> {
+  try {
+    const response = await fetch(`${toHttpBase(SPACETIMEDB_HOST)}/v1/ping`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function defaultControllerDeps(): ControllerDeps<DbConnection> {
+  const hasWindow = typeof window !== 'undefined';
+  const hasDocument = typeof document !== 'undefined';
+  return {
+    build: buildDbConnection,
+    getToken: getStoredIdToken,
+    hasExpiredToken,
+    clearSession: clearAuthSession,
+    probe: probeReachable,
+    windowTarget: hasWindow ? window : null,
+    documentTarget: hasDocument ? document : null,
+    isVisible: () => hasDocument && document.visibilityState === 'visible',
   };
 }
