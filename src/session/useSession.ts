@@ -1,6 +1,6 @@
 import { computed, effectScope, ref, shallowRef, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import { toSql } from 'spacetimedb';
+import { SenderError, toSql } from 'spacetimedb';
 import { tables } from '../module_bindings';
 import type {
   AppVersion,
@@ -261,10 +261,16 @@ function build<C extends SessionConn>(
       conn.reducers.loginEmail({ email }).catch((error: unknown) => {
         // A socket drop mid-call, or a late rejection from a connection that has since
         // been replaced, says nothing about the credentials: the reconnect path sends
-        // loginEmail again on the new connection. Only a rejection on the live
-        // connection counts as the server refusing this sign-in.
+        // loginEmail again on the new connection.
         if (controller.conn.value !== conn || controller.status.value !== 'connected') {
           console.warn('[session] loginEmail interrupted; waiting for the reconnect', error);
+          return;
+        }
+        // The SDK rejects a reducer call with SenderError (the server refused it) or
+        // InternalError (a runtime fault). Only a refusal means these credentials are bad;
+        // anything else keeps them and leaves recovery to the sign-in watchdog or a reconnect.
+        if (!(error instanceof SenderError)) {
+          console.warn('[session] loginEmail failed without a server refusal', error);
           return;
         }
         failSignIn();

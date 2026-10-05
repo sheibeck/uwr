@@ -2,6 +2,7 @@
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref, shallowRef } from 'vue';
+import { InternalError, SenderError } from 'spacetimedb';
 import type { ConnectionController, ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, TableBinding } from '../net/bindTable';
 import type { Character } from '../module_bindings/types';
@@ -309,10 +310,10 @@ describe('createSession core', () => {
       expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'signInFailed' });
     });
 
-    it('fails sign-in when loginEmail rejects', async () => {
+    it('fails sign-in when the server refuses loginEmail with a SenderError', async () => {
       h = harness();
       const conn = makeConn();
-      conn.reducers.loginEmail.mockRejectedValueOnce(new Error('nope'));
+      conn.reducers.loginEmail.mockRejectedValueOnce(new SenderError('Invalid email'));
       h.conn.value = conn;
       h.status.value = 'connected';
       h.setPlayer({});
@@ -357,6 +358,35 @@ describe('createSession core', () => {
       expect(h.auth.clearAuthSession).not.toHaveBeenCalled();
       expect(h.controller.disconnect).not.toHaveBeenCalled();
       expect(h.session.screen.value).not.toEqual({ kind: 'splash', state: 'signInFailed' });
+    });
+
+    it('keeps the stored credentials when loginEmail fails with an InternalError', async () => {
+      h = harness();
+      const { conn, reject } = rejectingConn();
+      h.conn.value = conn;
+      h.status.value = 'connected';
+      h.setPlayer({});
+      await flush();
+
+      reject(new InternalError('transient server fault'));
+      await flush();
+      expect(h.auth.clearAuthSession).not.toHaveBeenCalled();
+      expect(h.controller.disconnect).not.toHaveBeenCalled();
+      expect(h.session.screen.value).not.toEqual({ kind: 'splash', state: 'signInFailed' });
+    });
+
+    it('keeps the stored credentials when loginEmail rejects with a non-SDK error', async () => {
+      h = harness();
+      const { conn, reject } = rejectingConn();
+      h.conn.value = conn;
+      h.status.value = 'connected';
+      h.setPlayer({});
+      await flush();
+
+      reject(new Error('something else'));
+      await flush();
+      expect(h.auth.clearAuthSession).not.toHaveBeenCalled();
+      expect(h.controller.disconnect).not.toHaveBeenCalled();
     });
 
     it('ignores a late rejection from a connection that has been replaced', async () => {
