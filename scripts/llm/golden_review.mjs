@@ -17,6 +17,8 @@
 
 import { GOLDEN_IDS, goldenInputFor, goldenItem } from './golden_set.mjs';
 import { buildGoldenItem, redactForRecord } from './golden_run.mjs';
+import { extractJsonObject } from './sweep_rules.mjs';
+import { KEEPER_SPEAKER, normalizeSegments } from '../../spacetimedb/src/helpers/segments.ts';
 
 /** The only escape for static strings placed in markup. */
 export function esc(value) {
@@ -44,6 +46,29 @@ const GROUP_LABELS = Object.freeze({
 const SAFE_ID = /^[a-z_]{1,40}$/i;
 const isObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 const usd = (micro) => '$' + (Number(micro) / 1_000_000).toFixed(4);
+
+const SEGMENT_ROUTES = new Set(['npc_conversation', 'combat_narration']);
+
+/**
+ * The lines a player would read for a segment-route reply: the server normalizer over the raw segments with the
+ * item's allowedSpeakers. Returns [] for other routes or when no valid segment remains.
+ * label is 'The Keeper' for narration and '<speaker> says' for dialogue.
+ */
+export function reviewLines(item, text) {
+  try {
+    if (!isObject(item) || !SEGMENT_ROUTES.has(item.route)) return [];
+    const obj = extractJsonObject(text);
+    if (!obj || !Array.isArray(obj.segments)) return [];
+    const allowed = Array.isArray(item.expectations?.allowedSpeakers) ? item.expectations.allowedSpeakers : [];
+    const playerNames = Array.isArray(item.input?.playerNames) ? item.input.playerNames : [];
+    return normalizeSegments(obj.segments, allowed.map((name) => ({ name })), playerNames).map((seg) => ({
+      label: seg.kind === 'dialogue' ? `${seg.speaker} says` : KEEPER_SPEAKER,
+      text: seg.text,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 /** The page data: every golden item in set order, whatever order the record held, missing ones as not run. */
 function pageData(record, options) {
@@ -86,6 +111,7 @@ function pageData(record, options) {
       failureClass: typeof e.failureClass === 'string' && SAFE_ID.test(e.failureClass) ? e.failureClass : null,
       stopReason: typeof e.stopReason === 'string' && SAFE_ID.test(e.stopReason) ? e.stopReason : null,
       text,
+      lines: reviewLines(golden, text),
       failures,
       mechanicalPass: mech.pass === true && failures.length === 0,
       editable: rerunSet ? rerunSet.has(id) : true,
@@ -136,6 +162,9 @@ button.approve[aria-pressed="true"] { background: var(--accentbg); color: var(--
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 button:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 textarea { width: 100%; min-height: 3.5rem; font: inherit; padding: 0.4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+.lines { margin: 0.25rem 0 0.75rem; padding: 0.5rem 0.75rem; border-left: 3px solid var(--accent); background: var(--accentbg); border-radius: 0 6px 6px 0; }
+.line { margin: 0.25rem 0; font: 1rem/1.5 Georgia, serif; overflow-wrap: anywhere; }
+.speaker { font: 600 0.85rem system-ui, sans-serif; color: var(--accent); margin-right: 0.35rem; }
 .need { color: var(--bad); font-weight: 600; }
 .footer { margin-top: 2rem; padding-top: 1rem; border-top: 2px solid var(--line); }
 .notice { color: var(--bad); min-height: 1.5rem; }
@@ -293,6 +322,17 @@ const PAGE_CODE = String.raw`(function () {
     else if (!it.ok) { callLine = 'The call failed' + (it.failureClass ? ': ' + it.failureClass : '') + (it.stopReason ? ' (stop: ' + it.stopReason + ')' : '') + '.'; }
     else { callLine = it.stopReason ? 'Stop reason: ' + it.stopReason : ''; }
     add(card, el('div', 'label', 'What came back' + (callLine ? ' (' + callLine + ')' : '')));
+    if (it.lines.length > 0) {
+      add(card, el('div', 'label', 'How the player reads it'));
+      var feed = el('div', 'lines');
+      it.lines.forEach(function (line) {
+        var row = el('p', 'line');
+        add(row, el('span', 'speaker', line.label), el('span', null, ' '), el('span', 'said', line.text));
+        add(feed, row);
+      });
+      add(card, feed);
+      add(card, el('div', 'label', 'The raw reply'));
+    }
     add(card, el('pre', 'reply', it.text === '' ? '(no reply)' : it.text));
 
     var mech = el('p', 'meta');

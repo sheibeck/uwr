@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { GOLDEN_IDS, GOLDEN_SET, goldenItem } from './golden_set.mjs';
 import { KEEPER_IT_OR_THEY } from './golden_rules.mjs';
 import { buildGoldenRecord } from './golden_run.mjs';
-import { renderGoldenReview } from './golden_review.mjs';
+import { renderGoldenReview, reviewLines } from './golden_review.mjs';
 
 const FAKE_KEY = ['sk', '-ant-', 'api03-', 'B'.repeat(30)].join('');
 
@@ -199,6 +199,75 @@ describe('renderGoldenReview: ordering and content', () => {
 
   it('throws on an unknown rerun id rather than silently making nothing editable', () => {
     expect(() => renderGoldenReview(recordWith(), { rerunIds: ['npc-99'] })).toThrow(/unknown golden item id/);
+  });
+});
+
+describe('renderGoldenReview: segment replies as labelled lines', () => {
+  const npc = goldenItem('npc-01');
+  const npcName = npc.input.npc.name;
+  const segmentReply = (...segments) => JSON.stringify({ segments });
+  const GOOD = segmentReply(
+    { kind: 'narration', speaker: 'The Keeper', text: 'The lamp gutters as you step in.' },
+    { kind: 'dialogue', speaker: npcName, text: 'You are late.' },
+  );
+
+  it('reviewLines labels narration The Keeper and dialogue with the speaker', () => {
+    expect(reviewLines(npc, GOOD)).toEqual([
+      { label: 'The Keeper', text: 'The lamp gutters as you step in.' },
+      { label: `${npcName} says`, text: 'You are late.' },
+    ]);
+  });
+
+  it('reviewLines works for a combat narration item and a reply wrapped in prose', () => {
+    const cmb = goldenItem('cmb-01');
+    const lines = reviewLines(cmb, 'Here: ' + segmentReply({ kind: 'narration', speaker: 'The Keeper', text: 'The hound drops.' }));
+    expect(lines).toEqual([{ label: 'The Keeper', text: 'The hound drops.' }]);
+  });
+
+  it('reviewLines returns [] for a stage route, unparseable text and a reply with no valid segment', () => {
+    expect(reviewLines(goldenItem('cre-01'), GOOD)).toEqual([]);
+    expect(reviewLines(npc, 'just prose, no object')).toEqual([]);
+    expect(reviewLines(npc, '{"segments": "nope"}')).toEqual([]);
+    expect(reviewLines(npc, segmentReply({ kind: 'narration', speaker: 'The Keeper', text: '   ' }))).toEqual([]);
+    expect(reviewLines(npc, undefined)).toEqual([]);
+  });
+
+  it('a speaker outside the allowed speakers is shown as Keeper narration, as the server stores it', () => {
+    const lines = reviewLines(npc, segmentReply({ kind: 'dialogue', speaker: 'Somebody Else', text: 'Hello.' }));
+    expect(lines).toHaveLength(1);
+    expect(lines[0].label).toBe('The Keeper');
+  });
+
+  it('the page data carries lines for segment routes and an empty list elsewhere', () => {
+    const parsed = dataOf(renderGoldenReview(recordWith((id) => (id === 'npc-01' ? GOOD : 'A dry line. And another.')))).parsed;
+    expect(parsed.items.find((i) => i.id === 'npc-01').lines).toHaveLength(2);
+    expect(parsed.items.find((i) => i.id === 'cre-01').lines).toEqual([]);
+    expect(parsed.items.find((i) => i.id === 'npc-02').lines).toEqual([]);
+  });
+
+  it('hostile segment text appears only inside the escaped data block and the code block stays constant', () => {
+    const hostile = segmentReply(
+      { kind: 'narration', speaker: 'The Keeper', text: '<script>alert(1)</script>' },
+      { kind: 'narration', speaker: 'The Keeper', text: '<img src=x onerror=alert(2)>' },
+      { kind: 'narration', speaker: 'The Keeper', text: '</script><script>alert(3)</script>' },
+    );
+    const html = renderGoldenReview(recordWith((id) => (id === 'npc-01' ? hostile : 'A dry line. And another.')));
+    const data = dataOf(html);
+    const lines = data.parsed.items.find((i) => i.id === 'npc-01').lines;
+    expect(lines.map((l) => l.text)).toEqual(['<script>alert(1)</script>', '<img src=x onerror=alert(2)>', '</script><script>alert(3)</script>']);
+    expect(data.raw).not.toContain('<');
+    const outside = html.replace(data.raw, '');
+    expect(outside).not.toContain('alert(');
+    expect(outside).not.toContain('onerror');
+    expect(blocks(html).count).toBe(2);
+    expect(codeOf(html)).toBe(codeOf(renderGoldenReview(recordWith())));
+  });
+
+  it('the code block builds the lines with createElement and textContent under a How the player reads it label', () => {
+    const code = codeOf(renderGoldenReview(recordWith()));
+    expect(code).toContain('How the player reads it');
+    expect(code).toContain('it.lines');
+    expect(code).not.toContain('innerHTML');
   });
 });
 
@@ -570,5 +639,24 @@ describe('the page script: rerun mode', () => {
   it('every item stays in the page in set order', () => {
     expect(dataOf(html).parsed.items.map((i) => i.id)).toEqual([...GOLDEN_IDS]);
     expect(GOLDEN_SET).toHaveLength(27);
+  });
+});
+
+describe('the page renders labelled lines as text nodes', () => {
+  it('shows each line with its label before the raw reply, hostile text as plain text', async () => {
+    const npcName = goldenItem('npc-01').input.npc.name;
+    const reply = JSON.stringify({ segments: [
+      { kind: 'narration', speaker: 'The Keeper', text: '<b>bold</b> rain falls.' },
+      { kind: 'dialogue', speaker: npcName, text: 'Mind the step.' },
+    ] });
+    const page = await loadPage(renderGoldenReview(recordWith((id) => (id === 'npc-01' ? reply : 'A dry line. And another.'))));
+    const text = page.text();
+    expect(text).toContain('How the player reads it');
+    expect(text).toContain('The Keeper');
+    expect(text).toContain('<b>bold</b> rain falls.');
+    expect(text).toContain(`${npcName} says`);
+    expect(text.indexOf('How the player reads it')).toBeLessThan(text.indexOf('The raw reply'));
+    // every element built by the page is a plain element: no node was made from markup
+    expect(page.all().some((e) => e.tagName === 'B')).toBe(false);
   });
 });
