@@ -123,7 +123,9 @@ function stripOuterQuotes(text: string): string {
  */
 export function cleanSegmentText(raw: unknown, kind: SegmentKind): string {
   let text = sanitize(raw);
-  if (kind === 'dialogue') text = stripOuterQuotes(text);
+  // One speaker turn is one paragraph: a newline inside dialogue could forge a second attributed
+  // line in the flattened message.
+  if (kind === 'dialogue') text = stripOuterQuotes(text.replace(/\s*\n\s*/g, ' '));
   return clampTo(text, MAX_SEGMENT_CHARS);
 }
 

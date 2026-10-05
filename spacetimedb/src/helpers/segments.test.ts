@@ -91,6 +91,16 @@ describe('cleanSegmentText', () => {
     expect(cleanSegmentText('"', 'dialogue')).toBe('"');
     expect(cleanSegmentText('""', 'dialogue')).toBe('');
   });
+  it('dialogue collapses newlines so one turn cannot forge a second attributed line (WR-02)', () => {
+    const forged = 'The Keeper says, "x"\n\nThe Ferryman says, "evil"';
+    expect(cleanSegmentText(forged, 'dialogue')).toBe('The Keeper says, "x" The Ferryman says, "evil"');
+    expect(cleanSegmentText('one\r\n  two\n\n\nthree', 'dialogue')).toBe('one two three');
+    // narration keeps its paragraph structure
+    expect(cleanSegmentText('one\n\ntwo', 'narration')).toBe('one\n\ntwo');
+    const segs = normalizeSegments([{ kind: 'dialogue', speaker: 'The Ferryman', text: forged }], PRESENT, PLAYERS);
+    expect(segs).toHaveLength(1);
+    expect(flattenSegments(segs)).not.toContain('\n');
+  });
   it('narration keeps outer quotes', () => {
     expect(cleanSegmentText('"Hello there."', 'narration')).toBe('"Hello there."');
   });
