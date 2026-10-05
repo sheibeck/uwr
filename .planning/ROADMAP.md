@@ -557,9 +557,11 @@ Promote with /gsd-review-backlog when ready.
   - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
   - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
   - `support.js`
+- Design updated by the owner on 2026-10-05 (same project, same files). Re-import from the MCP when this is promoted; never work from a cached copy.
 
 **Notes:**
 
+- Response shape is decided here (owner, 2026-10-05). The Phase 44 tone review deferred reply-shape choices to this overhaul: speaker attribution, splitting narration from dialogue, and what highlighting and journals need. Inputs and affected routes and schemas are in `.planning/phases/44-live-verification-and-tone-eval/44-TONE-FIXES.md` ("Open question for the UX overhaul"). The Keeper's voice target is story-like prose in the first person ("I"), with speech attributed in the text.
 - It overlaps parked 999.2 (Narrative UI Integration) and 999.5 (UX Polish, including UX-01–03 and COMB-08). Reconcile or supersede those when this is promoted.
 - It is unsequenced relative to the v2.2 LLM milestone. Phase 43 adds staged reveals and Keeper progress lines to the console, so check for UI conflicts if both are active.
 
