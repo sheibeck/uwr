@@ -1,0 +1,22 @@
+/* Frame-level overrides layered on Nocturne (45-UI-SPEC "Typography"): the four-size type scale
+   10/12/14/20, body base 14px, plus the spinner and session-ground utilities. No literal colors. */
+body { font-size: 14px; line-height: 1.5; }
+#app { min-height: 100dvh; }
+
+.card-title { font-size: 20px; font-weight: 500; line-height: 1.12; }
+.tag, .tag-accent, .tag-outline, .tag-neutral { font-size: 12px; }
+.card-body { font-size: 14px; }
+h6 { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
+
+.session-ground {
+  min-height: 100dvh;
+  background:
+    radial-gradient(360px 340px at 50% 38%, color-mix(in srgb, var(--color-accent-900) 70%, transparent), transparent 70%),
+    var(--color-bg);
+}

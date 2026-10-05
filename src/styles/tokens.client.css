@@ -1,0 +1,24 @@
+/* Client token extension (45-UI-SPEC "Client token extension"; hues from 45-CONTEXT "What survives the deletion").
+   With nocturne.css this is the only place in src where a literal color may appear. */
+:root {
+  --color-rarity-common: #ffffff;
+  --color-rarity-uncommon: #22c55e;
+  --color-rarity-rare: #3b82f6;
+  --color-rarity-epic: #aa44ff;
+  --color-rarity-legendary: #ff8800;
+  --color-con-red: #ff6b6b;
+  --color-con-orange: #f08c00;
+  --color-con-yellow: #ffd43b;
+  --color-con-white: #e9ecef;
+  --color-con-blue: #4dabf7;
+  --color-con-light-green: #69db7c;
+  --color-con-gray: #868e96;
+  --color-craft-dented: #888888;
+  --color-craft-standard: #cccccc;
+  --color-craft-reinforced: #66cc99;
+  --color-craft-exquisite: #99ccff;
+  --color-craft-mastercraft: #ff9900;
+  --color-health: oklch(0.62 0.16 24);
+  --color-mana: oklch(0.62 0.12 258);
+  --color-stamina: oklch(0.74 0.12 70);
+}

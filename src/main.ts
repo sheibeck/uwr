@@ -1,4 +1,6 @@
 import './styles/nocturne.css';
+import './styles/tokens.client.css';
+import './styles/frame.css';
 import { createApp } from 'vue';
 import App from './App.vue';
 import { clearLegacyLlmCredential } from './legacyCredentials';
