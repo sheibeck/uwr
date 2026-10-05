@@ -88,13 +88,21 @@ export const beginSpacetimeAuthLogin = async () => {
   window.location.assign(`${ISSUER}/oidc/auth?${params.toString()}`);
 };
 
-const parseJwtEmail = (idToken: string) => {
-  const parts = idToken.split('.');
-  if (parts.length < 2) return null;
-  const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-  const decoded = atob(payload.padEnd(payload.length + (4 - (payload.length % 4)) % 4, '='));
-  const parsed = JSON.parse(decoded);
-  return parsed.email ?? parsed.preferred_username ?? null;
+const parseJwtEmail = (idToken: string): string | null => {
+  try {
+    const parts = idToken.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), '='));
+    // atob yields Latin-1 characters: decode the bytes as UTF-8 so non-ASCII claims survive.
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    const email = parsed?.email ?? parsed?.preferred_username ?? null;
+    return typeof email === 'string' && email ? email : null;
+  } catch {
+    // A malformed token payload is "no email", never a thrown error after storage.
+    return null;
+  }
 };
 
 export const handleSpacetimeAuthCallback = async () => {
@@ -143,13 +151,26 @@ export const handleSpacetimeAuthCallback = async () => {
     const accessToken = payload.access_token as string | undefined;
     const expiresIn = Number(payload.expires_in ?? 0);
 
-    localStorage.setItem(STORAGE_KEYS.idToken, idToken);
-    if (accessToken) localStorage.setItem(STORAGE_KEYS.accessToken, accessToken);
-    if (expiresIn) {
-      localStorage.setItem(STORAGE_KEYS.expiresAt, String(Date.now() + expiresIn * 1000));
-    }
+    // Everything is derived before the first write, and each key is either written or
+    // removed: a stale value from an earlier session (expiry, access token, email) must
+    // never survive next to the fresh token.
     const email = parseJwtEmail(idToken);
-    if (email) localStorage.setItem(STORAGE_KEYS.email, email);
+    const entries: [string, string | null][] = [
+      [STORAGE_KEYS.idToken, idToken],
+      [STORAGE_KEYS.accessToken, accessToken || null],
+      [STORAGE_KEYS.expiresAt, expiresIn > 0 ? String(Date.now() + expiresIn * 1000) : null],
+      [STORAGE_KEYS.email, email],
+    ];
+    try {
+      for (const [key, value] of entries) {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+    } catch (error) {
+      // Quota or storage failure: leave no half-written session behind.
+      for (const [key] of entries) localStorage.removeItem(key);
+      throw error;
+    }
 
     return { idToken, email };
   } finally {

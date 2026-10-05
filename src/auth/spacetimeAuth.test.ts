@@ -138,6 +138,83 @@ describe('handleSpacetimeAuthCallback', () => {
   });
 });
 
+describe('handleSpacetimeAuthCallback token payload and storage', () => {
+  const utf8b64url = (value: string) =>
+    btoa(String.fromCharCode(...new TextEncoder().encode(value)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+  it('treats a malformed id token payload as no email instead of throwing after storage', async () => {
+    const auth = await loadAuth();
+    seedCallback();
+    stubTokenFetch(true, { id_token: 'header.@@not-base64@@.sig', expires_in: 3600 });
+    await expect(auth.handleSpacetimeAuthCallback()).resolves.toEqual({
+      idToken: 'header.@@not-base64@@.sig',
+      email: null,
+    });
+    expect(localStorage.getItem('spacetimeauth_id_token')).toBe('header.@@not-base64@@.sig');
+    expect(localStorage.getItem('spacetimeauth_email')).toBeNull();
+    expectUrlClean();
+  });
+
+  it('treats a payload that is valid base64 but not JSON as no email', async () => {
+    const auth = await loadAuth();
+    seedCallback();
+    const idToken = `h.${b64url('not json')}.sig`;
+    stubTokenFetch(true, { id_token: idToken });
+    await expect(auth.handleSpacetimeAuthCallback()).resolves.toEqual({ idToken, email: null });
+  });
+
+  it('decodes non-ASCII claims as UTF-8', async () => {
+    const auth = await loadAuth();
+    seedCallback();
+    const idToken = `h.${utf8b64url(JSON.stringify({ email: 'josé@exämple.com' }))}.sig`;
+    stubTokenFetch(true, { id_token: idToken });
+    const result = await auth.handleSpacetimeAuthCallback();
+    expect(result?.email).toBe('josé@exämple.com');
+    expect(localStorage.getItem('spacetimeauth_email')).toBe('josé@exämple.com');
+  });
+
+  it('removes stale expiry, access token and email from an earlier session', async () => {
+    const auth = await loadAuth();
+    seedCallback();
+    localStorage.setItem('spacetimeauth_expires_at', '1');
+    localStorage.setItem('spacetimeauth_access_token', 'old-access');
+    localStorage.setItem('spacetimeauth_email', 'old@example.com');
+    const idToken = makeIdToken({});
+    stubTokenFetch(true, { id_token: idToken });
+    await auth.handleSpacetimeAuthCallback();
+    expect(localStorage.getItem('spacetimeauth_id_token')).toBe(idToken);
+    expect(localStorage.getItem('spacetimeauth_expires_at')).toBeNull();
+    expect(localStorage.getItem('spacetimeauth_access_token')).toBeNull();
+    expect(localStorage.getItem('spacetimeauth_email')).toBeNull();
+    // A fresh token with no expiry is usable, not "expired" by the old value.
+    expect(auth.getStoredIdToken()).toBe(idToken);
+  });
+
+  it('stores all keys or none when a write fails', async () => {
+    const auth = await loadAuth();
+    seedCallback();
+    stubTokenFetch(true, { id_token: makeIdToken(), access_token: 'a', expires_in: 60 });
+    const real = localStorage;
+    let writes = 0;
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => real.getItem(key),
+      removeItem: (key: string) => real.removeItem(key),
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        if (writes === 3) throw new Error('QuotaExceededError');
+        real.setItem(key, value);
+      },
+    });
+    await expect(auth.handleSpacetimeAuthCallback()).rejects.toThrow('QuotaExceededError');
+    vi.unstubAllGlobals();
+    expect(authKeys()).toEqual([]);
+    expectUrlClean();
+  });
+});
+
 describe('token expiry', () => {
   it('treats a token past its expiry as unusable and expired', async () => {
     const auth = await loadAuth();
