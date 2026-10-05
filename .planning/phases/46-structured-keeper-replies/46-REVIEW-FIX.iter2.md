@@ -1,10 +1,10 @@
 ---
 phase: 46-structured-keeper-replies
-fixed_at: 2026-10-05T18:00:00Z
+fixed_at: 2026-10-05T17:10:00Z
 review_path: .planning/phases/46-structured-keeper-replies/46-REVIEW.md
-iteration: 2
-findings_in_scope: 9
-fixed: 8
+iteration: 1
+findings_in_scope: 8
+fixed: 7
 skipped: 1
 status: partial
 ---
@@ -13,29 +13,18 @@ status: partial
 
 **Fixed at:** 2026-10-05
 **Source review:** .planning/phases/46-structured-keeper-replies/46-REVIEW.md
-**Iteration:** 2 (cumulative: carries forward the iteration-1 fixes WR-01 to WR-08 and adds WR-09)
+**Iteration:** 1
 
 **Summary:**
-- Findings in scope: 9 (Critical 0, Warning 9; Info excluded by `fix_scope: critical_warning`)
-- Fixed: 8 (WR-01 to WR-06 and WR-08 in iteration 1, WR-09 in iteration 2)
+- Findings in scope: 8 (Critical 0, Warning 8; Info excluded by `fix_scope: critical_warning`)
+- Fixed: 7 (WR-01 after owner approval, see below)
 - Skipped: 1 (WR-07, owner decision G3)
 
-Iteration 2 handled only WR-09 (the iteration-2 review's single Warning). It changed no stored wording and left the `\n` before the mechanics line as it was. No snapshot changed: `git status` after the gates shows no `.snap` file modified, so there are no re-recorded characterization cases to list. WR-01 was applied in iteration 1 after the owner approved its wording on 2026-10-05 (chat, "Apply as proposed"); the verbatim before/after pairs are in `46-VOICE-CHANGES.md` section H, "Addendum (post-review WR-01, approved 2026-10-05)". That commit re-recorded the `claude_request` snapshot; only the npc_conversation entry changed. Three sweeper assertions in `llm_sweeper.test.ts` were updated by hand in iteration 1 because the sweeper's lock-release row now carries segments (see WR-06).
+No approved wording was changed in the first pass. WR-01 was then applied after the owner approved its wording on 2026-10-05 (chat, "Apply as proposed"); the verbatim before/after pairs are recorded in `46-VOICE-CHANGES.md` section H, "Addendum (post-review WR-01, approved 2026-10-05)". That commit re-recorded the `claude_request` snapshot; only the npc_conversation entry changed. No characterization or other snapshot was re-recorded: no stored-output snapshot changed, so there are no re-recorded cases to list. Three sweeper assertions in `llm_sweeper.test.ts` were updated by hand because the sweeper's lock-release row now carries segments (see WR-06).
 
-Verification (iteration 2, after the WR-09 commit): full `spacetimedb` suite (`vitest run --maxWorkers=1`) 3406 passed, 2 failed, both in the known-baseline `measurement.results.test.ts`. Root `scripts/llm`: 486 passed, with only the known-baseline `call_log_report.test.mjs` and `proof_rules.test.mjs` failing to load. `tsc --noEmit` reports nothing for `segments.ts`. No new failures.
+Verification: full `spacetimedb` suite (`vitest run --maxWorkers=1`) 3404 passed, 2 failed, both in the known-baseline `measurement.results.test.ts`. `scripts/llm` 486 passed, with only the known-baseline `call_log_report.test.mjs` and `proof_rules.test.mjs` failing to load. `tsc --noEmit` reports nothing for the touched files. No new failures.
 
 ## Fixed Issues
-
-### WR-09: A single over-cap paragraph is still clamped (residual of WR-05), which can cut the ability mechanics line
-
-**Files modified:** `spacetimedb/src/helpers/segments.ts`, `spacetimedb/src/helpers/segments.test.ts`
-**Commit:** 752a3263
-**Applied fix:** `packParagraphs` now treats "a part longer than 600 code points after capped merging" like "too many parts". It computes `overCap = merged.some(p => cpLength(p) > MAX_SEGMENT_CHARS)` and returns `merged` only when `merged.length <= max && !overCap`. Otherwise it runs the existing cap-aware re-chunk path (sentence units, then word units, then code points), so nothing is dropped whenever the whole text fits in 6 x 600. Text that cannot fit still falls back to merge-and-clamp, as before. This is the review's suggested change applied as written; the existing `total > max * 600` shortcut and the final fallback are unchanged. The doc comment on `packParagraphs` was updated to match. The `\n` before `abilityMechanicsLine` in `llm_apply.ts` was not touched and no stored wording changed.
-**Tests:**
-- New: a 700-character ability description composed the way `llm_apply.ts` composes the stage-1 class reveal (`Your first ability:\n\n${name} — ${description}\n${mechanicsLine}\n\n...`). It asserts at most 6 segments, each at most 600 code points, the mechanics line present in a segment and in `flattenSegments` (the stored `message`), no truncation mark, and the flattened text equal to the input modulo whitespace. It also checks the same description in a short (under 6 paragraphs) text, so the result no longer depends on paragraph count.
-- Changed: the old `clamps each paragraph` test (one 800-character paragraph plus `short`) was renamed to `splits a paragraph over the cap instead of cutting it, losing no text (WR-09)`. The behaviour it pinned (clamp and lose the tail) is exactly the defect; it now asserts two segments, the first 600 code points, none over the cap, no truncation mark, and no lost characters.
-- Both new and changed tests fail against the old `packParagraphs` and pass with the fix.
-**Status:** fixed: requires human verification (packing logic). Note: the iteration-1 WR-05 report claimed "Behaviour for 6 or fewer paragraphs ... is unchanged (including `clamps each paragraph`)"; that claim is superseded by this fix, which intentionally changes the single over-cap paragraph case.
 
 ### WR-02: Dialogue text keeps newlines and blank lines, so the flattened `message` can carry forged attributed lines
 
@@ -61,9 +50,9 @@ Verification (iteration 2, after the WR-09 commit): full `spacetimedb` suite (`v
 
 **Files modified:** `spacetimedb/src/helpers/segments.ts`, `spacetimedb/src/helpers/segments.test.ts`
 **Commit:** 8c1971de
-**Applied fix:** Packing is now cap-aware. Pair merging refuses any merge whose result (with its blank-line joint) passes 600 code points. When more than 6 parts remain, the text is re-chunked greedily by sentence units, then word units, then code points (joints between paragraphs, lines and words are preserved), so nothing is dropped whenever the whole text fits in 6 x 600. Only text that cannot fit at all falls back to the previous merge-and-clamp behaviour (and an input beyond 6 x 600 skips the re-chunk work). Tests: seven 300-character paragraphs (the review probe) lose no text; seven five-sentence paragraphs split only on sentence ends; a short instruction paragraph survives next to long ones; unfittable text stays within the clamps. The first two fail against the old code.
+**Applied fix:** Packing is now cap-aware. Pair merging refuses any merge whose result (with its blank-line joint) passes 600 code points. When more than 6 parts remain, the text is re-chunked greedily by sentence units, then word units, then code points (joints between paragraphs, lines and words are preserved), so nothing is dropped whenever the whole text fits in 6 x 600. Only text that cannot fit at all falls back to the previous merge-and-clamp behaviour (and an input beyond 6 x 600 skips the re-chunk work). Behaviour for 6 or fewer paragraphs, and for small paragraph sets, is unchanged (existing tests untouched and passing, including `clamps each paragraph` for a single 800-character paragraph). Tests: seven 300-character paragraphs (the review probe) lose no text; seven five-sentence paragraphs split only on sentence ends; a short instruction paragraph survives next to long ones; unfittable text stays within the clamps. The first two fail against the old code.
 **Not applied:** the review's separate suggestion to change the `\n` before `abilityMechanicsLine` to `\n\n` (changes stored text and approved formatting; not needed once packing is cap-aware).
-**Status:** fixed: requires human verification (packing logic). Residual (a single paragraph over 600 code points with 6 or fewer paragraphs) found by the iteration-2 review and fixed as WR-09 above.
+**Status:** fixed: requires human verification (packing logic).
 
 ### WR-06: Some Keeper-voice lines still bypass segments
 
@@ -86,7 +75,7 @@ No export was added to `events.ts`; `segments.ts` (pure, never mocked) is the on
 **Files modified:** `spacetimedb/src/data/llm_layers.ts`, `spacetimedb/src/data/llm_layers.test.ts`, `spacetimedb/src/helpers/__snapshots__/claude_request.test.ts.snap`
 **Commit:** 4deb65c8
 **Status:** fixed (owner-approved). The owner approved this exact wording on 2026-10-05 in chat via the WR-01 question: Apply as proposed.
-**Applied fix:** `buildNpcConversationVolatile` now names the NPC in the third person ("The NPC in this conversation is {NAME}.", "{NAME}'s region", "{NAME}'s secrets (share only at trusted+ affinity)", "{NAME} has no particular secrets to share.", "At this affinity {NAME} is willing to", "Quests {NAME} gave that the player completed", "{NAME} can reference these", "{NAME} has already given this player a task ...") and ends with "Reply with the segments JSON object: {NAME}'s words in dialogue segments, your narration in the second person." Two lines of `NPC_CONVERSATION_BLOCK` ("What the NPC knows" and "What the NPC does NOT know") are in the third person. The change from "you have never visited" to "he or she has never visited" is the minimal grammatical follow-through of the approved head words. All other lines are unchanged. Tests: a new case in `llm_layers.test.ts` (volatile starts with "The NPC in this conversation is", no "You are " + name, no "Respond in character.", no "Your region/secrets", the block lines, the unfinished-task line); the `claude_request` snapshot was re-recorded and the diff shows only the npc_conversation entry. Verification at the time: `spacetimedb` full suite 3405 passed and 2 failed (known-baseline `measurement.results.test.ts` only); root `scripts/llm` 486 passed with only the known-baseline `call_log_report.test.mjs` and `proof_rules.test.mjs` failing to load; free golden dry run passed (27 requests built, validated, byte-stable, none sent). The model-facing effect (first-person slips, `segments_invalid`) remains for the deferred paid golden run to judge.
+**Applied fix:** `buildNpcConversationVolatile` now names the NPC in the third person ("The NPC in this conversation is {NAME}.", "{NAME}'s region", "{NAME}'s secrets (share only at trusted+ affinity)", "{NAME} has no particular secrets to share.", "At this affinity {NAME} is willing to", "Quests {NAME} gave that the player completed", "{NAME} can reference these", "{NAME} has already given this player a task ...") and ends with "Reply with the segments JSON object: {NAME}'s words in dialogue segments, your narration in the second person." Two lines of `NPC_CONVERSATION_BLOCK` ("What the NPC knows" and "What the NPC does NOT know") are in the third person. The change from "you have never visited" to "he or she has never visited" is the minimal grammatical follow-through of the approved head words. All other lines are unchanged. Tests: a new case in `llm_layers.test.ts` (volatile starts with "The NPC in this conversation is", no "You are " + name, no "Respond in character.", no "Your region/secrets", the block lines, the unfinished-task line); the `claude_request` snapshot was re-recorded and the diff shows only the npc_conversation entry. Verification: `spacetimedb` full suite 3405 passed and 2 failed (known-baseline `measurement.results.test.ts` only); root `scripts/llm` 486 passed with only the known-baseline `call_log_report.test.mjs` and `proof_rules.test.mjs` failing to load; free golden dry run passed (27 requests built, validated, byte-stable, none sent). No new failures. The model-facing effect (first-person slips, `segments_invalid`) remains for the deferred paid golden run to judge.
 
 ## Skipped Issues
 
@@ -100,4 +89,4 @@ No export was added to `events.ts`; `segments.ts` (pure, never mocked) is the on
 
 _Fixed: 2026-10-05_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 2_
+_Iteration: 1_
