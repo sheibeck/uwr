@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 45
 current_phase_name: Foundation, Frame and Auth
 status: executing
-stopped_at: Completed 45-04-PLAN.md
-last_updated: "2026-10-05T15:24:39.172Z"
+stopped_at: Completed 45-05-PLAN.md
+last_updated: "2026-10-05T15:31:22.220Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 45 execution started
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 11
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 45 (Foundation, Frame and Auth) — EXECUTING
-Plan: 5 of 11
+Plan: 6 of 11
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 45 execution started
 
-Progress: [████░░░░░░] 36%
+Progress: [█████░░░░░] 45%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -140,6 +140,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 45-03: connection.test.ts runs under happy-dom (auth module reads window at import)
 - [Phase ?]: 45-04: LinkStatus aliases ConnectionStatus via type-only import so deriveScreen and the connection controller cannot drift
 - [Phase ?]: 45-04: bindTable ignores applied/error callbacks from a replaced connection and keeps rows until a fresh apply
+- [Phase ?]: [Phase 45-05]: focusableWithin excludes tabindex=-1 on buttons; Esc listener is document-level and ignores defaultPrevented
 
 ### Roadmap Evolution
 
@@ -229,8 +230,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T15:24:39.145Z
-Stopped at: Completed 45-04-PLAN.md
+Last session: 2026-10-05T15:31:22.194Z
+Stopped at: Completed 45-05-PLAN.md
 
 ## Performance Metrics
 
@@ -319,6 +320,7 @@ Stopped at: Completed 45-04-PLAN.md
 | Phase 45 P02 | 15min | 3 tasks | 7 files |
 | Phase 45 P03 | 20min | 3 tasks | 7 files |
 | Phase 45 P04 | 12min | 3 tasks | 8 files |
+| Phase 45 P05 | 15min | 3 tasks | 9 files |
 
 ## Operator Next Steps
 
