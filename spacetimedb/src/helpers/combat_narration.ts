@@ -11,7 +11,9 @@
 
 import { appendPrivateEvent } from './events';
 import { enqueueLlmJob, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
-import { encodeRouteInput } from './llm_inputs';
+import { encodeRouteInput, decodeRouteInput } from './llm_inputs';
+import { segmentsFromReply, flattenSegments, speakerKey } from './segments';
+import type { PresentSpeaker } from './segments';
 import { redactSecrets } from './measurement';
 
 // ── Types ──
@@ -176,9 +178,68 @@ export function stripNarrationSelfCorrection(text: string): string {
   return kept.filter((p) => !SELF_CORRECTION_RE.test(p)).join('\n\n');
 }
 
+/** Same text as the skipped-narration line; wording is an owner decision (46-06). */
+export const COMBAT_NARRATION_FALLBACK_LINE = 'The Keeper of Knowledge has lost interest in your skirmish.';
+
 /**
- * Handle the LLM result for combat narration domain.
- * Parses the narrative, inserts CombatNarrative row, broadcasts to all participants.
+ * Who may speak in a combat dialogue segment, and which names are the player's. Total: never throws.
+ * Enemy display names come from the server-written request snapshot (no id); NPCs are read from the
+ * database at the first participant's location (with id), so no speaker is ever taken from model text.
+ */
+export function combatPresentSpeakers(
+  ctx: any,
+  context: Record<string, any>,
+): { present: PresentSpeaker[]; playerNames: string[] } {
+  const present: PresentSpeaker[] = [];
+  const playerNames: string[] = [];
+  try {
+    const decoded: any = decodeRouteInput('combat_narration', context?.input);
+    const seen = new Set<string>();
+    for (const name of Array.isArray(decoded?.enemyNames) ? decoded.enemyNames : []) {
+      if (typeof name !== 'string') continue;
+      const key = speakerKey(name);
+      if (key === '' || seen.has(key)) continue;
+      seen.add(key);
+      present.push({ name });
+    }
+    for (const name of Array.isArray(decoded?.playerNames) ? decoded.playerNames : []) {
+      if (typeof name === 'string') playerNames.push(name);
+    }
+  } catch {
+    // a bad snapshot leaves the lists as they are
+  }
+  try {
+    let locationId: bigint | undefined;
+    const ids: unknown[] = Array.isArray(context?.participantCharacterIds) ? context.participantCharacterIds : [];
+    for (const idStr of ids) {
+      let character: any;
+      try {
+        character = ctx.db.character.id.find(BigInt(idStr as any));
+      } catch {
+        continue;
+      }
+      if (!character) continue;
+      if (typeof character.name === 'string') playerNames.push(character.name);
+      if (locationId === undefined && typeof character.locationId === 'bigint' && character.locationId !== 0n) {
+        locationId = character.locationId;
+      }
+    }
+    if (locationId !== undefined) {
+      for (const npc of ctx.db.npc.by_location.filter(locationId)) {
+        present.push({ name: npc.name, id: npc.id });
+      }
+    }
+  } catch {
+    // the allow-list keeps what was gathered
+  }
+  return { present, playerNames };
+}
+
+/**
+ * Handle the LLM result for combat narration domain (every narrativeType alike).
+ * Normalizes the reply to segments, inserts the CombatNarrative row with the flattened text and
+ * broadcasts the segments to all participants. A failed job stays silent; a successful reply that
+ * yields nothing usable stores one Keeper fallback line.
  */
 export function handleCombatNarrationResult(
   ctx: any,
@@ -196,47 +257,33 @@ export function handleCombatNarrationResult(
     return;
   }
 
-  // Parse the result JSON -- extract narrative field with brace extraction fallback
-  let narrative: string;
-  try {
-    let text = resultText.trim();
-    if (text.startsWith('```')) {
-      text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-    }
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      text = text.slice(firstBrace, lastBrace + 1);
-    }
-    const data = JSON.parse(text);
-    narrative = data.narrative || text;
-  } catch {
-    // If JSON parse fails, use raw text as narrative
-    narrative = resultText.trim();
-  }
-
-  narrative = stripNarrationSelfCorrection(narrative);
-  if (!narrative || narrative.length === 0) return;
+  const { present, playerNames } = combatPresentSpeakers(ctx, context);
+  const result = segmentsFromReply(resultText, {
+    present,
+    playerNames,
+    fallbackLine: COMBAT_NARRATION_FALLBACK_LINE,
+    legacyNarrativeField: true,
+    salvageProse: true,
+    cleanProse: stripNarrationSelfCorrection,
+  });
+  const text = flattenSegments(result.segments);
 
   // Insert CombatNarrative row
   ctx.db.combat_narrative.insert({
     id: 0n,
     combatId,
     roundNumber,
-    narrativeText: narrative,
+    narrativeText: text,
     narrativeType,
     createdAt: ctx.timestamp,
   });
-
-  // Prefix round narrations with round number for temporal context
-  const prefix = narrativeType === 'round' ? `[Round ${roundNumber}] ` : '';
 
   // Broadcast to all participant characters
   for (const charIdStr of participantCharacterIds) {
     const charId = BigInt(charIdStr);
     const character = ctx.db.character.id.find(charId);
     if (!character) continue;
-    appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', prefix + narrative);
+    appendPrivateEvent(ctx, charId, character.ownerUserId, 'combat_narration', text, result.segments);
   }
 
   // Note: intro narration now uses static messages (no LLM), so no intro handling here
@@ -254,7 +301,6 @@ export function sendNarrationSkippedMessage(
   for (const p of participants) {
     const character = ctx.db.character.id.find(p.characterId);
     if (!character) continue;
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-      'The Keeper of Knowledge has lost interest in your skirmish.');
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', COMBAT_NARRATION_FALLBACK_LINE);
   }
 }

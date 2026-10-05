@@ -26,6 +26,13 @@
  * mutter narration line instead of an NPC "..." line, and an NPC reply that is not JSON now
  * carries one Keeper narration segment. Every other case still pins what the code does.
  *
+ * Phase 46 (plan 03) deliberately changed the combat_narration cases whose title starts with
+ * "Phase 46": the stored text and the private event message are the flattened segments (no
+ * "[Round N] " prefix any more), each private event carries its segments, JSON without a
+ * narrative now stores the Keeper fallback line instead of the JSON text, and an empty
+ * successful reply now stores that fallback line (one row per participant, one
+ * combat_narrative row) instead of nothing.
+ *
  * Known limits of the mock DB that these tests inherit: the `by_name` index accessor is
  * mapped to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
  * is exercised through a row whose `name` equals the lowercase race name.
@@ -1673,7 +1680,10 @@ describe('llm apply combat_narration', () => {
     expect(nonEmptyTables(ctx)).toEqual(['character']);
   });
 
-  it('success with a JSON narrative stores the row and broadcasts a round-prefixed private event to known participants', () => {
+  const FALLBACK = 'The Keeper of Knowledge has lost interest in your skirmish.';
+  const keeper = (text: string) => ({ kind: 'narration', speaker: 'The Keeper', text });
+
+  it('Phase 46: success with a JSON narrative stores the row and broadcasts an unprefixed private event with one Keeper narration segment to known participants', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { resultText: JSON.stringify({ narrative: 'Steel meets bone.' }) });
     expect(rows(ctx, 'combat_narrative')).toEqual([
@@ -1681,36 +1691,60 @@ describe('llm apply combat_narration', () => {
     ]);
     const ev = rows(ctx, 'event_private');
     expect(ev).toHaveLength(1);
-    expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'combat_narration', message: '[Round 2] Steel meets bone.' });
+    expect(ev[0]).toMatchObject({ characterId: 10n, ownerUserId: 7n, kind: 'combat_narration', message: 'Steel meets bone.' });
+    expect(ev[0].segments).toEqual([keeper('Steel meets bone.')]);
   });
 
-  it('success accepts a code-fenced JSON narrative', () => {
+  it('Phase 46: success accepts a code-fenced JSON narrative (one Keeper narration segment)', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { resultText: '```json\n{"narrative":"Sparks fly."}\n```' });
     expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('Sparks fly.');
   });
 
-  it('success with raw prose falls back to the trimmed text as the narrative', () => {
+  it('Phase 46: success with raw prose stores the trimmed text as one Keeper narration segment, unprefixed', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { resultText: '   The wolf lunges and misses badly.  \n' });
     expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('The wolf lunges and misses badly.');
-    expect(rows(ctx, 'event_private')[0].message).toBe('[Round 2] The wolf lunges and misses badly.');
+    expect(rows(ctx, 'event_private')[0].message).toBe('The wolf lunges and misses badly.');
+    expect(rows(ctx, 'event_private')[0].segments).toEqual([keeper('The wolf lunges and misses badly.')]);
   });
 
-  it('QUIRK: JSON without a narrative field stores the JSON text itself as the narrative', () => {
+  it('Phase 46: JSON without a segments or narrative field stores the Keeper fallback line, never the JSON text', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { resultText: '{"note":"no narrative here"}' });
-    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('{"note":"no narrative here"}');
+    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe(FALLBACK);
+    expect(rows(ctx, 'event_private')[0]).toMatchObject({ kind: 'combat_narration', message: FALLBACK });
+    expect(rows(ctx, 'event_private')[0].segments).toEqual([keeper(FALLBACK)]);
   });
 
-  it('an empty reply stores nothing', () => {
+  it('Phase 46: an empty reply stores one fallback combat_narrative row and one fallback line per known participant', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(), { resultText: '   ' });
-    expect(rows(ctx, 'combat_narrative')).toHaveLength(0);
-    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
+    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe(FALLBACK);
+    expect(rows(ctx, 'event_private')).toHaveLength(1);
+    expect(rows(ctx, 'event_private')[0].segments).toEqual([keeper(FALLBACK)]);
   });
 
-  it('a victory narration is not round-prefixed', () => {
+  it('Phase 46: a segments reply stores the flattened text, with a snapshot enemy as a dialogue speaker', () => {
+    const ctx = newCtx(seed());
+    const ctxJson = JSON.stringify({
+      combatId: '77', roundNumber: '0', narrativeType: 'victory', participantCharacterIds: ['10'],
+      input: { enemyNames: ['Gravel Hound'], playerNames: ['Aldric'] },
+    });
+    const reply = JSON.stringify({ segments: [
+      { kind: 'narration', speaker: 'The Keeper', text: 'The hound sags.' },
+      { kind: 'dialogue', speaker: 'Gravel Hound', text: 'Grrk.' },
+    ] });
+    exec(ctx, job(ctxJson), { resultText: reply });
+    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe('The hound sags.\n\nGravel Hound says, "Grrk."');
+    expect(rows(ctx, 'event_private')[0].segments).toEqual([
+      keeper('The hound sags.'),
+      { kind: 'dialogue', speaker: 'Gravel Hound', text: 'Grrk.' },
+    ]);
+  });
+
+  it('Phase 46: a victory narration is one Keeper narration segment, not round-prefixed', () => {
     const ctx = newCtx(seed());
     exec(ctx, job(JSON.stringify({ combatId: '77', roundNumber: '0', narrativeType: 'victory', participantCharacterIds: ['10'] })), { resultText: JSON.stringify({ narrative: 'The wolf falls.' }) });
     expect(rows(ctx, 'combat_narrative')[0]).toMatchObject({ narrativeType: 'victory', roundNumber: 0n });

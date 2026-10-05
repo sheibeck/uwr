@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`llm apply combat_narration > QUIRK: JSON without a narrative field stores the JSON text itself as the narrative 1`] = `
+exports[`llm apply combat_narration > Phase 46: JSON without a segments or narrative field stores the Keeper fallback line, never the JSON text 1`] = `
 "{
   "character": [
     {
@@ -22,7 +22,7 @@ exports[`llm apply combat_narration > QUIRK: JSON without a narrative field stor
       "combatId": "77n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "narrativeText": "{\\"note\\":\\"no narrative here\\"}",
+      "narrativeText": "The Keeper of Knowledge has lost interest in your skirmish.",
       "narrativeType": "round",
       "roundNumber": "2n"
     }
@@ -33,14 +33,22 @@ exports[`llm apply combat_narration > QUIRK: JSON without a narrative field stor
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "combat_narration",
-      "message": "[Round 2] {\\"note\\":\\"no narrative here\\"}",
-      "ownerUserId": "7n"
+      "message": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge has lost interest in your skirmish."
+        }
+      ]
     }
-  ]
+  ],
+  "npc": []
 }"
 `;
 
-exports[`llm apply combat_narration > a context without participants stores the row and broadcasts nothing 1`] = `
+exports[`llm apply combat_narration > Phase 46: a segments reply stores the flattened text, with a snapshot enemy as a dialogue speaker 1`] = `
 "{
   "character": [
     {
@@ -62,15 +70,38 @@ exports[`llm apply combat_narration > a context without participants stores the 
       "combatId": "77n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "narrativeText": "A quiet round.",
-      "narrativeType": "round",
-      "roundNumber": "1n"
+      "narrativeText": "The hound sags.\\n\\nGravel Hound says, \\"Grrk.\\"",
+      "narrativeType": "victory",
+      "roundNumber": "0n"
     }
-  ]
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "combat_narration",
+      "message": "The hound sags.\\n\\nGravel Hound says, \\"Grrk.\\"",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The hound sags."
+        },
+        {
+          "kind": "dialogue",
+          "speaker": "Gravel Hound",
+          "text": "Grrk."
+        }
+      ]
+    }
+  ],
+  "npc": []
 }"
 `;
 
-exports[`llm apply combat_narration > a victory narration is not round-prefixed 1`] = `
+exports[`llm apply combat_narration > Phase 46: a victory narration is one Keeper narration segment, not round-prefixed 1`] = `
 "{
   "character": [
     {
@@ -104,13 +135,21 @@ exports[`llm apply combat_narration > a victory narration is not round-prefixed 
       "id": "1n",
       "kind": "combat_narration",
       "message": "The wolf falls.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The wolf falls."
+        }
+      ]
     }
-  ]
+  ],
+  "npc": []
 }"
 `;
 
-exports[`llm apply combat_narration > an empty reply stores nothing 1`] = `
+exports[`llm apply combat_narration > Phase 46: an empty reply stores one fallback combat_narrative row and one fallback line per known participant 1`] = `
 "{
   "character": [
     {
@@ -126,31 +165,39 @@ exports[`llm apply combat_narration > an empty reply stores nothing 1`] = `
       "race": "Ashkin",
       "xp": "0n"
     }
-  ]
-}"
-`;
-
-exports[`llm apply combat_narration > failure changes nothing (silent) 1`] = `
-"{
-  "character": [
+  ],
+  "combat_narrative": [
     {
-      "boundLocationId": "100n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
+      "combatId": "77n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "narrativeText": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "narrativeType": "round",
+      "roundNumber": "2n"
     }
-  ]
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "combat_narration",
+      "message": "The Keeper of Knowledge has lost interest in your skirmish.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge has lost interest in your skirmish."
+        }
+      ]
+    }
+  ],
+  "npc": []
 }"
 `;
 
-exports[`llm apply combat_narration > success accepts a code-fenced JSON narrative 1`] = `
+exports[`llm apply combat_narration > Phase 46: success accepts a code-fenced JSON narrative (one Keeper narration segment) 1`] = `
 "{
   "character": [
     {
@@ -183,14 +230,22 @@ exports[`llm apply combat_narration > success accepts a code-fenced JSON narrati
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "combat_narration",
-      "message": "[Round 2] Sparks fly.",
-      "ownerUserId": "7n"
+      "message": "Sparks fly.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Sparks fly."
+        }
+      ]
     }
-  ]
+  ],
+  "npc": []
 }"
 `;
 
-exports[`llm apply combat_narration > success with a JSON narrative stores the row and broadcasts a round-prefixed private event to known participants 1`] = `
+exports[`llm apply combat_narration > Phase 46: success with a JSON narrative stores the row and broadcasts an unprefixed private event with one Keeper narration segment to known participants 1`] = `
 "{
   "character": [
     {
@@ -223,14 +278,22 @@ exports[`llm apply combat_narration > success with a JSON narrative stores the r
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "combat_narration",
-      "message": "[Round 2] Steel meets bone.",
-      "ownerUserId": "7n"
+      "message": "Steel meets bone.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Steel meets bone."
+        }
+      ]
     }
-  ]
+  ],
+  "npc": []
 }"
 `;
 
-exports[`llm apply combat_narration > success with raw prose falls back to the trimmed text as the narrative 1`] = `
+exports[`llm apply combat_narration > Phase 46: success with raw prose stores the trimmed text as one Keeper narration segment, unprefixed 1`] = `
 "{
   "character": [
     {
@@ -263,8 +326,66 @@ exports[`llm apply combat_narration > success with raw prose falls back to the t
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "combat_narration",
-      "message": "[Round 2] The wolf lunges and misses badly.",
-      "ownerUserId": "7n"
+      "message": "The wolf lunges and misses badly.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The wolf lunges and misses badly."
+        }
+      ]
+    }
+  ],
+  "npc": []
+}"
+`;
+
+exports[`llm apply combat_narration > a context without participants stores the row and broadcasts nothing 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "combat_narrative": [
+    {
+      "combatId": "77n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "narrativeText": "A quiet round.",
+      "narrativeType": "round",
+      "roundNumber": "1n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply combat_narration > failure changes nothing (silent) 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
     }
   ]
 }"

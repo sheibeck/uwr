@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { buildCombatOutroSummary, enqueueCombatOutroNarration } from './combat_narration';
-import { resolveRouteInput } from './llm_inputs';
+import { resolveRouteInput, encodeRouteInput } from './llm_inputs';
 import { utcDay } from './llm_budget';
 import { buildRouteLayers } from '../data/llm_layers';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
@@ -341,5 +341,203 @@ describe('stripNarrationSelfCorrection: a leaked self-check never reaches the pl
     expect(inserted[0].narrativeText).toBe(
       'You walked out of the Cut with every limb still attached, which the Skitterer had clearly not planned for.',
     );
+  });
+});
+
+// ── Phase 46 (SEG-01, SEG-02, SEG-04): segment-aware combat apply ──
+
+const sentCalls = () => (appendPrivateEvent as any).mock.calls as any[][];
+
+describe('Phase 46: handleCombatNarrationResult stores canonical segments', () => {
+  const KEEPER = 'The Keeper';
+  const placed = (): Seed =>
+    seed({
+      character: [
+        { id: 1n, ownerUserId: 7n, name: 'Aldric', hp: 50n, maxHp: 100n, locationId: 10n },
+        { id: 2n, ownerUserId: 8n, name: 'Brienne', hp: 5n, maxHp: 100n, locationId: 10n },
+      ],
+      npc: [{ id: 30n, name: 'Old Tam', locationId: 10n }],
+    });
+  const input = (over: Record<string, any> = {}) =>
+    encodeRouteInput({ enemyNames: ['Gravel Hound'], playerNames: ['Aldric', 'Brienne'], ...over });
+  const taskOf = (over: Record<string, any> = {}) => ({
+    contextJson: JSON.stringify({
+      combatId: '1',
+      roundNumber: '0',
+      narrativeType: 'victory',
+      participantCharacterIds: ['1', '2'],
+      input: input(),
+      ...over,
+    }),
+  });
+  const run = async (ctx: any, resultText: string, task: any = taskOf(), success = true) => {
+    const { handleCombatNarrationResult } = await import('./combat_narration');
+    handleCombatNarrationResult(ctx, task, resultText, success);
+  };
+  const keeper = (text: string) => ({ kind: 'narration', speaker: KEEPER, text });
+
+  it('stores the flattened text per participant with Keeper narration plus a listed enemy dialogue segment', async () => {
+    const ctx = newCtx(placed());
+    const reply = JSON.stringify({
+      segments: [
+        { kind: 'narration', speaker: KEEPER, text: 'The hound circles once.' },
+        { kind: 'dialogue', speaker: 'Gravel Hound', text: 'Grrrk.' },
+      ],
+    });
+    await run(ctx, reply);
+    const flat = 'The hound circles once.\n\nGravel Hound says, "Grrrk."';
+    expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
+    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe(flat);
+    expect(sentCalls()).toHaveLength(2);
+    for (const c of sentCalls()) {
+      expect(c[3]).toBe('combat_narration');
+      expect(c[4]).toBe(flat);
+      expect(c[5]).toEqual([keeper('The hound circles once.'), { kind: 'dialogue', speaker: 'Gravel Hound', text: 'Grrrk.' }]);
+      expect(c[5][1].speakerNpcId).toBeUndefined();
+    }
+  });
+
+  it('keeps dialogue by an NPC at the first participant location with that NPC id', async () => {
+    const ctx = newCtx(placed());
+    await run(ctx, JSON.stringify({ segments: [{ kind: 'dialogue', speaker: 'old tam', text: 'Well fought.' }] }));
+    expect(sentCalls()[0][5]).toEqual([{ kind: 'dialogue', speaker: 'Old Tam', text: 'Well fought.', speakerNpcId: 30n }]);
+  });
+
+  it('drops dialogue by a participant name and turns an unlisted speaker into quoted Keeper narration', async () => {
+    const ctx = newCtx(placed());
+    await run(
+      ctx,
+      JSON.stringify({
+        segments: [
+          { kind: 'dialogue', speaker: 'Aldric', text: 'I yield.' },
+          { kind: 'dialogue', speaker: 'Mystery Voice', text: 'Boo.' },
+          { kind: 'narration', speaker: 'Mystery Voice', text: 'Dust settles.' },
+        ],
+      }),
+    );
+    expect(sentCalls()[0][5]).toEqual([keeper('"Boo."'), keeper('Dust settles.')]);
+    expect(sentCalls()[0][4]).toBe('"Boo."\n\nDust settles.');
+  });
+
+  it('plain prose with a leaked self-check stores only the cleaned prose as Keeper narration', async () => {
+    const ctx = newCtx(placed());
+    const leaked = [
+      'Elfansworth walked out with all their limbs, which the Skitterer had not planned for.',
+      'Wait: that uses "their" for a single player character. Corrected below.',
+      'You walked out of the Cut with every limb still attached, which the Skitterer had not planned for.',
+    ].join('\n\n');
+    await run(ctx, leaked);
+    const clean = 'You walked out of the Cut with every limb still attached, which the Skitterer had not planned for.';
+    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe(clean);
+    expect(sentCalls()[0][5]).toEqual([keeper(clean)]);
+  });
+
+  it('legacy {"narrative"} JSON and fenced JSON both store Keeper narration of the narrative text', async () => {
+    const ctx = newCtx(placed());
+    await run(ctx, JSON.stringify({ narrative: 'Steel meets bone.' }));
+    await run(ctx, '```json\n{"narrative":"Sparks fly."}\n```');
+    const stored = sentCalls().map((c) => [c[4], c[5]]);
+    expect(stored).toEqual([
+      ['Steel meets bone.', [keeper('Steel meets bone.')]],
+      ['Steel meets bone.', [keeper('Steel meets bone.')]],
+      ['Sparks fly.', [keeper('Sparks fly.')]],
+      ['Sparks fly.', [keeper('Sparks fly.')]],
+    ]);
+  });
+
+  it('JSON with neither segments nor narrative stores exactly one fallback Keeper line per participant', async () => {
+    const { COMBAT_NARRATION_FALLBACK_LINE } = await import('./combat_narration');
+    const ctx = newCtx(placed());
+    await run(ctx, '{"note":"no narrative here"}');
+    expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
+    expect(rows(ctx, 'combat_narrative')[0].narrativeText).toBe(COMBAT_NARRATION_FALLBACK_LINE);
+    expect(sentCalls()).toHaveLength(2);
+    for (const c of sentCalls()) {
+      expect(c[4]).toBe(COMBAT_NARRATION_FALLBACK_LINE);
+      expect(c[5]).toEqual([keeper(COMBAT_NARRATION_FALLBACK_LINE)]);
+    }
+  });
+
+  it('a whitespace-only successful reply stores one fallback line and one combat_narrative row', async () => {
+    const { COMBAT_NARRATION_FALLBACK_LINE } = await import('./combat_narration');
+    const ctx = newCtx(placed());
+    await run(ctx, '   \n ');
+    expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
+    expect(sentCalls().map((c) => c[5])).toEqual([[keeper(COMBAT_NARRATION_FALLBACK_LINE)], [keeper(COMBAT_NARRATION_FALLBACK_LINE)]]);
+  });
+
+  it('a failed job writes nothing', async () => {
+    const ctx = newCtx(placed());
+    await run(ctx, '', taskOf(), false);
+    expect(rows(ctx, 'combat_narrative')).toHaveLength(0);
+    expect(sentCalls()).toHaveLength(0);
+  });
+
+  it('a round narration is no longer prefixed: the message always equals the flattened segments', async () => {
+    const ctx = newCtx(placed());
+    await run(ctx, JSON.stringify({ narrative: 'Steel meets bone.' }), taskOf({ narrativeType: 'round', roundNumber: '2' }));
+    expect(sentCalls()[0][4]).toBe('Steel meets bone.');
+    expect(rows(ctx, 'combat_narrative')[0]).toMatchObject({ narrativeType: 'round', roundNumber: 2n, narrativeText: 'Steel meets bone.' });
+  });
+
+  it('a snapshot with no input still works: dialogue by an enemy becomes quoted Keeper narration', async () => {
+    const ctx = newCtx(placed());
+    const task = { contextJson: JSON.stringify({ combatId: '1', narrativeType: 'victory', participantCharacterIds: ['1'] }) };
+    await run(ctx, JSON.stringify({ segments: [{ kind: 'dialogue', speaker: 'Gravel Hound', text: 'Grrrk.' }] }), task);
+    expect(sentCalls()[0][5]).toEqual([keeper('"Grrrk."')]);
+  });
+});
+
+describe('Phase 46: combatPresentSpeakers is total', () => {
+  it('lists enemy names (de-duplicated), then NPCs at the first participant location with ids; players include participants', async () => {
+    const { combatPresentSpeakers } = await import('./combat_narration');
+    const ctx = newCtx(
+      seed({
+        character: [
+          { id: 1n, ownerUserId: 7n, name: 'Aldric', hp: 50n, maxHp: 100n, locationId: 10n },
+          { id: 2n, ownerUserId: 8n, name: 'Brienne', hp: 5n, maxHp: 100n, locationId: 11n },
+        ],
+        npc: [
+          { id: 30n, name: 'Old Tam', locationId: 10n },
+          { id: 31n, name: 'Elsewhere', locationId: 11n },
+        ],
+      }),
+    );
+    const out = combatPresentSpeakers(ctx, {
+      participantCharacterIds: ['1', '2'],
+      input: encodeRouteInput({ enemyNames: ['Gravel Hound', 'gravel  hound', 'Cave Rat'], playerNames: ['Aldric'] }),
+    });
+    expect(out.present).toEqual([{ name: 'Gravel Hound' }, { name: 'Cave Rat' }, { name: 'Old Tam', id: 30n }]);
+    expect(out.playerNames).toEqual(['Aldric', 'Aldric', 'Brienne']);
+  });
+
+  it('gives empty lists for missing input, missing participants and an unknown character, and never touches npc then', async () => {
+    const { combatPresentSpeakers } = await import('./combat_narration');
+    const ctx = newCtx();
+    const dbProxy = new Proxy(ctx.db, {
+      get: (t, name: string) => {
+        if (name === 'npc') throw new Error('npc must not be read');
+        return (t as any)[name];
+      },
+    });
+    const guarded = { ...ctx, db: dbProxy };
+    expect(combatPresentSpeakers(guarded, {})).toEqual({ present: [], playerNames: [] });
+    expect(combatPresentSpeakers(guarded, { participantCharacterIds: [], input: null })).toEqual({ present: [], playerNames: [] });
+    expect(combatPresentSpeakers(guarded, { participantCharacterIds: ['999'] })).toEqual({ present: [], playerNames: [] });
+    expect(combatPresentSpeakers(guarded, { participantCharacterIds: ['not a number'], input: 'junk' })).toEqual({ present: [], playerNames: [] });
+    expect(combatPresentSpeakers(undefined, undefined as any)).toEqual({ present: [], playerNames: [] });
+  });
+});
+
+describe('Phase 46: the shared fallback line', () => {
+  it('sendNarrationSkippedMessage writes the same text as before, through the constant', async () => {
+    const { sendNarrationSkippedMessage, COMBAT_NARRATION_FALLBACK_LINE } = await import('./combat_narration');
+    expect(COMBAT_NARRATION_FALLBACK_LINE).toBe('The Keeper of Knowledge has lost interest in your skirmish.');
+    const ctx = newCtx();
+    sendNarrationSkippedMessage(ctx, 1n, participantsOf(ctx));
+    expect(sentCalls().map((c) => [c[3], c[4]])).toEqual([
+      ['system', COMBAT_NARRATION_FALLBACK_LINE],
+      ['system', COMBAT_NARRATION_FALLBACK_LINE],
+    ]);
   });
 });
