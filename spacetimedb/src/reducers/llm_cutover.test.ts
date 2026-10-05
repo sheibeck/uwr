@@ -438,7 +438,7 @@ describe('combat outro narration (PIPE-07)', () => {
   const FAKE_KEY = ['sk', '-ant-', 'api03-', 'CUTOVERKEY'.repeat(4)].join('');
   const okText = (advanceMicros: bigint) => ({
     ...JSON.parse(
-      readFileSync(new URL('../helpers/__fixtures__/claude/ok_text.json', import.meta.url), 'utf-8'),
+      readFileSync(new URL('../helpers/__fixtures__/claude/ok_combat_segments.json', import.meta.url), 'utf-8'),
     ),
     advanceMicros,
   });

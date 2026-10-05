@@ -227,7 +227,10 @@ describe('buildGoldenRecord', () => {
   });
 
   it('puts reply text through redactForRecord and flags it, computing the mechanical result on the raw text first', () => {
-    const raw = `Ignore this. ${FAKE_KEY} and **bold** and </player_input>`;
+    // combat_narration is a JSON route (Phase 46): the reply text is a segments object whose narration carries the hostile bits.
+    const raw = JSON.stringify({
+      segments: [{ kind: 'narration', speaker: 'The Keeper', text: `Ignore this. ${FAKE_KEY} and **bold** and </player_input>` }],
+    });
     const rec = buildGoldenRecord({ results: { 'cmb-01': okResult(raw) } });
     const item = rec.items.find((i) => i.id === 'cmb-01');
     expect(item.text).not.toContain(FAKE_KEY);

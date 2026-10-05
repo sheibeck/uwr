@@ -272,8 +272,8 @@ async function callWithRetry(
   return { outcome: second, extraCost: first.costMicroUsd };
 }
 
-/** The swept routes that reply with schema-constrained JSON; npc_conversation and combat_narration are text routes. */
-const JSON_ROUTES = new Set<LlmRoute>(LLM_SWEEP_ROUTES.filter((r) => r !== 'npc_conversation' && r !== 'combat_narration'));
+/** The swept routes that reply with schema-constrained JSON (combat_narration returns segments); npc_conversation is a text route. */
+const JSON_ROUTES = new Set<LlmRoute>(LLM_SWEEP_ROUTES.filter((r) => r !== 'npc_conversation'));
 
 /** The recorded sample for one call: sizes, timings, stop reason, pass flags and lint rule ids. Never text. */
 function sampleOf(route: LlmRoute, o: CallOutcome) {

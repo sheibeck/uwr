@@ -589,7 +589,7 @@ describe('golden rules: fixed order', () => {
   it('returns failures in that order, each at most once, identical on every evaluation', () => {
     const text =
       'He stands among the bodies. Brenna waits. The Keeper shakes its head!\n**bold** Certainly.';
-    const bad = textOut(text, { usage: usageOf(maxTokensOf('combat_narration') + 1) });
+    const bad = cmbOut(text, { usage: usageOf(maxTokensOf('combat_narration') + 1) });
     const first = evaluateGoldenItem(goldenItem('cmb-01'), bad);
     const expectedOrder = [...GOLDEN_RULES.filter((id) => first.failures.includes(id))];
     expect(first.failures).toEqual(expectedOrder);
@@ -772,9 +772,9 @@ describe('golden rules: mutation tests', () => {
   }
 
   const toneCases = [
-    ['banned_phrase', 'cmb-02', textOut('Certainly. The harpies took the stair. Isolde fell.')],
-    ['markdown', 'cmb-02', textOut('The harpies took the **stair**. Isolde fell.')],
-    ['exclamation', 'cmb-02', textOut('The harpies took the stair. Isolde fell!')],
+    ['banned_phrase', 'cmb-02', cmbOut('Certainly. The harpies took the stair. Isolde fell.')],
+    ['markdown', 'cmb-02', cmbOut('The harpies took the **stair**. Isolde fell.')],
+    ['exclamation', 'cmb-02', cmbOut('The harpies took the stair. Isolde fell!')],
     ['naming_overuse', 'wld-01', jsonOut({ ...WORLD_START, regionName: 'Ashen Reach' })],
     ['class_name_words', 'cre-03', jsonOut({ ...CLASS_REVEAL, className: 'Gear Breaker of Mills' })],
     ['ability_name_words', 'cre-03', jsonOut({ ...CLASS_REVEAL, firstAbility: { ...ABILITY, name: 'Rivet' } })],
@@ -784,9 +784,9 @@ describe('golden rules: mutation tests', () => {
       jsonOut({ ...WORLD_START, firstNpc: { ...WORLD_START.firstNpc, gender: 'female', description: 'He sells rope and opinions.', greeting: 'His prices are fixed.' } }),
     ],
     ['text_json_wrapper', 'cmb-02', textOut('{"narration":"The harpies took the stair. Isolde fell."}')],
-    ['text_quotes', 'cmb-02', textOut('"The harpies took the stair. Isolde fell."')],
-    ['narration_sentences', 'cmb-02', textOut('The harpies took the stair.')],
-    ['meta_commentary', 'cmb-02', textOut('Wait: the harpies took the stair. Isolde fell.')],
+    ['text_quotes', 'cmb-02', cmbOut('"The harpies took the stair. Isolde fell."')],
+    ['narration_sentences', 'cmb-02', cmbOut('The harpies took the stair.')],
+    ['meta_commentary', 'cmb-02', cmbOut('Wait: the harpies took the stair. Isolde fell.')],
   ];
 
   it('covers every tone-lint id', () => {
@@ -966,10 +966,10 @@ describe('golden rules: inclusive boundaries', () => {
 
   it('narration length: 2 and 4 sentences pass, 1 and 5 fail', () => {
     const s = (n) => Array.from({ length: n }, (_, i) => `The harpies took stair number ${['one', 'two', 'three', 'four', 'five'][i]}`).join('. ') + '.';
-    expect(failuresOf('cmb-02', textOut(s(2)))).not.toContain('narration_sentences');
-    expect(failuresOf('cmb-02', textOut(s(4)))).not.toContain('narration_sentences');
-    expect(failuresOf('cmb-02', textOut(s(1)))).toContain('narration_sentences');
-    expect(failuresOf('cmb-02', textOut(s(5)))).toContain('narration_sentences');
+    expect(failuresOf('cmb-02', cmbOut(s(2)))).not.toContain('narration_sentences');
+    expect(failuresOf('cmb-02', cmbOut(s(4)))).not.toContain('narration_sentences');
+    expect(failuresOf('cmb-02', cmbOut(s(1)))).toContain('narration_sentences');
+    expect(failuresOf('cmb-02', cmbOut(s(5)))).toContain('narration_sentences');
   });
 
   it('keeps the NPC limits in step with the server source (drift guard)', () => {
@@ -1250,7 +1250,7 @@ describe('golden rules: segments_invalid', () => {
 
   it('fires when a segment-route reply has no segments array', () => {
     expect(failuresOf('npc-01', npcOut({ dialogue: 'Work? Plenty.', effects: [] }))).toContain('segments_invalid');
-    expect(failuresOf('cmb-02', textOut('The harpies took the stair. Isolde fell.'))).toContain('segments_invalid');
+    expect(failuresOf('cmb-02', jsonOut({ narration: 'The harpies took the stair. Isolde fell.' }))).toContain('segments_invalid');
     expect(failuresOf('cmb-02', jsonOut({ segments: 'x' }))).toContain('segments_invalid');
   });
 
@@ -1365,8 +1365,13 @@ describe('golden rules: combat pronouns judge the joined narration of segments',
 });
 
 describe('golden rules: segment routes share extraction, emptiness and structure', () => {
-  it('judges combat prose as structure_invalid and segments_invalid, never as empty', () => {
-    const f = failuresOf('cmb-02', textOut(GOOD_NARRATION.party));
+  it('judges combat prose as an empty reply: combat is a JSON route, so only a segments object is a reply', () => {
+    expect(failuresOf('cmb-02', textOut(GOOD_NARRATION.party))).toEqual(['empty_reply']);
+  });
+
+  it('judges a combat JSON object with no segments array as schema_invalid, structure_invalid and segments_invalid', () => {
+    const f = failuresOf('cmb-02', jsonOut({ narration: GOOD_NARRATION.party }));
+    expect(f).toContain('schema_invalid');
     expect(f).toContain('structure_invalid');
     expect(f).toContain('segments_invalid');
     expect(f).not.toContain('empty_reply');

@@ -470,6 +470,7 @@ function expectOk(r: ClaudeResult): Extract<ClaudeResult, { ok: true }> {
 const CASES: [string, LlmRoute, ClaudeFailureClass | 'ok'][] = [
   ['ok_json', 'skill_gen', 'ok'],
   ['ok_text', 'npc_conversation', 'ok'],
+  ['ok_combat_segments', 'combat_narration', 'ok'],
   ['ok_thinking_first', 'skill_gen', 'ok'],
   ['text_not_first', 'npc_conversation', 'ok'],
   ['missing_cache_usage', 'npc_conversation', 'ok'],

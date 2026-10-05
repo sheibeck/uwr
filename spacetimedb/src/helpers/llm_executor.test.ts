@@ -1514,7 +1514,7 @@ describe('retry by class (PIPE-04)', () => {
 
 describe('combat narration lateness at persist (PIPE-07)', () => {
   it('an ok reply persisted more than 20 s after enqueue is expired late: not applied, no message, player charged nothing, ledger records the real cost', () => {
-    const proc = makeProc([reply('ok_text', { advanceMicros: 21_000_000n })]);
+    const proc = makeProc([reply('ok_combat_segments', { advanceMicros: 21_000_000n })]);
     const jobId = enqueue(proc, 'combat_narration');
     const deps = makeDeps(proc);
     const outcome = run(proc, jobId, deps);
@@ -1535,7 +1535,7 @@ describe('combat narration lateness at persist (PIPE-07)', () => {
   });
 
   it('a reply persisted exactly 20 s after enqueue is on time and is applied', () => {
-    const proc = makeProc([reply('ok_text', { advanceMicros: 20_000_000n })]);
+    const proc = makeProc([reply('ok_combat_segments', { advanceMicros: 20_000_000n })]);
     const jobId = enqueue(proc, 'combat_narration');
     const deps = makeDeps(proc);
     expect(run(proc, jobId, deps)).toBe('completed');
