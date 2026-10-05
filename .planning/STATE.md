@@ -2,11 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UX Overhaul
+current_phase: 45
+current_phase_name: Foundation, Frame and Auth
 status: ready_to_plan
-last_updated: "2026-10-05T13:01:08.689Z"
+stopped_at: "v3.0 roadmap created; Phase 45 ready to plan (prior: Completed 44-10-PLAN.md)"
+last_updated: "2026-10-05T13:10:00.985Z"
 last_activity: 2026-10-05
+last_activity_desc: v3.0 roadmap created (Phases 45-52, 45/45 requirements mapped)
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -140,6 +144,7 @@ See MILESTONES.md for full delivery summaries.
 - Phase 38 added: Platform Upgrade (SpacetimeDB 2.0.1 -> 2.10.x, tooling, llm-proxy deps, pnpm-only). Runs next, ahead of 33-35 and 37. Research: `.planning/notes/platform-upgrade-research.md`
 
 - 2026-10-05: v3.0 roadmap created: Phases 45-52 (45 Foundation, Frame and Auth; 46 Structured Keeper Replies; 47 Console, Rails, Hotbar and Input; 48 Combat Encounter; 49 Character Creation Interview; 50 Ledger: Character and Economy; 51 Ledger: World and People; 52 Parity and Cutover). Numbering continues from 44. Backlog 999.6 and 999.7 promoted into v3.0; 999.1-999.5 untouched.
+- Phase 46.1 inserted after Phase 46: Round-Based Combat Engine: 10s rounds that end early when all players have chosen, auto-attack default, Keeper narrates big moments and the end of the fight
 
 ### Pending Todos
 

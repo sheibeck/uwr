@@ -138,7 +138,8 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Sardonic Keeper of Knowledge narrator | Non-negotiable tone across all text | ✓ Good — consistent voice |
 | 3 skills per level-up, pick 1 | Unchosen skills vanish — discovery and consequence | ✓ Good — creates tension |
 | Kind-based ability dispatch map | Replaces hardcoded switch for unlimited generated abilities | ✓ Good — scales to any ability |
-| Real-time combat (not round-based) | Round-based felt sluggish; reverted after experiment | ✓ Good — immediate feedback |
+| Real-time combat (not round-based) | Round-based felt sluggish; reverted after experiment | ⚠️ Revisited in v3.0 |
+| Round-based combat: 10s rounds that end early, auto-attack default (v3.0) | Time to read the narration; early resolution fixes the sluggishness of v2.0's fixed 30s rounds | — Pending |
 | Platform upgrade before feature work (Phase 38) | SpacetimeDB 2.0.1 and tooling had fallen far behind | ✓ Good — SpacetimeDB 2.10.1, TS 6, Vite 8, Vitest 5, pnpm-only; build + 990 tests green |
 | Haiku/gpt-5-mini for fast generation | Sonnet HTTP fails from SpacetimeDB runtime; fast models sufficient | Superseded (v2.2) — see next row |
 | Sonnet 5.5 for every LLM call, no Haiku (v2.2, 2026-09-29) | User decision. Haiku 4.5 may retire as early as 2026-10-15; its 4096-token minimum cacheable prefix defeats prompt caching on short prompts; one model means one request builder and one rate-limit pool | — Pending — effort must be set explicitly (`low`) for latency; cost about 2x Haiku per token |

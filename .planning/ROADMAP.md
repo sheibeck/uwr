@@ -69,16 +69,17 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Design is re-imported every phase.** Each UI phase starts with `/gsd-ui-phase`, which imports the design fresh from the claude_design MCP (project `1a7a975f-7b14-488b-9a38-188bc56294cf`: `UWR Ledger Screens.dc.html`, `UWR Console & Combat.dc.html` Ledger direction 1a/1c only, Nocturne `_ds/…/styles.css` and `_ds_bundle.js`). Never a cached copy.
 - **Mobile is in every UI phase.** Each screen works at 390×844 as part of its own phase; there is no trailing mobile phase.
 - **Unit tests are required in every phase** (project rule): tests enforce the rules the phase implements.
-- **Combat stays real-time.** The mock's rounds become beat grouping in the feed; the engine is not changed.
-- **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46 plus the small additions flagged in Phases 48-51), additive, and tested.
+- **Combat becomes round-based.** Rounds last at most 10 seconds and end early once every player has chosen; a player who has not chosen auto-attacks (owner decision 2026-10-05, Phase 46.1). The old `src/` client is not updated for rounds.
+- **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phase 52 is last.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phase 52 is last.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Fresh `client/` app with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
+- [ ] **Phase 46.1: Round-Based Combat Engine** (INSERTED) - 10-second rounds that end early once every player has chosen, auto-attack when no action is chosen, Keeper narration at big moments and the end of the fight
 - [ ] **Phase 47: Console, Rails, Hotbar and Input** - Labelled feed with keywords, vitals and context rails, hotbar, LLM progress lines, and the command-word input fix
-- [ ] **Phase 48: Combat Encounter** - The right rail becomes the encounter: targeting, threat order, enemy wind-up warnings, beat-grouped combat feed
+- [ ] **Phase 48: Combat Encounter** - The right rail becomes the encounter: targeting, threat order, enemy wind-up warnings, round timer on the hotbar, round-grouped combat feed
 - [ ] **Phase 49: Character Creation Interview** - Keeper interview in the feed (race, archetype, class, then the name last) with a step indicator, race suggestion cards and a live character sheet
 - [ ] **Phase 50: Ledger Screens: Character and Economy** - Inventory, stats, vendor and crafting as drawers and sheets
 - [ ] **Phase 51: Ledger Screens: World and People** - Map and travel, group and social, and world events as drawers and sheets
@@ -87,20 +88,24 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 ## Phase Details
 
 ### Phase 45: Foundation, Frame and Auth
+
 **Goal**: A player can sign in to the fresh `client/` app and see the Nocturne frame: header, persistent vitals rail, feed and context rail on desktop; compact vitals strip, feed and tab bar on mobile; secondary screens open as drawers or sheets.
 **Depends on**: Nothing (first phase)
 **Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05, FND-06, FND-07
 **Success Criteria** (what must be TRUE):
+
   1. The player runs the new `client/` app, signs in with SpacetimeAuth, sees their character connected through the existing module and generated bindings, reconnects after a reload or dropped connection, and logs out; the old `src/` client still runs unchanged beside it.
   2. At 1280×800 the player sees the header (location, time of day, level-up and new-skill tags, screen buttons), a vitals rail that stays put, the center feed and the context rail.
   3. Clicking a screen button opens a drawer over the center and right columns while the header and vitals rail stay visible; Esc or the close button dismisses it.
   4. At 390×844 the player sees a compact vitals strip, the story feed and a bottom tab bar (Story, Map, Bag, Party, More); a secondary screen opens as a full-height sheet above the tab bar.
   5. Buttons, tabs, inputs and panels show Nocturne hover, pressed and keyboard focus-visible states with Inter and Phosphor icons; no component hard-codes a color (a test fails if one does), and rarity and enemy-difficulty colors keep their current hues.
   6. The splash / sign-in screen shows the 16:9 key-art logo large and undistorted, scaled to fit the viewport at 1280×800 and 390×844, with no pixelated rendering.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Nocturne tokens and components, and the frame shown in Ledger 2i/2j and Console & Combat 1a, desktop and mobile.
 **Notes**:
+
   - The rails and feed are shells here; Phase 47 fills them. The header and the auth flow carry real data.
   - Bindings: generate into `client/src/module_bindings` (the layout in CLAUDE.md) so deleting `src/` at cutover does not remove them. The root `spacetime:generate` script currently writes to `src/module_bindings`.
   - `client/` is a third standalone pnpm project (beside the root and `spacetimedb/`).
@@ -108,125 +113,173 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   - Tests: layout and breakpoint behavior, drawer and sheet open/close (Esc, close button), auth token and reconnect handling, and a guard that fails on hard-coded colors.
 
 ### Phase 46: Structured Keeper Replies
+
 **Goal**: Every narrative LLM reply arrives as speaker-attributed segments in the Keeper's second-person scene-narrator voice and is stored with its event, so any client can render labelled lines.
 **Depends on**: Nothing (backend only; independent of Phase 45 and can run in parallel with it)
 **Requirements**: SEG-01, SEG-02, SEG-03, SEG-04, SEG-05
 **Success Criteria** (what must be TRUE):
+
   1. NPC chat, world and scene narration, combat outro and creation replies come back as segments shaped `{kind: narration|dialogue, speaker, text}`, and NPC speech appears only in dialogue segments.
   2. Segments are stored with the event: talking to an NPC yields a "The Keeper" narration line and a separate "The Ferryman says, “…”" dialogue line in the event data a client reads; until cutover the current client keeps showing every reply as it does today.
   3. A malformed reply (bad JSON, unknown kind, missing speaker, empty text) is stored as a single Keeper narration line and never breaks the feed; the offline failure drills cover it.
   4. The Keeper narrates what happens around the player in the second person, as in the Ledger console mock, and the owner approved every Keeper Bible and route-block change before it landed.
   5. A golden run in the narrator voice passes its mechanical rules and the owner signs off on the tone (QUAL-01 carry-over).
+
 **Plans**: TBD
 **Notes**:
+
   - Owner checkpoints: (a) SEG-03, explicit approval of each Keeper Bible and route-block edit before it is applied; (b) SEG-05, the paid golden run is run only with the owner's go-ahead on cost, and the tone sign-off is the owner's call (no `approvedBy` unless the owner approves in chat).
   - Inputs: `.planning/phases/44-live-verification-and-tone-eval/44-TONE-FIXES.md` ("Open question for the UX overhaul") and the Phase 44 golden harness. The Keeper is a second-person scene narrator; the earlier first-person direction was retracted by the owner (see REQUIREMENTS.md Out of Scope).
   - Phases 47 and 49 depend on the segment contract (SEG-01, SEG-02, SEG-04), not on the SEG-05 sign-off, so the tone checkpoint does not block UI work. The labelled-line rendering of segments is verified in the new client in Phase 47 (CON-01).
   - Schema changes must be additive with defaults so the local publish needs no `--clear-database`.
   - Tests: segment schema validation and clamping, malformed-reply fallback for every route, NPC speech only in dialogue segments, stored-event shape, characterization suites from Phases 40-42 still green.
 
+### Phase 46.1: Round-Based Combat Engine (INSERTED)
+
+**Goal**: Combat resolves in rounds of at most 10 seconds, giving players time to read the narration. A round ends early once every player in the fight has chosen an action, and a player who has not chosen auto-attacks.
+**Depends on**: Phase 46 (narration is stored as speaker segments). Backend only; can run alongside Phase 45 and Phase 47.
+**Requirements**: RND-01, RND-02, RND-03, RND-04, RND-05
+**Success Criteria** (what must be TRUE):
+  1. A round lasts at most 10 seconds and resolves as soon as every player in the fight has chosen an action; a solo player who acts at once does not wait out the timer.
+  2. A player who has not chosen an action when the round resolves auto-attacks their current target.
+  3. Player and enemy actions resolve in a deterministic order each round; cooldowns, effects, DoTs/HoTs and enemy abilities count in rounds, and an enemy wind-up announced in one round lands in a later round.
+  4. The round number, its deadline and each player's chosen action are in public tables the client can subscribe to (generated bindings updated).
+  5. The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget; there is no fixed every-N-rounds summary.
+**Plans**: TBD
+**Notes**:
+  - This reverses the v2.0 "real-time combat" decision. The v2.0 round experiment (Phase 30, commits `8a94bf47`, `74137f46`) used fixed 30-second rounds and was reverted in quick-348 as sluggish; early resolution and the 10-second cap address that. Check those commits for reusable code.
+  - Owner decision: the old `src/` client is not updated for rounds. Its combat may break until Phase 52 deletes it.
+  - The combat_loop / round_timer_tick schedulers and the legacy round constants in `combat_constants.ts` are the starting point; remove real-time-only code that becomes dead.
+  - Keep schema changes additive where possible: a `--clear-database` publish wipes the stored Anthropic key, so ask the owner first if one is needed.
+  - Tests: early resolution when all players have chosen, timeout resolution, auto-attack fallback, round-based cooldown and effect counting, deterministic action order, big-moment narration triggers and the budget cap.
+
 ### Phase 47: Console, Rails, Hotbar and Input
+
 **Goal**: A player explores the world through the new client: they read a labelled feed, act on keywords and rails, use the hotbar, and type natural sentences without command words hijacking them.
 **Depends on**: Phase 45 (frame), Phase 46 (segments)
 **Requirements**: CON-01, CON-02, CON-03, CON-04, CON-05, CON-06, INP-01, INP-02
 **Success Criteria** (what must be TRUE):
+
   1. The feed shows each entry as a labelled line by kind (Keeper narration, NPC speech, whisper, party chat, system, quest update, ripple / world event), an NPC reply appears as separate narration and dialogue lines, and NPCs, places and objects show as soft accent keywords that hail, examine or travel when clicked. While an LLM job runs the Keeper's progress lines appear, and staged reveals (world, class) land in the feed.
   2. The vitals rail shows HP, MP, SP and XP bars, active effects with time remaining, and party members with health and an Invite button; the context rail shows routes out (level ranges or "safe"), Nearby (NPCs, objects, resource nodes, players) with one-click actions, tracked quests with progress, and the active world event with its faction split.
   3. The hotbar shows iconed ability slots with cooldowns, and the player can switch between their hotbars.
   4. Typing a natural sentence that starts with a command word ("Who is that over there?", "Leave him alone", "End this now", "Accept my apology") reaches the conversation or intent path, while exact forms (`who`, `/who`, `invite <name>`) still run the command.
   5. At 390×844 the feed, keywords, hotbar and input are usable, and the vitals, routes, Nearby, quests and active event are reachable from the compact strip and tab bar.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Ledger 2i/2j and Console & Combat 1a (exploring), desktop and mobile.
 **Notes**:
+
   - INP-01/02 promote backlog 999.7. Command words to cover in both sentence and exact form: who, accept, decline, leave, invite, kick, promote, whisper, w, friend, endcombat, end, endc, group, renown, factions, faction, events. The old routing in `src/App.vue` (`onNarrativeSubmit`, `clientHandledCommands`) is reference for behavior, not code to port.
   - CON-06 consumes the Phase 43 indicator lines and the world and class staged-reveal steps; those server flows already exist.
   - Tests: command-word routing matrix (sentence form vs exact form for every word), segment-to-line rendering by kind, keyword click actions, hotbar switching and cooldown display, rail data derivation.
 
 ### Phase 48: Combat Encounter
-**Goal**: Real-time combat plays out in the new client: the right rail becomes the encounter and the feed groups events into readable beats.
-**Depends on**: Phase 47
-**Requirements**: CMB-01, CMB-02, CMB-03, CMB-04, CMB-05
+
+**Goal**: Round-based combat plays out in the new client: the right rail becomes the encounter, the round timer sits on the hotbar, and the feed groups events by round.
+**Depends on**: Phase 46.1 (round engine), Phase 47
+**Requirements**: CMB-01, CMB-02, CMB-03, CMB-04, CMB-05, CMB-06
 **Success Criteria** (what must be TRUE):
+
   1. When combat starts the header shows "In combat" and the context rail becomes the encounter: hostiles with health, a boss tag and difficulty color; clicking a hostile targets it and Tab cycles targets.
   2. The player sees the threat order on the current target and an enemy wind-up warning before the ability lands.
-  3. The combat feed groups real-time events into short beats with headers; effects and cooldowns show seconds, not rounds.
+  3. The combat feed groups events by round, each under a round header; effects and cooldowns show rounds remaining.
   4. The player can click party members to target heals, Flee is on the hotbar, and damage taken flashes on the vitals.
   5. At 390×844 the encounter, targeting, hotbar and Flee are usable, and the combat feed stays readable.
+  6. The round timer counts down on the hotbar, the player sees the action they have chosen for this round, and with no choice the hotbar shows that they will auto-attack.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Console & Combat 1a/1c (Ledger direction) and Ledger 2i/2j in combat, desktop and mobile.
 **Notes**:
-  - The engine stays real-time. Beat grouping is a client presentation over real-time events; no engine change.
+
+  - The engine changes in Phase 46.1; this phase is the client presentation of rounds.
   - Server gap to scope in plan-phase: `aggro_entry` is a private table today and is not in the generated bindings, so CMB-02 needs a small additive exposure (for example a public view for the player's own combat). `combat_enemy_cast` is already public.
   - Enemy DoT/HoT/debuff indicators (999.1) and the enemy cast bar todos stay deferred.
-  - Tests: target selection and Tab cycling, threat-order ordering, wind-up warning timing, beat grouping boundaries, seconds formatting, the aggro exposure's visibility rules.
+  - Tests: target selection and Tab cycling, threat-order ordering, wind-up warning timing, round grouping boundaries, round timer and auto-attack display, rounds-remaining formatting, the aggro exposure's visibility rules.
 
 ### Phase 49: Character Creation Interview
+
 **Goal**: A new player is led through character creation as a Keeper interview in the feed (race, archetype, class, then the name last), with a live character sheet that fills in as they choose.
 **Depends on**: Phase 46 (Keeper lines are segments), Phase 47 (feed and input)
 **Requirements**: CRE-01, CRE-02, CRE-03
 **Success Criteria** (what must be TRUE):
+
   1. A player with no character starts a Keeper interview in the feed, with each Keeper line labelled and a step indicator showing where they are; the steps run race, archetype (Warrior/Mystic), class reveal, name, then entering the realm, so the name is asked last.
   2. The Keeper offers 3 race suggestions as clickable cards with stat tags; the player can click a card, type any race, or choose "Surprise me" and let the Keeper pick.
   3. A live character sheet on the right fills in as the player chooses (race, archetype, class, stats with bonuses and racial trait first, and the name last, shown as an unnamed placeholder until then), the staged class reveal lands in the interview, and after the name the player enters the realm with their new character.
   4. At 390×844 the interview is usable and the character sheet is reachable alongside it.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the character creation screen in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
+
   - Deviations from mock 2a (owner decisions, 2026-10-05): (1) the player chooses the name last (race, archetype, class reveal, name, enter the realm; the archetype step stays before the class), not first as the mock shows; (2) the mock's "First words" step is dropped entirely, because the game has no such concept. The UI-SPEC, the step indicator and the live sheet follow this order, not the mock's. The server already asks for the name after the class (`AWAITING_NAME` follows `CLASS_REVEALED`) and has no first-words step, so the order needs no new server step.
   - Server gap to scope in discuss/plan: the creation state machine has no suggestion step today (`AWAITING_RACE` takes free text). CRE-03 needs a suggestions source (generated through the creation route, or drawn from stored `race_definition` rows) and a "Surprise me" path. Any Keeper Bible or route-block change follows the SEG-03 owner-approval rule.
   - Races stay freeform; there is no fixed browsable race list (Out of Scope).
   - Tests: step order and indicator mapping for every creation step (name asked last), card, typed and surprise-me paths, live sheet derivation per step (name placeholder until the last step), go-back behavior, error and retry steps (CLASS_FILL_ERROR).
 
 ### Phase 50: Ledger Screens: Character and Economy
+
 **Goal**: Players manage their gear, read their character's numbers, trade with vendors and craft through Ledger drawers on desktop and sheets on mobile.
 **Depends on**: Phase 45 (drawer and sheet shells), Phase 47 (Nearby actions open the vendor)
 **Requirements**: LDG-01, LDG-02, LDG-03, LDG-08, LDG-09, LDG-10, LDG-11
 **Success Criteria** (what must be TRUE):
+
   1. Inventory shows equipment slots and the backpack side by side with filters (All, Gear, Materials, Food), slot count and gold; selecting an item opens an inspector with rarity, tier, stats compared with what is equipped (▲/▼), flavor text, sell value and Equip / Salvage.
   2. Stats shows base stats as bars with the gear bonus, a derived-stats table, renown rank with a perk choice, and faction standing.
   3. Vendor shows the vendor's name, role, faction, quote and rapport modifiers, a for-sale table with a "usable by you" filter and Buy, and the player's sellables with value, Sell, Sell all junk and buy back of the last sale; quest items are marked unsellable.
   4. Crafting shows materials on hand and a recipe list with category tabs, an "only craftable" filter and have-versus-need per recipe; the selected recipe shows quality odds, an optional reagent / affix and Craft, and Discover recipes is reachable from the screen.
   5. At 390×844 each screen opens as a full-height sheet above the tab bar (Bag opens inventory) and every action above works.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the inventory, stats, vendor and crafting screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
+
   - Server gap to scope in plan-phase: no buy-back reducer or last-sale state exists today (LDG-09). `salvage_item`, `sell_all_junk` and `research_recipes` already exist. Confirm the data sources for rapport modifiers and crafting quality odds during research.
   - The LLM "Keeper's assessment" on Stats is deferred (LDG-F1).
   - Tests: item comparison (▲/▼) math, filter and slot-count logic, unsellable quest items, buy-back state, recipe have-versus-need and craftable filter, usable-by-you filter.
 
 ### Phase 51: Ledger Screens: World and People
+
 **Goal**: Players see and travel the world, play with other people, and follow world events through Ledger drawers on desktop and sheets on mobile.
 **Depends on**: Phase 45 (drawer and sheet shells), Phase 47 (context rail tracking)
 **Requirements**: LDG-04, LDG-05, LDG-06, LDG-07, LDG-12, LDG-13, LDG-14
 **Success Criteria** (what must be TRUE):
+
   1. Map shows the known locations of a region as a route graph with a legend (here, visited, heard of, bind point) and a region list with level ranges; picking a node shows its description, danger, travel cost, services, players there and related quests, with Travel and Travel with party.
   2. Social shows a party table (class, where, health) with invite, leave, kick and promote, a loot-mode control, and accept / decline for pending invites; it also shows group chat, friends with online status and location, a who's-online count, and pending friend requests to accept.
   3. World events lists active, upcoming and recently resolved events with region and timers; the detail shows the description, the faction tug-of-war, objectives with progress across the realm and a timeline of the ripples the event caused.
   4. The event detail shows the player's contribution and percentile, the party's contribution and reward tiers, with Travel there and Track in the sidebar (the tracked event appears in the context rail).
   5. At 390×844 Map, Party and World events open as full-height sheets above the tab bar (via the Map, Party and More tabs) and every action above works.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the map/travel, group and social, and world events screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
+
   - Server gaps to scope in plan-phase: the `group` table has no loot mode (LDG-06); there is no dedicated "travel with party" reducer (`move_character` moves the party when the leader travels), so the Travel versus Travel with party semantics for grouped players need a decision; confirm the data for "upcoming" events and the ripple timeline. The percentile can be derived client-side from the public `event_contribution` rows.
   - Tests: route graph and legend states from location data, travel cost and party-travel rules, party actions by role (leader vs member), loot-mode control, friend and invite lists, event timers and sections, contribution percentile math.
 
 ### Phase 52: Parity and Cutover
+
 **Goal**: The new client does everything the old client did, becomes what production serves, and the old client is deleted.
 **Depends on**: Phases 45-51
 **Requirements**: CUT-01, CUT-02, CUT-03
 **Success Criteria** (what must be TRUE):
+
   1. A written parity checklist lists every action the old client offers, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: bank, loot, player trade, help, bug report and the /llm admin commands, built from Nocturne components.
   2. The production build and the GitHub Pages deploy configuration serve the new client; this is verified locally by building and previewing the production output (the push to master stays an owner action).
   3. The old client (the `src/` UI, its entry point and its tests) is deleted, nothing in the repo references it, and the build and the full test suite pass.
+
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`; the undesigned surfaces (bank, loot, trade, help, bug report, /llm admin) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
 **Notes**:
+
   - Seed the parity checklist at the start of the phase from an audit of the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
   - Deploy: `.github/workflows` holds only `claude.yml` and `claude-code-review.yml`, so find how master builds and publishes to GitHub Pages before changing it. The root `package.json` build and `spacetime:generate` scripts belong to the old client and must be replaced. The SpacetimeAuth redirect URI for the production origin must be registered (owner action).
   - No push to master and no maincloud publish without the owner. The maincloud run, live end-to-end verification and Console reconciliation stay owner manual items (QUAL-02).
@@ -243,6 +296,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
 | 45. Foundation, Frame and Auth | v3.0 | 0/TBD | Not started | - |
 | 46. Structured Keeper Replies | v3.0 | 0/TBD | Not started | - |
+| 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 0/TBD | Not started | - |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |

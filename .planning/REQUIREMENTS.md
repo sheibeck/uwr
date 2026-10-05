@@ -41,13 +41,22 @@
 - [ ] **INP-01**: A natural sentence that starts with a command word reaches the conversation or intent path, not the command system. Examples: "Who is that over there?", "Leave him alone", "End this now", "Accept my apology". (Backlog 999.7)
 - [ ] **INP-02**: Exact command forms still run the command (for example `who`, `/who`, `invite <name>`). Tests cover every command word in both the sentence form and the exact form.
 
+### Round-Based Combat Engine (RND)
+
+- [ ] **RND-01**: Combat runs in rounds of at most 10 seconds. A round resolves as soon as every player in the fight has chosen an action, or when the timer runs out.
+- [ ] **RND-02**: A player who has not chosen an action when the round resolves auto-attacks their current target.
+- [ ] **RND-03**: Player and enemy actions resolve in a deterministic order each round. Cooldowns, effects, DoTs/HoTs and enemy abilities count in rounds.
+- [ ] **RND-04**: The round number, its deadline and each player's chosen action are in public tables the client can subscribe to.
+- [ ] **RND-05**: The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget.
+
 ### Combat (CMB)
 
 - [ ] **CMB-01**: In combat, the right rail becomes the encounter: hostiles with health, a boss tag and difficulty color. The player can click a hostile to target it, and Tab cycles targets.
 - [ ] **CMB-02**: The player sees the threat order on the current target (from `aggro_entry`).
 - [ ] **CMB-03**: The player sees an enemy wind-up warning (from `combat_enemy_cast`) before the ability lands.
-- [ ] **CMB-04**: The combat feed groups real-time events into short beats with headers. Effects and cooldowns show seconds, not rounds.
+- [ ] **CMB-04**: The combat feed groups events by round, each under a round header. Effects and cooldowns show rounds remaining.
 - [ ] **CMB-05**: The header shows "In combat". The player can click party members to target heals, Flee is on the hotbar, and damage taken flashes on the vitals.
+- [ ] **CMB-06**: The round timer counts down on the hotbar. The player sees the action they have chosen for this round; with no choice, the hotbar shows that they will auto-attack.
 
 ### Character Creation (CRE)
 
@@ -101,7 +110,7 @@ Deferred. Tracked, not in this roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| Round-based combat | The engine stays real-time (a v2.0 decision). The mock's rounds become beat grouping in the feed. |
+| Round-based combat support in the old `src/` client | Owner decision: old-client combat may break after Phase 46.1 until Phase 52 deletes it. |
 | Fixed, browsable race list ("show all fifteen") | Races stay freeform, which keeps every character unique. |
 | First-person Keeper voice | Retracted by the owner. The Keeper is a second-person scene narrator. |
 | Retrofitting the existing `src/` UI | Owner decision: build fresh, cut over, delete the old UI. |
@@ -129,11 +138,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CON-06 | Phase 47 | Pending |
 | INP-01 | Phase 47 | Pending |
 | INP-02 | Phase 47 | Pending |
+| RND-01 | Phase 46.1 | Pending |
+| RND-02 | Phase 46.1 | Pending |
+| RND-03 | Phase 46.1 | Pending |
+| RND-04 | Phase 46.1 | Pending |
+| RND-05 | Phase 46.1 | Pending |
 | CMB-01 | Phase 48 | Pending |
 | CMB-02 | Phase 48 | Pending |
 | CMB-03 | Phase 48 | Pending |
 | CMB-04 | Phase 48 | Pending |
 | CMB-05 | Phase 48 | Pending |
+| CMB-06 | Phase 48 | Pending |
 | CRE-01 | Phase 49 | Pending |
 | CRE-02 | Phase 49 | Pending |
 | CRE-03 | Phase 49 | Pending |
