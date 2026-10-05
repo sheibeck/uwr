@@ -4,16 +4,16 @@ milestone: v2.2
 milestone_name: LLM — Claude Engine
 current_phase: 44
 current_phase_name: Live Verification and Tone Eval
-status: executing
-stopped_at: Completed 44-08-PLAN.md (needs_fixes recorded)
-last_updated: "2026-10-05T11:40:29.769Z"
+status: verifying
+stopped_at: Completed 44-10-PLAN.md
+last_updated: "2026-10-05T11:56:15.786Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 44 execution resumed (wave continue)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 74
-  completed_plans: 70
+  completed_plans: 71
   percent: 50
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 
 Phase: 44 (Live Verification and Tone Eval) — EXECUTING
 Plan: 10 of 10
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-04 — Phase 44 execution resumed (wave continue)
 
-Progress: [██████████] 95% (2/6 phases)
+Progress: [██████████] 96% (2/6 phases)
 
 ## Previous Milestones
 
@@ -126,6 +126,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 44-06: Live drills run on uwr-verify only; fake key stored before each drill, real key restored per drill in finally; timeout row cost is the ledger reservation, tied to ledger delta
 - [Phase ?]: 44-07: one approved paid golden run recorded (27 calls, $0.2604); 13 of 27 items fail a mechanical rule and are left as data for the owner's 44-08 review; no rule or item weakened; approval stays null
 - [Phase ?]: [44-08] QUAL-01 tone NOT approved (needs_fixes: 12 fails, skl-02 unrated); nothing applied; response shape (speaker field) deferred to UX overhaul 999.6
+- [Phase ?]: 44-10: Console token reconciliation deferred by the owner for both windows (golden 2026-10-05T08:29:21Z to 08:32:10Z, log totals 5667/41325/83717/12903); recorded deferred, not passed; streaming indicative (n=0)
 
 ### Roadmap Evolution
 
@@ -198,8 +199,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T11:40:24.255Z
-Stopped at: Completed 44-08-PLAN.md (needs_fixes recorded)
+Last session: 2026-10-05T11:56:15.761Z
+Stopped at: Completed 44-10-PLAN.md
 
 ## Performance Metrics
 
@@ -283,6 +284,7 @@ Stopped at: Completed 44-08-PLAN.md (needs_fixes recorded)
 | Phase 44 P07 | about 15 min live work plus owner checkpoint | 3 tasks | 4 files |
 | Phase 44 P09 | deferred | 3 tasks | 2 files |
 | Phase 44 P08 | 30 min | 2 tasks | 3 files |
+| Phase 44 P10 | 2 sessions | 3 tasks | 6 files |
 
 ## Operator Next Steps
 
