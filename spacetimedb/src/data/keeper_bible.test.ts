@@ -103,6 +103,19 @@ describe('Keeper Bible examples', () => {
     expect(examples).not.toContain('**');
     expect(examples).not.toMatch(/\p{Extended_Pictographic}/u);
   });
+
+  it('never uses the first person or names the Keeper inside an example (owner rule, Phase 46)', () => {
+    // The "Example N (...)" description lines and the player text line are not narration: the
+    // description may name the Keeper, and the player's own words are quoted input.
+    const narration = examples
+      .split('\n')
+      .filter((l) => l.trim() !== '' && !/^Example \d/.test(l) && !/^Player text:/.test(l))
+      // Drop quoted speech: a first person inside quotation marks is somebody else talking.
+      .map((l) => l.replace(/"[^"]*"/g, ''))
+      .join('\n');
+    expect(narration).not.toMatch(/\b(I|me|my|mine|myself)\b/);
+    expect(narration).not.toMatch(/\bthe keeper\b/i);
+  });
 });
 
 describe('Keeper Bible pronoun rule (Plan 41-18, PR-01 to PR-04)', () => {
