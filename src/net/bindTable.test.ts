@@ -171,6 +171,36 @@ describe('bindTable', () => {
     expect(b.rows.value).toEqual([]);
   });
 
+  it('unsubscribes a still-pending handle when it applies after a detach', () => {
+    const a = makeConn({ initial: [{ id: 1 }] });
+    const b = binding();
+    b.attach(a.conn);
+    // Pending: not active yet, so detach cannot unsubscribe it.
+    a.handle.isActive.mockReturnValue(false);
+    b.attach(makeConn().conn);
+    expect(a.handle.unsubscribe).not.toHaveBeenCalled();
+
+    // The server applies it late: it must be released, not leaked, and not touch state.
+    a.handle.isActive.mockReturnValue(true);
+    a.fireApplied();
+    expect(a.handle.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(b.applied.value).toBe(false);
+    expect(b.rows.value).toEqual([]);
+  });
+
+  it('a late apply after dispose also releases the pending subscription and swallows errors', () => {
+    const a = makeConn();
+    const b = binding();
+    b.attach(a.conn);
+    a.handle.isActive.mockReturnValue(false);
+    a.handle.unsubscribe.mockImplementation(() => {
+      throw new Error('already ended');
+    });
+    b.dispose();
+    expect(() => a.fireApplied()).not.toThrow();
+    expect(a.handle.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it('attaching the same connection twice subscribes and listens once', () => {
     const f = makeConn();
     const b = binding();

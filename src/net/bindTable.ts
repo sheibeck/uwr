@@ -102,10 +102,21 @@ export function bindTable<C extends ConnLike, Row>(
     table.onDelete(refresh);
     table.onUpdate?.(refresh);
 
-    currentHandle = conn
+    // Captured for the stale-apply path below; assigned once subscribe() returns.
+    let handle: SubscriptionHandleLike | null = null;
+    handle = conn
       .subscriptionBuilder()
       .onApplied(() => {
-        if (currentConn !== conn) return;
+        if (currentConn !== conn) {
+          // Detached while still pending (detach skips inactive handles): the server
+          // subscription is live now, so release it here instead of leaking it.
+          try {
+            handle?.unsubscribe();
+          } catch {
+            // Already ended; nothing to clean up.
+          }
+          return;
+        }
         applied.value = true;
         failed.value = false;
         refresh();
@@ -116,6 +127,7 @@ export function bindTable<C extends ConnLike, Row>(
         failed.value = true;
       })
       .subscribe(options.sql);
+    currentHandle = handle;
   }
 
   function dispose(): void {
