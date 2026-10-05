@@ -2,7 +2,7 @@
 
 **Type:** Brownfield expansion
 **Created:** 2026-02-11
-**Current milestone:** v2.2 LLM — Claude Engine (started 2026-09-29)
+**Current milestone:** v3.0 UX Overhaul (started 2026-10-05)
 
 ---
 
@@ -10,7 +10,25 @@
 
 UWR is a browser-based multiplayer RPG built on SpacetimeDB and Vue 3. Players enter a procedurally-generated living world shaped by LLM-driven narrative. Character creation is a guided narrative experience — players describe any fantasy race they can imagine, pick a base archetype (Warrior or Mystic), and receive a unique LLM-generated class from the Keeper of Knowledge. The world forms around players as they enter, creating persistent regions that evolve with play. NPCs hold conversations powered by LLM with persistent memory and affinity. Quests emerge contextually from NPC and world state. Every interaction flows through the Keeper of Knowledge — a sardonic narrator who treats the world as a story unfolding for its amusement.
 
-The architecture is two-tier: SpacetimeDB TypeScript backend (server-authoritative) + Vue 3 SPA frontend (client). All state lives in SpacetimeDB tables. The client subscribes to reactive state via `useTable()`. Backend reducers are the only mutation path. LLM integration runs through a client-side proxy (a Cloudflare Worker) that currently calls OpenAI. It exists because SpacetimeDB procedure HTTP was broken locally on 2.0.1. The next milestone moves the engine to Anthropic's Claude API.
+The architecture is two-tier: SpacetimeDB TypeScript backend (server-authoritative) + Vue 3 SPA frontend (client). All state lives in SpacetimeDB tables. The client subscribes to reactive state via `useTable()`. Backend reducers are the only mutation path. LLM calls run server-side: reducers enqueue jobs and a scheduled SpacetimeDB procedure calls Claude Sonnet 5.5 (v2.2). The browser holds no LLM credential.
+
+---
+
+## Current Milestone: v3.0 UX Overhaul
+
+**Goal:** Rebuild the client to the UWR Ledger Screens and Console & Combat designs on the Nocturne design system, at desktop (1280×800) and mobile (390×844), with structured, speaker-attributed Keeper replies.
+
+**Target features:**
+- Nocturne foundation (tokens, components, Phosphor icons), a three-column frame (persistent vitals rail, feed, context rail), secondary screens as drawers (desktop) or sheets with a tab bar (mobile)
+- Console while exploring and in combat (Ledger 2i/2j, Console & Combat 1a): the right rail becomes the encounter, the round timer sits on the hotbar
+- The eight Ledger screens: character creation (Keeper interview + live character sheet), inventory, stats, map/travel, group & social, vendor, crafting, world events
+- Structured LLM replies: narration and dialogue segments, each with a speaker; the Keeper narrates what happens around the player in the second person; the UI renders labelled lines
+- Natural sentences that start with a command word reach the conversation/intent path (backlog 999.7)
+- Keeper tone re-tuned to the narrator voice, with owner sign-off (QUAL-01 carry-over)
+
+**Source design:** claude_design project `1a7a975f-7b14-488b-9a38-188bc56294cf` (`UWR Ledger Screens.dc.html`, `UWR Console & Combat.dc.html`, Nocturne `_ds/…/styles.css`). Re-import from the MCP in each phase; never work from a cached copy.
+
+**Deferred:** Admin "Keeper's Desk" screens; 999.2 and 999.5 and the enemy cast-bar todos stay in the backlog; live end-to-end verification and the maincloud run (QUAL-02) stay owner manual items.
 
 ---
 
@@ -55,8 +73,11 @@ A world that writes itself around its players — every character is unique, eve
 
 ### Active
 
-- [ ] Complete UX overhaul to the UWR Ledger Screens design (Nocturne design system), which also decides LLM reply shape (speaker attribution, narration vs dialogue) — next milestone, from backlog 999.6
-- [ ] Carried from v2.2: owner tone sign-off (QUAL-01; first-person, story-like Keeper proposal in 44-TONE-FIXES.md) and live end-to-end verification, Console reconciliation and maincloud run (QUAL-02)
+- [ ] Complete UX overhaul to the UWR Ledger Screens and Console & Combat designs (Nocturne), desktop and mobile — v3.0 (from backlog 999.6)
+- [ ] Structured, speaker-attributed LLM replies, with the Keeper as a second-person scene narrator — v3.0
+- [ ] Command words at the start of natural sentences no longer hijack input — v3.0 (from backlog 999.7)
+- [ ] Owner tone sign-off on the narrator voice (QUAL-01 carry-over) — v3.0
+- [ ] Owner manual items, outside the roadmap: live end-to-end verification, Console reconciliation and the maincloud run (QUAL-02)
 
 ### Parked (Backlog 999.1-999.5, on hold while core concepts are re-imagined)
 
@@ -67,7 +88,7 @@ A world that writes itself around its players — every character is unique, eve
 
 ### Out of Scope
 
-- Mobile app — web-first
+- Native mobile app — web-first (responsive mobile web layout is in scope for v3.0)
 - Real-time voice/video chat — not needed for narrative RPG
 - Full PvP — not in current scope
 - Classic/fixed race and class lists — uniqueness over presets
@@ -132,8 +153,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 
 ## Constraints
 
-- SpacetimeDB procedures can't make HTTP calls locally (ctx.http.fetch broken) -- observed on 2.0.1, likely its 500 ms HTTP timeout; retest on 2.10 in the LLM milestone
-- LLM budget limits daily generation per player
+- LLM spend is capped ($10/day global ceiling, per-player daily caps, kill switch)
 - No pushes to master without user approval (production auto-deploys)
 - No pushes to maincloud without user approval
 
@@ -147,9 +167,9 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Backend language | TypeScript 6.0 |
 | Frontend framework | Vue 3.5.43 + Vite 8.3.1 |
 | Authentication | SpacetimeAuth OIDC |
-| LLM provider | OpenAI (gpt-5.4, gpt-5-mini) via client proxy; migrating to Claude Sonnet 5.5 in v2.2 |
-| LLM proxy | Cloudflare Workers + Hono + OpenAI SDK |
-| Package manager | pnpm 11 (standalone projects: root, spacetimedb/, llm-proxy/) |
+| LLM provider | Claude Sonnet 5.5, called from a scheduled SpacetimeDB procedure (v2.2) |
+| Design system | Nocturne (claude_design), Inter, Phosphor icons — adopted in v3.0 |
+| Package manager | pnpm 11 (standalone projects: root, spacetimedb/) |
 | Deployment | GitHub Pages (frontend) + SpacetimeDB maincloud (backend) |
 
 ---
@@ -171,4 +191,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-05 after v2.2 milestone*
+*Last updated: 2026-10-05 at v3.0 UX Overhaul milestone start*
