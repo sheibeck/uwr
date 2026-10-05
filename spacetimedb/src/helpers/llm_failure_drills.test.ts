@@ -865,3 +865,750 @@ describe('non-lock routes stopped at claim (kill switch): the designed resting b
     }
   });
 });
+
+// ----------------------------------------------------------------------------
+// Edge family: boundary
+// ----------------------------------------------------------------------------
+
+/** A fixed, non-round day figure for the ledger so a rounding slip cannot hide. */
+const SPENT = 2_000_003n;
+
+const ledgerSeed = (spent: bigint = SPENT): Record<string, any[]> => ({
+  llm_spend: [
+    {
+      id: 1n,
+      spentMicroUsd: spent,
+      reservedMicroUsd: 0n,
+      calls: 0n,
+      updatedAt: ts(T0),
+      dayUtc: utcDay(ts(T0)),
+      daySpentMicroUsd: spent,
+    },
+  ],
+});
+
+describe('boundary: the spend cap at ceiling minus 1, the ceiling, and ceiling plus 1 micro-USD', () => {
+  const race = LOCK_ROUTES[0];
+
+  /** The job's own reservation, computed the way the seam does, and checked against a real enqueue. */
+  const ownReservation = (): bigint => {
+    const probe = lockJob(race, [], ledgerSeed());
+    expect(reservationMicroUsd('creation_race', serializeRequest(race.request()))).toBe(probe.reserved);
+    return probe.reserved;
+  };
+
+  const setCeiling = (proc: Proc, v: bigint) => void proc.ctx.withTx((tx: any) => setDailyCeiling(tx, v));
+
+  describe('the enqueue gate (held plus reservation greater than ceiling is refused)', () => {
+    it('ceiling minus 1: refused as ceiling, nothing written', () => {
+      const r = ownReservation();
+      const proc = makeProc([], { ...race.seed(), ...ledgerSeed() });
+      setCeiling(proc, SPENT + r - 1n);
+      const before = JSON.stringify(rows(proc, 'llm_spend'), (_k, v) => (typeof v === 'bigint' ? `${v}n` : v));
+
+      const result = proc.ctx.withTx((tx: any) =>
+        enqueueLlmJob(tx, { route: 'creation_race', playerId: alice, characterId: 1n, sourceKey: race.sourceKey, request: race.request() }),
+      );
+
+      expect(result.refused).toBe('ceiling');
+      expect(result.job).toBeNull();
+      expect(rows(proc, 'llm_job')).toHaveLength(0);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+      expect(rows(proc, 'llm_player_budget')).toHaveLength(0);
+      expect(JSON.stringify(rows(proc, 'llm_spend'), (_k, v) => (typeof v === 'bigint' ? `${v}n` : v))).toBe(before);
+    });
+
+    it.each([
+      ['exactly the ceiling', 0n],
+      ['ceiling plus 1', 1n],
+    ])('%s: admitted and reserved', (_label, plus) => {
+      const r = ownReservation();
+      const proc = makeProc([], { ...race.seed(), ...ledgerSeed() });
+      setCeiling(proc, SPENT + r + plus); // spent + r exactly, or one micro above it
+      const jobId = enqueue(proc, 'creation_race', { sourceKey: race.sourceKey, request: race.request() });
+      expect(jobOf(proc, jobId).reservedMicroUsd).toBe(r);
+      expect(ledger(proc).reservedMicroUsd).toBe(r);
+      expect(globalDayHeld(ledger(proc), utcDay(ts(T0)))).toBe(SPENT + r);
+    });
+  });
+
+  describe('the claim gate (today spent plus other in-flight plus this job, against the ceiling)', () => {
+    it('ceiling minus 1: an already-queued job fails as ceiling: one refund, one resting line, lock released', () => {
+      const { proc, jobId, reserved } = lockJob(race, [], ledgerSeed());
+      setCeiling(proc, SPENT + reserved - 1n);
+      const deps = realDeps(proc);
+
+      expect(run(proc, jobId, deps)).toBe('failed');
+
+      expect(jobOf(proc, jobId).errorCode).toBe('ceiling');
+      expect(proc.http.calls).toHaveLength(0);
+      expect(stepOf(proc, race)).toBe(race.after);
+      expectLines(playerLines(), [{ channel: 'creation', kind: 'creation_error', text: LLM_RESTING_LINE }]);
+      expect(ledger(proc).reservedMicroUsd).toBe(0n);
+      expect(ledger(proc).calls).toBe(0n);
+      expect(ledger(proc).spentMicroUsd).toBe(SPENT);
+      expect(dayOf(proc).reservedMicroUsd).toBe(0n);
+      expect(dayOf(proc).calls).toBe(0n);
+    });
+
+    it.each([
+      ['exactly the ceiling', 0n],
+      ['ceiling plus 1', 1n],
+    ])('%s: the job is claimed and runs', (_label, plus) => {
+      const { proc, jobId, reserved } = lockJob(race, [], ledgerSeed());
+      setCeiling(proc, SPENT + reserved + plus);
+      const claim = claimLlmJob(proc.ctx, takeDispatch(proc, jobId), realDeps(proc));
+      expect(claim.kind).toBe('run');
+      expect(jobOf(proc, jobId).status).toBe('in_flight');
+      expect(playerLines()).toEqual([]);
+    });
+  });
+});
+
+describe('boundary: the timeout, at exactly the route timeout and 1 ms over', () => {
+  it.each(Object.keys(LLM_ROUTES).filter((k) => k !== 'smoke_test'))('%s: the call carries exactly the route timeout', (route) => {
+    const proc = makeProc([reply('err_500')], { ...LOCK_ROUTES[0].seed() });
+    const jobId = enqueue(proc, route as LlmRoute, {
+      sourceKey: `t-${route}`,
+      request: { input: inputOf(route as LlmRoute) },
+    });
+    run(proc, jobId, realDeps(proc, { applyFailure: vi.fn() as any }));
+    expect(proc.http.calls[0].timeoutMs).toBe(LLM_ROUTES[route as LlmRoute].timeoutMs);
+  });
+
+  it('a reply that takes exactly the route timeout is a normal reply (the executor adds no cut of its own)', () => {
+    const t = LLM_ROUTES.npc_conversation.timeoutMs;
+    const proc = makeProc([reply('ok_text', { advanceMicros: BigInt(t) * 1000n })]);
+    const jobId = OTHER_ROUTES[0].enqueue(proc);
+    const deps = realDeps(proc, { apply: vi.fn() as any });
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(callLogs(proc, jobId)[0].latencyMs).toBe(BigInt(t));
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+  });
+
+  it('a call that throws a timeout 1 ms over the route timeout fails as timeout and releases the lock', () => {
+    const r = LOCK_ROUTES[0];
+    const t = LLM_ROUTES.creation_race.timeoutMs;
+    const { proc, jobId, reserved } = lockJob(r, [{ throw: 'timeout', advanceMicros: BigInt(t + 1) * 1000n }]);
+    expect(run(proc, jobId)).toBe('failed');
+    expect(jobOf(proc, jobId).errorCode).toBe('timeout');
+    expect(callLogs(proc, jobId)[0].latencyMs).toBe(BigInt(t + 1));
+    expect(stepOf(proc, r)).toBe(r.after);
+    expectLines(playerLines(), [{ channel: 'creation', kind: 'creation_error', text: r.line(false) }]);
+    expectMoney(proc, jobId, reserved, { unknownBilling: true });
+  });
+
+  describe('the sweeper: an in-flight job is left alone at exactly route timeout plus grace and expired one micro later', () => {
+    it.each(LOCK_ROUTES)('$route', (r) => {
+      const { proc, jobId, reserved } = lockJob(r);
+      const claim = claimLlmJob(proc.ctx, takeDispatch(proc, jobId), realDeps(proc));
+      expect(claim.kind).toBe('run');
+      const edge = BigInt(LLM_ROUTES[r.route].timeoutMs) * 1000n + LLM_SWEEP_IN_FLIGHT_GRACE_MICROS;
+      const sweep = () =>
+        proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: applyLlmFailure, log: () => {} }));
+
+      proc.clock.advance(edge); // exactly timeout plus grace
+      expect(sweep().expiredInFlight).toBe(0);
+      expect(jobOf(proc, jobId).status).toBe('in_flight');
+      expect(playerLines()).toEqual([]);
+      expect(stepOf(proc, r)).toBe(r.holds);
+
+      proc.clock.advance(1n); // one microsecond past
+      expect(sweep().expiredInFlight).toBe(1);
+      const job = jobOf(proc, jobId);
+      expect(job.status).toBe('expired');
+      expect(job.errorCode).toBe('timeout');
+      expect(stepOf(proc, r)).toBe(r.after);
+      expectLines(playerLines(), [{ channel: 'creation', kind: 'creation_error', text: r.line(false) }]);
+      expectPlayerSafe(playerTexts(proc));
+      // The player is refunded, the ledger holds the reservation as the unknown-billing stand-in.
+      expectMoney(proc, jobId, reserved, { unknownBilling: true });
+      // A second sweep finds nothing: no second line, no second refund.
+      expect(sweep().expiredInFlight).toBe(0);
+      expect(playerLines()).toHaveLength(1);
+    });
+  });
+});
+
+describe('boundary: retry-after at 59 s, 60 s, 61 s and a very large value', () => {
+  const retryAfter = (value: string) => {
+    const r = reply('err_429_retry_after');
+    r.headers = { ...r.headers, 'retry-after': value };
+    return r;
+  };
+  const delayOf = (value: string): { delay: bigint; proc: Proc; jobId: bigint } => {
+    const proc = makeProc([retryAfter(value)]);
+    const jobId = OTHER_ROUTES[0].enqueue(proc);
+    run(proc, jobId);
+    return { delay: jobOf(proc, jobId).nextAttemptAt.microsSinceUnixEpoch - T0, proc, jobId };
+  };
+  const S = 1_000_000n;
+
+  it.each([
+    ['59', 59n * S],
+    ['60', 60n * S],
+  ])('retry-after %s s waits that long, plus bounded jitter (under 20 percent of the 2 s base)', (value, core) => {
+    const { delay } = delayOf(value);
+    expect(delay).toBeGreaterThanOrEqual(core);
+    expect(delay).toBeLessThan(core + 400_000n);
+  });
+
+  it.each(['61', '600', '86400', '99999999999'])('retry-after %s s is capped at 60 s plus jitter', (value) => {
+    const { delay } = delayOf(value);
+    expect(delay).toBeGreaterThanOrEqual(60n * S);
+    expect(delay).toBeLessThan(60n * S + 400_000n);
+  });
+
+  it('the delay equals the production formula exactly (cap and jitter included)', () => {
+    for (const value of ['0', '17', '59', '60', '61', '99999999999']) {
+      const { delay, jobId } = delayOf(value);
+      expect(delay).toBe(msToMicros(retryDelayMs(1, Number(value), jobId)));
+      expect(delay <= msToMicros(LLM_RETRY_MAX_MS) + 400_000n).toBe(true);
+    }
+  });
+
+  it('a second 429 does not wait less than its base: attempt 2 waits at least 8 s even with retry-after 1', () => {
+    expect(retryDelayMs(2, 1, 1n)).toBeGreaterThanOrEqual(8000);
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Edge family: adjacency (two causes at once)
+// ----------------------------------------------------------------------------
+
+describe('adjacency: two causes hit the same job, the player gets one line and one refund', () => {
+  const race = LOCK_ROUTES[0];
+
+  const expectSingleOutcome = (proc: Proc, jobId: bigint, reserved: bigint, text: string) => {
+    expect(playerLines()).toHaveLength(1);
+    expect(playerLines()[0]).toMatchObject({ channel: 'creation', kind: 'creation_error', text, to: alice.toHexString() });
+    expect(stepOf(proc, race)).toBe(race.after);
+    expect(dayOf(proc).reservedMicroUsd).toBe(0n);
+    expect(dayOf(proc).calls).toBe(0n);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(ledger(proc).calls).toBe(0n);
+    expect(jobOf(proc, jobId).reservedMicroUsd).toBe(0n);
+    expect(reserved).toBeGreaterThan(0n);
+  };
+
+  it('kill switch and ceiling both on before the claim: one failed job, one resting line, one refund, lock released once', () => {
+    const { proc, jobId, reserved } = lockJob(race);
+    proc.ctx.withTx((tx: any) => patchAdminState(tx, { llmEnabled: false, dailyCeilingMicroUsd: reserved - 1n }));
+    const arg = takeDispatch(proc, jobId);
+    const deps = realDeps(proc);
+
+    expect(runLlmJob(proc.ctx, arg, deps)).toBe('failed');
+
+    expect(jobOf(proc, jobId).status).toBe('failed');
+    expect(['halted', 'ceiling']).toContain(jobOf(proc, jobId).errorCode);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(proc.http.calls).toHaveLength(0);
+    expectSingleOutcome(proc, jobId, reserved, LLM_RESTING_LINE);
+
+    // The same dispatch arriving again (a duplicate) does nothing: no second line, no second refund.
+    expect(runLlmJob(proc.ctx, arg, realDeps(proc))).toBe('skip');
+    // Neither does the sweeper, an hour later.
+    proc.clock.advance(3_600_000_000n);
+    proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: applyLlmFailure, log: () => {} }));
+    expectSingleOutcome(proc, jobId, reserved, LLM_RESTING_LINE);
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
+  });
+
+  it('both causes together read exactly like either one alone (identical line, identical money)', () => {
+    const outcomes: string[] = [];
+    for (const patch of [{ llmEnabled: false }, { dailyCeilingMicroUsd: 1n }, { llmEnabled: false, dailyCeilingMicroUsd: 1n }]) {
+      const { proc, jobId } = lockJob(race);
+      proc.ctx.withTx((tx: any) => patchAdminState(tx, patch));
+      run(proc, jobId);
+      outcomes.push(
+        JSON.stringify({ texts: playerTexts(proc), step: stepOf(proc, race), res: ledger(proc).reservedMicroUsd.toString(), calls: ledger(proc).calls.toString() }),
+      );
+    }
+    expect(new Set(outcomes).size).toBe(1);
+  });
+
+  it('a provider 429 spend cap on a job whose local ceiling passed at exactly the limit: one in-voice line, one refund, no retry', () => {
+    const probe = lockJob(race, [], ledgerSeed());
+    const { proc, jobId, reserved } = lockJob(race, [reply('err_429_spend_cap')], ledgerSeed());
+    expect(reserved).toBe(probe.reserved);
+    proc.ctx.withTx((tx: any) => setDailyCeiling(tx, SPENT + reserved)); // exactly at the limit
+    const deps = realDeps(proc);
+
+    expect(run(proc, jobId, deps)).toBe('failed');
+
+    const job = jobOf(proc, jobId);
+    expect(job.errorCode).toBe('billing'); // the provider's cap, not the local ceiling
+    expect(proc.http.calls).toHaveLength(1);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expectSingleOutcome(proc, jobId, reserved, race.line(false));
+    expectPlayerSafe(playerTexts(proc));
+    expect(ledger(proc).spentMicroUsd).toBe(SPENT);
+    expect(rows(proc, 'llm_admin_state')[0].keyLastCheckOk).toBe(false);
+  });
+
+  it('the kill switch and the global ceiling flipped while the call is out do not stop it; the provider cap that comes back fails it once', () => {
+    const { proc, jobId, reserved } = lockJob(race, [reply('err_429_spend_cap')], ledgerSeed());
+    const original = proc.ctx.http.fetch.bind(proc.ctx.http);
+    proc.ctx.http.fetch = (url: string, init: any) => {
+      proc.ctx.withTx((tx: any) => patchAdminState(tx, { llmEnabled: false, dailyCeilingMicroUsd: 1n }));
+      return original(url, init);
+    };
+
+    expect(run(proc, jobId)).toBe('failed');
+
+    expect(jobOf(proc, jobId).errorCode).toBe('billing');
+    expect(proc.http.calls).toHaveLength(1);
+    expectSingleOutcome(proc, jobId, reserved, race.line(false));
+  });
+
+  it('the sweeper expires a job while its 429 spend-cap reply is still on the way: one line, one refund, the late reply adds neither', () => {
+    const { proc, jobId, reserved } = lockJob(race, [reply('err_429_spend_cap')], ledgerSeed());
+    const original = proc.ctx.http.fetch.bind(proc.ctx.http);
+    proc.ctx.http.fetch = (url: string, init: any) => {
+      const res = original(url, init);
+      proc.clock.advance(BigInt(LLM_ROUTES.creation_race.timeoutMs) * 1000n + 31_000_000n);
+      proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: applyLlmFailure, log: () => {} }));
+      return res;
+    };
+
+    expect(run(proc, jobId)).toBe('stale');
+
+    expect(jobOf(proc, jobId).status).toBe('expired');
+    expectSingleOutcome(proc, jobId, reserved, race.line(false));
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Edge family: empty or missing bodies and headers
+// ----------------------------------------------------------------------------
+
+describe('empty: failure replies with an empty or missing body or headers still map to a defined class', () => {
+  const STATUS_CLASS: Array<[number, string, boolean]> = [
+    [401, 'auth', false],
+    [429, 'rate_limit', true],
+    [500, 'server', true],
+    [529, 'overloaded', true],
+  ];
+  const VARIANTS: Array<[string, (status: number) => MockReply]> = [
+    ['no body and no headers', (status) => ({ status })],
+    ['an empty string body and empty headers', (status) => ({ status, body: '', headers: {} })],
+    ['an empty string body with only a content type', (status) => ({ status, body: '', headers: { 'content-type': 'application/json' } })],
+    ['an empty JSON object', (status) => ({ status, body: '{}', headers: {} })],
+    ['a JSON null', (status) => ({ status, body: 'null' })],
+    ['a JSON error with no type and no message', (status) => ({ status, body: { error: {} } })],
+    ['an HTML body', (status) => ({ status, body: '<html><body>Bad gateway</body></html>', headers: { 'content-type': 'text/html' } })],
+  ];
+
+  const cases = STATUS_CLASS.flatMap(([status, cls, retry]) => VARIANTS.map(([v, make]) => ({ status, cls, retry, v, make })));
+
+  it.each(cases)('$status with $v: classified $cls, no retry-after assumed, no raw text', ({ status, cls, retry, make }) => {
+    const res = makeSyncResponse(make(status));
+    const result = classifyClaudeResponse('creation_race', res as any, { needles: [FAKE_KEY] });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.class).toBe(cls);
+    expect(result.retryable).toBe(retry);
+    expect(result.retryAfterSeconds).toBeUndefined();
+    expect(typeof result.message).toBe('string');
+    expect(result.message.length).toBeGreaterThan(0);
+  });
+
+  describe.each(cases)('through the executor: $status with $v', ({ status, cls, make }) => {
+    it.each(LOCK_ROUTES)('$route: in-voice line, lock released, refunded, no raw error', (r) => {
+      const { proc, jobId, reserved } = lockJob(r, [make(status)]);
+      expect(run(proc, jobId)).toBe('failed');
+      expect(jobOf(proc, jobId).errorCode).toBe(cls);
+      expect(stepOf(proc, r)).toBe(r.after);
+      expectLines(playerLines(), [{ channel: 'creation', kind: r.kind, text: r.line(false) }]);
+      expectPlayerSafe(playerTexts(proc));
+      expectMoney(proc, jobId, reserved, {});
+      expect(proc.http.calls).toHaveLength(1);
+      expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    });
+  });
+
+  it('a 429 with no body and no retry-after on a retrying route uses the default 2 s backoff, not a guessed wait', () => {
+    const proc = makeProc([{ status: 429 }]);
+    const jobId = OTHER_ROUTES[0].enqueue(proc);
+    expect(run(proc, jobId)).toBe('retry');
+    const delay = jobOf(proc, jobId).nextAttemptAt.microsSinceUnixEpoch - T0;
+    expect(delay).toBe(msToMicros(retryDelayMs(1, undefined, jobId)));
+    expect(delay).toBeGreaterThanOrEqual(2_000_000n);
+    expect(delay).toBeLessThan(2_400_000n);
+  });
+
+  it.each(['abc', '', 'Wed, 21 Oct 2026 07:28:00 GMT', '-5', '1e3'])('a retry-after of %j is treated as absent (default backoff)', (value) => {
+    const r = reply('err_429_retry_after');
+    r.headers = { ...r.headers, 'retry-after': value };
+    const proc = makeProc([r]);
+    const jobId = OTHER_ROUTES[0].enqueue(proc);
+    expect(run(proc, jobId)).toBe('retry');
+    const delay = jobOf(proc, jobId).nextAttemptAt.microsSinceUnixEpoch - T0;
+    expect(delay).toBe(msToMicros(retryDelayMs(1, undefined, jobId)));
+  });
+
+  describe('a 200 with an empty or unusable body never completes the job', () => {
+    // The third figure is what the player is charged: the real cost of the usage the reply reported
+    // (a billed failure), or nothing when the reply reported no usage (the ledger keeps the reservation).
+    const cost = (input: number, output: number): bigint =>
+      BigInt(estimateCostMicroUsd({ input, output, cacheWrite: 0, cacheRead: 0 }));
+    const OK_EMPTIES: Array<[string, MockReply, bigint]> = [
+      ['no body', { status: 200 }, 0n],
+      ['an empty string body', { status: 200, body: '' }, 0n],
+      ['an empty JSON object', { status: 200, body: '{}' }, 0n],
+      ['no content blocks', { status: 200, body: { stop_reason: 'end_turn', content: [], usage: { input_tokens: 3, output_tokens: 0 } } }, cost(3, 0)],
+      [
+        'a whitespace text block',
+        { status: 200, body: { stop_reason: 'end_turn', content: [{ type: 'text', text: '   ' }], usage: { input_tokens: 3, output_tokens: 1 } } },
+        cost(3, 1),
+      ],
+    ];
+
+    it.each(OK_EMPTIES)('%s: failed, lock released, one in-voice line, never completed', (_label, res, playerCharge) => {
+      for (const r of LOCK_ROUTES) {
+        resetLines();
+        const { proc, jobId, reserved } = lockJob(r, [res]);
+        const outcome = run(proc, jobId);
+        expect(outcome).not.toBe('completed');
+        expect(outcome).toBe('failed');
+        expect(jobOf(proc, jobId).status).toBe('failed');
+        expect(stepOf(proc, r)).toBe(r.after);
+        expectLines(playerLines(), [{ channel: 'creation', kind: r.kind, text: r.line(false) }]);
+        expectPlayerSafe(playerTexts(proc));
+        expect(jobOf(proc, jobId).reservedMicroUsd).toBe(0n);
+        expect(dayOf(proc).reservedMicroUsd).toBe(0n);
+        expect(ledger(proc).reservedMicroUsd).toBe(0n);
+        expect(reserved).toBeGreaterThan(0n);
+        // The player pays only the real cost of the usage the reply reported, never the reservation.
+        expect(dayOf(proc).spentMicroUsd).toBe(playerCharge);
+        expect(playerCharge <= reserved).toBe(true);
+      }
+    });
+
+    it('on a retrying route an empty-body 200 retries instead of completing', () => {
+      const proc = makeProc([{ status: 200 }]);
+      const jobId = OTHER_ROUTES[0].enqueue(proc);
+      expect(run(proc, jobId)).toBe('retry');
+      expect(jobOf(proc, jobId).status).toBe('pending');
+    });
+  });
+
+  it('a thrown error with an empty message is a transport failure: in-voice line, lock released, ledger holds the reservation', () => {
+    for (const r of LOCK_ROUTES) {
+      const { proc, jobId, reserved } = lockJob(r, [{ throw: new Error('') }]);
+      expect(run(proc, jobId)).toBe('failed');
+      expect(jobOf(proc, jobId).errorCode).toBe('network');
+      expect(stepOf(proc, r)).toBe(r.after);
+      expectLines(playerLines(), [{ channel: 'creation', kind: r.kind, text: r.line(false) }]);
+      expectPlayerSafe(playerTexts(proc));
+      expectMoney(proc, jobId, reserved, { unknownBilling: true });
+      resetLines();
+    }
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Edge family: ordering (several jobs failing in one pass)
+// ----------------------------------------------------------------------------
+
+describe('ordering: jobs failing in the same sweep or claim pass, in any order', () => {
+  const race = LOCK_ROUTES[0];
+  const hexOf = (v: any): string => v.toHexString();
+
+  const replacer = (_k: string, v: any): any =>
+    typeof v === 'bigint' ? `${v}n` : v && typeof v.toHexString === 'function' ? v.toHexString() : v;
+
+  /** The end state of the whole database, with auto-increment ids dropped and every table sorted. */
+  function endState(proc: Proc): string {
+    const strip = (t: string, keys: string[]) =>
+      rows(proc, t)
+        .map((r) => {
+          const copy = { ...r };
+          for (const k of keys) delete copy[k];
+          return JSON.stringify(copy, replacer);
+        })
+        .sort();
+    return JSON.stringify({
+      llm_job: strip('llm_job', ['id']),
+      llm_player_budget: strip('llm_player_budget', ['id']),
+      llm_spend: strip('llm_spend', []),
+      llm_dispatch: strip('llm_dispatch', ['scheduledId', 'jobId']),
+      character_creation_state: strip('character_creation_state', ['id']),
+      lines: sortedJson(playerLines()),
+    });
+  }
+
+  const threeStates = (): Record<string, any[]> => ({
+    character_creation_state: PLAYERS.map((p, i) => creationState('GENERATING_RACE', p, BigInt(i + 1))),
+  });
+
+  /** Enqueue one creation_race job per player, in the given order; each is its player's own state. */
+  function scene(order: number[]): { proc: Proc; jobIds: bigint[]; reserved: bigint } {
+    const proc = makeProc([], threeStates());
+    const jobIds: bigint[] = [];
+    for (const i of order) {
+      jobIds[i] = enqueue(proc, 'creation_race', {
+        playerId: PLAYERS[i],
+        characterId: BigInt(i + 1),
+        sourceKey: SOURCE_KEYS.creation(BigInt(i + 1), 'race'),
+        request: { creationStateId: String(i + 1), input: inputOf('creation_race') },
+      });
+    }
+    return { proc, jobIds, reserved: jobOf(proc, jobIds[0]).reservedMicroUsd };
+  }
+
+  const expectOneLineEach = (proc: Proc) => {
+    const lines = playerLines();
+    expect(lines).toHaveLength(3);
+    for (const p of PLAYERS) {
+      const mine = lines.filter((l) => l.to === hexOf(p));
+      expect(mine).toHaveLength(1);
+      expect(mine[0].channel).toBe('creation');
+    }
+    expectPlayerSafe(playerTexts(proc));
+  };
+
+  const ORDERS = [
+    [0, 1, 2],
+    [2, 0, 1],
+    [1, 2, 0],
+  ];
+
+  describe('one sweep', () => {
+    const sweepScene = (order: number[]) => {
+      const s = scene(order);
+      // Claim each job (no call): the call is then lost, as in a publish or crash mid-call.
+      for (const i of order) claimLlmJob(s.proc.ctx, takeDispatch(s.proc, s.jobIds[i]), realDeps(s.proc));
+      resetLines();
+      s.proc.clock.advance(BigInt(LLM_ROUTES.creation_race.timeoutMs) * 1000n + LLM_SWEEP_IN_FLIGHT_GRACE_MICROS + 1n);
+      const report = s.proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: applyLlmFailure, log: () => {} }));
+      return { ...s, report };
+    };
+
+    it('each expires once, refunds once and posts one line to its own player', () => {
+      const { proc, jobIds, reserved, report } = sweepScene([0, 1, 2]);
+      expect(report.expiredInFlight).toBe(3);
+      expect(report.errors).toBe(0);
+      expectOneLineEach(proc);
+      for (const i of [0, 1, 2]) {
+        expect(jobOf(proc, jobIds[i]).status).toBe('expired');
+        expect(dayOf(proc, PLAYERS[i]).reservedMicroUsd).toBe(0n);
+        expect(dayOf(proc, PLAYERS[i]).calls).toBe(0n);
+        expect(dayOf(proc, PLAYERS[i]).spentMicroUsd).toBe(0n);
+        expect(rows(proc, 'character_creation_state').find((s: any) => s.id === BigInt(i + 1)).step).toBe('AWAITING_RACE');
+      }
+      expect(ledger(proc).reservedMicroUsd).toBe(0n);
+      expect(ledger(proc).calls).toBe(0n);
+      expect(ledger(proc).spentMicroUsd).toBe(3n * reserved);
+    });
+
+    it('the same three jobs enqueued in three different orders end in the same normalised state', () => {
+      const states = ORDERS.map((o) => {
+        resetLines();
+        return endState(sweepScene(o).proc);
+      });
+      expect(states[1]).toBe(states[0]);
+      expect(states[2]).toBe(states[0]);
+    });
+
+    it('a second sweep over the finished set changes nothing', () => {
+      const { proc } = sweepScene([0, 1, 2]);
+      const before = endState(proc);
+      proc.ctx.withTx((tx: any) => sweepLlmJobs(tx, { applyFailure: applyLlmFailure, log: () => {} }));
+      expect(endState(proc)).toBe(before);
+      expect(playerLines()).toHaveLength(3);
+    });
+  });
+
+  describe('one claim pass under a halted switch', () => {
+    const claimScene = (order: number[]) => {
+      const s = scene(order);
+      s.proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+      resetLines();
+      for (const i of order) runLlmJob(s.proc.ctx, takeDispatch(s.proc, s.jobIds[i]), realDeps(s.proc));
+      return s;
+    };
+
+    it('each fails once, refunds once and posts the resting line to its own player', () => {
+      const { proc, jobIds } = claimScene([0, 1, 2]);
+      expectOneLineEach(proc);
+      for (const l of playerLines()) expect(l.text).toBe(LLM_RESTING_LINE);
+      for (const i of [0, 1, 2]) {
+        expect(jobOf(proc, jobIds[i]).errorCode).toBe('halted');
+        expect(dayOf(proc, PLAYERS[i]).calls).toBe(0n);
+        expect(dayOf(proc, PLAYERS[i]).reservedMicroUsd).toBe(0n);
+      }
+      expect(ledger(proc).reservedMicroUsd).toBe(0n);
+      expect(ledger(proc).calls).toBe(0n);
+      expect(proc.http.calls).toHaveLength(0);
+    });
+
+    it('processed in three different orders, the same end state', () => {
+      const states = ORDERS.map((o) => {
+        const s = claimScene(o);
+        return endState(s.proc);
+      });
+      expect(states[1]).toBe(states[0]);
+      expect(states[2]).toBe(states[0]);
+    });
+  });
+
+  describe('one claim pass with headroom for two of the three', () => {
+    it.each([
+      [[0, 1, 2], 2],
+      [[2, 1, 0], 0],
+    ])('order %j: exactly one job is refused (player %i), refunded once, with one line to that player', (order, loser) => {
+      const proc = makeProc([], { ...threeStates(), ...ledgerSeed() });
+      const jobIds: bigint[] = [];
+      for (const i of order) {
+        jobIds[i] = enqueue(proc, 'creation_race', {
+          playerId: PLAYERS[i],
+          characterId: BigInt(i + 1),
+          sourceKey: SOURCE_KEYS.creation(BigInt(i + 1), 'race'),
+          request: { creationStateId: String(i + 1), input: inputOf('creation_race') },
+        });
+      }
+      const r: bigint = jobOf(proc, jobIds[0]).reservedMicroUsd;
+      expect(jobOf(proc, jobIds[1]).reservedMicroUsd).toBe(r);
+      expect(jobOf(proc, jobIds[2]).reservedMicroUsd).toBe(r);
+      proc.ctx.withTx((tx: any) => patchAdminState(tx, { dailyCeilingMicroUsd: SPENT + 2n * r }));
+      resetLines();
+
+      const outcomes: Record<number, string> = {};
+      for (const i of order) outcomes[i] = claimLlmJob(proc.ctx, takeDispatch(proc, jobIds[i]), realDeps(proc)).kind;
+
+      expect(Object.values(outcomes).filter((k) => k === 'failed')).toHaveLength(1);
+      expect(outcomes[loser]).toBe('failed');
+      expect(jobOf(proc, jobIds[loser]).errorCode).toBe('ceiling');
+      const lines = playerLines();
+      expect(lines).toHaveLength(1);
+      expect(lines[0].to).toBe(hexOf(PLAYERS[loser]));
+      expect(lines[0].text).toBe(LLM_RESTING_LINE);
+      // The loser is refunded once; the two admitted jobs still hold exactly their own reservations.
+      expect(dayOf(proc, PLAYERS[loser]).reservedMicroUsd).toBe(0n);
+      expect(dayOf(proc, PLAYERS[loser]).calls).toBe(0n);
+      expect(ledger(proc).reservedMicroUsd).toBe(2n * r);
+      expect(ledger(proc).calls).toBe(2n);
+    });
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Edge family: precision (exact bigint micro-USD)
+// ----------------------------------------------------------------------------
+
+describe('precision: exact integer micro-USD, no float rounding', () => {
+  /** 2^53 + 1: the first integer a float cannot hold. */
+  const BEYOND_FLOAT = 9_007_199_254_740_993n;
+
+  it('the sample figure really is one a float round-trip would change', () => {
+    expect(BigInt(Number(BEYOND_FLOAT))).not.toBe(BEYOND_FLOAT);
+  });
+
+  it('a timeout charge and a refund on top of an all-time figure beyond float range stay exact', () => {
+    const r = LOCK_ROUTES[0];
+    const probe = lockJob(r);
+    const { proc, jobId, reserved } = lockJob(r, [{ throw: 'timeout' }], {
+      llm_spend: [
+        {
+          id: 1n,
+          spentMicroUsd: BEYOND_FLOAT,
+          reservedMicroUsd: 0n,
+          calls: 0n,
+          updatedAt: ts(T0),
+          dayUtc: utcDay(ts(T0)),
+          daySpentMicroUsd: 0n,
+        },
+      ],
+    });
+    expect(reserved).toBe(probe.reserved);
+    run(proc, jobId);
+    expect(typeof ledger(proc).spentMicroUsd).toBe('bigint');
+    expect(ledger(proc).spentMicroUsd).toBe(BEYOND_FLOAT + reserved);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(dayOf(proc).reservedMicroUsd).toBe(0n);
+  });
+
+  it('a billed failure on top of an all-time figure beyond float range adds the exact real cost', () => {
+    const r = LOCK_ROUTES[0];
+    const { proc, jobId } = lockJob(r, [reply('refusal')], {
+      llm_spend: [
+        {
+          id: 1n,
+          spentMicroUsd: BEYOND_FLOAT,
+          reservedMicroUsd: 0n,
+          calls: 0n,
+          updatedAt: ts(T0),
+          dayUtc: utcDay(ts(T0)),
+          daySpentMicroUsd: 0n,
+        },
+      ],
+    });
+    run(proc, jobId);
+    expect(ledger(proc).spentMicroUsd).toBe(BEYOND_FLOAT + FIXTURE_COST);
+    expect(dayOf(proc).spentMicroUsd).toBe(FIXTURE_COST);
+  });
+
+  it('three non-round reservations are held, then refunded one at a time, back to exactly zero', () => {
+    const proc = makeProc([], threeStatesForPrecision());
+    const ids: bigint[] = [];
+    const held: bigint[] = [];
+    for (let i = 0; i < 3; i++) {
+      ids.push(
+        enqueue(proc, 'creation_race', {
+          playerId: PLAYERS[i],
+          characterId: BigInt(i + 1),
+          sourceKey: SOURCE_KEYS.creation(BigInt(i + 1), 'race'),
+          // Different text lengths give different, non-round reservations.
+          request: { creationStateId: String(i + 1), input: { raceDescription: 'x'.repeat(7 + i * 131) } },
+        }),
+      );
+      held.push(jobOf(proc, ids[i]).reservedMicroUsd);
+    }
+    expect(new Set(held.map(String)).size).toBeGreaterThan(1);
+    expect(held.some((h) => h % 1000n !== 0n)).toBe(true);
+    let remaining = held[0] + held[1] + held[2];
+    expect(ledger(proc).reservedMicroUsd).toBe(remaining);
+
+    proc.ctx.withTx((tx: any) => setLlmEnabled(tx, false));
+    for (let i = 0; i < 3; i++) {
+      run(proc, ids[i]);
+      remaining -= held[i];
+      expect(typeof ledger(proc).reservedMicroUsd).toBe('bigint');
+      expect(ledger(proc).reservedMicroUsd).toBe(remaining);
+    }
+    expect(remaining).toBe(0n);
+    expect(ledger(proc).spentMicroUsd).toBe(0n);
+    expect(ledger(proc).calls).toBe(0n);
+  });
+
+  it.each(CLASSES)('$name on every lock route: reserved equals charged plus released, all columns bigint', (cls) => {
+    for (const r of LOCK_ROUTES) {
+      const { proc, jobId, reserved } = lockJob(r, cls.script());
+      run(proc, jobId);
+      expectMoney(proc, jobId, reserved, cls);
+      for (const row of callLogs(proc, jobId)) {
+        expect(typeof row.costMicroUsd).toBe('bigint');
+        expect(typeof row.inputTokens).toBe('bigint');
+        expect(typeof row.outputTokens).toBe('bigint');
+      }
+      resetLines();
+    }
+  });
+
+  it('at least one drilled reservation has a non-round remainder', () => {
+    const r = LOCK_ROUTES[0];
+    const { reserved } = lockJob(r);
+    expect(reserved % 10n !== 0n || reserved % 100n !== 0n || reserved % 1000n !== 0n).toBe(true);
+  });
+
+  it('the real cost of the fixtures is a whole number of micro-USD (ceiling already applied)', () => {
+    expect(Number.isInteger(Number(FIXTURE_COST))).toBe(true);
+    expect(FIXTURE_COST > 0n).toBe(true);
+  });
+});
+
+function threeStatesForPrecision(): Record<string, any[]> {
+  return { character_creation_state: PLAYERS.map((p, i) => creationState('GENERATING_RACE', p, BigInt(i + 1))) };
+}
