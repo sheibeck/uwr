@@ -89,6 +89,48 @@
 
 ---
 
+## Milestone: v2.2 — LLM — Claude Engine
+
+**Shipped:** 2026-10-05 (override closeout)
+**Phases:** 6 (39-44) | **Plans:** 71
+
+### What Was Built
+- A spike that measured scheduled SpacetimeDB procedures calling Claude on maincloud and chose that executor (go: dispatch p95 3 ms, 0 failures, 8 in flight)
+- One tested Claude layer (Keeper Bible, route layers, request builder, private job tables, retry by failure class, apply keyed on the player)
+- Every LLM domain cut over server-side, the browser proxy and client-trusted result reducer deleted, and a bundle guard against credentials
+- A global daily ceiling, kill switch and /llm console; measured tuning and staged world and class reveals
+- Live verification tooling: a 27-item golden set with mechanical rules, 364 offline drills plus 4 live drills, scratch-database harnesses and Console reconciliation math
+
+### What Worked
+- Spike first: measuring on maincloud before building settled the executor question with evidence, not opinion
+- Dry-by-default harnesses with explicit cost checkpoints: every paid run (spike, sweep, golden, drills) stayed far under its cap and only ran on the owner's approval
+- A separate scratch database (uwr-verify) kept the owner's key, ceiling and characters untouched during live work
+- Mutation and boundary tests on every rule proved each check could fail, so green meant something
+- Sequential executors on the main tree with --maxWorkers=1 kept a memory-constrained host stable
+
+### What Was Inefficient
+- Live verification was deferred three times (41, 43, 44), so the milestone closed with QUAL-01 and QUAL-02 open
+- The golden set exposed a prompt contract gap (route prompts never state numeric budgets; the server clamps 20 values silently) that earlier phases could have caught
+- A hard-drive failure interrupted Phase 44 mid-plan; an emergency WIP commit saved the work but needed a careful resume
+- milestone.complete dumped raw SUMMARY lines (including deviation notes) as accomplishments
+
+### Patterns Established
+- Cost checkpoint before every live call, with defer or decline recorded and never reported as passed
+- Owner review pages published as private artifacts with a db capability, read back as untrusted data
+- Response-shape and voice decisions belong with the UX design, not with the prompt layer
+
+### Key Lessons
+1. State the server's numeric budgets in generation prompts, or the model guesses and the server silently rewrites its output
+2. Tone is a product decision: the owner wants the Keeper in the first person, reading like a book; capture voice targets before writing the Bible
+3. Schedule live verification as its own small, early checkpoint; deferring it to the last phase lets it slide out of the milestone
+
+### Cost Observations
+- Model mix: opus (orchestrator, planner), sonnet (executors, verifier); in-game Claude Sonnet 5.5
+- Paid Claude spend this milestone: about $3.3 across spike, sweep and golden runs, all owner-approved
+- Notable: the 27-call golden run cost $0.26 against a $0.57 worst-case bound
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -98,6 +140,7 @@
 | v1.0 | ~30 | 23 | Established GSD workflow, phase/plan pattern |
 | v2.0 | ~10 | 7 | Heavy quick task usage (60), LLM integration patterns |
 | v2.1 | n/a | 3 (+5 parked) | Test-first cleanup, wave-based platform upgrade, Backlog parking |
+| v2.2 | n/a | 6 | Spike-first decision, cost-checkpointed live runs, owner review artifacts |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -105,4 +148,5 @@
 2. Clean breaks from legacy systems avoid migration debt
 3. Data-driven patterns (config tables, dispatch maps) scale better than hardcoded switches
 4. Tests before large removals or upgrades make them safe (v2.1 Phases 31 → 32/38)
-5. SUMMARY.md one_liner fields must be filled in for milestone tooling (v2.0, v2.1)
+5. SUMMARY.md one_liner fields must be filled in for milestone tooling (v2.0, v2.1, v2.2)
+6. Live verification slides when it is left to the end; schedule it early and small (v2.1, v2.2)
