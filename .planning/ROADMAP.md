@@ -151,12 +151,12 @@ Plans:
   4. The Keeper narrates what happens around the player in the second person, as in the Ledger console mock, and the owner approved every Keeper Bible and route-block change before it landed.
   5. A golden run in the narrator voice passes its mechanical rules and the owner signs off on the tone (QUAL-01 carry-over).
 
-**Plans**: 10 plans
+**Plans**: 1/10 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 46-01-PLAN.md — Segment contract (segments.ts), KeeperSegment column on three event tables, event helpers, local publish and bindings
+- [x] 46-01-PLAN.md — Segment contract (segments.ts), KeeperSegment column on three event tables, event helpers, local publish and bindings
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -365,7 +365,7 @@ Plans:
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
-| 46. Structured Keeper Replies | v3.0 | 0/TBD | Not started | - |
+| 46. Structured Keeper Replies | v3.0 | 1/10 | In Progress|  |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 0/TBD | Not started | - |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |

@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UX Overhaul
-current_phase: 45
-current_phase_name: Foundation, Frame and Auth
+current_phase: 46
+current_phase_name: Structured Keeper Replies
 status: executing
-stopped_at: Completed 45-10-PLAN.md
-last_updated: "2026-10-05T18:19:31.911Z"
+stopped_at: Completed 46-01-PLAN.md
+last_updated: "2026-10-05T18:28:42.924Z"
 last_activity: 2026-10-05
-last_activity_desc: Phase 45 execution started
+last_activity_desc: Phase 46 execution started
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 21
+  completed_plans: 12
   percent: 11
 ---
 
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 45 — Foundation, Frame and Auth
+**Current focus:** Phase 46 — Structured Keeper Replies
 
 ## Current Position
 
-Phase: 45 (Foundation, Frame and Auth) — EXECUTING
-Plan: 11 of 11
+Phase: 46 (Structured Keeper Replies) — EXECUTING
+Plan: 2 of 10
 Status: Ready to execute
-Last activity: 2026-10-05 — Phase 45 execution started
+Last activity: 2026-10-05 — Phase 46 execution started
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 57%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -146,6 +146,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [45-08] Splash Enter handler gated on button shown and enabled, not on connection state; static tests resolve sources from process.cwd() under happy-dom
 - [Phase ?]: 45-09: logout disposes every binding so stale rows never reach the next sign-in; keyed bindings recreated only on key change
 - [Phase ?]: 45-10: mobile feed and location row hidden with v-show so feed keeps scroll; Drawer/Sheet keyed by screen id for focus on swap
+- [Phase ?]: [46-01] Event helpers omit the segments key when none/empty given; local publish used --break-clients only (no clear, key 108 before and after); bindings regenerated with KeeperSegment
+- [Phase ?]: [46-01] Player-attributed dialogue check runs before present-speaker match; unmatched speaker becomes Keeper narration in straight quotes; truncation keeps 599 code points then U+2026
 
 ### Roadmap Evolution
 
@@ -252,8 +254,8 @@ Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed
 
 **Resume file:** None
 
-Last session: 2026-10-05T16:11:35.878Z
-Stopped at: Completed 45-10-PLAN.md
+Last session: 2026-10-05T18:28:42.898Z
+Stopped at: Completed 46-01-PLAN.md
 
 ## Performance Metrics
 
@@ -348,6 +350,7 @@ Stopped at: Completed 45-10-PLAN.md
 | Phase 45 P08 | 10min | 2 tasks | 6 files |
 | Phase 45 P09 | 25min | 2 tasks | 3 files |
 | Phase 45 P10 | 10min | 2 tasks | 4 files |
+| Phase 46 P01 | 20min | 3 tasks | 10 files |
 
 ## Operator Next Steps
 
