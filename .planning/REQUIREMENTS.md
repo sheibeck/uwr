@@ -85,7 +85,7 @@
 
 - [x] **SEG-01**: Narrative LLM routes (NPC chat, world and scene narration, combat outro, creation) return segments shaped `{kind: narration|dialogue, speaker, text}`.
 - [x] **SEG-02**: Segments are stored with the event, so the feed renders each segment as its own labelled line: "The Keeper", or "The Ferryman says, “…”".
-- [ ] **SEG-03**: The Keeper narrates what happens around the player in the second person, as in the Ledger console mock, and NPC speech goes only in dialogue segments. Changes to the Keeper Bible and route blocks need explicit owner approval.
+- [x] **SEG-03**: The Keeper narrates what happens around the player in the second person, as in the Ledger console mock, and NPC speech goes only in dialogue segments. Changes to the Keeper Bible and route blocks need explicit owner approval.
 - [x] **SEG-04**: A malformed segment reply falls back to a single Keeper narration line and never breaks the feed.
 - [ ] **SEG-05**: (QUAL-01 carry-over) A golden run in the narrator voice passes its mechanical rules, and the owner signs off on the tone.
 
@@ -167,7 +167,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LDG-14 | Phase 51 | Pending |
 | SEG-01 | Phase 46 | Complete |
 | SEG-02 | Phase 46 | Complete |
-| SEG-03 | Phase 46 | Pending |
+| SEG-03 | Phase 46 | Complete |
 | SEG-04 | Phase 46 | Complete |
 | SEG-05 | Phase 46 | Pending |
 | CUT-01 | Phase 52 | Pending |
