@@ -453,6 +453,92 @@ describe('CLI main (offline, injected rows)', () => {
   });
 });
 
+describe('pinned reconciliation record', () => {
+  const phaseDir = new URL('../../.planning/phases/44-live-verification-and-tone-eval/', import.meta.url);
+  const rawText = fs.readFileSync(new URL('44-live-reconciliation.json', phaseDir), 'utf8');
+  const record = JSON.parse(rawText);
+  const golden = JSON.parse(fs.readFileSync(new URL('44-golden-run.json', phaseDir), 'utf8'));
+  const windows = Object.entries(record.windows);
+  const CATEGORIES = ['input', 'output', 'cacheWrite', 'cacheRead'];
+
+  it('Test 1: every status is passed, failed or deferred, and deferred is never reported as passed', () => {
+    const allowed = ['passed', 'failed', 'deferred'];
+    expect(allowed).toContain(record.status);
+    expect(windows.length).toBeGreaterThan(0);
+    for (const [, w] of windows) expect(allowed).toContain(w.status);
+    // The overall status can only be passed when every window passed.
+    if (record.status === 'passed') expect(windows.every(([, w]) => w.status === 'passed')).toBe(true);
+    // A window without Console numbers, or without a window, cannot be passed.
+    for (const [, w] of windows) {
+      if (w.consoleTotals === null || w.consoleTotals === undefined || w.window === null) expect(w.status).not.toBe('passed');
+    }
+    // Any deferred window keeps the overall record from reading as passed.
+    if (windows.some(([, w]) => w.status === 'deferred')) expect(record.status).not.toBe('passed');
+  });
+
+  it('Test 1b: a passed window is within 2 percent by integer math; a failed window carries both numbers', () => {
+    for (const [, w] of windows) {
+      if (w.status === 'passed' || w.status === 'failed') {
+        const recomputed = reconciliationRecord(
+          { ...Object.fromEntries(CATEGORIES.map((c) => [c, BigInt(w.logTotals[c])])), total: CATEGORIES.reduce((s, c) => s + BigInt(w.logTotals[c]), 0n) },
+          w.consoleTotals,
+          { startMs: w.window.startMs, endMs: w.window.endMs },
+        );
+        expect(recomputed.status).toBe(w.status);
+      }
+    }
+  });
+
+  it('Test 2: each recorded window has start at or before end and non-negative integer log totals', () => {
+    for (const [, w] of windows) {
+      if (w.window !== null) {
+        expect(Number.isInteger(w.window.startMs)).toBe(true);
+        expect(Number.isInteger(w.window.endMs)).toBe(true);
+        expect(w.window.startMs).toBeLessThanOrEqual(w.window.endMs);
+        expect(w.window.startIso).toBe(new Date(w.window.startMs).toISOString());
+        expect(w.window.endIso).toBe(new Date(w.window.endMs).toISOString());
+      }
+      if (w.logTotals !== null) {
+        for (const v of [...CATEGORIES.map((c) => w.logTotals[c]), w.logTotals.calls, w.logTotals.costMicroUsd]) {
+          expect(Number.isInteger(v)).toBe(true);
+          expect(v).toBeGreaterThanOrEqual(0);
+        }
+      } else {
+        expect(w.status).not.toBe('passed');
+      }
+    }
+  });
+
+  it('Test 2b: the golden window and log totals match the committed golden run record', () => {
+    const w = record.windows.golden;
+    expect(w.window.startIso).toBe(golden.window.startedAt);
+    expect(w.window.endIso).toBe(golden.window.endedAt);
+    expect(w.logTotals).toMatchObject({
+      calls: golden.totals.calls,
+      input: golden.totals.inputTokens,
+      output: golden.totals.outputTokens,
+      cacheWrite: golden.totals.cacheWriteTokens,
+      cacheRead: golden.totals.cacheReadTokens,
+    });
+    expect(String(w.logTotals.costMicroUsd)).toBe(String(golden.totals.costMicroUsd));
+  });
+
+  it('Test 2c: a missing Console input reproduces the deferred record from the report code', () => {
+    const w = record.windows.golden;
+    const rec = reconciliationRecord(null, null, { startMs: w.window.startMs, endMs: w.window.endMs });
+    expect(rec.status).toBe('deferred');
+    expect(rec.window.startIso).toBe(w.window.startIso);
+    expect(rec.window.endIso).toBe(w.window.endIso);
+  });
+
+  it('Test 3: the record holds no key-shaped string or token', () => {
+    expect(rawText).not.toMatch(/sk-ant-/i);
+    expect(rawText).not.toMatch(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/);
+    expect(rawText).not.toMatch(/\b[A-Za-z0-9_-]{40,}\b/);
+    expect(rawText).not.toMatch(/api[_-]?key\s*["']?\s*[:=]\s*["'][^"']+["']/i);
+  });
+});
+
 describe('static safety', () => {
   const src = fs.readFileSync(new URL('./call_log_report.mjs', import.meta.url), 'utf8');
 

@@ -23,6 +23,8 @@ Never paste a key, token, secret or env value anywhere (chat, commits, issues). 
 
 The recorded token totals should agree with the Anthropic Console within 2%. The golden run is the only paid window so far.
 
+**Status: deferred by you, outstanding, not passed.** When asked for the Console totals you said to defer the tokens and come back. `44-live-reconciliation.json` records the golden window as deferred and the end-to-end window as deferred (it does not exist). Open item: read the Console for the golden window 2026-10-05T08:29:21Z to 08:32:10Z and paste the four numbers. Log totals to compare against: 5,667 uncached input, 41,325 cache write, 83,717 cache read, 12,903 output (27 calls). Until you do, QUAL-02's cost reconciliation stays outstanding.
+
 1. Wait at least 10 minutes after the window end (the golden window ended 2026-10-05T08:32:10Z, so it is long past).
 2. In the Anthropic Console usage view, filter to the dedicated workspace for this project and model `claude-sonnet-5-5`, with the UTC range 2026-10-05T08:29:21Z to 08:32:10Z. Please confirm nothing else used this key in that window.
 3. Read four totals for the window: uncached input, cache creation (write), cache read and output. If the Console only offers a whole-day total, read that day's four numbers and say so.

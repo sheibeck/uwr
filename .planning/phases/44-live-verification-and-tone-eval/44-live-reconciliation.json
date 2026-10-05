@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "plan": "44-10",
+  "status": "deferred",
+  "reason": "The owner deferred reading the Anthropic Console token totals (resume signal: defer). No Console numbers were supplied, so nothing was compared. Deferred is not passed.",
+  "toleranceRule": "plus or minus 2 percent by integer math per category and for the sum; exactly 2.00 percent passes; Console categories under 2000 tokens use an absolute floor of 50 tokens",
+  "windows": {
+    "golden": {
+      "status": "deferred",
+      "reason": "Console totals not supplied by the owner",
+      "window": {
+        "valid": true,
+        "inclusive": true,
+        "startMs": 1791188961168,
+        "endMs": 1791189130788,
+        "startIso": "2026-10-05T08:29:21.168Z",
+        "endIso": "2026-10-05T08:32:10.788Z"
+      },
+      "source": "44-golden-run.json totals (direct API run, recorded by the harness)",
+      "logTotals": {
+        "calls": 27,
+        "input": 5667,
+        "cacheWrite": 41325,
+        "cacheRead": 83717,
+        "output": 12903,
+        "costMicroUsd": 260433
+      },
+      "consoleTotals": null
+    },
+    "endToEnd": {
+      "status": "deferred",
+      "reason": "The paid end-to-end run (plan 44-09) was deferred, so this window does not exist and there is nothing to reconcile",
+      "window": null,
+      "source": "44-live-results.json (status deferred, window null)",
+      "logTotals": null,
+      "consoleTotals": null
+    }
+  }
+}
