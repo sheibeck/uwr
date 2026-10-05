@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UX Overhaul
-status: planning
-last_updated: "2026-10-05T12:43:20.204Z"
+status: ready_to_plan
+last_updated: "2026-10-05T13:01:08.689Z"
 last_activity: 2026-10-05
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Planning next milestone: UX overhaul (backlog 999.6, UWR Ledger Screens / Nocturne)
+**Current focus:** Phase 45 - Foundation, Frame and Auth (v3.0 UX Overhaul: UWR Ledger Screens on Nocturne)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-10-05 — Milestone v3.0 started
+Phase: 45 of 52 (Foundation, Frame and Auth)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-10-05 — v3.0 roadmap created (Phases 45-52, 45/45 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0%
+
+Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
 ## Previous Milestones
 
@@ -122,6 +126,10 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 44-07: one approved paid golden run recorded (27 calls, $0.2604); 13 of 27 items fail a mechanical rule and are left as data for the owner's 44-08 review; no rule or item weakened; approval stays null
 - [Phase ?]: [44-08] QUAL-01 tone NOT approved (needs_fixes: 12 fails, skl-02 unrated); nothing applied; response shape (speaker field) deferred to UX overhaul 999.6
 - [Phase ?]: 44-10: Console token reconciliation deferred by the owner for both windows (golden 2026-10-05T08:29:21Z to 08:32:10Z, log totals 5667/41325/83717/12903); recorded deferred, not passed; streaming indicative (n=0)
+- [v3.0] Fresh `client/` app (Vite + Vue 3) on Nocturne; the old `src/` UI keeps running until the Phase 52 cutover, then is deleted (owner, 2026-10-05)
+- [v3.0] The Keeper is a second-person scene narrator (first-person direction retracted); narrative LLM replies become speaker-attributed segments (SEG, Phase 46); Keeper Bible and route-block edits need explicit owner approval, tone sign-off is SEG-05
+- [v3.0] Combat stays real-time; the mock's rounds become beat grouping in the feed
+- [v3.0] Character creation order is race, class, name (last), enter the realm; mock 2a's name-first order and its "First words" step are dropped (owner, 2026-10-05)
 
 ### Roadmap Evolution
 
@@ -130,6 +138,8 @@ See MILESTONES.md for full delivery summaries.
 - 2026-09-29: v2.2 roadmap created: Phases 39-44 (39 Spike, 40 Claude Layer and Job Seam, 41 Executor and Domain Cutover, 42 Client Cutover and Legacy Removal, 43 Latency Tuning and Budget, 44 Live Verification and Tone Eval). Numbering continues from 38; 33-37 are consumed by parked Backlog 999.1-999.5, which stay untouched.
 
 - Phase 38 added: Platform Upgrade (SpacetimeDB 2.0.1 -> 2.10.x, tooling, llm-proxy deps, pnpm-only). Runs next, ahead of 33-35 and 37. Research: `.planning/notes/platform-upgrade-research.md`
+
+- 2026-10-05: v3.0 roadmap created: Phases 45-52 (45 Foundation, Frame and Auth; 46 Structured Keeper Replies; 47 Console, Rails, Hotbar and Input; 48 Combat Encounter; 49 Character Creation Interview; 50 Ledger: Character and Economy; 51 Ledger: World and People; 52 Parity and Cutover). Numbering continues from 44. Backlog 999.6 and 999.7 promoted into v3.0; 999.1-999.5 untouched.
 
 ### Pending Todos
 
@@ -156,9 +166,12 @@ See MILESTONES.md for full delivery summaries.
   - `my_llm_jobs.errorCode` is a coarse bucket: transient, unavailable, declined or failed.
   - Review Info items IN-01 to IN-12 are in `40-REVIEW.md`.
 - [Env] On 2026-09-30 the machine briefly ran out of committed virtual memory (0.5 GB free), which crashed multi-worker vitest runs. It cleared after a restart (40.8 GB free). Single-worker runs (`--maxWorkers=1`, about 19 s, 1454 tests green) stay the safe default for agents on this low-end host.
+- [v3.0 scoping] Server surface gaps found while roadmapping, to scope in plan-phase (additive and tested): `aggro_entry` is private and not in the bindings (CMB-02, Phase 48); `group` has no loot mode and there is no travel-with-party reducer (LDG-05, LDG-06, Phase 51); no buy-back reducer (LDG-09, Phase 50); creation has no race-suggestion step (CRE-03, Phase 49)
+- [v3.0 deploy/auth] How master deploys to GitHub Pages is not visible in `.github/workflows` (only claude.yml and claude-code-review.yml); SpacetimeAuth needs redirect URIs for the new client's dev origin (Phase 45) and the production origin (Phase 52)
+- [v3.0 bindings] The root `spacetime:generate` writes to `src/module_bindings`; the new client generates into `client/src/module_bindings` so deleting `src/` in Phase 52 does not remove them
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant since deleted by the user on 2026-09-29)
-- QUAL-01 open: owner tone not approved (44-golden-verdicts.json needs_fixes); owner must decide on 44-TONE-FIXES.md; skl-02 unrated
+- QUAL-01 open: owner tone not approved (44-golden-verdicts.json needs_fixes); owner must decide on 44-TONE-FIXES.md; skl-02 unrated (carried into v3.0 as SEG-05, Phase 46)
 
 ### Quick Tasks Completed
 
@@ -205,8 +218,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T11:56:15.761Z
-Stopped at: Completed 44-10-PLAN.md
+Last session: 2026-10-05T13:01:08.689Z
+Stopped at: v3.0 roadmap created; Phase 45 ready to plan (prior: Completed 44-10-PLAN.md)
 
 ## Performance Metrics
 
@@ -294,4 +307,5 @@ Stopped at: Completed 44-10-PLAN.md
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Phase 45 is a UI phase: `/gsd-ui-phase 45` (re-imports the design from the claude_design MCP), then `/gsd-plan-phase 45`
+- Phase 46 is backend and independent: `/gsd-plan-phase 46` can run in parallel (owner checkpoints: SEG-03 approvals, SEG-05 golden run and tone sign-off)

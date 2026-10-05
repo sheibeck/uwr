@@ -21,6 +21,7 @@
 - [ ] **FND-04**: A secondary screen opens as a drawer over the center and right columns. The header and vitals rail stay visible, and Esc or the close button dismisses it.
 - [ ] **FND-05**: At mobile width (390×844), the player sees a compact vitals strip, the story feed and a bottom tab bar (Story, Map, Bag, Party, More). Secondary screens open as full-height sheets above the tab bar.
 - [ ] **FND-06**: The player can sign in (SpacetimeAuth OIDC), reconnect and log out in the new client.
+- [ ] **FND-07**: The splash / sign-in screen shows the 16:9 key-art logo (`public/assets/logo.png`, 1672×941) large and undistorted, scaled to fit the viewport at desktop and mobile, with no pixelated rendering.
 
 ### Console (CON)
 
@@ -50,8 +51,8 @@
 
 ### Character Creation (CRE)
 
-- [ ] **CRE-01**: Character creation runs as a Keeper interview in the feed, with a step indicator.
-- [ ] **CRE-02**: A live character sheet fills in on the right as the player chooses: name, race, class, stats with bonuses, racial trait.
+- [ ] **CRE-01**: Character creation runs as a Keeper interview in the feed, with a step indicator. Steps run race → archetype (Warrior/Mystic) → class reveal → name (last) → enter the realm. There is no "First words" step (deviates from mock 2a by owner decision).
+- [ ] **CRE-02**: A live character sheet fills in on the right as the player chooses: race, archetype, class, stats with bonuses, racial trait, and finally the name (an unnamed placeholder until then).
 - [ ] **CRE-03**: The Keeper offers 3 race suggestions as clickable cards with stat tags. The player can still type any race, or choose "Surprise me" to let the Keeper pick.
 
 ### Ledger Screens (LDG)
@@ -113,12 +114,59 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| FND-01 | Phase 45 | Pending |
+| FND-02 | Phase 45 | Pending |
+| FND-03 | Phase 45 | Pending |
+| FND-04 | Phase 45 | Pending |
+| FND-05 | Phase 45 | Pending |
+| FND-06 | Phase 45 | Pending |
+| FND-07 | Phase 45 | Pending |
+| CON-01 | Phase 47 | Pending |
+| CON-02 | Phase 47 | Pending |
+| CON-03 | Phase 47 | Pending |
+| CON-04 | Phase 47 | Pending |
+| CON-05 | Phase 47 | Pending |
+| CON-06 | Phase 47 | Pending |
+| INP-01 | Phase 47 | Pending |
+| INP-02 | Phase 47 | Pending |
+| CMB-01 | Phase 48 | Pending |
+| CMB-02 | Phase 48 | Pending |
+| CMB-03 | Phase 48 | Pending |
+| CMB-04 | Phase 48 | Pending |
+| CMB-05 | Phase 48 | Pending |
+| CRE-01 | Phase 49 | Pending |
+| CRE-02 | Phase 49 | Pending |
+| CRE-03 | Phase 49 | Pending |
+| LDG-01 | Phase 50 | Pending |
+| LDG-02 | Phase 50 | Pending |
+| LDG-03 | Phase 50 | Pending |
+| LDG-04 | Phase 51 | Pending |
+| LDG-05 | Phase 51 | Pending |
+| LDG-06 | Phase 51 | Pending |
+| LDG-07 | Phase 51 | Pending |
+| LDG-08 | Phase 50 | Pending |
+| LDG-09 | Phase 50 | Pending |
+| LDG-10 | Phase 50 | Pending |
+| LDG-11 | Phase 50 | Pending |
+| LDG-12 | Phase 51 | Pending |
+| LDG-13 | Phase 51 | Pending |
+| LDG-14 | Phase 51 | Pending |
+| SEG-01 | Phase 46 | Pending |
+| SEG-02 | Phase 46 | Pending |
+| SEG-03 | Phase 46 | Pending |
+| SEG-04 | Phase 46 | Pending |
+| SEG-05 | Phase 46 | Pending |
+| CUT-01 | Phase 52 | Pending |
+| CUT-02 | Phase 52 | Pending |
+| CUT-03 | Phase 52 | Pending |
 
 **Coverage:**
-- v3.0 requirements: 44 total
-- Mapped to phases: 0
-- Unmapped: 44 ⚠️
+- v3.0 requirements: 45 total
+- Mapped to phases: 45
+- Unmapped: 0
+
+**By phase:** 45 Foundation (6), 46 Structured Keeper Replies (5), 47 Console, Rails, Hotbar and Input (8), 48 Combat Encounter (5), 49 Character Creation Interview (3), 50 Ledger: Character and Economy (7), 51 Ledger: World and People (7), 52 Parity and Cutover (3).
 
 ---
 *Requirements defined: 2026-10-05*
-*Last updated: 2026-10-05 after initial definition*
+*Last updated: 2026-10-05 after roadmap creation (traceability filled, 44/44 mapped; FND-07 splash logo added)*

@@ -109,7 +109,7 @@ A world that writes itself around its players — every character is unique, eve
 ## Next Milestone Goals
 
 - Complete UX overhaul to the "UWR Ledger Screens" design on the Nocturne design system (backlog 999.6; import via the claude_design MCP, re-import fresh). Reconcile or supersede parked 999.2 and 999.5.
-- Decide LLM reply shape as part of the UX (speaker attribution, narration vs dialogue, highlighting and journals), then apply the owner-approved Keeper voice: first person, story-like prose with attributed speech.
+- Decide LLM reply shape as part of the UX (speaker attribution, narration vs dialogue, highlighting and journals), then apply the Keeper voice: a second-person scene narrator with speaker-attributed segments (first person retracted 2026-10-05).
 
 ---
 
