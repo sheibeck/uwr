@@ -306,13 +306,17 @@ function fillChunks(units: readonly PackUnit[], max: number): string[] | null {
 
 /**
  * Pack paragraphs into at most `max` segments of at most 600 code points without losing text when
- * that is possible: cap-aware pair merging first, then sentence units, word units and code points. Only when the
+ * that is possible: cap-aware pair merging first (kept when it leaves at most `max` parts, none over the
+ * cap), otherwise sentence units, word units and code points. Only when the
  * text cannot fit (more than max times the cap) does it fall back to merging past the cap, which the
  * clamp then cuts.
  */
 function packParagraphs(paragraphs: string[], max: number): string[] {
   const merged = mergeSmallestPairs(paragraphs, max, true);
-  if (merged.length <= max) return merged;
+  // A paragraph over the cap on its own is cut by the clamp (losing its tail), so it takes the same
+  // re-chunk path as too many paragraphs.
+  const overCap = merged.some((p) => cpLength(p) > MAX_SEGMENT_CHARS);
+  if (merged.length <= max && !overCap) return merged;
   // Text beyond max full segments cannot be saved by re-chunking; skip the work and let the clamp cut it.
   const total = paragraphs.reduce((n, p) => n + cpLength(p) + 2, 0);
   if (total > max * MAX_SEGMENT_CHARS) return mergeSmallestPairs(merged, max, false);

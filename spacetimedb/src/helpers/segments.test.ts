@@ -276,10 +276,38 @@ describe('keeperSegments', () => {
     expect(keeperSegments(' \n\n ')).toEqual([]);
     expect(keeperSegments(undefined as any)).toEqual([]);
   });
-  it('clamps each paragraph', () => {
+  it('splits a paragraph over the cap instead of cutting it, losing no text (WR-09)', () => {
     const out = keeperSegments(`${'a'.repeat(800)}\n\nshort`);
     expect(out).toHaveLength(2);
     expect(cp(out[0].text)).toBe(600);
+    for (const s of out) expect(cp(s.text)).toBeLessThanOrEqual(MAX_SEGMENT_CHARS);
+    expect(out.map((s) => s.text).join('').includes(TRUNCATION_MARK)).toBe(false);
+    expect(out.map((s) => s.text).join('').replace(/\s/g, '')).toBe(`${'a'.repeat(800)}short`);
+  });
+  it('keeps the ability mechanics line when a 700-character description is composed as the class reveal (WR-09)', () => {
+    // Composed exactly as llm_apply.ts does for the stage-1 reveal (mechanics line after a single \n).
+    const sentence = 'The blade drinks the light of the tide and answers in kind to whoever holds it. ';
+    const description = sentence.repeat(9).slice(0, 700).trim();
+    expect(cp(description)).toBeGreaterThan(600);
+    const mechanics = '  fire damage, 12 base, 2s cast, 30s cooldown, 15 mana, burn (6s)';
+    const a = { name: 'Tidecleaver', description };
+    const reveal =
+      'A unique class emerges.\n\n' +
+      '**Tidewarden**\n\n' +
+      `Your first ability:\n\n${a.name} — ${a.description}\n${mechanics}\n\n` +
+      'Your path is set. Choose what comes next.';
+    const out = keeperSegments(reveal);
+    const message = flattenSegments(out);
+    expect(out.length).toBeLessThanOrEqual(MAX_SEGMENTS);
+    for (const s of out) expect(cp(s.text)).toBeLessThanOrEqual(MAX_SEGMENT_CHARS);
+    expect(out.some((s) => s.text.includes('fire damage, 12 base, 2s cast, 30s cooldown, 15 mana, burn (6s)'))).toBe(true);
+    expect(message).toContain('15 mana, burn (6s)');
+    expect(message.includes(TRUNCATION_MARK)).toBe(false);
+    expect(message.replace(/\s+/g, ' ')).toBe(reveal.replace(/\s+/g, ' '));
+    // The same description with 6 or fewer paragraphs behaves like the 7-paragraph case (no dependence on paragraph count).
+    const stage2 = keeperSegments(`${a.name} — ${a.description}\n${mechanics}`);
+    expect(flattenSegments(stage2)).toContain('15 mana, burn (6s)');
+    expect(flattenSegments(stage2).includes(TRUNCATION_MARK)).toBe(false);
   });
   it('packs more than 6 paragraphs by merging the smallest adjacent pair, leftmost on ties', () => {
     const out = keeperSegments('a\n\nb\n\nc\n\nd\n\ne\n\nf\n\ng');
