@@ -70,7 +70,7 @@ A world that writes itself around its players — every character is unique, eve
 - Classic/fixed race and class lists — uniqueness over presets
 - Balanced class design — uniqueness > balance by design
 - Dungeon instancing — not yet
-- Streaming LLM responses — typewriter animation achieves same UX (⚠️ under review: the LLM milestone's latency goal may reopen this)
+- Streaming LLM responses — typewriter animation achieves same UX. Phase 44 decision (2026-10-05): indicative only, no live NPC-chat latency sample exists (n=0 ok calls in llm_call_log; the paid end-to-end run was deferred), so neither outcome is asserted and nothing is built in v2.2; the rule (at least 20 ok NPC-chat calls, p95 call latency over 6000 ms makes streaming a next-milestone candidate, STREAM-01) is re-applied when the live run happens
 - Fallback to legacy creation — clean break, LLM is the only path
 
 ## Current State
@@ -146,7 +146,7 @@ A world that writes itself around its players — every character is unique, eve
 - Model swap: Claude Sonnet 5.5 (`claude-sonnet-5-5`) replaces both gpt-5.4 and gpt-5-mini for every LLM call (character creation, world gen, skill gen, NPC conversation, combat narration, renown). No Haiku. Model ID centralized in one constants module
 - Structured outputs mapped to Claude (`output_config.format`); token usage, pricing and per-player budget recalibrated for Claude
 - Architecture, direct first with fallback: spike SpacetimeDB 2.10 procedures calling Claude via `ctx.http.fetch`. If reliable and fast, move LLM calls into procedures and retire `llm-proxy/`, the client polling composable and the localStorage proxy secret. If still buggy, keep a backend LLM service authenticated to Anthropic via Workload Identity Federation
-- Latency levers researched and applied: prompt caching, streaming (Out of Scope item under review), effort settings, hop count
+- Latency levers researched and applied: prompt caching, effort settings, hop count; streaming recorded as indicative only in Phase 44 (no live NPC-chat sample, Out of Scope stands for v2.2)
 - No LLM credentials in browser storage
 - Live end-to-end verification with a real Claude call
 
@@ -184,6 +184,7 @@ Keeper of Knowledge narrator replaced generic "System" narrator in quick-365.
 | Haiku/gpt-5-mini for fast generation | Sonnet HTTP fails from SpacetimeDB runtime; fast models sufficient | Superseded (v2.2) — see next row |
 | Sonnet 5.5 for every LLM call, no Haiku (v2.2, 2026-09-29) | User decision. Haiku 4.5 may retire as early as 2026-10-15; its 4096-token minimum cacheable prefix defeats prompt caching on short prompts; one model means one request builder and one rate-limit pool | — Pending — effort must be set explicitly (`low`) for latency; cost about 2x Haiku per token |
 | Phase 39: LLM executor = scheduled procedure (in-flight cap at most 8) | Maincloud `uwr-spike-925iv` gate verdict `go` (strict; floor-adjusted identical): dispatch p95 3.0 ms (limit 250), 0 failures in 164 reliability calls, region JSON Schema compiles; ping p95 ratio 1.01x / 0.98x / 1.03x and tick p95 ratio 0.96x / 1.01x / 0.99x at 8 / 4 / 2 in flight (limit 2.0x); observed maincloud concurrency cap 8 (local runtime caps at 4). Local results are provisional context only (strict incomplete, ping@4 147/200; ping noise from a shared low-end host). `ctx.sender` in a scheduled procedure is the module identity, so jobs must carry the player identity | Confirmed by user 2026-09-29; gate evaluated on maincloud uwr-spike-925iv; Phase 41 proves the real executor on maincloud |
+| Streaming stays out of scope for v2.2; decision indicative (Phase 44, 2026-10-05) | Metric: llm_call_log call latency (job end-to-end time beside it). Rule: p95 over 6000 ms across at least 20 ok NPC-chat calls makes streaming a next-milestone candidate (STREAM-01); at or under 6000 ms the out-of-scope decision stands; fewer than 20 samples is indicative. Measured: n=0, p50/p95/p99 none (the paid end-to-end run was deferred by the owner). For reference only, not the decision metric: 7 ok direct-API golden-run NPC replies took 3144 to 5272 ms | — Pending — re-apply the rule when the live end-to-end run is done |
 | Shared proxy-based mock DB for tests (v2.1) | One mock implementation instead of per-file copies | ✓ Good — 990 tests on one utility |
 | Park phases 33-37 in Backlog (v2.1) | Re-imagining core concepts before more feature work | — Pending — promote with /gsd-review-backlog |
 | Skip DB backups before migrations (v2.1) | Greenfield; no production data worth preserving locally | ✓ Good — upgrade went forward cleanly |
