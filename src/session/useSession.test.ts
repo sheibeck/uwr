@@ -554,6 +554,34 @@ describe('createSession actions', () => {
       expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
     });
 
+    it('a second signIn while redirecting does not start another login', () => {
+      h = harness({ token: null });
+      h.session.signIn();
+      h.session.signIn();
+      expect(h.auth.beginSpacetimeAuthLogin).toHaveBeenCalledTimes(1);
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
+    });
+
+    it('resets redirecting when the page is restored from the bfcache', () => {
+      h = harness({ token: null });
+      h.session.signIn();
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
+      window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
+      window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'idle' });
+      h.session.signIn();
+      expect(h.auth.beginSpacetimeAuthLogin).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops listening for pageshow after dispose', () => {
+      h = harness({ token: null });
+      h.session.signIn();
+      h.session.dispose();
+      window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
+    });
+
     it('shows signInFailed when the login start rejects', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       h = harness({ token: null });

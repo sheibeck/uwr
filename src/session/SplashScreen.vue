@@ -27,7 +27,11 @@ const statusText = computed(() => STATUS_COPY[props.state] ?? '');
 const errorText = computed(() => ERROR_COPY[props.state] ?? '');
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && showButton.value && !buttonDisabled.value) {
+  if (e.key !== 'Enter' || e.repeat || e.defaultPrevented) return;
+  // A focused button activates natively and emits through its own click: handling the
+  // key here too would start the sign-in twice.
+  if (e.target instanceof HTMLButtonElement) return;
+  if (showButton.value && !buttonDisabled.value) {
     emit('sign-in');
   }
 }

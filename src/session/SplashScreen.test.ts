@@ -131,6 +131,20 @@ describe('SplashScreen sign-in', () => {
     });
   }
 
+  it('Enter on the focused sign-in button does not also emit from the window handler', () => {
+    const w = mount(SplashScreen, { props: { state: 'idle' }, attachTo: document.body });
+    wrapper = w;
+    const button = w.get('button.sign-in').element;
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(w.emitted('sign-in')).toBeUndefined();
+  });
+
+  it('ignores a held-down (repeating) Enter', () => {
+    const w = mountSplash('idle');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }));
+    expect(w.emitted('sign-in')).toBeUndefined();
+  });
+
   it('ignores other keys and stops listening after unmount', () => {
     const w = mountSplash('idle');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));

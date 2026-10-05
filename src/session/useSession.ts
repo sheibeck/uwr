@@ -342,6 +342,9 @@ function build<C extends SessionConn>(
   );
 
   const signIn = () => {
+    // A second call (the window Enter handler plus the button click) would overwrite the
+    // PKCE verifier and state of the first, and the callback would fail "Invalid auth state".
+    if (redirecting.value) return;
     authFailed.value = false;
     redirecting.value = true;
     // Async: a synchronous try/catch would miss a rejected promise.
@@ -351,6 +354,13 @@ function build<C extends SessionConn>(
       authFailed.value = true;
     });
   };
+
+  // Back from the IdP page restores this page from the bfcache with `redirecting` still
+  // true: reset it so the button works again.
+  const onPageShow = (event: PageTransitionEvent) => {
+    if (event.persisted) redirecting.value = false;
+  };
+  if (typeof window !== 'undefined') window.addEventListener('pageshow', onPageShow);
 
   const selectCharacter = (characterId: bigint) => {
     if (pickerPendingId.value !== null) return;
@@ -411,6 +421,7 @@ function build<C extends SessionConn>(
       deps.reloadPage();
     },
     dispose() {
+      if (typeof window !== 'undefined') window.removeEventListener('pageshow', onPageShow);
       stopScope();
       clearSelectTimer();
       disposeBindings();
