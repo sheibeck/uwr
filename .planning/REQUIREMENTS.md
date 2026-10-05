@@ -11,15 +11,15 @@
 
 ### Foundation (FND)
 
-- [ ] **FND-01**: The new client is a fresh Vite + Vue 3 app at the repo root, replacing the old UI, using the same SpacetimeDB module and generated bindings, dev port 5173 and SpacetimeAuth redirect URI.
+- [x] **FND-01**: The new client is a fresh Vite + Vue 3 app at the repo root, replacing the old UI, using the same SpacetimeDB module and generated bindings, dev port 5173 and SpacetimeAuth redirect URI.
 - [ ] **FND-02**: Every screen takes its styling from Nocturne tokens and components (Inter, Phosphor icons, themed hover, pressed and focus-visible states). Nothing hard-codes a color. Rarity and enemy-difficulty colors keep their current hues.
 - [ ] **FND-03**: On desktop (1280×800), the player sees the frame:
   - a header: location, time of day, level-up and new-skill tags, screen buttons
   - a vitals rail that stays put
   - the center feed
   - a context rail
-- [ ] **FND-04**: A secondary screen opens as a drawer over the center and right columns. The header and vitals rail stay visible, and Esc or the close button dismisses it.
-- [ ] **FND-05**: At mobile width (390×844), the player sees a compact vitals strip, the story feed and a bottom tab bar (Story, Map, Bag, Party, More). Secondary screens open as full-height sheets above the tab bar.
+- [x] **FND-04**: A secondary screen opens as a drawer over the center and right columns. The header and vitals rail stay visible, and Esc or the close button dismisses it.
+- [x] **FND-05**: At mobile width (390×844), the player sees a compact vitals strip, the story feed and a bottom tab bar (Story, Map, Bag, Party, More). Secondary screens open as full-height sheets above the tab bar.
 - [ ] **FND-06**: The player can sign in (SpacetimeAuth OIDC), reconnect and log out in the new client.
 - [ ] **FND-07**: The splash / sign-in screen shows the 16:9 key-art logo (`public/assets/logo.png`, 1672×941) large and undistorted, scaled to fit the viewport at desktop and mobile, with no pixelated rendering.
 
@@ -93,7 +93,7 @@
 
 - [ ] **CUT-01**: Every action the old client (tag `v2.2-client`) offered can be done in the new client, per a written parity checklist. That includes surfaces not in the design (bank, loot, player trade, help, bug report, /llm admin commands), which get built from Nocturne components.
 - [ ] **CUT-02**: The production build and GitHub Pages deploy serve the new client.
-- [ ] **CUT-03**: The old client (the `src/` UI, its entry point, styles and tests) is deleted at the start of the milestone, after tagging it `v2.2-client`, and nothing in the repo references it.
+- [x] **CUT-03**: The old client (the `src/` UI, its entry point, styles and tests) is deleted at the start of the milestone, after tagging it `v2.2-client`, and nothing in the repo references it.
 
 ## Future Requirements
 
@@ -122,11 +122,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 45 | Pending |
+| FND-01 | Phase 45 | Complete |
 | FND-02 | Phase 45 | Pending |
 | FND-03 | Phase 45 | Pending |
-| FND-04 | Phase 45 | Pending |
-| FND-05 | Phase 45 | Pending |
+| FND-04 | Phase 45 | Complete |
+| FND-05 | Phase 45 | Complete |
 | FND-06 | Phase 45 | Pending |
 | FND-07 | Phase 45 | Pending |
 | CON-01 | Phase 47 | Pending |
@@ -172,9 +172,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEG-05 | Phase 46 | Pending |
 | CUT-01 | Phase 52 | Pending |
 | CUT-02 | Phase 52 | Pending |
-| CUT-03 | Phase 45 | Pending |
+| CUT-03 | Phase 45 | Complete |
 
 **Coverage:**
+
 - v3.0 requirements: 45 total
 - Mapped to phases: 45
 - Unmapped: 0

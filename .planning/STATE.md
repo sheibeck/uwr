@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 45
 current_phase_name: Foundation, Frame and Auth
 status: executing
-stopped_at: Phase 45 UI-SPEC approved
-last_updated: "2026-10-05T14:50:44.796Z"
+stopped_at: Completed 45-01-PLAN.md
+last_updated: "2026-10-05T15:02:27.122Z"
 last_activity: 2026-10-05
-last_activity_desc: v3.0 roadmap created (Phases 45-52, 45/45 requirements mapped)
+last_activity_desc: Phase 45 execution started
 progress:
   total_phases: 9
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 11
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 45 - Foundation, Frame and Auth (v3.0 UX Overhaul: UWR Ledger Screens on Nocturne)
+**Current focus:** Phase 45 — Foundation, Frame and Auth
 
 ## Current Position
 
-Phase: 45 of 52 (Foundation, Frame and Auth)
-Plan: — (not yet planned)
+Phase: 45 (Foundation, Frame and Auth) — EXECUTING
+Plan: 2 of 11
 Status: Ready to execute
-Last activity: 2026-10-05 — v3.0 roadmap created (Phases 45-52, 45/45 requirements mapped)
+Last activity: 2026-10-05 — Phase 45 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 9%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -134,6 +134,7 @@ See MILESTONES.md for full delivery summaries.
 - [v3.0] The Keeper is a second-person scene narrator (first-person direction retracted); narrative LLM replies become speaker-attributed segments (SEG, Phase 46); Keeper Bible and route-block edits need explicit owner approval, tone sign-off is SEG-05
 - [v3.0] ~~Combat stays real-time~~ superseded 2026-10-05: combat becomes round-based (10s rounds that end early once every player has chosen, auto-attack default, Keeper narrates big moments and the end of the fight; Phase 46.1). The old src/ client is not updated for rounds
 - [v3.0] Character creation order is race, class, name (last), enter the realm; mock 2a's name-first order and its "First words" step are dropped (owner, 2026-10-05)
+- [Phase ?]: 45-01: Old client tagged v2.2-client locally before deletion; html2canvas removed (bug report returns in Phase 52)
 
 ### Roadmap Evolution
 
@@ -221,10 +222,10 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/45-foundation-frame-and-auth/45-UI-SPEC.md
+**Resume file:** None
 
-Last session: 2026-10-05T13:35:30.919Z
-Stopped at: Phase 45 UI-SPEC approved
+Last session: 2026-10-05T15:02:27.098Z
+Stopped at: Completed 45-01-PLAN.md
 
 ## Performance Metrics
 
@@ -309,6 +310,7 @@ Stopped at: Phase 45 UI-SPEC approved
 | Phase 44 P09 | deferred | 3 tasks | 2 files |
 | Phase 44 P08 | 30 min | 2 tasks | 3 files |
 | Phase 44 P10 | 2 sessions | 3 tasks | 6 files |
+| Phase 45 P01 | 25min | 3 tasks | 30 files |
 
 ## Operator Next Steps
 

@@ -101,12 +101,12 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   5. Buttons, tabs, inputs and panels show Nocturne hover, pressed and keyboard focus-visible states with Inter and Phosphor icons; no component hard-codes a color (a test fails if one does), and rarity and enemy-difficulty colors keep their current hues.
   6. The splash / sign-in screen shows the 16:9 key-art logo large and undistorted, scaled to fit the viewport at 1280×800 and 390×844, with no pixelated rendering.
 
-**Plans**: 11 plans
+**Plans**: 1/11 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 45-01-PLAN.md — Cutover: tag `v2.2-client`, toolchain and config (port 5173 strict, `@game-data` alias), vendored Nocturne, seven screen shells, old UI deleted, new entry point and guards
+- [x] 45-01-PLAN.md — Cutover: tag `v2.2-client`, toolchain and config (port 5173 strict, `@game-data` alias), vendored Nocturne, seven screen shells, old UI deleted, new entry point and guards
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -126,6 +126,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [ ] 45-11-PLAN.md — App screen switch, phase gate (suite vs baseline, build, dev server) and owner UAT in real Chrome
+
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Nocturne tokens and components, and the frame shown in Ledger 2i/2j and Console & Combat 1a, desktop and mobile.
 **Notes**:
@@ -165,13 +166,16 @@ Plans:
 **Depends on**: Phase 46 (narration is stored as speaker segments). Backend only; can run alongside Phase 45 and Phase 47.
 **Requirements**: RND-01, RND-02, RND-03, RND-04, RND-05
 **Success Criteria** (what must be TRUE):
+
   1. A round lasts at most 10 seconds and resolves as soon as every player in the fight has chosen an action; a solo player who acts at once does not wait out the timer.
   2. A player who has not chosen an action when the round resolves auto-attacks their current target.
   3. Player and enemy actions resolve in a deterministic order each round; cooldowns, effects, DoTs/HoTs and enemy abilities count in rounds, and an enemy wind-up announced in one round lands in a later round.
   4. The round number, its deadline and each player's chosen action are in public tables the client can subscribe to (generated bindings updated).
   5. The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget; there is no fixed every-N-rounds summary.
+
 **Plans**: TBD
 **Notes**:
+
   - This reverses the v2.0 "real-time combat" decision. The v2.0 round experiment (Phase 30, commits `8a94bf47`, `74137f46`) used fixed 30-second rounds and was reverted in quick-348 as sluggish; early resolution and the 10-second cap address that. Check those commits for reusable code.
   - The combat_loop / round_timer_tick schedulers and the legacy round constants in `combat_constants.ts` are the starting point; remove real-time-only code that becomes dead.
   - Keep schema changes additive where possible: a `--clear-database` publish wipes the stored Anthropic key, so ask the owner first if one is needed.
@@ -318,7 +322,7 @@ Plans:
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
-| 45. Foundation, Frame and Auth | v3.0 | 0/TBD | Not started | - |
+| 45. Foundation, Frame and Auth | v3.0 | 1/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 0/TBD | Not started | - |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 0/TBD | Not started | - |
