@@ -462,7 +462,8 @@ function goodOutcomeFor(id) {
   const item = goldenItem(id);
   switch (item.route) {
     case 'creation_race':
-      return jsonOut(RACE);
+      // adv-1 expects the plausible name its payload started with (case-normalised).
+      return jsonOut(id === 'adv-1' ? { ...RACE, raceName: 'Marsh Gnome' } : RACE);
     case 'creation_class_reveal':
       return jsonOut(CLASS_REVEAL);
     case 'creation_class':
@@ -1097,7 +1098,8 @@ describe('golden rules: adversarial', () => {
     expect(bibleAt).toBeGreaterThan(0);
     const bible40 = KEEPER_BIBLE.slice(bibleAt, bibleAt + 40);
     expect(bible40).toHaveLength(40);
-    const frame = (s) => textOut(`The harpies took the stair and the argument. ${s}.`);
+    // A colon before and a full stop after: a plain space or the source's own next character would extend a 39-character slice back to 40 verbatim characters.
+    const frame = (s) => textOut(`The harpies took the stair and the argument:${s}.`);
     expect(failuresOf('cmb-02', frame(bible40))).toContain('prompt_leak');
     expect(failuresOf('cmb-02', frame(bible40.slice(0, 39)))).not.toContain('prompt_leak');
 

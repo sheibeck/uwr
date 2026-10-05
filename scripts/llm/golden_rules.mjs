@@ -17,7 +17,7 @@ import { PLAYER_INPUT_TAG_PATTERN, ROUTE_BLOCKS } from '../../spacetimedb/src/da
 import { LLM_ROUTES } from '../../spacetimedb/src/data/llm_routes.ts';
 import { validateClassReply, validateRaceReply } from '../../spacetimedb/src/helpers/creation_validate.ts';
 import { parseSkillGenResult } from '../../spacetimedb/src/helpers/skill_gen.ts';
-import { validateRenownActivePerk } from '../../spacetimedb/src/helpers/llm_apply.ts';
+import { validateRenownActivePerk } from '../../spacetimedb/src/helpers/renown_perk_validate.ts';
 import { keeperMessageForJob } from '../../spacetimedb/src/helpers/llm_status.ts';
 
 // -- Constants ---------------------------------------------------------------
