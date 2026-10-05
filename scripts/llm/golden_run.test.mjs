@@ -578,6 +578,92 @@ describe('pinned golden record', () => {
   });
 });
 
+describe('pinned golden verdicts', () => {
+  const dir = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval');
+  const verdictsFile = path.join(dir, '44-golden-verdicts.json');
+  const run = JSON.parse(fs.readFileSync(path.join(dir, '44-golden-run.json'), 'utf8'));
+  const text = fs.readFileSync(verdictsFile, 'utf8');
+  const rec = JSON.parse(text);
+
+  /** The record's verdicts in the shape the page hands back (id to { verdict, comment }). */
+  const verdictsOf = () => Object.fromEntries(rec.items.map((i) => [i.id, { verdict: i.verdict, comment: i.comment }]));
+
+  it('has a status in approved, needs_fixes, incomplete or deferred, with item ids in golden set order', () => {
+    expect(['approved', 'needs_fixes', 'incomplete', 'deferred']).toContain(rec.status);
+    const ids = rec.items.map((i) => i.id);
+    const inSetOrder = GOLDEN_IDS.filter((id) => ids.includes(id));
+    expect(ids).toEqual(inSetOrder);
+    // the sign-off covers the whole set whenever a golden run exists
+    if (run.status === 'recorded') expect(ids).toEqual([...GOLDEN_IDS]);
+  });
+
+  it('holds only pass, fail or no verdict, and keeps the mechanical failures of the run record', () => {
+    for (const item of rec.items) {
+      expect(['pass', 'fail', null], item.id).toContain(item.verdict);
+      const stored = run.items.find((x) => x.id === item.id);
+      expect(item.route, item.id).toBe(stored.route);
+      expect(item.mechanicalFailures, item.id).toEqual(stored.mechanical.failures);
+    }
+  });
+
+  it('records approved only when approvalAllowed says every condition holds and the overall approve is the owner own', () => {
+    // The status is derived by code: the owner approval and approvalAllowed decide it, never a hand-typed status.
+    const merged = mergeVerdicts(run, verdictsOf());
+    const overall = rec.overall?.approved === true && rec.overall?.approvedBy === 'user' ? { approved: true, approvedBy: 'user' } : { approved: false };
+    const { allowed, reasons } = approvalAllowed({ record: merged, verdicts: verdictsOf(), overall });
+    if (rec.status === 'approved') {
+      expect(allowed, reasons.join(',')).toBe(true);
+      expect(rec.items).toHaveLength(27);
+      expect(rec.items.every((i) => i.verdict === 'pass')).toBe(true);
+      expect(rec.overall).toMatchObject({ approved: true, approvedBy: 'user' });
+      expect(rec.items.some((i) => i.verdict === 'pass' && run.items.find((x) => x.id === i.id).ran)).toBe(true);
+      for (const id of rec.waivers) expect(rec.items.find((i) => i.id === id).comment.trim(), id).not.toBe('');
+      expect(rec.failedIds).toEqual([]);
+    } else {
+      expect(allowed).toBe(false);
+      expect(rec.overall?.approvedBy ?? null).not.toBe('user');
+      expect(rec.overall?.approved).not.toBe(true);
+    }
+    expect(rec.reasons).toEqual(approvalAllowed({ record: merged, verdicts: verdictsOf(), overall }).reasons);
+  });
+
+  it('lists the failing ids in set order for needs_fixes, each with a fail verdict, and never approves incomplete or deferred', () => {
+    const failing = rec.items.filter((i) => i.verdict === 'fail').map((i) => i.id);
+    if (rec.status === 'needs_fixes') {
+      expect(rec.failedIds.length).toBeGreaterThan(0);
+      expect(rec.failedIds).toEqual(failing);
+      for (const id of rec.failedIds) expect(rec.items.find((i) => i.id === id).verdict, id).toBe('fail');
+    }
+    if (rec.status === 'incomplete' || rec.status === 'deferred') {
+      expect(rec.overall?.approved).not.toBe(true);
+    }
+    // an item the owner left unrated is never counted as a pass
+    for (const item of rec.items) if (item.verdict === null) expect(rec.failedIds).not.toContain(item.id);
+    // a pass over a mechanical failure is a waiver and needs a comment
+    for (const item of rec.items) {
+      if (item.verdict === 'pass' && item.mechanicalFailures.length > 0) {
+        expect(item.comment.trim(), item.id).not.toBe('');
+        expect(rec.waivers).toContain(item.id);
+      }
+    }
+  });
+
+  it('holds no key-shaped string, no token and no player_input tag, and every comment is a bounded string', () => {
+    expect(recordHygieneProblems(rec)).toEqual([]);
+    expect(text).not.toMatch(/sk-ant-[A-Za-z0-9_-]{8,}/);
+    expect(text).not.toMatch(/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/);
+    expect(text).not.toMatch(/player_input/i);
+    for (const item of rec.items) {
+      expect(typeof item.comment, item.id).toBe('string');
+      expect(item.comment.length, item.id).toBeLessThanOrEqual(2000);
+    }
+    for (const w of rec.overall?.ownerWords ?? []) {
+      expect(typeof w).toBe('string');
+      expect(w.length).toBeLessThanOrEqual(2000);
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Static guards on the harness source (T-44-04-02, T-44-04-03)
 // ---------------------------------------------------------------------------

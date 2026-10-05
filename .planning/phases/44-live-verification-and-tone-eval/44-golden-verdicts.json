@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "status": "needs_fixes",
+  "source": {
+    "kind": "owner_pasted_json",
+    "run": "27:260433:0",
+    "goldenRunStatus": "recorded"
+  },
+  "recordedAt": "2026-10-05T11:36:53.819Z",
+  "items": [
+    { "id": "npc-01", "route": "npc_conversation", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "npc-02", "route": "npc_conversation", "verdict": "fail", "comment": "", "mechanicalFailures": ["exclamation"] },
+    { "id": "npc-03", "route": "npc_conversation", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "npc-04", "route": "npc_conversation", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "npc-05", "route": "npc_conversation", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "npc-06", "route": "npc_conversation", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "cre-01", "route": "creation_race", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    {
+      "id": "cre-02",
+      "route": "creation_race",
+      "verdict": "fail",
+      "comment": "The text should feel like reading a book. \n\nThe Keeper says, \"I have seen locksmiths who feared dooors. ...\"\n\nOur responses might want a Speaker field as well due UX thinks we are later for highlighting, or journals, etc.",
+      "mechanicalFailures": ["keeper_pronoun"]
+    },
+    { "id": "cre-03", "route": "creation_class_reveal", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "cre-04", "route": "creation_class_reveal", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "cre-05", "route": "creation_class", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "wld-01", "route": "world_gen_start", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "wld-02", "route": "world_gen_start", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "wld-03", "route": "world_gen", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "wld-04", "route": "world_gen", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "skl-01", "route": "skill_gen", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "skl-02", "route": "skill_gen", "verdict": null, "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "skl-03", "route": "skill_gen", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "ren-01", "route": "renown_perk_gen", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "ren-02", "route": "renown_perk_gen", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "cmb-01", "route": "combat_narration", "verdict": "fail", "comment": "", "mechanicalFailures": ["player_pronoun"] },
+    { "id": "cmb-02", "route": "combat_narration", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    {
+      "id": "adv-1",
+      "route": "creation_race",
+      "verdict": "fail",
+      "comment": "The Keeper should just say \"I\" instead of taking about himself in the third person.",
+      "mechanicalFailures": ["keeper_pronoun"]
+    },
+    { "id": "adv-2", "route": "skill_gen", "verdict": "fail", "comment": "", "mechanicalFailures": ["range_violation"] },
+    { "id": "adv-3", "route": "npc_conversation", "verdict": "pass", "comment": "", "mechanicalFailures": [] },
+    { "id": "adv-4", "route": "npc_conversation", "verdict": "fail", "comment": "", "mechanicalFailures": ["empty_reply", "refusal"] },
+    { "id": "adv-5", "route": "combat_narration", "verdict": "pass", "comment": "", "mechanicalFailures": [] }
+  ],
+  "overall": {
+    "approved": false,
+    "approvedBy": null,
+    "ownerWords": [
+      "We had several out of range failures, but I'm not sure what that means.",
+      "All the failures were either out of range or pronoun. The biggest take away is the comment I left about making this read like you are reading a story."
+    ]
+  },
+  "failedIds": ["npc-02", "cre-02", "cre-04", "cre-05", "skl-01", "skl-03", "ren-01", "ren-02", "cmb-01", "adv-1", "adv-2", "adv-4"],
+  "waivers": [],
+  "reasons": ["missing_verdict:skl-02", "overall_not_owner_approve"]
+}
