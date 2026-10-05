@@ -482,6 +482,112 @@ describe('createSession core', () => {
   });
 });
 
+describe('createSession actions', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+    vi.useRealTimers();
+  });
+
+  describe('signIn', () => {
+    it('shows redirecting and starts the PKCE login', async () => {
+      h = harness({ token: null });
+      h.session.signIn();
+      expect(h.auth.beginSpacetimeAuthLogin).toHaveBeenCalledTimes(1);
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
+    });
+
+    it('shows signInFailed when the login start rejects', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      h = harness({ token: null });
+      h.auth.beginSpacetimeAuthLogin.mockRejectedValueOnce(new Error('discovery failed'));
+      h.session.signIn();
+      await flush();
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'signInFailed' });
+      warn.mockRestore();
+    });
+  });
+
+  describe('selectCharacter', () => {
+    async function inPicker(): Promise<FakeConn> {
+      vi.useFakeTimers();
+      h = harness();
+      const conn = h.connect();
+      h.setPlayer({ userId: 7n });
+      await flush();
+      const chars = h.binding(queries.characters(7n));
+      chars.rows.value = [makeCharacter(5n, 10n), makeCharacter(6n, 20n)];
+      chars.applied.value = true;
+      return conn;
+    }
+
+    it('calls setActiveCharacter with the id and marks it pending', async () => {
+      const conn = await inPicker();
+      h.session.selectCharacter(5n);
+      expect(conn.reducers.setActiveCharacter).toHaveBeenCalledWith({ characterId: 5n });
+      expect(h.session.pickerPendingId.value).toBe(5n);
+      expect(h.session.pickerFailed.value).toBe(false);
+    });
+
+    it('ignores a second selection while one is pending', async () => {
+      const conn = await inPicker();
+      h.session.selectCharacter(5n);
+      h.session.selectCharacter(6n);
+      expect(conn.reducers.setActiveCharacter).toHaveBeenCalledTimes(1);
+      expect(h.session.pickerPendingId.value).toBe(5n);
+    });
+
+    it('clears the pending state and timer when the active character arrives', async () => {
+      await inPicker();
+      h.session.selectCharacter(5n);
+      h.setPlayer({ userId: 7n, activeCharacterId: 5n });
+      expect(h.session.pickerPendingId.value).toBeNull();
+      vi.advanceTimersByTime(8000);
+      expect(h.session.pickerFailed.value).toBe(false);
+    });
+
+    it('fails after 8 s without a change', async () => {
+      await inPicker();
+      h.session.selectCharacter(5n);
+      vi.advanceTimersByTime(7999);
+      expect(h.session.pickerFailed.value).toBe(false);
+      vi.advanceTimersByTime(1);
+      expect(h.session.pickerFailed.value).toBe(true);
+      expect(h.session.pickerPendingId.value).toBeNull();
+      // The rows are usable again.
+      h.session.selectCharacter(6n);
+      expect(h.session.pickerPendingId.value).toBe(6n);
+      expect(h.session.pickerFailed.value).toBe(false);
+    });
+
+    it('fails immediately when the reducer rejects', async () => {
+      const conn = await inPicker();
+      conn.reducers.setActiveCharacter.mockRejectedValueOnce(new Error('not yours'));
+      h.session.selectCharacter(5n);
+      await flush();
+      expect(h.session.pickerFailed.value).toBe(true);
+      expect(h.session.pickerPendingId.value).toBeNull();
+    });
+
+    it('fails without a reducer call while not connected', async () => {
+      const conn = await inPicker();
+      h.status.value = 'reconnecting';
+      h.session.selectCharacter(5n);
+      expect(conn.reducers.setActiveCharacter).not.toHaveBeenCalled();
+      expect(h.session.pickerFailed.value).toBe(true);
+      expect(h.session.pickerPendingId.value).toBeNull();
+    });
+  });
+
+  describe('reload', () => {
+    it('calls the injected reloadPage', () => {
+      h = harness();
+      h.session.reload();
+      expect(h.reloadPage).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
 describe('defaultQueries', () => {
   it('builds scoped subscription SQL', () => {
     const q = defaultQueries();
