@@ -56,6 +56,7 @@ import { applyLlmFailure, failWorldGen, toApplyJob, type ApplyJob } from './llm_
 import { failWorldFill, WORLD_FILL_FAILED_MESSAGE } from './world_gen';
 import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { appendCreationEvent } from './events';
+import { flattenSegments, keeperFallback } from './segments';
 import { activeLlmJobs } from './llm_queue';
 import { chargeLedgerUnknownBilling, prunePlayerBudgets, releaseLlmReservation, utcDay } from './llm_budget';
 import { hasLlmDispatch, insertLlmDispatch } from './llm_schedule';
@@ -310,7 +311,8 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
     if (creationHeld.has(`${lock.route}|${state.playerId.toHexString()}`)) continue;
     try {
       ctx.db.character_creation_state.id.update({ ...state, step: lock.back, updatedAt: ctx.timestamp });
-      appendCreationEvent(ctx, state.playerId, 'creation_error', lock.line);
+      const lockSegments = keeperFallback(lock.line);
+      appendCreationEvent(ctx, state.playerId, 'creation_error', flattenSegments(lockSegments), lockSegments);
       released += 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -45,6 +45,10 @@ const SEC = 1_000_000n;
 const MIN = 60n * SEC;
 const HOUR = 60n * MIN;
 
+const FLICKER_LINE = 'The page flickers. Something went wrong in the cosmic machinery. Try again.';
+/** The one Keeper narration segment a plain in-voice line is stored as (Phase 46, WR-06). */
+const keeperLine = (text: string) => [{ kind: 'narration', speaker: 'The Keeper', text }];
+
 const character = () => ({ id: 1n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver' });
 
 type Ctx = ReturnType<typeof makeCtx>;
@@ -670,7 +674,8 @@ describe('stranded generation locks (a lost failure message)', () => {
     expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
       alice,
       'creation_error',
-      'The page flickers. Something went wrong in the cosmic machinery. Try again.',
+      FLICKER_LINE,
+      keeperLine(FLICKER_LINE),
     ]);
     // Idempotent: the next sweep finds nothing.
     expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
@@ -716,7 +721,8 @@ describe('stranded generation locks (a lost failure message)', () => {
       expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
         alice,
         'creation_error',
-        'The page flickers. Something went wrong in the cosmic machinery. Try again.',
+        FLICKER_LINE,
+        keeperLine(FLICKER_LINE),
       ]);
     });
 
@@ -743,7 +749,12 @@ describe('stranded generation locks (a lost failure message)', () => {
       expect(s).toMatchObject({ className: 'Tidecaller', classDescription: 'Speaks to the sea.', raceName: 'Saltkin' });
       expect(JSON.parse(s.abilities)).toHaveLength(1);
       expect(appendCreationEvent).toHaveBeenCalledTimes(1);
-      expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([alice, 'creation_error', CLASS_FILL_FAILED_LINE]);
+      expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
+        alice,
+        'creation_error',
+        CLASS_FILL_FAILED_LINE,
+        keeperLine(CLASS_FILL_FAILED_LINE),
+      ]);
       // The sweeper never retries: no job was created, and the next sweep finds nothing.
       expect(rows(ctx, 'llm_job')).toHaveLength(0);
       expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);

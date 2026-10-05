@@ -34,14 +34,20 @@
 // A failed or stranded reveal returns to AWAITING_ARCHETYPE. Confirmation waits for the fill:
 // nothing reaches CLASS_REVEALED, AWAITING_NAME or COMPLETE with only the stage-1 ability.
 //
-// Imports are limited to ./events, ./llm_queue and ./llm_inputs, so this module
+// Imports are limited to ./events, ./segments, ./llm_queue and ./llm_inputs, so this module
 // loads in plain Node vitest (with the spacetimedb/server mock).
 // ============================================================================
 
 import type { CreationClassFillInput, CreationClassInput, CreationRaceInput } from '../data/llm_layers';
 import { appendCreationEvent } from './events';
+import { flattenSegments, keeperFallback, keeperSegments, type Segment } from './segments';
 import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
+
+/** Post a Keeper-voice creation line with its segments; `message` is always the flattened segments. */
+function postKeeperSegments(ctx: any, playerId: any, kind: string, segments: Segment[]): void {
+  appendCreationEvent(ctx, playerId, kind, flattenSegments(segments), segments);
+}
 
 export type CreationGenerationType = 'race' | 'class';
 export type CreationGenerationOutcome = 'reused' | 'enqueued' | 'duplicate' | 'refused';
@@ -120,7 +126,7 @@ export function startCreationGeneration(
       step: AWAITING_STEP[generationType],
       updatedAt: ctx.timestamp,
     });
-    appendCreationEvent(ctx, state.playerId, 'creation_error', llmRefusalMessage(result.refused));
+    postKeeperSegments(ctx, state.playerId, 'creation_error', keeperFallback(llmRefusalMessage(result.refused)));
     return 'refused';
   }
   return result.created ? 'enqueued' : 'duplicate';
@@ -169,7 +175,7 @@ export function startClassFill(ctx: any, state: any): 'enqueued' | 'duplicate' |
   const toError = (message: string): 'refused' => {
     const current = ctx.db.character_creation_state.id.find(state.id) ?? state;
     ctx.db.character_creation_state.id.update({ ...current, step: 'CLASS_FILL_ERROR', updatedAt: ctx.timestamp });
-    appendCreationEvent(ctx, state.playerId, 'creation_error', message);
+    postKeeperSegments(ctx, state.playerId, 'creation_error', keeperFallback(message));
     return 'refused';
   };
 
@@ -202,7 +208,7 @@ export function startClassFill(ctx: any, state: any): 'enqueued' | 'duplicate' |
  */
 export function retryClassFill(ctx: any, state: any): 'enqueued' | 'duplicate' | 'refused' {
   const outcome = startClassFill(ctx, state);
-  if (outcome === 'enqueued') appendCreationEvent(ctx, state.playerId, 'creation', CLASS_FILL_RETRY_LINE);
+  if (outcome === 'enqueued') postKeeperSegments(ctx, state.playerId, 'creation', keeperFallback(CLASS_FILL_RETRY_LINE));
   return outcome;
 }
 
@@ -227,13 +233,15 @@ function reuseRace(ctx: any, state: any, existingRace: any): void {
     ? `\n+${bonuses.primary.value || 2} ${(bonuses.primary.stat || 'STR').toUpperCase()}, +${bonuses.secondary?.value || 1} ${(bonuses.secondary?.stat || 'DEX').toUpperCase()}${bonuses.flavor ? `. ${bonuses.flavor}` : ''}`
     : '';
 
-  appendCreationEvent(
+  postKeeperSegments(
     ctx,
     state.playerId,
     'creation',
-    `${existingRace.narrative || 'An interesting choice.'}\n\n` +
-      `**${existingRace.name}**${bonusText}\n\n` +
-      `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
-      `\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`,
+    keeperSegments(
+      `${existingRace.narrative || 'An interesting choice.'}\n\n` +
+        `**${existingRace.name}**${bonusText}\n\n` +
+        `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
+        `\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`,
+    ),
   );
 }

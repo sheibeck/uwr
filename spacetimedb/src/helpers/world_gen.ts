@@ -209,7 +209,8 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
     if (character && character.locationId !== 0n) {
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', line);
     } else {
-      appendCreationEvent(ctx, genState.playerId, 'creation_error', line);
+      const lineSegments = keeperFallback(line);
+      appendCreationEvent(ctx, genState.playerId, 'creation_error', flattenSegments(lineSegments), lineSegments);
     }
     return 'refused';
   }

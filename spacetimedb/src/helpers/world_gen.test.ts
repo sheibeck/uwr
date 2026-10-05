@@ -918,6 +918,10 @@ describe('startWorldGeneration', () => {
     const events = rows(ctx, 'event_creation');
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: 'creation_error', playerId: alice, message: REFUSED_LINE });
+    // WR-06: the line is stored as one Keeper segment, like the failure path.
+    expect(events[0].segments).toEqual([
+      { kind: 'narration', speaker: 'The Keeper', text: REFUSED_LINE, speakerNpcId: undefined },
+    ]);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 });
@@ -980,6 +984,9 @@ describe('startWorldGeneration: resting refusals (Phase 43)', () => {
     const events = rows(ctx, 'event_creation');
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: 'creation_error', playerId: alice, message: RESTING_EXPLORE });
+    expect(events[0].segments).toEqual([
+      { kind: 'narration', speaker: 'The Keeper', text: RESTING_EXPLORE, speakerNpcId: undefined },
+    ]);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 

@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx } from './test-utils';
+import { flattenSegments } from './segments';
 import { rowColumnProblems } from './schema_recorder';
 import {
   startCreationGeneration,
@@ -442,5 +443,64 @@ describe('class stage lines', () => {
     expect(line).not.toMatch(/\b(it|its|they|them|their|she|her)\b/i);
     expect(line).not.toMatch(/your name/i);
     expect(line).not.toContain('!');
+  });
+});
+
+describe('Keeper lines carry segments (Phase 46, WR-06)', () => {
+  /** Every row stores Keeper narration segments whose flattening is exactly its message. */
+  const expectKeeperSegments = (event: any) => {
+    expect(Array.isArray(event.segments)).toBe(true);
+    expect(event.segments.length).toBeGreaterThan(0);
+    for (const seg of event.segments) {
+      expect(seg).toMatchObject({ kind: 'narration', speaker: 'The Keeper' });
+    }
+    expect(flattenSegments(event.segments)).toBe(event.message);
+  };
+
+  it('a reused race stores the same segments as a fresh one (narrative, bonuses, choose-your-path prompt)', () => {
+    const ctx = newCtx({
+      race_definition: [
+        {
+          id: 1n,
+          name: 'a quiet people of the salt marshes',
+          nameLower: 'a quiet people of the salt marshes',
+          narrative: 'Salt and patience.',
+          bonusesJson: JSON.stringify({ primary: { stat: 'wis', value: 2 }, secondary: { stat: 'con', value: 1 }, flavor: 'Tide-wise' }),
+          createdAt: { microsSinceUnixEpoch: T0 },
+        },
+      ],
+    });
+    expect(startCreationGeneration(ctx, stateOf(ctx), 'race')).toBe('reused');
+    const [event] = creationEvents(ctx);
+    expectKeeperSegments(event);
+    expect(event.segments).toHaveLength(4);
+    expect(event.segments[0].text).toBe('Salt and patience.');
+    expect(event.segments[1].text).toBe('**a quiet people of the salt marshes**\n+2 WIS, +1 CON. Tide-wise');
+    expect(event.segments[2].text).toContain('Now then. Every creature must choose a path');
+  });
+
+  it('a refused request stores its refusal line as one Keeper segment', () => {
+    const ctx = newCtx();
+    exhaustDay(ctx);
+    expect(startCreationGeneration(ctx, stateOf(ctx), 'race')).toBe('refused');
+    const [event] = creationEvents(ctx);
+    expectKeeperSegments(event);
+    expect(event.segments).toHaveLength(1);
+    expect(event.message).toBe(llmRefusalMessage('daily_cost'));
+  });
+
+  it('a refused class fill and a class-fill retry store one Keeper segment each', () => {
+    const refused = newCtx({ character_creation_state: [revealedState({ step: 'CLASS_FILL_ERROR' })] });
+    setLlmEnabled(refused, false);
+    expect(retryClassFill(refused, stateOf(refused))).toBe('refused');
+    const [errorEvent] = creationEvents(refused);
+    expectKeeperSegments(errorEvent);
+    expect(errorEvent.message).toBe(classFillRetryLine(LLM_RESTING_LINE));
+
+    const retried = newCtx({ character_creation_state: [revealedState({ step: 'CLASS_FILL_ERROR' })] });
+    expect(retryClassFill(retried, stateOf(retried))).toBe('enqueued');
+    const [retryEvent] = creationEvents(retried);
+    expectKeeperSegments(retryEvent);
+    expect(retryEvent.message).toBe(CLASS_FILL_RETRY_LINE);
   });
 });
