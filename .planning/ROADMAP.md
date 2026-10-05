@@ -364,7 +364,7 @@ Plans:
 
 **Also recorded**: the streaming decision (Out of Scope stands unless measured NPC-chat latency or a no-go backend build reopens it) is written into PROJECT.md.
 **Testing**: The golden-set harness runs offline against recorded or mocked responses in the normal suite. Failure drills are automated unit tests over the mock procedure context, with the live drills as operator-run confirmation.
-**Plans**: 7/10 plans executed
+**Plans**: 8/10 plans executed
 
 Plans:
 
@@ -387,7 +387,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [ ] 44-08-PLAN.md — [checkpoint] Owner tone review through the orchestrator-published page, verdicts recorded (approved, needs_fixes or deferred)
-- [ ] 44-09-PLAN.md — [checkpoint] Paid end-to-end run on uwr-verify after cost approval: every domain, per-route latency percentiles, token totals, bundle check
+- [x] 44-09-PLAN.md — [checkpoint] Paid end-to-end run on uwr-verify after cost approval: every domain, per-route latency percentiles, token totals, bundle check
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -408,7 +408,7 @@ Phases execute in numeric order: 39 → 40 → 41 → 42 → 43 → 44
 | 41. Executor and Domain Cutover | v2.2 | 18/18 | In Progress|  |
 | 42. Client Cutover and Legacy Removal | v2.2 | 7/7 | Complete    | 2026-09-30 |
 | 43. Latency Tuning, Staged Generation and Budget | v2.2 | 15/15 | In Progress|  |
-| 44. Live Verification and Tone Eval | v2.2 | 7/10 | In Progress|  |
+| 44. Live Verification and Tone Eval | v2.2 | 8/10 | In Progress|  |
 
 ## Backlog
 
