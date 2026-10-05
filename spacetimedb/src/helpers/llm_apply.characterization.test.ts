@@ -18,6 +18,14 @@
  * longer throws for bigint effects, and a terminal renown failure inserts the static
  * options. Every other case still pins what the code does, unchanged.
  *
+ * Phase 46 (plan 02) deliberately changed the pinned behavior in the cases whose title starts
+ * with "Phase 46": every npc, narrative, creation and creation_error row a narrative route
+ * writes now carries a `segments` array (Keeper narration, or NPC dialogue for an NPC reply)
+ * and its message is derived from it. The wording of every line is unchanged, and the stored
+ * snapshots show the added `segments` arrays. The NPC reply with no dialogue now stores the
+ * mutter narration line instead of an NPC "..." line, and an NPC reply that is not JSON now
+ * carries one Keeper narration segment. Every other case still pins what the code does.
+ *
  * Known limits of the mock DB that these tests inherit: the `by_name` index accessor is
  * mapped to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
  * is exercised through a row whose `name` equals the lowercase race name.
@@ -1423,11 +1431,15 @@ describe('llm apply npc_conversation success', () => {
     expect(rows(ctx, 'npc_affinity')[0]).toMatchObject({ characterId: 10n, npcId: 20n, affinity: 2n, conversationCount: 1n });
   });
 
-  it('falls back to "..." when the reply has no dialogue and ignores a non-array effects field', () => {
+  it('Phase 46: falls back to "..." in the dialog log and one Keeper mutter line when the reply has no dialogue, and ignores a non-array effects field', () => {
     const ctx = newCtx(npcSeed());
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: JSON.stringify({ effects: 'lots', memoryUpdate: null }) });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "..."');
     expect(rows(ctx, 'event_private')).toHaveLength(1);
+    expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something unintelligible.');
+    expect(rows(ctx, 'event_private')[0].segments).toEqual([
+      { kind: 'narration', speaker: 'The Keeper', text: 'Marta mutters something unintelligible.' },
+    ]);
   });
 
   it('accepts a code-fenced reply', () => {
@@ -1446,11 +1458,14 @@ describe('llm apply npc_conversation success', () => {
     expect(rows(ctx, 'npc_affinity')).toHaveLength(0);
   });
 
-  it('QUIRK: invalid JSON writes the "unintelligible" messages and no memory change', () => {
+  it('Phase 46: QUIRK: invalid JSON writes the "unintelligible" messages (one Keeper narration segment) and no memory change', () => {
     const ctx = newCtx(npcSeed());
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: 'Marta hums a tune' });
     expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
     expect(rows(ctx, 'event_private')[0].message).toBe('Marta mutters something unintelligible. (Try again.)');
+    expect(rows(ctx, 'event_private')[0].segments).toEqual([
+      { kind: 'narration', speaker: 'The Keeper', text: 'Marta mutters something unintelligible. (Try again.)' },
+    ]);
     expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(T_OLD));
     expect(rows(ctx, 'npc_affinity')[0].lastInteraction).toEqual(ts(T_OLD));
   });

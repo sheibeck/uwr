@@ -291,7 +291,39 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "id": "1n",
       "kind": "creation",
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical damage, 23 base, 2s cast, 12s cooldown, 15 stamina\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+20 bonus HP)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Ash Veil] — A curtain of soot.\\n  physical damage, 23 base, 2s cast, 12s cooldown, 15 stamina"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ]
 }"
@@ -317,7 +349,34 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a cl
       "id": "1n",
       "kind": "creation",
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\n\\nYour first ability:\\n\\nEmber Slash — A burning cut.\\n  fire damage, 23 base, instant, 6s cooldown, 15 stamina, dot (9s)\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A duelist who fights like a grudge."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Emberblade**"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your first ability:"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Ember Slash — A burning cut.\\n  fire damage, 23 base, instant, 6s cooldown, 15 stamina, dot (9s)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything."
+        }
+      ]
     }
   ],
   "llm_admin_state": [
@@ -417,7 +476,29 @@ exports[`llm apply creation replies: Phase 41 clamped > Phase 41: clamped - a ra
       "id": "1n",
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Born of cinders and spite."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Ashkin**\\n+3 STR, +1 DEX"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ],
   "race_definition": [
@@ -455,7 +536,14 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: a null
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+        }
+      ]
     }
   ]
 }"
@@ -485,7 +573,39 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: legacy
       "id": "1n",
       "kind": "creation",
       "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)\\n\\nYour starting abilities:\\n\\n[Flare] — A burning cut.\\n  fire damage, 12 base, 1s cast, 6s cooldown, 10 mana, dot (9s)\\n\\n[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\nPrimary: INT | Armor: cloth | Mana user (+15 bonus mana)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your starting abilities:"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Flare] — A burning cut.\\n  fire damage, 12 base, 1s cast, 6s cooldown, 10 mana, dot (9s)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Spark] — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ]
 }"
@@ -514,7 +634,39 @@ exports[`llm apply creation_class success (stage 2, the fill) > Phase 41: stats 
       "id": "1n",
       "kind": "creation",
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A duelist who fights like a grudge."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: cloth | Physical (+0 bonus HP)\\n\\nYour starting abilities:"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ]
 }"
@@ -542,7 +694,14 @@ exports[`llm apply creation_class success (stage 2, the fill) > an empty object 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+        }
+      ]
     }
   ]
 }"
@@ -571,7 +730,39 @@ exports[`llm apply creation_class success (stage 2, the fill) > applies a valid 
       "id": "1n",
       "kind": "creation",
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)\\n\\nYour starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\n[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana\\n\\n[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina\\n\\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\nPrimary: STR, Secondary: DEX | Armor: leather | Weapons: sword, dagger | Physical (+10 bonus HP)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your starting abilities:\\n\\n[Ember Slash] — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Ash Veil] — A curtain of soot.\\n  physical shield, 10 base, 2s cast, 12s cooldown, 10 mana"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Old Style] — A legacy-shaped ability.\\n  physical damage, 15 base, instant, 4s cooldown, 10 stamina"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Choose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ]
 }"
@@ -599,7 +790,14 @@ exports[`llm apply creation_class success (stage 2, the fill) > malformed JSON s
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+        }
+      ]
     }
   ]
 }"
@@ -627,7 +825,34 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: a reply w
       "id": "1n",
       "kind": "creation",
       "message": "A unique class emerges.\\n\\n**Unknown Class**\\n\\nYour first ability:\\n\\nUnknown Ability — \\n  physical damage, 15 base, instant, 6s cooldown, 10 stamina\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A unique class emerges."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Unknown Class**"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your first ability:"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Unknown Ability — \\n  physical damage, 15 base, instant, 6s cooldown, 10 stamina"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything."
+        }
+      ]
     }
   ],
   "llm_admin_state": [
@@ -730,7 +955,34 @@ exports[`llm apply creation_class_reveal success (stage 1) > Phase 41: legacy ab
       "id": "1n",
       "kind": "creation",
       "message": "Glows unpleasantly.\\n\\n**Cinder Mystic**\\n\\nYour first ability:\\n\\nSpark — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Glows unpleasantly."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Cinder Mystic**"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your first ability:"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Spark — A spark.\\n  physical damage, 15 base, 1s cast, 4s cooldown, 15 mana"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything."
+        }
+      ]
     }
   ],
   "llm_admin_state": [
@@ -829,7 +1081,14 @@ exports[`llm apply creation_class_reveal success (stage 1) > a reply without a u
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\""
+        }
+      ]
     }
   ],
   "llm_admin_state": [
@@ -868,7 +1127,34 @@ exports[`llm apply creation_class_reveal success (stage 1) > applies a valid rep
       "id": "1n",
       "kind": "creation",
       "message": "A duelist who fights like a grudge.\\n\\n**Emberblade**\\n\\nYour first ability:\\n\\nEmber Slash — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)\\n\\nThat is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A duelist who fights like a grudge."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Emberblade**"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your first ability:"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Ember Slash — A burning cut.\\n  fire damage, 12 base, instant, 6s cooldown, 5 stamina, dot (9s)"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything."
+        }
+      ]
     }
   ],
   "llm_admin_state": [
@@ -967,7 +1253,14 @@ exports[`llm apply creation_class_reveal success (stage 1) > malformed JSON reve
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\""
+        }
+      ]
     }
   ],
   "llm_admin_state": [
@@ -1004,7 +1297,29 @@ exports[`llm apply creation_race success > Phase 41: a reply without raceName st
       "id": "1n",
       "kind": "creation",
       "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Nothing much."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Unknown**\\n+2 STR, +1 DEX"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ]
 }"
@@ -1030,7 +1345,29 @@ exports[`llm apply creation_race success > accepts a reply with prose around the
       "id": "1n",
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Born of cinders and spite."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Ashkin**\\n+2 STR, +1 DEX. Ember-warm."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ],
   "race_definition": [
@@ -1066,7 +1403,29 @@ exports[`llm apply creation_race success > accepts a reply wrapped in a markdown
       "id": "1n",
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Born of cinders and spite."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Ashkin**\\n+2 STR, +1 DEX. Ember-warm."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ],
   "race_definition": [
@@ -1102,7 +1461,29 @@ exports[`llm apply creation_race success > applies a valid reply: state, creatio
       "id": "1n",
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Born of cinders and spite."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Ashkin**\\n+2 STR, +1 DEX. Ember-warm."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ],
   "race_definition": [
@@ -1138,7 +1519,29 @@ exports[`llm apply creation_race success > does not add a second race_definition
       "id": "1n",
       "kind": "creation",
       "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Born of cinders and spite."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "**Ashkin**\\n+2 STR, +1 DEX. Ember-warm."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "(If you're already regretting your choices, type \\"go back.\\" The Keeper does not judge... much.)"
+        }
+      ]
     }
   ],
   "race_definition": [
@@ -1171,7 +1574,14 @@ exports[`llm apply creation_race success > malformed JSON reverts the step and r
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The response from the cosmic machinery was... malformed. Let us try again.\\""
+        }
+      ]
     }
   ]
 }"
@@ -1208,7 +1618,14 @@ exports[`llm apply failure path: creation and skill_gen > Phase 41: renown_perk_
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -1291,7 +1708,14 @@ exports[`llm apply failure path: creation and skill_gen > creation_class (fill) 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again."
+        }
+      ]
     }
   ]
 }"
@@ -1314,7 +1738,14 @@ exports[`llm apply failure path: creation and skill_gen > creation_class_reveal 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\""
+        }
+      ]
     }
   ]
 }"
@@ -1337,7 +1768,14 @@ exports[`llm apply failure path: creation and skill_gen > creation_race failure 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\"",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper flickers. \\"Something went wrong in the cosmic machinery. Try again.\\""
+        }
+      ]
     }
   ]
 }"
@@ -1379,7 +1817,14 @@ exports[`llm apply failure path: creation and skill_gen > skill_gen failure writ
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper flickers. \\"Your potential eludes crystallization. Type [skills] when you want me to try again.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper flickers. \\"Your potential eludes crystallization. Type [skills] when you want me to try again.\\""
+        }
+      ]
     }
   ]
 }"
@@ -1409,7 +1854,14 @@ exports[`llm apply npc_conversation failure path > does not repeat an identical 
       "id": "1n",
       "kind": "npc",
       "message": "Marta seems distracted. Try again.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Marta seems distracted. Try again."
+        }
+      ]
     }
   ],
   "npc": [
@@ -1479,7 +1931,14 @@ exports[`llm apply npc_conversation failure path > logs "seems distracted" to th
       "id": "1n",
       "kind": "npc",
       "message": "Marta seems distracted. Try again.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Marta seems distracted. Try again."
+        }
+      ]
     }
   ],
   "npc": [
@@ -1587,7 +2046,15 @@ exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in o
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -1726,7 +2193,15 @@ exports[`llm apply npc_conversation offer_quest effects > a completed quest does
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -1879,7 +2354,15 @@ exports[`llm apply npc_conversation offer_quest effects > a type without special
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2024,7 +2507,15 @@ exports[`llm apply npc_conversation offer_quest effects > an invalid quest type 
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2176,7 +2667,15 @@ exports[`llm apply npc_conversation offer_quest effects > boss_kill quests resol
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2321,7 +2820,15 @@ exports[`llm apply npc_conversation offer_quest effects > delivery quest resolve
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2472,7 +2979,15 @@ exports[`llm apply npc_conversation offer_quest effects > delivery quest whose s
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2612,7 +3127,15 @@ exports[`llm apply npc_conversation offer_quest effects > delivery quest with no
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2741,7 +3264,15 @@ exports[`llm apply npc_conversation offer_quest effects > delivery quest without
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -2881,7 +3412,15 @@ exports[`llm apply npc_conversation offer_quest effects > explore quest targets 
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -3043,7 +3582,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -3196,7 +3743,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -3341,7 +3896,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest with no nam
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -3487,7 +4050,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest without a t
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -3639,7 +4210,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill_loot quests resol
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -3784,7 +4363,15 @@ exports[`llm apply npc_conversation offer_quest effects > skips an offer that re
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "location": [
@@ -3907,7 +4494,15 @@ exports[`llm apply npc_conversation offer_quest effects > skips an offer when th
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "location": [
@@ -4072,7 +4667,15 @@ exports[`llm apply npc_conversation offer_quest effects > skips an offer when th
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "location": [
@@ -4171,6 +4774,160 @@ exports[`llm apply npc_conversation offer_quest effects > skips an offer when th
 }"
 `;
 
+exports[`llm apply npc_conversation success > Phase 46: QUIRK: invalid JSON writes the "unintelligible" messages (one Keeper narration segment) and no memory change 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "npc",
+      "message": "Marta mutters something unintelligible. (Try again.)",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Marta mutters something unintelligible. (Try again.)"
+        }
+      ]
+    }
+  ],
+  "npc": [
+    {
+      "description": "A baker.",
+      "greeting": "Hello.",
+      "id": "20n",
+      "locationId": "100n",
+      "name": "Marta",
+      "npcType": "lore",
+      "personalityJson": "{\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "npc_affinity": [
+    {
+      "affinity": "0n",
+      "characterId": "10n",
+      "conversationCount": "0n",
+      "giftsGiven": "0n",
+      "id": "40n",
+      "lastInteraction": "ts:1600000000000000n",
+      "npcId": "20n"
+    }
+  ],
+  "npc_dialog": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "npcId": "20n",
+      "text": "Marta mutters something unintelligible."
+    }
+  ],
+  "npc_memory": [
+    {
+      "characterId": "10n",
+      "id": "30n",
+      "lastUpdated": "ts:1600000000000000n",
+      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
+      "npcId": "20n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply npc_conversation success > Phase 46: falls back to "..." in the dialog log and one Keeper mutter line when the reply has no dialogue, and ignores a non-array effects field 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "npc",
+      "message": "Marta mutters something unintelligible.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Marta mutters something unintelligible."
+        }
+      ]
+    }
+  ],
+  "npc": [
+    {
+      "description": "A baker.",
+      "greeting": "Hello.",
+      "id": "20n",
+      "locationId": "100n",
+      "name": "Marta",
+      "npcType": "lore",
+      "personalityJson": "{\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "npc_affinity": [
+    {
+      "affinity": "0n",
+      "characterId": "10n",
+      "conversationCount": "0n",
+      "giftsGiven": "0n",
+      "id": "40n",
+      "lastInteraction": "ts:1700000000000000n",
+      "npcId": "20n"
+    }
+  ],
+  "npc_dialog": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "npcId": "20n",
+      "text": "Marta: \\"...\\""
+    }
+  ],
+  "npc_memory": [
+    {
+      "characterId": "10n",
+      "id": "30n",
+      "lastUpdated": "ts:1700000000000000n",
+      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
+      "npcId": "20n"
+    }
+  ]
+}"
+`;
+
 exports[`llm apply npc_conversation success > QUIRK: a negative affinity change that crosses a tier still logs an "improved to" system message 1`] = `
 "{
   "character": [
@@ -4195,7 +4952,15 @@ exports[`llm apply npc_conversation success > QUIRK: a negative affinity change 
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4257,76 +5022,6 @@ exports[`llm apply npc_conversation success > QUIRK: a negative affinity change 
 }"
 `;
 
-exports[`llm apply npc_conversation success > QUIRK: invalid JSON writes the "unintelligible" messages and no memory change 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "100n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "npc",
-      "message": "Marta mutters something unintelligible. (Try again.)",
-      "ownerUserId": "7n"
-    }
-  ],
-  "npc": [
-    {
-      "description": "A baker.",
-      "greeting": "Hello.",
-      "id": "20n",
-      "locationId": "100n",
-      "name": "Marta",
-      "npcType": "lore",
-      "personalityJson": "{\\"affinityMultiplier\\":1}"
-    }
-  ],
-  "npc_affinity": [
-    {
-      "affinity": "0n",
-      "characterId": "10n",
-      "conversationCount": "0n",
-      "giftsGiven": "0n",
-      "id": "40n",
-      "lastInteraction": "ts:1600000000000000n",
-      "npcId": "20n"
-    }
-  ],
-  "npc_dialog": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "npcId": "20n",
-      "text": "Marta mutters something unintelligible."
-    }
-  ],
-  "npc_memory": [
-    {
-      "characterId": "10n",
-      "id": "30n",
-      "lastUpdated": "ts:1600000000000000n",
-      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
-      "npcId": "20n"
-    }
-  ]
-}"
-`;
-
 exports[`llm apply npc_conversation success > accepts a code-fenced reply 1`] = `
 "{
   "character": [
@@ -4351,7 +5046,15 @@ exports[`llm apply npc_conversation success > accepts a code-fenced reply 1`] = 
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "npc": [
@@ -4421,7 +5124,15 @@ exports[`llm apply npc_conversation success > affinity change -1 lands as -1n (c
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4507,7 +5218,15 @@ exports[`llm apply npc_conversation success > affinity change -3 lands as -3n (c
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4593,7 +5312,15 @@ exports[`llm apply npc_conversation success > affinity change -50 lands as -5n (
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4679,7 +5406,15 @@ exports[`llm apply npc_conversation success > affinity change 1 lands as 1n (cla
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4758,7 +5493,15 @@ exports[`llm apply npc_conversation success > affinity change 3 lands as 3n (cla
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4837,7 +5580,15 @@ exports[`llm apply npc_conversation success > affinity change 50 lands as 5n (cl
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -4916,7 +5667,15 @@ exports[`llm apply npc_conversation success > an affinity_change with 0 is skipp
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "npc": [
@@ -4986,7 +5745,15 @@ exports[`llm apply npc_conversation success > an affinity_change with missing am
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "npc": [
@@ -5056,7 +5823,15 @@ exports[`llm apply npc_conversation success > an affinity_change with not a numb
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "npc": [
@@ -5126,7 +5901,15 @@ exports[`llm apply npc_conversation success > creates the affinity row on first 
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -5206,7 +5989,15 @@ exports[`llm apply npc_conversation success > does not duplicate a known memory 
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "npc": [
@@ -5252,76 +6043,6 @@ exports[`llm apply npc_conversation success > does not duplicate a known memory 
 }"
 `;
 
-exports[`llm apply npc_conversation success > falls back to "..." when the reply has no dialogue and ignores a non-array effects field 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "100n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "npc",
-      "message": "Marta says, \\"...\\"",
-      "ownerUserId": "7n"
-    }
-  ],
-  "npc": [
-    {
-      "description": "A baker.",
-      "greeting": "Hello.",
-      "id": "20n",
-      "locationId": "100n",
-      "name": "Marta",
-      "npcType": "lore",
-      "personalityJson": "{\\"affinityMultiplier\\":1}"
-    }
-  ],
-  "npc_affinity": [
-    {
-      "affinity": "0n",
-      "characterId": "10n",
-      "conversationCount": "0n",
-      "giftsGiven": "0n",
-      "id": "40n",
-      "lastInteraction": "ts:1700000000000000n",
-      "npcId": "20n"
-    }
-  ],
-  "npc_dialog": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "npcId": "20n",
-      "text": "Marta: \\"...\\""
-    }
-  ],
-  "npc_memory": [
-    {
-      "characterId": "10n",
-      "id": "30n",
-      "lastUpdated": "ts:1700000000000000n",
-      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
-      "npcId": "20n"
-    }
-  ]
-}"
-`;
-
 exports[`llm apply npc_conversation success > logs the dialogue, runs the narrative effects, updates memory and the cooldown 1`] = `
 "{
   "character": [
@@ -5346,7 +6067,15 @@ exports[`llm apply npc_conversation success > logs the dialogue, runs the narrat
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -5479,7 +6208,15 @@ exports[`llm apply npc_conversation success > skips the memory update and cooldo
       "id": "1n",
       "kind": "npc",
       "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
     }
   ],
   "npc": [
@@ -5532,7 +6269,14 @@ exports[`llm apply renown_perk_gen success > Phase 41: the rank-2 static fallbac
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -5620,7 +6364,39 @@ exports[`llm apply renown_perk_gen success > QUIRK: a missing rank defaults to 2
       "id": "1n",
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your renown has grown. The world takes notice."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[C] -- C description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -5731,7 +6507,39 @@ exports[`llm apply renown_perk_gen success > QUIRK: a zero rank defaults to 2 1`
       "id": "1n",
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your renown has grown. The world takes notice."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[C] -- C description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -5819,7 +6627,14 @@ exports[`llm apply renown_perk_gen success > QUIRK: fewer than three VALID perks
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -5907,7 +6722,14 @@ exports[`llm apply renown_perk_gen success > an empty perks array takes the stat
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -5995,7 +6817,39 @@ exports[`llm apply renown_perk_gen success > inserts three valid perks for the r
       "id": "1n",
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[Second Wind] -- Second Wind description.\\n  Active ability | 10 stamina | 300s cooldown\\n\\n[Thick Skin] -- Thick Skin description.\\n  Passive bonus\\n\\n[Deft Hands] -- Deft Hands description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your renown has grown. The world takes notice."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Second Wind] -- Second Wind description.\\n  Active ability | 10 stamina | 300s cooldown"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Thick Skin] -- Thick Skin description.\\n  Passive bonus\\n\\n[Deft Hands] -- Deft Hands description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -6082,7 +6936,39 @@ exports[`llm apply renown_perk_gen success > only the first three valid perks ar
       "id": "1n",
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 2. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your renown has grown. The world takes notice."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Rank 2. The world owes you something. Choose your due:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[C] -- C description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -6170,7 +7056,14 @@ exports[`llm apply renown_perk_gen success > perks that is not an array takes th
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -6264,7 +7157,14 @@ exports[`llm apply renown_perk_gen success > static fallback for an active-first
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -6351,7 +7251,14 @@ exports[`llm apply renown_perk_gen success > unparseable text takes the static f
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shrugs. \\"The cosmos provided some... standard options for your consideration.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -6439,7 +7346,39 @@ exports[`llm apply renown_perk_gen success > uses the rank from the job context 
       "id": "1n",
       "kind": "narrative",
       "message": "Your renown has grown. The world takes notice.\\n\\nThe Keeper of Knowledge regards you with something resembling mild respect.\\n\\n\\"Rank 5. The world owes you something. Choose your due:\\"\\n\\n[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus\\n\\n[C] -- C description.\\n  Passive bonus\\n\\n\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Your renown has grown. The world takes notice."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling mild respect."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Rank 5. The world owes you something. Choose your due:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[A] -- A description.\\n  Passive bonus\\n\\n[B] -- B description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[C] -- C description.\\n  Passive bonus"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Your reputation preceded you here. Don't let it down.\\""
+        }
+      ]
     }
   ],
   "pending_renown_perk": [
@@ -6526,7 +7465,14 @@ exports[`llm apply skill_gen success > QUIRK: a skill missing name or kind is sk
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\""
+        }
+      ]
     }
   ],
   "pending_skill": []
@@ -6557,7 +7503,14 @@ exports[`llm apply skill_gen success > QUIRK: fewer than three skills writes the
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\""
+        }
+      ]
     }
   ],
   "pending_skill": []
@@ -6588,7 +7541,39 @@ exports[`llm apply skill_gen success > QUIRK: only the first three skills are co
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling interest."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+        }
+      ]
     }
   ],
   "pending_skill": [
@@ -6677,7 +7662,39 @@ exports[`llm apply skill_gen success > accepts the Claude structured-output shap
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling interest."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[A] -- A description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[B] -- B description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[C] -- C description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+        }
+      ]
     }
   ],
   "pending_skill": [
@@ -6760,7 +7777,39 @@ exports[`llm apply skill_gen success > applies the v2.0 validators on the way in
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Overkill] -- Overkill description.\\n  damage | 5 stamina | instant | 6s cooldown | 36 power\\n\\n[Mystery] -- Mystery description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Instant Mana] -- Instant Mana description.\\n  damage | 5 mana | 1s cast | 6s cooldown | 18 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling interest."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Overkill] -- Overkill description.\\n  damage | 5 stamina | instant | 6s cooldown | 36 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Mystery] -- Mystery description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Instant Mana] -- Instant Mana description.\\n  damage | 5 mana | 1s cast | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+        }
+      ]
     }
   ],
   "pending_skill": [
@@ -6843,7 +7892,39 @@ exports[`llm apply skill_gen success > inserts three pending skills and presents
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper of Knowledge regards you with something resembling interest.\\n\\n\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\"\\n\\n[Cinder Cut] -- Cinder Cut description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power\\n\\n[Ash Ward] -- Ash Ward description.\\n  shield | 5 mana | 1s cast | 6s cooldown | 15 power\\n\\n[Ember Pulse] -- Ember Pulse description.\\n  heal | 5 stamina | instant | 6s cooldown | 15 power\\n\\n\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper of Knowledge regards you with something resembling interest."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Level 3. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\\""
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Cinder Cut] -- Cinder Cut description.\\n  damage | 5 stamina | instant | 6s cooldown | 18 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Ash Ward] -- Ash Ward description.\\n  shield | 5 mana | 1s cast | 6s cooldown | 15 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "[Ember Pulse] -- Ember Pulse description.\\n  heal | 5 stamina | instant | 6s cooldown | 15 power"
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "\\"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return.\\""
+        }
+      ]
     }
   ],
   "pending_skill": [
@@ -6980,7 +8061,14 @@ exports[`llm apply skill_gen success > unparseable text writes the grimace messa
       "id": "1n",
       "kind": "narrative",
       "message": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\"",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.\\""
+        }
+      ]
     }
   ],
   "pending_skill": []
@@ -9884,7 +10972,14 @@ exports[`llm apply world_gen_start failure path > a PENDING state is failed too 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10054,7 +11149,14 @@ exports[`llm apply world_gen_start failure path > routes the message to the crea
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10082,7 +11184,14 @@ exports[`llm apply world_gen_start failure path > routes to the creation events 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper falters. \\"The world refuses to be remembered right now.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10402,7 +11511,29 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "id": "1n",
       "kind": "narrative",
       "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You open your eyes in Ember Hollow, Cinderfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Ash drifts down like a slow, grey snowfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You notice Vessa nearby. Perhaps she has something to say."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -10527,7 +11658,14 @@ exports[`llm apply world_gen_start success (stage 1) > a missing regionName ends
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10570,7 +11708,24 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
       "id": "1n",
       "kind": "narrative",
       "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You open your eyes in Ember Hollow, Cinderfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Ash drifts down like a slow, grey snowfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -10667,7 +11822,14 @@ exports[`llm apply world_gen_start success (stage 1) > a startLocation without a
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10710,7 +11872,29 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "id": "1n",
       "kind": "narrative",
       "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You open your eyes in Ember Hollow, Cinderfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Ash drifts down like a slow, grey snowfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You notice Vessa nearby. Perhaps she has something to say."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+        }
+      ]
     },
     {
       "characterId": "10n",
@@ -10818,7 +12002,14 @@ exports[`llm apply world_gen_start success (stage 1) > an empty regionName ends 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10860,7 +12051,14 @@ exports[`llm apply world_gen_start success (stage 1) > invalid JSON fails the ge
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper grimaces. \\"The world tried to form but... it came out wrong.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -10945,7 +12143,14 @@ exports[`llm apply world_gen_start success (stage 1) > no startLocation ends in 
       "id": "1n",
       "kind": "creation_error",
       "message": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper shakes his head. \\"The world beyond is... incomplete.\\" Type [explore] to try again."
+        }
+      ]
     }
   ],
   "world_gen_state": [
@@ -11119,7 +12324,29 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "id": "1n",
       "kind": "narrative",
       "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.",
-      "ownerUserId": "7n"
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You open your eyes in Ember Hollow, Cinderfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Ash drifts down like a slow, grey snowfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You notice Vessa nearby. Perhaps she has something to say."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Try [look] to examine your surroundings. The Keeper is still remembering the roads out."
+        }
+      ]
     },
     {
       "characterId": "10n",
