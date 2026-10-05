@@ -73,6 +73,25 @@ import {
 import { QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
+import { segmentsFromReply, keeperSegments, keeperFallback, flattenSegments } from './segments';
+import type { Segment, PresentSpeaker } from './segments';
+
+/**
+ * Phase 46: every narrative row stores its segments next to a message derived from them
+ * (message = flattenSegments(segments)). Local on purpose, NOT exported and NOT added to events.ts:
+ * eight suites mock ./events with a fixed export list.
+ */
+function writePrivateSegments(ctx: any, characterId: bigint, ownerUserId: bigint, kind: string, segs: Segment[]) {
+  appendPrivateEvent(ctx, characterId, ownerUserId, kind, flattenSegments(segs), segs);
+}
+function writeCreationSegments(ctx: any, playerId: any, kind: string, segs: Segment[]) {
+  appendCreationEvent(ctx, playerId, kind, flattenSegments(segs), segs);
+}
+
+/** A caught error reduced to its name: the message of a JSON.parse error can quote the model's reply. */
+function errName(err: unknown): string {
+  return err instanceof Error ? err.name : typeof err;
+}
 
 /**
  * The fields of a stored llm_job the apply step needs. errorCode is set on a failed job only; the
@@ -120,7 +139,7 @@ export function failWorldGen(tx: any, genState: any, message: string) {
   if (char && char.locationId !== 0n) {
     appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', line);
   } else {
-    appendCreationEvent(tx, genState.playerId, 'creation_error', line);
+    writeCreationSegments(tx, genState.playerId, 'creation_error', keeperFallback(line));
   }
 }
 
@@ -172,8 +191,8 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
   if (job.domain === 'creation_race' || job.domain === 'creation_class_reveal') {
     const s = creationStateForJob(ctx, job);
     if (!s) return; // the state has moved on: nothing to revert, nothing to say
-    appendCreationEvent(ctx, s.playerId, 'creation_error',
-      resting ? LLM_RESTING_LINE : 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."');
+    writeCreationSegments(ctx, s.playerId, 'creation_error', keeperFallback(
+      resting ? LLM_RESTING_LINE : 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."'));
     const back = job.domain === 'creation_race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
     ctx.db.character_creation_state.id.update({ ...s, step: back, updatedAt: ctx.timestamp });
   } else if (job.domain === 'creation_class') {
@@ -202,10 +221,10 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const charId = BigInt(context.characterId);
     const character = ctx.db.character.id.find(charId);
     if (character) {
-      appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
+      writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperFallback(
         resting
           ? `${LLM_RESTING_LINE} Type [skills] when you want him to try again.`
-          : 'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."');
+          : 'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."'));
     }
   } else if (job.domain === 'npc_conversation') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -218,8 +237,8 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
       if (character) appendPrivateEvent(ctx, charId, character.ownerUserId, 'system', LLM_RESTING_LINE);
     } else if (character && npc) {
       appendNpcDialog(ctx, charId, npc.id, `${npc.name} seems distracted.`);
-      appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
-        `${npc.name} seems distracted. Try again.`);
+      writePrivateSegments(ctx, charId, character.ownerUserId, 'npc',
+        keeperFallback(`${npc.name} seems distracted. Try again.`));
     }
   } else if (job.domain === 'combat_narration') {
     // Silent failure -- combat continues without narration
@@ -238,8 +257,8 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const character = ctx.db.character.id.find(charId);
     if (!character) return;
     if (insertStaticRenownPerkOptions(ctx, charId, rank) > 0) {
-      appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-        'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."');
+      writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative',
+        keeperFallback('The Keeper shrugs. "The cosmos provided some... standard options for your consideration."'));
     }
   }
 }
@@ -272,12 +291,12 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
     const bonusText =
       `\n+${primary.value} ${primary.stat.toUpperCase()}, +${secondary.value} ${secondary.stat.toUpperCase()}${flavor ? `. ${flavor}` : ''}`;
 
-    appendCreationEvent(ctx, job.playerId, 'creation',
+    writeCreationSegments(ctx, job.playerId, 'creation', keeperSegments(
       `${race.narrative || 'An interesting choice.'}\n\n` +
       `**${race.raceName}**${bonusText}\n\n` +
       `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
       `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
-    );
+    ));
 
     // Persist race definition for reuse by future players. A reply that named no race
     // (validated to the placeholder 'Unknown') is not saved for reuse.
@@ -301,8 +320,8 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
       }
     }
   } catch (parseErr) {
-    console.error(`Creation LLM JSON parse error [race]: ${parseErr}`);
-    appendCreationEvent(ctx, job.playerId, 'creation_error', CREATION_MALFORMED_LINE);
+    console.error(`Creation LLM reply could not be parsed [creation_race]: ${errName(parseErr)}`);
+    writeCreationSegments(ctx, job.playerId, 'creation_error', keeperFallback(CREATION_MALFORMED_LINE));
     ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_RACE', updatedAt: ctx.timestamp });
   }
 }
@@ -324,7 +343,7 @@ function abilityMechanicsLine(a: any): string {
 export function failClassFill(ctx: any, state: any, message: string): void {
   const current = ctx.db.character_creation_state.id.find(state.id) ?? state;
   ctx.db.character_creation_state.id.update({ ...current, step: 'CLASS_FILL_ERROR', updatedAt: ctx.timestamp });
-  appendCreationEvent(ctx, state.playerId, 'creation_error', message);
+  writeCreationSegments(ctx, state.playerId, 'creation_error', keeperFallback(message));
 }
 
 /**
@@ -353,8 +372,8 @@ export function applyClassRevealResult(ctx: any, job: ApplyJob, resultText: stri
       s.archetype ?? 'warrior',
     );
   } catch (parseErr) {
-    console.error(`Creation LLM JSON parse error [class reveal]: ${parseErr}`);
-    appendCreationEvent(ctx, job.playerId, 'creation_error', CREATION_MALFORMED_LINE);
+    console.error(`Creation LLM reply could not be parsed [creation_class_reveal]: ${errName(parseErr)}`);
+    writeCreationSegments(ctx, job.playerId, 'creation_error', keeperFallback(CREATION_MALFORMED_LINE));
     ctx.db.character_creation_state.id.update({ ...s, step: 'AWAITING_ARCHETYPE', updatedAt: ctx.timestamp });
     return;
   }
@@ -370,12 +389,12 @@ export function applyClassRevealResult(ctx: any, job: ApplyJob, resultText: stri
   ctx.db.character_creation_state.id.update(revealed);
 
   const a = cls.abilities[0];
-  appendCreationEvent(ctx, job.playerId, 'creation',
+  writeCreationSegments(ctx, job.playerId, 'creation', keeperSegments(
     `${cls.classDescription || 'A unique class emerges.'}\n\n` +
     `**${cls.className}**\n\n` +
     `Your first ability:\n\n${a.name} — ${a.description}\n${abilityMechanicsLine(a)}\n\n` +
     CLASS_REVEAL_MILESTONE_LINE
-  );
+  ));
 
   // Stage 2, in this same transaction: CLASS_FILLING with one pending job, or CLASS_FILL_ERROR when refused
   startClassFill(ctx, revealed);
@@ -414,7 +433,7 @@ export function applyClassFillResult(ctx: any, job: ApplyJob, resultText: string
     );
     if (cls.abilities.length < 2) throw new Error('class fill added no usable ability');
   } catch (parseErr) {
-    console.error(`Creation LLM JSON parse error [class fill]: ${parseErr}`);
+    console.error(`Creation LLM reply could not be parsed [creation_class]: ${errName(parseErr)}`);
     failClassFill(ctx, s, CLASS_FILL_FAILED_LINE);
     return;
   }
@@ -442,13 +461,13 @@ export function applyClassFillResult(ctx: any, job: ApplyJob, resultText: string
     abilityText += `\n[${a.name}] — ${a.description}\n${abilityMechanicsLine(a)}\n`;
   }
 
-  appendCreationEvent(ctx, job.playerId, 'creation',
+  writeCreationSegments(ctx, job.playerId, 'creation', keeperSegments(
     `${cls.classDescription || 'A unique class emerges.'}\n\n` +
     `**${cls.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
     abilityText +
     `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
     `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
-  );
+  ));
 }
 
 /**
@@ -470,7 +489,7 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
   try {
     data = extractJson(resultText);
   } catch (parseErr) {
-    console.error(`World gen JSON parse error: ${parseErr}`);
+    console.error(`World gen reply could not be parsed [world_gen_start]: ${errName(parseErr)}`);
     failWorldGen(ctx, currentGenState,
       'The Keeper grimaces. "The world tried to form but... it came out wrong."');
     return;
@@ -528,7 +547,7 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
       arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
     }
     arrivalMsg += `\n\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.`;
-    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', arrivalMsg);
+    writePrivateSegments(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', keeperSegments(arrivalMsg));
   }
 
   // Read source region name for ripple message
@@ -564,7 +583,7 @@ export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string
   try {
     data = extractJson(resultText);
   } catch (parseErr) {
-    console.error(`World fill JSON parse error: ${parseErr}`);
+    console.error(`World fill reply could not be parsed [world_gen]: ${errName(parseErr)}`);
     failWorldFill(ctx, currentGenState, WORLD_FILL_FAILED_MESSAGE);
     return;
   }
@@ -617,9 +636,11 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
   const { skills, errors } = parseSkillGenResult(resultText, charId, offerLevel);
 
   if (skills.length < 3) {
-    console.error(`Skill gen produced ${skills.length} valid skills: ${errors.join('; ')}`);
-    appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-      'The Keeper grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."');
+    // A JSON.parse message can quote the reply: log a fixed reason for that entry.
+    const safeErrors = errors.map((e) => (e.startsWith('JSON parse error') ? 'reply could not be parsed' : e));
+    console.error(`Skill gen produced ${skills.length} valid skills: ${safeErrors.join('; ')}`);
+    writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperFallback(
+      'The Keeper grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."'));
     return;
   }
 
@@ -637,7 +658,7 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
 
   presentation += `\n"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."`;
 
-  appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative', presentation);
+  writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperSegments(presentation));
 }
 
 /** npc_conversation success. */
@@ -651,27 +672,42 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
   const npc = ctx.db.npc.id.find(npcIdVal);
   if (!npc) return;
 
-  // Parse LLM response JSON
-  let data: any;
-  try {
-    data = extractJson(resultText);
-  } catch (parseErr) {
-    console.error(`NPC conversation JSON parse error: ${parseErr}`);
+  // Who may speak in a dialogue segment: the conversation NPC first, then the NPCs at the
+  // character's location. Names come from the database, never from the model.
+  const present: PresentSpeaker[] = [{ name: npc.name, id: npc.id }];
+  if (typeof character.locationId === 'bigint' && character.locationId !== 0n) {
+    for (const other of ctx.db.npc.by_location.filter(character.locationId)) {
+      if (other.id !== npc.id) present.push({ name: other.name, id: other.id });
+    }
+  }
+  const result = segmentsFromReply(resultText, {
+    present,
+    playerNames: [character.name],
+    legacyDialogueSpeaker: { name: npc.name, id: npc.id },
+    fallbackLine: `${npc.name} mutters something unintelligible.`,
+  });
+
+  if (result.parsed === undefined) {
+    // Fixed reason only: the reply (and a parse error quoting it) never reaches the log.
+    console.error('NPC conversation [npc_conversation]: reply was not a JSON object');
     appendNpcDialog(ctx, charId, npc.id, `${npc.name} mutters something unintelligible.`);
-    appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
-      `${npc.name} mutters something unintelligible. (Try again.)`);
+    writePrivateSegments(ctx, charId, character.ownerUserId, 'npc',
+      keeperFallback(`${npc.name} mutters something unintelligible. (Try again.)`));
     return;
   }
 
-  const dialogue = data.dialogue || '...';
+  const data: any = result.parsed;
   const effects = Array.isArray(data.effects) ? data.effects : [];
   const memoryUpdate = data.memoryUpdate || {};
   const internalThought = data.internalThought || '';
 
-  // Log NPC dialogue
-  appendNpcDialog(ctx, charId, npc.id, `${npc.name}: "${dialogue}"`);
-  appendPrivateEvent(ctx, charId, character.ownerUserId, 'npc',
-    `${npc.name} says, "${dialogue}"`);
+  // Log NPC dialogue: the conversation NPC's own spoken text only
+  const spoken = result.segments
+    .filter((seg) => seg.kind === 'dialogue' && seg.speakerNpcId === npc.id)
+    .map((seg) => seg.text)
+    .join(' ');
+  appendNpcDialog(ctx, charId, npc.id, `${npc.name}: "${spoken || '...'}"`);
+  writePrivateSegments(ctx, charId, character.ownerUserId, 'npc', result.segments);
 
   // Process effects
   for (const effect of effects) {
@@ -965,8 +1001,8 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
   if (perks.length < 3) {
     // Fall back to the static RENOWN_PERK_POOLS options for this rank (bigint-safe serializer).
     if (insertStaticRenownPerkOptions(ctx, charId, rank) > 0) {
-      appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative',
-        'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."');
+      writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative',
+        keeperFallback('The Keeper shrugs. "The cosmos provided some... standard options for your consideration."'));
     }
     return;
   }
@@ -1015,7 +1051,7 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
   }
   presentation += `\n"Choose wisely. Your reputation preceded you here. Don't let it down."`;
 
-  appendPrivateEvent(ctx, charId, character.ownerUserId, 'narrative', presentation);
+  writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperSegments(presentation));
 }
 
 /** Success dispatcher. An unknown domain (for example smoke_test) does nothing. */

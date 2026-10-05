@@ -1411,3 +1411,393 @@ describe('Phase 43 (plan 13): staged class apply', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 46 (plan 02): segments on every narrative write path
+// ---------------------------------------------------------------------------
+
+describe('Phase 46: NPC replies as segments', () => {
+  const KEEPER = 'The Keeper';
+  const npcRow = (id: bigint, name: string, locationId = 100n) => ({
+    id, name, npcType: 'lore', locationId, description: 'x', greeting: 'Hi.', personalityJson: '{}',
+  });
+  const seed = (extraNpcs: any[] = []) => ({
+    character: [characterRow()],
+    npc: [npcRow(20n, 'Marta'), ...extraNpcs],
+    npc_memory: [{ id: 30n, characterId: 10n, npcId: 20n, memoryJson: '{"topics":[],"questsCompleted":[],"secretsShared":[],"giftsGiven":[],"lastConversationSummary":""}', lastUpdated: ts(1_600_000_000_000_000n) }],
+    npc_affinity: [
+      { id: 40n, characterId: 10n, npcId: 20n, affinity: 0n, lastInteraction: ts(1_600_000_000_000_000n), giftsGiven: 0n, conversationCount: 0n },
+    ],
+  });
+  const npcJob = job('npc_conversation', JSON.stringify({ characterId: '10', npcId: '20', memoryId: '30' }));
+  const segReply = (segments: any[], extra: Record<string, any> = {}) => JSON.stringify({ segments, ...extra });
+  const npcRows = (ctx: any) => rows(ctx, 'event_private').filter((r: any) => r.kind === 'npc');
+  const noCanary = (canary: string) => {
+    expect(errorSpy).toHaveBeenCalled();
+    for (const call of errorSpy.mock.calls) {
+      expect(call.map((a: unknown) => String(a)).join(' ')).not.toContain(canary);
+    }
+  };
+
+  it('stores one npc row with Keeper narration and NPC dialogue, the speaker taken from the database', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, segReply([
+      { kind: 'narration', speaker: 'The Keeper', text: 'Flour hangs in the air.' },
+      { kind: 'dialogue', speaker: '  MARTA ', text: '"The bread is warm."' },
+    ], { effects: [{ type: 'affinity_change', amount: 2 }] }));
+    const stored = npcRows(ctx);
+    // the reply row comes first, the effect cue after it
+    expect(stored[0].segments).toEqual([
+      { kind: 'narration', speaker: KEEPER, text: 'Flour hangs in the air.' },
+      { kind: 'dialogue', speaker: 'Marta', text: 'The bread is warm.', speakerNpcId: 20n },
+    ]);
+    expect(stored[0].message).toBe('Flour hangs in the air.\n\nMarta says, "The bread is warm."');
+    expect(stored).toHaveLength(2);
+    expect(stored[1].segments).toBeUndefined();
+    expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "The bread is warm."');
+  });
+
+  it('accepts dialogue from a second NPC at the character location, with that NPC name and id', () => {
+    const ctx = moduleCtx(seed([npcRow(21n, 'Old Brann')]));
+    applyNpcConversationResult(ctx, npcJob, segReply([
+      { kind: 'dialogue', speaker: 'Marta', text: 'Mind the tide.' },
+      { kind: 'dialogue', speaker: 'old brann', text: 'Aye.' },
+    ]));
+    expect(npcRows(ctx)[0].segments).toEqual([
+      { kind: 'dialogue', speaker: 'Marta', text: 'Mind the tide.', speakerNpcId: 20n },
+      { kind: 'dialogue', speaker: 'Old Brann', text: 'Aye.', speakerNpcId: 21n },
+    ]);
+    // npc_dialog keeps only the conversation NPC's own words
+    expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "Mind the tide."');
+  });
+
+  it('does not accept dialogue from an NPC at another location', () => {
+    const ctx = moduleCtx(seed([npcRow(22n, 'Far Away', 999n)]));
+    applyNpcConversationResult(ctx, npcJob, segReply([{ kind: 'dialogue', speaker: 'Far Away', text: 'Hello from afar.' }]));
+    expect(npcRows(ctx)[0].segments).toEqual([
+      { kind: 'narration', speaker: KEEPER, text: '"Hello from afar."' },
+    ]);
+  });
+
+  it('turns dialogue by an absent or Keeper speaker into Keeper narration (the absent one in quotes)', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, segReply([
+      { kind: 'dialogue', speaker: 'The Mayor', text: 'Make way.' },
+      { kind: 'dialogue', speaker: 'The Keeper', text: 'So it goes.' },
+    ]));
+    const [row] = npcRows(ctx);
+    expect(row.segments.every((s: any) => s.kind === 'narration' && s.speaker === KEEPER && s.speakerNpcId === undefined)).toBe(true);
+    expect(row.segments.map((s: any) => s.text)).toEqual(['"Make way."', 'So it goes.']);
+    expect(row.segments.some((s: any) => s.speaker === 'The Mayor')).toBe(false);
+  });
+
+  it.each(['Tester', 'You', 'you', 'the player'])('drops dialogue attributed to the player (%s)', (who) => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, segReply([
+      { kind: 'dialogue', speaker: who, text: 'I never said this out loud.' },
+      { kind: 'dialogue', speaker: 'Marta', text: 'Welcome.' },
+    ]));
+    const [row] = npcRows(ctx);
+    expect(row.segments).toEqual([{ kind: 'dialogue', speaker: 'Marta', text: 'Welcome.', speakerNpcId: 20n }]);
+    expect(row.message).not.toContain('I never said this out loud');
+    expect(JSON.stringify(row, (_k, v) => (typeof v === 'bigint' ? String(v) : v))).not.toContain('never said');
+  });
+
+  it('a legacy top-level dialogue string stores one dialogue segment, the message is the same as before Phase 46', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, JSON.stringify({ dialogue: 'Mind the current, traveller.', effects: [], memoryUpdate: {} }));
+    const [row] = npcRows(ctx);
+    expect(row.segments).toEqual([{ kind: 'dialogue', speaker: 'Marta', text: 'Mind the current, traveller.', speakerNpcId: 20n }]);
+    expect(row.message).toBe('Marta says, "Mind the current, traveller."');
+    expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "Mind the current, traveller."');
+  });
+
+  it('a reply that is not a JSON object stores one Keeper narration segment and writes no memory, affinity or cooldown', () => {
+    for (const reply of ['Marta hums a tune', '[1,2,3]', '"just a string"', 'null', '']) {
+      const ctx = moduleCtx(seed());
+      applyNpcConversationResult(ctx, npcJob, reply);
+      const stored = npcRows(ctx);
+      expect(stored).toHaveLength(1);
+      expect(stored[0].segments).toEqual([
+        { kind: 'narration', speaker: KEEPER, text: 'Marta mutters something unintelligible. (Try again.)' },
+      ]);
+      expect(stored[0].message).toBe('Marta mutters something unintelligible. (Try again.)');
+      expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta mutters something unintelligible.');
+      expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(1_600_000_000_000_000n));
+      expect(rows(ctx, 'npc_affinity')[0].lastInteraction).toEqual(ts(1_600_000_000_000_000n));
+    }
+  });
+
+  it('valid JSON with neither segments nor dialogue stores the mutter narration, writes "..." to the dialog log and still applies effects', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, JSON.stringify({
+      effects: [{ type: 'affinity_change', amount: 2 }],
+      memoryUpdate: { addTopics: ['bread'] },
+      internalThought: 'curious',
+    }));
+    const [row] = npcRows(ctx);
+    expect(row.segments).toEqual([{ kind: 'narration', speaker: KEEPER, text: 'Marta mutters something unintelligible.' }]);
+    expect(row.message).toBe('Marta mutters something unintelligible.');
+    expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "..."');
+    expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(2n);
+    expect(rows(ctx, 'npc_memory')[0].lastUpdated).toEqual(ts(T0));
+  });
+
+  it('npc_dialog joins the conversation NPC dialogue texts with one space', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, segReply([
+      { kind: 'dialogue', speaker: 'Marta', text: 'First.' },
+      { kind: 'narration', speaker: 'The Keeper', text: 'She wipes her hands.' },
+      { kind: 'dialogue', speaker: 'Marta', text: 'Second.' },
+    ]));
+    expect(rows(ctx, 'npc_dialog')[0].text).toBe('Marta: "First. Second."');
+  });
+
+  it('effect cue rows and the quest row keep their text and carry no segments', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, segReply(
+      [{ kind: 'dialogue', speaker: 'Marta', text: 'Take this.' }],
+      {
+        effects: [
+          { type: 'affinity_change', amount: 4 },
+          { type: 'reveal_location', locationName: 'Gull Rock', locationDescription: 'A bare rock.' },
+          { type: 'give_item' },
+          { type: 'offer_quest', questName: 'Q', questType: 'gather' },
+        ],
+      },
+    ));
+    const privates = rows(ctx, 'event_private');
+    expect(privates[0].segments).toHaveLength(1);
+    expect(privates.slice(1).map((r: any) => [r.kind, r.message, r.segments])).toEqual([
+      ['npc', 'Marta seems genuinely pleased by your words.', undefined],
+      ['npc', 'Marta reveals: "Gull Rock -- A bare rock."', undefined],
+      ['npc', 'Marta offers you something... (Item generation deferred.)', undefined],
+      ['quest', 'New quest: Q', undefined],
+    ]);
+  });
+
+  it('never logs reply text: a non-JSON reply holding a canary reaches no console.error argument', () => {
+    const ctx = moduleCtx(seed());
+    applyNpcConversationResult(ctx, npcJob, 'CANARY-7f3a {not json CANARY-7f3a');
+    noCanary('CANARY-7f3a');
+  });
+
+  it('a hostile reply (many segments, unknown kinds, control characters, huge speaker) is stored bounded and never throws', () => {
+    const ctx = moduleCtx(seed());
+    const segments = Array.from({ length: 30 }, (_v, i) => ({
+      kind: i % 2 ? 'dialogue' : 'shout',
+      speaker: i % 3 ? 'Marta' : 'x'.repeat(5000),
+      text: 'a‮\u0000b'.repeat(400),
+    }));
+    expect(() => applyNpcConversationResult(ctx, npcJob, segReply(segments))).not.toThrow();
+    const [row] = npcRows(ctx);
+    expect(row.segments.length).toBeLessThanOrEqual(6);
+    for (const s of row.segments) {
+      expect(Array.from(s.text).length).toBeLessThanOrEqual(600);
+      expect(s.speaker === KEEPER || s.speaker === 'Marta').toBe(true);
+      expect(s.text).not.toMatch(/[\u0000‮]/);
+    }
+  });
+});
+
+describe('Phase 46: Keeper narration segments on server-composed rows', () => {
+  const KEEPER = 'The Keeper';
+  const flat = (segs: any[]) => segs.map((s) => (s.kind === 'dialogue' ? `${s.speaker} says, "${s.text}"` : s.text)).join('\n\n');
+  const expectKeeperOnly = (row: any, max = 6) => {
+    expect(Array.isArray(row.segments)).toBe(true);
+    expect(row.segments.length).toBeGreaterThan(0);
+    expect(row.segments.length).toBeLessThanOrEqual(max);
+    for (const s of row.segments) expect(s).toMatchObject({ kind: 'narration', speaker: KEEPER });
+    expect(row.message).toBe(flat(row.segments));
+  };
+  const expectOneFallback = (row: any) => {
+    expect(row.segments).toEqual([{ kind: 'narration', speaker: KEEPER, text: row.message }]);
+  };
+  const stateJob = (domain: string) => job(domain, JSON.stringify({ creationStateId: '2' }));
+  const noCanary = (canary: string) => {
+    expect(errorSpy).toHaveBeenCalled();
+    for (const call of errorSpy.mock.calls) {
+      expect(call.map((a: unknown) => String(a)).join(' ')).not.toContain(canary);
+    }
+  };
+
+  it('creation_race success: Keeper narration only, message derived from the segments', () => {
+    const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
+    applyCreationResult(ctx, stateJob('creation_race'), JSON.stringify({
+      raceName: 'Ashkin', narrative: 'Cinders.', bonuses: { primary: { stat: 'str', value: 2 } },
+    }));
+    const [row] = rows(ctx, 'event_creation');
+    expect(row.kind).toBe('creation');
+    expectKeeperOnly(row);
+    expect(row.message.startsWith('Cinders.\n\n**Ashkin**\n+2 STR')).toBe(true);
+    expect(row.message).toContain('Are you a [Warrior]');
+    expect(row.message.endsWith('The Keeper does not judge... much.)')).toBe(true);
+  });
+
+  it('renown success with three perks: seven paragraphs pack into six Keeper narration segments, message text unchanged', () => {
+    const perk = (name: string) => ({ name, description: `${name} description.`, kind: '', perkEffectJson: '{"maxHp":10}', perkDomain: 'combat' });
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyRenownPerkResult(ctx, job('renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' })),
+      JSON.stringify({ perks: [perk('A'), perk('B'), perk('C')] }));
+    const [row] = rows(ctx, 'event_private');
+    expect(row.kind).toBe('narrative');
+    expect(row.segments).toHaveLength(6);
+    expectKeeperOnly(row);
+    // the text composed before Phase 46 (modulo whitespace: the six-segment pack merges one adjacent paragraph pair)
+    expect(row.message.replace(/\s+/g, ' ')).toBe(
+      'Your renown has grown. The world takes notice. ' +
+        'The Keeper of Knowledge regards you with something resembling mild respect. ' +
+        '"Rank 2. The world owes you something. Choose your due:" ' +
+        '[A] -- A description. Passive bonus [B] -- B description. Passive bonus [C] -- C description. Passive bonus ' +
+        '"Choose wisely. Your reputation preceded you here. Don\'t let it down."',
+    );
+  });
+
+  it('creation_race reply that is not JSON: one creation_error row with exactly one Keeper segment, the malformed line', () => {
+    const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
+    applyCreationResult(ctx, stateJob('creation_race'), 'not json at all');
+    const [row] = rows(ctx, 'event_creation');
+    expect(row.kind).toBe('creation_error');
+    expect(row.message).toBe('The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."');
+    expectOneFallback(row);
+  });
+
+  it('skill_gen with fewer than three valid skills: one narrative row with one Keeper segment equal to the line', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applySkillGenResult(ctx, job('skill_gen', JSON.stringify({ characterId: '10' })), '{"skills": []}');
+    const [row] = rows(ctx, 'event_private');
+    expect(row.kind).toBe('narrative');
+    expect(row.message).toContain('The cosmic machinery sputtered.');
+    expectOneFallback(row);
+  });
+
+  it('skill_gen success: Keeper narration segments whose message is the composed presentation', () => {
+    const skill = (name: string) => ({
+      name, description: `${name} description.`, kind: 'damage', targetRule: 'single_enemy', resourceType: 'stamina',
+      resourceCost: 5, castSeconds: 0, cooldownSeconds: 6, scaling: 'str', value1: 10, value2: null,
+      damageType: 'physical', effectType: null, effectMagnitude: null, effectDuration: null,
+    });
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applySkillGenResult(ctx, job('skill_gen', JSON.stringify({ characterId: '10' })),
+      JSON.stringify({ skills: [skill('One'), skill('Two'), skill('Three')] }));
+    const [row] = rows(ctx, 'event_private');
+    expectKeeperOnly(row);
+    expect(row.message.startsWith('The Keeper of Knowledge regards you with something resembling interest.')).toBe(true);
+    expect(row.message.endsWith('never to return."')).toBe(true);
+  });
+
+  describe('applyLlmFailure', () => {
+    const fail = (ctx: any, domain: string, context: string, errorCode?: string) =>
+      applyLlmFailure(ctx, { ...job(domain, context), errorCode });
+    const CHAR = JSON.stringify({ characterId: '10', npcId: '20', memoryId: '30' });
+    const marta = { id: 20n, name: 'Marta', npcType: 'lore', locationId: 100n };
+
+    it.each([undefined, 'halted'])('creation_race (%s): one Keeper segment equal to the line', (code) => {
+      const ctx = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
+      fail(ctx, 'creation_race', JSON.stringify({ creationStateId: '2' }), code);
+      const [row] = rows(ctx, 'event_creation');
+      expect(row.kind).toBe('creation_error');
+      expectOneFallback(row);
+    });
+
+    it.each([undefined, 'ceiling'])('skill_gen (%s): one Keeper segment equal to the line', (code) => {
+      const ctx = moduleCtx({ character: [characterRow()] });
+      fail(ctx, 'skill_gen', CHAR, code);
+      expectOneFallback(rows(ctx, 'event_private')[0]);
+    });
+
+    it('npc_conversation (not resting): the distracted line is one Keeper segment', () => {
+      const ctx = moduleCtx({ character: [characterRow()], npc: [marta] });
+      fail(ctx, 'npc_conversation', CHAR);
+      const [row] = rows(ctx, 'event_private');
+      expect(row.message).toBe('Marta seems distracted. Try again.');
+      expectOneFallback(row);
+    });
+
+    it('npc_conversation (resting): the system line carries no segments', () => {
+      const ctx = moduleCtx({ character: [characterRow()], npc: [marta] });
+      fail(ctx, 'npc_conversation', CHAR, 'halted');
+      const [row] = rows(ctx, 'event_private');
+      expect(row.kind).toBe('system');
+      expect(row.segments).toBeUndefined();
+    });
+
+    it('renown_perk_gen: the standard-options line is one Keeper segment', () => {
+      const ctx = moduleCtx({ character: [characterRow()] });
+      fail(ctx, 'renown_perk_gen', JSON.stringify({ characterId: '10', rank: '2' }));
+      const [row] = rows(ctx, 'event_private');
+      expect(row.message).toContain('standard options');
+      expectOneFallback(row);
+    });
+
+    it('world_gen_start failure for a placed character: the system line carries no segments', () => {
+      const gen = { id: 5n, playerId: alice, characterId: 10n, sourceLocationId: 0n, sourceRegionId: 0n, step: 'GENERATING', createdAt: ts(T0), updatedAt: ts(T0) };
+      const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [gen] });
+      fail(ctx, 'world_gen_start', JSON.stringify({ genStateId: '5' }));
+      const [row] = rows(ctx, 'event_private');
+      expect(row.kind).toBe('system');
+      expect(row.segments).toBeUndefined();
+    });
+  });
+
+  describe('world_gen_start', () => {
+    const START = {
+      regionName: 'Cinderfall', regionDescription: 'Ash drifts down.', biome: 'volcanic',
+      startLocation: { name: 'Ember Hollow', description: 'A town.', terrainType: 'town', levelOffset: 0 },
+      firstNpc: { name: 'Vessa', gender: 'female', npcType: 'vendor', description: 'A trader.', greeting: 'Buy.', personality: { traits: ['quiet'], speechPattern: 'slow', knowledgeDomains: ['x'], secrets: [], affinityMultiplier: 1 } },
+    };
+    const gen = () => ({ id: 5n, playerId: alice, characterId: 10n, sourceLocationId: 0n, sourceRegionId: 0n, step: 'GENERATING', createdAt: ts(T0), updatedAt: ts(T0) });
+    const startJob = job('world_gen_start', JSON.stringify({ genStateId: '5' }));
+    const unplaced = () => ({ ...characterRow(), locationId: 0n, boundLocationId: 0n });
+    const newCtx = () => moduleCtx({ player: [{ id: alice, userId: 7n }], character: [unplaced()], world_gen_state: [gen()] });
+
+    it('the arrival row carries Keeper narration segments; discovery and milestone lines carry none', () => {
+      const ctx = newCtx();
+      applyLlmResult(ctx, startJob, JSON.stringify(START));
+      const privates = rows(ctx, 'event_private');
+      const arrival = privates.find((r: any) => r.kind === 'narrative');
+      expectKeeperOnly(arrival);
+      expect(arrival.message.startsWith('You open your eyes in Ember Hollow, Cinderfall.')).toBe(true);
+      const systems = privates.filter((r: any) => r.kind === 'system');
+      expect(systems.length).toBeGreaterThanOrEqual(2);
+      for (const r of systems) expect(r.segments).toBeUndefined();
+    });
+
+    it('a malformed reply writes a creation_error row with one Keeper segment', () => {
+      const ctx = newCtx();
+      applyLlmResult(ctx, startJob, 'garbled');
+      const [row] = rows(ctx, 'event_creation');
+      expect(row.kind).toBe('creation_error');
+      expectOneFallback(row);
+    });
+
+    it('a malformed reply logs no reply text', () => {
+      const ctx = newCtx();
+      applyLlmResult(ctx, startJob, 'CANARY-91bc {broken CANARY-91bc');
+      noCanary('CANARY-91bc');
+    });
+  });
+
+  it('a creation reply that is not JSON and holds a canary: no console.error argument contains it', () => {
+    for (const domain of ['creation_race', 'creation_class_reveal', 'creation_class'] as const) {
+      const step = { creation_race: 'GENERATING_RACE', creation_class_reveal: 'GENERATING_CLASS', creation_class: 'CLASS_FILLING' }[domain];
+      const ctx = moduleCtx({ character_creation_state: [{ ...creationState(step), abilities: '[{"name":"x"}]', archetype: 'warrior' }] });
+      applyLlmResult(ctx, stateJob(domain), 'CANARY-5d2e {nope CANARY-5d2e');
+    }
+    noCanary('CANARY-5d2e');
+  });
+
+  it('a skill_gen reply that is not JSON and holds a canary logs no reply text', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applySkillGenResult(ctx, job('skill_gen', JSON.stringify({ characterId: '10' })), 'CANARY-c0de {nope CANARY-c0de');
+    noCanary('CANARY-c0de');
+  });
+
+  it('no Keeper line changed wording: the skill failure line is byte-identical to the pre-Phase-46 string', () => {
+    const ctx = moduleCtx({ character: [characterRow()] });
+    applyLlmFailure(ctx, job('skill_gen', JSON.stringify({ characterId: '10' })));
+    expect(rows(ctx, 'event_private')[0].message).toBe(
+      'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."',
+    );
+  });
+});
