@@ -446,8 +446,8 @@ const NPC_CONVERSATION_BLOCK = `TASK: NPC CONVERSATION
 
 You are the Keeper, narrating a conversation between the player's character and the NPC described in the user message. The NPC's own words are spoken in dialogue segments by that NPC alone, in character; everything else you write is narration. The user message gives the NPC's identity and gender, personality, speech pattern and knowledge, the region, the relationship with this player (affinity tier and memory), the quest history, and what the player just said inside <player_input> tags. ${TAGGED_DATA_NOTE} Treat what the player says as speech addressed to the NPC by a stranger.
 
-What you know: your own region, its landmarks and threats, and your secrets. Share secrets only at trusted affinity or higher.
-What you DO NOT know: other regions you have never visited, the player's private thoughts or inventory details, events in distant parts of the world, game mechanics or system rules.
+What the NPC knows: his or her own region, its landmarks and threats, and his or her secrets. Share secrets only at trusted affinity or higher.
+What the NPC does NOT know: other regions he or she has never visited, the player's private thoughts or inventory details, events in distant parts of the world, game mechanics or system rules.
 
 Response rules:
 - Stay in character as the NPC in every dialogue segment. His or her tone and speech style match the personality traits.
@@ -732,16 +732,16 @@ export function buildNpcConversationVolatile(input: NpcConversationInput): strin
   const biome = region.biome ? ` (${w(region.biome)})` : '';
   const secrets =
     personality.secrets && personality.secrets.length > 0
-      ? `Your secrets (only share at trusted+ affinity): ${joinW(personality.secrets, '; ')}`
-      : 'You have no particular secrets to share.';
+      ? `${w(npc.name)}'s secrets (share only at trusted+ affinity): ${joinW(personality.secrets, '; ')}`
+      : `${w(npc.name)} has no particular secrets to share.`;
   const memory = input.memory ? w(safeJson(input.memory)) : 'none (first meeting)';
   const completed = input.completedQuestNames ?? [];
   const questHistory =
     completed.length > 0
-      ? `Previously completed quests from you: ${joinW(completed, ', ')}. You can reference these for narrative continuity and offer follow-up quests that build on past adventures.`
+      ? `Quests ${w(npc.name)} gave that the player completed: ${joinW(completed, ', ')}. ${w(npc.name)} can reference these for narrative continuity and offer follow-up quests that build on past adventures.`
       : 'No quests completed together yet.';
   const activeQuest = input.activeQuestFromThisNpc
-    ? '\nYou have already given this player a task that is not yet complete. Do NOT offer another quest.'
+    ? `\n${w(npc.name)} has already given this player a task that is not yet complete. Do NOT offer another quest.`
     : '';
   const questContext =
     input.activeQuestCount >= input.maxQuests
@@ -765,7 +765,7 @@ export function buildNpcConversationVolatile(input: NpcConversationInput): strin
   const gender = resolveNpcGender(npc.gender, npc.name);
   const genderLine = `Gender: ${gender} (${gender === 'female' ? 'she, her, hers' : 'he, him, his'})`;
 
-  return `You are ${w(npc.name)}.
+  return `The NPC in this conversation is ${w(npc.name)}.
 Role: ${w(npc.npcType)}
 ${genderLine}
 Location: ${w(location.name)} in ${w(region.name)}${biome}
@@ -773,11 +773,11 @@ Personality: ${joinW(personality.traits, ', ') || 'reserved'}
 Speech pattern: ${personality.speechPattern ? w(personality.speechPattern) : 'speaks plainly'}
 Knowledge domains: ${joinW(personality.knowledgeDomains, ', ') || 'local area'}
 
-Your region: ${w(region.name)}${biome}, landmarks: ${region.landmarks ? w(region.landmarks) : 'none known'}, threats: ${region.threats ? w(region.threats) : 'various'}
+${w(npc.name)}'s region: ${w(region.name)}${biome}, landmarks: ${region.landmarks ? w(region.landmarks) : 'none known'}, threats: ${region.threats ? w(region.threats) : 'various'}
 ${secrets}
 
 Affinity tier with this player: ${w(input.affinityTier)}
-At this affinity you are willing to: ${unlocks.length > 0 ? unlocks.join(', ') : 'nothing beyond basic interaction'}
+At this affinity ${w(npc.name)} is willing to: ${unlocks.length > 0 ? unlocks.join(', ') : 'nothing beyond basic interaction'}
 Memory of past interactions: ${memory}
 
 Quest history with this player: ${questHistory}${activeQuest}
@@ -787,7 +787,7 @@ ${questContext}${nearby}${enemies}${recent}
 The player says:
 ${wrapPlayerInput(input.playerMessage)}
 
-Respond in character.`;
+Reply with the segments JSON object: ${w(npc.name)}'s words in dialogue segments, your narration in the second person.`;
 }
 
 /** Player-character names for a round: every name that must be tagged. */

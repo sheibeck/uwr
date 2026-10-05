@@ -712,6 +712,26 @@ describe('pronoun rule in route blocks and volatile builders (Plan 41-18)', () =
     expect(ROUTE_BLOCKS.combat_narration).toContain('a beast may be it');
   });
 
+  // 46 review WR-01 (owner-approved 2026-10-05): the block casts the model as the Keeper, so the volatile text names the NPC in the third person instead of casting the model as the NPC.
+  it('npc_conversation volatile names the NPC and does not cast the model as the NPC', () => {
+    const { volatile, routeBlock } = buildRouteLayers('npc_conversation', benign.npc_conversation);
+    const name = benign.npc_conversation.npc.name;
+    expect(volatile.startsWith('The NPC in this conversation is ')).toBe(true);
+    expect(volatile).not.toContain('You are ' + name);
+    expect(volatile).not.toContain('You are ');
+    expect(volatile).not.toContain('Respond in character.');
+    expect(volatile).toContain('Reply with the segments JSON object:');
+    expect(volatile).not.toMatch(/Your (region|secrets)/);
+    expect(volatile).not.toContain('you are willing to');
+    expect(routeBlock).not.toContain('What you know');
+    expect(routeBlock).not.toContain('What you DO NOT know');
+    expect(routeBlock).toContain('What the NPC knows:');
+    expect(routeBlock).toContain('What the NPC does NOT know:');
+    const withTask = buildRouteLayers('npc_conversation', { ...benign.npc_conversation, activeQuestFromThisNpc: true } as never).volatile;
+    expect(withTask).not.toContain('You have already given');
+    expect(withTask).toContain('has already given this player a task that is not yet complete.');
+  });
+
   it('no route block uses a singular they for the player or an NPC', () => {
     for (const route of LLM_ROUTE_NAMES) {
       for (const bad of [
