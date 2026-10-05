@@ -41,6 +41,13 @@ export const getStoredIdToken = () => {
   return token;
 };
 
+export const hasExpiredToken = () => {
+  const token = localStorage.getItem(STORAGE_KEYS.idToken);
+  const expiresAt = Number(localStorage.getItem(STORAGE_KEYS.expiresAt) ?? 0);
+  if (!token) return false;
+  return expiresAt > 0 && Date.now() > expiresAt;
+};
+
 export const getStoredEmail = () => localStorage.getItem(STORAGE_KEYS.email);
 
 export const clearAuthSession = () => {
@@ -82,52 +89,57 @@ const parseJwtEmail = (idToken: string) => {
 export const handleSpacetimeAuthCallback = async () => {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-  const expectedState = sessionStorage.getItem(STORAGE_KEYS.state);
   if (!code) return null;
-  if (!state || !expectedState || state !== expectedState) {
-    throw new Error('Invalid auth state.');
+  const state = url.searchParams.get('state');
+
+  try {
+    const expectedState = sessionStorage.getItem(STORAGE_KEYS.state);
+    if (!state || !expectedState || state !== expectedState) {
+      throw new Error('Invalid auth state.');
+    }
+
+    const verifier = sessionStorage.getItem(STORAGE_KEYS.verifier);
+    if (!verifier) throw new Error('Missing PKCE verifier.');
+
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      code,
+      code_verifier: verifier,
+    });
+
+    const response = await fetch(`${ISSUER}/oidc/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || 'Failed to exchange auth code.');
+    }
+    const payload = await response.json();
+    const idToken = payload.id_token as string | undefined;
+    if (!idToken) throw new Error('Missing id_token.');
+    const accessToken = payload.access_token as string | undefined;
+    const expiresIn = Number(payload.expires_in ?? 0);
+
+    localStorage.setItem(STORAGE_KEYS.idToken, idToken);
+    if (accessToken) localStorage.setItem(STORAGE_KEYS.accessToken, accessToken);
+    if (expiresIn) {
+      localStorage.setItem(STORAGE_KEYS.expiresAt, String(Date.now() + expiresIn * 1000));
+    }
+    const email = parseJwtEmail(idToken);
+    if (email) localStorage.setItem(STORAGE_KEYS.email, email);
+
+    return { idToken, email };
+  } finally {
+    // A reload must never replay a used or failed code, so the URL and the
+    // one-shot PKCE values are cleaned on success and on every failure.
+    sessionStorage.removeItem(STORAGE_KEYS.verifier);
+    sessionStorage.removeItem(STORAGE_KEYS.state);
+    url.searchParams.delete('code');
+    url.searchParams.delete('state');
+    window.history.replaceState({}, document.title, url.toString());
   }
-
-  const verifier = sessionStorage.getItem(STORAGE_KEYS.verifier);
-  if (!verifier) throw new Error('Missing PKCE verifier.');
-
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
-    code,
-    code_verifier: verifier,
-  });
-
-  const response = await fetch(`${ISSUER}/oidc/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to exchange auth code.');
-  }
-  const payload = await response.json();
-  const idToken = payload.id_token as string | undefined;
-  if (!idToken) throw new Error('Missing id_token.');
-  const accessToken = payload.access_token as string | undefined;
-  const expiresIn = Number(payload.expires_in ?? 0);
-
-  localStorage.setItem(STORAGE_KEYS.idToken, idToken);
-  if (accessToken) localStorage.setItem(STORAGE_KEYS.accessToken, accessToken);
-  if (expiresIn) {
-    localStorage.setItem(STORAGE_KEYS.expiresAt, String(Date.now() + expiresIn * 1000));
-  }
-  const email = parseJwtEmail(idToken);
-  if (email) localStorage.setItem(STORAGE_KEYS.email, email);
-
-  sessionStorage.removeItem(STORAGE_KEYS.verifier);
-  sessionStorage.removeItem(STORAGE_KEYS.state);
-  url.searchParams.delete('code');
-  url.searchParams.delete('state');
-  window.history.replaceState({}, document.title, url.toString());
-
-  return { idToken, email };
 };
