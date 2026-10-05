@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 // @ts-ignore see above
 import { join } from 'node:path';
-import { createMockProcCtx, makeSyncResponse, type MockReply, type MockThrow } from './test-utils';
+import { createMockCtx, createMockProcCtx, makeSyncResponse, type MockReply, type MockThrow } from './test-utils';
 import { ScheduleAt } from 'spacetimedb';
 import { enqueueLlmJob, serializeRequest, SOURCE_KEYS, LLM_RESTING_LINE } from './llm_queue';
 import { encodeRouteInput, smokeInputFor } from './llm_inputs';
@@ -165,14 +165,14 @@ const FIXTURE_COST = BigInt(estimateCostMicroUsd(FIXTURE_USAGE));
 
 // ---- recorded player lines --------------------------------------------------
 
-type Line = { channel: 'creation' | 'private' | 'npc_dialog'; to: string; kind: string; text: string };
+type Line = { channel: 'creation' | 'private' | 'npc_dialog'; to: string; kind: string; text: string; segments?: unknown };
 const calls = (fn: unknown): any[][] => (fn as any).mock.calls;
 
 /** Every in-voice line the apply layer posted, from the events mock (the production code wrote them). */
 function playerLines(): Line[] {
   return [
-    ...calls(appendCreationEvent).map((c) => ({ channel: 'creation' as const, to: c[1].toHexString(), kind: c[2], text: c[3] })),
-    ...calls(appendPrivateEvent).map((c) => ({ channel: 'private' as const, to: String(c[1]), kind: c[3], text: c[4] })),
+    ...calls(appendCreationEvent).map((c) => ({ channel: 'creation' as const, to: c[1].toHexString(), kind: c[2], text: c[3], segments: c[4] })),
+    ...calls(appendPrivateEvent).map((c) => ({ channel: 'private' as const, to: String(c[1]), kind: c[3], text: c[4], segments: c[5] })),
     ...calls(appendNpcDialog).map((c) => ({ channel: 'npc_dialog' as const, to: String(c[1]), kind: 'npc_dialog', text: c[3] })),
   ];
 }
@@ -1612,3 +1612,125 @@ describe('precision: exact integer micro-USD, no float rounding', () => {
 function threeStatesForPrecision(): Record<string, any[]> {
   return { character_creation_state: PLAYERS.map((p, i) => creationState('GENERATING_RACE', p, BigInt(i + 1))) };
 }
+
+// ----------------------------------------------------------------------------
+// Phase 46 (SEG-02, SEG-04): failure lines are one Keeper narration segment
+// ----------------------------------------------------------------------------
+
+describe('Phase 46: failure lines carry one Keeper narration segment', () => {
+  const KEEPER_NARRATION = (text: string) => ({ kind: 'narration', speaker: 'The Keeper', text });
+  const classFillingState = () => ({
+    ...creationState('CLASS_FILLING'),
+    className: 'Emberblade',
+    classDescription: 'A duelist who fights like a grudge.',
+    abilities: '[]',
+  });
+  const placedChar = (locationId: bigint) => [{ ...characterRow(1n, 7n, 'Aldric'), locationId }];
+  const GEN_CTX = JSON.stringify({ genStateId: '5' });
+  const CHAR_CTX = JSON.stringify({ characterId: '1' });
+
+  type Drill = {
+    domain: string;
+    seed: () => Record<string, any[]>;
+    contextJson?: string;
+    /** Lines expected as Keeper narration segments (kind of the recorded line). */
+    keeperKinds: string[];
+    /** Lines expected as plain system lines with no segments. */
+    systemKinds?: string[];
+  };
+
+  const DRILLS: Drill[] = [
+    { domain: 'creation_race', seed: () => ({ character_creation_state: [creationState('GENERATING_RACE')] }), keeperKinds: ['creation_error'] },
+    { domain: 'creation_class_reveal', seed: () => ({ character_creation_state: [creationState('GENERATING_CLASS')] }), keeperKinds: ['creation_error'] },
+    { domain: 'creation_class', seed: () => ({ character_creation_state: [classFillingState()] }), keeperKinds: ['creation_error'] },
+    {
+      domain: 'world_gen_start (unplaced character)',
+      seed: () => ({ world_gen_state: [worldState('GENERATING')], character: placedChar(0n) }),
+      contextJson: GEN_CTX,
+      keeperKinds: ['creation_error'],
+    },
+    {
+      domain: 'world_gen_start (placed character)',
+      seed: () => ({ world_gen_state: [worldState('GENERATING')], character: placedChar(100n) }),
+      contextJson: GEN_CTX,
+      keeperKinds: [],
+      systemKinds: ['system'],
+    },
+    {
+      domain: 'world_gen (character row gone)',
+      seed: () => ({ world_gen_state: [worldState('FILLING', { characterId: 99n })] }),
+      contextJson: GEN_CTX,
+      keeperKinds: ['creation_error'],
+    },
+    {
+      domain: 'world_gen (placed character)',
+      seed: () => ({ world_gen_state: [worldState('FILLING')], character: placedChar(100n) }),
+      contextJson: GEN_CTX,
+      keeperKinds: [],
+      systemKinds: ['system'],
+    },
+    { domain: 'skill_gen', seed: () => ({}), contextJson: CHAR_CTX, keeperKinds: ['narrative'] },
+    { domain: 'renown_perk_gen', seed: () => ({}), contextJson: JSON.stringify({ characterId: '1', rank: '2' }), keeperKinds: ['narrative'] },
+    {
+      domain: 'npc_conversation',
+      seed: () => ({}),
+      contextJson: JSON.stringify({ characterId: '1', npcId: '1', memoryId: '1' }),
+      keeperKinds: ['npc'],
+    },
+  ];
+
+  const CODES: Array<[label: string, code: string | undefined]> = [
+    ['a generic error code', 'timeout'],
+    ['a resting code', 'halted'],
+  ];
+
+  const lineKinds = (lines: Line[]) => lines.filter((l) => l.channel !== 'npc_dialog');
+
+  describe.each(DRILLS)('$domain', (d) => {
+    it.each(CODES)('%s: every Keeper-voice line is exactly one narration segment equal to its text, system lines carry none', (_label, code) => {
+      resetLines();
+      const ctx: any = createMockCtx({ seed: seedTables(d.seed()), sender: alice, timestampMicros: T0, strict: true });
+      const route = d.domain.split(' ')[0];
+      const job = { domain: route, playerId: alice, contextJson: d.contextJson, errorCode: code };
+      expect(() => applyLlmFailure(ctx, job)).not.toThrow();
+
+      const lines = lineKinds(playerLines());
+      expect(lines.length).toBeGreaterThan(0);
+      for (const l of lines) {
+        if (l.kind === 'system') {
+          expect(l.segments, `system line must carry no segments: ${l.text}`).toBeUndefined();
+        } else {
+          expect(['creation_error', 'narrative', 'npc']).toContain(l.kind);
+          expect(l.segments, `Keeper line must carry one segment: ${l.text}`).toEqual([KEEPER_NARRATION(l.text)]);
+        }
+      }
+      // npc_conversation with a resting code posts a system line, not an NPC line
+      const keeperLines = lines.filter((l) => l.kind !== 'system');
+      const systemLines = lines.filter((l) => l.kind === 'system');
+      if (d.domain === 'npc_conversation' && code === 'halted') {
+        expect(keeperLines).toHaveLength(0);
+        expect(systemLines).toHaveLength(1);
+      } else {
+        expect(keeperLines.map((l) => l.kind)).toEqual(d.keeperKinds);
+      }
+    });
+  });
+
+  it('combat_narration stays silent on failure: no lines at all', () => {
+    for (const code of ['timeout', 'halted']) {
+      resetLines();
+      const ctx: any = createMockCtx({ seed: seedTables(), sender: alice, timestampMicros: T0, strict: true });
+      const job = {
+        domain: 'combat_narration',
+        playerId: alice,
+        contextJson: JSON.stringify({ combatId: '1', roundNumber: '0', narrativeType: 'victory', participantCharacterIds: ['1'] }),
+        errorCode: code,
+      };
+      expect(() => applyLlmFailure(ctx, job)).not.toThrow();
+      expect(playerLines()).toEqual([]);
+      expect(rowsOf(ctx, 'combat_narrative')).toHaveLength(0);
+    }
+  });
+
+  const rowsOf = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+});
