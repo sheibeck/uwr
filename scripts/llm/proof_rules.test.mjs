@@ -7,11 +7,21 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  CREATION_ORDER,
+  NPC_BURST_TURNS,
+  PROOF_DOMAINS,
   PROOF_EXCERPT_MAX,
   PROOF_RUN_CAP_MICRO_USD,
   PROOF_SPEND_MARGIN_MICRO_USD,
   PROOF_STEPS,
+  burstSampleVerdict,
   excerpt,
+  expectedSmokeCount,
+  plannedCallCounts,
+  proofVerdict,
+  resolveProofDb,
+  resolveProveMode,
+  smokeAllOk,
   heldAllTimeMicroUsd,
   heldTodayMicroUsd,
   isTerminalJobStatus,
@@ -24,21 +34,29 @@ import {
   todayUtcString,
 } from './proof_rules.mjs';
 import { REPO_ROOT } from './cli.mjs';
+import { INDICATIVE_BELOW } from './call_log_report.mjs';
+import { LLM_SMOKE_ROUTES } from '../../spacetimedb/src/data/llm_limits.ts';
+import { LLM_ROUTE_NAMES } from '../../spacetimedb/src/data/llm_routes.ts';
 
 // A sample ceiling for the pure spend rule (the real one is the admin-set daily ceiling).
 const CAP = 2_000_000n;
 
 describe('PROOF_STEPS', () => {
-  it('is the live-proof order, one step per domain', () => {
+  it('is the staged live-proof order (Phase 43 stage 1 and stage 2 are separate steps)', () => {
     expect([...PROOF_STEPS]).toEqual([
       'smoke',
       'creation_race',
+      'creation_class_reveal',
       'creation_class',
+      'world_gen_start',
       'world_gen',
+      'explore_region',
       'npc_conversation',
+      'npc_burst',
       'combat_narration',
       'renown_perk_gen',
       'skill_gen',
+      'llm_stats',
     ]);
   });
 
@@ -48,9 +66,252 @@ describe('PROOF_STEPS', () => {
 
   it('nextProofStep walks the order and ends with null', () => {
     expect(nextProofStep('smoke')).toBe('creation_race');
-    expect(nextProofStep('renown_perk_gen')).toBe('skill_gen');
-    expect(nextProofStep('skill_gen')).toBeNull();
+    expect(nextProofStep('creation_race')).toBe('creation_class_reveal');
+    expect(nextProofStep('creation_class')).toBe('world_gen_start');
+    expect(nextProofStep('npc_burst')).toBe('combat_narration');
+    expect(nextProofStep('skill_gen')).toBe('llm_stats');
+    expect(nextProofStep('llm_stats')).toBeNull();
     expect(nextProofStep('nonsense')).toBeNull();
+  });
+});
+
+// A finished step result as the harness records it.
+const good = (step, extra = {}) => ({ step, route: step, ok: true, jobStatus: 'completed', elapsedMs: 1500, ...extra });
+const allGood = () =>
+  PROOF_STEPS.map((step) =>
+    step === 'explore_region' || step === 'llm_stats' ? good(step, { jobStatus: 'observed' }) : good(step),
+  );
+
+describe('PROOF_DOMAINS', () => {
+  it('maps every domain to steps that exist; only llm_stats sits outside every domain', () => {
+    const named = Object.values(PROOF_DOMAINS).flat();
+    for (const step of named) expect(PROOF_STEPS).toContain(step);
+    expect(new Set(named).size).toBe(named.length);
+    expect(Object.keys(PROOF_DOMAINS)).toEqual(['smoke', 'creation', 'world_gen', 'npc_chat', 'combat_narration', 'renown', 'skills']);
+    expect(PROOF_STEPS.filter((s) => !named.includes(s))).toEqual(['llm_stats']);
+  });
+
+  it('is frozen all the way down', () => {
+    expect(Object.isFrozen(PROOF_DOMAINS)).toBe(true);
+    for (const steps of Object.values(PROOF_DOMAINS)) expect(Object.isFrozen(steps)).toBe(true);
+  });
+});
+
+describe('proofVerdict (a skipped, missing or unobserved step is a failure)', () => {
+  it('passes every domain when every step was observed completed', () => {
+    const v = proofVerdict(allGood());
+    expect(v.pass).toBe(true);
+    expect(v.notRun).toEqual([]);
+    expect(v.failed).toEqual([]);
+    for (const status of Object.values(v.domains)) expect(status).toBe('passed');
+  });
+
+  it('a domain with no result at all is not_run and fails the overall verdict', () => {
+    const results = allGood().filter((r) => !PROOF_DOMAINS.renown.includes(r.step));
+    const v = proofVerdict(results);
+    expect(v.domains.renown).toBe('not_run');
+    expect(v.notRun).toEqual(['renown']);
+    expect(v.pass).toBe(false);
+  });
+
+  it('empty and missing result lists leave every domain not_run', () => {
+    for (const input of [[], undefined, null]) {
+      const v = proofVerdict(input);
+      expect(v.pass).toBe(false);
+      expect(v.notRun).toEqual(Object.keys(PROOF_DOMAINS));
+    }
+  });
+
+  it('skipped, missing, none, timeout, error and failed job statuses all fail the domain', () => {
+    for (const jobStatus of ['skipped', 'missing', 'none', 'timeout', 'error', 'failed', 'expired', 'pending', '', undefined]) {
+      const results = allGood().map((r) => (r.step === 'combat_narration' ? { ...r, jobStatus } : r));
+      const v = proofVerdict(results);
+      expect(v.domains.combat_narration, String(jobStatus)).toBe('failed');
+      expect(v.failed).toContain('combat_narration');
+      expect(v.pass).toBe(false);
+    }
+  });
+
+  it('a step the harness marked not ok fails even with a completed job', () => {
+    const results = allGood().map((r) => (r.step === 'skill_gen' ? { ...r, ok: false } : r));
+    expect(proofVerdict(results).domains.skills).toBe('failed');
+  });
+
+  it('zero, missing or non-numeric latency never passes', () => {
+    for (const elapsedMs of [0, -5, undefined, null, Number.NaN, '12']) {
+      const results = allGood().map((r) => (r.step === 'npc_conversation' ? { ...r, elapsedMs } : r));
+      expect(proofVerdict(results).domains.npc_chat, String(elapsedMs)).toBe('failed');
+    }
+  });
+
+  it('a multi-step domain with one step missing is failed, not passed and not not_run', () => {
+    const results = allGood().filter((r) => r.step !== 'creation_class');
+    const v = proofVerdict(results);
+    expect(v.domains.creation).toBe('failed');
+    expect(v.missingSteps.creation).toEqual(['creation_class']);
+  });
+
+  it('only a completed job passes a job step; only completed or observed passes a free step', () => {
+    const observedOnJobStep = allGood().map((r) => (r.step === 'world_gen' ? { ...r, jobStatus: 'observed' } : r));
+    expect(proofVerdict(observedOnJobStep).domains.world_gen).toBe('failed');
+    const completedFree = allGood().map((r) => (r.step === 'explore_region' ? { ...r, jobStatus: 'completed' } : r));
+    expect(proofVerdict(completedFree).domains.world_gen).toBe('passed');
+  });
+
+  it('the last result for a step wins, so a retry can fix an earlier failure but not hide a later one', () => {
+    const base = allGood();
+    const failedThenOk = [...base.map((r) => (r.step === 'skill_gen' ? { ...r, ok: false } : r)), good('skill_gen')];
+    expect(proofVerdict(failedThenOk).domains.skills).toBe('passed');
+    const okThenFailed = [...base, { ...good('skill_gen'), ok: false }];
+    expect(proofVerdict(okThenFailed).domains.skills).toBe('failed');
+  });
+
+  it('ignores malformed entries without throwing', () => {
+    const v = proofVerdict([null, 7, 'x', {}, { step: 'nonsense' }, ...allGood()]);
+    expect(v.pass).toBe(true);
+  });
+});
+
+describe('the smoke expectation', () => {
+  it('equals LLM_SMOKE_ROUTES.length (8) and is read from the server, never a literal', () => {
+    expect(expectedSmokeCount()).toBe(LLM_SMOKE_ROUTES.length);
+    expect(expectedSmokeCount()).toBe(8);
+  });
+
+  it('smokeAllOk needs exactly that many entries, every one ok', () => {
+    const entries = (n, okAll = true) => Object.fromEntries(Array.from({ length: n }, (_, i) => ['r' + i, { ok: okAll || i > 0 }]));
+    expect(smokeAllOk(JSON.stringify(entries(8)))).toBe(true);
+    expect(smokeAllOk(JSON.stringify(entries(6)))).toBe(false); // the old six-route expectation is not enough
+    expect(smokeAllOk(JSON.stringify(entries(8, false)))).toBe(false);
+    expect(smokeAllOk(JSON.stringify(entries(9)))).toBe(false);
+    expect(smokeAllOk('{}')).toBe(false);
+    expect(smokeAllOk('not json')).toBe(false);
+    expect(smokeAllOk(undefined)).toBe(false);
+  });
+});
+
+describe('resolveProveMode (PROVE_LIVE_RUN)', () => {
+  it('treats unset and empty as dry', () => {
+    expect(resolveProveMode(undefined)).toBe('dry');
+    expect(resolveProveMode(null)).toBe('dry');
+    expect(resolveProveMode('')).toBe('dry');
+  });
+
+  it('accepts exactly run', () => {
+    expect(resolveProveMode('run')).toBe('run');
+  });
+
+  it('throws on anything else, including the retired dry flag value and near misses', () => {
+    for (const bad of ['1', '0', 'dry', 'true', 'RUN', 'Run', ' run', 'run ', 'paid', 'yes']) {
+      expect(() => resolveProveMode(bad), bad).toThrow(/PROVE_LIVE_RUN/);
+    }
+  });
+});
+
+describe('resolveProofDb (LLM_LIVE_DB)', () => {
+  it('defaults to the scratch database', () => {
+    expect(resolveProofDb(undefined)).toBe('uwr-verify');
+    expect(resolveProofDb(null)).toBe('uwr-verify');
+    expect(resolveProofDb('')).toBe('uwr-verify');
+  });
+
+  it('accepts exactly uwr and uwr-verify', () => {
+    expect(resolveProofDb('uwr')).toBe('uwr');
+    expect(resolveProofDb('uwr-verify')).toBe('uwr-verify');
+  });
+
+  it('throws on anything else without echoing the value', () => {
+    for (const bad of ['prod', 'UWR', 'uwr-verify2', 'uwr/verify', 'uwr ', 'maincloud', 'x']) {
+      expect(() => resolveProofDb(bad), bad).toThrow(/unknown database/);
+    }
+    let message = '';
+    try {
+      resolveProofDb('secret-db-name');
+    } catch (e) {
+      message = String(e.message);
+    }
+    expect(message).not.toBe('');
+    expect(message).not.toContain('secret-db-name');
+  });
+});
+
+describe('CREATION_ORDER', () => {
+  it('holds the Phase 43 staged class states in order, with CLASS_FILLING between GENERATING_CLASS and CLASS_REVEALED', () => {
+    expect([...CREATION_ORDER]).toEqual([
+      'AWAITING_RACE',
+      'GENERATING_RACE',
+      'AWAITING_ARCHETYPE',
+      'GENERATING_CLASS',
+      'CLASS_FILLING',
+      'CLASS_FILL_ERROR',
+      'CLASS_REVEALED',
+      'AWAITING_NAME',
+      'CONFIRMING',
+      'COMPLETE',
+    ]);
+    expect(CREATION_ORDER.indexOf('CLASS_FILLING')).toBeGreaterThan(CREATION_ORDER.indexOf('GENERATING_CLASS'));
+    expect(CREATION_ORDER.indexOf('CLASS_FILLING')).toBeLessThan(CREATION_ORDER.indexOf('CLASS_REVEALED'));
+    expect(Object.isFrozen(CREATION_ORDER)).toBe(true);
+  });
+
+  it('every state named here still appears in the server creation state machine (drift guard)', () => {
+    const machine = fs.readFileSync(path.join(REPO_ROOT, 'spacetimedb', 'src', 'helpers', 'creation_generation.ts'), 'utf8');
+    const reducer = fs.readFileSync(path.join(REPO_ROOT, 'spacetimedb', 'src', 'reducers', 'creation.ts'), 'utf8');
+    const server = machine + '\n' + reducer;
+    for (const step of CREATION_ORDER) expect(server, step).toContain(step);
+  });
+});
+
+describe('plannedCallCounts', () => {
+  const counts = plannedCallCounts();
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  it('names only real routes, in the server route order', () => {
+    const keys = Object.keys(counts);
+    for (const k of keys) expect(LLM_ROUTE_NAMES).toContain(k);
+    expect(keys).toEqual(LLM_ROUTE_NAMES.filter((r) => keys.includes(r)));
+  });
+
+  it('counts the smoke routes once each, derived from LLM_SMOKE_ROUTES, plus the domain steps and the NPC burst', () => {
+    expect(counts).toEqual({
+      creation_race: 2,
+      creation_class_reveal: 2,
+      creation_class: 2,
+      world_gen_start: 3,
+      world_gen: 3,
+      skill_gen: 2,
+      npc_conversation: 1 + NPC_BURST_TURNS,
+      combat_narration: 1,
+      renown_perk_gen: 2,
+      smoke_test: 1,
+    });
+    for (const route of LLM_SMOKE_ROUTES) expect(counts[route], route).toBeGreaterThanOrEqual(1);
+  });
+
+  it('pins the whole-run total (8 smoke + 31 domain calls)', () => {
+    expect(total).toBe(39);
+    expect(total).toBe(LLM_SMOKE_ROUTES.length + 31);
+  });
+
+  it('is frozen', () => {
+    expect(Object.isFrozen(counts)).toBe(true);
+  });
+});
+
+describe('the NPC burst', () => {
+  it('is 20 sequential turns, matching the report indicative threshold', () => {
+    expect(NPC_BURST_TURNS).toBe(20);
+    expect(NPC_BURST_TURNS).toBe(INDICATIVE_BELOW);
+  });
+
+  it('burstSampleVerdict marks fewer than 20 ok samples as indicative', () => {
+    expect(burstSampleVerdict(0)).toEqual({ okCount: 0, indicative: true });
+    expect(burstSampleVerdict(19)).toEqual({ okCount: 19, indicative: true });
+    expect(burstSampleVerdict(20)).toEqual({ okCount: 20, indicative: false });
+    expect(burstSampleVerdict(25)).toEqual({ okCount: 25, indicative: false });
+    expect(burstSampleVerdict(-1).indicative).toBe(true);
+    expect(burstSampleVerdict(undefined).indicative).toBe(true);
+    expect(burstSampleVerdict(Number.NaN).indicative).toBe(true);
   });
 });
 
@@ -196,7 +457,7 @@ describe('summarizeSmoke', () => {
     });
   });
 
-  it('counts a full six-route success', () => {
+  it('counts a full success over any number of routes', () => {
     const json = JSON.stringify(Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f'].map((k) => [k, { ok: true }])));
     expect(summarizeSmoke(json)).toEqual({ total: 6, ok: 6, failed: [] });
   });
