@@ -256,7 +256,17 @@ function build<C extends SessionConn>(
         failSignIn();
         return;
       }
-      conn.reducers.loginEmail({ email }).catch(failSignIn);
+      conn.reducers.loginEmail({ email }).catch((error: unknown) => {
+        // A socket drop mid-call, or a late rejection from a connection that has since
+        // been replaced, says nothing about the credentials: the reconnect path sends
+        // loginEmail again on the new connection. Only a rejection on the live
+        // connection counts as the server refusing this sign-in.
+        if (controller.conn.value !== conn || controller.status.value !== 'connected') {
+          console.warn('[session] loginEmail interrupted; waiting for the reconnect', error);
+          return;
+        }
+        failSignIn();
+      });
     },
     { immediate: true, flush: 'sync' },
   );

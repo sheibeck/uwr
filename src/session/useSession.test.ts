@@ -323,6 +323,63 @@ describe('createSession core', () => {
     });
   });
 
+  describe('login_email rejection while the link is unstable', () => {
+    let warn: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      warn.mockRestore();
+    });
+
+    function rejectingConn(): { conn: FakeConn; reject: (error: Error) => void } {
+      const conn = makeConn();
+      let reject!: (error: Error) => void;
+      conn.reducers.loginEmail.mockImplementationOnce(
+        () => new Promise<void>((_resolve, rej) => (reject = rej)),
+      );
+      return { conn, reject: (error) => reject(error) };
+    }
+
+    it('keeps the stored credentials when the socket drops mid-call', async () => {
+      h = harness();
+      const { conn, reject } = rejectingConn();
+      h.conn.value = conn;
+      h.status.value = 'connected';
+      h.setPlayer({});
+      await flush();
+      expect(conn.reducers.loginEmail).toHaveBeenCalledTimes(1);
+
+      // The controller already moved to reconnecting when the pending call is rejected.
+      h.status.value = 'reconnecting';
+      reject(new Error('connection closed'));
+      await flush();
+      expect(h.auth.clearAuthSession).not.toHaveBeenCalled();
+      expect(h.controller.disconnect).not.toHaveBeenCalled();
+      expect(h.session.screen.value).not.toEqual({ kind: 'splash', state: 'signInFailed' });
+    });
+
+    it('ignores a late rejection from a connection that has been replaced', async () => {
+      h = harness();
+      const { conn: stale, reject } = rejectingConn();
+      h.conn.value = stale;
+      h.status.value = 'connected';
+      h.setPlayer({});
+      await flush();
+
+      const fresh = h.connect();
+      await flush();
+      expect(fresh.reducers.loginEmail).toHaveBeenCalledTimes(1);
+
+      reject(new Error('late'));
+      await flush();
+      expect(h.auth.clearAuthSession).not.toHaveBeenCalled();
+      expect(h.controller.disconnect).not.toHaveBeenCalled();
+      expect(h.conn.value).toBe(fresh);
+      expect(h.session.screen.value).not.toEqual({ kind: 'splash', state: 'signInFailed' });
+    });
+  });
+
   describe('characters and the picker', () => {
     async function signedIn(): Promise<void> {
       h = harness();
