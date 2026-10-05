@@ -161,10 +161,10 @@ const TEXT_ROUTES = LLM_ROUTE_NAMES.filter((r) => LLM_ROUTES[r].output.kind === 
 // ---------------------------------------------------------------------------
 
 describe('buildClaudeRequest', () => {
-  it('covers seven json routes and three text routes', () => {
-    // Phase 43 adds the stage-1 routes
-    expect(JSON_ROUTES).toHaveLength(7);
-    expect(TEXT_ROUTES).toHaveLength(3);
+  it('covers eight json routes and two text routes', () => {
+    // Phase 43 adds the stage-1 routes; Phase 46 flips combat_narration to a json segments route
+    expect(JSON_ROUTES).toHaveLength(8);
+    expect(TEXT_ROUTES).toHaveLength(2);
   });
 
   it.each(LLM_ROUTE_NAMES)('%s: fixed key order and locked parameters', (route) => {
@@ -469,10 +469,10 @@ function expectOk(r: ClaudeResult): Extract<ClaudeResult, { ok: true }> {
 /** [fixture, route, expected class or 'ok'] */
 const CASES: [string, LlmRoute, ClaudeFailureClass | 'ok'][] = [
   ['ok_json', 'skill_gen', 'ok'],
-  ['ok_text', 'combat_narration', 'ok'],
+  ['ok_text', 'npc_conversation', 'ok'],
   ['ok_thinking_first', 'skill_gen', 'ok'],
   ['text_not_first', 'npc_conversation', 'ok'],
-  ['missing_cache_usage', 'combat_narration', 'ok'],
+  ['missing_cache_usage', 'npc_conversation', 'ok'],
   ['fenced_json', 'skill_gen', 'invalid_json'],
   ['missing_required_key', 'skill_gen', 'schema_mismatch'],
   ['json_array', 'skill_gen', 'schema_mismatch'],
@@ -553,7 +553,7 @@ describe('classifyClaudeResponse', () => {
     });
 
     it('ok text route returns text and no json', () => {
-      const r = expectOk(classifyFixture('combat_narration', 'ok_text'));
+      const r = expectOk(classifyFixture('npc_conversation', 'ok_text'));
       expect(r.text).toContain('The rat considers you');
       expect('json' in r).toBe(false);
     });
@@ -566,6 +566,7 @@ describe('classifyClaudeResponse', () => {
 
     it('a json route given prose classifies as invalid_json', () => {
       expect(expectFailure(classifyFixture('skill_gen', 'ok_text')).class).toBe('invalid_json');
+      expect(expectFailure(classifyFixture('combat_narration', 'ok_text')).class).toBe('invalid_json');
     });
 
     it('a thinking-first response is ok and yields the text block', () => {
@@ -579,14 +580,14 @@ describe('classifyClaudeResponse', () => {
     });
 
     it('missing cache usage fields become 0', () => {
-      const r = expectOk(classifyFixture('combat_narration', 'missing_cache_usage'));
+      const r = expectOk(classifyFixture('npc_conversation', 'missing_cache_usage'));
       expect(r.usage).toEqual({ input: 10, output: 20, cacheWrite: 0, cacheRead: 0 });
     });
 
     it('a missing usage object gives four zeros', () => {
       const reply = loadFixture('ok_text');
       delete (reply.body as any).usage;
-      expect(expectOk(classifyClaudeResponse('combat_narration', respond(reply))).usage).toEqual({
+      expect(expectOk(classifyClaudeResponse('npc_conversation', respond(reply))).usage).toEqual({
         input: 0,
         output: 0,
         cacheWrite: 0,

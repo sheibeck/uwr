@@ -12,6 +12,7 @@
 // the stage-1 routes (small schema, fast reveal); creation_class and world_gen
 // are the stage-2 fill routes that complete the class and the region.
 //
+// combat_narration is a JSON route (structured output) that returns segments.
 // npc_conversation is a text route: it is prompt-instructed JSON parsed by the
 // existing tolerant extractor (no output_config.format).
 // ============================================================================
@@ -26,6 +27,7 @@ import {
   REGION_FILL_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
+  COMBAT_NARRATION_SCHEMA,
   deepFreeze,
 } from './llm_schemas';
 
@@ -77,7 +79,7 @@ export const LLM_ROUTES: Readonly<Record<LlmRoute, RouteConfig>> = deepFreeze({
   world_gen: route('world_gen', { kind: 'json', schema: REGION_FILL_SCHEMA }),
   skill_gen: route('skill_gen', { kind: 'json', schema: SKILL_GENERATION_SCHEMA }),
   npc_conversation: route('npc_conversation', { kind: 'text' }),
-  combat_narration: route('combat_narration', { kind: 'text' }),
+  combat_narration: route('combat_narration', { kind: 'json', schema: COMBAT_NARRATION_SCHEMA }),
   renown_perk_gen: route('renown_perk_gen', { kind: 'json', schema: RENOWN_PERK_SCHEMA }),
   smoke_test: route('smoke_test', { kind: 'text' }),
 });

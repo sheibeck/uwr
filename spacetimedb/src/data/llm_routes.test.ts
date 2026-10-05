@@ -10,6 +10,7 @@ import {
   REGION_FILL_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
+  COMBAT_NARRATION_SCHEMA,
 } from './llm_schemas';
 import { lintSchema } from '../helpers/schema_lint';
 
@@ -36,6 +37,7 @@ const JSON_SCHEMAS: Partial<Record<LlmRoute, object>> = {
   world_gen: REGION_FILL_SCHEMA,
   skill_gen: SKILL_GENERATION_SCHEMA,
   renown_perk_gen: RENOWN_PERK_SCHEMA,
+  combat_narration: COMBAT_NARRATION_SCHEMA,
 };
 
 /** Mutable deep clone of the real table (the real one is frozen). */
@@ -107,11 +109,9 @@ describe('LLM_ROUTES', () => {
         expect(out).toEqual({ kind: 'text' });
       }
     }
-    expect(['npc_conversation', 'combat_narration', 'smoke_test'].map((r) => LLM_ROUTES[r as LlmRoute].output.kind)).toEqual([
-      'text',
-      'text',
-      'text',
-    ]);
+    expect(['npc_conversation', 'smoke_test'].map((r) => LLM_ROUTES[r as LlmRoute].output.kind)).toEqual(['text', 'text']);
+    expect(LLM_ROUTES.combat_narration.output).toEqual({ kind: 'json', schema: COMBAT_NARRATION_SCHEMA });
+    expect((LLM_ROUTES.combat_narration.output as { schema: object }).schema).toBe(COMBAT_NARRATION_SCHEMA);
   });
 
   it('every json route schema passes lintSchema', () => {

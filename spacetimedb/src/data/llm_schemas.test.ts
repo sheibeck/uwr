@@ -14,9 +14,11 @@ import {
   REGION_FILL_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
+  COMBAT_NARRATION_SCHEMA,
   LLM_JSON_SCHEMAS,
   deepFreeze,
 } from './llm_schemas';
+import { SEGMENT_KINDS } from '../helpers/segments';
 import { lintSchema, countOptionalParams, countUnionParams } from '../helpers/schema_lint';
 import {
   STAT_TYPES,
@@ -37,6 +39,7 @@ const ALL: Array<[string, any]> = [
   ['REGION_FILL_SCHEMA', REGION_FILL_SCHEMA],
   ['SKILL_GENERATION_SCHEMA', SKILL_GENERATION_SCHEMA],
   ['RENOWN_PERK_SCHEMA', RENOWN_PERK_SCHEMA],
+  ['COMBAT_NARRATION_SCHEMA', COMBAT_NARRATION_SCHEMA],
 ];
 
 const sorted = (xs: readonly string[]) => [...xs].sort();
@@ -59,6 +62,7 @@ describe('lint and determinism', () => {
     expect(countUnionParams(RENOWN_PERK_SCHEMA)).toBe(6);
     expect(countUnionParams(WORLD_START_SCHEMA)).toBe(0);
     expect(countUnionParams(REGION_FILL_SCHEMA)).toBe(0);
+    expect(countUnionParams(COMBAT_NARRATION_SCHEMA)).toBe(0);
     for (const [, schema] of ALL) expect(countOptionalParams(schema)).toBe(0);
   });
 
@@ -85,6 +89,22 @@ describe('lint and determinism', () => {
     expect(Object.isFrozen((SKILL_GENERATION_SCHEMA as any).properties.skills.items.required)).toBe(true);
   });
 
+  it('COMBAT_NARRATION_SCHEMA is a required segments array of {kind, speaker, text} and its kinds equal SEGMENT_KINDS', () => {
+    const schema = COMBAT_NARRATION_SCHEMA as any;
+    expect(schema.type).toBe('object');
+    expect(schema.required).toEqual(['segments']);
+    expect(schema.additionalProperties).toBe(false);
+    const items = schema.properties.segments.items;
+    expect(schema.properties.segments.type).toBe('array');
+    expect(items.required).toEqual(['kind', 'speaker', 'text']);
+    expect(items.additionalProperties).toBe(false);
+    expect(items.properties.kind.enum).toEqual([...SEGMENT_KINDS]);
+    expect(items.properties.speaker.type).toBe('string');
+    expect(items.properties.text.type).toBe('string');
+    // The server clamps the count and length, so the schema carries no bounds (the linter rejects them).
+    expect(JSON.stringify(schema)).not.toMatch(/maxItems|maxLength|minLength|minItems/);
+  });
+
   it('LLM_JSON_SCHEMAS references the same frozen objects', () => {
     expect(LLM_JSON_SCHEMAS.race).toBe(RACE_SCHEMA);
     expect(LLM_JSON_SCHEMAS.classReveal).toBe(CLASS_REVEAL_SCHEMA);
@@ -94,6 +114,7 @@ describe('lint and determinism', () => {
     expect(Object.keys(LLM_JSON_SCHEMAS).sort()).toEqual([
       'classFill',
       'classReveal',
+      'combatNarration',
       'race',
       'regionFill',
       'renown',
@@ -102,6 +123,7 @@ describe('lint and determinism', () => {
     ]);
     expect(LLM_JSON_SCHEMAS.skill).toBe(SKILL_GENERATION_SCHEMA);
     expect(LLM_JSON_SCHEMAS.renown).toBe(RENOWN_PERK_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.combatNarration).toBe(COMBAT_NARRATION_SCHEMA);
     expect(Object.isFrozen(LLM_JSON_SCHEMAS)).toBe(true);
   });
 

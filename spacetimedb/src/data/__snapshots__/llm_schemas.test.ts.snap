@@ -418,6 +418,45 @@ exports[`lint and determinism > CLASS_REVEAL_SCHEMA serialization is determinist
 }"
 `;
 
+exports[`lint and determinism > COMBAT_NARRATION_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
+"{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "segments"
+  ],
+  "properties": {
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "speaker",
+          "text"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "narration",
+              "dialogue"
+            ]
+          },
+          "speaker": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}"
+`;
+
 exports[`lint and determinism > RACE_SCHEMA serialization is deterministic and matches the snapshot 1`] = `
 "{
   "type": "object",

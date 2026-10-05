@@ -314,6 +314,20 @@ export const RENOWN_PERK_SCHEMA: Node = deepFreeze(
 );
 
 // ----------------------------------------------------------------------------
+// Combat narration (segments)
+// ----------------------------------------------------------------------------
+
+/** The 6-segment and 600-character limits are enforced by the server (segments.ts), not by the schema (the linter rejects maxItems and maxLength). */
+export const COMBAT_NARRATION_SCHEMA: Node = deepFreeze(
+  obj({
+    segments: {
+      type: 'array',
+      items: obj({ kind: enumOf(['narration', 'dialogue']), speaker: S, text: S }),
+    },
+  }),
+);
+
+// ----------------------------------------------------------------------------
 // Registry
 // ----------------------------------------------------------------------------
 
@@ -325,4 +339,5 @@ export const LLM_JSON_SCHEMAS = deepFreeze({
   regionFill: REGION_FILL_SCHEMA,
   skill: SKILL_GENERATION_SCHEMA,
   renown: RENOWN_PERK_SCHEMA,
+  combatNarration: COMBAT_NARRATION_SCHEMA,
 });

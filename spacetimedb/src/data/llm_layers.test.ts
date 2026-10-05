@@ -493,12 +493,22 @@ describe('route blocks and volatile builders', () => {
       for (const quest of ['kill', 'delivery', 'boss_kill', 'discover']) expect(block).toContain(quest);
     });
 
-    it('combat_narration asks for 2-4 sentences of plain prose, not JSON', () => {
+    it('combat_narration asks for a JSON segments reply, not plain prose', () => {
       const block = ROUTE_BLOCKS.combat_narration;
-      expect(block).toMatch(/2-4 sentences of plain prose/);
+      expect(block).toMatch(/reply with a JSON object holding a segments array/);
+      expect(block).toMatch(/2-4 sentences in the second person/);
+      expect(block).toMatch(/Use at most 6 segments/);
+      expect(block).not.toMatch(/plain prose/);
+      expect(block).not.toMatch(/No JSON/);
       expect(block).toMatch(/EXACT names/);
       expect(block).toMatch(/Never contradict the mechanical results/);
-      expect(block).not.toMatch(/valid JSON/i);
+    });
+
+    it('combat_narration keeps a lone player character as only you, and the summary uses the segments shape', () => {
+      const block = ROUTE_BLOCKS.combat_narration;
+      expect(block).toMatch(/never a man, a woman, a stranger, a fighter or any other noun/);
+      expect(block).toMatch(/never named, never he or she and never any other noun. Write the summary as narration segments in the same JSON shape./);
+      expect(block).toMatch(/The player's own character never speaks in a segment/);
     });
 
     it('combat_narration forbids drafts and self-corrections and keeps the outro in the second person', () => {
