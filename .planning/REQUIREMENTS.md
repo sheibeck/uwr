@@ -21,7 +21,7 @@
 - [x] **FND-04**: A secondary screen opens as a drawer over the center and right columns. The header and vitals rail stay visible, and Esc or the close button dismisses it.
 - [x] **FND-05**: At mobile width (390×844), the player sees a compact vitals strip, the story feed and a bottom tab bar (Story, Map, Bag, Party, More). Secondary screens open as full-height sheets above the tab bar.
 - [x] **FND-06**: The player can sign in (SpacetimeAuth OIDC), reconnect and log out in the new client.
-- [ ] **FND-07**: The splash / sign-in screen shows the 16:9 key-art logo (`public/assets/logo.png`, 1672×941) large and undistorted, scaled to fit the viewport at desktop and mobile, with no pixelated rendering.
+- [x] **FND-07**: The splash / sign-in screen shows the 16:9 key-art logo (`public/assets/logo.png`, 1672×941) large and undistorted, scaled to fit the viewport at desktop and mobile, with no pixelated rendering.
 
 ### Console (CON)
 
@@ -128,7 +128,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-04 | Phase 45 | Complete |
 | FND-05 | Phase 45 | Complete |
 | FND-06 | Phase 45 | Complete |
-| FND-07 | Phase 45 | Pending |
+| FND-07 | Phase 45 | Complete |
 | CON-01 | Phase 47 | Pending |
 | CON-02 | Phase 47 | Pending |
 | CON-03 | Phase 47 | Pending |

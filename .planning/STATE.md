@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 45
 current_phase_name: Foundation, Frame and Auth
 status: executing
-stopped_at: Completed 45-07-PLAN.md
-last_updated: "2026-10-05T15:43:48.107Z"
+stopped_at: Completed 45-08-PLAN.md
+last_updated: "2026-10-05T15:48:58.590Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 45 execution started
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 45 (Foundation, Frame and Auth) — EXECUTING
-Plan: 8 of 11
+Plan: 9 of 11
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 45 execution started
 
-Progress: [██████░░░░] 64%
+Progress: [███████░░░] 73%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -143,6 +143,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [Phase 45-05]: focusableWithin excludes tabindex=-1 on buttons; Esc listener is document-level and ignores defaultPrevented
 - [Phase ?]: [Phase 45-06]: Bar fills use inline width percentage only; strip tag group is one tag row high so New skill clips before Level up and the name never wraps
 - [Phase ?]: 45-07: Account menu Esc handled at wrapper with stopPropagation so it never closes a drawer; NoticeBars countdown derives from absolute nextRetryAt
+- [Phase ?]: [45-08] Splash Enter handler gated on button shown and enabled, not on connection state; static tests resolve sources from process.cwd() under happy-dom
 
 ### Roadmap Evolution
 
@@ -232,8 +233,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T15:43:48.082Z
-Stopped at: Completed 45-07-PLAN.md
+Last session: 2026-10-05T15:48:58.566Z
+Stopped at: Completed 45-08-PLAN.md
 
 ## Performance Metrics
 
@@ -325,6 +326,7 @@ Stopped at: Completed 45-07-PLAN.md
 | Phase 45 P05 | 15min | 3 tasks | 9 files |
 | Phase 45 P06 | 15min | 3 tasks | 8 files |
 | Phase 45 P07 | 12min | 3 tasks | 9 files |
+| Phase 45 P08 | 10min | 2 tasks | 6 files |
 
 ## Operator Next Steps
 
