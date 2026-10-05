@@ -11,8 +11,16 @@ import type {
   Region,
   WorldState,
 } from '../module_bindings/types';
+import { createConnectionController, defaultControllerDeps } from '../net/connection';
 import type { ConnectionController } from '../net/connection';
+import { bindTable } from '../net/bindTable';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
+import {
+  beginSpacetimeAuthLogin,
+  clearAuthSession,
+  getStoredEmail,
+  getStoredIdToken,
+} from '../auth/spacetimeAuth';
 import { deriveScreen } from './deriveScreen';
 import type { AppScreen } from './deriveScreen';
 import { buildFrameView, sortCharacters } from './frameView';
@@ -63,6 +71,9 @@ export interface SessionDeps<C extends SessionConn> {
   reloadPage(): void;
 }
 
+export const SELECT_TIMEOUT_MS = 8000;
+export const LOGOUT_REDUCER_CAP_MS = 2000;
+
 export interface Session {
   readonly screen: ComputedRef<AppScreen>;
   readonly frame: ComputedRef<FrameView | null>;
@@ -74,6 +85,10 @@ export interface Session {
   readonly nextRetryAt: Readonly<Ref<number | null>>;
   readonly versionPrompt: ComputedRef<boolean>;
   start(): void;
+  signIn(): void;
+  selectCharacter(characterId: bigint): void;
+  logout(): Promise<void>;
+  reload(): void;
   dispose(): void;
 }
 
@@ -90,6 +105,25 @@ export function defaultQueries(): SessionQueries {
     pendingSkills: (characterId) =>
       toSql(tables.pendingSkill.where((r) => r.characterId.eq(characterId))),
   };
+}
+
+/**
+ * Real wiring: a fresh controller per session (the session owns it and disposes it),
+ * the generated bindings and the stored-session helpers.
+ */
+export function createDefaultSession(options: { callbackError: unknown }): Session {
+  return createSession<SessionConn>(
+    {
+      controller: createConnectionController(defaultControllerDeps()),
+      auth: { getStoredIdToken, getStoredEmail, clearAuthSession, beginSpacetimeAuthLogin },
+      bind: bindTable,
+      queries: defaultQueries(),
+      buildVersion: __BUILD_VERSION__,
+      isDev: import.meta.env.DEV,
+      reloadPage: () => window.location.reload(),
+    },
+    options,
+  );
 }
 
 export function createSession<C extends SessionConn>(
@@ -261,6 +295,7 @@ function build<C extends SessionConn>(
 
   const pickerPendingId = ref<bigint | null>(null);
   const pickerFailed = ref(false);
+  let selectTimer: ReturnType<typeof setTimeout> | null = null;
 
   const disposeBindings = () => {
     for (const binding of staticBindings) binding.dispose();
@@ -268,6 +303,83 @@ function build<C extends SessionConn>(
     charactersBinding.value = null;
     pendingBinding.value?.dispose();
     pendingBinding.value = null;
+  };
+
+  const clearSelectTimer = () => {
+    if (selectTimer !== null) {
+      clearTimeout(selectTimer);
+      selectTimer = null;
+    }
+  };
+  const resetPicker = () => {
+    clearSelectTimer();
+    pickerPendingId.value = null;
+    pickerFailed.value = false;
+  };
+  const failSelection = () => {
+    clearSelectTimer();
+    pickerPendingId.value = null;
+    pickerFailed.value = true;
+  };
+
+  // The server accepted the choice: the player row now names the active character.
+  watch(
+    activeCharacterId,
+    (id) => {
+      if (id !== null) resetPicker();
+    },
+    { flush: 'sync' },
+  );
+
+  const signIn = () => {
+    authFailed.value = false;
+    redirecting.value = true;
+    // Async: a synchronous try/catch would miss a rejected promise.
+    auth.beginSpacetimeAuthLogin().catch((error: unknown) => {
+      console.warn('[session] could not start sign-in', error);
+      redirecting.value = false;
+      authFailed.value = true;
+    });
+  };
+
+  const selectCharacter = (characterId: bigint) => {
+    if (pickerPendingId.value !== null) return;
+    const conn = controller.conn.value;
+    if (controller.status.value !== 'connected' || !conn) {
+      pickerFailed.value = true;
+      return;
+    }
+    pickerPendingId.value = characterId;
+    pickerFailed.value = false;
+    // set_active_character is a silent no-op in combat: time out instead of waiting forever.
+    selectTimer = setTimeout(failSelection, SELECT_TIMEOUT_MS);
+    conn.reducers.setActiveCharacter({ characterId }).catch(failSelection);
+  };
+
+  const logout = async () => {
+    const conn = controller.conn.value;
+    if (controller.status.value === 'connected' && conn) {
+      await new Promise<void>((resolve) => {
+        const cap = setTimeout(resolve, LOGOUT_REDUCER_CAP_MS);
+        const settle = () => {
+          clearTimeout(cap);
+          resolve();
+        };
+        try {
+          conn.reducers.logout({}).then(settle, settle);
+        } catch {
+          settle();
+        }
+      });
+    }
+    auth.clearAuthSession();
+    hasToken.value = false;
+    controller.disconnect(); // intentional: no retry
+    disposeBindings();
+    loginSentFor = null;
+    authFailed.value = false;
+    redirecting.value = false;
+    resetPicker();
   };
 
   return {
@@ -282,8 +394,15 @@ function build<C extends SessionConn>(
     start() {
       controller.connect();
     },
+    signIn,
+    selectCharacter,
+    logout,
+    reload() {
+      deps.reloadPage();
+    },
     dispose() {
       stopScope();
+      clearSelectTimer();
       disposeBindings();
       controller.dispose();
     },
