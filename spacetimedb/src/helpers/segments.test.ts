@@ -387,6 +387,18 @@ describe('isUsableProse', () => {
       expect(isUsableProse(v)).toBe(false);
     }
   });
+  it('rejects a prose preamble followed by JSON debris (WR-08)', () => {
+    expect(isUsableProse('Sure, here: {"segments":[{"kind":"narration","speaker":"The Keeper","text":"You walk')).toBe(false);
+    expect(isUsableProse('Here you go {"kind": "narration", "text": "The mist thickens around you."')).toBe(false);
+    const r = segmentsFromReply('Sure, here: {"segments":[{"kind":"narration","speaker":"The Keeper","text":"You walk', {
+      ...OPTS,
+      salvageProse: true,
+    });
+    expect(r.source).toBe('fallback');
+    expect(r.segments).toEqual([{ kind: 'narration', speaker: 'The Keeper', text: 'The Keeper loses the thread.' }]);
+    // ordinary prose that merely uses the words is unaffected
+    expect(isUsableProse('The speaker raised a hand and the kind crowd fell quiet at once.')).toBe(true);
+  });
   it('rejects fewer than 8 letters', () => {
     expect(isUsableProse('Hi there!')).toBe(false); // 7 letters
   });

@@ -381,6 +381,8 @@ export function isUsableProse(text: string): boolean {
   const t = text.trim();
   if (t === '') return false;
   if (t.startsWith('{') || t.startsWith('[') || t.startsWith('```')) return false;
+  // A prose preamble in front of truncated or malformed JSON must not reach the player as narration.
+  if (/"(?:segments|kind|speaker|text)"\s*:/.test(t)) return false;
   const letters = t.match(/\p{L}/gu);
   if (!letters || letters.length < 8) return false;
   const lower = t.toLowerCase().replace(/’/g, "'");
