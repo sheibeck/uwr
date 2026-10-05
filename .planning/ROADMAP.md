@@ -151,7 +151,20 @@ Plans:
   4. The Keeper narrates what happens around the player in the second person, as in the Ledger console mock, and the owner approved every Keeper Bible and route-block change before it landed.
   5. A golden run in the narrator voice passes its mechanical rules and the owner signs off on the tone (QUAL-01 carry-over).
 
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+- [ ] 46-01-PLAN.md — Segment contract (segments.ts), KeeperSegment column on three event tables, event helpers, local publish and bindings
+- [ ] 46-02-PLAN.md — Apply layer: NPC replies as segments, Keeper narration segments on creation, arrival, skill, renown and fallback rows
+- [ ] 46-03-PLAN.md — Segment-aware combat narration, SEG-04 malformed-reply matrix and invariant, failure-drill segment checks
+- [ ] 46-04-PLAN.md — Golden rules for the segment shape (missing_segments, segments_invalid, keeper_first_person, allowed speakers)
+- [ ] 46-05-PLAN.md — Golden harness: labelled-line review page, Phase 46 record paths, Phase 44 replay guard, dry run
+- [ ] 46-06-PLAN.md — Voice package 46-VOICE-CHANGES.md and the blocking owner approval (SEG-03, OQ1-OQ7)
+- [ ] 46-07-PLAN.md — Approved Keeper Bible and non-combat route blocks, NPC reply shape with segments
+- [ ] 46-08-PLAN.md — Combat narration JSON route (COMBAT_NARRATION_SCHEMA) with its approved block, OQ7 allow-list
+- [ ] 46-09-PLAN.md — Approved fixed Keeper strings, fallback wording, segment formatting rules, OQ2
+- [ ] 46-10-PLAN.md — OQ3 (44 Fix 2) decision, phase gate, code-only local publish, deferred owner verification list
+
 **Notes**:
 
   - Owner checkpoints: (a) SEG-03, explicit approval of each Keeper Bible and route-block edit before it is applied; (b) SEG-05, the paid golden run is run only with the owner's go-ahead on cost, and the tone sign-off is the owner's call (no `approvedBy` unless the owner approves in chat).
