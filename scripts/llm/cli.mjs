@@ -33,10 +33,43 @@ export const TARGETS = {
 };
 
 /**
+ * The only databases a live run may address with --db: the user's own `uwr` and the local
+ * scratch database `uwr-verify` (Phase 44). Exact, case-sensitive match; nothing else.
+ */
+export const LIVE_DBS = Object.freeze(['uwr', 'uwr-verify']);
+
+/** Return the name when it is exactly an allowlisted database, else throw (the bad value is not echoed). */
+export function resolveLiveDb(name) {
+  if (typeof name === 'string' && LIVE_DBS.includes(name)) return name;
+  throw new Error('unknown database: use --db with one of ' + LIVE_DBS.join(' or ') + ' (local server only)');
+}
+
+/** One status line naming the target and database. Never holds a key or token. */
+export function targetLine(target) {
+  return 'target: ' + target.name + ', db: ' + target.db;
+}
+
+/**
  * Local by default. Maincloud needs both --target maincloud and --confirm-maincloud.
  * Any other target value is refused.
+ *
+ * `--db <uwr|uwr-verify>` selects an allowlisted LOCAL database. It is refused outright when
+ * combined with the hosted target (or its confirm flag), so it can never reach the hosted server.
  */
 export function resolveTarget(argv = []) {
+  const dbIdx = argv.indexOf('--db');
+  if (dbIdx !== -1) {
+    if (argv.indexOf('--db', dbIdx + 1) !== -1) throw new Error('--db given more than once');
+    const hosted = argv.some((a) => a === 'maincloud' || a === '--confirm-maincloud' || String(a).startsWith('--target='));
+    if (hosted) throw new Error('--db is local only and cannot be combined with the hosted target');
+    const tIdx = argv.indexOf('--target');
+    if (tIdx !== -1 && argv[tIdx + 1] !== 'local') {
+      throw new Error('--db is local only and cannot be combined with another target');
+    }
+    const db = resolveLiveDb(argv[dbIdx + 1]);
+    if (db === TARGETS.local.db) return TARGETS.local;
+    return Object.freeze({ ...TARGETS.local, db });
+  }
   const idx = argv.indexOf('--target');
   if (idx === -1) return TARGETS.local;
   const value = argv[idx + 1];

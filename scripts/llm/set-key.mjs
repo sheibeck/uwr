@@ -8,12 +8,16 @@
 //       never in argv, shell history or printed output)
 //   node scripts/llm/set-key.mjs --target maincloud --confirm-maincloud
 //       maincloud, user only. Claude never runs this form.
+//   --db <uwr|uwr-verify>
+//       LOCAL only: pick the user's uwr database (the default) or the scratch database
+//       uwr-verify used by the Phase 44 live work. Any other name is refused, and the option
+//       is refused when combined with --target maincloud. Parsed by resolveTarget in cli.mjs.
 //   --key-file <path>   read the key from another env file (test hook)
 //
 // Exit: 0 ok (confirmed by the module log line), 1 store failed or unconfirmed,
 //       2 key missing or unexpected format.
 
-import { ENV_LOCAL, getCliToken, keyFormatOk, loadAnthropicKey, resolveTarget, scrub, storeKey } from './cli.mjs';
+import { ENV_LOCAL, getCliToken, keyFormatOk, loadAnthropicKey, resolveTarget, scrub, storeKey, targetLine } from './cli.mjs';
 
 function fail(code, msg) {
   console.log(msg);
@@ -44,7 +48,7 @@ if (dryRun) {
 const token = getCliToken();
 if (!token) fail(1, 'spacetime login token: not found (run: spacetime login)');
 
-console.log('target: ' + target.name);
+console.log(targetLine(target));
 try {
   process.exit(await storeKey({ target, key, token, print: (line) => console.log(line) }));
 } catch (e) {

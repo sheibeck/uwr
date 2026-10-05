@@ -61,6 +61,16 @@ A local `--clear-database` wipes `llm_config`, `llm_admin_state` and the `llm_sp
 3. Re-run the smoke test and confirm six `ok` results.
 4. Never clear the maincloud database.
 
+## Scratch database
+
+The Phase 44 live work runs against a separate local database named `uwr-verify`, so your own `uwr` database (its key, ceiling, kill switch and characters) is never touched.
+
+- The scratch database lives on the same local server (`http://127.0.0.1:3000`). It is never on maincloud.
+- Point the key script at it with `--db uwr-verify`: `node scripts/llm/set-key.mjs --db uwr-verify --dry-run`, then `node scripts/llm/set-key.mjs --db uwr-verify`. The script prints `target: local, db: uwr-verify` before it stores anything.
+- `--db` accepts exactly `uwr` or `uwr-verify` (case-sensitive) and nothing else. It is local only: combining it with `--target maincloud` is refused.
+- `uwr` is never cleared for this work. Do not use `--clear-database` on it.
+- Deleting the scratch database is a separate step with the exact name: `spacetime delete uwr-verify --server local`. Check the name before you confirm.
+
 ## Smoke test and status
 
 `llm_smoke_test` enqueues six calls, one per route: `smoke_test` (a short text call), then one minimal call per JSON schema: `creation_race`, `creation_class`, `world_gen`, `skill_gen` and `renown_perk_gen`.

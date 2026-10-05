@@ -8,6 +8,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  LIVE_DBS,
   LLM_KEY_SET_LOG_PREFIX,
   REPO_ROOT,
   TARGETS,
@@ -16,9 +17,11 @@ import {
   extractToken,
   keyFormatOk,
   loadAnthropicKey,
+  resolveLiveDb,
   resolveTarget,
   scrub,
   storeKey,
+  targetLine,
 } from './cli.mjs';
 
 const PREFIX = ['sk', '-ant-'].join('');
@@ -83,6 +86,103 @@ describe('resolveTarget', () => {
   });
   it('refuses an unknown target', () => {
     expect(() => resolveTarget(['--target', 'other'])).toThrow();
+  });
+});
+
+describe('resolveTarget --db (allowlisted, local only)', () => {
+  it('Test 1: no --db and --db uwr both return the unchanged TARGETS.local object', () => {
+    expect(resolveTarget([])).toBe(TARGETS.local);
+    expect(resolveTarget(['--db', 'uwr'])).toBe(TARGETS.local);
+    expect(resolveTarget(['--target', 'local', '--db', 'uwr'])).toBe(TARGETS.local);
+  });
+
+  it('Test 2: --db uwr-verify returns a frozen local target for the scratch database', async () => {
+    expect(LIVE_DBS).toEqual(['uwr', 'uwr-verify']);
+    expect(Object.isFrozen(LIVE_DBS)).toBe(true);
+    const t = resolveTarget(['--db', 'uwr-verify']);
+    expect(t).not.toBe(TARGETS.local);
+    expect(Object.isFrozen(t)).toBe(true);
+    expect(t.db).toBe('uwr-verify');
+    expect(t.server).toBe('local');
+    expect(t.httpBase).toBe('http://127.0.0.1:3000');
+    expect(TARGETS.local.db).toBe('uwr');
+    const seen = {};
+    await callReducerHttp(t, FAKE_TOKEN, 'set_api_key', [FAKE_KEY], async (url) => {
+      seen.url = url;
+      return { status: 200, text: async () => '' };
+    });
+    expect(seen.url).toContain('/v1/database/uwr-verify/call/');
+  });
+
+  it('Test 3: every other value throws (slash, spaces, case, empty, missing, lookalikes, other names)', () => {
+    const bad = ['', ' uwr', 'uwr ', 'UWR', 'Uwr-Verify', 'uwr-verify2', 'uwr-verif', 'uwr_verify', 'uwr/verify', '../uwr', 'a b', 'prod', 'maincloud', 'uwr-spike-925iv', 'uwr;drop', 'uwr-verify\n', '*'];
+    for (const name of bad) expect(() => resolveTarget(['--db', name]), JSON.stringify(name)).toThrow();
+    expect(() => resolveTarget(['--db'])).toThrow();
+    expect(() => resolveTarget(['--db', '--dry-run'])).toThrow();
+    expect(() => resolveLiveDb(undefined)).toThrow();
+    expect(() => resolveLiveDb(42)).toThrow();
+    expect(resolveLiveDb('uwr')).toBe('uwr');
+    expect(resolveLiveDb('uwr-verify')).toBe('uwr-verify');
+    // a repeated --db is ambiguous and refused
+    expect(() => resolveTarget(['--db', 'uwr', '--db', 'uwr-verify'])).toThrow();
+  });
+
+  it('Test 4: --db never combines with the hosted target, with or without the confirm flag', () => {
+    expect(() => resolveTarget(['--target', 'maincloud', '--db', 'uwr-verify'])).toThrow();
+    expect(() => resolveTarget(['--db', 'uwr-verify', '--target', 'maincloud'])).toThrow();
+    expect(() => resolveTarget(['--target', 'maincloud', '--confirm-maincloud', '--db', 'uwr-verify'])).toThrow();
+    expect(() => resolveTarget(['--db', 'uwr', '--target', 'maincloud', '--confirm-maincloud'])).toThrow();
+    expect(() => resolveTarget(['--db', 'uwr-verify', '--confirm-maincloud'])).toThrow();
+    expect(() => resolveTarget(['--db', 'uwr-verify', '--target=maincloud'])).toThrow();
+    expect(() => resolveTarget(['--db', 'uwr-verify', '--target', 'other'])).toThrow();
+    // hosted target alone still behaves as before
+    expect(resolveTarget(['--target', 'maincloud', '--confirm-maincloud'])).toBe(TARGETS.maincloud);
+  });
+
+  it('Test 5: the status line names target and database and never holds a key or token', () => {
+    expect(targetLine(resolveTarget(['--db', 'uwr-verify']))).toBe('target: local, db: uwr-verify');
+    expect(targetLine(TARGETS.local)).toBe('target: local, db: uwr');
+    for (const t of [TARGETS.local, resolveTarget(['--db', 'uwr-verify'])]) {
+      const line = targetLine(t);
+      expect(line).not.toContain(FAKE_KEY);
+      expect(line).not.toContain(FAKE_TOKEN);
+      expect(line).not.toContain(PREFIX);
+    }
+  });
+});
+
+describe('set-key.mjs --db', () => {
+  function run(args, file) {
+    return spawnSync(process.execPath, [SET_KEY, ...args, '--key-file', file], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: REPO_ROOT,
+    });
+  }
+
+  it('--db uwr-verify --dry-run prints the presence line only', () => {
+    const r = run(['--db', 'uwr-verify', '--dry-run'], writeEnv('db.env', 'ANTHROPIC_API_KEY=' + FAKE_KEY + '\n'));
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim()).toMatch(/^ANTHROPIC_API_KEY: present \(format ok, len \d+\)$/);
+    expect(r.stdout + r.stderr).not.toContain(FAKE_KEY);
+  });
+
+  it('--db prod exits non-zero with a message that holds no key text', () => {
+    const r = run(['--db', 'prod', '--dry-run'], writeEnv('db2.env', 'ANTHROPIC_API_KEY=' + FAKE_KEY + '\n'));
+    expect(r.status).toBe(2);
+    expect(r.stdout).toMatch(/uwr-verify/);
+    expect(r.stdout + r.stderr).not.toContain(FAKE_KEY);
+  });
+
+  it('--db with the hosted target is refused before any key work', () => {
+    const r = run(['--db', 'uwr-verify', '--target', 'maincloud', '--confirm-maincloud', '--dry-run'], writeEnv('db3.env', 'ANTHROPIC_API_KEY=' + FAKE_KEY + '\n'));
+    expect(r.status).toBe(2);
+  });
+
+  it('has no second argument parser: the db comes from resolveTarget', () => {
+    const src = fs.readFileSync(SET_KEY, 'utf8');
+    expect(src).not.toContain("'--db'");
+    expect(src).toContain('resolveTarget(argv)');
   });
 });
 
