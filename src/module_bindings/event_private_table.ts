@@ -9,6 +9,10 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import {
+  KeeperSegment,
+} from "./types";
+
 
 export default __t.row({
   id: __t.u64().primaryKey(),
@@ -17,4 +21,7 @@ export default __t.row({
   message: __t.string(),
   kind: __t.string(),
   createdAt: __t.timestamp().name("created_at"),
+  get segments() {
+    return __t.option(__t.array(KeeperSegment));
+  },
 });

@@ -536,6 +536,9 @@ export const EventCreation = __t.object("EventCreation", {
   message: __t.string(),
   kind: __t.string(),
   createdAt: __t.timestamp(),
+  get segments() {
+    return __t.option(__t.array(KeeperSegment));
+  },
 });
 export type EventCreation = __Infer<typeof EventCreation>;
 
@@ -563,6 +566,9 @@ export const EventLocation = __t.object("EventLocation", {
   kind: __t.string(),
   excludeCharacterId: __t.option(__t.u64()),
   createdAt: __t.timestamp(),
+  get segments() {
+    return __t.option(__t.array(KeeperSegment));
+  },
 });
 export type EventLocation = __Infer<typeof EventLocation>;
 
@@ -585,6 +591,9 @@ export const EventPrivate = __t.object("EventPrivate", {
   message: __t.string(),
   kind: __t.string(),
   createdAt: __t.timestamp(),
+  get segments() {
+    return __t.option(__t.array(KeeperSegment));
+  },
 });
 export type EventPrivate = __Infer<typeof EventPrivate>;
 
@@ -776,6 +785,14 @@ export const ItemTemplate = __t.object("ItemTemplate", {
   description: __t.option(__t.string()),
 });
 export type ItemTemplate = __Infer<typeof ItemTemplate>;
+
+export const KeeperSegment = __t.object("KeeperSegment", {
+  kind: __t.string(),
+  speaker: __t.string(),
+  text: __t.string(),
+  speakerNpcId: __t.option(__t.u64()),
+});
+export type KeeperSegment = __Infer<typeof KeeperSegment>;
 
 export const LlmAdminState = __t.object("LlmAdminState", {
   id: __t.u64(),
