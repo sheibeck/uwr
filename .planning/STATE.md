@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 46
 current_phase_name: Structured Keeper Replies
 status: executing
-stopped_at: Completed 46-02-PLAN.md
-last_updated: "2026-10-05T18:37:19.982Z"
+stopped_at: Completed 46-03-PLAN.md
+last_updated: "2026-10-05T18:48:22.593Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 46 execution started
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 21
-  completed_plans: 13
+  completed_plans: 14
   percent: 11
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 46 (Structured Keeper Replies) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 46 execution started
 
-Progress: [██████░░░░] 62%
+Progress: [███████░░░] 67%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -149,6 +149,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [46-01] Event helpers omit the segments key when none/empty given; local publish used --break-clients only (no clear, key 108 before and after); bindings regenerated with KeeperSegment
 - [Phase ?]: [46-01] Player-attributed dialogue check runs before present-speaker match; unmatched speaker becomes Keeper narration in straight quotes; truncation keeps 599 code points then U+2026
 - [Phase ?]: 46-02: NPC replies use segmentsFromReply with present speakers from npc.by_location; non-JSON NPC reply is one Keeper segment with no memory write; world_gen stage 2 writes no model prose so stays unwrapped
+- [Phase ?]: Phase 46-03: combat round prefix removed; message always equals flattenSegments(segments); unusable successful combat replies store one Keeper fallback line per participant
+- [Phase ?]: Phase 46-03: failWorldFill creation_error line wrapped with keeperFallback segments (wording unchanged)
 
 ### Roadmap Evolution
 
@@ -255,8 +257,8 @@ Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed
 
 **Resume file:** None
 
-Last session: 2026-10-05T18:37:19.955Z
-Stopped at: Completed 46-02-PLAN.md
+Last session: 2026-10-05T18:48:22.567Z
+Stopped at: Completed 46-03-PLAN.md
 
 ## Performance Metrics
 
@@ -353,6 +355,7 @@ Stopped at: Completed 46-02-PLAN.md
 | Phase 45 P10 | 10min | 2 tasks | 4 files |
 | Phase 46 P01 | 20min | 3 tasks | 10 files |
 | Phase 46 P02 | 35min | 3 tasks | 4 files |
+| Phase 46 P03 | 40min | 3 tasks | 7 files |
 
 ## Operator Next Steps
 
