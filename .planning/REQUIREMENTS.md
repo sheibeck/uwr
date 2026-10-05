@@ -13,7 +13,7 @@
 
 - [x] **FND-01**: The new client is a fresh Vite + Vue 3 app at the repo root, replacing the old UI, using the same SpacetimeDB module and generated bindings, dev port 5173 and SpacetimeAuth redirect URI.
 - [x] **FND-02**: Every screen takes its styling from Nocturne tokens and components (Inter, Phosphor icons, themed hover, pressed and focus-visible states). Nothing hard-codes a color. Rarity and enemy-difficulty colors keep their current hues.
-- [ ] **FND-03**: On desktop (1280×800), the player sees the frame:
+- [x] **FND-03**: On desktop (1280×800), the player sees the frame:
   - a header: location, time of day, level-up and new-skill tags, screen buttons
   - a vitals rail that stays put
   - the center feed
@@ -124,7 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | FND-01 | Phase 45 | Complete |
 | FND-02 | Phase 45 | Complete |
-| FND-03 | Phase 45 | Pending |
+| FND-03 | Phase 45 | Complete |
 | FND-04 | Phase 45 | Complete |
 | FND-05 | Phase 45 | Complete |
 | FND-06 | Phase 45 | Complete |
