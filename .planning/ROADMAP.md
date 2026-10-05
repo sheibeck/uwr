@@ -101,7 +101,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
   5. Buttons, tabs, inputs and panels show Nocturne hover, pressed and keyboard focus-visible states with Inter and Phosphor icons; no component hard-codes a color (a test fails if one does), and rarity and enemy-difficulty colors keep their current hues.
   6. The splash / sign-in screen shows the 16:9 key-art logo large and undistorted, scaled to fit the viewport at 1280×800 and 390×844, with no pixelated rendering.
 
-**Plans**: 2/11 plans executed
+**Plans**: 3/11 plans executed
 
 Plans:
 **Wave 1**
@@ -111,7 +111,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 45-02-PLAN.md — Client tokens, frame overrides and static design-contract guards (no literal colors, pinned hues, type/spacing scale, Phosphor and Inter only)
-- [ ] 45-03-PLAN.md — Auth fixes (expired token, URL cleanup) and the connection controller (backoff 1-30 s, rejected token, resume on online/visible)
+- [x] 45-03-PLAN.md — Auth fixes (expired token, URL cleanup) and the connection controller (backoff 1-30 s, rejected token, resume on online/visible)
 - [ ] 45-04-PLAN.md — bindTable (rows survive reconnect), deriveScreen, version rule and frame-view projections
 - [ ] 45-05-PLAN.md — Screen state, breakpoint, focus trap, Drawer, Sheet and More sheet
 - [ ] 45-06-PLAN.md — Vitals rail, mobile vitals strip, context rail and feed shells
@@ -322,7 +322,7 @@ Plans:
 | 24-30 | v2.0 | 22/22 | Complete | 2026-03-09 |
 | 31, 32, 38 | v2.1 | 14/14 | Complete | 2026-09-29 |
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
-| 45. Foundation, Frame and Auth | v3.0 | 2/11 | In Progress|  |
+| 45. Foundation, Frame and Auth | v3.0 | 3/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 0/TBD | Not started | - |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 0/TBD | Not started | - |
