@@ -11,7 +11,7 @@ import {
   usedCustomProperties,
 } from './cssContract';
 
-const ROOT = fileURLToPath(new URL('../../', import.meta.url)).replaceAll('\\', '/');
+const ROOT = fileURLToPath(new URL('../../', import.meta.url)).split('\\').join('/');
 const SRC = `${ROOT}src`;
 const read = (path: string): string => readFileSync(path, 'utf8');
 

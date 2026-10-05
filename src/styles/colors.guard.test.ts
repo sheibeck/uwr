@@ -12,7 +12,7 @@ import {
 // FND-02: no literal colors in client source. Tokens live in nocturne.css (vendored) and
 // tokens.client.css; everything else references var(--...). Static scan, no DOM needed.
 
-const ROOT = fileURLToPath(new URL('../../', import.meta.url)).replaceAll('\\', '/');
+const ROOT = fileURLToPath(new URL('../../', import.meta.url)).split('\\').join('/');
 const SRC = `${ROOT}src`;
 const rel = (path: string): string => path.replace(ROOT, '');
 
