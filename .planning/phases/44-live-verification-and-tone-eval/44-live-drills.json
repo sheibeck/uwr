@@ -1,0 +1,80 @@
+{
+  "plan": "44-06",
+  "database": "uwr-verify",
+  "overall": "passed",
+  "drills": [
+    {
+      "name": "bad_key_401",
+      "status": "passed",
+      "evidence": {
+        "bucket": "unavailable",
+        "callOutcome": "auth",
+        "callRows": 1,
+        "httpStatus": "401",
+        "jobStatus": "failed",
+        "keyRestore": "ok",
+        "leakRules": [],
+        "lockReleased": true,
+        "playerLines": 2
+      }
+    },
+    {
+      "name": "ceiling",
+      "status": "passed",
+      "evidence": {
+        "ceilingRestoredTo": "10000000",
+        "keyRestore": "ok",
+        "leakRules": [],
+        "playerLines": 1
+      }
+    },
+    {
+      "name": "kill_switch",
+      "status": "passed",
+      "evidence": {
+        "keyRestore": "ok",
+        "leakRules": [],
+        "playerLines": 1
+      }
+    },
+    {
+      "name": "tiny_timeout",
+      "status": "passed",
+      "evidence": {
+        "bucket": "transient",
+        "callOutcome": "timeout",
+        "callRows": 1,
+        "jobStatus": "failed",
+        "keyRestore": "ok",
+        "leakRules": [],
+        "lockReleased": true,
+        "playerLines": 2,
+        "standInMicroUsd": "18248"
+      }
+    },
+    {
+      "name": "restore_check",
+      "status": "passed",
+      "evidence": {
+        "ceiling": "10000000",
+        "drillCallRows": 2,
+        "drillJobs": 2,
+        "expectedCeiling": "10000000",
+        "expectedKeyLength": "108",
+        "keyLength": "108",
+        "keySet": true,
+        "llmEnabled": true
+      }
+    }
+  ],
+  "startingCeilingMicroUsd": "10000000",
+  "jobIds": {
+    "bad_key_401": [
+      "1"
+    ],
+    "tiny_timeout": [
+      "2"
+    ]
+  },
+  "updatedAt": "2026-10-05T08:27:21.975Z"
+}
