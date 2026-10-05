@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 44
 current_phase_name: Live Verification and Tone Eval
 status: executing
-stopped_at: Completed 44-09-PLAN.md (paid run deferred by owner; QUAL-02 live half human_needed)
-last_updated: "2026-10-05T11:04:40.583Z"
+stopped_at: Completed 44-08-PLAN.md (needs_fixes recorded)
+last_updated: "2026-10-05T11:40:29.769Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 44 execution resumed (wave continue)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 74
-  completed_plans: 69
+  completed_plans: 70
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 44 (Live Verification and Tone Eval) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Ready to execute
 Last activity: 2026-10-04 — Phase 44 execution resumed (wave continue)
 
-Progress: [█████████░] 93% (2/6 phases)
+Progress: [██████████] 95% (2/6 phases)
 
 ## Previous Milestones
 
@@ -125,6 +125,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [44-05] Smoke jobs are not in my_llm_jobs; smoke ids come from the call log report by run window
 - [Phase ?]: 44-06: Live drills run on uwr-verify only; fake key stored before each drill, real key restored per drill in finally; timeout row cost is the ledger reservation, tied to ledger delta
 - [Phase ?]: 44-07: one approved paid golden run recorded (27 calls, $0.2604); 13 of 27 items fail a mechanical rule and are left as data for the owner's 44-08 review; no rule or item weakened; approval stays null
+- [Phase ?]: [44-08] QUAL-01 tone NOT approved (needs_fixes: 12 fails, skl-02 unrated); nothing applied; response shape (speaker field) deferred to UX overhaul 999.6
 
 ### Roadmap Evolution
 
@@ -161,6 +162,7 @@ See MILESTONES.md for full delivery summaries.
 - [Env] On 2026-09-30 the machine briefly ran out of committed virtual memory (0.5 GB free), which crashed multi-worker vitest runs. It cleared after a restart (40.8 GB free). Single-worker runs (`--maxWorkers=1`, about 19 s, 1454 tests green) stay the safe default for agents on this low-end host.
 - **NO PUSHES TO MASTER** -- production auto-deploys from master; all work stays local until user approves
 - **NO PUSHES TO MAINCLOUD** -- local SpacetimeDB only until user says otherwise (one exception: the Phase 39 spike database uwr-spike-925iv, published by Claude under the user's 2026-09-29 grant since deleted by the user on 2026-09-29)
+- QUAL-01 open: owner tone not approved (44-golden-verdicts.json needs_fixes); owner must decide on 44-TONE-FIXES.md; skl-02 unrated
 
 ### Quick Tasks Completed
 
@@ -196,8 +198,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T11:04:40.554Z
-Stopped at: Completed 44-09-PLAN.md (paid run deferred by owner; QUAL-02 live half human_needed)
+Last session: 2026-10-05T11:40:24.255Z
+Stopped at: Completed 44-08-PLAN.md (needs_fixes recorded)
 
 ## Performance Metrics
 
@@ -280,6 +282,7 @@ Stopped at: Completed 44-09-PLAN.md (paid run deferred by owner; QUAL-02 live ha
 | Phase 44 P06 | 3.5h | 3 tasks | 4 files |
 | Phase 44 P07 | about 15 min live work plus owner checkpoint | 3 tasks | 4 files |
 | Phase 44 P09 | deferred | 3 tasks | 2 files |
+| Phase 44 P08 | 30 min | 2 tasks | 3 files |
 
 ## Operator Next Steps
 
