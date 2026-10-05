@@ -605,3 +605,100 @@ describe('the live harness source', () => {
     expect(config).toContain('fileParallelism: false');
   });
 });
+
+// ---------------------------------------------------------------------------
+// The committed live results (Plan 44-09). The record is either a recorded run, or the owner declined or
+// deferred the paid run; in every case a domain that did not run is never reported as passed.
+// ---------------------------------------------------------------------------
+
+describe('pinned live results', () => {
+  const file = path.join(REPO_ROOT, '.planning', 'phases', '44-live-verification-and-tone-eval', '44-live-results.json');
+  const text = fs.readFileSync(file, 'utf8');
+  const record = JSON.parse(text);
+
+  const walk = (value, visit) => {
+    if (typeof value === 'string') visit(value);
+    else if (Array.isArray(value)) for (const v of value) walk(v, visit);
+    else if (value && typeof value === 'object') for (const v of Object.values(value)) walk(v, visit);
+  };
+
+  it('has a recorded, declined or deferred status', () => {
+    expect(['recorded', 'declined', 'deferred']).toContain(record.status);
+  });
+
+  it('lists every PROOF_STEP exactly once, in order, each with a result', () => {
+    expect(record.steps.map((s) => s.step)).toEqual([...PROOF_STEPS]);
+    for (const s of record.steps) {
+      expect(typeof s.jobStatus, s.step).toBe('string');
+      expect(typeof s.ok, s.step).toBe('boolean');
+    }
+  });
+
+  it('stores domain verdicts that match the steps; a not-run or skipped domain fails the overall verdict', () => {
+    const recomputed = proofVerdict(record.steps);
+    if (record.status === 'recorded') {
+      expect(record.verdict.domains).toEqual(recomputed.domains);
+      expect(record.verdict.pass).toBe(recomputed.pass);
+    } else {
+      // Declined or deferred: nothing ran, so every domain is not_run, nothing passed, and the recomputed verdict fails too.
+      expect(record.steps.every((s) => s.ok === false && s.jobStatus === 'not_run')).toBe(true);
+      expect(record.verdict.pass).toBe(false);
+      expect(record.verdict.notRun).toEqual(Object.keys(PROOF_DOMAINS));
+      expect(record.verdict.failed).toEqual([]);
+      for (const domain of Object.keys(PROOF_DOMAINS)) expect(record.verdict.domains[domain], domain).toBe('not_run');
+      expect(recomputed.pass).toBe(false);
+      expect(Object.values(recomputed.domains)).not.toContain('passed');
+    }
+    if (record.verdict.notRun.length > 0 || record.verdict.failed.length > 0) expect(record.verdict.pass).toBe(false);
+  });
+
+  it('a declined or deferred record carries no run window, no job, no report and states the requirement is human_needed', () => {
+    if (record.status === 'recorded') return;
+    expect(record.window).toBeNull();
+    expect(record.jobs).toEqual([]);
+    expect(record.jobIds).toEqual({});
+    expect(record.report.status).toBe('not_run');
+    expect(record.requirementStatus).toBe('human_needed');
+    expect(record.mode).toBe('none');
+    expect(typeof record.reason).toBe('string');
+  });
+
+  it('a recorded run lists the routes in LLM_ROUTE_NAMES order with ordered percentiles and a window start before its end', () => {
+    if (record.status !== 'recorded') return;
+    const routes = record.report.routes.map((r) => r.route);
+    expect(routes.slice(0, LLM_ROUTE_NAMES.length)).toEqual([...LLM_ROUTE_NAMES]);
+    for (const r of record.report.routes) {
+      if (r.n > 0) {
+        expect(r.p50, r.route).toBeLessThanOrEqual(r.p95);
+        expect(r.p95, r.route).toBeLessThanOrEqual(r.p99);
+      }
+    }
+    expect(record.window.startMs).toBeLessThanOrEqual(record.window.endMs);
+    expect(burstSampleVerdict(record.burst.okCount).indicative).toBe(record.burst.indicative);
+  });
+
+  it('only ever names the scratch database on the local target', () => {
+    expect(record.database).toBe('uwr-verify');
+    expect(record.target).toBe('local');
+    expect(text.toLowerCase()).not.toContain('maincloud');
+  });
+
+  it('holds no key-shaped string and no token, and every excerpt is at most 120 characters', () => {
+    expect(text).not.toMatch(/sk-ant-[A-Za-z0-9_-]{8,}/);
+    expect(text).not.toMatch(/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/);
+    for (const s of record.steps) if (typeof s.note === 'string') expect(s.note.length, s.step).toBeLessThanOrEqual(PROOF_EXCERPT_MAX);
+    for (const b of record.burst.samples ?? []) {
+      if (typeof b.excerpt === 'string') expect(b.excerpt.length).toBeLessThanOrEqual(PROOF_EXCERPT_MAX);
+    }
+    if (record.status === 'recorded') {
+      walk(record.observedChecks, (s) => expect(s.length).toBeLessThanOrEqual(PROOF_EXCERPT_MAX));
+    }
+  });
+
+  it('keeps any recorded spend within the $1.80 stop of the $2.00 run cap', () => {
+    const stop = PROOF_RUN_CAP_MICRO_USD - PROOF_SPEND_MARGIN_MICRO_USD;
+    const spent = record.report?.totals?.recomputedCostMicroUsd;
+    if (record.status === 'recorded' && spent !== undefined) expect(BigInt(spent) <= stop).toBe(true);
+    expect(BigInt(Math.round(Number(record.preparation?.costBound?.worstCaseUsd ?? 0) * 1e6)) <= stop).toBe(true);
+  });
+});

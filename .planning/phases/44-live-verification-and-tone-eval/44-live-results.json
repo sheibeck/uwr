@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "plan": "44-09",
+  "status": "deferred",
+  "reason": "The owner deferred the paid end-to-end run at the cost checkpoint. No paid call was made. QUAL-02's live half is human_needed, not passed.",
+  "target": "local",
+  "database": "uwr-verify",
+  "mode": "none",
+  "window": null,
+  "preparation": {
+    "serverOnline": true,
+    "scratchDatabasePublishedFromUnmodifiedSource": true,
+    "keyStored": true,
+    "keyLength": 108,
+    "dryHarness": {
+      "adminRows": 1,
+      "keySet": true,
+      "killSwitchOn": true,
+      "dailyCeilingMicroUsd": "10000000",
+      "allTimeSpentMicroUsd": "18248",
+      "note": "the all-time spend is left over from the plan 44-06 drills, not from this plan"
+    },
+    "gates": {
+      "fullSuite": "76 files, 3869 tests, green",
+      "spacetimeBuild": "ok",
+      "pnpmBuildAndBundleGuard": "clean",
+      "anthropicHostInDist": false
+    },
+    "costBound": {
+      "plannedCalls": 39,
+      "worstCaseUsd": "0.7828",
+      "runCapUsd": "2.00",
+      "runStopUsd": "1.80"
+    }
+  },
+  "steps": [
+    { "step": "smoke", "route": "smoke", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "creation_race", "route": "creation_race", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "creation_class_reveal", "route": "creation_class_reveal", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "creation_class", "route": "creation_class", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "world_gen_start", "route": "world_gen_start", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "world_gen", "route": "world_gen", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "explore_region", "route": "world_gen", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "npc_conversation", "route": "npc_conversation", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "npc_burst", "route": "npc_conversation", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "combat_narration", "route": "combat_narration", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "renown_perk_gen", "route": "renown_perk_gen", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "skill_gen", "route": "skill_gen", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" },
+    { "step": "llm_stats", "route": "llm_stats", "ok": false, "jobStatus": "not_run", "elapsedMs": 0, "note": "deferred at the cost checkpoint" }
+  ],
+  "stages": null,
+  "timeToPlayableMs": null,
+  "jobs": [],
+  "jobIds": {},
+  "burst": { "turns": 20, "samples": [], "okCount": 0, "indicative": true },
+  "observedChecks": null,
+  "report": {
+    "status": "not_run",
+    "reason": "no paid run happened, so llm_call_log holds no calls for this plan; there is no per-route table, no token total and no streaming verdict input"
+  },
+  "verdict": {
+    "pass": false,
+    "domains": {
+      "smoke": "not_run",
+      "creation": "not_run",
+      "world_gen": "not_run",
+      "npc_chat": "not_run",
+      "combat_narration": "not_run",
+      "renown": "not_run",
+      "skills": "not_run"
+    },
+    "notRun": ["smoke", "creation", "world_gen", "npc_chat", "combat_narration", "renown", "skills"],
+    "failed": [],
+    "missingSteps": {}
+  },
+  "requirementStatus": "human_needed",
+  "notes": [
+    "Deferred by the owner through the orchestrator at the Task 2 checkpoint.",
+    "Phase 43 UAT items 1 and 2 (staged flow timings) remain open for the user.",
+    "The browser network-tab check stays a user item."
+  ]
+}
