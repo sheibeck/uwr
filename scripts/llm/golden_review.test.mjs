@@ -17,7 +17,7 @@ const HOSTILE = [
   '<script>alert(1)</script>',
   '</script><script>alert(2)</script>',
   '</textarea><img src=x onerror=alert(3)>',
-  `quotes " ' & < > and a line separator   and   done`,
+  `quotes " ' & < > and a line separator ${String.fromCharCode(0x2028)} and ${String.fromCharCode(0x2029)} done`,
 ].join('\n');
 
 const result = (text) => ({
@@ -97,15 +97,17 @@ describe('renderGoldenReview: hostile model text is inert', () => {
     expect(data.raw).not.toContain('<');
     expect(data.raw).not.toContain('>');
     expect(data.raw).not.toContain('&');
-    expect(data.raw).not.toContain(' ');
-    expect(data.raw).not.toContain(' ');
+    expect(data.raw).not.toContain(String.fromCharCode(0x2028));
+    expect(data.raw).not.toContain(String.fromCharCode(0x2029));
     expect(data.raw.toLowerCase()).not.toContain('</script');
   });
 
   it('the hostile text survives intact inside the parsed data and nowhere else in the page', () => {
     expect(data.parsed.items.find((i) => i.id === 'adv-1').text).toBe(HOSTILE);
-    expect(html).not.toContain('alert(1)');
-    expect(html).not.toContain('onerror');
+    const outsideData = html.replace(data.raw, '');
+    expect(outsideData).not.toContain('alert(');
+    expect(outsideData).not.toContain('onerror');
+    expect(html).not.toContain('<script>alert');
     expect(blocks(html).count).toBe(2); // the payload added no script element
     expect(html.match(/<textarea/g)).toBeNull(); // no textarea in static markup for a payload to close
   });
@@ -386,14 +388,26 @@ describe('the page script: verdict capture through the db capability', () => {
     const db = fakeDb({ hold: true });
     const page = await loadPage(html, { claude: withDb(db) });
     page.button('npc-02', 'pass').click();
+    await flush();
+    expect(db.writes).toHaveLength(1); // held open
     page.button('npc-02', 'fail').click();
     await flush();
     expect(db.writes).toHaveLength(1); // the second waits for the first
     db.releases.shift()();
     await flush();
     expect(db.writes).toHaveLength(2);
-    expect(db.writes[1].body.verdict).toBe('fail'); // built from the latest state when it runs
+    expect(db.writes[1].body.verdict).toBe('fail');
     expect(db.maxInFlight).toBe(1);
+  });
+
+  it('coalesces a burst of changes into the latest state instead of writing every step', async () => {
+    const db = fakeDb();
+    const page = await loadPage(html, { claude: withDb(db) });
+    page.button('npc-03', 'pass').click();
+    page.button('npc-03', 'fail').click();
+    page.button('npc-03', 'pass').click();
+    await flush();
+    expect(db.writes.map((w) => w.body.verdict)).toEqual(['pass']);
   });
 
   it('keeps the overall approve disabled until every item has a verdict, then writes verdicts/overall', async () => {
