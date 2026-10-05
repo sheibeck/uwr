@@ -12,8 +12,7 @@ import {
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/');
 
-// TEMP (removed with the old UI in the cutover commit): legacy client dirs still hold relative imports.
-const SKIPPED_DIRS = new Set(['module_bindings', 'node_modules', 'components', 'composables', 'ui', 'data']);
+const SKIPPED_DIRS = new Set(['module_bindings', 'node_modules']);
 
 function walkProduction(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

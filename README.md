@@ -34,11 +34,14 @@ uwr/
 │       └── seeding/      # World, enemy, and item initialization
 │
 ├── src/                  # Frontend — Vue 3 SPA
-│   ├── main.ts           # App entry, SpacetimeDB connection setup
-│   ├── App.vue           # Root component and UI orchestrator
-│   ├── components/       # Vue SFC components (panels, modals, HUD)
-│   ├── composables/      # Vue composition functions (game data, combat, inventory, etc.)
-│   ├── auth/             # SpacetimeAuth OIDC login/token handling
+│   ├── main.ts           # App entry: auth callback and mount
+│   ├── App.vue           # Root: splash, character picker or frame
+│   ├── auth/             # SpacetimeAuth OIDC login and token storage
+│   ├── net/              # Connection controller and table bindings
+│   ├── session/          # Sign-in screens and session state
+│   ├── frame/            # Header, rails, drawers, sheets, tab bar
+│   ├── screens/          # Drawer and sheet screens
+│   ├── styles/           # Nocturne design system and client tokens
 │   └── module_bindings/  # Auto-generated client bindings — DO NOT EDIT
 │
 ├── .planning/            # Architecture docs, phase plans, quick task history

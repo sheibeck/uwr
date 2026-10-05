@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@phosphor-icons/vue": "2.2.1",
-    "html2canvas": "^1.4.1",
     "spacetimedb": "^2.10.1",
     "vue": "^3.5.43"
   },

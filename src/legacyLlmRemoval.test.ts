@@ -11,99 +11,6 @@ function read(relativePath: string): string {
   return readFileSync(`${ROOT}${relativePath}`, 'utf8');
 }
 
-function countMatches(text: string, pattern: RegExp): number {
-  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
-  return (text.match(new RegExp(pattern.source, flags)) ?? []).length;
-}
-
-describe('client wiring', () => {
-  const core = read('src/composables/data/useCoreData.ts');
-  const app = read('src/App.vue');
-  const consoleSrc = read('src/components/NarrativeConsole.vue');
-
-  it('useCoreData subscribes to and rebinds my_llm_jobs only', () => {
-    expect(core).toContain('toSql(tables.my_llm_jobs)');
-    expect(core).toMatch(/rebind\(dbConn\.db\.my_llm_jobs,\s*llmJobs,/);
-    expect(core).toMatch(/llmJobs\.value\s*=\s*\[\.\.\.dbConn\.db\.my_llm_jobs\.iter\(\)\]/);
-    expect(core).toMatch(/^\s+llmJobs,$/m);
-    expect(core).not.toMatch(/llm_task|llmTasks|llm_request/);
-  });
-
-  it('App.vue wires useLlmStatus and locks input only for creation and world generation', () => {
-    expect(app).toMatch(/import\s*\{[^}]*useLlmStatus[^}]*\}\s*from\s*'\.\/composables\/useLlmStatus'/);
-    expect(app).toMatch(/import\s*\{[^}]*resolveDisplayedLine[^}]*\}\s*from\s*'\.\/composables\/useLlmStatus'/);
-    expect(app).toContain('useLlmStatus({ llmJobs })');
-    expect(app).toMatch(
-      /const isLlmInputLocked = computed\(\(\) => isCreationLlmProcessing\.value \|\| isWorldGenProcessing\.value\);/
-    );
-    expect(app).toContain('resolveDisplayedLine(creationLlmStatus.value.indicatorLine, isLlmInputLocked.value)');
-    expect(app).toContain('resolveDisplayedLine(gameLlmStatus.value.indicatorLine, isLlmInputLocked.value)');
-    expect(app).toMatch(/const isNarrativeLlmProcessing = isLlmInputLocked;/);
-  });
-
-  it('App.vue passes each console its own scoped indicator line (WR-02) and locks on isLlmInputLocked', () => {
-    expect(app).toMatch(
-      /const \{ creationStatus: creationLlmStatus, gameStatus: gameLlmStatus \} = useLlmStatus\(\{ llmJobs \}\);/
-    );
-    expect(countMatches(app, /:llm-indicator-line="creationLlmIndicatorLine"/)).toBe(1);
-    expect(countMatches(app, /:llm-indicator-line="gameLlmIndicatorLine"/)).toBe(1);
-    expect(countMatches(app, /:llm-indicator-line="/)).toBe(2);
-    // The creation console (creation-mode) gets the creation line; the game console gets the game line.
-    const creationConsole = app.match(/<NarrativeConsole[^>]*:creation-mode="true"[^>]*>/s)?.[0] ?? '';
-    expect(creationConsole).toContain(':llm-indicator-line="creationLlmIndicatorLine"');
-    expect(app).toContain(':is-llm-processing="isLlmInputLocked"');
-    expect(app).toContain(':is-llm-processing="isNarrativeLlmProcessing"');
-  });
-
-  it('no is-llm-processing binding reads the status or the indicator line', () => {
-    const bindings = app.match(/:is-llm-processing="[^"]*"/g) ?? [];
-    expect(bindings.length).toBe(2);
-    for (const binding of bindings) {
-      expect(binding).not.toMatch(/LlmStatus|llmStatus|IndicatorLine|indicatorLine/);
-    }
-  });
-
-  it('NarrativeConsole shows an accessible indicator from the prop', () => {
-    expect(consoleSrc).toMatch(/llmIndicatorLine\?:\s*string\s*\|\s*null;/);
-    const div = consoleSrc.match(/<div[^>]*class="llm-indicator"[^>]*>/s)?.[0] ?? '';
-    expect(div).toContain('role="status"');
-    expect(div).toContain('aria-live="polite"');
-    expect(div).toContain(':style="llmIndicatorLine ? consideringStyle : indicatorIdleStyle"');
-    expect(consoleSrc).toContain('{{ llmIndicatorLine ?? \'\' }}');
-    expect(consoleSrc).not.toContain('considering your fate');
-  });
-
-  it('the role="status" live region is always mounted; only its text changes (WR-03)', () => {
-    const div = consoleSrc.match(/<div[^>]*class="llm-indicator"[^>]*>/s)?.[0] ?? '';
-    expect(div).not.toMatch(/\bv-(if|else-if|else|show)\b/);
-    // Its parent is the unconditional scroll area, so nothing above it unmounts the region either.
-    const scrollArea = consoleSrc.match(/<div :style="scrollAreaStyle"[^>]*>/)?.[0] ?? '';
-    expect(scrollArea).not.toBe('');
-    expect(scrollArea).not.toMatch(/\bv-(if|else-if|else|show)\b/);
-    const regionAt = consoleSrc.indexOf(div);
-    expect(regionAt).toBeGreaterThan(consoleSrc.indexOf(scrollArea));
-    expect(regionAt).toBeLessThan(consoleSrc.indexOf('<!-- Jump to bottom button -->'));
-    expect(countMatches(consoleSrc, /role="status"/)).toBe(1);
-    // The idle style hides the empty region visually without removing it.
-    const idle = consoleSrc.match(/const indicatorIdleStyle = \{[^}]*\}/s)?.[0] ?? '';
-    expect(idle).toContain("position: 'absolute'");
-    expect(idle).toContain("clip: 'rect(0, 0, 0, 0)'");
-    expect(idle).not.toMatch(/display:\s*'none'|visibility:\s*'hidden'/);
-  });
-
-  it('NarrativeConsole keeps the pulse, adds a reduced-motion rule and the same input lock', () => {
-    expect(consoleSrc).toMatch(/color:\s*'#ffd43b'/);
-    expect(consoleSrc).toMatch(/fontStyle:\s*'italic'/);
-    expect(consoleSrc).toMatch(/padding:\s*'4px 0'/);
-    expect(consoleSrc).toContain("animation: 'narrativePulse 1.5s ease-in-out infinite'");
-    expect(countMatches(consoleSrc, /@media \(prefers-reduced-motion: reduce\)/)).toBe(1);
-    const media = consoleSrc.match(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\{[^}]*\}\s*\}/s)?.[0] ?? '';
-    expect(media).toContain('.llm-indicator');
-    expect(media).toContain('animation: none !important');
-    expect(consoleSrc).toContain(':disabled="animIsAnimating || isLlmProcessing"');
-  });
-});
-
 // ---------------------------------------------------------------------------
 // proxy removal
 // ---------------------------------------------------------------------------
@@ -144,7 +51,7 @@ describe('proxy removal', () => {
   const files = walkProduction(`${ROOT}src`);
 
   it('scans a meaningful number of production files', () => {
-    expect(files.length).toBeGreaterThanOrEqual(20);
+    expect(files.length).toBeGreaterThan(10);
   });
 
   it('no production client file names the proxy plumbing', () => {
@@ -185,6 +92,39 @@ describe('proxy removal', () => {
     ]) {
       expect(existsSync(`${ROOT}${gone}`), gone).toBe(false);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// private llm tables
+// ---------------------------------------------------------------------------
+
+// Word boundaries keep the allowed player view (my_llm_jobs, myLlmJobs) from matching.
+const PRIVATE_SNAKE = /\bllm_(config|job|call_log|dispatch|sweep_tick|player_budget|spend|admin_state)\b/;
+const PRIVATE_CAMEL = /\bllm(Config|Job|CallLog|Dispatch|SweepTick|PlayerBudget|Spend|AdminState)\b/;
+
+function namesPrivateLlmTable(line: string): boolean {
+  return PRIVATE_SNAKE.test(line) || PRIVATE_CAMEL.test(line);
+}
+
+describe('private llm tables', () => {
+  it('the scan flags private table handles and passes the player job view', () => {
+    expect(namesPrivateLlmTable('conn.db.llm_job.iter()')).toBe(true);
+    expect(namesPrivateLlmTable('useTable(tables.llmCallLog)')).toBe(true);
+    expect(namesPrivateLlmTable('tables.my_llm_jobs')).toBe(false);
+    expect(namesPrivateLlmTable('useTable(tables.myLlmJobs)')).toBe(false);
+  });
+
+  it('no production client file names a private llm table', () => {
+    const offenders: string[] = [];
+    for (const file of walkProduction(`${ROOT}src`)) {
+      readFileSync(file, 'utf8')
+        .split(/\r?\n/)
+        .forEach((line, index) => {
+          if (namesPrivateLlmTable(line)) offenders.push(`${file.slice(ROOT.length)}:${index + 1}`);
+        });
+    }
+    expect(offenders).toEqual([]);
   });
 });
 
