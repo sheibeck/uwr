@@ -72,6 +72,8 @@ export interface SessionDeps<C extends SessionConn> {
 }
 
 export const SELECT_TIMEOUT_MS = 8000;
+/** How long a connected session may sit on "Signing in…" before it reports a failure. */
+export const SIGNIN_TIMEOUT_MS = 15000;
 export const LOGOUT_REDUCER_CAP_MS = 2000;
 
 export interface Session {
@@ -271,19 +273,68 @@ function build<C extends SessionConn>(
     { immediate: true, flush: 'sync' },
   );
 
+  const bindingFailed = computed(
+    () => myPlayer.failed.value || (charactersBinding.value?.failed.value ?? false),
+  );
+  const signInTimedOut = ref(false);
+
+  const screenInput = computed(() => ({
+    redirecting: redirecting.value,
+    authFailed: authFailed.value,
+    hasToken: hasToken.value,
+    status: controller.status.value,
+    playerLoaded: myPlayer.applied.value && player.value !== null,
+    userId: userId.value,
+    activeCharacterId: activeCharacterId.value,
+    charactersApplied: charactersBinding.value?.applied.value ?? false,
+    characterCount: characterRows.value.length,
+    activeCharacterLoaded: activeCharacter.value !== null,
+  }));
+
   const screen = computed(() =>
     deriveScreen({
-      redirecting: redirecting.value,
-      authFailed: authFailed.value,
-      hasToken: hasToken.value,
-      status: controller.status.value,
-      playerLoaded: myPlayer.applied.value && player.value !== null,
-      userId: userId.value,
-      activeCharacterId: activeCharacterId.value,
-      charactersApplied: charactersBinding.value?.applied.value ?? false,
-      characterCount: characterRows.value.length,
-      activeCharacterLoaded: activeCharacter.value !== null,
+      ...screenInput.value,
+      bindingFailed: bindingFailed.value,
+      signInTimedOut: signInTimedOut.value,
     }),
+  );
+
+  // Watchdog: a connected session that keeps waiting for its data (no player row, a
+  // character that never loads) must end in the sign-in failure splash. It is judged on
+  // the data alone, never on the timeout itself, so expiring does not restart the clock.
+  const awaitingSessionData = computed(() => {
+    const result = deriveScreen({
+      ...screenInput.value,
+      status: controller.status.value,
+      bindingFailed: false,
+      signInTimedOut: false,
+    });
+    return (
+      controller.status.value === 'connected' &&
+      result.kind === 'splash' &&
+      result.state === 'signingIn'
+    );
+  });
+  let signInTimer: ReturnType<typeof setTimeout> | null = null;
+  const clearSignInTimer = () => {
+    if (signInTimer !== null) {
+      clearTimeout(signInTimer);
+      signInTimer = null;
+    }
+  };
+  watch(
+    awaitingSessionData,
+    (waiting) => {
+      clearSignInTimer();
+      signInTimedOut.value = false;
+      if (!waiting) return;
+      signInTimer = setTimeout(() => {
+        signInTimer = null;
+        console.warn('[session] timed out waiting for the signed-in session data');
+        signInTimedOut.value = true;
+      }, SIGNIN_TIMEOUT_MS);
+    },
+    { immediate: true, flush: 'sync' },
   );
 
   const frame = computed<FrameView | null>(() => {
@@ -399,6 +450,8 @@ function build<C extends SessionConn>(
     loginSentFor = null;
     authFailed.value = false;
     redirecting.value = false;
+    clearSignInTimer();
+    signInTimedOut.value = false;
     resetPicker();
   };
 
@@ -423,6 +476,7 @@ function build<C extends SessionConn>(
     dispose() {
       if (typeof window !== 'undefined') window.removeEventListener('pageshow', onPageShow);
       stopScope();
+      clearSignInTimer();
       clearSelectTimer();
       disposeBindings();
       controller.dispose();

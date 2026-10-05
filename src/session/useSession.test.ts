@@ -5,7 +5,7 @@ import { ref, shallowRef } from 'vue';
 import type { ConnectionController, ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, TableBinding } from '../net/bindTable';
 import type { Character } from '../module_bindings/types';
-import { createSession, defaultQueries } from './useSession';
+import { createSession, defaultQueries, SIGNIN_TIMEOUT_MS } from './useSession';
 import type { Session, SessionAuth, SessionConn, SessionDeps, SessionQueries } from './useSession';
 
 interface FakeConn extends SessionConn {
@@ -669,6 +669,137 @@ describe('createSession actions', () => {
       h = harness();
       h.session.reload();
       expect(h.reloadPage).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('createSession stuck sign-in', () => {
+  let h: Harness;
+  const SIGNING_IN = { kind: 'splash', state: 'signingIn' };
+  const FAILED = { kind: 'splash', state: 'signInFailed' };
+  let warn: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    h?.session.dispose();
+    warn.mockRestore();
+    vi.useRealTimers();
+  });
+
+  describe('failed subscriptions', () => {
+    it('shows signInFailed when the my_player subscription errors', () => {
+      h = harness();
+      h.connect();
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      h.binding(queries.myPlayer).failed.value = true;
+      expect(h.session.screen.value).toEqual(FAILED);
+    });
+
+    it('shows signInFailed when the characters subscription errors', async () => {
+      h = harness();
+      h.connect();
+      h.setPlayer({ userId: 7n });
+      await flush();
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      h.binding(queries.characters(7n)).failed.value = true;
+      expect(h.session.screen.value).toEqual(FAILED);
+    });
+
+    it('does not tear down the picker when a binding fails after the data loaded', async () => {
+      h = harness();
+      h.connect();
+      h.setPlayer({ userId: 7n });
+      await flush();
+      const chars = h.binding(queries.characters(7n));
+      chars.rows.value = [makeCharacter(1n, 10n)];
+      chars.applied.value = true;
+      chars.failed.value = true;
+      expect(h.session.screen.value).toEqual({ kind: 'picker' });
+    });
+  });
+
+  describe('watchdog', () => {
+    it('ends a connected session with no player row in signInFailed after 15 s', () => {
+      h = harness();
+      h.connect();
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS - 1);
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      vi.advanceTimersByTime(1);
+      expect(h.session.screen.value).toEqual(FAILED);
+    });
+
+    it('ends an active character that never loads in signInFailed', async () => {
+      h = harness();
+      h.connect();
+      h.setPlayer({ userId: 7n, activeCharacterId: 5n });
+      await flush();
+      const chars = h.binding(queries.characters(7n));
+      chars.rows.value = [];
+      chars.applied.value = true;
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS);
+      expect(h.session.screen.value).toEqual(FAILED);
+    });
+
+    it('late data still wins over an expired watchdog', async () => {
+      h = harness();
+      h.connect();
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS);
+      expect(h.session.screen.value).toEqual(FAILED);
+      h.setPlayer({ userId: 7n });
+      await flush();
+      const chars = h.binding(queries.characters(7n));
+      chars.rows.value = [makeCharacter(1n, 10n)];
+      chars.applied.value = true;
+      expect(h.session.screen.value).toEqual({ kind: 'picker' });
+    });
+
+    it('is cancelled once the data arrives', async () => {
+      h = harness();
+      h.connect();
+      h.setPlayer({ userId: 7n });
+      await flush();
+      const chars = h.binding(queries.characters(7n));
+      chars.rows.value = [makeCharacter(1n, 10n)];
+      chars.applied.value = true;
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS * 4);
+      expect(h.session.screen.value).toEqual({ kind: 'picker' });
+    });
+
+    it('does not run while the link is down: a reconnect is not a sign-in failure', () => {
+      h = harness();
+      h.connect();
+      h.status.value = 'reconnecting';
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS * 4);
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      // The clock restarts when the connection is back.
+      h.status.value = 'connected';
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS - 1);
+      expect(h.session.screen.value).toEqual(SIGNING_IN);
+      vi.advanceTimersByTime(1);
+      expect(h.session.screen.value).toEqual(FAILED);
+    });
+
+    it('a retry from the failure splash starts a fresh sign-in', () => {
+      h = harness();
+      h.connect();
+      vi.advanceTimersByTime(SIGNIN_TIMEOUT_MS);
+      expect(h.session.screen.value).toEqual(FAILED);
+      h.session.signIn();
+      expect(h.auth.beginSpacetimeAuthLogin).toHaveBeenCalledTimes(1);
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'redirecting' });
+    });
+
+    it('leaves no timer behind after dispose', () => {
+      h = harness();
+      h.connect();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      h.session.dispose();
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 });

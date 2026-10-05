@@ -13,6 +13,8 @@ const base: ScreenInput = {
   charactersApplied: true,
   characterCount: 2,
   activeCharacterLoaded: false,
+  bindingFailed: false,
+  signInTimedOut: false,
 };
 
 const cases: Array<[string, Partial<ScreenInput>, AppScreen]> = [
@@ -38,6 +40,13 @@ const cases: Array<[string, Partial<ScreenInput>, AppScreen]> = [
   ['redirecting beats authFailed', { redirecting: true, authFailed: true }, { kind: 'splash', state: 'redirecting' }],
   ['authFailed beats rejected', { authFailed: true, status: 'rejected' }, { kind: 'splash', state: 'signInFailed' }],
   ['rejected beats missing token', { status: 'rejected', hasToken: false }, { kind: 'splash', state: 'sessionExpired' }],
+  ['signInFailed: my_player subscription failed', { playerLoaded: false, bindingFailed: true }, { kind: 'splash', state: 'signInFailed' }],
+  ['signInFailed: characters subscription failed', { charactersApplied: false, bindingFailed: true }, { kind: 'splash', state: 'signInFailed' }],
+  ['signInFailed: watchdog expired with no player row', { playerLoaded: false, userId: null, signInTimedOut: true }, { kind: 'splash', state: 'signInFailed' }],
+  ['signInFailed: active character never loaded (deleted)', { activeCharacterId: 5n, activeCharacterLoaded: false, signInTimedOut: true }, { kind: 'splash', state: 'signInFailed' }],
+  ['a failed binding does not tear down a loaded frame', { activeCharacterId: 5n, activeCharacterLoaded: true, bindingFailed: true }, { kind: 'frame' }],
+  ['a failed binding does not tear down the picker', { bindingFailed: true }, { kind: 'picker' }],
+  ['a failed binding does not hide the unreachable splash', { status: 'unreachable', bindingFailed: true }, { kind: 'splash', state: 'unreachable' }],
   ['missing token beats unreachable', { hasToken: false, status: 'unreachable' }, { kind: 'splash', state: 'idle' }],
 ];
 
