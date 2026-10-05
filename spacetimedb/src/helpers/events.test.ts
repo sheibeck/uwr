@@ -26,6 +26,7 @@ import {
 } from './events';
 import { effectiveGroupId } from './group';
 import { createMockCtx } from './test-utils';
+import { flattenSegments, type Segment } from './segments';
 
 describe('appendWorldEvent', () => {
   it('inserts row into event_world table with correct fields', () => {
@@ -284,5 +285,86 @@ describe('appendPrivateAndGroupEvent', () => {
     appendPrivateAndGroupEvent(ctx, character, 'system', 'Test message');
     expect(ctx.db.event_private._rows()).toHaveLength(1);
     expect(ctx.db.event_private._rows()[0].message).toBe('Test message');
+  });
+});
+
+describe('Phase 46: segments on event rows', () => {
+  const SEGS: Segment[] = [
+    { kind: 'narration', speaker: 'The Keeper', text: 'The ferry waits in the mist.' },
+    { kind: 'dialogue', speaker: 'The Ferryman', text: 'Cross?', speakerNpcId: 7n },
+  ];
+
+  it('appendPrivateEvent stores the segments in order with explicit keys', () => {
+    const ctx = createMockCtx();
+    appendPrivateEvent(ctx, 1n, 2n, 'npc', flattenSegments(SEGS), SEGS);
+    const row = ctx.db.event_private._rows()[0];
+    expect(row.segments).toEqual(SEGS);
+    expect(row.segments).not.toBe(SEGS);
+    expect(Object.keys(row.segments[0])).toEqual(['kind', 'speaker', 'text', 'speakerNpcId']);
+    expect(Object.keys(row.segments[1])).toEqual(['kind', 'speaker', 'text', 'speakerNpcId']);
+    expect(row.segments[0].speakerNpcId).toBeUndefined();
+    expect(row.segments[1].speakerNpcId).toBe(7n);
+  });
+
+  it('appendLocationEvent keeps excludeCharacterId fifth and takes segments sixth', () => {
+    const ctx = createMockCtx();
+    appendLocationEvent(ctx, 5n, 'narrative', flattenSegments(SEGS), 10n, SEGS);
+    const row = ctx.db.event_location._rows()[0];
+    expect(row.excludeCharacterId).toBe(10n);
+    expect(row.segments).toEqual(SEGS);
+  });
+
+  it('appendCreationEvent stores segments', () => {
+    const ctx = createMockCtx();
+    appendCreationEvent(ctx, 7n, 'creation', flattenSegments(SEGS), SEGS);
+    expect(ctx.db.event_creation._rows()[0].segments).toEqual(SEGS);
+  });
+
+  it('called the old way, rows carry no segments value', () => {
+    const ctx = createMockCtx();
+    appendPrivateEvent(ctx, 1n, 2n, 'system', 'x');
+    appendLocationEvent(ctx, 5n, 'emote', 'y');
+    appendLocationEvent(ctx, 5n, 'emote', 'y', 3n);
+    appendCreationEvent(ctx, 7n, 'creation', 'z');
+    for (const table of ['event_private', 'event_location', 'event_creation']) {
+      for (const row of ctx.db[table]._rows()) expect('segments' in row, table).toBe(false);
+    }
+  });
+
+  it('an empty array stores no segments value either', () => {
+    const ctx = createMockCtx();
+    appendPrivateEvent(ctx, 1n, 2n, 'npc', 'x', []);
+    appendLocationEvent(ctx, 5n, 'npc', 'y', undefined, []);
+    appendCreationEvent(ctx, 7n, 'creation', 'z', []);
+    appendPrivateEvent(ctx, 1n, 2n, 'npc', 'x', undefined);
+    for (const table of ['event_private', 'event_location', 'event_creation']) {
+      for (const row of ctx.db[table]._rows()) expect(row.segments, table).toBeUndefined();
+    }
+  });
+
+  it('stores message as given: a flattened message reads back equal to the flattened segments', () => {
+    const ctx = createMockCtx();
+    appendPrivateEvent(ctx, 1n, 2n, 'npc', flattenSegments(SEGS), SEGS);
+    const row = ctx.db.event_private._rows()[0];
+    expect(row.message).toBe('The ferry waits in the mist.\n\nThe Ferryman says, "Cross?"');
+    expect(row.message).toBe(flattenSegments(row.segments));
+  });
+
+  it('later changes to the caller array do not change the stored row', () => {
+    const ctx = createMockCtx();
+    const segs: Segment[] = [{ kind: 'narration', speaker: 'The Keeper', text: 'Mist.' }];
+    appendPrivateEvent(ctx, 1n, 2n, 'npc', 'Mist.', segs);
+    segs[0].text = 'changed';
+    segs.push({ kind: 'narration', speaker: 'The Keeper', text: 'more' });
+    expect(ctx.db.event_private._rows()[0].segments).toHaveLength(1);
+    expect(ctx.db.event_private._rows()[0].segments[0].text).toBe('Mist.');
+  });
+
+  it('helpers outside the three narrative tables take no segments', () => {
+    const ctx = createMockCtx();
+    appendWorldEvent(ctx, 'day_night', 'Dawn.');
+    appendGroupEvent(ctx, 3n, 1n, 'combat', 'Hit.');
+    expect('segments' in ctx.db.event_world._rows()[0]).toBe(false);
+    expect('segments' in ctx.db.event_group._rows()[0]).toBe(false);
   });
 });

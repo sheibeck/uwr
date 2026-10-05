@@ -1,5 +1,21 @@
 import { SenderError } from 'spacetimedb/server';
 import { effectiveGroupId } from './group';
+import type { Segment } from './segments';
+
+// Phase 46: the stored form of segments. Explicit keys in a fixed order (the probe-verified shape);
+// no segments value at all when the caller passes none or an empty list, so every existing caller
+// writes an identical row. Module-private: events.ts gets no new exports (eight suites mock it).
+function segmentColumn(segments?: Segment[]): { segments: Segment[] } | {} {
+  if (!Array.isArray(segments) || segments.length === 0) return {};
+  return {
+    segments: segments.map((s) => ({
+      kind: s.kind,
+      speaker: s.speaker,
+      text: s.text,
+      speakerNpcId: s.speakerNpcId,
+    })),
+  };
+}
 
 export function tableHasRows<T>(iter: IterableIterator<T>): boolean {
   for (const _row of iter) return true;
@@ -44,7 +60,8 @@ export function appendLocationEvent(
   locationId: bigint,
   kind: string,
   message: string,
-  excludeCharacterId?: bigint
+  excludeCharacterId?: bigint,
+  segments?: Segment[]
 ) {
   return ctx.db.event_location.insert({
     id: 0n,
@@ -53,6 +70,7 @@ export function appendLocationEvent(
     message,
     excludeCharacterId,
     createdAt: ctx.timestamp,
+    ...segmentColumn(segments),
   });
 }
 
@@ -61,7 +79,8 @@ export function appendPrivateEvent(
   characterId: bigint,
   ownerUserId: bigint,
   kind: string,
-  message: string
+  message: string,
+  segments?: Segment[]
 ) {
   return ctx.db.event_private.insert({
     id: 0n,
@@ -70,6 +89,7 @@ export function appendPrivateEvent(
     kind,
     message,
     createdAt: ctx.timestamp,
+    ...segmentColumn(segments),
   });
 }
 
@@ -122,13 +142,14 @@ export function appendNpcDialog(ctx: any, characterId: bigint, npcId: bigint, te
   });
 }
 
-export function appendCreationEvent(ctx: any, playerId: any, kind: string, message: string) {
+export function appendCreationEvent(ctx: any, playerId: any, kind: string, message: string, segments?: Segment[]) {
   ctx.db.event_creation.insert({
     id: 0n,
     playerId,
     message,
     kind,
     createdAt: ctx.timestamp,
+    ...segmentColumn(segments),
   });
 }
 

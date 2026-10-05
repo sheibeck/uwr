@@ -1346,6 +1346,17 @@ export const EventWorld = table(
   }
 );
 
+// Phase 46 (SEG-02): one segment of a Keeper reply. kind is 'narration' or 'dialogue' (a string,
+// validated by helpers/segments.ts). speaker is 'The Keeper' or a present NPC's stored name.
+// Used only as the optional LAST column of the three event tables below: an optional column with
+// no default is refused on a persisted table, so never copy it onto one.
+export const KeeperSegment = t.object('KeeperSegment', {
+  kind: t.string(),
+  speaker: t.string(),
+  text: t.string(),
+  speakerNpcId: t.u64().optional(),
+});
+
 export const EventLocation = table(
   {
     name: 'event_location',
@@ -1360,6 +1371,7 @@ export const EventLocation = table(
     kind: t.string(),
     excludeCharacterId: t.u64().optional(),
     createdAt: t.timestamp(),
+    segments: t.array(KeeperSegment).optional(),
   }
 );
 
@@ -1380,6 +1392,7 @@ export const EventPrivate = table(
     message: t.string(),
     kind: t.string(),
     createdAt: t.timestamp(),
+    segments: t.array(KeeperSegment).optional(),
   }
 );
 
@@ -1962,6 +1975,7 @@ export const EventCreation = table(
     message: t.string(),
     kind: t.string(),       // 'creation', 'creation_warning', 'creation_error'
     createdAt: t.timestamp(),
+    segments: t.array(KeeperSegment).optional(),
   }
 );
 
