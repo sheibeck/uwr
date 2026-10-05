@@ -123,17 +123,21 @@ export function createConnectionController<C extends { disconnect(): void }>(
       return;
     }
 
-    tokenFailures += 1;
-    if (tokenFailures >= MAX_TOKEN_FAILURES) {
-      reject();
-      return;
-    }
+    // The probe only separates "network down" from "token bad". A reachable host
+    // proves nothing about the token on its own, so credentials are wiped only after
+    // MAX_TOKEN_FAILURES consecutive failures against a reachable host, with backoff
+    // retries in between. While the host is unreachable nothing is counted or wiped.
     void deps
       .probe()
       .catch(() => false)
       .then((reachable) => {
         if (record !== current || record.intentional) return;
-        if (reachable) reject();
+        if (!reachable) {
+          scheduleRetry();
+          return;
+        }
+        tokenFailures += 1;
+        if (tokenFailures >= MAX_TOKEN_FAILURES) reject();
         else scheduleRetry();
       });
   };

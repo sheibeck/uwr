@@ -215,7 +215,7 @@ describe('disconnect', () => {
 });
 
 describe('token rejection', () => {
-  it('rejects, clears the session and stops retrying when the host is reachable', async () => {
+  it('does not wipe the session on a single token failure against a reachable host', async () => {
     const h = harness();
     h.state.probe = true;
     const c = createConnectionController(h.deps);
@@ -223,11 +223,34 @@ describe('token rejection', () => {
     h.builds[0].handlers.onConnect(h.builds[0].conn);
     h.builds[0].handlers.onDisconnect(tokenError());
     await vi.advanceTimersByTimeAsync(0);
+    expect(c.status.value).toBe('reconnecting');
+    expect(h.clearSession).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(h.builds).toHaveLength(2);
+  });
+
+  it('rejects, clears the session and stops retrying after the third consecutive failure against a reachable host', async () => {
+    const h = harness();
+    h.state.probe = true;
+    expect(MAX_TOKEN_FAILURES).toBe(3);
+    const c = createConnectionController(h.deps);
+    c.connect();
+    h.builds[0].handlers.onConnectError(tokenError());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.status.value).toBe('unreachable');
+    await vi.advanceTimersByTimeAsync(1000);
+    h.builds[1].handlers.onConnectError(tokenError());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.status.value).toBe('unreachable');
+    expect(h.clearSession).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2000);
+    h.builds[2].handlers.onConnectError(tokenError());
+    await vi.advanceTimersByTimeAsync(0);
     expect(c.status.value).toBe('rejected');
     expect(h.clearSession).toHaveBeenCalledTimes(1);
     expect(c.conn.value).toBeNull();
     await vi.advanceTimersByTimeAsync(120_000);
-    expect(h.builds).toHaveLength(1);
+    expect(h.builds).toHaveLength(3);
   });
 
   it('retries when the probe says the host is unreachable', async () => {
@@ -243,28 +266,25 @@ describe('token rejection', () => {
     expect(h.builds).toHaveLength(2);
   });
 
-  it('rejects after the third consecutive token failure regardless of the probe', async () => {
+  it('never rejects while the host is unreachable, however many token failures arrive', async () => {
     const h = harness();
     h.state.probe = false;
-    expect(MAX_TOKEN_FAILURES).toBe(3);
     const c = createConnectionController(h.deps);
     c.connect();
-    h.builds[0].handlers.onConnectError(tokenError());
-    await vi.advanceTimersByTimeAsync(1000);
-    h.builds[1].handlers.onConnectError(tokenError());
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(c.status.value).toBe('unreachable');
-    h.builds[2].handlers.onConnectError(tokenError());
-    await vi.advanceTimersByTimeAsync(0);
-    expect(c.status.value).toBe('rejected');
-    expect(h.clearSession).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(120_000);
-    expect(h.builds).toHaveLength(3);
+    const delays = [1000, 2000, 5000, 10000];
+    for (let i = 0; i < delays.length; i += 1) {
+      h.builds[i].handlers.onConnectError(tokenError());
+      await vi.advanceTimersByTimeAsync(0);
+      expect(c.status.value).toBe('unreachable');
+      await vi.advanceTimersByTimeAsync(delays[i]);
+    }
+    expect(h.clearSession).not.toHaveBeenCalled();
+    expect(h.builds).toHaveLength(5);
   });
 
   it('a non-token failure resets the consecutive token failure count', async () => {
     const h = harness();
-    h.state.probe = false;
+    h.state.probe = true;
     const c = createConnectionController(h.deps);
     c.connect();
     h.builds[0].handlers.onConnectError(tokenError());
@@ -276,6 +296,7 @@ describe('token rejection', () => {
     h.builds[3].handlers.onConnectError(tokenError());
     await vi.advanceTimersByTimeAsync(0);
     expect(c.status.value).not.toBe('rejected');
+    expect(h.clearSession).not.toHaveBeenCalled();
   });
 });
 
@@ -286,12 +307,16 @@ describe('recovery from terminal states', () => {
     const c = createConnectionController(h.deps);
     c.connect();
     h.builds[0].handlers.onConnectError(tokenError());
+    await vi.advanceTimersByTimeAsync(1000);
+    h.builds[1].handlers.onConnectError(tokenError());
+    await vi.advanceTimersByTimeAsync(2000);
+    h.builds[2].handlers.onConnectError(tokenError());
     await vi.advanceTimersByTimeAsync(0);
     expect(c.status.value).toBe('rejected');
     h.state.token = 'fresh';
     c.connect();
-    expect(h.builds).toHaveLength(2);
-    expect(h.builds[1].token).toBe('fresh');
+    expect(h.builds).toHaveLength(4);
+    expect(h.builds[3].token).toBe('fresh');
     expect(c.status.value).toBe('connecting');
   });
 
