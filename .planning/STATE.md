@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 44
 current_phase_name: Live Verification and Tone Eval
 status: executing
-stopped_at: Completed 44-05-PLAN.md
-last_updated: "2026-10-05T04:48:13.479Z"
+stopped_at: Completed 44-06-PLAN.md
+last_updated: "2026-10-05T08:28:15.517Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 44 execution resumed (wave continue)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 74
-  completed_plans: 66
+  completed_plans: 67
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 44 (Live Verification and Tone Eval) — EXECUTING
-Plan: 6 of 10
+Plan: 7 of 10
 Status: Ready to execute
 Last activity: 2026-10-04 — Phase 44 execution resumed (wave continue)
 
-Progress: [█████████░] 89% (2/6 phases)
+Progress: [█████████░] 91% (2/6 phases)
 
 ## Previous Milestones
 
@@ -123,6 +123,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 44-04: golden harness dry by default (worst-case $0.5744 of a $2.00 cap, $1.80 stop line, no retry); run refuses over a recorded run, use rerun with GOLDEN_ONLY
 - [Phase ?]: [44-05] A paid live-proof run is refused for any database but uwr-verify; the dry run may read uwr or uwr-verify
 - [Phase ?]: [44-05] Smoke jobs are not in my_llm_jobs; smoke ids come from the call log report by run window
+- [Phase ?]: 44-06: Live drills run on uwr-verify only; fake key stored before each drill, real key restored per drill in finally; timeout row cost is the ledger reservation, tied to ledger delta
 
 ### Roadmap Evolution
 
@@ -194,8 +195,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T04:48:13.451Z
-Stopped at: Completed 44-05-PLAN.md
+Last session: 2026-10-05T08:28:15.488Z
+Stopped at: Completed 44-06-PLAN.md
 
 ## Performance Metrics
 
@@ -275,6 +276,7 @@ Stopped at: Completed 44-05-PLAN.md
 | Phase 44 P03 | 40min | 2 tasks | 7 files |
 | Phase 44 P04 | 1 session | 3 tasks | 5 files |
 | Phase 44 P05 | 55min | 2 tasks | 6 files |
+| Phase 44 P06 | 3.5h | 3 tasks | 4 files |
 
 ## Operator Next Steps
 
