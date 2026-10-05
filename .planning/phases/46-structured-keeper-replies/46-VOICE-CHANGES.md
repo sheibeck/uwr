@@ -1,6 +1,6 @@
 # Phase 46 voice changes: owner review package
 
-Status: DRAFT, awaiting owner approval. Nothing in this file has been applied.
+Status: APPROVED 2026-10-05 (see H)
 
 **How to review.** Approve the package as drafted; or edit any `voice:after` block in this file (or say the edit in chat) and answer the questions in section F; a change you reject is simply left out. Every "before" block is checked word for word against the current source, so what you see as "before" is what runs today. Nothing here touches the Keeper Bible, a route block, a schema, a route kind or a Keeper string until you approve it in chat. The next plans (46-07 to 46-10) apply exactly what you approve here, and their tests check the applied text against this file.
 
@@ -1186,80 +1186,92 @@ Tests that fail on the draft text, and so must move with it (this is the list 46
 
 | Item | What | Recommended | Your answer |
 |------|------|-------------|-------------|
-| bible-identity | A Keeper Bible: Narrator framing: the Keeper sits in the narrator's chair, the label "The Keeper" names h... | approve | |
-| bible-voice | A Keeper Bible: Adds the "reads like a book" direction (the owner's 44 comment) without the retracted fir... | approve | |
-| bible-formatting | A Keeper Bible: Short segments note appended to the formatting paragraph (narration vs dialogue, who may ... | approve | |
-| bible-example-1 | A Keeper Bible: Shows the second person in the first example (optional; reject this pair to keep example ... | approve | |
-| bible-example-2 | A Keeper Bible: Removes the third-person self-reference ("the Keeper notes") and puts the player in the s... | approve | |
-| bible-example-3 | A Keeper Bible: Replaces the "Keeper:" speaker label with "Narration:" and puts the purse in the second p... | approve | |
-| bible-example-4 | A Keeper Bible: Removes the third-person self-reference ("The Keeper has seen"). | approve | |
-| route-creation_race-1 | B route block: creation_race: the narrative is narration to you, not commentary "from the Keeper" (the 4... | approve | |
-| route-creation_class_reveal-1 | B route block: creation_class_reveal: one voice sentence covers the class and ability descriptions. | approve | |
-| route-creation_class-1 | B route block: creation_class: same voice sentence for the ability descriptions. | approve | |
-| route-world_gen_start-1 | B route block: world_gen_start: the descriptions are narrator voice; the pinned traveler-says-you senten... | approve | |
-| route-world_gen-1 | B route block: world_gen: same voice sentence for location descriptions (they are read through look, not... | approve | |
-| route-skill_gen-1 | B route block: skill_gen: removes "commentary from the Keeper", which invited "The Keeper notes ..." (44... | approve | |
-| route-renown_perk_gen-1 | B route block: renown_perk_gen: same voice sentence. | approve | |
-| route-npc_conversation-1 | B route block: npc_conversation framing: the model narrates and the NPC speaks in dialogue segments (it ... | approve | |
-| route-npc_conversation-2 | B route block: Keeps the Gender line and the as-you pins; he or she for every person; the player is you. | approve | |
-| route-npc_conversation-3 | B route block: New reply rules: one short narration segment (token headroom, 44 Fix 3 npc-02 exclamation... | approve | |
-| route-npc_conversation-4 | B route block: The reply shape: segments replace the single dialogue string. internalThought, effects an... | approve | |
-| route-schema-race | B route block: Schema description sent to the model with the race reply (kept consistent with the block)... | approve | |
-| route-schema-skill | B route block: Schema description for skill_gen descriptions (same intent as route-skill_gen-1). Optiona... | approve | |
-| route-schema-renown | B route block: Schema description for renown perk descriptions. Optional. | approve | |
-| combat-block-1 | C combat: 44 Fix 3 cmb-01: a lone player is only "you", never a gendered or role noun. The pinned "... | approve | |
-| combat-block-2 | C combat: The route becomes a JSON segments reply. The pinned "never show a draft, never correct yo... | approve | |
-| combat-block-3 | C combat: The victory or defeat summary uses the same JSON shape. The pinned prefix "The summary ke... | approve | |
-| combat-schema | C combat: New COMBAT_NARRATION_SCHEMA: one object with a segments array; each item has kind (narrat... | approve | |
-| combat-import | C combat: Import for the route entry below. | approve | |
-| combat-header | C combat: Header comment kept true. | approve | |
-| combat-route | C combat: The route kind flip. Lands in one commit with the schema and the block (46-08). | approve | |
-| fallback-1 | D fallback: NPC reply was not JSON: the line stays a Keeper narration segment, now in the second pers... | approve | |
-| fallback-2 | D fallback: NPC reply had nothing usable. The npc_dialog history line (`... mutters something unintel... | approve | |
-| fallback-3 | D fallback: Combat reply unusable (and the skipped-narration line): removes the third-person Keeper s... | approve | |
-| fallback-4 | D fallback: Creation reply malformed (race and class reveal): drops "Let us" (first person plural) an... | approve | |
-| string-1 | E string: creation_error line when a creation job fails (stored as one Keeper narration segment). | approve | |
-| string-2 | E string: The same line posted when a stuck creation lock is released (the sweeper mirrors string-1... | approve | |
-| string-3 | E string: World generation stage 1 failed. | approve | |
-| string-4 | E string: The same line posted when a stuck world lock is released (mirrors string-3). | approve | |
-| string-5 | E string: Skill generation failed. The old line says "me": first person. | approve | |
-| string-6 | E string: The resting variant of string-5 (LLM_RESTING_LINE itself is a status line and stays, see ... | approve | |
-| string-7 | E string: Static renown options stand in (two places in llm_apply.ts, same text, both replaced). | approve | |
-| string-8 | E string: RENOWN_STATIC_OPTIONS_MESSAGE, the same line posted by the renown reducer. | approve | |
-| string-9 | E string: The go-back hint that ends the race and class creation messages (two places in llm_apply.... | approve | |
-| string-10 | E string: The same hint in the creation_generation.ts race message. | approve | |
-| string-11 | E string: The same hint in the two creation.ts re-prompt messages (two places). | approve | |
-| string-12 | E string: First person ("I find") in the class ability prompt. | approve | |
-| string-13 | E string: World start reply unparseable (failWorldGen; shown as a system line when placed, a creati... | approve | |
-| string-14 | E string: World start reply missing the region or the start location. | approve | |
-| string-15 | E string: The last paragraph of the arrival narration. | approve | |
-| string-16 | E string: Skill generation produced fewer than three usable skills. | approve | |
-| string-17 | E string: Opening line of the skill offer presentation (third-person Keeper self-reference removed). | approve | |
-| string-18 | E string: Drops the quotation marks: narration is the narrator's own voice, not a quoted remark. | approve | |
-| string-19 | E string: Closing line of the skill offer, quotation marks dropped. | approve | |
-| string-20 | E string: Opening line of the renown perk presentation. | approve | |
-| string-21 | E string: Renown presentation line, quotation marks dropped. | approve | |
-| string-22 | E string: Renown presentation closing line, quotation marks dropped. | approve | |
-| string-23 | E string: CLASS_FILL_FAILED_LINE: stored as a creation_error Keeper segment by failClassFill. | approve | |
-| string-24 | E string: CLASS_FILL_RETRY_HINT, appended to resting and refusal lines at CLASS_FILL_ERROR. | approve | |
-| string-25 | E string: The static creation greeting is in the first person ("expecting me to care", "I am The Ke... | approve | |
-| string-26 | E string: The narrative line when a skill offer starts. | approve | |
-| string-27 | E string: The narrative line after a skill is chosen. The pronoun test allowlist entry for "You wil... | approve | |
-| D2 | D formatting rule: unattributed speaker | keep quoted narration | |
-| D3 | D formatting rule: cut-text mark | keep U+2026 | |
-| OQ1 | stage routes: server wrap or model segments | server wrap | |
-| OQ2 | legacy NPC dialogue rescue | keep | |
-| OQ3 | 44 Fix 2 range budgets (a, b or c) | (a) | |
-| OQ4 | NPC token re-sweep | decide after the paid run | |
-| OQ5 | the "You say" echo | leave for Phase 47 | |
-| OQ6 | scope of fixed strings (i, ii or iii) | (i) | |
-| OQ7 | combat dialogue allow-list | enemies plus NPCs at the location | |
-| G1 | exact "The Keeper" narration speaker | keep | |
-| G2 | first-person rule on plain combat prose | keep | |
-| G3 | the noun "mine" | keep strict for now | |
-| G4 | dialogue-only combat reply | keep | |
-| I1 to I5 | information items (round prefix, empty combat reply, NPC mutter line, world_gen, cost) | accept | |
+| bible-identity | A Keeper Bible: Narrator framing: the Keeper sits in the narrator's chair, the label "The Keeper" names h... | approve | Approved as drafted |
+| bible-voice | A Keeper Bible: Adds the "reads like a book" direction (the owner's 44 comment) without the retracted fir... | approve | Approved as drafted |
+| bible-formatting | A Keeper Bible: Short segments note appended to the formatting paragraph (narration vs dialogue, who may ... | approve | Approved as drafted |
+| bible-example-1 | A Keeper Bible: Shows the second person in the first example (optional; reject this pair to keep example ... | approve | Approved as drafted (optional pair taken) |
+| bible-example-2 | A Keeper Bible: Removes the third-person self-reference ("the Keeper notes") and puts the player in the s... | approve | Approved as drafted |
+| bible-example-3 | A Keeper Bible: Replaces the "Keeper:" speaker label with "Narration:" and puts the purse in the second p... | approve | Approved as drafted |
+| bible-example-4 | A Keeper Bible: Removes the third-person self-reference ("The Keeper has seen"). | approve | Approved as drafted |
+| route-creation_race-1 | B route block: creation_race: the narrative is narration to you, not commentary "from the Keeper" (the 4... | approve | Approved as drafted |
+| route-creation_class_reveal-1 | B route block: creation_class_reveal: one voice sentence covers the class and ability descriptions. | approve | Approved as drafted |
+| route-creation_class-1 | B route block: creation_class: same voice sentence for the ability descriptions. | approve | Approved as drafted |
+| route-world_gen_start-1 | B route block: world_gen_start: the descriptions are narrator voice; the pinned traveler-says-you senten... | approve | Approved as drafted |
+| route-world_gen-1 | B route block: world_gen: same voice sentence for location descriptions (they are read through look, not... | approve | Approved as drafted |
+| route-skill_gen-1 | B route block: skill_gen: removes "commentary from the Keeper", which invited "The Keeper notes ..." (44... | approve | Approved as drafted |
+| route-renown_perk_gen-1 | B route block: renown_perk_gen: same voice sentence. | approve | Approved as drafted |
+| route-npc_conversation-1 | B route block: npc_conversation framing: the model narrates and the NPC speaks in dialogue segments (it ... | approve | Approved as drafted |
+| route-npc_conversation-2 | B route block: Keeps the Gender line and the as-you pins; he or she for every person; the player is you. | approve | Approved as drafted |
+| route-npc_conversation-3 | B route block: New reply rules: one short narration segment (token headroom, 44 Fix 3 npc-02 exclamation... | approve | Approved as drafted |
+| route-npc_conversation-4 | B route block: The reply shape: segments replace the single dialogue string. internalThought, effects an... | approve | Approved as drafted |
+| route-schema-race | B route block: Schema description sent to the model with the race reply (kept consistent with the block)... | approve | Approved as drafted (optional pair taken) |
+| route-schema-skill | B route block: Schema description for skill_gen descriptions (same intent as route-skill_gen-1). Optiona... | approve | Approved as drafted (optional pair taken) |
+| route-schema-renown | B route block: Schema description for renown perk descriptions. Optional. | approve | Approved as drafted (optional pair taken) |
+| combat-block-1 | C combat: 44 Fix 3 cmb-01: a lone player is only "you", never a gendered or role noun. The pinned "... | approve | Approved as drafted |
+| combat-block-2 | C combat: The route becomes a JSON segments reply. The pinned "never show a draft, never correct yo... | approve | Approved as drafted |
+| combat-block-3 | C combat: The victory or defeat summary uses the same JSON shape. The pinned prefix "The summary ke... | approve | Approved as drafted |
+| combat-schema | C combat: New COMBAT_NARRATION_SCHEMA: one object with a segments array; each item has kind (narrat... | approve | Approved as drafted |
+| combat-import | C combat: Import for the route entry below. | approve | Approved as drafted |
+| combat-header | C combat: Header comment kept true. | approve | Approved as drafted |
+| combat-route | C combat: The route kind flip. Lands in one commit with the schema and the block (46-08). | approve | Approved as drafted |
+| fallback-1 | D fallback: NPC reply was not JSON: the line stays a Keeper narration segment, now in the second pers... | approve | Approved as drafted (D1) |
+| fallback-2 | D fallback: NPC reply had nothing usable. The npc_dialog history line (`... mutters something unintel... | approve | Approved as drafted (D1) |
+| fallback-3 | D fallback: Combat reply unusable (and the skipped-narration line): removes the third-person Keeper s... | approve | Approved as drafted (D1) |
+| fallback-4 | D fallback: Creation reply malformed (race and class reveal): drops "Let us" (first person plural) an... | approve | Approved as drafted (D1) |
+| string-1 | E string: creation_error line when a creation job fails (stored as one Keeper narration segment). | approve | Approved as drafted |
+| string-2 | E string: The same line posted when a stuck creation lock is released (the sweeper mirrors string-1... | approve | Approved as drafted |
+| string-3 | E string: World generation stage 1 failed. | approve | Approved as drafted |
+| string-4 | E string: The same line posted when a stuck world lock is released (mirrors string-3). | approve | Approved as drafted |
+| string-5 | E string: Skill generation failed. The old line says "me": first person. | approve | Approved as drafted |
+| string-6 | E string: The resting variant of string-5 (LLM_RESTING_LINE itself is a status line and stays, see ... | approve | Approved as drafted |
+| string-7 | E string: Static renown options stand in (two places in llm_apply.ts, same text, both replaced). | approve | Approved as drafted |
+| string-8 | E string: RENOWN_STATIC_OPTIONS_MESSAGE, the same line posted by the renown reducer. | approve | Approved as drafted |
+| string-9 | E string: The go-back hint that ends the race and class creation messages (two places in llm_apply.... | approve | Approved as drafted |
+| string-10 | E string: The same hint in the creation_generation.ts race message. | approve | Approved as drafted |
+| string-11 | E string: The same hint in the two creation.ts re-prompt messages (two places). | approve | Approved as drafted |
+| string-12 | E string: First person ("I find") in the class ability prompt. | approve | Approved as drafted |
+| string-13 | E string: World start reply unparseable (failWorldGen; shown as a system line when placed, a creati... | approve | Approved as drafted |
+| string-14 | E string: World start reply missing the region or the start location. | approve | Approved as drafted |
+| string-15 | E string: The last paragraph of the arrival narration. | approve | Approved as drafted |
+| string-16 | E string: Skill generation produced fewer than three usable skills. | approve | Approved as drafted |
+| string-17 | E string: Opening line of the skill offer presentation (third-person Keeper self-reference removed). | approve | Approved as drafted |
+| string-18 | E string: Drops the quotation marks: narration is the narrator's own voice, not a quoted remark. | approve | Approved as drafted |
+| string-19 | E string: Closing line of the skill offer, quotation marks dropped. | approve | Approved as drafted |
+| string-20 | E string: Opening line of the renown perk presentation. | approve | Approved as drafted |
+| string-21 | E string: Renown presentation line, quotation marks dropped. | approve | Approved as drafted |
+| string-22 | E string: Renown presentation closing line, quotation marks dropped. | approve | Approved as drafted |
+| string-23 | E string: CLASS_FILL_FAILED_LINE: stored as a creation_error Keeper segment by failClassFill. | approve | Approved as drafted |
+| string-24 | E string: CLASS_FILL_RETRY_HINT, appended to resting and refusal lines at CLASS_FILL_ERROR. | approve | Approved as drafted |
+| string-25 | E string: The static creation greeting is in the first person ("expecting me to care", "I am The Ke... | approve | Approved as drafted |
+| string-26 | E string: The narrative line when a skill offer starts. | approve | Approved as drafted |
+| string-27 | E string: The narrative line after a skill is chosen. The pronoun test allowlist entry for "You wil... | approve | Approved as drafted |
+| D2 | D formatting rule: unattributed speaker | keep quoted narration | Approved as drafted: keep quoted narration |
+| D3 | D formatting rule: cut-text mark | keep U+2026 | Approved as drafted: keep U+2026 |
+| OQ1 | stage routes: server wrap or model segments | server wrap | Server wrap, as built (no REPLAN) |
+| OQ2 | legacy NPC dialogue rescue | keep | Keep |
+| OQ3 | 44 Fix 2 range budgets (a, b or c) | (a) | (a) state the budgets in the per-call text |
+| OQ4 | NPC token re-sweep | decide after the paid run | Decide after the deferred golden run |
+| OQ5 | the "You say" echo | leave for Phase 47 | Keep the echo for now |
+| OQ6 | scope of fixed strings (i, ii or iii) | (i) | (i), all 27 string pairs (string-1 to string-27) |
+| OQ7 | combat dialogue allow-list | enemies plus NPCs at the location | Listed enemies plus NPCs at the location |
+| G1 | exact "The Keeper" narration speaker | keep | Keep |
+| G2 | first-person rule on plain combat prose | keep | Keep |
+| G3 | the noun "mine" | keep strict for now | Keep |
+| G4 | dialogue-only combat reply | keep | Keep |
+| I1 to I5 | information items (round prefix, empty combat reply, NPC mutter line, world_gen, cost) | accept | Accepted |
 
 ### Approval record
 
-Owner reply (verbatim, with date): _not yet recorded_
+Owner reply (verbatim, with date), typed by the owner in chat on 2026-10-05:
+
+> approved
+
+Reading of the reply, as the package defined it ("approved" takes every recommendation in "Questions for you"). This reading is the executor's transcription of the package's own rule, not additional words from the owner:
+
+- OQ1: server wrap, as built. No REPLAN.
+- OQ2: keep. OQ3: (a). OQ4: decide after the deferred golden run. OQ5: keep the echo for now. OQ6: (i), all 27 string pairs. OQ7: listed enemies plus NPCs at the location.
+- D1 to D3: as drafted. G1 to G4: keep. I1 to I5: accepted.
+- Every `voice:after` block is approved as drafted, including the optional ones (bible-example-1 and the three optional schema descriptions: route-schema-race, route-schema-skill, route-schema-renown).
+- No pair is rejected, so no marker was changed to `voice:rejected`. No after block was edited by the owner, so every after text stands exactly as drafted.
+- OQ3 (b) (treating range_violation as a note, a rule change) was not chosen.
+- Nothing in the reply needs work outside plans 46-07 to 46-10, so no REPLAN REQUIRED.
