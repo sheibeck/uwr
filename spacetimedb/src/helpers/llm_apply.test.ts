@@ -328,7 +328,7 @@ describe('renown active perks are validated and clamped like generated skills', 
     // damage at level 3: midpoint 12 + 5 * 3 = 27, max ceil(27 * 1.3) = 36
     expect(perks[0]).toMatchObject({ kind: 'damage', value1: 36n, castSeconds: 1n, resourceType: 'mana', damageType: 'fire' });
     const msg = rows(ctx, 'event_private')[0].message as string;
-    expect(msg).not.toContain('The cosmos provided some... standard options');
+    expect(msg).not.toContain('The cosmos shrugs and offers some... standard options');
   });
 
   it('a buff perk with an unknown effectType is kept, defaulted to damage_up and clamped, so the billed reply is used (WR-B03)', () => {
@@ -342,7 +342,7 @@ describe('renown active perks are validated and clamped like generated skills', 
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks.map((p: any) => p.name)).toEqual(['Iron Reputation', 'B', 'C']);
     expect(perks[0]).toMatchObject({ kind: 'buff', effectType: 'damage_up', effectMagnitude: 9n, effectDuration: 12n });
-    expect(rows(ctx, 'event_private')[0].message).not.toContain('The cosmos provided some... standard options');
+    expect(rows(ctx, 'event_private')[0].message).not.toContain('The cosmos shrugs and offers some... standard options');
   });
 
   it.each([
@@ -356,7 +356,7 @@ describe('renown active perks are validated and clamped like generated skills', 
 
     const perks = rows(ctx, 'pending_renown_perk');
     expect(perks.map((p: any) => p.name)).toEqual(RENOWN_PERK_POOLS[2].slice(0, 3).map((p) => p.name));
-    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos provided some... standard options');
+    expect(rows(ctx, 'event_private')[0].message).toContain('The cosmos shrugs and offers some... standard options');
   });
 
   it('a valid effectType keeps the perk and clamps its magnitude', () => {
@@ -384,7 +384,7 @@ describe('renown active perks are validated and clamped like generated skills', 
 describe('Phase 41: renown static fallback and failure path', () => {
   const renownJob = (rank: string | number = '2', characterId = '10') =>
     job('renown_perk_gen', JSON.stringify({ characterId, rank: String(rank) }));
-  const KEEPER = 'The cosmos provided some... standard options';
+  const KEEPER = 'The cosmos shrugs and offers some... standard options';
 
   it.each([2, 3, 5, 9, 11])(
     'applyRenownPerkResult with fewer than 3 valid perks inserts the rank-%s static options with serialized effects',
@@ -658,7 +658,7 @@ describe('Phase 41 (plan 14): world-gen failures end in ERROR, never PENDING', (
     applyLlmFailure(ctx, worldJob);
     const state = rows(ctx, 'world_gen_state')[0];
     expect(state.step).toBe('ERROR');
-    expect(state.errorMessage).toContain('The Keeper falters.');
+    expect(state.errorMessage).toContain('The map blurs and will not settle.');
     expect(rows(ctx, 'event_private')[0].message).toMatch(/Type \[explore\] to try again\.$/);
   });
 
@@ -795,13 +795,13 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
       const race = moduleCtx({ character_creation_state: [creationState('GENERATING_RACE')] });
       applyLlmFailure(race, restingJob('creation_race', undefined, code));
       expect(rows(race, 'event_creation')[0].message).toBe(
-        'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."',
+        'The page flickers. Something went wrong in the cosmic machinery. Try again.',
       );
 
       const world = moduleCtx({ character: [characterRow()], world_gen_state: [genRow()] });
       applyLlmFailure(world, restingJob('world_gen_start', JSON.stringify({ genStateId: '5' }), code));
       expect(rows(world, 'world_gen_state')[0].errorMessage).toBe(
-        'The Keeper falters. "The world refuses to be remembered right now."',
+        'The map blurs and will not settle. The world refuses to be remembered right now.',
       );
 
       const fill = moduleCtx({ character: [characterRow()], world_gen_state: [{ ...genRow(), step: 'FILLING' }] });
@@ -811,7 +811,7 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
       const skills = moduleCtx({ character: [characterRow()] });
       applyLlmFailure(skills, restingJob('skill_gen', JSON.stringify({ characterId: '10' }), code));
       expect(rows(skills, 'event_private')[0].message).toBe(
-        'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."',
+        'The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt.',
       );
 
       const npc = moduleCtx(npcSeed());
@@ -907,7 +907,7 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(lines[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
     expect(lines[0].message).toContain('Ash drifts down like a slow, grey snowfall.');
     expect(lines[0].message).toContain('You notice Vessa nearby. Perhaps she has something to say.');
-    expect(lines[0].message).toContain('Try [look] to examine your surroundings. The Keeper is still remembering the roads out.');
+    expect(lines[0].message).toContain('Try [look] to examine your surroundings. The roads out are still being remembered.');
     expect(lines[0].message).not.toContain('Paths lead to');
     expect(lines[2].message).toBe(
       'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
@@ -1177,7 +1177,7 @@ describe('Phase 43 (plan 13): staged class apply', () => {
   const state = (ctx: any) => rows(ctx, 'character_creation_state')[0];
   const events = (ctx: any) => rows(ctx, 'event_creation');
   const MALFORMED = 'The Keeper grimaces. "The response from the cosmic machinery was... malformed. Let us try again."';
-  const FLICKER = 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."';
+  const FLICKER = 'The page flickers. Something went wrong in the cosmic machinery. Try again.';
 
   it('creationStateForJob maps each route to its own step and ignores every other step', () => {
     const cases: [string, string][] = [
@@ -1631,7 +1631,7 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
     expectKeeperOnly(row);
     expect(row.message.startsWith('Cinders.\n\n**Ashkin**\n+2 STR')).toBe(true);
     expect(row.message).toContain('Are you a [Warrior]');
-    expect(row.message.endsWith('The Keeper does not judge... much.)')).toBe(true);
+    expect(row.message.endsWith('Nobody will judge... much.)')).toBe(true);
   });
 
   it('renown success with three perks: seven paragraphs pack into six Keeper narration segments, message text unchanged', () => {
@@ -1646,10 +1646,10 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
     // the text composed before Phase 46 (modulo whitespace: the six-segment pack merges one adjacent paragraph pair)
     expect(row.message.replace(/\s+/g, ' ')).toBe(
       'Your renown has grown. The world takes notice. ' +
-        'The Keeper of Knowledge regards you with something resembling mild respect. ' +
-        '"Rank 2. The world owes you something. Choose your due:" ' +
+        'Something resembling mild respect stirs in the air. ' +
+        'Rank 2. The world owes you something. Choose your due: ' +
         '[A] -- A description. Passive bonus [B] -- B description. Passive bonus [C] -- C description. Passive bonus ' +
-        '"Choose wisely. Your reputation preceded you here. Don\'t let it down."',
+        'Choose wisely. Your reputation preceded you here. Don\'t let it down.',
     );
   });
 
@@ -1682,8 +1682,8 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
       JSON.stringify({ skills: [skill('One'), skill('Two'), skill('Three')] }));
     const [row] = rows(ctx, 'event_private');
     expectKeeperOnly(row);
-    expect(row.message.startsWith('The Keeper of Knowledge regards you with something resembling interest.')).toBe(true);
-    expect(row.message.endsWith('never to return."')).toBe(true);
+    expect(row.message.startsWith('Something resembling interest stirs in the air.')).toBe(true);
+    expect(row.message.endsWith('never to return.')).toBe(true);
   });
 
   describe('applyLlmFailure', () => {
@@ -1797,7 +1797,7 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
     const ctx = moduleCtx({ character: [characterRow()] });
     applyLlmFailure(ctx, job('skill_gen', JSON.stringify({ characterId: '10' })));
     expect(rows(ctx, 'event_private')[0].message).toBe(
-      'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."',
+      'The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt.',
     );
   });
 });

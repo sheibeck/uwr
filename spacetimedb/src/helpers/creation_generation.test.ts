@@ -361,7 +361,7 @@ describe('startClassFill', () => {
     expect(events).toHaveLength(1);
     // Review WR-B03: the refusal is followed by what the player must do, since nothing retries on its own.
     expect(events[0]).toMatchObject({ kind: 'creation_error', message: classFillRetryLine(llmRefusalMessage('daily_cost')) });
-    expect(events[0].message).toBe(`${llmRefusalMessage('daily_cost')} Say anything when you want him to try the rest again.`);
+    expect(events[0].message).toBe(`${llmRefusalMessage('daily_cost')} Say anything when you want the rest tried again.`);
   });
 
   it('a halted fill posts the resting line and becomes CLASS_FILL_ERROR', () => {
@@ -380,8 +380,8 @@ describe('startClassFill', () => {
       expect(line.startsWith(llmRefusalMessage(reason))).toBe(true);
       expect(line.endsWith(CLASS_FILL_RETRY_HINT)).toBe(true);
     }
-    // In voice: the Keeper is he, no exclamation, nothing the console would read as markup.
-    expect(CLASS_FILL_RETRY_HINT).toMatch(/\bhim\b/);
+    // In voice (approved string-24): narration with no Keeper pronoun, no exclamation, nothing the console would read as markup.
+    expect(CLASS_FILL_RETRY_HINT).toBe('Say anything when you want the rest tried again.');
     expect(CLASS_FILL_RETRY_HINT).not.toMatch(/[!<]/);
     expect(CLASS_FILL_RETRY_HINT).not.toMatch(/\b(it|its|they|them|their)\b/i);
   });
@@ -427,7 +427,7 @@ describe('class stage lines', () => {
       'That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.',
     );
     expect(CLASS_FILL_FAILED_LINE).toBe(
-      'The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.',
+      'The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again.',
     );
     expect(CLASS_FILL_PATIENCE_LINE).toBe('The Keeper is still working out the rest of what you can do. Patience.');
     expect(CLASS_FILL_RETRY_LINE).toBe('The Keeper picks the thread of your finer details back up...');

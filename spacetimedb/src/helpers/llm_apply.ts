@@ -192,7 +192,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const s = creationStateForJob(ctx, job);
     if (!s) return; // the state has moved on: nothing to revert, nothing to say
     writeCreationSegments(ctx, s.playerId, 'creation_error', keeperFallback(
-      resting ? LLM_RESTING_LINE : 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."'));
+      resting ? LLM_RESTING_LINE : 'The page flickers. Something went wrong in the cosmic machinery. Try again.'));
     const back = job.domain === 'creation_race' ? 'AWAITING_RACE' : 'AWAITING_ARCHETYPE';
     ctx.db.character_creation_state.id.update({ ...s, step: back, updatedAt: ctx.timestamp });
   } else if (job.domain === 'creation_class') {
@@ -206,7 +206,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const genStateId = BigInt(context.genStateId);
     const genState = ctx.db.world_gen_state.id.find(genStateId);
     if (genState && (genState.step === 'PENDING' || genState.step === 'GENERATING')) {
-      failWorldGen(ctx, genState, resting ? LLM_RESTING_LINE : 'The Keeper falters. "The world refuses to be remembered right now."');
+      failWorldGen(ctx, genState, resting ? LLM_RESTING_LINE : 'The map blurs and will not settle. The world refuses to be remembered right now.');
     }
   } else if (job.domain === 'world_gen') {
     // Stage 2 failed: the stage-1 region stays playable. Only a FILLING state is failed, and never retried here.
@@ -223,8 +223,8 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     if (character) {
       writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperFallback(
         resting
-          ? `${LLM_RESTING_LINE} Type [skills] when you want him to try again.`
-          : 'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."'));
+          ? `${LLM_RESTING_LINE} Type [skills] when you want another attempt.`
+          : 'The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt.'));
     }
   } else if (job.domain === 'npc_conversation') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -258,7 +258,7 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     if (!character) return;
     if (insertStaticRenownPerkOptions(ctx, charId, rank) > 0) {
       writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative',
-        keeperFallback('The Keeper shrugs. "The cosmos provided some... standard options for your consideration."'));
+        keeperFallback('The cosmos shrugs and offers some... standard options for your consideration.'));
     }
   }
 }
@@ -295,7 +295,7 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
       `${race.narrative || 'An interesting choice.'}\n\n` +
       `**${race.raceName}**${bonusText}\n\n` +
       `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
-      `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
+      `\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`
     ));
 
     // Persist race definition for reuse by future players. A reply that named no race
@@ -465,8 +465,8 @@ export function applyClassFillResult(ctx: any, job: ApplyJob, resultText: string
     `${cls.classDescription || 'A unique class emerges.'}\n\n` +
     `**${cls.className}**\n${statLine} | ${armorLine}${weaponLine ? ` | ${weaponLine}` : ''} | ${resourceLine}` +
     abilityText +
-    `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. I find recklessness entertaining.` +
-    `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`
+    `\nChoose one. Type the name of the ability you wish to begin with. Choose wisely — or don't. Recklessness has its own entertainment value.` +
+    `\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`
   ));
 }
 
@@ -491,13 +491,13 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
   } catch (parseErr) {
     console.error(`World gen reply could not be parsed [world_gen_start]: ${errName(parseErr)}`);
     failWorldGen(ctx, currentGenState,
-      'The Keeper grimaces. "The world tried to form but... it came out wrong."');
+      'The world tried to take shape but... it came out wrong.');
     return;
   }
 
   if (!data?.regionName || !data.startLocation?.name) {
     failWorldGen(ctx, currentGenState,
-      'The Keeper shakes his head. "The world beyond is... incomplete."');
+      'The world beyond is... incomplete.');
     return;
   }
 
@@ -546,7 +546,7 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
     if (locationNpcs.length > 0) {
       arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
     }
-    arrivalMsg += `\n\nTry [look] to examine your surroundings. The Keeper is still remembering the roads out.`;
+    arrivalMsg += `\n\nTry [look] to examine your surroundings. The roads out are still being remembered.`;
     writePrivateSegments(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', keeperSegments(arrivalMsg));
   }
 
@@ -640,15 +640,15 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
     const safeErrors = errors.map((e) => (e.startsWith('JSON parse error') ? 'reply could not be parsed' : e));
     console.error(`Skill gen produced ${skills.length} valid skills: ${safeErrors.join('; ')}`);
     writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperFallback(
-      'The Keeper grimaces. "The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again."'));
+      'The cosmic machinery sputtered. Your potential remains... unformed. Type [skills] to try again.'));
     return;
   }
 
   insertPendingSkills(ctx, charId, skills, offerLevel);
 
   // Present the 3 skills with The Keeper's sardonic narration
-  let presentation = `The Keeper of Knowledge regards you with something resembling interest.\n\n`;
-  presentation += `"Level ${offerLevel}. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:"\n`;
+  let presentation = `Something resembling interest stirs in the air.\n\n`;
+  presentation += `Level ${offerLevel}. How quaint. The universe has deigned to offer you three new ways to embarrass yourself:\n`;
 
   for (const skill of skills) {
     presentation += `\n[${skill.name}] -- ${skill.description}\n`;
@@ -656,7 +656,7 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
     presentation += `  ${skill.kind} | ${skill.resourceCost} ${skill.resourceType} | ${castLabel} | ${skill.cooldownSeconds}s cooldown | ${skill.value1} power\n`;
   }
 
-  presentation += `\n"Choose wisely. Or don't. The rejected skills will dissolve into the void, never to return."`;
+  presentation += `\nChoose wisely. Or don't. The rejected skills will dissolve into the void, never to return.`;
 
   writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperSegments(presentation));
 }
@@ -1002,7 +1002,7 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
     // Fall back to the static RENOWN_PERK_POOLS options for this rank (bigint-safe serializer).
     if (insertStaticRenownPerkOptions(ctx, charId, rank) > 0) {
       writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative',
-        keeperFallback('The Keeper shrugs. "The cosmos provided some... standard options for your consideration."'));
+        keeperFallback('The cosmos shrugs and offers some... standard options for your consideration.'));
     }
     return;
   }
@@ -1039,8 +1039,8 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
 
   // Present options to the player
   let presentation = `Your renown has grown. The world takes notice.\n\n`;
-  presentation += `The Keeper of Knowledge regards you with something resembling mild respect.\n\n`;
-  presentation += `"Rank ${rank}. The world owes you something. Choose your due:"\n`;
+  presentation += `Something resembling mild respect stirs in the air.\n\n`;
+  presentation += `Rank ${rank}. The world owes you something. Choose your due:\n`;
   for (const perk of perksToInsert) {
     presentation += `\n[${perk.name}] -- ${perk.description}\n`;
     if (String(perk.kind || '').trim()) {
@@ -1049,7 +1049,7 @@ export function applyRenownPerkResult(ctx: any, job: ApplyJob, resultText: strin
       presentation += `  Passive bonus\n`;
     }
   }
-  presentation += `\n"Choose wisely. Your reputation preceded you here. Don't let it down."`;
+  presentation += `\nChoose wisely. Your reputation preceded you here. Don't let it down.`;
 
   writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperSegments(presentation));
 }

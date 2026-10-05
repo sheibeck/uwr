@@ -223,13 +223,13 @@ function expectPlayerSafe(texts: string[]): void {
 
 // ---- inline lines of the apply layer, pinned against the source ---------------
 
-const CREATION_FLICKER_LINE = 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."';
-const WORLD_START_FAILED_LINE = 'The Keeper falters. "The world refuses to be remembered right now."';
+const CREATION_FLICKER_LINE = 'The page flickers. Something went wrong in the cosmic machinery. Try again.';
+const WORLD_START_FAILED_LINE = 'The map blurs and will not settle. The world refuses to be remembered right now.';
 const EXPLORE_HINT = 'Type [explore] to try again.';
 const SKILL_FAILED_LINE =
-  'The Keeper flickers. "Your potential eludes crystallization. Type [skills] when you want me to try again."';
-const SKILL_RESTING_SUFFIX = 'Type [skills] when you want him to try again.';
-const RENOWN_FALLBACK_LINE = 'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."';
+  'The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt.';
+const SKILL_RESTING_SUFFIX = 'Type [skills] when you want another attempt.';
+const RENOWN_FALLBACK_LINE = 'The cosmos shrugs and offers some... standard options for your consideration.';
 const npcDistractedLine = (name: string) => `${name} seems distracted.`;
 
 const SRC = (rel: string): string => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');

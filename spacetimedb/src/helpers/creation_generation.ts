@@ -51,7 +51,7 @@ export const CLASS_REVEAL_MILESTONE_LINE =
   'That is the shape of you. The rest of your abilities are still being worked out, so do not touch anything.';
 /** The fill failed, expired, was malformed or was refused: the reveal stands and any input retries. */
 export const CLASS_FILL_FAILED_LINE =
-  'The Keeper loses the thread of your finer details. Your class and first ability stand. Say anything and he will try the rest again.';
+  'The thread of your finer details slips away. Your class and first ability stand. Say anything and the rest will be tried again.';
 /** Input while the fill is running changes nothing. */
 export const CLASS_FILL_PATIENCE_LINE = 'The Keeper is still working out the rest of what you can do. Patience.';
 /** Posted when a retry of the fill starts. */
@@ -60,7 +60,7 @@ export const CLASS_FILL_RETRY_LINE = 'The Keeper picks the thread of your finer 
  * Appended to every refusal or resting line that leaves the state at CLASS_FILL_ERROR (review WR-B03):
  * nothing retries the fill on its own there, only the player's next input does. The Keeper is he.
  */
-export const CLASS_FILL_RETRY_HINT = 'Say anything when you want him to try the rest again.';
+export const CLASS_FILL_RETRY_HINT = 'Say anything when you want the rest tried again.';
 
 /** A refusal or resting line followed by the CLASS_FILL_ERROR retry hint. */
 export function classFillRetryLine(message: string): string {
@@ -234,6 +234,6 @@ function reuseRace(ctx: any, state: any, existingRace: any): void {
     `${existingRace.narrative || 'An interesting choice.'}\n\n` +
       `**${existingRace.name}**${bonusText}\n\n` +
       `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
-      `\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`,
+      `\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`,
   );
 }
