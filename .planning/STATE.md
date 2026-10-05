@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 46
 current_phase_name: Structured Keeper Replies
 status: executing
-stopped_at: Completed 46-07-PLAN.md
-last_updated: "2026-10-05T19:49:56.054Z"
+stopped_at: Completed 46-08-PLAN.md
+last_updated: "2026-10-05T19:58:24.114Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 46 execution started
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
   percent: 11
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 46 (Structured Keeper Replies) — EXECUTING
-Plan: 8 of 10
+Plan: 9 of 10
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 46 execution started
 
-Progress: [█████████░] 86%
+Progress: [█████████░] 90%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -156,6 +156,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46-05: review page reviewLines uses the server normalizer; golden.live.ts writes Phase 46 record; Phase 44 replay skips npc/combat routes and ignores the two new rule ids
 - [Phase ?]: 46-06: Owner approved the Phase 46 voice package as drafted (OQ1 server wrap, OQ3 (a), OQ6 (i), OQ7 enemies plus NPCs at location); no pair rejected
 - [Phase ?]: 46-07: applied route-schema-* approved blocks to llm_schemas.ts (package section G assigns them to 46-07), overriding the plan's schemas-unchanged line
+- [Phase ?]: 46-08: combat_narration is a JSON segments route (schema, route kind and approved block in one commit); OQ7 recommended allow-list kept
 
 ### Roadmap Evolution
 
@@ -262,8 +263,8 @@ Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed
 
 **Resume file:** None
 
-Last session: 2026-10-05T19:49:56.015Z
-Stopped at: Completed 46-07-PLAN.md
+Last session: 2026-10-05T19:58:24.089Z
+Stopped at: Completed 46-08-PLAN.md
 
 ## Performance Metrics
 
@@ -365,6 +366,7 @@ Stopped at: Completed 46-07-PLAN.md
 | Phase 46 P05 | 25min | 2 tasks | 4 files |
 | Phase 46 P06 | 5min | 3 tasks | 1 files |
 | Phase 46 P07 | 15min | 2 tasks | 8 files |
+| Phase 46 P08 | 25min | 2 tasks | 15 files |
 
 ## Operator Next Steps
 
