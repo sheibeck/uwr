@@ -14,6 +14,7 @@ import {
   PROOF_RUN_CAP_MICRO_USD,
   PROOF_SPEND_MARGIN_MICRO_USD,
   PROOF_STEPS,
+  assertRunTarget,
   burstSampleVerdict,
   excerpt,
   expectedSmokeCount,
@@ -232,6 +233,20 @@ describe('resolveProofDb (LLM_LIVE_DB)', () => {
     }
     expect(message).not.toBe('');
     expect(message).not.toContain('secret-db-name');
+  });
+});
+
+describe('assertRunTarget (a paid run never touches the user database)', () => {
+  it('lets a paid run target only uwr-verify', () => {
+    expect(() => assertRunTarget('run', 'uwr-verify')).not.toThrow();
+    expect(() => assertRunTarget('run', 'uwr')).toThrow(/scratch database/);
+    expect(() => assertRunTarget('run', '')).toThrow(/scratch database/);
+    expect(() => assertRunTarget('run', undefined)).toThrow(/scratch database/);
+  });
+
+  it('lets the free dry run connect to either allowlisted database', () => {
+    expect(() => assertRunTarget('dry', 'uwr')).not.toThrow();
+    expect(() => assertRunTarget('dry', 'uwr-verify')).not.toThrow();
   });
 });
 
@@ -511,13 +526,64 @@ describe('the live harness source', () => {
 
   it('never names the hosted target and is pinned to the local server', () => {
     expect(harness.toLowerCase()).not.toContain('maincloud');
-    expect(harness).toContain("withDatabaseName('uwr')");
     expect(harness).toContain('TARGETS.local');
+    expect(harness).toContain("TARGET.httpBase.startsWith('http://127.0.0.1')");
   });
 
-  it('checks the spend ledger before paid steps and has a dry mode', () => {
+  it('resolves the database through resolveProofDb and holds no database literal', () => {
+    expect(harness).toContain('resolveProofDb(process.env.LLM_LIVE_DB)');
+    expect(harness).toContain('LLM_LIVE_DB');
+    expect(harness).toContain('withDatabaseName(DB_NAME)');
+    expect(harness).not.toMatch(/withDatabaseName\(\s*['"`]/);
+    // No quoted database name at all: the allowlist lives in cli.mjs.
+    expect(harness).not.toMatch(/['"`]uwr(-verify)?['"`]/);
+    // A paid run is refused for any database but the scratch one.
+    expect(harness).toContain('assertRunTarget(MODE, DB_NAME)');
+  });
+
+  it('is dry unless PROVE_LIVE_RUN says run, and the retired dry flag is gone', () => {
+    expect(harness).toContain('resolveProveMode(process.env.PROVE_LIVE_RUN)');
+    expect(harness).toContain('PROVE_LIVE_RUN');
+    expect(harness).not.toContain('PROVE_LIVE_DRY');
+    // The dry branch returns before any reducer is called: no reducer call appears before the dry return.
+    const dryEnd = harness.search(/session\.conn\.disconnect\(\);\s*return;/);
+    expect(dryEnd).toBeGreaterThan(0);
+    expect(harness.slice(0, dryEnd)).not.toMatch(/\.reducers\./);
+  });
+
+  it('reads the smoke expectation from the server and never hard-codes it', () => {
+    expect(harness).toContain('expectedSmokeCount()');
+    expect(harness).not.toMatch(/total\s*>=\s*\d/);
+    expect(harness).not.toMatch(/total\s*===?\s*\d/);
+  });
+
+  it('starts every paid step with paidStep and has a runner for every proof step', () => {
+    const starts = PROOF_STEPS.map((step) => {
+      const i = harness.indexOf('      ' + step + ': async () => {');
+      expect(i, 'runner for ' + step).toBeGreaterThan(0);
+      return i;
+    });
+    PROOF_STEPS.forEach((step, n) => {
+      const body = harness.slice(starts[n], n + 1 < starts.length ? starts[n + 1] : harness.length);
+      expect(body, step).toContain("paidStep('" + step + "')");
+    });
+  });
+
+  it('records job ids, the run window, stage timings and applies the observed pronoun check by rule id', () => {
+    expect(harness).toContain('window: {');
+    expect(harness).toContain('jobIds: jobIdsByRoute');
+    expect(harness).toContain('timeToPlayableMs');
+    expect(harness).toContain('observedRuleIds(');
+    expect(harness).toContain('NPC_BURST_TURNS');
+    expect(harness).toContain('proofVerdict(results)');
+  });
+
+  it('never records a reply: observed checks keep rule ids, the id and the kind only', () => {
+    expect(harness).toContain('observed.hits.push({ kind, source, id: String(id), rules })');
+  });
+
+  it('checks the spend ledger before paid steps', () => {
     expect(harness).toContain('shouldStopForSpend(');
-    expect(harness).toContain('PROVE_LIVE_DRY');
     // Phase 43: the guard reads today's held spend and the daily ceiling, never the retired phase cap.
     expect(harness).toContain('heldTodayMicroUsd(');
     expect(harness).toContain('dailyCeilingMicroUsd');

@@ -3,8 +3,9 @@
 // `pnpm test` and `pnpm --dir spacetimedb test` never run live files.
 //
 // Run from the repo root (local server only):
-//   PROVE_LIVE_DRY=1 pnpm exec vitest run --config scripts/llm/vitest.live.config.ts   # no spend
-//   pnpm exec vitest run --config scripts/llm/vitest.live.config.ts                     # paid (Plan 41-16)
+//   pnpm exec vitest run --config scripts/llm/vitest.live.config.ts prove-live                      # dry, no spend
+//   PROVE_LIVE_RUN=run pnpm exec vitest run --config scripts/llm/vitest.live.config.ts prove-live   # paid (Plan 44-09, after approval)
+// Always pass a file filter (prove-live, golden or sweep): the config includes every *.live.ts file.
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 

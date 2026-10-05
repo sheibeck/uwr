@@ -79,6 +79,16 @@ export function resolveProofDb(value) {
   return resolveLiveDb(value);
 }
 
+/**
+ * A paid run only ever targets the scratch database. The allowlist lets the harness connect to the user's own
+ * `uwr` for the free dry run, but a paid run there would write characters, jobs and spend into it. Throws then.
+ */
+export function assertRunTarget(mode, db) {
+  if (mode === 'run' && db !== 'uwr-verify') {
+    throw new Error('a paid run only targets the scratch database uwr-verify; the free dry run may connect to uwr');
+  }
+}
+
 /** The number of routes the smoke test must report, read from the server list. */
 export function expectedSmokeCount() {
   return LLM_SMOKE_ROUTES.length;
