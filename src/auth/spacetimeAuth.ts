@@ -12,6 +12,17 @@ const STORAGE_KEYS = {
   email: 'spacetimeauth_email',
 };
 
+// Every parameter the IdP can add to the redirect back to the app.
+const CALLBACK_PARAMS = [
+  'code',
+  'state',
+  'iss',
+  'session_state',
+  'error',
+  'error_description',
+  'error_uri',
+];
+
 const randomString = (bytes = 32) => {
   const data = new Uint8Array(bytes);
   window.crypto.getRandomValues(data);
@@ -89,10 +100,18 @@ const parseJwtEmail = (idToken: string) => {
 export const handleSpacetimeAuthCallback = async () => {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
-  if (!code) return null;
+  const idpError = url.searchParams.get('error');
+  if (!code && !idpError) return null;
   const state = url.searchParams.get('state');
 
   try {
+    // The IdP reports a refusal (for example access_denied) as ?error=...&state=...
+    // with no code: surface it instead of treating the page as a plain load.
+    if (idpError) {
+      throw new Error(url.searchParams.get('error_description') || idpError);
+    }
+    if (!code) throw new Error('Missing auth code.');
+
     const expectedState = sessionStorage.getItem(STORAGE_KEYS.state);
     if (!state || !expectedState || state !== expectedState) {
       throw new Error('Invalid auth state.');
@@ -138,8 +157,7 @@ export const handleSpacetimeAuthCallback = async () => {
     // one-shot PKCE values are cleaned on success and on every failure.
     sessionStorage.removeItem(STORAGE_KEYS.verifier);
     sessionStorage.removeItem(STORAGE_KEYS.state);
-    url.searchParams.delete('code');
-    url.searchParams.delete('state');
+    for (const key of CALLBACK_PARAMS) url.searchParams.delete(key);
     window.history.replaceState({}, document.title, url.toString());
   }
 };

@@ -62,6 +62,31 @@ describe('handleSpacetimeAuthCallback', () => {
     expect(authKeys()).toEqual([]);
   });
 
+  it('throws the IdP error redirect and cleans every callback parameter and the PKCE values', async () => {
+    const auth = await loadAuth();
+    window.history.replaceState(
+      {},
+      '',
+      '/uwr?error=access_denied&error_description=User%20cancelled&state=s1&iss=https%3A%2F%2Fidp&session_state=x',
+    );
+    sessionStorage.setItem('spacetimeauth_state', 's1');
+    sessionStorage.setItem('spacetimeauth_verifier', 'v1');
+    const fetchMock = stubTokenFetch(true, {});
+    await expect(auth.handleSpacetimeAuthCallback()).rejects.toThrow('User cancelled');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(window.location.search).toBe('');
+    expect(sessionStorage.getItem('spacetimeauth_verifier')).toBeNull();
+    expect(sessionStorage.getItem('spacetimeauth_state')).toBeNull();
+    expect(authKeys()).toEqual([]);
+  });
+
+  it('falls back to the error code when the IdP sends no description', async () => {
+    const auth = await loadAuth();
+    window.history.replaceState({}, '', '/uwr?error=access_denied&state=s1');
+    await expect(auth.handleSpacetimeAuthCallback()).rejects.toThrow('access_denied');
+    expect(window.location.search).toBe('');
+  });
+
   it('throws on a state mismatch and cleans the URL and session values', async () => {
     const auth = await loadAuth();
     seedCallback('other');
@@ -92,6 +117,7 @@ describe('handleSpacetimeAuthCallback', () => {
   it('stores the session on success and cleans the URL', async () => {
     const auth = await loadAuth();
     seedCallback();
+    window.history.replaceState({}, '', '/uwr?code=abc&state=s1&iss=https%3A%2F%2Fidp&session_state=x');
     const idToken = makeIdToken();
     const fetchMock = stubTokenFetch(true, {
       id_token: idToken,
@@ -108,6 +134,7 @@ describe('handleSpacetimeAuthCallback', () => {
     expect(sessionStorage.getItem('spacetimeauth_verifier')).toBeNull();
     expect(sessionStorage.getItem('spacetimeauth_state')).toBeNull();
     expectUrlClean();
+    expect(window.location.search).toBe('');
   });
 });
 
