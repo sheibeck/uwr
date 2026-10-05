@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 45
 current_phase_name: Foundation, Frame and Auth
 status: executing
-stopped_at: Completed 45-06-PLAN.md
-last_updated: "2026-10-05T15:37:59.728Z"
+stopped_at: Completed 45-07-PLAN.md
+last_updated: "2026-10-05T15:43:48.107Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 45 execution started
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 45 (Foundation, Frame and Auth) — EXECUTING
-Plan: 7 of 11
+Plan: 8 of 11
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 45 execution started
 
-Progress: [██████░░░░] 55%
+Progress: [██████░░░░] 64%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -142,6 +142,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 45-04: bindTable ignores applied/error callbacks from a replaced connection and keeps rows until a fresh apply
 - [Phase ?]: [Phase 45-05]: focusableWithin excludes tabindex=-1 on buttons; Esc listener is document-level and ignores defaultPrevented
 - [Phase ?]: [Phase 45-06]: Bar fills use inline width percentage only; strip tag group is one tag row high so New skill clips before Level up and the name never wraps
+- [Phase ?]: 45-07: Account menu Esc handled at wrapper with stopPropagation so it never closes a drawer; NoticeBars countdown derives from absolute nextRetryAt
 
 ### Roadmap Evolution
 
@@ -231,8 +232,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-05T15:37:59.704Z
-Stopped at: Completed 45-06-PLAN.md
+Last session: 2026-10-05T15:43:48.082Z
+Stopped at: Completed 45-07-PLAN.md
 
 ## Performance Metrics
 
@@ -323,6 +324,7 @@ Stopped at: Completed 45-06-PLAN.md
 | Phase 45 P04 | 12min | 3 tasks | 8 files |
 | Phase 45 P05 | 15min | 3 tasks | 9 files |
 | Phase 45 P06 | 15min | 3 tasks | 8 files |
+| Phase 45 P07 | 12min | 3 tasks | 9 files |
 
 ## Operator Next Steps
 
