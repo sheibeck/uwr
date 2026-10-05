@@ -8,6 +8,7 @@
     "skipLibCheck": true,
 
     "moduleResolution": "bundler",
+    "paths": { "@game-data/*": ["./spacetimedb/src/data/*"] },
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
