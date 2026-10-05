@@ -5,15 +5,15 @@ milestone_name: LLM — Claude Engine
 current_phase: 44
 current_phase_name: Live Verification and Tone Eval
 status: executing
-stopped_at: Phase 44 planned (10 plans, 5 waves), PAUSED by user before the plan checker
-last_updated: "2026-10-04T19:26:49.449Z"
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-10-05T03:24:19.365Z"
 last_activity: 2026-10-04
-last_activity_desc: Phase 44 execution started
+last_activity_desc: Phase 44 execution resumed (wave continue)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 74
-  completed_plans: 61
+  completed_plans: 62
   percent: 50
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-30)
 ## Current Position
 
 Phase: 44 (Live Verification and Tone Eval) — EXECUTING
-Plan: 1 of 10
-Status: Executing Phase 44
-Last activity: 2026-10-04 — Phase 44 execution started
+Plan: 2 of 10
+Status: Ready to execute
+Last activity: 2026-10-04 — Phase 44 execution resumed (wave continue)
 
-Progress: [██████████] 97% (2/6 phases)
+Progress: [████████░░] 84% (2/6 phases)
 
 ## Previous Milestones
 
@@ -116,6 +116,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 43-13: a class fill adding no usable ability is malformed (CLASS_FILL_ERROR); 'try again' at CLASS_FILL_ERROR retries the fill instead of going back
 - [Phase ?]: [43-14] Measured tuning applied: low effort on all 9 routes, max_tokens 256-2560 derived; caching passed 9/9; LAT-06 leave_out (class reveal p50 4665 ms), parallel not built
 - [Phase ?]: [43-15] Local publish used --break-clients only (view row type change, no table removed); key intact (108 before and after); kill switch/ceiling round trip at $0; pre-existing time-command getWorldState import bug deferred
+- [Phase ?]: [Phase 44-01]: validateRenownActivePerk lives in pure renown_perk_validate.ts (re-exported by llm_apply.ts) so offline harnesses reuse the server clamp without the server runtime
 
 ### Roadmap Evolution
 
@@ -187,8 +188,8 @@ Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_
 
 **Resume file:** None
 
-Last session: 2026-10-01T09:04:14.850Z
-Stopped at: Completed 43-15-PLAN.md
+Last session: 2026-10-05T03:24:19.337Z
+Stopped at: Completed 44-01-PLAN.md
 
 ## Performance Metrics
 
@@ -263,6 +264,7 @@ Stopped at: Completed 43-15-PLAN.md
 | Phase 43 P13 | 55min | 3 tasks | 10 files |
 | Phase 43 P14 | ~15min | 2 tasks | 6 files |
 | Phase 43 P15 | 35min | 3 tasks | 9 files |
+| Phase 44 P01 | resumed | 2 tasks | 5 files |
 
 ## Operator Next Steps
 

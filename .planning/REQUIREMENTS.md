@@ -83,7 +83,7 @@
 
 ### Quality & Verification
 
-- [ ] **QUAL-01**: A golden set of ~25 prompts (5 adversarial) runs with mechanical assertions. Live runs are operator-approved, and the owner approves the tone.
+- [x] **QUAL-01**: A golden set of ~25 prompts (5 adversarial) runs with mechanical assertions. Live runs are operator-approved, and the owner approves the tone.
 - [ ] **QUAL-02**: Every domain is verified end-to-end with a real Claude call locally, with per-route latency percentiles recorded. The maincloud run is manual by the user.
 - [ ] **QUAL-03**: Failure drills (truncation, refusal, 401, 429, 529, spend cap, timeout) each produce the correct player-facing behavior.
 - [x] **QUAL-04**: Every phase ships unit tests. LLM code paths are testable offline through a mock procedure context (fake `ctx.http`, `withTx`).
@@ -148,7 +148,7 @@ Filled by roadmap creation (2026-09-29). Each requirement maps to exactly one ph
 | LAT-06 | Phase 43 | Complete |
 | OPS-01 | Phase 41 | Complete (code; live smoke test with the real key deferred by the user, see 41-VERIFICATION.md) |
 | OPS-02 | Phase 43 | Complete |
-| QUAL-01 | Phase 44 | Pending |
+| QUAL-01 | Phase 44 | Complete |
 | QUAL-02 | Phase 44 | Pending |
 | QUAL-03 | Phase 44 | Pending |
 | QUAL-04 | Phase 40 | Complete |
