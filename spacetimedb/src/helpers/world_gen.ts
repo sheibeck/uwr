@@ -14,6 +14,7 @@
 import { connectLocations, ensureSpawnsForLocation } from './location';
 import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
+import { keeperFallback, flattenSegments } from './segments';
 import { enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
 import { isRestingErrorCode } from './llm_status';
 import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './llm_inputs';
@@ -655,7 +656,9 @@ export function failWorldFill(tx: any, genState: any, message: string): void {
   if (char && char.locationId !== 0n) {
     appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', line);
   } else {
-    appendCreationEvent(tx, genState.playerId, 'creation_error', line);
+    // Phase 46: the Keeper-voice line is one Keeper narration segment (wording unchanged).
+    const segments = keeperFallback(line);
+    appendCreationEvent(tx, genState.playerId, 'creation_error', flattenSegments(segments), segments);
   }
 }
 

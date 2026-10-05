@@ -31,7 +31,8 @@
  * "[Round N] " prefix any more), each private event carries its segments, JSON without a
  * narrative now stores the Keeper fallback line instead of the JSON text, and an empty
  * successful reply now stores that fallback line (one row per participant, one
- * combat_narrative row) instead of nothing.
+ * combat_narrative row) instead of nothing. The world_gen (fill) failure line for a character
+ * whose row is gone now carries one Keeper narration segment (same wording).
  *
  * Known limits of the mock DB that these tests inherit: the `by_name` index accessor is
  * mapped to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
@@ -1006,10 +1007,11 @@ describe('llm apply world_gen (fill) failure path', () => {
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
   });
 
-  it('routes the message to the creation events when the character row is gone', () => {
+  it('Phase 46: routes the message to the creation events when the character row is gone (one Keeper narration segment)', () => {
     const ctx = newCtx(fillSeed({ char: null }));
     exec(ctx, applyJob('world_gen', GEN_CTX), { success: false });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILL_ERROR');
+    expect(rows(ctx, 'event_creation')[0].segments).toEqual([{ kind: 'narration', speaker: 'The Keeper', text: rows(ctx, 'event_creation')[0].message }]);
     expect(rows(ctx, 'event_creation')).toHaveLength(1);
   });
 

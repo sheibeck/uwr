@@ -8196,6 +8196,90 @@ exports[`llm apply skill_gen success > unparseable text writes the grimace messa
 }"
 `;
 
+exports[`llm apply world_gen (fill) failure path > Phase 46: routes the message to the creation events when the character row is gone (one Keeper narration segment) 1`] = `
+"{
+  "character": [],
+  "event_creation": [
+    {
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "creation_error",
+      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again."
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "FILL_ERROR",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ]
+}"
+`;
+
 exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (COMPLETE) is left alone 1`] = `
 "{
   "character": [
@@ -8546,83 +8630,6 @@ exports[`llm apply world_gen (fill) failure path > a state that is not FILLING (
       "sourceRegionId": "0n",
       "step": "PENDING",
       "updatedAt": "ts:1600000000000000n"
-    }
-  ]
-}"
-`;
-
-exports[`llm apply world_gen (fill) failure path > routes the message to the creation events when the character row is gone 1`] = `
-"{
-  "character": [],
-  "event_creation": [
-    {
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "creation_error",
-      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    }
-  ],
-  "location": [
-    {
-      "bindStone": true,
-      "craftingAvailable": true,
-      "description": "A sheltered town.",
-      "id": "1n",
-      "isSafe": true,
-      "levelOffset": "0n",
-      "name": "Ember Hollow",
-      "regionId": "1n",
-      "terrainType": "town",
-      "zone": "Cinderfall"
-    }
-  ],
-  "npc": [
-    {
-      "description": "A soot-streaked trader.",
-      "gender": "female",
-      "greeting": "Buy something.",
-      "id": "1n",
-      "locationId": "1n",
-      "name": "Vessa",
-      "npcType": "vendor",
-      "personalityJson": "{}"
-    },
-    {
-      "description": "A meticulous figure who guards your valuables with obsessive precision.",
-      "gender": "female",
-      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
-      "id": "2n",
-      "locationId": "1n",
-      "name": "The Ledger Keeper",
-      "npcType": "banker",
-      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
-    }
-  ],
-  "region": [
-    {
-      "biome": "volcanic",
-      "dangerMultiplier": "100n",
-      "generatedByCharacterId": "10n",
-      "id": "1n",
-      "isGenerated": true,
-      "name": "Cinderfall",
-      "regionType": "generated",
-      "starterForRace": "ashkin"
-    }
-  ],
-  "world_gen_state": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1600000000000000n",
-      "errorMessage": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold.",
-      "generatedRegionId": "1n",
-      "id": "5n",
-      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sourceLocationId": "0n",
-      "sourceRegionId": "0n",
-      "step": "FILL_ERROR",
-      "updatedAt": "ts:1700000000000000n"
     }
   ]
 }"
