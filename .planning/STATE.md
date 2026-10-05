@@ -238,6 +238,7 @@ Items acknowledged and deferred at the v2.2 close on 2026-10-05 (owner chose to 
 | 43 | verification_deferred_human | /gsd-verify-work 43 |
 | 44 | verification_deferred_human | /gsd-verify-work 44 |
 | 45 | verification_deferred_human | /gsd-verify-work 45 |
+| 46 | verification_deferred_human | /gsd-verify-work 46 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
 
@@ -246,6 +247,8 @@ Phase 42 verification passed on 2026-09-30, after the user resolved every UAT it
 Phase 43 is code-complete and verified at code level (43-VERIFICATION.md: human_needed, 5/5 criteria, no gaps). On 2026-10-01 the user chose "Defer all and keep going" for the 7 items in 43-UAT.md: staged region and class reveal live, line rotation, the /llm admin console, WR-A01 money logic, the WR-A04/WR-B01 limits, and maincloud. Phase 44 live verification can pick up items 1 to 4.
 
 Phase 45 is code-complete and verified in code (45-VERIFICATION.md: human_needed, 6/6 criteria, 8/8 requirements, no gaps; code review clean after 3 iterations, CR-01 deferred to the login_email todo). On 2026-10-05 the owner deferred ALL hands-on testing for v3.0 to one end-of-milestone pass; the 7 items are in 45-UAT.md.
+
+Phase 46 is code-complete and verified in code (46-VERIFICATION.md: human_needed, 4/5 must-haves with SEG-05 owner-deferred, 0 gaps; code review clean after 3 iterations, WR-01 wording owner-approved, WR-07 kept strict by owner decision G3). The owner approved the voice package (46-VOICE-CHANGES.md) on 2026-10-05. The 6 deferred items are in 46-UAT.md; items 1, 3, 4 and 6 need paid LLM calls (worst case about $0.62, cap $2.00) and wait for the owner's go-ahead.
 
 ## Session Continuity
 
