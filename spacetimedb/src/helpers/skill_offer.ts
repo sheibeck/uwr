@@ -45,7 +45,7 @@ export const SKILL_OFFER_MESSAGES = Object.freeze({
   tooLow: 'The Keeper regards you blankly. "You have nothing to offer yet. Come back when you have grown."',
   pending: 'Your offering awaits your choice.',
   alreadyTaken: 'The Keeper shakes his head. "You have already claimed a new ability at this level. Grow first."',
-  created: 'Something stirs within you. The Keeper stirs to present new abilities for your consideration.',
+  created: 'Something stirs within you, and new abilities are presented for your consideration.',
   duplicate: 'The Keeper is already preparing an offering. Once you choose from it, any further offering you are owed follows.',
   askAgain: ' Ask again with [skills] later.',
 });

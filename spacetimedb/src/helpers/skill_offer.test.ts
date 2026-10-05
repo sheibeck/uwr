@@ -224,7 +224,7 @@ describe('requestSkillOffer', () => {
     const out = requestSkillOffer(ctx, characterOf(ctx), alice);
     expect(out).toEqual({
       kind: 'narrative',
-      text: 'Something stirs within you. The Keeper stirs to present new abilities for your consideration.',
+      text: 'Something stirs within you, and new abilities are presented for your consideration.',
     });
     expect(rows(ctx, 'llm_job')).toHaveLength(1);
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);

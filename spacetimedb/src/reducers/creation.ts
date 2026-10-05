@@ -6,7 +6,7 @@ import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } fr
 // Character creation state machine — narrative flow from greeting to character finalization
 
 const GREETING_MESSAGE =
-  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting me to care. I am The Keeper of Knowledge. I have watched civilizations rise and crumble while you were busy not existing. But fine. Let's make something of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. I'll work with either.\n\nNeed inspiration? Others before you have walked in as an [Elf], [Dwarf], [Goblin], [Dragonborn], [Shadeling], [Myconid], [Crystalborn], [Cyclops], [Troll], [Dark-Elf], [Halfling] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. I've seen it all.`;
+  `Ah. Another one. The void spits you out and here you are, formless and fumbling, expecting someone to care. Civilizations have risen and crumbled while you were busy not existing, and managed without you. But fine. Something can be made of you.\n\nDescribe what manner of creature you are -- your race, your people, whatever you imagine yourself to be. Be creative or be boring. Either will do.\n\nNeed inspiration? Others before you have walked in as an [Elf], [Dwarf], [Goblin], [Dragonborn], [Shadeling], [Myconid], [Crystalborn], [Cyclops], [Troll], [Dark-Elf], [Halfling] -- or invented something entirely their own. Describe what you are, ask about a race, or simply make something up. All of it has been seen before.`;
 
 const GO_BACK_PATTERNS = [
   'go back', 'start over', 'redo', 'changed my mind', 'try again',
@@ -343,13 +343,13 @@ export const registerCreationReducers = (deps: any) => {
       } else if (step === 'GENERATING_RACE' || step === 'GENERATING_CLASS') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is still working. Patience is a virtue you clearly lack, but try anyway.');
       } else if (step === 'AWAITING_ARCHETYPE') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Welcome back. You are ${existing.raceName || 'whatever you described'}. Now -- do you walk the path of the [Warrior] or the [Mystic]? Choose.\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`);
       } else if (step === 'CLASS_FILLING') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'The Keeper is still working out the rest of what you can do. Patience is a virtue you clearly lack, but try anyway.');
       } else if (step === 'CLASS_FILL_ERROR') {
         appendCreationEvent(ctx, ctx.sender, 'creation', 'The rest of your abilities slipped away from the Keeper. Say anything and he will try again, or type "go back."');
       } else if (step === 'CLASS_REVEALED') {
-        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." The Keeper does not judge... much.)`);
+        appendCreationEvent(ctx, ctx.sender, 'creation', `Still here? Good. You were choosing an ability for your ${existing.className || 'class'}. Pick one from the options above.\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`);
       } else if (step === 'AWAITING_NAME') {
         appendCreationEvent(ctx, ctx.sender, 'creation', `Back again. You still need a name. Four characters minimum. Make it count -- you\'ll be stuck with it.`);
       } else if (step === 'CONFIRMING') {

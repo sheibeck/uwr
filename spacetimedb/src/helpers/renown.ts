@@ -6,7 +6,7 @@ import { encodeRouteInput } from './llm_inputs';
 
 /** Keeper line posted when static perk options stand in for a generated offer. */
 export const RENOWN_STATIC_OPTIONS_MESSAGE =
-  'The Keeper shrugs. "The cosmos provided some... standard options for your consideration."';
+  'The cosmos shrugs and offers some... standard options for your consideration.';
 
 export function awardRenown(ctx: any, character: any, points: bigint, reason: string) {
   // Get or lazy-create Renown row

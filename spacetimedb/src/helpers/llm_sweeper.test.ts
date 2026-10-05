@@ -670,7 +670,7 @@ describe('stranded generation locks (a lost failure message)', () => {
     expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
       alice,
       'creation_error',
-      'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."',
+      'The page flickers. Something went wrong in the cosmic machinery. Try again.',
     ]);
     // Idempotent: the next sweep finds nothing.
     expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
@@ -716,7 +716,7 @@ describe('stranded generation locks (a lost failure message)', () => {
       expect((appendCreationEvent as any).mock.calls[0].slice(1)).toEqual([
         alice,
         'creation_error',
-        'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."',
+        'The page flickers. Something went wrong in the cosmic machinery. Try again.',
       ]);
     });
 
@@ -804,7 +804,7 @@ describe('stranded generation locks (a lost failure message)', () => {
     expect(report).toEqual({ ...ZERO, releasedLocks: 1 });
     const state = rows(ctx, 'world_gen_state')[0];
     expect(state.step).toBe('ERROR');
-    expect(state.errorMessage).toBe('The Keeper falters. "The world refuses to be remembered right now."');
+    expect(state.errorMessage).toBe('The map blurs and will not settle. The world refuses to be remembered right now.');
     expect((appendCreationEvent as any).mock.calls[0][3]).toContain('Type [explore] to try again.');
   });
 

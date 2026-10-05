@@ -579,7 +579,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
     expect(JSON.parse(job.dedupeKey)).toEqual([alice.toHexString(), 'skill_gen', '1:2']);
     expect((resolveRouteInput(ctx, job) as any).level).toBe(2n);
     expect(eventsOfKind(ctx, 'narrative')).toEqual([
-      'Something stirs within you. The Keeper stirs to present new abilities for your consideration.',
+      'Something stirs within you, and new abilities are presented for your consideration.',
     ]);
   });
 
@@ -665,7 +665,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
       const pending = rows(ctx, 'pending_skill');
       expect(pending).toHaveLength(3);
       for (const p of pending) expect(p.levelRequired).toBe(2n);
-      expect(eventsOfKind(ctx, 'narrative').slice(-1)[0]).toContain('"Level 2.');
+      expect(eventsOfKind(ctx, 'narrative').slice(-1)[0]).toContain('Level 2. How quaint.');
 
       // Choosing it leaves an ability at level 2; the level 3 offer is still available.
       rows(ctx, 'pending_skill').length = 0;
@@ -696,7 +696,7 @@ describe('skills and renown cutover (PIPE-01, PIPE-05)', () => {
       expect(JSON.parse(jobs[1].requestJson).level).toBe('3');
       expect(JSON.parse(jobs[1].dedupeKey)).toEqual([alice.toHexString(), 'skill_gen', '1:3']);
       expect(eventsOfKind(ctx, 'narrative').slice(narrativeBefore)).toContain(
-        'Something stirs within you. The Keeper stirs to present new abilities for your consideration.',
+        'Something stirs within you, and new abilities are presented for your consideration.',
       );
 
       // Choosing the level 3 offer leaves nothing owed: no third job, no extra line.

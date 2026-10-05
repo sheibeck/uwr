@@ -458,7 +458,7 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
 
   // Narrative: skill chosen
   appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'narrative',
-    `The Keeper nods. "[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again."`);
+    `[${pending.name}] it is. The others scatter like forgotten dreams. You will never see them again.`);
   appendPrivateEvent(ctx, pending.characterId, character.ownerUserId, 'system',
     `You learned [${pending.name}] — ${pending.kind}, ${pending.value1} power, ${pending.cooldownSeconds}s cooldown`);
 

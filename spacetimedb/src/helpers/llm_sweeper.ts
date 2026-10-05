@@ -253,7 +253,7 @@ export function sweepLlmJobs(ctx: any, deps?: Partial<SweepDeps>): SweepReport {
 }
 
 /** The same in-voice lines the per-route failure handling posts. */
-const CREATION_LOCK_RELEASED = 'The Keeper flickers. "Something went wrong in the cosmic machinery. Try again."';
+const CREATION_LOCK_RELEASED = 'The page flickers. Something went wrong in the cosmic machinery. Try again.';
 
 /**
  * The creation step each creation route holds, the step a released lock returns to and the line it
@@ -266,7 +266,7 @@ const CREATION_LOCKS: Readonly<Record<string, { route: string; back: string; lin
   GENERATING_CLASS: { route: 'creation_class_reveal', back: 'AWAITING_ARCHETYPE', line: CREATION_LOCK_RELEASED },
   CLASS_FILLING: { route: 'creation_class', back: 'CLASS_FILL_ERROR', line: CLASS_FILL_FAILED_LINE },
 });
-const WORLD_GEN_LOCK_RELEASED = 'The Keeper falters. "The world refuses to be remembered right now."';
+const WORLD_GEN_LOCK_RELEASED = 'The map blurs and will not settle. The world refuses to be remembered right now.';
 
 function genStateIdOf(job: any): string | undefined {
   try {
