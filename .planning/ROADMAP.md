@@ -1488,5 +1488,21 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.20: Examine (eyeball) button on things in the right-hand rail (BACKLOG)
+
+**Goal:** Put an eyeball "examine" button next to each item, enemy, player and place in the right-hand rail, so players can explore what is around them. Clicking it "looks at" that thing, the same as typing `look <target>`. Captured 2026-10-06 (owner request).
+
+**Notes for planning:**
+- **Reuse the existing look path:** the `look <target>` command in `spacetimedb/src/helpers/examine.ts` (`parseLookCommand`, which matches NPCs, enemies, players, resource nodes, then inventory items) and `spacetimedb/src/helpers/look.ts`. The button should send the same intent rather than add a parallel server path. Places may need a new look target if `look` does not cover locations yet; check this in research.
+- **Client:** the right-hand rail is `src/frame/ContextRail.vue`. Check the hostile cards (`src/combat/HostileCard.vue`) and the mobile layout at 390x844 too.
+- **Design guards apply:** Phosphor icons only (an eye icon), no `<svg`, no literal colors, text nodes only, and an accessible label (for example "Examine <name>").
+- **Tests:** the button sends the correct look target for each kind of entry.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding the Journal design to 999.16*
+*Last updated: 2026-10-06 after adding 999.20 (Examine button in the right-hand rail)*
