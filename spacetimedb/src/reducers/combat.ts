@@ -16,7 +16,10 @@ import {
   upsertChoice, allWaitingChosen,
   setRoundCooldown, roundCooldownRemaining, decrementRoundCooldowns, beginCombatCooldowns, endCombatCooldowns,
 } from '../helpers/combat_round_state';
-import { ROUND_STATE, isChoiceActionType, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed } from '../helpers/combat_rounds';
+import {
+  ROUND_STATE, isChoiceActionType, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed,
+  windupRounds, cooldownRounds, enemyAbilityReady, petAbilityDue, roundsToEstimateMicros,
+} from '../helpers/combat_rounds';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
@@ -2312,18 +2315,18 @@ export const registerCombatReducers = (deps: any) => {
     }
   };
 
-  /** Try to use an enemy ability for the round; returns true if ability was used. */
+  /**
+   * Try to use an enemy ability for the round; returns true if the enemy used its turn on one. An
+   * ability with a cast time is announced now and lands at the end of a later round (the landing
+   * step of resolveRound); one without resolves at once. Cooldowns count rounds. The caller has
+   * already skipped stunned enemies.
+   */
   const tryEnemyAbilityForRound = (
     ctx: any, combat: any, enemy: any, template: any,
-    activeParticipants: any[], nowMicros: bigint
+    activeParticipants: any[], nowMicros: bigint, roundNumber: bigint
   ): boolean => {
     const enemyAbilities = [...ctx.db.enemy_ability.by_template.filter(template.id)];
     if (enemyAbilities.length === 0) return false;
-
-    // Check for stun
-    const stunEffect = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
-      .find((e: any) => e.effectType === 'stun');
-    if (stunEffect && stunEffect.roundsRemaining > 0n) return false;
 
     const cooldownTable = ctx.db.combat_enemy_cooldown;
     if (!cooldownTable) return false;
@@ -2334,10 +2337,10 @@ export const registerCombatReducers = (deps: any) => {
     for (const ability of enemyAbilities) {
       const cooldown = [...cooldownTable.by_enemy.filter(enemy.id)]
         .find((row: any) => row.abilityKey === ability.abilityKey);
-      if (cooldown && cooldown.readyAtMicros > nowMicros) continue;
-      // Clean up expired cooldowns
-      if (cooldown && cooldown.readyAtMicros <= nowMicros) {
-        for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
+      if (cooldown && !enemyAbilityReady(cooldown.readyAtRound, roundNumber)) continue;
+      // Clean up ready cooldowns
+      if (cooldown) {
+        for (const row of [...cooldownTable.by_enemy.filter(enemy.id)]) {
           if (row.abilityKey === ability.abilityKey) cooldownTable.id.delete(row.id);
         }
       }
@@ -2363,10 +2366,46 @@ export const registerCombatReducers = (deps: any) => {
 
     if (candidates.length === 0) return false;
     const chosen = candidates.sort((a, b) => b.score - a.score)[0];
-    const roll = Number((nowMicros + enemy.id + combat.id) % 100n);
+    const roll = Number(roundSeed(nowMicros + enemy.id + combat.id, roundNumber) % 100n);
     if (roll >= DEFAULT_AI_CHANCE) return false;
 
-    // Execute the ability immediately (round resolution, no cast time)
+    // The cooldown starts when the ability is used or announced; it counts rounds (readyAtMicros is
+    // only an estimate for the client).
+    const cooldownLength = (chosen.ability.cooldownSeconds ?? 0n) > 0n
+      ? cooldownRounds(chosen.ability.cooldownSeconds)
+      : 0n;
+    if (cooldownLength > 0n) {
+      for (const row of [...cooldownTable.by_enemy.filter(enemy.id)]) {
+        if (row.abilityKey === chosen.ability.abilityKey) cooldownTable.id.delete(row.id);
+      }
+      cooldownTable.insert({
+        id: 0n, combatId: combat.id, enemyId: enemy.id,
+        abilityKey: chosen.ability.abilityKey,
+        readyAtMicros: nowMicros + roundsToEstimateMicros(cooldownLength),
+        readyAtRound: roundNumber + cooldownLength,
+      });
+    }
+
+    const windup = windupRounds(chosen.ability.castSeconds);
+    if (windup > 0n) {
+      // Announce now; the landing step of resolveRound fires it at the end of round N + windup.
+      ctx.db.combat_enemy_cast.insert({
+        id: 0n,
+        combatId: combat.id,
+        enemyId: enemy.id,
+        abilityKey: chosen.ability.abilityKey,
+        endsAtMicros: nowMicros + roundsToEstimateMicros(windup),
+        targetCharacterId: chosen.target.characterId,
+        targetPetId: chosen.target.petId,
+        announcedRound: roundNumber,
+        landsAtRound: roundNumber + windup,
+      });
+      const eName = enemy.displayName ?? template?.name ?? 'enemy';
+      postToActiveParticipants(ctx, activeParticipants, 'combat', `${eName} begins to cast ${chosen.ability.name}.`);
+      return true;
+    }
+
+    // No cast time: execute the ability at once
     executeAbilityAction(ctx, {
       actorType: 'enemy',
       actorId: enemy.id,
@@ -2375,19 +2414,83 @@ export const registerCombatReducers = (deps: any) => {
       targetCharacterId: chosen.target.characterId,
       targetPetId: chosen.target.petId,
     });
-
-    // Set cooldown
-    const cooldownMicros = (chosen.ability.cooldownSeconds ?? 0n) * 1_000_000n;
-    if (cooldownMicros > 0n) {
-      for (const row of cooldownTable.by_enemy.filter(enemy.id)) {
-        if (row.abilityKey === chosen.ability.abilityKey) cooldownTable.id.delete(row.id);
-      }
-      cooldownTable.insert({
-        id: 0n, combatId: combat.id, enemyId: enemy.id,
-        abilityKey: chosen.ability.abilityKey, readyAtMicros: nowMicros + cooldownMicros, readyAtRound: 0n,
-      });
-    }
     return true;
+  };
+
+  /** One combat line to every active participant (the argument may be participant rows). */
+  const postToActiveParticipants = (ctx: any, participants: any[], kind: string, message: string) => {
+    for (const p of participants) {
+      if (p.status !== 'active') continue;
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character) continue;
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, kind, message);
+    }
+  };
+
+  /** Name of the enemy ability a cast row refers to (falls back to its key). */
+  const castAbilityName = (ctx: any, enemy: any, abilityKey: string): string => {
+    const row = enemy
+      ? [...ctx.db.enemy_ability.by_template.filter(enemy.enemyTemplateId)].find((a: any) => a.abilityKey === abilityKey)
+      : undefined;
+    return row?.name ?? abilityKey;
+  };
+
+  /**
+   * The landing step of a round (after the enemy turns): every wind-up due by this round fires in
+   * ascending enemy id. A dead or missing enemy's cast is dropped silently. The stored target must
+   * still be an active, living participant (or a living pet of the fight); otherwise the ability
+   * retargets by its own rule, and fizzles when that gives nobody. Each landing is isolated, and the
+   * cast row is always deleted.
+   */
+  const landEnemyCasts = (ctx: any, combat: any, roundNumber: bigint) => {
+    const due = sortByKey(
+      sortById([...ctx.db.combat_enemy_cast.by_combat.filter(combat.id)]).filter((cast: any) => cast.landsAtRound <= roundNumber),
+      (cast: any) => cast.enemyId
+    );
+    for (const cast of due) {
+      try {
+        const enemy = ctx.db.combat_enemy.id.find(cast.enemyId);
+        if (!enemy || enemy.currentHp === 0n) continue;
+        const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+        const ability = [...ctx.db.enemy_ability.by_template.filter(enemy.enemyTemplateId)]
+          .find((a: any) => a.abilityKey === cast.abilityKey);
+        if (!ability) continue;
+        const participants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
+        const active = participants.filter((p: any) => p.status === 'active');
+        const eName = enemy.displayName ?? template?.name ?? 'enemy';
+
+        let target: { characterId?: bigint; petId?: bigint } | undefined;
+        const hasCharacterTarget = cast.targetCharacterId !== undefined && cast.targetCharacterId !== null;
+        const hasPetTarget = cast.targetPetId !== undefined && cast.targetPetId !== null;
+        if (hasCharacterTarget) {
+          const member = active.find((p: any) => p.characterId === cast.targetCharacterId);
+          const character = member ? ctx.db.character.id.find(cast.targetCharacterId) : undefined;
+          if (member && character && character.hp > 0n) target = { characterId: cast.targetCharacterId };
+        } else if (hasPetTarget) {
+          const pet = ctx.db.active_pet.id.find(cast.targetPetId);
+          if (pet && pet.combatId === combat.id && pet.currentHp > 0n) target = { petId: cast.targetPetId };
+        }
+        if (!target) {
+          target = pickEnemyTarget(ability.targetRule, active, ctx, combat.id, enemy.id);
+        }
+        if (!target) {
+          postToActiveParticipants(ctx, active, 'combat', `${eName}'s ${ability.name} fizzles.`);
+          continue;
+        }
+        executeAbilityAction(ctx, {
+          actorType: 'enemy',
+          actorId: enemy.id,
+          combatId: combat.id,
+          abilityKey: cast.abilityKey,
+          targetCharacterId: target.characterId,
+          targetPetId: target.petId,
+        });
+      } catch (error) {
+        console.error(`landEnemyCasts: cast ${cast.id} failed in combat ${combat.id}: ${String(error)}`);
+      } finally {
+        ctx.db.combat_enemy_cast.id.delete(cast.id);
+      }
+    }
   };
 
   /** Process a single enemy auto-attack during round resolution. */
@@ -2773,15 +2876,31 @@ export const registerCombatReducers = (deps: any) => {
       for (const row of enemyRows) {
         const enemy = ctx.db.combat_enemy.id.find(row.id);
         if (!enemy || enemy.currentHp === 0n) continue;
+        const pendingCasts = [...ctx.db.combat_enemy_cast.by_combat.filter(liveCombat.id)]
+          .filter((cast: any) => cast.enemyId === enemy.id);
         const stunned = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
           .some((effect: any) => effect.effectType === 'stun' && effect.roundsRemaining > 0n);
-        if (stunned) continue;
+        if (stunned) {
+          // A stun interrupts a wind-up in progress (RESEARCH Assumption A2); the enemy loses its turn either way.
+          for (const cast of pendingCasts) {
+            ctx.db.combat_enemy_cast.id.delete(cast.id);
+            postToActiveParticipants(
+              ctx,
+              [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)],
+              'combat',
+              `${enemy.displayName ?? 'enemy'}'s ${castAbilityName(ctx, enemy, cast.abilityKey)} is interrupted.`
+            );
+          }
+          continue;
+        }
+        // A winding-up enemy takes no other action until its ability lands (the landing step below).
+        if (pendingCasts.length > 0) continue;
         const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
         if (!template) continue;
         const allParticipants = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
         const activeNow = allParticipants.filter((x: any) => x.status === 'active');
         try {
-          const usedAbility = tryEnemyAbilityForRound(ctx, liveCombat, enemy, template, activeNow, nowMicros);
+          const usedAbility = tryEnemyAbilityForRound(ctx, liveCombat, enemy, template, activeNow, nowMicros, N);
           if (!usedAbility) {
             processEnemyAutoAttackForRound(ctx, liveCombat, enemy, template, allParticipants, activeNow, nowMicros, N);
           }
@@ -2789,6 +2908,9 @@ export const registerCombatReducers = (deps: any) => {
           console.error(`resolveRound: enemy ${enemy.id} turn failed in combat ${liveCombat.id}: ${String(error)}`);
         }
       }
+
+      // (e2) wind-ups due this round land after the enemy turns, ascending enemy id
+      landEnemyCasts(ctx, liveCombat, N);
 
       // (f) end of the round: effects, cooldowns, adds, deaths, retarget
       const afterEnemies = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
