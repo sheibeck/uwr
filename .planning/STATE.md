@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UX Overhaul
-current_phase: 46.1
-current_phase_name: Round-Based Combat Engine
+current_phase: 48
+current_phase_name: Combat Encounter
 status: executing
-stopped_at: Completed 46.1-09-PLAN.md
-last_updated: "2026-10-06T08:11:24.399Z"
+stopped_at: Completed 48-01-PLAN.md
+last_updated: "2026-10-06T08:17:20.954Z"
 last_activity: 2026-10-06
-last_activity_desc: Phase 46.1 execution started
+last_activity_desc: Phase 48 execution started
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 42
-  completed_plans: 42
+  total_plans: 56
+  completed_plans: 43
   percent: 44
 ---
 
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 46.1 — Round-Based Combat Engine
+**Current focus:** Phase 48 — Combat Encounter
 
 ## Current Position
 
-Phase: 46.1 (Round-Based Combat Engine) — EXECUTING
-Plan: 9 of 9
+Phase: 48 (Combat Encounter) — EXECUTING
+Plan: 2 of 14
 Status: Ready to execute
-Last activity: 2026-10-06 — Phase 46.1 execution started
+Last activity: 2026-10-06 — Phase 48 execution started
 
-Progress: [██████████] 100%
+Progress: [████████░░] 77%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -180,6 +180,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46.1-07: stun interrupts a winding-up enemy (A2); pet ability fires every petAbilityDue round, auto-attack every round (A3); partial-pull adds store arriveAtRound N+1
 - [Phase ?]: 46.1-08: moment tail runs after the victory/defeat checks (final round never narrates a moment); row written before the enqueue so a refusal still counts against the 3-per-fight budget
 - [Phase ?]: [46.1-09] Local publish with --break-clients (additive, no clear) kept the stored key length 108; generated types.ts carries a CombatMoment row struct (generator emits private-table row types) with no table binding
+- [Phase ?]: [48-01] my_combat_aggro view (row MyCombatAggroEntry, pets dropped, combat ids deduplicated) published locally with --break-clients only (no clear, key 108 before and after); bindings carry myCombatAggro
 
 ### Roadmap Evolution
 
@@ -312,8 +313,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T06:24:56.980Z
-Stopped at: Completed 46.1-09-PLAN.md
+Last session: 2026-10-06T08:17:20.921Z
+Stopped at: Completed 48-01-PLAN.md
 
 ## Performance Metrics
 
@@ -439,6 +440,7 @@ Stopped at: Completed 46.1-09-PLAN.md
 | Phase 46.1 P07 | ~45min | 2 tasks | 3 files |
 | Phase 46.1 P08 | 35min | 2 tasks | 14 files |
 | Phase 46.1 P09 | 20min | 2 tasks | 11 files |
+| Phase 48 P01 | 15min | 2 tasks | 5 files |
 
 ## Operator Next Steps
 

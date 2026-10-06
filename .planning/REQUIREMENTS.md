@@ -52,7 +52,7 @@
 ### Combat (CMB)
 
 - [ ] **CMB-01**: In combat, the right rail becomes the encounter: hostiles with health, a boss tag and difficulty color. The player can click a hostile to target it, and Tab cycles targets.
-- [ ] **CMB-02**: The player sees the threat order on the current target (from `aggro_entry`).
+- [x] **CMB-02**: The player sees the threat order on the current target (from `aggro_entry`).
 - [ ] **CMB-03**: The player sees an enemy wind-up warning (from `combat_enemy_cast`) before the ability lands.
 - [ ] **CMB-04**: The combat feed groups events by round, each under a round header. Effects and cooldowns show rounds remaining.
 - [ ] **CMB-05**: The header shows "In combat". The player can click party members to target heals, Flee is on the hotbar, and damage taken flashes on the vitals.
@@ -143,7 +143,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RND-04 | Phase 46.1 | Complete |
 | RND-05 | Phase 46.1 | Complete |
 | CMB-01 | Phase 48 | Pending |
-| CMB-02 | Phase 48 | Pending |
+| CMB-02 | Phase 48 | Complete |
 | CMB-03 | Phase 48 | Pending |
 | CMB-04 | Phase 48 | Pending |
 | CMB-05 | Phase 48 | Pending |
