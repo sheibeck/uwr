@@ -28,7 +28,7 @@ import {
   PhSword,
   PhWrench,
 } from '@phosphor-icons/vue';
-import { ABILITY_KINDS } from '@game-data/mechanical_vocabulary';
+import { ABILITY_KINDS, ABILITY_KIND_LABELS } from '@game-data/mechanical_vocabulary';
 import {
   HOTBAR_SLOT_COUNT,
   abilityIcon,
@@ -271,6 +271,7 @@ describe('slot text', () => {
 describe('slotTooltip', () => {
   const firebolt = {
     name: 'Firebolt',
+    kind: 'damage',
     description: '  Hurls a bolt of fire.  ',
     resourceCost: 12n,
     resourceType: 'mana',
@@ -281,6 +282,7 @@ describe('slotTooltip', () => {
   it('lists cost, cooldown in seconds and cast time out of combat, with the trimmed description', () => {
     expect(slotTooltip(firebolt, false)).toEqual({
       name: 'Firebolt',
+      type: 'Damage',
       stats: ['12 mana', '6s cooldown', '2s cast'],
       description: 'Hurls a bolt of fire.',
     });
@@ -305,8 +307,39 @@ describe('slotTooltip', () => {
   });
 
   it('builds one sentence for aria-describedby, omitting an empty description', () => {
-    expect(slotTooltipText(slotTooltip(firebolt, false))).toBe('12 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.');
-    expect(slotTooltipText(slotTooltip({ ...firebolt, description: '   ' }, false))).toBe('12 mana, 6s cooldown, 2s cast');
+    expect(slotTooltipText(slotTooltip(firebolt, false))).toBe(
+      'Damage, 12 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.',
+    );
+    expect(slotTooltipText(slotTooltip({ ...firebolt, description: '   ' }, false))).toBe(
+      'Damage, 12 mana, 6s cooldown, 2s cast',
+    );
+  });
+
+  it('gives the type line from ability_template.kind in the server vocabulary words', () => {
+    const typeOf = (kind: string) => slotTooltip({ ...firebolt, kind }, false).type;
+    expect(typeOf('damage')).toBe('Damage');
+    expect(typeOf('dot')).toBe('Damage over time');
+    expect(typeOf('heal')).toBe('Heal');
+    expect(typeOf('hot')).toBe('Heal over time');
+    expect(typeOf('buff')).toBe('Buff');
+    expect(typeOf('debuff')).toBe('Debuff');
+    expect(typeOf('cc')).toBe('Crowd control');
+  });
+
+  it('labels every kind of the server vocabulary, and falls back to words for an unknown kind', () => {
+    for (const kind of ABILITY_KINDS) {
+      const type = slotTooltip({ ...firebolt, kind }, false).type;
+      expect(type, kind).toBe(ABILITY_KIND_LABELS[kind]);
+      expect(type.length, kind).toBeGreaterThan(0);
+    }
+    expect(slotTooltip({ ...firebolt, kind: 'track_prey' }, false).type).toBe('Track prey');
+    expect(slotTooltip({ ...firebolt, kind: 'constructor' }, false).type).toBe('Constructor');
+  });
+
+  it('leaves the type out of the sentence when the kind is empty', () => {
+    const tip = slotTooltip({ ...firebolt, kind: '' }, false);
+    expect(tip.type).toBe('');
+    expect(slotTooltipText(tip)).toBe('12 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.');
   });
 });
 

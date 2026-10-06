@@ -39,6 +39,7 @@ import {
   PhSword,
   PhWrench,
 } from '@phosphor-icons/vue';
+import { kindLabel } from '../combat/kindLabel';
 import { cooldownTotalRounds, roundsText } from '../combat/roundCooldown';
 
 export const HOTBAR_SLOT_COUNT = 10;
@@ -188,6 +189,8 @@ export function slotTitle(a: {
 
 export interface SlotTooltip {
   name: string;
+  /** Ability type from ability_template.kind, in words ('Damage over time'); empty when the kind is empty. */
+  type: string;
   /** Cost, cooldown and cast time, in that order. */
   stats: string[];
   /** ability_template.description, trimmed; empty when the ability has none. */
@@ -195,13 +198,15 @@ export interface SlotTooltip {
 }
 
 /**
- * Hover, focus and long-press content for a hotbar slot. Cost reads '12 mana' ('No cost' for
+ * Hover, focus and long-press content for a hotbar slot. The type line is the ability kind in the
+ * server vocabulary's words ('Damage', 'Heal over time', 'Crowd control'). Cost reads '12 mana' ('No cost' for
  * 'none'); the cooldown reads in rounds in combat (CMB-04) and seconds otherwise; a cast time of 0
  * reads 'Instant'. Plain strings only: the caller renders them as text nodes.
  */
 export function slotTooltip(
   a: {
     name: string;
+    kind: string;
     description: string;
     resourceType: string;
     resourceCost: bigint;
@@ -218,12 +223,17 @@ export function slotTooltip(
         ? `${roundsText(cooldownTotalRounds(a.cooldownSeconds))} cooldown`
         : `${a.cooldownSeconds}s cooldown`;
   const cast = a.castSeconds <= 0n ? 'Instant' : `${a.castSeconds}s cast`;
-  return { name: a.name, stats: [cost, cooldown, cast], description: (a.description ?? '').trim() };
+  return {
+    name: a.name,
+    type: kindLabel(a.kind ?? ''),
+    stats: [cost, cooldown, cast],
+    description: (a.description ?? '').trim(),
+  };
 }
 
-/** The same content as one sentence for aria-describedby: 'No cost, 6s cooldown, Instant. Hurls fire.' */
+/** The same content as one sentence for aria-describedby: 'Damage, No cost, 6s cooldown, Instant. Hurls fire.' */
 export function slotTooltipText(tip: SlotTooltip): string {
-  const stats = tip.stats.join(', ');
+  const stats = (tip.type === '' ? tip.stats : [tip.type, ...tip.stats]).join(', ');
   return tip.description === '' ? stats : `${stats}. ${tip.description}`;
 }
 

@@ -441,6 +441,7 @@ function label(state: SlotState): string {
       </div>
       <div v-if="activeTip !== null" class="slot-tip" aria-hidden="true">
         <span class="tip-name">{{ activeTip.name }}</span>
+        <span v-if="activeTip.type !== ''" class="tip-type">{{ activeTip.type }}</span>
         <span class="tip-stats">{{ activeTip.stats.join(' · ') }}</span>
         <span v-if="activeTip.description !== ''" class="tip-description">{{ activeTip.description }}</span>
       </div>
@@ -617,6 +618,12 @@ function label(state: SlotState): string {
   font-weight: 500;
   color: var(--color-text);
   overflow-wrap: anywhere;
+}
+
+.tip-type {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-accent-100);
 }
 
 .tip-stats {
