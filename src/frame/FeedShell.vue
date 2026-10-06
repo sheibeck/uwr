@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FeedView from '../console/FeedView.vue';
+import HotbarRow from '../hotbar/HotbarRow.vue';
 import Composer from '../input/Composer.vue';
 
 const props = defineProps<{ compact?: boolean }>();
@@ -9,6 +10,7 @@ const props = defineProps<{ compact?: boolean }>();
   <main class="feed" :class="{ compact: props.compact }">
     <FeedView :compact="props.compact" />
     <section class="composer">
+      <HotbarRow />
       <Composer />
     </section>
   </main>
@@ -24,7 +26,7 @@ const props = defineProps<{ compact?: boolean }>();
 }
 
 /* 760px is the content width: with the global border-box the 64px of side padding is added so the
-   input lines up with the feed lines. 47-11 inserts the hotbar at the top of this section. */
+   input lines up with the feed lines. The hotbar row sits at the top of this section. */
 .composer {
   flex: none;
   width: 100%;
