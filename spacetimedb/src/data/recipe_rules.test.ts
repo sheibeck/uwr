@@ -362,6 +362,7 @@ describe('generated output columns', () => {
     const values = [0n, 1n, 2n, 3n, 5n, 8n, 10n, 13n];
     const counts: Record<string, [bigint, bigint]> = { weapon: [3n, 1n], armor: [3n, 1n], accessory: [2n, 1n], consumable: [2n, 1n] };
     let checked = 0;
+    const violations: string[] = [];
     for (const category of RECIPE_CATEGORY_ORDER) {
       for (const v1 of values) {
         for (const v2 of values) {
@@ -378,15 +379,16 @@ describe('generated output columns', () => {
           const b = v2 * counts[category][1];
           for (let perk = 0; perk <= 100; perk += 5) {
             for (let mod = 0n; mod <= 1500n; mod += 25n) {
-              expect(sellPayout(out, 1n, perk, mod)).toBeLessThanOrEqual(
-                sellPayout(a, 1n, perk, mod) + sellPayout(b, 1n, perk, mod),
-              );
+              if (sellPayout(out, 1n, perk, mod) > sellPayout(a, 1n, perk, mod) + sellPayout(b, 1n, perk, mod)) {
+                violations.push(`${category} ${v1}/${v2} perk ${perk} mod ${mod}`);
+              }
               checked += 1;
             }
           }
         }
       }
     }
+    expect(violations).toEqual([]);
     expect(checked).toBeGreaterThan(10_000);
   });
 
