@@ -120,6 +120,22 @@ describe('FeedView log', () => {
     expect(w.text()).not.toContain('Your story will appear here.');
   });
 
+  it('shows one Keeper label for a multi-paragraph reply and a new one when the speaker changes', async () => {
+    const h = harness();
+    const w = mountView(h);
+    const keeper = (text: string) => ({ kind: 'narration', speaker: 'The Keeper', text });
+    ingest(h, { kind: 'combat_narration', segments: [keeper('You close in.'), keeper('The Sentinel collapses.'), keeper('Brine drips.')] });
+    await settle();
+    expect(w.findAll('.line')).toHaveLength(3);
+    expect(w.findAll('.micro').map((m) => m.text())).toEqual(['The Keeper']);
+    expect(w.findAll('.line .body').map((b) => b.text())).toEqual(['You close in.', 'The Sentinel collapses.', 'Brine drips.']);
+    ingest(h, {
+      segments: [keeper('You peer in.'), { kind: 'dialogue', speaker: 'The Ferryman', text: 'Mind the current.' }, keeper('The water stirs.')],
+    });
+    await settle();
+    expect(w.findAll('.micro').map((m) => m.text())).toEqual(['The Keeper', 'The Keeper', 'The Keeper']);
+  });
+
   it('renders model and player text as literal text', async () => {
     const h = harness();
     const w = mountView(h);

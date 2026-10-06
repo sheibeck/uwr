@@ -440,3 +440,95 @@ describe('combat entries and the late-narration tag', () => {
     expect(lines.every((l) => l.parts === null)).toBe(true);
   });
 });
+
+describe('one label per run of segments from the same speaker (quick 261006-h5w)', () => {
+  const keeperSeg = (text: string): SegmentLike => ({ kind: 'narration', speaker: 'The Keeper', text });
+  const npcSeg = (text: string, speaker = 'The Ferryman', speakerNpcId: bigint | null = 9n): SegmentLike => ({
+    kind: DIALOGUE_SEGMENT_KIND,
+    speaker,
+    text,
+    speakerNpcId,
+  });
+  const labelled = (lines: readonly { continued?: boolean }[]) => lines.filter((l) => l.continued !== true).length;
+  const build = (entries: readonly LineSource[]) =>
+    buildFeedLines(entries, { vocabulary: buildVocabulary({ npcs: [], places: [], nodes: [], players: [] }), partyNames: [], npcsHere: [] });
+
+  it('a 3-segment Keeper victory row gives one label and three paragraphs', () => {
+    const lines = classify(
+      row('combat_narration', '', {
+        segments: [keeperSeg('You close in.'), keeperSeg('The Sentinel collapses.'), keeperSeg('Brine drips on the stones.')],
+      }),
+    );
+    expect(lines).toHaveLength(3);
+    expect(lines.map((l) => l.text)).toEqual(['You close in.', 'The Sentinel collapses.', 'Brine drips on the stones.']);
+    expect(lines.map((l) => l.continued === true)).toEqual([false, true, true]);
+    expect(labelled(lines)).toBe(1);
+    expect(lines.map((l) => l.key)).toEqual(['private:1:0', 'private:1:1', 'private:1:2']);
+  });
+
+  it('Keeper, then an NPC, then the Keeper again gives three labels', () => {
+    const lines = classify(row('narrative', '', { segments: [keeperSeg('You peer in.'), npcSeg('Mind the current.'), keeperSeg('The water stirs.')] }));
+    expect(lines.map((l) => l.kind)).toEqual(['keeper', 'npc', 'keeper']);
+    expect(lines.map((l) => l.continued === true)).toEqual([false, false, false]);
+    expect(labelled(lines)).toBe(3);
+  });
+
+  it('repeats the label only when the speaker changes inside the row', () => {
+    const lines = classify(
+      row('narrative', '', {
+        segments: [keeperSeg('a'), keeperSeg('b'), npcSeg('c'), npcSeg('d'), keeperSeg('e'), keeperSeg('f')],
+      }),
+    );
+    expect(lines.map((l) => l.continued === true)).toEqual([false, true, false, true, false, true]);
+  });
+
+  it('a different NPC, or the same name for another NPC id, starts a new label', () => {
+    const lines = classify(
+      row('narrative', '', {
+        segments: [npcSeg('one', 'The Ferryman', 9n), npcSeg('two', 'The Ferryman', 10n), npcSeg('three', 'Marisol', 10n), npcSeg('four', 'Marisol', 10n)],
+      }),
+    );
+    expect(lines.map((l) => l.continued === true)).toEqual([false, false, false, true]);
+  });
+
+  it('skips blank segments without breaking the run', () => {
+    const lines = classify(row('narrative', '', { segments: [keeperSeg('a'), keeperSeg('   '), keeperSeg('b')] }));
+    expect(lines.map((l) => l.text)).toEqual(['a', 'b']);
+    expect(lines.map((l) => l.continued === true)).toEqual([false, true]);
+  });
+
+  it('never groups across rows: each row starts with its own label', () => {
+    const lines = classify(row('narrative', '', { segments: [keeperSeg('a')], key: 'private:1' })).concat(
+      classify(row('narrative', '', { segments: [keeperSeg('b')], key: 'private:2' })),
+    );
+    expect(labelled(lines)).toBe(2);
+  });
+
+  it('single-line and server-kind rows are never continued', () => {
+    expect(first(row('narrative', 'Plain Keeper line.')).continued).toBeUndefined();
+    expect(first(row('npc', 'The Ferryman says, "Hi."')).continued).toBeUndefined();
+  });
+
+  it('keeps the round tag on the grouped label (the first line of the run)', () => {
+    const entry: LineSource = {
+      ...row('combat_narration', '', { segments: [keeperSeg('a'), keeperSeg('b'), keeperSeg('c')], key: 'private:5' }),
+      narratedRound: 2n,
+    };
+    const lines = build([
+      { key: 'round:10:1', source: 'combat', kind: 'round', message: 'Round 1', segments: null, combatId: 10n, roundNumber: 1n },
+      entry,
+    ]);
+    const keeper = lines.filter((l) => l.kind === 'keeper');
+    expect(keeper.map((l) => l.roundTag ?? null)).toEqual([2n, null, null]);
+    expect(keeper.map((l) => l.continued === true)).toEqual([false, true, true]);
+  });
+
+  it('keeps keywords on every paragraph of a run', () => {
+    const vocabulary = buildVocabulary({ npcs: [], places: [{ id: 5n, name: 'Gloamwood' }], nodes: [], players: [] });
+    const lines = buildFeedLines(
+      [row('narrative', '', { segments: [keeperSeg('Gloamwood waits.'), keeperSeg('Walk to Gloamwood.')] })],
+      { vocabulary, partyNames: [], npcsHere: [] },
+    );
+    expect(lines.map((l) => (l.parts ?? []).filter((p) => p.entry !== null).length)).toEqual([1, 1]);
+  });
+});

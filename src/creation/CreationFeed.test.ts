@@ -61,7 +61,7 @@ describe('CreationFeed: lines', () => {
     expect(w.find('[role="log"]').text()).toContain('Your story will appear here.');
   });
 
-  it('renders a two-segment creation entry as two Keeper lines labelled The Keeper', () => {
+  it('renders a two-segment creation entry as two Keeper paragraphs under one The Keeper label', () => {
     const store = createCreationFeedStore();
     serverRow(store, 'creation', 'x', [
       { kind: 'narration', speaker: '', text: 'First part.' },
@@ -70,9 +70,11 @@ describe('CreationFeed: lines', () => {
     const w = mountFeed(store);
     const lines = w.findAll('.line-keeper');
     expect(lines).toHaveLength(2);
-    for (const line of lines) expect(line.find('.micro').text()).toBe('The Keeper');
+    expect(w.findAll('.micro').map((m) => m.text())).toEqual(['The Keeper']);
+    expect(lines[0].find('.micro').exists()).toBe(true);
+    expect(lines[1].find('.micro').exists()).toBe(false);
     expect(lines[0].text()).toContain('First part.');
-    expect(lines[1].text()).toContain('Second part.');
+    expect(lines[1].text()).toBe('Second part.');
     expect(w.text()).not.toContain('Your story will appear here.');
   });
 

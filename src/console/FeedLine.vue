@@ -37,6 +37,9 @@ const amountSplit = computed(() =>
   props.line.kind === 'damage' || props.line.kind === 'heal' ? splitLastInteger(props.line.text) : null,
 );
 
+// A segment that continues the same speaker's run shows only its paragraph (lines.ts `continued`).
+const continued = computed(() => props.line.continued === true);
+
 // Whisper lines and NPC speech with a known speaker are wrapped in typographic quotes.
 const quoted = computed(() => {
   const { kind, speaker } = props.line;
@@ -68,11 +71,14 @@ function disabledAttr(): 'true' | undefined {
     class="line"
     :class="[`line-${line.kind}`, { 'line-plain': line.speaker === null, 'line-player-text': line.playerAuthored === true }]"
   >
-    <span
-      v-if="line.kind === 'keeper'"
-      class="micro"
-      :aria-label="line.roundTag != null ? `The Keeper, about round ${line.roundTag}` : undefined"
-    >{{ line.label }}<span v-if="line.roundTag != null" class="round-tag">{{ ` · Round ${line.roundTag}` }}</span></span>
+    <template v-if="line.kind === 'keeper'">
+      <!-- A continued segment is another paragraph of the same reply: no second label. -->
+      <span
+        v-if="!continued"
+        class="micro"
+        :aria-label="line.roundTag != null ? `The Keeper, about round ${line.roundTag}` : undefined"
+      >{{ line.label }}<span v-if="line.roundTag != null" class="round-tag">{{ ` · Round ${line.roundTag}` }}</span></span>
+    </template>
     <span v-else-if="line.kind === 'quest'" class="micro micro-inline">{{ line.label }}</span>
     <span v-else-if="line.kind === 'world'" class="micro micro-inline">
       <PhWaveform :size="12" aria-hidden="true" /><span>{{ line.label }}</span>
@@ -104,7 +110,8 @@ function disabledAttr(): 'true' | undefined {
     </span>
 
     <span class="body">
-      <template v-if="line.kind === 'npc' && line.speaker !== null"><button
+      <template v-if="line.kind === 'npc' && line.speaker !== null && continued"></template>
+      <template v-else-if="line.kind === 'npc' && line.speaker !== null"><button
           v-if="line.speakerKeyword"
           type="button"
           class="keyword who"

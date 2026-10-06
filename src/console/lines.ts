@@ -4,7 +4,9 @@
 //
 // Rules that matter:
 //   - A row with a non-empty segments array becomes one line per segment. Segment text is never
-//     cleaned or interpreted (Phase 46 contract A6): markup in it stays literal text.
+//     cleaned or interpreted (Phase 46 contract A6): markup in it stays literal text. Consecutive
+//     segments of one row with the same speaker (Keeper, or the same NPC) are `continued` lines:
+//     each is its own paragraph, only the first carries the label (quick 261006-h5w).
 //   - A row without segments is classified by kind. Server-authored kinds have their old color
 //     tokens and [bracket] markup removed; player-authored kinds (say, emote, whisper, group,
 //     command) and local entries are never cleaned.
@@ -109,6 +111,12 @@ export interface FeedLineView {
    * wrapping so a typed newline cannot draw a fake second system line.
    */
   playerAuthored?: boolean;
+  /**
+   * A segment that follows a segment of the same row with the same speaker. Its text is its own
+   * paragraph, but the label ("The Keeper", or the NPC name and "says,") shows only on the first
+   * of the run. Set only when true.
+   */
+  continued?: boolean;
 }
 
 const KEEPER_KINDS = new Set(['narrative', 'llm', 'creation', 'combat_narration', 'class', 'character_created']);
@@ -142,6 +150,7 @@ interface LineFields {
   roundKey?: string | null;
   windup?: { lead: string; ability: string; tail: string } | null;
   playerAuthored?: boolean;
+  continued?: boolean;
 }
 
 function makeLine(key: string, fields: LineFields): FeedLineView {
@@ -164,6 +173,7 @@ function makeLine(key: string, fields: LineFields): FeedLineView {
     roundTag: null,
     windup: fields.windup ?? null,
     ...(fields.playerAuthored === true ? { playerAuthored: true } : {}),
+    ...(fields.continued === true ? { continued: true } : {}),
   };
 }
 
@@ -182,18 +192,33 @@ function classifySegments(entry: LineSource, segments: readonly SegmentLike[]): 
   for (const segment of segments) {
     if (!segment || isBlank(segment.text)) continue;
     const key = `${entry.key}:${lines.length}`;
+    const previous = lines.length > 0 ? lines[lines.length - 1] : null;
     if (segment.kind === DIALOGUE_SEGMENT_KIND) {
+      const speakerNpcId = segment.speakerNpcId ?? null;
       lines.push(
         makeLine(key, {
           kind: 'npc',
           text: segment.text,
           speaker: segment.speaker,
-          speakerNpcId: segment.speakerNpcId ?? null,
+          speakerNpcId,
           keywordEligible: true,
+          continued:
+            previous !== null &&
+            previous.kind === 'npc' &&
+            previous.speaker === segment.speaker &&
+            previous.speakerNpcId === speakerNpcId,
         }),
       );
     } else {
-      lines.push(makeLine(key, { kind: 'keeper', label: KEEPER_LABEL, text: segment.text, keywordEligible: true }));
+      lines.push(
+        makeLine(key, {
+          kind: 'keeper',
+          label: KEEPER_LABEL,
+          text: segment.text,
+          keywordEligible: true,
+          continued: previous !== null && previous.kind === 'keeper',
+        }),
+      );
     }
   }
   return lines;

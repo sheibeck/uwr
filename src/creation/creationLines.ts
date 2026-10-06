@@ -36,7 +36,13 @@ export function cleanCreationText(text: string): string {
   return cleanServerText(text.replace(BOLD_MARKER, ''));
 }
 
-function makeLine(key: string, kind: LineKind, text: string, label: string | null): FeedLineView {
+function makeLine(
+  key: string,
+  kind: LineKind,
+  text: string,
+  label: string | null,
+  continued = false,
+): FeedLineView {
   return {
     key,
     kind,
@@ -51,6 +57,7 @@ function makeLine(key: string, kind: LineKind, text: string, label: string | nul
     parts: null,
     titleParts: null,
     speakerKeyword: null,
+    ...(continued ? { continued: true } : {}),
   };
 }
 
@@ -73,7 +80,12 @@ function serverLines(entry: CreationEntryLike): CreationLine[] {
   const out: CreationLine[] = [];
   const push = (text: string): void => {
     const key = `${entry.key}:${out.length}`;
-    out.push({ key, line: makeLine(key, 'keeper', text, KEEPER_LABEL), warning: warn && out.length === 0 });
+    // Every segment of one row is Keeper narration: the first carries the label, the rest are paragraphs.
+    out.push({
+      key,
+      line: makeLine(key, 'keeper', text, KEEPER_LABEL, out.length > 0),
+      warning: warn && out.length === 0,
+    });
   };
   const segments = entry.segments;
   if (Array.isArray(segments) && segments.length > 0) {

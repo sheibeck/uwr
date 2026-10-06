@@ -64,6 +64,8 @@ describe('creationLines: server rows', () => {
     expect(lines).toHaveLength(2);
     expect(lines.map(l => l.line.kind)).toEqual(['keeper', 'keeper']);
     expect(lines.map(l => l.line.label)).toEqual(['The Keeper', 'The Keeper']);
+    // one label per reply: the second paragraph is a continued line (FeedLine draws no header)
+    expect(lines.map(l => l.line.continued === true)).toEqual([false, true]);
     expect(lines.map(l => l.line.text)).toEqual(['First.', 'Second.']);
     expect(lines.map(l => l.line.key)).toEqual(['creation:1:0', 'creation:1:1']);
     expect(lines.map(l => l.key)).toEqual(['creation:1:0', 'creation:1:1']);

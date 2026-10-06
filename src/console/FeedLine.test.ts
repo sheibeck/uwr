@@ -485,3 +485,45 @@ describe('FeedLine line breaks', () => {
     expect(server.classes()).not.toContain('line-player-text');
   });
 });
+
+describe('FeedLine continued segments (quick 261006-h5w)', () => {
+  it('draws no Keeper header for a continued Keeper paragraph, still a text-node body with keywords', async () => {
+    const w = render(
+      makeLine({
+        kind: 'keeper',
+        label: 'The Keeper',
+        text: 'Brine drips on the Old Well.',
+        continued: true,
+        keywordEligible: true,
+        parts: [
+          { text: 'Brine drips on the ', entry: null },
+          { text: 'Old Well', entry: WELL },
+          { text: '.', entry: null },
+        ],
+      }),
+    );
+    expect(w.find('.micro').exists()).toBe(false);
+    expect(w.text()).toBe('Brine drips on the Old Well.');
+    await w.get('button.keyword').trigger('click');
+    expect(w.emitted('keyword')).toEqual([[WELL]]);
+  });
+
+  it('draws the header on the first paragraph and keeps the round tag there', () => {
+    const w = render(makeLine({ kind: 'keeper', label: 'The Keeper', text: 'First.', roundTag: 3n }));
+    expect(w.get('.micro').text()).toBe('The Keeper · Round 3');
+  });
+
+  it('shows a continued NPC paragraph as quoted speech without the speaker lead', () => {
+    const w = render(makeLine({ kind: 'npc', speaker: 'The Ferryman', text: 'And mind the rope.', continued: true }));
+    expect(w.text()).toBe('“And mind the rope.”');
+    expect(w.find('.who').exists()).toBe(false);
+    const lead = render(makeLine({ kind: 'npc', speaker: 'The Ferryman', text: 'Mind the current.' }));
+    expect(lead.text()).toBe('The Ferryman says, “Mind the current.”');
+  });
+
+  it('keeps a continued paragraph literal', () => {
+    const w = render(makeLine({ kind: 'keeper', label: 'The Keeper', text: '<img src=x onerror=alert(1)>', continued: true }));
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.text()).toBe('<img src=x onerror=alert(1)>');
+  });
+});
