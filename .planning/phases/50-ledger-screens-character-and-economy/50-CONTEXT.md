@@ -1,0 +1,117 @@
+# Phase 50: Ledger Screens: Character and Economy - Context
+
+**Gathered:** 2026-10-06
+**Status:** Ready for UI-SPEC and planning
+**Mode:** Smart discuss. The owner answered the two open questions in chat on 2026-10-06. The rest are recommended defaults, which the owner may revise at UAT.
+
+<domain>
+## Phase Boundary
+
+Players manage their gear, read their character's numbers, trade with vendors and craft. The screens are Ledger drawers on desktop and full-height sheets on mobile, built on the Phase 45 drawer and sheet shells and the `src/screens/` placeholders.
+
+| Screen | Requirements | What it covers |
+|--------|--------------|----------------|
+| Inventory | LDG-01, LDG-02 | Equipment slots and the backpack, with filters, slot count, gold, and an item inspector (▲/▼ comparison, Equip / Salvage) |
+| Stats | LDG-03 | Base stat bars with gear bonus, derived stats, renown rank with perk choice, faction standing |
+| Vendor | LDG-08, LDG-09 | For-sale table with "usable by you" and Buy; sellables with Sell, Sell all junk and **buy back the last sale**; quest items unsellable |
+| Crafting | LDG-10, LDG-11 | Materials on hand, recipe list with category tabs, "only craftable" filter, have versus need, quality odds, optional reagent or affix, Craft, Discover recipes |
+
+Mobile (390×844): each screen opens as a full-height sheet above the tab bar. Bag opens the inventory.
+
+**Out of scope:**
+- The LLM "Keeper's assessment" on Stats (LDG-F1).
+- Map, Social and World events (Phase 51).
+- Balance changes.
+- Keeper Bible and route-block changes.
+
+</domain>
+
+<decisions>
+## Implementation Decisions
+
+### Owner decisions (2026-10-06, in chat)
+- **Buy-back is built on the server.** It adds one small private table holding each character's last sale (one row per character, replaced on each sale) and a `buyback_last_sale` reducer.
+  - The reducer refunds exactly the sale price and restores the same item instance or its stack, then clears the row.
+  - Rules:
+    - Only the owning character can buy back.
+    - The character must have enough gold.
+    - The character must be at the same vendor or location as the sale, or the action is refused with a `fail()` message.
+    - Sell all junk records nothing for buy-back. Only the last single Sell counts.
+  - The client reads it through a per-sender view or a filtered subscription. A public table must never expose other players' sales.
+  - Adding a table is additive: publish locally with `--break-clients`, never use `--clear-database`, check `admin_llm_status` key_length 108 before and after, and regenerate the bindings.
+  - Tests:
+    - sell, then buy back restores the item and the gold
+    - a second sale replaces the first
+    - Sell all junk does not record
+    - wrong character, not enough gold, and wrong place are each refused
+- **Pacing:** plan and build all four screens in one pass, then let the owner try them. No mid-phase pause.
+
+### Screens and shells
+- Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
+- The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
+- The design source is the inventory, stats, vendor and crafting screens in `UWR Ledger Screens.dc.html`, desktop and mobile. Re-import it fresh from the claude_design MCP project "Unwritten Realms" (never cached).
+
+### Data and server reuse (confirm in research)
+- **Existing reducers to reuse:** equip and unequip, `salvage_item`, `sell_item`, `sell_all_junk`, `buy_item`, `research_recipes` (Discover recipes), craft, and the renown perk choice. Research confirms exact names and arguments.
+- **Rapport modifiers and crafting quality odds:**
+  - Use existing server data, imported through `@game-data` where possible. Never duplicate server constants on the client (memory rule: the server is the source of truth).
+  - If a value exists only inside a server helper that imports `spacetimedb/server`, move the pure math into `spacetimedb/src/data/` (import-free). This is the same pattern Phase 49 used for `race_bonuses.ts`.
+- **Derived stats** use the same pure math the server uses, shared the same way.
+- **Item comparison** (▲/▼) compares the selected item's stats with the item equipped in the same slot. Affix and craft-quality bonuses are included, matching the a3d examine helper's per-instance stat sum.
+- **Quest items** are marked unsellable and have no Sell button. The server refusal stays the source of truth.
+- **Usable by you** means the item's armor or weapon category and required level fit the active character. The rule comes from existing server data.
+
+### Recommended defaults (owner may revise at UAT)
+- **Salvage confirmation:** salvaging an item above common rarity, or an equipped item, asks once first, reusing the Phase 49 Start over confirmation pattern. Common items salvage straight away.
+- **Sell all junk** shows how many items it will sell and for how much gold before it runs.
+- **Inventory filters:** All, Gear, Materials, Food, as the requirement says. The slot count shows used out of capacity.
+- **Faction standing** shows every faction the character has standing with, as a bar per faction with a tier label.
+- **Renown perk choice** reuses the existing reducer, and shows only when a choice is pending.
+
+### Claude's Discretion
+- Component layout under `src/screens/` or new `src/inventory`, `src/stats`, `src/vendor` and `src/crafting` folders.
+- Exact table and sort behavior where the design doesn't specify it.
+- How to split the plans. Execution is sequential on the main checkout.
+
+</decisions>
+
+<code_context>
+## Existing Code Insights
+
+- **Phase 45:** Drawer, Sheet, useScreens, the `ActiveScreen` and `SCREENS` lists, TabBar and MoreSheet, plus the screen placeholders under `src/screens/`.
+- **Phase 47:** keyed bindings (`createKeyed`, filtered subscriptions in `src/game/gameData.ts` and `queries.ts`), inert defaults in `context.ts`, NearbyList vendor action, and the feed and console.
+- **Quick a0i:** con colors and the enemy rows pattern.
+- **Quick a3d:** per-instance item stat sum (template plus affixes) in `spacetimedb/src/helpers/examine.ts`. The comparison math should share a pure version of it.
+- **Phase 49:**
+  - The `@game-data` shared-helper pattern (`spacetimedb/src/data/race_bonuses.ts`).
+  - The confirmation pattern (Start over or Keep my choices).
+  - Real-handler server tests (the `llm_cutover.test.ts` harness).
+- **Old client at tag `v2.2-client`:** a behavior reference only (inventory, vendor, crafting and stats panels).
+
+### Established Patterns
+- **Design guards:** enforced by the existing tests (`designContract`, `colors.guard`, `tokens.client`, `scrollbars`).
+  - no literal colors, no `v-html`, no `<svg`
+  - Phosphor icons and Inter only
+  - font sizes 10/12/14/20, weights 400/500
+  - spacing 4/8/16/24/32/48/64
+  - no new tokens; the pin stays 23
+  - text nodes only, with the img-onerror escape test
+  - no `replaceAll`, `.at` or `Object.hasOwn`
+- **Server changes:** additive only. Publish locally with `--break-clients`, never clear the database, and check the key before and after.
+- **Reducer calls:** object syntax.
+
+</code_context>
+
+<specifics>
+## Specific Ideas
+- The owner wants buy-back to protect against misclicks.
+- After the build, tell the owner what is ready to try on the running local stack (Vite hot reload plus the local publish).
+
+</specifics>
+
+<deferred>
+## Deferred Ideas
+- The Keeper's assessment on Stats (LDG-F1).
+- The live UAT of all four screens, at the end-of-milestone UAT pass.
+
+</deferred>
