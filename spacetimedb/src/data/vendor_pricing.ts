@@ -1,4 +1,5 @@
-// Vendor price math: one place for what a vendor charges and pays. Shared by buy_item,
+// Vendor price math: one place for what a vendor charges and pays. listingBuyPrice is the charged
+// price: it never falls to or below what the same character earns selling that item. Shared by buy_item,
 // sell_item, sell_all_junk, the natural-language sell paths and the client vendor screen, so the
 // price shown is the price charged. Charisma modifiers (vendorBuyMod, vendorSellMod) are on a
 // 1000 scale. The perk percent is passed in: the server reads it with getPerkBonusByField, the
@@ -56,7 +57,8 @@ export function sellPayout(
 
 /**
  * What the player pays for one item: the renown discount (capped at 50 percent), then the
- * Charisma discount, each with a minimum price of 1.
+ * Charisma discount, each with a minimum price of 1. This is the discount math only: callers
+ * charge listingBuyPrice, which adds the price floor.
  */
 export function buyPrice(listPrice: bigint, perkDiscountPct: number, vendorBuyMod: bigint): bigint {
   let price = listPrice;
@@ -70,6 +72,38 @@ export function buyPrice(listPrice: bigint, perkDiscountPct: number, vendorBuyMo
     if (price < 1n) price = 1n;
   }
   return price;
+}
+
+/**
+ * The most a character can earn per unit selling an item: the exact per-unit payout rounded down
+ * once. sellPayout rounds down per call, so no stack size ever pays more than this per unit.
+ * A negative perk or modifier counts as 0.
+ */
+export function unitSellCeiling(vendorValue: bigint, perkSellPct: number, vendorSellMod: bigint): bigint {
+  if (vendorValue <= 0n) return 0n;
+  const perk = BigInt(100 + appliedSellBonusPercent(perkSellPct));
+  const mod = vendorSellMod > 0n ? vendorSellMod : 0n;
+  return (vendorValue * perk * (1000n + mod)) / 100000n;
+}
+
+export interface ListingPriceInput {
+  listPrice: bigint;
+  vendorValue: bigint;
+  perkBuyPct: number;
+  perkSellPct: number;
+  vendorBuyMod: bigint;
+  vendorSellMod: bigint;
+}
+
+/**
+ * What a vendor charges for one unit of a listing: buy_item and the client For sale table both
+ * charge it. It is always above what the same character earns per unit for selling any stack of
+ * that item. Buy-back is the only exception, because it refunds the exact sale price.
+ */
+export function listingBuyPrice(input: ListingPriceInput): bigint {
+  const raw = buyPrice(input.listPrice, input.perkBuyPct, input.vendorBuyMod);
+  const floor = unitSellCeiling(input.vendorValue, input.perkSellPct, input.vendorSellMod) + 1n;
+  return raw > floor ? raw : floor;
 }
 
 export interface RapportInput {

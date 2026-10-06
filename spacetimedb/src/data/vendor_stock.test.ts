@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { EQUIPMENT_SLOTS, ITEM_CATEGORIES, QUALITY_TIERS } from './mechanical_vocabulary';
 import {
+  BASE_STOCK_QUANTITY,
   BASE_STOCK_SIZE,
   PROFILE_CATEGORIES,
   STOCK_RARITY_WEIGHTS,
@@ -10,6 +11,7 @@ import {
   VENDOR_RESTOCK_CONTINUE_MICROS,
   VENDOR_RESTOCK_INTERVAL_MICROS,
   areaLevel,
+  baseStockQuantity,
   isBaseStockCandidate,
   levelBand,
   listPriceFor,
@@ -368,6 +370,59 @@ describe('constants', () => {
     expect(VENDOR_RESTOCK_INTERVAL_MICROS <= 1_200_000_000n).toBe(true);
     expect(VENDOR_RESTOCK_BATCH).toBeGreaterThan(0);
     expect(VENDOR_RESTOCK_CONTINUE_MICROS < VENDOR_RESTOCK_INTERVAL_MICROS).toBe(true);
+  });
+});
+
+describe('baseStockQuantity (Plan 50-26)', () => {
+  const seeds: bigint[] = [];
+  for (let i = 0n; i < 200n; i += 1n) seeds.push(i);
+  const ranges: Array<[string, bigint, bigint]> = [['common', 3n, 5n], ['uncommon', 2n, 3n], ['rare', 1n, 2n]];
+
+  it('stays in the rarity range and every value of the range appears', () => {
+    for (const [rarity, lo, hi] of ranges) {
+      const seen = new Set<bigint>();
+      for (const seed of seeds) {
+        for (const id of [1n, 2n, 3n]) {
+          const q = baseStockQuantity(rarity, seed, id);
+          expect(q >= lo && q <= hi).toBe(true);
+          seen.add(q);
+        }
+      }
+      for (let v = lo; v <= hi; v += 1n) expect(seen.has(v)).toBe(true);
+    }
+  });
+
+  it('trims and ignores case', () => {
+    for (const seed of seeds) {
+      expect(baseStockQuantity(' Common ', seed, 2n)).toBe(baseStockQuantity('common', seed, 2n));
+    }
+  });
+
+  it('gives 1 for anything that is not base-stock rarity, and never 0', () => {
+    for (const r of ['epic', 'legendary', '', null, undefined, 'mythic']) {
+      expect(baseStockQuantity(r as string | null | undefined, 5n, 1n)).toBe(1n);
+    }
+    for (const seed of seeds) {
+      for (const [rarity] of ranges) expect(baseStockQuantity(rarity, seed, 9n) > 0n).toBe(true);
+    }
+  });
+
+  it('is deterministic and depends on the template id', () => {
+    expect(baseStockQuantity('common', 77n, 3n)).toBe(baseStockQuantity('common', 77n, 3n));
+    let differs = false;
+    for (const seed of seeds) {
+      if (baseStockQuantity('common', seed, 1n) !== baseStockQuantity('common', seed, 2n)) differs = true;
+    }
+    expect(differs).toBe(true);
+  });
+
+  it('BASE_STOCK_QUANTITY keys are exactly common, uncommon and rare, each a quality tier', () => {
+    expect(Object.keys(BASE_STOCK_QUANTITY).sort()).toEqual(['common', 'rare', 'uncommon']);
+    for (const [key, [min, max]] of Object.entries(BASE_STOCK_QUANTITY)) {
+      expect((QUALITY_TIERS as readonly string[]).indexOf(key)).toBeGreaterThanOrEqual(0);
+      expect(min >= 1n).toBe(true);
+      expect(min <= max).toBe(true);
+    }
   });
 });
 

@@ -245,6 +245,31 @@ export function restockSeed(npcId: bigint, tickMicros: bigint): bigint {
   return tickMicros + npcId * 7919n;
 }
 
+/**
+ * Units in stock for a base listing, by rarity. Weighted like the rarity weights, so common stock is
+ * plentiful and rare stock is one or two.
+ */
+export const BASE_STOCK_QUANTITY: Readonly<Record<'common' | 'uncommon' | 'rare', readonly [bigint, bigint]>> = {
+  common: [3n, 5n],
+  uncommon: [2n, 3n],
+  rare: [1n, 2n],
+};
+
+/**
+ * The seeded, deterministic quantity of one base listing: within its rarity range, from the restock
+ * seed and the template id. Anything that is not base-stock rarity gets 1n. Never 0n.
+ */
+export function baseStockQuantity(rarity: string | null | undefined, seed: bigint, templateId: bigint): bigint {
+  const key = typeof rarity === 'string' ? rarity.trim().toLowerCase() : '';
+  if (!Object.prototype.hasOwnProperty.call(BASE_STOCK_QUANTITY, key)) return 1n;
+  const [min, max] = BASE_STOCK_QUANTITY[key as 'common' | 'uncommon' | 'rare'];
+  const state = BigInt.asUintN(
+    64,
+    (BigInt.asUintN(64, seed) ^ BigInt.asUintN(64, templateId * 2654435761n)) * 6364136223846793005n + 1442695040888963407n,
+  );
+  return min + (state >> 33n) % (max - min + 1n);
+}
+
 // ---------------------------------------------------------------------------
 // Selection
 // ---------------------------------------------------------------------------

@@ -6,8 +6,10 @@ import {
   appliedSellBonusPercent,
   buyPrice,
   computeSellValue,
+  listingBuyPrice,
   rapportPercents,
   sellPayout,
+  unitSellCeiling,
 } from './vendor_pricing';
 
 // helpers/economy.ts imports server modules; record the real table definitions first.
@@ -174,6 +176,69 @@ describe('applied perk percent (the number shown in the sale and buy lines)', ()
     expect(buyPrice(200n, 80, 0n)).toBe(buyPrice(200n, appliedBuyDiscountPercent(80), 0n));
     expect(buyPrice(200n, 12.7, 0n)).toBe(buyPrice(200n, appliedBuyDiscountPercent(12.7), 0n));
     expect(sellPayout(10n, 5n, 7.9, 0n)).toBe(sellPayout(10n, 5n, appliedSellBonusPercent(7.9), 0n));
+  });
+});
+
+describe('price floor (Plan 50-26)', () => {
+  it('unitSellCeiling is the exact per-unit payout rounded down once', () => {
+    expect(unitSellCeiling(3n, 5, 330n)).toBe(4n);
+    expect(unitSellCeiling(0n, 50, 999n)).toBe(0n);
+    expect(unitSellCeiling(10n, 0, 0n)).toBe(10n);
+    expect(unitSellCeiling(7n, -5, -3n)).toBe(7n);
+    expect(unitSellCeiling(7n, Number.NaN, 0n)).toBe(7n);
+    expect(unitSellCeiling(-4n, 5, 0n)).toBe(0n);
+  });
+
+  it('worked example: a stack of 100 pays 4.18 each, so the floor is 5', () => {
+    expect(sellPayout(3n, 1n, 5, 330n)).toBe(3n);
+    expect(sellPayout(3n, 100n, 5, 330n)).toBe(418n);
+    expect(listingBuyPrice({ listPrice: 6n, vendorValue: 3n, perkBuyPct: 50, perkSellPct: 5, vendorBuyMod: 800n, vendorSellMod: 330n })).toBe(5n);
+    expect(100n * 5n > 418n).toBe(true);
+  });
+
+  it('equals the raw discount step whenever that step already exceeds the floor', () => {
+    const pairs: Array<[bigint, bigint]> = [[0n, 0n], [37n, 37n], [150n, 150n], [150n, 0n], [0n, 37n]];
+    for (const [buyMod, sellMod] of pairs) {
+      for (const [pb, ps] of [[0, 0], [5, 5]]) {
+        const raw = buyPrice(123n, pb, buyMod);
+        expect(unitSellCeiling(7n, ps, sellMod) + 1n < raw).toBe(true);
+        expect(listingBuyPrice({ listPrice: 123n, vendorValue: 7n, perkBuyPct: pb, perkSellPct: ps, vendorBuyMod: buyMod, vendorSellMod: sellMod })).toBe(raw);
+      }
+    }
+  });
+
+  it('is strictly above every sale of the same item across the full grid', () => {
+    const values = [0n, 1n, 2n, 3n, 7n, 13n, 19n, 50n, 250n];
+    const buyPcts = [0, 5, 25, 50, 80, Number.NaN];
+    const sellPcts = [0, 5, 25, 100, -5, Number.NaN];
+    const buyMods = [0n, 37n, 150n, 412n, 800n, 1000n];
+    const sellMods = [0n, 37n, 120n, 330n, 800n, 2000n];
+    const counts = [1n, 2n, 3n, 12n, 100n];
+    let points = 0;
+    for (const v of values) {
+      const base = v > 0n ? 2n * v : 10n;
+      for (const listPrice of [base, 1n]) {
+        for (const pb of buyPcts) {
+          for (const ps of sellPcts) {
+            for (const bm of buyMods) {
+              for (const sm of sellMods) {
+                const price = listingBuyPrice({ listPrice, vendorValue: v, perkBuyPct: pb, perkSellPct: ps, vendorBuyMod: bm, vendorSellMod: sm });
+                const raw = buyPrice(listPrice, pb, bm);
+                points += 1;
+                if (!(price > sellPayout(v, 1n, ps, sm))) throw new Error(`floor broke v=${v} ps=${ps} sm=${sm} price=${price}`);
+                if (!(unitSellCeiling(v, ps, sm) >= sellPayout(v, 1n, ps, sm))) throw new Error('ceiling below one-unit payout');
+                for (const n of counts) {
+                  if (!(n * price > sellPayout(v, n, ps, sm))) throw new Error(`stack ${n} broke v=${v} ps=${ps} sm=${sm} price=${price}`);
+                }
+                if (price < raw) throw new Error('price below the raw step');
+                if (price < 1n) throw new Error('price below 1');
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(points).toBe(9 * 2 * 6 * 6 * 6 * 6);
   });
 });
 
