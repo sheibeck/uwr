@@ -50,7 +50,7 @@ function invite(): void {
     <div v-else class="cards">
       <div v-for="member in members" :key="String(member.id)" class="member" :class="{ unknown: !member.known }">
         <div class="member-row">
-          <span class="member-name" :title="member.name">{{ member.name }}</span>
+          <span class="member-name" :title="memberLabel(member)">{{ memberLabel(member) }}</span>
           <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
           <span class="member-class">{{ member.className }}</span>
           <span v-if="member.known" class="member-level">Lv {{ member.level }}</span>

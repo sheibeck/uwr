@@ -142,6 +142,14 @@ describe('PartyBlock in a party', () => {
     expect(unknown.find('.member-level').exists()).toBe(false);
   });
 
+  it('reads Member for a member with no character row, never a blank name (WR-04)', () => {
+    const { w } = mountBlock({ ...PARTY, knownCharacters: [character(3n, 'Bo')] });
+    const [unknown, known] = w.findAll('.member');
+    expect(unknown.get('.member-name').text()).toBe('Member');
+    expect(unknown.get('.member-name').attributes('title')).toBe('Member');
+    expect(known.get('.member-name').text()).toBe('Bo');
+  });
+
   it('keeps the Invite button visible and working inside a party', async () => {
     const { w, prefill } = mountBlock(PARTY);
     await w.get('button.invite').trigger('click');
