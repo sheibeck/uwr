@@ -384,7 +384,7 @@ export interface JunkSummary {
 }
 
 /**
- * The Sell all junk preview: every non-equipped isJunk instance (the set the reducer sells, with
+ * The Sell all junk preview: every non-equipped, non-quest isJunk instance (the set the reducer sells, with
  * the payout rounded per instance like the reducer does).
  */
 export function junkSummary(input: SellInput): JunkSummary {
@@ -396,6 +396,9 @@ export function junkSummary(input: SellInput): JunkSummary {
     if (isEquipped(instance)) continue;
     const template = templates.get(instance.templateId);
     if (!template || !template.isJunk) continue;
+    // A quest item is never sold, even when it is also flagged junk (the same rule sellRows uses
+    // and the server's sell_all_junk now applies), so the preview must not count it.
+    if (isQuestItemTemplate(template)) continue;
     count += 1;
     gold += sellPayout(template.vendorValue, instance.quantity, perk.sell, character.vendorSellMod);
   }

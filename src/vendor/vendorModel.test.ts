@@ -362,6 +362,17 @@ describe('sellRows and junkSummary', () => {
     );
   });
 
+  it('junkSummary skips a quest item that is also flagged junk, matching the row list (IN-03)', () => {
+    const questJunk = tpl(6n, { name: 'Torn Letter', slot: 'quest', isJunk: true, vendorValue: 9n });
+    const templates = map([...ALL, questJunk]);
+    const summary = junkSummary(input([inst(1n, 6n), inst(2n, 3n)], { templates }));
+    expect(summary.count).toBe(1);
+    expect(summary.gold).toBe(sellPayout(7n, 1n, 0, 0n));
+    const onlyQuest = junkSummary(input([inst(1n, 6n)], { templates }));
+    expect(onlyQuest.count).toBe(0);
+    expect(onlyQuest.prompt).toBe('');
+  });
+
   it('junkSummary uses the singular for one item and is empty with no junk', () => {
     const one = junkSummary(input([inst(2n, 3n)]));
     expect(one.count).toBe(1);
