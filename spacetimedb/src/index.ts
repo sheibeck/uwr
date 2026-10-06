@@ -493,10 +493,13 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
 
   // Compute new base stats; the race_definition bonus is kept through the rebuild (D1).
   const raceDef = [...ctx.db.race_definition.by_name.filter(String(character.race ?? '').toLowerCase())][0];
-  const { stats: newBase } = levelUpBaseStats(character, newLevel, raceDef?.bonusesJson);
+  const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
+  // The legacy race-table stat delta from the previous level-up is on the character too (finalize
+  // adds none at level 1), so it is removed before primary/secondary detection (WR-01).
+  const legacyNow = raceRow && character.level > 1n ? computeRacialAtLevelFromRow(raceRow, character.level) : null;
+  const { stats: newBase } = levelUpBaseStats(character, newLevel, raceDef?.bonusesJson, legacyNow);
 
   // Compute racial bonuses at new level
-  const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
   const racial = raceRow ? computeRacialAtLevelFromRow(raceRow, newLevel) : null;
 
   const updated = {

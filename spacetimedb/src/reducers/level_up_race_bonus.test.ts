@@ -11,6 +11,7 @@ import { createMockCtx } from '../helpers/test-utils';
 import { ADMIN_IDENTITIES } from '../data/admin';
 import { xpRequiredForLevel } from '../data/xp';
 import { computeBaseStatsForGenerated, detectPrimarySecondary } from '../data/class_stats';
+import { RACE_DATA } from '../data/races';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -242,5 +243,71 @@ describe('finalize then level up reads one race bonus (review CR-01)', () => {
     expect(afterFinalize).toEqual(warriorAt(1n));
     expect(atL2).toEqual(warriorAt(2n));
     expect(atL3).toEqual(warriorAt(3n));
+  });
+});
+
+describe('legacy race-table stat delta is removed before detection (review WR-01)', () => {
+  // RACE_DATA names (Human cha +3, Dark-Elf str -1) are added after the class rebuild at every
+  // level-up, so the next level-up must subtract them again before it detects primary/secondary.
+  // Finalize adds no legacy delta, so a level 1 character has none to remove.
+  const raceRowFor = (name: string) => ({ id: 1n, ...RACE_DATA.find((r) => r.name === name)! });
+  const warriorL1 = computeBaseStatsForGenerated('str', 'dex', 1n);
+  const warriorAt = (level: bigint) => computeBaseStatsForGenerated('str', 'dex', level);
+
+  function warriorSeed(raceName: string, opts: { def?: string; sender?: any; pendingLevels?: bigint } = {}): Seed {
+    const seed = levelSeed({ race: raceName, def: opts.def, sender: opts.sender, pendingLevels: opts.pendingLevels ?? 2n });
+    seed.character = [{ ...seed.character[0], ...warriorL1 }];
+    seed.race = [raceRowFor(raceName)];
+    return seed;
+  }
+
+  it('a Human warrior keeps str primary and dex secondary over two level-ups', () => {
+    const ctx = newCtx(warriorSeed('Human'));
+    levelUp(ctx);
+    const atL2 = statsOf(rows(ctx, 'character')[0]);
+    const l2 = warriorAt(2n);
+    expect(atL2).toEqual({ ...l2, cha: l2.cha + 3n });
+    levelUp(ctx);
+    const atL3 = statsOf(rows(ctx, 'character')[0]);
+    const l3 = warriorAt(3n);
+    expect(atL3).toEqual({ ...l3, cha: l3.cha + 3n });
+    expect(rows(ctx, 'character')[0].level).toBe(3n);
+  });
+
+  it('the old behaviour (no subtraction) would have lost the secondary: cha ties dex at level 2', () => {
+    const l2 = warriorAt(2n);
+    expect(l2.cha + 3n).toBe(l2.dex);
+  });
+
+  it('a Dark-Elf with a stored race_definition applies both deltas and keeps the secondary over two level-ups', () => {
+    // race_definition: dex +2 / int +1 (kept); RACE_DATA Dark-Elf: str -1 (legacy). Both removed before detection.
+    const ctx = newCtx(warriorSeed('Dark-Elf', { def: SALTKIN_BONUSES }));
+    // The seeded definition row is named Saltkin; re-point it at the character's race (lookup is by nameLower).
+    ctx.db._tables.race_definition[0] = raceDefinitionRow(SALTKIN_BONUSES, 'Dark-Elf');
+    // The character is level 1: finalize would have added the definition bonus only.
+    ctx.db._tables.character[0] = {
+      ...rows(ctx, 'character')[0],
+      dex: warriorL1.dex + 2n,
+      int: warriorL1.int + 1n,
+    };
+    levelUp(ctx);
+    levelUp(ctx);
+    const l3 = warriorAt(3n);
+    expect(statsOf(rows(ctx, 'character')[0])).toEqual({
+      ...l3,
+      str: l3.str - 1n,
+      dex: l3.dex + 2n,
+      int: l3.int + 1n,
+    });
+  });
+
+  it('admin level_character for a Human removes the delta of the current level on the second jump', () => {
+    const ctx = newCtx(warriorSeed('Human', { sender: admin }), admin);
+    adminLevel(ctx, 3n);
+    const l3 = warriorAt(3n);
+    expect(statsOf(rows(ctx, 'character')[0])).toEqual({ ...l3, cha: l3.cha + 3n });
+    adminLevel(ctx, 6n);
+    const l6 = warriorAt(6n);
+    expect(statsOf(rows(ctx, 'character')[0])).toEqual({ ...l6, cha: l6.cha + 3n });
   });
 });

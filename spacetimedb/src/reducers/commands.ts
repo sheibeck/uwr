@@ -606,7 +606,10 @@ export const registerCommandReducers = (deps: any) => {
 
     // The race_definition bonus is kept through the rebuild (D1).
     const raceDef = [...ctx.db.race_definition.by_name.filter(String(character.race ?? '').toLowerCase())][0];
-    const { stats: newBase } = levelUpBaseStats(character, target, raceDef?.bonusesJson);
+    // The legacy race-table stat delta of the current level is on the character (finalize adds
+    // none at level 1), so it is removed before primary/secondary detection (WR-01).
+    const legacyNow = raceRow && character.level > 1n ? computeRacialAtLevelForAdmin(raceRow, character.level) : null;
+    const { stats: newBase } = levelUpBaseStats(character, target, raceDef?.bonusesJson, legacyNow);
 
     // Compute racial at target level using the same formula as awardXp
     const racial = raceRow ? computeRacialAtLevelForAdmin(raceRow, target) : null;

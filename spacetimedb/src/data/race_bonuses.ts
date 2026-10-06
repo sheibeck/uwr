@@ -105,19 +105,25 @@ export function computeCreationStats(
  * Level-up rebuild that keeps the race bonus (D1): remove the bonus before primary/secondary
  * detection, rebuild from the class at `level`, add the bonus back. With no usable bonus the
  * delta is all zero and this is exactly the plain class rebuild.
+ *
+ * `legacyDelta` is the stat delta of the legacy `race` table (RACE_DATA) that the level-up callers
+ * add AFTER this rebuild. It is already on the character from the previous level-up, so it is
+ * removed before detection too (review WR-01); it is NOT added to the returned stats.
  */
 export function levelUpBaseStats(
   character: StatBlock,
   level: bigint,
   raceBonusesJson: string | null | undefined,
+  legacyDelta?: Partial<Record<StatKey, bigint>> | null,
 ): CreationStats {
   const raceBonus = raceBonusDelta(raceBonusesJson);
+  const legacy = (key: StatKey): bigint => legacyDelta?.[key] ?? 0n;
   const detection = {
-    str: character.str - raceBonus.str,
-    dex: character.dex - raceBonus.dex,
-    cha: character.cha - raceBonus.cha,
-    wis: character.wis - raceBonus.wis,
-    int: character.int - raceBonus.int,
+    str: character.str - raceBonus.str - legacy('str'),
+    dex: character.dex - raceBonus.dex - legacy('dex'),
+    cha: character.cha - raceBonus.cha - legacy('cha'),
+    wis: character.wis - raceBonus.wis - legacy('wis'),
+    int: character.int - raceBonus.int - legacy('int'),
   };
   const { primary, secondary } = detectPrimarySecondary(detection);
   const stats = computeBaseStatsForGenerated(primary, secondary, level);

@@ -140,6 +140,25 @@ describe('levelUpBaseStats', () => {
   });
 });
 
+describe('levelUpBaseStats legacy delta (WR-01)', () => {
+  it('removes the legacy race-table delta before detection and does not add it to the result', () => {
+    // A Human warrior at level 2: class rebuild plus cha +3 from the legacy race table.
+    const l2 = computeBaseStatsForGenerated('str', 'dex', 2n);
+    const onCharacter = { ...l2, cha: l2.cha + 3n };
+    // Without the delta cha ties dex and the secondary is lost.
+    expect(detectPrimarySecondary(onCharacter).secondary).not.toBe('dex');
+    const r = levelUpBaseStats(onCharacter, 3n, null, { cha: 3n });
+    expect(r.stats).toEqual(computeBaseStatsForGenerated('str', 'dex', 3n));
+  });
+
+  it('a null or empty legacy delta changes nothing', () => {
+    const fx = { str: 12n, dex: 10n, cha: 8n, wis: 8n, int: 8n };
+    const plain = levelUpBaseStats(fx, 2n, DARK_ELF).stats;
+    expect(levelUpBaseStats(fx, 2n, DARK_ELF, null).stats).toEqual(plain);
+    expect(levelUpBaseStats(fx, 2n, DARK_ELF, {}).stats).toEqual(plain);
+  });
+});
+
 describe('import pin', () => {
   it('race_bonuses imports only ./class_stats and class_stats imports nothing', () => {
     expect(new Set(importSpecifiers('race_bonuses.ts'))).toEqual(new Set(['./class_stats']));
