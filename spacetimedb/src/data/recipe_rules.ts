@@ -535,8 +535,11 @@ export interface GeneratedRecipe {
 /**
  * The item_template columns (all but id) and recipe_template columns (all but id and outputTemplateId)
  * of a candidate. isNameTaken tells whether a name is already an item or recipe name; the name walk
- * keeps generated names off every existing row. vendorValue is the summed input value, so crafting
- * then selling never beats selling the inputs.
+ * keeps generated names off every existing row. vendorValue is the summed input value less 2 (at least
+ * 1): the vendor rounds each payout down once per stack, so selling the output (one rounding) could
+ * pay up to 2 gold more than selling the two input stacks (two roundings) with a sell bonus. Taking 2
+ * off keeps the output's payout at or below the inputs' for every perk and Charisma rate (checked in
+ * recipe_rules.test.ts); only inputs worth nothing at all can still gain the 1 gold minimum.
  */
 export function generatedOutput(
   candidate: RecipeCandidate,
@@ -546,6 +549,7 @@ export function generatedOutput(
   const chosen = choose(candidate, isNameTaken);
   const need = REQUIRED_COUNTS[category];
   const summed = primary.vendorValue * need.primary + secondary.vendorValue * need.secondary;
+  const outputValue = summed > 2n ? summed - 2n : 1n;
   const food = category === 'consumable';
 
   const stats = {
@@ -570,7 +574,7 @@ export function generatedOutput(
     rarity: 'common',
     tier: primary.tier > 1n ? primary.tier : 1n,
     isJunk: false,
-    vendorValue: summed > 1n ? summed : 1n,
+    vendorValue: outputValue,
     requiredLevel: level,
     allowedClasses: 'any',
     strBonus: stats.strBonus,

@@ -39,6 +39,7 @@ import {
   itemKeyFromName,
 } from './crafting_rules';
 import { ARMOR_TYPES, EQUIPMENT_SLOTS, FOOD_BUFF_TYPES, WEAPON_TYPES } from './mechanical_vocabulary';
+import { sellPayout } from './vendor_pricing';
 
 const mat = (
   templateId: bigint,
@@ -274,7 +275,7 @@ describe('generated output columns', () => {
       rarity: 'common',
       tier: 1n,
       isJunk: false,
-      vendorValue: 7n,
+      vendorValue: 5n,
       requiredLevel: 1n,
       allowedClasses: 'any',
       strBonus: 0n,
@@ -317,7 +318,7 @@ describe('generated output columns', () => {
     expect(t.slot).toBe('chest');
     expect(t.armorType).toBe('cloth');
     expect(t.armorClassBonus).toBe(2n);
-    expect(t.vendorValue).toBe(5n);
+    expect(t.vendorValue).toBe(3n);
     expect(t.weaponBaseDamage).toBe(0n);
     expect(t.weaponType).toBe('');
     expect(t.stackable).toBe(false);
@@ -332,7 +333,7 @@ describe('generated output columns', () => {
     expect(t.slot).toBe('neck');
     expect(t.armorType).toBe('none');
     expect(t.wisBonus).toBe(1n);
-    expect(t.vendorValue).toBe(3n);
+    expect(t.vendorValue).toBe(1n);
     expect(t.armorClassBonus).toBe(0n);
     expect(recipe.recipeType).toBe('accessory');
   });
@@ -346,13 +347,47 @@ describe('generated output columns', () => {
     expect(t.wellFedBuffType).toBe('health_regen');
     expect(t.wellFedBuffMagnitude).toBe(1n);
     expect(t.wellFedDurationMicros).toBe(2_700_000_000n);
-    expect(t.vendorValue).toBe(3n);
+    expect(t.vendorValue).toBe(1n);
     expect(t.weaponBaseDamage).toBe(0n);
     expect(recipe.recipeType).toBe('consumable');
     expect(recipe.materialType).toBeUndefined();
     expect(recipe.req3TemplateId).toBeUndefined();
     expect(recipe.req3Count).toBeUndefined();
     expect(recipe.outputCount).toBe(1n);
+  });
+
+  it('selling the output never pays more than selling the inputs, for every perk and Charisma rate (IN-02)', () => {
+    // The vendor rounds each payout down once per stack, so a sum over stacks can lose up to a gold
+    // per stack against one rounded payout of the whole value: the output carries the sum less 2.
+    const values = [0n, 1n, 2n, 3n, 5n, 8n, 10n, 13n];
+    const counts: Record<string, [bigint, bigint]> = { weapon: [3n, 1n], armor: [3n, 1n], accessory: [2n, 1n], consumable: [2n, 1n] };
+    let checked = 0;
+    for (const category of RECIPE_CATEGORY_ORDER) {
+      for (const v1 of values) {
+        for (const v2 of values) {
+          if (v1 === 0n && v2 === 0n) continue; // inputs worth nothing keep the 1 gold minimum
+          const candidate: RecipeCandidate = {
+            key: 'k',
+            category,
+            level: 1n,
+            primary: { templateId: 1n, name: 'Iron Shard', key: 'iron_shard', tier: 1n, vendorValue: v1, count: counts[category][0] },
+            secondary: { templateId: 2n, name: 'Scrap Cloth', key: 'scrap_cloth', tier: 1n, vendorValue: v2, count: counts[category][1] },
+          };
+          const out = generatedOutput(candidate, () => false).itemTemplate.vendorValue;
+          const a = v1 * counts[category][0];
+          const b = v2 * counts[category][1];
+          for (let perk = 0; perk <= 100; perk += 5) {
+            for (let mod = 0n; mod <= 1500n; mod += 25n) {
+              expect(sellPayout(out, 1n, perk, mod)).toBeLessThanOrEqual(
+                sellPayout(a, 1n, perk, mod) + sellPayout(b, 1n, perk, mod),
+              );
+              checked += 1;
+            }
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(10_000);
   });
 
   it('every other stat column is 0n on every output', () => {
