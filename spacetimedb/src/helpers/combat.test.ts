@@ -53,7 +53,7 @@ import {
   abilityDamageFromWeapon,
   addCharacterEffect,
   addEnemyEffect,
-  convertDurationToRounds,
+  executePetAbility,
   hasShieldEquipped,
   abilityCooldownMicros,
   abilityCastMicros,
@@ -62,6 +62,7 @@ import {
 } from './combat';
 import type { AbilityActor, AbilityRow } from './combat';
 import { createMockCtx } from './test-utils';
+import { secondsToRounds } from './combat_rounds';
 import { appendPrivateEvent } from './events';
 
 // ============================================================================
@@ -122,33 +123,6 @@ describe('staminaResourceCost', () => {
 
   it('minimum cost at power 0', () => {
     expect(staminaResourceCost(0n)).toBe(2n);
-  });
-});
-
-// ============================================================================
-// convertDurationToRounds (pure function)
-// ============================================================================
-
-describe('convertDurationToRounds', () => {
-  it('converts microseconds to rounds (4s per round)', () => {
-    // EFFECT_ROUND_CONVERSION_MICROS = 4_000_000
-    // 8_000_000 / 4_000_000 = 2 rounds
-    expect(convertDurationToRounds(8_000_000n)).toBe(2n);
-  });
-
-  it('returns minimum 1 round for short durations', () => {
-    // MIN_EFFECT_ROUNDS = 1
-    expect(convertDurationToRounds(1_000_000n)).toBe(1n);
-    expect(convertDurationToRounds(0n)).toBe(1n);
-  });
-
-  it('handles exact single round duration', () => {
-    expect(convertDurationToRounds(4_000_000n)).toBe(1n);
-  });
-
-  it('truncates partial rounds', () => {
-    // 10_000_000 / 4_000_000 = 2 (integer division)
-    expect(convertDurationToRounds(10_000_000n)).toBe(2n);
   });
 });
 
@@ -750,7 +724,7 @@ describe('resolveAbility hot handler single heal', () => {
     const effects = ctx.db.character_effect._rows();
     const regenEffects = effects.filter((e: any) => e.effectType === 'regen');
     expect(regenEffects).toHaveLength(1);
-    expect(regenEffects[0].roundsRemaining).toBe(3n);
+    expect(regenEffects[0].roundsRemaining).toBe(secondsToRounds(3n)); // 3 s of effectDuration is 1 round (was 3n)
 
     // HP should only have the direct heal portion, not direct heal + immediate regen tick
     // direct heal = power/2, regen per tick = (power - power/2) / duration
@@ -1218,5 +1192,190 @@ describe('resolveAbility dot handler - per-tick floor', () => {
     const regenEffect = effects.find((e: any) => e.effectType === 'regen');
     expect(regenEffect).toBeDefined();
     expect(regenEffect.magnitude).toBeGreaterThanOrEqual(1n);
+  });
+});
+
+// ============================================================================
+// Phase 46.1 Plan 04: effect durations and stuns count in rounds
+// ============================================================================
+
+describe('resolveAbility stores effect durations in rounds (46.1-04)', () => {
+  function makeCombatCtx() {
+    return createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: 100n, maxHp: 100n, groupId: undefined, combatTargetEnemyId: undefined, str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n, level: 5n, name: 'TestChar' }],
+        combat_encounter: [{ id: 100n, state: 'active' }],
+        combat_enemy: [{ id: 10n, combatId: 100n, enemyTemplateId: 1n, currentHp: 500n, maxHp: 500n, armorClass: 0n, displayName: 'Goblin' }],
+        combat_enemy_effect: [],
+        character_effect: [],
+        aggro_entry: [],
+        ability_template: [],
+        enemy_template: [{ id: 1n, name: 'Goblin' }],
+        combat_participant: [{ id: 1n, combatId: 100n, characterId: 1n, status: 'active' }],
+        active_pet: [],
+      },
+    });
+  }
+
+  function makeNonCombatCtx() {
+    return createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: 100n, maxHp: 100n, groupId: undefined, str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n, level: 5n, name: 'TestChar' }],
+        character_effect: [],
+        combat_encounter: [],
+        combat_enemy: [],
+        combat_enemy_effect: [],
+        aggro_entry: [],
+        ability_template: [],
+      },
+    });
+  }
+
+  const actor: AbilityActor = {
+    type: 'character',
+    id: 1n,
+    stats: { str: 5n, dex: 5n, int: 5n, wis: 5n, cha: 5n },
+    level: 5n,
+    name: 'TestChar',
+  };
+
+  function ability(overrides: Partial<AbilityRow>): AbilityRow {
+    return {
+      id: 90n,
+      kind: 'buff',
+      targetRule: 'self',
+      value1: 10n,
+      value2: undefined,
+      damageType: 'physical',
+      scaling: 'str',
+      effectType: 'damage_up',
+      effectMagnitude: 5n,
+      effectDuration: 12n,
+      name: 'Test Ability',
+      resourceType: 'stamina',
+      resourceCost: 5n,
+      cooldownSeconds: 0n,
+      castSeconds: 0n,
+      ...overrides,
+    };
+  }
+
+  const charEffect = (ctx: any, type: string) => ctx.db.character_effect._rows().find((e: any) => e.effectType === type);
+  const enemyEffect = (ctx: any, type: string) => ctx.db.combat_enemy_effect._rows().find((e: any) => e.effectType === type);
+
+  it('dot with effectDuration 9 s stores 3 rounds on the enemy', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'dot', effectType: 'dot', effectDuration: 9n }));
+    expect(enemyEffect(ctx, 'dot').roundsRemaining).toBe(3n);
+  });
+
+  it('hot with effectDuration 5 s stores 2 rounds of regen', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, null, actor, ability({ kind: 'hot', effectType: 'regen', scaling: 'wis', effectDuration: 5n, resourceType: 'mana' }), 1n);
+    expect(charEffect(ctx, 'regen').roundsRemaining).toBe(2n);
+  });
+
+  it('shield without effectDuration uses the 5 s default, 2 rounds', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'shield', effectType: undefined, effectDuration: undefined }), 1n);
+    expect(charEffect(ctx, 'damage_shield').roundsRemaining).toBe(2n);
+  });
+
+  it('buff with effectDuration 12 s stores 3 rounds', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'buff', effectDuration: 12n }));
+    expect(charEffect(ctx, 'damage_up').roundsRemaining).toBe(3n);
+  });
+
+  it('debuff with effectDuration 9 s stores 3 rounds on the enemy', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'debuff', value1: 0n, effectType: 'armor_down', effectDuration: 9n }));
+    expect(enemyEffect(ctx, 'armor_down').roundsRemaining).toBe(3n);
+  });
+
+  it('cc with effectDuration 4 s stores a stun of 1 round, magnitude 1, no expiry time', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'cc', effectType: 'stun', effectDuration: 4n }));
+    const stun = enemyEffect(ctx, 'stun');
+    expect(stun.roundsRemaining).toBe(1n);
+    expect(stun.magnitude).toBe(1n);
+  });
+
+  it('fear with effectDuration 3 s stores 1 round', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'fear', effectType: 'stun', effectMagnitude: 1n, effectDuration: 3n }));
+    expect(enemyEffect(ctx, 'stun').roundsRemaining).toBe(1n);
+  });
+
+  it('buff with effectType stun and effectDuration 8 s stores 2 rounds on the enemy', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'buff', effectType: 'stun', effectMagnitude: 1n, effectDuration: 8n }));
+    const stun = enemyEffect(ctx, 'stun');
+    expect(stun.roundsRemaining).toBe(2n);
+    expect(stun.magnitude).toBe(1n);
+  });
+
+  it('song with no effectDuration uses the 180 s default in rounds', () => {
+    const ctx = makeCombatCtx();
+    resolveAbility(ctx, 100n, actor, ability({ kind: 'song', effectDuration: undefined }));
+    expect(charEffect(ctx, 'damage_up').roundsRemaining).toBe(secondsToRounds(180n));
+  });
+
+  it('travel with effectDuration 30 s stores 8 rounds (ceil)', () => {
+    const ctx = makeNonCombatCtx();
+    resolveAbility(ctx, null, actor, ability({ kind: 'travel', effectDuration: 30n }));
+    expect(charEffect(ctx, 'damage_up').roundsRemaining).toBe(8n);
+  });
+
+  it('pet bleed lasts secondsToRounds(3) rounds', () => {
+    const ctx = createMockCtx({
+      seed: {
+        character: [{ id: 1n, ownerUserId: 10n, hp: 100n, maxHp: 100n, name: 'TestChar' }],
+        combat_encounter: [{ id: 100n, state: 'active' }],
+        combat_enemy: [{ id: 10n, combatId: 100n, currentHp: 500n, maxHp: 500n, displayName: 'Goblin' }],
+        combat_enemy_effect: [],
+        active_pet: [{ id: 5n, characterId: 1n, name: 'Fang', abilityKey: 'pet_bleed', combatId: 100n }],
+      },
+    });
+    expect(executePetAbility(ctx, 100n, 5n, 'pet_bleed', 10n)).toBe(true);
+    expect(enemyEffect(ctx, 'dot').roundsRemaining).toBe(secondsToRounds(3n));
+    expect(enemyEffect(ctx, 'dot').roundsRemaining).toBe(1n);
+  });
+});
+
+describe('addEnemyEffect stun counts in rounds (46.1-04)', () => {
+  const seedCtx = () => createMockCtx({ seed: { combat_enemy_effect: [] } });
+  const stuns = (ctx: any) => ctx.db.combat_enemy_effect._rows().filter((e: any) => e.effectType === 'stun');
+
+  it('stores magnitude 1 and roundsRemaining as passed, with no expiry time', () => {
+    const ctx = seedCtx();
+    addEnemyEffect(ctx, 100n, 10n, 'stun', 99n, 2n, 'Bash', 1n);
+    expect(stuns(ctx)).toHaveLength(1);
+    expect(stuns(ctx)[0]).toMatchObject({ magnitude: 1n, roundsRemaining: 2n, ownerCharacterId: 1n });
+  });
+
+  it('a shorter stun re-applied to a 3-round stun keeps 3', () => {
+    const ctx = seedCtx();
+    addEnemyEffect(ctx, 100n, 10n, 'stun', 1n, 3n, 'Bash', 1n);
+    addEnemyEffect(ctx, 100n, 10n, 'stun', 1n, 1n, 'Shield Bash', 2n);
+    expect(stuns(ctx)).toHaveLength(1);
+    expect(stuns(ctx)[0].roundsRemaining).toBe(3n);
+    expect(stuns(ctx)[0].ownerCharacterId).toBe(2n);
+  });
+
+  it('a longer stun over a 3-round stun gives 4', () => {
+    const ctx = seedCtx();
+    addEnemyEffect(ctx, 100n, 10n, 'stun', 1n, 3n, 'Bash', 1n);
+    addEnemyEffect(ctx, 100n, 10n, 'stun', 1n, 4n, 'Bash', 1n);
+    expect(stuns(ctx)[0].roundsRemaining).toBe(4n);
+  });
+
+  it('a non-stun effect re-applied from the same source replaces magnitude and rounds', () => {
+    const ctx = seedCtx();
+    addEnemyEffect(ctx, 100n, 10n, 'armor_down', 3n, 2n, 'Sunder', 1n);
+    addEnemyEffect(ctx, 100n, 10n, 'armor_down', 5n, 4n, 'Sunder', 1n);
+    const rows = ctx.db.combat_enemy_effect._rows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ magnitude: 5n, roundsRemaining: 4n });
   });
 });
