@@ -3,16 +3,11 @@ import { statOffset, CHA_FACTION_BONUS_PER_POINT } from '../data/combat_scaling.
 
 // ---------------------------------------------------------------------------
 // SELL PRICE CALCULATION
-// Shared by items.ts (sell_item reducer) and intent.ts (natural language sell).
-// vendorSellMod is on a 1000-scale (e.g. 50n = +5%).
+// Lives in data/vendor_pricing.ts (shared with the client vendor screen); re-exported here so
+// items.ts and intent.ts keep their import path.
 // ---------------------------------------------------------------------------
 
-export function computeSellValue(baseValue: bigint, vendorSellMod: bigint): bigint {
-  if (vendorSellMod > 0n && baseValue > 0n) {
-    return (baseValue * (1000n + vendorSellMod)) / 1000n;
-  }
-  return baseValue;
-}
+export { computeSellValue } from '../data/vendor_pricing';
 
 export const STANDING_PER_KILL = 10n;
 export const RIVAL_STANDING_PENALTY = 5n;
