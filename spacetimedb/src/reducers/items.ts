@@ -2,6 +2,7 @@ import { buildDisplayName, ensureDefaultHotbar } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { computeSellValue } from '../helpers/economy';
+import { canEquipItem } from '../data/item_usability';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -450,39 +451,13 @@ export const registerItemReducers = (deps: any) => {
       }
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
-      if (template.stackable) return failItem(ctx, character, 'Cannot equip this item');
       // REMOVED per world-tier spec: gear availability is world-driven, not character-level-gated.
       // Any item found in the world can be equipped by any character.
       // if (character.level < template.requiredLevel) return failItem(ctx, character, 'Level too low');
-      // Equipment proficiency checks:
-      // If character has dynamic proficiencies (v2.0 generated classes), use those.
-      // Otherwise fall back to legacy allowedClasses check on the template.
-      const hasDynamicProf = character.weaponProficiencies || character.armorProficiencies;
-      if (hasDynamicProf) {
-        // Weapon proficiency check
-        const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
-        if (isWeaponSlot && character.weaponProficiencies && template.weaponType) {
-          const allowed = character.weaponProficiencies.split(',');
-          if (!allowed.includes(template.weaponType)) {
-            return failItem(ctx, character, 'Your class cannot wield this weapon type');
-          }
-        }
-        // Armor proficiency check
-        const isArmorSlot = ['head', 'chest', 'legs', 'boots', 'hands', 'wrists', 'belt'].includes(template.slot);
-        if (isArmorSlot && character.armorProficiencies && template.armorType) {
-          const allowed = character.armorProficiencies.split(',');
-          if (!allowed.includes(template.armorType)) {
-            return failItem(ctx, character, 'Your class cannot wear this armor type');
-          }
-        }
-      } else {
-        // Legacy class-based check for pre-v2.0 characters
-        if (!isClassAllowed(template.allowedClasses, character.className)) {
-          const isWeaponSlot = template.slot === 'mainHand' || template.slot === 'offHand';
-          return failItem(ctx, character, isWeaponSlot ? 'Weapon type not allowed for this class' : 'Class cannot use this item');
-        }
-      }
-      if (!EQUIPMENT_SLOTS.has(template.slot)) return failItem(ctx, character, 'Invalid slot');
+      // Stackable, weapon and armor proficiency (dynamic classes), legacy class list and slot:
+      // one shared rule, also used by the client's Equip reason and Usable-by-you filter.
+      const check = canEquipItem(template, character);
+      if (!check.ok) return failItem(ctx, character, check.message);
 
       // --- Two-handed weapon enforcement ---
       // If equipping a mainHand weapon that is two-handed, auto-unequip offHand

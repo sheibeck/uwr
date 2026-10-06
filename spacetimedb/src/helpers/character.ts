@@ -8,8 +8,8 @@ import {
   MANA_MULTIPLIER,
   characterUsesResource,
   bestCasterStat,
-  normalizeClassName,
 } from '../data/class_stats';
+import { isClassAllowed } from '../data/item_usability';
 import { getEquippedBonuses } from './items';
 import { effectiveGroupId } from './group';
 import { statOffset, CHA_VENDOR_SCALE, CHA_VENDOR_SELL_SCALE } from '../data/combat_scaling.js';
@@ -153,16 +153,9 @@ export function recomputeCharacterDerived(ctx: any, character: any) {
   });
 }
 
-export function isClassAllowed(allowedClasses: string, className: string) {
-  if (!allowedClasses || allowedClasses.trim().length === 0) return true;
-  const normalized = normalizeClassName(className);
-  const allowed = allowedClasses
-    .split(',')
-    .map((entry) => normalizeClassName(entry))
-    .filter((entry) => entry.length > 0);
-  if (allowed.includes('any')) return true;
-  return allowed.includes(normalized);
-}
+// isClassAllowed lives in the import-free data module (shared with equip_item's canEquipItem and
+// the client); re-exported here so existing imports keep working.
+export { isClassAllowed };
 
 export function campCharacter(ctx: any, player: any, character: any, afk = false) {
   appendLocationEvent(ctx, character.locationId, 'system', `${character.name} heads to camp.`, character.id);
