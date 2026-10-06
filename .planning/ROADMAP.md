@@ -215,7 +215,39 @@ Plans:
   4. The round number, its deadline and each player's chosen action are in public tables the client can subscribe to (generated bindings updated).
   5. The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget; there is no fixed every-N-rounds summary.
 
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 46.1-01-PLAN.md — Pure round rules (seconds to rounds, cooldown meaning, wind-up length, ordering, auto-attack target) and the big-moment detector with the 3-per-fight cap; 10-second timer
+- [ ] 46.1-02-PLAN.md — Additive schema: defaulted round columns on five tables, private combat_moment table, recorder default flag, insert source scan
+- [ ] 46.1-03-PLAN.md — Narration: moment summary and enqueue, outro final round, moment per-call text, 46.1-VOICE-ADDENDUM.md
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 46.1-04-PLAN.md — Round state service (rounds, ticks, choices, round cooldowns and their conversion) and effect, stun and perk durations in rounds
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 46.1-05-PLAN.md — Engine core: round 1 at combat start, resolveRound, guarded tick reducer, per-second loop retired, rounds-not-wall-clock invariant test
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 46.1-06-PLAN.md — Choices: use_ability in combat, submit_combat_action, early resolution, flee as a choice, target validation, joiners, casts
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 46.1-07-PLAN.md — Enemy wind-ups and cooldowns in rounds, pets and adds per round, resolve_pull guard, static no-wall-clock guard
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 46.1-08-PLAN.md — Big-moment wiring in resolveRound and removal of the dead real-time code
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 46.1-09-PLAN.md — Local publish with --break-clients (no clear, key checked), bindings regeneration, client safety, phase gate, Phase 48 contract, deferred owner checklist
+
 **Notes**:
 
   - This reverses the v2.0 "real-time combat" decision. The v2.0 round experiment (Phase 30, commits `8a94bf47`, `74137f46`) used fixed 30-second rounds and was reverted in quick-348 as sluggish; early resolution and the 10-second cap address that. Check those commits for reusable code.
@@ -398,7 +430,7 @@ Plans:
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
-| 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
+| 46.1. Round-Based Combat Engine | v3.0 | 0/9 | Planned | - |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 12/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
