@@ -16,6 +16,7 @@ import Sheet from './Sheet.vue';
 import TabBar from './TabBar.vue';
 import { screenForTab, tabForScreen, type TabId } from './tabs';
 import { useBreakpoint } from './useBreakpoint';
+import { useKeyboardOpen } from './useKeyboardOpen';
 import { useScreens } from './useScreens';
 import VitalsRail from './VitalsRail.vue';
 import VitalsStrip from './VitalsStrip.vue';
@@ -52,6 +53,9 @@ provide(FRAME_KEY, frameControls);
 const consoleApi = createConsole({ game: inject(GAME_KEY, createInertGame()), frame: frameControls });
 provide(CONSOLE_KEY, consoleApi);
 onBeforeUnmount(() => consoleApi.dispose());
+
+// Software keyboard (mobile): the strip compacts and the location row hides so the feed keeps room.
+const { keyboardOpen } = useKeyboardOpen(consoleApi.inputFocused);
 
 const activeId = computed<ScreenId | null>(() => {
   const active = screens.active.value;
@@ -126,9 +130,9 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         :max-stamina="props.view.maxStamina"
         :level-up="props.view.levelUp"
         :new-skill="props.view.newSkill"
-        :compact="sheetOpen"
+        :compact="sheetOpen || keyboardOpen"
       />
-      <LocationRow v-show="!sheetOpen" :location-name="props.view.locationName" :time-of-day="props.view.timeOfDay" />
+      <LocationRow v-show="!sheetOpen && !keyboardOpen" :location-name="props.view.locationName" :time-of-day="props.view.timeOfDay" />
       <NoticeBars
         :reconnecting="props.reconnecting"
         :next-retry-at="props.nextRetryAt"

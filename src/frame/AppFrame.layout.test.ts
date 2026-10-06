@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
+import { GAME_KEY, createInertGame } from '../game/context';
+import type { GameData } from '../game/context';
 
 type Listener = (event: { matches: boolean }) => void;
 
@@ -57,11 +59,13 @@ let wrapper: VueWrapper | null = null;
 function mountFrame(
   isDesktop: boolean,
   props: Partial<{ reconnecting: boolean; nextRetryAt: number | null; versionPrompt: boolean }> = {},
+  game?: GameData,
 ): VueWrapper {
   installMatchMedia(isDesktop);
   wrapper = mount(AppFrame, {
     attachTo: document.body,
     props: { view, reconnecting: false, nextRetryAt: null, versionPrompt: false, ...props },
+    ...(game ? { global: { provide: { [GAME_KEY as symbol]: game } } } : {}),
   });
   return wrapper;
 }
@@ -147,6 +151,68 @@ describe('AppFrame layout', () => {
     expect(w.get('main.feed').attributes('style') ?? '').toContain('display: none');
     expect(w.get('.location-row').attributes('style') ?? '').toContain('display: none');
     expect(w.get('.tab-bar').classes()).toContain('sheet-open');
+  });
+
+  describe('software keyboard', () => {
+    class StubViewport extends EventTarget {
+      height = 844;
+    }
+
+    afterEach(() => {
+      Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
+    });
+
+    // The composer input is disabled while offline, so these cases need a connected game to focus it.
+    function connectedGame(): GameData {
+      return { ...createInertGame(), connected: ref(true) } as unknown as GameData;
+    }
+
+    function stubViewport(): StubViewport {
+      const viewport = new StubViewport();
+      window.innerHeight = 844;
+      Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true });
+      return viewport;
+    }
+
+    it('with the input focused and a short visual viewport the strip compacts and the location row hides; both return on blur', async () => {
+      const viewport = stubViewport();
+      const w = mountFrame(false, {}, connectedGame());
+      const input = w.get('input.composer-input').element as HTMLInputElement;
+      expect(w.find('.compact-row').exists()).toBe(false);
+
+      input.focus();
+      viewport.height = 500;
+      viewport.dispatchEvent(new Event('resize'));
+      await nextTick();
+      expect(w.find('.compact-row').exists()).toBe(true);
+      expect(w.get('.location-row').attributes('style') ?? '').toContain('display: none');
+      expect(w.find('.tab-bar').exists()).toBe(true);
+      expect(w.find('main.feed').exists()).toBe(true);
+      // Not a sheet: the feed stays visible.
+      expect(w.get('main.feed').attributes('style') ?? '').not.toContain('display: none');
+
+      input.blur();
+      await nextTick();
+      expect(w.find('.compact-row').exists()).toBe(false);
+      expect(w.get('.location-row').attributes('style') ?? '').not.toContain('display: none');
+    });
+
+    it('a small viewport shrink (browser chrome) does not compact the strip', async () => {
+      const viewport = stubViewport();
+      const w = mountFrame(false, {}, connectedGame());
+      (w.get('input.composer-input').element as HTMLInputElement).focus();
+      viewport.height = 800;
+      viewport.dispatchEvent(new Event('resize'));
+      await nextTick();
+      expect(w.find('.compact-row').exists()).toBe(false);
+    });
+
+    it('without a visual viewport nothing compacts', async () => {
+      const w = mountFrame(false, {}, connectedGame());
+      (w.get('input.composer-input').element as HTMLInputElement).focus();
+      await nextTick();
+      expect(w.find('.compact-row').exists()).toBe(false);
+    });
   });
 
   it('Log out from the header account menu emits logout', async () => {
