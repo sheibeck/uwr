@@ -54,6 +54,7 @@ import RespawnCharacterReducer from "./respawn_character_reducer";
 import CreateItemTemplateReducer from "./create_item_template_reducer";
 import GrantItemReducer from "./grant_item_reducer";
 import BuyItemReducer from "./buy_item_reducer";
+import BuyListingReducer from "./buy_listing_reducer";
 import SellItemReducer from "./sell_item_reducer";
 import SellItemQuantityReducer from "./sell_item_quantity_reducer";
 import BuybackLastSaleReducer from "./buyback_last_sale_reducer";
@@ -1811,6 +1812,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_item_template", CreateItemTemplateReducer),
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("buy_item", BuyItemReducer),
+  __reducerSchema("buy_listing", BuyListingReducer),
   __reducerSchema("sell_item", SellItemReducer),
   __reducerSchema("sell_item_quantity", SellItemQuantityReducer),
   __reducerSchema("buyback_last_sale", BuybackLastSaleReducer),
