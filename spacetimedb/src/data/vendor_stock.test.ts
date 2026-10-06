@@ -165,6 +165,16 @@ describe('areaLevel and levelBand', () => {
     expect(areaLevel(100n, -3n)).toBe(1n);
   });
 
+  it('is the same function the recipe generation uses, so the two level rules cannot drift apart', async () => {
+    const recipes = await import('./recipe_rules');
+    expect(areaLevel).toBe(recipes.areaLevel);
+    for (const danger of [0n, 50n, 100n, 169n, 300n, 800n]) {
+      for (const offset of [-5n, 0n, 2n, 10n]) {
+        expect(areaLevel(danger, offset)).toBe(recipes.areaLevel(danger, offset));
+      }
+    }
+  });
+
   it('computes the band', () => {
     expect(levelBand(1n)).toEqual({ minLevel: 1n, maxLevel: 2n, minTier: 1n, maxTier: 1n });
     expect(levelBand(3n)).toEqual({ minLevel: 2n, maxLevel: 4n, minTier: 1n, maxTier: 1n });
@@ -427,14 +437,14 @@ describe('baseStockQuantity (Plan 50-26)', () => {
 });
 
 describe('vendor_stock.ts imports', () => {
-  it('imports only item_rules and mechanical_vocabulary, and nothing from the server runtime', () => {
+  it('imports only item_rules, mechanical_vocabulary and recipe_rules, and nothing from the server runtime', () => {
     const path = fileURLToPath(new URL('./vendor_stock.ts', import.meta.url));
     const source = readFileSync(path, 'utf8');
     const out: string[] = [];
     const re = /from\s+'([^']+)'/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(source)) !== null) out.push(m[1]);
-    expect(out.sort()).toEqual(['./item_rules', './mechanical_vocabulary']);
+    expect(out.sort()).toEqual(['./item_rules', './mechanical_vocabulary', './recipe_rules']);
     expect(source).not.toContain("'spacetimedb");
   });
 });

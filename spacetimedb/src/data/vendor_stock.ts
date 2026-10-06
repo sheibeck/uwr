@@ -3,12 +3,13 @@
 // templates that already exist (the starter set and play), to suit the vendor's role and the area's
 // level band, weighted toward common, with no LLM call and no new prompt.
 // Callers: the restock_vendors reducer in the module's index file, and the client vendor test
-// through @game-data (list price). Imports only ./mechanical_vocabulary and ./item_rules, so it stays
+// through @game-data (list price). Imports only ./mechanical_vocabulary, ./item_rules and ./recipe_rules (all import-light), so it stays
 // browser-safe through @game-data. ES2020 only, never throws.
 // Selection is seeded and deterministic: the same vendor, templates and tick time always give the
 // same stock, from a 64-bit generator seeded with the vendor id and the tick timestamp. Nothing
 // here reads an unseeded source.
 import { isQuestItemTemplate, isRecipeScrollName } from './item_rules';
+import { areaLevel } from './recipe_rules';
 import { EQUIPMENT_SLOTS, QUALITY_TIERS, type ItemCategory, type QualityTier } from './mechanical_vocabulary';
 
 // ---------------------------------------------------------------------------
@@ -185,10 +186,10 @@ function maxBig(a: bigint, b: bigint): bigint {
   return a > b ? a : b;
 }
 
-/** The area's level: the region's base level (danger / 100) plus the location offset, at least 1. */
-export function areaLevel(dangerMultiplier: bigint, levelOffset: bigint): bigint {
-  return maxBig(1n, dangerMultiplier / 100n + levelOffset);
-}
+// The area's level is defined once, in recipe_rules (the region's base level, danger / 100, plus the
+// location offset, at least 1). The recipe level and the base-stock band must always agree, so this
+// module re-exports that one function instead of keeping a second copy.
+export { areaLevel };
 
 /**
  * The level and tier window stock must fit. Levels follow the enemy clamp of world generation (the
