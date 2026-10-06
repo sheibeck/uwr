@@ -1425,7 +1425,17 @@ Plans:
   - The UI can show both values, for example "3 rounds (5s)", so the true value stays visible.
 
 Decide and test all of the following:
-1. **One seconds-to-rounds rule, decided by the owner:** cast time and cooldown share it. Implement a single function used by both `castRounds` and `cooldownRounds` (and by `windupRounds` for enemies), and remove the separate 4s `EFFECT_ROUND_CONVERSION_MICROS` path for cooldowns. Whether effect durations (DoT/HoT/buff rounds) also move to this rule is a planning decision. Raise it with the owner.
+1. **One seconds-to-rounds rule, decided by the owner:** cast time and cooldown share it. Implement a single function used by both `castRounds` and `cooldownRounds` (and by `windupRounds` for enemies), and remove the separate 4s `EFFECT_ROUND_CONVERSION_MICROS` path for cooldowns. **Effect durations follow the same rule (owner, 2026-10-06).** In the owner's words: "durations should be the same way. They should end after the final tick on the final round."
+   - DoT, HoT, buff, debuff and crowd-control durations keep their seconds (or micros) as the stored, authored and balanced value.
+   - Their round count comes from the same shared seconds-to-rounds function, at combat time.
+   - An effect ends after its final tick in its final round. It never expires before that tick, and it never ticks an extra round.
+   - Effects that run when a fight starts convert to rounds the same way. When a fight ends, remaining rounds convert back to wall-clock time exactly.
+   - The chips (Phase 48 and quick 261006-hpp) show the same round counts.
+   - Tests:
+     - a table of seconds to rounds for durations, matching cast times and cooldowns
+     - the tick count equals the round count
+     - the effect disappears only after the last tick
+     - player and enemy effects follow the same rule
 2. **When a cooldown starts.** It starts when the ability goes off (point 6). A cancelled wind-up starts no cooldown and charges no cost.
 3. **Enemy cooldowns.** Enemy abilities follow the same cooldown rule as player abilities.
 4. **Converting at fight start and end.** A cooldown running before a fight converts to rounds when the fight starts. At the end it converts back to wall-clock time. Both directions are exact and never round down to "free".
@@ -1726,4 +1736,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after the owner kept seconds as the source of truth for cast and cooldown (999.17)*
+*Last updated: 2026-10-06 after the owner put effect durations on the same rounds rule (999.17)*
