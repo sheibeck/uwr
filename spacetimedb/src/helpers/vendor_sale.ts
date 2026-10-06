@@ -176,7 +176,9 @@ export function sellInstanceToVendor(ctx: any, input: SellInstanceInput): boolea
     }
   }
 
-  if (input.record) {
+  // A temporary (conjured) item is swept at logout; a buy-back row must not outlive that sweep and
+  // recreate it, so a temporary item is paid for but never recorded.
+  if (input.record && !instance.isTemporary) {
     const row = {
       characterId: character.id,
       npcId,

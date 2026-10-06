@@ -349,6 +349,30 @@ describe('buy back refusals change nothing', () => {
   });
 });
 
+describe('a temporary item is never recorded for buy-back', () => {
+  it('is paid for but writes no row, and leaves an earlier row alone', () => {
+    const NAILS = tpl(82n, 'Iron Nails', { vendorValue: 7n });
+    const ctx = newCtx({
+      templates: [SWORD, NAILS],
+      instances: [inst(800n, 80n, 1n), inst(820n, 82n, 1n, { isTemporary: true })],
+    });
+    sell(ctx, 800n);
+    const earlier = snap(ctx, 'vendor_buyback');
+    expect(earlier).toHaveLength(1);
+    sell(ctx, 820n);
+    expect(aliceGold(ctx)).toBe(START_GOLD + sellPayout(13n, 1n, 0, 0n) + sellPayout(7n, 1n, 0, 0n));
+    expect(snap(ctx, 'vendor_buyback')).toEqual(earlier);
+  });
+
+  it('a lone temporary sale creates no row at all', () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n, { isTemporary: true })] });
+    sell(ctx, 800n);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('Nothing to buy back.');
+  });
+});
+
 describe('buy back when the item template is gone', () => {
   it('refuses with its own line (not "backpack is full"), charges nothing and clears the dead row and its listing', () => {
     const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n)] });
