@@ -577,19 +577,25 @@ export function eventSplit(e: { successCounter: bigint; failureCounter: bigint }
 - **S9. `item_cooldown`.** CONTEXT lists it for sweeps; there is no ability-to-item mapping and it only tracks consumables used through `use_item`. No subscription, no UI.
 - **S10. Checker notes resolved by this research:** Send `aria-label="Send action"`; queued-lines copy `Your queued lines were not sent. Send them again.`; `text-underline-offset: 4px`; the negative block margin via `calc()` (guard-safe); spacing exceptions justified only by "assumption" need one-line rationales; focal-points sentence softened; iOS zoom per Pitfall 14.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Owner: world event bar.** Accept 0%/0% (S7) or schedule a tiny server change later?
    - Known: counters do not move in play. Recommendation: ship as specified, flag in the Phase 47 summary.
+   - RESOLVED (owner, 2026-10-05): the card shows event_objective progress; the For/Against bar appears only when a counter is non-zero (CONTEXT "Owner decisions after research"; plans 47-03, 47-10).
 2. **Owner: `who` scope.** Location-only via `submit_intent` (no server change) versus the old global online list (needs whole `player`/`character` subscriptions).
    - Recommendation: location-only.
+   - RESOLVED: location-only; `who` and `/who` go to `submit_intent` (CONTEXT owner decision "Info commands"; plan 47-01).
 3. **Planner: renown/factions/events/group formatters in or out of 47.**
    - Recommendation: in (INP-02 says the command runs); cut-down fallback described in S5.
+   - RESOLVED (owner, 2026-10-05): in; the formatters are ported (plans 47-01, 47-04).
 4. **Owner: dev slash commands** (`/level`, `/grantrenown`, `/spawncorpse`, `/createitem`, `/createscroll`, `/endevent`, `/setappversion`, `/recomputeracial`) used to be mapped to admin reducers and will silently do nothing through `submit_command`.
    - Recommendation: add a table-driven map (reducers exist; admin checks are server-side) so the owner's try-out tooling keeps working, or state they are dropped.
+   - RESOLVED: out of scope for Phase 47; they fall through to `submit_command` and wait for the Phase 52 parity checklist (CONTEXT; plan 47-01).
 5. **Planner: objects.** Leave `objects` empty (A7) or surface `location.bindStone` / `craftingAvailable` as pseudo-objects with new copy.
    - Recommendation: empty; no new copy.
+   - RESOLVED: empty; recorded as a flagged assumption (plan 47-10).
 6. **Owner (pre-existing server issue, out of scope):** `event_private`, `event_group`, `event_location` are `public: true`, so any client can subscribe unfiltered and read other players' private lines and whispers. The new client filters, but that is not enforcement. A server-side fix (RLS or a per-sender projection) belongs to a later hardening phase.
+   - RESOLVED: transferred; Phase 47 subscribes filtered and plan 47-12 writes a pending server todo (threat T-47-04b).
 
 ## Environment Availability
 
