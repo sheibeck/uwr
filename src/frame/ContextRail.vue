@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import { computed, inject } from 'vue';
 import ContextContent from '../rails/ContextContent.vue';
+import EncounterPanel from '../combat/EncounterPanel.vue';
+import { GAME_KEY, createInertGame } from '../game/context';
+
+// While game.combat.active the rail is the Encounter panel (48-UI-SPEC, CMB-01); the context
+// content comes back the moment the fight ends. ContextContent itself is untouched because the
+// mobile Map sheet reuses it.
+const game = inject(GAME_KEY, createInertGame());
+const inCombat = computed(() => game.combat.active.value);
 </script>
 
 <template>
   <aside class="context-rail" aria-label="Context">
-    <ContextContent />
+    <EncounterPanel v-if="inCombat" />
+    <ContextContent v-else />
   </aside>
 </template>
 
