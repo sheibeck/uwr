@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
+import { GAME_KEY, createInertGame } from '../game/context';
+import type { GameData } from '../game/context';
 
 type Listener = (event: { matches: boolean }) => void;
 
@@ -47,13 +49,47 @@ const view: FrameView = {
 
 let wrapper: VueWrapper | null = null;
 
-function mountFrame(isDesktop: boolean): VueWrapper {
+function mountFrame(isDesktop: boolean, game?: GameData): VueWrapper {
   installMatchMedia(isDesktop);
   wrapper = mount(AppFrame, {
     attachTo: document.body,
     props: { view, reconnecting: false, nextRetryAt: null, versionPrompt: false },
+    ...(game ? { global: { provide: { [GAME_KEY as symbol]: game } } } : {}),
   });
   return wrapper;
+}
+
+// A writable fake game: the inert shape with the rows the Map and Social sheets read.
+function fakeGame(over: Record<string, unknown> = {}): { game: GameData; moveCharacter: ReturnType<typeof vi.fn> } {
+  const moveCharacter = vi.fn().mockResolvedValue(undefined);
+  const game = {
+    ...createInertGame(),
+    connected: ref(true),
+    character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n }),
+    characterId: ref(1n),
+    locations: ref([
+      { id: 10n, name: 'Ember Gate', regionId: 1n, isSafe: false, levelOffset: 0n },
+      { id: 11n, name: 'Gloamwood', regionId: 1n, isSafe: false, levelOffset: 0n },
+    ]),
+    regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 600n }]),
+    connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
+    reducers: ref({ moveCharacter, submitIntent: vi.fn().mockResolvedValue(undefined) }),
+    ...over,
+  } as unknown as GameData;
+  return { game, moveCharacter };
+}
+
+function partyRows(): Record<string, unknown> {
+  return {
+    group: ref({ id: 1n, leaderCharacterId: 2n }),
+    groupMembers: ref([
+      { id: 11n, groupId: 1n, characterId: 1n, joinedAt: { microsSinceUnixEpoch: 100n } },
+      { id: 12n, groupId: 1n, characterId: 2n, joinedAt: { microsSinceUnixEpoch: 200n } },
+    ]),
+    knownCharacters: ref([
+      { id: 2n, name: 'Mara', className: 'Ranger', level: 4n, hp: 95n, maxHp: 100n, mana: 20n, maxMana: 40n, stamina: 10n, maxStamina: 10n },
+    ]),
+  };
 }
 
 async function settle(): Promise<void> {
@@ -242,5 +278,83 @@ describe('mobile sheets', () => {
     pressEscape();
     await settle();
     expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+});
+
+describe('mobile sheet bodies (CON-03, CON-04)', () => {
+  it('desktop drawers keep the Phase 45 empty states even with a provided game', async () => {
+    const { game } = fakeGame(partyRows());
+    const w = mountFrame(true, game);
+    await w.get('button[data-screen="map"]').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"]').text()).toContain('No places discovered yet.');
+    await w.get('button[data-screen="social"]').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"]').text()).toContain('No friends or party yet.');
+  });
+
+  it('the Map tab sheet holds the Here, Nearby and Tracking sections instead of the empty state', async () => {
+    const w = mountFrame(false);
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    const sheet = w.get('[role="dialog"]');
+    expect(sheet.findAll('h6').map((h) => h.text())).toEqual(['Here', 'Nearby', 'Tracking']);
+    expect(sheet.text()).toContain('Your location appears here.');
+    expect(sheet.text()).not.toContain('No places discovered yet.');
+  });
+
+  it('the Map sheet lists route rows; tapping one moves the character and closes the sheet', async () => {
+    const { game, moveCharacter } = fakeGame();
+    const w = mountFrame(false, game);
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    const rows = w.get('[role="dialog"]').findAll('button.route-row');
+    expect(rows.map((r) => r.get('.route-name').text())).toEqual(['Gloamwood']);
+    await rows[0].trigger('click');
+    await settle();
+    expect(moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 11n });
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('the Party tab sheet shows the Party block and the empty state when not in a party', async () => {
+    const w = mountFrame(false);
+    await w.get('button[data-tab="party"]').trigger('click');
+    await settle();
+    const sheet = w.get('[role="dialog"]');
+    expect(sheet.get('h4').text()).toBe('Social');
+    expect(sheet.get('h6').text()).toBe('Party');
+    expect(sheet.text()).toContain('Invite');
+    expect(sheet.text()).toContain('No friends or party yet.');
+  });
+
+  it('in a party the sheet shows the member cards and no empty state', async () => {
+    const { game } = fakeGame(partyRows());
+    const w = mountFrame(false, game);
+    await w.get('button[data-tab="party"]').trigger('click');
+    await settle();
+    const sheet = w.get('[role="dialog"]');
+    expect(sheet.get('h6').text()).toBe('Party · 2');
+    expect(sheet.text()).toContain('Mara');
+    expect(sheet.text()).not.toContain('No friends or party yet.');
+  });
+
+  it('Invite in the Social sheet closes the sheet and puts "invite " in the composer input', async () => {
+    const { game } = fakeGame();
+    const w = mountFrame(false, game);
+    await w.get('button[data-tab="party"]').trigger('click');
+    await settle();
+    await w.get('[role="dialog"] button.invite').trigger('click');
+    await settle();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    expect((w.get('input.composer-input').element as HTMLInputElement).value).toBe('invite ');
+  });
+
+  it('tapping the strip party chip opens the Social sheet', async () => {
+    const { game } = fakeGame(partyRows());
+    const w = mountFrame(false, game);
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    await w.get('button.party-chip').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"] h4').text()).toBe('Social');
   });
 });
