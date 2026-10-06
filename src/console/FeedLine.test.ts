@@ -154,11 +154,11 @@ describe('FeedLine kinds', () => {
     }
   });
 
-  it('renders ripple and world event blocks with their labels and icons', () => {
-    const ripple = render(makeLine({ kind: 'ripple', label: 'Ripple', text: 'The tide turns.' }));
-    expect(ripple.get('.micro').text()).toBe('Ripple');
-    expect(ripple.find('svg').exists()).toBe(true);
-    ripple.unmount();
+  it('renders world and world event blocks with the World event label and their icons', () => {
+    const world = render(makeLine({ kind: 'world', label: 'World event', text: 'The tide turns.' }));
+    expect(world.get('.micro').text()).toBe('World event');
+    expect(world.find('svg').exists()).toBe(true);
+    world.unmount();
     wrapper = null;
     const event = render(makeLine({ kind: 'worldEvent', label: 'World event', text: 'A storm.' }));
     expect(event.get('.micro').text()).toBe('World event');
@@ -251,7 +251,7 @@ describe('FeedLine hostile text (T-47-01, T-47-06)', () => {
   const PAYLOAD = '<img src=x onerror=alert(1)>';
 
   it('renders markup as literal text for every text-bearing kind', () => {
-    for (const kind of ['keeper', 'npc', 'whisper', 'party', 'system', 'quest', 'ripple', 'scene', 'echo', 'error', 'say'] as const) {
+    for (const kind of ['keeper', 'npc', 'whisper', 'party', 'system', 'quest', 'world', 'scene', 'echo', 'error', 'say'] as const) {
       const w = render(makeLine({ kind, speaker: kind === 'npc' || kind === 'whisper' || kind === 'party' ? 'Mara' : null, direction: 'received', text: PAYLOAD }));
       expect(w.find('img').exists(), kind).toBe(false);
       expect(w.text(), kind).toContain(PAYLOAD);
@@ -411,9 +411,9 @@ describe('FeedLine line breaks', () => {
     }
     const scene = source.match(/\.line-scene \.body \{([^}]*)\}/);
     expect(scene![1]).toContain('pre-wrap');
-    const ripple = source.match(/\.line-ripple \.body \{([^}]*)\}/);
-    expect(ripple).not.toBeNull();
-    expect(ripple![1]).toContain('pre-wrap');
+    const world = source.match(/\.line-world \.body \{([^}]*)\}/);
+    expect(world).not.toBeNull();
+    expect(world![1]).toContain('pre-wrap');
   });
 
   it('keeps newlines as text in a server line with no line break elements', () => {

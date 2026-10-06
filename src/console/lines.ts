@@ -61,7 +61,7 @@ export type LineKind =
   | 'system'
   | 'warning'
   | 'quest'
-  | 'ripple'
+  | 'world'
   | 'worldEvent'
   | 'scene'
   | 'echo'
@@ -77,7 +77,7 @@ export interface FeedLineView {
   /** `${source.key}:${index}` */
   key: string;
   kind: LineKind;
-  /** 'The Keeper' | 'Quest' | 'Reward' | 'Faction' | 'Ripple' | 'World event' | null */
+  /** 'The Keeper' | 'Quest' | 'Reward' | 'Faction' | 'World event' | null */
   label: string | null;
   /** NPC, whisper or party author name. */
   speaker: string | null;
@@ -271,7 +271,7 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
     return [makeLine(key, { kind: 'quest', label: QUEST_LABELS[kind], text, keywordEligible: true })];
   }
   if (kind === 'world' || kind === 'renown') {
-    return [makeLine(key, { kind: 'ripple', label: 'Ripple', text, keywordEligible: true })];
+    return [makeLine(key, { kind: 'world', label: 'World event', text, keywordEligible: true })];
   }
   if (kind === 'world_event') {
     return [makeLine(key, { kind: 'worldEvent', label: 'World event', text, keywordEligible: true })];

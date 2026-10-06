@@ -177,9 +177,9 @@ describe('rows without segments', () => {
     expect(first(row('faction', 'Standing rises.'))).toMatchObject({ kind: 'quest', label: 'Faction' });
   });
 
-  it('world and renown are Ripple, world_event is World event', () => {
-    expect(first(row('world', 'A bell tolls.', { source: 'world' }))).toMatchObject({ kind: 'ripple', label: 'Ripple' });
-    expect(first(row('renown', 'Rank up.', { source: 'world' }))).toMatchObject({ kind: 'ripple', label: 'Ripple' });
+  it('world, renown and world_event lines all carry the World event label', () => {
+    expect(first(row('world', 'A bell tolls.', { source: 'world' }))).toMatchObject({ kind: 'world', label: 'World event' });
+    expect(first(row('renown', 'Rank up.', { source: 'world' }))).toMatchObject({ kind: 'world', label: 'World event' });
     expect(first(row('world_event', 'A siege begins.', { source: 'world' }))).toMatchObject({
       kind: 'worldEvent',
       label: 'World event',

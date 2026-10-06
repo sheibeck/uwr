@@ -74,7 +74,7 @@ function disabledAttr(): 'true' | undefined {
       :aria-label="line.roundTag != null ? `The Keeper, about round ${line.roundTag}` : undefined"
     >{{ line.label }}<span v-if="line.roundTag != null" class="round-tag">{{ ` · Round ${line.roundTag}` }}</span></span>
     <span v-else-if="line.kind === 'quest'" class="micro micro-inline">{{ line.label }}</span>
-    <span v-else-if="line.kind === 'ripple'" class="micro micro-inline">
+    <span v-else-if="line.kind === 'world'" class="micro micro-inline">
       <PhWaveform :size="12" aria-hidden="true" /><span>{{ line.label }}</span>
     </span>
     <span v-else-if="line.kind === 'worldEvent'" class="micro micro-inline">
@@ -279,7 +279,7 @@ function disabledAttr(): 'true' | undefined {
   color: var(--color-line-quest);
 }
 
-.line-ripple,
+.line-world,
 .line-worldEvent {
   padding: 8px 16px;
   border-radius: var(--radius-md);
@@ -291,7 +291,7 @@ function disabledAttr(): 'true' | undefined {
   color: var(--color-accent-300);
 }
 
-.line-ripple .body {
+.line-world .body {
   white-space: pre-wrap;
 }
 

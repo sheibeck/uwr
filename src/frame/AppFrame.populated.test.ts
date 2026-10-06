@@ -251,7 +251,7 @@ describe('populated frame, desktop', () => {
     const w = mountFrame(true, game);
     await settle();
 
-    // Feed: labelled Keeper narration, a spoken NPC line, a whisper and a ripple.
+    // Feed: labelled Keeper narration, a spoken NPC line, a whisper and a World event.
     const feed = w.get('[role="log"]');
     expect(feed.text()).toContain('The Keeper');
     expect(feed.text()).toContain('The Ferryman says, “Mind the current.”');
