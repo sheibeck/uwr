@@ -69,6 +69,48 @@ export function parseAffixSnapshot(json: string): AffixSnapshot[] {
   return out;
 }
 
+/**
+ * Put a recorded sale back in the character's bag (the buy-back restore). A stackable template
+ * goes through addItemToInventory (merges onto an existing stack, else a plain instance); any other
+ * template gets a new instance carrying the stored quality, craft quality, display name and flags,
+ * plus one item_affix row per valid snapshot entry. The caller has already checked room and gold.
+ */
+export function restoreBuyback(
+  ctx: any,
+  character: any,
+  sale: any,
+  addItemToInventory: (ctx: any, characterId: bigint, templateId: bigint, quantity: bigint) => void
+): void {
+  const template = ctx.db.item_template.id.find(sale.templateId);
+  if (template && template.stackable) {
+    addItemToInventory(ctx, character.id, sale.templateId, sale.quantity);
+    return;
+  }
+  const instance = ctx.db.item_instance.insert({
+    id: 0n,
+    templateId: sale.templateId,
+    ownerCharacterId: character.id,
+    equippedSlot: undefined,
+    quantity: sale.quantity,
+    qualityTier: sale.qualityTier ?? undefined,
+    craftQuality: sale.craftQuality ?? undefined,
+    displayName: sale.displayName ?? undefined,
+    isNamed: sale.isNamed ?? undefined,
+    isTemporary: sale.isTemporary ?? undefined,
+  });
+  for (const entry of parseAffixSnapshot(sale.affixesJson)) {
+    ctx.db.item_affix.insert({
+      id: 0n,
+      itemInstanceId: instance.id,
+      affixType: entry.affixType,
+      affixKey: entry.affixKey,
+      affixName: entry.affixName,
+      statKey: entry.statKey,
+      magnitude: BigInt(entry.magnitude),
+    });
+  }
+}
+
 export interface SellInstanceInput {
   character: any;
   instance: any;

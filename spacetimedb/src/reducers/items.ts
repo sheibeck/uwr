@@ -4,7 +4,7 @@ import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { buyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
 import { USE_ITEM_KEYS } from '../data/item_rules';
-import { sellInstanceToVendor } from '../helpers/vendor_sale';
+import { sellInstanceToVendor, restoreBuyback } from '../helpers/vendor_sale';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -28,6 +28,7 @@ export const registerItemReducers = (deps: any) => {
     logPrivateAndGroup,
     getInventorySlotCount,
     MAX_INVENTORY_SLOTS,
+    hasInventorySpace,
     fail,
   } = deps;
 
@@ -168,6 +169,43 @@ export const registerItemReducers = (deps: any) => {
       });
     }
   );
+
+  // Undo the character's last single sale. Only the character id crosses the wire: the price, the
+  // item and the place all come from the caller's own private vendor_buyback row, so a client can
+  // never supply them. Every refusal happens before the first write.
+  spacetimedb.reducer('buyback_last_sale', { characterId: t.u64() }, (ctx, args) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const sale = ctx.db.vendor_buyback.characterId.find(character.id);
+    if (!sale) return failItem(ctx, character, 'Nothing to buy back.');
+    if ((character.gold ?? 0n) < sale.price) {
+      return failItem(ctx, character, 'Not enough gold to buy that back.');
+    }
+    if (character.locationId !== sale.locationId) {
+      return failItem(ctx, character, `Go back to ${sale.npcName} to buy that back.`);
+    }
+    if (!hasInventorySpace(ctx, character.id, sale.templateId)) {
+      return failItem(ctx, character, 'Your backpack is full.');
+    }
+    ctx.db.character.id.update({
+      ...character,
+      gold: (character.gold ?? 0n) - sale.price,
+    });
+    restoreBuyback(ctx, character, sale, addItemToInventory);
+    // Remove the resale listing this sale created (a listing that already existed is kept).
+    if (sale.listingId !== undefined && sale.listingId !== null) {
+      if (ctx.db.vendor_inventory.id.find(sale.listingId)) {
+        ctx.db.vendor_inventory.id.delete(sale.listingId);
+      }
+    }
+    ctx.db.vendor_buyback.characterId.delete(character.id);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'reward',
+      `You buy back ${sale.itemName} for ${sale.price} gold.`
+    );
+  });
 
   spacetimedb.reducer('sell_all_junk', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
