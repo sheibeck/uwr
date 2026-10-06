@@ -587,39 +587,83 @@ describe('createCreationData: defensive set_active_character hand-off', () => {
     return c;
   }
 
-  it('fires once when CONFIRMING then COMPLETE with exactly one character and no active id', () => {
+  it('fires once when CONFIRMING then COMPLETE with exactly one character and no active id', async () => {
     const h = make();
     const c = armed(h);
     h.characters.value = [makeCharacter(4n, { locationId: 0n })];
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     expect(c.reducers.setActiveCharacter).toHaveBeenCalledTimes(1);
     expect(c.reducers.setActiveCharacter).toHaveBeenCalledWith({ characterId: 4n });
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE', { characterName: 'x' })];
     h.characters.value = [makeCharacter(4n, { locationId: 0n })];
+    await flush();
     expect(c.reducers.setActiveCharacter).toHaveBeenCalledTimes(1);
   });
 
-  it('never fires when CONFIRMING was not observed in this session (returning player)', () => {
+  it('WR-03: does not fire when the active id arrives in the same synchronous burst (out-of-order table callbacks)', async () => {
+    const h = make();
+    const c = armed(h);
+    // The state and character callbacks run first, the my_player callback last, all in one burst.
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    h.characters.value = [makeCharacter(4n, { locationId: 0n })];
+    h.activeCharacterId.value = 4n;
+    await flush();
+    expect(c.reducers.setActiveCharacter).not.toHaveBeenCalled();
+  });
+
+  it('WR-03: still fires when the active id never arrives after the burst', async () => {
+    const h = make();
+    const c = armed(h);
+    h.characters.value = [makeCharacter(4n, { locationId: 0n })];
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    expect(c.reducers.setActiveCharacter).not.toHaveBeenCalled(); // deferred to a microtask
+    await flush();
+    expect(c.reducers.setActiveCharacter).toHaveBeenCalledTimes(1);
+  });
+
+  it('WR-03: a reset or dispose before the microtask cancels the hand-off', async () => {
+    const h = make();
+    const c = armed(h);
+    h.characters.value = [makeCharacter(4n, { locationId: 0n })];
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    h.hub.reset();
+    await flush();
+    expect(c.reducers.setActiveCharacter).not.toHaveBeenCalled();
+
+    const g = make();
+    const gc = armed(g);
+    g.characters.value = [makeCharacter(4n, { locationId: 0n })];
+    g.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    g.hub.dispose();
+    await flush();
+    expect(gc.reducers.setActiveCharacter).not.toHaveBeenCalled();
+  });
+
+  it('never fires when CONFIRMING was not observed in this session (returning player)', async () => {
     const h = make();
     h.signIn('aa');
     const c = h.connect();
     h.characters.value = [makeCharacter(4n)];
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     expect(c.reducers.setActiveCharacter).not.toHaveBeenCalled();
   });
 
-  it('does not fire with an active id, with two characters, or while offline', () => {
+  it('does not fire with an active id, with two characters, or while offline', async () => {
     const h = make();
     const c = armed(h);
     h.activeCharacterId.value = 4n;
     h.characters.value = [makeCharacter(4n)];
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     expect(c.reducers.setActiveCharacter).not.toHaveBeenCalled();
 
     const g = make();
     const gc = armed(g);
     g.characters.value = [makeCharacter(4n), makeCharacter(5n)];
     g.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     expect(gc.reducers.setActiveCharacter).not.toHaveBeenCalled();
 
     const o = make();
@@ -627,6 +671,7 @@ describe('createCreationData: defensive set_active_character hand-off', () => {
     o.status.value = 'reconnecting';
     o.characters.value = [makeCharacter(4n)];
     o.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     expect(oc.reducers.setActiveCharacter).not.toHaveBeenCalled();
   });
 
@@ -636,6 +681,7 @@ describe('createCreationData: defensive set_active_character hand-off', () => {
     h.hub.reset();
     h.characters.value = [makeCharacter(4n)];
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     expect(c.reducers.setActiveCharacter).not.toHaveBeenCalled();
 
     const g = make();
@@ -644,6 +690,7 @@ describe('createCreationData: defensive set_active_character hand-off', () => {
     gc.reducers.setActiveCharacter.mockImplementationOnce(() => Promise.reject(new Error('x')));
     g.characters.value = [makeCharacter(4n)];
     g.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    await flush();
     await flush();
     expect(warn).toHaveBeenCalledTimes(1);
   });

@@ -86,6 +86,7 @@ export function createCreationData<C extends CreationConn>(
   // Defensive hand-off (RESEARCH Open Question 4): armed by seeing CONFIRMING in this session.
   const handoffArmed = ref(false);
   let handoffFired = false;
+  let disposed = false;
 
   const connected = computed(() => input.status.value === 'connected' && input.conn.value !== null);
 
@@ -222,11 +223,18 @@ export function createCreationData<C extends CreationConn>(
       handoffReady,
       (ready) => {
         if (!ready || handoffFired) return;
-        const conn = input.conn.value;
-        const only = input.characters.value[0];
-        if (conn === null || only === undefined) return;
-        handoffFired = true;
-        void callSetActive(conn, only.id);
+        // The finalize transaction changes the state, character and player rows together, but each
+        // table's SDK callback refreshes its own binding one after another. Between those callbacks
+        // the three bindings can disagree (COMPLETE and one character, with the active id not yet
+        // applied), so the condition is confirmed after every callback has run (review WR-03).
+        queueMicrotask(() => {
+          if (disposed || handoffFired || !handoffReady.value) return;
+          const conn = input.conn.value;
+          const only = input.characters.value[0];
+          if (conn === null || only === undefined) return;
+          handoffFired = true;
+          void callSetActive(conn, only.id);
+        });
       },
       { immediate: true, flush: 'sync' },
     );
@@ -324,6 +332,7 @@ export function createCreationData<C extends CreationConn>(
   }
 
   function dispose(): void {
+    disposed = true;
     for (const mountScope of mountScopes) mountScope.stop();
     mountScopes.clear();
     mountCount.value = 0;
