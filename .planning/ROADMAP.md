@@ -323,7 +323,7 @@ Plans:
   5. At 390×844 the encounter, targeting, hotbar and Flee are usable, and the combat feed stays readable.
   6. The round timer counts down on the hotbar, the player sees the action they have chosen for this round, and with no choice the hotbar shows that they will auto-attack.
 
-**Plans**: 12/14 plans executed
+**Plans**: 13/14 plans executed
 
 Plans:
 **Wave 1**
@@ -376,7 +376,7 @@ Plans:
 
 **Wave 13** *(blocked on Wave 12 completion)*
 
-- [ ] 48-13-PLAN.md — Mobile vitals strip in combat: In combat tag, ally chips, damage flash
+- [x] 48-13-PLAN.md — Mobile vitals strip in combat: In combat tag, ally chips, damage flash
 
 **Wave 14** *(blocked on Wave 13 completion)*
 
@@ -490,7 +490,7 @@ Plans:
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
 | 46.1. Round-Based Combat Engine | v3.0 | 9/9 | In Progress|  |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 12/12 | In Progress|  |
-| 48. Combat Encounter | v3.0 | 12/14 | In Progress|  |
+| 48. Combat Encounter | v3.0 | 13/14 | In Progress|  |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |
 | 51. Ledger Screens: World and People | v3.0 | 0/TBD | Not started | - |
