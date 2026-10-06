@@ -7,7 +7,8 @@
  *     allowedClasses, weaponType and more, so the real serializer threw and the turn-in rolled back);
  *   - the slot is an EQUIPMENT_SLOTS slot and the armor type is valid, at every level of the slot cycle;
  *   - the rewarded character can equip the item (dynamic proficiencies and legacy class check);
- *   - an xp/gold-only quest creates no item.
+ *   - an xp/gold-only quest creates no item;
+ *   - the "turn in <quest>" intent (the path the client's [Turn In] link uses) grants the same item.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer, rowColumnProblems } from '../helpers/schema_recorder';
@@ -28,7 +29,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['turn_in_quest', 'equip_item']) {
+  for (const name of ['turn_in_quest', 'equip_item', 'submit_intent']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(`capturedReducer('${name}') is not a function: STOP and report; never edit production code to fix this.`);
@@ -235,5 +236,38 @@ describe('turn_in_quest without an item reward', () => {
     turnIn(ctx);
     expect(rows(ctx, 'item_template')).toHaveLength(0);
     expect(rows(ctx, 'item_instance')).toHaveLength(0);
+  });
+});
+
+describe('"turn in <quest>" intent grants the item reward (real submit_intent handler)', () => {
+  const turnInByIntent = (ctx: any) =>
+    handlers.submit_intent(ctx, { characterId: 1n, text: 'turn in The Drowned Bell' });
+
+  it.each(LEVELS)('level %s: creates the same schema-valid, equippable item', (level) => {
+    const ctx = newCtx(level);
+    turnInByIntent(ctx);
+
+    expect(failures(ctx)).toEqual([]);
+    expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+    const tpl = rows(ctx, 'item_template')[0];
+    const inst = rows(ctx, 'item_instance')[0];
+    expect(tpl).toBeDefined();
+    expect(rowColumnProblems('item_template', tpl)).toEqual([]);
+    expect(rowColumnProblems('item_instance', inst)).toEqual([]);
+    expect(EQUIPMENT_SLOTS.has(tpl.slot)).toBe(true);
+    expect(inst.ownerCharacterId).toBe(1n);
+
+    handlers.equip_item(ctx, { characterId: 1n, itemInstanceId: inst.id });
+    expect(failures(ctx)).toEqual([]);
+    expect(rows(ctx, 'item_instance')[0].equippedSlot).toBe(tpl.slot);
+  });
+
+  it('an xp/gold quest turned in by intent creates no item', () => {
+    const ctx = newCtx(3n, { qt: { rewardType: 'gold', rewardItemName: undefined, rewardItemDesc: undefined, rewardGold: 25n } });
+    turnInByIntent(ctx);
+    expect(rows(ctx, 'item_template')).toHaveLength(0);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
+    expect(rows(ctx, 'character')[0].gold).toBe(35n);
+    expect(rows(ctx, 'quest_instance')).toHaveLength(0);
   });
 });

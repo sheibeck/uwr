@@ -17,6 +17,7 @@ import {
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
 import { findRaceDefinition } from '../data/race_bonuses';
+import { grantQuestItemReward } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -800,6 +801,8 @@ export const registerIntentReducers = (deps: any) => {
           ctx.db.character.id.update({ ...freshChar2, gold: freshChar2.gold + goldReward });
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `+${goldReward} gold from quest reward.`);
         }
+        // Award the item reward (item-reward quests only)
+        grantQuestItemReward(ctx, character, qt, appendPrivateEvent);
         // Award NPC affinity
         if (qt.npcId) {
           awardNpcAffinity(ctx, ctx.db.character.id.find(character.id)!, qt.npcId, 10n);
