@@ -15,6 +15,7 @@ export const registerItemReducers = (deps: any) => {
     ARMOR_TYPES_WITH_NONE,
     normalizeArmorType,
     requirePlayerUserId,
+    requireAdmin,
     requireCharacterOwnedBy,
     recomputeCharacterDerived,
     executeAbilityAction,
@@ -59,6 +60,9 @@ export const registerItemReducers = (deps: any) => {
       stackable: t.bool(),
     },
     (ctx, args) => {
+      // Admin only: a template carries its own vendorValue, rarity and slot, and base stock, recipe
+      // generation and every price rule read it. Refused before any read or write.
+      requireAdmin(ctx);
       const slot = args.slot.trim();
       if (!EQUIPMENT_SLOTS.has(slot) && !['junk', 'resource', 'consumable'].includes(slot)) {
         throw new SenderError('Invalid slot');
@@ -99,6 +103,8 @@ export const registerItemReducers = (deps: any) => {
   );
 
   spacetimedb.reducer('grant_item', { characterId: t.u64(), templateId: t.u64() }, (ctx, args) => {
+    // Admin only (a debug and support tool): any client could otherwise mint any item and sell it.
+    requireAdmin(ctx);
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const template = ctx.db.item_template.id.find(args.templateId);
     if (!template) return failItem(ctx, character, 'Item template not found');
