@@ -3,7 +3,7 @@ import { computed, effectScope, nextTick, ref, shallowRef } from 'vue';
 import type { EffectScope } from 'vue';
 import { createConsole, QUEUE_FULL_LINE, QUEUE_LOST_LINE } from './useConsole';
 import { createFeedStore } from './feedStore';
-import { createInertGame } from '../game/context';
+import { createInertCombatData, createInertGame } from '../game/context';
 import type { FrameControls, GameData, GameReducers } from '../game/context';
 
 const REDUCER_NAMES: (keyof GameReducers)[] = [
@@ -24,6 +24,7 @@ const REDUCER_NAMES: (keyof GameReducers)[] = [
   'useAbility',
   'moveCharacter',
   'startGatherResource',
+  'startPull',
 ];
 
 type Deferred = { promise: Promise<void>; resolve: () => void; reject: (e: unknown) => void };
@@ -83,6 +84,7 @@ function setup() {
   const eventObjectives = shallowRef<any[]>([]);
   const regions = shallowRef<any[]>([]);
   const applied = ref(false);
+  const combatActive = ref(false);
 
   const pending = new Map<string, Deferred[]>();
   const reducers: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -126,6 +128,7 @@ function setup() {
     eventObjectives,
     regions,
     privateEventsApplied: applied,
+    combat: { ...createInertCombatData(), active: combatActive },
     feed,
     reducers: computed(() => (connected.value ? (reducers as unknown as GameReducers) : null)),
   } as unknown as GameData;
@@ -172,6 +175,7 @@ function setup() {
     eventObjectives,
     regions,
     applied,
+    combatActive,
   };
 }
 
@@ -841,6 +845,63 @@ describe('keyword and rail actions', () => {
     expect(lines(s.feed).map((l) => l.message)).toEqual(['gather Ironwood', 'invite Bo']);
     s.api.trade();
     expect(s.openScreen).toHaveBeenCalledWith('vendor');
+  });
+
+  it('pull: starts a careful or body pull with an echo, closes the screen, clears the conversation', () => {
+    const s = setup();
+    s.api.hail({ id: 3n, name: 'Ferryman' });
+    const tick = s.api.sendTick.value;
+    s.closeScreen.mockClear();
+    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'careful');
+    expect(s.reducers.startPull).toHaveBeenCalledWith({
+      characterId: 1n,
+      enemySpawnId: 9n,
+      pullType: 'careful',
+    });
+    expect(s.closeScreen).toHaveBeenCalled();
+    expect(s.api.conversation.value).toBeNull();
+    expect(s.api.sendTick.value).toBe(tick + 1);
+    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'body');
+    expect(s.reducers.startPull).toHaveBeenLastCalledWith({
+      characterId: 1n,
+      enemySpawnId: 9n,
+      pullType: 'body',
+    });
+    expect(lines(s.feed).map((l) => l.message)).toContain('careful pull Goblin Scout');
+    expect(lines(s.feed).map((l) => l.message)).toContain('body pull Goblin Scout');
+  });
+
+  it('enemy keyword: one click is a careful pull', () => {
+    const s = setup();
+    s.api.actOnKeyword({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
+    expect(s.reducers.startPull).toHaveBeenCalledWith({
+      characterId: 1n,
+      enemySpawnId: 9n,
+      pullType: 'careful',
+    });
+    expect(lines(s.feed)).toEqual([{ kind: 'echo', message: 'careful pull Goblin Scout', queued: false }]);
+    expect(s.closeScreen).toHaveBeenCalled();
+  });
+
+  it('pull and the enemy keyword do nothing in a fight', () => {
+    const s = setup();
+    s.combatActive.value = true;
+    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'careful');
+    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'body');
+    s.api.actOnKeyword({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
+    expect(s.reducers.startPull).not.toHaveBeenCalled();
+    expect(s.closeScreen).not.toHaveBeenCalled();
+    expect(s.feed.entries.value).toHaveLength(0);
+  });
+
+  it('pull and the enemy keyword do nothing while offline', () => {
+    const s = setup();
+    s.connected.value = false;
+    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'careful');
+    s.api.actOnKeyword({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
+    expect(s.reducers.startPull).not.toHaveBeenCalled();
+    expect(s.closeScreen).not.toHaveBeenCalled();
+    expect(s.feed.entries.value).toHaveLength(0);
   });
 
   it('every action does nothing while offline', () => {

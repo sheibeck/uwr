@@ -10,7 +10,13 @@ import FeedView from './FeedView.vue';
 import KeeperProgress from './KeeperProgress.vue';
 import { createFeedStore } from './feedStore';
 import type { FeedStore } from './feedStore';
-import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import {
+  CONSOLE_KEY,
+  GAME_KEY,
+  createInertCombatData,
+  createInertConsole,
+  createInertGame,
+} from '../game/context';
 import type { ConsoleApi, GameData } from '../game/context';
 
 let wrapper: VueWrapper | null = null;
@@ -201,6 +207,61 @@ describe('FeedView keywords', () => {
     expect(button.attributes('aria-disabled')).toBe('true');
     await button.trigger('click');
     expect(h.actOnKeyword).not.toHaveBeenCalled();
+  });
+
+  describe('enemy keywords (quick-261006-a0i)', () => {
+    const spawn = (id: bigint, name: string, state: string) => ({
+      id,
+      name,
+      state,
+      locationId: 10n,
+      enemyTemplateId: 1n,
+      groupCount: 1n,
+    });
+    const keeperLine = (text: string) => ({
+      segments: [{ kind: 'narration', speaker: 'The Keeper', text }],
+    });
+
+    it('makes the name of an available spawn a Careful pull keyword', async () => {
+      const h = harness({ enemiesHere: ref([spawn(9n, 'Goblin Scout', 'available')]) });
+      const w = mountView(h);
+      ingest(h, keeperLine('A Goblin Scout prowls the road.'));
+      await settle();
+      const button = w.get('button.keyword');
+      expect(button.attributes('aria-label')).toBe('Careful pull Goblin Scout');
+      await button.trigger('click');
+      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
+    });
+
+    it('does not make a pulled or engaged spawn a keyword', async () => {
+      const h = harness({
+        enemiesHere: ref([spawn(1n, 'Ash Wolf', 'pulling'), spawn(2n, 'Bone Rat', 'engaged')]),
+      });
+      const w = mountView(h);
+      ingest(h, keeperLine('An Ash Wolf circles a Bone Rat.'));
+      await settle();
+      expect(w.find('button.keyword').exists()).toBe(false);
+    });
+
+    it('has no enemy keyword while in a fight', async () => {
+      const h = harness({
+        enemiesHere: ref([spawn(9n, 'Goblin Scout', 'available')]),
+        combat: { ...createInertCombatData(), active: ref(true) },
+      });
+      const w = mountView(h);
+      ingest(h, keeperLine('A Goblin Scout prowls the road.'));
+      await settle();
+      expect(w.find('button.keyword').exists()).toBe(false);
+    });
+
+    it('renders a markup enemy name literally', async () => {
+      const h = harness({ enemiesHere: ref([spawn(9n, PAYLOAD, 'available')]) });
+      const w = mountView(h);
+      ingest(h, keeperLine(`You see ${PAYLOAD} ahead.`));
+      await settle();
+      expect(w.find('img').exists()).toBe(false);
+      expect(w.text()).toContain(PAYLOAD);
+    });
   });
 
   it('never makes a keyword out of player-authored text', async () => {

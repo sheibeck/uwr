@@ -3,6 +3,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 import { PhArrowDown } from '@phosphor-icons/vue';
 import { LLM_PROGRESS_ROTATE_MS } from '@game-data/llm_indicator_lines';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import { pullableSpawns } from '../rails/enemies';
 import { visibleNodes } from '../rails/nearby';
 import FeedLine from './FeedLine.vue';
 import KeeperProgress from './KeeperProgress.vue';
@@ -30,6 +31,8 @@ const vocabulary = computed(() => {
   }
   return buildVocabulary({
     npcs: game.npcsHere.value,
+    // No enemy keywords in a fight: pulling is disabled there.
+    enemies: game.combat.active.value ? [] : pullableSpawns(game.enemiesHere.value),
     places,
     nodes: visibleNodes(game.nodesHere.value, game.characterId.value),
     players: game.playersHere.value,

@@ -1,5 +1,5 @@
 // Keyword vocabulary and matcher (47-RESEARCH "Keyword matcher (Q11)", 47-UI-SPEC "Keywords (CON-02)").
-// Names known to the client (NPCs, places, resource nodes, nearby players) are found in line text
+// Names known to the client (NPCs, pullable enemies, places, resource nodes, nearby players) are found in line text
 // as soft-accent keywords. Design:
 //   - manual code-point scanner, leftmost-longest, non-overlapping; no regex is ever built from a
 //     name, so hostile names cannot cause ReDoS or regex errors (T-47-02)
@@ -10,7 +10,7 @@
 //   - the vocabulary is capped at KEYWORD_LIMIT, higher-priority kinds first
 // findKeywords is total: it never throws and the joined part texts always equal the input.
 
-export type KeywordKind = 'npc' | 'place' | 'node' | 'player';
+export type KeywordKind = 'npc' | 'enemy' | 'place' | 'node' | 'player';
 export interface KeywordEntry {
   kind: KeywordKind;
   id: bigint;
@@ -73,6 +73,7 @@ type NameInput = readonly { id: bigint; name: string }[];
 
 export function buildVocabulary(input: {
   npcs: NameInput;
+  enemies?: NameInput;
   places: NameInput;
   nodes: NameInput;
   players: NameInput;
@@ -83,6 +84,7 @@ export function buildVocabulary(input: {
   const accepted: Candidate[] = [];
   const groups: [KeywordKind, NameInput][] = [
     ['npc', input.npcs ?? []],
+    ['enemy', input.enemies ?? []],
     ['place', input.places ?? []],
     ['node', input.nodes ?? []],
     ['player', input.players ?? []],

@@ -50,6 +50,9 @@ describe('keywordActionLabel', () => {
     expect(keywordActionLabel(GLOAM)).toBe('Travel to Gloamwood');
     expect(keywordActionLabel(WELL)).toBe('Examine Old Well');
     expect(keywordActionLabel(MARISOL)).toBe('Whisper Marisol');
+    expect(keywordActionLabel({ kind: 'enemy', id: 4n, name: 'Goblin Scout' })).toBe(
+      'Careful pull Goblin Scout',
+    );
   });
 });
 

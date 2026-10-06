@@ -161,6 +161,34 @@ describe('findKeywords', () => {
   });
 });
 
+describe('enemy keywords (quick-261006-a0i)', () => {
+  it('gives the enemies group entries of kind enemy', () => {
+    const v = vocab({ enemies: [{ id: 9n, name: 'Goblin Scout' }] });
+    const parts = findKeywords('A Goblin Scout waits.', v);
+    expect(parts[1].entry).toEqual({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
+  });
+
+  it('ranks an npc above an enemy and an enemy above a place of the same name', () => {
+    const withNpc = vocab({
+      npcs: [{ id: 1n, name: 'Ember' }],
+      enemies: [{ id: 2n, name: 'Ember' }],
+    });
+    expect(withNpc.size).toBe(1);
+    expect(findKeywords('Ember', withNpc)[0].entry?.kind).toBe('npc');
+    const withPlace = vocab({
+      enemies: [{ id: 2n, name: 'Ember' }],
+      places: [{ id: 3n, name: 'Ember' }],
+    });
+    expect(findKeywords('Ember', withPlace)[0].entry?.kind).toBe('enemy');
+  });
+
+  it('is unchanged when enemies is omitted', () => {
+    const v = vocab({ npcs: [{ id: 1n, name: 'Ferryman' }] });
+    expect(v.size).toBe(1);
+    expect(summary(findKeywords('Ferryman', v))).toEqual(['[npc:Ferryman]']);
+  });
+});
+
 describe('foldText', () => {
   it('keeps the UTF-16 length', () => {
     for (const s of ['İstanbul', 'ΑΣ', 'ß', '😀', '\ud800', 'It’s']) {

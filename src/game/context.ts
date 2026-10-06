@@ -83,6 +83,7 @@ export interface GameReducers {
   }): Promise<void>;
   moveCharacter(a: { characterId: bigint; locationId: bigint }): Promise<void>;
   startGatherResource(a: { characterId: bigint; nodeId: bigint }): Promise<void>;
+  startPull(a: { characterId: bigint; enemySpawnId: bigint; pullType: string }): Promise<void>;
 }
 
 type List<T> = Readonly<Ref<readonly T[]>>;
@@ -243,6 +244,8 @@ export interface ConsoleApi {
   travel(location: { id: bigint; name: string }): void;
   examine(name: string): void;
   gather(node: { id: bigint; name: string }): void;
+  /** Starts a pull on an enemy spawn. No-op offline and while game.combat.active. */
+  pull(enemy: { id: bigint; name: string }, pullType: 'careful' | 'body'): void;
   whisperTo(name: string): void;
   invite(name: string): void;
   trade(): void;
@@ -375,6 +378,7 @@ export function createInertConsole(): ConsoleApi {
     travel() {},
     examine() {},
     gather() {},
+    pull() {},
     whisperTo() {},
     invite() {},
     trade() {},

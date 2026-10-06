@@ -408,6 +408,18 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     bump();
   }
 
+  function pull(enemy: { id: bigint; name: string }, pullType: 'careful' | 'body'): void {
+    const characterId = game.characterId.value;
+    if (!ready() || characterId === null) return;
+    // Actions are disabled in a fight (quick-261006-a0i).
+    if (game.combat.active.value) return;
+    frame.closeScreen();
+    conversation.value = null;
+    echo(`${pullType} pull ${enemy.name}`);
+    void fire('startPull', (r) => r.startPull({ characterId, enemySpawnId: enemy.id, pullType }));
+    bump();
+  }
+
   function invite(name: string): void {
     const characterId = game.characterId.value;
     if (!ready() || characterId === null) return;
@@ -431,6 +443,10 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     switch (entry.kind) {
       case 'npc':
         hail({ id: entry.id, name: entry.name });
+        break;
+      case 'enemy':
+        // One click is one action; a careful pull is the cautious choice (Body pull is in Nearby).
+        pull({ id: entry.id, name: entry.name }, 'careful');
         break;
       case 'place':
         travel({ id: entry.id, name: entry.name });
@@ -471,6 +487,7 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     travel,
     examine,
     gather,
+    pull,
     whisperTo,
     invite,
     trade,
