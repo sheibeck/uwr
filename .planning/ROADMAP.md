@@ -1527,5 +1527,40 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.22: Party and player context menus (design: UWR Party) (BACKLOG)
+
+**Goal:** Add context menus to party members and other players, so socializing and grouping take one click. Build it from the owner's Claude Design file. Captured 2026-10-06 (owner request).
+
+**Design source (re-import fresh when this is planned; never cached):**
+- claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`). Project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Party.dc.html
+- Focus file: `UWR Party.dc.html`.
+- Also read the files it imports:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+- Implement `UWR Party.dc.html`.
+
+**Notes for planning:**
+- **Where the menus attach:** party members in the vitals rail (`src/rails/PartyBlock.vue`, Phase 47) and players in the context rail's Nearby list (`src/frame/ContextRail.vue`). The design decides any other places, such as names in the feed.
+- **Reuse existing actions:** the group reducers (`spacetimedb/src/reducers/groups.ts`) and the social command words (invite, kick, promote, leave, whisper, friend). Menu entries should act by role, for example kick and promote only for the leader. Confirm in research whether the design needs anything the server does not have yet. Server changes stay additive and publish locally only.
+- **Overlap with Phase 51 (LDG-05, Social screen):** that screen also has party invite, leave, kick and promote, and friends. Share one set of action helpers between the menus and the Social screen, and decide in discuss which phase builds them first.
+- **Run it as a UI phase** (`/gsd-ui-phase` from the fresh import, then plan and execute). Desktop and mobile at 390x844 (the menu may need a sheet or long-press on touch).
+- **Design guards apply:**
+  - no literal colors (map the mock's hex values to existing tokens; the token pin stays at 23)
+  - no v-html, no `<svg`
+  - Phosphor icons and Inter only
+  - font sizes 10/12/14/20, weights 400/500
+  - spacing 4/8/16/24/32/48/64
+  - text nodes only
+- **Accessibility:** the menu opens from the keyboard, traps focus and closes on Escape (reuse `src/frame/focusTrap.ts`).
+- **Tests:** menu entries per role and target (party member vs other player, leader vs member, self), each entry calls the right reducer, keyboard behavior.
+- **Related:** 999.20 (Examine button in the right-hand rail, a possible "Examine" menu entry for players), Phase 51.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding 999.21 (character creation screens match the mock)*
+*Last updated: 2026-10-06 after adding 999.22 (party and player context menus)*
