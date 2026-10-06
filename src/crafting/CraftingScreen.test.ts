@@ -402,9 +402,23 @@ describe('RecipeList', () => {
     const showAll = w.get('button.show-all');
     expect(showAll.classes()).toContain('btn-ghost');
     expect(showAll.text()).toBe('Show all 5 recipes');
+    (showAll.element as HTMLElement).focus();
     await showAll.trigger('click');
+    await nextTick();
+    await nextTick();
     expect((box.element as HTMLInputElement).checked).toBe(false);
     expect(w.findAll('button.recipe-row')).toHaveLength(5);
+    // WR-03: the removed button hands focus to the first recipe row, not body.
+    expect(document.activeElement).toBe(w.findAll('button.recipe-row')[0].element);
+  });
+
+  it('with no recipes known shows the Materials disclosure when asked (WR-04)', () => {
+    const { w } = mountList({ knownIds: [] }, { showMaterialsDisclosure: true });
+    expect(w.get('button.disclosure').text()).toBe('Materials on hand · 7');
+    expect(w.findAll('button.discover')).toHaveLength(1);
+    wrapper?.unmount();
+    wrapper = null;
+    expect(mountList({ knownIds: [] }).w.find('button.disclosure').exists()).toBe(false);
   });
 
   it('only-craftable keeps the craftable rows when some are craftable', async () => {
@@ -861,6 +875,20 @@ describe('CraftingScreen desktop', () => {
     expect(noCharacter.w.find('.desk-grid').exists()).toBe(false);
   });
 
+  it('with no recipes known still shows Materials on hand: the column at 1200px, a disclosure below (WR-04)', () => {
+    const wide = mountScreen({ knownIds: [] });
+    expect(wide.w.get('.materials-col h6').text()).toBe('Materials on hand');
+    expect(wide.w.findAll('.materials-col .m-name')).toHaveLength(7);
+    expect(wide.w.findAll('button.discover')).toHaveLength(1);
+    expect(wide.w.find('.detail-col').exists()).toBe(false);
+    wrapper?.unmount();
+    wrapper = null;
+    const narrow = mountScreen({ knownIds: [] }, false);
+    expect(narrow.w.find('.materials-col').exists()).toBe(false);
+    expect(narrow.w.get('button.disclosure').text()).toBe('Materials on hand · 7');
+    expect(narrow.w.findAll('button.discover')).toHaveLength(1);
+  });
+
   it('renders nothing until the recipe subscription has applied', () => {
     const { w } = mountScreen({ applied: false });
     expect(w.find('.desk-grid').exists()).toBe(false);
@@ -937,6 +965,22 @@ describe('CraftingScreen mobile', () => {
     expect(view.get('.detail-dock button.craft-btn').text()).toBe('Craft');
     expect(view.get('.detail-dock button.craft-btn').attributes('aria-label')).toBe('Craft Iron Helm');
     expect(read('CraftingScreen.vue')).toMatch(/\.back\s*\{[^}]*min-height: 44px;/);
+  });
+
+  it('choosing a row moves focus to All recipes instead of leaving it on the hidden row (WR-03)', async () => {
+    const { w } = mountScreen();
+    const row = w.findAll('button.recipe-row')[1];
+    (row.element as HTMLElement).focus();
+    await row.trigger('click');
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('button.back').element);
+  });
+
+  it('with no recipes known shows the Materials disclosure on mobile (WR-04)', () => {
+    const { w } = mountScreen({ knownIds: [] });
+    expect(w.get('button.disclosure').text()).toBe('Materials on hand · 7');
+    expect(w.findAll('button.discover')).toHaveLength(1);
   });
 
   it('All recipes returns to the list and puts focus on the row it came from', async () => {

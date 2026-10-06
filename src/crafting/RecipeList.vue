@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { PhHammer, PhMagnifyingGlass } from '@phosphor-icons/vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
@@ -89,8 +89,11 @@ function focusRow(id: bigint): void {
 }
 defineExpose({ focusRow, emptyText });
 
-function showAll(): void {
+// The button removes itself, so focus moves to the first recipe row that appears (never body).
+async function showAll(): Promise<void> {
   onlyCraftable.value = false;
+  await nextTick();
+  root.value?.querySelector<HTMLElement>('.recipe-row')?.focus();
 }
 
 function setFilter(id: string): void {
@@ -112,6 +115,12 @@ function discover(): void {
 <template>
   <div ref="root" class="recipe-list" :class="{ mobile: props.mobile }">
     <template v-if="noRecipesKnown">
+      <MaterialsOnHand
+        v-if="props.showMaterialsDisclosure"
+        mode="disclosure"
+        :runner="props.runner"
+        :mobile="props.mobile"
+      />
       <EmptyState
         :icon="PhHammer"
         title="No recipes known yet."

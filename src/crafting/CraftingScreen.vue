@@ -36,10 +36,17 @@ const selectedId = ref<bigint | null>(null);
 const view = ref<'list' | 'detail'>('list');
 const list = useTemplateRef<InstanceType<typeof RecipeList>>('list');
 
-// Desktop: the list keeps a visible selection and reports it. Mobile: choosing a row opens the detail.
-function onSelect(id: bigint | null): void {
+const backButton = useTemplateRef<HTMLButtonElement>('backButton');
+
+// Desktop: the list keeps a visible selection and reports it. Mobile: choosing a row opens the
+// detail, which hides the row that had focus, so focus moves to the All recipes button (never body).
+async function onSelect(id: bigint | null): Promise<void> {
   selectedId.value = id;
-  if (mobile.value && id !== null) view.value = 'detail';
+  if (mobile.value && id !== null) {
+    view.value = 'detail';
+    await nextTick();
+    backButton.value?.focus();
+  }
 }
 
 // The mobile back button returns to the list and puts focus on the row it came from.
@@ -61,8 +68,17 @@ async function backToList(): Promise<void> {
     />
     <template v-else-if="ready">
       <template v-if="noneKnown">
-        <div class="empty-wrap">
-          <RecipeList :selected-id="null" :runner="runner" :mobile="mobile" />
+        <!-- Materials on hand stays reachable with no recipes: discovery works from what is held. -->
+        <div v-if="mobile" class="empty-wrap">
+          <RecipeList :selected-id="null" :runner="runner" mobile show-materials-disclosure />
+        </div>
+        <div v-else class="desk-grid empty-grid" :class="{ wide }">
+          <div v-if="wide" class="col materials-col">
+            <MaterialsOnHand mode="column" :runner="runner" />
+          </div>
+          <div class="col list-col">
+            <RecipeList :selected-id="null" :runner="runner" :show-materials-disclosure="!wide" />
+          </div>
         </div>
       </template>
 
@@ -106,7 +122,7 @@ async function backToList(): Promise<void> {
           />
         </div>
         <div v-if="view === 'detail' && selectedId !== null" class="detail-view">
-          <button type="button" class="btn btn-ghost back" @click="backToList">
+          <button ref="backButton" type="button" class="btn btn-ghost back" @click="backToList">
             <PhCaretLeft :size="20" aria-hidden="true" />
             All recipes
           </button>
@@ -145,6 +161,14 @@ async function backToList(): Promise<void> {
 
 .desk-grid.wide {
   grid-template-columns: 200px 360px minmax(0, 1fr);
+}
+
+.desk-grid.empty-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.desk-grid.empty-grid.wide {
+  grid-template-columns: 200px minmax(0, 1fr);
 }
 
 .col {
