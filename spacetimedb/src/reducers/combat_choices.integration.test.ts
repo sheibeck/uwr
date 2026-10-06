@@ -401,7 +401,7 @@ describe('cooldown source by place (RND-03)', () => {
   });
 
   it('out of combat a ready ability still executes at once and starts a wall-clock cooldown', () => {
-    const ctx = fightCtx(startSeed({ ability_template: [ability({ kind: 'heal', name: 'Mend', targetRule: 'self', value1: 5n })] }), ALICE);
+    const ctx = fightCtx(startSeed({ ability_template: [ability({ kind: 'heal', name: 'Mend', targetRule: 'self', value1: 5n, resourceType: 'stamina' })] }), ALICE);
     handlers.use_ability(ctx, { characterId: 1n, abilityTemplateId: 1n });
     expect(lines(ctx, 1n, /^You use Mend on yourself\.$/)).toHaveLength(1);
     expect(actions(ctx)).toHaveLength(0);

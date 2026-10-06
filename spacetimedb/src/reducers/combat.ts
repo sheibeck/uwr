@@ -13,9 +13,10 @@ import { ScheduleAt } from 'spacetimedb';
 import { scheduleCombatTick } from '../helpers/combat';
 import {
   startRound, currentRound, roundsForCombat, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
+  upsertChoice, allWaitingChosen,
   setRoundCooldown, roundCooldownRemaining, decrementRoundCooldowns, beginCombatCooldowns, endCombatCooldowns,
 } from '../helpers/combat_round_state';
-import { ROUND_STATE, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed } from '../helpers/combat_rounds';
+import { ROUND_STATE, isChoiceActionType, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed } from '../helpers/combat_rounds';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
@@ -2808,6 +2809,124 @@ export const registerCombatReducers = (deps: any) => {
     clearRoundChoices(ctx, liveCombat.id, N);
     startRound(ctx, liveCombat.id, N + 1n, open.narrationCount);
   };
+
+  // ── Round choices ─────────────────────────────────────────────────────
+
+  type CombatChoice = {
+    actionType: 'ability' | 'auto_attack' | 'flee';
+    abilityTemplateId?: bigint;
+    targetEnemyId?: bigint;
+    targetCharacterId?: bigint;
+  };
+
+  const present = (value: unknown): boolean => value !== undefined && value !== null;
+
+  /**
+   * The one input path of a round: use_ability (in combat), submit_combat_action and flee_combat all
+   * come here. The caller has already proved ctx.sender owns the character. A choice that fails any
+   * check posts a visible combat line and writes nothing. A valid one is stored (replacing the
+   * player's earlier choice for the open round) and, when every waited-on player has now chosen, the
+   * round resolves in this same transaction.
+   */
+  const submitCombatChoice = (ctx: any, character: any, choice: CombatChoice): void => {
+    const combatId = activeCombatIdForCharacter(ctx, character.id);
+    const combat = combatId ? ctx.db.combat_encounter.id.find(combatId) : undefined;
+    if (!combat || combat.state !== 'active') return failCombat(ctx, character, 'Combat not active');
+    const participant = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
+      .find((row: any) => row.characterId === character.id);
+    const live = ctx.db.character.id.find(character.id) ?? character;
+    if (!participant || participant.status !== 'active' || live.hp === 0n) {
+      return failCombat(ctx, character, 'You cannot act right now.');
+    }
+    if (!isChoiceActionType(choice.actionType)) return failCombat(ctx, character, 'Unknown action.');
+
+    let abilityName: string | undefined;
+    if (choice.actionType === 'ability') {
+      if (!present(choice.abilityTemplateId)) return failCombat(ctx, character, 'Ability required');
+      const ability = ctx.db.ability_template.id.find(choice.abilityTemplateId);
+      if (!ability) return failCombat(ctx, character, 'Unknown ability');
+      if (ability.characterId !== character.id) return failCombat(ctx, character, 'Ability not available');
+      if (live.level < ability.levelRequired) return failCombat(ctx, character, 'Ability not unlocked');
+      if (ability.kind === 'utility') {
+        return failCombat(ctx, character, 'This ability can only be used when you are at peace.');
+      }
+      const blocked = roundCooldownRemaining(ctx, character.id, ability.id);
+      if (blocked > 0n) {
+        return failCombat(ctx, character,
+          `${ability.name} is on cooldown for ${blocked} more round${blocked === 1n ? '' : 's'}.`);
+      }
+      // Same resource rule as executeAbility, so an unaffordable choice is refused now, not at resolution.
+      const staminaFree = ability.resourceType === 'stamina'
+        && [...ctx.db.character_effect.by_character.filter(character.id)]
+          .some((effect: any) => effect.effectType === 'stamina_free');
+      const cost = staminaFree ? 0n : ability.resourceCost;
+      if (ability.resourceType === 'mana' && live.mana < cost) return failCombat(ctx, character, 'Not enough mana');
+      if (ability.resourceType === 'stamina' && live.stamina < cost) return failCombat(ctx, character, 'Not enough stamina');
+      abilityName = ability.name;
+    }
+
+    // Targets only matter for a choice that acts; a flee carries none.
+    const stored: CombatChoice = { actionType: choice.actionType };
+    if (choice.actionType !== 'flee') {
+      if (present(choice.targetCharacterId)) {
+        const ally = ctx.db.character.id.find(choice.targetCharacterId);
+        const allyParticipant = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
+          .find((row: any) => row.characterId === choice.targetCharacterId);
+        if (!ally || ally.hp === 0n || !allyParticipant || allyParticipant.status !== 'active') {
+          return failCombat(ctx, character, 'That target is not in this fight.');
+        }
+        stored.targetCharacterId = choice.targetCharacterId;
+      }
+      if (present(choice.targetEnemyId)) {
+        const enemy = ctx.db.combat_enemy.id.find(choice.targetEnemyId);
+        if (!enemy || enemy.combatId !== combat.id || enemy.currentHp === 0n) {
+          return failCombat(ctx, character, 'That enemy is not in this fight.');
+        }
+        stored.targetEnemyId = enemy.id;
+      }
+    }
+    if (choice.actionType === 'ability') stored.abilityTemplateId = choice.abilityTemplateId;
+
+    const round = ensureRound(ctx, combat);
+    if (!round) return failCombat(ctx, character, 'Combat not active');
+    if (stored.targetEnemyId !== undefined) {
+      ctx.db.character.id.update({ ...live, combatTargetEnemyId: stored.targetEnemyId });
+    }
+    upsertChoice(ctx, combat.id, round.roundNumber, character.id, stored);
+
+    if (choice.actionType === 'flee') {
+      logPrivateAndGroup(ctx, live, 'combat', 'You attempt to flee...', `${live.name} attempts to flee.`);
+    } else {
+      appendPrivateEvent(ctx, live.id, live.ownerUserId, 'combat',
+        choice.actionType === 'ability' ? `You ready ${abilityName}.` : 'You ready an attack.');
+    }
+
+    if (allWaitingChosen(ctx, combat.id, round.roundNumber)) {
+      resolveRound(ctx, combat, round);
+    }
+  };
+  deps.submitCombatChoice = submitCombatChoice;
+
+  spacetimedb.reducer(
+    'submit_combat_action',
+    {
+      characterId: t.u64(),
+      abilityTemplateId: t.u64().optional(),
+      targetEnemyId: t.u64().optional(),
+      targetCharacterId: t.u64().optional(),
+    },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const player = ctx.db.player.id.find(ctx.sender);
+      if (player) ctx.db.player.id.update({ ...player, lastActivityAt: ctx.timestamp });
+      submitCombatChoice(ctx, character, {
+        actionType: present(args.abilityTemplateId) ? 'ability' : 'auto_attack',
+        abilityTemplateId: present(args.abilityTemplateId) ? args.abilityTemplateId : undefined,
+        targetEnemyId: present(args.targetEnemyId) ? args.targetEnemyId : undefined,
+        targetCharacterId: present(args.targetCharacterId) ? args.targetCharacterId : undefined,
+      });
+    }
+  );
 
   // ── Post-Combat Summary (removed — LLM narration too slow) ──
 

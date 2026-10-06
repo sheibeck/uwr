@@ -738,6 +738,7 @@ const reducerDeps = {
   appendCreationEvent,
   computeBaseStatsForGenerated,
   startCombatForSpawn: null as any,
+  submitCombatChoice: null as any,
 };
 
 reducerDeps.startCombatForSpawn = (

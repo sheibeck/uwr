@@ -791,6 +791,27 @@ export const registerItemReducers = (deps: any) => {
       if (!ability) return failItem(ctx, character, 'Unknown ability');
       if (ability.characterId !== character.id) return failItem(ctx, character, 'Ability not available');
 
+      // Combat state checks: utility abilities only work out of combat
+      const combatId = activeCombatIdForCharacter(ctx, character.id);
+      if (combatId) {
+        if (ability.kind === 'utility') {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+            'This ability can only be used when you are at peace.');
+          return;
+        }
+        // In a fight the use is the player's choice for the open round (Phase 46.1): validated,
+        // stored and, once every waited-on player has chosen, resolved by the combat module. The round
+        // cooldown decides there; the wall-clock cooldown below is the out-of-combat rule only.
+        // deps.submitCombatChoice is read at call time: registerItemReducers runs before
+        // registerCombatReducers assigns it.
+        deps.submitCombatChoice(ctx, character, {
+          actionType: 'ability',
+          abilityTemplateId: args.abilityTemplateId,
+          targetCharacterId: args.targetCharacterId,
+        });
+        return;
+      }
+
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
       const existingCooldown = [...ctx.db.ability_cooldown.by_character.filter(character.id)].find(
         (row) => row.abilityTemplateId === args.abilityTemplateId
@@ -798,26 +819,6 @@ export const registerItemReducers = (deps: any) => {
       if (existingCooldown && existingCooldown.startedAtMicros + existingCooldown.durationMicros > nowMicros) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability is on cooldown.');
         return;
-      }
-
-      // Combat state checks: utility abilities only work out of combat
-      const combatId = activeCombatIdForCharacter(ctx, character.id);
-      if (ability.kind === 'utility' && combatId) {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
-          'This ability can only be used when you are at peace.');
-        return;
-      }
-
-      if (combatId) {
-        const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)].find(
-          (row) => row.characterId === character.id
-        );
-        if (!participant || participant.status !== 'active') {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Cannot cast right now.');
-          return;
-        }
-
-        // Real-time combat: ability will be executed immediately via cast system below
       }
 
       // Handle cast time
@@ -845,20 +846,9 @@ export const registerItemReducers = (deps: any) => {
 
       try {
         // Resolve target name and emit "You use" message BEFORE execution
-        let targetName = args.targetCharacterId
+        const targetName = args.targetCharacterId
           ? ctx.db.character.id.find(args.targetCharacterId)?.name ?? 'your target'
           : 'yourself';
-        if (combatId && !args.targetCharacterId) {
-          const enemies = [...ctx.db.combat_enemy.by_combat.filter(combatId)];
-          const preferred = character.combatTargetEnemyId
-            ? enemies.find((row) => row.id === character.combatTargetEnemyId)
-            : null;
-          const enemy = preferred ?? enemies.find((row) => row.currentHp > 0n) ?? enemies[0];
-          if (enemy) {
-            const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
-            targetName = template?.name ?? 'enemy';
-          }
-        }
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
           `You use ${ability.name} on ${targetName}.`);
 
