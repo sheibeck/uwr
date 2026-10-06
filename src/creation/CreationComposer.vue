@@ -47,9 +47,16 @@ function moveCaretToEnd(): void {
   });
 }
 
-function keepFocus(): void {
+/** Focuses the input when it can take focus; false when it is missing or disabled. */
+function focusInput(): boolean {
   const el = inputEl.value;
-  if (el !== null && !el.disabled) el.focus();
+  if (el === null || el.disabled) return false;
+  el.focus();
+  return true;
+}
+
+function keepFocus(): void {
+  focusInput();
 }
 
 async function submit(): Promise<void> {
@@ -107,8 +114,9 @@ function runDecision(button: DecisionButton): void {
   }
 }
 
-// The view moves focus here when the mobile sheet closes on a breakpoint change.
-defineExpose({ focusInput: keepFocus });
+// The view moves focus here when the mobile sheet closes on a breakpoint change. It reports
+// whether the input took focus, so the view can fall back while the input is disabled.
+defineExpose({ focusInput });
 </script>
 
 <template>

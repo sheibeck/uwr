@@ -84,6 +84,7 @@ const { keyboardOpen } = useKeyboardOpen(inputFocused);
 const sheetOpen = ref(false);
 const stepBar = ref<InstanceType<typeof StepBar> | null>(null);
 const composer = ref<InstanceType<typeof CreationComposer> | null>(null);
+const feed = ref<InstanceType<typeof CreationFeed> | null>(null);
 
 function onFocusChange(focused: boolean): void {
   inputFocused.value = focused;
@@ -100,12 +101,14 @@ async function closeSheet(): Promise<void> {
 }
 
 // Crossing to desktop closes the sheet, and the focused close button goes with it, so focus moves
-// to the composer input (the mobile chip does not exist on desktop).
+// to the composer input (the mobile chip does not exist on desktop). While the input is disabled
+// (the Keeper is working, the creation ended, offline) it goes to the story log instead, so it
+// never drops to the page body (review IN-12).
 watch(isDesktop, async (desktop) => {
   if (!desktop || !sheetOpen.value) return;
   sheetOpen.value = false;
   await nextTick();
-  composer.value?.focusInput();
+  if (composer.value?.focusInput() !== true) feed.value?.focusLog();
 });
 </script>
 
@@ -121,7 +124,12 @@ watch(isDesktop, async (desktop) => {
     <div v-if="isDesktop" class="body">
       <div class="center">
         <StepBar ref="stepBar" :view="stepView" :desktop="true" :keyboard-open="false" />
-        <CreationFeed :entries="creation.feed.entries.value" :llm-jobs="creation.llmJobs.value" :desktop="true">
+        <CreationFeed
+          ref="feed"
+          :entries="creation.feed.entries.value"
+          :llm-jobs="creation.llmJobs.value"
+          :desktop="true"
+        >
           <ChoiceBlock
             v-if="controls.choice"
             :kind="controls.choice"
@@ -153,7 +161,12 @@ watch(isDesktop, async (desktop) => {
         @open-sheet="openSheet"
       />
       <div v-show="!sheetOpen" class="region">
-        <CreationFeed :entries="creation.feed.entries.value" :llm-jobs="creation.llmJobs.value" :desktop="false">
+        <CreationFeed
+          ref="feed"
+          :entries="creation.feed.entries.value"
+          :llm-jobs="creation.llmJobs.value"
+          :desktop="false"
+        >
           <ChoiceBlock
             v-if="controls.choice"
             :kind="controls.choice"

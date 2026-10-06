@@ -230,6 +230,32 @@ describe('CreationView: breakpoint change', () => {
     expect(w.find('[role="dialog"]').exists()).toBe(false);
     expect(document.activeElement).toBe(input(w).element);
   });
+
+  it('IN-12: moves focus to the story log, not the body, when the input is disabled', async () => {
+    const listeners = new Set<(event: { matches: boolean }) => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
+    }));
+    window.matchMedia = globalThis.matchMedia;
+    const hub = makeHub();
+    hub.refs.effectiveStep.value = 'GENERATING_RACE'; // the Keeper is working: the input is locked
+    hub.refs.state.value = { step: 'GENERATING_RACE' };
+    const w = mountView(hub);
+    await chip(w).trigger('click');
+    expect(document.activeElement).toBe(w.get('button[aria-label="Close The ledger so far"]').element);
+
+    for (const listener of listeners) listener({ matches: true });
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    expect((input(w).element as HTMLInputElement).disabled).toBe(true);
+    expect(document.activeElement).toBe(w.get('[role="log"]').element);
+    expect(document.activeElement).not.toBe(document.body);
+  });
 });
 
 describe('CreationView: mobile keyboard', () => {

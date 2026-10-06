@@ -59,6 +59,7 @@ watch(
 
 // Scrolling: pinned within 48px of the bottom; a pill shows when lines arrive while scrolled up.
 const scroller = ref<HTMLElement | null>(null);
+const logEl = ref<HTMLElement | null>(null);
 const pinned = ref(true);
 const showPill = ref(false);
 // A smooth scroll to the bottom fires scroll events on the way; they must not unpin.
@@ -122,13 +123,29 @@ onMounted(() => {
   scrollToBottom(false);
 });
 
+// A focus target that is always present (the composer input is disabled while the Keeper works).
+// The view moves focus here when it has nowhere better to put it (review IN-12).
+function focusLog(): void {
+  logEl.value?.focus({ preventScroll: true });
+}
+
+defineExpose({ focusLog });
+
 onBeforeUnmount(stopRotation);
 </script>
 
 <template>
   <div class="feed-region">
     <div ref="scroller" class="feed-scroll" :class="{ compact: !props.desktop }" @scroll="onScroll">
-      <div class="feed-lines" role="log" aria-label="Story" aria-live="polite" aria-relevant="additions">
+      <div
+        ref="logEl"
+        class="feed-lines"
+        role="log"
+        tabindex="-1"
+        aria-label="Story"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         <p v-if="lines.length === 0" class="empty">Your story will appear here.</p>
         <template v-for="item in lines" :key="item.key">
           <div v-if="item.warning" class="warn-row">
