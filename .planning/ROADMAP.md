@@ -1403,5 +1403,39 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.18: Hotbar Manager (design: UWR Hotbar Manager) (BACKLOG)
+
+**Goal:** Build the hotbar management screen from the owner's Claude Design file, so players can arrange their abilities across hotbars on desktop and mobile. Captured 2026-10-06 (owner request).
+
+**Design source (re-import fresh when this is planned; never cached):**
+- claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`). Project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Hotbar+Manager.dc.html
+- Focus file: `UWR Hotbar Manager.dc.html`.
+- Also read the files it imports:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+- Implement `UWR Hotbar Manager.dc.html`: a hotbar management solution for the game.
+
+**Notes for planning:**
+- **Builds on Phase 47:** the hotbar (`src/hotbar/*`: HotbarRow, HotbarSelector, the cooldown ticker), the existing hotbar tables and reducers, and quick 261006-h5w / 261006-hpp (the slot tooltip with description and type).
+- **Run it as a UI phase:** `/gsd-ui-phase`, which writes a UI-SPEC from the fresh design import, then plan and execute.
+- **Desktop:** a Ledger drawer. **Mobile:** a sheet at 390×844, opened from the frame (a header button or More).
+- **Design guards apply:**
+  - no literal colors (map the mock's hex values to existing tokens; the pin stays 23), no v-html, no `<svg`
+  - Phosphor icons and Inter only
+  - sizes 10/12/14/20, weights 400/500
+  - spacing 4/8/16/24/32/48/64
+  - text nodes only
+- **Server:** confirm in research whether the design needs anything the hotbar reducers do not have yet, such as named hotbars, reordering or more slots. Server changes stay additive and publish locally only.
+- **Related:**
+  - 999.17 (round wind-up with cancel on the hotbar slot)
+  - todo `2026-10-06-race-ability-source-as-chip.md` (Race / Renown source chip on abilities)
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding backlog 999.17 (Combat round wind-up)*
+*Last updated: 2026-10-06 after adding backlog 999.18 (Hotbar Manager)*
