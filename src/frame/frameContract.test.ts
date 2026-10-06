@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
 import { listClientFiles, parseDecls, sfcStyleBlocks, type CssDecl } from '../styles/cssContract';
+import { WIDE_QUERY } from '../crafting/useWideLayout';
 import { DESKTOP_QUERY } from './useBreakpoint';
 
 // Static frame dimensions, breakpoint and motion contract (45-UI-SPEC "Frame Contract").
@@ -83,17 +84,25 @@ describe('breakpoint', () => {
     expect(DESKTOP_QUERY).toBe('(min-width: 900px)');
   });
 
-  it('every width media query is the 900px pair or the Ledger screens\' 1200px tier', () => {
+  it('every width media query is the 900px pair, or the 1200px tier inside the four Ledger screen folders', () => {
     // 50-UI-SPEC "Layout Contract": the Phase 50 screens switch their columns at 1200px of viewport
-    // width; the 900px desktop/mobile switch stays the frame's.
-    const allowed = new Set(['(min-width: 900px)', '(max-width: 899px)', '(min-width: 1200px)']);
+    // width; the 900px desktop/mobile switch stays the frame's. The 1200px tier is allowed only in
+    // src/(inventory|stats|vendor|crafting)/, so the frame and the shared screens cannot grow one.
+    const frameQueries = new Set(['(min-width: 900px)', '(max-width: 899px)']);
+    const ledgerScreen = /^src\/(inventory|stats|vendor|crafting)\//;
     const offenders: string[] = [];
     for (const { file, css } of allStyleSources()) {
       for (const params of atRules(css, 'media', file)) {
-        if (/width/i.test(params) && !allowed.has(params)) offenders.push(`${file}: @media ${params}`);
+        if (!/width/i.test(params) || frameQueries.has(params)) continue;
+        if (params === '(min-width: 1200px)' && ledgerScreen.test(file)) continue;
+        offenders.push(`${file}: @media ${params}`);
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('the crafting screen JS wide tier is the same 1200px the CSS tier uses', () => {
+    expect(WIDE_QUERY).toBe('(min-width: 1200px)');
   });
 
   it('the only container query is (max-width: 1099px) in HeaderBar.vue', () => {
