@@ -126,6 +126,7 @@ interface World {
   items?: ItemInstance[];
   templates?: ItemTemplate[];
   stock?: VendorInventory[];
+  stockApplied?: boolean;
   character?: Record<string, unknown> | null;
   npcsHere?: Npc[];
   factions?: Array<{ id: bigint; name: string }>;
@@ -171,7 +172,7 @@ function buildWorld(world: World) {
     itemsApplied: ref(true),
     templates: ref(new Map((world.templates ?? TEMPLATES).map((t) => [t.id, t]))),
     vendorStock: stock,
-    vendorStockApplied: ref(true),
+    vendorStockApplied: ref(world.stockApplied ?? true),
     vendorTarget,
     lastSale,
     setVendor,
@@ -340,6 +341,18 @@ describe('ForSale desktop', () => {
     const filtered = mountSale({ stock: [listing(104n, 5n, 15n)] });
     await filtered.w.findAll('[role="group"] button')[1].trigger('click');
     expect(filtered.w.get('.empty').text()).toBe('Nothing here your character can use.');
+  });
+
+  it('shows no empty line, no table and a busy region until the stock subscription applies (WR-05)', () => {
+    const { w } = mountSale({ stock: [], stockApplied: false });
+    expect(w.find('.empty').exists()).toBe(false);
+    expect(w.find('table').exists()).toBe(false);
+    expect(w.get('.rows-region').attributes('aria-busy')).toBe('true');
+    wrapper?.unmount();
+    wrapper = null;
+    const loaded = mountSale({ stock: [], stockApplied: true });
+    expect(loaded.w.get('.rows-region').attributes('aria-busy')).toBeUndefined();
+    expect(loaded.w.get('.empty').text()).toBe('Marta has nothing for sale right now.');
   });
 
   it('ignores stock rows that belong to another vendor', () => {
@@ -567,6 +580,23 @@ describe('VendorScreen desktop', () => {
     expect(setVendor).toHaveBeenLastCalledWith({ npcId: 3n, npcName: 'Bram' });
   });
 
+  it('moves focus to the vendor name after a pick removes the focused button (WR-03)', async () => {
+    const { w } = mountScreen({ npcsHere: TWO_VENDORS });
+    const pick = w.findAll('button.vendor-pick')[1];
+    (pick.element as HTMLElement).focus();
+    await pick.trigger('click');
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('.band .name').element);
+    expect(w.get('.band .name').attributes('tabindex')).toBe('-1');
+  });
+
+  it('renders vendor names in the Vendors here list literally (IN-08)', () => {
+    const { w } = mountScreen({ npcsHere: [npc(2n, XSS), npc(3n, 'Bram')] });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.findAll('button.vendor-pick')[0].text()).toBe(XSS);
+  });
+
   it('shows No vendor here with the Nearby hint when no vendor is here, and with no character', () => {
     const none = mountScreen({ npcsHere: [npc(8n, 'Aldric', { npcType: 'quest' })] });
     expect(none.w.text()).toContain('No vendor here.');
@@ -718,8 +748,13 @@ describe('VendorScreen mobile', () => {
   it('lists several vendors on mobile too and shows the chosen one', async () => {
     const { w } = mountScreen({ isDesktop: false, npcsHere: TWO_VENDORS });
     expect(w.get('h6').text()).toBe('Vendors here');
-    await w.findAll('button.vendor-pick')[0].trigger('click');
+    const pick = w.findAll('button.vendor-pick')[0];
+    (pick.element as HTMLElement).focus();
+    await pick.trigger('click');
+    await nextTick();
+    await nextTick();
     expect(w.get('.vendor-row .name').text()).toBe('Marta');
+    expect(document.activeElement).toBe(w.get('.vendor-row .name').element);
   });
 
   it('keeps the mobile 44px rules in the sources and puts the gold in the header meta only', () => {

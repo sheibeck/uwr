@@ -49,8 +49,13 @@ const input = computed<ForSaleInput | null>(() => {
   };
 });
 
-const rows = computed<ForSaleRow[]>(() => (input.value ? forSaleRows(input.value) : []));
-const emptyText = computed(() => (input.value ? forSaleEmptyText(input.value, props.vendor.name) : null));
+// Nothing renders until the stock subscription applies: a vendor's stock is always empty for a
+// moment after the vendor target changes, and that must not read as "nothing for sale".
+const stockApplied = computed(() => ledger.vendorStockApplied.value);
+const rows = computed<ForSaleRow[]>(() => (input.value && stockApplied.value ? forSaleRows(input.value) : []));
+const emptyText = computed(() =>
+  input.value && stockApplied.value ? forSaleEmptyText(input.value, props.vendor.name) : null,
+);
 
 const goneReason = computed(() => `${props.vendor.name} is no longer nearby.`);
 
@@ -97,7 +102,7 @@ function setFilter(id: string): void {
       />
     </div>
 
-    <div class="rows-region">
+    <div class="rows-region" :aria-busy="stockApplied ? undefined : 'true'">
       <p v-if="emptyText" class="empty">{{ emptyText }}</p>
 
       <table v-else-if="!props.mobile && rows.length > 0" class="table sale-table">

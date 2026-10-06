@@ -42,6 +42,9 @@ const junk = computed(() =>
   sellInput.value ? junkSummary(sellInput.value) : { count: 0, gold: 0n, prompt: '' },
 );
 
+// Until the item subscription applies the bag is unknown, so no empty line shows (50-UI-SPEC: empty
+// states never flash).
+const itemsApplied = computed(() => ledger.itemsApplied.value);
 const offline = computed(() => !game.connected.value || ledger.reducers.value === null);
 const vendorGone = computed(() => !props.vendorNearby || props.openVendorId === null);
 const goneReason = computed(() => `${props.vendorName} is no longer nearby.`);
@@ -170,8 +173,8 @@ watch(vendorGone, (gone) => {
       <p v-if="vendorGone" :id="REASON_ID" class="reason">{{ goneReason }}</p>
 
       <div class="table-region">
-        <p v-if="rows.length === 0" class="empty">Nothing in your backpack to sell.</p>
-        <table v-else class="table sell-table">
+        <p v-if="itemsApplied && rows.length === 0" class="empty">Nothing in your backpack to sell.</p>
+        <table v-else-if="rows.length > 0" class="table sell-table">
           <caption class="sr-only">Your backpack</caption>
           <thead>
             <tr>
@@ -248,8 +251,8 @@ watch(vendorGone, (gone) => {
 
       <JustSold mobile :open-vendor-id="props.openVendorId" :runner="props.runner" @cleared="focusHeading" />
 
-      <p v-if="rows.length === 0" class="empty">Nothing in your backpack to sell.</p>
-      <ul v-else class="sell-list">
+      <p v-if="itemsApplied && rows.length === 0" class="empty">Nothing in your backpack to sell.</p>
+      <ul v-else-if="rows.length > 0" class="sell-list">
         <li v-for="row in rows" :key="String(row.instanceId)" class="sell-row">
           <div class="info">
             <span class="item-line">

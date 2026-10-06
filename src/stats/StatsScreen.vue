@@ -38,7 +38,10 @@ const TABS = [
 const character = computed(() => game.character.value);
 const bars = computed(() => {
   const c = character.value;
-  return c ? statBars(c, ledger.items.value, ledger.templates.value, ledger.affixes.value).bars : [];
+  // Gear is summed from the item rows, so no bars show until they have applied (no false zero gear).
+  return c && ledger.itemsApplied.value
+    ? statBars(c, ledger.items.value, ledger.templates.value, ledger.affixes.value).bars
+    : [];
 });
 const derived = computed(() => (character.value ? derivedRows(character.value) : []));
 const factions = computed(() =>

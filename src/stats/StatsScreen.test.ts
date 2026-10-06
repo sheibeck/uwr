@@ -41,6 +41,7 @@ interface World {
   locations?: Row[];
   pendingPerks?: Row[];
   items?: Row[];
+  itemsApplied?: boolean;
   templates?: Row[];
   affixes?: Row[];
   connected?: boolean;
@@ -117,7 +118,7 @@ function world(w: World = {}) {
     ...createInertLedger(),
     pendingPerks,
     items: ref(w.items ?? []),
-    itemsApplied: ref(true),
+    itemsApplied: ref(w.itemsApplied ?? true),
     templates: ref(new Map((w.templates ?? []).map((t) => [t.id as bigint, t]))),
     affixes: ref(w.affixes ?? []),
     reducers: reducersRef,
@@ -353,6 +354,11 @@ describe('StatsScreen desktop', () => {
     expect(rows[0].find('.gear-seg').attributes('style')).toContain('width: 20%');
     expect(rows[0].find('.sr-only').text()).toBe('Strength 14, base 10, plus 4 from gear');
     expect(rows[1].find('.gear-seg').attributes('style')).toContain('width: 0%');
+  });
+
+  it('shows no bars until the item subscription has applied, so gear never reads as a false zero (WR-05)', async () => {
+    mountScreen({ itemsApplied: false });
+    expect(wrapper!.findAll('.stat-row')).toHaveLength(0);
   });
 
   it('colors the gear segment with the accent and the base segment neutral', () => {

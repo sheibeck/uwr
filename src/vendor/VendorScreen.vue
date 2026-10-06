@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { PhStorefront } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import type { ScreenArgs } from '../game/context';
@@ -105,10 +105,16 @@ watch(
   },
 );
 
-function choose(id: bigint, name: string): void {
+// The Vendors here list is replaced by the vendor band, which removes the focused pick; focus
+// moves to the vendor's name (tabindex -1), so it is announced and never falls to body.
+const vendorName = useTemplateRef<HTMLElement>('vendorName');
+
+async function choose(id: bigint, name: string): Promise<void> {
   chosen.value = { id, name };
   resetKey.value += 1;
   tab.value = 'buy';
+  await nextTick();
+  vendorName.value?.focus();
 }
 
 const nearby = computed(() => (snapshot.value === null ? false : !vendorLeft(snapshot.value, game.npcsHere.value)));
@@ -160,7 +166,7 @@ const rapport = computed(() => {
       <div v-if="!mobile" class="band">
         <span class="avatar" aria-hidden="true">{{ initial }}</span>
         <div class="identity">
-          <span class="name">{{ snapshot.name }}</span>
+          <span ref="vendorName" class="name" tabindex="-1">{{ snapshot.name }}</span>
           <span class="role">{{ role }}</span>
         </div>
         <p v-if="rapport" class="rapport">
@@ -172,7 +178,7 @@ const rapport = computed(() => {
         <div class="vendor-row">
           <span class="avatar" aria-hidden="true">{{ initial }}</span>
           <div class="identity">
-            <span class="name">{{ snapshot.name }}</span>
+            <span ref="vendorName" class="name" tabindex="-1">{{ snapshot.name }}</span>
             <span v-if="quote" class="quote one-line" :title="snapshot.greeting">{{ quote }}</span>
           </div>
         </div>

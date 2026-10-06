@@ -76,6 +76,7 @@ interface World {
   items?: ItemInstance[];
   templates?: ItemTemplate[];
   connected?: boolean;
+  itemsApplied?: boolean;
   gold?: bigint;
   vendorNearby?: boolean;
   openVendorId?: bigint | null;
@@ -111,6 +112,7 @@ function setup(world: World = {}) {
   const ledger = {
     ...createInertLedger(),
     items,
+    itemsApplied: ref(world.itemsApplied ?? true),
     lastSale,
     templates: ref(new Map((world.templates ?? TEMPLATES).map((t) => [t.id, t]))),
     reducers: computed(() => (connected.value ? reducers : null)),
@@ -290,6 +292,16 @@ describe('SellPanel desktop', () => {
     const { w } = setup({ items: [] });
     expect(w.get('.empty').text()).toBe('Nothing in your backpack to sell.');
     expect(w.find('table').exists()).toBe(false);
+  });
+
+  it('shows no empty line until the item subscription has applied (WR-05)', () => {
+    const { w } = setup({ items: [], itemsApplied: false });
+    expect(w.find('.empty').exists()).toBe(false);
+    expect(w.find('table').exists()).toBe(false);
+    wrapper?.unmount();
+    wrapper = null;
+    const mobile = setup({ items: [], itemsApplied: false, mobile: true });
+    expect(mobile.w.find('.empty').exists()).toBe(false);
   });
 
   it('disables every action while offline', async () => {
