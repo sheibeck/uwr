@@ -6,6 +6,8 @@ import {
   CRAFT_QUALITIES as RELATIVE_CRAFT_QUALITIES,
   QUALITY_TIERS as RELATIVE_QUALITY_TIERS,
 } from '../spacetimedb/src/data/mechanical_vocabulary';
+import { computeCreationStats } from '@game-data/race_bonuses';
+import { computeCreationStats as relativeComputeCreationStats } from '../spacetimedb/src/data/race_bonuses';
 
 // The server owns game data; client code reaches it only through the @game-data alias
 // (CONTEXT: server is source of truth, imported through a path alias).
@@ -55,5 +57,27 @@ describe('@game-data alias', () => {
       if (relative.test(readFileSync(file, 'utf8'))) offenders.push(file.slice(ROOT.length));
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('@game-data race_bonuses', () => {
+  const DARK_ELF =
+    '{"primary":{"stat":"dex","value":2},"secondary":{"stat":"int","value":1},"flavor":"Underlight Eyes"}';
+
+  function specifiers(file: string): string[] {
+    const source = readFileSync(`${ROOT}spacetimedb/src/data/${file}`, 'utf8');
+    return [...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
+  }
+
+  it('resolves to the same helper as the relative server path', () => {
+    const viaAlias = computeCreationStats('int', 'wis', DARK_ELF);
+    const viaRelative = relativeComputeCreationStats('int', 'wis', DARK_ELF);
+    expect(viaAlias).toEqual(viaRelative);
+    expect(viaAlias.stats).toEqual({ str: 8n, dex: 10n, cha: 8n, wis: 10n, int: 13n });
+  });
+
+  it('stays browser-safe: only ./class_stats, and class_stats imports nothing', () => {
+    expect(new Set(specifiers('race_bonuses.ts'))).toEqual(new Set(['./class_stats']));
+    expect(specifiers('class_stats.ts')).toEqual([]);
   });
 });
