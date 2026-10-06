@@ -1414,6 +1414,10 @@ Plans:
 - When the fight ends, the rounds left on a cooldown convert back to wall-clock time (`roundsToWallClockMicros`).
 - The hotbar shows "N rounds" in combat (48 and quick 261006-h5w/hpp).
 - The proposed cast rule divides by 2s while cooldowns divide by 4s, so the two units would not match.
+- **Owner's live example (2026-10-06):** "Grudge Stab". Out of combat it reads `8 stamina · 5s cooldown · Instant`; in combat it reads `8 stamina · 2 round cooldown · Instant`.
+  - That is ceil(5 / 4) = 2 rounds. A round can last up to 10s (`ROUND_TIMER_MICROS`), so a 5s cooldown can lock the ability for up to about 20s of real time, roughly four times longer than it says out of combat.
+  - Rounds can also resolve early when everyone has chosen, so the real time varies. The two displays never agree.
+  - The new rule must make in-combat and out-of-combat cooldowns feel equivalent. For example, short cooldowns that are at or below one round's worth become 1 round. Alternatively, the hotbar and tooltip show both values, such as "1 round (5s)". This example must be a test row.
 
 Decide and test all of the following:
 1. **One seconds-to-rounds rule.** Use the same rule for cast time and cooldown, or state on purpose why they differ. Record the chosen divisor and rounding next to `castRounds`.
