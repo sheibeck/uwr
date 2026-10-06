@@ -489,15 +489,17 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
     return hit ? hit.count : 0n;
   };
 
-  // Materials: each requirement against the raw count, like the reducer.
-  const reqs: { templateId: bigint; count: bigint }[] = [
-    { templateId: recipe.req1TemplateId, count: recipe.req1Count },
-    { templateId: recipe.req2TemplateId, count: recipe.req2Count },
-  ];
-  if (recipe.req3TemplateId != null) {
-    reqs.push({ templateId: recipe.req3TemplateId, count: recipe.req3Count ?? 0n });
+  // Materials: the reducer removes requirement 1, requirement 2 and (only when it has both a
+  // template and a count) requirement 3. Requirements are decided by position, never by template
+  // id, so a requirement that shares a template with a skipped third slot is still consumed.
+  need(recipe.req1TemplateId, recipe.req1Count);
+  need(recipe.req2TemplateId, recipe.req2Count);
+  if (recipe.req3TemplateId != null && recipe.req3Count != null) {
+    need(recipe.req3TemplateId, recipe.req3Count);
   }
-  for (const req of reqs) {
+  // Requirements that share a template are merged by need(), so the check is on the merged total:
+  // req1 == req2 with counts 2 and 3 needs 5 on hand, not 3.
+  for (const req of consumes) {
     const have = input.countOf(req.templateId);
     if (have < req.count) {
       return {
@@ -509,11 +511,6 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
         need: req.count,
       };
     }
-  }
-  // The reducer only removes a third requirement that has a count.
-  for (const req of reqs) {
-    if (req.templateId === recipe.req3TemplateId && recipe.req3Count == null) continue;
-    need(req.templateId, req.count);
   }
 
   const gear = isGearRecipe(recipe);

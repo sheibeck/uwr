@@ -139,6 +139,7 @@ const R = {
   armorT3: 112n,
   armorUnknown: 113n,
   potion: 120n,
+  repeated: 130n,
   missing: 999n,
 };
 const RECIPES = [
@@ -151,6 +152,8 @@ const RECIPES = [
   recipe(R.armorT3, ID.t3, ID.armor, 'armor'),
   recipe(R.armorUnknown, ID.unknownMat, ID.armor, 'armor'),
   recipe(R.potion, ID.t1, ID.potion, 'consumable'),
+  // Requirements 1 and 2 are the same template (counts 2 and 3): the plan must count the sum.
+  { ...recipe(R.repeated, ID.t2, ID.weapon, 'weapon'), req2TemplateId: ID.t2, req2Count: 3n },
 ];
 
 let nextInstance = 1000n;
@@ -334,6 +337,21 @@ describe('craft_recipe refusals cost nothing', () => {
       { recipeTemplateId: R.weaponT2, catalystTemplateId: ID.lesser, modifier1TemplateId: ID.modA },
       'Essence tier too low for this craft quality',
     );
+  });
+
+  it('a recipe that repeats a material template is refused on the merged total, with the server text', () => {
+    // Counts 2 and 3 of the same template with 4 on hand: each is met alone, the sum (5) is not.
+    const ctx = newCtx([stack(ID.t2, 4n)]);
+    expectRefused(ctx, { recipeTemplateId: R.repeated }, 'Missing materials to craft this recipe.');
+    expect(countOf(ctx, ID.t2)).toBe(4n);
+  });
+
+  it('a recipe that repeats a material template crafts when the merged total is on hand', () => {
+    const ctx = newCtx([stack(ID.t2, 5n)]);
+    craft(ctx, { recipeTemplateId: R.repeated });
+    expect(countOf(ctx, ID.t2)).toBe(0n);
+    expect(crafted(ctx, ID.weapon)).toHaveLength(1);
+    expect(messages(ctx)).toEqual(['You craft Test Blade.']);
   });
 
   it('essence named but none on hand', () => {
