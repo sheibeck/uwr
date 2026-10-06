@@ -254,6 +254,21 @@ describe('FeedView keywords', () => {
       expect(w.find('button.keyword').exists()).toBe(false);
     });
 
+    it('lets an enemy keyword outrank a player with the same name', async () => {
+      const h = harness({
+        enemiesHere: ref([spawn(9n, 'Marisol', 'available')]),
+        playersHere: ref([{ id: 8n, name: 'Marisol', level: 2n }]),
+      });
+      const w = mountView(h);
+      ingest(h, keeperLine('Marisol steps out of the trees.'));
+      await settle();
+      const buttons = w.findAll('button.keyword');
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0].attributes('aria-label')).toBe('Pull Marisol');
+      await buttons[0].trigger('click');
+      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Marisol' });
+    });
+
     it('renders a markup enemy name literally', async () => {
       const h = harness({ enemiesHere: ref([spawn(9n, PAYLOAD, 'available')]) });
       const w = mountView(h);

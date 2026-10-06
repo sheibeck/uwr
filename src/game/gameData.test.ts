@@ -384,6 +384,19 @@ describe('createGameData: enemy spawns here (quick-261006-a0i)', () => {
     expect(h.game.enemyTemplatesHere.value).toEqual([{ id: 3n, level: 8n }]);
   });
 
+  it('has spawns but no templates until the chained template binding applies', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 3n });
+    expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(0);
+    const spawns = h.find('Q_ENEMY_SPAWNS_3');
+    spawns.rows.value = [{ id: 1n, locationId: 3n, enemyTemplateId: 3n }];
+    spawns.applied.value = true;
+    expect(h.game.enemiesHere.value).toHaveLength(1);
+    expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(1);
+    expect(h.game.enemyTemplatesHere.value).toEqual([]);
+  });
+
   it('disposes both bindings on reset', () => {
     const h = harness();
     h.connect();
@@ -392,9 +405,15 @@ describe('createGameData: enemy spawns here (quick-261006-a0i)', () => {
     spawns.rows.value = [{ id: 1n, locationId: 3n, enemyTemplateId: 3n }];
     spawns.applied.value = true;
     expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(1);
+    h.find('Q_ENEMY_TEMPLATES_3').rows.value = [{ id: 3n, level: 8n }];
+    h.find('Q_ENEMY_TEMPLATES_3').applied.value = true;
+    expect(h.game.enemiesHere.value).toHaveLength(1);
+    expect(h.game.enemyTemplatesHere.value).toHaveLength(1);
     h.game.reset();
     expect(h.live('Q_ENEMY_SPAWNS_3')).toHaveLength(0);
     expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(0);
+    expect(h.game.enemiesHere.value).toEqual([]);
+    expect(h.game.enemyTemplatesHere.value).toEqual([]);
   });
 });
 
