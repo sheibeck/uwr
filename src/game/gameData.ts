@@ -229,6 +229,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     table: (c: C) => EventTableLike<R>,
     sql: (k: bigint) => string,
     source: Source,
+    matches: (row: R, k: bigint) => boolean,
   ) {
     return createKeyed<C, bigint, EventTableBinding<C>>({
       key,
@@ -238,7 +239,11 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
         deps.bindEvent<R>({
           table,
           sql: [sql(k)],
-          onRow: onEvent<R>(source),
+          // The event listener is table-wide, so it also sees rows delivered for a previous
+          // key (a straggler after a swap). Only rows for this binding's key are accepted.
+          onRow: (row) => {
+            if (matches(row, k)) onEvent<R>(source)(row);
+          },
         }),
     });
   }
@@ -248,18 +253,21 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     (c) => c.db.eventPrivate,
     queries.eventPrivate,
     'private',
+    (row, k) => row.ownerUserId === k,
   );
   const locationEvents = keyedEvent<EventLocation>(
     locationKey,
     (c) => c.db.eventLocation,
     queries.eventLocation,
     'location',
+    (row, k) => row.locationId === k,
   );
   const groupEvents = keyedEvent<EventGroup>(
     groupKey,
     (c) => c.db.eventGroup,
     queries.eventGroup,
     'group',
+    (row, k) => row.groupId === k,
   );
 
   const npcs = keyedTable<Npc, bigint>(

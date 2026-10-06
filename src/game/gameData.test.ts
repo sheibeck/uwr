@@ -232,7 +232,7 @@ describe('createGameData: event_private by user', () => {
     expect(binding.conn).not.toBeNull();
 
     const onRow = (binding.options as BindEventTableOptions<FakeConn, any>).onRow;
-    onRow(eventRow(1n, 5_000_000, { characterId: 5n }));
+    onRow(eventRow(1n, 5_000_000, { characterId: 5n, ownerUserId: 7n }));
     h.game.feed.flush();
     expect(h.game.feed.entries.value.map((e) => e.key)).toEqual(['private:1']);
     // skew = server micros - now() * 1000
@@ -262,10 +262,10 @@ describe('createGameData: event_private by user', () => {
       eventRow(1n, 100),
     );
     (h.find('Q_EVENT_LOCATION_3').options as BindEventTableOptions<FakeConn, any>).onRow(
-      eventRow(2n, 200),
+      eventRow(2n, 200, { locationId: 3n }),
     );
     (h.find('Q_EVENT_GROUP_4').options as BindEventTableOptions<FakeConn, any>).onRow(
-      eventRow(3n, 300, { characterId: 9n, kind: 'group' }),
+      eventRow(3n, 300, { characterId: 9n, kind: 'group', groupId: 4n }),
     );
     h.game.feed.flush();
     expect(h.game.feed.entries.value.map((e) => e.key)).toEqual([
@@ -273,6 +273,53 @@ describe('createGameData: event_private by user', () => {
       'location:2',
       'group:3',
     ]);
+  });
+});
+
+describe('createGameData: event rows for another key (WR-01)', () => {
+  const onRowOf = (h: ReturnType<typeof harness>, sql: string) =>
+    (h.find(sql).options as BindEventTableOptions<FakeConn, any>).onRow;
+
+  it('drops event_location rows whose locationId is not the binding key', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 4n });
+    const onRow = onRowOf(h, 'Q_EVENT_LOCATION_4');
+    onRow(eventRow(1n, 100, { locationId: 3n }));
+    onRow(eventRow(2n, 200, { locationId: 4n }));
+    h.game.feed.flush();
+    expect(h.game.feed.entries.value.map((e) => e.key)).toEqual(['location:2']);
+  });
+
+  it('drops event_group rows whose groupId is not the binding key', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { groupId: 4n });
+    const onRow = onRowOf(h, 'Q_EVENT_GROUP_4');
+    onRow(eventRow(1n, 100, { groupId: 9n, characterId: 9n, kind: 'group' }));
+    onRow(eventRow(2n, 200, { groupId: 4n, characterId: 9n, kind: 'group' }));
+    h.game.feed.flush();
+    expect(h.game.feed.entries.value.map((e) => e.key)).toEqual(['group:2']);
+  });
+
+  it('drops event_private rows whose ownerUserId is not the binding key', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    h.userId.value = 7n;
+    const onRow = onRowOf(h, 'Q_EVENT_PRIVATE_7');
+    onRow(eventRow(1n, 100, { ownerUserId: 8n, characterId: 5n }));
+    onRow(eventRow(2n, 200, { ownerUserId: 7n, characterId: 5n }));
+    h.game.feed.flush();
+    expect(h.game.feed.entries.value.map((e) => e.key)).toEqual(['private:2']);
+  });
+
+  it('does not sample the clock for a dropped straggler', () => {
+    const h = harness(() => 1_000);
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 4n });
+    onRowOf(h, 'Q_EVENT_LOCATION_4')(eventRow(1n, 9_000_000, { locationId: 3n }));
+    expect(h.game.clock.skewMicros.value).toBe(0);
   });
 });
 
