@@ -114,6 +114,7 @@ export function worldContext(world: World) {
     equipItem: async () => undefined,
     unequipItem: async () => undefined,
     useItem: async () => undefined,
+    eatFood: async () => undefined,
     salvageItem: async () => undefined,
     learnRecipeScroll: async () => undefined,
     ...world.reducers,

@@ -96,6 +96,7 @@ function mountInspector(setup: Setup) {
     equipItem: vi.fn().mockResolvedValue(undefined),
     unequipItem: vi.fn().mockResolvedValue(undefined),
     useItem: vi.fn().mockResolvedValue(undefined),
+    eatFood: vi.fn().mockResolvedValue(undefined),
     salvageItem: vi.fn().mockResolvedValue(undefined),
     learnRecipeScroll: vi.fn().mockResolvedValue(undefined),
     ...setup.reducers,
@@ -294,6 +295,17 @@ describe('Inspector card', () => {
     expect(food.reducers.useItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 3n });
     wrapper!.unmount();
 
+    const stew = mountInspector({
+      items: [inst(6n, 6n)],
+      templates: [tpl(6n, { slot: 'food', name: 'Hearthstone Stew', armorType: '', wellFedDurationMicros: 60n })],
+      instanceId: 6n,
+    });
+    expect(primary().text()).toBe('Eat item');
+    await primary().trigger('click');
+    expect(stew.reducers.eatFood).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 6n });
+    expect(stew.reducers.useItem).not.toHaveBeenCalled();
+    wrapper!.unmount();
+
     const scroll = mountInspector({
       items: [inst(4n, 4n)],
       templates: [tpl(4n, { slot: 'misc', name: 'Scroll: Rope', armorType: '' })],
@@ -345,6 +357,28 @@ describe('Inspector salvage', () => {
     expect(reducers.salvageItem).not.toHaveBeenCalled();
     expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
     expect(document.activeElement).toBe(salvage().element);
+  });
+
+  it('asks first for crafted gear the server stores as common, and for a reagent-affixed item (CR-01)', async () => {
+    const crafted = mountInspector({
+      items: [inst(2n, 2n, { qualityTier: 'common', craftQuality: 'exquisite' })],
+      templates: [tpl(2n)],
+      instanceId: 2n,
+    });
+    await salvage().trigger('click');
+    expect(crafted.reducers.salvageItem).not.toHaveBeenCalled();
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(true);
+    wrapper!.unmount();
+
+    const affixed = mountInspector({
+      items: [inst(3n, 3n)],
+      templates: [tpl(3n)],
+      affixes: [affix(1n, 3n, 'intBonus', 2n)],
+      instanceId: 3n,
+    });
+    await salvage().trigger('click');
+    expect(affixed.reducers.salvageItem).not.toHaveBeenCalled();
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(true);
   });
 
   it('salvages after Yes, salvage', async () => {
@@ -526,6 +560,18 @@ describe('Inspector escaping', () => {
     });
     expect(wrapper!.find('img').exists()).toBe(false);
     expect(wrapper!.text()).toContain(XSS);
+  });
+
+  it('renders a markup item name in the salvage prompt as text', async () => {
+    mountInspector({
+      items: [inst(2n, 2n, { displayName: XSS })],
+      templates: [tpl(2n, { rarity: 'rare' })],
+      instanceId: 2n,
+    });
+    await salvage().trigger('click');
+    const prompt = wrapper!.get('.confirm-prompt');
+    expect(prompt.find('img').exists()).toBe(false);
+    expect(prompt.text()).toContain(XSS);
   });
 
   it('does not use v-html anywhere in the source', () => {

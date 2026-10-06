@@ -285,6 +285,19 @@ describe('inspectorView actions', () => {
     expect(salvageable.salvage.visible).toBe(false);
   });
 
+  it('offers Eat item (mobile Eat) for generated food the use_item keys do not cover (WR-01)', () => {
+    const stew = tpl(1n, { slot: 'food', name: 'Hearthstone Stew', armorType: '', wellFedDurationMicros: 60n });
+    const view = inspectorView(input(inst(1n, 1n), [stew]))!;
+    expect(view.primary).toEqual({
+      kind: 'eat',
+      label: 'Eat item',
+      mobileLabel: 'Eat',
+      available: true,
+      reason: null,
+    });
+    expect(view.salvage.visible).toBe(false);
+  });
+
   it('offers Learn recipe for scrolls', () => {
     const scroll = tpl(1n, { slot: 'misc', name: 'Scroll: Rope', armorType: '' });
     expect(inspectorView(input(inst(1n, 1n), [scroll]))!.primary).toMatchObject({
@@ -313,6 +326,23 @@ describe('inspectorView salvage', () => {
     expect(
       inspectorView(input(inst(1n, 1n, { qualityTier: 'rare' }), [tpl(1n)]))!.salvage.needsConfirm,
     ).toBe(true);
+  });
+
+  it('needs confirmation for crafted gear stored as common (CR-01)', () => {
+    const crafted = inst(1n, 1n, { qualityTier: 'common', craftQuality: 'exquisite' });
+    expect(inspectorView(input(crafted, [tpl(1n)]))!.salvage.needsConfirm).toBe(true);
+    const standard = inst(1n, 1n, { craftQuality: 'standard' });
+    expect(inspectorView(input(standard, [tpl(1n)]))!.salvage.needsConfirm).toBe(true);
+  });
+
+  it('needs confirmation for a common item with a reagent or rolled affix, not an implicit one', () => {
+    const bag = inst(1n, 1n);
+    const prefixed = [affix(1n, 1n, 'intBonus', 2n, 'prefix', 'Sage')];
+    expect(inspectorView(input(bag, [tpl(1n)], { affixes: prefixed }))!.salvage.needsConfirm).toBe(true);
+    const implicit = [affix(2n, 1n, 'armorClassBonus', 1n, 'implicit', 'Standard')];
+    expect(inspectorView(input(bag, [tpl(1n)], { affixes: implicit }))!.salvage.needsConfirm).toBe(false);
+    const other = [affix(3n, 99n, 'intBonus', 2n, 'prefix', 'Sage')];
+    expect(inspectorView(input(bag, [tpl(1n)], { affixes: other }))!.salvage.needsConfirm).toBe(false);
   });
 
   it('needs confirmation for an equipped item even when common', () => {

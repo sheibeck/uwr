@@ -114,6 +114,9 @@ function onPrimary(): void {
     case 'use':
       void props.runner.run(key, () => reducers.useItem({ characterId, itemInstanceId }));
       break;
+    case 'eat':
+      void props.runner.run(key, () => reducers.eatFood({ characterId, itemInstanceId }));
+      break;
     case 'learn':
       void props.runner.run(key, () => reducers.learnRecipeScroll({ characterId, itemInstanceId }));
       break;

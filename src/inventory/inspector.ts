@@ -53,7 +53,7 @@ export interface MetaPart {
   craftQuality?: string;
 }
 
-export type PrimaryKind = 'equip' | 'unequip' | 'use' | 'learn';
+export type PrimaryKind = 'equip' | 'unequip' | 'use' | 'eat' | 'learn';
 
 export interface InspectorPrimary {
   kind: PrimaryKind;
@@ -242,13 +242,20 @@ export function inspectorView(input: InspectorInput): InspectorView | null {
     };
   } else if (category === 'food' && isUsableItemName(template.name)) {
     primary = { kind: 'use', label: 'Use item', mobileLabel: 'Use', available: true, reason: null };
+  } else if (template.slot === 'food') {
+    // Generated food: the server consumes it through eat_food (hunger.ts), not use_item.
+    primary = { kind: 'eat', label: 'Eat item', mobileLabel: 'Eat', available: true, reason: null };
   }
 
   const salvageVisible = isSalvageableTemplate(template);
   const salvageBlocked = salvageVisible && equipped && usage.full;
+  // craft_recipe stores every crafted instance as 'common', so rarity alone cannot protect crafted
+  // gear: a crafted quality or any non-implicit affix (reagent or rolled) also asks first.
+  const crafted = filled(instance.craftQuality);
+  const affixed = affixesFor(instance.id, affixes).some((a) => a.affixType !== 'implicit');
   const salvage: InspectorSalvage = {
     visible: salvageVisible,
-    needsConfirm: salvageVisible && (rarity !== 'common' || equipped),
+    needsConfirm: salvageVisible && (rarity !== 'common' || equipped || crafted || affixed),
     available: !salvageBlocked,
     reason: salvageBlocked ? BACKPACK_FULL : null,
   };

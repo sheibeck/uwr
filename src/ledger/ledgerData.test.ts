@@ -11,6 +11,7 @@ const REDUCER_NAMES = [
   'equipItem',
   'unequipItem',
   'useItem',
+  'eatFood',
   'salvageItem',
   'learnRecipeScroll',
   'sellItem',

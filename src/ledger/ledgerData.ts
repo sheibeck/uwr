@@ -253,6 +253,7 @@ export function createLedgerData<C extends LedgerConn>(
       equipItem: (a) => r.equipItem(a),
       unequipItem: (a) => r.unequipItem(a),
       useItem: (a) => r.useItem(a),
+      eatFood: (a) => r.eatFood(a),
       salvageItem: (a) => r.salvageItem(a),
       learnRecipeScroll: (a) => r.learnRecipeScroll(a),
       sellItem: (a) => r.sellItem(a),
