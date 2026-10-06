@@ -153,6 +153,27 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
       { flush: 'sync' },
     );
 
+    // The countdown reads the server-clock estimate, which only feed events used to sample. A client
+    // clock that runs ahead of the server would read the open round as expired and lock the round
+    // controls, so a round that arrives live (Round 1, or the round after one this controller saw)
+    // samples its startedAt too. A first sight of a later round may be a snapshot up to one round
+    // old, so it is not sampled.
+    let lastSeenRound: { combatId: bigint; roundNumber: bigint } | null = null;
+    watch(
+      combat.openRound,
+      (round) => {
+        if (round === null) return;
+        const prev = lastSeenRound;
+        if (prev !== null && prev.combatId === round.combatId && prev.roundNumber === round.roundNumber) return;
+        lastSeenRound = { combatId: round.combatId, roundNumber: round.roundNumber };
+        const advanced = prev !== null && prev.combatId === round.combatId && round.roundNumber > prev.roundNumber;
+        if (!advanced && round.roundNumber !== 1n) return;
+        if (round.startedAtMicros === 0n) return;
+        game.clock.sample(round.startedAtMicros);
+      },
+      { flush: 'sync' },
+    );
+
     watch(
       () => game.character.value?.combatTargetEnemyId ?? null,
       (confirmed) => {

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
 import type { EffectScope, Ref } from 'vue';
+import { createServerClock } from '../game/serverClock';
 import { createCombatController } from './useCombatController';
 import { createInertCombatData, createInertGame } from '../game/context';
 import type { CombatController, FrameControls, GameData } from '../game/context';
@@ -551,6 +552,61 @@ describe('round clock', () => {
     fake.setNow(now + 7_000_000);
     vi.advanceTimersByTime(250);
     expect(c.resolving.value).toBe(true);
+  });
+
+  describe('with a client clock that runs ahead of the server', () => {
+    const SERVER_MS = 1_700_000_000_000;
+    const AHEAD_MS = 10_000;
+
+    function skewed() {
+      const fake = build();
+      let clientMs = SERVER_MS + AHEAD_MS;
+      (fake.game as unknown as { clock: unknown }).clock = createServerClock(() => clientMs);
+      const open = (roundNumber: bigint, startedAtMs = SERVER_MS): Record<string, unknown> => ({
+        id: roundNumber,
+        combatId: 1n,
+        roundNumber,
+        state: 'action_select',
+        startedAtMicros: BigInt(startedAtMs) * 1000n,
+        timerExpiresAtMicros: BigInt(startedAtMs) * 1000n + 6_000_000n,
+      });
+      return { fake, open, advance: (ms: number) => void (clientMs += ms) };
+    }
+
+    it('does not read a round that just arrived as expired', async () => {
+      const { fake, open } = skewed();
+      const c = start(fake);
+      // Without a sample the estimate is 10 s past the server, so 6 s rounds would read expired.
+      fake.openRound.value = open(1n);
+      await nextTick();
+      expect(c.resolving.value).toBe(false);
+      expect(c.timer.value.seconds).toBe(6);
+    });
+
+    it('samples the next round when the open round advances', async () => {
+      vi.useFakeTimers();
+      const { fake, open, advance } = skewed();
+      const c = start(fake);
+      fake.openRound.value = open(1n);
+      await nextTick();
+      // Drop the sample from round 1 to prove round 2 re-samples (a client drift of +3 s).
+      advance(6_000);
+      (fake.game.clock as ReturnType<typeof createServerClock>).sample(BigInt(SERVER_MS - 3_000) * 1000n);
+      fake.openRound.value = open(2n, SERVER_MS + 6_000);
+      vi.advanceTimersByTime(250);
+      expect(c.resolving.value).toBe(false);
+      expect(c.timer.value.seconds).toBe(6);
+    });
+
+    it('does not sample a later round first seen as a snapshot', async () => {
+      const { fake, open } = skewed();
+      const c = start(fake);
+      // A mid-fight reload: round 4 started 5 s ago. Sampling it would bias the estimate.
+      fake.openRound.value = open(4n, SERVER_MS - 5_000);
+      await nextTick();
+      expect(fake.game.clock.skewMicros.value).toBe(0);
+      expect(c.resolving.value).toBe(true);
+    });
   });
 
   it('is resolving with no open round', () => {
