@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computed, nextTick, ref, shallowRef } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
@@ -18,6 +18,7 @@ import type { ItemAffix, ItemInstance, ItemTemplate } from '../module_bindings/t
 import EquippedSlots from './EquippedSlots.vue';
 import BackpackGrid from './BackpackGrid.vue';
 import InventoryMeta from './InventoryMeta.vue';
+import InventoryScreen from './InventoryScreen.vue';
 
 const XSS = '<img src=x onerror=alert(1)>';
 const read = (file: string): string => readFileSync(resolve(process.cwd(), 'src/inventory', file), 'utf8');
@@ -465,5 +466,258 @@ describe('InventoryMeta', () => {
     wrapper!.unmount();
     mountMeta({ character: null });
     expect(wrapper!.find('.inventory-meta').exists()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// InventoryScreen (desktop drawer and 390x844 sheet)
+// ---------------------------------------------------------------------------
+
+const SCREEN_TEMPLATES = [
+  tpl(1n, { name: 'Old Vest', slot: 'chest', rarity: 'rare', armorClassBonus: 4n }),
+  tpl(2n, { name: 'New Vest', slot: 'chest', armorClassBonus: 6n }),
+  tpl(3n, { name: 'Ore', slot: 'material', armorType: '' }),
+  tpl(4n, { name: 'Simple Rations', slot: 'food', armorType: '' }),
+];
+
+function screenItems(): ItemInstance[] {
+  return [
+    inst(1n, 1n, { equippedSlot: 'chest' }),
+    inst(2n, 2n),
+    inst(3n, 3n, { quantity: 4n }),
+    inst(4n, 4n),
+  ];
+}
+
+async function mountScreen(world: World = {}) {
+  const ctx = worldContext({ templates: SCREEN_TEMPLATES, items: screenItems(), ...world });
+  wrapper = mount(InventoryScreen, { attachTo: document.body, global: ctx.global });
+  await nextTick();
+  return ctx;
+}
+
+const tile = (label: string) => wrapper!.find(`button.item-tile[aria-label^="${label}"]`);
+const settle = async () => {
+  await nextTick();
+  await nextTick();
+};
+
+describe('InventoryScreen desktop', () => {
+  it('renders Equipped, Backpack and Inspector as separate regions in that DOM order', async () => {
+    await mountScreen();
+    const regions = Array.from(wrapper!.get('.desk-grid').element.children).map((el) =>
+      el.className.split(' ').slice(0, 2).join(' '),
+    );
+    expect(regions).toEqual(['col equipped-col', 'col backpack-col', 'col inspector-col']);
+    expect(wrapper!.get('.equipped-col').text()).toContain('Gear totals');
+    expect(wrapper!.get('.backpack-col h6').text()).toBe('Backpack');
+    expect(wrapper!.get('.inspector-col').text()).toBe('Select an item to see its details.');
+  });
+
+  it('gives each column its own scroll region, a sticky inspector and the 300 / fluid / 260 grid', () => {
+    const source = read('InventoryScreen.vue');
+    expect(source).toMatch(/grid-template-columns: 300px minmax\(0, 1fr\) 260px;/);
+    expect(source).toMatch(/\.col\s*\{\s*min-height: 0;\s*overflow-y: auto;/);
+    expect(source).toMatch(/\.inspector-col\s*\{[^}]*position: sticky;[^}]*top: 0;/);
+    expect(source).toMatch(
+      /\.inventory-screen\s*\{\s*height: 100%;\s*min-height: 0;\s*display: flex;\s*flex-direction: column;/,
+    );
+    expect(source).toMatch(/@media \(min-width: 1200px\)/);
+  });
+
+  it('has nothing selected on open', async () => {
+    await mountScreen();
+    expect(wrapper!.findAll('button.item-tile[aria-pressed="true"], button.slot-card[aria-pressed="true"]')).toHaveLength(0);
+    const children = Array.from(wrapper!.get('.inventory-screen').element.children);
+    expect(children[0].className).toContain('desk-grid');
+  });
+
+  it('selects a tile, shows it in the inspector, and deselects on a second click', async () => {
+    await mountScreen();
+    await tile('New Vest').trigger('click');
+    expect(tile('New Vest').attributes('aria-pressed')).toBe('true');
+    expect(wrapper!.get('.inspector-col .name').text()).toBe('New Vest');
+    await tile('New Vest').trigger('click');
+    expect(tile('New Vest').attributes('aria-pressed')).toBe('false');
+    expect(wrapper!.get('.inspector-col').text()).toBe('Select an item to see its details.');
+  });
+
+  it('inspects the equipped item when its slot is chosen', async () => {
+    await mountScreen();
+    await wrapper!.get('button.slot-card').trigger('click');
+    expect(wrapper!.get('.inspector-col .name').text()).toBe('Old Vest');
+    expect(wrapper!.get('.inspector-col .action.primary').text()).toBe('Unequip item');
+    expect(wrapper!.get('button.slot-card').attributes('aria-pressed')).toBe('true');
+  });
+
+  it('marks the equip slot of a selected bag gear item as the comparison target', async () => {
+    await mountScreen();
+    expect(wrapper!.findAll('.compare-target')).toHaveLength(0);
+    await tile('New Vest').trigger('click');
+    const targets = wrapper!.findAll('.compare-target');
+    expect(targets).toHaveLength(1);
+    expect(targets[0].text()).toContain('Chest');
+    await tile('Ore').trigger('click');
+    expect(wrapper!.findAll('.compare-target')).toHaveLength(0);
+  });
+
+  it('clears the selection when the instance leaves and focuses the first tile', async () => {
+    const ctx = await mountScreen();
+    await tile('Ore').trigger('click');
+    (tile('Ore').element as HTMLElement).focus();
+    ctx.items.value = ctx.items.value.filter((row) => row.id !== 3n);
+    await settle();
+    await settle();
+    expect(wrapper!.get('.inspector-col').text()).toBe('Select an item to see its details.');
+    const first = wrapper!.get('button.item-tile');
+    expect(document.activeElement).toBe(first.element);
+  });
+
+  it('focuses the Backpack heading when no tile is left', async () => {
+    const ctx = await mountScreen({ items: [inst(3n, 3n)] });
+    await tile('Ore').trigger('click');
+    (tile('Ore').element as HTMLElement).focus();
+    ctx.items.value = [];
+    await settle();
+    await settle();
+    expect(document.activeElement).toBe(wrapper!.get('.backpack-col h6').element);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('keeps the same instance selected after Equip and focus on the primary button', async () => {
+    const ctx = await mountScreen({ items: [inst(2n, 2n)] });
+    await tile('New Vest').trigger('click');
+    const primary = wrapper!.get('.inspector-col .action.primary');
+    expect(primary.text()).toBe('Equip item');
+    (primary.element as HTMLElement).focus();
+    ctx.items.value = [inst(2n, 2n, { equippedSlot: 'chest' })];
+    await settle();
+    const after = wrapper!.get('.inspector-col .action.primary');
+    expect(after.text()).toBe('Unequip item');
+    expect(wrapper!.get('.inspector-col .name').text()).toBe('New Vest');
+    expect(document.activeElement).toBe(after.element);
+    expect(wrapper!.get('button.slot-card').attributes('aria-pressed')).toBe('true');
+  });
+
+  it('shows Your backpack is empty. without a character and for an empty bag', async () => {
+    await mountScreen({ character: null });
+    expect(wrapper!.text()).toContain('Your backpack is empty.');
+    expect(wrapper!.find('.desk-grid').exists()).toBe(false);
+    wrapper!.unmount();
+    await mountScreen({ items: [] });
+    expect(wrapper!.text()).toContain('Your backpack is empty.');
+  });
+
+  it('renders nothing before the items subscription applies', async () => {
+    await mountScreen({ applied: false });
+    expect(wrapper!.find('.desk-grid').exists()).toBe(false);
+    expect(wrapper!.text()).toBe('');
+  });
+
+  it('goes offline with game.connected, and a rejected call reaches the notice line', async () => {
+    const equipItem = vi.fn().mockRejectedValue(new Error('no'));
+    const ctx = await mountScreen({ reducers: { equipItem } });
+    await tile('New Vest').trigger('click');
+    await wrapper!.get('.inspector-col .action.primary').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+    expect(equipItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 2n });
+    expect(wrapper!.get('[role="status"]').text()).toBe("Couldn't send that. Try again.");
+    ctx.connected.value = false;
+    await nextTick();
+    expect(wrapper!.get('.inspector-col .action.primary').attributes('aria-disabled')).toBe('true');
+    await wrapper!.get('.inspector-col .action.primary').trigger('click');
+    expect(equipItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders an item named with markup literally across the whole screen', async () => {
+    await mountScreen({
+      items: [inst(1n, 1n, { equippedSlot: 'chest', displayName: XSS }), inst(2n, 2n, { displayName: XSS })],
+    });
+    await wrapper!.get('button.item-tile').trigger('click');
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.inspector-col .name').text()).toBe(XSS);
+  });
+});
+
+describe('InventoryScreen mobile 390x844', () => {
+  it('shows the Backpack and Equipped tabs with chips and a 5-column grid without tile names', async () => {
+    await mountScreen({ isDesktop: false });
+    const tablist = wrapper!.get('[role="tablist"]');
+    expect(tablist.attributes('aria-label')).toBe('Inventory view');
+    expect(wrapper!.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Backpack', 'Equipped']);
+    expect(wrapper!.findAll('[role="tab"]')[0].attributes('aria-selected')).toBe('true');
+    expect(wrapper!.find('[aria-label="Backpack filter"]').exists()).toBe(true);
+    expect(wrapper!.get('[aria-label="Backpack items"]').classes()).toContain('mobile');
+    expect(wrapper!.find('.item-tile .name').exists()).toBe(false);
+    expect(wrapper!.find('.desk-grid').exists()).toBe(false);
+  });
+
+  it('shows the slot grid and Gear totals on the Equipped tab', async () => {
+    await mountScreen({ isDesktop: false });
+    await wrapper!.findAll('[role="tab"]')[1].trigger('click');
+    expect(wrapper!.findAll('.slot-card')).toHaveLength(12);
+    expect(wrapper!.text()).toContain('Gear totals');
+    expect(wrapper!.find('[aria-label="Backpack filter"]').exists()).toBe(false);
+  });
+
+  it('opens the dock on selection and returns focus to the tile when it is closed', async () => {
+    await mountScreen({ isDesktop: false });
+    expect(wrapper!.find('.dock-slot').exists()).toBe(false);
+    await tile('New Vest').trigger('click');
+    expect(wrapper!.find('.dock').exists()).toBe(true);
+    expect(wrapper!.get('.dock-name').text()).toBe('New Vest');
+    await wrapper!.get('.dock-close').trigger('click');
+    await settle();
+    expect(wrapper!.find('.dock').exists()).toBe(false);
+    expect(document.activeElement).toBe(tile('New Vest').element);
+  });
+
+  it('opens the dock for a selected slot and returns focus to the slot card', async () => {
+    await mountScreen({ isDesktop: false });
+    await wrapper!.findAll('[role="tab"]')[1].trigger('click');
+    await wrapper!.get('button.slot-card').trigger('click');
+    expect(wrapper!.get('.dock-name').text()).toBe('Old Vest');
+    await wrapper!.get('.dock-close').trigger('click');
+    await settle();
+    expect(document.activeElement).toBe(wrapper!.get('button.slot-card').element);
+  });
+
+  it('closes the dock when the selected item disappears', async () => {
+    const ctx = await mountScreen({ isDesktop: false });
+    await tile('Ore').trigger('click');
+    expect(wrapper!.find('.dock').exists()).toBe(true);
+    ctx.items.value = ctx.items.value.filter((row) => row.id !== 3n);
+    await settle();
+    await settle();
+    expect(wrapper!.find('.dock').exists()).toBe(false);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('shows the empty state for an empty bag and nothing before the items apply', async () => {
+    await mountScreen({ isDesktop: false, items: [] });
+    expect(wrapper!.text()).toContain('Your backpack is empty.');
+    wrapper!.unmount();
+    await mountScreen({ isDesktop: false, applied: false });
+    expect(wrapper!.text()).toBe('');
+  });
+
+  it('carries min-height 44px for the tabs, the dock buttons, the slot cards and the dock close', () => {
+    expect(readFileSync(resolve(process.cwd(), 'src/ledger/SegTabs.vue'), 'utf8')).toMatch(
+      /\.seg-opt\s*\{[^}]*min-height: 44px;/,
+    );
+    expect(read('Inspector.vue')).toMatch(/\.actions\.mobile \.action\s*\{\s*min-height: 44px;/);
+    expect(read('Inspector.vue')).toMatch(/\.dock-close\s*\{[^}]*min-height: 44px;/);
+    expect(read('EquippedSlots.vue')).toMatch(/\.mobile \.slot-card\s*\{\s*min-height: 44px;/);
+  });
+
+  it('shows the result of an action in the notice line', async () => {
+    const equipItem = vi.fn().mockRejectedValue(new Error('no'));
+    await mountScreen({ isDesktop: false, reducers: { equipItem } });
+    await tile('New Vest').trigger('click');
+    await wrapper!.get('.dock .action.primary').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+    expect(wrapper!.get('[role="status"]').text()).toBe("Couldn't send that. Try again.");
   });
 });
