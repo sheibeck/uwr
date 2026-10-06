@@ -136,6 +136,19 @@ describe('apply_level_up keeps the race bonus', () => {
     expect(statsOf(c)).toEqual(todayStats(2n));
   });
 
+  it('finds the definition by the declared nameLower index column, not by name (strict mock pin)', () => {
+    // name matches the race but nameLower does not: a lookup on the wrong column would find it.
+    const wrongColumn = newCtx(levelSeed({ def: SALTKIN_BONUSES }));
+    wrongColumn.db._tables.race_definition[0] = { ...raceDefinitionRow(SALTKIN_BONUSES), nameLower: 'someone-else' };
+    levelUp(wrongColumn);
+    expect(statsOf(rows(wrongColumn, 'character')[0])).toEqual(todayStats(2n));
+    // name differs in case from the character's race but nameLower matches: found.
+    const rightColumn = newCtx(levelSeed({ def: SALTKIN_BONUSES }));
+    rightColumn.db._tables.race_definition[0] = { ...raceDefinitionRow(SALTKIN_BONUSES), name: 'SALTKIN-display' };
+    levelUp(rightColumn);
+    expect(statsOf(rows(rightColumn, 'character')[0])).toEqual({ str: 9n, dex: 11n, cha: 9n, wis: 12n, int: 16n });
+  });
+
   it.each(['{}', 'not json'])('a definition with bonusesJson %s levels up exactly as today', (json) => {
     const ctx = newCtx(levelSeed({ def: json }));
     levelUp(ctx);
