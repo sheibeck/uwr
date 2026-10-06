@@ -324,6 +324,36 @@ describe('craft_recipe success with an essence', () => {
   });
 });
 
+describe('craft_recipe decorates the instance it created', () => {
+  it('an older plain copy of the output already in the bag is left untouched', () => {
+    // Lower id than anything the craft inserts, and listed first by owner: the old lookup picked it.
+    const older = { ...stack(ID.weapon, 1n), id: 5n };
+    const ctx = newCtx([older, ...plentyOfMaterials(), stack(ID.essence, 1n), stack(ID.modA, 1n)]);
+    craft(ctx, {
+      recipeTemplateId: R.weaponT2,
+      catalystTemplateId: ID.essence,
+      modifier1TemplateId: ID.modA,
+    });
+    const weapons = rows(ctx, 'item_instance').filter((i) => i.templateId === ID.weapon);
+    expect(weapons).toHaveLength(2);
+    const oldRow = weapons.find((i) => i.id === 5n)!;
+    const newRow = weapons.find((i) => i.id !== 5n)!;
+    // The older copy: still plain, no quality, no name, no affix rows.
+    expect(oldRow.craftQuality).toBeUndefined();
+    expect(oldRow.qualityTier).toBeUndefined();
+    expect(oldRow.displayName).toBeUndefined();
+    expect(rows(ctx, 'item_affix').filter((a) => a.itemInstanceId === 5n)).toEqual([]);
+    // The crafted copy: carries the quality, the display name and every affix.
+    expect(newRow.craftQuality).toBe('reinforced');
+    expect(newRow.qualityTier).toBe('common');
+    expect(newRow.displayName).toBeTruthy();
+    const newAffixes = rows(ctx, 'item_affix').filter((a) => a.itemInstanceId === newRow.id);
+    expect(newAffixes.some((a) => a.affixType === 'suffix' && a.statKey === MOD_A.statKey)).toBe(true);
+    expect(newAffixes.some((a) => a.affixType === 'implicit')).toBe(true);
+    expect(messages(ctx)).toEqual([`You craft ${newRow.displayName}.`]);
+  });
+});
+
 describe('craft_recipe refusals cost nothing', () => {
   it('missing materials', () => {
     const ctx = newCtx([stack(ID.t2, 1n), stack(ID.second, 1n)]);

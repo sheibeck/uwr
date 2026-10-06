@@ -167,7 +167,8 @@ export const registerItemCraftingReducers = (deps: any) => {
       if (recipe.req3TemplateId != null && recipe.req3Count != null) {
         removeItemFromInventory(ctx, character.id, recipe.req3TemplateId, recipe.req3Count);
       }
-      addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
+      // The row the craft itself produced: a bag can already hold older plain copies of the output.
+      const newInstance = addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
 
       // --- Gear recipe affix application (catalyst + modifier system) ---
       let craftedDisplayName = output?.name ?? recipe.name;
@@ -175,11 +176,7 @@ export const registerItemCraftingReducers = (deps: any) => {
         const craftQuality = plan.quality ?? 'standard';
         const qualityTier = 'common';
 
-        // Find the newly created ItemInstance
-        const newInstance = [...ctx.db.item_instance.by_owner.filter(character.id)].find(
-          (i) => i.templateId === recipe.outputTemplateId && !i.equippedSlot && !i.qualityTier && !i.craftQuality
-        );
-
+        // newInstance is the instance created above, never the first plain copy in the bag.
         if (newInstance) {
           const appliedAffixes: { affixType: string; affixKey: string; affixName: string; statKey: string; magnitude: bigint }[] = [];
 

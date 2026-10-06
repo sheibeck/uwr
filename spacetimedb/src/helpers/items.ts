@@ -363,7 +363,7 @@ export function addItemToInventory(
   characterId: bigint,
   templateId: bigint,
   quantity: bigint
-): void {
+) {
   const template = ctx.db.item_template.id.find(templateId);
   if (!template) throw new SenderError('Item template missing');
   const stackable = template.stackable ?? false;
@@ -372,14 +372,17 @@ export function addItemToInventory(
       (row) => row.templateId === templateId && !row.equippedSlot
     );
     if (existing) {
-      ctx.db.item_instance.id.update({
+      const merged = {
         ...existing,
         quantity: (existing.quantity ?? 1n) + quantity,
-      });
-      return;
+      };
+      ctx.db.item_instance.id.update(merged);
+      return merged;
     }
   }
-  ctx.db.item_instance.insert({
+  // Returns the row the add produced (the new instance, or the stack it merged into), so a caller
+  // that needs to decorate the result never has to search the bag for it.
+  return ctx.db.item_instance.insert({
     id: 0n,
     templateId,
     ownerCharacterId: characterId,
