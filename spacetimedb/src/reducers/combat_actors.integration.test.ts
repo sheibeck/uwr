@@ -8,12 +8,14 @@
  * finds a timestamp whose roll passes, using the same pure function the module uses.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { capturedReducer, rowColumnProblems } from '../helpers/schema_recorder';
+import { capturedReducer, rowColumnProblems, snapshotDb } from '../helpers/schema_recorder';
 import { roundSeed } from '../helpers/combat_rounds';
 import {
   T0,
   MODULE,
+  ALICE,
   fightSeed,
+  startSeed,
   fightCtx,
   rows,
   openTickArg,
@@ -27,7 +29,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['resolve_round_timer']) {
+  for (const name of ['resolve_round_timer', 'resolve_pull']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(`capturedReducer('${name}') is not a function: the schema recorder could not capture it.`);
@@ -314,5 +316,237 @@ describe('enemy ability cooldowns count rounds (RND-03)', () => {
     expect(lines(ctx, 1n, ENEMY_ATTACK).length).toBeGreaterThan(0);
     expect(rows(ctx, 'combat_enemy_cast')).toHaveLength(0);
     expect(rows(ctx, 'combat_enemy_cooldown')).toHaveLength(0);
+  });
+});
+
+// ── Task 2: pets, pending adds and the resolve_pull guard ──────────────────────────────────────────
+
+const pet = (over: Record<string, unknown> = {}) => ({
+  id: 1n,
+  characterId: 1n,
+  combatId: 1n,
+  name: 'Rex',
+  level: 1n,
+  currentHp: 50n,
+  maxHp: 50n,
+  attackDamage: 4n,
+  abilityKey: undefined,
+  nextAbilityAt: 123n,
+  abilityCooldownSeconds: undefined,
+  targetEnemyId: undefined,
+  nextAutoAttackAt: 456n,
+  expiresAtMicros: undefined,
+  ...over,
+});
+
+/** A pet auto-attack line (hit, miss, dodge, parry or block) for a pet, optionally against one enemy. */
+const petAttack = (name: string, enemy = '[A-Za-z ]+'): RegExp =>
+  new RegExp(`^${name} (hits|misses) ${enemy}|^${enemy} (dodges|parries|blocks) ${name}'s attack`);
+
+const lineIndex = (ctx: any, characterId: bigint, pattern: RegExp): number =>
+  events(ctx, characterId).findIndex((e: any) => pattern.test(e.message));
+
+function petSeed(pets: any[], opts: Parameters<typeof fightSeed>[0] = {}) {
+  return fightSeed({
+    withOpenRound: true,
+    playerHp: BIG,
+    ...opts,
+    extra: { active_pet: pets, ...(opts.extra ?? {}) },
+  });
+}
+
+describe('pets act once per round, after the players and before the enemies (RND-03)', () => {
+  it('a pet with a 10 s ability uses it in rounds 1 and 4 and auto-attacks every round', () => {
+    const ctx = fightCtx(
+      petSeed(
+        [pet({ abilityKey: 'pet_bleed', abilityCooldownSeconds: 10n })],
+        { enemies: [{ id: 1n, name: 'Cave Rat', hp: BIG }] },
+      ),
+    );
+    const abilityRounds: number[] = [];
+    const attackRounds: number[] = [];
+    for (let round = 1; round <= 5; round++) {
+      const bleedBefore = lines(ctx, 1n, /^Rex rends/).length;
+      const attackBefore = lines(ctx, 1n, petAttack('Rex')).length;
+      fire(ctx, T0 + BigInt(round) * TEN_S);
+      if (lines(ctx, 1n, /^Rex rends/).length > bleedBefore) abilityRounds.push(round);
+      if (lines(ctx, 1n, petAttack('Rex')).length > attackBefore) attackRounds.push(round);
+    }
+    expect(abilityRounds).toEqual([1, 4]);
+    expect(attackRounds).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('in combat no pet row gets a new nextAutoAttackAt or nextAbilityAt value', () => {
+    const ctx = fightCtx(petSeed([pet({ abilityKey: 'pet_bleed', abilityCooldownSeconds: 10n })]));
+    for (let round = 1; round <= 4; round++) fire(ctx, T0 + BigInt(round) * TEN_S);
+    const row = rows(ctx, 'active_pet')[0];
+    expect(row.nextAutoAttackAt).toBe(456n);
+    expect(row.nextAbilityAt).toBe(123n);
+  });
+
+  it('a pet acts after the players and before the enemies, and two pets act in ascending pet id', () => {
+    const ctx = fightCtx(
+      petSeed([pet({ id: 2n, name: 'Bravo' }), pet({ id: 1n, name: 'Alpha' })]),
+    );
+    fire(ctx, T0 + TEN_S);
+    const player = lineIndex(ctx, 1n, /^Your fists (hit|misses|crits)/);
+    const alpha = lineIndex(ctx, 1n, petAttack('Alpha'));
+    const bravo = lineIndex(ctx, 1n, petAttack('Bravo'));
+    const enemy = lineIndex(ctx, 1n, ENEMY_ATTACK);
+    expect(player).toBeGreaterThanOrEqual(0);
+    expect(alpha).toBeGreaterThan(player);
+    expect(bravo).toBeGreaterThan(alpha);
+    expect(enemy).toBeGreaterThan(bravo);
+  });
+
+  it('a pet whose owner is dead is removed from the fight; the other owner pet stays', () => {
+    const seed = petSeed(
+      [pet({ id: 1n, characterId: 1n, name: 'Alpha' }), pet({ id: 2n, characterId: 2n, name: 'Bravo' })],
+      { players: 2 },
+    );
+    seed.character.find((c: any) => c.id === 1n).hp = 0n;
+    const ctx = fightCtx(seed);
+    fire(ctx, T0 + TEN_S);
+    expect(rows(ctx, 'active_pet').map((p: any) => p.id)).toEqual([2n]);
+  });
+
+  describe('the pet target', () => {
+    const threeEnemies = [
+      { id: 1n, name: 'Cave Rat', hp: BIG },
+      { id: 2n, name: 'Cave Bat', hp: BIG },
+      { id: 3n, name: 'Cave Cat', hp: BIG },
+    ];
+    const seedWith = (petOver: Record<string, unknown>, ownerTarget: bigint | undefined) => {
+      const seed = petSeed([pet(petOver)], { enemies: threeEnemies });
+      seed.character.find((c: any) => c.id === 1n).combatTargetEnemyId = ownerTarget;
+      return seed;
+    };
+
+    it('its own living target first', () => {
+      const ctx = fightCtx(seedWith({ targetEnemyId: 3n }, 2n));
+      fire(ctx, T0 + TEN_S);
+      expect(lines(ctx, 1n, petAttack('Rex', 'Cave Cat')).length).toBe(1);
+      expect(lines(ctx, 1n, petAttack('Rex', 'Cave (Rat|Bat)')).length).toBe(0);
+      expect(rows(ctx, 'active_pet')[0].targetEnemyId).toBe(3n);
+    });
+
+    it('else the owner current target', () => {
+      const ctx = fightCtx(seedWith({ targetEnemyId: undefined }, 2n));
+      fire(ctx, T0 + TEN_S);
+      expect(lines(ctx, 1n, petAttack('Rex', 'Cave Bat')).length).toBe(1);
+      expect(rows(ctx, 'active_pet')[0].targetEnemyId).toBe(2n);
+    });
+
+    it('a dead own target falls back to the owner target', () => {
+      const seed = seedWith({ targetEnemyId: 3n }, 2n);
+      seed.combat_enemy.find((e: any) => e.id === 3n).currentHp = 0n;
+      const ctx = fightCtx(seed);
+      fire(ctx, T0 + TEN_S);
+      expect(lines(ctx, 1n, petAttack('Rex', 'Cave Bat')).length).toBe(1);
+    });
+
+    it('else the lowest-id living enemy', () => {
+      const seed = seedWith({ targetEnemyId: undefined }, undefined);
+      seed.combat_enemy.find((e: any) => e.id === 1n).currentHp = 0n;
+      const ctx = fightCtx(seed);
+      fire(ctx, T0 + TEN_S);
+      expect(lines(ctx, 1n, petAttack('Rex', 'Cave Bat')).length).toBe(1);
+      expect(rows(ctx, 'active_pet')[0].targetEnemyId).toBe(2n);
+    });
+  });
+});
+
+const pendingAdd = (over: Record<string, unknown> = {}) => ({
+  id: 1n,
+  combatId: 1n,
+  enemyTemplateId: 1n,
+  enemyRoleTemplateId: undefined,
+  spawnId: 2n,
+  arriveAtMicros: T0 + 5n * TEN_S,
+  arriveAtRound: 2n,
+  ...over,
+});
+
+const addSeed = (addOver: Record<string, unknown> = {}) =>
+  fightSeed({
+    withOpenRound: true,
+    playerHp: BIG,
+    extra: {
+      enemy_spawn: [
+        { id: 2n, locationId: 10n, enemyTemplateId: 1n, name: 'Cave Rat', state: 'engaged', lockedCombatId: 1n, groupCount: 0n },
+      ],
+      combat_pending_add: [pendingAdd(addOver)],
+    },
+  });
+
+describe('pending adds arrive in rounds (RND-03)', () => {
+  it('an add with arriveAtRound 2 has not joined after round 1 and joins at the end of round 2', () => {
+    // the wall-clock arrival lies far in the past: only the round decides
+    const ctx = fightCtx(addSeed({ arriveAtMicros: 1n }));
+    fire(ctx, T0 + TEN_S);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(1);
+    expect(rows(ctx, 'combat_pending_add')).toHaveLength(1);
+
+    fire(ctx, T0 + 2n * TEN_S);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(2);
+    expect(rows(ctx, 'combat_enemy').some((e: any) => e.spawnId === 2n)).toBe(true);
+    expect(rows(ctx, 'combat_pending_add')).toHaveLength(0);
+    expect(lines(ctx, 1n, /A social add arrives to assist/)).toHaveLength(1);
+  });
+
+  it('a pending add written before this phase (arriveAtRound 0) joins at the end of the next round', () => {
+    const ctx = fightCtx(addSeed({ arriveAtRound: 0n, arriveAtMicros: T0 + 99n * TEN_S }));
+    fire(ctx, T0 + TEN_S);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(2);
+    expect(rows(ctx, 'combat_pending_add')).toHaveLength(0);
+  });
+});
+
+describe('resolve_pull: module-identity guard and adds in rounds', () => {
+  const pullSeed = () => {
+    const seed = startSeed({
+      pull_state: [
+        {
+          id: 1n, characterId: 1n, groupId: undefined, locationId: 10n, enemySpawnId: 1n,
+          pullType: 'careful', state: 'pending', outcome: undefined, delayedAdds: undefined,
+          delayedAddsAtMicros: undefined, createdAt: { microsSinceUnixEpoch: T0 },
+        },
+      ],
+      enemy_spawn: [
+        { id: 2n, locationId: 10n, enemyTemplateId: 1n, name: 'Cave Rat', state: 'available', lockedCombatId: undefined, groupCount: 1n },
+      ],
+    });
+    seed.enemy_template[0] = { ...seed.enemy_template[0], isSocial: true, socialRadius: 1n };
+    return seed;
+  };
+  // (now + spawnId 1 + characterId 1) % 100 = 75: past a careful pull's success band, inside its partial band
+  const PARTIAL_AT = T0 + 73n;
+  const pullArg = { arg: { scheduledId: 1n, scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: T0 } }, pullId: 1n } };
+
+  it('ignores a call whose sender is not the module identity: the database is unchanged', () => {
+    const ctx = fightCtx(pullSeed(), ALICE, PARTIAL_AT);
+    const before = snapshotDb(ctx.db);
+    handlers.resolve_pull(ctx, pullArg);
+    expect(snapshotDb(ctx.db)).toBe(before);
+  });
+
+  it('a partial pull in round 1 stores arriveAtRound 2 and says the adds will arrive in 2 rounds', () => {
+    const ctx = fightCtx(pullSeed(), MODULE, PARTIAL_AT);
+    handlers.resolve_pull(ctx, pullArg);
+
+    const pending = rows(ctx, 'combat_pending_add');
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ combatId: 1n, spawnId: 2n, arriveAtRound: 2n });
+    expect(pending[0].arriveAtMicros).toBe(PARTIAL_AT + 2n * TEN_S);
+    expect(rowColumnProblems('combat_pending_add', pending[0])).toEqual([]);
+    expect(lines(ctx, 1n, /1 add will arrive in 2 rounds\./)).toHaveLength(1);
+    expect(lines(ctx, 1n, /in \d+s\./)).toHaveLength(0);
+
+    // the add has not joined after round 1 and is a combat enemy after round 2
+    fire(ctx, T0 + TEN_S);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(1);
+    fire(ctx, T0 + 2n * TEN_S);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(2);
+    expect(rows(ctx, 'combat_pending_add')).toHaveLength(0);
   });
 });
