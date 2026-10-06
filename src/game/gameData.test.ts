@@ -355,6 +355,23 @@ describe('createGameData: location keyed bindings', () => {
     expect(npc3.disposed).toBe(true);
   });
 
+  it('clears the old location rows when the new location binding fails (WR-05)', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 3n });
+    const npc3 = h.find('Q_NPC_3');
+    npc3.rows.value = [{ id: 1n, locationId: 3n }];
+    npc3.applied.value = true;
+    expect(h.game.npcsHere.value).toHaveLength(1);
+
+    h.character.value = makeCharacter(5n, { locationId: 4n });
+    expect(h.game.npcsHere.value).toHaveLength(1);
+
+    h.find('Q_NPC_4').failed.value = true;
+    expect(h.game.npcsHere.value).toEqual([]);
+    expect(npc3.disposed).toBe(true);
+  });
+
   it('gives each keyed binding a filter that rejects rows for another key', () => {
     const h = harness();
     h.connect();

@@ -4,9 +4,15 @@ import type { ComputedRef, Ref, ShallowRef, WatchStopHandle } from 'vue';
 // Keyed bindings (location, group, character, id lists). When the key changes the old
 // binding's rows stay visible until the new binding has applied, so Nearby and routes
 // never flash empty on a move. Watchers are 'sync', like the session watchers.
+//
+// If the new binding fails instead of applying, the old rows would stay "current" forever and
+// keep driving actions for a key that is gone. The failed binding is promoted instead: the old
+// binding is disposed (its rows clear), and `failed` surfaces the state. A reconnect re-attaches
+// the shown binding, so it recovers like any other.
 
 export interface AttachableBinding<C> {
   readonly applied: Readonly<Ref<boolean>>;
+  readonly failed: Readonly<Ref<boolean>>;
   attach(conn: C | null): void;
   dispose(): void;
 }
@@ -14,6 +20,8 @@ export interface AttachableBinding<C> {
 export interface Keyed<B> {
   /** The binding whose data is shown. */
   readonly current: Readonly<ShallowRef<B | null>>;
+  /** The shown binding's subscription failed; its rows are empty, not stale. */
+  readonly failed: Readonly<ComputedRef<boolean>>;
   /** Dispose the current and pending bindings and forget the key. */
   reset(): void;
 }
@@ -81,14 +89,15 @@ export function createKeyed<C, K extends string | bigint, B extends AttachableBi
       }
 
       pending = binding;
-      if (binding.applied.value) {
+      if (binding.applied.value || binding.failed.value) {
         promote(binding);
         return;
       }
+      // Promote on a failure too, so the old key's rows do not outlive the swap.
       stopPendingWatch = watch(
-        binding.applied,
-        (applied) => {
-          if (applied) promote(binding);
+        () => binding.applied.value || binding.failed.value,
+        (settled) => {
+          if (settled) promote(binding);
         },
         { flush: 'sync' },
       );
@@ -114,7 +123,9 @@ export function createKeyed<C, K extends string | bigint, B extends AttachableBi
     });
   }
 
-  return { current, reset };
+  const failed = computed(() => current.value?.failed.value ?? false);
+
+  return { current, failed, reset };
 }
 
 const NO_ROWS: readonly never[] = [];

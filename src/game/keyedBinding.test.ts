@@ -15,6 +15,7 @@ function makeBinding(key: string) {
     key,
     rows: shallowRef<readonly Row[]>([{ id: key.charCodeAt(0) }]),
     applied: ref(false),
+    failed: ref(false),
     attach: vi.fn(),
     dispose: vi.fn(),
   };
@@ -80,6 +81,66 @@ describe('createKeyed', () => {
     expect(keyed.current.value).toBe(made[1]);
     expect(made[0].dispose).toHaveBeenCalledTimes(1);
     expect(rows.value).toEqual([{ id: 'b'.charCodeAt(0) }]);
+  });
+
+  it('promotes a pending binding that fails and clears the old rows (WR-05)', () => {
+    const { key, made, keyed } = setup({ key: 'a' });
+    const rows = scopes[0].run(() => keyedRows<Row>(keyed))!;
+    made[0].applied.value = true;
+    expect(keyed.failed.value).toBe(false);
+
+    key.value = 'b';
+    expect(keyed.current.value).toBe(made[0]);
+    expect(rows.value).toEqual([{ id: 'a'.charCodeAt(0) }]);
+
+    // The old binding's dispose empties its rows, like the real bindings.
+    made[0].dispose.mockImplementation(() => {
+      made[0].rows.value = [];
+    });
+    made[1].rows.value = [];
+    made[1].failed.value = true;
+
+    expect(keyed.current.value).toBe(made[1]);
+    expect(made[0].dispose).toHaveBeenCalledTimes(1);
+    expect(rows.value).toEqual([]);
+    expect(keyed.failed.value).toBe(true);
+    // The failed binding is the shown one now, not a leaked pending one.
+    expect(made[1].dispose).not.toHaveBeenCalled();
+  });
+
+  it('recovers when the promoted failed binding later applies', () => {
+    const { key, made, keyed } = setup({ key: 'a' });
+    key.value = 'b';
+    made[1].failed.value = true;
+    expect(keyed.failed.value).toBe(true);
+    made[1].failed.value = false;
+    made[1].applied.value = true;
+    expect(keyed.failed.value).toBe(false);
+    expect(keyed.current.value).toBe(made[1]);
+  });
+
+  it('promotes at once a binding that has already failed when made (WR-05)', () => {
+    const key = ref<string | null>('a');
+    const conn = ref<Conn | null>({ name: 'x' });
+    const made: Binding[] = [];
+    const scope = effectScope();
+    scopes.push(scope);
+    const keyed = scope.run(() =>
+      createKeyed<Conn, string, Binding>({
+        key,
+        conn,
+        make: (k) => {
+          const b = makeBinding(k);
+          if (made.length > 0) b.failed.value = true;
+          made.push(b);
+          return b;
+        },
+      }),
+    )!;
+    key.value = 'b';
+    expect(keyed.current.value).toBe(made[1]);
+    expect(made[0].dispose).toHaveBeenCalledTimes(1);
+    expect(keyed.failed.value).toBe(true);
   });
 
   it('promotes at once a binding that is already applied when made', () => {
