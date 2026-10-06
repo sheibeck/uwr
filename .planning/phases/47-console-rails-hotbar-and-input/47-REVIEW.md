@@ -2,176 +2,65 @@
 phase: 47-console-rails-hotbar-and-input
 reviewed: 2026-10-05T00:00:00Z
 depth: standard
-files_reviewed: 56
+iteration: 3
+files_reviewed: 4
 files_reviewed_list:
-  - src/App.vue
-  - src/console/FeedLine.vue
-  - src/console/FeedView.vue
-  - src/console/KeeperProgress.vue
-  - src/console/cleanServerText.ts
-  - src/console/feedStore.ts
-  - src/console/indicator.ts
-  - src/console/keywordLabel.ts
-  - src/console/keywords.ts
-  - src/console/lines.ts
-  - src/console/pinning.ts
   - src/console/useConsole.ts
-  - src/console/whisper.ts
-  - src/frame/AppFrame.vue
-  - src/frame/ContextRail.vue
-  - src/frame/FeedShell.vue
-  - src/frame/VitalsRail.vue
-  - src/frame/VitalsStrip.vue
-  - src/frame/useKeyboardOpen.ts
-  - src/game/bindEventTable.ts
-  - src/game/context.ts
-  - src/game/gameData.ts
-  - src/game/keyedBinding.ts
-  - src/game/queries.ts
-  - src/game/serverClock.ts
-  - src/hotbar/HotbarRow.vue
-  - src/hotbar/HotbarSelector.vue
-  - src/hotbar/hotbar.ts
-  - src/hotbar/useCooldownTicker.ts
-  - src/input/Composer.vue
-  - src/input/commands.ts
-  - src/input/conversation.ts
-  - src/input/history.ts
-  - src/input/infoCommands.ts
-  - src/input/limits.ts
+  - src/console/useConsole.test.ts
   - src/input/narrativeQueue.ts
-  - src/input/routeInput.ts
-  - src/rails/ContextContent.vue
-  - src/rails/EffectChips.vue
-  - src/rails/HereCard.vue
-  - src/rails/NearbyList.vue
-  - src/rails/PartyBlock.vue
-  - src/rails/TrackingList.vue
-  - src/rails/WorldEventCard.vue
-  - src/rails/effects.ts
-  - src/rails/levelRange.ts
-  - src/rails/nearby.ts
-  - src/rails/party.ts
-  - src/rails/quests.ts
-  - src/rails/worldEvent.ts
-  - src/rails/xp.ts
-  - src/screens/MapScreen.vue
-  - src/screens/SocialScreen.vue
-  - src/session/useSession.ts
-  - src/styles/frame.css
-  - src/styles/tokens.client.css
+  - src/input/narrativeQueue.test.ts
 findings:
   critical: 0
-  warning: 5
+  warning: 0
   info: 7
-  total: 12
-status: issues_found
+  total: 7
+status: clean
 ---
 
-# Phase 47: Code Review Report
+# Phase 47: Code Review Report (iteration 3, final)
 
 **Reviewed:** 2026-10-05
 **Depth:** standard
-**Files Reviewed:** 56
-**Status:** issues_found
+**Files Reviewed:** 4
+**Status:** clean (no Critical or Warning finding open; 7 info items carried forward)
 
 ## Summary
 
-All 56 files were read in full, plus `net/bindTable.ts` and the generated reducer and event-table bindings they call.
-`vue-tsc --noEmit` is clean and `vitest run` over src/console, input, game, hotbar, rails, frame, screens and session passes (63 files, 1180 tests).
+Re-review of commit 80dabea3 (the WR-06 fix). WR-06 is resolved, and the WR-02 generation token and the WR-03 refusal guard are unchanged and still correct. `vue-tsc --noEmit` is clean. `vitest run src/console/useConsole.test.ts src/input` passes (7 files, 316 tests).
 
-Verified clean on the stated focus areas:
+### WR-06 verification (resolved)
 
-- **XSS:** there is no `v-html`, `innerHTML` or `eval` anywhere in the reviewed source. Every model, server and player string reaches the DOM through `{{ }}` or a `:title` / `:aria-label` binding. `:style` values are derived from numbers only. `<component :is>` resolves only to static maps (`ICONS`, `abilityIcon`, `effectIcon`, `getScreen`).
-- **Keyword matcher:** it is a manual code-point scanner and never builds a regex from a name, so there is no ReDoS and no regex-syntax injection. The length-preserving fold keeps indexes valid. The vocabulary is capped at 200. Surrogates are handled. The parts always rejoin to the input. Player-authored kinds (`say`, `emote`, `whisper`, `group`, `command`) and local echoes are not keyword-eligible, so T-47-06 holds for the kinds the server writes today.
-- **Subscriptions:** every event-table subscription except `event_world` is filtered (`eventPrivate` by `ownerUserId`, `eventLocation` by `locationId`, `eventGroup` by `groupId`). Every keyed table carries a WHERE on an indexed column. There is no unfiltered `SELECT *` anywhere.
-- **Identity:** reducers receive only `game.characterId`, which comes from the player's own `characters` binding (filtered by `ownerUserId`). The client never sends another identity.
-- **Reducer args:** every reducer argument name and shape matches `src/module_bindings` (`targetName`, `fromName`, `hotbarName`, `abilityTemplateId`, `npcId`, `nodeId`, `locationId`, `text`, `message`).
-- **Lifecycle:** the cooldown ticker interval, the progress rotation interval, the keyboard `visualViewport` listener, the document key listeners, the flash timers and the world-event timer are all cleared on unmount or scope dispose.
+- **The queued line records its NPC.**
+  - `QueuedLine.conversationNpcId` is `bigint | null` (`narrativeQueue.ts:24`).
+  - `narrativeSend` sets it from `conversation.value` at queue time (`useConsole.ts:184`). That is before a later `hail` changes the conversation, because `hail` assigns `conversation` only after `narrativeSend` returns.
+  - For a talk line, `routeInput` always sets `npcId` to `ctx.conversation.id` (`routeInput.ts:296`). The recorded id is therefore the NPC the line was typed to.
+- **The release rule matches the intended rule** (`useConsole.ts:216-228`).
+  - `talkToNpc` goes to `queuedTo` only when all of these hold: `mode === 'narrative'`, `queuedTo !== null`, the current conversation NPC equals `queuedTo`, and that NPC is in `npcsHere`.
+  - Every other case goes out as `submitIntent` with the same text, and the Queued suffix is cleared with `setQueued(false)`.
+  - The only NPC id ever passed to `talkToNpc` is `queuedTo`, so a queued line cannot reach a different NPC.
+  - Intent-mode lines never enter the talk branch, so they stay intents. This includes a `hail`, which is queued with the previous conversation id but has `mode: 'intent'`.
+- **Edge cases traced.**
+  - A -> B -> A: the line goes to A, which is still A.
+  - Queued with no conversation, then a hail: `queuedTo` is null, so the line is an intent.
+  - NPC left: the `stopNpcs` watch clears the conversation, and `npcStillHere` also covers the same-tick window before that watch flushes.
+  - Direct (unqueued) talk sends are untouched and still use `line.npcId`.
+- **Tests cover the rule.**
+  - `a queued line never reaches a different NPC (WR-06)` has four cases: still A goes to A, then hail B goes to intent, then goodbye goes to intent, and no-conversation-then-hail goes to intent.
+  - Each negative case asserts `talkToNpc` is never called.
+  - The earlier NPC-left test (`useConsole.test.ts:520-536`) still passes.
 
-No BLOCKER-class defects were found. The five warnings are correctness and robustness gaps in the stale-data and queue paths. The seven info items are minor.
+### WR-02 and WR-03 regression check (none)
+
+- **WR-02 token.** `release()` still reads `queue.token()` synchronously right after `takeNext` and passes it to `settle` in both branches and in the no-character early exit. `beginDirect`, `drop` and `settle(token)` in the queue are unchanged. The new field only adds data to `QueuedLine`, and the queue never reads it.
+- **WR-03 guard.** `submit()` still clears the conversation only when `result !== 'refused'` (`useConsole.ts:316`). The `hail` case is unchanged.
 
 ## Warnings
 
-### WR-01: The client-side second filter does not check the row's location, group or owner
-
-**File:** `src/console/feedStore.ts:89-110` (with `src/game/gameData.ts:227-246`)
-**Issue:** The header calls `acceptRow` the second, client-side filter after the subscription filter (T-47-04a). It never looks at `row.locationId`, `row.groupId` or `row.ownerUserId`, although all three exist on the generated rows.
-
-`bindEventTable` attaches its listener to the table-wide `onInsert`, so the listener sees every row the SDK delivers for that table, not only rows from its own subscription.
-
-On a location change `keyedEvent` uses `swap: 'immediate'`. The new binding subscribes and listens first, then the old binding is unsubscribed. Rows the server already sent for the old location can still arrive after the swap. They pass `acceptRow('location')`, because only `excludeCharacterId` is tested, and appear in the new location's feed.
-
-The same window exists when a player leaves or joins a group (`event_group`) and on any reconnect overlap. This is a straggler leak, not a security hole, because the event tables are already public server-side. It does defeat the stated purpose of the second filter.
-
-**Fix:** Carry the key on the row and have the binding's `onRow` drop rows that do not match the key the binding was made for:
-```ts
-// gameData.ts, keyedEvent: make(k) => bindEvent({ ..., onRow: (row) => {
-//   if (matches(row, k)) onEvent(source)(row);
-// }})
-// with matches: location -> row.locationId === k; group -> row.groupId === k;
-// private -> row.ownerUserId === k
-```
-Add `locationId?`, `groupId?` and `ownerUserId?` to `EventRowLike`, or pass a `matches` predicate into `keyedEvent` the way `keyedTable` already does.
-
-### WR-02: A stale `settle()` from a dropped send clears `inFlight` for a newer send
-
-**File:** `src/console/useConsole.ts:191` and `:216` (with `src/input/narrativeQueue.ts:61-71`)
-**Issue:** `void sent.finally(queue.settle)` is unconditional. `queue.drop()`, called on disconnect, on a character change and from `dispose`, sets `inFlight = false` while the old reducer promise is still pending.
-
-If the player then makes a new direct send, `beginDirect()` sets `inFlight = true`. When the old promise finally settles it clears the flag. `mustQueue()` then returns false although a send is in flight. The next narrative line goes out concurrently and a queued line can be released early. That breaks the one-at-a-time release guarantee.
-
-The window is narrow (a reconnect or character switch overlapping a pending reducer call), but a reconnect is exactly when reducer promises hang longest.
-
-**Fix:** Give each send a generation token:
-```ts
-// narrativeQueue: let generation = 0;
-// beginDirect()/takeNext(): return ++generation; drop(): generation++;
-// settle(token): if (token === generation) inFlight.value = false;
-// useConsole: const token = queue.beginDirect(); sent.finally(() => queue.settle(token));
-```
-
-### WR-03: A refused submit still ends the conversation
-
-**File:** `src/console/useConsole.ts:295-298`
-**Issue:** For an `intent` route, `if (route.endsConversation) conversation.value = null` runs before `narrativeSend`. `narrativeSend` returns `'refused'` when the queue is full (`QUEUE_FULL_LINE`) and the draft is deliberately kept.
-
-The line was not sent and stays in the input, yet the player has silently left the conversation. Their retry then routes as a plain intent or hail instead of a game action in conversation. The `hail` case at line 309 already guards on `result !== 'refused'`.
-
-**Fix:** Clear the conversation only after the send is accepted:
-```ts
-result = narrativeSend({ ... });
-if (route.endsConversation && result !== 'refused') conversation.value = null;
-```
-For the non-queue branch, which always sends, clear it right after `fire`.
-
-### WR-04: A party member with no character row renders a blank name
-
-**File:** `src/rails/PartyBlock.vue:53`
-**Issue:** For `known === false`, `partyMembers` returns `name: ''` and `className: ''`. The template renders `{{ member.name }}`, so the visible row is an empty dimmed card. `memberLabel()` ('Member') exists and is used only for the aria-labels, and `VitalsStrip.memberChipText` correctly falls back to 'Member'. The existing test checks only the `unknown` class and the empty tracks, not the visible text.
-
-Unknown members are routine: the `known` id-list binding applies after the group-member binding, and an offline or out-of-range member may never get a row.
-
-**Fix:**
-```vue
-<span class="member-name" :title="memberLabel(member)">{{ memberLabel(member) }}</span>
-```
-Add a test that the unknown member row reads 'Member'.
-
-### WR-05: Swap-on-applied has no failure path, so stale rows stay forever
-
-**File:** `src/game/keyedBinding.ts:77-98`
-**Issue:** When the key changes with a current binding present (and `swap` is `'onApplied'`), the new binding becomes `pending` and is promoted only when `applied` turns true. `AttachableBinding` exposes no `failed`. If the new subscription errors (a rejected query, a dropped subscription), the old rows remain the "current" data indefinitely, with only a `console.warn`.
-
-This affects everything the player acts on, and the actions are keyed to those stale rows:
-
-- Nearby, `routeContext.npcsHere` and the keyword vocabulary keep describing the old location, so `hail` and `gather` clicks use the old ids.
-- The route list also stays stale.
-- The same applies to hotbar and ability data when the key is the character.
-
-**Fix:** Add `failed` to `AttachableBinding`. When the pending binding reports `failed`, promote it anyway (it clears the rows) or reset `current` to empty and retry. For example, in the pending watch use `watch(() => [binding.applied.value, binding.failed.value], ...)` and call `promote` when either is true.
+None open.
 
 ## Info
+
+Carried forward unchanged from iterations 1 and 2.
 
 ### IN-01: Bare `accept` / `decline` inside a conversation never reach the NPC
 
@@ -197,7 +86,7 @@ This matches the written spec but is a likely UX trap. **Fix:** When `ctx.pendin
 
 ### IN-05: Keyword surface that depends on server and LLM text
 
-**File:** `src/console/keywords.ts:99-130`, `src/console/useConsole.ts:369-377`
+**File:** `src/console/keywords.ts:99-130`, `src/console/useConsole.ts:430-445`
 **Issue:** Two related observations, both within the design. Neither is an exploit today.
 
 - Player names are letters-only, 3-20 characters (`creation.ts:612-627`). A player named after a common word ("Door", "Torch") gets a player keyword. NPC, place and node names win the dedupe, but a generic noun in Keeper narration becomes a whisper pre-fill button for everyone at that location. It is cosmetic noise.
@@ -207,8 +96,8 @@ This matches the written spec but is a likely UX trap. **Fix:** When `ctx.pendin
 
 ### IN-06: No timeout on a reducer promise that holds `inFlight`
 
-**File:** `src/console/useConsole.ts:187-192`
-**Issue:** `inFlight` is released only when the reducer promise settles or `drop()` runs (on disconnect). A reducer call that never resolves on a live connection leaves every later narrative line queued. After three lines, every further narrative line is refused ("Wait for the Keeper to finish first.") until a reconnect. **Fix:** Cap the in-flight hold with a timer (for example 15 s, matching `SIGNIN_TIMEOUT_MS`) that calls `settle(token)`.
+**File:** `src/console/useConsole.ts:197`, `:229`
+**Issue:** `inFlight` is released only when the reducer promise settles or `drop()` runs (on disconnect). A reducer call that never resolves on a live connection leaves every later narrative line queued. After three lines, every further narrative line is refused ("Wait for the Keeper to finish first.") until a reconnect. **Fix:** Cap the in-flight hold with a timer (for example 15 s, matching `SIGNIN_TIMEOUT_MS`) that calls `settle(token)`. The WR-02 token makes this safe to add.
 
 ### IN-07: Server clock skew is 0 until the first event row
 
