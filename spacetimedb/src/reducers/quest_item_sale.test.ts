@@ -374,6 +374,40 @@ describe('sell_all_junk records nothing', () => {
   });
 });
 
+describe('sell_all_junk (window reducer) skips quest items like the typed sell junk', () => {
+  const junkTemplates = [
+    tpl(90n, 'Rusty Nail', { slot: 'junk', isJunk: true, vendorValue: 4n }),
+    tpl(91n, 'Junk Writ', { slot: 'quest', isJunk: true, vendorValue: 9n }),
+  ];
+
+  it('keeps a template that is both junk and quest, sells the other junk and pays only that', () => {
+    const ctx = newCtx({
+      templates: junkTemplates,
+      instances: [inst(900n, 90n, 1n), inst(910n, 91n, 2n)],
+      affixes: [affix(1n, 910n, 'keen', 2n)],
+      buyback: [EARLIER_ROW],
+    });
+    const before = snapshot(ctx, 'vendor_buyback');
+    sellAllJunk(ctx, { characterId: 1n });
+    const paid = sellPayout(4n, 1n, 0, 0n);
+    expect(gold(ctx) - START_GOLD).toBe(paid);
+    expect(messages(ctx)).toEqual([`You sell 1 junk item(s) for ${paid} gold.`]);
+    // The quest stack and its affix survive; only the plain junk is gone.
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([910n]);
+    expect(rows(ctx, 'item_instance')[0].quantity).toBe(2n);
+    expect(rows(ctx, 'item_affix').map((a) => a.id)).toEqual([1n]);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before);
+  });
+
+  it('when the only junk is a quest item nothing is sold and no gold moves', () => {
+    const ctx = newCtx({ templates: junkTemplates, instances: [inst(910n, 91n, 1n)] });
+    sellAllJunk(ctx, { characterId: 1n });
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([910n]);
+    expect(messages(ctx)).toEqual(['You sell 0 junk item(s) for 0 gold.']);
+  });
+});
+
 describe('parseAffixSnapshot', () => {
   it('round-trips and drops malformed input without throwing', () => {
     const good = { affixType: 'prefix', affixKey: 'k', affixName: 'N', statKey: 's', magnitude: '-4' };

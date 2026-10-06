@@ -3,7 +3,7 @@ import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { buyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
-import { USE_ITEM_KEYS } from '../data/item_rules';
+import { USE_ITEM_KEYS, isQuestItemTemplate } from '../data/item_rules';
 import { sellInstanceToVendor, restoreBuyback } from '../helpers/vendor_sale';
 
 export const registerItemReducers = (deps: any) => {
@@ -222,6 +222,8 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) continue;
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template || !template.isJunk) continue;
+      // Quest items are never sold, on any path (the typed 'sell junk' skips them the same way).
+      if (isQuestItemTemplate(template)) continue;
       total += sellPayout(
         template.vendorValue ?? 0n,
         instance.quantity ?? 1n,
