@@ -41,9 +41,10 @@
  * snapshots only in those lines, and every message and its segments changed together. The
  * behavior pinned by each case is unchanged.
  *
- * Known limits of the mock DB that these tests inherit: the `by_name` index accessor is
- * mapped to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
- * is exercised through a row whose `name` equals the lowercase race name.
+ * Known limits of the mock DB that these tests inherit: the lenient default mock maps the `by_name`
+ * index accessor to the column `name`, so the real `race_definition.by_name` (column `nameLower`)
+ * is exercised through a row whose `name` equals the lowercase race name. The race_definition cases
+ * that must tell `name` from `nameLower` use the strict mock (`newCtx(seed, sender, true)`).
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { rowColumnProblems, snapshotDb } from './schema_recorder';
@@ -98,8 +99,8 @@ function mergeSeeds(...parts: Seed[]): Seed {
 // The shared mock seeds a default llm_admin_state row (Phase 43). These snapshots dump the whole
 // database and the apply path never reads the gate, so the table is seeded empty (and dropped from
 // the dump while empty) to keep every stored snapshot unchanged.
-function newCtx(seed: Seed, sender: any = alice) {
-  return createMockCtx({ seed: { llm_admin_state: [], ...seed }, sender, timestampMicros: T0 });
+function newCtx(seed: Seed, sender: any = alice, strict = false) {
+  return createMockCtx({ seed: { llm_admin_state: [], ...seed }, sender, timestampMicros: T0, strict });
 }
 
 function rows(ctx: any, table: string): any[] {
@@ -429,15 +430,16 @@ describe('llm apply creation_race success', () => {
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Ashkin');
   });
 
-  it('does not add a second race_definition when one already exists for the race, and the state takes the stored bonuses (CR-01)', () => {
-    // Mock limit: by_name maps to the column `name`, so the seeded row's name is lowercase.
+  it('does not add a second race_definition when one already exists for the race, and the state takes the stored name and bonuses (CR-01, IN-10)', () => {
+    // Strict mock: by_name resolves to the declared index column nameLower, so the display name
+    // (Ashkin) and the lookup key (ashkin) are different strings and the test can tell them apart.
     const stored = '{"primary":{"stat":"cha","value":3},"secondary":{"stat":"wis","value":2},"flavor":"Old ash."}';
     const ctx = newCtx({
       ...seed(),
       race_definition: [
-        { id: 9n, name: 'ashkin', nameLower: 'ashkin', narrative: 'old', bonusesJson: stored, createdAt: ts(T_OLD) },
+        { id: 9n, name: 'Ashkin', nameLower: 'ashkin', narrative: 'old', bonusesJson: stored, createdAt: ts(T_OLD) },
       ],
-    });
+    }, alice, true);
     exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
     expect(rows(ctx, 'race_definition')).toHaveLength(1);
     expect(rows(ctx, 'race_definition')[0].narrative).toBe('old');
@@ -445,7 +447,7 @@ describe('llm apply creation_race success', () => {
     expect(state.step).toBe('AWAITING_ARCHETYPE');
     // The reply said str +2 / dex +1; the stored definition (cha +3 / wis +2) is the one source.
     expect(state.raceBonuses).toBe(stored);
-    expect(state.raceName).toBe('ashkin');
+    expect(state.raceName).toBe('Ashkin'); // the stored display name, never nameLower
     const msg = rows(ctx, 'event_creation')[0].message as string;
     expect(msg).toContain('+3 CHA, +2 WIS. Old ash.');
     expect(msg).not.toContain('+2 STR');

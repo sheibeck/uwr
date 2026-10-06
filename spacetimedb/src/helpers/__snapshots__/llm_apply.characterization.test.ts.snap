@@ -1620,7 +1620,7 @@ exports[`llm apply creation_race success > applies a valid reply: state, creatio
 }"
 `;
 
-exports[`llm apply creation_race success > does not add a second race_definition when one already exists for the race, and the state takes the stored bonuses (CR-01) 1`] = `
+exports[`llm apply creation_race success > does not add a second race_definition when one already exists for the race, and the state takes the stored name and bonuses (CR-01, IN-10) 1`] = `
 "{
   "character_creation_state": [
     {
@@ -1628,7 +1628,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"cha\\",\\"value\\":3},\\"secondary\\":{\\"stat\\":\\"wis\\",\\"value\\":2},\\"flavor\\":\\"Old ash.\\"}",
-      "raceName": "ashkin",
+      "raceName": "Ashkin",
       "raceNarrative": "Born of cinders and spite.",
       "step": "AWAITING_ARCHETYPE",
       "updatedAt": "ts:1700000000000000n"
@@ -1639,7 +1639,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**ashkin**\\n+3 CHA, +2 WIS. Old ash.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+3 CHA, +2 WIS. Old ash.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1650,7 +1650,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "**ashkin**\\n+3 CHA, +2 WIS. Old ash."
+          "text": "**Ashkin**\\n+3 CHA, +2 WIS. Old ash."
         },
         {
           "kind": "narration",
@@ -1670,7 +1670,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
       "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"cha\\",\\"value\\":3},\\"secondary\\":{\\"stat\\":\\"wis\\",\\"value\\":2},\\"flavor\\":\\"Old ash.\\"}",
       "createdAt": "ts:1600000000000000n",
       "id": "9n",
-      "name": "ashkin",
+      "name": "Ashkin",
       "nameLower": "ashkin",
       "narrative": "old"
     }
