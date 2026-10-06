@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { computed, nextTick, ref, shallowRef } from 'vue';
+import { computed, defineComponent, h, inject, nextTick, ref, shallowRef } from 'vue';
 import App from './App.vue';
 import SplashScreen from './session/SplashScreen.vue';
 import CharacterPicker from './session/CharacterPicker.vue';
@@ -11,6 +11,8 @@ import type { Session } from './session/useSession';
 import type { AppScreen } from './session/deriveScreen';
 import type { FrameView } from './session/frameView';
 import type { Character } from './module_bindings/types';
+import { GAME_KEY } from './game/context';
+import type { GameData } from './game/context';
 
 const frameView: FrameView = {
   characterName: 'Brannoch',
@@ -188,5 +190,50 @@ describe('App screen switch', () => {
     fake.frame.value = null;
     const w = mountApp(fake);
     expect(w.findComponent(AppFrame).exists()).toBe(false);
+  });
+});
+
+describe('App game hub provide', () => {
+  // A stand-in for AppFrame that reports the GameData it injects.
+  const seen: { game: GameData | undefined }[] = [];
+  const Probe = defineComponent({
+    name: 'ProbeFrame',
+    setup() {
+      const game = inject(GAME_KEY);
+      seen.push({ game });
+      return () => h('div', { class: 'game-probe' }, game ? 'game' : 'none');
+    },
+  });
+
+  beforeEach(() => {
+    seen.length = 0;
+  });
+
+  it('provides session.game to the frame', () => {
+    const fake = fakeSession({ kind: 'frame' });
+    const game = { marker: 'session-game' } as unknown as GameData;
+    (fake.session as unknown as { game: GameData }).game = game;
+    wrapper = mount(App, {
+      attachTo: document.body,
+      props: { session: fake.session },
+      global: { stubs: { AppFrame: Probe } },
+    });
+    expect(wrapper.find('.game-probe').text()).toBe('game');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].game).toBe(game);
+  });
+
+  it('provides an inert game when the session has none', () => {
+    const fake = fakeSession({ kind: 'frame' });
+    wrapper = mount(App, {
+      attachTo: document.body,
+      props: { session: fake.session },
+      global: { stubs: { AppFrame: Probe } },
+    });
+    const game = seen[0].game;
+    expect(game).toBeDefined();
+    expect(game!.connected.value).toBe(false);
+    expect(game!.reducers.value).toBeNull();
+    expect(game!.feed.entries.value).toEqual([]);
   });
 });

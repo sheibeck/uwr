@@ -6,6 +6,8 @@ import { InternalError, SenderError } from 'spacetimedb';
 import type { ConnectionController, ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, TableBinding } from '../net/bindTable';
 import type { Character } from '../module_bindings/types';
+import type { GameData } from '../game/context';
+import type { GameInput } from '../game/gameData';
 import { createSession, defaultQueries, SIGNIN_TIMEOUT_MS } from './useSession';
 import type { Session, SessionAuth, SessionConn, SessionDeps, SessionQueries } from './useSession';
 
@@ -100,6 +102,7 @@ interface HarnessOptions {
   callbackError?: unknown;
   buildVersion?: string;
   isDev?: boolean;
+  game?: SessionDeps<FakeConn>['game'];
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -155,6 +158,7 @@ function harness(options: HarnessOptions = {}): Harness {
     buildVersion: options.buildVersion ?? 'v1',
     isDev: options.isDev ?? false,
     reloadPage,
+    game: options.game,
   };
   const session = createSession(deps, { callbackError: options.callbackError ?? null });
 
@@ -831,6 +835,75 @@ describe('createSession stuck sign-in', () => {
       h.session.dispose();
       expect(vi.getTimerCount()).toBe(0);
     });
+  });
+});
+
+describe('game hub wiring', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+  });
+
+  function spyGame() {
+    const game = { reset: vi.fn(), dispose: vi.fn() } as unknown as GameData;
+    const factory = vi.fn<(input: GameInput<FakeConn>) => GameData>(() => game);
+    return { game, factory };
+  }
+
+  it('carries an inert game when no factory is given', () => {
+    h = harness();
+    expect(h.session.game.connected.value).toBe(false);
+    expect(h.session.game.character.value).toBeNull();
+    expect(h.session.game.feed.entries.value).toEqual([]);
+    expect(() => h.session.game.reset()).not.toThrow();
+  });
+
+  it('builds the game once with refs that follow the player and the active character', () => {
+    const { game, factory } = spyGame();
+    h = harness({ game: factory });
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(h.session.game).toBe(game);
+
+    const input = factory.mock.calls[0][0];
+    expect(input.conn).toBe(h.conn);
+    expect(input.status).toBe(h.status);
+    expect(input.userId.value).toBeNull();
+    expect(input.character.value).toBeNull();
+
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 9n });
+    expect(input.userId.value).toBe(7n);
+    h.binding(queries.characters(7n)).rows.value = [makeCharacter(9n, 1n)];
+    expect(input.character.value?.id).toBe(9n);
+    expect(input.locations).toBe(h.binding(queries.location).rows);
+    expect(input.regions).toBe(h.binding(queries.region).rows);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('logout resets the game after disposing the session bindings', async () => {
+    const { game, factory } = spyGame();
+    h = harness({ game: factory });
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 9n });
+    const player = h.binding(queries.myPlayer);
+    const order: string[] = [];
+    player.dispose.mockImplementation(() => {
+      order.push('bindings');
+    });
+    (game.reset as Mock).mockImplementation(() => {
+      order.push('game');
+    });
+    await h.session.logout();
+    expect(game.reset).toHaveBeenCalledTimes(1);
+    expect(order.indexOf('bindings')).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf('game')).toBeGreaterThan(order.indexOf('bindings'));
+  });
+
+  it('dispose disposes the game', () => {
+    const { game, factory } = spyGame();
+    h = harness({ game: factory });
+    h.session.dispose();
+    expect(game.dispose).toHaveBeenCalledTimes(1);
   });
 });
 

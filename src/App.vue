@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, provide } from 'vue';
+import { GAME_KEY, createInertGame } from './game/context';
 import AppFrame from './frame/AppFrame.vue';
 import CharacterPicker from './session/CharacterPicker.vue';
 import NoCharactersNote from './session/NoCharactersNote.vue';
@@ -12,6 +13,9 @@ const props = defineProps<{ callbackError?: unknown; session?: Session }>();
 // A session prop exists for tests; otherwise the app owns a fresh controller.
 const session: Session =
   props.session ?? createDefaultSession({ callbackError: props.callbackError ?? null });
+
+// Components reach the game data hub by injection; a session without one gets an inert hub.
+provide(GAME_KEY, session.game ?? createInertGame());
 
 // Plain-object refs are not auto-unwrapped in the template: alias them here.
 const { screen, frame, characters, pickerPendingId, pickerFailed, reconnecting, nextRetryAt, versionPrompt } =

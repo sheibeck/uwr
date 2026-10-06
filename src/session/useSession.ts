@@ -26,6 +26,12 @@ import type { AppScreen } from './deriveScreen';
 import { buildFrameView, sortCharacters } from './frameView';
 import type { FrameView } from './frameView';
 import { shouldPromptReload } from './versionCheck';
+import { bindEventTable } from '../game/bindEventTable';
+import { createInertGame } from '../game/context';
+import type { GameData } from '../game/context';
+import { createGameData } from '../game/gameData';
+import type { GameConn, GameInput } from '../game/gameData';
+import { gameQueries } from '../game/queries';
 
 export interface SessionAuth {
   getStoredIdToken(): string | null;
@@ -69,6 +75,8 @@ export interface SessionDeps<C extends SessionConn> {
   buildVersion: string;
   isDev: boolean;
   reloadPage(): void;
+  /** Builds the game data hub. Omitted: the session carries an inert hub. */
+  game?: (input: GameInput<C>) => GameData;
 }
 
 export const SELECT_TIMEOUT_MS = 8000;
@@ -86,6 +94,8 @@ export interface Session {
   readonly reconnecting: ComputedRef<boolean>;
   readonly nextRetryAt: Readonly<Ref<number | null>>;
   readonly versionPrompt: ComputedRef<boolean>;
+  /** The game data hub (feed, rails, hotbar data); reset on logout. */
+  readonly game: GameData;
   start(): void;
   signIn(): void;
   selectCharacter(characterId: bigint): void;
@@ -114,7 +124,7 @@ export function defaultQueries(): SessionQueries {
  * the generated bindings and the stored-session helpers.
  */
 export function createDefaultSession(options: { callbackError: unknown }): Session {
-  return createSession<SessionConn>(
+  return createSession<SessionConn & GameConn>(
     {
       controller: createConnectionController(defaultControllerDeps()),
       auth: { getStoredIdToken, getStoredEmail, clearAuthSession, beginSpacetimeAuthLogin },
@@ -123,6 +133,11 @@ export function createDefaultSession(options: { callbackError: unknown }): Sessi
       buildVersion: __BUILD_VERSION__,
       isDev: import.meta.env.DEV,
       reloadPage: () => window.location.reload(),
+      game: (input) =>
+        createGameData(
+          { bind: bindTable, bindEvent: bindEventTable, queries: gameQueries() },
+          input,
+        ),
     },
     options,
   );
@@ -360,6 +375,17 @@ function build<C extends SessionConn>(
     shouldPromptReload(appVersion.rows.value[0], deps.buildVersion, deps.isDev),
   );
 
+  const game: GameData = deps.game
+    ? deps.game({
+        conn: controller.conn,
+        status: controller.status,
+        userId,
+        character: activeCharacter,
+        locations: location.rows,
+        regions: region.rows,
+      })
+    : createInertGame();
+
   const pickerPendingId = ref<bigint | null>(null);
   const pickerFailed = ref(false);
   let selectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -453,6 +479,8 @@ function build<C extends SessionConn>(
     hasToken.value = false;
     controller.disconnect(); // intentional: no retry
     disposeBindings();
+    // No stale rows or feed lines may reach the next sign-in.
+    game.reset();
     loginSentFor = null;
     authFailed.value = false;
     redirecting.value = false;
@@ -470,6 +498,7 @@ function build<C extends SessionConn>(
     reconnecting,
     nextRetryAt: controller.nextRetryAt,
     versionPrompt,
+    game,
     start() {
       controller.connect();
     },
@@ -485,6 +514,7 @@ function build<C extends SessionConn>(
       clearSignInTimer();
       clearSelectTimer();
       disposeBindings();
+      game.dispose();
       controller.dispose();
     },
   };
