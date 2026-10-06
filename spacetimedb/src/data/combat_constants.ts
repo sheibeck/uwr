@@ -10,8 +10,7 @@ export const ROUND_TIMER_MICROS = 10_000_000n;
 export const SOLO_TIMER_MICROS = 10_000_000n;
 export const EFFECT_ROUND_CONVERSION_MICROS = 4_000_000n;
 export const MIN_EFFECT_ROUNDS = 1n;
-export const MAX_COMBAT_NARRATIONS = 3n;                     // cap narrations per encounter
-export const NARRATION_BUDGET_THRESHOLD = 10n;               // skip narration when budget below this
+export const MAX_COMBAT_NARRATIONS = 3n;                     // per-fight cap on big-moment narrations; the end-of-fight narration is separate (+1)
 export const AUTO_ATTACK_INTERVAL = 5_000_000n; // Used for enemies, pets, and pull delay — NOT player auto-attacks
 export const COMBAT_INTRO_TIMEOUT_MICROS = 12_000_000n; // Fallback if LLM intro never completes (12 seconds)
 

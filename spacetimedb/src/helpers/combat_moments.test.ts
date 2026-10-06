@@ -167,7 +167,10 @@ describe('boss or named kill', () => {
     expect(pick?.first).toBe(false);
   });
   it('is blocked by a fired key for that enemy', () => {
-    const fired: FiredMoment[] = [{ kind: 'kill', subjectKey: 'enemy:1' }];
+    const fired: FiredMoment[] = [
+      { kind: 'kill', subjectKey: 'enemy:1' },
+      { kind: 'kill', subjectKey: 'first' },
+    ];
     const pick = detectMoment(base({ fired, enemies: [enemy(1n, 40n, 0n, true)] }));
     expect(pick).toBeNull();
   });
