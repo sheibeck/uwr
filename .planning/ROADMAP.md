@@ -1288,6 +1288,8 @@ Plans:
 
 **Depends on:** 999.10 (discovered races) and 999.11 (stub races and starting zones) for the full behavior. Listing player-created races works today without them.
 
+**Related:** 999.21 (character creation screens match the mock). The owner suggests doing these together.
+
 **Requirements:** TBD
 **Plans:** 0 plans
 
@@ -1504,5 +1506,26 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.21: Character creation screens match the mock: left step rail, ability cards only (BACKLOG)
+
+**Goal:** Make the character creation screens match the mock. Captured 2026-10-06 (owner request).
+
+**What is wrong today (owner):**
+1. **Step indicator placement:** the mock shows the current step in a left-hand rail. The build shows it in a bar along the top (`src/creation/StepBar.vue`, placed in `src/creation/CreationView.vue`).
+2. **Duplicate ability content:** when the player picks abilities, the screen shows both the printed text of the abilities and the ability cards. Show only the cards (`ChoiceBlock` fed by `parseAbilityCards` in `src/creation/abilityCards.ts`). They are easier to read and remove the duplicate content. The printed list probably comes from the Keeper's narration in `CreationFeed`; suppress or trim it while the cards are shown.
+
+**Notes for planning:**
+- **Design source:** re-import the character creation screen from `UWR Ledger Screens.dc.html` (mock 2a) through the claude_design MCP, never cached, the same source Phase 49 used. Check desktop and mobile at 390x844 (decide in discuss whether mobile keeps a top bar).
+- **Keep the Phase 49 owner deviations:** the name is chosen last and there is no "First words" step.
+- **Run it as a UI phase** (`/gsd-ui-phase`); the usual design guards apply (tokens only, no v-html, no `<svg`, Phosphor icons and Inter, the fixed size, weight and spacing scales).
+- **Tests:** the step rail renders on the left on desktop for every step; ability text is not duplicated when the cards are shown; the Phase 49 creation tests still pass.
+- **Related:** 999.15 (list all races at character creation). The owner suggests doing these together, since both rework the creation screens.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding 999.20 (Examine button in the right-hand rail)*
+*Last updated: 2026-10-06 after adding 999.21 (character creation screens match the mock)*
