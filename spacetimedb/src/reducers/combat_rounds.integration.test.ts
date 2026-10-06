@@ -501,6 +501,107 @@ describe('the end of a fight (RND-04)', () => {
   });
 });
 
+describe('the per-second loop is retired (RND-01)', () => {
+  const loopArg = (combatId = 1n) => ({
+    arg: { scheduledId: 9n, scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: T0 } }, combatId },
+  });
+  const drain = (ctx: any, sender: any = MODULE, combatId = 1n) => {
+    ctx.sender = sender;
+    handlers.combat_loop(ctx, loopArg(combatId));
+    ctx.sender = MODULE;
+  };
+
+  it('a fight that was running at publish time (no round rows) is moved onto rounds, once, with no loop tick', () => {
+    const seed = fightSeed();
+    seed.combat_loop_tick = [
+      { scheduledId: 9n, scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: T0 } }, combatId: 1n },
+    ];
+    const ctx = fightCtx(seed, MODULE, T0 + TEN_S);
+    drain(ctx);
+    const rounds = rows(ctx, 'combat_round');
+    expect(rounds).toHaveLength(1);
+    expect(rounds[0]).toMatchObject({ roundNumber: 1n, state: 'action_select', timerExpiresAtMicros: T0 + 2n * TEN_S });
+    expect(ticksFor(ctx)).toHaveLength(1);
+    expect(rows(ctx, 'combat_loop_tick')).toHaveLength(1); // only the row that was already there; nothing new
+    const after = snapshotDb(ctx.db);
+    drain(ctx);
+    expect(snapshotDb(ctx.db)).toBe(after);
+    expect(schemaProblems(ctx)).toEqual([]);
+  });
+
+  it('a call from a client, or for a resolved or unknown combat, changes nothing', () => {
+    const ctx = fightCtx(fightSeed(), MODULE, T0 + TEN_S);
+    const before = snapshotDb(ctx.db);
+    drain(ctx, ALICE);
+    expect(snapshotDb(ctx.db)).toBe(before);
+    drain(ctx, MODULE, 404n);
+    expect(snapshotDb(ctx.db)).toBe(before);
+
+    const seed = fightSeed();
+    seed.combat_encounter[0].state = 'resolved';
+    const done = fightCtx(seed, MODULE, T0 + TEN_S);
+    const doneBefore = snapshotDb(done.db);
+    drain(done);
+    expect(snapshotDb(done.db)).toBe(doneBefore);
+  });
+
+  it('an open round that lost its tick gets one, and nothing is rescheduled when it has one', () => {
+    const seed = fightSeed({ withOpenRound: true });
+    seed.round_timer_tick = [];
+    const ctx = fightCtx(seed, MODULE, T0 + 4_000_000n);
+    drain(ctx);
+    expect(ticksFor(ctx)).toHaveLength(1);
+    expect(ticksFor(ctx)[0].scheduledAt.value.microsSinceUnixEpoch).toBe(T0 + TEN_S);
+    drain(ctx);
+    expect(ticksFor(ctx)).toHaveLength(1);
+  });
+
+  it('the realtime ability reducer is gone; use_ability, resolve_round_timer and combat_loop are registered', () => {
+    expect(capturedReducer('use_ability_realtime')).toBeUndefined();
+    expect(capturedReducer('use_ability')).toBeTypeOf('function');
+    expect(capturedReducer('resolve_round_timer')).toBeTypeOf('function');
+    expect(capturedReducer('combat_loop')).toBeTypeOf('function');
+  });
+});
+
+describe('leaving a fight carries cooldowns and clears moments (RND-04)', () => {
+  it('a leftover round cooldown becomes a wall-clock cooldown, the fight moments go, rounds and ticks go', () => {
+    const now = T0 + TEN_S;
+    const seed = fightSeed({
+      withOpenRound: true,
+      enemies: [{ id: 1n, name: 'Cave Rat', hp: 1n }],
+      extra: {
+        ability_template: [ability()],
+        ability_cooldown: [
+          { id: 1n, characterId: 1n, abilityTemplateId: 1n, startedAtMicros: T0, durationMicros: 2n * TEN_S, roundsRemaining: 2n },
+        ],
+        combat_moment: [
+          { id: 1n, combatId: 1n, kind: 'boss_fall', subjectKey: 'e1', roundNumber: 1n, createdAt: { microsSinceUnixEpoch: T0 } },
+          { id: 2n, combatId: 1n, kind: 'low_hp', subjectKey: 'c1', roundNumber: 1n, createdAt: { microsSinceUnixEpoch: T0 } },
+          { id: 3n, combatId: 2n, kind: 'boss_fall', subjectKey: 'e9', roundNumber: 1n, createdAt: { microsSinceUnixEpoch: T0 } },
+        ],
+        combat_action: [choice({ actionType: 'auto_attack', abilityTemplateId: undefined })],
+      },
+    });
+    const ctx = fightCtx(seed, MODULE, now);
+    fire(ctx);
+    expect(rows(ctx, 'combat_encounter')[0].state).toBe('resolved');
+    const cooldowns = rows(ctx, 'ability_cooldown');
+    expect(cooldowns).toHaveLength(1);
+    expect(cooldowns[0]).toMatchObject({
+      characterId: 1n,
+      abilityTemplateId: 1n,
+      roundsRemaining: 0n,
+      durationMicros: 8_000_000n,
+      startedAtMicros: now,
+    });
+    expect(rows(ctx, 'combat_moment').map((m: any) => m.combatId)).toEqual([2n]);
+    expect(rows(ctx, 'combat_round')).toHaveLength(0);
+    expect(rows(ctx, 'combat_action')).toHaveLength(0);
+    expect(ticksFor(ctx)).toHaveLength(0);
+  });
+});
+
 describe('source rules for the round engine', () => {
   const source = readFileSync(new URL('./combat.ts', import.meta.url), 'utf-8');
 

@@ -12,8 +12,8 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
 import { scheduleCombatTick } from '../helpers/combat';
 import {
-  startRound, currentRound, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
-  setRoundCooldown, roundCooldownRemaining, decrementRoundCooldowns, beginCombatCooldowns,
+  startRound, currentRound, roundsForCombat, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
+  setRoundCooldown, roundCooldownRemaining, decrementRoundCooldowns, beginCombatCooldowns, endCombatCooldowns,
 } from '../helpers/combat_round_state';
 import { ROUND_STATE, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed } from '../helpers/combat_rounds';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
@@ -364,26 +364,25 @@ export const registerCombatReducers = (deps: any) => {
   };
 
   const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
+    // Rows are collected before they are deleted, so the delete never disturbs the iteration.
     const loopTable = ctx.db.combat_loop_tick;
     if (loopTable && loopTable.iter && loopTable.scheduledId) {
+      const loopIds: bigint[] = [];
       for (const row of loopTable.iter()) {
-        if (row.combatId !== combatId) continue;
-        loopTable.scheduledId.delete(row.scheduledId);
+        if (row.combatId === combatId) loopIds.push(row.scheduledId);
       }
+      for (const scheduledId of loopIds) loopTable.scheduledId.delete(scheduledId);
     }
-    // Clean up round-based combat artifacts
-    const roundTimerTable = ctx.db.round_timer_tick;
-    if (roundTimerTable && roundTimerTable.iter) {
-      for (const row of roundTimerTable.iter()) {
-        if (row.combatId !== combatId) continue;
-        roundTimerTable.scheduledId.delete(row.scheduledId);
-      }
-    }
-    for (const row of ctx.db.combat_action.by_combat.filter(combatId)) {
+    // Clean up round-based combat artifacts: the fight's tick(s), choices, rounds and big-moment rows
+    cancelRoundTicks(ctx, combatId);
+    for (const row of [...ctx.db.combat_action.by_combat.filter(combatId)]) {
       ctx.db.combat_action.id.delete(row.id);
     }
-    for (const row of ctx.db.combat_round.by_combat.filter(combatId)) {
+    for (const row of [...ctx.db.combat_round.by_combat.filter(combatId)]) {
       ctx.db.combat_round.id.delete(row.id);
+    }
+    for (const row of [...ctx.db.combat_moment.by_combat.filter(combatId)]) {
+      ctx.db.combat_moment.id.delete(row.id);
     }
     const participantIds: bigint[] = [];
     for (const row of ctx.db.combat_participant.by_combat.filter(combatId)) {
@@ -422,12 +421,8 @@ export const registerCombatReducers = (deps: any) => {
           ctx.db.character_cast.id.delete(cast.id);
         }
       }
-      // Remove expired cooldown rows to prevent stale data
-      for (const cd of ctx.db.ability_cooldown.by_character.filter(characterId)) {
-        if (cd.startedAtMicros + cd.durationMicros <= ctx.timestamp.microsSinceUnixEpoch) {
-          ctx.db.ability_cooldown.id.delete(cd.id);
-        }
-      }
+      // Leftover round cooldowns turn back into wall-clock cooldowns; expired rows are removed
+      endCombatCooldowns(ctx, characterId);
     }
     for (const row of ctx.db.aggro_entry.by_combat.filter(combatId)) {
       ctx.db.aggro_entry.id.delete(row.id);
@@ -2814,87 +2809,6 @@ export const registerCombatReducers = (deps: any) => {
     startRound(ctx, liveCombat.id, N + 1n, open.narrationCount);
   };
 
-  // ── Use Ability Realtime Reducer ──────────────────────────────────────
-
-  spacetimedb.reducer('use_ability_realtime', {
-    characterId: t.u64(),
-    abilityTemplateId: t.u64(),
-    targetEnemyId: t.u64().optional(),
-    targetCharacterId: t.u64().optional(),
-  }, (ctx, args) => {
-    const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const combatId = activeCombatIdForCharacter(ctx, character.id);
-    if (!combatId) return failCombat(ctx, character, 'Not in combat');
-
-    const ability = ctx.db.ability_template.id.find(args.abilityTemplateId);
-    if (!ability || ability.characterId !== character.id) {
-      return failCombat(ctx, character, 'Ability not available');
-    }
-
-    // Check cooldown
-    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    const cd = [...ctx.db.ability_cooldown.by_character.filter(character.id)]
-      .find((row: any) => row.abilityTemplateId === args.abilityTemplateId);
-    if (cd && cd.startedAtMicros + cd.durationMicros > nowMicros) {
-      return failCombat(ctx, character, `${ability.name} is on cooldown`);
-    }
-
-    // Check if already casting
-    const existingCast = [...ctx.db.character_cast.by_character.filter(character.id)][0];
-    if (existingCast && existingCast.endsAtMicros > nowMicros) {
-      return failCombat(ctx, character, 'Already casting');
-    }
-
-    // Determine cast time (with mana floor applied)
-    const castMicros = abilityCastMicros(ctx, args.abilityTemplateId);
-
-    if (castMicros > 0n) {
-      // Has cast time — insert character_cast row, tick_casts will execute when done
-      if (existingCast) ctx.db.character_cast.id.delete(existingCast.id);
-      ctx.db.character_cast.insert({
-        id: 0n,
-        characterId: character.id,
-        abilityTemplateId: args.abilityTemplateId,
-        targetCharacterId: args.targetCharacterId,
-        endsAtMicros: nowMicros + castMicros,
-      });
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
-        `Casting ${ability.name}...`);
-      // Ensure cast tick chain is running to process this cast
-      ensureCastTickScheduled(ctx);
-      return;
-    }
-
-    // No cast time — execute immediately
-    try {
-      executeAbilityAction(ctx, {
-        actorType: 'character',
-        actorId: character.id,
-        abilityTemplateId: args.abilityTemplateId,
-        targetCharacterId: args.targetCharacterId,
-      });
-      // Set cooldown
-      const cooldownDuration = abilityCooldownMicros(ctx, args.abilityTemplateId);
-      if (cooldownDuration > 0n) {
-        for (const cdRow of ctx.db.ability_cooldown.by_character.filter(character.id)) {
-          if (cdRow.abilityTemplateId === args.abilityTemplateId) {
-            ctx.db.ability_cooldown.id.delete(cdRow.id);
-          }
-        }
-        ctx.db.ability_cooldown.insert({
-          id: 0n,
-          characterId: character.id,
-          abilityTemplateId: args.abilityTemplateId,
-          startedAtMicros: nowMicros,
-          durationMicros: cooldownDuration,
-          roundsRemaining: 0n,
-        });
-      }
-    } catch (_e) {
-      failCombat(ctx, character, 'Ability failed');
-    }
-  });
-
   // ── Post-Combat Summary (removed — LLM narration too slow) ──
 
   // ── Resolve Round Timer ──
@@ -2914,108 +2828,21 @@ export const registerCombatReducers = (deps: any) => {
     );
   }
 
-  // ── Real-Time Combat Loop ───────────────────────────────────────────
+  // ── Combat loop (retired) ───────────────────────────────────────────
 
+  // The per-second loop is gone: a fight is driven by its one round tick (resolve_round_timer).
+  // combat_loop_tick stays defined so no table is dropped; any row still scheduled when the module
+  // is published drains here and moves its fight onto rounds. This reducer only calls the idempotent
+  // ensureRound for an active fight and never reschedules, so a drained row is not replaced.
   scheduledReducers['combat_loop'] = spacetimedb.reducer('combat_loop', { arg: CombatLoopTick.rowType }, (ctx, { arg }) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     const combat = ctx.db.combat_encounter.id.find(arg.combatId);
     if (!combat || combat.state !== 'active') return;
-
-    const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
-    const participants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
-    const enemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
-
-    // Mark newly dead participants
-    markNewlyDeadParticipants(ctx, combat, participants);
-
-    const activeParticipants = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
-      .filter((p: any) => p.status === 'active');
-
-    const enemyName = enemies[0]?.displayName ??
-      ctx.db.enemy_template.id.find(enemies[0]?.enemyTemplateId)?.name ?? 'enemy';
-
-    // Process pending adds
-    processPendingAdds(ctx, combat, participants, activeParticipants, enemyName, nowMicros);
-
-    // Player auto-attacks (check nextAutoAttackAt timing)
-    for (const p of activeParticipants) {
-      const character = ctx.db.character.id.find(p.characterId);
-      if (!character || character.hp === 0n) continue;
-      const participant = ctx.db.combat_participant.id.find(p.id);
-      if (!participant || participant.status !== 'active') continue;
-      // Only auto-attack if nextAutoAttackAt has passed
-      if (participant.nextAutoAttackAt > nowMicros) continue;
-      processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros, 0n);
-      // Schedule next auto-attack based on weapon speed
-      const weapon = deps.getEquippedWeaponStats(ctx, character.id);
-      ctx.db.combat_participant.id.update({
-        ...ctx.db.combat_participant.id.find(participant.id)!,
-        nextAutoAttackAt: nowMicros + weapon.speed,
-      });
+    if (!currentRound(ctx, combat.id) && roundsForCombat(ctx, combat.id).length === 0) {
+      // A fight that was running on the old loop: its live wall-clock cooldowns become rounds, as at a new fight.
+      for (const p of ctx.db.combat_participant.by_combat.filter(combat.id)) beginCombatCooldowns(ctx, p.characterId);
     }
-
-    // Enemy actions (abilities + auto-attacks, check nextAutoAttackAt timing)
-    const refreshedEnemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
-    const refreshedActive = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
-      .filter((p: any) => p.status === 'active');
-
-    for (const enemy of refreshedEnemies) {
-      if (enemy.currentHp === 0n) continue;
-      if (enemy.nextAutoAttackAt > nowMicros) continue;
-      const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
-      if (!template) continue;
-      const usedAbility = tryEnemyAbilityForRound(ctx, combat, enemy, template, refreshedActive, nowMicros);
-      if (!usedAbility) {
-        processEnemyAutoAttackForRound(ctx, combat, enemy, template, participants, refreshedActive, nowMicros, 0n);
-      }
-      // Schedule next enemy auto-attack
-      const speed = deps.getEnemyAttackSpeed(template.role ?? 'damage');
-      ctx.db.combat_enemy.id.update({
-        ...ctx.db.combat_enemy.id.find(enemy.id)!,
-        nextAutoAttackAt: nowMicros + speed,
-      });
-    }
-
-    // Pet combat
-    const livingEnemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)]
-      .filter((e: any) => e.currentHp > 0n);
-    processPetCombat(ctx, combat, livingEnemies, nowMicros);
-
-    // Tick effects — damage/heal ticks every 3s, duration decrements every 1s
-    tickEffectsForRound(ctx, combat.id, participants, nowMicros);
-
-    // Retarget characters whose target died
-    const aliveEnemyIds = new Set(livingEnemies.map((e: any) => e.id));
-    for (const p of participants) {
-      const character = ctx.db.character.id.find(p.characterId);
-      if (!character) continue;
-      if (character.combatTargetEnemyId && !aliveEnemyIds.has(character.combatTargetEnemyId)) {
-        ctx.db.character.id.update({
-          ...character,
-          combatTargetEnemyId: livingEnemies[0]?.id ?? undefined,
-        });
-      }
-    }
-
-    // Victory check
-    if (livingEnemies.length === 0) {
-      handleVictory(ctx, combat, enemies, participants, activeParticipants, enemyName, nowMicros);
-      return;
-    }
-
-    // Defeat check
-    let stillActive = false;
-    for (const p of ctx.db.combat_participant.by_combat.filter(combat.id)) {
-      if (p.status !== 'active') continue;
-      const character = ctx.db.character.id.find(p.characterId);
-      if (character && character.hp > 0n) { stillActive = true; break; }
-    }
-    if (!stillActive) {
-      handleDefeat(ctx, combat, enemies, participants, enemyName, nowMicros);
-      return;
-    }
-
-    // Schedule next tick
-    scheduleCombatTick(ctx, combat.id);
+    ensureRound(ctx, combat);
   });
 };
 
