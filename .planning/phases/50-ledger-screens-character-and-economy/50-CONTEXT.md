@@ -111,6 +111,16 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
   - The server change is additive, with real-handler tests: no infinite duplication, the floor holds, partial sales, buy-back quantity.
   - Publish locally only, with the key check before and after.
 
+### Owner decision after play-testing (2026-10-06, owner in chat): crafting and backpack follow the updated mock (plans 50-28 onward)
+- The owner sent a new mock, `UWR Crafting.dc.html` (claude_design project `1a7a975f-7b14-488b-9a38-188bc56294cf`), and asked to implement it. The fresh import and extract are in the session scratchpad `design50b/EXTRACT.md`. Todo: `.planning/todos/pending/2026-10-06-crafting-and-backpack-follow-the-updated-mock.md`.
+- **Timing:** build it now as a Phase 50 follow-up, before Phase 51 planning (owner chose "Now, as Phase 50 follow-up").
+- **Backpack squares are too big.** `BackpackGrid.vue` stretches slots with `1fr`. Use the mock slot size; keep 44px touch targets on mobile.
+- **Clear result message.** Craft, Salvage and similar actions show a clear result saying what was made, salvaged or returned, placed as the mock shows, not only a feed line low in the corner. Screen readers get a polite live region.
+- **Craft multiple.** Add the ×N quantity control next to Craft from the mock. Its maximum is what the materials allow. The server stays the authority, and every refusal leaves the bag unchanged.
+- **Output details.** The recipe detail shows what the output item is and does, with its stats (shared `item_stats` and inspector helpers) and a real description. Generated outputs today only say `Crafted from {primary} and {secondary}.`
+- **No odds bar (owner re-confirmed).** Quality stays deterministic from the material tier: show `Quality: {Tier}` with the hint, styled to the new mock. No random quality and no balance change.
+- Any server change is additive, publishes locally only with the key check (108) before and after, never clears the database, and comes with real-handler tests. No prompt changes.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
