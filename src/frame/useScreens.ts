@@ -22,6 +22,12 @@ export interface ScreensApi {
   toggle(screen: ScreenId, opener: HTMLElement | null): void;
   /** Replaces the More sheet with a screen; the More tab stays the opener. */
   openFromMore(screen: ScreenId): void;
+  /**
+   * Replaces the open screen with another and keeps the original opener, with no focus return of
+   * its own. For an open that starts inside the open sheet (mobile Nearby in the Map sheet), where
+   * the clicked control unmounts with the sheet and the tab is still the right place to return to.
+   */
+  replace(screen: ScreenId): void;
   /** Clears the active screen and returns focus to the opener. */
   close(): void;
   /** Crossing to desktop turns an open More or encounter sheet into no screen. */
@@ -51,10 +57,12 @@ export function useScreens(options: ScreensOptions = {}): ScreensApi {
     open(screen, nextOpener);
   }
 
-  function openFromMore(screen: ScreenId): void {
+  function replace(screen: ScreenId): void {
     if (!allowed(screen)) return;
     active.value = screen;
   }
+
+  const openFromMore = replace;
 
   function close(): void {
     active.value = null;
@@ -87,5 +95,5 @@ export function useScreens(options: ScreensOptions = {}): ScreensApi {
     );
   }
 
-  return { active: readonly(active), open, toggle, openFromMore, close, syncLayout };
+  return { active: readonly(active), open, toggle, openFromMore, replace, close, syncLayout };
 }

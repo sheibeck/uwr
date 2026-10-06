@@ -65,7 +65,7 @@ function mountContent(setup: Setup = {}) {
     ...setup.game,
   } as unknown as GameData;
   const consoleApi = { ...createInertConsole(), ...calls } as unknown as ConsoleApi;
-  // The frame records its calls in order so the Trade sequence (close, then open) can be asserted.
+  // The frame records its calls in order so the Trade sequence (open only, no close) can be asserted.
   const frameOrder: string[] = [];
   const frameCalls = {
     closeScreen: vi.fn(() => {
@@ -226,8 +226,8 @@ describe('Nearby list', () => {
     expect(trade.classes()).toEqual(expect.arrayContaining(['btn', 'btn-ghost', 'btn-icon']));
     expect(trade.attributes('title')).toBe('Trade with Marta');
     await trade.trigger('click');
-    expect(frameOrder).toEqual(['close', 'open:vendor:args']);
-    expect(frameCalls.closeScreen).toHaveBeenCalledTimes(1);
+    expect(frameOrder).toEqual(['open:vendor:args']);
+    expect(frameCalls.closeScreen).not.toHaveBeenCalled();
     expect(frameCalls.openScreen).toHaveBeenCalledWith('vendor', { npcId: 2n, npcName: 'Marta' });
     expect(calls.trade).not.toHaveBeenCalled();
     expect(calls.hail).not.toHaveBeenCalled();

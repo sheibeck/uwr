@@ -81,6 +81,21 @@ describe('useScreens', () => {
     expect(document.activeElement).toBe(moreTab);
   });
 
+  it('replace swaps the open screen, keeps the original opener and schedules no focus return', async () => {
+    const screens = useScreens();
+    const mapTab = button('map');
+    screens.open('map', mapTab);
+    screens.replace('vendor');
+    expect(screens.active.value).toBe('vendor');
+    const other = button('other');
+    other.focus();
+    await nextTick();
+    expect(document.activeElement).toBe(other);
+    screens.close();
+    await nextTick();
+    expect(document.activeElement).toBe(mapTab);
+  });
+
   it('syncLayout turns more into null on desktop only', () => {
     const screens = useScreens();
     screens.open('more', button('m'));

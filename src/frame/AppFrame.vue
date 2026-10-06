@@ -59,7 +59,24 @@ const frameControls: FrameControls = {
   screenArgs: computed(() => screenArgs.value),
   openScreen(id: ScreenId | 'encounter', args?: ScreenArgs) {
     const focused = document.activeElement;
-    screens.open(id, focused instanceof HTMLElement ? focused : null);
+    const element = focused instanceof HTMLElement ? focused : null;
+    const current = screens.active.value;
+    // Opened from inside an open mobile sheet (Nearby's Trade in the Map sheet): that sheet and its
+    // focused control unmount, so the sheet's own opener (its tab) stays the opener. Otherwise the
+    // focused control is the opener. Neither path closes first, so no deferred focus return can
+    // pull focus out of the screen that just opened.
+    if (
+      !isDesktop.value &&
+      id !== 'encounter' &&
+      current !== null &&
+      current !== 'encounter' &&
+      element !== null &&
+      element.closest('[role="dialog"]') !== null
+    ) {
+      screens.replace(id);
+    } else {
+      screens.open(id, element);
+    }
     // Set after open: a refused open (combat lock) or another screen keeps the arguments null.
     screenArgs.value = id === 'vendor' && screens.active.value === 'vendor' ? (args ?? null) : null;
   },

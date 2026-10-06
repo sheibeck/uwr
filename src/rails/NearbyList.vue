@@ -98,10 +98,11 @@ function act(row: NearbyRow): void {
 }
 
 // Trade opens the vendor screen for the chosen NPC (Phase 50, CONTEXT). The NPC rides in the
-// screen arguments through the frame, so ConsoleApi.trade (no NPC) is no longer used here.
+// screen arguments through the frame, so ConsoleApi.trade (no NPC) is no longer used here. It does
+// not close first: openScreen already replaces the open screen, and a close would schedule a focus
+// return that runs after the new drawer or sheet has focused its close button.
 function trade(row: NearbyRow): void {
   if (!connected.value) return;
-  frame.closeScreen();
   frame.openScreen('vendor', { npcId: row.id, npcName: row.name });
 }
 
