@@ -1294,7 +1294,7 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.16: Quests screen with tracking, abandon and region grouping (BACKLOG)
+### Phase 999.16: Journal (quests) screen with tracking, abandon and region grouping (design: UWR Journal) (BACKLOG)
 
 **Goal:** A Quests menu item opens a Ledger screen (desktop drawer, mobile sheet) showing the same information as the `quests` chat command, formatted properly. From it, players track or untrack quests for the right rail, abandon quests with a confirmation, and browse quests grouped by region, with a cap of 30 active quests. Captured 2026-10-06 (owner idea). No quest backlog item existed to merge into.
 
@@ -1307,6 +1307,19 @@ Plans:
    - The server's line "This quest may never be offered again."
 5. **Grouped by region.** Quests are listed under their region, using the quest location or the giver's location mapped to a region. Each region heading shows its count.
 6. **Limit of 30 active quests.** A character can hold at most 30 active quests at a time. The screen shows the count, for example "12 / 30".
+
+**Design source (owner, 2026-10-06; re-import fresh when this is planned; never cached):** the quests screen is the **Journal**, and its rail follows the owner's Claude Design file.
+- claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Journal.dc.html
+- Focus file: `UWR Journal.dc.html`.
+- Also read the files it imports:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+- Implement `UWR Journal.dc.html`.
+- The menu item is "Journal". Where this entry says "Quests menu item" or "Quests screen", read Journal. If the design differs from the list above, the design wins and the owner's list is checked against it.
+- Run it as a UI phase (`/gsd-ui-phase` from the fresh import, then plan and execute). Timing: after the v3.0 milestone, with 999.19.
+
+**Turn-in bug reported with this item (fixed in quick 261006-kpj, not part of this backlog item).** The owner could not turn in a completed quest by talking to its giver. Cause: the new client sends `hail {npc}` through `submit_intent`, and the intent HAIL/TALK branch only printed the greeting. The turn-in logic lived only in the `hail_npc` reducer. The visible "Turn in" action for the Journal and Nearby is still todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`.
 
 **Notes for planning:**
 - **The limit needs a server change.** Today `MAX_ACTIVE_QUESTS = 4` in `spacetimedb/src/helpers/npc_conversation.ts`. It is used by the LLM quest offer (`llm_apply.ts:750`) and by the NPC conversation context (`npc_interaction.ts:93`). Decide whether 30 replaces it as a per-character cap that every accept path enforces (dialogue accept, LLM offer, the old auto-accept), and whether the offer prompt's count changes. A prompt change needs owner approval.
@@ -1476,4 +1489,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding backlog 999.19 (Character screen)*
+*Last updated: 2026-10-06 after adding the Journal design to 999.16*
