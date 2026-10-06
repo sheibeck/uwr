@@ -34,8 +34,10 @@ import {
   VENDOR_RESTOCK_BATCH,
   VENDOR_RESTOCK_CONTINUE_MICROS,
   VENDOR_RESTOCK_INTERVAL_MICROS,
+  baseStockQuantity,
   listPriceFor,
   planRestockBatch,
+  restockSeed,
   selectBaseStock,
 } from './data/vendor_stock';
 export default spacetimedb;
@@ -375,6 +377,7 @@ function restockVendor(ctx: any, npc: any, templates: any[], tickMicros: bigint)
       itemTemplateId: pick.id,
       price: listPriceFor(pick.vendorValue ?? 0n),
       qualityTier: undefined,
+      quantity: baseStockQuantity(pick.rarity, restockSeed(npc.id, tickMicros), pick.id),
     });
     ctx.db.vendor_base_stock.insert({ listingId: listing.id, npcId: npc.id });
   }

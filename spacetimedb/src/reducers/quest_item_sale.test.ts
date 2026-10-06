@@ -4,9 +4,10 @@
  * and nothing changes; a normal sale pays the shared payout, snapshots the affixes before deleting
  * them and records the one buy-back row (replacing an earlier one); sell_all_junk records nothing
  * and leaves an existing row alone. The typed sell commands (submit_intent) obey the same rules:
- * a single 'sell <item>' goes through the same helper and records; 'sell N <item>' and 'sell junk'
- * skip quest items and never touch the buy-back row. The mock db is strict; one shared identity object is used for
- * seeding and as the sender (the mock compares with ===).
+ * a single 'sell <item>' goes through the same helper and records; 'sell N <item>' sells N units
+ * across the matching stacks through the helper and records the buy-back only when it touches one
+ * stack; 'sell junk' skips quest items and never touches the buy-back row. The mock db is strict;
+ * one shared identity object is used for seeding and as the sender (the mock compares with ===).
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
@@ -278,10 +279,11 @@ describe('sell_item records the single sale', () => {
     const ctx = newCtx({
       templates: [tpl(82n, 'Iron Nails', { stackable: true })],
       instances: [inst(820n, 82n, 1n)],
-      listings: [{ id: 40n, npcId: VENDOR, itemTemplateId: 82n, price: 14n, qualityTier: undefined }],
+      listings: [{ id: 40n, npcId: VENDOR, itemTemplateId: 82n, price: 14n, qualityTier: undefined, quantity: 1n }],
     });
     sellItem(ctx, { characterId: 1n, itemInstanceId: 820n, npcId: VENDOR });
     expect(rows(ctx, 'vendor_inventory')).toHaveLength(1);
+    expect(rows(ctx, 'vendor_inventory')[0].quantity).toBe(2n);
     expect(rows(ctx, 'vendor_buyback')[0].listingId).toBeUndefined();
   });
 
@@ -426,7 +428,7 @@ describe('sell_all_junk (window reducer) skips quest items like the typed sell j
 // vendor npc must be at the character's location (sell_all_junk takes no npc id, so any vendor
 // there). Every refusal is one system line and no write at all.
 describe('buy_item requires a vendor at the location', () => {
-  const LISTING = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined };
+  const LISTING = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined, quantity: 1n };
   const tables = ['item_instance', 'vendor_inventory', 'vendor_buyback', 'item_affix'];
 
   function expectRefused(ctx: any, npcId: bigint) {
@@ -625,14 +627,29 @@ describe("typed 'sell N <item>'", () => {
     expect(snapshot(ctx, 'vendor_buyback')).toEqual(before);
   });
 
-  it('pays the shared per-instance payout with the Charisma modifier', () => {
+  it('sells N units from the first stack and records one buy-back row', () => {
     const ctx = newCtx({
       templates,
       instances: [inst(830n, 83n, 3n), inst(831n, 83n, 2n)],
       sellMod: 150n,
     });
     say(ctx, 'sell 2 glass shard');
+    expect(gold(ctx) - START_GOLD).toBe(sellPayout(7n, 2n, 0, 150n));
+    expect(rows(ctx, 'item_instance').find((i) => i.id === 830n)!.quantity).toBe(1n);
+    expect(rows(ctx, 'item_instance').find((i) => i.id === 831n)!.quantity).toBe(2n);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(1);
+    expect(rows(ctx, 'vendor_buyback')[0].quantity).toBe(2n);
+  });
+
+  it('spans stacks when N is larger than the first one and records nothing', () => {
+    const ctx = newCtx({
+      templates,
+      instances: [inst(830n, 83n, 3n), inst(831n, 83n, 2n)],
+      sellMod: 150n,
+    });
+    say(ctx, 'sell 5 glass shard');
     expect(gold(ctx) - START_GOLD).toBe(sellPayout(7n, 3n, 0, 150n) + sellPayout(7n, 2n, 0, 150n));
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
     expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
   });
 

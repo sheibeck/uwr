@@ -518,7 +518,10 @@ export const registerIntentReducers = (deps: any) => {
       const vendorNpc = npcsAtLoc.find((n: any) => n.npcType === 'vendor');
       if (!vendorNpc) return fail(ctx, character, 'There is no shop here.');
 
-      const vendorInv = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)];
+      // A sold-out listing (quantity 0) is hidden until it is restocked.
+      const vendorInv = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)].filter(
+        (vi: any) => vi.quantity >= 1n
+      );
       const parts: string[] = [`${vendorNpc.name}'s Wares:`];
 
       if (vendorInv.length === 0) {
@@ -543,7 +546,7 @@ export const registerIntentReducers = (deps: any) => {
             statParts.push(`${template.weaponBaseDamage} dmg`);
           }
           const statsStr = statParts.length > 0 ? ` (${statParts.join(', ')})` : '';
-          parts.push(`  {{color:${color}}}[Buy ${template.name}]{{/color}} — ${vi.price} gold${statsStr}`);
+          parts.push(`  {{color:${color}}}[Buy ${template.name}]{{/color}} — ${vi.price} gold ×${vi.quantity}${statsStr}`);
         }
       }
       parts.push(`\nYour gold: ${character.gold ?? 0n}`);
@@ -963,7 +966,7 @@ export const registerIntentReducers = (deps: any) => {
       // --- SELL N <item> ---
       const sellNMatch = sellArg.match(/^(\d+)\s+(.+)$/i);
       if (sellNMatch) {
-        const quantity = Math.max(1, parseInt(sellNMatch[1], 10));
+        const wanted = BigInt(sellNMatch[1]) > 1n ? BigInt(sellNMatch[1]) : 1n;
         const itemNameTarget = sellNMatch[2].trim();
         const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
 
@@ -987,43 +990,41 @@ export const registerIntentReducers = (deps: any) => {
           return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
         }
 
-        const toSell = matchingItems.slice(0, quantity);
-        let totalGold = 0n;
-        let soldTemplateName = '';
-        for (const { inst, tmpl } of toSell) {
-          totalGold += sellPayout(
-            tmpl.vendorValue ?? 0n,
-            inst.quantity ?? 1n,
-            vendorSellBonus,
-            character.vendorSellMod ?? 0n
-          );
-          soldTemplateName = tmpl.name;
-          // Add to vendor inventory
-          const soldTemplateId = inst.templateId;
-          const soldVendorValue = tmpl.vendorValue ?? 0n;
-          const soldQualityTier = inst.qualityTier ?? undefined;
-          const alreadyListed = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)].find(
-            (row: any) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
-          );
-          if (!alreadyListed) {
-            const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
-            ctx.db.vendor_inventory.insert({
-              id: 0n,
-              npcId: vendorNpc.id,
-              itemTemplateId: soldTemplateId,
-              price: resalePrice,
-              qualityTier: soldQualityTier,
-            });
-          }
-          for (const affix of ctx.db.item_affix.by_instance.filter(inst.id)) {
-            ctx.db.item_affix.id.delete(affix.id);
-          }
-          ctx.db.item_instance.id.delete(inst.id);
+        // N is a number of UNITS, walked across the matching stacks in order. Each touched stack
+        // goes through the shared helper (one payout per stack, like the window Sell). Selling
+        // part of one stack is the typed form of the picker's single Sell, so it records buy-back
+        // with the exact quantity; a sale spanning several stacks is a bulk sale and records
+        // nothing, like sell junk.
+        const plan: Array<{ inst: any; tmpl: any; take: bigint }> = [];
+        let remaining = wanted;
+        for (const { inst, tmpl } of matchingItems) {
+          if (remaining <= 0n) break;
+          const have: bigint = inst.quantity ?? 1n;
+          const take = have < remaining ? have : remaining;
+          plan.push({ inst, tmpl, take });
+          remaining -= take;
         }
-        ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + totalGold });
+        let totalGold = 0n;
+        let sold = 0n;
+        let soldTemplateName = '';
+        for (const { inst, tmpl, take } of plan) {
+          const paid = sellInstanceToVendor(ctx, {
+            character,
+            instance: inst,
+            template: tmpl,
+            npcId: vendorNpc.id,
+            quantity: take,
+            record: plan.length === 1,
+            announce: false,
+            fail,
+          });
+          totalGold += paid ?? 0n;
+          sold += take;
+          soldTemplateName = tmpl.name;
+        }
         const bonusMsg = appliedSellBonusPercent(vendorSellBonus) > 0 ? ` (${appliedSellBonusPercent(vendorSellBonus)}% perk bonus)` : '';
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-          `You sell ${toSell.length}x ${soldTemplateName} for ${totalGold} gold${bonusMsg}.`);
+          `You sell ${sold}x ${soldTemplateName} for ${totalGold} gold${bonusMsg}.`);
         return;
       }
 

@@ -1,10 +1,10 @@
 import { buildDisplayName, ensureDefaultHotbar } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { appliedBuyDiscountPercent, appliedSellBonusPercent, buyPrice, sellPayout } from '../data/vendor_pricing';
+import { appliedBuyDiscountPercent, appliedSellBonusPercent, listingBuyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
 import { USE_ITEM_KEYS, isQuestItemTemplate } from '../data/item_rules';
-import { sellInstanceToVendor, restoreBuyback } from '../helpers/vendor_sale';
+import { sellInstanceToVendor, restoreBuyback, findVendorListing, takeFromVendorListing } from '../helpers/vendor_sale';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -116,13 +116,15 @@ export const registerItemReducers = (deps: any) => {
       if (!vendorNpc || vendorNpc.npcType !== 'vendor' || vendorNpc.locationId !== character.locationId) {
         return failItem(ctx, character, 'There is no vendor here.');
       }
-      const vendorItem = ctx.db.vendor_inventory
-        .by_vendor
-        .filter(args.npcId)
-        .find((row) => row.itemTemplateId === args.itemTemplateId);
-      if (!vendorItem) return failItem(ctx, character, 'Item not sold by this vendor');
       const template = ctx.db.item_template.id.find(args.itemTemplateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
+      // Stock is finite: take one unit from a listing of this template that still has some. A sold
+      // out or deleted listing reads the same, and nothing is written before this check passes.
+      const stocked = [...ctx.db.vendor_inventory.by_vendor.filter(args.npcId)]
+        .filter((row: any) => row.itemTemplateId === args.itemTemplateId && row.quantity >= 1n)
+        .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const vendorItem = stocked[0];
+      if (!vendorItem) return failItem(ctx, character, `${vendorNpc.name} has no more ${template.name}.`);
       const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
       const hasStack =
         template.stackable &&
@@ -137,13 +139,22 @@ export const registerItemReducers = (deps: any) => {
         appliedBuyDiscountPercent(vendorBuyDiscount) > 0
           ? ` (${appliedBuyDiscountPercent(vendorBuyDiscount)}% perk discount)`
           : '';
-      const finalPrice = buyPrice(vendorItem.price, vendorBuyDiscount, character.vendorBuyMod);
+      const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
+      const finalPrice = listingBuyPrice({
+        listPrice: vendorItem.price,
+        vendorValue: template.vendorValue ?? 0n,
+        perkBuyPct: vendorBuyDiscount,
+        perkSellPct: vendorSellBonus,
+        vendorBuyMod: character.vendorBuyMod,
+        vendorSellMod: character.vendorSellMod ?? 0n,
+      });
       if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
         ...character,
         gold: (character.gold ?? 0n) - finalPrice,
       });
       addItemToInventory(ctx, character.id, template.id, 1n);
+      takeFromVendorListing(ctx, vendorItem, 1n);
       appendPrivateEvent(
         ctx,
         character.id,
@@ -154,34 +165,53 @@ export const registerItemReducers = (deps: any) => {
     }
   );
 
+  // The checks every window sale shares. quantity undefined sells the whole instance (sell_item);
+  // a number sells that many (sell_item_quantity). Every refusal happens before the first write.
+  const sellFromBag = (
+    ctx: any,
+    args: { characterId: bigint; itemInstanceId: bigint; npcId: bigint },
+    quantity: bigint | undefined
+  ) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
+    if (!instance) return failItem(ctx, character, 'Item not found');
+    if (instance.ownerCharacterId !== character.id) {
+      return failItem(ctx, character, 'Item does not belong to you');
+    }
+    if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
+    const template = ctx.db.item_template.id.find(instance.templateId);
+    if (!template) return failItem(ctx, character, 'Item template missing');
+    // Same rule as the typed 'sell <item>' path: the buyer must be a vendor standing here. The
+    // buy-back row records the seller's place, so this is what makes "go back to the vendor" true.
+    const npc = ctx.db.npc.id.find(args.npcId);
+    if (!npc || npc.npcType !== 'vendor' || npc.locationId !== character.locationId) {
+      return failItem(ctx, character, 'There is no vendor here.');
+    }
+    sellInstanceToVendor(ctx, {
+      character,
+      instance,
+      template,
+      npcId: args.npcId,
+      quantity,
+      record: true,
+      fail: failItem,
+    });
+  };
+
+  // Kept with its exact argument layout for clients built before sell_item_quantity: it sells the
+  // whole instance, which is exactly one unit for any item that is not a stack.
   spacetimedb.reducer(
     'sell_item',
     { characterId: t.u64(), itemInstanceId: t.u64(), npcId: t.u64() },
-    (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
-      if (!instance) return failItem(ctx, character, 'Item not found');
-      if (instance.ownerCharacterId !== character.id) {
-        return failItem(ctx, character, 'Item does not belong to you');
-      }
-      if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
-      const template = ctx.db.item_template.id.find(instance.templateId);
-      if (!template) return failItem(ctx, character, 'Item template missing');
-      // Same rule as the typed 'sell <item>' path: the buyer must be a vendor standing here. The
-      // buy-back row records the seller's place, so this is what makes "go back to the vendor" true.
-      const npc = ctx.db.npc.id.find(args.npcId);
-      if (!npc || npc.npcType !== 'vendor' || npc.locationId !== character.locationId) {
-        return failItem(ctx, character, 'There is no vendor here.');
-      }
-      sellInstanceToVendor(ctx, {
-        character,
-        instance,
-        template,
-        npcId: args.npcId,
-        record: true,
-        fail: failItem,
-      });
-    }
+    (ctx, args) => sellFromBag(ctx, args, undefined)
+  );
+
+  // Sell 1 to n units of a stack. The remaining part keeps its id and fields; the sold units carry
+  // no affixes. A quantity of 0 or above the stack is refused before any write.
+  spacetimedb.reducer(
+    'sell_item_quantity',
+    { characterId: t.u64(), itemInstanceId: t.u64(), npcId: t.u64(), quantity: t.u64() },
+    (ctx, args) => sellFromBag(ctx, args, args.quantity)
   );
 
   // Undo the character's last single sale. Only the character id crosses the wire: the price, the
@@ -194,8 +224,9 @@ export const registerItemReducers = (deps: any) => {
     // A template removed since the sale can never be restored: say so (instead of "backpack is
     // full") and clear the dead row, and the resale listing that sale created, so nothing lingers.
     if (!ctx.db.item_template.id.find(sale.templateId)) {
-      if (sale.listingId !== undefined && sale.listingId !== null && ctx.db.vendor_inventory.id.find(sale.listingId)) {
-        ctx.db.vendor_inventory.id.delete(sale.listingId);
+      const orphan = findVendorListing(ctx, sale.npcId, sale.templateId, sale.qualityTier ?? undefined);
+      if (orphan) {
+        takeFromVendorListing(ctx, orphan, sale.quantity < orphan.quantity ? sale.quantity : orphan.quantity);
       }
       ctx.db.vendor_buyback.characterId.delete(character.id);
       return failItem(ctx, character, 'That item can no longer be bought back.');
@@ -206,6 +237,12 @@ export const registerItemReducers = (deps: any) => {
     if (character.locationId !== sale.locationId) {
       return failItem(ctx, character, `Go back to ${sale.npcName} to buy that back.`);
     }
+    // The units must still be on the vendor's shelf: buying them back moves them out of the
+    // listing, so a vendor that has already resold them cannot be bought from twice.
+    const listing = findVendorListing(ctx, sale.npcId, sale.templateId, sale.qualityTier ?? undefined);
+    if (!listing || listing.quantity < sale.quantity) {
+      return failItem(ctx, character, `${sale.npcName} has already sold ${sale.itemName}.`);
+    }
     if (!hasInventorySpace(ctx, character.id, sale.templateId)) {
       return failItem(ctx, character, 'Your backpack is full.');
     }
@@ -214,12 +251,9 @@ export const registerItemReducers = (deps: any) => {
       gold: (character.gold ?? 0n) - sale.price,
     });
     restoreBuyback(ctx, character, sale, addItemToInventory);
-    // Remove the resale listing this sale created (a listing that already existed is kept).
-    if (sale.listingId !== undefined && sale.listingId !== null) {
-      if (ctx.db.vendor_inventory.id.find(sale.listingId)) {
-        ctx.db.vendor_inventory.id.delete(sale.listingId);
-      }
-    }
+    // The refund stays exactly the stored price; the units leave the listing (a listing this sale
+    // created is deleted at 0, a base-stock listing stays).
+    takeFromVendorListing(ctx, listing, sale.quantity);
     ctx.db.vendor_buyback.characterId.delete(character.id);
     appendPrivateEvent(
       ctx,

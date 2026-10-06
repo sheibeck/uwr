@@ -219,7 +219,7 @@ describe('sell then buy back', () => {
   });
 
   it('keeps a listing that existed before the sale (listingId unset)', () => {
-    const listing = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: 'rare' };
+    const listing = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: 'rare', quantity: 2n };
     const ctx = newCtx({ templates: [SWORD], instances: [RARE_SWORD], affixes: RARE_AFFIXES, listings: [listing] });
     sell(ctx, 800n);
     expect(rows(ctx, 'vendor_buyback')[0].listingId).toBeUndefined();
@@ -450,8 +450,10 @@ describe('a damaged snapshot', () => {
       listingId: undefined,
       soldAt: { microsSinceUnixEpoch: T0 - 1n },
     };
-    const ctx = newCtx({ templates: [SWORD], instances: [], buyback: [row] });
+    const listing = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined, quantity: 1n };
+    const ctx = newCtx({ templates: [SWORD], instances: [], buyback: [row], listings: [listing] });
     expect(() => buyBack(ctx)).not.toThrow();
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
     expect(rows(ctx, 'item_instance')).toHaveLength(1);
     expect(rows(ctx, 'item_affix')).toHaveLength(0);
     expect(aliceGold(ctx)).toBe(START_GOLD - 5n);

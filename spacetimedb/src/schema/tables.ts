@@ -892,6 +892,7 @@ export const VendorInventory = table(
     itemTemplateId: t.u64(),
     price: t.u64(),
     qualityTier: t.string().optional(),  // 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'; undefined = 'common'
+    quantity: t.u64().default(1n),  // units in stock; sales add, buys and buy-backs take; rows from before this column read 1
   }
 );
 

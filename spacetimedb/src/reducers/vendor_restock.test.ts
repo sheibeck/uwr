@@ -10,13 +10,15 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer, recordedTable, rowColumnProblems } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import { MODULE } from '../helpers/combat_fight_fixture';
-import { buyPrice } from '../data/vendor_pricing';
+import { listingBuyPrice } from '../data/vendor_pricing';
 import {
   BASE_STOCK_SIZE,
   VENDOR_RESTOCK_BATCH,
   VENDOR_RESTOCK_CONTINUE_MICROS,
   VENDOR_RESTOCK_INTERVAL_MICROS,
+  baseStockQuantity,
   listPriceFor,
+  restockSeed,
 } from '../data/vendor_stock';
 
 vi.mock('spacetimedb/server', async () =>
@@ -208,8 +210,11 @@ describe('restock_vendors fills base stock by role and area band', () => {
     const templates = new Map(TEMPLATES().map((t) => [t.id, t]));
     expect(rows(ctx, 'vendor_inventory').length).toBeGreaterThan(0);
     for (const row of rows(ctx, 'vendor_inventory')) {
-      expect(row.price).toBe(listPriceFor(templates.get(row.itemTemplateId).vendorValue));
+      const template = templates.get(row.itemTemplateId);
+      expect(row.price).toBe(listPriceFor(template.vendorValue));
       expect(row.qualityTier).toBeUndefined();
+      expect(row.quantity).toBe(baseStockQuantity(template.rarity, restockSeed(row.npcId, T0), template.id));
+      expect(row.quantity >= 1n && row.quantity <= 5n).toBe(true);
       const markers = rows(ctx, 'vendor_base_stock').filter((m) => m.listingId === row.id);
       expect(markers).toEqual([{ listingId: row.id, npcId: row.npcId }]);
       expect(rowColumnProblems('vendor_inventory', row)).toEqual([]);
@@ -242,8 +247,8 @@ describe('restock_vendors is deterministic per vendor and tick', () => {
 });
 
 describe('restock_vendors never touches player-sold listings', () => {
-  const PLAYER = { id: 901n, npcId: 5n, itemTemplateId: 5n, price: 2n, qualityTier: undefined };
-  const OLD_BASE = { id: 900n, npcId: 5n, itemTemplateId: 4n, price: 2n, qualityTier: undefined };
+  const PLAYER = { id: 901n, npcId: 5n, itemTemplateId: 5n, price: 2n, qualityTier: undefined, quantity: 2n };
+  const OLD_BASE = { id: 900n, npcId: 5n, itemTemplateId: 4n, price: 2n, qualityTier: undefined, quantity: 1n };
 
   it('keeps the player listing, drops the old base listing and its marker, and skips listed templates', () => {
     const ctx = newCtx({
@@ -299,17 +304,25 @@ describe('prices and purchases are unchanged', () => {
     expect(rows(ctx, 'vendor_inventory').find((r) => r.id === listing.id)).toEqual(before);
   });
 
-  it('buy_item charges buyPrice with rapport on a base-stock listing and leaves the listing', () => {
+  it('buy_item charges listingBuyPrice with rapport on a base-stock listing and takes one unit', () => {
     const ctx = newCtx();
     run(ctx);
-    const listing = listingsOf(ctx, 5n)[0];
+    const listing = { ...listingsOf(ctx, 5n)[0] };
     const template = TEMPLATES().find((t) => t.id === listing.itemTemplateId);
     const beforeCount = listingsOf(ctx, 5n).length;
     buyItem({ ...ctx, sender: alice }, { characterId: 1n, npcId: 5n, itemTemplateId: listing.itemTemplateId });
-    const expected = buyPrice(listPriceFor(template.vendorValue), 0, 40n);
+    const expected = listingBuyPrice({
+      listPrice: listPriceFor(template.vendorValue),
+      vendorValue: template.vendorValue,
+      perkBuyPct: 0,
+      perkSellPct: 0,
+      vendorBuyMod: 40n,
+      vendorSellMod: 0n,
+    });
     expect(1000n - rows(ctx, 'character')[0].gold).toBe(expected);
     expect(rows(ctx, 'item_instance').map((i) => i.templateId)).toEqual([listing.itemTemplateId]);
     expect(listingsOf(ctx, 5n)).toHaveLength(beforeCount);
+    expect(listingsOf(ctx, 5n).find((r) => r.id === listing.id)!.quantity).toBe(listing.quantity - 1n);
   });
 });
 
@@ -414,13 +427,14 @@ describe('schema', () => {
     expect(marker.opts.indexes).toEqual([{ accessor: 'by_vendor', algorithm: 'btree', columns: ['npcId'] }]);
   });
 
-  it('leaves vendor_inventory with exactly its five columns', () => {
-    expect(Object.keys(recordedTable('vendor_inventory')!.cols).sort()).toEqual([
+  it('gives vendor_inventory its five columns plus a trailing quantity (Plan 50-26)', () => {
+    expect(Object.keys(recordedTable('vendor_inventory')!.cols)).toEqual([
       'id',
-      'itemTemplateId',
       'npcId',
+      'itemTemplateId',
       'price',
       'qualityTier',
+      'quantity',
     ]);
   });
 });

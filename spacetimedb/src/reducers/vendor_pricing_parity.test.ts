@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
-import { buyPrice, sellPayout } from '../data/vendor_pricing';
+import { listingBuyPrice, sellPayout } from '../data/vendor_pricing';
 import { perkBonusByField } from '../data/perk_rules';
 
 vi.mock('spacetimedb/server', async () =>
@@ -148,13 +148,21 @@ describe('the perk used by the fixtures is real', () => {
   });
 });
 
-describe('buy_item charges buyPrice', () => {
+describe('buy_item charges listingBuyPrice', () => {
   it.each(FIXTURES)('$label', ({ buyMod, sellMod, perk }) => {
-    const listing = { id: 1n, npcId: VENDOR, itemTemplateId: 80n, price: 123n, qualityTier: undefined };
+    const listing = { id: 1n, npcId: VENDOR, itemTemplateId: 80n, price: 123n, qualityTier: undefined, quantity: 1n };
     const ctx = newCtx({ templates: [tpl(80n, 'Test Sword')], instances: [], listings: [listing], buyMod, sellMod, perk });
     buyItem(ctx, { characterId: 1n, npcId: VENDOR, itemTemplateId: 80n });
     const pct = perkPct(perk, 'vendorBuyDiscount');
-    const expected = buyPrice(123n, pct, buyMod);
+    // The floor does not bind at these list prices, so the charged numbers are the discount math.
+    const expected = listingBuyPrice({
+      listPrice: 123n,
+      vendorValue: 7n,
+      perkBuyPct: pct,
+      perkSellPct: perkPct(perk, 'vendorSellBonus'),
+      vendorBuyMod: buyMod,
+      vendorSellMod: sellMod,
+    });
     expect(START_GOLD - gold(ctx)).toBe(expected);
     expect(messages(ctx)).toEqual([`You buy Test Sword for ${expected} gold.${pct > 0 ? ` (${pct}% perk discount)` : ''}`]);
     expect(rows(ctx, 'event_private')[0].kind).toBe('reward');
@@ -162,7 +170,7 @@ describe('buy_item charges buyPrice', () => {
   });
 
   it('refuses with Not enough gold and charges nothing', () => {
-    const listing = { id: 1n, npcId: VENDOR, itemTemplateId: 80n, price: 123n };
+    const listing = { id: 1n, npcId: VENDOR, itemTemplateId: 80n, price: 123n, quantity: 1n };
     const ctx = newCtx({ templates: [tpl(80n, 'Test Sword')], instances: [], listings: [listing], buyMod: 0n, sellMod: 0n, perk: false, gold: 10n });
     buyItem(ctx, { characterId: 1n, npcId: VENDOR, itemTemplateId: 80n });
     expect(messages(ctx)).toEqual(['Not enough gold']);
@@ -171,7 +179,7 @@ describe('buy_item charges buyPrice', () => {
   });
 
   it('refuses with Backpack is full', () => {
-    const listing = { id: 1n, npcId: VENDOR, itemTemplateId: 80n, price: 123n };
+    const listing = { id: 1n, npcId: VENDOR, itemTemplateId: 80n, price: 123n, quantity: 1n };
     const filler = Array.from({ length: 50 }, (_, i) => inst(BigInt(1000 + i), 81n, 1n));
     const ctx = newCtx({
       templates: [tpl(80n, 'Test Sword'), tpl(81n, 'Filler')],
