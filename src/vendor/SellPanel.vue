@@ -7,13 +7,16 @@ import type { ActionRunner } from '../ledger/actionRunner';
 import GoldAmount from '../ledger/GoldAmount.vue';
 import InlineConfirm from '../ledger/InlineConfirm.vue';
 import JustSold from './JustSold.vue';
-import { junkSummary, sellRows } from './vendorModel';
+import SellQuantity from './SellQuantity.vue';
+import { clampSellQuantity, junkSummary, needsQuantity, quantitySale, sellRows } from './vendorModel';
 import type { SellRow } from './vendorModel';
 
 // The sell side of the vendor screen (50-UI-SPEC "Your backpack", "Sell all junk confirmation",
 // "Mobile vendor > Sell panel"): the backpack table on desktop and list on mobile, Sell on every
 // sellable row, Sell all junk behind an inline confirmation that states the count and the gold, and
-// the Just sold card. Quest items show a dash and no Sell button. Item names are server text and
+// the Just sold card. A stack asks how many first, in an inline picker under its row (1, minus, a
+// number, plus, All, built on the inline confirmation); a single item sells at once. Every sale
+// calls sellItemQuantity. Quest items show a dash and no Sell button. Item names are server text and
 // only reach the page as text nodes. Nothing is optimistic: the subscribed rows drive every change.
 const props = defineProps<{
   openVendorId: bigint | null;
@@ -62,6 +65,15 @@ const heading = useTemplateRef<HTMLElement>('heading');
 const junkButton = useTemplateRef<HTMLButtonElement>('junkButton');
 const confirming = ref(false);
 
+// The quantity picker: at most one is open, exclusive with the Sell all junk confirmation.
+const picking = ref<bigint | null>(null);
+const pickQty = ref(1n);
+const pickOpener = ref<HTMLElement | null>(null);
+const pickRow = computed(() => (picking.value === null ? null : rows.value.find((row) => row.instanceId === picking.value) ?? null));
+const pickSale = computed(() =>
+  sellInput.value && pickRow.value ? quantitySale(sellInput.value, pickRow.value, pickQty.value) : null,
+);
+
 function focusLost(): boolean {
   const active = document.activeElement;
   return active === null || active === document.body || !active.isConnected;
@@ -75,18 +87,67 @@ function focusHeading(): void {
 // the removal cost the focus its element (the player may have moved on already).
 let lastSold: { id: bigint; before: bigint[] } | null = null;
 
-function onSell(row: SellRow): void {
+function runSale(row: SellRow, quantity: bigint): Promise<boolean> {
   const reducers = ledger.reducers.value;
   const character = game.character.value;
-  if (!reducers || !character || props.openVendorId === null || sellInert(row)) return;
+  if (!reducers || !character || props.openVendorId === null || sellInert(row)) return Promise.resolve(false);
   const characterId = character.id;
   const itemInstanceId = row.instanceId;
   const npcId = props.openVendorId;
-  lastSold = { id: itemInstanceId, before: rows.value.map((entry) => entry.instanceId) };
-  void props.runner.run(`sell:${itemInstanceId}`, () =>
-    reducers.sellItem({ characterId, itemInstanceId, npcId }),
+  // Only a whole sale removes the row; a partial sale keeps it, so it must not arm the next-row focus.
+  if (quantity === row.quantity) {
+    lastSold = { id: itemInstanceId, before: rows.value.map((entry) => entry.instanceId) };
+  }
+  return props.runner.run(`sell:${itemInstanceId}`, () =>
+    reducers.sellItemQuantity({ characterId, itemInstanceId, npcId, quantity }),
   );
 }
+
+function onSell(row: SellRow, event: MouseEvent): void {
+  if (sellInert(row)) return;
+  if (needsQuantity(row)) {
+    confirming.value = false;
+    picking.value = row.instanceId;
+    pickQty.value = 1n;
+    pickOpener.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    return;
+  }
+  void runSale(row, 1n);
+}
+
+async function confirmPick(): Promise<void> {
+  const row = pickRow.value;
+  const sale = pickSale.value;
+  if (!row || !sale) return;
+  const id = row.instanceId;
+  const ok = await runSale(row, sale.quantity);
+  if (!ok) return;
+  picking.value = null;
+  await nextTick();
+  if (!focusLost()) return;
+  const button = root.value?.querySelector<HTMLElement>(`[data-sell-id="${id}"]`);
+  if (button) button.focus();
+}
+
+function closePick(): void {
+  picking.value = null;
+}
+
+function setPickQty(value: bigint): void {
+  pickQty.value = value;
+}
+
+// The picker follows its row: it closes when the row goes, and the picked quantity follows the stack
+// when it shrinks.
+watch(rows, (next) => {
+  if (picking.value === null) return;
+  const row = next.find((entry) => entry.instanceId === picking.value);
+  if (!row) {
+    picking.value = null;
+    return;
+  }
+  pickQty.value = clampSellQuantity(pickQty.value, row.quantity);
+});
 
 watch(
   rows,
@@ -113,6 +174,7 @@ watch(
 
 function onJunk(): void {
   if (junk.value.count === 0 || junkInert.value) return;
+  picking.value = null;
   confirming.value = true;
 }
 
@@ -136,7 +198,10 @@ watch(
   },
 );
 watch(vendorGone, (gone) => {
-  if (gone) confirming.value = false;
+  if (gone) {
+    confirming.value = false;
+    picking.value = null;
+  }
 });
 </script>
 
@@ -184,7 +249,8 @@ watch(vendorGone, (gone) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="String(row.instanceId)">
+            <template v-for="row in rows" :key="String(row.instanceId)">
+            <tr>
               <td class="item-cell">
                 <span class="item-line">
                   <span class="item-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
@@ -206,12 +272,29 @@ watch(vendorGone, (gone) => {
                   :aria-label="row.ariaLabel"
                   :aria-disabled="sellInert(row) ? 'true' : undefined"
                   :aria-describedby="vendorGone ? REASON_ID : undefined"
-                  @click="onSell(row)"
+                  :aria-expanded="needsQuantity(row) ? (picking === row.instanceId ? 'true' : 'false') : undefined"
+                  @click="onSell(row, $event)"
                 >
                   Sell
                 </button>
               </td>
             </tr>
+            <tr v-if="picking === row.instanceId && pickSale" class="picker-row">
+              <td colspan="3">
+                <SellQuantity
+                  :max="row.quantity"
+                  :model-value="pickSale.quantity"
+                  :prompt="pickSale.prompt"
+                  :confirm-label="pickSale.confirmLabel"
+                  :pending="offline || props.runner.isPending(`sell:${row.instanceId}`)"
+                  :opener="pickOpener"
+                  @update:model-value="setPickQty"
+                  @confirm="confirmPick"
+                  @keep="closePick"
+                />
+              </td>
+            </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -253,7 +336,8 @@ watch(vendorGone, (gone) => {
 
       <p v-if="itemsApplied && rows.length === 0" class="empty">Nothing in your backpack to sell.</p>
       <ul v-else-if="rows.length > 0" class="sell-list">
-        <li v-for="row in rows" :key="String(row.instanceId)" class="sell-row">
+        <template v-for="row in rows" :key="String(row.instanceId)">
+        <li class="sell-row">
           <div class="info">
             <span class="item-line">
               <span class="item-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
@@ -274,11 +358,27 @@ watch(vendorGone, (gone) => {
             :aria-label="row.ariaLabel"
             :aria-disabled="sellInert(row) ? 'true' : undefined"
             :aria-describedby="vendorGone ? REASON_ID : undefined"
-            @click="onSell(row)"
+            :aria-expanded="needsQuantity(row) ? (picking === row.instanceId ? 'true' : 'false') : undefined"
+            @click="onSell(row, $event)"
           >
             Sell
           </button>
         </li>
+        <li v-if="picking === row.instanceId && pickSale" class="picker-item">
+          <SellQuantity
+            mobile
+            :max="row.quantity"
+            :model-value="pickSale.quantity"
+            :prompt="pickSale.prompt"
+            :confirm-label="pickSale.confirmLabel"
+            :pending="offline || props.runner.isPending(`sell:${row.instanceId}`)"
+            :opener="pickOpener"
+            @update:model-value="setPickQty"
+            @confirm="confirmPick"
+            @keep="closePick"
+          />
+        </li>
+        </template>
       </ul>
     </template>
   </div>
@@ -452,6 +552,14 @@ h6:focus-visible {
   align-items: center;
   gap: 16px;
   min-height: 56px;
+}
+
+.picker-row td {
+  padding: 8px 0;
+}
+
+.picker-item {
+  padding: 8px 0;
 }
 
 .info {

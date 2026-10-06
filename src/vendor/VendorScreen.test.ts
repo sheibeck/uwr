@@ -151,6 +151,7 @@ function buildWorld(world: World) {
   const calls = {
     buyItem: vi.fn(async () => undefined),
     sellItem: vi.fn(async () => undefined),
+    sellItemQuantity: vi.fn(async () => undefined),
     sellAllJunk: vi.fn(async () => undefined),
     buybackLastSale: vi.fn(async () => undefined),
   };
@@ -808,7 +809,7 @@ describe('VendorScreen desktop', () => {
     await buy.trigger('click');
     await sell.trigger('click');
     expect(calls.buyItem).not.toHaveBeenCalled();
-    expect(calls.sellItem).not.toHaveBeenCalled();
+    expect(calls.sellItemQuantity).not.toHaveBeenCalled();
   });
 
   it('keeps an automatically picked vendor on screen after it leaves (no longer nearby)', async () => {
@@ -887,7 +888,8 @@ describe('VendorScreen mobile', () => {
     expect(cardIndex).toBeGreaterThanOrEqual(0);
     expect(listIndex).toBeGreaterThan(cardIndex);
     await w.get('[aria-label="Sell Iron Sword for 10 gold"]').trigger('click');
-    expect(calls.sellItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 11n, npcId: 2n });
+    expect(calls.sellItemQuantity).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 11n, npcId: 2n, quantity: 1n });
+    expect(calls.sellItem).not.toHaveBeenCalled();
   });
 
   it('returns to the Buy tab on a second Trade for another vendor', async () => {

@@ -54,6 +54,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="inline-confirm" :class="{ mobile: props.mobile }">
     <span class="confirm-prompt">{{ props.prompt }}</span>
+    <!-- Optional controls between the prompt and the decisions, used by the Sell quantity picker. -->
+    <slot />
     <button
       type="button"
       class="btn btn-secondary decision-btn danger"
