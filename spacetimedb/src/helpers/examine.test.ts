@@ -248,13 +248,65 @@ describe('describeLookTarget: inventory items', () => {
 });
 
 describe('describeLookTarget: check order and existing output', () => {
-  it('an NPC wins over a node for the same text', () => {
+  it('an exact node match beats a partial NPC match', () => {
     const ctx = ctxWith({
       npc: [{ id: 1n, locationId: 1n, name: 'Iron Shard Trader', description: 'A hard-eyed dealer.' }],
       resource_node: [node()],
       item_template: [ironTemplate],
     });
-    expect(describeLookTarget(ctx, ME, 'iron shard')).toBe('[Iron Shard Trader]: A hard-eyed dealer.');
+    expect(describeLookTarget(ctx, ME, 'iron shard')).toContain('Gathering yields');
+  });
+
+  it('an exact NPC match still wins over an exact node match', () => {
+    const ctx = ctxWith({
+      npc: [{ id: 1n, locationId: 1n, name: 'Iron Shard', description: 'A talking shard.' }],
+      resource_node: [node()],
+      item_template: [ironTemplate],
+    });
+    expect(describeLookTarget(ctx, ME, 'iron shard')).toBe('[Iron Shard]: A talking shard.');
+  });
+
+  it('a partial NPC match still wins over a partial node match (category order inside a pass)', () => {
+    const ctx = ctxWith({
+      npc: [{ id: 1n, locationId: 1n, name: 'Iron Shard Trader', description: 'A hard-eyed dealer.' }],
+      resource_node: [node()],
+      item_template: [ironTemplate],
+    });
+    expect(describeLookTarget(ctx, ME, 'shard')).toBe('[Iron Shard Trader]: A hard-eyed dealer.');
+  });
+
+  it('a Stone node click is not captured by a Stone Golem enemy at the same location', () => {
+    const ctx = ctxWith({
+      enemy_spawn: [{ id: 1n, locationId: 1n, name: 'Stone Golem', enemyTemplateId: 5n }],
+      enemy_template: [{ id: 5n, level: 3n, role: 'Brute', creatureType: 'Construct', isBoss: false }],
+      resource_node: [node({ name: 'Stone', itemTemplateId: 8n })],
+      item_template: [{ ...ironTemplate, id: 8n, name: 'Stone' }],
+    });
+    const out = describeLookTarget(ctx, ME, 'Stone')!;
+    expect(out).toContain('Gathering yields');
+    expect(out).not.toContain('You study');
+    // the partial pass still reaches the enemy when no exact match exists
+    expect(describeLookTarget(ctx, ME, 'golem')).toContain('You study Stone Golem');
+  });
+
+  it('a node named Wood is not captured by a player named Woodrow', () => {
+    const ctx = ctxWith({
+      character: [ME, { id: 11n, locationId: 1n, level: 3n, name: 'Woodrow', race: 'Human', className: 'Ranger' }],
+      resource_node: [node({ name: 'Wood', itemTemplateId: 9n })],
+      item_template: [{ ...ironTemplate, id: 9n, name: 'Wood' }],
+    });
+    expect(describeLookTarget(ctx, ME, 'wood')).toContain('Gathering yields');
+  });
+
+  it('an exact carried item beats a partial node match', () => {
+    const ctx = ctxWith({
+      resource_node: [node({ name: 'Iron Shard Vein', itemTemplateId: 7n })],
+      item_instance: [instance({ templateId: 7n, qualityTier: undefined })],
+      item_template: [ironTemplate],
+    });
+    const out = describeLookTarget(ctx, ME, 'Iron Shard')!;
+    expect(out.split('\n')[0]).toBe('Iron Shard');
+    expect(out).toContain('You carry one.');
   });
 
   it('a node wins over an inventory item with the same name', () => {

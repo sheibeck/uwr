@@ -44,14 +44,15 @@ function typeLabel(slot: unknown): string {
   return TYPE_LABELS[key] ?? key.toLowerCase();
 }
 
-function describeNode(ctx: any, character: any, targetLower: string): string | null {
+type NameMatcher = (name: string) => boolean;
+
+function describeNode(ctx: any, character: any, matches: NameMatcher): string | null {
   const visible: any[] = [];
   for (const n of ctx.db.resource_node.by_location.filter(character.locationId)) {
     const owner = (n as any).characterId;
     if (owner === undefined || owner === null || owner === character.id) visible.push(n);
   }
-  const exact = visible.filter((n) => String(n.name).toLowerCase() === targetLower);
-  const pool = exact.length > 0 ? exact : visible.filter((n) => String(n.name).toLowerCase().includes(targetLower));
+  const pool = visible.filter((n) => matches(String(n.name)));
   if (pool.length === 0) return null;
   const node = pool.find((n) => n.state === 'available' && !n.lockedByCharacterId) ?? pool[0];
 
@@ -78,21 +79,14 @@ function describeNode(ctx: any, character: any, targetLower: string): string | n
   return lines.join('\n');
 }
 
-function describeItem(ctx: any, character: any, targetLower: string): string | null {
+function describeItem(ctx: any, character: any, matches: NameMatcher): string | null {
   const candidates: { instance: any; template: any; display: string }[] = [];
   for (const instance of ctx.db.item_instance.by_owner.filter(character.id)) {
     const template = ctx.db.item_template.id.find((instance as any).templateId);
     if (!template) continue;
     candidates.push({ instance, template, display: String((instance as any).displayName || template.name) });
   }
-  const exact = candidates.find(
-    (c) => c.display.toLowerCase() === targetLower || String(c.template.name).toLowerCase() === targetLower,
-  );
-  const hit =
-    exact ??
-    candidates.find(
-      (c) => c.display.toLowerCase().includes(targetLower) || String(c.template.name).toLowerCase().includes(targetLower),
-    );
+  const hit = candidates.find((c) => matches(c.display) || matches(String(c.template.name)));
   if (!hit) return null;
 
   const { instance, template, display } = hit;
@@ -140,13 +134,11 @@ function describeItem(ctx: any, character: any, targetLower: string): string | n
   return lines.join('\n');
 }
 
-/** Text for appendPrivateEvent(..., 'look', text), or null when nothing matches. */
-export function describeLookTarget(ctx: any, character: any, target: string): string | null {
-  const targetLower = target.toLowerCase();
-
+/** One pass over every category (NPC, enemy, player, node, item) with one name predicate. */
+function describeAll(ctx: any, character: any, matches: NameMatcher): string | null {
   // (a) NPCs
   for (const npc of ctx.db.npc.by_location.filter(character.locationId)) {
-    if ((npc as any).name.toLowerCase() === targetLower || (npc as any).name.toLowerCase().includes(targetLower)) {
+    if (matches((npc as any).name)) {
       return `[${(npc as any).name}]: ${(npc as any).description}`;
     }
   }
@@ -154,7 +146,7 @@ export function describeLookTarget(ctx: any, character: any, target: string): st
   // (b) Enemies
   const targetSpawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
   for (const spawn of targetSpawns) {
-    if (spawn.name.toLowerCase().includes(targetLower)) {
+    if (matches(spawn.name)) {
       const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
       if (!template) continue;
       let desc = `You study ${spawn.name}. Level ${template.level}. ${template.role} ${template.creatureType}.`;
@@ -166,11 +158,25 @@ export function describeLookTarget(ctx: any, character: any, target: string): st
   // (c) Other players
   const locationChars = [...ctx.db.character.by_location.filter(character.locationId)];
   for (const other of locationChars) {
-    if (other.id !== character.id && other.name.toLowerCase().includes(targetLower)) {
+    if (other.id !== character.id && matches(other.name)) {
       return `${other.name}, Level ${other.level} ${other.race} ${other.className}.`;
     }
   }
 
   // (d) Resource nodes at the location, (e) the character's own inventory
-  return describeNode(ctx, character, targetLower) ?? describeItem(ctx, character, targetLower);
+  return describeNode(ctx, character, matches) ?? describeItem(ctx, character, matches);
+}
+
+/**
+ * Text for appendPrivateEvent(..., 'look', text), or null when nothing matches.
+ * Exact name matches win across every category before any partial match is tried, so a click on
+ * the "Stone" node is never captured by a "Stone Golem" enemy. Inside a pass the category order
+ * stays NPC, enemy, player, node, item.
+ */
+export function describeLookTarget(ctx: any, character: any, target: string): string | null {
+  const targetLower = target.toLowerCase();
+  return (
+    describeAll(ctx, character, (name) => String(name).toLowerCase() === targetLower) ??
+    describeAll(ctx, character, (name) => String(name).toLowerCase().includes(targetLower))
+  );
 }
