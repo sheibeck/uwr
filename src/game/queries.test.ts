@@ -119,3 +119,68 @@ describe('gameQueries: unfiltered tables', () => {
     }
   });
 });
+
+describe('gameQueries: combat', () => {
+  it('filters the own participant and own choice rows by character_id', () => {
+    expect(q.combatParticipantsOf(5n)).toContain('FROM "combat_participant"');
+    expect(q.combatParticipantsOf(5n)).toContain('"character_id" = 5');
+    expect(q.combatActions(5n)).toContain('FROM "combat_action"');
+    expect(q.combatActions(5n)).toContain('"character_id" = 5');
+  });
+
+  it('filters the fight tables by combat_id', () => {
+    const cases: Array<[string, string]> = [
+      [q.combatParticipants(10n), 'combat_participant'],
+      [q.combatEnemies(10n), 'combat_enemy'],
+      [q.combatRounds(10n), 'combat_round'],
+      [q.combatCasts(10n), 'combat_enemy_cast'],
+      [q.combatNarratives(10n), 'combat_narrative'],
+      [q.combatPets(10n), 'active_pet'],
+    ];
+    for (const [sql, table] of cases) {
+      expect(sql).toContain(`FROM "${table}"`);
+      expect(sql).toContain('"combat_id" = 10');
+    }
+  });
+
+  it('builds OR chains for enemy templates and enemy abilities', () => {
+    const templates = q.enemyTemplatesById([3n, 4n]);
+    expect(templates).toContain('FROM "enemy_template"');
+    expect(templates).toContain('"id" = 3');
+    expect(templates).toContain('"id" = 4');
+    expect(templates).toContain(' OR ');
+    const abilities = q.enemyAbilitiesByTemplate([3n, 4n]);
+    expect(abilities).toContain('FROM "enemy_ability"');
+    expect(abilities).toContain('"enemy_template_id" = 3');
+    expect(abilities).toContain('"enemy_template_id" = 4');
+    expect(abilities).toContain(' OR ');
+    expect(q.enemyTemplatesById([3n])).not.toContain(' OR ');
+  });
+
+  it('refuses an empty template or ability list', () => {
+    expect(() => q.enemyTemplatesById([])).toThrow();
+    expect(() => q.enemyAbilitiesByTemplate([])).toThrow();
+  });
+
+  it('selects the threat view whole, with no WHERE', () => {
+    expect(q.myCombatAggro).toContain('SELECT * FROM "my_combat_aggro"');
+    expect(q.myCombatAggro).not.toContain('WHERE');
+  });
+
+  it('puts a WHERE on every keyed combat query', () => {
+    for (const sql of [
+      q.combatParticipantsOf(1n),
+      q.combatActions(1n),
+      q.combatParticipants(1n),
+      q.combatEnemies(1n),
+      q.combatRounds(1n),
+      q.combatCasts(1n),
+      q.combatNarratives(1n),
+      q.combatPets(1n),
+      q.enemyTemplatesById([1n]),
+      q.enemyAbilitiesByTemplate([1n]),
+    ]) {
+      expect(sql).toContain('WHERE');
+    }
+  });
+});
