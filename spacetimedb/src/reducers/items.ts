@@ -1,7 +1,7 @@
 import { buildDisplayName, ensureDefaultHotbar } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { computeSellValue } from '../helpers/economy';
+import { buyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
 import { USE_ITEM_KEYS } from '../data/item_rules';
 
@@ -125,18 +125,9 @@ export const registerItemReducers = (deps: any) => {
       if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
       // Apply vendor buy discount perk
       const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
-      let finalPrice = vendorItem.price;
-      let discountMsg = '';
-      if (vendorBuyDiscount > 0) {
-        finalPrice = (vendorItem.price * BigInt(100 - Math.min(vendorBuyDiscount, 50))) / 100n;
-        if (finalPrice < 1n) finalPrice = 1n;
-        discountMsg = ` (${vendorBuyDiscount}% perk discount)`;
-      }
-      // Apply CHA vendor buy discount (character.vendorBuyMod is on 1000-scale)
-      if (character.vendorBuyMod > 0n) {
-        finalPrice = (finalPrice * (1000n - character.vendorBuyMod)) / 1000n;
-        if (finalPrice < 1n) finalPrice = 1n;
-      }
+      // Perk discount then CHA discount (character.vendorBuyMod is on 1000-scale): shared pricing.
+      const discountMsg = vendorBuyDiscount > 0 ? ` (${vendorBuyDiscount}% perk discount)` : '';
+      const finalPrice = buyPrice(vendorItem.price, vendorBuyDiscount, character.vendorBuyMod);
       if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
         ...character,
@@ -167,16 +158,15 @@ export const registerItemReducers = (deps: any) => {
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
       const baseValue = BigInt(template.vendorValue ?? 0) * BigInt(instance.quantity ?? 1);
-      // Apply vendor sell bonus perk
+      // Vendor sell bonus perk, then CHA sell bonus (character.vendorSellMod is on 1000-scale): shared pricing.
       const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
-      let value = baseValue;
-      let sellBonusMsg = '';
-      if (vendorSellBonus > 0 && baseValue > 0n) {
-        value = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
-        sellBonusMsg = ` (${vendorSellBonus}% perk bonus)`;
-      }
-      // Apply CHA vendor sell bonus (character.vendorSellMod is on 1000-scale)
-      value = computeSellValue(value, character.vendorSellMod ?? 0n);
+      const sellBonusMsg = vendorSellBonus > 0 && baseValue > 0n ? ` (${vendorSellBonus}% perk bonus)` : '';
+      const value = sellPayout(
+        template.vendorValue ?? 0n,
+        instance.quantity ?? 1n,
+        vendorSellBonus,
+        character.vendorSellMod ?? 0n
+      );
       // Capture template info before deletion
       const soldTemplateId = instance.templateId;
       const soldVendorValue = template.vendorValue ?? 0n;
@@ -227,11 +217,12 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) continue;
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template || !template.isJunk) continue;
-      let base = (template.vendorValue ?? 0n) * (instance.quantity ?? 1n);
-      if (vendorSellBonus > 0 && base > 0n) {
-        base = (base * BigInt(100 + vendorSellBonus)) / 100n;
-      }
-      total += computeSellValue(base, character.vendorSellMod ?? 0n);
+      total += sellPayout(
+        template.vendorValue ?? 0n,
+        instance.quantity ?? 1n,
+        vendorSellBonus,
+        character.vendorSellMod ?? 0n
+      );
       count++;
       ctx.db.item_instance.id.delete(instance.id);
     }
