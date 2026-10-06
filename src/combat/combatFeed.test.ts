@@ -3,10 +3,12 @@ import { effectScope, ref, shallowRef } from 'vue';
 import type { CombatData } from '../game/context';
 import { createServerClock } from '../game/serverClock';
 import { createFeedStore } from '../console/feedStore';
+import { bindTable } from '../net/bindTable';
+import type { ConnLike, TableLike } from '../net/bindTable';
 import { wireCombatFeed } from './combatFeed';
 
 // A synchronous schedule makes every ingest flush at once, so tests read the store directly.
-function setup() {
+function setup(overrides: Record<string, unknown> = {}) {
   const feed = createFeedStore({ schedule: (fn) => fn() });
   feed.setCharacter(5n);
   const clock = createServerClock(() => 7_000);
@@ -24,7 +26,7 @@ function setup() {
     characterNames: shallowRef<ReadonlyMap<bigint, string>>(new Map([[5n, 'Hero'], [8n, 'Ally']])),
     petNames: shallowRef<ReadonlyMap<bigint, string>>(new Map()),
   };
-  const combat = refs as unknown as CombatData;
+  const combat = { ...refs, ...overrides } as unknown as CombatData;
   const scope = effectScope();
   const stop = scope.run(() => wireCombatFeed({ combat, feed, clock, selfId }))!;
   const keys = () => feed.entries.value.map((entry) => entry.key);
@@ -187,6 +189,65 @@ describe('wireCombatFeed: wind-up blocks', () => {
     expect(t.feed.entries.value[0].message).toBe(
       '<img src=x onerror=alert(1)> winds up Bile Spray → you · lands in 2 rounds',
     );
+  });
+});
+
+describe('wireCombatFeed: wind-up blocks through the real bindTable', () => {
+  // The SDK updates its cache, emits 'applied', and only then dispatches the row callbacks.
+  function sdkOrderedCasts(initial: any[]) {
+    const cache: any[] = [...initial];
+    const inserts = new Set<(...args: unknown[]) => void>();
+    let onApplied: (() => void) | null = null;
+    const table: TableLike<any> = {
+      iter: () => cache[Symbol.iterator](),
+      onInsert: (cb) => void inserts.add(cb),
+      removeOnInsert: (cb) => void inserts.delete(cb),
+      onDelete: () => {},
+      removeOnDelete: () => {},
+    };
+    const builder = {
+      onApplied(cb: () => void) {
+        onApplied = cb;
+        return builder;
+      },
+      onError: () => builder,
+      subscribe: () => ({ unsubscribe: () => {}, isActive: () => true, isEnded: () => false }),
+    };
+    const conn: ConnLike = { subscriptionBuilder: () => builder };
+    const binding = bindTable<ConnLike, any>({ table: () => table, sql: ['SELECT * FROM combat_enemy_cast'] });
+    binding.attach(conn);
+    return {
+      binding,
+      // SubscribeApplied: applied first, then one insert callback per snapshot row.
+      deliverSnapshot() {
+        onApplied?.();
+        for (const row of initial) inserts.forEach((cb) => cb({}, row));
+      },
+      arrive(row: any) {
+        cache.push(row);
+        inserts.forEach((cb) => cb({}, row));
+      },
+    };
+  }
+
+  function wired(initial: any[]) {
+    const sdk = sdkOrderedCasts(initial);
+    // The live rows follow the binding, as game/gameData.ts exposes them.
+    const t = setup({ casts: sdk.binding.rows, castsApplied: sdk.binding.applied });
+    return { ...t, sdk };
+  }
+
+  it('does not announce the casts already present when the subscription applies', () => {
+    const t = wired([cast(6), cast(8)]);
+    t.sdk.deliverSnapshot();
+    expect(t.keys()).toEqual([]);
+  });
+
+  it('still announces a cast that arrives after the snapshot', () => {
+    const t = wired([cast(6)]);
+    t.sdk.deliverSnapshot();
+    t.sdk.arrive(cast(7));
+    expect(t.keys()).toEqual(['windup:7']);
   });
 });
 

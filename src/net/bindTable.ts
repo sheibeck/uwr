@@ -117,9 +117,12 @@ export function bindTable<C extends ConnLike, Row>(
           }
           return;
         }
+        // Rows first, then the flag: the SDK emits 'applied' before it dispatches the row
+        // callbacks, so a synchronous watcher that sees applied === true must already see the
+        // snapshot rows (the wind-up snapshot in combat/combatFeed.ts depends on it).
+        refresh();
         applied.value = true;
         failed.value = false;
-        refresh();
       })
       .onError((...args: unknown[]) => {
         if (currentConn !== conn) return;

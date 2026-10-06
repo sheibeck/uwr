@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { watch } from 'vue';
 import { bindTable } from './bindTable';
 import type { ConnLike, TableLike } from './bindTable';
 
@@ -94,6 +95,24 @@ describe('bindTable', () => {
     f.fireApplied();
     expect(b.rows.value).toEqual([{ id: 1 }]);
     expect(b.applied.value).toBe(true);
+  });
+
+  it('publishes the snapshot rows before the applied flag (the SDK emits applied before the row callbacks)', () => {
+    const f = makeConn({ initial: [{ id: 1 }, { id: 2 }] });
+    const b = binding();
+    b.attach(f.conn);
+    // A synchronous watcher on applied, like the wind-up snapshot in combatFeed.
+    const seen: number[][] = [];
+    const stop = watch(
+      () => b.applied.value,
+      (isApplied) => {
+        if (isApplied) seen.push(b.rows.value.map((row) => row.id));
+      },
+      { flush: 'sync' },
+    );
+    f.fireApplied();
+    stop();
+    expect(seen).toEqual([[1, 2]]);
   });
 
   it('re-reads iter() on insert, update and delete', () => {
