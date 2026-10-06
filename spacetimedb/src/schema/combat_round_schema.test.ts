@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 // @ts-ignore see above
 import { fileURLToPath } from 'node:url';
 // @ts-ignore see above
@@ -135,5 +135,82 @@ describe('RND-04 visibility and combat_moment', () => {
     const here = fileURLToPath(new URL('.', import.meta.url));
     const source: string = readFileSync(join(here, 'tables.ts'), 'utf8');
     expect(source.match(/combat_moment: CombatMoment/g)).toHaveLength(1);
+  });
+});
+
+// ---- source scan: every insert writes the new column ----
+
+function listSources(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      if (entry === 'module_bindings' || entry === 'node_modules') continue;
+      listSources(full, out);
+    } else if (
+      entry.endsWith('.ts') &&
+      !entry.endsWith('.test.ts') &&
+      !entry.endsWith('.d.ts') &&
+      entry !== 'test-utils.ts' &&
+      entry !== 'schema_recorder.ts' &&
+      !entry.includes('fixture')
+    ) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/** Object literals passed to `.insert({ ... })`, found by brace matching. */
+function insertLiterals(source: string): Array<{ offset: number; text: string }> {
+  const found: Array<{ offset: number; text: string }> = [];
+  const re = /\.insert\(\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source)) !== null) {
+    const open = m.index + m[0].length - 1;
+    let depth = 0;
+    let end = -1;
+    for (let i = open; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end > open) found.push({ offset: m.index, text: source.slice(open, end + 1) });
+  }
+  return found;
+}
+
+describe('every insert writes the new round column (source scan)', () => {
+  it('no insert literal into a changed table omits its new column', () => {
+    const here = fileURLToPath(new URL('.', import.meta.url));
+    const srcRoot = join(here, '..');
+    const rules: Array<{ has: string[]; need: string[] }> = [
+      { has: ['abilityTemplateId', 'durationMicros'], need: ['roundsRemaining'] },
+      { has: ['readyAtMicros', 'abilityKey', 'enemyId'], need: ['readyAtRound'] },
+      { has: ['arriveAtMicros'], need: ['arriveAtRound'] },
+      { has: ['timerExpiresAtMicros'], need: ['startedAtMicros'] },
+      { has: ['abilityKey', 'enemyId', 'endsAtMicros'], need: ['announcedRound', 'landsAtRound'] },
+    ];
+    const failures: string[] = [];
+    let matched = 0;
+    for (const file of listSources(srcRoot)) {
+      const source: string = readFileSync(file, 'utf8');
+      for (const lit of insertLiterals(source)) {
+        for (const rule of rules) {
+          if (!rule.has.every((k) => lit.text.includes(k))) continue;
+          matched++;
+          for (const need of rule.need) {
+            if (!lit.text.includes(need)) failures.push(`${file} @${lit.offset}: missing ${need}`);
+          }
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+    expect(matched).toBeGreaterThanOrEqual(5);
   });
 });
