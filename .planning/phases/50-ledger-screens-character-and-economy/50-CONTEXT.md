@@ -70,6 +70,20 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - **Timing.** This is a Phase 50 follow-up (plan 50-24), built now, before Phase 51. It is a server change with real-handler tests. Publish locally only, with the key check before and after, and expect no binding change unless a new scheduled table is added (additive).
 - **Later.** LLM-themed specialty stock is out of scope, unless the owner asks for it later.
 
+### Owner decision after the build (2026-10-06, owner in chat): recipe generation
+- **Problem.** The owner reported: "My Elfansworth character has a bunch of items in his bag, but I'm unable to discover any recipes." `recipe_template` is empty. `research_recipes` only reveals existing templates, and nothing generates them since the seeded recipes were removed (v2.0 "nothing pre-seeded").
+- **Rule-based recipe generation, no LLM.** Using Discover recipes at a crafting station creates recipes from rules:
+  - The materials the character carries decide the recipe.
+  - Material kind maps to the item category. For example, ore and shards make weapons, cloth and hide make armor, and herbs and water make consumables. Research reads the actual mapping from existing data (`crafting_rules.ts`, material names and tiers, `mechanical_vocabulary.ts`).
+  - Material tier sets quality, using the existing `materialTierToCraftQuality`.
+  - The area's level band sets the output level.
+- **Stored once and shared.** A generated recipe and its output `item_template` are stored once. Everyone who discovers it later reuses them, with no duplicates for the same material combination.
+- **Discovery.** The discovering character gets a `recipe_discovered` row.
+- **Determinism.** Generation is deterministic (ctx-based seeds, never `Math.random`). Names are built from rules: material plus item type words from the vocabulary, for example "Iron Shard Dagger" or "Herbal Draught". No LLM call and no prompt change.
+- **Must work end to end.** A generated recipe passes the shared `planCraft` and `craft_recipe` checks and produces an item the Phase 50 screens can show.
+- **Out of scope.** LLM naming and flavor is not built now. The owner can ask later.
+- **Timing.** Phase 50 follow-up (plan 50-25), built after 50-24 (vendor base stock) and before Phase 51. Server change with real-handler tests. Publish locally only, checking the key before and after.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
