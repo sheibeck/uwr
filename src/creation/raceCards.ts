@@ -1,9 +1,9 @@
 // Pure model for the race suggestion cards (CRE-03). The cards come from races already stored in
 // this world (race_definition rows): newest first by createdAt, ties by the larger id, the first
-// 3. Stat tags come through the server's own parser. Every value is a plain string (text nodes
-// later); nothing here builds HTML.
+// 3, never the reserved placeholder race. Stat tags come through the server's own parser. Every
+// value is a plain string (text nodes later); nothing here builds HTML.
 
-import { parseRaceBonuses } from '@game-data/race_bonuses';
+import { isPlaceholderRace, parseRaceBonuses } from '@game-data/race_bonuses';
 
 export interface RaceDefinitionLike {
   id: bigint;
@@ -73,7 +73,10 @@ function compareNewestFirst(a: RaceDefinitionLike, b: RaceDefinitionLike): numbe
 /** Null until the subscription has applied, so the 'none' line never flashes. */
 export function selectRaceCards(rows: readonly RaceDefinitionLike[], applied: boolean): RaceCard[] | null {
   if (!applied) return null;
-  return [...rows]
+  // The placeholder name is reserved: a legacy row saved under it is never offered, because choosing
+  // it would not reuse the row (findRaceDefinition refuses it) and would start a paid generation.
+  return rows
+    .filter(row => !isPlaceholderRace(row.name))
     .sort(compareNewestFirst)
     .slice(0, CARD_COUNT)
     .map(row => {

@@ -70,8 +70,10 @@ export function parseRaceBonuses(json: string | null | undefined): ParsedRaceBon
 
 /**
  * The placeholder name of a race the player never named (validateRaceReply, finalizeCharacter).
- * It is reserved: no race_definition is ever saved under it, and no lookup honors a row that has
- * it, so a placeholder race can never pick up a bonus (review WR-06).
+ * It is reserved: no race_definition is ever saved under it, and none of the readers (the stat
+ * lookups, the character info screen and the client race cards) honors a row that has it, so a
+ * placeholder race can never pick up a bonus or be offered as a card (review WR-06, IN-14). A legacy
+ * row saved under it by pre-Phase-41 code stays in the table, but nothing reads it.
  */
 export const PLACEHOLDER_RACE_NAME = 'Unknown';
 

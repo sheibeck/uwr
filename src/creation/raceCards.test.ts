@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { isPlaceholderRace } from '@game-data/race_bonuses';
 import { NO_RACES_LINE, raceCardDescription, raceCardTags, selectRaceCards } from './raceCards';
 import type { RaceDefinitionLike } from './raceCards';
 
@@ -55,6 +56,25 @@ describe('selectRaceCards', () => {
     const old = row({ id: 9n, createdAt: { microsSinceUnixEpoch: 1n } });
     const fresh = row({ id: 1n, createdAt: { microsSinceUnixEpoch: 99n } });
     expect(selectRaceCards([old, fresh], true)?.map(c => c.id)).toEqual([1n, 9n]);
+  });
+
+  it.each(['Unknown', 'unknown', ' UNKNOWN '])(
+    'never offers a legacy row saved under the reserved placeholder name (%j), even when it is the newest',
+    (placeholder) => {
+      const rows = [
+        row({ id: 1n }),
+        row({ id: 2n }),
+        row({ id: 3n }),
+        row({ id: 9n, name: placeholder, createdAt: { microsSinceUnixEpoch: 99_999n } }),
+      ];
+      const cards = selectRaceCards(rows, true);
+      expect(cards?.map(c => c.id)).toEqual([3n, 2n, 1n]);
+      expect(cards?.some(c => isPlaceholderRace(c.name) || isPlaceholderRace(c.sends))).toBe(false);
+    },
+  );
+
+  it('gives an empty list when the only stored row is the placeholder', () => {
+    expect(selectRaceCards([row({ id: 1n, name: 'Unknown' })], true)).toEqual([]);
   });
 
   it('does not reorder the caller array', () => {
@@ -180,6 +200,7 @@ describe('source pin', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/creation/raceCards.ts'), 'utf8');
     expect(source).toContain("from '@game-data/race_bonuses'");
     expect(source).toContain('parseRaceBonuses');
+    expect(source).toContain('isPlaceholderRace');
     expect(source).not.toMatch(/\bv-html\b|innerHTML/);
   });
 });

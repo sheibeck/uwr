@@ -16,6 +16,7 @@ import {
 } from '../helpers/world_gen';
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
+import { findRaceDefinition } from '../data/race_bonuses';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -397,9 +398,10 @@ export const registerIntentReducers = (deps: any) => {
 
       // Look up race — try race_definition first (v2.0 generated races), fall back to legacy race table
       const raceLower = character.race.toLowerCase();
-      const raceDefs = [...ctx.db.race_definition.by_name.filter(raceLower)];
-      if (raceDefs.length > 0) {
-        const rd = raceDefs[0];
+      // findRaceDefinition never returns a row for the reserved placeholder name (IN-14), so a
+      // character whose race is the 'Unknown' placeholder shows no generated-race bonuses.
+      const rd = findRaceDefinition(ctx, character.race);
+      if (rd) {
         parts.push(`Race: ${rd.name}`);
         if (rd.narrative) parts.push(rd.narrative);
         parts.push('');
