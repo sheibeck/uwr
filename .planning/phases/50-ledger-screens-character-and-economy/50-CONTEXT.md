@@ -120,6 +120,19 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - **Output details.** The recipe detail shows what the output item is and does, with its stats (shared `item_stats` and inspector helpers) and a real description. Generated outputs today only say `Crafted from {primary} and {secondary}.`
 - **Updated inventory mock (owner, same day):** `UWR Inventory.dc.html` shows salvaging with a result window. Implement it in the same follow-up (backpack, inspector, salvage confirm and result window). Extract: `design50b/EXTRACT.md`.
 - **No odds bar (owner re-confirmed).** Quality stays deterministic from the material tier: show `Quality: {Tier}` with the hint, styled to the new mock. No random quality and no balance change.
+- **Defaults where the mocks and the game differ (Claude, 2026-10-06; owner may revise at UAT):**
+  - **Result card:** one shared result card for Crafted, Salvaged and Discover recipes: a centered card over the drawer on desktop and a bottom sheet on mobile. Done and Esc close it and focus returns to the opener. A polite live region is added. The card shows exactly what the server did, so the server writes a per-character result row (private table plus a `my_*` view, one row replaced per action) rather than the client guessing from inventory changes. Card actions are offered only where a reducer exists (Craft again, Equip, Open crafting). Add to hotbar and Read scroll appear only if existing reducers support them.
+  - **Craft ×N:** one click crafts the whole quantity through a new additive reducer that takes a count, capped at 99 and at what the materials allow. It is all or nothing: validate the whole batch before changing anything. The stepper has −/+ and Max, as the mock shows.
+  - **Quality words:** keep the server tier names. The mock's Plain/Standard/Fine are placeholders.
+  - **Salvage in Crafting:** add the Craft/Salvage switch from the mock, using the same salvage reducer and rules as Inventory.
+  - **Equipped items:** follow the mock. Equipped items cannot be salvaged ("unequip first"); the client disables it and the server refuses it too.
+  - **Confirm step:** keep the salvage confirm on mobile too (the Phase 50 rule for non-common, crafted, affixed items), even though the mobile mock skips it.
+  - **Reagent picker:** use the mock's single "Add Essence + reagent" slot, which opens the existing picker. Keep the full functionality.
+  - **Categories:** follow the recipe categories the server actually generates. The mock's tabs are a guide.
+  - **Bonus and "Recipe found" tags:** show them only when the server reports them.
+  - **Off-scale values:** map the mock's off-scale sizes and spacing to the nearest allowed value, as in Phase 50.
+  - **Stack count:** follow the Inventory mock ("x14" top-right, including "x1"). Use a 6px gap if the guard allows it; otherwise use the nearest allowed spacing.
+
 - Any server change is additive, publishes locally only with the key check (108) before and after, never clears the database, and comes with real-handler tests. No prompt changes.
 
 ### Screens and shells
