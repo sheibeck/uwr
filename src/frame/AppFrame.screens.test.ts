@@ -7,6 +7,8 @@ import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
 import { GAME_KEY, createInertCombatData, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
+import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
+import type { LedgerData } from '../ledger/ledgerContext';
 
 type Listener = (event: { matches: boolean }) => void;
 
@@ -50,12 +52,15 @@ const view: FrameView = {
 
 let wrapper: VueWrapper | null = null;
 
-function mountFrame(isDesktop: boolean, game?: GameData): VueWrapper {
+function mountFrame(isDesktop: boolean, game?: GameData, ledger?: LedgerData): VueWrapper {
   installMatchMedia(isDesktop);
+  const provide: Record<symbol, unknown> = {};
+  if (game) provide[GAME_KEY as symbol] = game;
+  if (ledger) provide[LEDGER_KEY as symbol] = ledger;
   wrapper = mount(AppFrame, {
     attachTo: document.body,
     props: { view, reconnecting: false, nextRetryAt: null, versionPrompt: false },
-    ...(game ? { global: { provide: { [GAME_KEY as symbol]: game } } } : {}),
+    ...(game || ledger ? { global: { provide } } : {}),
   });
   return wrapper;
 }
@@ -104,7 +109,7 @@ function pressEscape(): void {
 
 const HEADER_CASES: ReadonlyArray<{ id: string; title: string; line1: string }> = [
   { id: 'map', title: 'Map', line1: 'No places discovered yet.' },
-  { id: 'bag', title: 'Inventory', line1: 'Your bag is empty.' },
+  { id: 'bag', title: 'Inventory', line1: 'Your backpack is empty.' },
   { id: 'stats', title: 'Stats', line1: 'No stats to show yet.' },
   { id: 'craft', title: 'Crafting', line1: 'No recipes known yet.' },
   { id: 'social', title: 'Social', line1: 'No friends or party yet.' },
@@ -252,7 +257,7 @@ describe('mobile sheets', () => {
     expect(rows).toEqual(['Stats', 'Crafting', 'Events', 'Vendor', 'Log out']);
   });
 
-  it('More then Vendor opens the Vendor sheet; closing returns focus to the More tab', async () => {
+  it('More then Vendor opens the Trade sheet; closing returns focus to the More tab', async () => {
     const w = mountFrame(false);
     const more = w.get('button[data-tab="more"]');
     await more.trigger('click');
@@ -262,14 +267,61 @@ describe('mobile sheets', () => {
     await vendor!.trigger('click');
     await settle();
     expect(w.findAll('[role="dialog"]')).toHaveLength(1);
-    expect(w.get('[role="dialog"] h4').text()).toBe('Vendor');
-    expect(w.get('[role="dialog"]').text()).toContain('No vendor nearby.');
+    expect(w.get('[role="dialog"] h4').text()).toBe('Trade');
+    expect(w.get('[role="dialog"]').text()).toContain('No vendor here.');
     expect(w.get('button[data-tab="more"]').attributes('aria-pressed')).toBe('true');
 
-    await w.get('[role="dialog"] button[aria-label="Close Vendor"]').trigger('click');
+    await w.get('[role="dialog"] button[aria-label="Close Trade"]').trigger('click');
     await settle();
     expect(w.find('[role="dialog"]').exists()).toBe(false);
     expect(document.activeElement).toBe(more.element);
+  });
+
+  const MORE_CASES: ReadonlyArray<{ row: string; title: string; line1: string }> = [
+    { row: 'Stats', title: 'Stats', line1: 'No stats to show yet.' },
+    { row: 'Crafting', title: 'Crafting', line1: 'No recipes known yet.' },
+    { row: 'Vendor', title: 'Trade', line1: 'No vendor here.' },
+  ];
+
+  for (const { row, title, line1 } of MORE_CASES) {
+    it(`More then ${row} opens the "${title}" sheet with More pressed and the tab bar still visible`, async () => {
+      const w = mountFrame(false);
+      await w.get('button[data-tab="more"]').trigger('click');
+      await settle();
+      const target = w.findAll('button.more-row').find((b) => b.text() === row);
+      expect(target).toBeDefined();
+      await target!.trigger('click');
+      await settle();
+      expect(w.findAll('[role="dialog"]')).toHaveLength(1);
+      expect(w.get('section.sheet h4').text()).toBe(title);
+      expect(w.get('[role="dialog"]').text()).toContain(line1);
+      expect(w.get('button[data-tab="more"]').attributes('aria-pressed')).toBe('true');
+      expect(w.find('.tab-bar').exists()).toBe(true);
+    });
+  }
+
+  it('the tab bar stays present while the Bag sheet is open', async () => {
+    const w = mountFrame(false);
+    await w.get('button[data-tab="bag"]').trigger('click');
+    await settle();
+    expect(w.find('.tab-bar').exists()).toBe(true);
+    expect(w.get('[role="dialog"]').text()).toContain('Your backpack is empty.');
+  });
+
+  it('the Inventory header meta shows the slot count once a character and two bag items have applied', async () => {
+    const { game } = fakeGame({
+      character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n, gold: 120n }),
+    });
+    const bagRow = (id: bigint) => ({ id, templateId: 1n, ownerCharacterId: 1n, quantity: 1n, equippedSlot: undefined });
+    const ledger: LedgerData = {
+      ...createInertLedger(),
+      items: ref([bagRow(1n), bagRow(2n)]),
+      itemsApplied: ref(true),
+    } as unknown as LedgerData;
+    const w = mountFrame(true, game, ledger);
+    await w.get('button[data-screen="bag"]').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"]').text()).toContain('2 / 50 slots');
   });
 
   it('Escape closes a mobile sheet', async () => {

@@ -8,12 +8,16 @@ import {
   PhUserCircle,
   PhUsersThree,
 } from '@phosphor-icons/vue';
-import CraftingScreen from './CraftingScreen.vue';
-import InventoryScreen from './InventoryScreen.vue';
+import CraftingMeta from '../crafting/CraftingMeta.vue';
+import CraftingScreen from '../crafting/CraftingScreen.vue';
+import InventoryMeta from '../inventory/InventoryMeta.vue';
+import InventoryScreen from '../inventory/InventoryScreen.vue';
+import StatsMeta from '../stats/StatsMeta.vue';
+import StatsScreen from '../stats/StatsScreen.vue';
+import VendorMeta from '../vendor/VendorMeta.vue';
+import VendorScreen from '../vendor/VendorScreen.vue';
 import MapScreen from './MapScreen.vue';
 import SocialScreen from './SocialScreen.vue';
-import StatsScreen from './StatsScreen.vue';
-import VendorScreen from './VendorScreen.vue';
 import WorldEventsScreen from './WorldEventsScreen.vue';
 
 export type ScreenId = 'map' | 'bag' | 'stats' | 'craft' | 'social' | 'events' | 'vendor';
@@ -26,7 +30,7 @@ export interface ScreenDef {
   label: string;
   /** Phosphor component. */
   icon: Component;
-  /** Body component (empty-state shell in Phase 45). */
+  /** Body component: the real Ledger screen, or an empty-state shell (Map, Social, World events). */
   component: Component;
   /** Header meta (slots, gold, station); rendered in the drawer and sheet #meta slot. */
   meta?: Component;
@@ -36,9 +40,33 @@ export interface ScreenDef {
 
 export const SCREENS: readonly ScreenDef[] = [
   { id: 'map', title: 'Map', label: 'Map', icon: PhMapTrifold, component: MapScreen, inHeader: true },
-  { id: 'bag', title: 'Inventory', label: 'Bag', icon: PhBackpack, component: InventoryScreen, inHeader: true },
-  { id: 'stats', title: 'Stats', label: 'Stats', icon: PhUserCircle, component: StatsScreen, inHeader: true },
-  { id: 'craft', title: 'Crafting', label: 'Craft', icon: PhHammer, component: CraftingScreen, inHeader: true },
+  {
+    id: 'bag',
+    title: 'Inventory',
+    label: 'Bag',
+    icon: PhBackpack,
+    component: InventoryScreen,
+    meta: InventoryMeta,
+    inHeader: true,
+  },
+  {
+    id: 'stats',
+    title: 'Stats',
+    label: 'Stats',
+    icon: PhUserCircle,
+    component: StatsScreen,
+    meta: StatsMeta,
+    inHeader: true,
+  },
+  {
+    id: 'craft',
+    title: 'Crafting',
+    label: 'Craft',
+    icon: PhHammer,
+    component: CraftingScreen,
+    meta: CraftingMeta,
+    inHeader: true,
+  },
   { id: 'social', title: 'Social', label: 'Social', icon: PhUsersThree, component: SocialScreen, inHeader: true },
   {
     id: 'events',
@@ -48,7 +76,16 @@ export const SCREENS: readonly ScreenDef[] = [
     component: WorldEventsScreen,
     inHeader: true,
   },
-  { id: 'vendor', title: 'Vendor', label: 'Vendor', icon: PhStorefront, component: VendorScreen, inHeader: false },
+  // The More row reads Vendor; the drawer and sheet are titled Trade (UI-SPEC A6).
+  {
+    id: 'vendor',
+    title: 'Trade',
+    label: 'Vendor',
+    icon: PhStorefront,
+    component: VendorScreen,
+    meta: VendorMeta,
+    inHeader: false,
+  },
 ];
 
 export const HEADER_SCREENS: readonly ScreenDef[] = SCREENS.filter((screen) => screen.inHeader);

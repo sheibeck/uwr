@@ -182,7 +182,7 @@ describe('AppFrame screen arguments (FrameControls.screenArgs)', () => {
     await settle();
     expect(controls!.activeScreen.value).toBe('vendor');
     expect(controls!.screenArgs.value).toEqual({ npcId: 5n, npcName: 'Marta' });
-    expect(w.get('[role="dialog"] h4').text()).toBe('Vendor');
+    expect(w.get('[role="dialog"] h4').text()).toBe('Trade');
   });
 
   it('opening a screen without arguments leaves them null', async () => {

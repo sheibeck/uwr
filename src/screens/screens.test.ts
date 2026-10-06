@@ -6,12 +6,8 @@ import { HEADER_SCREENS, SCREENS, getScreen } from './screens';
 
 const COPY: Record<string, [string, string]> = {
   map: ['No places discovered yet.', 'This screen is still being built.'],
-  bag: ['Your bag is empty.', 'This screen is still being built.'],
-  stats: ['No stats to show yet.', 'This screen is still being built.'],
-  craft: ['No recipes known yet.', 'This screen is still being built.'],
   social: ['No friends or party yet.', 'This screen is still being built.'],
   events: ['No world events right now.', 'This screen is still being built.'],
-  vendor: ['No vendor nearby.', 'Visit a vendor in the world to trade.'],
 };
 
 describe('screen registry', () => {
@@ -35,8 +31,9 @@ describe('screen registry', () => {
   });
 });
 
+// Map, Social and World events are still Phase 45 placeholders; the other four are the real screens.
 describe('screen shells', () => {
-  for (const screen of SCREENS) {
+  for (const screen of SCREENS.filter((candidate) => COPY[candidate.id])) {
     it(`${screen.id} renders its empty-state copy and a hidden icon`, () => {
       const wrapper = mount(screen.component);
       const [line1, line2] = COPY[screen.id];
@@ -45,4 +42,40 @@ describe('screen shells', () => {
       expect(wrapper.find('svg').attributes('aria-hidden')).toBe('true');
     });
   }
+
+  it('only map, social and events are placeholders', () => {
+    expect(SCREENS.filter((candidate) => COPY[candidate.id]).map((s) => s.id)).toEqual(['map', 'social', 'events']);
+  });
+});
+
+describe('ledger screens (Phase 50 registration)', () => {
+  const LEDGER_COPY = {
+    bag: 'Your backpack is empty.',
+    stats: 'No stats to show yet.',
+    craft: 'No recipes known yet.',
+    vendor: 'No vendor here.',
+  } as const;
+
+  for (const id of ['bag', 'stats', 'craft', 'vendor'] as const) {
+    it(`${id} mounts bare against the inert providers and shows its no-character line`, () => {
+      const wrapper = mount(getScreen(id).component);
+      expect(wrapper.text()).toContain(LEDGER_COPY[id]);
+      wrapper.unmount();
+    });
+
+    it(`${id} has a header meta component`, () => {
+      expect(getScreen(id).meta).toBeDefined();
+    });
+  }
+
+  it('the vendor screen is titled Trade while its label stays Vendor', () => {
+    expect(getScreen('vendor').title).toBe('Trade');
+    expect(getScreen('vendor').label).toBe('Vendor');
+  });
+
+  it('map, social and events keep their placeholders and have no meta', () => {
+    for (const id of ['map', 'social', 'events'] as const) {
+      expect(getScreen(id).meta).toBeUndefined();
+    }
+  });
 });
