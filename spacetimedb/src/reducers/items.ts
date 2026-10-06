@@ -117,63 +117,109 @@ export const registerItemReducers = (deps: any) => {
     addItemToInventory(ctx, character.id, template.id, 1n);
   });
 
+  // One unit from one listing: the checks and writes buy_item and buy_listing share. The vendor was
+  // already validated (an npc of type vendor at the character's location). Every refusal happens
+  // before the first write. The unit is handed out with the listing's own quality tier, and the
+  // price is the listing's, so the row the player clicked is the row that goes down.
+  const buyFromListing = (ctx: any, character: any, vendorNpc: any, listing: any) => {
+    const template = ctx.db.item_template.id.find(listing.itemTemplateId);
+    if (!template) return failItem(ctx, character, 'Item template missing');
+    // Stock is finite: a sold out or deleted listing reads the same.
+    if ((listing.quantity ?? 0n) < 1n) {
+      return failItem(ctx, character, `${vendorNpc.name} has no more ${template.name}.`);
+    }
+    const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
+    const hasStack =
+      template.stackable &&
+      [...ctx.db.item_instance.by_owner.filter(character.id)].some(
+        (row) => row.templateId === template.id && !row.equippedSlot
+      );
+    if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
+    // Apply vendor buy discount perk
+    const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
+    // Perk discount then CHA discount (character.vendorBuyMod is on 1000-scale): shared pricing.
+    const discountMsg =
+      appliedBuyDiscountPercent(vendorBuyDiscount) > 0
+        ? ` (${appliedBuyDiscountPercent(vendorBuyDiscount)}% perk discount)`
+        : '';
+    const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
+    const finalPrice = listingBuyPrice({
+      listPrice: listing.price,
+      vendorValue: template.vendorValue ?? 0n,
+      perkBuyPct: vendorBuyDiscount,
+      perkSellPct: vendorSellBonus,
+      vendorBuyMod: character.vendorBuyMod,
+      vendorSellMod: character.vendorSellMod ?? 0n,
+    });
+    if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
+    ctx.db.character.id.update({
+      ...character,
+      gold: (character.gold ?? 0n) - finalPrice,
+    });
+    const bought = addItemToInventory(ctx, character.id, template.id, 1n);
+    // A stack carries no tier; a single piece keeps the tier of the listing it came from.
+    if (listing.qualityTier && !template.stackable && bought) {
+      ctx.db.item_instance.id.update({ ...bought, qualityTier: listing.qualityTier });
+    }
+    takeFromVendorListing(ctx, listing, 1n);
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'reward',
+      `You buy ${template.name} for ${finalPrice} gold.${discountMsg}`
+    );
+  };
+
+  // The vendor rule every buy shares: an npc of type vendor standing at the character's location
+  // (the same rule as sell_item and the typed sell), refused before any read of the listing.
+  const vendorHere = (ctx: any, character: any, npcId: bigint) => {
+    const vendorNpc = ctx.db.npc.id.find(npcId);
+    if (!vendorNpc || vendorNpc.npcType !== 'vendor' || vendorNpc.locationId !== character.locationId) {
+      return undefined;
+    }
+    return vendorNpc;
+  };
+
+  // Kept with its exact argument layout for clients built before buy_listing. It picks the listing
+  // itself: a plain (no tier) row with stock first, then the lowest id, and then behaves exactly
+  // like buy_listing for that row. New clients send the listing they clicked instead.
   spacetimedb.reducer(
     'buy_item',
     { characterId: t.u64(), npcId: t.u64(), itemTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
-      // Same rule as sell_item and the typed sell: the seller of the goods must be a vendor npc
-      // standing at the character's location. Refused before any read of the listing or any write.
-      const vendorNpc = ctx.db.npc.id.find(args.npcId);
-      if (!vendorNpc || vendorNpc.npcType !== 'vendor' || vendorNpc.locationId !== character.locationId) {
-        return failItem(ctx, character, 'There is no vendor here.');
-      }
+      const vendorNpc = vendorHere(ctx, character, args.npcId);
+      if (!vendorNpc) return failItem(ctx, character, 'There is no vendor here.');
       const template = ctx.db.item_template.id.find(args.itemTemplateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
-      // Stock is finite: take one unit from a listing of this template that still has some. A sold
-      // out or deleted listing reads the same, and nothing is written before this check passes.
       const stocked = [...ctx.db.vendor_inventory.by_vendor.filter(args.npcId)]
         .filter((row: any) => row.itemTemplateId === args.itemTemplateId && row.quantity >= 1n)
-        .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-      const vendorItem = stocked[0];
-      if (!vendorItem) return failItem(ctx, character, `${vendorNpc.name} has no more ${template.name}.`);
-      const itemCount = [...ctx.db.item_instance.by_owner.filter(character.id)].filter((row) => !row.equippedSlot).length;
-      const hasStack =
-        template.stackable &&
-        [...ctx.db.item_instance.by_owner.filter(character.id)].some(
-          (row) => row.templateId === template.id && !row.equippedSlot
-        );
-      if (!hasStack && itemCount >= MAX_INVENTORY_SLOTS) return failItem(ctx, character, 'Backpack is full');
-      // Apply vendor buy discount perk
-      const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
-      // Perk discount then CHA discount (character.vendorBuyMod is on 1000-scale): shared pricing.
-      const discountMsg =
-        appliedBuyDiscountPercent(vendorBuyDiscount) > 0
-          ? ` (${appliedBuyDiscountPercent(vendorBuyDiscount)}% perk discount)`
-          : '';
-      const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
-      const finalPrice = listingBuyPrice({
-        listPrice: vendorItem.price,
-        vendorValue: template.vendorValue ?? 0n,
-        perkBuyPct: vendorBuyDiscount,
-        perkSellPct: vendorSellBonus,
-        vendorBuyMod: character.vendorBuyMod,
-        vendorSellMod: character.vendorSellMod ?? 0n,
-      });
-      if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
-      ctx.db.character.id.update({
-        ...character,
-        gold: (character.gold ?? 0n) - finalPrice,
-      });
-      addItemToInventory(ctx, character.id, template.id, 1n);
-      takeFromVendorListing(ctx, vendorItem, 1n);
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'reward',
-        `You buy ${template.name} for ${finalPrice} gold.${discountMsg}`
-      );
+        .sort((a: any, b: any) => {
+          const tierA = a.qualityTier ? 1 : 0;
+          const tierB = b.qualityTier ? 1 : 0;
+          if (tierA !== tierB) return tierA - tierB;
+          return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+        });
+      const listing = stocked[0];
+      if (!listing) return failItem(ctx, character, `${vendorNpc.name} has no more ${template.name}.`);
+      buyFromListing(ctx, character, vendorNpc, listing);
+    }
+  );
+
+  // Buy one unit from the listing the player clicked: the vendor is the listing's own npc, so a
+  // client cannot pair a listing with another vendor, and the unit comes out of that row only
+  // (with its quality tier), never out of a sibling row of the same template.
+  spacetimedb.reducer(
+    'buy_listing',
+    { characterId: t.u64(), listingId: t.u64() },
+    (ctx, args) => {
+      const character = requireCharacterOwnedBy(ctx, args.characterId);
+      const listing = ctx.db.vendor_inventory.id.find(args.listingId);
+      if (!listing) return failItem(ctx, character, 'That item is no longer for sale.');
+      const vendorNpc = vendorHere(ctx, character, listing.npcId);
+      if (!vendorNpc) return failItem(ctx, character, 'There is no vendor here.');
+      buyFromListing(ctx, character, vendorNpc, listing);
     }
   );
 

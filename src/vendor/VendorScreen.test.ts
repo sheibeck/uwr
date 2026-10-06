@@ -149,7 +149,7 @@ function buildWorld(world: World) {
   const vendorTarget = shallowRef<VendorTarget | null>(world.vendorTarget ?? null);
   const screenArgs = shallowRef<ScreenArgs | null>(world.screenArgs ?? null);
   const calls = {
-    buyItem: vi.fn(async () => undefined),
+    buyListing: vi.fn(async () => undefined),
     sellItem: vi.fn(async () => undefined),
     sellItemQuantity: vi.fn(async () => undefined),
     sellAllJunk: vi.fn(async () => undefined),
@@ -266,21 +266,41 @@ describe('ForSale desktop', () => {
     expect(rows[4].get('.slot-cell').text()).toBe('—');
   });
 
-  it('sends buyItem({ characterId, npcId, itemTemplateId }) through the runner', async () => {
+  it('sends buyListing({ characterId, listingId }) with the clicked row key through the runner', async () => {
     const { w, calls } = mountSale();
     await w.get('[aria-label="Buy Leather Cap for 20 gold"]').trigger('click');
-    expect(calls.buyItem).toHaveBeenCalledTimes(1);
-    expect(calls.buyItem).toHaveBeenCalledWith({ characterId: 7n, npcId: 2n, itemTemplateId: 2n });
+    expect(calls.buyListing).toHaveBeenCalledTimes(1);
+    expect(calls.buyListing).toHaveBeenCalledWith({ characterId: 7n, listingId: 101n });
+  });
+
+  it('two listings of one template: each Buy sends its own listing id, and one pending call does not block the other', async () => {
+    let release: () => void = () => undefined;
+    const buyListing = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
+    // The same template in a base row (100) and a player-sold row (150); both rows look alike.
+    const twin = [listing(100n, 2n, 20n, 2n, 5n), listing(150n, 2n, 20n, 2n, 1n)];
+    const { w } = mountSale({ stock: twin, reducers: { buyListing } as Partial<LedgerReducers> });
+    const buttons = w.findAll('tbody tr').map((r) => r.get('button'));
+    expect(buttons).toHaveLength(2);
+    await buttons[1].trigger('click');
+    expect(buyListing).toHaveBeenCalledTimes(1);
+    expect(buyListing).toHaveBeenLastCalledWith({ characterId: 7n, listingId: 150n });
+    expect(buttons[1].attributes('aria-disabled')).toBe('true');
+    expect(buttons[0].attributes('aria-disabled')).toBeUndefined();
+    await buttons[0].trigger('click');
+    expect(buyListing).toHaveBeenCalledTimes(2);
+    expect(buyListing).toHaveBeenLastCalledWith({ characterId: 7n, listingId: 100n });
+    release();
+    await nextTick();
   });
 
   it('makes a second click inert while the first call is in flight', async () => {
     let release: () => void = () => undefined;
-    const buyItem = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
-    const { w } = mountSale({ reducers: { buyItem } as Partial<LedgerReducers> });
+    const buyListing = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
+    const { w } = mountSale({ reducers: { buyListing } as Partial<LedgerReducers> });
     const button = w.get('[aria-label="Buy Leather Cap for 20 gold"]');
     await button.trigger('click');
     await button.trigger('click');
-    expect(buyItem).toHaveBeenCalledTimes(1);
+    expect(buyListing).toHaveBeenCalledTimes(1);
     expect(button.attributes('aria-disabled')).toBe('true');
     release();
     await nextTick();
@@ -296,7 +316,7 @@ describe('ForSale desktop', () => {
     expect(button.attributes('aria-describedby')).toBe(reason.attributes('id'));
     expect(row.get('[role="img"]').classes()).toContain('tone-short');
     await button.trigger('click');
-    expect(calls.buyItem).not.toHaveBeenCalled();
+    expect(calls.buyListing).not.toHaveBeenCalled();
   });
 
   it('is aria-disabled with Backpack full when the bag has no room', async () => {
@@ -307,7 +327,7 @@ describe('ForSale desktop', () => {
     expect(button.attributes('aria-disabled')).toBe('true');
     expect(w.get('.reason').text()).toBe('· Backpack full');
     await button.trigger('click');
-    expect(calls.buyItem).not.toHaveBeenCalled();
+    expect(calls.buyListing).not.toHaveBeenCalled();
   });
 
   it('keeps an enabled Buy for a level-short and for a class-unusable row under All, with the reason in the sub-line', async () => {
@@ -319,7 +339,7 @@ describe('ForSale desktop', () => {
     expect(robe.get('.sub').text()).toBe('Tier 1 · Cloth · Not your class');
     expect(robe.get('button').attributes('aria-disabled')).toBeUndefined();
     await robe.get('button').trigger('click');
-    expect(calls.buyItem).toHaveBeenCalledWith({ characterId: 7n, npcId: 2n, itemTemplateId: 5n });
+    expect(calls.buyListing).toHaveBeenCalledWith({ characterId: 7n, listingId: 104n });
   });
 
   it('Usable by you hides class-unusable rows only, and the screen resets it through resetKey', async () => {
@@ -368,7 +388,7 @@ describe('ForSale desktop', () => {
     expect(button.attributes('aria-disabled')).toBe('true');
     expect(w.get('.reason').text()).toBe('· Marta is no longer nearby.');
     await button.trigger('click');
-    expect(calls.buyItem).not.toHaveBeenCalled();
+    expect(calls.buyListing).not.toHaveBeenCalled();
   });
 
   it('disables Buy and the chips while offline', async () => {
@@ -378,7 +398,7 @@ describe('ForSale desktop', () => {
       await button.trigger('click');
     }
     expect(w.get('[role="group"] button').attributes('aria-disabled')).toBe('true');
-    expect(calls.buyItem).not.toHaveBeenCalled();
+    expect(calls.buyListing).not.toHaveBeenCalled();
   });
 
   it('renders item names with markup literally', () => {
@@ -423,7 +443,7 @@ describe('ForSale base stock (Plan 50-24)', () => {
     expect(ore.get('[role="img"]').attributes('aria-label')).toBe(`${price} gold`);
   });
 
-  it('shows Material as the sub-line and an enabled Buy that sends buyItem for the template', async () => {
+  it('shows Material as the sub-line and an enabled Buy that sends buyListing for the row', async () => {
     const { w, calls } = mountSale({ stock });
     const ore = w.findAll('tbody tr').find((r) => r.get('.item-name').text() === 'Iron Ore')!;
     expect(ore.get('.sub').text()).toBe('Material');
@@ -431,8 +451,8 @@ describe('ForSale base stock (Plan 50-24)', () => {
     expect(button.attributes('aria-disabled')).toBeUndefined();
     expect(button.attributes('aria-label')).toBe(`Buy Iron Ore for ${buyPrice(listPriceFor(10n), 0, 0n)} gold`);
     await button.trigger('click');
-    expect(calls.buyItem).toHaveBeenCalledTimes(1);
-    expect(calls.buyItem).toHaveBeenCalledWith({ characterId: 7n, npcId: 2n, itemTemplateId: 6n });
+    expect(calls.buyListing).toHaveBeenCalledTimes(1);
+    expect(calls.buyListing).toHaveBeenCalledWith({ characterId: 7n, listingId: 200n });
   });
 
   it('keeps vendor_inventory free of any base or source column', () => {
@@ -490,7 +510,7 @@ describe('ForSale stock (Plan 50-27)', () => {
         expect(button.attributes('aria-disabled')).toBe('true');
         expect(button.attributes('aria-describedby')).toBe('buy-reason-3');
         await button.trigger('click');
-        expect(calls.buyItem).toHaveBeenCalledTimes(0);
+        expect(calls.buyListing).toHaveBeenCalledTimes(0);
         expect(ore.get('.gold').classes()).toContain('tone-muted');
       });
 
@@ -565,7 +585,7 @@ describe('ForSale mobile', () => {
     expect(rows[1].get('.sub').text()).toBe('Tier 1 · Leather');
     expect(rows[1].get('[role="img"]').attributes('aria-label')).toBe('20 gold');
     await rows[1].get('button').trigger('click');
-    expect(calls.buyItem).toHaveBeenCalledWith({ characterId: 7n, npcId: 2n, itemTemplateId: 2n });
+    expect(calls.buyListing).toHaveBeenCalledWith({ characterId: 7n, listingId: 101n });
   });
 
   it('carries the 56px row and 44px Buy rules in the source and the mobile chips', () => {
@@ -808,7 +828,7 @@ describe('VendorScreen desktop', () => {
     expect(w.text()).toContain('Marta is no longer nearby.');
     await buy.trigger('click');
     await sell.trigger('click');
-    expect(calls.buyItem).not.toHaveBeenCalled();
+    expect(calls.buyListing).not.toHaveBeenCalled();
     expect(calls.sellItemQuantity).not.toHaveBeenCalled();
   });
 
@@ -831,7 +851,7 @@ describe('VendorScreen desktop', () => {
   it('wires Buy through the shared action runner and shows the send error in the notice line', async () => {
     const { w } = mountScreen({
       screenArgs: MARTA_ARGS,
-      reducers: { buyItem: async () => Promise.reject(new Error('no')) },
+      reducers: { buyListing: async () => Promise.reject(new Error('no')) },
     });
     await w.get('[aria-label="Buy Leather Cap for 20 gold"]').trigger('click');
     await vi.waitFor(() => expect(w.get('[role="status"]').text()).toContain("Couldn't send that. Try again."));

@@ -71,7 +71,7 @@ function reasonId(row: ForSaleRow): string {
 }
 
 function inert(row: ForSaleRow): boolean {
-  return offline.value || reasonOf(row) !== null || props.runner.isPending(`buy:${row.templateId}`);
+  return offline.value || reasonOf(row) !== null || props.runner.isPending(`buy:${row.key}`);
 }
 
 function onBuy(row: ForSaleRow): void {
@@ -79,9 +79,10 @@ function onBuy(row: ForSaleRow): void {
   const character = game.character.value;
   if (!reducers || !character || inert(row)) return;
   const characterId = character.id;
-  const npcId = props.vendor.id;
-  const itemTemplateId = row.templateId;
-  void props.runner.run(`buy:${itemTemplateId}`, () => reducers.buyItem({ characterId, npcId, itemTemplateId }));
+  // The row key is the listing id: the server takes the unit from exactly that listing (its quality
+  // tier, its stock), never from another row of the same template.
+  const listingId = row.key;
+  void props.runner.run(`buy:${listingId}`, () => reducers.buyListing({ characterId, listingId }));
 }
 
 function setFilter(id: string): void {

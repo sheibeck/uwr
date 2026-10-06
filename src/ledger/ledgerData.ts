@@ -267,6 +267,7 @@ export function createLedgerData<C extends LedgerConn>(
       sellItemQuantity: (a) => r.sellItemQuantity(a),
       sellAllJunk: (a) => r.sellAllJunk(a),
       buyItem: (a) => r.buyItem(a),
+      buyListing: (a) => r.buyListing(a),
       buybackLastSale: (a) => r.buybackLastSale(a),
       researchRecipes: (a) => r.researchRecipes(a),
       craftRecipe: (a) => r.craftRecipe(a),

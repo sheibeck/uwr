@@ -18,6 +18,7 @@ const REDUCER_NAMES = [
   'sellItemQuantity',
   'sellAllJunk',
   'buyItem',
+  'buyListing',
   'buybackLastSale',
   'researchRecipes',
   'craftRecipe',
@@ -386,6 +387,10 @@ describe('createLedgerData: reducers', () => {
     await r.sellItemQuantity(quantitySale);
     expect(conn.reducers.sellItemQuantity).toHaveBeenCalledTimes(1);
     expect(conn.reducers.sellItemQuantity).toHaveBeenCalledWith(quantitySale);
+    const purchase = { characterId: 7n, listingId: 150n };
+    await r.buyListing(purchase);
+    expect(conn.reducers.buyListing).toHaveBeenCalledTimes(1);
+    expect(conn.reducers.buyListing).toHaveBeenCalledWith(purchase);
     await r.unequipItem({ characterId: 7n, slot: 'head' });
     expect(conn.reducers.unequipItem).toHaveBeenCalledWith({ characterId: 7n, slot: 'head' });
     expect(Object.keys(r).sort()).toEqual([...REDUCER_NAMES].sort());

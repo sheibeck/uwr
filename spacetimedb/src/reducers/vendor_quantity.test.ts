@@ -38,6 +38,7 @@ const PERK_KEY = 'shrewd_bargainer';
 let sellItem: (...args: any[]) => any;
 let sellItemQuantity: (...args: any[]) => any;
 let buyItem: (...args: any[]) => any;
+let buyListing: (...args: any[]) => any;
 let buyback: (...args: any[]) => any;
 let restock: (...args: any[]) => any;
 let submitIntent: (...args: any[]) => any;
@@ -58,6 +59,7 @@ beforeAll(async () => {
   sellItem = capture('sell_item');
   sellItemQuantity = capture('sell_item_quantity');
   buyItem = capture('buy_item');
+  buyListing = capture('buy_listing');
   buyback = capture('buyback_last_sale');
   restock = capture('restock_vendors');
   submitIntent = capture('submit_intent');
@@ -226,6 +228,11 @@ const buyAs = (ctx: any, templateId: bigint, who: 'alice' | 'bob' = 'alice') =>
     characterId: who === 'alice' ? 1n : 2n,
     npcId: VENDOR,
     itemTemplateId: templateId,
+  });
+const buyListingAs = (ctx: any, listingId: bigint, who: 'alice' | 'bob' = 'bob') =>
+  buyListing(as(ctx, who === 'alice' ? alice : bob), {
+    characterId: who === 'alice' ? 1n : 2n,
+    listingId,
   });
 const buyBack = (ctx: any) => buyback(ctx, { characterId: 1n });
 const say = (ctx: any, text: string) => submitIntent(ctx, { characterId: 1n, text });
@@ -440,6 +447,136 @@ describe('sold-out base stock', () => {
     expect(listingsFor(ctx, 70n)).toHaveLength(2);
     expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toEqual(BASE);
     expect(listingsFor(ctx, 70n).find((r) => r.id !== 40n)!.quantity).toBe(5n);
+  });
+});
+
+describe('buy_listing takes the unit from the listing the player clicked (WR-01)', () => {
+  // Template 80 (a sword) sits in two rows: base stock x5 (no tier) and a player-sold rare x1.
+  const BASE = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined, quantity: 5n };
+  const MARKER = { listingId: 40n, npcId: VENDOR };
+  const twoRows = () => {
+    const ctx = newCtx({
+      instances: [inst(800n, 80n, 1n, { qualityTier: 'rare' })],
+      listings: [{ ...BASE }],
+      markers: [{ ...MARKER }],
+    });
+    sellQ(ctx, 800n, 1n);
+    const rare = listingsFor(ctx, 80n).find((r) => r.qualityTier === 'rare')!;
+    return { ctx, rareId: rare.id as bigint };
+  };
+
+  it('clicking the base row lowers only the base row and leaves the seller buy-back working', () => {
+    const { ctx, rareId } = twoRows();
+    buyListingAs(ctx, 40n);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)!.quantity).toBe(4n);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === rareId)!.quantity).toBe(1n);
+    const bobSword = rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 2n && i.templateId === 80n)!;
+    expect(bobSword.qualityTier).toBeUndefined();
+    // The seller still gets the rare unit back.
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toMatch(/^You buy back/);
+    expect(rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 1n && i.templateId === 80n)!.qualityTier).toBe('rare');
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === rareId)).toBeUndefined();
+  });
+
+  it('clicking the rare row takes that unit, hands it out with its tier, and breaks no base unit', () => {
+    const { ctx, rareId } = twoRows();
+    const goldBefore = goldOf(ctx, 2n);
+    buyListingAs(ctx, rareId);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === rareId)).toBeUndefined();
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toEqual(BASE);
+    const bobSword = rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 2n && i.templateId === 80n)!;
+    expect(bobSword.qualityTier).toBe('rare');
+    const price = listingBuyPrice({
+      listPrice: 26n,
+      vendorValue: 13n,
+      perkBuyPct: 0,
+      perkSellPct: 0,
+      vendorBuyMod: 0n,
+      vendorSellMod: 0n,
+    });
+    expect(goldBefore - goldOf(ctx, 2n)).toBe(price);
+    // The seller's rare unit is gone; the base row is a different tier, so the buy-back refuses.
+    const before = state(ctx);
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('Brannoc has already sold Test Sword.');
+    expect(state(ctx)).toEqual(before);
+  });
+
+  it('keeps the price floor, stock and the take of exactly one unit', () => {
+    const { ctx } = twoRows();
+    const goldBefore = goldOf(ctx, 2n);
+    buyListingAs(ctx, 40n);
+    const paid = goldBefore - goldOf(ctx, 2n);
+    expect(paid).toBeGreaterThan(sellPayout(13n, 1n, 0, 0n));
+    expect(listingsFor(ctx, 80n).reduce((sum, r) => sum + r.quantity, 0n)).toBe(5n);
+  });
+
+  describe('refusals leave every table unchanged', () => {
+    const refused = (ctx: any, listingId: bigint, message: string | RegExp, who: 'alice' | 'bob' = 'bob') => {
+      const before = state(ctx);
+      buyListingAs(ctx, listingId, who);
+      if (typeof message === 'string') expect(lastMessage(ctx)).toBe(message);
+      else expect(lastMessage(ctx)).toMatch(message);
+      expect(state(ctx)).toEqual(before);
+    };
+
+    it('a listing that does not exist', () => {
+      const { ctx } = twoRows();
+      refused(ctx, 999n, 'That item is no longer for sale.');
+    });
+
+    it('a sold-out base row', () => {
+      const ctx = newCtx({
+        listings: [{ ...BASE, quantity: 0n }],
+        markers: [{ ...MARKER }],
+      });
+      refused(ctx, 40n, 'Brannoc has no more Test Sword.');
+    });
+
+    it('a listing of an npc that is not a vendor', () => {
+      const ctx = newCtx({
+        listings: [{ id: 50n, npcId: NON_VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined, quantity: 2n }],
+      });
+      refused(ctx, 50n, 'There is no vendor here.');
+    });
+
+    it('a vendor in another place', () => {
+      const ctx = newCtx({
+        listings: [{ ...BASE }],
+        markers: [{ ...MARKER }],
+      });
+      rows(ctx, 'npc').find((n) => n.id === VENDOR)!.locationId = HERE + 1n;
+      refused(ctx, 40n, 'There is no vendor here.');
+    });
+
+    it('not enough gold', () => {
+      const { ctx } = twoRows();
+      rows(ctx, 'character').find((c) => c.id === 2n)!.gold = 1n;
+      refused(ctx, 40n, 'Not enough gold');
+    });
+
+    it("another player's character throws and writes nothing", () => {
+      const { ctx } = twoRows();
+      const before = state(ctx);
+      expect(() => buyListing(as(ctx, alice), { characterId: 2n, listingId: 40n })).toThrow();
+      expect(state(ctx)).toEqual(before);
+    });
+  });
+
+  it('buy_item for an old client picks the plain row first, then the lowest id', () => {
+    const { ctx, rareId } = twoRows();
+    buyAs(ctx, 80n, 'bob');
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)!.quantity).toBe(4n);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === rareId)!.quantity).toBe(1n);
+    // Once the plain row is sold out, buy_item sells the tiered unit with its tier.
+    for (let i = 0; i < 4; i++) buyAs(ctx, 80n, 'bob');
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)!.quantity).toBe(0n);
+    buyAs(ctx, 80n, 'bob');
+    const tiers = rows(ctx, 'item_instance')
+      .filter((i) => i.ownerCharacterId === 2n && i.templateId === 80n)
+      .map((i) => i.qualityTier);
+    expect(tiers.filter((x) => x === 'rare')).toHaveLength(1);
   });
 });
 

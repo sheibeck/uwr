@@ -29,6 +29,8 @@ export interface LedgerReducers {
   sellItemQuantity(a: { characterId: bigint; itemInstanceId: bigint; npcId: bigint; quantity: bigint }): Promise<void>;
   sellAllJunk(a: { characterId: bigint }): Promise<void>;
   buyItem(a: { characterId: bigint; npcId: bigint; itemTemplateId: bigint }): Promise<void>;
+  /** Buy one unit from the listing the player clicked (the For sale row key). */
+  buyListing(a: { characterId: bigint; listingId: bigint }): Promise<void>;
   buybackLastSale(a: { characterId: bigint }): Promise<void>;
   researchRecipes(a: { characterId: bigint }): Promise<void>;
   craftRecipe(a: {
