@@ -411,6 +411,9 @@ describe('FeedLine line breaks', () => {
     }
     const scene = source.match(/\.line-scene \.body \{([^}]*)\}/);
     expect(scene![1]).toContain('pre-wrap');
+    const ripple = source.match(/\.line-ripple \.body \{([^}]*)\}/);
+    expect(ripple).not.toBeNull();
+    expect(ripple![1]).toContain('pre-wrap');
   });
 
   it('keeps newlines as text in a server line with no line break elements', () => {

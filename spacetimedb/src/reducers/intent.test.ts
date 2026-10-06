@@ -14,6 +14,7 @@ vi.mock('../helpers/search', () => ({
 }));
 
 import { buildLookOutput } from '../helpers/look';
+import { parseLookCommand } from '../helpers/examine';
 import { createMockDb } from '../helpers/test-utils';
 
 describe('buildLookOutput', () => {
@@ -245,45 +246,39 @@ describe('buildLookOutput', () => {
 describe('intent routing patterns', () => {
   // --- Regex-based commands ---
 
-  describe('look pattern: /^(?:look|l)(?:\\s+(.+))?$/i', () => {
-    const pattern = /^(?:look|l)(?:\s+(.+))?$/i;
-
-    it('matches bare "look"', () => {
-      const m = 'look'.match(pattern);
-      expect(m).not.toBeNull();
-      expect(m![1]).toBeUndefined();
+  // The look command is parsed by the production parseLookCommand (helpers/examine.ts); this block
+  // used to test a copied regex literal that could drift from it.
+  describe('look command: production parseLookCommand', () => {
+    it('treats bare "look" as a bare look', () => {
+      expect(parseLookCommand('look')).toBe('');
     });
 
-    it('matches alias "l"', () => {
-      const m = 'l'.match(pattern);
-      expect(m).not.toBeNull();
-      expect(m![1]).toBeUndefined();
+    it('treats alias "l" as a bare look', () => {
+      expect(parseLookCommand('l')).toBe('');
     });
 
-    it('matches "look <target>" and captures target', () => {
-      const m = 'look goblin'.match(pattern);
-      expect(m).not.toBeNull();
-      expect(m![1]).toBe('goblin');
+    it('matches "look <target>" and returns the target', () => {
+      expect(parseLookCommand('look goblin')).toBe('goblin');
     });
 
-    it('matches "Look at something" case insensitively', () => {
-      const m = 'LOOK around'.match(pattern);
-      expect(m).not.toBeNull();
-      expect(m![1]).toBe('around');
+    it('matches case insensitively and keeps the target casing', () => {
+      expect(parseLookCommand('LOOK Around')).toBe('Around');
     });
 
     it('matches "l sword" alias with target', () => {
-      const m = 'l sword'.match(pattern);
-      expect(m).not.toBeNull();
-      expect(m![1]).toBe('sword');
+      expect(parseLookCommand('l sword')).toBe('sword');
+    });
+
+    it('strips a leading "at" and one article', () => {
+      expect(parseLookCommand('look at the goblin')).toBe('goblin');
     });
 
     it('does not match "looking"', () => {
-      expect('looking'.match(pattern)).toBeNull();
+      expect(parseLookCommand('looking')).toBeNull();
     });
 
     it('does not match "loot"', () => {
-      expect('loot'.match(pattern)).toBeNull();
+      expect(parseLookCommand('loot')).toBeNull();
     });
   });
 
