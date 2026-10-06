@@ -4,6 +4,7 @@ import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
 import { findItemTemplateByName, getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
 import { awardXp } from '../helpers/combat_rewards';
 import { MAX_LEVEL } from '../data/xp';
+import { npcGender, npcPronouns } from '../data/npc_gender';
 
 // Slots the quest reward cycles through by player level. All are EQUIPMENT_SLOTS (helpers/items.ts);
 // 'mainHand' is the weapon slot.
@@ -169,11 +170,18 @@ export function awardQuestXp(ctx: any, character: any, xp: bigint): { xpGained: 
  * character's completed instance of qt. Awards xp, gold, the item reward and NPC affinity, records the
  * quest in the giver's memory, and removes the quest instance.
  *
- * Refuses (visible message, nothing applied, quest stays ready to turn in) when the quest's item reward
- * would not fit in the character's bags. Returns whether the quest was turned in.
+ * Refuses (visible message, nothing applied, quest stays ready to turn in) when the character is not at
+ * the giver's location or the quest's item reward would not fit in their bags. Returns whether the quest
+ * was turned in.
  */
 export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any, appendPrivateEvent: any, fail: any): boolean {
   const npc = qt.npcId ? ctx.db.npc.id.find(qt.npcId) : undefined;
+
+  // The quest is turned in to its giver, where the giver stands.
+  if (npc && npc.locationId !== character.locationId) {
+    fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || `${npcPronouns(npcGender(npc)).possessive} post`} to turn in this quest.`);
+    return false;
+  }
 
   // The item reward is a new, non-stackable item: it needs a free bag slot (the take_loot rule).
   // Checked before anything is awarded, so the player can free a slot and turn in again.

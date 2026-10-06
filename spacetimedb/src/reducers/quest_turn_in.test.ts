@@ -9,7 +9,8 @@
  *   - quest xp goes through awardXp: crossing a level threshold earns pending levels and the [Level Up]
  *     prompt, the promised amount is not rescaled, and max level still receives it;
  *   - a reward whose name matches a starter template (ensureStarterItemTemplates upserts by name) gets
- *     its own name: it neither overwrites nor is overwritten by the starter row.
+ *     its own name: it neither overwrites nor is overwritten by the starter row;
+ *   - turning in away from the giver is refused (turn_in_quest used to skip this check).
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
@@ -221,6 +222,19 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
       turnIn(ctx);
       expect(sameName(ctx, 'Bellwright Token')).toHaveLength(1);
       expect(messages(ctx)).toContain('Received: Bellwright Token!');
+    });
+  });
+
+  describe("giver's location", () => {
+    it('away from the giver: refuses with the way back and applies nothing', () => {
+      const ctx = newCtx({ char: { locationId: 11n } });
+      turnIn(ctx);
+      expect(rows(ctx, 'quest_instance')).toHaveLength(1);
+      expect(rows(ctx, 'character')[0].xp).toBe(120n);
+      expect(rows(ctx, 'character')[0].gold).toBe(10n);
+      expect(rows(ctx, 'item_template')).toHaveLength(0);
+      expect(rows(ctx, 'npc_memory')).toHaveLength(0);
+      expect(messages(ctx)).toEqual(['You must return to Hesk Varrow at Saltmere to turn in this quest.']);
     });
   });
 

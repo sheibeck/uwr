@@ -777,13 +777,7 @@ export const registerIntentReducers = (deps: any) => {
         if (!qi.completed) {
           return fail(ctx, character, `"${qt.name}" is not yet complete.`);
         }
-        // Check if character is at the NPC's location
-        const npc = ctx.db.npc.id.find(qt.npcId);
-        if (npc && npc.locationId !== character.locationId) {
-          return fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || `${npcPronouns(npcGender(npc)).possessive} post`} to turn in this quest.`);
-        }
-
-        // Same reward path as the turn_in_quest reducer (xp, gold, item, affinity, NPC memory)
+        // Same path as the turn_in_quest reducer (giver's location, bag space, xp, gold, item, affinity, NPC memory)
         turnInCompletedQuest(ctx, character, qi, qt, appendPrivateEvent, fail);
         return;
       }
