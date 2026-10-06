@@ -207,11 +207,14 @@ describe('rows without segments', () => {
       'combat',
       'combat_prompt',
       'combat_status',
-      'combat_round_header',
-      'combat_resolving',
     ]) {
       expect(first(row(kind, 'Text.'))).toMatchObject({ kind: 'combat', keywordEligible: false });
     }
+  });
+
+  it('renders nothing for combat_round_header and combat_resolving (the client draws the headers)', () => {
+    expect(classify(row('combat_round_header', 'Round 2'))).toEqual([]);
+    expect(classify(row('combat_resolving', 'Resolving...'))).toEqual([]);
   });
 
   it.each(['system', 'move', 'movement', 'presence', 'day_night', 'avoid', 'server_first', 'zzz'])(
@@ -320,5 +323,107 @@ describe('buildFeedLines', () => {
     ];
     const lines = buildFeedLines([row('narrative', '', { segments, key: 'private:42' })], options);
     expect(lines.map((l) => l.key)).toEqual(['private:42:0', 'private:42:1']);
+  });
+});
+
+
+describe('combat entries and the late-narration tag', () => {
+  const roundEntry = (n: bigint, combatId = 10n): LineSource => ({
+    key: `round:${combatId}:${n}`,
+    source: 'combat',
+    kind: 'round',
+    message: `Round ${n}`,
+    segments: null,
+    combatId,
+    roundNumber: n,
+  });
+  const windupEntry: LineSource = {
+    key: 'windup:7',
+    source: 'combat',
+    kind: 'windup',
+    message: 'Rotfang winds up Gore to you',
+    segments: null,
+    combatId: 10n,
+    windup: { lead: 'Rotfang winds up ', ability: 'Gore', tail: ' to you' },
+  };
+  const narration = (narratedRound?: bigint): LineSource => ({
+    key: 'private:5',
+    source: 'private',
+    kind: 'combat_narration',
+    message: '',
+    segments: [
+      { kind: 'narration', speaker: 'The Keeper', text: 'The beast lunges.' },
+      { kind: 'narration', speaker: 'The Keeper', text: 'You roll clear.' },
+    ],
+    narratedRound,
+  });
+  const build = (entries: readonly LineSource[]) =>
+    buildFeedLines(entries, { vocabulary: buildVocabulary({ npcs: [], places: [], nodes: [], players: [] }), partyNames: [], npcsHere: [] });
+  const tags = (entries: readonly LineSource[]) => build(entries).map((l) => l.roundTag ?? null);
+
+  it('classifies a round entry to one header line', () => {
+    expect(classify(roundEntry(3n))).toEqual([
+      expect.objectContaining({
+        kind: 'round',
+        text: 'Round 3',
+        roundNumber: 3n,
+        roundKey: '10:3',
+        keywordEligible: false,
+        label: null,
+      }),
+    ]);
+  });
+
+  it('classifies a wind-up entry to one block line with its parts, never keyword-eligible', () => {
+    const lines = classify(windupEntry);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      kind: 'windup',
+      text: windupEntry.message,
+      windup: { lead: 'Rotfang winds up ', ability: 'Gore', tail: ' to you' },
+      keywordEligible: false,
+    });
+  });
+
+  it('keeps markup in wind-up text literal', () => {
+    const entry: LineSource = {
+      ...windupEntry,
+      message: '<img src=x onerror=alert(1)> winds up Gore',
+      windup: { lead: '<img src=x onerror=alert(1)> winds up ', ability: 'Gore', tail: '' },
+    };
+    expect(classify(entry)[0].text).toBe('<img src=x onerror=alert(1)> winds up Gore');
+  });
+
+  it('draws nothing for a malformed combat entry', () => {
+    expect(classify({ ...roundEntry(1n), roundNumber: undefined })).toEqual([]);
+    expect(classify({ ...windupEntry, windup: undefined })).toEqual([]);
+  });
+
+  it('gives no tag when the narrated round matches the header above it', () => {
+    expect(tags([roundEntry(1n), narration(1n)])).toEqual([null, null, null]);
+  });
+
+  it('tags only the first Keeper line when the narrated round differs', () => {
+    expect(tags([roundEntry(1n), narration(2n)])).toEqual([null, 2n, null]);
+  });
+
+  it('tags narration with a round but no preceding header', () => {
+    expect(tags([narration(2n)])).toEqual([2n, null]);
+  });
+
+  it('gives no tag when the round is unknown', () => {
+    expect(tags([roundEntry(1n), narration()])).toEqual([null, null, null]);
+    expect(tags([narration()])).toEqual([null, null]);
+  });
+
+  it('compares against the nearest preceding header', () => {
+    expect(tags([roundEntry(1n), roundEntry(2n), narration(2n)])).toEqual([null, null, null, null]);
+    expect(tags([roundEntry(1n), roundEntry(2n), narration(1n)])).toEqual([null, null, 1n, null]);
+  });
+
+  it('passes round and wind-up lines through buildFeedLines untouched', () => {
+    const lines = build([roundEntry(1n), windupEntry]);
+    expect(lines.map((l) => l.kind)).toEqual(['round', 'windup']);
+    expect(lines.every((l) => l.parts === null)).toBe(true);
   });
 });

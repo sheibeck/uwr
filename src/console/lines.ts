@@ -11,6 +11,13 @@
 //   - Keywords apply only to eligible lines. Player-authored text (say, emote, whisper, party
 //     chat, group-kind rows, the server command echo, local echoes) is never eligible, so a player
 //     cannot plant a clickable travel, hail or whisper control in another player's feed (T-47-06).
+//   - Combat entries (source 'combat', made by the feed store) become a Round header line or a
+//     wind-up warning block line; neither is ever keyword-eligible. The server kinds
+//     combat_round_header and combat_resolving render nothing: the client draws the headers and
+//     the server writes no such rows today (48-UI-SPEC A15).
+//   - buildFeedLines gives the first Keeper line of an entry carrying narratedRound a roundTag when
+//     that round differs from the nearest preceding round header, or no header precedes it
+//     (late narration, 48-UI-SPEC A22).
 //   - The Error line for failed jobs is not produced here (research S1: the server already writes
 //     its own in-voice failure line).
 // Pure: no Vue, no server imports.
@@ -23,7 +30,7 @@ import { parseNpcSays, parsePartyChat, parseWhisper } from './whisper';
 export const KEEPER_LABEL = 'The Keeper';
 export const DIALOGUE_SEGMENT_KIND = 'dialogue';
 
-export type FeedSourceName = 'private' | 'location' | 'group' | 'world' | 'local';
+export type FeedSourceName = 'private' | 'location' | 'group' | 'world' | 'local' | 'combat';
 
 export interface SegmentLike {
   kind: string;
@@ -40,6 +47,10 @@ export interface LineSource {
   message: string;
   segments: readonly SegmentLike[] | null | undefined;
   queued?: boolean;
+  combatId?: bigint;
+  roundNumber?: bigint;
+  narratedRound?: bigint;
+  windup?: { lead: string; ability: string; tail: string };
 }
 
 export type LineKind =
@@ -58,7 +69,9 @@ export type LineKind =
   | 'say'
   | 'combat'
   | 'damage'
-  | 'heal';
+  | 'heal'
+  | 'round'
+  | 'windup';
 
 export interface FeedLineView {
   /** `${source.key}:${index}` */
@@ -82,6 +95,14 @@ export interface FeedLineView {
   titleParts: KeywordPart[] | null;
   /** NPC speaker that is still at the location. */
   speakerKeyword: KeywordEntry | null;
+  /** Round header lines. */
+  roundNumber?: bigint | null;
+  /** Round header lines: '{combatId}:{roundNumber}'. */
+  roundKey?: string | null;
+  /** Late narration: the round it narrates, when it differs from the header it sits under. */
+  roundTag?: bigint | null;
+  /** Wind-up block lines. */
+  windup?: { lead: string; ability: string; tail: string } | null;
 }
 
 const KEEPER_KINDS = new Set(['narrative', 'llm', 'creation', 'combat_narration', 'class', 'character_created']);
@@ -92,9 +113,9 @@ const COMBAT_KINDS = new Set([
   'combat',
   'combat_prompt',
   'combat_status',
-  'combat_round_header',
-  'combat_resolving',
 ]);
+// Rendered nothing: the client draws the round headers and the server writes no such rows.
+const RENDER_NOTHING_KINDS = new Set(['combat_round_header', 'combat_resolving']);
 const QUEST_LABELS: Readonly<Record<string, string>> = {
   quest: 'Quest',
   reward: 'Reward',
@@ -111,6 +132,9 @@ interface LineFields {
   title?: string | null;
   queued?: boolean;
   keywordEligible: boolean;
+  roundNumber?: bigint | null;
+  roundKey?: string | null;
+  windup?: { lead: string; ability: string; tail: string } | null;
 }
 
 function makeLine(key: string, fields: LineFields): FeedLineView {
@@ -128,6 +152,10 @@ function makeLine(key: string, fields: LineFields): FeedLineView {
     parts: null,
     titleParts: null,
     speakerKeyword: null,
+    roundNumber: fields.roundNumber ?? null,
+    roundKey: fields.roundKey ?? null,
+    roundTag: null,
+    windup: fields.windup ?? null,
   };
 }
 
@@ -206,6 +234,8 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
     return [makeLine(key, { kind: 'system', text: raw, keywordEligible: false })];
   }
 
+  if (RENDER_NOTHING_KINDS.has(kind)) return [];
+
   // Server-authored kinds: old markup removed.
   const text = cleanServerText(raw);
   if (isBlank(text)) return [];
@@ -251,8 +281,29 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
   return [makeLine(key, { kind: 'system', text, keywordEligible: true })];
 }
 
+function classifyCombat(entry: LineSource, key: string): FeedLineView[] {
+  if (entry.kind === 'round') {
+    if (entry.roundNumber === undefined) return [];
+    return [
+      makeLine(key, {
+        kind: 'round',
+        text: entry.message,
+        roundNumber: entry.roundNumber,
+        roundKey: entry.combatId === undefined ? null : `${entry.combatId}:${entry.roundNumber}`,
+        keywordEligible: false,
+      }),
+    ];
+  }
+  if (entry.kind === 'windup' && entry.windup) {
+    const { lead, ability, tail } = entry.windup;
+    return [makeLine(key, { kind: 'windup', text: entry.message, windup: { lead, ability, tail }, keywordEligible: false })];
+  }
+  return [];
+}
+
 /** Classifies one entry into labelled line views (keyword parts are filled by buildFeedLines). */
 export function classifyEntry(entry: LineSource, options: { partyNames: readonly string[] }): FeedLineView[] {
+  if (entry.source === 'combat') return classifyCombat(entry, `${entry.key}:0`);
   const segments = entry.segments;
   if (Array.isArray(segments) && segments.length > 0) {
     return classifySegments(entry, segments);
@@ -273,21 +324,32 @@ export function buildFeedLines(
   },
 ): FeedLineView[] {
   const out: FeedLineView[] = [];
+  let currentRound: bigint | null = null;
   for (const entry of entries) {
+    const built: FeedLineView[] = [];
     for (const line of classifyEntry(entry, { partyNames: options.partyNames })) {
+      if (line.kind === 'round' && line.roundNumber !== null && line.roundNumber !== undefined) {
+        currentRound = line.roundNumber;
+      }
       if (!line.keywordEligible) {
-        out.push(line);
+        built.push(line);
         continue;
       }
       const speakerNpc =
         line.speakerNpcId === null ? undefined : options.npcsHere.find((npc) => npc.id === line.speakerNpcId);
-      out.push({
+      built.push({
         ...line,
         parts: findKeywords(line.text, options.vocabulary),
         titleParts: line.title === null ? null : findKeywords(line.title, options.vocabulary),
         speakerKeyword: speakerNpc ? { kind: 'npc', id: speakerNpc.id, name: speakerNpc.name } : null,
       });
     }
+    const narrated = entry.narratedRound;
+    if (narrated !== undefined && (currentRound === null || narrated !== currentRound)) {
+      const at = built.findIndex((line) => line.kind === 'keeper');
+      if (at !== -1) built[at] = { ...built[at], roundTag: narrated };
+    }
+    for (const line of built) out.push(line);
   }
   return out;
 }
