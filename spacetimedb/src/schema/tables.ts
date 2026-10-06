@@ -1468,6 +1468,33 @@ export const FactionStanding = table(
   }
 );
 
+// A character's last single sale to a vendor, replaced by the next one (buy-back). Private: it is
+// read only through the my_vendor_buyback view, so no one sees another player's sales.
+// affixesJson holds [{ affixType, affixKey, affixName, statKey, magnitude }] with magnitude as a
+// decimal string, because the item_affix column is i64 and JSON.stringify throws on a bigint.
+export const VendorBuyback = table(
+  { name: 'vendor_buyback' },
+  {
+    characterId: t.u64().primaryKey(),
+    npcId: t.u64(),
+    npcName: t.string(),
+    locationId: t.u64(),
+    templateId: t.u64(),
+    itemName: t.string(),
+    rarity: t.string(),
+    quantity: t.u64(),
+    price: t.u64(),                         // the exact gold the vendor paid
+    qualityTier: t.string().optional(),
+    craftQuality: t.string().optional(),
+    displayName: t.string().optional(),
+    isNamed: t.bool().optional(),
+    isTemporary: t.bool().optional(),
+    affixesJson: t.string(),
+    listingId: t.u64().optional(),          // the resale listing the sale created, if any
+    soldAt: t.timestamp(),
+  }
+);
+
 export const UiPanelLayout = table(
   {
     name: 'ui_panel_layout',
@@ -2325,6 +2352,7 @@ const spacetimedb = schema({
   event_group: EventGroup,
   faction: Faction,
   faction_standing: FactionStanding,
+  vendor_buyback: VendorBuyback,
   ui_panel_layout: UiPanelLayout,
   travel_cooldown: TravelCooldown,
   renown: Renown,
