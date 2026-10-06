@@ -1437,7 +1437,7 @@ export const registerIntentReducers = (deps: any) => {
       const startedRetry = startWorldGeneration(ctx, retryState);
       if (startedRetry === 'enqueued' || startedRetry === 'duplicate') {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+          'The edges of reality shimmer around you. The world pauses, as if remembering something it had forgotten...');
       }
       return;
     }

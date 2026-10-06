@@ -283,10 +283,10 @@ export function performTravel(
         updatedAt: ctx.timestamp,
       });
       const started = startWorldGeneration(ctx, genState);
-      // A refusal has already told the player how to try again; the ripple line is for a real start.
+      // A refusal has already told the player how to try again; the World event line is for a real start.
       if (started === 'enqueued' || started === 'duplicate') {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...');
+          'The edges of reality shimmer around you. The world pauses, as if remembering something it had forgotten...');
       }
     }
   }

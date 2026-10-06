@@ -1480,7 +1480,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
   // Phase 43 stages world generation: every trigger enqueues the small reveal job (world_gen_start) first;
   // the world_gen fill job is enqueued by the stage-1 apply (see "staged world generation (LAT-03)" below).
   const T = { microsSinceUnixEpoch: T0 };
-  const RIPPLE = 'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...';
+  const WORLD_EVENT_START = 'The edges of reality shimmer around you. The world pauses, as if remembering something it had forgotten...';
   const PATIENCE = 'The world is already taking shape around you. Patience.';
   const EXPLORE_LINE = 'Type [explore] to try again';
 
@@ -1604,7 +1604,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
   describe('travelling to an uncharted location', () => {
     const go = (ctx: any) => handlers.submit_intent(ctx, { characterId: 1n, text: 'go The Edge Beyond' });
 
-    it('starts one GENERATING state and job and posts the ripple line', () => {
+    it('starts one GENERATING state and job and posts the World event line', () => {
       const ctx = newCtx(unchartedSeed());
       go(ctx);
 
@@ -1616,10 +1616,10 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       const input = resolveRouteInput(ctx, job) as any;
       expect(input.sourceRegionName).toBe('Ashen Reach');
       expect(input.characterRace).toBe('Kobold');
-      expect(systemLines(ctx)).toContain(RIPPLE);
+      expect(systemLines(ctx)).toContain(WORLD_EVENT_START);
     });
 
-    it('a refused start posts the refusal line but not the ripple line, and the state is ERROR', () => {
+    it('a refused start posts the refusal line but not the World event line, and the state is ERROR', () => {
       const ctx = newCtx(unchartedSeed());
       exhaustDay(ctx);
       go(ctx);
@@ -1627,7 +1627,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expectNothingReserved(ctx);
       expect(worldGenStates(ctx)[0].step).toBe('ERROR');
       const lines = systemLines(ctx);
-      expect(lines).not.toContain(RIPPLE);
+      expect(lines).not.toContain(WORLD_EVENT_START);
       expect(lines).toContain(
         'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.',
       );
@@ -1644,7 +1644,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states[0].step).toBe('ERROR');
       expect(states[1]).toMatchObject({ step: 'GENERATING', sourceLocationId: 11n, sourceRegionId: 1n });
       expectEnqueued(ctx, 'world_gen_start');
-      expect(systemLines(ctx)).toEqual([RIPPLE]);
+      expect(systemLines(ctx)).toEqual([WORLD_EVENT_START]);
     });
 
     it('while the state is GENERATING a second explore answers with the patience line and starts nothing', () => {
@@ -1654,7 +1654,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
 
       expect(worldGenStates(ctx)).toHaveLength(2);
       expectEnqueued(ctx, 'world_gen_start');
-      expect(systemLines(ctx)).toEqual([RIPPLE, PATIENCE]);
+      expect(systemLines(ctx)).toEqual([WORLD_EVENT_START, PATIENCE]);
     });
 
     it('for a character at location 0 whose starter state is ERROR creates a fresh starter state and starts it', () => {
@@ -1672,7 +1672,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       });
       const job = expectEnqueued(ctx, 'world_gen_start');
       expect(JSON.parse(job.requestJson).genStateId).toBe(states[1].id.toString());
-      expect(systemLines(ctx)).toEqual([RIPPLE]);
+      expect(systemLines(ctx)).toEqual([WORLD_EVENT_START]);
     });
 
     it('for a character at location 0 reuses a matching starter region for free', () => {
@@ -1732,7 +1732,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states).toHaveLength(2);
       expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n, sourceRegionId: 0n });
       expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(bob);
-      expect(systemLines(ctx)).toEqual([RIPPLE]);
+      expect(systemLines(ctx)).toEqual([WORLD_EVENT_START]);
     });
   });
 
@@ -1761,7 +1761,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: alice, characterId: 1n, sourceRegionId: 0n });
       const job = expectEnqueued(ctx, 'world_gen_start');
       expect(JSON.parse(job.requestJson).genStateId).toBe(states[1].id.toString());
-      expect(creationLines(ctx)).toEqual([['creation', RIPPLE]]);
+      expect(creationLines(ctx)).toEqual([['creation', WORLD_EVENT_START]]);
       // The finished creation is untouched: no new creation, no "already created" line.
       expect(rows(ctx, 'character_creation_state')).toHaveLength(1);
       expect(rows(ctx, 'character_creation_state')[0].step).toBe('COMPLETE');
@@ -1806,7 +1806,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(states).toHaveLength(2);
       expect(states[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n });
       expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(bob);
-      expect(rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.message])).toEqual([[bob, RIPPLE]]);
+      expect(rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.message])).toEqual([[bob, WORLD_EVENT_START]]);
     });
 
     it('another device: a first line other than explore gets the [explore] hint, starts no creation, and explore then retries (WR-B01)', () => {
@@ -1827,7 +1827,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(worldGenStates(ctx)[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 1n });
       expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(bob);
       expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_race')).toBe(false);
-      expect(rows(ctx, 'event_creation').map((e: any) => e.message)).toEqual([STRANDED_CHARACTER_HINT, RIPPLE]);
+      expect(rows(ctx, 'event_creation').map((e: any) => e.message)).toEqual([STRANDED_CHARACTER_HINT, WORLD_EVENT_START]);
     });
 
     it('explore at AWAITING_RACE with a stranded character retries the first region instead of billing a race named explore (WR-B01)', () => {
@@ -1838,7 +1838,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(rows(ctx, 'llm_job').some((j: any) => j.route === 'creation_race')).toBe(false);
       expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_RACE');
       expect(expectEnqueued(ctx, 'world_gen_start').playerId).toBe(alice);
-      expect(creationLines(ctx)).toEqual([['creation', RIPPLE]]);
+      expect(creationLines(ctx)).toEqual([['creation', WORLD_EVENT_START]]);
     });
 
     it('any other line at COMPLETE with a stranded character points to [explore]', () => {
@@ -1923,7 +1923,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
       expect(worldGenStates(proc)).toHaveLength(2);
       expect(worldGenStates(proc)[1].step).toBe('GENERATING');
-      expect(rows(proc, 'event_creation').slice(-1)[0].message).toBe(RIPPLE);
+      expect(rows(proc, 'event_creation').slice(-1)[0].message).toBe(WORLD_EVENT_START);
       expect(proc.http.calls).toHaveLength(1);
     });
   });

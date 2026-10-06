@@ -26,9 +26,9 @@ import { toBigIntSafe } from './safe_numbers';
 // Relocated from data/world_gen.ts -- these are active generation functions
 // ---------------------------------------------------------------------------
 
-export const RIPPLE_TEMPLATES = [
+export const WORLD_EVENT_TEMPLATES = [
   'A new land has been remembered beyond {sourceRegion}... the air carries hints of {biomeHint}.',
-  'The edges of reality ripple. Something ancient stirs beyond {sourceRegion}.',
+  'The edges of reality waver. Something ancient stirs beyond {sourceRegion}.',
   'The world grows. A {biomeHint} presence makes itself known past {sourceRegion}.',
   'Reality exhales. Beyond {sourceRegion}, {biomeHint} terrain has always been there. You simply failed to notice.',
   'The map trembles at its borders. {sourceRegion} is no longer the edge of things.',
@@ -54,15 +54,15 @@ export const BIOME_HINTS: Record<string, string[]> = {
 };
 
 /**
- * Pick a ripple announcement message using deterministic timestamp-based selection.
+ * Pick a World event announcement message using deterministic timestamp-based selection.
  * Called from reducers -- no Math.random allowed.
  */
-export function pickRippleMessage(
+export function pickWorldEventMessage(
   sourceRegionName: string,
   biome: string,
   timestampMicros: bigint
 ): string {
-  const template = RIPPLE_TEMPLATES[Number(timestampMicros % BigInt(RIPPLE_TEMPLATES.length))];
+  const template = WORLD_EVENT_TEMPLATES[Number(timestampMicros % BigInt(WORLD_EVENT_TEMPLATES.length))];
   const hints = BIOME_HINTS[biome] ?? BIOME_HINTS['plains'];
   const hint = hints[Number(timestampMicros % BigInt(hints.length))];
   return template
@@ -233,7 +233,7 @@ export type StarterRetryOutcome = 'busy' | 'none' | 'started' | 'reused' | 'refu
 export const STARTER_RETRY_MESSAGES = Object.freeze({
   busy: 'The world is already taking shape around you. Patience.',
   none: 'There is nothing uncharted to explore here.',
-  started: 'The edges of reality ripple around you. The world pauses, as if remembering something it had forgotten...',
+  started: 'The edges of reality shimmer around you. The world pauses, as if remembering something it had forgotten...',
 });
 
 /**

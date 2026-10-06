@@ -34,7 +34,7 @@ import {
   appendCreationEvent,
 } from './events';
 import {
-  pickRippleMessage,
+  pickWorldEventMessage,
   pickDiscoveryMessage,
   writeRegionStart,
   writeRegionFill,
@@ -555,12 +555,12 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
     writePrivateSegments(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', keeperSegments(arrivalMsg));
   }
 
-  // Read source region name for ripple message
+  // Read source region name for the World event message
   const sourceRegion = ctx.db.region.id.find(currentGenState.sourceRegionId);
   const sourceRegionName = sourceRegion?.name || 'the known world';
 
   appendWorldEvent(ctx, 'world',
-    pickRippleMessage(sourceRegionName, data.biome || 'plains', ctx.timestamp.microsSinceUnixEpoch));
+    pickWorldEventMessage(sourceRegionName, data.biome || 'plains', ctx.timestamp.microsSinceUnixEpoch));
 
   if (character) {
     appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
