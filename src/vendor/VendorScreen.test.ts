@@ -5,7 +5,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
-import { buyPrice } from '@game-data/vendor_pricing';
+import { buyPrice, listingBuyPrice } from '@game-data/vendor_pricing';
 import { listPriceFor } from '@game-data/vendor_stock';
 import {
   FRAME_KEY,
@@ -70,8 +70,8 @@ function inst(id: bigint, templateId: bigint, overrides: Record<string, unknown>
   } as unknown as ItemInstance;
 }
 
-function listing(id: bigint, templateId: bigint, price: bigint, npcId = 2n): VendorInventory {
-  return { id, npcId, itemTemplateId: templateId, price, qualityTier: undefined } as unknown as VendorInventory;
+function listing(id: bigint, templateId: bigint, price: bigint, npcId = 2n, quantity = 1n): VendorInventory {
+  return { id, npcId, itemTemplateId: templateId, price, qualityTier: undefined, quantity } as unknown as VendorInventory;
 }
 
 function npc(id: bigint, name: string, over: Record<string, unknown> = {}): Npc {
@@ -385,7 +385,16 @@ describe('ForSale desktop', () => {
     const { w } = mountSale({ templates: [evil], stock: [listing(1n, 30n, 5n)] });
     expect(w.get('.item-name').text()).toBe(XSS);
     expect(w.find('img').exists()).toBe(false);
-    expect(w.get('button.buy-btn').attributes('aria-label')).toBe(`Buy ${XSS} for 5 gold`);
+    // Listed at 5n against a vendorValue of 10n: the charged price is the floored one.
+    const price = listingBuyPrice({
+      listPrice: 5n,
+      vendorValue: 10n,
+      perkBuyPct: 0,
+      perkSellPct: 0,
+      vendorBuyMod: HERO.vendorBuyMod,
+      vendorSellMod: HERO.vendorSellMod,
+    });
+    expect(w.get('button.buy-btn').attributes('aria-label')).toBe(`Buy ${XSS} for ${price} gold`);
   });
 });
 
@@ -432,6 +441,106 @@ describe('ForSale base stock (Plan 50-24)', () => {
     expect(row).toMatch(/npcId/);
     expect(row).not.toMatch(/base/i);
     expect(row).not.toMatch(/source/i);
+  });
+});
+
+describe('ForSale stock (Plan 50-27)', () => {
+  // Both layouts share these cases: the rows are the same model, drawn as a table or as a list.
+  const layouts: Array<{ label: string; mobile: boolean; rowSelector: string }> = [
+    { label: 'desktop', mobile: false, rowSelector: 'tbody tr' },
+    { label: 'mobile', mobile: true, rowSelector: 'li.sale-row' },
+  ];
+
+  for (const layout of layouts) {
+    describe(layout.label, () => {
+      function mountSale(world: World = {}) {
+        const ctx = buildWorld({ isDesktop: !layout.mobile, ...world });
+        wrapper = mount(ForSale, {
+          attachTo: document.body,
+          props: { vendor: VENDOR, vendorNearby: true, runner: ctx.runner, mobile: layout.mobile, resetKey: 0 },
+          global: ctx.global,
+        });
+        return { ...ctx, w: wrapper };
+      }
+      const rowFor = (w: VueWrapper, name: string) =>
+        w.findAll(layout.rowSelector).find((r) => r.get('.item-name').text() === name)!;
+
+      it('shows x n right after the bare item name for 3 and for the last one, and nothing at 0', () => {
+        const { w } = mountSale({
+          stock: [listing(1n, 2n, 20n, 2n, 3n), listing(2n, 4n, 3n, 2n, 1n), listing(3n, 6n, 12n, 2n, 0n)],
+        });
+        const cap = rowFor(w, 'Leather Cap');
+        expect(cap.get('.item-name').text()).toBe('Leather Cap');
+        expect(cap.get('.item-line .qty').text()).toBe('×3');
+        const line = cap.get('.item-line');
+        expect(line.element.children[0]).toBe(cap.get('.item-name').element);
+        expect(line.element.children[1]).toBe(cap.get('.qty').element);
+        expect(rowFor(w, 'Bread').get('.qty').text()).toBe('×1');
+        expect(rowFor(w, 'Iron Ore').find('.qty').exists()).toBe(false);
+      });
+
+      it('a listing at 0 reads Sold out in its sub-line, is inert and described by that reason', async () => {
+        const { w, calls } = mountSale({ stock: [listing(3n, 6n, 12n, 2n, 0n)] });
+        const ore = rowFor(w, 'Iron Ore');
+        const reason = ore.get('#buy-reason-3');
+        expect(reason.text()).toBe('· Sold out');
+        expect(ore.get('.sub').text()).toContain(' · Sold out');
+        const button = ore.get('button');
+        expect(button.attributes('aria-disabled')).toBe('true');
+        expect(button.attributes('aria-describedby')).toBe('buy-reason-3');
+        await button.trigger('click');
+        expect(calls.buyItem).toHaveBeenCalledTimes(0);
+        expect(ore.get('.gold').classes()).toContain('tone-muted');
+      });
+
+      it('a row that sells out keeps the same Buy element, row index and focus', async () => {
+        const { w, stock } = mountSale({
+          stock: [listing(1n, 2n, 20n, 2n, 1n), listing(2n, 4n, 3n, 2n, 1n), listing(3n, 6n, 12n, 2n, 1n)],
+        });
+        const rows = w.findAll(layout.rowSelector);
+        const index = rows.findIndex((r) => r.get('.item-name').text() === 'Bread');
+        const button = rows[index].get('button');
+        (button.element as HTMLElement).focus();
+        expect(document.activeElement).toBe(button.element);
+        stock.value = stock.value.map((l) => (l.id === 2n ? listing(2n, 4n, 3n, 2n, 0n) : l));
+        await nextTick();
+        const after = w.findAll(layout.rowSelector);
+        expect(after[index].get('.item-name').text()).toBe('Bread');
+        expect(after[index].get('button').element).toBe(button.element);
+        expect(document.activeElement).toBe(button.element);
+        expect(button.attributes('aria-disabled')).toBe('true');
+      });
+
+      it('shows the floored price for the hero, computed with listingBuyPrice', () => {
+        const { w } = mountSale({ stock: [listing(2n, 4n, 3n, 2n, 2n)] });
+        const price = listingBuyPrice({
+          listPrice: 3n,
+          vendorValue: 10n,
+          perkBuyPct: 0,
+          perkSellPct: 0,
+          vendorBuyMod: HERO.vendorBuyMod,
+          vendorSellMod: HERO.vendorSellMod,
+        });
+        expect(price).toBeGreaterThan(3n);
+        const bread = rowFor(w, 'Bread');
+        expect(bread.get('[role="img"]').attributes('aria-label')).toBe(`${price} gold`);
+        expect(bread.get('button').attributes('aria-label')).toBe(`Buy Bread for ${price} gold`);
+      });
+
+      it('renders a markup item name and its stock as text only', () => {
+        const evil = tpl(30n, { name: XSS, slot: 'head' });
+        const { w } = mountSale({ templates: [evil], stock: [listing(1n, 30n, 5n, 2n, 2n)] });
+        expect(w.get('.item-name').text()).toBe(XSS);
+        expect(w.get('.qty').text()).toBe('×2');
+        expect(w.find('img').exists()).toBe(false);
+      });
+    });
+  }
+
+  it('the source draws x n from the model text with no raw HTML', () => {
+    const source = read('ForSale.vue');
+    expect(source).toMatch(/row\.quantityText/);
+    expect(source).not.toMatch(/v-html|<svg/);
   });
 });
 

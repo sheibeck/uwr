@@ -13,7 +13,9 @@ import type { ForSaleFilterId, ForSaleInput, ForSaleRow, VendorSnapshot } from '
 // Prices, usability and the Not enough gold and Backpack full reasons come from the vendor model
 // (the server's own shared rules). A level-short or class-unusable row keeps an enabled Buy under
 // All; Usable by you hides class-unusable rows only. Item names are server text and only reach the
-// page as text nodes. Nothing is optimistic: the subscribed rows drive every change.
+// page as text nodes. Nothing is optimistic: the subscribed rows drive every change. Stock is
+// finite: each name carries its '×n' as a text node, and a listing at 0 keeps its place and reads
+// 'Sold out' as the model reason, so the existing aria-disabled and aria-describedby rules apply.
 const props = defineProps<{
   vendor: VendorSnapshot;
   vendorNearby: boolean;
@@ -118,7 +120,10 @@ function setFilter(id: string): void {
         <tbody>
           <tr v-for="row in rows" :key="String(row.key)">
             <td class="item-cell">
-              <span class="item-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
+              <span class="item-line">
+                <span class="item-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
+                <span v-if="row.quantityText !== ''" class="qty">{{ row.quantityText }}</span>
+              </span>
               <span class="sub">
                 {{ row.subLine }}
                 <span v-if="reasonOf(row)" :id="reasonId(row)" class="reason"> · {{ reasonOf(row) }}</span>
@@ -145,7 +150,10 @@ function setFilter(id: string): void {
       <ul v-else-if="props.mobile && rows.length > 0" class="sale-list">
         <li v-for="row in rows" :key="String(row.key)" class="sale-row">
           <div class="info">
-            <span class="item-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
+            <span class="item-line">
+              <span class="item-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
+              <span v-if="row.quantityText !== ''" class="qty">{{ row.quantityText }}</span>
+            </span>
             <span class="sub">
               {{ row.subLine }}
               <span v-if="reasonOf(row)" :id="reasonId(row)" class="reason"> · {{ reasonOf(row) }}</span>
@@ -263,12 +271,23 @@ h6 {
   min-width: 0;
 }
 
+.item-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .item-name {
-  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.qty {
+  flex: none;
+  margin-left: 4px;
+  color: var(--color-neutral-400);
 }
 
 .sub {

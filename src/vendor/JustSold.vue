@@ -33,6 +33,8 @@ const card = computed(() =>
     props.openVendorId,
     ledger.items.value,
     ledger.templates.value,
+    // Until the stock subscription applies, no sold state can flash: the card stays as the server order allows.
+    ledger.vendorStockApplied.value ? ledger.vendorStock.value : null,
   ),
 );
 

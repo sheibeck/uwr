@@ -10,7 +10,7 @@ import type { GameData } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { LedgerData, LedgerReducers } from '../ledger/ledgerContext';
 import { createActionRunner } from '../ledger/actionRunner';
-import type { ItemInstance, ItemTemplate, VendorBuyback } from '../module_bindings/types';
+import type { ItemInstance, ItemTemplate, VendorBuyback, VendorInventory } from '../module_bindings/types';
 import JustSold from './JustSold.vue';
 
 const XSS = '<img src=x onerror=alert(1)>';
@@ -61,6 +61,9 @@ interface World {
   buyback?: () => Promise<void>;
   openVendorId?: bigint | null;
   mobile?: boolean;
+  /** The open vendor stock (the screen passes it only once its subscription has applied). */
+  stock?: VendorInventory[];
+  stockApplied?: boolean;
 }
 
 function setup(world: World = {}) {
@@ -78,6 +81,8 @@ function setup(world: World = {}) {
     lastSale,
     items: ref(world.items ?? []),
     templates: ref(new Map(TEMPLATES.map((t) => [t.id, t]))),
+    vendorStock: ref(world.stock ?? []),
+    vendorStockApplied: ref(world.stockApplied ?? false),
     reducers: computed(() => (connected.value ? reducers : null)),
   } as unknown as LedgerData;
   const runner = createActionRunner({ online: computed(() => connected.value && ledger.reducers.value !== null) });
@@ -92,6 +97,51 @@ function setup(world: World = {}) {
   });
   return { w: wrapper, lastSale, buybackLastSale, runner, connected };
 }
+
+function shelf(quantity: bigint): VendorInventory {
+  return { id: 1n, npcId: 2n, itemTemplateId: 3n, price: 6n, qualityTier: undefined, quantity } as unknown as VendorInventory;
+}
+
+describe('JustSold quantity and stock (Plan 50-27)', () => {
+  it('shows the quantity sold in the name', () => {
+    const { w } = setup({ lastSale: sale({ itemName: 'Potion', templateId: 3n, quantity: 5n }) });
+    expect(w.get('.name').text()).toBe('Potion ×5');
+  });
+
+  it('says the vendor has already sold it when the applied stock holds fewer than were sold', async () => {
+    const { w, buybackLastSale } = setup({
+      lastSale: sale({ itemName: 'Potion', templateId: 3n, quantity: 5n }),
+      stock: [shelf(2n)],
+      stockApplied: true,
+    });
+    const reason = w.get('.reason');
+    expect(reason.text()).toBe('Marta has already sold Potion.');
+    const button = w.get('button.buyback');
+    expect(button.attributes('aria-disabled')).toBe('true');
+    expect(button.attributes('aria-describedby')).toBe(reason.attributes('id'));
+    await button.trigger('click');
+    expect(buybackLastSale).not.toHaveBeenCalled();
+  });
+
+  it('stays ready while the stock subscription has not applied (no flash of sold)', () => {
+    const { w } = setup({
+      lastSale: sale({ itemName: 'Potion', templateId: 3n, quantity: 5n }),
+      stock: [],
+      stockApplied: false,
+    });
+    expect(w.find('.reason').exists()).toBe(false);
+    expect(w.get('button.buyback').attributes('aria-disabled')).toBeUndefined();
+  });
+
+  it('is ready when the applied stock holds enough of the sold units', () => {
+    const { w } = setup({
+      lastSale: sale({ itemName: 'Potion', templateId: 3n, quantity: 5n }),
+      stock: [shelf(5n)],
+      stockApplied: true,
+    });
+    expect(w.get('button.buyback').attributes('aria-disabled')).toBeUndefined();
+  });
+});
 
 describe('JustSold', () => {
   it('renders nothing without a last-sale row (no placeholder)', () => {
