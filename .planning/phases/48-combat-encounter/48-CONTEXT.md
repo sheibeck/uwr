@@ -72,6 +72,42 @@ Out of scope:
 - Ally targeting uses the strip's party chips.
 - The combat feed stays readable, with round headers kept compact.
 
+### Decisions after UI-SPEC and research (2026-10-06, auto-approved under the owner's overnight instruction)
+
+**Placement (UI-SPEC, A1)**
+- Ready and Flee sit in a round row above the hotbar slots, not at the end of the slot strip. Ten 52px slots at 1280px leave no room for a slot-style Flee.
+- On mobile, the hotbar row carries the timer, Ready and Flee, as CONTEXT says.
+- Show the owner this deviation at UAT.
+
+**Mobile combat layout (A5, A6)**
+- Mobile combat hides the tab bar and the location row.
+- The encounter strip sits above the feed.
+- A small account button on the strip opens a sheet with Log out only, because Log out otherwise lives in the More sheet, which is hidden in combat.
+
+**Ally targeting (A7, A26)**
+- A "You" ally card and chip appear in combat, so the player can select themself again.
+- The client sends `targetCharacterId` only for `single_ally` abilities, and only while the selected ally is alive and an active participant. Otherwise the server would refuse the whole choice.
+
+**Threat view (CMB-02)**
+- Add one additive public view, `my_combat_aggro`. It returns a projection row `MyCombatAggroEntry {id, combatId, enemyId, characterId, value}`, with pet rows excluded.
+- It chains index lookups that already exist (player, then `character.by_owner_user`, then `combat_participant.by_character`, then `aggro_entry.by_combat`), so no new index is needed.
+- Publish locally with `--break-clients` and no clear. Check the key length (108) before and after, then run `pnpm spacetime:generate -y`.
+
+**Smaller rules**
+- Threat percent is relative to the top entry (A8). The owner can revise this at UAT.
+- No enemy effect chips (A9, deferred to 999.1).
+- Effect chips are unchanged (A13).
+- The server's "begins to cast" line is not suppressed (A15).
+- The new `'encounter'` value is added to `ActiveScreen` only, not to `SCREENS` (A28).
+
+**Engine-driven fixes**
+- The hotbar cooldown sweep total comes from `ability_template.cooldownSeconds` and the round constants, because the server rewrites `durationMicros` every round.
+- The item-slot clause is dropped, because no item-bound hotbar slots exist.
+
+**Combat gates**
+- Combat UI is gated on a new `game.combat.active`, meaning the player's own `combat_participant` row exists, and not on `game.inCombat`.
+- `HeaderBar` gets a separate `inCombat` prop, which disables its controls with `aria-disabled`.
+
 ### Claude's Discretion
 - The view's name and shape (for example `my_combat_aggro`), as long as the SpacetimeDB view rules hold: index lookups only, `ctx.sender`-scoped and public.
 - The component and file layout under `src/`, for example `src/combat/`.
