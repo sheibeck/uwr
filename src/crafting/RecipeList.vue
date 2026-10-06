@@ -87,7 +87,7 @@ function focusRow(id: bigint): void {
   const row = root.value?.querySelector<HTMLElement>(`[data-recipe-id="${id}"]`);
   row?.focus();
 }
-defineExpose({ focusRow });
+defineExpose({ focusRow, emptyText });
 
 function showAll(): void {
   onlyCraftable.value = false;

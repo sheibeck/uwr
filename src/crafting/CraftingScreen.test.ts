@@ -11,18 +11,21 @@ import type { LedgerData, LedgerReducers } from '../ledger/ledgerContext';
 import { createActionRunner } from '../ledger/actionRunner';
 import type { ItemInstance, ItemTemplate, RecipeDiscovered, RecipeTemplate } from '../module_bindings/types';
 import CraftingMeta from './CraftingMeta.vue';
+import CraftingScreen from './CraftingScreen.vue';
 import MaterialsOnHand from './MaterialsOnHand.vue';
+import RecipeDetail from './RecipeDetail.vue';
 import RecipeList from './RecipeList.vue';
 
 const XSS = '<img src=x onerror=alert(1)>';
 const read = (file: string): string => readFileSync(resolve(process.cwd(), 'src/crafting', file), 'utf8');
 
+const originalMatchMedia = window.matchMedia;
 let wrapper: VueWrapper | null = null;
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
   document.body.innerHTML = '';
-  vi.unstubAllGlobals();
+  window.matchMedia = originalMatchMedia;
 });
 
 // ---------------------------------------------------------------------------
@@ -477,5 +480,505 @@ describe('RecipeList', () => {
     expect(source).toMatch(/\.mobile \.recipe-row\s*\{\s*min-height: 56px;/);
     expect(source).toMatch(/\.only-craftable \.dot\s*\{\s*border-radius: var\(--radius-sm\);/);
     expect(source).toMatch(/\.recipe-row\.selected\s*\{[^}]*var\(--color-accent\)/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RecipeDetail
+// ---------------------------------------------------------------------------
+
+function press(el: Element, key: string): void {
+  el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+}
+
+describe('RecipeDetail', () => {
+  function mountDetail(world: World = {}, props: { recipeId?: bigint; mobile?: boolean } = {}) {
+    const ctx = buildWorld(world);
+    wrapper = mount(RecipeDetail, {
+      attachTo: document.body,
+      props: { recipeId: 1n, runner: ctx.runner, mobile: false, ...props },
+      global: ctx.global,
+    });
+    return { ...ctx, w: wrapper };
+  }
+
+  function slotButton(w: VueWrapper, label: string) {
+    return w.findAll('button.slot-main').find((b) => b.text().includes(label))!;
+  }
+
+  it('shows the Recipe kicker, the h4 name, the meta line with the level in red and the have-of-need tiles', () => {
+    const { w } = mountDetail({}, { recipeId: 2n });
+    expect(w.get('.kicker').text()).toBe('Recipe');
+    expect(w.get('h4').text()).toBe('Iron Helm');
+    expect(w.get('.meta').text()).toBe('Head · Plate · Tier 2 · Requires Lv 6');
+    expect(w.get('.meta-part.short').text()).toBe('Requires Lv 6');
+    const tiles = w.findAll('.tile');
+    expect(tiles.map((t) => t.get('.tile-name').text())).toEqual(['Iron Ore', 'Rough Hide']);
+    expect(tiles[0].get('.have').text()).toBe('3');
+    expect(tiles[0].get('.of').text()).toBe('of 2');
+    expect(tiles[0].get('.have').classes()).not.toContain('short');
+  });
+
+  it('marks a short have count in red', () => {
+    const { w } = mountDetail({}, { recipeId: 4n });
+    const tiles = w.findAll('.tile');
+    expect(tiles[0].get('.have').text()).toBe('1');
+    expect(tiles[0].get('.have').classes()).toContain('short');
+    expect(tiles[1].get('.have').classes()).not.toContain('short');
+  });
+
+  it('shows Quality with the tier in its craft color and the upgrade hint, with no bar, legend or percent', () => {
+    const { w } = mountDetail();
+    const quality = w.get('.quality');
+    expect(quality.get('h6').text()).toBe('Quality');
+    expect(quality.get('.tier').text()).toBe('Standard');
+    expect(quality.get('.tier').attributes('style')).toContain('var(--color-craft-standard)');
+    expect(quality.get('.hint').text()).toBe('A recipe with a tier 2 primary material would make it Reinforced.');
+    expect(w.text()).not.toContain('%');
+    expect(w.text()).not.toContain('Likely quality');
+    expect(w.find('[role="img"]').exists()).toBe(false);
+  });
+
+  it('shows no hint for the top tier and uses the matching craft color', () => {
+    const { w } = mountDetail({}, { recipeId: 3n });
+    expect(w.get('.tier').text()).toBe('Exquisite');
+    expect(w.get('.tier').attributes('style')).toContain('var(--color-craft-exquisite)');
+    expect(w.find('.hint').exists()).toBe(false);
+  });
+
+  it('renders neither the quality line nor the reagent section for a consumable recipe', () => {
+    const { w } = mountDetail({}, { recipeId: 4n });
+    expect(w.find('.quality').exists()).toBe(false);
+    expect(w.find('.reagents').exists()).toBe(false);
+    expect(w.get('.meta').text()).toBe('Tier 1 · Makes 2');
+  });
+
+  it('opens the essence picker, fills the slot with the chosen essence and reveals the reagent slots', async () => {
+    const { w } = mountDetail();
+    expect(slotButton(w, 'Add essence').text()).toContain('Unlocks reagents');
+    expect(w.find('.slots-line').exists()).toBe(false);
+    const essence = slotButton(w, 'Add essence');
+    expect(essence.attributes('aria-expanded')).toBe('false');
+    await essence.trigger('click');
+    expect(essence.attributes('aria-expanded')).toBe('true');
+    const listbox = w.get('[role="listbox"]');
+    expect(listbox.attributes('aria-label')).toBe('Choose essence');
+    await w.findAll('[role="option"]')[0].trigger('click');
+    expect(w.find('[role="listbox"]').exists()).toBe(false);
+    const filled = w.get('.slot.filled');
+    expect(filled.get('.slot-name').text()).toBe('Essence');
+    expect(filled.get('.slot-right').text()).toBe('+2 per reagent');
+    expect(filled.get('button.remove').attributes('aria-label')).toBe('Remove Essence');
+    expect(w.get('.slots-line').text()).toBe('Standard quality takes up to 1 reagent.');
+    expect(w.findAll('.slot')).toHaveLength(2);
+    expect(slotButton(w, 'Add reagent').text()).toContain('+ affix');
+  });
+
+  it('lists a too-weak essence as aria-disabled and cannot choose it', async () => {
+    const { w } = mountDetail({}, { recipeId: 2n });
+    await slotButton(w, 'Add essence').trigger('click');
+    const options = w.findAll('[role="option"]');
+    const lesser = options.find((o) => o.text().includes('Lesser Essence'))!;
+    expect(lesser.attributes('aria-disabled')).toBe('true');
+    expect(lesser.text()).toContain('Too weak for Reinforced quality');
+    await lesser.trigger('click');
+    expect(w.find('.slot.filled').exists()).toBe(false);
+  });
+
+  it('chooses a reagent with its effect, removes it, and clears the reagent slots when the essence is removed', async () => {
+    const { w } = mountDetail();
+    await slotButton(w, 'Add essence').trigger('click');
+    await w.findAll('[role="option"]')[0].trigger('click');
+    await slotButton(w, 'Add reagent').trigger('click');
+    expect(w.get('[role="listbox"]').attributes('aria-label')).toBe('Choose reagent');
+    await w.findAll('[role="option"]').find((o) => o.text().includes('Glowing Stone'))!.trigger('click');
+    const filledSlots = w.findAll('.slot.filled');
+    expect(filledSlots).toHaveLength(2);
+    expect(filledSlots[1].get('.slot-name').text()).toBe('Glowing Stone');
+    expect(filledSlots[1].get('.slot-right').text()).toBe('+2 STR');
+    await filledSlots[1].get('button.remove').trigger('click');
+    expect(w.findAll('.slot.filled')).toHaveLength(1);
+    expect(slotButton(w, 'Add reagent').exists()).toBe(true);
+    await w.get('.slot.filled button.remove').trigger('click');
+    expect(w.find('.slots-line').exists()).toBe(false);
+    expect(w.findAll('.slot')).toHaveLength(1);
+    expect(slotButton(w, 'Add essence').exists()).toBe(true);
+  });
+
+  it('crafts with only the ids of the recipe when no essence or reagent is chosen', async () => {
+    const { w, calls } = mountDetail();
+    await w.get('button.craft-btn').trigger('click');
+    expect(calls.craftRecipe).toHaveBeenLastCalledWith({ characterId: 7n, recipeTemplateId: 1n });
+  });
+
+  it('sends the essence and reagent ids through craftRecipe', async () => {
+    const items = [...ITEMS, inst(20n, 3n, 2n), inst(21n, 2n, 1n), inst(22n, 12n, 1n)];
+    const { w, calls } = mountDetail({ items }, { recipeId: 3n });
+    await slotButton(w, 'Add essence').trigger('click');
+    await w.findAll('[role="option"]').find((o) => o.text().includes('Greater Essence'))!.trigger('click');
+    const reagentButtons = w.findAll('button.slot-main').filter((b) => b.text().includes('Add reagent'));
+    expect(reagentButtons).toHaveLength(3);
+    await reagentButtons[1].trigger('click');
+    await w.findAll('[role="option"]').find((o) => o.text().includes('Ancient Rune'))!.trigger('click');
+    await w.get('button.craft-btn').trigger('click');
+    expect(calls.craftRecipe).toHaveBeenCalledTimes(1);
+    expect(calls.craftRecipe).toHaveBeenCalledWith({
+      characterId: 7n,
+      recipeTemplateId: 3n,
+      catalystTemplateId: 12n,
+      modifier1TemplateId: 21n,
+    });
+  });
+
+  it('shows Craft with the recipe name, runs once and is inert while pending', async () => {
+    let release: () => void = () => undefined;
+    const craftRecipe = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
+    const { w } = mountDetail({ reducers: { craftRecipe } as Partial<LedgerReducers> });
+    const button = w.get('button.craft-btn');
+    expect(button.text()).toBe('Craft Copper Sword');
+    expect(button.attributes('aria-label')).toBe('Craft Copper Sword');
+    expect(button.find('svg').exists()).toBe(true);
+    await button.trigger('click');
+    await button.trigger('click');
+    expect(craftRecipe).toHaveBeenCalledTimes(1);
+    expect(button.attributes('aria-disabled')).toBe('true');
+    release();
+    await nextTick();
+  });
+
+  it('is unavailable with the reason referenced by aria-describedby: no station, missing material, essence without reagent', async () => {
+    const noStation = mountDetail({ station: false });
+    expect(noStation.w.get('.reason').text()).toBe('No crafting station here.');
+    const craft = noStation.w.get('button.craft-btn');
+    expect(craft.attributes('aria-disabled')).toBe('true');
+    expect(craft.attributes('aria-describedby')).toBe(noStation.w.get('.reason').attributes('id'));
+    await craft.trigger('click');
+    expect(noStation.calls.craftRecipe).not.toHaveBeenCalled();
+    wrapper?.unmount();
+    wrapper = null;
+
+    const missing = mountDetail({}, { recipeId: 4n });
+    expect(missing.w.get('.reason').text()).toBe('Missing 1 Rough Hide.');
+    await missing.w.get('button.craft-btn').trigger('click');
+    expect(missing.calls.craftRecipe).not.toHaveBeenCalled();
+    missing.w.unmount();
+    wrapper = null;
+
+    const reagentless = mountDetail();
+    await slotButton(reagentless.w, 'Add essence').trigger('click');
+    await reagentless.w.findAll('[role="option"]')[0].trigger('click');
+    expect(reagentless.w.get('.reason').text()).toBe('Add a reagent to use the essence, or remove it.');
+    expect(reagentless.w.get('button.craft-btn').attributes('aria-disabled')).toBe('true');
+  });
+
+  it('keeps the slots unavailable without a station and offline', async () => {
+    const { w } = mountDetail({ station: false });
+    const essence = slotButton(w, 'Add essence');
+    expect(essence.attributes('aria-disabled')).toBe('true');
+    await essence.trigger('click');
+    expect(w.find('[role="listbox"]').exists()).toBe(false);
+    wrapper?.unmount();
+    wrapper = null;
+    const offline = mountDetail({ connected: false });
+    await offline.w.get('button.craft-btn').trigger('click');
+    expect(offline.calls.craftRecipe).not.toHaveBeenCalled();
+  });
+
+  it('keeps the choices after a craft and clears the ones whose items are used up', async () => {
+    const { w, items } = mountDetail();
+    await slotButton(w, 'Add essence').trigger('click');
+    await w.findAll('[role="option"]')[0].trigger('click');
+    await slotButton(w, 'Add reagent').trigger('click');
+    await w.findAll('[role="option"]').find((o) => o.text().includes('Glowing Stone'))!.trigger('click');
+    expect(w.findAll('.slot.filled')).toHaveLength(2);
+    // The craft used one Glowing Stone (two on hand, one left) and the Copper: the choices stay.
+    items.value = [inst(1n, 1n, 2n), inst(2n, 4n, 0n + 1n), inst(5n, 11n, 1n), inst(7n, 20n, 1n)];
+    await nextTick();
+    expect(w.findAll('.slot.filled')).toHaveLength(2);
+    // The next craft used up the Glowing Stone: that reagent clears, the essence stays.
+    items.value = [inst(1n, 1n, 2n), inst(2n, 4n, 1n), inst(5n, 11n, 1n)];
+    await nextTick();
+    expect(w.findAll('.slot.filled')).toHaveLength(1);
+    expect(w.get('.slot.filled .slot-name').text()).toBe('Essence');
+    // The essence is used up: it and the reagent slots clear.
+    items.value = [inst(1n, 1n, 2n), inst(2n, 4n, 1n)];
+    await nextTick();
+    expect(w.find('.slot.filled').exists()).toBe(false);
+    expect(w.find('.slots-line').exists()).toBe(false);
+  });
+
+  it('closes only the picker on Escape (prevented, so the drawer stays) and returns focus to the slot', async () => {
+    const { w } = mountDetail();
+    const essence = slotButton(w, 'Add essence');
+    await essence.trigger('click');
+    expect(w.find('[role="listbox"]').exists()).toBe(true);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    await nextTick();
+    await nextTick();
+    expect(w.find('[role="listbox"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(essence.element);
+  });
+
+  it('chooses with the keyboard and returns focus to the slot that opened the picker', async () => {
+    const { w } = mountDetail();
+    const essence = slotButton(w, 'Add essence');
+    await essence.trigger('click');
+    press(w.get('[role="listbox"]').element, 'Enter');
+    await nextTick();
+    await nextTick();
+    expect(w.find('.slot.filled').exists()).toBe(true);
+    expect(document.activeElement).toBe(w.get('.slot.filled button.slot-main').element);
+  });
+
+  it('starts over with empty choices when the recipe changes', async () => {
+    const { w } = mountDetail();
+    await slotButton(w, 'Add essence').trigger('click');
+    await w.findAll('[role="option"]')[0].trigger('click');
+    expect(w.find('.slot.filled').exists()).toBe(true);
+    await w.setProps({ recipeId: 3n });
+    expect(w.get('h4').text()).toBe('Darksteel Blade');
+    expect(w.find('.slot.filled').exists()).toBe(false);
+  });
+
+  it('mobile: Craft text with the full aria-label, material rows with have / need, no kicker, a docked reason', () => {
+    const { w } = mountDetail({ station: false }, { mobile: true, recipeId: 4n });
+    expect(w.find('.kicker').exists()).toBe(false);
+    const craft = w.get('button.craft-btn');
+    expect(craft.text()).toBe('Craft');
+    expect(craft.attributes('aria-label')).toBe('Craft Bandage');
+    const rows = w.findAll('li.material-row');
+    expect(rows.map((r) => r.text())).toEqual(['Rough Hide1 / 2', 'Copper Ore5 / 1']);
+    expect(rows[0].get('.mat-count').classes()).toContain('short');
+    expect(rows[1].get('.mat-count').classes()).toContain('met');
+    expect(w.get('.detail-dock .reason').text()).toBe('No crafting station here.');
+    const source = read('RecipeDetail.vue');
+    expect(source).toMatch(/\.mobile \.craft-btn\s*\{\s*min-height: 44px;/);
+    expect(source).toMatch(/\.craft-btn\s*\{[^}]*min-height: 40px;/);
+    expect(source).toMatch(/\.material-row\s*\{[^}]*min-height: 44px;/);
+    expect(source).toMatch(/\.mobile \.slot-main\s*\{\s*min-height: 44px;/);
+  });
+
+  it('contains no percent sign and no Likely quality text in a mounted gear recipe, on either layout', () => {
+    for (const mobile of [false, true]) {
+      const { w } = mountDetail({}, { mobile });
+      expect(w.text()).not.toContain('%');
+      expect(w.text()).not.toContain('Likely quality');
+      expect(w.get('.quality h6').text()).toBe('Quality');
+      wrapper?.unmount();
+      wrapper = null;
+    }
+  });
+
+  it('renders recipe, material and reagent names with markup literally', async () => {
+    const evilRecipe = recipe(9n, XSS, { req1TemplateId: 50n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
+    const evilMaterial = tpl(50n, XSS);
+    const evilReagent = tpl(23n, 'Silver Token', { slot: 'misc', name: XSS });
+    const { w } = mountDetail(
+      {
+        recipes: [evilRecipe],
+        templates: [...TEMPLATES, evilMaterial, evilReagent],
+        items: [...ITEMS, inst(30n, 50n, 1n)],
+      },
+      { recipeId: 9n },
+    );
+    expect(w.get('h4').text()).toBe(XSS);
+    expect(w.get('.tile-name').text()).toBe(XSS);
+    expect(w.find('img').exists()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CraftingScreen
+// ---------------------------------------------------------------------------
+
+function setWide(on: boolean): void {
+  (window as unknown as { matchMedia: unknown }).matchMedia = (query: string) => ({
+    matches: on && query.includes('1200'),
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  });
+}
+
+describe('CraftingScreen desktop', () => {
+  function mountScreen(world: World = {}, wide = true) {
+    setWide(wide);
+    const ctx = buildWorld(world);
+    wrapper = mount(CraftingScreen, { attachTo: document.body, global: ctx.global });
+    return { ...ctx, w: wrapper };
+  }
+
+  it('at 1200px and wider shows the Materials column with Discover pinned, the list and the selected detail', async () => {
+    const { w } = mountScreen();
+    await nextTick();
+    expect(w.get('.desk-grid').classes()).toContain('wide');
+    const materials = w.get('.materials-col');
+    expect(materials.get('h6').text()).toBe('Materials on hand');
+    expect(materials.find('button.discover').exists()).toBe(true);
+    expect(w.findAll('button.recipe-row')).toHaveLength(5);
+    expect(w.find('button.disclosure').exists()).toBe(false);
+    expect(w.get('.detail-col h4').text()).toBe('Copper Sword');
+    expect(w.findAll('button.recipe-row')[0].attributes('aria-pressed')).toBe('true');
+    expect(read('CraftingScreen.vue')).toMatch(/\.desk-grid\.wide\s*\{\s*grid-template-columns: 200px 360px minmax\(0, 1fr\);/);
+    expect(read('CraftingScreen.vue')).toMatch(/\.desk-grid\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) 320px;/);
+  });
+
+  it('at 900 to 1199px moves Materials into the list as a disclosure with Discover after the rows', async () => {
+    const { w } = mountScreen({}, false);
+    await nextTick();
+    expect(w.find('.materials-col').exists()).toBe(false);
+    expect(w.get('.list-col button.disclosure').text()).toBe('Materials on hand · 7');
+    expect(w.findAll('.list-col button.discover')).toHaveLength(1);
+    expect(w.find('.detail-col h4').exists()).toBe(true);
+  });
+
+  it('selects the first visible row by default, keeps the selection on a click and replaces it when filtered out', async () => {
+    const { w } = mountScreen();
+    await nextTick();
+    expect(w.get('.detail-col h4').text()).toBe('Copper Sword');
+    await w.findAll('button.recipe-row')[1].trigger('click');
+    expect(w.get('.detail-col h4').text()).toBe('Iron Helm');
+    await w.findAll('[role="group"] button')[1].trigger('click');
+    await nextTick();
+    expect(w.get('.detail-col h4').text()).toBe('Copper Sword');
+    await w.findAll('[role="group"] button')[3].trigger('click');
+    await nextTick();
+    expect(w.find('.detail-col h4').exists()).toBe(false);
+    expect(w.get('.detail-col .empty').text()).toBe('No accessory recipes known.');
+  });
+
+  it('shows No recipes known yet with the Discover button when none are known, and with no character', async () => {
+    const empty = mountScreen({ knownIds: [] });
+    expect(empty.w.text()).toContain('No recipes known yet.');
+    await empty.w.get('button.discover').trigger('click');
+    expect(empty.calls.researchRecipes).toHaveBeenCalledWith({ characterId: 7n });
+    wrapper?.unmount();
+    wrapper = null;
+    const noCharacter = mountScreen({ character: null });
+    expect(noCharacter.w.text()).toContain('No recipes known yet.');
+    expect(noCharacter.w.find('.desk-grid').exists()).toBe(false);
+  });
+
+  it('renders nothing until the recipe subscription has applied', () => {
+    const { w } = mountScreen({ applied: false });
+    expect(w.find('.desk-grid').exists()).toBe(false);
+    expect(w.text()).toBe('');
+  });
+
+  it('wires Craft and Discover through the shared runner and shows the send error in the notice line', async () => {
+    const { w } = mountScreen({ reducers: { craftRecipe: async () => Promise.reject(new Error('no')) } });
+    await nextTick();
+    await w.get('.detail-col button.craft-btn').trigger('click');
+    await vi.waitFor(() => expect(w.get('[role="status"]').text()).toContain("Couldn't send that. Try again."));
+  });
+
+  it('shows the single quality line in the detail with no percent and no odds legend', async () => {
+    const { w } = mountScreen();
+    await nextTick();
+    expect(w.get('.detail-col .quality .tier').text()).toBe('Standard');
+    expect(w.get('.detail-col').text()).not.toContain('%');
+    expect(w.get('.detail-col').text()).not.toContain('Likely quality');
+  });
+
+  it('renders recipe and material names with markup literally', async () => {
+    const evilRecipe = recipe(9n, XSS, { req1TemplateId: 50n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
+    const { w } = mountScreen({
+      recipes: [evilRecipe],
+      knownIds: [9n],
+      templates: [...TEMPLATES, tpl(50n, XSS)],
+      items: [...ITEMS, inst(30n, 50n, 1n)],
+    });
+    await nextTick();
+    expect(w.get('.row-name').text()).toBe(XSS);
+    expect(w.get('.detail-col h4').text()).toBe(XSS);
+    expect(w.find('img').exists()).toBe(false);
+  });
+});
+
+describe('CraftingScreen mobile', () => {
+  function mountScreen(world: World = {}) {
+    setWide(false);
+    const ctx = buildWorld({ isDesktop: false, ...world });
+    wrapper = mount(CraftingScreen, { attachTo: document.body, global: ctx.global });
+    return { ...ctx, w: wrapper };
+  }
+
+  it('opens on the list view with the station line, chips, checkbox, Materials disclosure, rows and Discover', () => {
+    const { w } = mountScreen();
+    const view = w.get('.list-view');
+    expect(view.get('.station-line .tag').text()).toBe('Crafting station');
+    expect(view.find('[role="group"]').exists()).toBe(true);
+    expect(view.find('label.radio').exists()).toBe(true);
+    expect(view.find('button.disclosure').exists()).toBe(true);
+    expect(view.findAll('button.recipe-row')).toHaveLength(5);
+    expect(view.find('button.discover').exists()).toBe(true);
+    expect(w.find('.detail-view').exists()).toBe(false);
+    expect(view.attributes('style') ?? '').not.toContain('display: none');
+  });
+
+  it('says there is no station on the station line', () => {
+    const { w } = mountScreen({ station: false });
+    expect(w.get('.station-line .no-station').text()).toBe('No crafting station here');
+    expect(w.find('.station-line .tag').exists()).toBe(false);
+  });
+
+  it('opens the detail view on a row, with All recipes at the top and the reason and Craft docked', async () => {
+    const { w } = mountScreen();
+    await w.findAll('button.recipe-row')[1].trigger('click');
+    expect(w.get('.list-view').attributes('style')).toContain('display: none');
+    const view = w.get('.detail-view');
+    const back = view.get('button.back');
+    expect(back.text()).toBe('All recipes');
+    expect(back.classes()).toContain('btn-ghost');
+    expect(back.find('svg').exists()).toBe(true);
+    expect(view.get('h4').text()).toBe('Iron Helm');
+    expect(view.get('.detail-dock button.craft-btn').text()).toBe('Craft');
+    expect(view.get('.detail-dock button.craft-btn').attributes('aria-label')).toBe('Craft Iron Helm');
+    expect(read('CraftingScreen.vue')).toMatch(/\.back\s*\{[^}]*min-height: 44px;/);
+  });
+
+  it('All recipes returns to the list and puts focus on the row it came from', async () => {
+    const { w } = mountScreen();
+    await w.findAll('button.recipe-row')[2].trigger('click');
+    await w.get('button.back').trigger('click');
+    await nextTick();
+    await nextTick();
+    expect(w.find('.detail-view').exists()).toBe(false);
+    expect(w.get('.list-view').attributes('style') ?? '').not.toContain('display: none');
+    expect(document.activeElement).toBe(w.findAll('button.recipe-row')[2].element);
+  });
+
+  it('keeps the list filters across a detail visit', async () => {
+    const { w } = mountScreen();
+    await w.findAll('[role="group"] button')[1].trigger('click');
+    await w.findAll('button.recipe-row')[0].trigger('click');
+    await w.get('button.back').trigger('click');
+    await nextTick();
+    expect(w.findAll('[role="group"] button')[1].attributes('aria-pressed')).toBe('true');
+    expect(w.findAll('button.recipe-row')).toHaveLength(2);
+  });
+
+  it('shows No recipes known yet with Discover when none are known', async () => {
+    const { w, calls } = mountScreen({ knownIds: [] });
+    expect(w.text()).toContain('No recipes known yet.');
+    await w.get('button.discover').trigger('click');
+    expect(calls.researchRecipes).toHaveBeenCalledWith({ characterId: 7n });
+  });
+
+  it('shows the single quality line and no percent in the mobile detail', async () => {
+    const { w } = mountScreen();
+    await w.findAll('button.recipe-row')[0].trigger('click');
+    expect(w.get('.detail-view .quality .tier').text()).toBe('Standard');
+    expect(w.get('.detail-view').text()).not.toContain('%');
+    expect(w.get('.detail-view').text()).not.toContain('Likely quality');
+  });
+
+  it('renders recipe names with markup literally', () => {
+    const evilRecipe = recipe(9n, XSS, { req1TemplateId: 4n, req1Count: 1n, req2TemplateId: 1n, req2Count: 1n });
+    const { w } = mountScreen({ recipes: [evilRecipe], knownIds: [9n] });
+    expect(w.get('.row-name').text()).toBe(XSS);
+    expect(w.find('img').exists()).toBe(false);
   });
 });
