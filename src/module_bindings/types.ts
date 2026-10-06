@@ -1446,6 +1446,12 @@ export const User = __t.object("User", {
 });
 export type User = __Infer<typeof User>;
 
+export const VendorBaseStock = __t.object("VendorBaseStock", {
+  listingId: __t.u64(),
+  npcId: __t.u64(),
+});
+export type VendorBaseStock = __Infer<typeof VendorBaseStock>;
+
 export const VendorBuyback = __t.object("VendorBuyback", {
   characterId: __t.u64(),
   npcId: __t.u64(),
@@ -1475,6 +1481,13 @@ export const VendorInventory = __t.object("VendorInventory", {
   qualityTier: __t.option(__t.string()),
 });
 export type VendorInventory = __Infer<typeof VendorInventory>;
+
+export const VendorRestockTick = __t.object("VendorRestockTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  afterNpcId: __t.u64(),
+});
+export type VendorRestockTick = __Infer<typeof VendorRestockTick>;
 
 export const WorldEvent = __t.object("WorldEvent", {
   id: __t.u64(),
