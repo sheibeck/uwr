@@ -27,6 +27,7 @@ import CreateItemTemplateReducer from "../create_item_template_reducer";
 import GrantItemReducer from "../grant_item_reducer";
 import BuyItemReducer from "../buy_item_reducer";
 import SellItemReducer from "../sell_item_reducer";
+import BuybackLastSaleReducer from "../buyback_last_sale_reducer";
 import SellAllJunkReducer from "../sell_all_junk_reducer";
 import TakeLootReducer from "../take_loot_reducer";
 import TakeAllLootReducer from "../take_all_loot_reducer";
@@ -137,6 +138,7 @@ export type CreateItemTemplateParams = __Infer<typeof CreateItemTemplateReducer>
 export type GrantItemParams = __Infer<typeof GrantItemReducer>;
 export type BuyItemParams = __Infer<typeof BuyItemReducer>;
 export type SellItemParams = __Infer<typeof SellItemReducer>;
+export type BuybackLastSaleParams = __Infer<typeof BuybackLastSaleReducer>;
 export type SellAllJunkParams = __Infer<typeof SellAllJunkReducer>;
 export type TakeLootParams = __Infer<typeof TakeLootReducer>;
 export type TakeAllLootParams = __Infer<typeof TakeAllLootReducer>;

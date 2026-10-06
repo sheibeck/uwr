@@ -1033,6 +1033,9 @@ export type MyPlayer = __Infer<typeof MyPlayer>;
 export const MyQuests = __t.object("MyQuests", {});
 export type MyQuests = __Infer<typeof MyQuests>;
 
+export const MyVendorBuyback = __t.object("MyVendorBuyback", {});
+export type MyVendorBuyback = __Infer<typeof MyVendorBuyback>;
+
 export const NamedEnemy = __t.object("NamedEnemy", {
   id: __t.u64(),
   characterId: __t.u64(),
@@ -1442,6 +1445,27 @@ export const User = __t.object("User", {
   createdAt: __t.timestamp(),
 });
 export type User = __Infer<typeof User>;
+
+export const VendorBuyback = __t.object("VendorBuyback", {
+  characterId: __t.u64(),
+  npcId: __t.u64(),
+  npcName: __t.string(),
+  locationId: __t.u64(),
+  templateId: __t.u64(),
+  itemName: __t.string(),
+  rarity: __t.string(),
+  quantity: __t.u64(),
+  price: __t.u64(),
+  qualityTier: __t.option(__t.string()),
+  craftQuality: __t.option(__t.string()),
+  displayName: __t.option(__t.string()),
+  isNamed: __t.option(__t.bool()),
+  isTemporary: __t.option(__t.bool()),
+  affixesJson: __t.string(),
+  listingId: __t.option(__t.u64()),
+  soldAt: __t.timestamp(),
+});
+export type VendorBuyback = __Infer<typeof VendorBuyback>;
 
 export const VendorInventory = __t.object("VendorInventory", {
   id: __t.u64(),

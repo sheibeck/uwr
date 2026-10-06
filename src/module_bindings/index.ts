@@ -55,6 +55,7 @@ import CreateItemTemplateReducer from "./create_item_template_reducer";
 import GrantItemReducer from "./grant_item_reducer";
 import BuyItemReducer from "./buy_item_reducer";
 import SellItemReducer from "./sell_item_reducer";
+import BuybackLastSaleReducer from "./buyback_last_sale_reducer";
 import SellAllJunkReducer from "./sell_all_junk_reducer";
 import TakeLootReducer from "./take_loot_reducer";
 import TakeAllLootReducer from "./take_all_loot_reducer";
@@ -220,6 +221,7 @@ import MyNpcDialogRow from "./my_npc_dialog_table";
 import MyPanelLayoutRow from "./my_panel_layout_table";
 import MyPlayerRow from "./my_player_table";
 import MyQuestsRow from "./my_quests_table";
+import MyVendorBuybackRow from "./my_vendor_buyback_table";
 import NamedEnemyRow from "./named_enemy_table";
 import NpcRow from "./npc_table";
 import NpcAffinityRow from "./npc_affinity_table";
@@ -1777,6 +1779,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyQuestsRow),
+  myVendorBuyback: __table({
+    name: 'my_vendor_buyback',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyVendorBuybackRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
@@ -1802,6 +1811,7 @@ const reducersSchema = __reducers(
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("buy_item", BuyItemReducer),
   __reducerSchema("sell_item", SellItemReducer),
+  __reducerSchema("buyback_last_sale", BuybackLastSaleReducer),
   __reducerSchema("sell_all_junk", SellAllJunkReducer),
   __reducerSchema("take_loot", TakeLootReducer),
   __reducerSchema("take_all_loot", TakeAllLootReducer),
@@ -2088,6 +2098,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "my_player": Omit<typeof tablesSchema.schemaType.tables["myPlayer"], "accessorName"> & { readonly accessorName: "my_player" };
     /** @deprecated Use `myQuests` instead. This alias will be removed in the next major version. */
     readonly "my_quests": Omit<typeof tablesSchema.schemaType.tables["myQuests"], "accessorName"> & { readonly accessorName: "my_quests" };
+    /** @deprecated Use `myVendorBuyback` instead. This alias will be removed in the next major version. */
+    readonly "my_vendor_buyback": Omit<typeof tablesSchema.schemaType.tables["myVendorBuyback"], "accessorName"> & { readonly accessorName: "my_vendor_buyback" };
   };
 };
 
@@ -2201,6 +2213,7 @@ const tableAccessorAliases = {
   "my_panel_layout": "myPanelLayout",
   "my_player": "myPlayer",
   "my_quests": "myQuests",
+  "my_vendor_buyback": "myVendorBuyback",
 } as const;
 
 function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
@@ -2411,6 +2424,8 @@ export type DbView = __DbViewBase & {
   readonly "my_player": __DbViewBase["myPlayer"];
   /** @deprecated Use `myQuests` instead. This alias will be removed in the next major version. */
   readonly "my_quests": __DbViewBase["myQuests"];
+  /** @deprecated Use `myVendorBuyback` instead. This alias will be removed in the next major version. */
+  readonly "my_vendor_buyback": __DbViewBase["myVendorBuyback"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
@@ -2605,6 +2620,8 @@ export type Tables = __TablesBase & {
   readonly "my_player": __TablesBase["myPlayer"];
   /** @deprecated Use `myQuests` instead. This alias will be removed in the next major version. */
   readonly "my_quests": __TablesBase["myQuests"];
+  /** @deprecated Use `myVendorBuyback` instead. This alias will be removed in the next major version. */
+  readonly "my_vendor_buyback": __TablesBase["myVendorBuyback"];
 };
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */
