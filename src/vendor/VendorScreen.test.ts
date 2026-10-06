@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
 import { buyPrice } from '@game-data/vendor_pricing';
+import { listPriceFor } from '@game-data/vendor_stock';
 import {
   FRAME_KEY,
   GAME_KEY,
@@ -385,6 +386,52 @@ describe('ForSale desktop', () => {
     expect(w.get('.item-name').text()).toBe(XSS);
     expect(w.find('img').exists()).toBe(false);
     expect(w.get('button.buy-btn').attributes('aria-label')).toBe(`Buy ${XSS} for 5 gold`);
+  });
+});
+
+describe('ForSale base stock (Plan 50-24)', () => {
+  // A base-stock listing is an ordinary vendor_inventory row priced by listPriceFor, exactly like a
+  // player resale: the table needs no flag and the client needs no change.
+  function mountSale(world: World = {}) {
+    const ctx = buildWorld(world);
+    wrapper = mount(ForSale, {
+      attachTo: document.body,
+      props: { vendor: VENDOR, vendorNearby: true, runner: ctx.runner, mobile: false, resetKey: 0 },
+      global: ctx.global,
+    });
+    return { ...ctx, w: wrapper };
+  }
+  const stock = [listing(200n, 6n, listPriceFor(10n)), listing(201n, 2n, listPriceFor(10n))];
+
+  it('renders a restock-written row and a player resale row alike, in the For sale order', () => {
+    const { w } = mountSale({ stock });
+    expect(w.findAll('tbody tr').map((r) => r.get('.item-name').text())).toEqual(['Leather Cap', 'Iron Ore']);
+    const cap = w.findAll('tbody tr')[0];
+    const ore = w.findAll('tbody tr')[1];
+    const price = buyPrice(listPriceFor(10n), 0, 0n);
+    expect(cap.get('[role="img"]').attributes('aria-label')).toBe(`${price} gold`);
+    expect(ore.get('[role="img"]').attributes('aria-label')).toBe(`${price} gold`);
+  });
+
+  it('shows Material as the sub-line and an enabled Buy that sends buyItem for the template', async () => {
+    const { w, calls } = mountSale({ stock });
+    const ore = w.findAll('tbody tr').find((r) => r.get('.item-name').text() === 'Iron Ore')!;
+    expect(ore.get('.sub').text()).toBe('Material');
+    const button = ore.get('button');
+    expect(button.attributes('aria-disabled')).toBeUndefined();
+    expect(button.attributes('aria-label')).toBe(`Buy Iron Ore for ${buyPrice(listPriceFor(10n), 0, 0n)} gold`);
+    await button.trigger('click');
+    expect(calls.buyItem).toHaveBeenCalledTimes(1);
+    expect(calls.buyItem).toHaveBeenCalledWith({ characterId: 7n, npcId: 2n, itemTemplateId: 6n });
+  });
+
+  it('keeps vendor_inventory free of any base or source column', () => {
+    const bindings = readFileSync(resolve(process.cwd(), 'src/module_bindings/vendor_inventory_table.ts'), 'utf8');
+    // Only the row definition is checked: the generated header comment says "MODULE SOURCE CODE".
+    const row = bindings.slice(bindings.indexOf('__t.row({'));
+    expect(row).toMatch(/npcId/);
+    expect(row).not.toMatch(/base/i);
+    expect(row).not.toMatch(/source/i);
   });
 });
 
