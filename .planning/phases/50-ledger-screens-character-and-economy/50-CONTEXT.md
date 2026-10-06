@@ -50,6 +50,13 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - **Quest items are refused on the server too.** `sell_item` fails for quest items with `Quest items can't be sold.` This is a code-only change, published with the buy-back work, and it gets a test.
 - **Craft quality shows the single deterministic result.** It reads `Quality: {Tier}`, with a hint for what would raise it. There is no odds bar and quality is not made random (no balance change).
 
+### Owner decisions after research (2026-10-06, owner in chat)
+- **Fix the `craft_recipe` validate-before-mutate bug in Phase 50.** Today a refused craft (essence too weak, reagent missing) has already consumed its inputs and added the output.
+  - Reorder the reducer so every refusal comes before any mutation.
+  - Add real-handler tests showing that each refusal leaves the inventory and gold unchanged.
+  - Code only, published locally with the buy-back work. The client still pre-gates these cases.
+- **Renown passive perks with no effect: todo for later, not this phase.** Chosen passives are stored as `renown_rank{N}_{key}`, which never matches `RENOWN_PERK_POOLS`. The Stats screen shows perk names correctly, and the bug is filed under `.planning/todos/pending/`.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
