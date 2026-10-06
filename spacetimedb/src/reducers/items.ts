@@ -3,6 +3,7 @@ import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { computeSellValue } from '../helpers/economy';
 import { canEquipItem } from '../data/item_usability';
+import { USE_ITEM_KEYS } from '../data/item_rules';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -882,18 +883,7 @@ export const registerItemReducers = (deps: any) => {
       return failItem(ctx, character, 'Cannot use this during combat');
     }
     const itemKey = template.name.toLowerCase().replace(/\s+/g, '_');
-    const handledKeys = new Set([
-      'bandage',
-      'basic_poultice',
-      'travelers_tea',
-      'simple_rations',
-      'torch',
-      'whetstone',
-      'kindling_bundle',
-      'rough_rope',
-      'charcoal',
-      'crude_poison',
-    ]);
+    const handledKeys = new Set<string>(USE_ITEM_KEYS);
     if (!handledKeys.has(itemKey)) return failItem(ctx, character, 'Item cannot be used');
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     const existingCooldown = [...ctx.db.item_cooldown.by_character.filter(character.id)].find(
