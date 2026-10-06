@@ -84,6 +84,33 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - **Out of scope.** LLM naming and flavor is not built now. The owner can ask later.
 - **Timing.** Phase 50 follow-up (plan 50-25), built after 50-24 (vendor base stock) and before Phase 51. Server change with real-handler tests. Publish locally only, checking the key before and after.
 
+### Owner decision after the build (2026-10-06, owner in chat): finite vendor stock, price floor, sell quantity (plan 50-26)
+- **The bug.** The owner wrote: "when I sell an item to a vendor, I can endlessly buy it back and it never goes out of stock."
+  - `vendor_inventory` rows have no quantity. A listing is unlimited stock, so a sale plus repeated Buy duplicates items without limit. This is an economy exploit.
+- **Finite stock.** Every vendor listing has a quantity.
+  - A player sale adds the sold quantity to that vendor's listing for the same template and quality, or creates the listing with that quantity.
+  - Base stock (50-24) gets a finite quantity per restock.
+  - Buying lowers the quantity. At 0 the listing is removed, or hidden until restock for base stock.
+  - Buy-back moves the item back out of the listing.
+  - `buy_item` refuses when the quantity is short.
+  - The client shows the quantity in the For sale table, for example "×3", plus a sold-out state.
+  - Store the quantity with an additive schema change: either a new column with a default (if SpacetimeDB auto-migration supports it without a clear) or a companion table keyed by listing id. Research decides. Never use `--clear-database`.
+- **Price floor.** In the owner's words: "they should always sell them back for more than you sold them for."
+  - For any character, the buy price of a listing must be strictly greater than what that character would get for selling the same item and quality to that vendor.
+  - This must hold after rapport, Charisma modifiers and perk discounts and bonuses.
+  - Implement it once in the shared `data/vendor_pricing.ts`, as `buyPrice` with a floor of `sellPayout(...) + 1` or a fixed margin.
+  - The rule applies to buy-back too: buy-back keeps its exact refund rule (the same price as the sale, per the earlier owner decision) and is the only exception, because it undoes the last sale.
+  - Tests: every combination of rapport and perk gives buy > sell.
+- **Sell quantity.** In the owner's words: "If I have a stack of items ask me how many to sell when I sell."
+  - Selling a stack asks for a quantity: a small inline number picker with 1 / All and -/+ in the Sell panel, following the Phase 49 and 50 inline confirmation pattern.
+  - `sell_item` gets a quantity argument. This is additive: a new reducer argument or a new reducer `sell_item_quantity`. Research picks one, and the bindings are regenerated.
+  - A partial sale splits the stack.
+  - Buy-back records exactly the quantity sold.
+  - The typed `sell N <item>` path uses the same helper.
+- **Timing.** This is a Phase 50 follow-up, plan 50-26, after 50-24 (base stock) and 50-25 (recipes), and before Phase 51.
+  - The server change is additive, with real-handler tests: no infinite duplication, the floor holds, partial sales, buy-back quantity.
+  - Publish locally only, with the key check before and after.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
