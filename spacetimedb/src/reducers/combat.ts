@@ -1165,6 +1165,7 @@ export const registerCombatReducers = (deps: any) => {
           enemyRoleTemplateId: add.roleTemplateId,
           spawnId: add.spawn.id,
           arriveAtMicros: ctx.timestamp.microsSinceUnixEpoch + delayMicros,
+          arriveAtRound: 0n,
         });
       }
       for (const p of participants) {
@@ -1772,6 +1773,7 @@ export const registerCombatReducers = (deps: any) => {
             abilityTemplateId: cast.abilityTemplateId,
             startedAtMicros: nowMicros,
             durationMicros: cooldown,
+            roundsRemaining: 0n,
           });
         }
       }
@@ -2405,7 +2407,7 @@ export const registerCombatReducers = (deps: any) => {
       }
       cooldownTable.insert({
         id: 0n, combatId: combat.id, enemyId: enemy.id,
-        abilityKey: chosen.ability.abilityKey, readyAtMicros: nowMicros + cooldownMicros,
+        abilityKey: chosen.ability.abilityKey, readyAtMicros: nowMicros + cooldownMicros, readyAtRound: 0n,
       });
     }
     return true;
@@ -2692,6 +2694,7 @@ export const registerCombatReducers = (deps: any) => {
           abilityTemplateId: args.abilityTemplateId,
           startedAtMicros: nowMicros,
           durationMicros: cooldownDuration,
+          roundsRemaining: 0n,
         });
       }
     } catch (_e) {

@@ -888,6 +888,7 @@ export const registerItemReducers = (deps: any) => {
               abilityTemplateId: args.abilityTemplateId,
               startedAtMicros: nowMicros,
               durationMicros: cooldown,
+              roundsRemaining: 0n,
             });
           }
         }

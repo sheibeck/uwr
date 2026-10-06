@@ -1528,6 +1528,7 @@ export function createFirstRound(ctx: any, combatId: bigint, isGroup: boolean) {
     state: 'action_select',
     timerExpiresAtMicros: timerExpires,
     narrationCount: 0n,
+    startedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
   });
 }
 
