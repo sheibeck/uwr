@@ -314,3 +314,203 @@ describe('createFeedStore', () => {
     expect(source.key).toBe('world:1');
   });
 });
+
+
+describe('combat entries', () => {
+  const parts = { lead: 'Rotfang winds up ', ability: 'Gore', tail: ' to you, lands in 2 rounds', text: '' };
+  parts.text = parts.lead + parts.ability + parts.tail;
+
+  function active() {
+    const handle = manualStore();
+    handle.store.setCharacter(5n);
+    return handle;
+  }
+
+  it('adds a round header with the contract fields, deduped by key', () => {
+    const { store } = active();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    store.flush();
+    expect(store.entries.value).toHaveLength(1);
+    expect(store.entries.value[0]).toMatchObject({
+      source: 'combat',
+      kind: 'round',
+      key: 'round:10:1',
+      id: 1n,
+      createdAtMicros: 1000n,
+      message: 'Round 1',
+      lineCount: 1,
+      combatId: 10n,
+      roundNumber: 1n,
+    });
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    store.flush();
+    expect(store.entries.value).toHaveLength(1);
+  });
+
+  it('ignores a round with startedAtMicros 0 and ignores everything with no active character', () => {
+    const { store } = active();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 0n });
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+    const idle = manualStore().store;
+    idle.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    idle.addWindup({ castId: 7n, combatId: 10n, createdAtMicros: 1000n, parts });
+    idle.flush();
+    expect(idle.entries.value).toEqual([]);
+  });
+
+  it('shows a header with no lines under it, scheduled like ingest', () => {
+    const { store, runScheduled, scheduledCount } = active();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 2n, startedAtMicros: 5000n });
+    expect(scheduledCount()).toBe(1);
+    runScheduled();
+    expect(keys(store.entries.value)).toEqual(['round:10:2']);
+  });
+
+  it('sorts a server line equal to the header instant before it, and one microsecond either side', () => {
+    const { store } = active();
+    store.ingest('private', row(1, { characterId: 5n, micros: 1000 }));
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    store.ingest('private', row(2, { characterId: 5n, micros: 1999 }));
+    store.ingest('private', row(3, { characterId: 5n, micros: 2000 }));
+    store.addRoundHeader({ combatId: 10n, roundNumber: 2n, startedAtMicros: 2000n });
+    store.ingest('private', row(4, { characterId: 5n, micros: 2001 }));
+    store.flush();
+    expect(keys(store.entries.value)).toEqual([
+      'private:1',
+      'round:10:1',
+      'private:2',
+      'private:3',
+      'round:10:2',
+      'private:4',
+    ]);
+  });
+
+  it('puts a wind-up after the header at the same instant and dedupes by cast id', () => {
+    const { store } = active();
+    store.ingest('private', row(1, { characterId: 5n, micros: 2000 }));
+    store.addWindup({ castId: 7n, combatId: 10n, createdAtMicros: 2000n, parts });
+    store.addRoundHeader({ combatId: 10n, roundNumber: 2n, startedAtMicros: 2000n });
+    store.addWindup({ castId: 7n, combatId: 10n, createdAtMicros: 2000n, parts });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1', 'round:10:2', 'windup:7']);
+    expect(store.entries.value[2]).toMatchObject({
+      kind: 'windup',
+      message: parts.text,
+      combatId: 10n,
+      windup: { lead: parts.lead, ability: parts.ability, tail: parts.tail },
+    });
+    store.addWindup({ castId: 7n, combatId: 10n, createdAtMicros: 2000n, parts });
+    store.flush();
+    expect(store.entries.value).toHaveLength(3);
+  });
+
+  it('falls back to id for equal instant and rank', () => {
+    const { store } = active();
+    store.addWindup({ castId: 9n, combatId: 10n, createdAtMicros: 100n, parts });
+    store.addWindup({ castId: 8n, combatId: 10n, createdAtMicros: 100n, parts });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['windup:8', 'windup:9']);
+  });
+
+  it('compares bigint microseconds beyond Number precision', () => {
+    const { store } = active();
+    const base = 9007199254740993n;
+    store.ingest('private', {
+      id: 1n,
+      kind: 'narrative',
+      message: 'a',
+      characterId: 5n,
+      createdAt: { microsSinceUnixEpoch: base + 1n },
+    });
+    store.ingest('private', {
+      id: 2n,
+      kind: 'narrative',
+      message: 'b',
+      characterId: 5n,
+      createdAt: { microsSinceUnixEpoch: base },
+    });
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: base });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:2', 'round:10:1', 'private:1']);
+  });
+
+  it('inserts a late header before the first later entry, without moving server lines', () => {
+    const { store } = active();
+    store.ingest('private', row(1, { characterId: 5n, micros: 1000 }));
+    store.ingest('private', row(2, { characterId: 5n, micros: 1500 }));
+    store.ingest('private', row(3, { characterId: 5n, micros: 2500 }));
+    store.flush();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1', 'round:10:1', 'private:2', 'private:3']);
+    store.ingest('private', row(4, { characterId: 5n, micros: 900 }));
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1', 'round:10:1', 'private:2', 'private:3', 'private:4']);
+  });
+
+  it('stops the backward scan at a local entry', () => {
+    const { store } = active();
+    store.ingest('private', row(1, { characterId: 5n, micros: 1000 }));
+    store.flush();
+    const echo = store.appendLocal('echo', 'attack');
+    store.ingest('private', row(2, { characterId: 5n, micros: 1500 }));
+    store.flush();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 1000n });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1', echo, 'round:10:1', 'private:2']);
+  });
+
+  it('sets narratedRound on one entry only and ignores an unknown key', () => {
+    const { store } = active();
+    store.ingest('private', row(5, { characterId: 5n, micros: 10 }));
+    store.ingest('private', row(6, { characterId: 5n, micros: 11 }));
+    store.flush();
+    const before = store.entries.value;
+    store.setNarratedRound('private:5', 3n);
+    const after = store.entries.value;
+    expect(after).not.toBe(before);
+    expect(after[0].narratedRound).toBe(3n);
+    expect(after[1]).toBe(before[1]);
+    store.setNarratedRound('private:99', 4n);
+    expect(store.entries.value).toBe(after);
+    store.setNarratedRound('private:5', 3n);
+    expect(store.entries.value).toBe(after);
+  });
+
+  it('counts headers and wind-ups toward the cap and evicts the oldest', () => {
+    const { store } = manualStore(3);
+    store.setCharacter(5n);
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 100n });
+    store.addWindup({ castId: 1n, combatId: 10n, createdAtMicros: 200n, parts });
+    store.addRoundHeader({ combatId: 10n, roundNumber: 2n, startedAtMicros: 300n });
+    store.addRoundHeader({ combatId: 10n, roundNumber: 3n, startedAtMicros: 400n });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['windup:1', 'round:10:2', 'round:10:3']);
+  });
+
+  it('clear() and a new character drop combat entries and their keys', () => {
+    const { store } = active();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 100n });
+    store.flush();
+    store.clear();
+    expect(store.entries.value).toEqual([]);
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 100n });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['round:10:1']);
+    store.setCharacter(6n);
+    expect(store.entries.value).toEqual([]);
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 100n });
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['round:10:1']);
+  });
+
+  it('produces combat entries that fit the line classifier input', () => {
+    const { store } = active();
+    store.addRoundHeader({ combatId: 10n, roundNumber: 1n, startedAtMicros: 100n });
+    store.flush();
+    const source: LineSource = store.entries.value[0];
+    expect(source.source).toBe('combat');
+  });
+});

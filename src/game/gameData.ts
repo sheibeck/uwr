@@ -43,7 +43,7 @@ import type {
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
 import { createFeedStore } from '../console/feedStore';
-import type { EventRowLike, FeedSource } from '../console/feedStore';
+import type { EventRowLike, ServerFeedSource } from '../console/feedStore';
 import type { CombatData, GameData, GameReducers } from './context';
 import type { BindEventTableOptions, EventTableBinding, EventTableLike } from './bindEventTable';
 import { createKeyed, idListKey, keyedRows, parseIdListKey } from './keyedBinding';
@@ -138,7 +138,7 @@ export interface GameDeps<C> {
   now?: () => number;
 }
 
-type Source = Exclude<FeedSource, 'local'>;
+type Source = ServerFeedSource;
 
 export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: GameInput<C>): GameData {
   const { queries } = deps;

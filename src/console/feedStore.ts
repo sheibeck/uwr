@@ -12,6 +12,16 @@
 // - setCharacter() with a different id clears the history and the pending batch, so rows
 //   buffered for the old character never land. With no active character nothing is accepted.
 // - The cap counts lines: an entry with N segments counts N. The oldest entries drop first.
+// - Combat entries (48-RESEARCH Pattern 3) are made on the client: addRoundHeader() adds a
+//   'Round N' header at the round's startedAt and addWindup() adds a wind-up warning block. They
+//   dedupe by key, count toward the cap, and rank after every server source at the same instant
+//   (header 4, wind-up 5), so a line stamped exactly at the next round's start sits under the
+//   round it closes. A combat entry that arrives after later lines is inserted before the first
+//   entry that sorts after it, scanning back no further than a local entry; server rows still
+//   append where they land. Placement compares bigint microseconds only. A boundary the client
+//   saw stays in the store, so deleting the round rows moves no line, and one it never saw is
+//   never invented (a round with startedAt 0 produces no header).
+// - setNarratedRound() stamps a late combat_narration entry with the round it narrates (by key).
 //
 // acceptRow is the second, client-side filter after the server-side subscription filters
 // (T-47-04a; research Pitfall 9):
@@ -25,10 +35,12 @@
 
 import { ref, shallowRef } from 'vue';
 import type { Ref, ShallowRef } from 'vue';
+import type { WindupParts } from '../combat/windup';
 
 export const FEED_LINE_CAP = 300;
 
-export type FeedSource = 'private' | 'location' | 'group' | 'world' | 'local';
+export type ServerFeedSource = 'private' | 'location' | 'group' | 'world';
+export type FeedSource = ServerFeedSource | 'local' | 'combat';
 export type LocalKind = 'echo' | 'system' | 'look';
 
 export interface SegmentRowLike {
@@ -61,6 +73,14 @@ export interface FeedEntry {
   queued: boolean;
   /** Lines this entry counts toward the cap (segment count, else 1). */
   lineCount: number;
+  /** Combat entries (round header, wind-up block). */
+  combatId?: bigint;
+  /** Round header only. */
+  roundNumber?: bigint;
+  /** combat_narration entry: the round it narrates, set later by key. */
+  narratedRound?: bigint;
+  /** Wind-up block only. */
+  windup?: { lead: string; ability: string; tail: string };
 }
 
 export interface FeedStore {
@@ -69,7 +89,13 @@ export interface FeedStore {
   /** Clears history and the pending batch when the id changes. */
   setCharacter(id: bigint | null): void;
   /** Buffered; flushed in a microtask. */
-  ingest(source: Exclude<FeedSource, 'local'>, row: EventRowLike): void;
+  ingest(source: ServerFeedSource, row: EventRowLike): void;
+  /** Client-made 'Round N' header at the round's start. Ignored for startedAtMicros 0n. */
+  addRoundHeader(input: { combatId: bigint; roundNumber: bigint; startedAtMicros: bigint }): void;
+  /** Client-made wind-up warning block, one per cast. */
+  addWindup(input: { castId: bigint; combatId: bigint; createdAtMicros: bigint; parts: WindupParts }): void;
+  /** Stamps the round a late combat_narration entry narrates. Unknown key: no change. */
+  setNarratedRound(key: string, round: bigint): void;
   /** Returns the entry key. */
   appendLocal(kind: LocalKind, message: string, options?: { queued?: boolean }): string;
   setQueued(key: string, queued: boolean): void;
@@ -79,15 +105,18 @@ export interface FeedStore {
   flush(): void;
 }
 
-const SOURCE_RANK: Record<Exclude<FeedSource, 'local'>, number> = {
+const SOURCE_RANK: Record<ServerFeedSource, number> = {
   private: 0,
   location: 1,
   group: 2,
   world: 3,
 };
 
+const ROUND_HEADER_RANK = 4;
+const WINDUP_RANK = 5;
+
 export function acceptRow(
-  source: Exclude<FeedSource, 'local'>,
+  source: ServerFeedSource,
   row: EventRowLike,
   characterId: bigint | null,
 ): boolean {
@@ -116,10 +145,16 @@ function lineCountOf(segments: readonly SegmentRowLike[] | null): number {
   return segments !== null && segments.length > 0 ? segments.length : 1;
 }
 
+function rankOf(entry: FeedEntry): number {
+  if (entry.source === 'combat') return entry.kind === 'windup' ? WINDUP_RANK : ROUND_HEADER_RANK;
+  if (entry.source === 'local') return 0;
+  return SOURCE_RANK[entry.source] ?? 0;
+}
+
 function compareBatch(a: FeedEntry, b: FeedEntry): number {
   if (a.createdAtMicros !== b.createdAtMicros) return a.createdAtMicros < b.createdAtMicros ? -1 : 1;
-  const rankA = SOURCE_RANK[a.source as Exclude<FeedSource, 'local'>] ?? 0;
-  const rankB = SOURCE_RANK[b.source as Exclude<FeedSource, 'local'>] ?? 0;
+  const rankA = rankOf(a);
+  const rankB = rankOf(b);
   if (rankA !== rankB) return rankA - rankB;
   if (a.id !== b.id) return a.id < b.id ? -1 : 1;
   return 0;
@@ -163,8 +198,30 @@ export function createFeedStore(options: { cap?: number; schedule?: (fn: () => v
     const batch = pending.slice().sort(compareBatch);
     pending = [];
     pendingKeys.clear();
-    for (const entry of batch) knownKeys.add(entry.key);
-    entries.value = enforceCap([...entries.value, ...batch]);
+    const next = entries.value.slice();
+    for (const entry of batch) {
+      knownKeys.add(entry.key);
+      if (entry.source !== 'combat') {
+        next.push(entry);
+        continue;
+      }
+      // Combat entry: insert before the first entry that sorts after it, never past a local entry.
+      let at = next.length;
+      while (at > 0 && next[at - 1].source !== 'local' && compareBatch(next[at - 1], entry) > 0) at -= 1;
+      next.splice(at, 0, entry);
+    }
+    entries.value = enforceCap(next);
+  }
+
+  function queueCombatEntry(entry: FeedEntry): void {
+    if (characterId.value === null) return;
+    if (knownKeys.has(entry.key) || pendingKeys.has(entry.key)) return;
+    pendingKeys.add(entry.key);
+    pending.push(entry);
+    if (!scheduled) {
+      scheduled = true;
+      schedule(flush);
+    }
   }
 
   return {
@@ -197,6 +254,51 @@ export function createFeedStore(options: { cap?: number; schedule?: (fn: () => v
         scheduled = true;
         schedule(flush);
       }
+    },
+    addRoundHeader({ combatId, roundNumber, startedAtMicros }) {
+      if (startedAtMicros === 0n) return;
+      queueCombatEntry({
+        key: `round:${combatId}:${roundNumber}`,
+        source: 'combat',
+        id: 1n,
+        kind: 'round',
+        message: `Round ${roundNumber}`,
+        segments: null,
+        characterId: null,
+        createdAtMicros: startedAtMicros,
+        queued: false,
+        lineCount: 1,
+        combatId,
+        roundNumber,
+      });
+    },
+    addWindup({ castId, combatId, createdAtMicros, parts }) {
+      queueCombatEntry({
+        key: `windup:${castId}`,
+        source: 'combat',
+        id: castId,
+        kind: 'windup',
+        message: parts.text,
+        segments: null,
+        characterId: null,
+        createdAtMicros,
+        queued: false,
+        lineCount: 1,
+        combatId,
+        windup: { lead: parts.lead, ability: parts.ability, tail: parts.tail },
+      });
+    },
+    setNarratedRound(key, round) {
+      const index = entries.value.findIndex((e) => e.key === key);
+      if (index !== -1) {
+        if (entries.value[index].narratedRound === round) return;
+        const next = entries.value.slice();
+        next[index] = { ...next[index], narratedRound: round };
+        entries.value = next;
+        return;
+      }
+      const queuedAt = pending.findIndex((e) => e.key === key);
+      if (queuedAt !== -1) pending[queuedAt] = { ...pending[queuedAt], narratedRound: round };
     },
     appendLocal(kind, message, opts) {
       localCounter += 1;
