@@ -266,6 +266,7 @@ Items acknowledged and deferred at the v2.2 close on 2026-10-05 (owner chose to 
 | 46 | verification_deferred_human | /gsd-verify-work 46 |
 | 47 | verification_deferred_human | /gsd-verify-work 47 |
 | 46.1 | verification_deferred_human | /gsd-verify-work 46.1 |
+| 48 | verification_deferred_human | /gsd-verify-work 48 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
 
@@ -281,6 +282,8 @@ Phase 47 is code-complete and verified in code. 47-VERIFICATION.md is human_need
 
 Phase 46.1 (round-based combat) is code-complete and verified in code. 46.1-VERIFICATION.md is human_needed (5/5, 0 gaps). Code review is clean after 2 iterations; CR-01 added the module-identity guard to all 12 previously unguarded scheduled reducers, and WR-01..04 were fixed. It was published locally twice, additive only with no clear, and the stored key length stayed 108. It was built overnight on 2026-10-05/06 under the owner's auto-approve instruction. The 6 deferred items are in 46.1-UAT.md, including the voice addendum review and the stale stun wording.
 
+Phase 48 (combat encounter UI) is code-complete and verified in code. 48-VERIFICATION.md is human_needed (6/6, 0 gaps, 3 behavior-unverified). Code review: WR-01..05 were fixed within the 3-iteration loop. WR-06 was fixed after the loop (d2d74a7b) and has not been re-reviewed. The only server change is the additive my_combat_aggro view, published locally with no clear; key length stays 108. Built overnight on 2026-10-06 under the auto-approve instruction. The deviations for owner review (A1, A4, A5, A8, A26) and the live checks are in 48-UAT.md.
+
 ## Session Continuity
 
 ### Overnight autonomy (2026-10-05, owner)
@@ -293,7 +296,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 ### Resume note (2026-10-06, overnight run)
 
-- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47 and 46.1. To resume, run `/gsd-autonomous --from 48`. That runs 48, then 49, 50, 51 and 52, then the lifecycle (audit, complete, cleanup).
+- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47 and 46.1. Phase 48 done. To resume, run `/gsd-autonomous --from 49`. That runs 49, 50, 51 and 52, then the lifecycle (audit, complete, cleanup).
 - Overnight autonomy is active (see above): take the recommended option for every question and log it as "auto-approved (owner overnight instruction)". Hard limits:
   - no paid LLM calls (the golden run is deferred)
   - no maincloud
