@@ -29,6 +29,7 @@ import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
 import { enqueueCombatOutroNarration, enqueueCombatMomentNarration } from '../helpers/combat_narration';
+import { redactSecrets } from '../helpers/measurement';
 import { detectMoment, isBossOrNamed } from '../helpers/combat_moments';
 import type { EnemySnapshot, PlayerSnapshot } from '../helpers/combat_moments';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
@@ -1838,14 +1839,31 @@ export const registerCombatReducers = (deps: any) => {
     for (const pending of [...ctx.db.combat_pending_add.by_combat.filter(combat.id)]) {
       const arrived = pending.arriveAtRound <= roundNumber;
       if (!arrived) continue;
-      const spawnRow = pending.spawnId ? ctx.db.enemy_spawn.id.find(pending.spawnId) : null;
-      if (spawnRow) {
-        const newEnemy = addEnemyToCombat(deps, ctx, combat, spawnRow, participants, true, pending.enemyRoleTemplateId ?? undefined);
-        if (newEnemy && activeParticipants.length > 0) {
-          ctx.db.combat_enemy.id.update({ ...newEnemy, aggroTargetCharacterId: activeParticipants[0].characterId });
+      // One add is isolated (WR-01): addEnemyToCombat throws when the add's template is gone. The pending
+      // row is always consumed, so a bad add cannot throw again every round, and its spawn is released
+      // (clearCombatArtifacts only does that for a pending add that is still there when the fight ends).
+      let joined = true;
+      try {
+        const spawnRow = pending.spawnId ? ctx.db.enemy_spawn.id.find(pending.spawnId) : null;
+        if (spawnRow) {
+          try {
+            const newEnemy = addEnemyToCombat(deps, ctx, combat, spawnRow, participants, true, pending.enemyRoleTemplateId ?? undefined);
+            if (newEnemy && activeParticipants.length > 0) {
+              ctx.db.combat_enemy.id.update({ ...newEnemy, aggroTargetCharacterId: activeParticipants[0].characterId });
+            }
+          } catch (error) {
+            joined = false;
+            console.error(`processPendingAdds: add ${pending.id} failed in combat ${combat.id}: ${redactSecrets(String(error))}`);
+            const stuck = ctx.db.enemy_spawn.id.find(spawnRow.id);
+            if (stuck && stuck.state === 'engaged' && stuck.lockedCombatId === combat.id) {
+              ctx.db.enemy_spawn.id.update({ ...stuck, state: 'available', lockedCombatId: undefined });
+            }
+          }
         }
+      } finally {
+        ctx.db.combat_pending_add.id.delete(pending.id);
       }
-      ctx.db.combat_pending_add.id.delete(pending.id);
+      if (!joined) continue;
       for (const p of activeParticipants) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
@@ -2998,6 +3016,38 @@ export const registerCombatReducers = (deps: any) => {
   };
 
   /**
+   * Run one independent step of a round. A throw inside it is logged (redacted) and swallowed, so the
+   * round still reaches its end and re-arms its tick: a reducer that throws is rolled back whole, which
+   * would otherwise consume the firing tick (timer path) and undo the player's choice or flee (early
+   * path), leaving the fight with no way forward (WR-01). Writes the failed step made before it
+   * threw are kept, as with the per-cast isolation in landEnemyCasts.
+   */
+  const isolateRoundStep = (combatId: bigint, label: string, step: () => void): boolean => {
+    try {
+      step();
+      return true;
+    } catch (error) {
+      console.error(`resolveRound: ${label} failed in combat ${combatId}: ${redactSecrets(String(error))}`);
+      return false;
+    }
+  };
+
+  /**
+   * The end of a fight whose reward or defeat path threw. Whatever the path wrote before it failed
+   * stays; the fight is still closed (its artifacts, tick and rows cleared, the encounter resolved),
+   * so a bad reward path cannot brick the fight.
+   */
+  const closeFightAfterFailure = (ctx: any, combatId: bigint): void => {
+    isolateRoundStep(combatId, 'clearing the fight', () => clearCombatArtifacts(ctx, combatId));
+    isolateRoundStep(combatId, 'resolving the encounter', () => {
+      const encounter = ctx.db.combat_encounter.id.find(combatId);
+      if (encounter && encounter.state !== 'resolved') {
+        ctx.db.combat_encounter.id.update({ ...encounter, state: 'resolved' });
+      }
+    });
+  };
+
+  /**
    * Resolve one round in a single transaction, in a fixed order: players (ascending character id; the
    * stored choice, else an auto-attack), pets, enemies (ascending enemy id; a stunned enemy skips),
    * then effects and DoT/HoT, cooldowns, adds, deaths, retarget, then victory, defeat or the next
@@ -3029,27 +3079,30 @@ export const registerCombatReducers = (deps: any) => {
       if (!participant || participant.status !== 'active') continue;
       const character = ctx.db.character.id.find(p.characterId);
       if (!character || character.hp === 0n) continue;
-      const choice = choices.find((c: any) => c.characterId === character.id);
-      if (choice && choice.actionType === 'flee') {
-        // The flee is the player's whole action for the round, whether it works or not.
-        resolveFleeChoice(ctx, liveCombat, character, participant, N, nowMicros);
-        continue;
-      }
-      let acted = false;
-      const livingBefore = livingHpMap(ctx, liveCombat.id);
-      if (choice && choice.actionType === 'ability' && choice.abilityTemplateId !== undefined && choice.abilityTemplateId !== null) {
-        acted = resolveAbilityChoice(ctx, liveCombat, character, choice);
-      }
-      const abilityUsed = acted ? ctx.db.ability_template.id.find(choice.abilityTemplateId)?.name : undefined;
-      if (!acted) {
-        // Re-read: a failed ability may have changed the character before it threw.
-        const current = ctx.db.character.id.find(character.id) ?? character;
-        processPlayerAutoAttackForRound(
-          ctx, liveCombat, current, participant,
-          [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)], nowMicros, N
-        );
-      }
-      recordKillsBy(ctx, liveCombat.id, livingBefore, killers, character, abilityUsed);
+      // One player's turn is isolated: a throw in it costs that player the turn, never the round.
+      isolateRoundStep(liveCombat.id, `player ${character.id} turn`, () => {
+        const choice = choices.find((c: any) => c.characterId === character.id);
+        if (choice && choice.actionType === 'flee') {
+          // The flee is the player's whole action for the round, whether it works or not.
+          resolveFleeChoice(ctx, liveCombat, character, participant, N, nowMicros);
+          return;
+        }
+        let acted = false;
+        const livingBefore = livingHpMap(ctx, liveCombat.id);
+        if (choice && choice.actionType === 'ability' && choice.abilityTemplateId !== undefined && choice.abilityTemplateId !== null) {
+          acted = resolveAbilityChoice(ctx, liveCombat, character, choice);
+        }
+        const abilityUsed = acted ? ctx.db.ability_template.id.find(choice.abilityTemplateId)?.name : undefined;
+        if (!acted) {
+          // Re-read: a failed ability may have changed the character before it threw.
+          const current = ctx.db.character.id.find(character.id) ?? character;
+          processPlayerAutoAttackForRound(
+            ctx, liveCombat, current, participant,
+            [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)], nowMicros, N
+          );
+        }
+        recordKillsBy(ctx, liveCombat.id, livingBefore, killers, character, abilityUsed);
+      });
     }
 
     // (c) nothing left to fight, or nobody left to fight them (everyone fled): straight to the end of the fight
@@ -3058,68 +3111,80 @@ export const registerCombatReducers = (deps: any) => {
       && [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)].length > 0
     ) {
       // (d) pets
-      processPetCombat(ctx, liveCombat, livingEnemiesOf(ctx, liveCombat.id), N, nowMicros);
+      isolateRoundStep(liveCombat.id, 'pets', () =>
+        processPetCombat(ctx, liveCombat, livingEnemiesOf(ctx, liveCombat.id), N, nowMicros));
 
       // (e) enemies, ascending enemy id; one failing enemy can never roll back the round
-      const enemyRows = sortById([...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)]);
+      let enemyRows: any[] = [];
+      isolateRoundStep(liveCombat.id, 'reading the enemies', () => {
+        enemyRows = sortById([...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)]);
+      });
       for (const row of enemyRows) {
-        const enemy = ctx.db.combat_enemy.id.find(row.id);
-        if (!enemy || enemy.currentHp === 0n) continue;
-        const pendingCasts = [...ctx.db.combat_enemy_cast.by_combat.filter(liveCombat.id)]
-          .filter((cast: any) => cast.enemyId === enemy.id);
-        const stunned = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
-          .some((effect: any) => effect.effectType === 'stun' && effect.roundsRemaining > 0n);
-        if (stunned) {
-          // A stun interrupts a wind-up in progress (RESEARCH Assumption A2); the enemy loses its turn either way.
-          for (const cast of pendingCasts) {
-            ctx.db.combat_enemy_cast.id.delete(cast.id);
-            postToActiveParticipants(
-              ctx,
-              [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)],
-              'combat',
-              `${enemy.displayName ?? 'enemy'}'s ${castAbilityName(ctx, enemy, cast.abilityKey)} is interrupted.`
-            );
+        isolateRoundStep(liveCombat.id, `enemy ${row.id} turn`, () => {
+          const enemy = ctx.db.combat_enemy.id.find(row.id);
+          if (!enemy || enemy.currentHp === 0n) return;
+          const pendingCasts = [...ctx.db.combat_enemy_cast.by_combat.filter(liveCombat.id)]
+            .filter((cast: any) => cast.enemyId === enemy.id);
+          const stunned = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
+            .some((effect: any) => effect.effectType === 'stun' && effect.roundsRemaining > 0n);
+          if (stunned) {
+            // A stun interrupts a wind-up in progress (RESEARCH Assumption A2); the enemy loses its turn either way.
+            for (const cast of pendingCasts) {
+              ctx.db.combat_enemy_cast.id.delete(cast.id);
+              postToActiveParticipants(
+                ctx,
+                [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)],
+                'combat',
+                `${enemy.displayName ?? 'enemy'}'s ${castAbilityName(ctx, enemy, cast.abilityKey)} is interrupted.`
+              );
+            }
+            return;
           }
-          continue;
-        }
-        // A winding-up enemy takes no other action until its ability lands (the landing step below).
-        if (pendingCasts.length > 0) continue;
-        const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
-        if (!template) continue;
-        const allParticipants = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
-        // Only the standing: a character killed earlier in this enemy phase is not yet marked dead (WR-02).
-        const activeNow = livingActiveParticipants(ctx, allParticipants);
-        try {
+          // A winding-up enemy takes no other action until its ability lands (the landing step below).
+          if (pendingCasts.length > 0) return;
+          const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+          if (!template) return;
+          const allParticipants = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
+          // Only the standing: a character killed earlier in this enemy phase is not yet marked dead (WR-02).
+          const activeNow = livingActiveParticipants(ctx, allParticipants);
           const usedAbility = tryEnemyAbilityForRound(ctx, liveCombat, enemy, template, activeNow, nowMicros, N);
           if (!usedAbility) {
             processEnemyAutoAttackForRound(ctx, liveCombat, enemy, template, allParticipants, activeNow, nowMicros, N);
           }
-        } catch (error) {
-          console.error(`resolveRound: enemy ${enemy.id} turn failed in combat ${liveCombat.id}: ${String(error)}`);
-        }
+        });
       }
 
       // (e2) wind-ups due this round land after the enemy turns, ascending enemy id
-      landEnemyCasts(ctx, liveCombat, N);
+      isolateRoundStep(liveCombat.id, 'landing wind-ups', () => landEnemyCasts(ctx, liveCombat, N));
 
-      // (f) end of the round: effects, cooldowns, adds, deaths, retarget
-      const afterEnemies = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
-      tickEffectsForRound(ctx, liveCombat.id, afterEnemies, nowMicros);
-      decrementRoundCooldowns(ctx, afterEnemies.map((x: any) => x.characterId));
-      const fightEnemies = [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)];
-      const activeForAdds = livingActiveParticipants(ctx, afterEnemies);
-      processPendingAdds(ctx, liveCombat, afterEnemies, activeForAdds, fightEnemyName(ctx, fightEnemies), N);
-      markNewlyDeadParticipants(ctx, liveCombat, [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)]);
-      const livingIds = livingEnemiesOf(ctx, liveCombat.id).map((e: any) => e.id as bigint);
-      for (const p of ctx.db.combat_participant.by_combat.filter(liveCombat.id)) {
-        const character = ctx.db.character.id.find(p.characterId);
-        if (!character || !character.combatTargetEnemyId) continue;
-        if (livingIds.includes(character.combatTargetEnemyId)) continue;
-        ctx.db.character.id.update({
-          ...character,
-          combatTargetEnemyId: autoAttackTargetId(character.combatTargetEnemyId, livingIds),
-        });
-      }
+      // (f) end of the round: effects, cooldowns, adds, deaths, retarget. Each step is independent.
+      let afterEnemies: any[] = [];
+      isolateRoundStep(liveCombat.id, 'reading the participants', () => {
+        afterEnemies = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
+      });
+      isolateRoundStep(liveCombat.id, 'effect ticks', () =>
+        tickEffectsForRound(ctx, liveCombat.id, afterEnemies, nowMicros));
+      isolateRoundStep(liveCombat.id, 'round cooldowns', () =>
+        decrementRoundCooldowns(ctx, afterEnemies.map((x: any) => x.characterId)));
+      isolateRoundStep(liveCombat.id, 'pending adds', () => {
+        const fightEnemies = [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)];
+        const activeForAdds = livingActiveParticipants(ctx, afterEnemies);
+        processPendingAdds(ctx, liveCombat, afterEnemies, activeForAdds, fightEnemyName(ctx, fightEnemies), N);
+      });
+      isolateRoundStep(liveCombat.id, 'marking the fallen', () =>
+        markNewlyDeadParticipants(ctx, liveCombat, [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)]));
+      isolateRoundStep(liveCombat.id, 'retargeting', () => {
+        const livingIds = livingEnemiesOf(ctx, liveCombat.id).map((e: any) => e.id as bigint);
+        for (const p of ctx.db.combat_participant.by_combat.filter(liveCombat.id)) {
+          const character = ctx.db.character.id.find(p.characterId);
+          if (!character || !character.combatTargetEnemyId) continue;
+          if (livingIds.includes(character.combatTargetEnemyId)) continue;
+          ctx.db.character.id.update({
+            ...character,
+            combatTargetEnemyId: autoAttackTargetId(character.combatTargetEnemyId, livingIds),
+          });
+        }
+      });
     }
 
     // (g) the end of the fight, from fresh reads
@@ -3128,7 +3193,11 @@ export const registerCombatReducers = (deps: any) => {
     const activeParticipants = participants.filter((x: any) => x.status === 'active');
     const enemyName = fightEnemyName(ctx, enemies);
     if (!enemies.some((e: any) => e.currentHp > 0n)) {
-      handleVictory(ctx, liveCombat, enemies, participants, activeParticipants, enemyName, nowMicros);
+      // A reward path that throws must not brick the fight: log it and still close the fight.
+      if (!isolateRoundStep(liveCombat.id, 'victory', () =>
+        handleVictory(ctx, liveCombat, enemies, participants, activeParticipants, enemyName, nowMicros))) {
+        closeFightAfterFailure(ctx, liveCombat.id);
+      }
       return;
     }
     const someoneStands = activeParticipants.some((x: any) => {
@@ -3136,7 +3205,10 @@ export const registerCombatReducers = (deps: any) => {
       return Boolean(character) && character.hp > 0n;
     });
     if (!someoneStands) {
-      handleDefeat(ctx, liveCombat, enemies, participants, enemyName, nowMicros);
+      if (!isolateRoundStep(liveCombat.id, 'defeat', () =>
+        handleDefeat(ctx, liveCombat, enemies, participants, enemyName, nowMicros))) {
+        closeFightAfterFailure(ctx, liveCombat.id);
+      }
       return;
     }
 
