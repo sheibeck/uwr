@@ -138,7 +138,7 @@ export interface ForSaleRow {
   templateId: bigint;
   name: string;
   rarity: string;
-  /** var(--color-rarity-...) from the template rarity (never the listing's quality). */
+  /** The rarity token from the template rarity (never the listing's quality). */
   color: string;
   /** 'Tier 2 · Leather' for gear, else the category word; usability reasons follow ' · '. */
   subLine: string;
