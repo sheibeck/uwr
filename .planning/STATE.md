@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 48
 current_phase_name: Combat Encounter
 status: executing
-stopped_at: Completed 48-04-PLAN.md
-last_updated: "2026-10-06T08:39:23.503Z"
+stopped_at: Completed 48-05-PLAN.md
+last_updated: "2026-10-06T08:51:38.326Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 48 execution started
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 56
-  completed_plans: 46
+  completed_plans: 47
   percent: 44
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 48 (Combat Encounter) — EXECUTING
-Plan: 5 of 14
+Plan: 6 of 14
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 48 execution started
 
-Progress: [████████░░] 82%
+Progress: [████████░░] 84%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -181,6 +181,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46.1-08: moment tail runs after the victory/defeat checks (final round never narrates a moment); row written before the enqueue so a refusal still counts against the 3-per-fight budget
 - [Phase ?]: [46.1-09] Local publish with --break-clients (additive, no clear) kept the stored key length 108; generated types.ts carries a CombatMoment row struct (generator emits private-table row types) with no table binding
 - [Phase ?]: [48-01] my_combat_aggro view (row MyCombatAggroEntry, pets dropped, combat ids deduplicated) published locally with --break-clients only (no clear, key 108 before and after); bindings carry myCombatAggro
+- [Phase ?]: 48-05: Tab scope bails when a role=menu is in the DOM; hidden target status is set on request, not on echo
 
 ### Roadmap Evolution
 
@@ -313,8 +314,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T08:39:23.471Z
-Stopped at: Completed 48-04-PLAN.md
+Last session: 2026-10-06T08:51:38.294Z
+Stopped at: Completed 48-05-PLAN.md
 
 ## Performance Metrics
 
@@ -444,6 +445,7 @@ Stopped at: Completed 48-04-PLAN.md
 | Phase 48 P02 | ~10min | 3 tasks | 12 files |
 | Phase 48 P03 | 10min | 3 tasks | 10 files |
 | Phase 48 P04 | 10min | 3 tasks | 5 files |
+| Phase 48 P05 | 20min | 2 tasks | 9 files |
 
 ## Operator Next Steps
 
