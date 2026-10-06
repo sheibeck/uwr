@@ -580,6 +580,8 @@ Promote with /gsd-review-backlog when ready.
 
 ### Phase 999.3: Dynamic Equipment Generation (BACKLOG)
 
+**Status:** Folded into 999.12 (Gear power budget and generated items) on 2026-10-06. Its goal and success criteria are delivered there, and 999.12 carries its requirement IDs EQUIP-01 to EQUIP-05. This entry is kept for history; promote 999.12, not this item.
+
 **Parked:** 2026-09-29 from v2.1 Phase 35 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.3-*/` (files retain their original `35-` prefixes).
 **State when parked:** not started (no context, research or plans)
 
@@ -594,7 +596,7 @@ Promote with /gsd-review-backlog when ready.
   4. The static WORLD_DROP_GEAR_DEFS constant is gone, replaced by a generation function
   5. Generated equipment names use the existing prefix/suffix affix system
 
-**Overlap (2026-10-06):** 999.12 (Gear power budget and generated items) covers criteria 1, 2, 3 and 5 and goes further. Criterion 4 is already met: `WORLD_DROP_GEAR_DEFS` no longer exists in the code. Decide whether to merge this item into 999.12 when either is promoted (see 999.12, "Relationship to 999.3").
+**Overlap (2026-10-06):** 999.12 covers criteria 1, 2, 3 and 5 and goes further. Criterion 4 is already met: `WORLD_DROP_GEAR_DEFS` no longer exists in the code.
 
 **Plans**: TBD
 
@@ -978,7 +980,7 @@ Plans:
 
 - **Strong rules:** two quality axes: rarity (common to legendary, rolled from world tier and region danger, `spacetimedb/src/helpers/items.ts` `TIER_RARITY_WEIGHTS` and `rollQualityTier`) and craft quality (dented to mastercraft, `spacetimedb/src/data/crafting_rules.ts`). There are prefix and suffix affixes with set strength per tier (`spacetimedb/src/data/affix_catalog.ts`), and crafting with material tiers, essences, modifier reagents, salvage and research.
 - **Missing content:** since the v2.0 removal of seeded content, server code never inserts `loot_table`, `loot_table_entry` or `recipe_template` rows. Enemies and bosses cannot drop gear (`findLootTable` in `spacetimedb/src/reducers/combat.ts` always returns nothing), and research has no recipes to find. Item templates come only from starter gear, the admin `grant_item`, and quest rewards.
-- **Quest reward gear looks broken (not yet verified at runtime):** `turn_in_quest` (`spacetimedb/src/reducers/quests.ts`) inserts an `item_template` with columns that do not exist (`damage`, `armor`, `str`, `maxHp`, …), without required ones (`requiredLevel`, `allowedClasses`, …), and with invalid slots (`feet`, `weapon`; the real names are `boots`, `mainHand`). If the insert throws, the whole turn-in rolls back, so item-reward quests cannot be completed. It also scales the reward from the player's level, not the quest's difficulty.
+- **Quest reward gear looks broken (not yet verified at runtime; quick fix requested 2026-10-06):** `turn_in_quest` (`spacetimedb/src/reducers/quests.ts`) inserts an `item_template` with columns that do not exist (`damage`, `armor`, `str`, `maxHp`, …), without required ones (`requiredLevel`, `allowedClasses`, …), and with invalid slots (`feet`, `weapon`; the real names are `boots`, `mainHand`). If the insert throws, the whole turn-in rolls back, so item-reward quests cannot be completed. It also scales the reward from the player's level, not the quest's difficulty.
 
 **1. One power budget for every source (owner decisions, 2026-10-06):**
 
@@ -995,7 +997,14 @@ budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
 
 **2. Crafting against boss gear (owner decision: agreed):** mastercraft can match boss gear, but only with rare materials from that boss or its region, so crafting and boss hunting support each other.
 
-**3. Legendaries (owner decision):** every legendary item is unique: only one player ever gets it. There can be many different legendary items. They are earned through rumors (999.10), first finds or bosses; their special effects come from the existing ability-effect vocabulary and count against the same budget and cap. Getting one is a World event with renown.
+**3. Legendaries (owner decisions, 2026-10-06):** think "the One Ring": legendary items are almost sentient and have their own history.
+
+- **Unique:** each legendary exists once and has one bearer at a time. There can be many different legendaries.
+- **Never destroyed:** deleting, salvaging, selling or otherwise destroying a legendary is refused.
+- **Lost into history, found again as a rumor:** when a legendary leaves its bearer it is not deleted. It "disappears into history" and resurfaces as a new rumor on some NPC (a 999.10 rumor keeper, possibly in another region), so it can be found again. The new finder becomes its next bearer; finding it is a World event with renown.
+- **Lost through inactivity:** if the bearer's character has not logged in for **over one year**, the legendary becomes lost: a scheduled sweep removes it from their inventory and sends it into history as above (`player.lastActivityAt` is already updated on input; confirm the right last-login signal).
+- **History kept:** each legendary keeps a record of its bearers and how it was gained and lost (game-written rows, not LLM text). NPC rumors and facts can draw on it ("It was last borne in the Greyreach…").
+- **Earned** through rumors (999.10), first finds or bosses. Special effects come from the existing ability-effect vocabulary and count against the same budget and 1.4× cap.
 
 **4. Where the graph helps:**
 
@@ -1006,21 +1015,31 @@ budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
 
 **5. Balance enforced by tests:** for every source and level, budget ≤ 1.4 × baseline including affixes; `requiredLevel = itemLevel`; identical inputs give identical items; a simulated fight with best-in-slot gear beats baseline gear by no more than a set margin; each legendary has at most one owner.
 
-**Relationship to 999.3 (Dynamic Equipment Generation):** 999.3 is kept (owner decision). This item covers 999.3's criteria 1 (drops scaled to enemy level and world tier), 2 (stats from formulas), 3 (quest rewards matched to quest difficulty) and 5 (names from the affix system), and adds the budget cap, sources, crafting, legendaries and provenance. 999.3's criterion 4 (remove `WORLD_DROP_GEAR_DEFS`) is already met. Proposed merge when either is promoted: fold 999.3 into this item and carry its requirement IDs EQUIP-01 to EQUIP-05.
+**999.3 folded in (2026-10-06):** 999.3 (Dynamic Equipment Generation) is folded into this item; its entry stays in the backlog for history, marked as folded. This item carries its requirement IDs **EQUIP-01 to EQUIP-05** and its success criteria, which become part of this item's criteria:
+
+1. Defeating an enemy drops equipment with stats scaled to enemy level and world tier (EQUIP: drops).
+2. Generated equipment stats (AC, damage, bonuses) come from formulas, not hardcoded tables.
+3. Quest reward equipment is generated to match the quest's difficulty tier.
+4. ~~The static `WORLD_DROP_GEAR_DEFS` constant is gone~~ (already met: it no longer exists).
+5. Generated equipment names use the existing prefix and suffix affix system.
+
+Suggested slicing when promoted: (a) power budget and generated drops and loot tables (criteria 1, 2, 5), (b) quest rewards by quest difficulty (criterion 3), (c) crafting, regional materials and recipe graph, (d) legendaries and provenance.
 
 **Open questions:**
 
 - Merge 999.3 into this item, or keep 999.3 as the first slice (drops and quest rewards) with this item as the follow-up?
-- Fix the quest-reward insert now as a quick task (it may block item-reward turn-ins today), or wait for this item?
-- Legendaries: can they be traded or dropped? If one is destroyed or its owner's character is deleted, does it return to the world (for example as a new rumor)?
+- Quest-reward insert: being fixed now as a quick task (owner decision, 2026-10-06); check the result when this item is promoted.
+- Legendaries: can they be traded or given away, or only lost? If the bearer's character is deleted, is the legendary lost into history immediately?
+- "Almost sentient": should a legendary ever act on its own (whisper flavor lines, resist a bearer, slip away when its nature is betrayed), or is that only flavor in its description and history?
+- May rumors and NPC facts name past bearers (player characters)? This touches the 999.9 rule that LLM-invented facts never describe players (bearer history is game-written) and the 999.9 privacy question.
 - Exact point costs per stat, the baseline curve per level, and the source multipliers.
 - The best-in-slot margin for the simulated-fight test.
 
-**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, legendary single ownership, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
+**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, legendary single ownership, legendaries cannot be destroyed, legendary lost after one year of bearer inactivity and resurfacing as a new NPC rumor, legendary bearer history, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding Backlog 999.12 (gear power budget and generated items)*
+*Last updated: 2026-10-06 after folding 999.3 into 999.12 and recording legendary decisions*
