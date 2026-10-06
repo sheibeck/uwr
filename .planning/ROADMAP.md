@@ -758,11 +758,14 @@ Plans:
 
 ```ts
 npc_memory_event {
-  id, npcId, subjectCharacterId?, kind, refId?, salience, tier /* 'short' | 'long' */,
+  id, npcId, subjectKind /* 'character' | 'npc' | 'world' */, subjectId?, kind, refId?,
+  toLocationId? /* direction, for sightings (999.10) */, salience, tier /* 'short' | 'long' */,
   count, createdAt, lastSeenAt, expiresAt?
 }
-// indexes: [npcId, subjectCharacterId], [npcId, tier], expiresAt
+// indexes: [npcId, subjectKind, subjectId], [npcId, tier], expiresAt
 ```
+
+- The subject is generalized beyond characters so NPCs can remember other NPCs (999.10 sightings). NPCs never record sightings of players' movements (owner decision, 2026-10-06).
 
 - Kinds: `met`, `talked`, `gift`, `quest_given`, `quest_completed`, `quest_abandoned`, `fought_nearby`, `died_nearby`, `helped`, `insulted`, `secret_shared`.
 - Written by the reducers that already handle the event (`talk_to_npc`, quest accept and `turn_in_quest`, `give_gift_to_npc`, combat at the NPC's location). Exact and token-free. The LLM may suggest at most a tag from a fixed vocabulary, which the server validates.
@@ -813,5 +816,59 @@ npc_fact_known { factId, characterId }   // who has heard it (doubles as a playe
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.10: Wandering NPCs, sightings and rumored places (BACKLOG)
+
+**Goal:** Some NPCs wander their region and other NPCs notice them, so "Have you seen Rob?" gets a real answer. Places NPCs mention that do not exist yet become rumors a player can chase, and a rumor joins the shared world only when someone finds a path to it. NPCs give directions like a real person: bearings plus landmarks. Captured 2026-10-06 (owner idea, refined in discussion). **Depends on 999.9** (event memories and `npc_fact`) and uses 999.8's name matching for "Have you seen <name>?".
+
+**Today:** NPCs never move (`npc.locationId` is set at world gen and not updated). `location_connection` has only `fromLocationId` and `toLocationId`, with no bearing. Existing pieces to reuse: the day/night tick, deterministic seeds (`helpers/search.ts`, `helpers/llm_retry.ts`), `performPassiveSearch`, the world-fill pipeline (`startWorldFill`), `pickRippleMessage` and `renown_server_first`. The client already ends the "Talking with" lock when the NPC leaves (`src/console/useConsole.ts`, `npcsHere` watcher).
+
+**1. Wandering:**
+
+- New `npc` columns: `homeLocationId`, `wanderStyle`:
+  - `anchored`: never moves. Forced in code for service NPC types (vendor, banker, crafting); generation cannot override it. `ensureRegionServices` keeps a start location's vendor and banker, and anchoring keeps them there.
+  - `roamer`: moves along `location_connection` between locations of the same region, optionally within a few steps of home.
+  - `commuter` (optional): moves between a day spot and a night spot on the day/night tick.
+- A scheduled `npc_wander_tick` decides moves with deterministic seeds (NPC id and timestamp), never `Math.random`.
+- An NPC does not leave while a player has talked to it in the last few minutes.
+- The location feed announces arrivals and departures ("Rob the Miner arrives from Copperhollow.").
+- A wandering NPC who is the turn-in target of an active quest is part of the game; the quest log shows their last known location.
+
+**2. Sightings (observant NPCs):**
+
+- Each move writes `saw_arrive` and `saw_leave` event memories (999.9, `subjectKind: 'npc'`, `toLocationId`) for NPCs at the locations being left and entered.
+- `perception` (0-100) per NPC, set at generation. A deterministic roll against it decides whether the sighting is recorded. Low perception may record a vague sighting ("someone passed through, heading out of town") with no name.
+- Sightings are short-term and fade within about a day unless repeated; the newest sighting wins, so Rob coming back and heading west replaces the earlier answer.
+- **NPCs never watch players.** Only NPC movements are recorded (owner decision, 2026-10-06).
+
+**3. Directions: bearings plus landmarks (owner decision):**
+
+- Add `bearing` to `location_connection` (8-point compass), set at world gen. The reverse connection gets the opposite bearing; the server validates the value.
+- The server computes the route: a breadth-first search over connections from the NPC's location to the destination, limited to what the NPC knows (home region, and places it has walked through when wandering). It produces steps of bearing plus landmark or place name, using `region.landmarks` and location names.
+- The LLM only phrases those steps naturally ("Head east to the old mill, then west along the river until you reach Eastgate."). It never invents the route.
+
+**4. Rumored places:**
+
+- The NPC conversation reply schema gains `newPlace` (at most one per reply): name, one-line hint, optional route hint.
+- The server checks it is not an existing place (loose name match), applies a per-region cap on rumored places, and then:
+  1. Creates a cheap stub: a `location` row with status `rumored` and only a name, region and hint. No connections, enemies or full description, so no tokens are spent on places nobody visits.
+  2. Records it as an `npc_fact` (999.9). Other NPCs can repeat it, and `npc_fact_known` marks who has heard it.
+- **Per-player discovery (owner decision):** a rumored place is visible (map, journal) only to players who have heard the rumor.
+- **Going public:** a rumor becomes visible to everyone only when someone finds a path that links it to the charted world. The path comes from the NPC's route hint attached to a real location, or from exploring: `performPassiveSearch` at a location next to the hint can roll to uncover it.
+- When a path is found: the stub becomes `charted`, the existing world-fill pipeline generates the real location, `location_connection` rows with bearings are written, a ripple announcement goes out (`pickRippleMessage`), and the discoverer gets server-first renown (`renown_server_first`).
+- The LLM proposes only a name and a hint. Danger, level, enemies and loot come from the normal region rules, so a leading question ("tell me about the Golden City of Free Loot") yields a rumor, not free loot.
+
+**Open questions:**
+
+- Wander tick rate, step limit from home, and how many roamers per region.
+- Should commuters be part of the first cut?
+- Per-region cap on rumored places, and whether an untouched rumor ever expires.
+- Can a rumor point outside the NPC's region, and how does that interact with the region generation locks?
+
+**Requirements:** TBD (unit tests required: service NPC types never wander, moves stay within the region and step limit, no move during a recent conversation, deterministic move choice, sightings written to NPCs at both ends, the perception roll, no player sightings, newest sighting wins, bearing validation and reverse bearings, route search limited to NPC knowledge, rumor duplicate check and caps, rumor visibility only for players who heard it, rumor goes public only when a path links it, charting triggers world fill, ripple and server-first renown)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding Backlog 999.9 (NPC memory graph)*
+*Last updated: 2026-10-06 after adding Backlog 999.10 (wandering NPCs, sightings and rumored places)*
