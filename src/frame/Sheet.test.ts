@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import Sheet from './Sheet.vue';
 import MoreSheet from './MoreSheet.vue';
+import FeedShell from './FeedShell.vue';
 
 let wrapper: VueWrapper | null = null;
 
@@ -130,6 +131,24 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(w.get('button.inner').element);
   });
 
+  it('renders a meta slot between the title and the spacer', () => {
+    wrapper = mount(Sheet, {
+      props: { title: 'Encounter' },
+      slots: { default: 'Body', meta: '<span class="sheet-meta">Round 3 · 6s</span>' },
+      attachTo: document.body,
+    });
+    const header = wrapper.get('.sheet-header');
+    const kinds = Array.from(header.element.children).map((child) => child.tagName.toLowerCase() + '.' + child.className);
+    expect(kinds.slice(0, 3)).toEqual(['h4.', 'span.sheet-meta', 'span.sheet-spacer']);
+    expect(wrapper.get('.sheet-meta').text()).toBe('Round 3 · 6s');
+  });
+
+  it('without a meta slot the header is the title, the spacer and the close button', () => {
+    const w = mountSheet();
+    const kinds = Array.from(w.get('.sheet-header').element.children).map((child) => child.tagName.toLowerCase());
+    expect(kinds).toEqual(['h4', 'span', 'button']);
+  });
+
   it('style has the 20px top radius, 44px close button and a reduced-motion rule', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/frame/Sheet.vue'), 'utf8');
     expect(source).toContain('border-radius: 20px 20px 0 0');
@@ -167,5 +186,52 @@ describe('MoreSheet', () => {
     expect(w.emitted('logout')).toHaveLength(1);
     await w.get('button.btn-icon').trigger('click');
     expect(w.emitted('close')).toHaveLength(1);
+  });
+});
+
+describe('MoreSheet logoutOnly', () => {
+  it('lists only the Log out row, with no separator, and emits logout', async () => {
+    wrapper = mount(MoreSheet, { props: { logoutOnly: true }, attachTo: document.body });
+    const rows = wrapper.findAll('button.more-row');
+    expect(rows.map((row) => row.text())).toEqual(['Log out']);
+    expect(wrapper.find('[role="separator"]').exists()).toBe(false);
+    await rows[0].trigger('click');
+    expect(wrapper.emitted('logout')).toHaveLength(1);
+    expect(wrapper.emitted('select')).toBeUndefined();
+  });
+
+  it('still closes from the close button', async () => {
+    wrapper = mount(MoreSheet, { props: { logoutOnly: true }, attachTo: document.body });
+    await wrapper.get('button.btn-icon').trigger('click');
+    expect(wrapper.emitted('close')).toHaveLength(1);
+  });
+
+  it('without the prop the full list is unchanged', () => {
+    const w = mountMore();
+    expect(w.findAll('button.more-row').map((row) => row.text())).toEqual([
+      'Stats',
+      'Crafting',
+      'Events',
+      'Vendor',
+      'Log out',
+    ]);
+    expect(w.find('[role="separator"]').exists()).toBe(true);
+  });
+});
+
+describe('FeedShell safeBottom', () => {
+  it('adds the safe-bottom class only when asked', () => {
+    wrapper = mount(FeedShell, { props: { compact: true, safeBottom: true } });
+    expect(wrapper.get('main.feed').classes()).toContain('safe-bottom');
+    wrapper.unmount();
+    wrapper = mount(FeedShell, { props: { compact: true } });
+    expect(wrapper.get('main.feed').classes()).not.toContain('safe-bottom');
+    expect(wrapper.get('main.feed').classes()).toEqual(['feed', 'compact']);
+  });
+
+  it('pads the compact composer by the bottom safe-area inset', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/FeedShell.vue'), 'utf8');
+    expect(source).toContain('.compact.safe-bottom .composer');
+    expect(source).toContain('calc(8px + env(safe-area-inset-bottom))');
   });
 });

@@ -38,6 +38,7 @@ onBeforeUnmount(() => {
     <div class="grabber-wrap"><div class="grabber" aria-hidden="true"></div></div>
     <div class="sheet-header">
       <h4 :id="titleId">{{ props.title }}</h4>
+      <slot name="meta" />
       <span class="sheet-spacer"></span>
       <button
         ref="closeButton"

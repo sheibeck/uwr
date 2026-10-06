@@ -4,11 +4,13 @@ import FeedView from '../console/FeedView.vue';
 import HotbarRow from '../hotbar/HotbarRow.vue';
 import Composer from '../input/Composer.vue';
 
-const props = defineProps<{ compact?: boolean }>();
+// safeBottom: in combat on mobile the tab bar that normally covers the bottom inset is hidden, so
+// the composer keeps clear of it itself.
+const props = defineProps<{ compact?: boolean; safeBottom?: boolean }>();
 </script>
 
 <template>
-  <main class="feed" :class="{ compact: props.compact }">
+  <main class="feed" :class="{ compact: props.compact, 'safe-bottom': props.safeBottom }">
     <FeedView :compact="props.compact" />
     <section class="composer">
       <RoundRow />
@@ -41,5 +43,9 @@ const props = defineProps<{ compact?: boolean }>();
 .compact .composer {
   padding: 8px 16px;
   background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+}
+
+.compact.safe-bottom .composer {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
 }
 </style>

@@ -3,6 +3,9 @@ import { PhSignOut } from '@phosphor-icons/vue';
 import { getScreen, type ScreenId } from '../screens/screens';
 import Sheet from './Sheet.vue';
 
+// logoutOnly: in combat the tab bar is hidden, so the strip's account button opens this sheet with
+// Log out as the only row (48-CONTEXT A5/A6).
+const props = withDefaults(defineProps<{ logoutOnly?: boolean }>(), { logoutOnly: false });
 const emit = defineEmits<{ select: [screen: ScreenId]; logout: []; close: [] }>();
 
 const rows: ReadonlyArray<{ id: ScreenId; label: string }> = [
@@ -15,11 +18,13 @@ const rows: ReadonlyArray<{ id: ScreenId; label: string }> = [
 
 <template>
   <Sheet title="More" @close="emit('close')">
-    <button v-for="row in rows" :key="row.id" type="button" class="more-row" @click="emit('select', row.id)">
-      <component :is="getScreen(row.id).icon" :size="20" />
-      <span>{{ row.label }}</span>
-    </button>
-    <div class="hr" role="separator"></div>
+    <template v-if="!props.logoutOnly">
+      <button v-for="row in rows" :key="row.id" type="button" class="more-row" @click="emit('select', row.id)">
+        <component :is="getScreen(row.id).icon" :size="20" />
+        <span>{{ row.label }}</span>
+      </button>
+      <div class="hr" role="separator"></div>
+    </template>
     <button type="button" class="more-row" @click="emit('logout')">
       <PhSignOut :size="20" />
       <span>Log out</span>
