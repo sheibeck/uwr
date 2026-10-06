@@ -1479,6 +1479,7 @@ export const VendorInventory = __t.object("VendorInventory", {
   itemTemplateId: __t.u64(),
   price: __t.u64(),
   qualityTier: __t.option(__t.string()),
+  quantity: __t.u64(),
 });
 export type VendorInventory = __Infer<typeof VendorInventory>;
 

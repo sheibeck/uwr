@@ -10,11 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  npcId: __t.u64().name("npc_id"),
-  itemTemplateId: __t.u64().name("item_template_id"),
-  price: __t.u64(),
-  qualityTier: __t.option(__t.string()).name("quality_tier"),
+export default {
+  characterId: __t.u64(),
+  itemInstanceId: __t.u64(),
+  npcId: __t.u64(),
   quantity: __t.u64(),
-});
+};

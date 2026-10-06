@@ -55,6 +55,7 @@ import CreateItemTemplateReducer from "./create_item_template_reducer";
 import GrantItemReducer from "./grant_item_reducer";
 import BuyItemReducer from "./buy_item_reducer";
 import SellItemReducer from "./sell_item_reducer";
+import SellItemQuantityReducer from "./sell_item_quantity_reducer";
 import BuybackLastSaleReducer from "./buyback_last_sale_reducer";
 import SellAllJunkReducer from "./sell_all_junk_reducer";
 import TakeLootReducer from "./take_loot_reducer";
@@ -1811,6 +1812,7 @@ const reducersSchema = __reducers(
   __reducerSchema("grant_item", GrantItemReducer),
   __reducerSchema("buy_item", BuyItemReducer),
   __reducerSchema("sell_item", SellItemReducer),
+  __reducerSchema("sell_item_quantity", SellItemQuantityReducer),
   __reducerSchema("buyback_last_sale", BuybackLastSaleReducer),
   __reducerSchema("sell_all_junk", SellAllJunkReducer),
   __reducerSchema("take_loot", TakeLootReducer),
