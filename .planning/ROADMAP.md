@@ -236,7 +236,39 @@ Plans:
   4. Typing a natural sentence that starts with a command word ("Who is that over there?", "Leave him alone", "End this now", "Accept my apology") reaches the conversation or intent path, while exact forms (`who`, `/who`, `invite <name>`) still run the command.
   5. At 390×844 the feed, keywords, hotbar and input are usable, and the vitals, routes, Nearby, quests and active event are reachable from the compact strip and tab bar.
 
-**Plans**: TBD
+**Plans**: 12 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 47-01-PLAN.md — Input routing: command words run only in exact form (routeInput matrix), conversation words, input history
+- [ ] 47-02-PLAN.md — Feed text: line classification by kind, server markup cleaning, whisper/chat/NPC parsers, keyword matcher
+- [ ] 47-03-PLAN.md — Rail and hotbar derivations: effects, XP, party, quests, route levels, Nearby, world event card, hotbar slots and cooldowns
+- [ ] 47-04-PLAN.md — Console state: ported indicator selection and queue gate, narrative queue, info formatters, capped feed store
+- [ ] 47-05-PLAN.md — Subscription primitives: event-table binding, keyed swap-on-applied bindings, server clock, filtered queries
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 47-06-PLAN.md — Game data hub with every filtered subscription; GAME/FRAME/CONSOLE injection contracts; session, App and AppFrame wiring
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 47-07-PLAN.md — Feed rendering: labelled lines, keyword buttons, pinning and New lines pill, Keeper progress line, three line-hue tokens
+- [ ] 47-08-PLAN.md — Vitals rail and mobile strip: XP, effect chips, party block with Invite, leader crown, chip row
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 47-09-PLAN.md — Console controller and composer: routing to reducers, echoes, narrative queue, conversation mode, keyword and rail actions, automatic look
+- [ ] 47-10-PLAN.md — Context rail: Here card with routes, Nearby actions, tracked quests, world event card with objective progress
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 47-11-PLAN.md — Hotbar: ten iconed slots, cooldown sweeps, number keys, hotbar switching
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 47-12-PLAN.md — Mobile reach (Map and Social sheets), keyboard-open compaction, populated integration test, full gate, owner try-out checklist (deferred)
+
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Ledger 2i/2j and Console & Combat 1a (exploring), desktop and mobile.
 **Notes**:
