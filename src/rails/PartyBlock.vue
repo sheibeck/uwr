@@ -1,15 +1,26 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
 import { PhCrownSimple, PhUserPlus } from '@phosphor-icons/vue';
-import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import {
+  COMBAT_KEY,
+  CONSOLE_KEY,
+  GAME_KEY,
+  createInertCombat,
+  createInertConsole,
+  createInertGame,
+} from '../game/context';
 import { barFraction } from '../frame/vitals';
-import { partyMembers, partySize } from './party';
+import { isPartyLeader, partyMembers, partySize, selfCardView } from './party';
 
 // Party header, Invite pre-fill and member cards (47-UI-SPEC "Party block", CON-03).
 // Shared by the vitals rail and the Social sheet. Names and classes come from server rows and are
 // rendered as text nodes only.
+//
+// In a fight (game.combat.active) and in a party the cards become ally-target buttons and a 'You'
+// card comes first (48-UI-SPEC "Ally targeting", CMB-05). Otherwise this is the Phase 47 block.
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
+const controller = inject(COMBAT_KEY, createInertCombat());
 
 const inParty = computed(() => game.group.value !== null);
 const size = computed(() => partySize(game.groupMembers.value));
@@ -22,6 +33,22 @@ const members = computed(() =>
     selfId: game.characterId.value,
   }),
 );
+
+const combatParty = computed(() => game.combat.active.value && inParty.value);
+const cards = computed(() => {
+  if (!combatParty.value) return members.value;
+  const self = game.character.value;
+  if (self === null) return members.value;
+  return [selfCardView(self, isPartyLeader(game.group.value, self.id)), ...members.value];
+});
+
+function interactive(member: { known: boolean }): boolean {
+  return combatParty.value && member.known;
+}
+
+function selected(member: { id: bigint }): boolean {
+  return controller.allyTargetId.value === member.id;
+}
 
 function pct(value: bigint, max: bigint): string {
   return `${barFraction(value, max) * 100}%`;
@@ -40,7 +67,8 @@ function invite(): void {
   <section class="party" aria-label="Party">
     <div class="party-head">
       <h6>{{ heading }}</h6>
-      <button type="button" class="btn btn-ghost invite" @click="invite">
+      <span v-if="combatParty" class="hint">Click to target</span>
+      <button v-else type="button" class="btn btn-ghost invite" @click="invite">
         <PhUserPlus :size="14" aria-hidden="true" />Invite
       </button>
     </div>
@@ -48,12 +76,23 @@ function invite(): void {
     <p v-if="!inParty" class="empty">Not in a party.</p>
 
     <div v-else class="cards">
-      <div v-for="member in members" :key="String(member.id)" class="member" :class="{ unknown: !member.known }">
+      <component
+        :is="interactive(member) ? 'button' : 'div'"
+        v-for="member in cards"
+        :key="String(member.id)"
+        class="member"
+        :class="{ unknown: !member.known, ally: interactive(member), selected: interactive(member) && selected(member) }"
+        :type="interactive(member) ? 'button' : undefined"
+        :aria-pressed="interactive(member) ? (selected(member) ? 'true' : 'false') : undefined"
+        :aria-label="interactive(member) ? `Target ${member.name} with your next ability` : undefined"
+        @click="interactive(member) ? controller.selectAlly(member.id) : undefined"
+      >
         <div class="member-row">
           <span class="member-name" :title="memberLabel(member)">{{ memberLabel(member) }}</span>
           <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
           <span class="member-class">{{ member.className }}</span>
-          <span v-if="member.known" class="member-level">Lv {{ member.level }}</span>
+          <span v-if="interactive(member)" class="member-hp">{{ member.hp }}/{{ member.maxHp }}</span>
+          <span v-else-if="member.known" class="member-level">Lv {{ member.level }}</span>
         </div>
         <div
           class="track health-track"
@@ -79,7 +118,7 @@ function invite(): void {
             :style="{ width: pct(member.resource, member.maxResource) }"
           ></div>
         </div>
-      </div>
+      </component>
     </div>
   </section>
 </template>
@@ -102,6 +141,12 @@ function invite(): void {
 .party h6 {
   margin: 0;
   color: var(--color-neutral-400);
+}
+
+.hint {
+  font-size: 10px;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
 }
 
 .invite {
@@ -132,6 +177,35 @@ function invite(): void {
   border-radius: var(--radius-md);
   background: var(--color-surface);
   min-width: 0;
+}
+
+.member.ally {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.member.ally:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
+}
+
+.member.ally:active {
+  background: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
+}
+
+.member.ally:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.member.ally.selected {
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 .member.unknown {
@@ -171,6 +245,15 @@ function invite(): void {
   margin-left: auto;
   font-size: 10px;
   color: var(--color-neutral-400);
+  white-space: nowrap;
+}
+
+.member-hp {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

@@ -109,3 +109,38 @@ export function partyMembers(input: {
     };
   });
 }
+
+/**
+ * The player's own card for the combat party block (48-UI-SPEC "Ally targeting"): named 'You',
+ * same mana-or-stamina rule as partyMembers, so the player can re-select themself as the ally.
+ */
+export function selfCardView(
+  character: {
+    id: bigint;
+    className: string;
+    level: bigint;
+    hp: bigint;
+    maxHp: bigint;
+    mana: bigint;
+    maxMana: bigint;
+    stamina: bigint;
+    maxStamina: bigint;
+  },
+  isLeader: boolean,
+): PartyMemberView {
+  const usesMana = character.maxMana > 0n;
+  return {
+    id: character.id,
+    name: 'You',
+    className: character.className,
+    level: character.level,
+    hp: character.hp,
+    maxHp: character.maxHp,
+    resource: usesMana ? character.mana : character.stamina,
+    maxResource: usesMana ? character.maxMana : character.maxStamina,
+    resourceKind: usesMana ? 'mana' : 'stamina',
+    isLeader,
+    known: true,
+    healthPercent: healthPercent(character.hp, character.maxHp),
+  };
+}
