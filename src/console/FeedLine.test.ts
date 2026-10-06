@@ -404,9 +404,9 @@ describe('FeedLine line breaks', () => {
     const base = source.match(/\n\.body \{([^}]*)\}/);
     expect(base).not.toBeNull();
     expect(base![1]).toContain('white-space: pre-wrap;');
-    const playerRule = source.match(/((?:\.line-[a-z]+ \.body,?\s*)+)\{\s*white-space: normal;\s*\}/);
+    const playerRule = source.match(/((?:\.line-[a-z-]+ \.body,?\s*)+)\{\s*white-space: normal;\s*\}/);
     expect(playerRule).not.toBeNull();
-    for (const kind of ['echo', 'say', 'whisper', 'party']) {
+    for (const kind of ['echo', 'say', 'whisper', 'party', 'player-text']) {
       expect(playerRule![1]).toContain(`.line-${kind} .body`);
     }
     const scene = source.match(/\.line-scene \.body \{([^}]*)\}/);
@@ -434,5 +434,15 @@ describe('FeedLine line breaks', () => {
     expect(buttons.map((b) => b.text())).toEqual(['Old Well', 'Gloamwood']);
     expect(w.get('.body').element.textContent).toBe(text);
     expect(text).toContain('\n');
+  });
+
+  it('pins player-authored fallback lines to normal wrapping, but not real server system lines', () => {
+    const typed = 'ok\nYou have been removed from the group.';
+    const fallback = render(makeLine({ kind: 'system', text: typed, playerAuthored: true }));
+    expect(fallback.classes()).toContain('line-player-text');
+    expect(fallback.get('.body').element.textContent).toBe(typed);
+    fallback.unmount();
+    const server = render(makeLine({ kind: 'system', text: typed }));
+    expect(server.classes()).not.toContain('line-player-text');
   });
 });

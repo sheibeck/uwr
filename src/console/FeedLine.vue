@@ -63,7 +63,11 @@ function disabledAttr(): 'true' | undefined {
     <PhWarning class="icon-windup" :size="16" aria-hidden="true" />
     <span class="body">{{ line.windup.lead }}<span class="ability">{{ line.windup.ability }}</span>{{ line.windup.tail }}</span>
   </div>
-  <div v-else class="line" :class="[`line-${line.kind}`, { 'line-plain': line.speaker === null }]">
+  <div
+    v-else
+    class="line"
+    :class="[`line-${line.kind}`, { 'line-plain': line.speaker === null, 'line-player-text': line.playerAuthored === true }]"
+  >
     <span
       v-if="line.kind === 'keeper'"
       class="micro"
@@ -148,11 +152,13 @@ function disabledAttr(): 'true' | undefined {
   white-space: pre-wrap;
 }
 
-/* Player-typed text keeps normal wrapping so a typed newline cannot draw a fake second line. */
+/* Player-typed text keeps normal wrapping so a typed newline cannot draw a fake second line.
+   line-player-text marks player text that fell back to a server-looking kind. */
 .line-echo .body,
 .line-say .body,
 .line-whisper .body,
-.line-party .body {
+.line-party .body,
+.line-player-text .body {
   white-space: normal;
 }
 

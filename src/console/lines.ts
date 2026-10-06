@@ -103,6 +103,12 @@ export interface FeedLineView {
   roundTag?: bigint | null;
   /** Wind-up block lines. */
   windup?: { lead: string; ability: string; tail: string } | null;
+  /**
+   * Player-typed text that fell back to a server-looking kind (group chat whose sender is not in
+   * the party list, the command echo). Set only when true. FeedLine pins its body to normal
+   * wrapping so a typed newline cannot draw a fake second system line.
+   */
+  playerAuthored?: boolean;
 }
 
 const KEEPER_KINDS = new Set(['narrative', 'llm', 'creation', 'combat_narration', 'class', 'character_created']);
@@ -135,6 +141,7 @@ interface LineFields {
   roundNumber?: bigint | null;
   roundKey?: string | null;
   windup?: { lead: string; ability: string; tail: string } | null;
+  playerAuthored?: boolean;
 }
 
 function makeLine(key: string, fields: LineFields): FeedLineView {
@@ -156,6 +163,7 @@ function makeLine(key: string, fields: LineFields): FeedLineView {
     roundKey: fields.roundKey ?? null,
     roundTag: null,
     windup: fields.windup ?? null,
+    ...(fields.playerAuthored === true ? { playerAuthored: true } : {}),
   };
 }
 
@@ -225,13 +233,13 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
     if (parsed) {
       return [makeLine(key, { kind: 'party', text: parsed.text, speaker: parsed.name, keywordEligible: false })];
     }
-    return [makeLine(key, { kind: 'system', text: raw, keywordEligible: false })];
+    return [makeLine(key, { kind: 'system', text: raw, keywordEligible: false, playerAuthored: true })];
   }
   if (kind === 'say' || kind === 'emote') {
     return [makeLine(key, { kind: 'say', text: raw, keywordEligible: false })];
   }
   if (kind === 'command') {
-    return [makeLine(key, { kind: 'system', text: raw, keywordEligible: false })];
+    return [makeLine(key, { kind: 'system', text: raw, keywordEligible: false, playerAuthored: true })];
   }
 
   if (RENDER_NOTHING_KINDS.has(kind)) return [];

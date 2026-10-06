@@ -144,6 +144,19 @@ describe('rows without segments', () => {
     });
   });
 
+  it('marks player text that fell back to a System line as playerAuthored', () => {
+    // group chat whose sender is not in the party list (left the group, or not synced yet)
+    const leftGroup = first(row('group', 'Bo: ok\nYou were removed.', { source: 'group' }), ['Mara']);
+    expect(leftGroup).toMatchObject({ kind: 'system', playerAuthored: true });
+    expect(first(row('command', '> /who'))).toMatchObject({ kind: 'system', playerAuthored: true });
+  });
+
+  it('does not mark parsed party chat, server system rows or local system entries', () => {
+    expect(first(row('group', 'Mara: hello', { source: 'group' }), ['Mara'])).not.toHaveProperty('playerAuthored');
+    expect(first(row('system', 'Commands:\n  look'))).not.toHaveProperty('playerAuthored');
+    expect(first(row('system', 'Queue full', { source: 'local' }))).not.toHaveProperty('playerAuthored');
+  });
+
   it('look with two or more lines is a scene with a title', () => {
     expect(first(row('look', 'Ember Gate\nA warm wind.'))).toMatchObject({
       kind: 'scene',
