@@ -7,7 +7,6 @@ export const COMBAT_LOOP_INTERVAL_MICROS = 1_000_000n;
 // Round-based combat timings: a round lasts at most 10 s (it ends early once everyone has chosen);
 // effect and cooldown seconds convert to rounds at 4 s each (see helpers/combat_rounds.ts).
 export const ROUND_TIMER_MICROS = 10_000_000n;
-export const SOLO_TIMER_MICROS = 10_000_000n;
 export const EFFECT_ROUND_CONVERSION_MICROS = 4_000_000n;
 export const MIN_EFFECT_ROUNDS = 1n;
 export const MAX_COMBAT_NARRATIONS = 3n;                     // per-fight cap on big-moment narrations; the end-of-fight narration is separate (+1)

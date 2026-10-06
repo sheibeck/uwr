@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 // @ts-ignore see above
 import { join } from 'node:path';
-import { ROUND_TIMER_MICROS, SOLO_TIMER_MICROS } from '../data/combat_constants';
+import { ROUND_TIMER_MICROS } from '../data/combat_constants';
 import {
   ROUND_STATE,
   CHOICE_ACTION_TYPES,
@@ -38,7 +38,6 @@ import {
 describe('constants', () => {
   it('round timer is 10 seconds', () => {
     expect(ROUND_TIMER_MICROS).toBe(10_000_000n);
-    expect(SOLO_TIMER_MICROS).toBe(10_000_000n);
   });
   it('round states', () => {
     expect(ROUND_STATE).toEqual({ select: 'action_select', resolving: 'resolving', resolved: 'resolved' });

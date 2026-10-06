@@ -11,6 +11,7 @@ import { addCharacterEffect } from './combat';
 import { appendPrivateEvent, appendGroupEvent, fail } from './events';
 import { getEquippedWeaponStats } from './items';
 import { effectiveGroupId } from './group';
+import { secondsToRounds } from './combat_rounds';
 
 // Private helper: get active combat for character
 function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | null {
@@ -106,7 +107,7 @@ export function applyPerkProcs(
     // buffType: apply a CharacterEffect buff on proc
     if (effect.buffType) {
       const buffDuration = effect.buffDurationSeconds ?? 10;
-      const roundsRemaining = BigInt(Math.max(1, Math.ceil(buffDuration / 3)));
+      const roundsRemaining = secondsToRounds(BigInt(buffDuration));
       const buffMagnitude = effect.buffMagnitude ?? 1n;
       addCharacterEffect(ctx, character.id, effect.buffType, buffMagnitude, roundsRemaining, perkName);
       appendPrivateEvent(
@@ -233,8 +234,8 @@ export function executePerkAbility(
   } else if (effect.buffType) {
     // Wrath of the Fallen: grant a damage buff -- usable in or out of combat
     const buffDuration = effect.buffDurationSeconds ?? 20;
-    // Convert seconds to combat rounds (3s per round), minimum 1 round
-    const roundsRemaining = BigInt(Math.max(1, Math.ceil(buffDuration / 3)));
+    // Convert seconds to combat rounds (4 s per round, ceil, minimum 1 round)
+    const roundsRemaining = secondsToRounds(BigInt(buffDuration));
     const buffMagnitude = effect.buffMagnitude ?? 25n;
     addCharacterEffect(ctx, character.id, effect.buffType, buffMagnitude, roundsRemaining, abilityKey);
     const msg = character.name + ' activates ' + perkDef.name + '! +' + buffMagnitude + '% damage for ' + buffDuration + 's.';

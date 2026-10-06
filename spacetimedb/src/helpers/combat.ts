@@ -36,6 +36,7 @@ import {
   GROUP_SIZE_BIAS_MAX,
 } from '../data/combat_constants';
 import { applyArmorMitigation, applyVariance, scaleByPercent } from './combat_enemies';
+import { secondsToRounds } from './combat_rounds';
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
 
@@ -263,25 +264,24 @@ export function addEnemyEffect(
   sourceAbility: string,
   ownerCharacterId?: bigint
 ) {
-  // Stun uses a time-based window stored in CombatEnemyEffect.magnitude (expiry micros).
-  // roundsRemaining is treated as seconds. Multiple stuns extend the window via max().
+  // Stun counts in rounds like every other effect: magnitude is 1n and roundsRemaining is the
+  // number of rounds. A stunned enemy skips its turn (the engine reads roundsRemaining > 0n) and
+  // the end-of-round tick counts it down. Re-applying keeps the larger roundsRemaining.
   if (effectType === 'stun') {
-    const durationMicros = roundsRemaining * 1_000_000n;
-    const newUntil = ctx.timestamp.microsSinceUnixEpoch + durationMicros;
     const existing = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemyId)].find(
       (effect: any) => effect.effectType === 'stun'
     );
     if (existing) {
-      const maxExpiry = existing.magnitude > newUntil ? existing.magnitude : newUntil;
-      ctx.db.combat_enemy_effect.id.update({ ...existing, magnitude: maxExpiry, ownerCharacterId });
+      const longest = existing.roundsRemaining > roundsRemaining ? existing.roundsRemaining : roundsRemaining;
+      ctx.db.combat_enemy_effect.id.update({ ...existing, roundsRemaining: longest, ownerCharacterId });
     } else {
       ctx.db.combat_enemy_effect.insert({
         id: 0n,
         combatId,
         enemyId,
         effectType: 'stun',
-        magnitude: newUntil,
-        roundsRemaining: 0n,
+        magnitude: 1n,
+        roundsRemaining,
         sourceAbility,
         ownerCharacterId,
       });
@@ -568,7 +568,7 @@ export function resolveAbility(
     const power = scaledPower();
     const directDamage = power / 2n; // 50% direct
     const dotTotal = power - directDamage; // 50% DoT
-    const duration = ability.effectDuration ?? 3n;
+    const duration = secondsToRounds(ability.effectDuration ?? 3n);
     // Each tick hits for the full dotTotal — DoTs reward patience with higher total output
     let dotPerTick = dotTotal;
     if (dotPerTick < 1n && dotTotal > 0n) dotPerTick = 1n;
@@ -607,7 +607,7 @@ export function resolveAbility(
     const power = scaledPower();
     const directHeal = power / 2n;
     const hotTotal = power - directHeal;
-    const duration = ability.effectDuration ?? 3n;
+    const duration = secondsToRounds(ability.effectDuration ?? 3n);
     // Each tick heals for the full hotTotal — HoTs reward patience with higher total output
     let hotPerTick = hotTotal;
     if (hotPerTick < 1n && hotTotal > 0n) hotPerTick = 1n;
@@ -629,7 +629,7 @@ export function resolveAbility(
     // Apply positive effect to target(s)
     const eType = ability.effectType ?? 'damage_up';
     const eMag = ability.effectMagnitude ?? 3n;
-    const eDur = ability.effectDuration ?? 3n;
+    const eDur = secondsToRounds(ability.effectDuration ?? 3n);
 
     // Guard: LLM may generate kind='buff' with a debuff-type effectType (e.g. armor_down, stun).
     // Redirect these to the enemy targeting path so debuffs land on enemies, not the caster.
@@ -680,7 +680,7 @@ export function resolveAbility(
   if (kind === 'debuff') {
     const eType = ability.effectType ?? 'armor_down';
     const eMag = ability.effectMagnitude ?? 3n;
-    const eDur = ability.effectDuration ?? 3n;
+    const eDur = secondsToRounds(ability.effectDuration ?? 3n);
     const power = scaledPower();
     const isPureDebuff = ability.value1 === 0n;
     const directDamage = isPureDebuff ? 0n : (power * 75n) / 100n; // 75% direct, 25% budget to debuff
@@ -717,7 +717,7 @@ export function resolveAbility(
     const shieldTarget = target ?? (actor.type === 'character' ? ctx.db.character.id.find(actor.id) : null);
     if (!shieldTarget) return;
     const shieldAmount = ability.value1;
-    const duration = ability.effectDuration ?? 5n;
+    const duration = secondsToRounds(ability.effectDuration ?? 5n);
     addCharacterEffect(ctx, shieldTarget.id, 'damage_shield', shieldAmount, duration, ability.name);
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
@@ -855,7 +855,7 @@ export function resolveAbility(
     const enemy = findEnemyTarget();
     if (!enemy || !combatId) { throw new SenderError('No target'); }
     const ccType = ability.effectType ?? 'stun';
-    const ccDuration = ability.effectDuration ?? 4n;
+    const ccDuration = secondsToRounds(ability.effectDuration ?? 4n);
     addEnemyEffect(ctx, combatId, enemy.id, ccType, 1n, ccDuration, ability.name, actor.id);
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
@@ -931,7 +931,7 @@ export function resolveAbility(
     // Toggle party-wide persistent effect (song) or passive aura radiating from caster (aura)
     const eType = ability.effectType ?? 'damage_up';
     const eMag = ability.effectMagnitude ?? 3n;
-    const eDur = ability.effectDuration ?? 180n; // default 3 minutes
+    const eDur = secondsToRounds(ability.effectDuration ?? 180n); // default 3 minutes
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
       if (!char) return;
@@ -955,7 +955,7 @@ export function resolveAbility(
     const enemy = findEnemyTarget();
     if (!enemy || !combatId) { throw new SenderError('Must be in combat to use fear'); }
     const ccType = ability.effectType ?? 'stun';
-    const ccDuration = ability.effectDuration ?? 4n;
+    const ccDuration = secondsToRounds(ability.effectDuration ?? 4n);
     addEnemyEffect(ctx, combatId, enemy.id, ccType, 1n, ccDuration, ability.name, actor.id);
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
@@ -1001,7 +1001,7 @@ export function resolveAbility(
     logPrivate(char.id, char.ownerUserId, 'heal', `${ability.name} restores ${varied} health.`);
     // Optional buff effect (e.g. potion might apply a buff)
     if (ability.effectType) {
-      addCharacterEffect(ctx, char.id, ability.effectType, ability.effectMagnitude ?? 3n, ability.effectDuration ?? 9n, ability.name);
+      addCharacterEffect(ctx, char.id, ability.effectType, ability.effectMagnitude ?? 3n, secondsToRounds(ability.effectDuration ?? 9n), ability.name);
     }
     logGroup('heal', `${actor.name} uses ${ability.name}, healing for ${varied}.`);
     return;
@@ -1011,7 +1011,7 @@ export function resolveAbility(
     // Apply travel-related buff to self — no combat restriction
     const eType = ability.effectType ?? 'damage_up';
     const eMag = ability.effectMagnitude ?? 3n;
-    const eDur = ability.effectDuration ?? 30n;
+    const eDur = secondsToRounds(ability.effectDuration ?? 30n);
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
       if (!char) return;
@@ -1026,7 +1026,7 @@ export function resolveAbility(
     // Apply loot_bonus or similar effect to self — no combat restriction
     const eType = ability.effectType ?? 'loot_bonus';
     const eMag = ability.effectMagnitude ?? 3n;
-    const eDur = ability.effectDuration ?? 30n;
+    const eDur = secondsToRounds(ability.effectDuration ?? 30n);
     if (actor.type === 'character') {
       const char = ctx.db.character.id.find(actor.id);
       if (!char) return;
@@ -1043,7 +1043,7 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (!char) return;
       if (ability.effectType) {
-        addCharacterEffect(ctx, char.id, ability.effectType, ability.effectMagnitude ?? 3n, ability.effectDuration ?? 30n, ability.name);
+        addCharacterEffect(ctx, char.id, ability.effectType, ability.effectMagnitude ?? 3n, secondsToRounds(ability.effectDuration ?? 30n), ability.name);
       }
       logPrivate(char.id, char.ownerUserId, 'ability', `You conjure sustenance with ${ability.name}.`);
       logGroup('ability', `${actor.name} conjures sustenance with ${ability.name}.`);
@@ -1420,7 +1420,7 @@ export function executePetAbility(
   }
 
   if (abilityKey === 'pet_bleed') {
-    addEnemyEffect(ctx, combatId, target.id, 'dot', 2n, 3n, 'Pet Bleed');
+    addEnemyEffect(ctx, combatId, target.id, 'dot', 2n, secondsToRounds(3n), 'Pet Bleed');
     const message = `${pet.name} rends ${target.displayName ?? 'the enemy'}.`;
     appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', message);
     if (actorGroupId) {
@@ -1491,45 +1491,3 @@ export function scheduleCombatTick(ctx: any, combatId: bigint) {
     combatId,
   });
 }
-
-import {
-  ROUND_TIMER_MICROS,
-  SOLO_TIMER_MICROS,
-  EFFECT_ROUND_CONVERSION_MICROS,
-  MIN_EFFECT_ROUNDS,
-} from '../data/combat_constants';
-
-/** Convert time-based duration (microseconds) to round count. */
-export function convertDurationToRounds(durationMicros: bigint): bigint {
-  const rounds = durationMicros / EFFECT_ROUND_CONVERSION_MICROS;
-  return rounds < MIN_EFFECT_ROUNDS ? MIN_EFFECT_ROUNDS : rounds;
-}
-
-/** Schedule a RoundTimerTick for the given combat round. */
-export function scheduleRoundTimer(ctx: any, combatId: bigint, roundNumber: bigint, isGroup: boolean) {
-  const timerDuration = isGroup ? ROUND_TIMER_MICROS : SOLO_TIMER_MICROS;
-  const expiresAt = ctx.timestamp.microsSinceUnixEpoch + timerDuration;
-  ctx.db.round_timer_tick.insert({
-    scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(expiresAt),
-    combatId,
-    roundNumber,
-  });
-  return expiresAt;
-}
-
-/** Create the first CombatRound for a new combat encounter. */
-export function createFirstRound(ctx: any, combatId: bigint, isGroup: boolean) {
-  const timerExpires = scheduleRoundTimer(ctx, combatId, 1n, isGroup);
-  ctx.db.combat_round.insert({
-    id: 0n,
-    combatId,
-    roundNumber: 1n,
-    state: 'action_select',
-    timerExpiresAtMicros: timerExpires,
-    narrationCount: 0n,
-    startedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
-  });
-}
-
-

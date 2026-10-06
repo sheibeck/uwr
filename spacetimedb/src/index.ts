@@ -133,9 +133,6 @@ import {
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
   scheduleCombatTick,
-  convertDurationToRounds,
-  scheduleRoundTimer,
-  createFirstRound,
 } from './helpers/combat';
 
 import {
