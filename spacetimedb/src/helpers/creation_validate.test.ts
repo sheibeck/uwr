@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateRaceReply, validateClassReply } from './creation_validate';
 import { clampToBudget } from './skill_budget';
+import { PLACEHOLDER_RACE_NAME, isPlaceholderRace } from '../data/race_bonuses';
 import {
   STAT_TYPES,
   ABILITY_KINDS,
@@ -74,6 +75,15 @@ describe('validateRaceReply', () => {
     const r = validateRaceReply({ raceName: 5, narrative: { a: 1 } });
     expect(r.raceName).toBe('Unknown');
     expect(r.narrative).toBe('');
+  });
+
+  it('IN-15: the nameless-race default is the reserved placeholder name, which isPlaceholderRace recognizes', () => {
+    expect(PLACEHOLDER_RACE_NAME).toBe('Unknown');
+    for (const reply of [{}, { raceName: '' }, { raceName: '   ' }, { raceName: 5 }]) {
+      const name = validateRaceReply(reply).raceName;
+      expect(name).toBe(PLACEHOLDER_RACE_NAME);
+      expect(isPlaceholderRace(name)).toBe(true);
+    }
   });
 
   it('every stat in the result is a vocabulary member', () => {

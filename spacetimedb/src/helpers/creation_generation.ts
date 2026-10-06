@@ -43,7 +43,7 @@ import { appendCreationEvent } from './events';
 import { flattenSegments, keeperFallback, keeperSegments, type Segment } from './segments';
 import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
-import { findRaceDefinition, raceBonusText } from '../data/race_bonuses';
+import { findRaceDefinition, PLACEHOLDER_RACE_NAME, raceBonusText } from '../data/race_bonuses';
 
 /** Post a Keeper-voice creation line with its segments; `message` is always the flattened segments. */
 function postKeeperSegments(ctx: any, playerId: any, kind: string, segments: Segment[]): void {
@@ -107,7 +107,7 @@ export function startCreationGeneration(
   } else {
     route = 'creation_class_reveal';
     input = {
-      raceName: state.raceName ?? 'Unknown',
+      raceName: state.raceName ?? PLACEHOLDER_RACE_NAME,
       raceNarrative: state.raceNarrative ?? '',
       archetype: state.archetype ?? 'warrior',
     };
@@ -153,7 +153,7 @@ export function buildClassFillInput(state: any): CreationClassFillInput {
     throw new Error('class fill has no first ability on the creation state');
   }
   return {
-    raceName: state.raceName ?? 'Unknown',
+    raceName: state.raceName ?? PLACEHOLDER_RACE_NAME,
     raceNarrative: state.raceNarrative ?? '',
     archetype: state.archetype ?? 'warrior',
     className: state.className ?? '',

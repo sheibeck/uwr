@@ -22,6 +22,7 @@ import {
   WEAPON_TYPES,
 } from '../data/mechanical_vocabulary';
 import { PLAYER_NAME_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
+import { PLACEHOLDER_RACE_NAME } from '../data/race_bonuses';
 import { clampToBudget } from './skill_budget';
 import { clampInt } from './safe_numbers';
 
@@ -113,7 +114,7 @@ export function validateRaceReply(data: unknown): CreationRaceReply {
   }
 
   const result: CreationRaceReply = {
-    raceName: cleanName(d.raceName, 'Unknown'),
+    raceName: cleanName(d.raceName, PLACEHOLDER_RACE_NAME),
     narrative: typeof d.narrative === 'string' ? d.narrative : '',
     bonuses: {
       primary: { stat: primaryStat, value: clampInt(rawPrimary.value, 1, 3, 2) },
