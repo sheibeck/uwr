@@ -46,7 +46,7 @@
 - [x] **RND-01**: Combat runs in rounds of at most 10 seconds. A round resolves as soon as every player in the fight has chosen an action, or when the timer runs out.
 - [x] **RND-02**: A player who has not chosen an action when the round resolves auto-attacks their current target.
 - [x] **RND-03**: Player and enemy actions resolve in a deterministic order each round. Cooldowns, effects, DoTs/HoTs and enemy abilities count in rounds.
-- [ ] **RND-04**: The round number, its deadline and each player's chosen action are in public tables the client can subscribe to.
+- [x] **RND-04**: The round number, its deadline and each player's chosen action are in public tables the client can subscribe to.
 - [x] **RND-05**: The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget.
 
 ### Combat (CMB)
@@ -140,7 +140,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RND-01 | Phase 46.1 | Complete |
 | RND-02 | Phase 46.1 | Complete |
 | RND-03 | Phase 46.1 | Complete |
-| RND-04 | Phase 46.1 | Pending |
+| RND-04 | Phase 46.1 | Complete |
 | RND-05 | Phase 46.1 | Complete |
 | CMB-01 | Phase 48 | Pending |
 | CMB-02 | Phase 48 | Pending |
