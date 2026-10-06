@@ -20,6 +20,7 @@ import {
   recipeDetail,
   recipeRows,
   recipesKnownText,
+  stationHere,
 } from './craftingModel';
 import type { CraftAvailabilityInput, CraftingInput } from './craftingModel';
 
@@ -162,6 +163,20 @@ describe('categories, counts and the known text', () => {
     expect(recipesKnownText(1)).toBe('1 recipe known');
     expect(recipesKnownText(0)).toBe('0 recipes known');
     expect(recipesKnownText(5)).toBe('5 recipes known');
+  });
+});
+
+describe('stationHere', () => {
+  it('reads craftingAvailable of the character location and is false while either is unknown', () => {
+    const locations = [
+      { id: 10n, craftingAvailable: true },
+      { id: 11n, craftingAvailable: false },
+    ];
+    expect(stationHere(10n, locations)).toBe(true);
+    expect(stationHere(11n, locations)).toBe(false);
+    expect(stationHere(12n, locations)).toBe(false);
+    expect(stationHere(null, locations)).toBe(false);
+    expect(stationHere(undefined, locations)).toBe(false);
   });
 });
 

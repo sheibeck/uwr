@@ -616,3 +616,13 @@ export function craftArgs(
   if (reagents[2] !== undefined) args.modifier3TemplateId = reagents[2];
   return args;
 }
+
+/** location.craftingAvailable of the character's location; false while either is unknown. */
+export function stationHere(
+  locationId: bigint | null | undefined,
+  locations: ReadonlyArray<{ id: bigint; craftingAvailable: boolean }>,
+): boolean {
+  if (locationId === null || locationId === undefined) return false;
+  const location = locations.find((row) => row.id === locationId);
+  return location ? location.craftingAvailable === true : false;
+}

@@ -223,7 +223,9 @@ function importOffenders(file: string, text: string): string[] {
   const bad: string[] = [];
   for (const match of text.matchAll(/import\s+([^;]*?)\s+from\s+['"]([^'"]+)['"]/g)) {
     const [, clause, specifier] = match;
-    if (ICON_LIBRARIES.test(specifier)) bad.push(`${file}: ${specifier}`);
+    // Only package specifiers name an icon library; a relative path is a local file whose name may
+    // contain a word such as 'material' (MaterialsOnHand.vue).
+    if (!specifier.startsWith('.') && ICON_LIBRARIES.test(specifier)) bad.push(`${file}: ${specifier}`);
     if (specifier !== '@phosphor-icons/vue') {
       const names = clause.match(/\bPh[A-Z]\w*/g) ?? [];
       for (const name of names) bad.push(`${file}: ${name} imported from ${specifier}`);
@@ -237,6 +239,8 @@ describe('icons', () => {
     expect(importOffenders('f.ts', "import { Sword } from 'lucide-vue-next';")).toHaveLength(1);
     expect(importOffenders('f.ts', "import { PhSword } from './icons';")).toHaveLength(1);
     expect(importOffenders('f.ts', "import { PhSword } from '@phosphor-icons/vue';")).toEqual([]);
+    expect(importOffenders('f.ts', "import MaterialsOnHand from './MaterialsOnHand.vue';")).toEqual([]);
+    expect(importOffenders('f.ts', "import { Icon } from '@iconify/vue';")).toHaveLength(1);
   });
 
   it('client source uses Phosphor icons only', () => {
