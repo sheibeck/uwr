@@ -580,22 +580,17 @@ export const registerCreationReducers = (deps: any) => {
           return;
         }
 
-        // Match by case-insensitive substring of ability name
+        // Two passes (review WR-02): an exact name match anywhere wins, and only when no ability
+        // matches exactly does a case-insensitive substring in either direction pick the first hit.
+        // One pass would let "Frost Bolt" choose "Frost Bolt Volley" when that one is listed first.
         const lowerInput = trimmed.toLowerCase().replace(/\s+/g, ' ');
-        let matchIndex = -1;
-        for (let i = 0; i < abilities.length; i++) {
-          const abilityName = (abilities[i].name || abilities[i].abilityName || '').trim().toLowerCase().replace(/\s+/g, ' ');
-          if (!abilityName) continue;
-          // Exact match first
-          if (lowerInput === abilityName) {
-            matchIndex = i;
-            break;
-          }
-          // Substring match in either direction
-          if (lowerInput.includes(abilityName) || abilityName.includes(lowerInput)) {
-            matchIndex = i;
-            break;
-          }
+        const normName = (a: any): string => (a.name || a.abilityName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        let matchIndex = abilities.findIndex((a: any) => normName(a) === lowerInput && lowerInput !== '');
+        if (matchIndex === -1) {
+          matchIndex = abilities.findIndex((a: any) => {
+            const abilityName = normName(a);
+            return abilityName !== '' && (lowerInput.includes(abilityName) || abilityName.includes(lowerInput));
+          });
         }
 
         if (matchIndex === -1) {
