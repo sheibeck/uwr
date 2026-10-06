@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed, inject, shallowRef, watch } from 'vue';
 import { PhArrowFatUp, PhCrownSimple } from '@phosphor-icons/vue';
-import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
+import InCombatTag from '../combat/InCombatTag.vue';
+import { useDamageFlash } from '../combat/useDamageFlash';
+import {
+  COMBAT_KEY,
+  FRAME_KEY,
+  GAME_KEY,
+  createInertCombat,
+  createInertFrame,
+  createInertGame,
+} from '../game/context';
 import EffectChips from '../rails/EffectChips.vue';
 import { effectViews } from '../rails/effects';
 import { isPartyLeader, partyMembers, partySize } from '../rails/party';
@@ -25,6 +34,10 @@ const props = defineProps<{
 
 const game = inject(GAME_KEY, createInertGame());
 const frame = inject(FRAME_KEY, createInertFrame());
+const controller = inject(COMBAT_KEY, createInertCombat());
+
+// Combat is gated on game.combat.active, never on game.inCombat (Phase 47 pins the inCombat case).
+const combatActive = computed(() => game.combat.active.value);
 
 const xp = computed(() => {
   const c = game.character.value;
@@ -46,6 +59,35 @@ const members = computed(() =>
 );
 const showChipRow = computed(() => inParty.value || effects.value.length > 0);
 
+// In a fight and in a party the chips become ally targets (48-UI-SPEC "Strip chip row"). Not in a
+// party the ally is the player, so there is no You chip and no targeting.
+const allyMode = computed(() => combatActive.value && inParty.value);
+const selfId = computed(() => game.characterId.value);
+
+function isSelected(id: bigint): boolean {
+  return controller.allyTargetId.value === id;
+}
+
+function allyLabel(name: string): string {
+  return `Target ${name} with your next ability`;
+}
+
+// HP damage flash (48-UI-SPEC "Damage flash", CMB-05): the active character's HP only. The key is
+// latched so it only moves together with the hp prop (props lag the game refs by a render); a
+// character switch then reads as a switch, never as a drop. Same pattern as VitalsRail.
+const flashKey = shallowRef<bigint | null>(game.characterId.value);
+watch(() => props.hp, () => { flashKey.value = game.characterId.value; }, { flush: 'sync' });
+watch(() => game.characterId.value, (id) => { flashKey.value = id; }, { flush: 'pre' });
+const { active: flashActive, reduced: flashReduced, delta: flashDelta, ghost: flashGhost } = useDamageFlash({
+  hp: () => props.hp,
+  maxHp: () => props.maxHp,
+  key: () => flashKey.value,
+});
+const flashClass = computed(() => {
+  if (!flashActive.value) return null;
+  return flashReduced.value ? 'flash-reduced' : 'flash-motion';
+});
+
 function memberChipText(member: { known: boolean; name: string; healthPercent: number }): string {
   return member.known ? `${member.name} ${member.healthPercent}%` : 'Member';
 }
@@ -60,9 +102,10 @@ function openSocial(): void {
     <template v-if="props.compact">
       <div class="compact-row">
         <div class="name" :title="props.name">{{ props.name }}</div>
-        <div class="compact-bar">
+        <div class="compact-bar" :class="flashClass">
           <div class="track" role="progressbar" aria-label="Health" aria-valuemin="0" :aria-valuenow="Number(props.hp)" :aria-valuemax="Number(props.maxHp)">
             <div class="fill fill-health" :style="{ width: `${barFraction(props.hp, props.maxHp) * 100}%` }"></div>
+            <div v-if="flashGhost" class="ghost" aria-hidden="true" :style="{ left: flashGhost.left, width: flashGhost.width }"></div>
           </div>
         </div>
         <div class="compact-bar">
@@ -83,16 +126,21 @@ function openSocial(): void {
           <div class="class-line">{{ props.classLine }}</div>
         </div>
         <div class="tags">
+          <InCombatTag v-if="combatActive" :round-number="game.combat.roundNumber.value" />
           <span v-if="props.levelUp" class="tag tag-outline"><PhArrowFatUp :size="12" aria-hidden="true" />Level up</span>
           <span v-if="props.newSkill" class="tag tag-accent">New skill</span>
         </div>
       </div>
       <div class="bars-block">
         <div class="bars-row">
-          <div class="cell">
-            <span class="micro-label">HP {{ Number(props.hp) }}</span>
+          <div class="cell" :class="flashClass">
+            <span class="readout">
+              <span class="micro-label">HP {{ Number(props.hp) }}</span>
+              <span v-if="flashDelta !== null" class="delta" aria-hidden="true">−{{ flashDelta }}</span>
+            </span>
             <div class="track" role="progressbar" aria-label="Health" aria-valuemin="0" :aria-valuenow="Number(props.hp)" :aria-valuemax="Number(props.maxHp)">
               <div class="fill fill-health" :style="{ width: `${barFraction(props.hp, props.maxHp) * 100}%` }"></div>
+              <div v-if="flashGhost" class="ghost" aria-hidden="true" :style="{ left: flashGhost.left, width: flashGhost.width }"></div>
             </div>
           </div>
           <div class="cell">
@@ -120,20 +168,55 @@ function openSocial(): void {
           <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
         </div>
       </div>
-      <div v-if="showChipRow" class="chip-row">
-        <button v-if="inParty" type="button" class="tag tag-neutral party-chip" @click="openSocial">
-          <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
-        </button>
-        <button
-          v-for="member in members"
-          :key="String(member.id)"
-          type="button"
-          class="tag tag-neutral member-chip"
-          :title="member.name"
-          @click="openSocial"
-        >
-          <span class="chip-label">{{ memberChipText(member) }}</span>
-        </button>
+      <div v-if="showChipRow" class="chip-row" :class="{ 'ally-row': allyMode }">
+        <template v-if="allyMode">
+          <span class="tag tag-neutral party-chip party-count">
+            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
+          </span>
+          <button
+            v-if="selfId !== null"
+            type="button"
+            class="tag tag-neutral ally-chip"
+            :class="{ selected: isSelected(selfId) }"
+            :aria-pressed="isSelected(selfId) ? 'true' : 'false'"
+            :aria-label="allyLabel('You')"
+            @click="controller.selectAlly(selfId)"
+          >
+            <span class="chip-label">You</span>
+          </button>
+          <template v-for="member in members" :key="String(member.id)">
+            <button
+              v-if="member.known"
+              type="button"
+              class="tag tag-neutral ally-chip"
+              :class="{ selected: isSelected(member.id) }"
+              :title="member.name"
+              :aria-pressed="isSelected(member.id) ? 'true' : 'false'"
+              :aria-label="allyLabel(member.name)"
+              @click="controller.selectAlly(member.id)"
+            >
+              <span class="chip-label">{{ memberChipText(member) }}</span>
+            </button>
+            <span v-else class="tag tag-neutral member-chip unknown">
+              <span class="chip-label">{{ memberChipText(member) }}</span>
+            </span>
+          </template>
+        </template>
+        <template v-else>
+          <button v-if="inParty" type="button" class="tag tag-neutral party-chip" @click="openSocial">
+            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
+          </button>
+          <button
+            v-for="member in members"
+            :key="String(member.id)"
+            type="button"
+            class="tag tag-neutral member-chip"
+            :title="member.name"
+            @click="openSocial"
+          >
+            <span class="chip-label">{{ memberChipText(member) }}</span>
+          </button>
+        </template>
         <EffectChips :effects="effects" nowrap />
       </div>
     </template>
@@ -204,7 +287,8 @@ function openSocial(): void {
   text-overflow: ellipsis;
 }
 
-/* One tag row high: when space runs out the New skill tag wraps away first (clipped), the name never wraps. */
+/* One tag row high: the In combat tag comes first, so when space runs out Level up and New skill
+   wrap away first (clipped); the name never wraps. */
 .tags {
   margin-left: auto;
   flex: 0 1 auto;
@@ -244,6 +328,7 @@ function openSocial(): void {
 }
 
 .track {
+  position: relative;
   height: 4px;
   border-radius: var(--radius-sm);
   background: var(--color-neutral-900);
@@ -264,6 +349,82 @@ function openSocial(): void {
 
 .fill-stamina {
   background: var(--color-stamina);
+}
+
+/* HP damage flash (48-UI-SPEC "Damage flash"), mirrors the vitals rail. The reduced-motion path is
+   a timed static class that declares no motion in these rules. */
+.readout {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--color-health) 35%, transparent);
+}
+
+.delta {
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--color-con-red);
+  font-variant-numeric: tabular-nums;
+}
+
+.flash-motion .ghost {
+  animation: ghost-fade 600ms ease-out forwards;
+}
+
+.flash-motion .fill-health {
+  animation: flash-fill 400ms ease-out;
+}
+
+.flash-motion .micro-label {
+  animation: flash-text 400ms ease-out;
+}
+
+@keyframes ghost-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes flash-fill {
+  from {
+    background: var(--color-con-red);
+  }
+  to {
+    background: var(--color-health);
+  }
+}
+
+@keyframes flash-text {
+  from {
+    color: var(--color-con-red);
+  }
+  to {
+    color: var(--color-neutral-400);
+  }
+}
+
+.flash-reduced .fill-health {
+  background: var(--color-con-red);
+}
+
+.flash-reduced .micro-label {
+  color: var(--color-con-red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-motion .ghost,
+  .flash-motion .fill-health,
+  .flash-motion .micro-label {
+    animation: none;
+  }
 }
 
 .bars-block {
@@ -302,8 +463,17 @@ function openSocial(): void {
   flex-shrink: 0;
 }
 
+/* Ally targeting: the chips need a 44px tall hit area without moving layout. The scroller clips, so
+   the row gets equal padding and negative margin to hold the slop; it never scrolls vertically. */
+.chip-row.ally-row {
+  padding: 8px 0;
+  margin: calc(-1 * 8px) 0;
+  overflow-y: hidden;
+}
+
 .party-chip,
-.member-chip {
+.member-chip,
+.ally-chip {
   gap: 4px;
   border: 0;
   font-family: inherit;
@@ -311,16 +481,42 @@ function openSocial(): void {
   cursor: pointer;
 }
 
+/* Plain text in combat: the Social sheet is unreachable and an unknown member is not a target. */
+.party-count,
+.member-chip.unknown {
+  cursor: default;
+}
+
 @media (hover: hover) {
-  .party-chip:hover,
-  .member-chip:hover {
+  .party-chip:not(.party-count):hover,
+  .member-chip:not(.unknown):hover,
+  .ally-chip:hover {
     background: color-mix(in srgb, var(--color-text) 7%, var(--color-neutral-800));
   }
 }
 
-.party-chip:active,
-.member-chip:active {
+.party-chip:not(.party-count):active,
+.member-chip:not(.unknown):active,
+.ally-chip:active {
   background: color-mix(in srgb, var(--color-text) 14%, var(--color-neutral-800));
+}
+
+.ally-chip {
+  position: relative;
+}
+
+.ally-chip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+.ally-chip.selected {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
 .compact-row {

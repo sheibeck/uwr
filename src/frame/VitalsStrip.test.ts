@@ -1,13 +1,20 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick, ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { MAX_LEVEL } from '@game-data/xp';
 import VitalsStrip from './VitalsStrip.vue';
-import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
-import type { FrameControls, GameData } from '../game/context';
+import {
+  COMBAT_KEY,
+  FRAME_KEY,
+  GAME_KEY,
+  createInertCombat,
+  createInertFrame,
+  createInertGame,
+} from '../game/context';
+import type { CombatController, FrameControls, GameData } from '../game/context';
 
 let wrapper: VueWrapper | null = null;
 
@@ -318,5 +325,411 @@ describe('VitalsStrip compact variant with party data', () => {
     expect(w.findAll('[role="progressbar"]')).toHaveLength(2);
     expect(w.find('.xp-line').exists()).toBe(false);
     expect(w.find('.chip-row').exists()).toBe(false);
+  });
+});
+
+function combatGame(
+  game: Record<string, unknown>,
+  combat: { active?: boolean; roundNumber?: bigint | null } = {},
+): Record<string, unknown> {
+  const inert = createInertGame();
+  return {
+    ...game,
+    combat: {
+      ...inert.combat,
+      active: ref(combat.active ?? true),
+      roundNumber: ref(combat.roundNumber === undefined ? 3n : combat.roundNumber),
+    },
+  };
+}
+
+function mountCombat(
+  game: Record<string, unknown>,
+  opts: { active?: boolean; roundNumber?: bigint | null; allyTargetId?: bigint | null; props?: Record<string, unknown> } = {},
+): {
+  w: VueWrapper;
+  selectAlly: ReturnType<typeof vi.fn>;
+  openScreen: ReturnType<typeof vi.fn>;
+  allyTargetId: ReturnType<typeof ref<bigint | null>>;
+} {
+  const selectAlly = vi.fn();
+  const allyTargetId = ref<bigint | null>(opts.allyTargetId === undefined ? 1n : opts.allyTargetId);
+  const controller = { ...createInertCombat(), allyTargetId, selectAlly } as unknown as CombatController;
+  const openScreen = vi.fn();
+  wrapper = mount(VitalsStrip, {
+    global: {
+      provide: {
+        [GAME_KEY as symbol]: {
+          ...createInertGame(),
+          ...combatGame(game, { active: opts.active, roundNumber: opts.roundNumber }),
+        } as unknown as GameData,
+        [FRAME_KEY as symbol]: { ...createInertFrame(), openScreen } as FrameControls,
+        [COMBAT_KEY as symbol]: controller,
+      },
+    },
+    props: {
+      name: 'Brannoch the Wanderer',
+      avatarInitial: 'B',
+      classLine: 'Lv 6 · Ranger',
+      hp: 212n,
+      maxHp: 260n,
+      mana: 140n,
+      maxMana: 280n,
+      stamina: 60n,
+      maxStamina: 0n,
+      levelUp: false,
+      newSkill: false,
+      ...opts.props,
+    },
+  });
+  return { w: wrapper, selectAlly, allyTargetId, openScreen };
+}
+
+describe('VitalsStrip In combat tag', () => {
+  it('shows the tag first in the tags container, before Level up and New skill', () => {
+    const { w } = mountCombat(partyGame(), { props: { levelUp: true, newSkill: true } });
+    const tags = w.get('.tags');
+    const first = tags.element.children[0] as HTMLElement;
+    expect(first.classList.contains('in-combat-tag')).toBe(true);
+    expect(first.getAttribute('aria-label')).toBe('In combat, round 3');
+    expect(Array.from(tags.element.children).map((e) => e.textContent?.trim())).toEqual([
+      'In combat · Round 3',
+      'Level up',
+      'New skill',
+    ]);
+  });
+
+  it('is absent while combat.active is false, even with inCombat true', () => {
+    const { w } = mountCombat(partyGame({ inCombat: ref(true) }), { active: false, props: { levelUp: true } });
+    expect(w.find('.in-combat-tag').exists()).toBe(false);
+    expect(w.get('.tags').text()).toBe('Level up');
+  });
+
+  it('shows the plain tag when the round is not known yet', () => {
+    const { w } = mountCombat(partyGame(), { roundNumber: null });
+    expect(w.get('.in-combat-tag').text()).toBe('In combat');
+  });
+
+  it('is absent from the compact variant', () => {
+    const { w } = mountCombat(partyGame(), { props: { compact: true } });
+    expect(w.find('.in-combat-tag').exists()).toBe(false);
+  });
+});
+
+describe('VitalsStrip ally chips', () => {
+  it('shows Party n as plain text, then You, then one button per member, then the effects', () => {
+    const { w } = mountCombat(partyGame({ effects: ref([fx(1n, 1n)]) }));
+    const row = w.get('.chip-row');
+    const party = row.get('.party-chip');
+    expect(party.element.tagName).toBe('SPAN');
+    expect(party.text()).toBe('Party 3');
+    const chips = row.findAll('.ally-chip');
+    expect(chips.map((c) => c.text())).toEqual(['You', 'Mara 95%', 'Bo 50%']);
+    for (const chip of chips) {
+      expect(chip.element.tagName).toBe('BUTTON');
+      expect(chip.classes()).toContain('tag-neutral');
+    }
+    expect(chips.map((c) => c.attributes('aria-label'))).toEqual([
+      'Target You with your next ability',
+      'Target Mara with your next ability',
+      'Target Bo with your next ability',
+    ]);
+    const kids = Array.from(row.element.children).map((e) => e.className);
+    expect(kids[0]).toContain('party-count');
+    expect(kids[1]).toContain('ally-chip');
+    expect(kids[3]).toContain('ally-chip');
+    expect(kids[4]).toContain('effect-chips');
+    expect(row.get('.effect-chips .tag').text()).toBe('Bless');
+  });
+
+  it('presses the You chip by default and marks it selected', () => {
+    const { w } = mountCombat(partyGame());
+    const [you, mara, bo] = w.findAll('.ally-chip');
+    expect(you.attributes('aria-pressed')).toBe('true');
+    expect(you.classes()).toContain('selected');
+    expect(mara.attributes('aria-pressed')).toBe('false');
+    expect(bo.attributes('aria-pressed')).toBe('false');
+    expect(mara.classes()).not.toContain('selected');
+  });
+
+  it('calls selectAlly with the tapped chip id and follows allyTargetId', async () => {
+    const { w, selectAlly, allyTargetId } = mountCombat(partyGame());
+    const [you, mara] = w.findAll('.ally-chip');
+    await mara.trigger('click');
+    expect(selectAlly).toHaveBeenCalledTimes(1);
+    expect(selectAlly).toHaveBeenCalledWith(2n);
+    await you.trigger('click');
+    expect(selectAlly).toHaveBeenLastCalledWith(1n);
+    allyTargetId.value = 2n;
+    await nextTick();
+    const chips = w.findAll('.ally-chip');
+    expect(chips[1].attributes('aria-pressed')).toBe('true');
+    expect(chips[1].classes()).toContain('selected');
+    expect(chips[0].attributes('aria-pressed')).toBe('false');
+  });
+
+  it('never opens the Social sheet from a chip in combat', async () => {
+    const { w, openScreen } = mountCombat(partyGame());
+    await w.get('.party-chip').trigger('click');
+    await w.findAll('.ally-chip')[1].trigger('click');
+    expect(openScreen).not.toHaveBeenCalled();
+  });
+
+  it('has no You chip and no targeting when solo with effects', () => {
+    const { w } = mountCombat({ characterId: ref(1n), effects: ref([fx(1n, 1n)]) });
+    expect(w.find('.ally-chip').exists()).toBe(false);
+    expect(w.find('.party-chip').exists()).toBe(false);
+    expect(w.findAll('.effect-chips .tag')).toHaveLength(1);
+    expect(w.get('.chip-row').classes()).not.toContain('ally-row');
+  });
+
+  it('renders an unknown member as a non-interactive Member chip', async () => {
+    const { w, selectAlly } = mountCombat(partyGame({ knownCharacters: ref([ch(3n, 'Bo')]) }));
+    const unknown = w.get('.member-chip');
+    expect(unknown.element.tagName).toBe('SPAN');
+    expect(unknown.text()).toBe('Member');
+    expect(unknown.attributes('aria-pressed')).toBeUndefined();
+    await unknown.trigger('click');
+    expect(selectAlly).not.toHaveBeenCalled();
+    expect(w.findAll('.ally-chip').map((c) => c.text())).toEqual(['You', 'Bo 95%']);
+  });
+
+  it('keeps the Phase 47 strip when combat.active is false, with a combat controller provided', async () => {
+    const { w, selectAlly, openScreen } = mountCombat(partyGame({ inCombat: ref(true) }), { active: false });
+    const party = w.get('.party-chip');
+    expect(party.element.tagName).toBe('BUTTON');
+    expect(party.text()).toBe('Party 3');
+    expect(w.find('.ally-chip').exists()).toBe(false);
+    expect(w.findAll('.member-chip').map((c) => c.text())).toEqual(['Mara 95%', 'Bo 50%']);
+    expect(w.get('.chip-row').classes()).not.toContain('ally-row');
+    await w.get('.member-chip').trigger('click');
+    expect(selectAlly).not.toHaveBeenCalled();
+    expect(openScreen).toHaveBeenCalledWith('social');
+  });
+
+  it('renders names as text, not markup', () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    const { w } = mountCombat(partyGame({ knownCharacters: ref([ch(2n, payload), ch(3n, 'Bo')]) }));
+    expect(w.find('img').exists()).toBe(false);
+    const chip = w.findAll('.ally-chip')[1];
+    expect(chip.text()).toBe(`${payload} 95%`);
+    expect(chip.attributes('aria-label')).toBe(`Target ${payload} with your next ability`);
+  });
+
+  it('keeps the long row in one sideways-scrolling line (5 allies, 6 effects, the tag)', () => {
+    const ids = [2n, 3n, 4n, 5n, 6n];
+    const { w } = mountCombat(
+      partyGame({
+        groupMembers: ref([gm(1n, 1n, 1n), ...ids.map((id) => gm(id, id, id))]),
+        knownCharacters: ref(ids.map((id) => ch(id, `Member ${id}`))),
+        effects: ref([1n, 2n, 3n, 4n, 5n, 6n].map((id) => fx(id, 1n))),
+      }),
+      { props: { levelUp: true, newSkill: true } },
+    );
+    expect(w.findAll('.ally-chip')).toHaveLength(6);
+    expect(w.findAll('.effect-chips .tag')).toHaveLength(6);
+    expect(w.get('.tags').element.children[0].classList.contains('in-combat-tag')).toBe(true);
+    expect(w.get('.effect-chips').classes()).toContain('nowrap');
+  });
+
+  it('stays out of the compact variant', () => {
+    const { w } = mountCombat(partyGame(), { props: { compact: true } });
+    expect(w.find('.chip-row').exists()).toBe(false);
+    expect(w.find('.ally-chip').exists()).toBe(false);
+  });
+
+  describe('source', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsStrip.vue'), 'utf8');
+
+    it('wires the controller, the tag and the 44px hit slop', () => {
+      expect(source).toContain('InCombatTag');
+      expect(source).toContain('selectAlly');
+      expect(source).toContain('ally-chip');
+      expect(source).toContain('with your next ability');
+      expect(source).toContain('height: 44px');
+      expect(source).toContain('translateY(-50%)');
+      expect(source).toContain('inset 0 0 0 1px var(--color-accent)');
+    });
+
+    it('gates combat on combat.active and reads inCombat only for the effect chips', () => {
+      expect(source).toContain('game.combat.active.value');
+      expect(source.match(/game\.inCombat\.value/g)).toHaveLength(1);
+    });
+  });
+});
+
+describe('VitalsStrip damage flash', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+  });
+
+  afterEach(() => {
+    wrapper?.unmount();
+    wrapper = null;
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function mountFlash(
+    over: Record<string, unknown> = {},
+    characterId = ref<bigint | null>(1n),
+  ): { w: VueWrapper; characterId: typeof characterId } {
+    const w = mountStrip({ hp: 200n, maxHp: 260n, ...over }, { characterId });
+    return { w, characterId };
+  }
+
+  const hpCell = (w: VueWrapper) => w.findAll('.cell')[0];
+
+  it('shows no flash class, ghost or delta on mount', () => {
+    const { w } = mountFlash();
+    expect(hpCell(w).classes()).not.toContain('flash-motion');
+    expect(hpCell(w).classes()).not.toContain('flash-reduced');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('flashes on a drop: class, ghost, label then delta, cleared on time', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n });
+    expect(hpCell(w).classes()).toContain('flash-motion');
+    const ghost = w.get('.ghost');
+    expect(ghost.attributes('aria-hidden')).toBe('true');
+    expect(ghost.element.parentElement?.classList.contains('track')).toBe(true);
+    const style = (ghost.element as HTMLElement).style;
+    expect(style.left).toBe(`${Math.round((178 / 260) * 10000) / 100}%`);
+    expect(style.width).toBe(`${Math.round((22 / 260) * 10000) / 100}%`);
+    expect(w.findAll('.micro-label')[0].text()).toBe('HP 178');
+    const delta = w.get('.delta');
+    expect(delta.text()).toBe('−22');
+    expect(delta.attributes('aria-hidden')).toBe('true');
+    expect(w.get('.readout').element.lastElementChild).toBe(delta.element);
+
+    vi.advanceTimersByTime(599);
+    await nextTick();
+    expect(hpCell(w).classes()).toContain('flash-motion');
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(hpCell(w).classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(true);
+    vi.advanceTimersByTime(899);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(true);
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('sums drops inside the window', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 190n });
+    vi.advanceTimersByTime(1000);
+    await w.setProps({ hp: 170n });
+    expect(w.get('.delta').text()).toBe('−30');
+  });
+
+  it('uses the static flash-reduced class under reduced motion', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n });
+    expect(hpCell(w).classes()).toContain('flash-reduced');
+    expect(hpCell(w).classes()).not.toContain('flash-motion');
+    expect(w.get('.delta').text()).toBe('−22');
+    vi.advanceTimersByTime(600);
+    await nextTick();
+    expect(hpCell(w).classes()).not.toContain('flash-reduced');
+    expect(w.find('.ghost').exists()).toBe(false);
+  });
+
+  it('flashes the compact HP bar without delta text', async () => {
+    const { w } = mountFlash({ compact: true });
+    await w.setProps({ hp: 178n });
+    const bars = w.findAll('.compact-bar');
+    expect(bars[0].classes()).toContain('flash-motion');
+    expect(bars[1].classes()).not.toContain('flash-motion');
+    expect(bars[0].find('.ghost').exists()).toBe(true);
+    expect(w.find('.delta').exists()).toBe(false);
+    vi.advanceTimersByTime(600);
+    await nextTick();
+    expect(w.findAll('.compact-bar')[0].classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(false);
+  });
+
+  it('never flashes on healing', async () => {
+    const { w } = mountFlash({ hp: 100n });
+    await w.setProps({ hp: 150n });
+    expect(hpCell(w).classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('never flashes on a character switch, with a lower hp arriving together with the new id', async () => {
+    const { w, characterId } = mountFlash();
+    characterId.value = 2n;
+    await w.setProps({ hp: 100n });
+    expect(hpCell(w).classes()).not.toContain('flash-motion');
+    expect(w.find('.delta').exists()).toBe(false);
+    await w.setProps({ hp: 90n });
+    expect(w.get('.delta').text()).toBe('−10');
+  });
+
+  it('never flashes the mana or stamina cells', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n, mana: 10n, stamina: 1n });
+    const [, mana, stamina] = w.findAll('.cell');
+    for (const cell of [mana, stamina]) {
+      expect(cell.classes()).not.toContain('flash-motion');
+      expect(cell.find('.ghost').exists()).toBe(false);
+      expect(cell.find('.delta').exists()).toBe(false);
+    }
+    expect(w.findAll('.micro-label').map((l) => l.text())).toEqual(['HP 178', 'MP 10', 'SP 1']);
+  });
+
+  describe('source', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsStrip.vue'), 'utf8');
+
+    function rules(): Array<{ selector: string; body: string }> {
+      const out: Array<{ selector: string; body: string }> = [];
+      const re = /([^{}@]+)\{([^{}]*)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = re.exec(source.slice(source.indexOf('<style')))) !== null) {
+        out.push({ selector: match[1].trim(), body: match[2] });
+      }
+      return out;
+    }
+
+    it('carries the composable call, both state classes and the reduced-motion block', () => {
+      expect(source).toContain('useDamageFlash(');
+      expect(source).toContain('flash-motion');
+      expect(source).toContain('flash-reduced');
+      expect(source).toContain('prefers-reduced-motion');
+    });
+
+    it('declares no animation or transition in the flash-reduced rules', () => {
+      const reduced = rules().filter((r) => r.selector.includes('flash-reduced'));
+      expect(reduced.length).toBeGreaterThan(0);
+      for (const rule of reduced) {
+        expect(rule.body).not.toContain('animation');
+        expect(rule.body).not.toContain('transition');
+      }
+    });
+
+    it('removes every flash-motion animation inside the prefers-reduced-motion block', () => {
+      const start = source.indexOf('@media (prefers-reduced-motion: reduce)');
+      expect(start).toBeGreaterThan(-1);
+      const block = source.slice(start, source.indexOf('</style>'));
+      for (const part of ['.flash-motion .ghost', '.flash-motion .fill-health', '.flash-motion .micro-label']) {
+        expect(block).toContain(part);
+      }
+      expect(block).toContain('animation: none');
+    });
+
+    it('has no transition and uses the con red token with the Micro 10 delta', () => {
+      expect(source).not.toContain('transition');
+      expect(source).toContain('var(--color-con-red)');
+      const delta = rules().find((r) => r.selector === '.delta');
+      expect(delta?.body).toContain('font-size: 10px');
+    });
   });
 });
