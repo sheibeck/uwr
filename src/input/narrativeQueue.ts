@@ -28,17 +28,24 @@ export interface NarrativeQueue {
   enqueue(line: QueuedLine): boolean;
   /** The head when the gate is clear and nothing is in flight; marks the send in flight. */
   takeNext(gateActive: boolean): QueuedLine | null;
-  /** A direct (unqueued) narrative send is in flight. */
-  beginDirect(): void;
-  /** The in-flight send finished, resolved or rejected. */
-  settle(): void;
-  /** Empty the queue, clear inFlight, return the dropped lines in order. */
+  /** A direct (unqueued) narrative send is in flight. Returns the send's token. */
+  beginDirect(): number;
+  /** Token of the send that is currently in flight (the last beginDirect or takeNext). */
+  token(): number;
+  /**
+   * The in-flight send finished, resolved or rejected. With a token, a send that drop()
+   * already abandoned is ignored, so it cannot clear inFlight for a newer send.
+   */
+  settle(token?: number): void;
+  /** Empty the queue, clear inFlight, abandon the in-flight send, return the dropped lines. */
   drop(): QueuedLine[];
 }
 
 export function createNarrativeQueue(max: number = QUEUE_MAX): NarrativeQueue {
   const items = shallowRef<readonly QueuedLine[]>([]);
   const inFlight = ref(false);
+  // Bumped whenever a send starts and when drop() abandons the current one.
+  let generation = 0;
 
   return {
     items,
@@ -56,18 +63,26 @@ export function createNarrativeQueue(max: number = QUEUE_MAX): NarrativeQueue {
       const [head, ...rest] = items.value;
       items.value = rest;
       inFlight.value = true;
+      generation += 1;
       return head;
     },
     beginDirect() {
       inFlight.value = true;
+      generation += 1;
+      return generation;
     },
-    settle() {
+    token() {
+      return generation;
+    },
+    settle(token) {
+      if (token !== undefined && token !== generation) return;
       inFlight.value = false;
     },
     drop() {
       const dropped = [...items.value];
       items.value = [];
       inFlight.value = false;
+      generation += 1;
       return dropped;
     },
   };

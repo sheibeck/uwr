@@ -83,6 +83,31 @@ describe('createNarrativeQueue', () => {
     expect(q.drop()).toEqual([]);
   });
 
+  it('a settle from a send that drop() abandoned cannot clear a newer send (WR-02)', () => {
+    const q = createNarrativeQueue();
+    const stale = q.beginDirect();
+    q.drop();
+    const fresh = q.beginDirect();
+    q.settle(stale);
+    expect(q.inFlight.value).toBe(true);
+    expect(q.mustQueue(false)).toBe(true);
+    q.settle(fresh);
+    expect(q.inFlight.value).toBe(false);
+  });
+
+  it('a stale settle does not clear a released send either', () => {
+    const q = createNarrativeQueue();
+    const stale = q.beginDirect();
+    q.drop();
+    q.enqueue(line(1));
+    expect(q.takeNext(false)?.echoKey).toBe('local:1');
+    const released = q.token();
+    q.settle(stale);
+    expect(q.inFlight.value).toBe(true);
+    q.settle(released);
+    expect(q.inFlight.value).toBe(false);
+  });
+
   it('honors a custom maximum', () => {
     const q = createNarrativeQueue(1);
     expect(q.enqueue(line(1))).toBe(true);

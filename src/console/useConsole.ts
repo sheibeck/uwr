@@ -183,12 +183,12 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     const characterId = game.characterId.value;
     if (characterId === null) return 'offline';
     if (line.echo !== null) echo(line.echo);
-    queue.beginDirect();
+    const token = queue.beginDirect();
     const sent =
       line.mode === 'narrative' && line.npcId !== undefined
         ? fire('talkToNpc', (r) => r.talkToNpc({ characterId, npcId: line.npcId as bigint, message: line.text }))
         : fire('submitIntent', (r) => r.submitIntent({ characterId, text: line.text }));
-    void sent.finally(queue.settle);
+    void sent.finally(() => queue.settle(token));
     return 'sent';
   }
 
@@ -197,9 +197,10 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     if (!game.connected.value) return;
     const line: QueuedLine | null = queue.takeNext(gate.value);
     if (line === null) return;
+    const token = queue.token();
     const characterId = game.characterId.value;
     if (characterId === null) {
-      queue.settle();
+      queue.settle(token);
       return;
     }
     const target = conversation.value;
@@ -213,7 +214,7 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
       game.feed.setQueued(line.echoKey, false);
       sent = fire('submitIntent', (r) => r.submitIntent({ characterId, text: line.text }));
     }
-    void sent.finally(queue.settle);
+    void sent.finally(() => queue.settle(token));
   }
 
   const stopRelease = watch([gate, queue.inFlight, () => queue.items.value.length], release);

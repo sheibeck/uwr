@@ -147,6 +147,7 @@ function setup() {
     api: consoleApi,
     feed,
     reducers,
+    pending,
     settle,
     settleAll,
     closeScreen,
@@ -448,6 +449,33 @@ describe('narrative queue', () => {
     await flush();
     expect(s.reducers.submitIntent).toHaveBeenCalledTimes(2);
     expect(s.reducers.submitIntent).toHaveBeenLastCalledWith({ characterId: 1n, text: 'look north' });
+  });
+
+  it('a send abandoned by a disconnect cannot release the next send early (WR-02)', async () => {
+    const s = setup();
+    s.api.draft.value = 'look around';
+    expect(s.api.submit()).toBe('sent');
+    s.connected.value = false;
+    await flush();
+    s.connected.value = true;
+    await flush();
+
+    s.api.draft.value = 'look north';
+    expect(s.api.submit()).toBe('sent');
+    const [stale, fresh] = s.pending.get('submitIntent')!;
+
+    // The first reducer promise finally settles while the second is still in flight.
+    stale.resolve();
+    await flush();
+
+    s.api.draft.value = 'look east';
+    expect(s.api.submit()).toBe('queued');
+    expect(s.reducers.submitIntent).toHaveBeenCalledTimes(2);
+
+    fresh.resolve();
+    await flush();
+    expect(s.reducers.submitIntent).toHaveBeenCalledTimes(3);
+    expect(s.reducers.submitIntent).toHaveBeenLastCalledWith({ characterId: 1n, text: 'look east' });
   });
 
   it('commands and chat go through while the Keeper works', () => {
