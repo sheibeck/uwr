@@ -65,7 +65,17 @@ function mountContent(setup: Setup = {}) {
     ...setup.game,
   } as unknown as GameData;
   const consoleApi = { ...createInertConsole(), ...calls } as unknown as ConsoleApi;
-  const frame = { ...createInertFrame() } as unknown as FrameControls;
+  // The frame records its calls in order so the Trade sequence (close, then open) can be asserted.
+  const frameOrder: string[] = [];
+  const frameCalls = {
+    closeScreen: vi.fn(() => {
+      frameOrder.push('close');
+    }),
+    openScreen: vi.fn((id: string, args?: unknown) => {
+      frameOrder.push(`open:${id}:${args === undefined ? '' : 'args'}`);
+    }),
+  };
+  const frame = { ...createInertFrame(), ...frameCalls } as unknown as FrameControls;
   wrapper = mount(ContextContent, {
     global: {
       provide: {
@@ -75,7 +85,7 @@ function mountContent(setup: Setup = {}) {
       },
     },
   });
-  return { w: wrapper, calls };
+  return { w: wrapper, calls, frameCalls, frameOrder };
 }
 
 function lists(over: Record<string, unknown>): Setup {
@@ -209,15 +219,28 @@ describe('Nearby list', () => {
     expect(calls.hail).toHaveBeenCalledWith({ id: 3n, name: 'Aldric' });
   });
 
-  it('gives only vendors a Trade button, which opens the Vendor screen through console.trade', async () => {
-    const { w, calls } = mountContent(NEARBY);
+  it('gives only vendors a Trade button, which opens the Vendor screen for that NPC through the frame', async () => {
+    const { w, calls, frameCalls, frameOrder } = mountContent(NEARBY);
     expect(w.findAll('[aria-label^="Trade with"]')).toHaveLength(1);
     const trade = w.get('[aria-label="Trade with Marta"]');
     expect(trade.classes()).toEqual(expect.arrayContaining(['btn', 'btn-ghost', 'btn-icon']));
     expect(trade.attributes('title')).toBe('Trade with Marta');
     await trade.trigger('click');
-    expect(calls.trade).toHaveBeenCalledTimes(1);
+    expect(frameOrder).toEqual(['close', 'open:vendor:args']);
+    expect(frameCalls.closeScreen).toHaveBeenCalledTimes(1);
+    expect(frameCalls.openScreen).toHaveBeenCalledWith('vendor', { npcId: 2n, npcName: 'Marta' });
+    expect(calls.trade).not.toHaveBeenCalled();
     expect(calls.hail).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on a Trade click while disconnected', async () => {
+    const { w, calls, frameCalls } = mountContent({
+      game: { ...NEARBY.game, connected: ref(false) },
+    });
+    await w.get('[aria-label="Trade with Marta"]').trigger('click');
+    expect(frameCalls.closeScreen).not.toHaveBeenCalled();
+    expect(frameCalls.openScreen).not.toHaveBeenCalled();
+    expect(calls.trade).not.toHaveBeenCalled();
   });
 
   it('gathers a node on row click; Depleted and In use rows have no button and Depleted is dimmed', async () => {
@@ -494,7 +517,7 @@ describe('Tracking list', () => {
 
 describe('offline', () => {
   it('marks route and Nearby buttons aria-disabled and calls nothing on click', async () => {
-    const { w, calls } = mountContent({
+    const { w, calls, frameCalls } = mountContent({
       game: {
         connected: ref(false),
         connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
@@ -510,6 +533,8 @@ describe('offline', () => {
       await button.trigger('click');
     }
     for (const fn of Object.values(calls)) expect(fn).not.toHaveBeenCalled();
+    expect(frameCalls.closeScreen).not.toHaveBeenCalled();
+    expect(frameCalls.openScreen).not.toHaveBeenCalled();
   });
 
   it('does not mark buttons disabled while connected', () => {

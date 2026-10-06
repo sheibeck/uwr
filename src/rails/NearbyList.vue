@@ -12,7 +12,14 @@ import {
   PhUserPlus,
 } from '@phosphor-icons/vue';
 import type { Component } from 'vue';
-import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import {
+  CONSOLE_KEY,
+  FRAME_KEY,
+  GAME_KEY,
+  createInertConsole,
+  createInertFrame,
+  createInertGame,
+} from '../game/context';
 import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
@@ -26,6 +33,7 @@ import type { NearbyKind, NearbyRow } from './nearby';
 // level is known. Difficulty color and word appear only once the level is known.
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
+const frame = inject(FRAME_KEY, createInertFrame());
 
 const connected = computed(() => game.connected.value);
 
@@ -89,9 +97,12 @@ function act(row: NearbyRow): void {
   else if (row.kind === 'node') consoleApi.gather({ id: row.id, name: row.name });
 }
 
-function trade(): void {
+// Trade opens the vendor screen for the chosen NPC (Phase 50, CONTEXT). The NPC rides in the
+// screen arguments through the frame, so ConsoleApi.trade (no NPC) is no longer used here.
+function trade(row: NearbyRow): void {
   if (!connected.value) return;
-  consoleApi.trade();
+  frame.closeScreen();
+  frame.openScreen('vendor', { npcId: row.id, npcName: row.name });
 }
 
 function whisper(row: NearbyRow): void {
@@ -165,7 +176,7 @@ const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
           :aria-label="`Trade with ${row.name}`"
           :title="`Trade with ${row.name}`"
           :aria-disabled="disabledAttr"
-          @click="trade()"
+          @click="trade(row)"
         >
           <PhStorefront :size="16" aria-hidden="true" />
         </button>
