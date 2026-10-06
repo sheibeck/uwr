@@ -28,6 +28,7 @@ let sellItem: (...args: any[]) => any;
 let sellAllJunk: (...args: any[]) => any;
 let buyback: (...args: any[]) => any;
 let deleteCharacter: (...args: any[]) => any;
+let submitIntent: (...args: any[]) => any;
 
 function capture(name: string): (...args: any[]) => any {
   const h = capturedReducer(name);
@@ -46,6 +47,7 @@ beforeAll(async () => {
   sellAllJunk = capture('sell_all_junk');
   buyback = capture('buyback_last_sale');
   deleteCharacter = capture('delete_character');
+  submitIntent = capture('submit_intent');
 }, 120_000);
 
 const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
@@ -282,6 +284,30 @@ describe('sell then buy back', () => {
     const items = rows(ctx, 'item_instance');
     expect(items.map((i) => i.templateId)).toEqual([80n]);
     expect(aliceGold(ctx)).toBe(START_GOLD + sellPayout(4n, 1n, 0, 0n));
+  });
+
+  it("a sale made with the typed 'sell <item>' command can be bought back the same way", () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [RARE_SWORD], affixes: RARE_AFFIXES });
+    submitIntent(ctx, { characterId: 1n, text: 'sell keen test sword of slowness' });
+    const paid = sellPayout(13n, 1n, 0, 0n);
+    expect(aliceGold(ctx)).toBe(START_GOLD + paid);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(1);
+
+    buyBack(ctx);
+
+    expect(aliceGold(ctx)).toBe(START_GOLD);
+    const items = rows(ctx, 'item_instance');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      templateId: 80n,
+      qualityTier: 'rare',
+      craftQuality: 'exquisite',
+      displayName: 'Keen Test Sword of Slowness',
+    });
+    expect(rows(ctx, 'item_affix').map(affixShape)).toEqual(RARE_AFFIXES.map(affixShape));
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
   });
 
   it('a second buy back right after a success answers Nothing to buy back.', () => {

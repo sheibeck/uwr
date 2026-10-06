@@ -16,7 +16,6 @@ export const registerItemReducers = (deps: any) => {
     normalizeArmorType,
     requirePlayerUserId,
     requireCharacterOwnedBy,
-    isClassAllowed,
     recomputeCharacterDerived,
     executeAbilityAction,
     appendPrivateEvent,
