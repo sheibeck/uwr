@@ -1,9 +1,9 @@
 ---
 phase: 49-character-creation-interview
-reviewed: 2026-10-06T14:28:12Z
-iteration: 2
+reviewed: 2026-10-06T14:49:26Z
+iteration: 3
 depth: standard
-files_reviewed: 53
+files_reviewed: 58
 files_reviewed_list:
   - spacetimedb/src/data/race_bonuses.test.ts
   - spacetimedb/src/data/race_bonuses.ts
@@ -58,11 +58,16 @@ files_reviewed_list:
   - spacetimedb/src/helpers/llm_apply.characterization.test.ts
   - spacetimedb/src/helpers/combat_rewards.ts
   - spacetimedb/src/reducers/creation_ability_match.test.ts
+  - spacetimedb/src/helpers/creation_generation.ts
+  - spacetimedb/src/helpers/creation_generation.test.ts
+  - spacetimedb/src/reducers/intent.ts
+  - src/creation/CreationView.mobile.test.ts
+  - src/net/bindTable.ts
 findings:
   critical: 0
-  warning: 2
-  info: 6
-  total: 8
+  warning: 0
+  info: 2
+  total: 2
 status: issues_found
 ---
 
@@ -514,5 +519,142 @@ Add tests:
 ---
 
 _Iteration 2 reviewed: 2026-10-06T14:28:12Z_
+_Reviewer: Claude (gsd-code-reviewer)_
+_Depth: standard_
+
+---
+
+# Iteration 3: Final re-review after the second fix pass
+
+**Reviewed:** 2026-10-06T14:49:26Z
+**Depth:** standard, plus cross-file tracing of every `race_definition` read, the SDK callback burst, and the logout path
+**Scope:** commits 84d982f5..034dc59e (`git diff 84d982f5~1 034dc59e`, 17 files), plus the Phase 49 code those changes touch: `creation_validate.ts` `validateRaceReply`/`cleanName`, `start_creation` and the `COMPLETE` case of `submit_creation_input`, `intent.ts` (character info), `raceCards.ts`, `net/bindTable.ts`, and `useSession.ts` `logout`.
+**Status:** issues_found (Info only; nothing blocks shipping)
+
+## Iteration 3 summary
+
+All six iteration-2 items are resolved: WR-05, WR-06 and IN-10 to IN-13. No Critical or Warning regressions were found. There are two new Info items:
+- **IN-14:** two `race_definition` read sites still bypass `findRaceDefinition`. Only a legacy row named "Unknown" can reach them.
+- **IN-15:** the reserved name is still written as a bare `'Unknown'` literal.
+
+Gates were re-run read-only with `CI=true`, so no snapshots were written:
+- The 6 changed or adjacent module suites (`race_bonuses`, `creation_generation`, `llm_apply.characterization`, `level_up_race_bonus`, `creation_finalize`, `creation_ability_match`): 252 passed.
+- `pnpm exec vitest run src/creation src/session`: 23 files, 526 passed.
+- `git status` is clean afterwards.
+
+**Prompt, Keeper Bible and route text are unchanged.**
+- `git diff --name-only 84d982f5~1 034dc59e` lists no file under `llm_layers`, `llm_schemas`, `llm_prompts`, `llm_routes`, the Keeper Bible or any other prompt or route module.
+- The only text that changed is server-composed Keeper reply text: the reuse bonus line (IN-11) and the canonical `**Unknown**` (WR-06). The model never receives either as a prompt.
+- The Phase 41 pin change is recorded in `49-10-SUMMARY.md:173` (owner checklist item 11).
+
+## Verification of iteration-2 findings
+
+| ID | Verdict | Evidence |
+| --- | --- | --- |
+| WR-05 | **Resolved** | See the notes on the microtask counter. |
+| WR-06 | **Resolved** | See the notes on `findRaceDefinition` and `isPlaceholderRace`. IN-14 is a residual for legacy rows only. |
+| IN-10 | **Resolved** | The case runs on the strict mock (`newCtx(..., alice, true)`) with `name: 'Ashkin'`, `nameLower: 'ashkin'`. It asserts `raceName === 'Ashkin'`, and the snapshot shows `**Ashkin**` in the message, the segment and the state. Writing `existing.nameLower` would now fail. |
+| IN-11 | **Resolved** | `reuseRace` (`creation_generation.ts:229-230`) uses `raceBonusText`, the same helper as `applyCreationResult`. The `|| 1`, `|| 'DEX'` and `|| 'STR'` defaults are gone. New tests cover an invalid secondary, a missing secondary, `{}` and malformed JSON. |
+| IN-12 | **Resolved** | See the notes on the `focusLog` fallback. |
+| IN-13 | **Resolved** | Part 1 is in the owner checklist. Part 2: `startReady` requires `!endedWithoutCharacter` (`creationData.ts:211-220`). See the notes on the start gate. |
+
+**`findRaceDefinition` and `isPlaceholderRace`, checked at every lookup site:**
+- **The helper.** `findRaceDefinition` (`race_bonuses.ts:83-88`) lowercases without trimming, which matches the old lookups exactly. It rejects `''` and anything that `isPlaceholderRace` (trim + lowercase) matches, then returns the first `by_name` row.
+- **Server sites that now use it:**
+  - `applyCreationResult` (`llm_apply.ts:293`)
+  - `startCreationGeneration` reuse (`creation_generation.ts:100`; the description is trimmed first, as before)
+  - `finalizeCharacter` (`creation.ts:198`)
+  - `apply_level_up` (`index.ts:494`)
+  - `level_character` (`commands.ts:608`)
+- **All five sites agree:**
+  - Finalize and both level-up sites pass the same string (`state.raceName`, later `character.race`).
+  - Every `race_definition` insert uses `nameLower = race.raceName.toLowerCase()`, where `cleanName` has already trimmed `raceName`.
+  - `namedRace` is false for any spelling of "Unknown". Because `raceLower === ''`, nothing is inserted and nothing is looked up. The state stores the canonical `Unknown` with `{}`.
+  - The finalize fallback `state.raceName || 'Unknown'` also resolves to no definition.
+- **Remaining raw reads:** `grep race_definition` finds only two, `intent.ts:400` and the client `raceCards.ts`. Both are IN-14.
+- **Tests that pin it:**
+  - Finalize plus two level-ups with an `Unknown` definition present.
+  - An `UNKNOWN` state name.
+  - Both level-up sites with the `Unknown`, `unknown` and `UNKNOWN` races.
+  - A reuse description of `' Unknown '`.
+  - The helper itself.
+
+**The microtask cancellation counter (`resetEpoch`), checked against every path:**
+- **Normal finalize burst.** The state, character and player callbacks all run synchronously inside one `#dispatchPendingCallbacks` loop. The microtask re-reads `endedWithoutCharacter` after the loop and finds it false. The WR-05 burst test reproduces this order.
+- **Flip in one burst.** If the value goes true, then false, then true, two microtasks are queued. The first posts and sets `endedNoticed`, and the second returns.
+- **Logout.**
+  - `useSession.logout` runs `disposeBindings()` and then `creation.reset()` synchronously after its only `await`.
+  - `bindTable.dispose()` clears `rows` before `applied`, which opens a sync window where the binding reads "applied, zero characters". In that window a microtask can be queued under the old epoch.
+  - The microtask is cancelled twice over: `reset()` bumps the epoch, and by then `charactersApplied` is false.
+  - `reset()` clears `endedNoticed`, and logout forces the condition false first, so the next sign-in turns it true again and the notice is posted again.
+- **Reset while the condition stays true.** If `reset()` were called while the condition stayed true, the notice would not come back, because `watch` fires only on a change. No production caller does this: `reset` is called only from `logout`, after `disposeBindings`. This is not a finding.
+- **`dispose()`.** It sets `disposed`, which cancels any pending check for good.
+
+**The `startReady` gate:**
+- **No false start in the ended state.**
+  - `endedWithoutCharacter` and `startReady` read the same refs. `bindTable` sets `rows` before `applied`, so when `stateApplied` becomes true the COMPLETE row is already visible.
+  - So in the ended state `startReady` can never be true even briefly. The IN-13 test delivers the rows before `applied`, as the SDK does.
+- **Normal start unchanged.** A new player (no state row) and a resume at any non-COMPLETE step evaluate exactly as before.
+- **Nothing lost by skipping the call.** At COMPLETE, `start_creation` and `submit_creation_input` only post "already created" (`creation.ts:364-365, 684-690`). There is no reachable case where skipping the call loses a legitimate start.
+- **Finalize burst.** In the burst window the gate is false (ended is transiently true). It already fired for that mount at the earlier CONFIRMING step, so nothing changes.
+
+**The `focusLog` fallback:**
+- **Sequence.**
+  1. `isDesktop` flips.
+  2. `sheetOpen = false`.
+  3. `await nextTick()` mounts the desktop branch.
+  4. `composer.value?.focusInput()` returns `true` only when the input exists and is enabled.
+  5. Otherwise (`false` for a disabled or missing input, `undefined` for a missing composer) `feed.value?.focusLog()` runs.
+- **Refs.** The two `ref="feed"` and `ref="composer"` uses are in exclusive `v-if`/`v-else` branches, so each ref names the mounted instance after the tick.
+- **The log element.** It is `role="log"` with `tabindex="-1"`, so it is programmatically focusable but outside the tab order. The global `:focus { outline: none }` plus the `:focus-visible` ring means mouse clicks inside the feed show no ring.
+- **No focus regressions.** Nothing in `src/creation` reads `document.activeElement`, and the choice block was moved outside the log in IN-03. Clicking feed text now focuses the log instead of `<body>`, which changes nothing that depends on focus.
+
+**The reuse tests whose secondary changed from `con` to `int`:**
+- **`con` was never a legitimate stored value.**
+  - `STAT_TYPES` is `['str','dex','int','wis','cha']` (`mechanical_vocabulary.ts:21`) and has never contained `con`.
+  - The race prompt schema has constrained `"stat": "str|dex|int|wis|cha"` since at least 40-03.
+  - Since 41-03 (2026-09-30), `validateRaceReply` clamps every reply to `STAT_TYPES` before anything is stored.
+  - Only the pre-41 apply path stored raw model output. A `con`, or an uppercase `"STR"` (`readBonus` is case-sensitive), could exist only in a row from that era where the model ignored the schema.
+- **The local database has no such row.** A read-only `spacetime sql uwr "SELECT name, name_lower, bonuses_json FROM race_definition"` returns one row, `Dark-Elf` with `dex`/`int`.
+- **The drop is not new.**
+  - `parseRaceBonuses` has dropped such a stat at finalize, at both level-up sites, on the sheet and on the race cards since 49-01.
+  - Before IN-11, the reuse line still printed "+1 CON". The old test pinned exactly that false promise: a bonus the character never received.
+  - The fixture change makes the test use a valid stat, and the new IN-11 test pins that an invalid secondary prints nothing.
+- **Impact.** The only effect on a legacy malformed row is that its invalid stat is not applied, which has been true since 49-01 and is consistent everywhere. This is not a finding.
+
+## Info (iteration 3)
+
+### IN-14: Two `race_definition` read sites still bypass `findRaceDefinition`, so a legacy row named "Unknown" is still honored there
+
+**Files:**
+- `spacetimedb/src/reducers/intent.ts:398-416` (character info)
+- `src/creation/raceCards.ts:74-92` (`selectRaceCards`)
+- `spacetimedb/src/data/race_bonuses.ts:73-74` (the doc comment)
+
+**Issue:** the WR-06 doc comment says "no lookup honors a row that has it". The fix stops any *new* `unknown` row from being saved. But pre-Phase-41 code saved any non-empty `raceName`, including "Unknown", so a row can exist in any database that ran that code. Two readers still honor such a row:
+1. **Character info.** `intent.ts` filters `race_definition.by_name(character.race.toLowerCase())` directly and prints the raw `bonusesJson`, without `parseRaceBonuses`. For a placeholder-race character, it lists racial bonuses that finalize and level-up never applied (and, for a malformed legacy row, stats such as `con`).
+2. **Race cards.** If that row is among the newest three, it is shown as a card such as "Unknown, +2 STR. Choose this race." Clicking it sends "Unknown". `findRaceDefinition` refuses the placeholder, so instead of the promised reuse with no model call, a paid `creation_race` job runs. The likely reply ("Unknown") ends with no bonus, which contradicts the card.
+
+The local database has no such row (checked above), so this does not occur locally. Maincloud has not been checked.
+
+**Fix:**
+- In `intent.ts`, use `findRaceDefinition(ctx, character.race)`, and render the bonus lines with `raceBonusText` / `parseRaceBonuses`.
+- In `selectRaceCards`, skip rows where `isPlaceholderRace(row.name)` before the slice (`race_bonuses.ts` is already reachable through `@game-data`).
+- Or narrow the doc comment to "no server stat lookup".
+
+### IN-15: The reserved placeholder name is still a bare literal in the places that produce it
+
+**Files:**
+- `spacetimedb/src/reducers/creation.ts:197` (`state.raceName || 'Unknown'`)
+- `spacetimedb/src/helpers/creation_validate.ts:116` (`cleanName(d.raceName, 'Unknown')`)
+- `spacetimedb/src/helpers/creation_generation.ts:110,156`
+
+**Issue:** `PLACEHOLDER_RACE_NAME` is now the reserved name, but the code that *produces* the placeholder still hard-codes `'Unknown'`. If the constant changes, `validateRaceReply` would produce a name that `isPlaceholderRace` no longer recognizes, and the reservation would silently stop applying. This is not a bug today.
+
+**Fix:** import `PLACEHOLDER_RACE_NAME` at the race-name sites, at least `creation.ts:197` and `creation_validate.ts:116`. Note that `creation_validate.ts` has its own import constraints, so check its import pin first.
+
+---
+
+_Iteration 3 reviewed: 2026-10-06T14:49:26Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
