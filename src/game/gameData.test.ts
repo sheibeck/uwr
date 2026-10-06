@@ -8,7 +8,12 @@ import type { BindEventTableOptions } from './bindEventTable';
 import { createGameData } from './gameData';
 import type { GameConn, GameDeps, GameInput } from './gameData';
 import type { GameQueries } from './queries';
-import { createInertConsole, createInertFrame, createInertGame } from './context';
+import {
+  createInertCombatData,
+  createInertConsole,
+  createInertFrame,
+  createInertGame,
+} from './context';
 
 interface FakeConn {
   id: number;
@@ -620,6 +625,46 @@ describe('inert defaults', () => {
       game.reset();
       game.dispose();
     }).not.toThrow();
+  });
+
+  it('createInertGame carries an inert combat block', () => {
+    const { combat } = createInertGame();
+    for (const flag of [combat.active, combat.applied, combat.castsApplied, combat.aggroApplied]) {
+      expect(flag.value).toBe(false);
+    }
+    for (const single of [
+      combat.combatId,
+      combat.self,
+      combat.openRound,
+      combat.roundNumber,
+      combat.ownAction,
+    ]) {
+      expect(single.value).toBeNull();
+    }
+    for (const list of [
+      combat.participants,
+      combat.enemies,
+      combat.enemyTemplates,
+      combat.enemyAbilities,
+      combat.rounds,
+      combat.actions,
+      combat.casts,
+      combat.narratives,
+      combat.pets,
+      combat.aggro,
+    ]) {
+      expect(list.value).toEqual([]);
+    }
+    expect(combat.characterNames.value.size).toBe(0);
+    expect(combat.petNames.value.size).toBe(0);
+  });
+
+  it('createInertCombatData returns a fresh object each call', () => {
+    const a = createInertCombatData();
+    const b = createInertCombatData();
+    expect(a).not.toBe(b);
+    expect(a.active.value).toBe(false);
+    expect(b.enemies.value).toEqual([]);
   });
 
   it('createInertConsole refuses to submit and createInertFrame does nothing', () => {

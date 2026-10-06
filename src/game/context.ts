@@ -3,8 +3,17 @@ import type { InjectionKey, Ref } from 'vue';
 import type {
   AbilityCooldown,
   AbilityTemplate,
+  ActivePet,
   Character,
   CharacterEffect,
+  CombatAction,
+  CombatEnemy,
+  CombatEnemyCast,
+  CombatNarrative,
+  CombatParticipant,
+  CombatRound,
+  EnemyAbility,
+  EnemyTemplate,
   EventContribution,
   EventObjective,
   Faction,
@@ -16,6 +25,7 @@ import type {
   HotbarSlot,
   Location,
   LocationConnection,
+  MyCombatAggroEntry,
   MyLlmJob,
   Npc,
   QuestInstance,
@@ -54,6 +64,14 @@ export interface GameReducers {
   kickGroupMember(a: { characterId: bigint; targetName: string }): Promise<void>;
   promoteGroupLeader(a: { characterId: bigint; targetName: string }): Promise<void>;
   endCombat(a: { characterId: bigint }): Promise<void>;
+  submitCombatAction(a: {
+    characterId: bigint;
+    abilityTemplateId?: bigint;
+    targetEnemyId?: bigint;
+    targetCharacterId?: bigint;
+  }): Promise<void>;
+  fleeCombat(a: { characterId: bigint }): Promise<void>;
+  setCombatTarget(a: { characterId: bigint; enemyId?: bigint }): Promise<void>;
   sendFriendRequestToCharacter(a: { characterId: bigint; targetName: string }): Promise<void>;
   switchHotbar(a: { characterId: bigint; hotbarName: string }): Promise<void>;
   useAbility(a: {
@@ -66,6 +84,46 @@ export interface GameReducers {
 }
 
 type List<T> = Readonly<Ref<readonly T[]>>;
+
+/**
+ * The player's own fight (Phase 48). Every list is scoped to the fight of the own
+ * participant row, so a row of another fight never shows. Empty and null outside a fight.
+ */
+export interface CombatData {
+  /** The active character's own combat_participant row exists. inCombat stays the Phase 47 effect flag. */
+  readonly active: Readonly<Ref<boolean>>;
+  /** The fight's enemy binding has applied (the encounter can be drawn). */
+  readonly applied: Readonly<Ref<boolean>>;
+  /** The fight's enemy cast binding has applied. */
+  readonly castsApplied: Readonly<Ref<boolean>>;
+  /** The threat view has applied. */
+  readonly aggroApplied: Readonly<Ref<boolean>>;
+  readonly combatId: Readonly<Ref<bigint | null>>;
+  /** The own participant row. */
+  readonly self: Readonly<Ref<CombatParticipant | null>>;
+  readonly participants: List<CombatParticipant>;
+  readonly enemies: List<CombatEnemy>;
+  readonly enemyTemplates: List<EnemyTemplate>;
+  readonly enemyAbilities: List<EnemyAbility>;
+  readonly rounds: List<CombatRound>;
+  /** The round row with state 'action_select', else null. */
+  readonly openRound: Readonly<Ref<CombatRound | null>>;
+  /** The open round number, else the highest round number seen, else null. */
+  readonly roundNumber: Readonly<Ref<bigint | null>>;
+  /** The player's own choice rows. */
+  readonly actions: List<CombatAction>;
+  /** The player's choice row for the open round only. */
+  readonly ownAction: Readonly<Ref<CombatAction | null>>;
+  readonly casts: List<CombatEnemyCast>;
+  /** Lingers for a short while after the fight ends, so a late narration still matches its round. */
+  readonly narratives: List<CombatNarrative>;
+  readonly pets: List<ActivePet>;
+  /** The threat view rows of the player's fights. */
+  readonly aggro: List<MyCombatAggroEntry>;
+  /** Fight participants, party and the player, by id. */
+  readonly characterNames: Readonly<Ref<ReadonlyMap<bigint, string>>>;
+  readonly petNames: Readonly<Ref<ReadonlyMap<bigint, string>>>;
+}
 
 export interface GameData {
   readonly connected: Readonly<Ref<boolean>>;
@@ -105,6 +163,7 @@ export interface GameData {
   readonly renown: List<Renown>;
   readonly renownPerks: List<RenownPerk>;
   readonly privateEventsApplied: Readonly<Ref<boolean>>;
+  readonly combat: CombatData;
   readonly feed: FeedStore;
   readonly clock: ServerClock;
   /** Null unless connected: reducers are never exposed while reconnecting. */
@@ -165,6 +224,32 @@ function empty<T>(): List<T> {
   return constant<readonly T[]>([]);
 }
 
+export function createInertCombatData(): CombatData {
+  return {
+    active: constant(false),
+    applied: constant(false),
+    castsApplied: constant(false),
+    aggroApplied: constant(false),
+    combatId: constant<bigint | null>(null),
+    self: constant<CombatParticipant | null>(null),
+    participants: empty<CombatParticipant>(),
+    enemies: empty<CombatEnemy>(),
+    enemyTemplates: empty<EnemyTemplate>(),
+    enemyAbilities: empty<EnemyAbility>(),
+    rounds: empty<CombatRound>(),
+    openRound: constant<CombatRound | null>(null),
+    roundNumber: constant<bigint | null>(null),
+    actions: empty<CombatAction>(),
+    ownAction: constant<CombatAction | null>(null),
+    casts: empty<CombatEnemyCast>(),
+    narratives: empty<CombatNarrative>(),
+    pets: empty<ActivePet>(),
+    aggro: empty<MyCombatAggroEntry>(),
+    characterNames: constant<ReadonlyMap<bigint, string>>(new Map()),
+    petNames: constant<ReadonlyMap<bigint, string>>(new Map()),
+  };
+}
+
 export function createInertGame(): GameData {
   return {
     connected: constant(false),
@@ -197,6 +282,7 @@ export function createInertGame(): GameData {
     renown: empty<Renown>(),
     renownPerks: empty<RenownPerk>(),
     privateEventsApplied: constant(false),
+    combat: createInertCombatData(),
     feed: createFeedStore(),
     clock: createServerClock(),
     reducers: constant<GameReducers | null>(null),
