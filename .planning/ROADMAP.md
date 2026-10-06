@@ -1048,7 +1048,6 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 
 **Open questions:**
 
-- Merge 999.3 into this item, or keep 999.3 as the first slice (drops and quest rewards) with this item as the follow-up?
 - Quest-reward follow-ups found by quick task 261006-g12 (not fixed): neither turn-in path checks inventory space; quest XP is added directly instead of through `awardXp`, so it never triggers a level-up check; the "turn in" intent path skips `recordQuestCompletion`; a reward named exactly like a starter item would be overwritten by `ensureStarterItemTemplates`.
 - When a legendary resurfaces held by an NPC, how does a player win it from them (a quest, high affinity, defeating them)?
 - Is internal bearer history needed at all, given rumors never name past bearers?
