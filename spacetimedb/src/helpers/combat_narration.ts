@@ -18,6 +18,7 @@ import { encodeRouteInput, decodeRouteInput } from './llm_inputs';
 import { segmentsFromReply, flattenSegments, speakerKey } from './segments';
 import type { PresentSpeaker } from './segments';
 import { redactSecrets } from './measurement';
+import { isBossOrNamed } from './combat_moments';
 
 // ── Types ──
 
@@ -61,6 +62,8 @@ export type RoundEventSummary = {
   momentSubject?: string;      // name of the fallen enemy, the player near death or the enemy past half
   momentFirst?: boolean;       // kill only: it is the first death of the fight
   momentBossOrNamed?: boolean; // kill only: the fallen enemy is a boss or a named foe
+  // Outro only: a boss or a named foe fought in this fight (scales the outro length; absent reads as false)
+  fightBossOrNamed?: boolean;
 };
 
 /** The facts of one big moment, supplied by the round resolver (46.1-08) after detectMoment. */
@@ -120,6 +123,28 @@ function gatherFight(ctx: any, combat: any, participants: any[], enemies: any[])
 
   const location = ctx.db.location.id.find(combat.locationId);
   return { deaths, nearDeathNames, playerNames, enemyNames, participantHpSummary, locationName: location?.name };
+}
+
+/**
+ * True when any enemy of the fight is a boss (enemy_template.isBoss) or a named foe of a participant
+ * (named_enemy). Same test as the big-moment picker. Never throws: a lookup failure reads as false.
+ */
+function fightHadBossOrNamed(ctx: any, participants: any[], enemies: any[]): boolean {
+  try {
+    const namedTemplateIds = new Set<bigint>();
+    for (const p of participants) {
+      for (const named of ctx.db.named_enemy.by_character.filter(p.characterId)) {
+        namedTemplateIds.add(named.enemyTemplateId);
+      }
+    }
+    for (const e of enemies) {
+      const template = ctx.db.enemy_template.id.find(e.enemyTemplateId);
+      if (isBossOrNamed(template, e.enemyTemplateId, namedTemplateIds)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 function logNarrationSkipped(e: unknown): void {
@@ -199,6 +224,7 @@ export function buildCombatOutroSummary(
     locationName: fight.locationName,
     enemyNames: fight.enemyNames,
     playerNames: fight.playerNames,
+    fightBossOrNamed: fightHadBossOrNamed(ctx, participants, enemies),
   };
 }
 
