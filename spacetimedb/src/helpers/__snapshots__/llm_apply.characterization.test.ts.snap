@@ -1398,14 +1398,14 @@ exports[`llm apply creation_class_reveal success (stage 1) > malformed JSON reve
 }"
 `;
 
-exports[`llm apply creation_race success > Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition 1`] = `
+exports[`llm apply creation_race success > Phase 41 / CR-01: a reply without raceName stores "Unknown" with NO bonus, prints "**Unknown**" and saves no definition 1`] = `
 "{
   "character_creation_state": [
     {
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1}}",
+      "raceBonuses": "{}",
       "raceName": "Unknown",
       "raceNarrative": "Nothing much.",
       "step": "AWAITING_ARCHETYPE",
@@ -1417,7 +1417,7 @@ exports[`llm apply creation_race success > Phase 41: a reply without raceName st
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Nothing much.\\n\\n**Unknown**\\n+2 STR, +1 DEX\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
+      "message": "Nothing much.\\n\\n**Unknown**\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1428,7 +1428,7 @@ exports[`llm apply creation_race success > Phase 41: a reply without raceName st
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "**Unknown**\\n+2 STR, +1 DEX"
+          "text": "**Unknown**"
         },
         {
           "kind": "narration",
@@ -1620,15 +1620,15 @@ exports[`llm apply creation_race success > applies a valid reply: state, creatio
 }"
 `;
 
-exports[`llm apply creation_race success > does not add a second race_definition when one already exists for the race 1`] = `
+exports[`llm apply creation_race success > does not add a second race_definition when one already exists for the race, and the state takes the stored bonuses (CR-01) 1`] = `
 "{
   "character_creation_state": [
     {
       "createdAt": "ts:1600000000000000n",
       "id": "2n",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"str\\",\\"value\\":2},\\"secondary\\":{\\"stat\\":\\"dex\\",\\"value\\":1},\\"flavor\\":\\"Ember-warm.\\"}",
-      "raceName": "Ashkin",
+      "raceBonuses": "{\\"primary\\":{\\"stat\\":\\"cha\\",\\"value\\":3},\\"secondary\\":{\\"stat\\":\\"wis\\",\\"value\\":2},\\"flavor\\":\\"Old ash.\\"}",
+      "raceName": "ashkin",
       "raceNarrative": "Born of cinders and spite.",
       "step": "AWAITING_ARCHETYPE",
       "updatedAt": "ts:1700000000000000n"
@@ -1639,7 +1639,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "creation",
-      "message": "Born of cinders and spite.\\n\\n**Ashkin**\\n+2 STR, +1 DEX. Ember-warm.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
+      "message": "Born of cinders and spite.\\n\\n**ashkin**\\n+3 CHA, +2 WIS. Old ash.\\n\\nNow then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.\\n\\n(If you're already regretting your choices, type \\"go back.\\" Nobody will judge... much.)",
       "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
@@ -1650,7 +1650,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "**Ashkin**\\n+2 STR, +1 DEX. Ember-warm."
+          "text": "**ashkin**\\n+3 CHA, +2 WIS. Old ash."
         },
         {
           "kind": "narration",
@@ -1667,7 +1667,7 @@ exports[`llm apply creation_race success > does not add a second race_definition
   ],
   "race_definition": [
     {
-      "bonusesJson": "{}",
+      "bonusesJson": "{\\"primary\\":{\\"stat\\":\\"cha\\",\\"value\\":3},\\"secondary\\":{\\"stat\\":\\"wis\\",\\"value\\":2},\\"flavor\\":\\"Old ash.\\"}",
       "createdAt": "ts:1600000000000000n",
       "id": "9n",
       "name": "ashkin",

@@ -189,13 +189,19 @@ export const registerCreationReducers = (deps: any) => {
       armorProficiencies = 'cloth,' + armorProficiencies;
     }
 
-    const { stats: classStats } = computeCreationStats(primaryStat, secondaryStat, state.raceBonuses);
+    // The stored race_definition row is the one source of the race bonus (review CR-01): level-up
+    // finds the bonus by the same lookup (character.race lowercased), so finalize adds exactly what
+    // level-up can subtract. A race with no definition (for example the 'Unknown' placeholder) gets
+    // no bonus. The creation state carries the same bonuses (applyCreationResult), so the sheet agrees.
+    const finalRace: string = state.raceName || 'Unknown';
+    const raceDef = [...ctx.db.race_definition.by_name.filter(finalRace.toLowerCase())][0];
+    const { stats: classStats } = computeCreationStats(primaryStat, secondaryStat, raceDef?.bonusesJson);
 
     const character = ctx.db.character.insert({
       id: 0n,
       ownerUserId: userId,
       name: characterName,
-      race: state.raceName || 'Unknown',
+      race: finalRace,
       className: state.className || (state.archetype === 'mystic' ? 'Mystic' : 'Warrior'),
       level: 1n,
       xp: 0n,

@@ -429,31 +429,37 @@ describe('llm apply creation_race success', () => {
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Ashkin');
   });
 
-  it('does not add a second race_definition when one already exists for the race', () => {
+  it('does not add a second race_definition when one already exists for the race, and the state takes the stored bonuses (CR-01)', () => {
     // Mock limit: by_name maps to the column `name`, so the seeded row's name is lowercase.
+    const stored = '{"primary":{"stat":"cha","value":3},"secondary":{"stat":"wis","value":2},"flavor":"Old ash."}';
     const ctx = newCtx({
       ...seed(),
       race_definition: [
-        { id: 9n, name: 'ashkin', nameLower: 'ashkin', narrative: 'old', bonusesJson: '{}', createdAt: ts(T_OLD) },
+        { id: 9n, name: 'ashkin', nameLower: 'ashkin', narrative: 'old', bonusesJson: stored, createdAt: ts(T_OLD) },
       ],
     });
     exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify(RACE_JSON) });
     expect(rows(ctx, 'race_definition')).toHaveLength(1);
     expect(rows(ctx, 'race_definition')[0].narrative).toBe('old');
-    expect(rows(ctx, 'character_creation_state')[0].step).toBe('AWAITING_ARCHETYPE');
+    const state = rows(ctx, 'character_creation_state')[0];
+    expect(state.step).toBe('AWAITING_ARCHETYPE');
+    // The reply said str +2 / dex +1; the stored definition (cha +3 / wis +2) is the one source.
+    expect(state.raceBonuses).toBe(stored);
+    expect(state.raceName).toBe('ashkin');
+    const msg = rows(ctx, 'event_creation')[0].message as string;
+    expect(msg).toContain('+3 CHA, +2 WIS. Old ash.');
+    expect(msg).not.toContain('+2 STR');
   });
 
-  it('Phase 41: a reply without raceName stores "Unknown" with default bonuses, prints "**Unknown**" and saves no definition', () => {
+  it('Phase 41 / CR-01: a reply without raceName stores "Unknown" with NO bonus, prints "**Unknown**" and saves no definition', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('creation_race'), { resultText: JSON.stringify({ narrative: 'Nothing much.' }) });
     expect(rows(ctx, 'character_creation_state')[0].raceName).toBe('Unknown');
-    expect(JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses)).toEqual({
-      primary: { stat: 'str', value: 2 },
-      secondary: { stat: 'dex', value: 1 },
-    });
+    // No definition exists for the placeholder, so finalize and level-up would find no bonus.
+    expect(JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses)).toEqual({});
     const msg = rows(ctx, 'event_creation')[0].message as string;
     expect(msg).toContain('**Unknown**');
-    expect(msg).toContain('+2 STR, +1 DEX');
+    expect(msg).not.toMatch(/\+\d [A-Z]{3}/);
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 

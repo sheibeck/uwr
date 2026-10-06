@@ -58,6 +58,7 @@ import {
   MAX_QUESTS_PER_NPC,
 } from './npc_conversation';
 import { awardNpcAffinity } from './npc_affinity';
+import { parseRaceBonuses } from '../data/race_bonuses';
 import { handleCombatNarrationResult } from './combat_narration';
 import { insertStaticRenownPerkOptions, renownRankSettled } from './renown';
 import { toBigIntSafe } from './safe_numbers';
@@ -278,46 +279,58 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
 
     // Clamp, never reject: everything below is built from the validated reply only.
     const race = validateRaceReply(raw);
-    const { primary, secondary, flavor } = race.bonuses;
+    // A reply that named no race (validated to the placeholder 'Unknown') is not saved for reuse.
+    const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== '';
+    const raceLower = namedRace ? race.raceName.toLowerCase() : '';
+
+    // One source of truth (review CR-01): the stored race_definition row. When the name is already
+    // saved, its name and bonuses go on the creation state, so the sheet, finalize and level-up all
+    // read the same bonuses. A reply that named no race has no definition, so it carries no bonus
+    // at all (finalize and level-up both look the race up by name and would find nothing).
+    let existing: any;
+    if (raceLower) {
+      for (const row of ctx.db.race_definition.by_name.filter(raceLower)) {
+        existing = row;
+        break;
+      }
+    }
+    const bonusesJson: string = existing ? existing.bonusesJson : namedRace ? JSON.stringify(race.bonuses) : '{}';
+    const raceName: string = existing ? existing.name : race.raceName;
+
     ctx.db.character_creation_state.id.update({
       ...s,
       step: 'AWAITING_ARCHETYPE',
-      raceName: race.raceName,
+      raceName,
       raceNarrative: race.narrative,
-      raceBonuses: JSON.stringify(race.bonuses),
+      raceBonuses: bonusesJson,
       updatedAt: ctx.timestamp,
     });
 
-    const bonusText =
-      `\n+${primary.value} ${primary.stat.toUpperCase()}, +${secondary.value} ${secondary.stat.toUpperCase()}${flavor ? `. ${flavor}` : ''}`;
+    const stored = parseRaceBonuses(bonusesJson);
+    const bonusParts = [stored.primary, stored.secondary]
+      .filter((b): b is { stat: string; value: bigint } => b !== null)
+      .map((b) => `+${b.value} ${b.stat.toUpperCase()}`);
+    const bonusText = bonusParts.length > 0
+      ? `\n${bonusParts.join(', ')}${stored.flavor ? `. ${stored.flavor}` : ''}`
+      : '';
 
     writeCreationSegments(ctx, job.playerId, 'creation', keeperSegments(
       `${race.narrative || 'An interesting choice.'}\n\n` +
-      `**${race.raceName}**${bonusText}\n\n` +
+      `**${raceName}**${bonusText}\n\n` +
       `Now then. Every creature must choose a path, and you are no exception. Are you a [Warrior] — all muscle and stubborn refusal to die gracefully? Or a [Mystic] — convinced that reality is merely a suggestion? Choose.` +
       `\n\n(If you're already regretting your choices, type "go back." Nobody will judge... much.)`
     ));
 
-    // Persist race definition for reuse by future players. A reply that named no race
-    // (validated to the placeholder 'Unknown') is not saved for reuse.
-    const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== '';
-    const raceLower = namedRace ? race.raceName.toLowerCase() : '';
-    if (raceLower) {
-      let alreadySaved = false;
-      for (const existing of ctx.db.race_definition.by_name.filter(raceLower)) {
-        alreadySaved = true;
-        break;
-      }
-      if (!alreadySaved) {
-        ctx.db.race_definition.insert({
-          id: 0n,
-          name: race.raceName,
-          nameLower: raceLower,
-          narrative: race.narrative,
-          bonusesJson: JSON.stringify(race.bonuses),
-          createdAt: ctx.timestamp,
-        });
-      }
+    // Persist the race definition for reuse by future players.
+    if (raceLower && !existing) {
+      ctx.db.race_definition.insert({
+        id: 0n,
+        name: race.raceName,
+        nameLower: raceLower,
+        narrative: race.narrative,
+        bonusesJson: JSON.stringify(race.bonuses),
+        createdAt: ctx.timestamp,
+      });
     }
   } catch (parseErr) {
     console.error(`Creation LLM reply could not be parsed [creation_race]: ${errName(parseErr)}`);
