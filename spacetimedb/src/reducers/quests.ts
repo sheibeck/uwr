@@ -1,7 +1,7 @@
 import { awardNpcAffinity } from '../helpers/npc_affinity';
 import { recordQuestCompletion } from '../helpers/npc_conversation';
 import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
-import { getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
+import { findItemTemplateByName, getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
 import { awardXp } from '../helpers/combat_rewards';
 import { MAX_LEVEL } from '../data/xp';
 
@@ -81,13 +81,31 @@ export function questGrantsItem(qt: any): boolean {
   return qt.rewardType === 'item' && !!qt.rewardItemName;
 }
 
+/**
+ * The name of a new reward template: the quest's item name, unless an item_template already carries that
+ * name (case-insensitive, as findItemTemplateByName matches). Starter, material and other seeded templates
+ * are found and upserted by name (ensureStarterItemTemplates, grantStarterItems, crafting), so a reward
+ * sharing a name could be overwritten by the starter upsert or handed out in place of the starter item.
+ * On a clash the reward becomes "<Giver>'s <name>" (a number appended if that is taken too).
+ */
+export function questRewardItemName(ctx: any, qt: any): string {
+  const base = String(qt.rewardItemName);
+  if (!findItemTemplateByName(ctx, base)) return base;
+  const npc = qt.npcId ? ctx.db.npc.id.find(qt.npcId) : undefined;
+  const stem = npc ? `${npc.name}'s ${base}` : `Quest-won ${base}`;
+  let name = stem;
+  for (let n = 2; findItemTemplateByName(ctx, name); n++) name = `${stem} ${n}`;
+  return name;
+}
+
 export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPrivateEvent: any) {
   if (!questGrantsItem(qt)) return undefined;
   const itemStats = computeQuestRewardStats(character.level, qt.questType || 'kill');
+  const itemName = questRewardItemName(ctx, qt);
 
   const itemTemplate = ctx.db.item_template.insert({
     id: 0n,
-    name: qt.rewardItemName,
+    name: itemName,
     slot: itemStats.slot,
     armorType: itemStats.isWeapon ? 'none' : questRewardArmorType(character),
     rarity: itemStats.rarity,
@@ -126,7 +144,7 @@ export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPr
   });
 
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-    `Received: ${qt.rewardItemName}!`);
+    `Received: ${itemName}!`);
   return instance;
 }
 

@@ -7,12 +7,14 @@
  *   - an item-reward quest is refused with a visible message when the bags are full, and nothing
  *     (xp, gold, item, affinity, memory, quest removal) is applied; freeing a slot lets it go through;
  *   - quest xp goes through awardXp: crossing a level threshold earns pending levels and the [Level Up]
- *     prompt, the promised amount is not rescaled, and max level still receives it.
+ *     prompt, the promised amount is not rescaled, and max level still receives it;
+ *   - a reward whose name matches a starter template (ensureStarterItemTemplates upserts by name) gets
+ *     its own name: it neither overwrites nor is overwritten by the starter row.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
-import { MAX_INVENTORY_SLOTS } from '../helpers/items';
+import { MAX_INVENTORY_SLOTS, ensureStarterItemTemplates, findItemTemplateByName } from '../helpers/items';
 import { MAX_LEVEL } from '../data/xp';
 
 vi.mock('spacetimedb/server', async () =>
@@ -164,6 +166,61 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
       expect(ch.xp).toBe(3140n);
       expect(ch.pendingLevels).toBe(0n);
       expect(messages(ctx)).toContain(`Quest "${QUEST_NAME}" complete! +40 XP`);
+    });
+  });
+
+  describe('reward named like a starter item', () => {
+    const STARTER = 'Training Sword';
+    const sameName = (ctx: any, name: string) =>
+      rows(ctx, 'item_template').filter((t) => t.name.toLowerCase() === name.toLowerCase());
+
+    it.each([STARTER, STARTER.toLowerCase()])('reward "%s" gets its own name and leaves the starter row alone', (rewardName) => {
+      const ctx = newCtx({ qt: { rewardItemName: rewardName } });
+      ensureStarterItemTemplates(ctx);
+      const starterBefore = { ...sameName(ctx, STARTER)[0] };
+      turnIn(ctx);
+
+      // Still exactly one template by the starter name, unchanged, and it is what name lookups return.
+      expect(sameName(ctx, STARTER)).toEqual([starterBefore]);
+      expect(findItemTemplateByName(ctx, STARTER)?.id).toBe(starterBefore.id);
+
+      const inst = rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 1n)!;
+      const reward = rows(ctx, 'item_template').find((t) => t.id === inst.templateId)!;
+      expect(reward.id).not.toBe(starterBefore.id);
+      expect(reward.name).toBe(`Hesk Varrow's ${rewardName}`);
+      expect(messages(ctx)).toContain(`Received: Hesk Varrow's ${rewardName}!`);
+    });
+
+    it('the starter upsert does not overwrite the reward, whatever order the table iterates in', () => {
+      const ctx = newCtx({ qt: { rewardItemName: STARTER } });
+      ensureStarterItemTemplates(ctx);
+      turnIn(ctx);
+      const inst = rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 1n)!;
+      const rewardBefore = { ...rows(ctx, 'item_template').find((t) => t.id === inst.templateId) };
+
+      // The real table has no guaranteed iteration order: put the reward first, then re-run the upsert
+      // (it runs at init and on every character creation).
+      ctx.db._tables.item_template.reverse();
+      ensureStarterItemTemplates(ctx);
+
+      expect(rows(ctx, 'item_template').find((t) => t.id === rewardBefore.id)).toEqual(rewardBefore);
+      expect(findItemTemplateByName(ctx, STARTER)?.id).not.toBe(rewardBefore.id);
+    });
+
+    it('a second clash on the same name gets a number', () => {
+      const ctx = newCtx({ qt: { rewardItemName: STARTER } });
+      ensureStarterItemTemplates(ctx);
+      ctx.db.item_template.insert({ ...rows(ctx, 'item_template')[0], id: 0n, name: `Hesk Varrow's ${STARTER}` });
+      turnIn(ctx);
+      expect(messages(ctx)).toContain(`Received: Hesk Varrow's ${STARTER} 2!`);
+    });
+
+    it('a name no template uses is kept as the quest promised it', () => {
+      const ctx = newCtx();
+      ensureStarterItemTemplates(ctx);
+      turnIn(ctx);
+      expect(sameName(ctx, 'Bellwright Token')).toHaveLength(1);
+      expect(messages(ctx)).toContain('Received: Bellwright Token!');
     });
   });
 
