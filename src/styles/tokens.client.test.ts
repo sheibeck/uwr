@@ -37,13 +37,16 @@ const EXPECTED_TOKENS: Array<[string, string]> = [
   ['--color-health', 'oklch(0.62 0.16 24)'],
   ['--color-mana', 'oklch(0.62 0.12 258)'],
   ['--color-stamina', 'oklch(0.74 0.12 70)'],
+  ['--color-line-npc', 'oklch(0.8 0.09 320)'],
+  ['--color-line-whisper', 'oklch(0.8 0.07 235)'],
+  ['--color-line-quest', 'oklch(0.84 0.1 90)'],
 ];
 
 describe('tokens.client.css', () => {
   const tokenFile = `${SRC}/styles/tokens.client.css`;
   const decls = parseDecls(read(tokenFile), tokenFile);
 
-  it('declares exactly the 20 pinned tokens in order', () => {
+  it('declares exactly the 23 pinned tokens in order', () => {
     expect(decls.map((d) => [d.prop, d.value])).toEqual(EXPECTED_TOKENS);
   });
 
