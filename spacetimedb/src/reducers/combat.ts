@@ -10,7 +10,6 @@ import {
 } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
-import { scheduleCombatTick } from '../helpers/combat';
 import {
   startRound, currentRound, roundsForCombat, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
   upsertChoice, allWaitingChosen,
@@ -43,8 +42,6 @@ import {
   resetSpawnAfterCombat,
 } from '../helpers/combat_rewards';
 
-const AUTO_ATTACK_INTERVAL = 5_000_000n;
-const RETRY_ATTACK_INTERVAL = 1_000_000n;
 const PET_BASE_DAMAGE = 3n;
 const DEFAULT_AI_CHANCE = 50;
 const DEFAULT_AI_WEIGHT = 50;
@@ -219,7 +216,7 @@ export const startCombatForSpawn = (
         ...ap,
         combatId: combat.id,
         nextAbilityAt: ap.abilityKey ? ctx.timestamp.microsSinceUnixEpoch : undefined,
-        nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + AUTO_ATTACK_INTERVAL,
+        nextAutoAttackAt: undefined,
         targetEnemyId: undefined,
       });
       if (p.className?.toLowerCase() === 'summoner') {
@@ -283,8 +280,6 @@ export const registerCombatReducers = (deps: any) => {
     activeCombatIdForCharacter,
     ensureAvailableSpawn,
     computeEnemyStats,
-    getEnemyAttackSpeed,
-    scheduleCombatTick,
     sumCharacterEffect,
     sumEnemyEffect,
     applyArmorMitigation,

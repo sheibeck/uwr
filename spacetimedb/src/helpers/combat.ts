@@ -1,5 +1,5 @@
 import { SenderError } from 'spacetimedb/server';
-import { Timestamp, ScheduleAt } from 'spacetimedb';
+import { Timestamp } from 'spacetimedb';
 // normalizeClassName no longer needed — ability ownership checked by characterId
 import {
   calculateCritChance,
@@ -29,8 +29,6 @@ import { getEquippedWeaponStats, getEquippedBonuses } from './items';
 import { partyMembersInLocation } from './character';
 import { AggroEntry } from '../schema/tables';
 import {
-  COMBAT_LOOP_INTERVAL_MICROS,
-  AUTO_ATTACK_INTERVAL,
   GROUP_SIZE_DANGER_BASE,
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
@@ -70,8 +68,6 @@ function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigint | nul
 
 // Re-export constants from centralized file to maintain backwards compatibility
 export {
-  COMBAT_LOOP_INTERVAL_MICROS,
-  AUTO_ATTACK_INTERVAL,
   GROUP_SIZE_DANGER_BASE,
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
@@ -842,7 +838,7 @@ export function resolveAbility(
       abilityCooldownSeconds: undefined,
       nextAbilityAt: undefined,
       targetEnemyId: inActiveCombat && enemy ? enemy.id : undefined,
-      nextAutoAttackAt: inActiveCombat ? nowMicros + AUTO_ATTACK_INTERVAL : undefined,
+      nextAutoAttackAt: undefined,
       expiresAtMicros: ability.value2 ? nowMicros + ability.value2 * 1_000_000n : undefined,
     });
     logPrivate(character.id, character.ownerUserId, 'ability', `You have summoned ${ability.name}.`);
@@ -1483,11 +1479,3 @@ export function executeAbilityAction(
   );
 }
 
-export function scheduleCombatTick(ctx: any, combatId: bigint) {
-  const nextAt = ctx.timestamp.microsSinceUnixEpoch + COMBAT_LOOP_INTERVAL_MICROS;
-  ctx.db.combat_loop_tick.insert({
-    scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(nextAt),
-    combatId,
-  });
-}

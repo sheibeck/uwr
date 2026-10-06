@@ -127,12 +127,9 @@ import {
   executeEnemyAbility,
   executePetAbility,
   executeAbilityAction,
-  COMBAT_LOOP_INTERVAL_MICROS,
-  AUTO_ATTACK_INTERVAL,
   GROUP_SIZE_DANGER_BASE,
   GROUP_SIZE_BIAS_RANGE,
   GROUP_SIZE_BIAS_MAX,
-  scheduleCombatTick,
 } from './helpers/combat';
 
 import {
@@ -141,7 +138,6 @@ import {
   applyArmorMitigation,
   applyVariance,
   computeEnemyStats,
-  getEnemyAttackSpeed,
 } from './helpers/combat_enemies';
 
 import {
@@ -669,9 +665,7 @@ const reducerDeps = {
   ensureSpawnsForLocation,
   ensureAvailableSpawn,
   computeEnemyStats,
-  getEnemyAttackSpeed,
   activeCombatIdForCharacter,
-  scheduleCombatTick,
   recomputeCharacterDerived,
   executeAbilityAction,
   isClassAllowed,
