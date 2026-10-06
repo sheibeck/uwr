@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer, rowColumnProblems } from '../helpers/schema_recorder';
 import { calculateFleeChance } from '../helpers/combat_perks';
+import { roundSeed } from '../helpers/combat_rounds';
 import {
   T0,
   MODULE,
@@ -435,5 +436,269 @@ describe('ownership (T-46.1-06-01)', () => {
   });
 });
 
-// ---- Task 2 cases are added below ----
-void calculateFleeChance;
+// ---------------------------------------------------------------------------------------------
+// Task 2: flee as a round choice, mid-fight joiners, casts inside a fight
+// ---------------------------------------------------------------------------------------------
+
+/** A timestamp after round 1 opened at which the quick-123 roll for character `id` is below / at or above the chance. */
+function timeWithRoll(id: bigint, round: bigint, dangerMultiplier: bigint, wantSuccess: boolean): bigint {
+  const chance = calculateFleeChance(dangerMultiplier);
+  for (let d = 0n; d < 1000n; d++) {
+    const ts = T0 + 1_000_000n + d;
+    const roll = Number(roundSeed(ts + id * 13n, round) % 100n);
+    if (wantSuccess ? roll < chance : roll >= chance) return ts;
+  }
+  throw new Error('no timestamp found');
+}
+
+function groupSeed(seed: Record<string, any[]>) {
+  for (const c of seed.character) c.groupId = 5n;
+  seed.group = [{ id: 5n, leaderCharacterId: 1n }];
+  seed.group_member = [
+    { id: 1n, groupId: 5n, characterId: 1n, followLeader: true },
+    { id: 2n, groupId: 5n, characterId: 2n, followLeader: true },
+  ];
+  return seed;
+}
+
+describe('flee is a round choice (RND-01, RND-04)', () => {
+  it('flee_combat records a flee row without an ability, posts the attempt line and leaves the round open for the party', () => {
+    const ctx = fightCtx(ratFight({ players: 2 }), ALICE);
+    handlers.flee_combat(ctx, { characterId: 1n });
+    expect(actions(ctx)).toHaveLength(1);
+    expect(actions(ctx)[0]).toMatchObject({ characterId: 1n, actionType: 'flee', roundNumber: 1n });
+    expect(actions(ctx)[0].abilityTemplateId).toBeUndefined();
+    expect(lines(ctx, 1n, /^You attempt to flee\.\.\.$/)).toHaveLength(1);
+    expect(roundRows(ctx).map((r: any) => r.state)).toEqual(['action_select']);
+    expect(rows(ctx, 'combat_participant').every((p: any) => p.status === 'active')).toBe(true);
+  });
+
+  it('the group line is posted for a grouped character', () => {
+    const ctx = fightCtx(groupSeed(ratFight({ players: 2 })), ALICE);
+    handlers.flee_combat(ctx, { characterId: 1n });
+    expect(rows(ctx, 'event_group').filter((e: any) => /Aldric attempts to flee\./.test(e.message)).length).toBeGreaterThan(0);
+  });
+
+  it('a successful flee removes the character from the fight and carries its cooldowns out', () => {
+    const ts = timeWithRoll(1n, 1n, 100n, true);
+    const seed = ratFight({
+      extra: {
+        ability_template: [ability()],
+        ability_cooldown: [
+          { id: 1n, characterId: 1n, abilityTemplateId: 1n, startedAtMicros: T0, durationMicros: 2n * TEN_S, roundsRemaining: 2n },
+        ],
+        active_pet: [
+          { id: 1n, characterId: 1n, combatId: 1n, name: 'Wolf', level: 1n, currentHp: 20n, maxHp: 20n, attackDamage: 3n },
+        ],
+      },
+    });
+    seed.aggro_entry.push({ id: 50n, combatId: 1n, enemyId: 1n, characterId: 1n, petId: 1n, value: 0n });
+    const ctx = fightCtx(seed, ALICE, ts);
+    handlers.flee_combat(ctx, { characterId: 1n });
+
+    expect(lines(ctx, 1n, /^You successfully flee\.$/)).toHaveLength(1);
+    expect(rows(ctx, 'combat_participant').filter((p: any) => p.characterId === 1n)).toHaveLength(0);
+    expect(rows(ctx, 'aggro_entry').filter((a: any) => a.characterId === 1n)).toHaveLength(0);
+    expect(rows(ctx, 'active_pet')).toHaveLength(0);
+    const alice = rows(ctx, 'character').find((c: any) => c.id === 1n);
+    expect(alice.combatTargetEnemyId).toBeUndefined();
+    expect(alice.lastCombatEndAt).toBe(ts);
+    const cooldown = rows(ctx, 'ability_cooldown');
+    expect(cooldown).toHaveLength(1);
+    expect(cooldown[0]).toMatchObject({ roundsRemaining: 0n, startedAtMicros: ts, durationMicros: 8_000_000n });
+    expect(actions(ctx).filter((a: any) => a.characterId === 1n)).toHaveLength(0);
+  });
+
+  it('a solo successful flee ends the fight: no narration job, spawn released, every round row gone', () => {
+    const ts = timeWithRoll(1n, 1n, 100n, true);
+    const ctx = fightCtx(ratFight(), ALICE, ts);
+    handlers.flee_combat(ctx, { characterId: 1n });
+    expect(rows(ctx, 'combat_encounter')[0].state).toBe('resolved');
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'enemy_spawn')[0]).toMatchObject({ state: 'available' });
+    expect(rows(ctx, 'enemy_spawn')[0].lockedCombatId).toBeUndefined();
+    expect(rows(ctx, 'combat_round')).toHaveLength(0);
+    expect(rows(ctx, 'round_timer_tick')).toHaveLength(0);
+    expect(rows(ctx, 'combat_action')).toHaveLength(0);
+    expect(rows(ctx, 'combat_participant')).toHaveLength(0);
+    // The character was already gone: the enemy attacked nobody.
+    expect(lines(ctx, 1n, /Cave Rat (strikes you|lands a crushing blow)/)).toHaveLength(0);
+  });
+
+  it('a group flee success: the other player keeps fighting and the next round no longer waits for the one who fled', () => {
+    const ts = timeWithRoll(1n, 1n, 100n, true);
+    const ctx = fightCtx(ratFight({ players: 2 }), ALICE, ts);
+    handlers.flee_combat(ctx, { characterId: 1n });
+    ctx.sender = BOB;
+    handlers.submit_combat_action(ctx, { characterId: 2n });
+    expect(roundRows(ctx).map((r: any) => [r.roundNumber, r.state])).toEqual([
+      [1n, 'resolved'],
+      [2n, 'action_select'],
+    ]);
+    expect(rows(ctx, 'combat_participant').map((p: any) => p.characterId)).toEqual([2n]);
+    expect(rows(ctx, 'combat_encounter')[0].state).toBe('active');
+    expect(lines(ctx, 2n, /Your fists hit/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /Your fists hit/)).toHaveLength(0);
+    // Round 2 waits only for BOB: his choice alone resolves it.
+    handlers.submit_combat_action(ctx, { characterId: 2n });
+    expect(roundRows(ctx).map((r: any) => r.state)).toEqual(['resolved', 'resolved', 'action_select']);
+  });
+
+  it('a failed flee posts the failure, keeps the player active, skips their attack and waits for them again next round', () => {
+    const ts = timeWithRoll(1n, 1n, 300n, false);
+    const seed = ratFight();
+    seed.region[0].dangerMultiplier = 300n;
+    const ctx = fightCtx(seed, ALICE, ts);
+    handlers.flee_combat(ctx, { characterId: 1n });
+    expect(lines(ctx, 1n, /^You fail to flee!$/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /Your fists hit/)).toHaveLength(0);
+    expect(rows(ctx, 'combat_participant')[0].status).toBe('active');
+    expect(rows(ctx, 'combat_encounter')[0].state).toBe('active');
+    expect(lines(ctx, 1n, /Cave Rat (strikes you|lands a crushing blow)|strike misses you|You (dodge|parry|block) Cave Rat/).length)
+      .toBeGreaterThan(0);
+    expect(roundRows(ctx).map((r: any) => [r.roundNumber, r.state])).toEqual([
+      [1n, 'resolved'],
+      [2n, 'action_select'],
+    ]);
+    expect(actions(ctx)).toHaveLength(0);
+    handlers.submit_combat_action(ctx, { characterId: 1n });
+    expect(roundRows(ctx).map((r: any) => r.state)).toEqual(['resolved', 'resolved', 'action_select']);
+  });
+
+  it('success and failure both post the group line', () => {
+    for (const success of [true, false]) {
+      const dm = success ? 100n : 300n;
+      const ts = timeWithRoll(1n, 1n, dm, success);
+      const seed = groupSeed(ratFight({ players: 2 }));
+      seed.region[0].dangerMultiplier = dm;
+      const ctx = fightCtx(seed, ALICE, ts);
+      handlers.flee_combat(ctx, { characterId: 1n });
+      ctx.sender = BOB;
+      handlers.submit_combat_action(ctx, { characterId: 2n });
+      const pattern = success ? /Aldric successfully flees\./ : /Aldric fails to flee\./;
+      expect(rows(ctx, 'event_group').filter((e: any) => pattern.test(e.message)).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('no participant is ever left in the old unresolved fleeing status', () => {
+    for (const [dm, success] of [[100n, true], [300n, false]] as const) {
+      const ts = timeWithRoll(1n, 1n, dm, success);
+      const seed = ratFight({ players: 2 });
+      seed.region[0].dangerMultiplier = dm;
+      const ctx = fightCtx(seed, ALICE, ts);
+      handlers.flee_combat(ctx, { characterId: 1n });
+      expect(rows(ctx, 'combat_participant').some((p: any) => p.status === 'fleeing')).toBe(false);
+      ctx.sender = BOB;
+      handlers.submit_combat_action(ctx, { characterId: 2n });
+      expect(rows(ctx, 'combat_participant').some((p: any) => p.status === 'fleeing')).toBe(false);
+    }
+  });
+
+  it('a flee by a dead character is refused with a visible line', () => {
+    const seed = ratFight();
+    seed.character[0].hp = 0n;
+    seed.combat_participant[0].status = 'dead';
+    const ctx = fightCtx(seed, ALICE);
+    handlers.flee_combat(ctx, { characterId: 1n });
+    expect(lines(ctx, 1n, /^You cannot act right now\.$/)).toHaveLength(1);
+    expect(actions(ctx)).toHaveLength(0);
+  });
+});
+
+describe('a mid-fight joiner is waited on (RND-01)', () => {
+  function joinSeed() {
+    const seed = ratFight();
+    seed.combat_encounter[0].groupId = 5n;
+    seed.character[0].groupId = 5n;
+    seed.character.push({
+      ...seed.character[0],
+      id: 2n,
+      ownerUserId: 8n,
+      name: 'Brienne',
+      locationId: 20n,
+      groupId: 5n,
+      combatTargetEnemyId: undefined,
+    });
+    seed.player.push({ id: BOB, userId: 8n, activeCharacterId: 2n });
+    seed.group = [{ id: 5n, leaderCharacterId: 1n }];
+    seed.group_member = [
+      { id: 1n, groupId: 5n, characterId: 1n, followLeader: true },
+      { id: 2n, groupId: 5n, characterId: 2n, followLeader: true },
+    ];
+    seed.location = [
+      { ...seed.location[0], isSafe: true },
+      { id: 20n, name: 'The Cellar', description: 'Damp.', zone: 'z', regionId: 1n, isSafe: true },
+    ];
+    seed.location_connection = [
+      { id: 1n, fromLocationId: 20n, toLocationId: 10n },
+      { id: 2n, fromLocationId: 10n, toLocationId: 20n },
+    ];
+    seed.ability_cooldown = [
+      { id: 1n, characterId: 2n, abilityTemplateId: 7n, startedAtMicros: T0 - 3_000_000n, durationMicros: 12_000_000n, roundsRemaining: 0n },
+    ];
+    return seed;
+  }
+
+  it('travelling into the fight adds a participant with nextAutoAttackAt 0 and converted cooldowns, and the open round waits for it', () => {
+    const ctx = fightCtx(joinSeed(), BOB);
+    handlers.move_character(ctx, { characterId: 2n, locationId: 10n });
+    const joiner = rows(ctx, 'combat_participant').find((p: any) => p.characterId === 2n);
+    expect(joiner).toMatchObject({ combatId: 1n, status: 'active', nextAutoAttackAt: 0n });
+    const cd = rows(ctx, 'ability_cooldown').find((c: any) => c.characterId === 2n);
+    expect(cd.roundsRemaining).toBe(3n);
+    expect(rows(ctx, 'aggro_entry').some((a: any) => a.characterId === 2n)).toBe(true);
+
+    ctx.sender = ALICE;
+    handlers.submit_combat_action(ctx, { characterId: 1n });
+    expect(roundRows(ctx).map((r: any) => r.state)).toEqual(['action_select']); // still waiting for the joiner
+    ctx.sender = BOB;
+    handlers.submit_combat_action(ctx, { characterId: 2n });
+    expect(roundRows(ctx).map((r: any) => r.state)).toEqual(['resolved', 'action_select']);
+  });
+
+  it('the deadline resolves the round without the joiner choosing', () => {
+    const ctx = fightCtx(joinSeed(), BOB);
+    handlers.move_character(ctx, { characterId: 2n, locationId: 10n });
+    fire(ctx, T0 + TEN_S);
+    expect(roundRows(ctx).map((r: any) => r.state)).toEqual(['resolved', 'action_select']);
+    expect(lines(ctx, 2n, /Your fists hit/)).toHaveLength(1);
+  });
+});
+
+describe('casts never act inside a fight (T-46.1-06-07)', () => {
+  const cast = (characterId: bigint) => ({
+    id: 1n,
+    characterId,
+    abilityTemplateId: 1n,
+    targetCharacterId: undefined,
+    endsAtMicros: T0 - 1n,
+  });
+
+  it('a finished cast of a character in an active fight is cancelled with the combat line and executes nothing', () => {
+    const seed = ratFight({
+      extra: { ability_template: [ability({ kind: 'heal', name: 'Mend', targetRule: 'self' })], character_cast: [cast(1n)] },
+    });
+    seed.character[0].hp = 50n;
+    const ctx = fightCtx(seed, MODULE);
+    handlers.tick_casts(ctx, { arg: { scheduledId: 1n } });
+    expect(rows(ctx, 'character_cast')).toHaveLength(0);
+    expect(lines(ctx, 1n, /^Your casting is interrupted by combat\.$/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /Mend/)).toHaveLength(0);
+    expect(rows(ctx, 'character').find((c: any) => c.id === 1n).hp).toBe(50n);
+    expect(rows(ctx, 'ability_cooldown')).toHaveLength(0);
+  });
+
+  it('the same cast outside a fight still completes', () => {
+    const seed = startSeed({
+      ability_template: [ability({ kind: 'heal', name: 'Mend', targetRule: 'self', resourceType: 'stamina' })],
+      character_cast: [cast(1n)],
+    });
+    seed.character[0].hp = 50n;
+    const ctx = fightCtx(seed, MODULE);
+    handlers.tick_casts(ctx, { arg: { scheduledId: 1n } });
+    expect(rows(ctx, 'character_cast')).toHaveLength(0);
+    expect(lines(ctx, 1n, /interrupted by combat/)).toHaveLength(0);
+    expect(lines(ctx, 1n, /Mend/).length).toBeGreaterThan(0);
+    expect(rows(ctx, 'ability_cooldown')).toHaveLength(1);
+  });
+});
