@@ -81,6 +81,8 @@ None to scope. Interpretations:
 - The empty-bag state lives in `BackpackGrid` (the Equipped column stays visible), and the screen-level empty state is for a missing character; both use the stable line `Your backpack is empty.`
 - The 900 to 1199px layout is one scroll region for the stacked columns rather than three independent ones, because stacking Equipped (tall) over Backpack in separate regions would squeeze the backpack.
 
+**Frame guard.** The 1200px column switch needed `(min-width: 1200px)` allowed in `src/frame/frameContract.test.ts`; see 50-17-SUMMARY.md (Rule 3 deviation, found by the full-suite gate after Plan 17).
+
 ## Known Stubs
 
 None.
