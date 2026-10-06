@@ -16,6 +16,7 @@ export const AbilityCooldown = __t.object("AbilityCooldown", {
   abilityTemplateId: __t.u64(),
   startedAtMicros: __t.u64(),
   durationMicros: __t.u64(),
+  roundsRemaining: __t.u64(),
 });
 export type AbilityCooldown = __Infer<typeof AbilityCooldown>;
 
@@ -306,6 +307,8 @@ export const CombatEnemyCast = __t.object("CombatEnemyCast", {
   endsAtMicros: __t.u64(),
   targetCharacterId: __t.option(__t.u64()),
   targetPetId: __t.option(__t.u64()),
+  announcedRound: __t.u64(),
+  landsAtRound: __t.u64(),
 });
 export type CombatEnemyCast = __Infer<typeof CombatEnemyCast>;
 
@@ -315,6 +318,7 @@ export const CombatEnemyCooldown = __t.object("CombatEnemyCooldown", {
   enemyId: __t.u64(),
   abilityKey: __t.string(),
   readyAtMicros: __t.u64(),
+  readyAtRound: __t.u64(),
 });
 export type CombatEnemyCooldown = __Infer<typeof CombatEnemyCooldown>;
 
@@ -351,6 +355,16 @@ export const CombatLoot = __t.object("CombatLoot", {
 });
 export type CombatLoot = __Infer<typeof CombatLoot>;
 
+export const CombatMoment = __t.object("CombatMoment", {
+  id: __t.u64(),
+  combatId: __t.u64(),
+  kind: __t.string(),
+  subjectKey: __t.string(),
+  roundNumber: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type CombatMoment = __Infer<typeof CombatMoment>;
+
 export const CombatNarrative = __t.object("CombatNarrative", {
   id: __t.u64(),
   combatId: __t.u64(),
@@ -377,6 +391,7 @@ export const CombatPendingAdd = __t.object("CombatPendingAdd", {
   enemyRoleTemplateId: __t.option(__t.u64()),
   spawnId: __t.option(__t.u64()),
   arriveAtMicros: __t.u64(),
+  arriveAtRound: __t.u64(),
 });
 export type CombatPendingAdd = __Infer<typeof CombatPendingAdd>;
 
@@ -398,6 +413,7 @@ export const CombatRound = __t.object("CombatRound", {
   state: __t.string(),
   timerExpiresAtMicros: __t.u64(),
   narrationCount: __t.u64(),
+  startedAtMicros: __t.u64(),
 });
 export type CombatRound = __Infer<typeof CombatRound>;
 

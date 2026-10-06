@@ -16,4 +16,5 @@ export default __t.row({
   enemyId: __t.u64().name("enemy_id"),
   abilityKey: __t.string().name("ability_key"),
   readyAtMicros: __t.u64().name("ready_at_micros"),
+  readyAtRound: __t.u64().name("ready_at_round"),
 });

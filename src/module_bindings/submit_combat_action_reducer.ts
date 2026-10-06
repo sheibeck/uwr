@@ -12,7 +12,7 @@ import {
 
 export default {
   characterId: __t.u64(),
-  abilityTemplateId: __t.u64(),
+  abilityTemplateId: __t.option(__t.u64()),
   targetEnemyId: __t.option(__t.u64()),
   targetCharacterId: __t.option(__t.u64()),
 };

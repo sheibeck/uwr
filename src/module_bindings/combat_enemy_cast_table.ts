@@ -18,4 +18,6 @@ export default __t.row({
   endsAtMicros: __t.u64().name("ends_at_micros"),
   targetCharacterId: __t.option(__t.u64()).name("target_character_id"),
   targetPetId: __t.option(__t.u64()).name("target_pet_id"),
+  announcedRound: __t.u64().name("announced_round"),
+  landsAtRound: __t.u64().name("lands_at_round"),
 });

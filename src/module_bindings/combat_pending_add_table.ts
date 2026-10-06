@@ -17,4 +17,5 @@ export default __t.row({
   enemyRoleTemplateId: __t.option(__t.u64()).name("enemy_role_template_id"),
   spawnId: __t.option(__t.u64()).name("spawn_id"),
   arriveAtMicros: __t.u64().name("arrive_at_micros"),
+  arriveAtRound: __t.u64().name("arrive_at_round"),
 });

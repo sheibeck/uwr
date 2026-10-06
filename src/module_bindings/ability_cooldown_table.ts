@@ -16,4 +16,5 @@ export default __t.row({
   abilityTemplateId: __t.u64().name("ability_template_id"),
   startedAtMicros: __t.u64().name("started_at_micros"),
   durationMicros: __t.u64().name("duration_micros"),
+  roundsRemaining: __t.u64().name("rounds_remaining"),
 });

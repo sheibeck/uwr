@@ -17,4 +17,5 @@ export default __t.row({
   state: __t.string(),
   timerExpiresAtMicros: __t.u64().name("timer_expires_at_micros"),
   narrationCount: __t.u64().name("narration_count"),
+  startedAtMicros: __t.u64().name("started_at_micros"),
 });
