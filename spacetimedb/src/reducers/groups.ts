@@ -1,3 +1,5 @@
+import { flattenLineBreaks } from '../helpers/chat_text';
+
 const MAX_GROUP_SIZE = 5;
 
 export const registerGroupReducers = (deps: any) => {
@@ -19,7 +21,7 @@ export const registerGroupReducers = (deps: any) => {
   spacetimedb.reducer('create_group', { characterId: t.u64(), name: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
-    const trimmed = args.name.trim();
+    const trimmed = flattenLineBreaks(args.name);
     if (trimmed.length < 2) return failGroup(ctx, character, 'Group name too short');
 
     const group = ctx.db.group.insert({

@@ -2,6 +2,7 @@ import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { performTravel } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
 import { parseLookCommand, describeLookTarget, lookMissLine } from '../helpers/examine';
+import { flattenLineBreaks } from '../helpers/chat_text';
 import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
@@ -40,7 +41,8 @@ export const registerIntentReducers = (deps: any) => {
       ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
     }
 
-    const raw = args.text.trim();
+    // One line only: say, whisper, the command echo and the fallback all echo this text.
+    const raw = flattenLineBreaks(args.text);
     if (!raw) return fail(ctx, character, 'You stare into the void. It stares back.');
 
     // Slash commands: delegate to existing submit_command pipeline

@@ -4,6 +4,7 @@ import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
+import { flattenLineBreaks } from '../helpers/chat_text';
 
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
@@ -240,7 +241,7 @@ export const registerCommandReducers = (deps: any) => {
     if (_player) {
       ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
     }
-    const trimmed = args.text.trim();
+    const trimmed = flattenLineBreaks(args.text);
     if (!trimmed) return fail(ctx, character, 'Command is empty');
 
     if (trimmed.toLowerCase() === '/synccontent') {
@@ -312,7 +313,7 @@ export const registerCommandReducers = (deps: any) => {
     if (_player) {
       ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
     }
-    const trimmed = args.message.trim();
+    const trimmed = flattenLineBreaks(args.message);
     if (!trimmed) return fail(ctx, character, 'Message is empty');
 
     // Check if this is a dialogue keyword for an NPC at this location
@@ -566,7 +567,7 @@ export const registerCommandReducers = (deps: any) => {
 
   spacetimedb.reducer('group_message', { characterId: t.u64(), message: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const trimmed = args.message.trim();
+    const trimmed = flattenLineBreaks(args.message);
     if (!trimmed) return fail(ctx, character, 'Message is empty', 'group');
     if (!character.groupId) return fail(ctx, character, 'You are not in a group', 'group');
     appendGroupEvent(ctx, character.groupId, character.id, 'group', `${character.name}: ${trimmed}`);
@@ -688,8 +689,8 @@ export const registerCommandReducers = (deps: any) => {
     { characterId: t.u64(), targetName: t.string(), message: t.string() },
     (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const targetName = args.targetName.trim();
-    const message = args.message.trim();
+    const targetName = flattenLineBreaks(args.targetName);
+    const message = flattenLineBreaks(args.message);
     if (!targetName) return fail(ctx, character, 'Target required', 'whisper');
     if (!message) return fail(ctx, character, 'Message is empty', 'whisper');
 
