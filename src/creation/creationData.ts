@@ -16,6 +16,7 @@ import { createKeyed, keyedRows } from '../game/keyedBinding';
 import { selectLlmIndicator } from '../console/indicator';
 import type { CreationData } from './creationContext';
 import { createCreationFeedStore } from './creationFeedStore';
+import { ENDED_WITHOUT_CHARACTER_TEXT } from './creationControls';
 import { effectiveCreationStep, firstRegionFailed } from './creationSteps';
 import type { CreationQueries } from './queries';
 
@@ -87,6 +88,7 @@ export function createCreationData<C extends CreationConn>(
   const handoffArmed = ref(false);
   let handoffFired = false;
   let disposed = false;
+  let endedNoticed = false;
 
   const connected = computed(() => input.status.value === 'connected' && input.conn.value !== null);
 
@@ -202,8 +204,28 @@ export function createCreationData<C extends CreationConn>(
         eventsApplied.value,
     );
 
-    // Defensive one-shot hand-off.
     const stateStep = computed(() => state.value?.step ?? null);
+
+    // A COMPLETE row with no character behind it (the character was removed): say so once.
+    const endedWithoutCharacter = computed(
+      () =>
+        stateApplied.value &&
+        stateStep.value === 'COMPLETE' &&
+        input.charactersApplied.value &&
+        input.characters.value.length === 0 &&
+        !unplacedActive.value,
+    );
+    watch(
+      endedWithoutCharacter,
+      (ended) => {
+        if (!ended || endedNoticed) return;
+        endedNoticed = true;
+        feed.appendError(ENDED_WITHOUT_CHARACTER_TEXT);
+      },
+      { immediate: true, flush: 'sync' },
+    );
+
+    // Defensive one-shot hand-off.
     watch(
       stateStep,
       (step) => {
@@ -249,6 +271,7 @@ export function createCreationData<C extends CreationConn>(
       eventsApplied,
       creationJobActive,
       regionFailed,
+      endedWithoutCharacter,
       effectiveStep,
       startReady,
     };
@@ -329,6 +352,7 @@ export function createCreationData<C extends CreationConn>(
     sending.value = false;
     handoffArmed.value = false;
     handoffFired = false;
+    endedNoticed = false;
   }
 
   function dispose(): void {
@@ -354,6 +378,7 @@ export function createCreationData<C extends CreationConn>(
     creationJobActive: run.creationJobActive,
     unplacedActive,
     regionFailed: run.regionFailed,
+    endedWithoutCharacter: run.endedWithoutCharacter,
     effectiveStep: run.effectiveStep,
     sending,
     startFailed,

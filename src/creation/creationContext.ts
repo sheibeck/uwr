@@ -30,6 +30,12 @@ export interface CreationData {
   readonly unplacedActive: Readonly<Ref<boolean>>;
   /** The first region failed to form for the unplaced active character. */
   readonly regionFailed: Readonly<Ref<boolean>>;
+  /**
+   * The creation row is COMPLETE, the characters list has applied and is empty, and there is no
+   * unplaced active character: the character was removed after creation. The server has no restart
+   * for this (start_creation answers "already created"), so the screen says so instead of working.
+   */
+  readonly endedWithoutCharacter: Readonly<Ref<boolean>>;
   /** The state step, treating an unplaced active character as COMPLETE; null before any state. */
   readonly effectiveStep: Readonly<Ref<string | null>>;
   /** A submit_creation_input call is in flight. */
@@ -73,6 +79,7 @@ export function createInertCreation(): CreationData {
     creationJobActive: constant(false),
     unplacedActive: constant(false),
     regionFailed: constant(false),
+    endedWithoutCharacter: constant(false),
     effectiveStep: constant<string | null>(null),
     sending: constant(false),
     startFailed: constant(false),

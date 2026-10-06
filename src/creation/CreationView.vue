@@ -46,6 +46,7 @@ const stepView = computed(() =>
     previousStep: creation.state.value?.previousStep ?? null,
     regionFailed: creation.regionFailed.value,
     lastKnown: lastKnown.value,
+    endedWithoutCharacter: creation.endedWithoutCharacter.value,
   }),
 );
 watch(
@@ -63,6 +64,7 @@ const controls = computed(() =>
     regionFailed: creation.regionFailed.value,
     startFailed: creation.startFailed.value,
     connected: creation.connected.value,
+    endedWithoutCharacter: creation.endedWithoutCharacter.value,
   }),
 );
 const inert = computed(() => creation.sending.value || controls.value.disabled);

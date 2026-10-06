@@ -21,6 +21,7 @@ interface FakeHub extends CreationData {
     races: Ref<unknown[]>;
     effectiveStep: Ref<string | null>;
     regionFailed: Ref<boolean>;
+    endedWithoutCharacter: Ref<boolean>;
     sending: Ref<boolean>;
     startFailed: Ref<boolean>;
   };
@@ -34,6 +35,7 @@ function makeHub(): FakeHub {
     races: ref<unknown[]>([]),
     effectiveStep: ref<string | null>('AWAITING_RACE'),
     regionFailed: ref(false),
+    endedWithoutCharacter: ref(false),
     sending: ref(false),
     startFailed: ref(false),
   };
@@ -48,6 +50,7 @@ function makeHub(): FakeHub {
     creationJobActive: ref(false),
     unplacedActive: ref(false),
     regionFailed: refs.regionFailed,
+    endedWithoutCharacter: refs.endedWithoutCharacter,
     effectiveStep: refs.effectiveStep,
     sending: refs.sending,
     startFailed: refs.startFailed,
@@ -281,6 +284,19 @@ describe('CreationView: Enter the realm hold', () => {
     expect(w.find('.icon.spinning').exists()).toBe(false);
     await buttonByText(w, 'Retry finding a region').trigger('click');
     expect(hub.sent).toEqual(['explore']);
+  });
+});
+
+describe('CreationView: COMPLETE with no character (IN-05)', () => {
+  it('shows the stuck step without a spinner, no Retry and a locked input that says there is no character', () => {
+    const hub = makeHub();
+    hub.refs.effectiveStep.value = 'COMPLETE';
+    hub.refs.endedWithoutCharacter.value = true;
+    const w = mountView(hub);
+    expect(w.find('.icon.spinning').exists()).toBe(false);
+    expect(w.text()).not.toContain('Retry');
+    expect(input(w).attributes('placeholder')).toBe('No character to enter…');
+    expect((input(w).element as HTMLInputElement).disabled).toBe(true);
   });
 });
 

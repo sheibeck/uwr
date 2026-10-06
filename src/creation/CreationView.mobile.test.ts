@@ -37,6 +37,7 @@ function makeHub(): FakeHub {
     creationJobActive: ref(false),
     unplacedActive: ref(false),
     regionFailed: ref(false),
+    endedWithoutCharacter: ref(false),
     effectiveStep: refs.effectiveStep,
     sending: ref(false),
     startFailed: ref(false),

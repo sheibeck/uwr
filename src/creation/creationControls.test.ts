@@ -15,6 +15,7 @@ interface Input {
   regionFailed: boolean;
   startFailed: boolean;
   connected: boolean;
+  endedWithoutCharacter?: boolean;
 }
 
 const base: Input = { step: null, known: true, regionFailed: false, startFailed: false, connected: true };
@@ -178,6 +179,21 @@ describe('controlsFor: per step', () => {
     expect(c.placeholder).toBe('Entering the realm…');
     expect(c.locked).toBe(true);
     expect(c.disabled).toBe(false);
+  });
+});
+
+describe('controlsFor: COMPLETE with no character (IN-05)', () => {
+  it('offers nothing, locks the input and does not say Entering the realm', () => {
+    const c = controls({ step: 'COMPLETE', regionFailed: false, endedWithoutCharacter: true });
+    expect(c.decisions).toEqual([]);
+    expect(c.placeholder).toBe('No character to enter…');
+    expect(c.mobilePlaceholder).toBe('No character to enter…');
+    expect(c.locked).toBe(true);
+    expect(c.choice).toBeNull();
+  });
+
+  it('is ignored at every other step', () => {
+    expect(controls({ step: 'AWAITING_RACE', endedWithoutCharacter: true }).locked).toBe(false);
   });
 });
 

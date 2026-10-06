@@ -40,6 +40,11 @@ export const SURPRISE_ME_TEXT = 'Surprise me.';
 export const NAME_HINT = '3 to 20 letters. One word.';
 
 const WORKING_TEXT = 'The Keeper is working…';
+const ENDED_TEXT = 'No character to enter…';
+
+/** Shown once in the feed when the creation record is COMPLETE but no character exists (the server has no restart). */
+export const ENDED_WITHOUT_CHARACTER_TEXT =
+  'Your creation is already sealed, but no character is attached to this account. Log out to leave this screen.';
 const OFFLINE_TEXT = 'Reconnecting…';
 
 const GO_BACK_BUTTON: DecisionButton = {
@@ -171,7 +176,14 @@ interface StepControls {
   nameHint?: string;
 }
 
-function forStep(step: string | null, known: boolean, regionFailed: boolean, startFailed: boolean): StepControls {
+function forStep(
+  step: string | null,
+  known: boolean,
+  regionFailed: boolean,
+  startFailed: boolean,
+  ended: boolean,
+): StepControls {
+  if (step === 'COMPLETE' && ended) return { decisions: [], placeholder: ENDED_TEXT, locked: true };
   if (step === null) {
     return { decisions: startFailed ? [RETRY_START_BUTTON] : [], placeholder: 'Starting…', locked: true };
   }
@@ -229,8 +241,10 @@ export function controlsFor(input: {
   regionFailed: boolean;
   startFailed: boolean;
   connected: boolean;
+  /** COMPLETE with no character behind it. */
+  endedWithoutCharacter?: boolean;
 }): CreationControls {
-  const s = forStep(input.step, input.known, input.regionFailed, input.startFailed);
+  const s = forStep(input.step, input.known, input.regionFailed, input.startFailed, input.endedWithoutCharacter === true);
   const offline = !input.connected;
   const placeholder = offline ? OFFLINE_TEXT : s.placeholder;
   return {

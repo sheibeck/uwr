@@ -696,6 +696,44 @@ describe('createCreationData: defensive set_active_character hand-off', () => {
   });
 });
 
+describe('createCreationData: COMPLETE with no character (IN-05)', () => {
+  function ended(h: Harness): void {
+    h.signIn('aa');
+    h.connect();
+    h.applyState();
+    h.charactersApplied.value = true;
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+  }
+
+  it('is true for a COMPLETE row with the characters applied and empty, and posts one feed error', () => {
+    const h = make();
+    ended(h);
+    expect(h.hub.endedWithoutCharacter.value).toBe(true);
+    expect(h.hub.feed.entries.value.filter((e) => e.kind === 'error')).toHaveLength(1);
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE', { characterName: 'x' })];
+    expect(h.hub.feed.entries.value.filter((e) => e.kind === 'error')).toHaveLength(1);
+  });
+
+  it('is false before the characters applied, with a character, for an unplaced active character and at other steps', () => {
+    const h = make();
+    h.signIn('aa');
+    h.connect();
+    h.applyState();
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    expect(h.hub.endedWithoutCharacter.value).toBe(false); // characters not applied yet
+    h.charactersApplied.value = true;
+    expect(h.hub.endedWithoutCharacter.value).toBe(true);
+    h.characters.value = [makeCharacter(4n)];
+    expect(h.hub.endedWithoutCharacter.value).toBe(false);
+    h.characters.value = [];
+    h.activeCharacter.value = makeCharacter(4n, { locationId: 0n });
+    expect(h.hub.endedWithoutCharacter.value).toBe(false);
+    h.activeCharacter.value = null;
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'AWAITING_RACE')];
+    expect(h.hub.endedWithoutCharacter.value).toBe(false);
+  });
+});
+
 describe('createInertCreation', () => {
   it('is constant, offline and harmless to call', async () => {
     const inert = createInertCreation();
@@ -703,6 +741,7 @@ describe('createInertCreation', () => {
     expect(inert.state.value).toBeNull();
     expect(inert.races.value).toEqual([]);
     expect(inert.effectiveStep.value).toBeNull();
+    expect(inert.endedWithoutCharacter.value).toBe(false);
     expect(inert.feed.entries.value).toEqual([]);
     inert.mount()();
     inert.retryStart();

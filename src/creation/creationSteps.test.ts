@@ -18,6 +18,7 @@ interface Input {
   previousStep: string | null;
   regionFailed: boolean;
   lastKnown: StepPosition | null;
+  endedWithoutCharacter?: boolean;
 }
 
 const base: Input = { step: null, previousStep: null, regionFailed: false, lastKnown: null };
@@ -67,6 +68,7 @@ const rows: Row[] = [
   ],
   ['COMPLETE, first region forming', { step: 'COMPLETE', regionFailed: false }, { position: 5, error: false, working: true, known: true }],
   ['COMPLETE, first region failed', { step: 'COMPLETE', regionFailed: true }, { position: 5, error: true, working: false, known: true }],
+  ['COMPLETE with no character behind it is stuck, not working', { step: 'COMPLETE', regionFailed: false, endedWithoutCharacter: true }, { position: 5, error: true, working: false, known: true }],
   ['unknown value with no last known position', { step: 'SOMETHING_NEW' }, { position: 1, error: false, working: false, known: false }],
   ['unknown value keeps the last known position', { step: 'SOMETHING_NEW', lastKnown: 3 }, { position: 3, error: false, working: false, known: false }],
   ['a prototype key name is unknown, not a step', { step: 'constructor', lastKnown: 2 }, { position: 2, error: false, working: false, known: false }],

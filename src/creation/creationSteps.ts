@@ -62,6 +62,8 @@ export function deriveCreationStep(input: {
   previousStep: string | null;
   regionFailed: boolean;
   lastKnown: StepPosition | null;
+  /** COMPLETE with no character behind it: step 5 is stuck, not working. */
+  endedWithoutCharacter?: boolean;
 }): CreationStepView {
   const { step, previousStep, regionFailed, lastKnown } = input;
   // start_creation is in flight: no row yet.
@@ -71,6 +73,7 @@ export function deriveCreationStep(input: {
     const previous = lookup(previousStep);
     return view(previous ? previous.position : 1, false, false, true);
   }
+  if (step === 'COMPLETE' && input.endedWithoutCharacter === true) return view(5, true, false, true);
   if (step === 'COMPLETE') return view(5, regionFailed, !regionFailed, true);
   const info = lookup(step);
   if (info) return view(info.position, info.error, info.working, true);
