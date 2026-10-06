@@ -4,7 +4,7 @@ slug: combat-encounter
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 status: draft
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-10-06
 ---
 
@@ -25,27 +25,28 @@ created: 2026-10-06
 ### Phase Requirements -> Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
-| CMB-01 | `conFor` boundaries (-6,-5,-4,-2,-1,0,1,2,3,9), missing template -> white, meaning words | unit | `pnpm exec vitest run src/combat/difficulty.test.ts` | Wave 0 |
-| CMB-01 | hostile rows: ascending id, HP clamp, `0/0`, boss only when `isBoss === true`, defeated inert, count text | unit + component | `pnpm exec vitest run src/combat/hostiles.test.ts src/combat/EncounterPanel.test.ts` | Wave 0 |
-| CMB-01 | click calls `set_combat_target`; ring follows `combatTargetEnemyId` only | component | `pnpm exec vitest run src/combat/EncounterPanel.test.ts` | Wave 0 |
-| CMB-01 | Tab/Shift+Tab: forward, backward, wrap, none -> first/last, skip defeated, one hostile no-op, rapid presses, scope (input, drawer/sheet, modifier, header button, hotbar slot), `preventDefault` only when acting, `Target:` status | unit + component | `pnpm exec vitest run src/combat/cycling.test.ts src/combat/useCombatController.test.ts` | Wave 0 |
-| CMB-01 | rail swaps Here/Nearby/Tracking for the Encounter panel only when `combat.active` | component | `pnpm exec vitest run src/frame/ContextRail.test.ts src/frame/railsShell.test.ts` | exists, extend |
-| CMB-02 | server view: own fights only, never another user's, per-sender, no `iter()`, pet rows dropped, keys | server unit | `cd spacetimedb && pnpm exec vitest run src/views/combat.test.ts` | Wave 0 |
-| CMB-02 | threat rows: descending, id tiebreak, percent vs top, `You`, empty, no target hides | unit + component | `pnpm exec vitest run src/combat/threat.test.ts` | Wave 0 |
-| CMB-02 | `queries.myCombatAggro` is an unfiltered view subscription; bindings contain `myCombatAggro` | unit | `pnpm exec vitest run src/game/queries.test.ts` | exists, extend (after regenerate) |
-| CMB-03 | N formula (rail live vs feed at announcement), `lands this round`, targets you/name/pet/the party, row follows the cast row | unit | `pnpm exec vitest run src/combat/windup.test.ts` | Wave 0 |
-| CMB-03 | feed block once per cast id, not on snapshot, same string as the rail | unit + component | `pnpm exec vitest run src/console/feedStore.test.ts src/console/FeedLine.test.ts` | exists, extend |
-| CMB-04 | header placement `start(N) < t <= start(N+1)` incl. equality, opening lines before Round 1, header before any line, boundaries survive row deletion, dedupe, accent vs neutral, 300 cap, insert-by-timestamp | unit | `pnpm exec vitest run src/console/feedStore.test.ts src/console/lines.test.ts` | exists, extend |
-| CMB-04 | late narration tag only when rounds differ and known; correlation by createdAt; survives binding disposal | unit | `pnpm exec vitest run src/console/feedStore.test.ts src/game/gameData.test.ts` | exists, extend |
-| CMB-04 | combat lines Body neutral, last integer emphasised for damage/heal only, `<b>` literal, round header/resolving kinds render nothing, no `v-html` | component | `pnpm exec vitest run src/console/FeedLine.test.ts src/console/emphasis.test.ts` | exists/Wave 0 |
-| CMB-04 | rounds cooldown: `{n} rounds`/`1 round`, total from `cooldownSeconds` (not `durationMicros`), no wall clock in combat, out-of-combat unchanged | unit + component | `pnpm exec vitest run src/combat/roundCooldown.test.ts src/hotbar/HotbarRow.test.ts` | Wave 0 / extend |
-| CMB-05 | header `In combat · Round N`, six screen buttons `aria-disabled` and focusable, account enabled, drawer closes at start | component | `pnpm exec vitest run src/frame/HeaderBar.test.ts src/frame/AppFrame.screens.test.ts` | exists, extend |
-| CMB-05 | ally targeting: default self, `You` first, aria-pressed, reset on leave/fight end, `allyTargetFor` omits dead/left/non-ally-rule, not shown solo | unit + component | `pnpm exec vitest run src/combat/ally.test.ts src/rails/PartyBlock.test.ts src/frame/VitalsStrip.test.ts` | Wave 0 / extend |
-| CMB-05 | Flee calls `flee_combat`, `Flee chosen` from the row, reverts when an ability replaces it | component | `pnpm exec vitest run src/combat/RoundRow.test.ts` | Wave 0 |
-| CMB-05 | damage flash: drop yes, first load/character switch no, healing no, delta sums, reduced-motion class path with no animation | unit + component | `pnpm exec vitest run src/combat/useDamageFlash.test.ts src/frame/VitalsRail.test.ts` | Wave 0 / extend |
-| CMB-05 | mobile: tab bar and location row hidden in combat, strip chips target, header opens `encounter` sheet, sheet meta, closes at fight end, strip collapses with the keyboard, tag priority over Level up/New skill, account button reaches Log out | component | `pnpm exec vitest run src/frame/AppFrame.layout.test.ts src/frame/useScreens.test.ts src/combat/EncounterStrip.test.ts` | exists, extend / Wave 0 |
-| CMB-06 | timer: ceil seconds never `0s`, fraction, skew, `Resolving...` at 0 and with no open round, controls inert, 1 s tick under reduced motion | unit + component | `pnpm exec vitest run src/combat/roundClock.test.ts src/combat/RoundRow.test.ts` | Wave 0 |
-| CMB-06 | chip states (default, no target, Ready, ability enemy/ally/no target, flee, down), chosen slot from the row only and cleared next round, Ready uses `submit_combat_action` and disables once a row exists | unit + component | `pnpm exec vitest run src/combat/choice.test.ts src/combat/RoundRow.test.ts src/hotbar/HotbarRow.test.ts` | Wave 0 |
+| CMB-01 | `conFor` boundaries (-6,-5,-4,-2,-1,0,1,2,3,9), missing template -> white, meaning words | unit | `pnpm exec vitest run src/combat/difficulty.test.ts` | exists |
+| CMB-01 | hostile rows: ascending id, HP clamp, `0/0`, boss only when `isBoss === true`, defeated inert, count text | unit + component | `pnpm exec vitest run src/combat/hostiles.test.ts src/combat/EncounterPanel.test.ts` | exists |
+| CMB-01 | click calls `set_combat_target`; ring follows `combatTargetEnemyId` only | component | `pnpm exec vitest run src/combat/EncounterPanel.test.ts` | exists |
+| CMB-01 | Tab/Shift+Tab: forward, backward, wrap, none -> first/last, skip defeated, one hostile no-op, rapid presses, scope (input, drawer/sheet, modifier, header button, hotbar slot), `preventDefault` only when acting, `Target:` status | unit + component | `pnpm exec vitest run src/combat/cycling.test.ts src/combat/useCombatController.test.ts` | exists |
+| CMB-01 | rail swaps Here/Nearby/Tracking for the Encounter panel only when `combat.active` | component | `pnpm exec vitest run src/frame/ContextRail.test.ts src/frame/railsShell.test.ts` | exists |
+| CMB-02 | server view: own fights only, never another user's, per-sender, no `iter()`, pet rows dropped, keys | server unit | `cd spacetimedb && pnpm exec vitest run src/views/combat.test.ts` | exists |
+| CMB-02 | threat rows: descending, id tiebreak, percent vs top, `You`, empty, no target hides | unit + component | `pnpm exec vitest run src/combat/threat.test.ts` | exists |
+| CMB-02 | `queries.myCombatAggro` is an unfiltered view subscription; bindings contain `myCombatAggro` | unit | `pnpm exec vitest run src/game/queries.test.ts` | exists |
+| CMB-03 | N formula (rail live vs feed at announcement), `lands this round`, targets you/name/pet/the party, row follows the cast row | unit | `pnpm exec vitest run src/combat/windup.test.ts` | exists |
+| CMB-03 | feed block once per cast id, not on snapshot, same string as the rail | unit + component | `pnpm exec vitest run src/console/feedStore.test.ts src/console/FeedLine.test.ts src/combat/combatFeed.test.ts` | exists |
+| CMB-04 | header placement `start(N) < t <= start(N+1)` incl. equality, opening lines before Round 1, header before any line, boundaries survive row deletion, dedupe, accent vs neutral, 300 cap, insert-by-timestamp | unit | `pnpm exec vitest run src/console/feedStore.test.ts src/console/lines.test.ts` | exists |
+| CMB-04 | late narration tag only when rounds differ and known; correlation by createdAt; survives binding disposal | unit | `pnpm exec vitest run src/console/feedStore.test.ts src/combat/combatFeed.test.ts src/game/gameData.test.ts` | exists |
+| CMB-04 | combat lines Body neutral, last integer emphasised for damage/heal only, `<b>` literal, round header/resolving kinds render nothing, no `v-html` | component | `pnpm exec vitest run src/console/FeedLine.test.ts src/console/FeedView.test.ts src/combat/emphasis.test.ts` | exists |
+| CMB-04 | rounds cooldown: `{n} rounds`/`1 round`, total from `cooldownSeconds` (not `durationMicros`), no wall clock in combat, out-of-combat unchanged | unit + component | `pnpm exec vitest run src/combat/roundCooldown.test.ts src/hotbar/HotbarRow.test.ts` | exists |
+| CMB-05 | header `In combat · Round N`, six screen buttons `aria-disabled` and focusable, account enabled, drawer closes at start | component | `pnpm exec vitest run src/frame/HeaderBar.test.ts src/frame/AppFrame.screens.test.ts` | exists |
+| CMB-05 | ally targeting: default self, `You` first, aria-pressed, reset on leave/fight end, `allyTargetFor` omits dead/left/non-ally-rule, not shown solo | unit + component | `pnpm exec vitest run src/combat/ally.test.ts src/rails/PartyBlock.test.ts src/frame/VitalsStrip.test.ts` | exists |
+| CMB-05 | Flee calls `flee_combat`, `Flee chosen` from the row, reverts when an ability replaces it | component | `pnpm exec vitest run src/combat/RoundRow.test.ts` | exists |
+| CMB-05 | damage flash: drop yes, first load/character switch no, healing no, delta sums, reduced-motion class path with no animation | unit + component | `pnpm exec vitest run src/combat/useDamageFlash.test.ts src/frame/VitalsRail.test.ts src/frame/VitalsStrip.test.ts` | exists |
+| CMB-05 | mobile: tab bar and location row hidden in combat, strip chips target, header opens `encounter` sheet, sheet meta, closes at fight end, strip collapses with the keyboard, tag priority over Level up/New skill, account button reaches Log out | component | `pnpm exec vitest run src/frame/AppFrame.layout.test.ts src/frame/useScreens.test.ts src/frame/Sheet.test.ts src/combat/EncounterStrip.test.ts` | exists |
+| CMB-06 | timer: ceil seconds never `0s`, fraction, skew, `Resolving...` at 0 and with no open round, controls inert, 1 s tick under reduced motion | unit + component | `pnpm exec vitest run src/combat/roundClock.test.ts src/combat/RoundRow.test.ts` | exists |
+| CMB-06 | chip states (default, no target, Ready, ability enemy/ally/no target, flee, down), chosen slot from the row only and cleared next round, Ready uses `submit_combat_action` and disables once a row exists | unit + component | `pnpm exec vitest run src/combat/choice.test.ts src/combat/RoundRow.test.ts src/hotbar/HotbarRow.test.ts` | exists |
+| All | every combat surface at once at 1280 and 390, img-onerror in every name surface renders as text (no img element) | integration | `pnpm exec vitest run src/frame/AppFrame.combat.test.ts` | exists |
 | All | design guards, 23 tokens, computed sizes/weights on a populated combat frame | static | `pnpm exec vitest run src/styles` | exists |
 | All | Phase 47 suites still green | regression | `pnpm exec vitest run --dir src --maxWorkers=2` | exists |
 
@@ -55,13 +56,13 @@ created: 2026-10-06
 - **Phase gate:** full suites green, `pnpm build` (includes the bundle guard), then `/gsd-verify-work`. Live round play stays deferred to the milestone UAT.
 
 ### Wave 0 Gaps
-- [ ] `spacetimedb/src/views/combat.test.ts` (new): the view, no-scan Proxy, per-sender
-- [ ] `src/combat/{difficulty,hostiles,threat,windup,roundClock,choice,cycling,ally,emphasis,roundCooldown}.test.ts`
-- [ ] `src/combat/{useCombatController,useDamageFlash}.test.ts`
-- [ ] `src/combat/{EncounterPanel,EncounterStrip,RoundRow}.test.ts` (component, happy-dom, inject inert defaults then override)
-- [ ] Update fixtures: `gameData.test.ts` (`queries` literal, static SQL), `queries.test.ts`, `lines.test.ts:210`, `VitalsStrip`/`PartyBlock`/`HeaderBar`/`useScreens`/`Composer`/`HotbarRow` extensions
-- [ ] A shared test builder for combat rows (bigint ids, `{ microsSinceUnixEpoch }` timestamps), kept inside test files (production-file guards must not scan helpers, as in 45-10)
-- [ ] Server publish and `pnpm spacetime:generate -y` are execution tasks, not test gaps; the client tests that import `myCombatAggro` come after regeneration
+- [x] `spacetimedb/src/views/combat.test.ts` (new): the view, no-scan Proxy, per-sender
+- [x] `src/combat/{difficulty,hostiles,threat,windup,roundClock,choice,cycling,ally,emphasis,roundCooldown}.test.ts`
+- [x] `src/combat/{useCombatController,useDamageFlash}.test.ts`
+- [x] `src/combat/{EncounterPanel,EncounterStrip,RoundRow}.test.ts` (component, happy-dom, inject inert defaults then override)
+- [x] Update fixtures: `gameData.test.ts` (`queries` literal, static SQL), `queries.test.ts`, `lines.test.ts:210`, `VitalsStrip`/`PartyBlock`/`HeaderBar`/`useScreens`/`Composer`/`HotbarRow` extensions
+- [x] A shared test builder for combat rows (bigint ids, `{ microsSinceUnixEpoch }` timestamps), kept inside test files (production-file guards must not scan helpers, as in 45-10)
+- [x] Server publish and `pnpm spacetime:generate -y` are execution tasks, not test gaps; the client tests that import `myCombatAggro` come after regeneration
 
 ---
 
