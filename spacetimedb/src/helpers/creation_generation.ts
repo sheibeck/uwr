@@ -43,6 +43,7 @@ import { appendCreationEvent } from './events';
 import { flattenSegments, keeperFallback, keeperSegments, type Segment } from './segments';
 import { enqueueLlmJob, llmRefusalMessage, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
+import { findRaceDefinition, raceBonusText } from '../data/race_bonuses';
 
 /** Post a Keeper-voice creation line with its segments; `message` is always the flattened segments. */
 function postKeeperSegments(ctx: any, playerId: any, kind: string, segments: Segment[]): void {
@@ -95,7 +96,9 @@ export function startCreationGeneration(
   if (generationType === 'race') {
     const description = state.raceDescription ?? '';
     // An existing race definition is reused with no model call.
-    for (const existing of ctx.db.race_definition.by_name.filter(description.trim().toLowerCase())) {
+    // The placeholder name is reserved, so a description of 'unknown' never reuses a definition.
+    const existing = findRaceDefinition(ctx, description.trim());
+    if (existing) {
       reuseRace(ctx, state, existing);
       return 'reused';
     }
@@ -223,15 +226,8 @@ function reuseRace(ctx: any, state: any, existingRace: any): void {
     updatedAt: ctx.timestamp,
   });
 
-  let bonuses: any = {};
-  try {
-    bonuses = JSON.parse(existingRace.bonusesJson);
-  } catch {
-    bonuses = {};
-  }
-  const bonusText = bonuses.primary
-    ? `\n+${bonuses.primary.value || 2} ${(bonuses.primary.stat || 'STR').toUpperCase()}, +${bonuses.secondary?.value || 1} ${(bonuses.secondary?.stat || 'DEX').toUpperCase()}${bonuses.flavor ? `. ${bonuses.flavor}` : ''}`
-    : '';
+  // The same renderer as applyCreationResult: only the bonuses the sheet, finalize and level-up apply (review IN-11).
+  const bonusText = raceBonusText(existingRace.bonusesJson);
 
   postKeeperSegments(
     ctx,

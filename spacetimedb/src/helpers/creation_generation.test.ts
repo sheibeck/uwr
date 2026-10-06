@@ -106,7 +106,7 @@ describe('startCreationGeneration: race', () => {
           narrative: 'Salt and patience.',
           bonusesJson: JSON.stringify({
             primary: { stat: 'wis', value: 2 },
-            secondary: { stat: 'con', value: 1 },
+            secondary: { stat: 'int', value: 1 },
             flavor: 'Tide-wise',
           }),
           createdAt: { microsSinceUnixEpoch: T0 },
@@ -128,10 +128,40 @@ describe('startCreationGeneration: race', () => {
     expect(events[0].kind).toBe('creation');
     expect(events[0].message).toContain('Salt and patience.');
     expect(events[0].message).toContain('**a quiet people of the salt marshes**');
-    expect(events[0].message).toContain('+2 WIS, +1 CON. Tide-wise');
+    expect(events[0].message).toContain('+2 WIS, +1 INT. Tide-wise');
     expect(events[0].message).toContain('[Warrior]');
     expect(events[0].message).toContain('Now then. Every creature must choose a path, and you are no exception.');
     expect(events[0].message).not.toContain('choose its path');
+  });
+
+  it('IN-11: the reuse line prints only the stored bonuses that apply, with no invented default secondary', () => {
+    const reuse = (bonusesJson: string) => {
+      const ctx = newCtx({
+        race_definition: [
+          { id: 1n, name: 'salt folk', nameLower: 'salt folk', narrative: 'n', bonusesJson, createdAt: { microsSinceUnixEpoch: T0 } },
+        ],
+        character_creation_state: [stateRow({ raceDescription: 'salt folk' })],
+      });
+      expect(startCreationGeneration(ctx, stateOf(ctx), 'race')).toBe('reused');
+      return creationEvents(ctx)[0].message as string;
+    };
+    const msg = reuse('{"primary":{"stat":"str","value":2},"secondary":{"stat":"bogus","value":1}}');
+    expect(msg).toContain('**salt folk**\n+2 STR\n\nNow then.');
+    expect(msg).not.toContain('DEX');
+    expect(reuse('{"primary":{"stat":"str","value":2}}')).toContain('**salt folk**\n+2 STR\n\nNow then.');
+    expect(reuse('{}')).toContain('**salt folk**\n\nNow then.');
+    expect(reuse('not json')).toContain('**salt folk**\n\nNow then.');
+  });
+
+  it("WR-06: a description of 'unknown' never reuses a definition stored under that name", () => {
+    const ctx = newCtx({
+      race_definition: [
+        { id: 1n, name: 'Unknown', nameLower: 'unknown', narrative: 'n', bonusesJson: '{"primary":{"stat":"str","value":2}}', createdAt: { microsSinceUnixEpoch: T0 } },
+      ],
+      character_creation_state: [stateRow({ raceDescription: ' Unknown ' })],
+    });
+    expect(startCreationGeneration(ctx, stateOf(ctx), 'race')).toBe('enqueued');
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
   });
 
   it('matches the description case-insensitively and ignoring surrounding spaces', () => {
@@ -465,7 +495,7 @@ describe('Keeper lines carry segments (Phase 46, WR-06)', () => {
           name: 'a quiet people of the salt marshes',
           nameLower: 'a quiet people of the salt marshes',
           narrative: 'Salt and patience.',
-          bonusesJson: JSON.stringify({ primary: { stat: 'wis', value: 2 }, secondary: { stat: 'con', value: 1 }, flavor: 'Tide-wise' }),
+          bonusesJson: JSON.stringify({ primary: { stat: 'wis', value: 2 }, secondary: { stat: 'int', value: 1 }, flavor: 'Tide-wise' }),
           createdAt: { microsSinceUnixEpoch: T0 },
         },
       ],
@@ -475,7 +505,7 @@ describe('Keeper lines carry segments (Phase 46, WR-06)', () => {
     expectKeeperSegments(event);
     expect(event.segments).toHaveLength(4);
     expect(event.segments[0].text).toBe('Salt and patience.');
-    expect(event.segments[1].text).toBe('**a quiet people of the salt marshes**\n+2 WIS, +1 CON. Tide-wise');
+    expect(event.segments[1].text).toBe('**a quiet people of the salt marshes**\n+2 WIS, +1 INT. Tide-wise');
     expect(event.segments[2].text).toContain('Now then. Every creature must choose a path');
   });
 
