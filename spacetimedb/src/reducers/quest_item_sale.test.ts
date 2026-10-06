@@ -3,7 +3,9 @@
  * captured from index.ts. Quest items are refused on the server with "Quest items can't be sold."
  * and nothing changes; a normal sale pays the shared payout, snapshots the affixes before deleting
  * them and records the one buy-back row (replacing an earlier one); sell_all_junk records nothing
- * and leaves an existing row alone. The mock db is strict; one shared identity object is used for
+ * and leaves an existing row alone. The typed sell commands (submit_intent) obey the same rules:
+ * a single 'sell <item>' goes through the same helper and records; 'sell N <item>' and 'sell junk'
+ * skip quest items and never touch the buy-back row. The mock db is strict; one shared identity object is used for
  * seeding and as the sender (the mock compares with ===).
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
@@ -26,6 +28,7 @@ const REFUSAL = "Quest items can't be sold.";
 
 let sellItem: (...args: any[]) => any;
 let sellAllJunk: (...args: any[]) => any;
+let submitIntent: (...args: any[]) => any;
 
 function capture(name: string): (...args: any[]) => any {
   const h = capturedReducer(name);
@@ -42,6 +45,7 @@ beforeAll(async () => {
   await import('../index');
   sellItem = capture('sell_item');
   sellAllJunk = capture('sell_all_junk');
+  submitIntent = capture('submit_intent');
 }, 120_000);
 
 const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
@@ -354,5 +358,171 @@ describe('parseAffixSnapshot', () => {
     expect(parseAffixSnapshot('not json')).toEqual([]);
     expect(parseAffixSnapshot('{"a":1}')).toEqual([]);
     expect(parseAffixSnapshot(JSON.stringify([good, { ...good, magnitude: '1.5' }, { ...good, affixKey: 3 }, null]))).toEqual([good]);
+  });
+});
+
+const say = (ctx: any, text: string) => submitIntent(ctx, { characterId: 1n, text });
+
+describe("typed 'sell <item>' (single)", () => {
+  it('refuses a quest item and changes nothing', () => {
+    const ctx = newCtx({
+      templates: [tpl(81n, 'Sealed Writ', { slot: 'quest', vendorValue: 50n })],
+      instances: [inst(810n, 81n, 1n)],
+      affixes: [affix(1n, 810n, 'keen', 2n)],
+      buyback: [EARLIER_ROW],
+    });
+    const before = {
+      item_instance: snapshot(ctx, 'item_instance'),
+      item_affix: snapshot(ctx, 'item_affix'),
+      vendor_inventory: snapshot(ctx, 'vendor_inventory'),
+      vendor_buyback: snapshot(ctx, 'vendor_buyback'),
+    };
+    say(ctx, 'sell sealed writ');
+    expect(messages(ctx)).toEqual([REFUSAL]);
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(snapshot(ctx, 'item_instance')).toEqual(before.item_instance);
+    expect(snapshot(ctx, 'item_affix')).toEqual(before.item_affix);
+    expect(snapshot(ctx, 'vendor_inventory')).toEqual(before.vendor_inventory);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
+  });
+
+  it('sells a normal item as before and records the buy-back row, replacing an earlier one', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword', { vendorValue: 13n })],
+      instances: [inst(800n, 80n, 1n)],
+      affixes: [affix(1n, 800n, 'keen', 3n)],
+      buyback: [EARLIER_ROW],
+    });
+    say(ctx, 'sell test sword');
+    const paid = sellPayout(13n, 1n, 0, 0n);
+    expect(messages(ctx)).toEqual([`You sell Test Sword for ${paid} gold.`]);
+    expect(gold(ctx) - START_GOLD).toBe(paid);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
+    expect(rows(ctx, 'item_affix')).toHaveLength(0);
+    const listings = rows(ctx, 'vendor_inventory');
+    expect(listings).toHaveLength(1);
+    expect(listings[0]).toMatchObject({ npcId: VENDOR, itemTemplateId: 80n, price: 26n });
+    const buyback = rows(ctx, 'vendor_buyback');
+    expect(buyback).toHaveLength(1);
+    expect(buyback[0]).toMatchObject({
+      characterId: 1n,
+      npcId: VENDOR,
+      npcName: 'Brannoc',
+      locationId: HERE,
+      templateId: 80n,
+      itemName: 'Test Sword',
+      price: paid,
+      listingId: listings[0].id,
+    });
+    expect(parseAffixSnapshot(buyback[0].affixesJson).map((a) => a.affixKey)).toEqual(['keen']);
+  });
+
+  it('says there is no vendor when none is at the location and writes nothing', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword')],
+      instances: [inst(800n, 80n, 1n)],
+      npcs: [{ id: NON_VENDOR, name: 'Old Mara', npcType: 'quest', locationId: HERE }],
+    });
+    say(ctx, 'sell test sword');
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
+    expect(rows(ctx, 'item_instance')).toHaveLength(1);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+  });
+});
+
+describe("typed 'sell N <item>'", () => {
+  const templates = [
+    tpl(81n, 'Shard Writ', { slot: 'quest', vendorValue: 50n }),
+    tpl(83n, 'Glass Shard', { vendorValue: 7n }),
+  ];
+
+  it('sells the normal matches, leaves the quest item and never touches the buy-back row', () => {
+    const ctx = newCtx({
+      templates,
+      instances: [inst(810n, 81n, 1n), inst(830n, 83n, 1n), inst(831n, 83n, 1n)],
+      affixes: [affix(1n, 830n, 'keen', 2n)],
+      buyback: [EARLIER_ROW],
+    });
+    const before = snapshot(ctx, 'vendor_buyback');
+    say(ctx, 'sell 2 shard');
+    const each = sellPayout(7n, 1n, 0, 0n);
+    expect(messages(ctx)).toEqual([`You sell 2x Glass Shard for ${each * 2n} gold.`]);
+    expect(gold(ctx) - START_GOLD).toBe(each * 2n);
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([810n]);
+    expect(rows(ctx, 'item_affix')).toHaveLength(0);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before);
+  });
+
+  it('pays the shared per-instance payout with the Charisma modifier', () => {
+    const ctx = newCtx({
+      templates,
+      instances: [inst(830n, 83n, 3n), inst(831n, 83n, 2n)],
+      sellMod: 150n,
+    });
+    say(ctx, 'sell 2 glass shard');
+    expect(gold(ctx) - START_GOLD).toBe(sellPayout(7n, 3n, 0, 150n) + sellPayout(7n, 2n, 0, 150n));
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+  });
+
+  it('answers the refusal and changes nothing when every match is a quest item', () => {
+    const ctx = newCtx({
+      templates,
+      instances: [inst(810n, 81n, 1n)],
+      buyback: [EARLIER_ROW],
+    });
+    const before = {
+      item_instance: snapshot(ctx, 'item_instance'),
+      vendor_inventory: snapshot(ctx, 'vendor_inventory'),
+      vendor_buyback: snapshot(ctx, 'vendor_buyback'),
+    };
+    say(ctx, 'sell 1 shard writ');
+    expect(messages(ctx)).toEqual([REFUSAL]);
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(snapshot(ctx, 'item_instance')).toEqual(before.item_instance);
+    expect(snapshot(ctx, 'vendor_inventory')).toEqual(before.vendor_inventory);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
+  });
+
+  it('keeps the not-found line when nothing matches', () => {
+    const ctx = newCtx({ templates, instances: [inst(830n, 83n, 1n)] });
+    say(ctx, 'sell 2 banner');
+    expect(messages(ctx)).toEqual(['You don\'t have "banner" in your backpack.']);
+    expect(rows(ctx, 'item_instance')).toHaveLength(1);
+  });
+});
+
+describe("typed 'sell junk'", () => {
+  const junkTemplates = [
+    tpl(90n, 'Rusty Nail', { slot: 'junk', isJunk: true, vendorValue: 4n }),
+    tpl(91n, 'Junk Writ', { slot: 'quest', isJunk: true, vendorValue: 9n }),
+  ];
+
+  it('skips a template that is both junk and quest, sells the other junk and leaves the buy-back row', () => {
+    const ctx = newCtx({
+      templates: junkTemplates,
+      instances: [inst(900n, 90n, 1n), inst(910n, 91n, 1n)],
+      buyback: [EARLIER_ROW],
+    });
+    const before = snapshot(ctx, 'vendor_buyback');
+    say(ctx, 'sell junk');
+    const paid = sellPayout(4n, 1n, 0, 0n);
+    expect(gold(ctx) - START_GOLD).toBe(paid);
+    expect(messages(ctx)).toEqual([`You sell 1 junk item(s) for ${paid} gold: Rusty Nail.`]);
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([910n]);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before);
+  });
+
+  it('creates no buy-back row', () => {
+    const ctx = newCtx({ templates: junkTemplates, instances: [inst(900n, 90n, 1n)] });
+    say(ctx, 'sell all junk');
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+  });
+
+  it('answers "You have no junk to sell." when the only junk is a quest item', () => {
+    const ctx = newCtx({ templates: junkTemplates, instances: [inst(910n, 91n, 1n)], buyback: [EARLIER_ROW] });
+    say(ctx, 'sell junk');
+    expect(messages(ctx)).toEqual(['You have no junk to sell.']);
+    expect(rows(ctx, 'item_instance')).toHaveLength(1);
+    expect(gold(ctx)).toBe(START_GOLD);
   });
 });

@@ -3,7 +3,9 @@ import { performTravel } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
 import { parseLookCommand, describeLookTarget, lookMissLine } from '../helpers/examine';
 import { flattenLineBreaks } from '../helpers/chat_text';
-import { computeSellValue } from '../helpers/economy';
+import { sellInstanceToVendor } from '../helpers/vendor_sale';
+import { sellPayout } from '../data/vendor_pricing';
+import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
 import {
@@ -933,12 +935,13 @@ export const registerIntentReducers = (deps: any) => {
           if (inst.equippedSlot) continue;
           const tmpl = ctx.db.item_template.id.find(inst.templateId);
           if (!tmpl || !tmpl.isJunk) continue;
-          let base = (tmpl.vendorValue ?? 0n) * (inst.quantity ?? 1n);
-          if (vendorSellBonus > 0 && base > 0n) {
-            base = (base * BigInt(100 + vendorSellBonus)) / 100n;
-          }
-          const itemValue = computeSellValue(base, character.vendorSellMod ?? 0n);
-          total += itemValue;
+          if (isQuestItemTemplate(tmpl)) continue;
+          total += sellPayout(
+            tmpl.vendorValue ?? 0n,
+            inst.quantity ?? 1n,
+            vendorSellBonus,
+            character.vendorSellMod ?? 0n
+          );
           soldNames.push(inst.displayName || tmpl.name);
           for (const affix of ctx.db.item_affix.by_instance.filter(inst.id)) {
             ctx.db.item_affix.id.delete(affix.id);
@@ -965,16 +968,22 @@ export const registerIntentReducers = (deps: any) => {
         const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
 
         const matchingItems: any[] = [];
+        let questMatchesSkipped = 0;
         for (const inst of ctx.db.item_instance.by_owner.filter(character.id)) {
           if (inst.equippedSlot) continue;
           const tmpl = ctx.db.item_template.id.find(inst.templateId);
           if (!tmpl) continue;
           const name = inst.displayName || tmpl.name;
           if (name.toLowerCase().includes(itemNameTarget.toLowerCase())) {
+            if (isQuestItemTemplate(tmpl)) {
+              questMatchesSkipped++;
+              continue;
+            }
             matchingItems.push({ inst, tmpl });
           }
         }
         if (matchingItems.length === 0) {
+          if (questMatchesSkipped > 0) return fail(ctx, character, QUEST_ITEM_SALE_REFUSAL);
           return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
         }
 
@@ -982,12 +991,12 @@ export const registerIntentReducers = (deps: any) => {
         let totalGold = 0n;
         let soldTemplateName = '';
         for (const { inst, tmpl } of toSell) {
-          let base = BigInt(tmpl.vendorValue ?? 0) * BigInt(inst.quantity ?? 1);
-          if (vendorSellBonus > 0 && base > 0n) {
-            base = (base * BigInt(100 + vendorSellBonus)) / 100n;
-          }
-          const itemValue = computeSellValue(base, character.vendorSellMod ?? 0n);
-          totalGold += itemValue;
+          totalGold += sellPayout(
+            tmpl.vendorValue ?? 0n,
+            inst.quantity ?? 1n,
+            vendorSellBonus,
+            character.vendorSellMod ?? 0n
+          );
           soldTemplateName = tmpl.name;
           // Add to vendor inventory
           const soldTemplateId = inst.templateId;
@@ -1020,7 +1029,6 @@ export const registerIntentReducers = (deps: any) => {
 
       // --- SELL <item> (single) ---
       const itemNameTarget = sellArg;
-      const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
 
       // Find matching unequipped item in character inventory by name
       const charItems = [...ctx.db.item_instance.by_owner.filter(character.id)];
@@ -1041,44 +1049,15 @@ export const registerIntentReducers = (deps: any) => {
         return fail(ctx, character, `You don't have "${itemNameTarget}" in your backpack.`);
       }
 
-      let baseValue = BigInt(matchedTemplate.vendorValue ?? 0) * BigInt(matchedInstance.quantity ?? 1);
-      let sellBonusMsg = '';
-      if (vendorSellBonus > 0 && baseValue > 0n) {
-        baseValue = (baseValue * BigInt(100 + vendorSellBonus)) / 100n;
-        sellBonusMsg = ` (${vendorSellBonus}% perk bonus)`;
-      }
-      const value = computeSellValue(baseValue, character.vendorSellMod ?? 0n);
-
-      // Clean up any affixes before deleting
-      for (const affix of ctx.db.item_affix.by_instance.filter(matchedInstance.id)) {
-        ctx.db.item_affix.id.delete(affix.id);
-      }
-      const soldTemplateId = matchedInstance.templateId;
-      const soldVendorValue = matchedTemplate.vendorValue ?? 0n;
-      const soldQualityTier = matchedInstance.qualityTier ?? undefined;
-      ctx.db.item_instance.id.delete(matchedInstance.id);
-      ctx.db.character.id.update({
-        ...character,
-        gold: (character.gold ?? 0n) + value,
+      // One shared helper: refuses quest items, pays, snapshots the affixes, lists, records buy-back.
+      sellInstanceToVendor(ctx, {
+        character,
+        instance: matchedInstance,
+        template: matchedTemplate,
+        npcId: vendorNpc.id,
+        record: true,
+        fail,
       });
-
-      // Add sold item to vendor's inventory
-      const alreadyListed = [...ctx.db.vendor_inventory.by_vendor.filter(vendorNpc.id)].find(
-        (row: any) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
-      );
-      if (!alreadyListed) {
-        const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
-        ctx.db.vendor_inventory.insert({
-          id: 0n,
-          npcId: vendorNpc.id,
-          itemTemplateId: soldTemplateId,
-          price: resalePrice,
-          qualityTier: soldQualityTier,
-        });
-      }
-
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-        `You sell ${matchedTemplate.name} for ${value} gold.${sellBonusMsg}`);
       return;
     }
 
