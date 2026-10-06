@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, nextTick } from 'vue';
+import { effectScope, nextTick, ref } from 'vue';
 import { useScreens } from './useScreens';
+import { tabForScreen } from './tabs';
 import { DESKTOP_QUERY, useBreakpoint } from './useBreakpoint';
 import { focusableWithin, trapTabKey } from './focusTrap';
 
@@ -92,6 +93,75 @@ describe('useScreens', () => {
     screens.syncLayout(true);
     expect(screens.active.value).toBe('map');
     screens.syncLayout(false);
+    expect(screens.active.value).toBe('map');
+  });
+});
+
+describe('encounter screen and combat lock (48-05)', () => {
+  it('open(encounter) sets it; syncLayout(true) clears encounter and more, syncLayout(false) keeps encounter', () => {
+    const screens = useScreens();
+    screens.open('encounter', button('e'));
+    expect(screens.active.value).toBe('encounter');
+    screens.syncLayout(false);
+    expect(screens.active.value).toBe('encounter');
+    screens.syncLayout(true);
+    expect(screens.active.value).toBeNull();
+    screens.open('more', button('m'));
+    screens.syncLayout(true);
+    expect(screens.active.value).toBeNull();
+  });
+
+  it('tabForScreen maps encounter to More', () => {
+    expect(tabForScreen('encounter')).toBe('more');
+  });
+
+  it('while locked, open, toggle and openFromMore accept only encounter and more', () => {
+    const locked = ref(true);
+    const screens = useScreens({ locked });
+    screens.open('map', button('a'));
+    expect(screens.active.value).toBeNull();
+    screens.toggle('bag', button('b'));
+    expect(screens.active.value).toBeNull();
+    screens.open('more', button('m'));
+    expect(screens.active.value).toBe('more');
+    screens.openFromMore('vendor' as never);
+    expect(screens.active.value).toBe('more');
+    screens.open('encounter', button('e'));
+    expect(screens.active.value).toBe('encounter');
+  });
+
+  it('locked turning true closes an open screen', () => {
+    const locked = ref(false);
+    const screens = useScreens({ locked });
+    screens.open('map', button('a'));
+    locked.value = true;
+    expect(screens.active.value).toBeNull();
+  });
+
+  it('locked turning true keeps an open more or encounter sheet', () => {
+    const locked = ref(false);
+    const screens = useScreens({ locked });
+    screens.open('more', button('m'));
+    locked.value = true;
+    expect(screens.active.value).toBe('more');
+  });
+
+  it('locked turning false closes an open encounter and leaves more open', () => {
+    const locked = ref(true);
+    const screens = useScreens({ locked });
+    screens.open('encounter', button('e'));
+    locked.value = false;
+    expect(screens.active.value).toBeNull();
+
+    locked.value = true;
+    screens.open('more', button('m'));
+    locked.value = false;
+    expect(screens.active.value).toBe('more');
+  });
+
+  it('without a lock every screen opens as before', () => {
+    const screens = useScreens();
+    screens.open('map', button('a'));
     expect(screens.active.value).toBe('map');
   });
 });

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, provide, watch } from 'vue';
 import { createConsole } from '../console/useConsole';
-import { CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertGame } from '../game/context';
+import { createCombatController } from '../combat/useCombatController';
+import { COMBAT_KEY, CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertGame } from '../game/context';
 import type { FrameControls } from '../game/context';
 import { getScreen, type ScreenId } from '../screens/screens';
 import type { FrameView } from '../session/frameView';
@@ -31,7 +32,9 @@ const props = defineProps<{
 const emit = defineEmits<{ logout: []; reload: [] }>();
 
 const { isDesktop } = useBreakpoint();
-const screens = useScreens();
+const game = inject(GAME_KEY, createInertGame());
+// In combat only the encounter sheet and the More sheet can open (48-UI-SPEC A5).
+const screens = useScreens({ locked: computed(() => game.combat.active.value) });
 
 watch(isDesktop, (desktop) => screens.syncLayout(desktop));
 
@@ -39,7 +42,7 @@ watch(isDesktop, (desktop) => screens.syncLayout(desktop));
 const frameControls: FrameControls = {
   isDesktop,
   activeScreen: screens.active,
-  openScreen(id) {
+  openScreen(id: ScreenId | 'encounter') {
     const focused = document.activeElement;
     screens.open(id, focused instanceof HTMLElement ? focused : null);
   },
@@ -50,16 +53,21 @@ const frameControls: FrameControls = {
 provide(FRAME_KEY, frameControls);
 
 // One console per frame: the composer and the feed keywords reach the same instance.
-const consoleApi = createConsole({ game: inject(GAME_KEY, createInertGame()), frame: frameControls });
+const consoleApi = createConsole({ game, frame: frameControls });
 provide(CONSOLE_KEY, consoleApi);
 onBeforeUnmount(() => consoleApi.dispose());
+
+// One combat controller per frame: the rail, strip, round row, hotbar and party block share it.
+const combatController = createCombatController({ game, frame: frameControls });
+provide(COMBAT_KEY, combatController);
+onBeforeUnmount(() => combatController.dispose());
 
 // Software keyboard (mobile): the strip compacts and the location row hides so the feed keeps room.
 const { keyboardOpen } = useKeyboardOpen(consoleApi.inputFocused);
 
 const activeId = computed<ScreenId | null>(() => {
   const active = screens.active.value;
-  return active === null || active === 'more' ? null : active;
+  return active === null || active === 'more' || active === 'encounter' ? null : active;
 });
 const activeDef = computed(() => (activeId.value === null ? null : getScreen(activeId.value)));
 const sheetOpen = computed(() => screens.active.value !== null);
@@ -80,6 +88,7 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
 
 <template>
   <div class="app-frame">
+    <div class="sr-only target-status" role="status">{{ combatController.targetStatus.value }}</div>
     <template v-if="isDesktop">
       <HeaderBar
         :place-label="props.view.placeLabel"
@@ -160,6 +169,15 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .frame-body {

@@ -2,9 +2,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';
+import type { Ref } from 'vue';
 import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
-import { GAME_KEY, createInertGame } from '../game/context';
+import { GAME_KEY, createInertCombatData, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
 
 type Listener = (event: { matches: boolean }) => void;
@@ -356,5 +357,58 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     await w.get('button.party-chip').trigger('click');
     await settle();
     expect(w.get('[role="dialog"] h4').text()).toBe('Social');
+  });
+});
+
+describe('combat (48-05)', () => {
+  function combatGame(): { game: GameData; active: Ref<boolean>; enemies: Ref<unknown[]> } {
+    const { game } = fakeGame();
+    const active = ref(false);
+    const enemies = ref<unknown[]>([]);
+    const combat = { ...createInertCombatData(), active, enemies };
+    return { game: { ...game, combat } as unknown as GameData, active, enemies };
+  }
+
+  it('closes an open Map drawer the moment combat starts', async () => {
+    const { game, active } = combatGame();
+    const w = mountFrame(true, game);
+    await w.get('button[data-screen="map"]').trigger('click');
+    await settle();
+    expect(w.find('[role="dialog"]').exists()).toBe(true);
+    active.value = true;
+    await settle();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('does not open a header drawer while in combat', async () => {
+    const { game, active } = combatGame();
+    active.value = true;
+    const w = mountFrame(true, game);
+    await w.get('button[data-screen="bag"]').trigger('click');
+    await settle();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('renders a hidden status element that carries the target line as text', async () => {
+    const { game, active, enemies } = combatGame();
+    active.value = true;
+    enemies.value = [{ id: 9n, combatId: 1n, displayName: '<img src=x onerror=alert(1)>', currentHp: 10n, maxHp: 10n }];
+    const reducers = { setCombatTarget: vi.fn().mockResolvedValue(undefined) };
+    (game.reducers as Ref<unknown>).value = reducers;
+    const w = mountFrame(true, game);
+    const status = w.get('[role="status"].target-status');
+    expect(status.text()).toBe('');
+    // Tab with the body focused (the composer input may hold focus after mount) targets the only living hostile.
+    (document.activeElement as HTMLElement | null)?.blur();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    await settle();
+    expect(reducers.setCombatTarget).toHaveBeenCalledWith({ characterId: 1n, enemyId: 9n });
+    expect(status.text()).toBe('Target: <img src=x onerror=alert(1)>');
+    expect(status.find('img').exists()).toBe(false);
+  });
+
+  it('shows an empty status element outside combat', () => {
+    const w = mountFrame(true);
+    expect(w.get('[role="status"].target-status').text()).toBe('');
   });
 });

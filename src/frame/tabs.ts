@@ -1,6 +1,7 @@
 import type { Component } from 'vue';
 import { PhBackpack, PhDotsThree, PhMapTrifold, PhScroll, PhUsersThree } from '@phosphor-icons/vue';
 import type { ScreenId } from '../screens/screens';
+import type { ActiveScreen } from './useScreens';
 
 export type TabId = 'story' | 'map' | 'bag' | 'party' | 'more';
 
@@ -28,8 +29,8 @@ export function screenForTab(tab: TabId): ScreenId | 'more' | null {
   }
 }
 
-/** Which tab is active for the open sheet; screens without a tab belong to More. */
-export function tabForScreen(active: ScreenId | 'more' | null): TabId {
+/** Which tab is active for the open sheet; screens without a tab, and the encounter sheet, belong to More. */
+export function tabForScreen(active: ActiveScreen): TabId {
   switch (active) {
     case null:
       return 'story';

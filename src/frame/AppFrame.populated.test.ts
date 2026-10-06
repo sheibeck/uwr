@@ -418,7 +418,8 @@ describe('first frame before any rows arrive', () => {
     expect(w.get('.context-rail').text()).toContain('Your location appears here.');
     expect(w.get('.context-rail').text()).toContain('No one is nearby.');
     expect(w.get('.context-rail').text()).toContain('No quests tracked.');
-    expect(w.find('[role="status"]').exists()).toBe(false);
+    // The hidden combat target status (48-05) is a status element too; no loading status shows.
+    expect(w.find('[role="status"]:not(.target-status)').exists()).toBe(false);
     expect(w.find('.spinner').exists()).toBe(false);
   });
 });
