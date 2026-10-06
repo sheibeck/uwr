@@ -1606,5 +1606,38 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.24: Max item stack size of 99 (BACKLOG)
+
+**Goal:** A stack of a stackable item holds at most 99. Adding more starts a new stack in a free backpack slot. Captured 2026-10-06 (owner request).
+
+**Today (code read 2026-10-06):** stackable items have no cap. `addItemToInventory` (`spacetimedb/src/helpers/items.ts` ~369) merges into any existing non-equipped stack, and `hasBackpackSpace` (`spacetimedb/src/data/inventory_rules.ts`, Phase 50) treats a stackable template with an existing stack as always fitting.
+
+**Notes for planning:**
+- **Shared constant.** Add `MAX_STACK_SIZE = 99` to the import-free `spacetimedb/src/data/inventory_rules.ts`, so the client, which reads it through `@game-data`, never keeps its own copy.
+- **Space rule.** A stackable item fits if an existing stack has room for the whole quantity, or there are enough free slots for the overflow. Partial fills split across stacks, and the stack and slot math is shared by every add path.
+- **Every path that adds stackable items must respect the cap:**
+  - loot, from `take_loot` / `take_all_loot` and corpses
+  - quest rewards (`grantQuestItemReward`)
+  - crafting output (`craft_recipe` / `planCraft`)
+  - gathering
+  - vendor `buy_item` and buy-back (`buyback_last_sale`, Phase 50)
+  - trades
+  - bank withdrawals
+  - starter items
+- **Existing over-cap stacks** (greenfield, no compatibility shim): either leave them alone and only stop further growth, or split them in a one-off cleanup. A local `--clear-database` is not needed. Decide when this is planned.
+- **Client:** the Phase 50 backpack tiles show `×n` up to 99, and the slot count must reflect split stacks.
+- **Tests** (real handlers on the strict mock database):
+  - adding to 99 opens a new stack
+  - partial overflow splits across stacks
+  - a full backpack refuses only the overflow
+  - every add path respects the cap
+- **Related:** 999.12 (gear power budget and generated items) and the Phase 50 inventory capacity rule (`MAX_INVENTORY_SLOTS`).
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after pulling 999.23 (combat loot rails) into Phase 52*
+*Last updated: 2026-10-06 after adding backlog 999.24 (max stack size 99)*
