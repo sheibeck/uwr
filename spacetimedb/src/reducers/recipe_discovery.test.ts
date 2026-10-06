@@ -539,6 +539,162 @@ describe('salvaging a crafted piece is silent about scrolls', () => {
   });
 });
 
+// CR-01 (iteration 2 review): salvage must never return more than the craft consumed or the item is
+// worth. Real salvage_item and craft_recipe handlers; no mocked pricing.
+describe('salvaging never beats crafting', () => {
+  const T = {
+    voidCrystal: 90n,
+    shadowhide: 91n,
+    darksteel: 92n,
+    ironWard: 93n,
+    boneShard: 94n,
+    spiritEssence: 95n,
+    tannedLeather: 96n,
+    moonweave: 97n,
+  };
+  const richTemplates = () => [
+    ...baseTemplates(),
+    material(T.voidCrystal, 'Void Crystal', 3n, 10n),
+    material(T.shadowhide, 'Shadowhide', 3n, 8n),
+    material(T.darksteel, 'Darksteel Ore', 3n, 8n),
+    material(T.boneShard, 'Bone Shard', 1n, 2n),
+    material(T.spiritEssence, 'Spirit Essence', 2n, 5n),
+    material(T.tannedLeather, 'Tanned Leather', 2n, 4n),
+    material(T.moonweave, 'Moonweave Cloth', 3n, 8n),
+    material(T.ironWard, 'Iron Ward', 1n, 3n),
+  ];
+  const valueOf = (ctx: any, templateId: bigint): bigint =>
+    rows(ctx, 'item_template').find((t) => t.id === templateId)?.vendorValue ?? 0n;
+  // The vendor value of every non-equipped unit the character holds, gear included.
+  const bagValue = (ctx: any, characterId = 1n): bigint =>
+    rows(ctx, 'item_instance')
+      .filter((i) => i.ownerCharacterId === characterId && !i.equippedSlot)
+      .reduce((sum, i) => sum + valueOf(ctx, i.templateId) * (i.quantity ?? 1n), 0n);
+  // A salvage timestamp whose reagent roll, (ts + instanceId * 13) % 100, is 0 (under the 12% chance).
+  const rollReagent = (ctx: any, instanceId: bigint) => {
+    const base = T0 + 5_000_000n;
+    ctx.timestamp = { microsSinceUnixEpoch: base + ((100n - ((base + instanceId * 13n) % 100n)) % 100n) };
+  };
+
+  it('a crafted Void Crystal Pendant salvages to no more Void Crystal than it consumed', () => {
+    const ctx = newCtx({ bag: [[T.voidCrystal, 2n], [ID.cloth, 1n]], templates: richTemplates() });
+    discover(ctx);
+    const recipe = recipeByName(ctx, 'Void Crystal Pendant');
+    expect(recipe.req1TemplateId).toBe(T.voidCrystal);
+    expect(recipe.req1Count).toBe(2n);
+    craft(ctx, { characterId: 1n, recipeTemplateId: recipe.id });
+    expect(countOf(ctx, 1n, T.voidCrystal)).toBe(0n);
+    const made = rows(ctx, 'item_instance').find((i) => i.templateId === recipe.outputTemplateId)!;
+    salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+    expect(countOf(ctx, 1n, T.voidCrystal)).toBeLessThanOrEqual(2n);
+    expect(countOf(ctx, 1n, T.voidCrystal)).toBeLessThan(3n);
+    // Never worth more than the item: the pendant is worth what its inputs were.
+    expect(countOf(ctx, 1n, T.voidCrystal) * 10n).toBeLessThanOrEqual(valueOf(ctx, recipe.outputTemplateId));
+    expect(rows(ctx, 'item_instance').some((i) => i.id === made.id)).toBe(false);
+  });
+
+  it('a crafted tier 3 armor and weapon return at most what the recipe consumed', () => {
+    const ctx = newCtx({
+      bag: [[T.shadowhide, 3n], [ID.cloth, 1n], [T.darksteel, 3n], [ID.hide, 1n]],
+      templates: richTemplates(),
+    });
+    discover(ctx);
+    const jerkin = recipeByName(ctx, 'Shadowhide Jerkin');
+    const sword = recipeByName(ctx, 'Darksteel Sword');
+    for (const [recipe, materialId] of [[jerkin, T.shadowhide], [sword, T.darksteel]] as const) {
+      craft(ctx, { characterId: 1n, recipeTemplateId: recipe.id });
+      expect(countOf(ctx, 1n, materialId)).toBe(0n);
+      const made = rows(ctx, 'item_instance').find((i) => i.templateId === recipe.outputTemplateId)!;
+      salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+      expect(countOf(ctx, 1n, materialId), recipe.name).toBeLessThanOrEqual(recipe.req1Count);
+      expect(countOf(ctx, 1n, materialId) * valueOf(ctx, materialId), recipe.name).toBeLessThanOrEqual(
+        valueOf(ctx, recipe.outputTemplateId),
+      );
+    }
+  });
+
+  it('the implicit quality affix of a crafted armor gives no free reagent', () => {
+    const ctx = newCtx({ bag: [[T.shadowhide, 3n], [ID.cloth, 1n]], templates: richTemplates() });
+    discover(ctx);
+    const jerkin = recipeByName(ctx, 'Shadowhide Jerkin');
+    craft(ctx, { characterId: 1n, recipeTemplateId: jerkin.id });
+    const made = rows(ctx, 'item_instance').find((i) => i.templateId === jerkin.outputTemplateId)!;
+    const affixes = rows(ctx, 'item_affix').filter((a) => a.itemInstanceId === made.id);
+    expect(affixes.map((a) => [a.affixType, a.statKey])).toEqual([['implicit', 'armorClassBonus']]);
+    rollReagent(ctx, made.id);
+    salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+    expect(countOf(ctx, 1n, T.ironWard)).toBe(0n);
+    expect(lines(ctx).some((l) => l.includes('Iron Ward'))).toBe(false);
+  });
+
+  it('a real (suffix) affix still yields its reagent, so only the implicit one is ignored', () => {
+    const ctx = newCtx({ bag: [[T.shadowhide, 3n], [ID.cloth, 1n]], templates: richTemplates() });
+    discover(ctx);
+    const jerkin = recipeByName(ctx, 'Shadowhide Jerkin');
+    craft(ctx, { characterId: 1n, recipeTemplateId: jerkin.id });
+    const made = rows(ctx, 'item_instance').find((i) => i.templateId === jerkin.outputTemplateId)!;
+    ctx.db.item_affix.insert({
+      id: 0n,
+      itemInstanceId: made.id,
+      affixType: 'suffix',
+      affixKey: 'crafted_armorClassBonus',
+      affixName: 'of Warding',
+      statKey: 'armorClassBonus',
+      magnitude: 2n,
+    });
+    rollReagent(ctx, made.id);
+    salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+    expect(countOf(ctx, 1n, T.ironWard)).toBe(1n);
+  });
+
+  it('craft then salvage in a loop never raises what the bag is worth', () => {
+    const ctx = newCtx({
+      bag: [[T.voidCrystal, 20n], [ID.cloth, 20n], [T.shadowhide, 12n]],
+      templates: richTemplates(),
+    });
+    discover(ctx);
+    const pendant = recipeByName(ctx, 'Void Crystal Pendant');
+    const startValue = bagValue(ctx);
+    let previous = startValue;
+    for (let cycle = 0; cycle < 8; cycle++) {
+      craft(ctx, { characterId: 1n, recipeTemplateId: pendant.id });
+      const made = rows(ctx, 'item_instance').find((i) => i.templateId === pendant.outputTemplateId)!;
+      salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+      const now = bagValue(ctx);
+      expect(now, `cycle ${cycle}`).toBeLessThanOrEqual(previous);
+      previous = now;
+    }
+    expect(countOf(ctx, 1n, T.voidCrystal)).toBeLessThanOrEqual(20n);
+    expect(bagValue(ctx)).toBeLessThanOrEqual(startValue);
+  });
+
+  it('every generated gear recipe: salvaging returns no more value than the craft consumed', () => {
+    const everything: Bag = [
+      [T.voidCrystal, 10n], [T.boneShard, 10n], [T.spiritEssence, 10n], [ID.stone, 10n],
+      [T.shadowhide, 10n], [T.tannedLeather, 10n], [ID.hide, 10n], [T.moonweave, 10n], [ID.cloth, 10n],
+      [T.darksteel, 10n], [ID.ironOre, 10n], [ID.copper, 10n], [ID.shard, 10n],
+    ];
+    const ctx = newCtx({ bag: everything, templates: richTemplates() });
+    for (let i = 0; i < 12; i++) discover(ctx);
+    const recipes = rows(ctx, 'recipe_template').filter((r) => r.recipeType !== 'consumable');
+    expect(recipes.length).toBeGreaterThanOrEqual(8);
+    for (const recipe of recipes) {
+      const consumed =
+        valueOf(ctx, recipe.req1TemplateId) * recipe.req1Count + valueOf(ctx, recipe.req2TemplateId) * recipe.req2Count;
+      const before = bagValue(ctx);
+      craft(ctx, { characterId: 1n, recipeTemplateId: recipe.id });
+      const made = rows(ctx, 'item_instance').find((i) => i.templateId === recipe.outputTemplateId)!;
+      expect(made, recipe.name).toBeDefined();
+      const afterCraft = bagValue(ctx);
+      salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+      const afterSalvage = bagValue(ctx);
+      const salvaged = afterSalvage - (afterCraft - valueOf(ctx, recipe.outputTemplateId));
+      expect(salvaged, recipe.name).toBeLessThanOrEqual(consumed);
+      expect(afterSalvage, recipe.name).toBeLessThanOrEqual(before);
+    }
+  });
+});
+
 describe('refusals', () => {
   it('without a station it writes the station line and nothing else', () => {
     const ctx = newCtx({ at: NO_STATION });

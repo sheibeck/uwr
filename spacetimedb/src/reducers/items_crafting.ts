@@ -365,23 +365,53 @@ export const registerItemCraftingReducers = (deps: any) => {
     const itemName = instance.displayName ?? template.name;
     const tier = template.tier ?? 1n;
 
+    // The recipe that makes this item, if any: salvage may never return more than it consumed.
+    const matchingRecipe = [...ctx.db.recipe_template.iter()].find(
+      (r) => r.outputTemplateId === instance.templateId
+    );
+
     // --- Material yield ---
+    // The tier table gives the base count, then two caps keep salvage from beating the craft:
+    //   - value: the materials returned are never worth more than the item (vendorValue), and
+    //   - recipe: never more of a material than the recipe consumed of it.
+    // Without them a crafted Void Crystal Pendant (2 Void Crystal in) paid back 3 Void Crystal.
     const materialName = getMaterialForSalvage(template.slot, template.armorType, tier);
     if (materialName) {
       const materialTemplate = findItemTemplateByName(ctx, materialName);
       if (materialTemplate) {
-        const yieldCount = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
-        addItemToInventory(ctx, character.id, materialTemplate.id, yieldCount);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-          `You salvaged ${itemName} and received ${yieldCount}x ${materialTemplate.name}.`);
+        let yieldCount: bigint = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
+        const materialValue: bigint = materialTemplate.vendorValue ?? 0n;
+        if (materialValue > 0n) {
+          const byValue = (template.vendorValue ?? 0n) / materialValue;
+          if (byValue < yieldCount) yieldCount = byValue;
+        }
+        if (matchingRecipe) {
+          let consumed = 0n;
+          if (matchingRecipe.req1TemplateId === materialTemplate.id) consumed += matchingRecipe.req1Count ?? 0n;
+          if (matchingRecipe.req2TemplateId === materialTemplate.id) consumed += matchingRecipe.req2Count ?? 0n;
+          if (matchingRecipe.req3TemplateId === materialTemplate.id) consumed += matchingRecipe.req3Count ?? 0n;
+          if (consumed > 0n && consumed < yieldCount) yieldCount = consumed;
+        }
+        if (yieldCount > 0n) {
+          addItemToInventory(ctx, character.id, materialTemplate.id, yieldCount);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+            `You salvaged ${itemName} and received ${yieldCount}x ${materialTemplate.name}.`);
+        } else {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+            `You salvaged ${itemName}, but nothing usable was left.`);
+        }
       }
     }
 
     // --- Bonus modifier reagent yield (12% chance, affix-constrained) ---
-    // Collect the unique statKey set from this item's actual ItemAffix rows.
+    // Collect the unique statKey set from this item's real affixes. The implicit craft-quality
+    // affixes every tier 2 and 3 craft carries are not reagent sources: counting them gave a free
+    // Iron Ward (armorClassBonus) for every crafted piece of armor.
     // Affix deletion happens later, so rows still exist here.
     const affixStatKeys = new Set(
-      [...ctx.db.item_affix.by_instance.filter(instance.id)].map(a => a.statKey)
+      [...ctx.db.item_affix.by_instance.filter(instance.id)]
+        .filter(a => a.affixType !== 'implicit')
+        .map(a => a.statKey)
     );
     // Only yield reagents whose statKey matches one of the item's actual affixes.
     const filteredModDefs = CRAFTING_MODIFIER_DEFS.filter(d => affixStatKeys.has(d.statKey));
@@ -400,10 +430,7 @@ export const registerItemCraftingReducers = (deps: any) => {
     }
 
     // --- INT-boosted recipe scroll drop (replaces auto-learn) ---
-    // Find a recipe that outputs this item type
-    const matchingRecipe = [...ctx.db.recipe_template.iter()].find(
-      (r) => r.outputTemplateId === instance.templateId
-    );
+    // matchingRecipe (the recipe that outputs this item type) was found above
     if (matchingRecipe) {
       // Compute INT-boosted chance (on 100n scale)
       const intOffset = statOffset(character.int, INT_SALVAGE_BONUS_PER_POINT);
