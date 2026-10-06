@@ -422,6 +422,12 @@ for (const layout of [
       await el.setValue(text);
       await el.trigger('change');
     };
+    // An input event alone (setValue also fires change, which would hide whether input is handled).
+    const typeOnly = async (w: VueWrapper, text: string) => {
+      const el = input(w);
+      (el.element as HTMLInputElement).value = text;
+      await el.trigger('input');
+    };
     const goldFor = (q: bigint) => sellPayout(5n, q, 0, 0n);
 
     it('opens one picker directly under the stack row instead of selling', async () => {
@@ -496,6 +502,40 @@ for (const layout of [
       expect((input(w).element as HTMLInputElement).value).toBe('3');
       await typeInto(w, '2.5');
       expect((input(w).element as HTMLInputElement).value).toBe('3');
+    });
+
+    it('a typed number takes effect on input: the prompt, the label and a click on confirm use it before any change event', async () => {
+      const { w, sellItemQuantity, picker } = await open();
+      // Only an input event, as while typing: no blur and no change event has happened yet.
+      await typeOnly(w, '3');
+      expect(picker.get('.confirm-prompt').text()).toBe(`Sell 3 of 4 Iron Ore for ${goldFor(3n)} gold?`);
+      expect(picker.findAll('button.decision-btn')[0].text()).toBe('Sell 3');
+      await picker.findAll('button.decision-btn')[0].trigger('click');
+      expect(sellItemQuantity).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 13n, npcId: 2n, quantity: 3n });
+    });
+
+    it('typing over the stack clamps in the field at once, and a half-typed value (empty, zero) waits for change', async () => {
+      const { w } = await open();
+      const prompt = () => w.get(`${layout.picker} .confirm-prompt`).text();
+      await typeOnly(w, '9');
+      expect((input(w).element as HTMLInputElement).value).toBe('4');
+      expect(prompt()).toBe(`Sell 4 of 4 Iron Ore for ${goldFor(4n)} gold?`);
+      await typeOnly(w, '');
+      expect(prompt()).toBe(`Sell 4 of 4 Iron Ore for ${goldFor(4n)} gold?`);
+      await typeOnly(w, '0');
+      expect(prompt()).toBe(`Sell 4 of 4 Iron Ore for ${goldFor(4n)} gold?`);
+      expect((input(w).element as HTMLInputElement).value).toBe('0');
+      // On blur the existing rule applies: a zero becomes 1.
+      await input(w).trigger('change');
+      expect((input(w).element as HTMLInputElement).value).toBe('1');
+      expect(prompt()).toBe(`Sell 1 of 4 Iron Ore for ${goldFor(1n)} gold?`);
+    });
+
+    it('the prompt is a polite, atomic live region so the new total is announced', async () => {
+      const { picker } = await open();
+      const prompt = picker.get('.confirm-prompt');
+      expect(prompt.attributes('aria-live')).toBe('polite');
+      expect(prompt.attributes('aria-atomic')).toBe('true');
     });
 
     it('confirm sends sellItemQuantity once with the picked quantity and is inert while pending', async () => {

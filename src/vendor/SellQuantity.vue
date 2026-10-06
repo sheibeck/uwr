@@ -5,7 +5,7 @@ import { clampSellQuantity, parseSellQuantity } from './vendorModel';
 
 // The Sell quantity stepper (plan 50-27): 1, minus, a number field, plus and All, drawn inside the
 // inline confirmation so focus (Keep it first), Esc and Keep it follow the existing pattern. It only
-// emits clamped quantities between 1 and the stack. The prompt and every name in it arrive as plain
+// emits clamped quantities between 1 and the stack, as the number is typed and on change. The prompt and every name in it arrive as plain
 // strings and reach the page as text nodes only.
 const props = withDefaults(
   defineProps<{
@@ -41,6 +41,18 @@ function stepDown(): void {
 function stepUp(): void {
   if (props.modelValue >= props.max) return;
   set(props.modelValue + 1n);
+}
+
+// A typed number takes effect as it is typed, so the prompt and the confirm label never lag behind
+// the field (a click on the confirm button used to read the old number, because change only fires
+// on blur). Anything that is not a whole number from 1 up is left alone until change resets it.
+function onInput(event: Event): void {
+  const field = event.target as HTMLInputElement;
+  const parsed = parseSellQuantity(field.value);
+  if (parsed === null || parsed < 1n) return;
+  const clamped = clampSellQuantity(parsed, props.max);
+  if (clamped !== parsed) field.value = String(clamped);
+  emit('update:modelValue', clamped);
 }
 
 function onChange(event: Event): void {
@@ -83,6 +95,7 @@ function onChange(event: Event): void {
         class="input qty-input"
         :value="String(props.modelValue)"
         :aria-label="'Quantity, 1 to ' + props.max"
+        @input="onInput"
         @change="onChange"
       />
       <button

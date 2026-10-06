@@ -53,7 +53,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="inline-confirm" :class="{ mobile: props.mobile }">
-    <span class="confirm-prompt">{{ props.prompt }}</span>
+    <!-- Live region: a prompt that changes (the Sell quantity total) is announced, atomically. -->
+    <span class="confirm-prompt" aria-live="polite" aria-atomic="true">{{ props.prompt }}</span>
     <!-- Optional controls between the prompt and the decisions, used by the Sell quantity picker. -->
     <slot />
     <button
