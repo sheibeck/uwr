@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, useTemplateRef } from 'vue';
+import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { ActionRunner } from '../ledger/actionRunner';
@@ -28,6 +28,16 @@ function onTaken(): void {
   void nextTick(() => perkHeading.value?.focus());
 }
 
+// A take deletes the chosen rank's pending rows. The rows reach the client before the reducer
+// promise resolves, so the chooser can unmount before it emits taken. The panel therefore also
+// reads the data: while the chooser is open, the lowest pending rank changing or clearing is a take.
+watch(
+  () => (choice.value === null ? null : choice.value.rank),
+  (next, previous) => {
+    if (chooserOpen.value && previous !== null && next !== previous) onTaken();
+  },
+);
+
 function onClose(): void {
   chooserOpen.value = false;
   void nextTick(() => chooseButton.value?.focus());
@@ -35,7 +45,7 @@ function onClose(): void {
 </script>
 
 <template>
-  <section class="renown" aria-label="Renown">
+  <section class="renown" :class="{ mobile: props.mobile }" aria-label="Renown">
     <h6 class="renown-heading">{{ view.heading }}</h6>
     <div
       class="bar"
@@ -135,6 +145,17 @@ h6 {
   padding: 4px 8px;
   font-family: inherit;
   cursor: pointer;
+}
+
+/* Mobile target: the visible tag stays small, the hit area reaches 44px tall. */
+.mobile .choose-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 44px;
+  transform: translateY(-50%);
 }
 
 .choose-button:focus-visible {

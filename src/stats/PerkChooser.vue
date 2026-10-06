@@ -53,7 +53,11 @@ async function take(): Promise<void> {
   const characterId = character.id;
   const perkId = option.id;
   const ok = await props.runner.run('perk', () => reducers.chooseRenownPerk({ characterId, perkId }));
-  if (ok) emit('taken');
+  // A server refusal (fail(): no pending choice, invalid perk) resolves the call too, so a resolved
+  // call is not proof of a take. The SDK applies the transaction's row updates before it resolves
+  // the promise, so the chosen pending row is already gone after a take. On a refusal it is still
+  // there: the chooser stays open and the notice line shows the server's text.
+  if (ok && !ledger.pendingPerks.value.some((row) => row.id === perkId)) emit('taken');
 }
 
 function onDocumentKeydown(event: KeyboardEvent): void {

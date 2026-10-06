@@ -224,8 +224,38 @@ describe('RenownPanel', () => {
     expect(wrapper!.find('.perk-chooser').exists()).toBe(false);
   });
 
-  it('closes the chooser after a perk is taken and moves focus to the perk row heading', async () => {
+  it('keeps the chooser open when the server refuses the choice: the call resolves, the pending row stays (WR-07)', async () => {
     const ctx = mountPanel({ pendingPerks: [pending(1n, 4n)] });
+    await wrapper!.get('.choose-button').trigger('click');
+    await wrapper!.get('button.option').trigger('click');
+    await wrapper!.get('.take').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await settle();
+    expect(ctx.chooseRenownPerk).toHaveBeenCalledTimes(1);
+    expect(wrapper!.find('.perk-chooser').exists()).toBe(true);
+    expect(document.activeElement).not.toBe(wrapper!.get('.perk-heading').element);
+  });
+
+  it('gives the mobile choose button a 44px hit area and the mobile class on the root (WR-06)', () => {
+    expect(read('RenownPanel.vue')).toMatch(/\.mobile \.choose-button::after\s*\{[^}]*height: 44px;/);
+    mountPanel({ pendingPerks: [pending(1n, 4n)] }, { mobile: true });
+    expect(wrapper!.get('.renown').classes()).toContain('mobile');
+    wrapper!.unmount();
+    mountPanel({ pendingPerks: [pending(1n, 4n)] });
+    expect(wrapper!.get('.renown').classes()).not.toContain('mobile');
+  });
+
+  it('closes the chooser after a perk is taken and moves focus to the perk row heading', async () => {
+    const taken: { clear: () => void } = { clear: () => undefined };
+    const ctx = mountPanel({
+      pendingPerks: [pending(1n, 4n)],
+      chooseRenownPerk: vi.fn().mockImplementation(async () => {
+        taken.clear();
+      }),
+    });
+    taken.clear = () => {
+      ctx.pendingPerks.value = [];
+    };
     await wrapper!.get('.choose-button').trigger('click');
     await wrapper!.get('button.option').trigger('click');
     await wrapper!.get('.take').trigger('click');
@@ -285,6 +315,15 @@ describe('StatsMeta', () => {
       'Hero · Level 3 · 300 / 480 XP · Bound at Hollowmere',
     );
     expect(wrapper!.find('.level-up').exists()).toBe(false);
+  });
+
+  it('renders the character name and the bind-location name with markup literally (IN-08)', () => {
+    mountMeta({
+      character: { ...HERO, name: XSS },
+      locations: [{ id: 5n, name: XSS }],
+    });
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.meta-text').text()).toBe(`${XSS} · Level 3 · 300 / 480 XP · Bound at ${XSS}`);
   });
 
   it('adds a non-interactive Level up available tag while levels are pending', () => {
@@ -546,6 +585,12 @@ describe('StatsScreen mobile 390x844', () => {
   it('shows No stats to show yet. without a character', () => {
     mountScreen({ isDesktop: false, character: null });
     expect(wrapper!.text()).toContain('No stats to show yet.');
+  });
+
+  it('renders the character name in the identity row with markup literally (IN-08)', () => {
+    mountScreen({ isDesktop: false, character: { ...HERO, name: XSS } });
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.who-name').text()).toBe(XSS);
   });
 
   it('renders a faction name with markup literally on the Factions tab', async () => {

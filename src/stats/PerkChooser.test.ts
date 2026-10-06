@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -40,7 +40,13 @@ function row(id: bigint, rank: bigint, over: Record<string, unknown> = {}): Pend
 
 function mountChooser(
   rows: PendingRenownPerk[],
-  options: { connected?: boolean; chooseRenownPerk?: LedgerReducers['chooseRenownPerk']; mobile?: boolean } = {},
+  options: {
+    connected?: boolean;
+    chooseRenownPerk?: LedgerReducers['chooseRenownPerk'];
+    mobile?: boolean;
+    /** The pending rows the ledger holds; they stay after a refusal and vanish on a take. */
+    pendingPerks?: ReturnType<typeof shallowRef<readonly PendingRenownPerk[]>>;
+  } = {},
 ) {
   const chooseRenownPerk = options.chooseRenownPerk ?? vi.fn().mockResolvedValue(undefined);
   const connected = ref(options.connected ?? true);
@@ -51,7 +57,11 @@ function mountChooser(
     character: ref({ id: 7n, name: 'Hero' }),
     connected,
   } as unknown as GameData;
-  const ledger = { ...createInertLedger(), reducers: reducersRef } as unknown as LedgerData;
+  const ledger = {
+    ...createInertLedger(),
+    ...(options.pendingPerks ? { pendingPerks: options.pendingPerks } : {}),
+    reducers: reducersRef,
+  } as unknown as LedgerData;
   const runner = createActionRunner({ online: computed(() => connected.value && reducersRef.value !== null) });
   wrapper = mount(PerkChooser, {
     attachTo: document.body,
@@ -104,6 +114,31 @@ describe('PerkChooser', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(chooseRenownPerk).toHaveBeenCalledTimes(1);
     expect(chooseRenownPerk).toHaveBeenCalledWith({ characterId: 7n, perkId: 12n });
+    expect(wrapper!.emitted('taken')).toHaveLength(1);
+  });
+
+  it('treats a server refusal as a refusal: the call resolves but the pending row remains, so the chooser stays open (WR-07)', async () => {
+    const rows = [row(11n, 4n), row(12n, 4n)];
+    const pendingPerks = shallowRef<readonly PendingRenownPerk[]>(rows);
+    const refused = vi.fn().mockResolvedValue(undefined);
+    mountChooser(rows, { chooseRenownPerk: refused, pendingPerks });
+    await options()[1].trigger('click');
+    await take().trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(refused).toHaveBeenCalledTimes(1);
+    expect(wrapper!.emitted('taken')).toBeUndefined();
+    expect(options()).toHaveLength(2);
+    wrapper!.unmount();
+
+    // A take removes the chosen row before the promise resolves.
+    const taken = shallowRef<readonly PendingRenownPerk[]>(rows);
+    const accepting = vi.fn().mockImplementation(async () => {
+      taken.value = [];
+    });
+    mountChooser(rows, { chooseRenownPerk: accepting, pendingPerks: taken });
+    await options()[1].trigger('click');
+    await take().trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
     expect(wrapper!.emitted('taken')).toHaveLength(1);
   });
 
