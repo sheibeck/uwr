@@ -609,3 +609,10 @@ Applicable state considerations resolved: 19 covered, 5 backstop, 1 unresolved
   - where Nearby objects come from (A7, unresolved)
   - the faction split source (A10)
   - whether the server echoes whispers and party chat (A13)
+
+## Owner try-out changes (2026-10-05)
+
+Recorded after the owner tried the playable client at the end of Plan 47-12. Both changes were requested by the owner and are part of the contract from now on.
+
+1. **Dark scrollbars.** Every scrollable surface (feed log, drawer and sheet bodies, the rails, the hotbar strip and chip rows, the page) uses one shared rule in `src/styles/frame.css`: `scrollbar-width: thin`, `scrollbar-color: var(--color-neutral-700) transparent`, plus `::-webkit-scrollbar` rules (8px wide and high, transparent track, thumb `var(--color-neutral-700)` with a 4px radius, hover `var(--color-neutral-600)`) for Chromium builds that ignore `scrollbar-color`. Tokens only, no literal colors. The chip row and the mobile hotbar strip keep `scrollbar-width: none`. `src/styles/scrollbars.test.ts` enforces it.
+2. **The desktop feed fills the center column.** The 760px reading measure is removed. This supersedes the 760px measure in 45-UI-SPEC for the desktop feed. The feed lines, the Keeper progress and queue tail, the hotbar row and the composer fill the full width between the rails, keeping their existing horizontal padding (`16px 32px` desktop; the compact mobile variant is unchanged at `4px 16px 8px` for the feed and `8px 16px` for the composer). No `max-width: 760px` remains on the feed column.

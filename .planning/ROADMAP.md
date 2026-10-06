@@ -236,7 +236,7 @@ Plans:
   4. Typing a natural sentence that starts with a command word ("Who is that over there?", "Leave him alone", "End this now", "Accept my apology") reaches the conversation or intent path, while exact forms (`who`, `/who`, `invite <name>`) still run the command.
   5. At 390×844 the feed, keywords, hotbar and input are usable, and the vitals, routes, Nearby, quests and active event are reachable from the compact strip and tab bar.
 
-**Plans**: 11/12 plans executed
+**Plans**: 12/12 plans executed
 
 Plans:
 **Wave 1**
@@ -267,7 +267,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 47-12-PLAN.md — Mobile reach (Map and Social sheets), keyboard-open compaction, populated integration test, full gate, owner try-out checklist (deferred)
+- [x] 47-12-PLAN.md — Mobile reach (Map and Social sheets), keyboard-open compaction, populated integration test, full gate, owner try-out checklist (deferred)
 
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Ledger 2i/2j and Console & Combat 1a (exploring), desktop and mobile.
@@ -399,7 +399,7 @@ Plans:
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
-| 47. Console, Rails, Hotbar and Input | v3.0 | 11/12 | In Progress|  |
+| 47. Console, Rails, Hotbar and Input | v3.0 | 12/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |

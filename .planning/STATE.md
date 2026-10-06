@@ -4,17 +4,17 @@ milestone: v3.0
 milestone_name: UX Overhaul
 current_phase: 47
 current_phase_name: Console, Rails, Hotbar and Input
-status: executing
-stopped_at: Completed 47-11-PLAN.md
-last_updated: "2026-10-06T02:03:58.642Z"
+status: verifying
+stopped_at: Completed 47-12-PLAN.md
+last_updated: "2026-10-06T03:13:26.304Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 47 execution started
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 33
-  completed_plans: 32
-  percent: 22
+  completed_plans: 33
+  percent: 33
 ---
 
 # Project State
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 
 Phase: 47 (Console, Rails, Hotbar and Input) — EXECUTING
 Plan: 12 of 12
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-05 — Phase 47 execution started
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -169,6 +169,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 47-08: 'Party · n' counts every member including the player; unknown party members show a dimmed card and a plain 'Member' strip chip with no percent
 - [Phase ?]: 47-10: ContextContent is a fragment; Map sheet (47-12) must mount it in a flex column with 16px gap
 - [Phase ?]: 47-11: hotbar sweep uses an inline conic-gradient background (data-percent for tests) instead of a --cd custom property, because the var() guard accepts only Nocturne/client tokens
+- [Phase ?]: 47-12: owner try-out changes - dark shared scrollbars in frame.css and the 760px desktop feed measure removed (supersedes 45-UI-SPEC for the desktop feed)
 
 ### Roadmap Evolution
 
@@ -262,6 +263,10 @@ Phase 46 is code-complete and verified in code (46-VERIFICATION.md: human_needed
 
 ## Session Continuity
 
+### Overnight autonomy (2026-10-05, owner)
+
+Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, keep developing. I auto approved any questions with your recommendations". Until the owner returns, every question is answered with Claude's recommended option and logged in the phase CONTEXT or SUMMARY as "auto-approved (owner overnight instruction)". The safety rules still apply: no paid LLM calls (the golden run stays deferred to the end of the milestone), no maincloud publish, no git push and no --clear-database.
+
 ### Run order decision (2026-10-05)
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
@@ -282,8 +287,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T02:03:58.616Z
-Stopped at: Completed 47-11-PLAN.md
+Last session: 2026-10-06T03:13:26.273Z
+Stopped at: Completed 47-12-PLAN.md
 
 ## Performance Metrics
 
@@ -399,6 +404,7 @@ Stopped at: Completed 47-11-PLAN.md
 | Phase 47 P09 | 45min | 3 tasks | 8 files |
 | Phase 47 P10 | 30min | 3 tasks | 9 files |
 | Phase 47 P11 | 30min | 2 tasks | 7 files |
+| Phase 47 P12 | 40min | 4 tasks | 17 files |
 
 ## Operator Next Steps
 
