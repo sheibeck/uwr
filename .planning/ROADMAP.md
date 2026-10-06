@@ -997,14 +997,17 @@ budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
 
 **2. Crafting against boss gear (owner decision: agreed):** mastercraft can match boss gear, but only with rare materials from that boss or its region, so crafting and boss hunting support each other.
 
-**3. Legendaries (owner decisions, 2026-10-06):** think "the One Ring": legendary items are almost sentient and have their own history.
+**3. Legendaries (owner decisions, 2026-10-06):** think "the One Ring": legendary items have their own history. "Almost sentient" is flavor only for now (description and history text); legendaries take no actions of their own.
 
 - **Unique:** each legendary exists once and has one bearer at a time. There can be many different legendaries.
+- **Bonded, never traded:** a legendary is bonded to its bearer. Trading, giving, dropping, mailing or banking it to another character is refused.
 - **Never destroyed:** deleting, salvaging, selling or otherwise destroying a legendary is refused.
 - **Lost into history, found again as a rumor:** when a legendary leaves its bearer it is not deleted. It "disappears into history" and resurfaces as a new rumor on some NPC (a 999.10 rumor keeper, possibly in another region), so it can be found again. The new finder becomes its next bearer; finding it is a World event with renown.
-- **Lost through inactivity:** if the bearer's character has not logged in for **over one year**, the legendary becomes lost: a scheduled sweep removes it from their inventory and sends it into history as above (`player.lastActivityAt` is already updated on input; confirm the right last-login signal).
-- **History kept:** each legendary keeps a record of its bearers and how it was gained and lost (game-written rows, not LLM text). NPC rumors and facts can draw on it ("It was last borne in the Greyreach…").
-- **Earned** through rumors (999.10), first finds or bosses. Special effects come from the existing ability-effect vocabulary and count against the same budget and 1.4× cap.
+- **When it is lost:**
+  - **Character deleted:** the legendary is lost into history immediately.
+  - **Inactivity:** if the bearer's character has not logged in for **over six months**, a scheduled sweep removes it from their inventory and sends it into history (`player.lastActivityAt` is already updated on input; confirm the right last-login signal).
+- **Rumors never name past bearers.** A legendary's rumor speaks only of where it might be (a location) and/or which NPC might hold it. Bearer history may be kept internally (game-written rows) but is never shown in rumors or NPC facts.
+- **Earned** through rumors (999.10), first finds or legendary bosses. Special effects come from the existing ability-effect vocabulary and count against the same budget and 1.4× cap.
 
 **4. Where the graph helps:**
 
@@ -1029,17 +1032,16 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 
 - Merge 999.3 into this item, or keep 999.3 as the first slice (drops and quest rewards) with this item as the follow-up?
 - Quest-reward insert: being fixed now as a quick task (owner decision, 2026-10-06); check the result when this item is promoted.
-- Legendaries: can they be traded or given away, or only lost? If the bearer's character is deleted, is the legendary lost into history immediately?
-- "Almost sentient": should a legendary ever act on its own (whisper flavor lines, resist a bearer, slip away when its nature is betrayed), or is that only flavor in its description and history?
-- May rumors and NPC facts name past bearers (player characters)? This touches the 999.9 rule that LLM-invented facts never describe players (bearer history is game-written) and the 999.9 privacy question.
+- When a legendary resurfaces held by an NPC, how does a player win it from them (a quest, high affinity, defeating them)?
+- Is internal bearer history needed at all, given rumors never name past bearers?
 - Exact point costs per stat, the baseline curve per level, and the source multipliers.
 - The best-in-slot margin for the simulated-fight test.
 
-**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, legendary single ownership, legendaries cannot be destroyed, legendary lost after one year of bearer inactivity and resurfacing as a new NPC rumor, legendary bearer history, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
+**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, legendary single ownership, legendaries cannot be traded or destroyed, legendary lost immediately on character deletion and after six months of bearer inactivity, lost legendary resurfacing as a new NPC rumor that names a location or NPC holder and never a past bearer, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after folding 999.3 into 999.12 and recording legendary decisions*
+*Last updated: 2026-10-06 after recording legendary bonding, loss and rumor rules in 999.12*
