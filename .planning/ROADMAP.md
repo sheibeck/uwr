@@ -910,7 +910,7 @@ Plans:
 
 ### Phase 999.11: Race discovery, similar-race matching and the Rite of Becoming (BACKLOG)
 
-**Goal:** Character creation lists the playable races on request, matches a described race against races that already exist (trait graph, no extra LLM call), steers near-duplicates to an existing race or a lineage of it, caps how many races get their own starting zone, and gives a single-character player a quest to change race once they discover a new one. Captured 2026-10-06 (owner idea, refined in discussion). Related: 999.8 (learned phrases), 999.9 (affinity, NPC facts), 999.10 (race rumors, discovered races selectable at creation).
+**Goal:** Character creation lists the playable races on request, matches a described race against races that already exist (trait graph, no extra LLM call), steers near-duplicates to an existing race or a lineage of it, caps the world at 20 starting zones tied to race history, and gives the player who discovers a new race a one-time quest to become it. Captured 2026-10-06 (owner idea, refined in discussion). Related: 999.8 (learned phrases), 999.9 (affinity, NPC facts), 999.10 (race rumors, discovered races selectable at creation).
 
 **Today:**
 
@@ -934,39 +934,39 @@ Plans:
   1. Free check, no LLM: match the text against race names and trait words (learned phrases as in 999.8), and score existing races by trait overlap.
   2. Strong match: the Keeper suggests it in voice ("Sounds like the Stoneborn, who already walk the Greyreach. Join them, or insist you're something new?"). Choosing it places the player at that race's starting zone.
   3. No clear match: the `creation_race` call that already happens receives the closest few races and must answer "this is race X" or "this is new" (with trait tags from the vocabulary). Matching therefore adds no tokens.
-- Insisting on something new:
+- Insisting on something new (owner decision, 2026-10-06):
   - Near-identical (very high overlap): no new race; pick the existing one or describe something different.
-  - Similar (medium overlap): becomes a **lineage** of the existing race ("Frost Stoneborn"): its own name, narrative and flavor, a bonus drawn from the parent's bonus family, and the parent's starting zone.
-  - Nothing close: a new race with its own starting zone.
+  - Close match: if the player insists, it becomes a **lineage** of the existing race ("Frost Stoneborn"): its own name, narrative and flavor, a bonus drawn from the parent's bonus family, and a starting zone chosen as in section 3. A close match never becomes a new race.
+  - Nothing close: a new race, with its own starting zone while the cap allows (section 3).
 
-**3. Cap on unique races (proposal):**
+**3. Starting zones: cap of 20, tied to race history (owner decisions, 2026-10-06):**
 
-- Cap starting zones, not races: a hard cap on races with their own starting zone (for example 24). Beyond the cap, new concepts become lineages of the closest race.
-- Lineages are cheap (no region generation) and need only a loose limit.
+- At most **20 starting zones** in the world. The cap applies to starting zones, not races.
+- A starting zone is linked to a race and its history: when a race's zone is generated, its history and the zone's facts (region biome, landmarks, dominant faction, 999.9-style facts) are stored as edges between the race and the zone.
+- Those edges decide which races can start in which zones: a lineage, a new race created after the cap is reached, and a discovered race without its own zone each start in the zone whose history and traits best fit the race (trait and fact overlap, computed by the server; no LLM call). A zone can host several races.
 - A daily limit on new races, alongside the LLM daily budget.
-- Discovered races (999.10) do not count against the cap; they are already rare.
+- Whether discovered races (999.10) may generate their own zone when the cap is reached, or always join the best-fitting existing zone, is still open.
 
-**4. Rite of Becoming (change race):**
+**4. Rite of Becoming (change race; owner decisions, 2026-10-06):**
 
-- Unlock: the player discovered the race (or reached its people) and reached `bonded` affinity with one of its elders (999.9/999.10).
+- **Only a race discovered during play can be the target.** Player-created races and existing races cannot be changed to.
+- **Offered only to the discoverer:** the player who discovers the race (the first find, 999.10) is offered the Rite. No one else gets it for that race.
+- **One time only:** the quest is offered once; a player can change race through it at most once.
 - A real quest chain (earn the people's trust, a trial, a rare reagent): it is a large change, so it takes effort.
 - Effect: race bonuses swap, and level bonuses are recomputed through the existing `recompute_racial_all` / `computeRacialAtLevelFromRow`; the racial ability swaps; optional rebind to the race's home. Class, level and gear stay.
-- The first player ever to become a discovered race triggers a World event with renown (999.10 first-finds rule).
-- Race-hopping guard: a long cooldown, and each change needs its own quest.
+- Becoming the discovered race is part of that first find's World event with renown (999.10 first-finds rule).
 
 **Open questions (to discuss when this item is picked up):**
 
-1. Cap size for races with their own starting zone, and whether lineages are the fallback past the cap.
-2. Can a player insist on a new race at medium similarity, or does it always become a lineage?
-3. Which races can a player change to: only races discovered through rumors, or any race whose elder they have bonded with (including player-created races)?
-4. Race-change limits: a long cooldown, once ever, or once per discovered race?
-5. Does the full race list belong in Phase 49 (CRE-03) instead, since it is small?
+1. Where to record "list all races on request": in Phase 49 (CRE-03, small and close to the existing cards) or only here.
+2. When the starting-zone cap is full, can a discovered race still get its own zone, or does it always join the best-fitting existing zone?
+3. If the discoverer declines or abandons the Rite, is it gone for good?
 
-**Requirements:** TBD (unit tests required: race list contents and hidden rumored races, stub race filled on first choice and then shared, trait scoring, strong match suggests an existing race and places the player at its starting zone, the `creation_race` reply choosing existing versus new, near-identical blocked, lineage shares the parent's starting zone, starting-zone cap and daily limit, discovered races outside the cap, Rite of Becoming unlock conditions, bonus and ability swap with recompute, class, level and gear unchanged, cooldown, first-to-join World event)
+**Requirements:** TBD (unit tests required: race list contents and hidden rumored races, stub race filled on first choice and then shared, trait scoring, strong match suggests an existing race and places the player at its starting zone, the `creation_race` reply choosing existing versus new, near-identical blocked, an insisted close match becomes a lineage and never a new race, at most 20 starting zones, race-to-zone history edges, best-fit zone selection for lineages and post-cap races, daily new-race limit, Rite offered only to the discoverer of a race discovered in play and only once, bonus and ability swap with recompute, class, level and gear unchanged, World event with renown)
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding Backlog 999.11 (race discovery, matching and Rite of Becoming)*
+*Last updated: 2026-10-06 after recording owner decisions on Backlog 999.11*
