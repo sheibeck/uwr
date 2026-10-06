@@ -76,19 +76,21 @@ describe('CreationSheet: filled model', () => {
     expect(rowValue(w, 'Class')).toBe('Tidecaller');
   });
 
-  it('shows stat values, +N race annotations on boosted stats and the aria label on the value', () => {
+  it('shows stat values, +N race annotations on boosted stats and the full reading as hidden text', () => {
     const model = filledModel({ classStats: null, abilities: null, chosenAbilityIndex: null });
     const w = mountSheet(model);
     const dex = model.stats.find((s) => s.key === 'dex')!;
     const row = w.findAll('.row').find((r) => r.find('.row-label').text() === 'Dexterity')!;
     expect(row.find('.stat-value').text()).toBe(dex.value);
     expect(row.find('.annotation').text()).toBe('+2 race');
-    expect(row.find('.stat-value').attributes('aria-label')).toBe(`Dexterity ${dex.value}, including 2 from your race`);
+    expect(row.find('.sr-only').text()).toBe(`Dexterity ${dex.value}, including 2 from your race`);
+    expect(row.find('.stat-value').attributes('aria-hidden')).toBe('true');
+    expect(row.find('.stat-value').attributes('aria-label')).toBeUndefined();
     expect(row.find('.stat-value').classes()).toContain('boosted');
     const str = w.findAll('.row').find((r) => r.find('.row-label').text() === 'Strength')!;
     expect(str.find('.annotation').exists()).toBe(false);
     expect(str.find('.stat-value').classes()).not.toContain('boosted');
-    expect(str.find('.stat-value').attributes('aria-label')).toBe(`Strength ${model.stats[0].value}`);
+    expect(str.find('.sr-only').text()).toBe(`Strength ${model.stats[0].value}`);
   });
 
   it('shows the racial trait with typographic quotes and the suffix', () => {

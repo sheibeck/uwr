@@ -62,14 +62,16 @@ const rows = computed(() => [
 
     <div class="block stats">
       <div v-for="stat in props.model.stats" :key="stat.key" class="row">
-        <span class="row-label">{{ stat.label }}</span>
+        <span class="row-label" aria-hidden="true">{{ stat.label }}</span>
         <span class="stat-cell">
+          <!-- aria-label is not announced on a generic span, so the full reading is hidden text. -->
+          <span class="sr-only">{{ stat.ariaLabel }}</span>
           <span
             class="stat-value"
             :class="{ boosted: stat.boosted, unwritten: stat.value === UNWRITTEN_STAT }"
-            :aria-label="stat.ariaLabel"
+            aria-hidden="true"
           >{{ stat.value }}</span>
-          <span v-if="stat.annotation !== null" class="annotation">{{ stat.annotation }}</span>
+          <span v-if="stat.annotation !== null" class="annotation" aria-hidden="true">{{ stat.annotation }}</span>
         </span>
       </div>
     </div>
@@ -222,6 +224,7 @@ const rows = computed(() => [
 }
 
 .stat-cell {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
@@ -241,6 +244,15 @@ const rows = computed(() => [
 
 .annotation {
   color: var(--color-neutral-500);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .trait {
