@@ -19,6 +19,7 @@ import { createActionRunner } from '../ledger/actionRunner';
 import type { ItemInstance, ItemTemplate, Npc, VendorBuyback, VendorInventory } from '../module_bindings/types';
 import ForSale from './ForSale.vue';
 import VendorMeta from './VendorMeta.vue';
+import VendorScreen from './VendorScreen.vue';
 import type { VendorSnapshot } from './vendorModel';
 
 const XSS = '<img src=x onerror=alert(1)>';
@@ -467,6 +468,278 @@ describe('VendorMeta', () => {
     npcsHere.value = [];
     await nextTick();
     expect(w.get('.gone').text()).toBe(`${XSS} is no longer nearby.`);
+    expect(w.find('img').exists()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// VendorScreen
+// ---------------------------------------------------------------------------
+
+function mountScreen(world: World = {}) {
+  const ctx = buildWorld(world);
+  wrapper = mount(VendorScreen, { attachTo: document.body, global: ctx.global });
+  return { ...ctx, w: wrapper };
+}
+
+const MARTA_ARGS: ScreenArgs = { npcId: 2n, npcName: 'Marta' };
+const TWO_VENDORS = [npc(2n, 'Marta'), npc(3n, 'Bram', { greeting: 'Hot bread!', factionId: undefined })];
+const OPEN_QUOTE = '“';
+const CLOSE_QUOTE = '”';
+const MINUS = '−';
+
+const SALE_ROW = {
+  characterId: 7n,
+  npcId: 2n,
+  npcName: 'Marta',
+  locationId: 10n,
+  templateId: 1n,
+  itemName: 'Keen Blade',
+  rarity: 'rare',
+  quantity: 1n,
+  price: 30n,
+} as unknown as VendorBuyback;
+
+describe('VendorScreen desktop', () => {
+  it('shows the band for the screen-argument vendor and registers it with the ledger', () => {
+    const { w, setVendor } = mountScreen({ screenArgs: MARTA_ARGS });
+    expect(w.get('.avatar').text()).toBe('M');
+    expect(w.get('.band .name').text()).toBe('Marta');
+    expect(w.get('.role').text()).toBe('Vendor · Merchants Guild');
+    expect(w.get('.quote').text()).toBe(`${OPEN_QUOTE}Fine wares for fine folk.${CLOSE_QUOTE}`);
+    expect(w.get('.quote').attributes('title')).toBe('Fine wares for fine folk.');
+    expect(setVendor).toHaveBeenCalledWith({ npcId: 2n, npcName: 'Marta' });
+  });
+
+  it('shows Vendor alone without a faction and hides an empty greeting', () => {
+    const { w } = mountScreen({
+      screenArgs: { npcId: 3n, npcName: 'Bram' },
+      npcsHere: [npc(3n, 'Bram', { greeting: '', factionId: undefined })],
+    });
+    expect(w.get('.role').text()).toBe('Vendor');
+    expect(w.find('.quote').exists()).toBe(false);
+  });
+
+  it('computes the rapport line with the shared helper (Charisma and renown)', () => {
+    const plain = mountScreen({
+      screenArgs: MARTA_ARGS,
+      character: { ...HERO, vendorBuyMod: 20n, vendorSellMod: 35n },
+    });
+    expect(plain.w.get('.rapport').text()).toBe(`Your rapport: ${MINUS}2% buy, +3.5% sell from Charisma.`);
+    expect(plain.w.get('.figures').text()).toBe(`${MINUS}2% buy, +3.5% sell`);
+    wrapper?.unmount();
+    wrapper = null;
+    const perk = mountScreen({ screenArgs: MARTA_ARGS, perkKeys: ['shrewd_bargainer'] });
+    expect(perk.w.get('.rapport').text()).toBe(`Your rapport: ${MINUS}5% buy, +5% sell from Charisma and renown.`);
+  });
+
+  it('lays out the band, the For sale and Your backpack columns and the pinned card', () => {
+    const { w } = mountScreen({ screenArgs: MARTA_ARGS, lastSale: SALE_ROW });
+    expect(w.findAll('h6').map((h) => h.text())).toEqual(['For sale', 'Your backpack']);
+    expect(w.get('.desk-grid').findAll('.col')).toHaveLength(2);
+    expect(w.find('.just-sold').exists()).toBe(true);
+    const source = read('VendorScreen.vue');
+    expect(source).toMatch(/\.band\s*\{\s*flex: none;/);
+    expect(source).toMatch(
+      /@media \(min-width: 1200px\)\s*\{\s*\.band\s*\{[^}]*grid-template-columns: 44px minmax\(0, 1fr\) auto;/,
+    );
+    expect(source).toMatch(/\.desk-grid\s*\{\s*flex: 1;\s*min-height: 0;/);
+    expect(read('ForSale.vue')).toMatch(/\.rows-region\s*\{\s*flex: 1;\s*min-height: 0;\s*overflow-y: auto;/);
+  });
+
+  it('uses the only vendor here when there are no screen arguments', () => {
+    const { w, setVendor } = mountScreen({ npcsHere: [npc(2n, 'Marta'), npc(8n, 'Aldric', { npcType: 'quest' })] });
+    expect(w.get('.band .name').text()).toBe('Marta');
+    expect(setVendor).toHaveBeenCalledWith({ npcId: 2n, npcName: 'Marta' });
+  });
+
+  it('lists several vendors under Vendors here with 48px buttons and shows the chosen one', async () => {
+    const { w, setVendor } = mountScreen({ npcsHere: TWO_VENDORS });
+    expect(w.get('h6').text()).toBe('Vendors here');
+    const picks = w.findAll('button.vendor-pick');
+    expect(picks.map((b) => b.text())).toEqual(['Marta', 'Bram']);
+    expect(picks[0].find('svg').exists()).toBe(true);
+    expect(read('VendorScreen.vue')).toMatch(/\.vendor-pick\s*\{[^}]*min-height: 48px;/);
+    expect(w.find('.band').exists()).toBe(false);
+    await picks[1].trigger('click');
+    expect(w.get('.band .name').text()).toBe('Bram');
+    expect(w.get('.role').text()).toBe('Vendor');
+    expect(setVendor).toHaveBeenLastCalledWith({ npcId: 3n, npcName: 'Bram' });
+  });
+
+  it('shows No vendor here with the Nearby hint when no vendor is here, and with no character', () => {
+    const none = mountScreen({ npcsHere: [npc(8n, 'Aldric', { npcType: 'quest' })] });
+    expect(none.w.text()).toContain('No vendor here.');
+    expect(none.w.text()).toContain('Find a vendor in Nearby, then choose Trade.');
+    expect(none.w.find('.band').exists()).toBe(false);
+    wrapper?.unmount();
+    wrapper = null;
+    const noCharacter = mountScreen({ character: null });
+    expect(noCharacter.w.text()).toContain('No vendor here.');
+  });
+
+  it('follows a second Trade for another vendor without a remount and resets filter and confirmation', async () => {
+    const junk = tpl(7n, { name: 'Rags', slot: 'misc', isJunk: true, vendorValue: 3n });
+    const { w, screenArgs, setVendor } = mountScreen({
+      screenArgs: MARTA_ARGS,
+      npcsHere: TWO_VENDORS,
+      items: [inst(10n, 7n)],
+      templates: [...TEMPLATES, junk],
+      stock: [...STOCK, listing(200n, 4n, 4n, 3n)],
+    });
+    await w.findAll('[role="group"] button')[1].trigger('click');
+    expect(w.findAll('[role="group"] button')[1].attributes('aria-pressed')).toBe('true');
+    await w.get('button.junk-btn').trigger('click');
+    expect(w.find('.inline-confirm').exists()).toBe(true);
+    const root = w.get('.vendor-screen').element;
+
+    screenArgs.value = { npcId: 3n, npcName: 'Bram' };
+    await nextTick();
+    await nextTick();
+    expect(w.get('.vendor-screen').element).toBe(root);
+    expect(w.get('.band .name').text()).toBe('Bram');
+    expect(setVendor).toHaveBeenLastCalledWith({ npcId: 3n, npcName: 'Bram' });
+    expect(w.findAll('[role="group"] button')[0].attributes('aria-pressed')).toBe('true');
+    expect(w.find('.inline-confirm').exists()).toBe(false);
+    expect(w.findAll('.item-name').map((n) => n.text())).toContain('Bread');
+  });
+
+  it('keeps the band and makes Buy and Sell unavailable when the vendor leaves npcsHere', async () => {
+    const junk = tpl(7n, { name: 'Rags', slot: 'misc', isJunk: true, vendorValue: 3n });
+    const { w, npcsHere, calls } = mountScreen({
+      screenArgs: MARTA_ARGS,
+      items: [inst(10n, 7n)],
+      templates: [...TEMPLATES, junk],
+    });
+    npcsHere.value = [];
+    await nextTick();
+    expect(w.get('.band .name').text()).toBe('Marta');
+    const buy = w.get('[aria-label="Buy Leather Cap for 20 gold"]');
+    const sell = w.get('[aria-label="Sell Rags for 3 gold"]');
+    expect(buy.attributes('aria-disabled')).toBe('true');
+    expect(sell.attributes('aria-disabled')).toBe('true');
+    expect(w.text()).toContain('Marta is no longer nearby.');
+    await buy.trigger('click');
+    await sell.trigger('click');
+    expect(calls.buyItem).not.toHaveBeenCalled();
+    expect(calls.sellItem).not.toHaveBeenCalled();
+  });
+
+  it('keeps an automatically picked vendor on screen after it leaves (no longer nearby)', async () => {
+    const { w, npcsHere } = mountScreen();
+    expect(w.get('.band .name').text()).toBe('Marta');
+    npcsHere.value = [];
+    await nextTick();
+    await nextTick();
+    expect(w.get('.band .name').text()).toBe('Marta');
+    expect(w.text()).toContain('Marta is no longer nearby.');
+  });
+
+  it('opens for an NPC that is not here already, with its name', () => {
+    const { w } = mountScreen({ screenArgs: { npcId: 9n, npcName: 'Old Tom' }, npcsHere: [] });
+    expect(w.get('.band .name').text()).toBe('Old Tom');
+    expect(w.get('.role').text()).toBe('Vendor');
+  });
+
+  it('wires Buy through the shared action runner and shows the send error in the notice line', async () => {
+    const { w } = mountScreen({
+      screenArgs: MARTA_ARGS,
+      reducers: { buyItem: async () => Promise.reject(new Error('no')) },
+    });
+    await w.get('[aria-label="Buy Leather Cap for 20 gold"]').trigger('click');
+    await vi.waitFor(() => expect(w.get('[role="status"]').text()).toContain("Couldn't send that. Try again."));
+  });
+
+  it('calls ledger.setVendor(null) when it unmounts', () => {
+    const { w, setVendor } = mountScreen({ screenArgs: MARTA_ARGS });
+    w.unmount();
+    wrapper = null;
+    expect(setVendor).toHaveBeenLastCalledWith(null);
+  });
+
+  it('renders a vendor name, greeting and faction with markup literally', () => {
+    const { w } = mountScreen({
+      screenArgs: { npcId: 2n, npcName: XSS },
+      npcsHere: [npc(2n, XSS, { greeting: XSS })],
+      factions: [{ id: 1n, name: XSS }],
+    });
+    expect(w.get('.band .name').text()).toBe(XSS);
+    expect(w.get('.quote').text()).toBe(`${OPEN_QUOTE}${XSS}${CLOSE_QUOTE}`);
+    expect(w.get('.role').text()).toBe(`Vendor · ${XSS}`);
+    expect(w.find('img').exists()).toBe(false);
+  });
+});
+
+describe('VendorScreen mobile', () => {
+  it('shows the vendor row, the rapport line and the Buy and Sell tabs, with no gold in the row', () => {
+    const { w } = mountScreen({ screenArgs: MARTA_ARGS, isDesktop: false });
+    const row = w.get('.vendor-row');
+    expect(row.get('.avatar').text()).toBe('M');
+    expect(row.get('.name').text()).toBe('Marta');
+    expect(row.get('.quote').text()).toBe(`${OPEN_QUOTE}Fine wares for fine folk.${CLOSE_QUOTE}`);
+    expect(row.find('[role="img"]').exists()).toBe(false);
+    expect(w.get('.mobile-rapport').text()).toContain('Your rapport:');
+    expect(w.get('[role="tablist"]').attributes('aria-label')).toBe('Trade view');
+    expect(w.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Buy', 'Sell']);
+    expect(w.find('.band').exists()).toBe(false);
+  });
+
+  it('shows the Buy list first and the Sell panel with the Just sold card on top on the Sell tab', async () => {
+    const { w, calls } = mountScreen({
+      screenArgs: MARTA_ARGS,
+      isDesktop: false,
+      items: [inst(11n, 1n)],
+      lastSale: SALE_ROW,
+    });
+    expect(w.find('.sale-list').exists()).toBe(true);
+    expect(w.findAll('.sale-list li')).toHaveLength(5);
+    await w.findAll('[role="tab"]')[1].trigger('click');
+    expect(w.find('.sale-list').exists()).toBe(false);
+    const kids = Array.from(w.get('.sell-panel').element.children);
+    const cardIndex = kids.findIndex((el) => el.classList.contains('just-sold'));
+    const listIndex = kids.findIndex((el) => el.classList.contains('sell-list'));
+    expect(cardIndex).toBeGreaterThanOrEqual(0);
+    expect(listIndex).toBeGreaterThan(cardIndex);
+    await w.get('[aria-label="Sell Iron Sword for 10 gold"]').trigger('click');
+    expect(calls.sellItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 11n, npcId: 2n });
+  });
+
+  it('returns to the Buy tab on a second Trade for another vendor', async () => {
+    const { w, screenArgs } = mountScreen({ screenArgs: MARTA_ARGS, isDesktop: false, npcsHere: TWO_VENDORS });
+    await w.findAll('[role="tab"]')[1].trigger('click');
+    expect(w.findAll('[role="tab"]')[1].attributes('aria-selected')).toBe('true');
+    screenArgs.value = { npcId: 3n, npcName: 'Bram' };
+    await nextTick();
+    await nextTick();
+    expect(w.findAll('[role="tab"]')[0].attributes('aria-selected')).toBe('true');
+    expect(w.get('.vendor-row .name').text()).toBe('Bram');
+  });
+
+  it('lists several vendors on mobile too and shows the chosen one', async () => {
+    const { w } = mountScreen({ isDesktop: false, npcsHere: TWO_VENDORS });
+    expect(w.get('h6').text()).toBe('Vendors here');
+    await w.findAll('button.vendor-pick')[0].trigger('click');
+    expect(w.get('.vendor-row .name').text()).toBe('Marta');
+  });
+
+  it('keeps the mobile 44px rules in the sources and puts the gold in the header meta only', () => {
+    expect(read('SellPanel.vue')).toMatch(/\.mobile \.sell-btn\s*\{[^}]*min-height: 44px;/);
+    expect(read('ForSale.vue')).toMatch(/\.mobile \.buy-btn\s*\{[^}]*min-height: 44px;/);
+    expect(readFileSync(resolve(process.cwd(), 'src/ledger/SegTabs.vue'), 'utf8')).toMatch(
+      /\.seg-opt\s*\{[^}]*min-height: 44px;/,
+    );
+    expect(read('VendorMeta.vue')).toContain('GoldAmount');
+    expect(read('VendorScreen.vue')).not.toContain('GoldAmount');
+  });
+
+  it('renders the vendor name and greeting with markup literally', () => {
+    const { w } = mountScreen({
+      screenArgs: { npcId: 2n, npcName: XSS },
+      isDesktop: false,
+      npcsHere: [npc(2n, XSS, { greeting: XSS })],
+    });
+    expect(w.get('.vendor-row .name').text()).toBe(XSS);
+    expect(w.get('.vendor-row .quote').text()).toBe(`${OPEN_QUOTE}${XSS}${CLOSE_QUOTE}`);
     expect(w.find('img').exists()).toBe(false);
   });
 });
