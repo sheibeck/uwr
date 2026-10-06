@@ -1331,5 +1331,77 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.17: Combat round wind-up for cast times, with cancel on the hotbar slot (BACKLOG)
+
+**Goal:** An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, under one rule. Between rounds the feed shows the cast in progress ("You continue casting X." / "You focus on X."). A player can cancel a wind-up from the ability's own hotbar slot during any round's decision window, then pick a new action for that round. Captured 2026-10-06 (owner decision, design agreed in conversation).
+
+**Why (today's behavior):**
+- **Player cast time is ignored in combat.** `resolveAbilityChoice` (`spacetimedb/src/reducers/combat.ts`) fires the chosen ability at the player's turn in the round it was chosen and never reads `castSeconds`. A cast already running when a fight starts is cancelled ("Your casting is interrupted by combat.").
+- **Cast time still raises damage.** `getAbilityMultiplier` (`spacetimedb/src/data/combat_scaling.ts`) adds +10% per cast second, so in combat a slow cast is pure upside.
+- **Enemies wind up on a different scale.** `windupRounds` (`spacetimedb/src/helpers/combat_rounds.ts`) rounds up using `EFFECT_ROUND_CONVERSION_MICROS` (4s), and the ability lands at the end of round N + windup. Any enemy cast time, even 1s, therefore delays the ability by at least one full round. The enemy posts "X begins to cast Y." once and nothing in the rounds between.
+- **The round timer is not a cast-time unit.** `ROUND_TIMER_MICROS` (10s) is only the player's decision window. It plays no part in the wind-up rule.
+
+**Agreed design:**
+1. **One rule for everyone.** `castRounds = ceil(castSeconds / 2)`. One round means the ability goes off at the end of the round it was chosen:
+
+   | Cast time | Goes off |
+   |---|---|
+   | 0–2s | the round it is chosen |
+   | 3–4s | one round later |
+   | 5–6s | two rounds later (and so on) |
+
+   Enemies move off the 4s scale onto this rule, so their 1–2s casts become same-round.
+2. **The wind-up uses the ability's real `castSeconds`.** `MANA_MIN_CAST_SECONDS = 3` stays as it is for damage only. If the wind-up used the floored value, every mana spell would take two rounds.
+3. **A wind-up bonus pays for the lost round.** Each extra round of wind-up adds about **+60%** to the ability's multiplier, on top of the existing +10%/s cast bonus and the cooldown bonus. A 3s spell goes from 1.3× to about 1.9×. The bonus applies to enemy abilities too (same `scaledPower` path), which makes enemy wind-ups bigger, telegraphed hits.
+   - Level 1 estimate (damage ability value1 12, starter dagger): a 2s spell then an auto-attack ≈ 17 + 8 = 25. A 1s mana spell (floored to 1.3×) then an auto-attack ≈ 27. A two-round 3s spell without the bonus ≈ 19, about 25–30% behind; with the bonus ≈ 27.
+   - These are level 1 estimates and auto-attacks scale with gear, so a test must check the trade at several levels and tune the +60% if needed.
+4. **Unchanged:** cooldown lengths, the ability power budget (`helpers/skill_budget.ts`), and the generator's cast ranges (0–3s, mana ≥ 1s, `data/llm_layers.ts`). Nothing generated today takes more than two rounds; the longer rows only matter if longer casts appear later.
+5. **Player wind-up state.** A per-combat player cast row, like `combat_enemy_cast`: character, ability, target, the round it started and the round it lands. While the row is open, the player's pending cast is their action. They don't auto-attack, and the round treats them as already chosen.
+6. **Cooldown and resource cost start when the ability goes off,** not when the cast begins. Cooldown lengths are unchanged; only the start point moves. This keeps the slot clickable during the wind-up, and it means cancelling costs nothing. The player rule should match enemy behavior (today enemy cooldowns start at announce), or the planner records why they differ.
+7. **Feed lines.**
+   - First round: "You begin casting X."
+   - Each round in between: "You continue casting X." (mana) or "You focus on X." (stamina or physical)
+   - The landing round: "You use X on Y."
+   - Group and other participants see "Name continues casting X."
+   - Enemies post "X continues casting Y." in each round between.
+   - Use the Keeper's second-person narrator voice, as in the rest of the feed.
+8. **Interrupts and targets.** A stun interrupts a player's wind-up, as it already does for enemies. When the ability lands and its stored target is gone, it retargets by its own rule or fizzles (the same as `landEnemyCasts`).
+9. **Cancel on the hotbar slot** (`src/hotbar/HotbarRow.vue`).
+   - **The slot gets a "winding up" state next to `chosen`.** It shows a fill distinct from the cooldown sweep, a "1 round" badge in the spot cooldowns use for their round count, and an × that appears on hover or focus.
+   - **Accessible label:** "Fireball, casting, 1 round left, press to cancel".
+   - **The slot toggles during the decision window.** The first click or number key marks the cast for cancelling: the slot shows "Cancel", the round chip says "Cancelling X", and the player can pick another ability or Ready. A second click resumes the cast with no progress lost. The cancel only takes effect when the round resolves; until then the server just stores a pending cancel. This protects against a stray number-key press throwing away a round of progress.
+   - **Mobile:** a tap toggles cancel; long-press still opens the tooltip.
+   - **Fallback:** if the active hotbar doesn't contain the casting ability, the round row's chip (`src/combat/RoundRow.vue`, "Casting Fireball · 1 round left") also toggles cancel. It is the same action in a second place, needed only in that case.
+   - Enemies never cancel.
+
+**Notes for planning:**
+- **Schema change.** A new player cast table (or the existing `combat_action` row carrying wind-up fields) means a local `--clear-database` publish (greenfield, allowed). Never publish to maincloud automatically.
+- **Reducers.** The cancel and resume toggle needs a reducer, or a new action type on the existing choice submit (`submit_combat_action`). Cancel and resume are only accepted while the round is in `action_select`. The client calls it from the slot and from the chip (CLAUDE.md checklist step 4).
+- **Choice collection.** Round collection (`allChosen` and the waiting list) must count a winding-up player as already chosen, unless the player has marked a cancel.
+- **Client estimate.** `roundsToEstimateMicros` and the hotbar's rounds text should show the remaining wind-up rounds.
+- **Tests (required):**
+  - the `ceil(castSeconds / 2)` bucket table, including 0s and the mana floor not being used
+  - a landing round for players and for enemies
+  - a feed line in each round between (mana vs stamina wording)
+  - the wind-up bonus per extra round
+  - a balance check at several levels: a two-round cast vs a quick spell plus an auto-attack
+  - cooldown and cost charged only on landing
+  - cancel toggles and resume keeps progress
+  - a cancel after resolve is refused
+  - a stun interrupts a player wind-up
+  - a landing target that is gone retargets or fizzles
+  - a winding-up player counted as chosen
+  - the slot state and accessible label
+  - the chip fallback when the casting ability is not on the active hotbar
+- **Related:**
+  - 999.1 (combat balance tuning)
+  - 999.4 (ability expansion; longer casts would use the 5–6s+ rows)
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding backlog 999.16 (Quests screen)*
+*Last updated: 2026-10-06 after adding backlog 999.17 (Combat round wind-up)*
