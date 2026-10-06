@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UX Overhaul
-current_phase: 46
-current_phase_name: Structured Keeper Replies
+current_phase: 47
+current_phase_name: Console, Rails, Hotbar and Input
 status: executing
-stopped_at: Completed 46-10-PLAN.md
-last_updated: "2026-10-06T00:08:24.177Z"
+stopped_at: Completed 47-01-PLAN.md
+last_updated: "2026-10-06T00:13:33.513Z"
 last_activity: 2026-10-05
-last_activity_desc: Phase 46 execution started
+last_activity_desc: Phase 47 execution started
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 33
+  completed_plans: 22
   percent: 22
 ---
 
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** A world that writes itself around its players -- every character is unique, every region is discovered, and the narrative responds to what players actually do.
-**Current focus:** Phase 46 — Structured Keeper Replies
+**Current focus:** Phase 47 — Console, Rails, Hotbar and Input
 
 ## Current Position
 
-Phase: 46 (Structured Keeper Replies) — EXECUTING
-Plan: 10 of 10
+Phase: 47 (Console, Rails, Hotbar and Input) — EXECUTING
+Plan: 2 of 12
 Status: Ready to execute
-Last activity: 2026-10-05 — Phase 46 execution started
+Last activity: 2026-10-05 — Phase 47 execution started
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -159,6 +159,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46-08: combat_narration is a JSON segments route (schema, route kind and approved block in one commit); OQ7 recommended allow-list kept
 - [Phase ?]: 46-09: OQ6 (i) all 27 string pairs and the 4 fallback pairs applied byte for byte; D2, D3 and OQ2 kept as built (segments.ts unchanged)
 - [Phase ?]: 46-10: OQ3 (a) applied. Power budgets stated in the per-call text of skill_gen, renown_perk_gen, creation_class_reveal and creation_class, read from the server clamp; range_violation stays a failure
+- [Phase ?]: 47-01: command words run only in exact typed shape; slash lines always commands; bare leave/end end a conversation
 
 ### Roadmap Evolution
 
@@ -272,8 +273,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-05T20:17:16.650Z
-Stopped at: Completed 46-10-PLAN.md
+Last session: 2026-10-06T00:13:33.481Z
+Stopped at: Completed 47-01-PLAN.md
 
 ## Performance Metrics
 
@@ -378,6 +379,7 @@ Stopped at: Completed 46-10-PLAN.md
 | Phase 46 P08 | 25min | 2 tasks | 15 files |
 | Phase 46 P09 | 40min | 3 tasks | 18 files |
 | Phase 46 P10 | 55min | 2 tasks | 8 files |
+| Phase 47 P01 | 25min | 2 tasks | 7 files |
 
 ## Operator Next Steps
 

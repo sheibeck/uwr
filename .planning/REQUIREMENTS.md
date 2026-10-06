@@ -38,8 +38,8 @@
 
 ### Input (INP)
 
-- [ ] **INP-01**: A natural sentence that starts with a command word reaches the conversation or intent path, not the command system. Examples: "Who is that over there?", "Leave him alone", "End this now", "Accept my apology". (Backlog 999.7)
-- [ ] **INP-02**: Exact command forms still run the command (for example `who`, `/who`, `invite <name>`). Tests cover every command word in both the sentence form and the exact form.
+- [x] **INP-01**: A natural sentence that starts with a command word reaches the conversation or intent path, not the command system. Examples: "Who is that over there?", "Leave him alone", "End this now", "Accept my apology". (Backlog 999.7)
+- [x] **INP-02**: Exact command forms still run the command (for example `who`, `/who`, `invite <name>`). Tests cover every command word in both the sentence form and the exact form.
 
 ### Round-Based Combat Engine (RND)
 
@@ -135,8 +135,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CON-04 | Phase 47 | Pending |
 | CON-05 | Phase 47 | Pending |
 | CON-06 | Phase 47 | Pending |
-| INP-01 | Phase 47 | Pending |
-| INP-02 | Phase 47 | Pending |
+| INP-01 | Phase 47 | Complete |
+| INP-02 | Phase 47 | Complete |
 | RND-01 | Phase 46.1 | Pending |
 | RND-02 | Phase 46.1 | Pending |
 | RND-03 | Phase 46.1 | Pending |
