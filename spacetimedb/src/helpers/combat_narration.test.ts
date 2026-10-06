@@ -7,7 +7,14 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import { readFileSync } from 'node:fs';
 import { createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
-import { buildCombatOutroSummary, enqueueCombatOutroNarration } from './combat_narration';
+import {
+  buildCombatOutroSummary,
+  enqueueCombatOutroNarration,
+  buildCombatMomentSummary,
+  enqueueCombatMomentNarration,
+  finalCombatRound,
+} from './combat_narration';
+import type { CombatMomentFacts } from './combat_narration';
 import { resolveRouteInput, encodeRouteInput } from './llm_inputs';
 import { utcDay } from './llm_budget';
 import { buildRouteLayers } from '../data/llm_layers';
@@ -297,6 +304,14 @@ describe('combat_narration.ts static shape', () => {
     expect(source).toMatch(/export function sendNarrationSkippedMessage/);
     expect(source).toMatch(/export type RoundEventSummary/);
   });
+
+  it('Phase 46.1: exports the moment enqueue, the moment summary, the final-round lookup and the facts type', () => {
+    expect(source).toMatch(/export function enqueueCombatMomentNarration/);
+    expect(source).toMatch(/export function buildCombatMomentSummary/);
+    expect(source).toMatch(/export function finalCombatRound/);
+    expect(source).toMatch(/export type CombatMomentFacts/);
+    expect(source).toMatch(/'kill' \| 'near_death' \| 'phase'/);
+  });
 });
 
 describe('stripNarrationSelfCorrection: a leaked self-check never reaches the player', () => {
@@ -539,5 +554,254 @@ describe('Phase 46: the shared fallback line', () => {
       ['system', COMBAT_NARRATION_FALLBACK_LINE],
       ['system', COMBAT_NARRATION_FALLBACK_LINE],
     ]);
+  });
+});
+
+// ── Phase 46.1 (RND-05): big moments and the end of the fight ──
+
+describe('Phase 46.1: big-moment narration', () => {
+  const killFacts = (over: Partial<CombatMomentFacts> = {}): CombatMomentFacts => ({
+    kind: 'kill',
+    roundNumber: 3n,
+    subjectName: 'Cave Rat',
+    first: true,
+    killerName: 'Aldric',
+    abilityName: 'Cleave',
+    damage: 14n,
+    ...over,
+  });
+  const moment = (ctx: any, facts: CombatMomentFacts) =>
+    enqueueCombatMomentNarration(ctx, combatOf(ctx), participantsOf(ctx), enemiesOf(ctx), facts);
+
+  it('a kill in round 3 enqueues one combat_narration job with the request fields the result handler reads', () => {
+    const ctx = newCtx();
+    moment(ctx, killFacts());
+
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(1);
+    expect(jobs[0].route).toBe('combat_narration');
+    expect(jobs[0].playerId).toBe(alice);
+    expect(jobs[0].characterId).toBe(1n);
+    expect(jobs[0].dedupeKey).toContain('1:3:kill');
+
+    const req = JSON.parse(jobs[0].requestJson);
+    expect(req.combatId).toBe('1');
+    expect(req.roundNumber).toBe('3');
+    expect(req.narrativeType).toBe('kill');
+    expect(req.participantCharacterIds).toEqual(['1', '2']);
+
+    const input = resolveRouteInput(ctx, jobs[0]) as any;
+    expect(input.narrativeType).toBe('kill');
+    expect(input.roundNumber).toBe(3n);
+    expect(input.momentSubject).toBe('Cave Rat');
+    expect(input.momentFirst).toBe(true);
+    expect(input.playerActions).toEqual([
+      { characterName: 'Aldric', actionType: 'ability', abilityName: 'Cleave', targetName: 'Cave Rat', damageDealt: 14n },
+    ]);
+    expect(() => buildRouteLayers('combat_narration', input)).not.toThrow();
+
+    for (const table of ['llm_job', 'llm_dispatch']) {
+      for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
+    }
+  });
+
+  it('an auto-attack killing blow has actionType auto_attack and no ability name', () => {
+    const ctx = newCtx();
+    const summary = buildCombatMomentSummary(
+      ctx,
+      combatOf(ctx),
+      participantsOf(ctx),
+      enemiesOf(ctx),
+      killFacts({ abilityName: undefined, damage: 9n }),
+    );
+    expect(summary.playerActions).toHaveLength(1);
+    expect(summary.playerActions[0].actionType).toBe('auto_attack');
+    expect(summary.playerActions[0].abilityName).toBeUndefined();
+    expect(summary.playerActions[0].damageDealt).toBe(9n);
+  });
+
+  it('the moment summary carries the facts: kill flags, the boss flag and string-or-boolean-only moment fields', () => {
+    const ctx = newCtx();
+    const kill = buildCombatMomentSummary(ctx, combatOf(ctx), participantsOf(ctx), enemiesOf(ctx), killFacts({ bossOrNamed: true }));
+    expect(kill.narrativeType).toBe('kill');
+    expect(kill.roundNumber).toBe(3n);
+    expect(kill.hasKill).toBe(true);
+    expect(kill.momentSubject).toBe('Cave Rat');
+    expect(kill.momentFirst).toBe(true);
+    expect(kill.momentBossOrNamed).toBe(true);
+    expect(kill.locationName).toBe('Saltmarsh');
+    expect(kill.playerNames).toEqual(['Aldric', 'Brienne']);
+    expect(kill.enemyNames).toEqual(['Cave Rat', 'Cave Bat']);
+
+    const near = buildCombatMomentSummary(ctx, combatOf(ctx), participantsOf(ctx), enemiesOf(ctx), {
+      kind: 'near_death',
+      roundNumber: 2n,
+      subjectName: 'Brienne',
+    });
+    expect(near.narrativeType).toBe('near_death');
+    expect(near.hasNearDeath).toBe(true);
+    expect(near.momentFirst).toBe(false);
+    expect(near.momentBossOrNamed).toBe(false);
+  });
+
+  it('the same moment twice creates one job; a different kind or round creates another', () => {
+    const ctx = newCtx();
+    moment(ctx, killFacts());
+    moment(ctx, killFacts());
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+    moment(ctx, { kind: 'near_death', roundNumber: 3n, subjectName: 'Brienne' });
+    expect(rows(ctx, 'llm_job')).toHaveLength(2);
+    moment(ctx, killFacts({ roundNumber: 4n }));
+    expect(rows(ctx, 'llm_job')).toHaveLength(3);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(3);
+  });
+
+  it('near_death and phase moments carry their narrativeType and no playerActions entry', () => {
+    const ctx = newCtx();
+    moment(ctx, { kind: 'near_death', roundNumber: 2n, subjectName: 'Brienne', killerName: 'Cave Bat' });
+    moment(ctx, { kind: 'phase', roundNumber: 4n, subjectName: 'Cave Bat' });
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs.map((j) => JSON.parse(j.requestJson).narrativeType)).toEqual(['near_death', 'phase']);
+    expect(jobs.map((j) => JSON.parse(j.requestJson).roundNumber)).toEqual(['2', '4']);
+    for (const j of jobs) expect((resolveRouteInput(ctx, j) as any).playerActions).toEqual([]);
+  });
+
+  it('is charged to the first participant when the combat has no leader', () => {
+    const ctx = newCtx();
+    const combat = { ...combatOf(ctx), leaderCharacterId: undefined };
+    enqueueCombatMomentNarration(ctx, combat, [participantsOf(ctx)[1], participantsOf(ctx)[0]], enemiesOf(ctx), killFacts());
+    expect(rows(ctx, 'llm_job')[0].playerId).toBe(bob);
+  });
+
+  it('a refusal at the daily cost limit writes nothing, says nothing and does not throw', () => {
+    const ctx = newCtx();
+    fillDay(ctx, alice, LLM_PLAYER_DAILY_COST_MICRO_USD);
+    expect(() => moment(ctx, killFacts())).not.toThrow();
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    expect(appendPrivateEvent).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when no player resolves or the participant list is empty', () => {
+    const noPlayer = newCtx(seed({ player: [] }));
+    expect(() => moment(noPlayer, killFacts())).not.toThrow();
+    expect(rows(noPlayer, 'llm_job')).toHaveLength(0);
+
+    const ctx = newCtx();
+    expect(() => enqueueCombatMomentNarration(ctx, combatOf(ctx), [], enemiesOf(ctx), killFacts())).not.toThrow();
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+  });
+
+  it('a throwing job insert is caught and logged redacted', () => {
+    const ctx = newCtx();
+    const realDb = ctx.db;
+    ctx.db = new Proxy(realDb, {
+      get: (_t, name: string) => {
+        const table = (realDb as any)[name];
+        if (name !== 'llm_job') return table;
+        return new Proxy(table, {
+          get: (tt, prop: string) =>
+            prop === 'insert'
+              ? () => {
+                  throw new Error(`insert exploded with ${FAKE_KEY}`);
+                }
+              : (tt as any)[prop],
+        });
+      },
+    });
+    expect(() => moment(ctx, killFacts())).not.toThrow();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const line = String(errorSpy.mock.calls[0][0]);
+    expect(line).toContain('combat narration skipped');
+    expect(line).not.toContain(FAKE_KEY);
+  });
+
+  it('handleCombatNarrationResult stores a kill like a victory: one narrative row and one private event per participant', async () => {
+    const { handleCombatNarrationResult } = await import('./combat_narration');
+    const ctx = newCtx(
+      seed({
+        character: [
+          { id: 1n, ownerUserId: 7n, name: 'Aldric', hp: 50n, maxHp: 100n, locationId: 10n },
+          { id: 2n, ownerUserId: 8n, name: 'Brienne', hp: 5n, maxHp: 100n, locationId: 10n },
+        ],
+      }),
+    );
+    moment(ctx, killFacts());
+    const task = { contextJson: rows(ctx, 'llm_job')[0].requestJson };
+    handleCombatNarrationResult(
+      ctx,
+      task,
+      JSON.stringify({ segments: [{ kind: 'narration', speaker: 'The Keeper', text: 'The rat folds.' }] }),
+      true,
+    );
+    expect(rows(ctx, 'combat_narrative')).toHaveLength(1);
+    expect(rows(ctx, 'combat_narrative')[0]).toMatchObject({ narrativeType: 'kill', roundNumber: 3n, narrativeText: 'The rat folds.' });
+    expect(sentCalls()).toHaveLength(2);
+    for (const c of sentCalls()) expect(c[3]).toBe('combat_narration');
+  });
+});
+
+describe('Phase 46.1: finalCombatRound and the outro round number', () => {
+  const roundRow = (combatId: bigint, roundNumber: bigint) => ({
+    id: 0n,
+    combatId,
+    roundNumber,
+    state: 'resolved',
+    timerExpiresAtMicros: 0n,
+    narrationCount: 0n,
+    startedAtMicros: 0n,
+  });
+  const firstKey = (ctx: any): string => rows(ctx, 'llm_job')[0].dedupeKey;
+
+  it('is 0n with no round rows, the highest round for the fight, and ignores another combat', () => {
+    expect(finalCombatRound(newCtx(), 1n)).toBe(0n);
+    const ctx = newCtx(seed({ combat_round: [roundRow(1n, 1n), roundRow(1n, 4n), roundRow(1n, 2n), roundRow(2n, 9n)] }));
+    expect(finalCombatRound(ctx, 1n)).toBe(4n);
+    expect(finalCombatRound(ctx, 2n)).toBe(9n);
+    expect(finalCombatRound(ctx, 3n)).toBe(0n);
+  });
+
+  it('never throws, even when the lookup does', () => {
+    const ctx: any = {
+      db: {
+        combat_round: {
+          by_combat: {
+            filter: () => {
+              throw new Error('boom');
+            },
+          },
+        },
+      },
+    };
+    expect(finalCombatRound(ctx, 1n)).toBe(0n);
+    expect(finalCombatRound(undefined, 1n)).toBe(0n);
+  });
+
+  it('the outro carries the final round in its request, source key and summary', () => {
+    const ctx = newCtx(seed({ combat_round: [roundRow(1n, 3n), roundRow(1n, 5n)] }));
+    outro(ctx, 'victory');
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs).toHaveLength(1);
+    expect(JSON.parse(jobs[0].requestJson).roundNumber).toBe('5');
+    expect(firstKey(ctx)).toContain('1:5:victory');
+    expect((resolveRouteInput(ctx, jobs[0]) as any).roundNumber).toBe(5n);
+    expect(buildCombatOutroSummary(ctx, combatOf(ctx), participantsOf(ctx), enemiesOf(ctx), 'defeat').roundNumber).toBe(5n);
+  });
+
+  it('a fight with no round rows keeps round 0 in the outro', () => {
+    const ctx = newCtx();
+    outro(ctx, 'victory');
+    expect(JSON.parse(rows(ctx, 'llm_job')[0].requestJson).roundNumber).toBe('0');
+    expect(firstKey(ctx)).toContain('1:0:victory');
+  });
+
+  it('the outro writes nothing for an empty participant list even when the combat has a leader', () => {
+    const ctx = newCtx();
+    expect(() => enqueueCombatOutroNarration(ctx, combatOf(ctx), [], enemiesOf(ctx), 'victory')).not.toThrow();
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
   });
 });
