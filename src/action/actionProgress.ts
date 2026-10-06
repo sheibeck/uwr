@@ -45,7 +45,6 @@ export interface ActionProgress {
   /** Elapsed over total, clamped to 0..1. */
   fraction: number;
   percent: number;
-  totalSeconds: number;
 }
 
 /** The first-seen key of a gather row. */
@@ -124,9 +123,8 @@ export function actionProgress(endsAtMicros: bigint, startMicros: number, nowMic
   const end = Number(endsAtMicros);
   const remaining = end - nowMicros;
   const total = end - startMicros;
-  const totalSeconds = Math.max(1, Math.ceil((total > 0 ? total : 0) / MICROS_PER_SECOND));
   if (!(remaining > 0)) {
-    return { finishing: true, seconds: 0, fraction: 1, percent: 100, totalSeconds };
+    return { finishing: true, seconds: 0, fraction: 1, percent: 100 };
   }
   const raw = total > 0 ? 1 - remaining / total : 0;
   const fraction = Math.min(1, Math.max(0, raw));
@@ -135,7 +133,6 @@ export function actionProgress(endsAtMicros: bigint, startMicros: number, nowMic
     seconds: Math.ceil(remaining / MICROS_PER_SECOND),
     fraction,
     percent: Math.round(fraction * 100),
-    totalSeconds,
   };
 }
 

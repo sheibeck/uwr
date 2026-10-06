@@ -142,7 +142,6 @@ describe('actionProgress', () => {
       seconds: 8,
       fraction: 0,
       percent: 0,
-      totalSeconds: 8,
     });
   });
 
@@ -172,10 +171,9 @@ describe('actionProgress', () => {
     expect(actionProgress(end, T, T - 2 * S).fraction).toBe(0);
   });
 
-  it('gives fraction 0 and one total second when the start is not before the end', () => {
+  it('gives fraction 0 when the start is not before the end', () => {
     const p = actionProgress(end, T + 8 * S, T);
     expect(p.fraction).toBe(0);
-    expect(p.totalSeconds).toBe(1);
     expect(actionProgress(end, T + 9 * S, T).fraction).toBe(0);
   });
 
@@ -195,18 +193,18 @@ describe('actionProgress', () => {
 
 describe('copy', () => {
   it('formats the time text', () => {
-    expect(actionTimeText({ finishing: false, seconds: 5, fraction: 0, percent: 0, totalSeconds: 8 })).toBe('5s');
-    expect(actionTimeText({ finishing: true, seconds: 0, fraction: 1, percent: 100, totalSeconds: 8 })).toBe(
+    expect(actionTimeText({ finishing: false, seconds: 5, fraction: 0, percent: 0 })).toBe('5s');
+    expect(actionTimeText({ finishing: true, seconds: 0, fraction: 1, percent: 100 })).toBe(
       'Finishing…',
     );
   });
 
   it('formats the summary', () => {
     expect(
-      actionSummary('Gathering Ironwood', { finishing: false, seconds: 3, fraction: 0, percent: 0, totalSeconds: 8 }),
+      actionSummary('Gathering Ironwood', { finishing: false, seconds: 3, fraction: 0, percent: 0 }),
     ).toBe('Gathering Ironwood · 3s');
     expect(
-      actionSummary('Casting Mend', { finishing: true, seconds: 0, fraction: 1, percent: 100, totalSeconds: 2 }),
+      actionSummary('Casting Mend', { finishing: true, seconds: 0, fraction: 1, percent: 100 }),
     ).toBe('Casting Mend · Finishing…');
   });
 });
