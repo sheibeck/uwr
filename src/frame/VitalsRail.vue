@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
+import { PhCrownSimple } from '@phosphor-icons/vue';
+import { GAME_KEY, createInertGame } from '../game/context';
+import EffectChips from '../rails/EffectChips.vue';
+import PartyBlock from '../rails/PartyBlock.vue';
+import { effectViews } from '../rails/effects';
+import { isPartyLeader } from '../rails/party';
+import { xpProgress } from '../rails/xp';
 import { barFraction, vitalText } from './vitals';
 
 const props = defineProps<{
@@ -14,6 +21,17 @@ const props = defineProps<{
   maxStamina: bigint;
 }>();
 
+const game = inject(GAME_KEY, createInertGame());
+
+// Experience: progress into the current level. No character row yet reads '0 / 0' with an empty track.
+const xp = computed(() => {
+  const c = game.character.value;
+  if (c === null) return { value: 0, need: 0, fraction: 0, text: '0 / 0' };
+  return xpProgress(c);
+});
+const effects = computed(() => effectViews(game.effects.value, game.characterId.value, game.inCombat.value));
+const leader = computed(() => isPartyLeader(game.group.value, game.characterId.value));
+
 const bars = computed(() => [
   { key: 'health', label: 'Health', value: props.hp, max: props.maxHp },
   { key: 'mana', label: 'Mana', value: props.mana, max: props.maxMana },
@@ -26,7 +44,10 @@ const bars = computed(() => [
     <div class="identity">
       <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
       <div class="identity-text">
-        <div class="name" :title="props.name">{{ props.name }}</div>
+        <div class="name-row">
+          <div class="name" :title="props.name">{{ props.name }}</div>
+          <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+        </div>
         <div class="class-line">{{ props.classLine }}</div>
       </div>
     </div>
@@ -48,14 +69,30 @@ const bars = computed(() => [
           <div class="fill" :class="`fill-${bar.key}`" :style="{ width: `${barFraction(bar.value, bar.max) * 100}%` }"></div>
         </div>
       </div>
+
+      <div class="xp-row">
+        <div class="bar-row">
+          <span class="xp-label">XP</span>
+          <span class="xp-value">{{ xp.text }}</span>
+        </div>
+        <div
+          class="xp-track"
+          role="progressbar"
+          aria-label="Experience"
+          aria-valuemin="0"
+          :aria-valuenow="xp.value"
+          :aria-valuemax="xp.need"
+        >
+          <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
+        </div>
+      </div>
+
+      <EffectChips :effects="effects" />
     </div>
 
     <div class="hr" role="separator"></div>
 
-    <section class="party">
-      <h6>Party</h6>
-      <p class="empty">Not in a party.</p>
-    </section>
+    <PartyBlock />
   </aside>
 </template>
 
@@ -96,6 +133,18 @@ const bars = computed(() => [
 .identity-text {
   min-width: 0;
   flex: 1;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crown {
+  flex-shrink: 0;
+  color: var(--color-accent);
 }
 
 .name {
@@ -160,17 +209,34 @@ const bars = computed(() => [
   background: var(--color-stamina);
 }
 
+.xp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.xp-label {
+  color: var(--color-neutral-500);
+}
+
+.xp-value {
+  color: var(--color-neutral-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.xp-track {
+  height: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-900);
+  overflow: hidden;
+}
+
+.xp-fill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
 .hr {
   margin: 0;
-}
-
-.party h6 {
-  color: var(--color-neutral-400);
-}
-
-.empty {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-neutral-500);
 }
 </style>
