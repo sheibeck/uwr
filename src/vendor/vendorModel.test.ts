@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
-import { buyPrice, sellPayout } from '@game-data/vendor_pricing';
+import { listingBuyPrice, sellPayout } from '@game-data/vendor_pricing';
+import { perkBonusByField } from '@game-data/perk_rules';
 import type { ItemInstance, ItemTemplate, Npc, VendorBuyback, VendorInventory } from '../module_bindings/types';
 import {
   FOR_SALE_FILTERS,
+  SOLD_OUT_REASON,
   buybackCard,
+  clampSellQuantity,
   forSaleEmptyText,
   forSaleRows,
   formatRapportPercent,
   junkSummary,
+  needsQuantity,
+  parseSellQuantity,
+  quantitySale,
   rapportParts,
   rapportText,
   resolveVendor,
@@ -53,8 +59,8 @@ function inst(id: bigint, templateId: bigint, overrides: Record<string, unknown>
   } as unknown as ItemInstance;
 }
 
-function listing(id: bigint, templateId: bigint, price: bigint): VendorInventory {
-  return { id, npcId: 2n, itemTemplateId: templateId, price, qualityTier: undefined } as unknown as VendorInventory;
+function listing(id: bigint, templateId: bigint, price: bigint, quantity = 1n): VendorInventory {
+  return { id, npcId: 2n, itemTemplateId: templateId, price, qualityTier: undefined, quantity } as unknown as VendorInventory;
 }
 
 function npc(id: bigint, name: string, npcType = 'vendor'): Npc {
@@ -190,14 +196,78 @@ describe('forSaleRows', () => {
     expect(byName('Bread').slotText).toBe('—');
   });
 
-  it('prices every row with the shared buyPrice (renown discount then Charisma) and keeps parity', () => {
+  // The price the server charges for a listing of this fixture's templates (vendorValue 10).
+  const charged = (listPrice: bigint, over: { buyMod?: bigint; sellMod?: bigint; perk?: boolean } = {}): bigint =>
+    listingBuyPrice({
+      listPrice,
+      vendorValue: 10n,
+      perkBuyPct: over.perk ? perkBonusByField(['shrewd_bargainer'], 'vendorBuyDiscount', CHARACTER.level) : 0,
+      perkSellPct: over.perk ? perkBonusByField(['shrewd_bargainer'], 'vendorSellBonus', CHARACTER.level) : 0,
+      vendorBuyMod: over.buyMod ?? 0n,
+      vendorSellMod: over.sellMod ?? 0n,
+    });
+
+  it('prices every row with the shared listingBuyPrice (renown discount, Charisma, then the floor) and keeps parity', () => {
     const character = { ...CHARACTER, vendorBuyMod: 40n };
     const rows = forSaleRows(input({ character, perkKeys: ['shrewd_bargainer'] }));
     const cap = rows.find((r) => r.name === 'Leather Cap')!;
-    expect(cap.price).toBe(buyPrice(20n, 5, 40n));
+    expect(cap.price).toBe(charged(20n, { buyMod: 40n, perk: true }));
     const plate = rows.find((r) => r.name === 'Plate Mail')!;
-    expect(plate.price).toBe(buyPrice(300n, 5, 40n));
-    expect(plate.ariaLabel).toBe(`Buy Plate Mail for ${buyPrice(300n, 5, 40n)} gold`);
+    expect(plate.price).toBe(charged(300n, { buyMod: 40n, perk: true }));
+    expect(plate.ariaLabel).toBe(`Buy Plate Mail for ${charged(300n, { buyMod: 40n, perk: true })} gold`);
+  });
+
+  it('a listing priced under the floor shows the floored price (Bread 3n with value 10n)', () => {
+    const bread = forSaleRows(input()).find((r) => r.name === 'Bread')!;
+    expect(bread.price).toBe(charged(3n));
+    expect(bread.price).toBe(11n);
+  });
+
+  it('every row costs more than the character earns per unit at extreme Charisma with the perk', () => {
+    const character = { ...CHARACTER, vendorBuyMod: 1000n, vendorSellMod: 800n };
+    const perkSell = perkBonusByField(['shrewd_bargainer'], 'vendorSellBonus', character.level);
+    const rows = forSaleRows(input({ character, perkKeys: ['shrewd_bargainer'] }));
+    expect(rows.length).toBe(9);
+    for (const row of rows) {
+      expect(row.price > sellPayout(10n, 1n, perkSell, 800n)).toBe(true);
+      expect(row.ariaLabel).toBe(`Buy ${row.name} for ${row.price} gold`);
+    }
+  });
+
+  it('carries the stock: quantity, x n text and the sold-out flag', () => {
+    const rows = forSaleRows(
+      input({ stock: [listing(1n, 4n, 3n, 3n), listing(2n, 5n, 6n, 1n), listing(3n, 7n, 12n, 0n)] }),
+    );
+    const byName = (n: string) => rows.find((r) => r.name === n)!;
+    expect(byName('Bread').quantity).toBe(3n);
+    expect(byName('Bread').quantityText).toBe('×3');
+    expect(byName('Bread').soldOut).toBe(false);
+    expect(byName('Traveler Tea').quantityText).toBe('×1');
+    expect(byName('Iron Ore').quantity).toBe(0n);
+    expect(byName('Iron Ore').quantityText).toBe('');
+    expect(byName('Iron Ore').soldOut).toBe(true);
+  });
+
+  it('a sold-out row reads Sold out even when gold is short or the bag is full, and is muted', () => {
+    const stock = [listing(1n, 4n, 3n, 0n)];
+    expect(forSaleRows(input({ stock }))[0].reason).toBe(SOLD_OUT_REASON);
+    expect(SOLD_OUT_REASON).toBe('Sold out');
+    const poor = forSaleRows(input({ stock, character: { ...CHARACTER, gold: 1n } }))[0];
+    expect(poor.reason).toBe('Sold out');
+    expect(poor.priceTone).toBe('muted');
+    const bag: ItemInstance[] = [];
+    for (let i = 0; i < MAX_INVENTORY_SLOTS; i += 1) bag.push(inst(BigInt(500 + i), 99n));
+    expect(forSaleRows(input({ stock, items: bag }))[0].reason).toBe('Sold out');
+    const inStock = forSaleRows(input({ stock: [listing(1n, 4n, 3n, 2n)], items: bag }))[0];
+    expect(inStock.reason).toBe('Backpack full');
+  });
+
+  it('stock does not change the order: one listing going from 1n to 0n keeps the same keys', () => {
+    const base = input().stock;
+    const sold = base.map((l) => (l.id === 105n ? listing(105n, 4n, 3n, 0n) : l));
+    expect(forSaleRows(input({ stock: sold })).map((r) => r.key)).toEqual(
+      forSaleRows(input({ stock: base })).map((r) => r.key),
+    );
   });
 
   it('flags a class-unusable row and keeps a level-short row visible with its reason', () => {
@@ -227,7 +297,9 @@ describe('forSaleRows', () => {
   });
 
   it('gives Not enough gold (short tone) and Backpack full reasons, gold first', () => {
-    const poor = forSaleRows(input({ character: { ...CHARACTER, gold: 10n } }));
+    // Exactly the floored price of Bread (listed at 3n, value 10n): enough for it, short for Plate Mail.
+    const breadPrice = forSaleRows(input()).find((r) => r.name === 'Bread')!.price;
+    const poor = forSaleRows(input({ character: { ...CHARACTER, gold: breadPrice } }));
     const plate = poor.find((r) => r.name === 'Plate Mail')!;
     expect(plate.reason).toBe('Not enough gold');
     expect(plate.priceTone).toBe('short');
@@ -267,7 +339,9 @@ describe('forSaleRows', () => {
     const evil = tpl(20n, { name: PAYLOAD, slot: 'head' });
     const rows = forSaleRows(input({ stock: [listing(1n, 20n, 5n)], templates: map([evil]) }));
     expect(rows[0].name).toBe(PAYLOAD);
-    expect(rows[0].ariaLabel).toBe(`Buy ${PAYLOAD} for 5 gold`);
+    // Listed at 5n against a vendorValue of 10n, so the floor applies: 11 gold.
+    expect(rows[0].ariaLabel).toBe(`Buy ${PAYLOAD} for ${rows[0].price} gold`);
+    expect(rows[0].price).toBe(charged(5n));
   });
 });
 
@@ -390,6 +464,85 @@ describe('sellRows and junkSummary', () => {
   });
 });
 
+describe('sell quantity', () => {
+  const ore = tpl(5n, { name: 'Iron Ore', slot: 'material', vendorValue: 5n, stackable: true });
+  const key = tpl(4n, { name: 'Gate Key', slot: 'quest', vendorValue: 99n });
+  const sword = tpl(1n, { name: 'Iron Sword', slot: 'mainHand', vendorValue: 40n });
+  const sellInput = (items: ItemInstance[], over: Partial<SellInput> = {}): SellInput => ({
+    items,
+    templates: map([ore, key, sword]),
+    character: { level: 5n, vendorSellMod: 33n },
+    perkKeys: ['shrewd_bargainer'],
+    ...over,
+  });
+  const perkSell = perkBonusByField(['shrewd_bargainer'], 'vendorSellBonus', 5n);
+  const stack = (quantity: bigint) => inst(13n, 5n, { quantity });
+  const oreRow = (quantity: bigint) => sellRows(sellInput([stack(quantity)]))[0];
+
+  it('needsQuantity is true only for a sellable stack', () => {
+    expect(needsQuantity(oreRow(3n))).toBe(true);
+    expect(needsQuantity(oreRow(1n))).toBe(false);
+    const questRow = sellRows(sellInput([inst(14n, 4n, { quantity: 2n })]))[0];
+    expect(questRow.quest).toBe(true);
+    expect(needsQuantity(questRow)).toBe(false);
+  });
+
+  it('clampSellQuantity keeps 1..max', () => {
+    expect(clampSellQuantity(0n, 12n)).toBe(1n);
+    expect(clampSellQuantity(5n, 12n)).toBe(5n);
+    expect(clampSellQuantity(13n, 12n)).toBe(12n);
+    expect(clampSellQuantity(5n, 0n)).toBe(1n);
+    expect(clampSellQuantity(2n, 1n)).toBe(1n);
+  });
+
+  it('parseSellQuantity accepts digits only', () => {
+    expect(parseSellQuantity('5')).toBe(5n);
+    expect(parseSellQuantity(' 12 ')).toBe(12n);
+    expect(parseSellQuantity('0')).toBe(0n);
+    for (const bad of ['', '-1', '2.5', 'abc', '1e3', '1234567890']) expect(parseSellQuantity(bad)).toBeNull();
+  });
+
+  it('quantitySale gives the exact payout, prompt, label and bounds for Iron Ore x12', () => {
+    const input = sellInput([stack(12n)]);
+    const row = sellRows(input)[0];
+    const sale = quantitySale(input, row, 3n)!;
+    expect(sale.quantity).toBe(3n);
+    expect(sale.gold).toBe(sellPayout(5n, 3n, perkSell, 33n));
+    expect(sale.prompt).toBe(`Sell 3 of 12 Iron Ore for ${sale.gold.toLocaleString('en-US')} gold?`);
+    expect(sale.confirmLabel).toBe('Sell 3');
+    expect(sale.canDecrease).toBe(true);
+    expect(sale.canIncrease).toBe(true);
+    expect(quantitySale(input, row, 0n)!.quantity).toBe(1n);
+    expect(quantitySale(input, row, 0n)!.canDecrease).toBe(false);
+    expect(quantitySale(input, row, 99n)!.quantity).toBe(12n);
+    expect(quantitySale(input, row, 99n)!.canIncrease).toBe(false);
+    // Rounding is per call, exactly like the server's partial sale.
+    for (let q = 1n; q <= 12n; q += 1n) {
+      expect(quantitySale(input, row, q)!.gold).toBe(sellPayout(5n, q, perkSell, 33n));
+    }
+  });
+
+  it('quantitySale groups large gold and is null for a quest row or a missing template', () => {
+    const big = tpl(5n, { name: 'Iron Ore', slot: 'material', vendorValue: 5000n, stackable: true });
+    const input = sellInput([stack(4n)], { templates: map([big, key]) });
+    const sale = quantitySale(input, sellRows(input)[0], 4n)!;
+    expect(sale.prompt).toContain(sale.gold.toLocaleString('en-US'));
+    expect(sale.prompt).toContain(',');
+
+    const questInput = sellInput([inst(14n, 4n, { quantity: 2n })]);
+    expect(quantitySale(questInput, sellRows(questInput)[0], 1n)).toBeNull();
+
+    const row = oreRow(4n);
+    expect(quantitySale(sellInput([stack(4n)], { templates: new Map() }), row, 1n)).toBeNull();
+  });
+
+  it('passes an XSS name through as plain text in the prompt', () => {
+    const input = sellInput([inst(13n, 5n, { quantity: 4n, displayName: PAYLOAD })]);
+    const sale = quantitySale(input, sellRows(input)[0], 2n)!;
+    expect(sale.prompt.startsWith(`Sell 2 of 4 ${PAYLOAD} for `)).toBe(true);
+  });
+});
+
 describe('rapport', () => {
   it('formats percents with U+2212, a plus sign and one decimal only when not whole', () => {
     expect(formatRapportPercent(-2)).toBe('−2%');
@@ -497,5 +650,47 @@ describe('buybackCard', () => {
   it('passes an XSS item name through as plain text', () => {
     const card = buybackCard(sale({ itemName: PAYLOAD }), here, 2n, [], templates)!;
     expect(card.name).toBe(PAYLOAD);
+  });
+
+  describe('stock check (Plan 50-27)', () => {
+    const shelf = (npcId: bigint, templateId: bigint, quantity: bigint, qualityTier?: string): VendorInventory =>
+      ({ id: 1n, npcId, itemTemplateId: templateId, price: 5n, qualityTier, quantity }) as unknown as VendorInventory;
+
+    it('with no stock argument every five-argument call is unchanged (null by default)', () => {
+      expect(buybackCard(sale(), here, 2n, [], templates)!.state).toBe('ready');
+      expect(buybackCard(sale(), here, 2n, [], templates, null)!.state).toBe('ready');
+    });
+
+    it('is ready when the vendor holds at least the sold quantity of that template and tier', () => {
+      expect(buybackCard(sale({ quantity: 5n }), here, 2n, [], templates, [shelf(2n, 2n, 5n)])!.state).toBe('ready');
+      expect(buybackCard(sale({ quantity: 5n }), here, 2n, [], templates, [shelf(2n, 2n, 9n)])!.state).toBe('ready');
+    });
+
+    it('is sold with the vendor reason when the shelf holds fewer, has no row, or another tier', () => {
+      const reason = 'Marta has already sold Keen Blade.';
+      const fewer = buybackCard(sale({ quantity: 5n }), here, 2n, [], templates, [shelf(2n, 2n, 4n)])!;
+      expect(fewer.state).toBe('sold');
+      expect(fewer.reason).toBe(reason);
+      expect(buybackCard(sale(), here, 2n, [], templates, [])!.state).toBe('sold');
+      expect(buybackCard(sale(), here, 2n, [], templates, [shelf(3n, 2n, 5n)])!.state).toBe('sold');
+      expect(buybackCard(sale(), here, 2n, [], templates, [shelf(2n, 9n, 5n)])!.state).toBe('sold');
+      expect(buybackCard(sale(), here, 2n, [], templates, [shelf(2n, 2n, 5n, 'rare')])!.state).toBe('sold');
+      expect(
+        buybackCard(sale({ qualityTier: 'rare' }), here, 2n, [], templates, [shelf(2n, 2n, 5n, 'rare')])!.state,
+      ).toBe('ready');
+    });
+
+    it('keeps the server order: gold wins over place, place wins over sold, sold wins over full', () => {
+      const bag: ItemInstance[] = [];
+      for (let i = 0; i < MAX_INVENTORY_SLOTS; i += 1) bag.push(inst(BigInt(500 + i), 99n));
+      expect(buybackCard(sale({ price: 500n }), here, 3n, [], templates, [])!.state).toBe('gold');
+      expect(buybackCard(sale(), here, 3n, [], templates, [])!.state).toBe('place');
+      expect(buybackCard(sale(), here, 2n, bag, templates, [])!.state).toBe('sold');
+      expect(buybackCard(sale(), here, 2n, bag, templates, [shelf(2n, 2n, 5n)])!.state).toBe('full');
+    });
+
+    it('names the quantity sold', () => {
+      expect(buybackCard(sale({ quantity: 5n }), here, 2n, [], templates)!.name).toBe('Keen Blade ×5');
+    });
   });
 });

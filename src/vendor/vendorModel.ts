@@ -3,7 +3,7 @@ import { hasBackpackSpace } from '@game-data/inventory_rules';
 import { canEquipItem } from '@game-data/item_usability';
 import { isQuestItemTemplate } from '@game-data/item_rules';
 import { perkBonusByField } from '@game-data/perk_rules';
-import { buyPrice, rapportPercents, sellPayout } from '@game-data/vendor_pricing';
+import { listingBuyPrice, rapportPercents, sellPayout } from '@game-data/vendor_pricing';
 import type {
   ItemInstance,
   ItemTemplate,
@@ -27,7 +27,8 @@ import type { ItemCategory } from '../ledger/itemModel';
 // final prices and the usability and reason rules, the sell rows and values, the Sell all junk
 // preview, the rapport line and the Just sold card state. Every price, payout, percent and rule is
 // the server's own shared helper (@game-data); nothing is copied and no price arithmetic happens
-// here. Names stay plain strings (no escaping, no HTML): the components render them as text nodes.
+// here. Vendor stock is finite (plan 50-26): a For sale row carries its quantity and a sold-out
+// state, and every price is listingBuyPrice, the charged price with its floor above the sell value. Names stay plain strings (no escaping, no HTML): the components render them as text nodes.
 // Pure: no Vue.
 
 /** The character fields the vendor screen reads. */
@@ -58,6 +59,9 @@ export type VendorResolution =
   | { kind: 'empty' };
 
 const BACKPACK_FULL = 'Your backpack is full.';
+
+/** The reason a listing at quantity 0 gives for its unavailable Buy. */
+export const SOLD_OUT_REASON = 'Sold out';
 
 function isVendorNpc(npc: Npc): boolean {
   return npc.npcType === 'vendor';
@@ -144,9 +148,15 @@ export interface ForSaleRow {
   subLine: string;
   /** The slot word, or '—'. */
   slotText: string;
-  /** The server's final price (renown discount, then Charisma, minimum 1). */
+  /** The server's final price: renown discount, then Charisma, then the floor above the sell value. */
   price: bigint;
   priceTone: PriceTone;
+  /** The units the vendor has in stock for this listing. */
+  quantity: bigint;
+  /** '×3' for 3 or more in stock (and '×1' for the last one), '' when sold out. */
+  quantityText: string;
+  /** True only at quantity 0: the row keeps its place, Buy is unavailable. */
+  soldOut: boolean;
   /** False only when the class rule fails; level-short rows stay usable. */
   usable: boolean;
   levelShort: boolean;
@@ -189,7 +199,8 @@ function subLineBase(template: ItemTemplate, category: ItemCategory): string {
 
 /**
  * The For sale rows (UI-SPEC "For sale"). Order: Gear in equipment slot order, then Food, Recipe,
- * Material and Other; within a group by tier, then name. A row whose template has not arrived is
+ * Material and Other; within a group by tier, then name. Stock never changes the order, so a row
+ * that sells out keeps its place. A row whose template has not arrived is
  * left out until it does. Under 'usable' only class-unusable rows are hidden; level-short rows
  * stay with their 'Requires Lv n' reason.
  */
@@ -219,12 +230,28 @@ export function forSaleRows(input: ForSaleInput): ForSaleRow[] {
     if (!usable) subLine += ' · Not your class';
     if (levelShort) subLine += ` · Requires Lv ${requiredLevel}`;
 
-    const price = buyPrice(listing.price, perk.buy, character.vendorBuyMod);
+    const price = listingBuyPrice({
+      listPrice: listing.price,
+      vendorValue: template.vendorValue,
+      perkBuyPct: perk.buy,
+      perkSellPct: perk.sell,
+      vendorBuyMod: character.vendorBuyMod,
+      vendorSellMod: character.vendorSellMod,
+    });
+    const quantity = listing.quantity;
+    const soldOut = quantity < 1n;
     let reason: string | null = null;
-    if (character.gold < price) reason = 'Not enough gold';
+    if (soldOut) reason = SOLD_OUT_REASON;
+    else if (character.gold < price) reason = 'Not enough gold';
     else if (!hasBackpackSpace(items, template.id, template.stackable)) reason = 'Backpack full';
 
-    const priceTone: PriceTone = character.gold < price ? 'short' : !usable || levelShort ? 'muted' : 'default';
+    const priceTone: PriceTone = soldOut
+      ? 'muted'
+      : character.gold < price
+        ? 'short'
+        : !usable || levelShort
+          ? 'muted'
+          : 'default';
     const rarity = itemRarity(null, template);
     const name = template.name;
 
@@ -239,6 +266,9 @@ export function forSaleRows(input: ForSaleInput): ForSaleRow[] {
         slotText: gear ? slotLabel(template.slot) || '—' : '—',
         price,
         priceTone,
+        quantity,
+        quantityText: soldOut ? '' : '×' + quantity,
+        soldOut,
         usable,
         levelShort,
         reason,
@@ -410,6 +440,56 @@ export function junkSummary(input: SellInput): JunkSummary {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Sell quantity
+
+/** True for a sellable stack: Sell asks how many instead of selling at once. */
+export function needsQuantity(row: SellRow): boolean {
+  return row.canSell && row.quantity > 1n;
+}
+
+/** Keeps a picked quantity between 1 and the stack (1 when the stack is empty). */
+export function clampSellQuantity(value: bigint, max: bigint): bigint {
+  if (max < 1n || value < 1n) return 1n;
+  return value > max ? max : value;
+}
+
+/** Digits only, at most nine of them; null for anything else (the number field keeps its value). */
+export function parseSellQuantity(text: string): bigint | null {
+  const trimmed = text.trim();
+  return /^\d{1,9}$/.test(trimmed) ? BigInt(trimmed) : null;
+}
+
+export interface QuantitySale {
+  quantity: bigint;
+  /** The exact payout for these units (rounded per call, like the server partial sale). */
+  gold: bigint;
+  /** 'Sell 3 of 12 Iron Ore for 15 gold?' */
+  prompt: string;
+  /** 'Sell 3'. */
+  confirmLabel: string;
+  canDecrease: boolean;
+  canIncrease: boolean;
+}
+
+/** What selling `quantity` of a stack row pays and says; null for a quest row or a missing template. */
+export function quantitySale(input: SellInput, row: SellRow, quantity: bigint): QuantitySale | null {
+  if (!row.canSell) return null;
+  const template = input.templates.get(row.templateId);
+  if (!template) return null;
+  const perk = perkPercents(input.perkKeys, input.character.level);
+  const q = clampSellQuantity(quantity, row.quantity);
+  const gold = sellPayout(template.vendorValue, q, perk.sell, input.character.vendorSellMod);
+  return {
+    quantity: q,
+    gold,
+    prompt: `Sell ${q} of ${row.quantity} ${row.name} for ${grouped(gold)} gold?`,
+    confirmLabel: `Sell ${q}`,
+    canDecrease: q > 1n,
+    canIncrease: q < row.quantity,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 // Rapport
 
 /** '−2%' (U+2212), '+3.5%', '0%'. The helper's numbers carry at most one decimal. */
@@ -461,7 +541,7 @@ export function rapportText(input: {
 // ---------------------------------------------------------------------------------------------
 // Just sold
 
-export type BuybackState = 'ready' | 'gold' | 'place' | 'full';
+export type BuybackState = 'ready' | 'gold' | 'place' | 'sold' | 'full';
 
 export interface BuybackCard {
   /** '{name}{ ×n}'. */
@@ -474,9 +554,22 @@ export interface BuybackCard {
   ariaLabel: string;
 }
 
+/** True while the vendor shelf still holds at least the sold units of that template and tier. */
+function stillStocked(stock: readonly VendorInventory[], sale: VendorBuyback): boolean {
+  const tier = sale.qualityTier ?? undefined;
+  const row = stock.find(
+    (listing) =>
+      listing.npcId === sale.npcId &&
+      listing.itemTemplateId === sale.templateId &&
+      (listing.qualityTier ?? undefined) === tier,
+  );
+  return row !== undefined && row.quantity >= sale.quantity;
+}
+
 /**
  * The Just sold card, derived only from the caller's own last-sale row (the per-sender view). The
- * button states and reasons follow the UI-SPEC table order: gold short, wrong place, full bag.
+ * button states and reasons follow the server order: gold short, wrong place, already resold
+ * (the open vendor stock no longer holds the sold units), full bag.
  */
 export function buybackCard(
   lastSale: VendorBuyback | null,
@@ -484,6 +577,7 @@ export function buybackCard(
   openVendorId: bigint | null,
   items: readonly ItemInstance[],
   templates: ReadonlyMap<bigint, ItemTemplate>,
+  stock: readonly VendorInventory[] | null = null,
 ): BuybackCard | null {
   if (!lastSale) return null;
   const quantityText = lastSale.quantity > 1n ? ` ×${lastSale.quantity}` : '';
@@ -503,6 +597,9 @@ export function buybackCard(
   ) {
     state = 'place';
     reason = `Sold to ${lastSale.npcName}. Go back there to buy it back.`;
+  } else if (stock !== null && !stillStocked(stock, lastSale)) {
+    state = 'sold';
+    reason = `${lastSale.npcName} has already sold ${lastSale.itemName}.`;
   } else {
     const template = templates.get(lastSale.templateId);
     if (!hasBackpackSpace(items, lastSale.templateId, template ? template.stackable : false)) {

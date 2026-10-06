@@ -15,6 +15,7 @@ const REDUCER_NAMES = [
   'salvageItem',
   'learnRecipeScroll',
   'sellItem',
+  'sellItemQuantity',
   'sellAllJunk',
   'buyItem',
   'buybackLastSale',
@@ -312,6 +313,22 @@ describe('createLedgerData: vendor and last sale', () => {
     expect(h.hub.vendorStock.value).toEqual([]);
   });
 
+  it('shows a stock row updated in place (the same id at quantity 2n, then 1n)', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    h.hub.setVendor({ npcId: 9n, npcName: 'Sabeth' });
+    const stock = h.find('Q_STOCK_9');
+    stock.rows.value = [{ id: 1n, npcId: 9n, itemTemplateId: 30n, price: 5n, quantity: 3n }];
+    stock.applied.value = true;
+    expect(h.hub.vendorStock.value[0].quantity).toBe(3n);
+    stock.rows.value = [{ id: 1n, npcId: 9n, itemTemplateId: 30n, price: 5n, quantity: 2n }];
+    expect(h.hub.vendorStock.value[0].quantity).toBe(2n);
+    stock.rows.value = [{ id: 1n, npcId: 9n, itemTemplateId: 30n, price: 5n, quantity: 1n }];
+    expect(h.hub.vendorStock.value[0].quantity).toBe(1n);
+    expect(h.live('Q_STOCK_9')).toHaveLength(1);
+  });
+
   it('swaps to a new vendor at once', () => {
     const h = make();
     h.connect();
@@ -365,6 +382,10 @@ describe('createLedgerData: reducers', () => {
       itemInstanceId: 2n,
       npcId: 9n,
     });
+    const quantitySale = { characterId: 7n, itemInstanceId: 2n, npcId: 9n, quantity: 3n };
+    await r.sellItemQuantity(quantitySale);
+    expect(conn.reducers.sellItemQuantity).toHaveBeenCalledTimes(1);
+    expect(conn.reducers.sellItemQuantity).toHaveBeenCalledWith(quantitySale);
     await r.unequipItem({ characterId: 7n, slot: 'head' });
     expect(conn.reducers.unequipItem).toHaveBeenCalledWith({ characterId: 7n, slot: 'head' });
     expect(Object.keys(r).sort()).toEqual([...REDUCER_NAMES].sort());

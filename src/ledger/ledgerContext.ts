@@ -26,6 +26,7 @@ export interface LedgerReducers {
   salvageItem(a: { characterId: bigint; itemInstanceId: bigint }): Promise<void>;
   learnRecipeScroll(a: { characterId: bigint; itemInstanceId: bigint }): Promise<void>;
   sellItem(a: { characterId: bigint; itemInstanceId: bigint; npcId: bigint }): Promise<void>;
+  sellItemQuantity(a: { characterId: bigint; itemInstanceId: bigint; npcId: bigint; quantity: bigint }): Promise<void>;
   sellAllJunk(a: { characterId: bigint }): Promise<void>;
   buyItem(a: { characterId: bigint; npcId: bigint; itemTemplateId: bigint }): Promise<void>;
   buybackLastSale(a: { characterId: bigint }): Promise<void>;
