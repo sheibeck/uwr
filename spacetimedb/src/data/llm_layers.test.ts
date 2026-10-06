@@ -510,8 +510,19 @@ describe('route blocks and volatile builders', () => {
     it('combat_narration keeps a lone player character as only you, and the summary uses the segments shape', () => {
       const block = ROUTE_BLOCKS.combat_narration;
       expect(block).toMatch(/never a man, a woman, a stranger, a fighter or any other noun/);
-      expect(block).toMatch(/never named, never he or she and never any other noun. Write the summary as narration segments in the same JSON shape./);
+      expect(block).toMatch(/never named, never he or she and never any other noun. Write the summary as narration segments in the same JSON shape\./);
       expect(block).toMatch(/The player's own character never speaks in a segment/);
+    });
+
+    it('combat_narration outro prompt scales the summary length with the fight and keeps its voice rules', () => {
+      const block = ROUTE_BLOCKS.combat_narration;
+      expect(block).toContain(
+        'Write the summary as narration segments in the same JSON shape. Keep it brief, and let its length scale with the fight: the user message states the length this fight earns. A short fight is exactly one narration segment of 2 or 3 sentences, a longer fight is at most 2 narration segments, and a fight against a boss or a named foe is at most 3 narration segments. Never write more segments than the user message allows.',
+      );
+      expect(block).toMatch(/write a brief narrative summary of the whole fight/);
+      expect(block).toMatch(/with no game mechanics, no numbers, no HP, mana, damage amounts or stats/);
+      expect(block).toMatch(/Be sardonic about a triumph and darkly amused at a demise/);
+      expect(block).toMatch(/The summary keeps the second person/);
     });
 
     it('combat_narration forbids drafts and self-corrections and keeps the outro in the second person', () => {
@@ -562,6 +573,43 @@ describe('route blocks and volatile builders', () => {
       expect(tagMatches(text)).toHaveLength(4);
       expect(text).not.toContain('Round 3');
       expect(buildCombatNarrationVolatile({ ...outro, narrativeType: 'defeat' })).toContain('Combat ends in DEFEAT.');
+    });
+
+    it('the outro volatile text carries the length instruction for each tier', () => {
+      const outro: RoundEventSummary = {
+        ...combatRound(BENIGN_WORLD, BENIGN_PLAYER),
+        narrativeType: 'victory',
+        playerNames: [BENIGN_PLAYER],
+      };
+      const lengthLine = (over: Partial<RoundEventSummary>, type: 'victory' | 'defeat' = 'victory') =>
+        buildCombatNarrationVolatile({ ...outro, narrativeType: type, ...over })
+          .split('\n')
+          .filter((l) => l.startsWith('Length:'));
+      const SHORT = 'Length: this was a short fight (3 rounds). Write exactly one narration segment of 2 or 3 sentences.';
+      // Short: 3 rounds or fewer (and a fight with no round rows) and no boss or named foe.
+      expect(lengthLine({ roundNumber: 3n })).toEqual([SHORT]);
+      expect(lengthLine({ roundNumber: 1n })).toEqual([
+        'Length: this was a short fight (1 round). Write exactly one narration segment of 2 or 3 sentences.',
+      ]);
+      expect(lengthLine({ roundNumber: 0n })[0]).toContain('exactly one narration segment of 2 or 3 sentences');
+      expect(lengthLine({ roundNumber: 3n, fightBossOrNamed: false })).toEqual([SHORT]);
+      // Longer: 4 rounds or more.
+      expect(lengthLine({ roundNumber: 4n })).toEqual([
+        'Length: this was a longer fight (4 rounds). Write at most 2 narration segments.',
+      ]);
+      expect(lengthLine({ roundNumber: 12n })[0]).toContain('at most 2 narration segments');
+      // Boss or named foe: up to 3 segments, however short the fight.
+      expect(lengthLine({ roundNumber: 2n, fightBossOrNamed: true })).toEqual([
+        'Length: this fight had a boss or a named foe (2 rounds). Write at most 3 narration segments.',
+      ]);
+      expect(lengthLine({ roundNumber: 9n, fightBossOrNamed: true })[0]).toContain('at most 3 narration segments');
+      // Defeat is scaled the same way.
+      expect(lengthLine({ roundNumber: 3n }, 'defeat')).toEqual([SHORT]);
+      expect(lengthLine({ roundNumber: 6n, fightBossOrNamed: true }, 'defeat')[0]).toContain('at most 3 narration segments');
+    });
+
+    it('the length instruction is outro-only: the round text does not carry it', () => {
+      expect(buildCombatNarrationVolatile(combatRound(BENIGN_WORLD, BENIGN_PLAYER))).not.toContain('Length:');
     });
 
     it('labels a lone player character as you in the outro, and a party as you together', () => {
@@ -1108,6 +1156,7 @@ describe('Phase 46.1: big-moment per-call text', () => {
         `Your character (address as you, never by name): ${TAGGED}`,
         `Fallen: ${GRUB}`,
         `Survivors: ${TAGGED}`,
+        'Length: this was a short fight (3 rounds). Write exactly one narration segment of 2 or 3 sentences.',
       ].join('\n'),
     );
     expect(buildCombatNarrationVolatile({ ...base, narrativeType: 'defeat' }).split('\n')[0]).toBe('Combat ends in DEFEAT.');

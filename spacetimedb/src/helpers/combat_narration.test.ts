@@ -149,6 +149,82 @@ describe('enqueueCombatOutroNarration: the enqueue', () => {
     expect(volatile).toContain('VICTORY');
   });
 
+  describe('the outro length tier (short fight, longer fight, boss or named foe)', () => {
+    const lengthLine = (ctx: any, type: 'victory' | 'defeat' = 'victory') => {
+      const summary = buildCombatOutroSummary(ctx, combatOf(ctx), participantsOf(ctx), enemiesOf(ctx), type);
+      const { volatile } = buildRouteLayers('combat_narration', summary);
+      return { summary, line: volatile.split('\n').filter((l: string) => l.startsWith('Length:')) };
+    };
+    const withRounds = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: BigInt(i + 1), combatId: 1n, roundNumber: BigInt(i + 1),
+      }));
+    const tpl = (isBoss: boolean) => ({ id: 1n, name: 'Rat', isBoss });
+
+    it('a 3-round fight with no boss or named foe is short: exactly one segment of 2 or 3 sentences', () => {
+      const ctx = newCtx(seed({ combat_round: withRounds(3), enemy_template: [tpl(false)] }));
+      const { summary, line } = lengthLine(ctx);
+      expect(summary.roundNumber).toBe(3n);
+      expect(summary.fightBossOrNamed).toBe(false);
+      expect(line).toEqual([
+        'Length: this was a short fight (3 rounds). Write exactly one narration segment of 2 or 3 sentences.',
+      ]);
+    });
+
+    it('a fight of 4 or more rounds with no boss or named foe is longer: at most 2 segments', () => {
+      const ctx = newCtx(seed({ combat_round: withRounds(5), enemy_template: [tpl(false)] }));
+      expect(lengthLine(ctx).line).toEqual([
+        'Length: this was a longer fight (5 rounds). Write at most 2 narration segments.',
+      ]);
+    });
+
+    it('a boss template earns up to 3 segments even in a 2-round fight', () => {
+      const ctx = newCtx(seed({ combat_round: withRounds(2), enemy_template: [tpl(true)] }));
+      const { summary, line } = lengthLine(ctx, 'defeat');
+      expect(summary.fightBossOrNamed).toBe(true);
+      expect(line).toEqual([
+        'Length: this fight had a boss or a named foe (2 rounds). Write at most 3 narration segments.',
+      ]);
+    });
+
+    it("a named foe of a participant earns up to 3 segments", () => {
+      const ctx = newCtx(
+        seed({
+          combat_round: withRounds(2),
+          enemy_template: [tpl(false)],
+          named_enemy: [
+            { id: 1n, characterId: 2n, name: 'Brine Sentinel', enemyTemplateId: 1n, locationId: 10n, isAlive: true, respawnMinutes: 60n },
+          ],
+        }),
+      );
+      expect(lengthLine(ctx).summary.fightBossOrNamed).toBe(true);
+      expect(lengthLine(ctx).line[0]).toContain('at most 3 narration segments');
+    });
+
+    it('a named foe of another character does not count', () => {
+      const ctx = newCtx(
+        seed({
+          combat_round: withRounds(2),
+          enemy_template: [tpl(false)],
+          named_enemy: [
+            { id: 1n, characterId: 99n, name: 'Brine Sentinel', enemyTemplateId: 1n, locationId: 10n, isAlive: true, respawnMinutes: 60n },
+          ],
+        }),
+      );
+      expect(lengthLine(ctx).summary.fightBossOrNamed).toBe(false);
+    });
+
+    it('the flag survives the job snapshot into the volatile text', () => {
+      const ctx = newCtx(seed({ combat_round: withRounds(1), enemy_template: [tpl(true)] }));
+      outro(ctx, 'victory');
+      const input = resolveRouteInput(ctx, rows(ctx, 'llm_job')[0]) as any;
+      expect(input.fightBossOrNamed).toBe(true);
+      expect(buildRouteLayers('combat_narration', input).volatile).toContain(
+        'Length: this fight had a boss or a named foe (1 round). Write at most 3 narration segments.',
+      );
+    });
+  });
+
   it('a defeat records dead participants in deaths and marks the type', () => {
     const ctx = newCtx();
     rows(ctx, 'character')[1].hp = 0n;
