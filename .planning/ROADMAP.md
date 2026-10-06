@@ -403,7 +403,33 @@ Plans:
   3. A live character sheet on the right fills in as the player chooses (race, archetype, class, stats with bonuses and racial trait first, and the name last, shown as an unnamed placeholder until then), the staged class reveal lands in the interview, and after the name the player enters the realm with their new character.
   4. At 390×844 the interview is usable and the character sheet is reachable alongside it.
 
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 49-01-PLAN.md — Shared race-bonus helper (data/race_bonuses.ts); finalize adds the race bonus (F1 fixed); both level-up sites keep it (D1); real-handler tests
+- [ ] 49-03-PLAN.md — Pure step derivation and per-step controls; button words pinned against the server's matching rules
+- [ ] 49-05-PLAN.md — Creation line classifier and feed store; held private rows so the finalize starter tips survive (O3)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 49-02-PLAN.md — Full module suite, local publish with --break-clients (key length 108 before and after), bindings regeneration with no diff
+- [ ] 49-04-PLAN.md — Race cards (newest 3, stat tags), ability cards, live sheet model on the shared helper
+- [ ] 49-06-PLAN.md — Session-ownable creation hub: filtered subscriptions, start once per mount, send with echo, retry, defensive hand-off
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 49-07-PLAN.md — StepBar, ChoiceBlock and CreationComposer components
+- [ ] 49-08-PLAN.md — CreationFeed and CreationSheet components
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 49-09-PLAN.md — CreationView composition, desktop and 390x844 behavior
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 49-10-PLAN.md — deriveScreen 'creation', session-owned hub, App wiring, note removed; phase gate and deferred owner checklist
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the character creation screen in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
