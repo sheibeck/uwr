@@ -1,5 +1,5 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, MATERIAL_DEFS, materialTierToCraftQuality, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, AFFIX_SLOTS_BY_QUALITY, ESSENCE_MAGNITUDE, ESSENCE_QUALITY_GATE, getModifierMagnitude } from '../data/crafting_rules';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, planCraft } from '../data/crafting_rules';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 
 export const registerItemCraftingReducers = (deps: any) => {
@@ -129,46 +129,50 @@ export const registerItemCraftingReducers = (deps: any) => {
         (row) => row.recipeTemplateId === recipe.id
       );
       if (!discovered) return failItem(ctx, character, 'Recipe not discovered');
-      const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
-      const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
-      const req3Count =
-        recipe.req3TemplateId != null
-          ? getItemCount(ctx, character.id, recipe.req3TemplateId)
-          : 0n;
-      if (
-        req1Count < recipe.req1Count ||
-        req2Count < recipe.req2Count ||
-        (recipe.req3TemplateId != null && req3Count < (recipe.req3Count ?? 0n))
-      ) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'system',
-          'Missing materials to craft this recipe.'
-        );
-        return;
+      // --- Plan first: every refusal is decided before anything is consumed or added ---
+      const output = ctx.db.item_template.id.find(recipe.outputTemplateId);
+      const req1Template = ctx.db.item_template.id.find(recipe.req1TemplateId);
+      const catalystTemplate = args.catalystTemplateId
+        ? ctx.db.item_template.id.find(args.catalystTemplateId)
+        : null;
+      const modifierTemplates = [args.modifier1TemplateId, args.modifier2TemplateId, args.modifier3TemplateId]
+        .filter((id): id is bigint => id != null)
+        .map((id) => ({ templateId: id, name: ctx.db.item_template.id.find(id)?.name ?? null }));
+      const plan = planCraft({
+        recipe,
+        primaryMaterialName: req1Template?.name ?? null,
+        catalyst: args.catalystTemplateId
+          ? { templateId: args.catalystTemplateId, name: catalystTemplate?.name ?? '' }
+          : null,
+        modifiers: modifierTemplates,
+        countOf: (templateId: bigint) => getItemCount(ctx, character.id, templateId),
+      });
+      if (!plan.ok) {
+        if (plan.reason === 'materials') {
+          appendPrivateEvent(
+            ctx,
+            character.id,
+            character.ownerUserId,
+            'system',
+            plan.message
+          );
+          return;
+        }
+        return failItem(ctx, character, plan.message);
       }
+
+      // --- Mutate: the plan passed, so nothing below refuses ---
       removeItemFromInventory(ctx, character.id, recipe.req1TemplateId, recipe.req1Count);
       removeItemFromInventory(ctx, character.id, recipe.req2TemplateId, recipe.req2Count);
       if (recipe.req3TemplateId != null && recipe.req3Count != null) {
         removeItemFromInventory(ctx, character.id, recipe.req3TemplateId, recipe.req3Count);
       }
       addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
-      const output = ctx.db.item_template.id.find(recipe.outputTemplateId);
 
       // --- Gear recipe affix application (catalyst + modifier system) ---
       let craftedDisplayName = output?.name ?? recipe.name;
-      const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
-      if (isGearRecipe && output) {
-        // Determine craft quality from primary material tier
-        const req1Template = ctx.db.item_template.id.find(recipe.req1TemplateId);
-        const materialKey = req1Template
-          ? req1Template.name.toLowerCase().replace(/\s+/g, '_')
-          : '';
-        const materialDef = MATERIAL_DEFS.find((m) => m.key === materialKey);
-        const materialTier = materialDef ? materialDef.tier : 1n;
-        const craftQuality = materialTierToCraftQuality(materialTier);
+      if (plan.gear && output) {
+        const craftQuality = plan.quality ?? 'standard';
         const qualityTier = 'common';
 
         // Find the newly created ItemInstance
@@ -179,54 +183,18 @@ export const registerItemCraftingReducers = (deps: any) => {
         if (newInstance) {
           const appliedAffixes: { affixType: string; affixKey: string; affixName: string; statKey: string; magnitude: bigint }[] = [];
 
-          // --- Catalyst (Essence) + Modifier logic ---
-          if (args.catalystTemplateId) {
-            const catalystTemplate = ctx.db.item_template.id.find(args.catalystTemplateId);
-            const catalystKey = catalystTemplate
-              ? catalystTemplate.name.toLowerCase().replace(/\s+/g, '_')
-              : '';
-            const magnitude = ESSENCE_MAGNITUDE[catalystKey] ?? 1n;
-            const slotsAvailable = AFFIX_SLOTS_BY_QUALITY[craftQuality] ?? 1;
-            const allowedQualities = ESSENCE_QUALITY_GATE[catalystKey] ?? [];
-
-            if (!allowedQualities.includes(craftQuality)) {
-              return failItem(ctx, character, 'Essence tier too low for this craft quality');
-            }
-            if (getItemCount(ctx, character.id, args.catalystTemplateId) < 1n) {
-              return failItem(ctx, character, 'Missing catalyst (Essence)');
-            }
+          // --- Catalyst (Essence) + reagents: already validated by planCraft ---
+          if (plan.usesCatalyst && args.catalystTemplateId) {
             removeItemFromInventory(ctx, character.id, args.catalystTemplateId, 1n);
-
-            // Collect modifier IDs up to available slots
-            const modifierIds = [args.modifier1TemplateId, args.modifier2TemplateId, args.modifier3TemplateId]
-              .filter((id): id is bigint => id != null)
-              .slice(0, slotsAvailable);
-
-            for (const modId of modifierIds) {
-              const modTemplate = ctx.db.item_template.id.find(modId);
-              if (!modTemplate) continue;
-              const modKey = modTemplate.name.toLowerCase().replace(/\s+/g, '_');
-              const modDef = CRAFTING_MODIFIER_DEFS.find((d) => d.key === modKey);
-              if (!modDef) continue;
-
-              if (getItemCount(ctx, character.id, modId) < 1n) {
-                return failItem(ctx, character, `Missing modifier: ${modTemplate.name}`);
-              }
-              removeItemFromInventory(ctx, character.id, modId, 1n);
-
-              const modMagnitude = getModifierMagnitude(catalystKey, modDef.statKey);
+            for (const reagent of plan.reagents) {
+              removeItemFromInventory(ctx, character.id, reagent.templateId, 1n);
               appliedAffixes.push({
                 affixType: 'suffix',
-                affixKey: `crafted_${modDef.statKey}`,
-                affixName: statKeyToAffix(modDef.statKey),
-                statKey: modDef.statKey,
-                magnitude: modMagnitude,
+                affixKey: `crafted_${reagent.statKey}`,
+                affixName: statKeyToAffix(reagent.statKey),
+                statKey: reagent.statKey,
+                magnitude: reagent.magnitude,
               });
-            }
-
-            // Both Essence and at least one valid reagent are required to apply affixes
-            if (appliedAffixes.length === 0) {
-              return failItem(ctx, character, 'Must provide at least one reagent when using an Essence');
             }
 
             // Insert affix rows for modifier-based affixes
@@ -242,9 +210,7 @@ export const registerItemCraftingReducers = (deps: any) => {
               });
             }
 
-            if (appliedAffixes.length > 0) {
-              craftedDisplayName = buildDisplayName(output.name, appliedAffixes);
-            }
+            craftedDisplayName = buildDisplayName(output.name, appliedAffixes);
           }
 
           // --- Implicit craft quality base stat bonus (unchanged) ---
