@@ -159,6 +159,12 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
+      // Same rule as the typed 'sell <item>' path: the buyer must be a vendor standing here. The
+      // buy-back row records the seller's place, so this is what makes "go back to the vendor" true.
+      const npc = ctx.db.npc.id.find(args.npcId);
+      if (!npc || npc.npcType !== 'vendor' || npc.locationId !== character.locationId) {
+        return failItem(ctx, character, 'There is no vendor here.');
+      }
       sellInstanceToVendor(ctx, {
         character,
         instance,

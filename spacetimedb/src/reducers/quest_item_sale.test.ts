@@ -182,13 +182,13 @@ describe('sell_item refuses quest items and changes nothing', () => {
     expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
   });
 
-  it('refuses even when the vendor is not a vendor npc', () => {
+  it('a non-vendor npc is refused first (as on the typed path); the quest item stays and nothing is recorded', () => {
     const ctx = newCtx({
       templates: [tpl(81n, 'Sealed Writ', { slot: 'quest' })],
       instances: [inst(810n, 81n, 1n)],
     });
     sellItem(ctx, { characterId: 1n, itemInstanceId: 810n, npcId: NON_VENDOR });
-    expect(messages(ctx)).toEqual([REFUSAL]);
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
     expect(rows(ctx, 'item_instance')).toHaveLength(1);
     expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
   });
@@ -295,26 +295,49 @@ describe('sell_item records the single sale', () => {
     expect(buyback[0]).toMatchObject({ templateId: 82n, itemName: 'Iron Nails', price: sellPayout(7n, 1n, 0, 0n) });
   });
 
-  it('selling to a non-vendor npc still pays, lists nothing and names the npc', () => {
+  // The buyer must be a vendor npc at the character's location (the typed 'sell <item>' rule).
+  // Every refusal is one system line and no write at all.
+  function expectNoVendorRefusal(ctx: any, npcId: bigint) {
+    const before = {
+      item_instance: snapshot(ctx, 'item_instance'),
+      item_affix: snapshot(ctx, 'item_affix'),
+      vendor_inventory: snapshot(ctx, 'vendor_inventory'),
+      vendor_buyback: snapshot(ctx, 'vendor_buyback'),
+    };
+    sellItem(ctx, { characterId: 1n, itemInstanceId: 800n, npcId });
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
+    expect(rows(ctx, 'event_private')[0].kind).toBe('system');
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(snapshot(ctx, 'item_instance')).toEqual(before.item_instance);
+    expect(snapshot(ctx, 'item_affix')).toEqual(before.item_affix);
+    expect(snapshot(ctx, 'vendor_inventory')).toEqual(before.vendor_inventory);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
+  }
+
+  it('refuses a sale to a non-vendor npc: no payout, no listing, no buy-back row', () => {
     const ctx = newCtx({
       templates: [tpl(80n, 'Test Sword', { vendorValue: 13n })],
       instances: [inst(800n, 80n, 1n)],
     });
-    sellItem(ctx, { characterId: 1n, itemInstanceId: 800n, npcId: NON_VENDOR });
-    expect(gold(ctx) - START_GOLD).toBe(sellPayout(13n, 1n, 0, 0n));
-    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
-    expect(rows(ctx, 'vendor_buyback')[0]).toMatchObject({ npcId: NON_VENDOR, npcName: 'Old Mara', listingId: undefined });
+    expectNoVendorRefusal(ctx, NON_VENDOR);
   });
 
-  it("names 'the vendor' when the npc row does not exist", () => {
+  it('refuses a sale when the npc row does not exist', () => {
     const ctx = newCtx({
       templates: [tpl(80n, 'Test Sword')],
       instances: [inst(800n, 80n, 1n)],
       npcs: [],
     });
-    sellItem(ctx, { characterId: 1n, itemInstanceId: 800n, npcId: 77n });
-    expect(rows(ctx, 'vendor_buyback')[0]).toMatchObject({ npcId: 77n, npcName: 'the vendor' });
-    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
+    expectNoVendorRefusal(ctx, 77n);
+  });
+
+  it('refuses a sale to a vendor who is at another location', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword')],
+      instances: [inst(800n, 80n, 1n)],
+      npcs: [{ id: VENDOR, name: 'Brannoc', npcType: 'vendor', locationId: HERE + 1n }],
+    });
+    expectNoVendorRefusal(ctx, VENDOR);
   });
 
   it('keeps the existing guards (equipped item is refused and nothing is recorded)', () => {
