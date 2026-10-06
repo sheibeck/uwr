@@ -812,13 +812,23 @@ export const registerCombatReducers = (deps: any) => {
     return Math.abs(hash);
   };
 
+  /** Participants that are active AND still standing (hp > 0). A character killed mid-round is not yet marked dead. */
+  const livingActiveParticipants = (ctx: any, participants: any[]): any[] =>
+    participants.filter((p: any) => {
+      if (p.status !== 'active') return false;
+      const character = ctx.db.character.id.find(p.characterId);
+      return !!character && character.hp > 0n;
+    });
+
   const pickEnemyTarget = (
     rule: string | undefined,
-    activeParticipants: typeof deps.CombatParticipant.rowType[],
+    candidates: typeof deps.CombatParticipant.rowType[],
     ctx: any,
     combatId: bigint,
     enemyId: bigint
   ): { characterId?: bigint; petId?: bigint } | undefined => {
+    // Enemies never target a 0-HP character, even one whose death is only marked at the end of the round (WR-02).
+    const activeParticipants = livingActiveParticipants(ctx, candidates);
     if (activeParticipants.length === 0) return undefined;
     const normalized = (rule ?? 'aggro').toLowerCase();
     if (normalized === 'lowest_hp') {
@@ -2469,7 +2479,8 @@ export const registerCombatReducers = (deps: any) => {
           .find((a: any) => a.abilityKey === cast.abilityKey);
         if (!ability) continue;
         const participants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
-        const active = participants.filter((p: any) => p.status === 'active');
+        // `active` is the standing only: a character killed earlier this round is not yet marked dead (WR-02).
+        const active = livingActiveParticipants(ctx, participants);
         const eName = enemy.displayName ?? template?.name ?? 'enemy';
 
         let target: { characterId?: bigint; petId?: bigint } | undefined;
@@ -3076,7 +3087,8 @@ export const registerCombatReducers = (deps: any) => {
         const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
         if (!template) continue;
         const allParticipants = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
-        const activeNow = allParticipants.filter((x: any) => x.status === 'active');
+        // Only the standing: a character killed earlier in this enemy phase is not yet marked dead (WR-02).
+        const activeNow = livingActiveParticipants(ctx, allParticipants);
         try {
           const usedAbility = tryEnemyAbilityForRound(ctx, liveCombat, enemy, template, activeNow, nowMicros, N);
           if (!usedAbility) {
@@ -3095,7 +3107,7 @@ export const registerCombatReducers = (deps: any) => {
       tickEffectsForRound(ctx, liveCombat.id, afterEnemies, nowMicros);
       decrementRoundCooldowns(ctx, afterEnemies.map((x: any) => x.characterId));
       const fightEnemies = [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)];
-      const activeForAdds = afterEnemies.filter((x: any) => x.status === 'active');
+      const activeForAdds = livingActiveParticipants(ctx, afterEnemies);
       processPendingAdds(ctx, liveCombat, afterEnemies, activeForAdds, fightEnemyName(ctx, fightEnemies), N);
       markNewlyDeadParticipants(ctx, liveCombat, [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)]);
       const livingIds = livingEnemiesOf(ctx, liveCombat.id).map((e: any) => e.id as bigint);
