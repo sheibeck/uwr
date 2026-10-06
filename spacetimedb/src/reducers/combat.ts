@@ -329,9 +329,12 @@ export const registerCombatReducers = (deps: any) => {
   const clearCharacterEffectsOnDeath = (ctx: any, character: any) => {
     for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
       if (effect.effectType === 'hp_bonus') {
-        const nextMax = character.maxHp > effect.magnitude ? character.maxHp - effect.magnitude : 0n;
-        const nextHp = character.hp > nextMax ? nextMax : character.hp;
-        ctx.db.character.id.update({ ...character, maxHp: nextMax, hp: nextHp });
+        // Re-read per effect: the caller's row is the one fetched BEFORE the killing damage, and
+        // writing its hp back would undo the death (WR-03).
+        const fresh = ctx.db.character.id.find(character.id) ?? character;
+        const nextMax = fresh.maxHp > effect.magnitude ? fresh.maxHp - effect.magnitude : 0n;
+        const nextHp = fresh.hp > nextMax ? nextMax : fresh.hp;
+        ctx.db.character.id.update({ ...fresh, maxHp: nextMax, hp: nextHp });
       }
       ctx.db.character_effect.id.delete(effect.id);
     }
@@ -2608,7 +2611,12 @@ export const registerCombatReducers = (deps: any) => {
           if (nextHp === 0n) {
             const participant = [...ctx.db.combat_participant.by_combat.filter(combatId)]
               .find((cp: any) => cp.characterId === character.id);
-            if (participant) markParticipantDead(ctx, participant, character, effect.sourceAbility ?? 'an effect');
+            if (participant) {
+              markParticipantDead(ctx, participant, character, effect.sourceAbility ?? 'an effect');
+              // Dying clears every effect of the character: the rest of this loop works on rows that are
+              // gone (updating one of them throws), so this character's effects end here.
+              break;
+            }
           }
         }
 
