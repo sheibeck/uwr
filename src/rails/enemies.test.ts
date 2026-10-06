@@ -17,6 +17,7 @@ describe('enemyStatus', () => {
     expect(enemyStatus({ state: 'available' })).toBe('available');
     expect(enemyStatus({ state: 'pulling' })).toBe('pulling');
     expect(enemyStatus({ state: 'engaged' })).toBe('inCombat');
+    expect(enemyStatus({ state: 'depleted' })).toBeNull();
     expect(enemyStatus({ state: 'gone' })).toBeNull();
   });
 
@@ -36,10 +37,20 @@ describe('enemyRows', () => {
       templates,
       playerLevel: 6n,
     });
-    expect(row.con.className).toBe('con-orange');
+    expect(row.con?.className).toBe('con-orange');
     expect(row.levelText).toBe('Lv 8');
     expect(row.title).toBe('Goblin Scout · Hard');
     expect(row.status).toBe('available');
+    expect(row.levelKnown).toBe(true);
+  });
+
+  it('puts the level and difficulty word in the Pull label', () => {
+    const [row] = enemyRows({
+      spawns: [spawn(1n, 'Rotfang', 'available')],
+      templates,
+      playerLevel: 6n,
+    });
+    expect(row.pullLabel).toBe('Pull Rotfang (Lv 8, Hard)');
   });
 
   it('joins level, group count and state with a middle dot', () => {
@@ -54,30 +65,48 @@ describe('enemyRows', () => {
     expect(hint(spawn(1n, 'A', 'available', { groupCount: 0n }))).toBe('Lv 8');
   });
 
-  it('reads white and has no level text without a template or a player level', () => {
+  it('has no difficulty, no level and a bare label while the template is unknown', () => {
     const [noTemplate] = enemyRows({
-      spawns: [spawn(1n, 'A', 'available')],
+      spawns: [spawn(1n, 'Rotfang', 'available')],
       templates: [],
       playerLevel: 6n,
     });
     expect(noTemplate.levelText).toBeNull();
-    expect(noTemplate.con.className).toBe('con-white');
-    expect(noTemplate.con.meaning).toBe('Even match');
+    expect(noTemplate.levelKnown).toBe(false);
+    expect(noTemplate.con).toBeNull();
+    expect(noTemplate.title).toBe('Rotfang');
+    expect(noTemplate.pullLabel).toBe('Pull Rotfang');
+    expect(noTemplate.title).not.toContain('Even match');
+  });
 
+  it('keeps the level but claims no difficulty while the player level is unknown', () => {
     const [noLevel] = enemyRows({
-      spawns: [spawn(1n, 'A', 'available')],
+      spawns: [spawn(1n, 'Rotfang', 'available')],
       templates,
       playerLevel: null,
     });
-    expect(noLevel.con.className).toBe('con-white');
+    expect(noLevel.con).toBeNull();
     expect(noLevel.levelText).toBe('Lv 8');
+    expect(noLevel.levelKnown).toBe(true);
+    expect(noLevel.title).toBe('Rotfang');
+    expect(noLevel.pullLabel).toBe('Pull Rotfang (Lv 8)');
+  });
+
+  it('still reads Even match for a known same-level enemy', () => {
+    const [row] = enemyRows({
+      spawns: [spawn(1n, 'Rotfang', 'available')],
+      templates: [{ id: 1n, level: 6n }],
+      playerLevel: 6n,
+    });
+    expect(row.con?.className).toBe('con-white');
+    expect(row.title).toBe('Rotfang · Even match');
   });
 
   it('leaves out unknown states and sorts by name, ties by id', () => {
     const rows = enemyRows({
       spawns: [
         spawn(5n, 'wolf', 'available'),
-        spawn(4n, 'Ghost', 'gone'),
+        spawn(4n, 'Ghost', 'depleted'),
         spawn(3n, 'Bone Rat', 'engaged'),
         spawn(2n, 'Wolf', 'available'),
         spawn(1n, 'Ash Wolf', 'pulling'),
@@ -97,7 +126,7 @@ describe('pullableSpawns', () => {
         spawn(2n, 'Ash', 'pulling'),
         spawn(1n, 'Bone', 'available'),
         spawn(4n, 'Cog', 'available', { lockedCombatId: 9n }),
-        spawn(5n, 'Gone', 'gone'),
+        spawn(5n, 'Gone', 'depleted'),
       ]),
     ).toEqual([
       { id: 1n, name: 'Bone' },

@@ -22,7 +22,8 @@ import type { NearbyKind, NearbyRow } from './nearby';
 // player text, rendered as text nodes only. No table lists examinable objects at a location
 // (research Q3, UI-SPEC A7), so `objects` stays empty and no object rows appear today.
 // Nearby now leads with enemies (quick-261006-a0i): they are the actionable threat. An available
-// enemy has one Pull icon button (a careful pull), disabled in a fight and offline.
+// enemy has one Pull icon button (a careful pull), disabled in a fight, offline and until its
+// level is known. Difficulty color and word appear only once the level is known.
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 
@@ -47,11 +48,20 @@ const enemies = computed(() =>
 );
 
 const inFight = computed(() => game.combat.active.value);
-const pullDisabledAttr = computed(() => (connected.value && !inFight.value ? undefined : 'true'));
+
+// Pull stays aria-disabled while the spawn's template level is unknown (the chained template
+// subscription is still loading), so the player never pulls blind (review WR-02).
+function pullBlocked(row: EnemyRow): boolean {
+  return !connected.value || inFight.value || !row.levelKnown;
+}
+
+function pullDisabledFor(row: EnemyRow): 'true' | undefined {
+  return pullBlocked(row) ? 'true' : undefined;
+}
 
 // One Pull button: a careful pull, the same as the feed keyword click (owner decision).
 function pull(row: EnemyRow): void {
-  if (!connected.value || inFight.value) return;
+  if (pullBlocked(row)) return;
   consoleApi.pull({ id: row.id, name: row.name }, 'careful');
 }
 
@@ -109,17 +119,17 @@ const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
         :class="{ 'in-combat': enemy.status === 'inCombat' }"
       >
         <div class="row-main static">
-          <PhSkull class="row-icon" :class="enemy.con.className" :size="14" aria-hidden="true" />
-          <span class="row-name" :class="enemy.con.className" :title="enemy.title">{{ enemy.name }}</span>
+          <PhSkull class="row-icon" :class="enemy.con?.className" :size="14" aria-hidden="true" />
+          <span class="row-name" :class="enemy.con?.className" :title="enemy.title">{{ enemy.name }}</span>
           <span class="row-hint">{{ enemy.hint }}</span>
         </div>
         <button
           v-if="enemy.status === 'available'"
           type="button"
           class="btn btn-ghost btn-icon"
-          :aria-label="`Pull ${enemy.name}`"
-          :title="`Pull ${enemy.name}`"
-          :aria-disabled="pullDisabledAttr"
+          :aria-label="enemy.pullLabel"
+          :title="enemy.pullLabel"
+          :aria-disabled="pullDisabledFor(enemy)"
           @click="pull(enemy)"
         >
           <PhSword :size="16" aria-hidden="true" />

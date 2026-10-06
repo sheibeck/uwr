@@ -14,11 +14,16 @@ export interface EnemyRow {
   groupCount: bigint;
   /** 'Lv n' when the template is known, else null. */
   levelText: string | null;
-  con: ConView;
+  /** Difficulty view; null while the template level or the player level is unknown (neutral row). */
+  con: ConView | null;
+  /** True once the template level is known. The Pull button stays aria-disabled until then. */
+  levelKnown: boolean;
   /** Level, group count and state, joined with ' · '. */
   hint: string;
-  /** '{name} · {con meaning}'. */
+  /** '{name} · {con meaning}' once difficulty is known, else just the name. */
   title: string;
+  /** Pull button name: 'Pull {name} (Lv n, {meaning})', dropping what is not known yet. */
+  pullLabel: string;
 }
 
 interface SpawnLike {
@@ -67,10 +72,12 @@ export function enemyRows(input: {
     if (status === null) continue;
     const level = levels.get(spawn.enemyTemplateId);
     const levelText = level === undefined ? null : `Lv ${level}`;
+    // No difficulty while the template (chained subscription) or the player level is unknown:
+    // a missing template must not read as "Even match" (review WR-02).
     const con =
-      input.playerLevel === null || level === undefined
-        ? conFor(null, 0n)
-        : conFor(level, input.playerLevel);
+      input.playerLevel === null || level === undefined ? null : conFor(level, input.playerLevel);
+    const pullDetail =
+      levelText === null ? '' : ` (${con === null ? levelText : `${levelText}, ${con.meaning}`})`;
     const parts: string[] = [];
     if (levelText !== null) parts.push(levelText);
     if (spawn.groupCount > 1n) parts.push(`×${spawn.groupCount}`);
@@ -82,8 +89,10 @@ export function enemyRows(input: {
       groupCount: spawn.groupCount,
       levelText,
       con,
+      levelKnown: level !== undefined,
       hint: parts.join(' · '),
-      title: `${spawn.name} · ${con.meaning}`,
+      title: con === null ? spawn.name : `${spawn.name} · ${con.meaning}`,
+      pullLabel: `Pull ${spawn.name}${pullDetail}`,
     });
   }
   rows.sort(compareSpawns);
