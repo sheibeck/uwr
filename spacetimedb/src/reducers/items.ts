@@ -1,7 +1,7 @@
 import { buildDisplayName, ensureDefaultHotbar } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { buyPrice, sellPayout } from '../data/vendor_pricing';
+import { appliedBuyDiscountPercent, appliedSellBonusPercent, buyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
 import { USE_ITEM_KEYS, isQuestItemTemplate } from '../data/item_rules';
 import { sellInstanceToVendor, restoreBuyback } from '../helpers/vendor_sale';
@@ -128,7 +128,10 @@ export const registerItemReducers = (deps: any) => {
       // Apply vendor buy discount perk
       const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
       // Perk discount then CHA discount (character.vendorBuyMod is on 1000-scale): shared pricing.
-      const discountMsg = vendorBuyDiscount > 0 ? ` (${vendorBuyDiscount}% perk discount)` : '';
+      const discountMsg =
+        appliedBuyDiscountPercent(vendorBuyDiscount) > 0
+          ? ` (${appliedBuyDiscountPercent(vendorBuyDiscount)}% perk discount)`
+          : '';
       const finalPrice = buyPrice(vendorItem.price, vendorBuyDiscount, character.vendorBuyMod);
       if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
@@ -252,7 +255,7 @@ export const registerItemReducers = (deps: any) => {
         gold: (character.gold ?? 0n) + total,
       });
     }
-    const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
+    const bonusMsg = appliedSellBonusPercent(vendorSellBonus) > 0 ? ` (${appliedSellBonusPercent(vendorSellBonus)}% perk bonus)` : '';
     appendPrivateEvent(
       ctx,
       character.id,

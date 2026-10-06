@@ -1,7 +1,14 @@
 import { describe, expect, it, vi, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buyPrice, computeSellValue, rapportPercents, sellPayout } from './vendor_pricing';
+import {
+  appliedBuyDiscountPercent,
+  appliedSellBonusPercent,
+  buyPrice,
+  computeSellValue,
+  rapportPercents,
+  sellPayout,
+} from './vendor_pricing';
 
 // helpers/economy.ts imports server modules; record the real table definitions first.
 vi.mock('spacetimedb/server', async () =>
@@ -148,6 +155,25 @@ describe('rapportPercents', () => {
 describe('helpers/economy re-export', () => {
   it('exports the same computeSellValue function object', () => {
     expect(economy.computeSellValue).toBe(computeSellValue);
+  });
+});
+
+describe('applied perk percent (the number shown in the sale and buy lines)', () => {
+  it('matches what the price math applies: whole, floored at zero, buy discount capped at 50', () => {
+    expect(appliedSellBonusPercent(7.9)).toBe(7);
+    expect(appliedSellBonusPercent(0.5)).toBe(0);
+    expect(appliedSellBonusPercent(-3)).toBe(0);
+    expect(appliedSellBonusPercent(Number.NaN)).toBe(0);
+    expect(appliedBuyDiscountPercent(12.7)).toBe(12);
+    expect(appliedBuyDiscountPercent(80)).toBe(50);
+    expect(appliedBuyDiscountPercent(0.9)).toBe(0);
+    expect(appliedBuyDiscountPercent(-1)).toBe(0);
+  });
+
+  it('the shown percent reproduces the charged price and payout', () => {
+    expect(buyPrice(200n, 80, 0n)).toBe(buyPrice(200n, appliedBuyDiscountPercent(80), 0n));
+    expect(buyPrice(200n, 12.7, 0n)).toBe(buyPrice(200n, appliedBuyDiscountPercent(12.7), 0n));
+    expect(sellPayout(10n, 5n, 7.9, 0n)).toBe(sellPayout(10n, 5n, appliedSellBonusPercent(7.9), 0n));
   });
 });
 

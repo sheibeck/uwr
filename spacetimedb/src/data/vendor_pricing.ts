@@ -20,6 +20,22 @@ function wholePercent(pct: number): number {
 }
 
 /**
+ * The renown sell bonus percent the payout math really applies (whole, never below zero). Use it
+ * for any "(N% perk bonus)" text so the line matches the gold paid.
+ */
+export function appliedSellBonusPercent(perkSellPct: number): number {
+  return Math.max(0, wholePercent(perkSellPct));
+}
+
+/**
+ * The renown buy discount percent the price math really applies (whole, between zero and the 50
+ * percent cap). Use it for any "(N% perk discount)" text so the line matches the price charged.
+ */
+export function appliedBuyDiscountPercent(perkDiscountPct: number): number {
+  return Math.min(Math.max(0, wholePercent(perkDiscountPct)), 50);
+}
+
+/**
  * What the vendor pays for a stack: value times quantity, plus the renown sell bonus when it
  * applies, then the Charisma bonus. Rounding happens per call, so a sum over several stacks
  * must call this once per stack.

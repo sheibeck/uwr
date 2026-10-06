@@ -5,7 +5,7 @@
 // BEFORE they are deleted, as decimal strings because item_affix.magnitude is a bigint.
 import { getPerkBonusByField } from './renown';
 import { appendPrivateEvent } from './events';
-import { sellPayout } from '../data/vendor_pricing';
+import { appliedSellBonusPercent, sellPayout } from '../data/vendor_pricing';
 import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
 
 export interface AffixSnapshot {
@@ -138,7 +138,8 @@ export function sellInstanceToVendor(ctx: any, input: SellInstanceInput): boolea
   const baseValue = BigInt(vendorValue) * BigInt(quantity);
   // Vendor sell bonus perk, then CHA sell bonus (character.vendorSellMod is on 1000-scale): shared pricing.
   const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
-  const sellBonusMsg = vendorSellBonus > 0 && baseValue > 0n ? ` (${vendorSellBonus}% perk bonus)` : '';
+  const appliedBonus = appliedSellBonusPercent(vendorSellBonus);
+  const sellBonusMsg = appliedBonus > 0 && baseValue > 0n ? ` (${appliedBonus}% perk bonus)` : '';
   const value = sellPayout(vendorValue, quantity, vendorSellBonus, character.vendorSellMod ?? 0n);
 
   // Snapshot before any delete.
