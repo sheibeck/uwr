@@ -1,10 +1,19 @@
-import { computed, watch } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue';
 import type { Ref, ShallowRef } from 'vue';
 import type {
   AbilityCooldown,
   AbilityTemplate,
+  ActivePet,
   Character,
   CharacterEffect,
+  CombatAction,
+  CombatEnemy,
+  CombatEnemyCast,
+  CombatNarrative,
+  CombatParticipant,
+  CombatRound,
+  EnemyAbility,
+  EnemyTemplate,
   EventContribution,
   EventGroup,
   EventLocation,
@@ -20,6 +29,7 @@ import type {
   HotbarSlot,
   Location,
   LocationConnection,
+  MyCombatAggroEntry,
   MyLlmJob,
   Npc,
   QuestInstance,
@@ -34,7 +44,7 @@ import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
 import { createFeedStore } from '../console/feedStore';
 import type { EventRowLike, FeedSource } from '../console/feedStore';
-import type { GameData, GameReducers } from './context';
+import type { CombatData, GameData, GameReducers } from './context';
 import type { BindEventTableOptions, EventTableBinding, EventTableLike } from './bindEventTable';
 import { createKeyed, idListKey, keyedRows, parseIdListKey } from './keyedBinding';
 import type { AttachableBinding } from './keyedBinding';
@@ -51,6 +61,10 @@ import { createServerClock } from './serverClock';
 //                        event_contribution, renown, renown_perk
 //   by group             group, group_member, event_group
 //   by id list           party and inviter characters, quest templates, event objectives
+//   combat (48)          own participant and own choice rows by character; participants,
+//                        enemies, rounds, casts, narratives and pets of the one fight by combat
+//                        id (the key follows the own participant row); enemy templates and
+//                        abilities by id list; my_combat_aggro once per connection
 //
 // Shared-cache rule: the SDK cache is shared by every subscription of the same table, so
 // bindTable's rows are whatever the whole cache holds. Every keyed table binding therefore
@@ -58,6 +72,10 @@ import { createServerClock } from './serverClock';
 //
 // Location, character and id-list table bindings swap on applied (the old rows stay until
 // the new binding has applied); event bindings swap at once because they carry no rows.
+
+// Narratives outlive the fight by this long, so a late victory or defeat narration can still
+// be matched to its round (research Pitfall 7, A1).
+export const NARRATIVE_LINGER_MS = 30_000;
 
 type Row<T> = TableLike<T>;
 type EventRow<T> = EventTableLike<T>;
@@ -90,6 +108,16 @@ export interface GameConn extends ConnLike {
     groupMember: Row<GroupMember>;
     questTemplate: Row<QuestTemplate>;
     eventObjective: Row<EventObjective>;
+    combatParticipant: Row<CombatParticipant>;
+    combatEnemy: Row<CombatEnemy>;
+    enemyTemplate: Row<EnemyTemplate>;
+    enemyAbility: Row<EnemyAbility>;
+    combatRound: Row<CombatRound>;
+    combatAction: Row<CombatAction>;
+    combatEnemyCast: Row<CombatEnemyCast>;
+    combatNarrative: Row<CombatNarrative>;
+    activePet: Row<ActivePet>;
+    myCombatAggro: Row<MyCombatAggroEntry>;
   };
   reducers: GameReducers;
 }
@@ -147,6 +175,10 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     sql: [queries.activeWorldEvents],
     filter: (row) => row.status === 'active',
   });
+  const combatAggro = deps.bind<MyCombatAggroEntry>({
+    table: (c) => c.db.myCombatAggro,
+    sql: [queries.myCombatAggro],
+  });
   const staticBindings: AttachableBinding<C>[] = [
     effects,
     quests,
@@ -155,6 +187,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     factionStandings,
     factions,
     worldEvents,
+    combatAggro,
   ];
   const eventWorld = deps.bindEvent<EventWorld>({
     table: (c) => c.db.eventWorld,
@@ -181,6 +214,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     const me = characterKey.value;
     const ids: bigint[] = [];
     for (const member of groupMembersRows.value) ids.push(member.characterId);
+    // Fight participants outside the group still need names (threat, ally HP, wind-up targets).
+    for (const participant of fightParticipantRows.value) ids.push(participant.characterId);
     for (const invite of groupInvites.rows.value) ids.push(invite.fromCharacterId);
     return idListKey(ids.filter((id) => id !== me));
   });
@@ -353,6 +388,110 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
 
   const groupMembersRows = keyedRows(members);
 
+  // Combat (Phase 48). In combat means the own participant row exists; every fight binding
+  // follows its combat id, so it appears with the row and is disposed when the row goes.
+  const ownParticipant = keyedTable<CombatParticipant, bigint>(
+    characterKey,
+    (c) => c.db.combatParticipant,
+    queries.combatParticipantsOf,
+    (row, k) => row.characterId === k,
+  );
+  const ownActions = keyedTable<CombatAction, bigint>(
+    characterKey,
+    (c) => c.db.combatAction,
+    queries.combatActions,
+    (row, k) => row.characterId === k,
+  );
+  const ownParticipantRows = keyedRows(ownParticipant);
+  const ownActionRows = keyedRows(ownActions);
+  const combatKey = computed<bigint | null>(() => ownParticipantRows.value[0]?.combatId ?? null);
+
+  const fightParticipants = keyedTable<CombatParticipant, bigint>(
+    combatKey,
+    (c) => c.db.combatParticipant,
+    queries.combatParticipants,
+    (row, k) => row.combatId === k,
+  );
+  const fightEnemies = keyedTable<CombatEnemy, bigint>(
+    combatKey,
+    (c) => c.db.combatEnemy,
+    queries.combatEnemies,
+    (row, k) => row.combatId === k,
+  );
+  const fightRounds = keyedTable<CombatRound, bigint>(
+    combatKey,
+    (c) => c.db.combatRound,
+    queries.combatRounds,
+    (row, k) => row.combatId === k,
+  );
+  const fightCasts = keyedTable<CombatEnemyCast, bigint>(
+    combatKey,
+    (c) => c.db.combatEnemyCast,
+    queries.combatCasts,
+    (row, k) => row.combatId === k,
+  );
+  const fightPets = keyedTable<ActivePet, bigint>(
+    combatKey,
+    (c) => c.db.activePet,
+    queries.combatPets,
+    (row, k) => row.combatId === k,
+  );
+  const fightParticipantRows = keyedRows(fightParticipants);
+  const fightEnemyRows = keyedRows(fightEnemies);
+
+  // The narrative key follows the combat id and, when the fight ends, lingers on the last id
+  // for NARRATIVE_LINGER_MS before it is dropped. A new fight clears the timer.
+  const narrativeKey = ref<bigint | null>(null);
+  let lingerTimer: ReturnType<typeof setTimeout> | null = null;
+  function clearLinger(): void {
+    if (lingerTimer !== null) clearTimeout(lingerTimer);
+    lingerTimer = null;
+  }
+  const stopNarrativeWatch = watch(
+    combatKey,
+    (id) => {
+      clearLinger();
+      if (id !== null) {
+        narrativeKey.value = id;
+        return;
+      }
+      if (narrativeKey.value === null) return;
+      lingerTimer = setTimeout(() => {
+        lingerTimer = null;
+        narrativeKey.value = null;
+      }, NARRATIVE_LINGER_MS);
+    },
+    { immediate: true, flush: 'sync' },
+  );
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      stopNarrativeWatch();
+      clearLinger();
+    });
+  }
+  const fightNarratives = keyedTable<CombatNarrative, bigint>(
+    narrativeKey,
+    (c) => c.db.combatNarrative,
+    queries.combatNarratives,
+    (row, k) => row.combatId === k,
+  );
+
+  const templateKey = computed<string | null>(() =>
+    idListKey(fightEnemyRows.value.map((enemy) => enemy.enemyTemplateId)),
+  );
+  const enemyTemplates = keyedIdList<EnemyTemplate>(
+    templateKey,
+    (c) => c.db.enemyTemplate,
+    queries.enemyTemplatesById,
+    (row) => row.id,
+  );
+  const enemyAbilities = keyedIdList<EnemyAbility>(
+    templateKey,
+    (c) => c.db.enemyAbility,
+    queries.enemyAbilitiesByTemplate,
+    (row) => row.enemyTemplateId,
+  );
+
   const known = keyedIdList<Character>(
     partyKey,
     (c) => c.db.character,
@@ -392,6 +531,16 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     known,
     templates,
     objectives,
+    ownParticipant,
+    ownActions,
+    fightParticipants,
+    fightEnemies,
+    fightRounds,
+    fightCasts,
+    fightPets,
+    fightNarratives,
+    enemyTemplates,
+    enemyAbilities,
   ];
 
   // Derived ------------------------------------------------------------------------------
@@ -406,6 +555,71 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     return playerRows.value.filter((row) => row.id !== me);
   });
   const group = computed<Group | null>(() => groupRows.value[0] ?? null);
+  const knownRows = keyedRows(known);
+  const roundRows = keyedRows(fightRounds);
+  const petRows = keyedRows(fightPets);
+  const openRound = computed<CombatRound | null>(() => {
+    let open: CombatRound | null = null;
+    for (const round of roundRows.value) {
+      if (round.state !== 'action_select') continue;
+      if (open === null || round.roundNumber > open.roundNumber) open = round;
+    }
+    return open;
+  });
+  const roundNumber = computed<bigint | null>(() => {
+    if (openRound.value !== null) return openRound.value.roundNumber;
+    let highest: bigint | null = null;
+    for (const round of roundRows.value) {
+      if (highest === null || round.roundNumber > highest) highest = round.roundNumber;
+    }
+    return highest;
+  });
+  const ownAction = computed<CombatAction | null>(() => {
+    const open = openRound.value;
+    if (open === null) return null;
+    return (
+      ownActionRows.value.find(
+        (action) => action.combatId === open.combatId && action.roundNumber === open.roundNumber,
+      ) ?? null
+    );
+  });
+  const characterNames = computed<ReadonlyMap<bigint, string>>(() => {
+    const names = new Map<bigint, string>();
+    for (const character of knownRows.value) names.set(character.id, character.name);
+    const me = input.character.value;
+    if (me !== null) names.set(me.id, me.name);
+    return names;
+  });
+  const petNames = computed<ReadonlyMap<bigint, string>>(() => {
+    const names = new Map<bigint, string>();
+    for (const pet of petRows.value) names.set(pet.id, pet.name);
+    return names;
+  });
+  const combat: CombatData = {
+    active: computed(() => ownParticipantRows.value.length > 0),
+    applied: computed(
+      () => combatKey.value !== null && (fightEnemies.current.value?.applied.value ?? false),
+    ),
+    castsApplied: computed(() => fightCasts.current.value?.applied.value ?? false),
+    aggroApplied: computed(() => combatAggro.applied.value),
+    combatId: combatKey,
+    self: computed(() => ownParticipantRows.value[0] ?? null),
+    participants: fightParticipantRows,
+    enemies: fightEnemyRows,
+    enemyTemplates: keyedRows(enemyTemplates),
+    enemyAbilities: keyedRows(enemyAbilities),
+    rounds: roundRows,
+    openRound,
+    roundNumber,
+    actions: ownActionRows,
+    ownAction,
+    casts: keyedRows(fightCasts),
+    narratives: keyedRows(fightNarratives),
+    pets: petRows,
+    aggro: combatAggro.rows,
+    characterNames,
+    petNames,
+  };
   const reducers = computed<GameReducers | null>(() => {
     const conn = input.conn.value;
     return connected.value && conn !== null ? conn.reducers : null;
@@ -416,6 +630,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
   watch(characterId, (id) => feed.setCharacter(id), { immediate: true, flush: 'sync' });
 
   function reset(): void {
+    clearLinger();
+    narrativeKey.value = null;
     for (const binding of staticBindings) binding.dispose();
     for (const keyed of keyedAll) keyed.reset();
     feed.clear();
@@ -452,6 +668,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     renown: keyedRows(renown),
     renownPerks: keyedRows(renownPerks),
     privateEventsApplied,
+    combat,
     feed,
     clock,
     reducers,

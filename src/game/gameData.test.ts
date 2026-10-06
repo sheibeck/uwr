@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, ref, shallowRef } from 'vue';
 import type { Ref, ShallowRef } from 'vue';
 import type { Character, Location, Region } from '../module_bindings/types';
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions } from '../net/bindTable';
 import type { BindEventTableOptions } from './bindEventTable';
-import { createGameData } from './gameData';
+import { createGameData, NARRATIVE_LINGER_MS } from './gameData';
 import type { GameConn, GameDeps, GameInput } from './gameData';
 import type { GameQueries } from './queries';
 import {
@@ -42,6 +42,7 @@ const queries: GameQueries = {
   faction: 'Q_FACTION',
   eventWorld: 'Q_EVENT_WORLD',
   activeWorldEvents: 'Q_ACTIVE_EVENTS',
+  myCombatAggro: 'Q_COMBAT_AGGRO',
   eventPrivate: (id) => `Q_EVENT_PRIVATE_${id}`,
   eventLocation: (id) => `Q_EVENT_LOCATION_${id}`,
   eventGroup: (id) => `Q_EVENT_GROUP_${id}`,
@@ -54,6 +55,14 @@ const queries: GameQueries = {
   abilityTemplates: (id) => `Q_ABILITIES_${id}`,
   abilityCooldowns: (id) => `Q_COOLDOWNS_${id}`,
   eventContributions: (id) => `Q_CONTRIB_${id}`,
+  combatParticipantsOf: (id) => `Q_PART_OF_${id}`,
+  combatActions: (id) => `Q_ACTIONS_${id}`,
+  combatParticipants: (id) => `Q_PARTS_${id}`,
+  combatEnemies: (id) => `Q_ENEMIES_${id}`,
+  combatRounds: (id) => `Q_ROUNDS_${id}`,
+  combatCasts: (id) => `Q_CASTS_${id}`,
+  combatNarratives: (id) => `Q_NARR_${id}`,
+  combatPets: (id) => `Q_PETS_${id}`,
   renown: (id) => `Q_RENOWN_${id}`,
   renownPerks: (id) => `Q_PERKS_${id}`,
   group: (id) => `Q_GROUP_${id}`,
@@ -61,6 +70,8 @@ const queries: GameQueries = {
   charactersById: (ids) => `Q_CHARS_BY_ID_${ids.join(',')}`,
   questTemplatesById: (ids) => `Q_TEMPLATES_${ids.join(',')}`,
   eventObjectivesByEvent: (ids) => `Q_OBJECTIVES_${ids.join(',')}`,
+  enemyTemplatesById: (ids) => `Q_ENEMY_TEMPLATES_${ids.join(',')}`,
+  enemyAbilitiesByTemplate: (ids) => `Q_ENEMY_ABILITIES_${ids.join(',')}`,
 };
 
 function makeCharacter(id: bigint, overrides: Record<string, unknown> = {}): Character {
@@ -192,6 +203,7 @@ const STATIC_SQL = [
   'Q_FACTION',
   'Q_ACTIVE_EVENTS',
   'Q_EVENT_WORLD',
+  'Q_COMBAT_AGGRO',
 ];
 
 describe('createGameData: static bindings', () => {
@@ -204,11 +216,11 @@ describe('createGameData: static bindings', () => {
     expect(h.bindings.every((b) => b.conn === null)).toBe(true);
   });
 
-  it('attaches the 7 static bindings and event_world to a connection, and re-attaches a new one', () => {
+  it('attaches the 8 static bindings and event_world to a connection, and re-attaches a new one', () => {
     const h = harness();
     const first = h.connect();
     for (const sql of STATIC_SQL) expect(h.find(sql).conn).toBe(first);
-    expect(STATIC_SQL).toHaveLength(8);
+    expect(STATIC_SQL).toHaveLength(9);
 
     const second = makeConn();
     h.conn.value = second;
@@ -445,6 +457,260 @@ describe('createGameData: combat flag', () => {
     expect(h.game.inCombat.value).toBe(false);
     h.character.value = makeCharacter(5n, { combatTargetEnemyId: 9n });
     expect(h.game.inCombat.value).toBe(true);
+  });
+});
+
+describe('createGameData: combat', () => {
+  const filterOf = (h: ReturnType<typeof harness>, sql: string) =>
+    (h.find(sql).options as BindTableOptions<FakeConn, any>).filter!;
+
+  const FIGHT_SQL = [
+    'Q_PARTS_10',
+    'Q_ENEMIES_10',
+    'Q_ROUNDS_10',
+    'Q_CASTS_10',
+    'Q_PETS_10',
+  ];
+
+  // The player (character 5) takes part in fight 10.
+  function inFight() {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    const own = h.find('Q_PART_OF_5');
+    own.rows.value = [{ id: 1n, combatId: 10n, characterId: 5n, status: 'active' }];
+    own.applied.value = true;
+    return h;
+  }
+
+  it('binds the own participant and own choice rows by character and nothing of a fight yet', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    expect(h.live('Q_PART_OF_5')).toHaveLength(1);
+    expect(h.live('Q_ACTIONS_5')).toHaveLength(1);
+    expect(h.bindings.some((b) => b.sql[0].startsWith('Q_ENEMIES_'))).toBe(false);
+    expect(h.game.combat.active.value).toBe(false);
+    expect(h.game.combat.combatId.value).toBeNull();
+    expect(h.game.combat.self.value).toBeNull();
+  });
+
+  it('follows the combat id of the own participant row', () => {
+    const h = inFight();
+    expect(h.game.combat.active.value).toBe(true);
+    expect(h.game.combat.combatId.value).toBe(10n);
+    expect(h.game.combat.self.value).toEqual({ id: 1n, combatId: 10n, characterId: 5n, status: 'active' });
+    for (const sql of [...FIGHT_SQL, 'Q_NARR_10']) expect(h.live(sql)).toHaveLength(1);
+  });
+
+  it('reports applied only once the enemy binding has applied', () => {
+    const h = inFight();
+    expect(h.game.combat.applied.value).toBe(false);
+    h.find('Q_ENEMIES_10').applied.value = true;
+    expect(h.game.combat.applied.value).toBe(true);
+    expect(h.game.combat.castsApplied.value).toBe(false);
+    h.find('Q_CASTS_10').applied.value = true;
+    expect(h.game.combat.castsApplied.value).toBe(true);
+  });
+
+  it('subscribes enemy templates and abilities by the enemies template ids', () => {
+    const h = inFight();
+    const enemies = h.find('Q_ENEMIES_10');
+    enemies.rows.value = [
+      { id: 1n, combatId: 10n, enemyTemplateId: 4n },
+      { id: 2n, combatId: 10n, enemyTemplateId: 3n },
+      { id: 3n, combatId: 10n, enemyTemplateId: 3n },
+    ];
+    enemies.applied.value = true;
+    expect(h.live('Q_ENEMY_TEMPLATES_3,4')).toHaveLength(1);
+    expect(h.live('Q_ENEMY_ABILITIES_3,4')).toHaveLength(1);
+    expect(filterOf(h, 'Q_ENEMY_TEMPLATES_3,4')({ id: 3n })).toBe(true);
+    expect(filterOf(h, 'Q_ENEMY_TEMPLATES_3,4')({ id: 5n })).toBe(false);
+    expect(filterOf(h, 'Q_ENEMY_ABILITIES_3,4')({ enemyTemplateId: 4n })).toBe(true);
+    expect(filterOf(h, 'Q_ENEMY_ABILITIES_3,4')({ enemyTemplateId: 5n })).toBe(false);
+  });
+
+  it('picks the round in action_select as the open round', () => {
+    const h = inFight();
+    expect(h.game.combat.openRound.value).toBeNull();
+    expect(h.game.combat.roundNumber.value).toBeNull();
+
+    const rounds = h.find('Q_ROUNDS_10');
+    rounds.rows.value = [
+      { id: 1n, combatId: 10n, roundNumber: 1n, state: 'resolved' },
+      { id: 2n, combatId: 10n, roundNumber: 2n, state: 'action_select' },
+    ];
+    expect(h.game.combat.openRound.value?.roundNumber).toBe(2n);
+    expect(h.game.combat.roundNumber.value).toBe(2n);
+
+    rounds.rows.value = [
+      { id: 1n, combatId: 10n, roundNumber: 1n, state: 'resolved' },
+      { id: 2n, combatId: 10n, roundNumber: 2n, state: 'resolved' },
+    ];
+    expect(h.game.combat.openRound.value).toBeNull();
+    expect(h.game.combat.roundNumber.value).toBe(2n);
+  });
+
+  it('exposes the own choice for the open round only', () => {
+    const h = inFight();
+    const actions = h.find('Q_ACTIONS_5');
+    actions.rows.value = [
+      { id: 1n, combatId: 10n, characterId: 5n, roundNumber: 1n },
+      { id: 2n, combatId: 10n, characterId: 5n, roundNumber: 2n },
+      { id: 3n, combatId: 9n, characterId: 5n, roundNumber: 2n },
+    ];
+    expect(h.game.combat.ownAction.value).toBeNull();
+    h.find('Q_ROUNDS_10').rows.value = [
+      { id: 2n, combatId: 10n, roundNumber: 2n, state: 'action_select' },
+    ];
+    expect(h.game.combat.ownAction.value?.id).toBe(2n);
+    h.find('Q_ROUNDS_10').rows.value = [
+      { id: 2n, combatId: 10n, roundNumber: 2n, state: 'resolved' },
+    ];
+    expect(h.game.combat.ownAction.value).toBeNull();
+  });
+
+  it('gives every combat binding a filter that rejects rows of another key', () => {
+    const h = inFight();
+    expect(filterOf(h, 'Q_ENEMIES_10')({ combatId: 10n })).toBe(true);
+    expect(filterOf(h, 'Q_ENEMIES_10')({ combatId: 11n })).toBe(false);
+    for (const sql of ['Q_PARTS_10', 'Q_ROUNDS_10', 'Q_CASTS_10', 'Q_PETS_10', 'Q_NARR_10']) {
+      expect(filterOf(h, sql)({ combatId: 11n })).toBe(false);
+      expect(filterOf(h, sql)({ combatId: 10n })).toBe(true);
+    }
+    expect(filterOf(h, 'Q_PART_OF_5')({ characterId: 5n })).toBe(true);
+    expect(filterOf(h, 'Q_PART_OF_5')({ characterId: 6n })).toBe(false);
+    expect(filterOf(h, 'Q_ACTIONS_5')({ characterId: 5n })).toBe(true);
+    expect(filterOf(h, 'Q_ACTIONS_5')({ characterId: 6n })).toBe(false);
+  });
+
+  describe('when the fight ends', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('disposes the fight bindings at once and lets narratives linger', () => {
+      vi.useFakeTimers();
+      const h = inFight();
+      const own = h.find('Q_PART_OF_5');
+      const enemies = h.find('Q_ENEMIES_10');
+      enemies.rows.value = [{ id: 1n, combatId: 10n, enemyTemplateId: 3n }];
+      enemies.applied.value = true;
+      h.find('Q_ROUNDS_10').rows.value = [
+        { id: 1n, combatId: 10n, roundNumber: 1n, state: 'action_select' },
+      ];
+
+      own.rows.value = [];
+      expect(h.game.combat.active.value).toBe(false);
+      expect(h.game.combat.applied.value).toBe(false);
+      for (const sql of FIGHT_SQL) expect(h.live(sql)).toHaveLength(0);
+      expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(0);
+      expect(h.game.combat.enemies.value).toEqual([]);
+      expect(h.game.combat.rounds.value).toEqual([]);
+      expect(h.game.combat.openRound.value).toBeNull();
+      expect(h.game.combat.roundNumber.value).toBeNull();
+      expect(h.live('Q_NARR_10')).toHaveLength(1);
+
+      vi.advanceTimersByTime(NARRATIVE_LINGER_MS - 1);
+      expect(h.live('Q_NARR_10')).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(h.live('Q_NARR_10')).toHaveLength(0);
+    });
+
+    it('rebinds narratives to a new fight that starts before the timer ends', () => {
+      vi.useFakeTimers();
+      const h = inFight();
+      const own = h.find('Q_PART_OF_5');
+      own.rows.value = [];
+      expect(h.live('Q_NARR_10')).toHaveLength(1);
+
+      own.rows.value = [{ id: 2n, combatId: 11n, characterId: 5n, status: 'active' }];
+      expect(h.live('Q_NARR_11')).toHaveLength(1);
+      h.find('Q_NARR_11').applied.value = true;
+      expect(h.live('Q_NARR_10')).toHaveLength(0);
+
+      // the old timer is gone: the new fight keeps its narrative binding
+      vi.advanceTimersByTime(NARRATIVE_LINGER_MS * 2);
+      expect(h.live('Q_NARR_11')).toHaveLength(1);
+    });
+
+    it('clears the linger timer on reset', () => {
+      vi.useFakeTimers();
+      const h = inFight();
+      h.find('Q_PART_OF_5').rows.value = [];
+      h.game.reset();
+      expect(vi.getTimerCount()).toBe(0);
+      expect(h.bindings.filter((b) => !b.disposed)).toEqual([]);
+    });
+  });
+
+  it('adds fight participants outside the group to the party id list, never the player', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { groupId: 4n });
+    const members = h.find('Q_MEMBERS_4');
+    members.rows.value = [
+      { id: 1n, groupId: 4n, characterId: 5n },
+      { id: 2n, groupId: 4n, characterId: 8n },
+    ];
+    members.applied.value = true;
+    const own = h.find('Q_PART_OF_5');
+    own.rows.value = [{ id: 1n, combatId: 10n, characterId: 5n, status: 'active' }];
+    own.applied.value = true;
+    const parts = h.find('Q_PARTS_10');
+    parts.rows.value = [
+      { id: 1n, combatId: 10n, characterId: 5n },
+      { id: 2n, combatId: 10n, characterId: 8n },
+      { id: 3n, combatId: 10n, characterId: 9n },
+    ];
+    parts.applied.value = true;
+    expect(h.live('Q_CHARS_BY_ID_8,9')).toHaveLength(1);
+    // the narrower list stays until the wider one has applied (keyed swap)
+    h.find('Q_CHARS_BY_ID_8,9').applied.value = true;
+    const partyLists = h.bindings.filter((b) => !b.disposed && b.sql[0].startsWith('Q_CHARS_BY_ID_'));
+    expect(partyLists.map((b) => b.sql[0])).toEqual(['Q_CHARS_BY_ID_8,9']);
+  });
+
+  it('maps character and pet names', () => {
+    const h = inFight();
+    expect(h.game.combat.characterNames.value.get(5n)).toBe('Hero5');
+    const parts = h.find('Q_PARTS_10');
+    parts.rows.value = [
+      { id: 1n, combatId: 10n, characterId: 5n },
+      { id: 2n, combatId: 10n, characterId: 8n },
+    ];
+    parts.applied.value = true;
+    const known = h.find('Q_CHARS_BY_ID_8');
+    known.rows.value = [{ id: 8n, name: 'Ally' }];
+    known.applied.value = true;
+    expect(h.game.combat.characterNames.value.get(8n)).toBe('Ally');
+    expect(h.game.combat.characterNames.value.get(5n)).toBe('Hero5');
+
+    h.find('Q_PETS_10').rows.value = [{ id: 7n, combatId: 10n, name: 'Wolf' }];
+    expect(h.game.combat.petNames.value.get(7n)).toBe('Wolf');
+  });
+
+  it('mirrors the threat view rows and its applied flag', () => {
+    const h = harness();
+    h.connect();
+    expect(h.game.combat.aggro.value).toEqual([]);
+    expect(h.game.combat.aggroApplied.value).toBe(false);
+    const view = h.find('Q_COMBAT_AGGRO');
+    view.rows.value = [{ id: 1n, combatId: 10n, enemyId: 2n, characterId: 5n, value: 7n }];
+    view.applied.value = true;
+    expect(h.game.combat.aggro.value).toHaveLength(1);
+    expect(h.game.combat.aggroApplied.value).toBe(true);
+  });
+
+  it('disposes every combat binding on dispose and on scope stop', () => {
+    const a = inFight();
+    a.game.dispose();
+    expect(a.bindings.filter((b) => !b.disposed)).toEqual([]);
+
+    const b = inFight();
+    b.scope.stop();
+    const stillLive = b.bindings.filter((x) => !x.disposed).map((x) => x.sql[0]);
+    expect(stillLive.every((sql) => STATIC_SQL.includes(sql))).toBe(true);
   });
 });
 
