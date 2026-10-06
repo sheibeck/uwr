@@ -733,7 +733,7 @@ Write a mapping only when it is confirmed, never for every typed line, or the gr
 - **Tighten `isGameAction`** (`src/input/conversation.ts`). Today any line starting with `buy`, `sell`, `craft`, `attack`, `fight` or `kill` leaves the conversation, so "sell me your finest blade?" said to a vendor runs a sell command. Match exact command forms, as `routeExactCommand` does.
 - **Exact commands always win.** Learned mappings never override `look`, `sell`, `attack` or the other registry commands.
 - **Private tables.** Reducers read them; clients never subscribe.
-- **One global graph, with gradual promotion.** The graph is shared by all players (owner). Recommended guardrail: a newly learned mapping applies at once for the player who confirmed it and becomes global after 3 different players confirm it, which limits bad or deliberately misleading mappings.
+- **One global graph, with gradual promotion.** The graph is shared by all players (owner). Guardrail (approved by owner): a newly learned mapping applies at once for the player who confirmed it and becomes global after 3 different players confirm it, which limits bad or deliberately misleading mappings.
 
 **Order of checks in `submit_intent` (outside conversation):** exact command forms → phrase cache → word weights → name match against what is around the character → player-confirm prompt (optional LLM) → sardonic fallback.
 
@@ -745,7 +745,6 @@ Write a mapping only when it is confirmed, never for every typed line, or the gr
 
 **Open questions:**
 
-- Confirm the promotion threshold (recommended: 3 different players).
 - When the player answers "no" to the closest match, does the Keeper offer the next match, or fall back to the sardonic line?
 
 **Requirements:** TBD (unit tests required: normalization and placeholders, cache hit and miss, weight scoring and threshold, the conversation lock skipping the lookup, exact commands outranking learned mappings, promotion threshold)
@@ -842,7 +841,7 @@ Plans:
 - New `npc` columns: `homeLocationId`, `wanderStyle`:
   - `anchored`: never moves. Forced in code for service NPC types (vendor, banker, crafting); generation cannot override it. `ensureRegionServices` keeps a start location's vendor and banker, and anchoring keeps them there.
   - `roamer`: moves along `location_connection` but **stays within its own zone** (owner decision), and moves **at most about once per in-game day** (about once per real hour with the 999.14 calendar).
-  - `commuter` (optional): moves between a day spot and a night spot on the day/night tick.
+  - `commuter`: moves between a day spot and a night spot on the day/night tick (built together with wandering, owner decision).
 - A scheduled `npc_wander_tick` decides moves with deterministic seeds (NPC id and timestamp), never `Math.random`.
 - An NPC does not leave while a player has talked to it in the last few minutes.
 - The location feed announces arrivals and departures ("Rob the Miner arrives from Copperhollow.").
@@ -865,7 +864,7 @@ Plans:
 
 - **Only rumor keepers know place rumors.** Not every NPC knows one. `npc.rumorKeeper` is decided by the server at NPC generation (deterministic seed, never by the LLM), with **a handful of keepers per region** (owner decision). Rumors are rare and valuable.
 - **One place rumor per keeper, ever.** A keeper holds exactly one place rumor. It is created lazily, the first time any player reaches the reveal tier with that keeper: the reply schema's `newPlace` (name, one-line hint, route hint) is accepted only then. After that it is fixed, and every later player who earns the keeper's trust hears the same rumor. The NPC never invents a second or different place rumor; `newPlace` from any other NPC, or from a keeper that already has one, is dropped.
-- **Earned through the relationship.** The rumor is an `npc_fact` (999.9) with `revealTier` set high: `trusted` for a location, `bonded` for a region. Affinity rises from kind conversation, completed quests and gifts, and falls from rudeness and abandoned quests (existing `awardNpcAffinity` sources: conversation ±5 per reply, quest turn-in +10, abandon −3, gifts). Optional teaser at `friendly`: the keeper hints there is something they do not talk about yet, without naming it.
+- **Earned through the relationship.** The rumor is an `npc_fact` (999.9) with `revealTier` set high: `trusted` for a location, `bonded` for a region. Affinity rises from kind conversation, completed quests and gifts, and falls from rudeness and abandoned quests (existing `awardNpcAffinity` sources: conversation ±5 per reply, quest turn-in +10, abandon −3, gifts). Teaser at `friendly` (built together with rumors, owner decision): the keeper hints there is something they do not talk about yet, without naming it.
 - **Rumors never expire.**
 - **Rumors can point outside the region, including to an undiscovered region.** A rumored location is a `location` stub with status `rumored`; a rumored region is a `region` stub with status `rumored` (name, hint and a bearing from the keeper's region, nothing generated).
 - **Rarity budgets** so rumors stay special:
@@ -926,11 +925,10 @@ rumor { id, keeperNpcId, kind, whereLocationId? /* real or rumored */, hint, rou
 - A handful of rumor keepers per region; each keeper knows one or two important rumors; rumors are rare and valuable.
 - The abandon penalty (−3 against +10 for completion) stays as it is.
 - Rumor quests are a race with tiered rewards and close once completed (section 6).
+- Commuter NPCs are built together with wandering, and the `friendly` teaser together with rumors.
 
 **Open questions:**
 
-- Commuter NPCs (a day spot and a night spot): build them together with wandering when this item is promoted, or leave them for later?
-- The `friendly`-tier teaser (a keeper hints they know something before revealing it): build it with rumors, or later?
 - Exact numbers: keepers per region, the global cap on rumored regions nobody has reached.
 - Reward sizes for second place and later on a rumor quest.
 
@@ -1056,6 +1054,26 @@ budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
 - **Group kill** (bosses are locked to a group): **the legendary chooses.** It picks a random group member. That player may claim it or refuse; on a refusal it picks again among the members who have not refused, until someone claims it. (The group can still agree among themselves who should claim it.)
 - **World event kill** (for example a world boss fought by many players): only **active participants** are eligible. A player must reach a minimum participation level; doing one small thing and sitting back does not qualify. Then a random eligible participant is picked, with the same claim-or-refuse rule. `event_contribution` already records participation.
 
+**3c. Stat point values (proposal for owner approval, 2026-10-06):**
+
+The yardstick is what a character gains from leveling: each level adds about 8 stat points (primary +3, secondary +2, each other stat +1; `spacetimedb/src/data/class_stats.ts`). Gear is measured against that, so leveling stays the main source of power and gear adds a share on top.
+
+- **Point costs** (1 point = 1 point of a main stat), derived from the current formulas:
+  | Stat | Cost | Why |
+  |---|---|---|
+  | STR, DEX, INT, WIS, CHA | 1 point each | the same currency levels give |
+  | HP | 10 HP = 1 point | 1 STR already gives 8 HP plus damage (`HP_STR_MULTIPLIER`) |
+  | Mana | 10 mana = 1 point | 1 caster stat gives 6 mana plus spell power (`MANA_MULTIPLIER`) |
+  | Armor (AC) | 3 AC = 1 point | 1 AC cuts physical damage taken by about 1% at low AC (`applyArmorMitigation`) |
+  | Magic resist | 1 MR = 1 point | worth about 3 AC (`MAGIC_RESIST_SCALING` = 3) |
+- **Base versus bonus:** a weapon's base damage and an armor piece's base AC come from a curve by item level, weapon or armor type and slot. The point budget covers bonus stats and affixes. Both are scaled by the same source multiplier and held under the same 1.4× cap.
+- **Baseline per item:** `baseline(L) = max(1, round(0.25 × L × slotWeight))` bonus points, with slot weights chest, legs and main hand 1.5; head, hands, boots and off hand 1.0; wrists, belt, neck, earrings and cloak 0.75 (the weights add up to about 12 across the 12 slots).
+- **What that means:** a full set of normal gear at level L adds about 25% of a level-L character's own stat points (about 30 points at level 10, against about 118 from the character). Best-in-slot gear at the 1.4× cap adds about 35%.
+- Existing affix strengths already fit this scale (for example +1 to +4 STR per tier; "Vital" HP of 5, 8 and 15 is 0.5 to 1.5 points).
+- Note: `MAX_LEVEL` is 10 today (`spacetimedb/src/data/xp.ts`), while world tiers are defined up to level 50. The formula scales either way.
+
+**3d. Balance test (approved by owner, 2026-10-06):** a unit test simulates a fight in best-in-slot gear against the same fight in normal gear, and fails if the best gear wins more than a set margin faster (proposed: at most 35% fewer rounds, matching the stat share above).
+
 **4. Where the graph helps:**
 
 - **Provenance:** each item links to its source (boss, quest, NPC, region, recipe, material). This drives first-find World events, legendary uniqueness, and NPC knowledge of items ("Borin forged that blade", 999.9 facts).
@@ -1086,10 +1104,8 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 **Open questions:**
 
 - What counts as minimum participation for a World event kill (needs more discussion).
-- Tuning numbers, to set when this item is picked up:
-  - How many points each stat is worth, so different stats can be compared (for example 1 STR against 1 HP against 1 armor).
-  - How strong a normal item is at each level (the baseline), and the multiplier for each source (boss 1.3 and so on).
-  - A balance test that simulates a fight in best gear against normal gear: how much faster may the best gear win before the test fails?
+- Approve or change the stat point values and baseline in section 3c, and the 35% margin for the balance test (3d).
+- The base damage and base AC curves by item level, weapon or armor type and slot.
 
 **Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, zone bosses respawn and drop named items (many copies), legendary bosses die once and trigger a World event with a world change, legendary claim-or-refuse among group members, minimum participation for World event kills, legendary single ownership, legendaries cannot be traded or destroyed, legendary lost immediately on character deletion and after six months of bearer inactivity, lost legendary resurfacing as a new NPC rumor that names a location or NPC holder and never a past bearer, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
 **Plans:** 0 plans
@@ -1129,7 +1145,7 @@ Plans:
 - **Disease and illness:** a sick NPC can give a time-limited quest to find a cure. The cure can spawn harvestable ingredients, or drops on specific monsters that must be slain. If the cure does not arrive in time, the NPC can die.
 - **NPCs cannot be attacked at will** (see 999.12): an NPC is only fought as the climax of a story quest.
 
-**Town overruns (proposal for owner approval):**
+**Town overruns (approved by owner, 2026-10-06):**
 
 - Overruns are **World events announced in advance**, so players know they are coming (for example a warning one in-game day ahead).
 - The defense works like other participation-based World events (`world_event` with objectives, thresholds and time limits): players fight the attacking monsters, and success depends on how much the defenders achieve.
@@ -1147,7 +1163,7 @@ Plans:
 
 **Open questions:**
 
-- Approve or change the town-overrun proposal: warning lead time, success threshold, and the chance an NPC dies when the defense fails.
+- Town-overrun numbers: warning lead time, success threshold, and the chance an NPC dies when the defense fails.
 - Disease: how often an NPC falls ill, how long the cure window is, and whether an uncured NPC always dies or rolls a chance.
 - Other death causes beyond age, disease, overruns and story fights.
 
@@ -1218,4 +1234,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after recording owner answers to open questions in 999.8 to 999.14 and adding 999.15*
+*Last updated: 2026-10-06 after recording owner approvals and the stat point proposal (999.8, 999.10, 999.12, 999.13)*
