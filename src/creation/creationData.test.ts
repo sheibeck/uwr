@@ -705,13 +705,64 @@ describe('createCreationData: COMPLETE with no character (IN-05)', () => {
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
   }
 
-  it('is true for a COMPLETE row with the characters applied and empty, and posts one feed error', () => {
+  const errors = (h: Harness) => h.hub.feed.entries.value.filter((e) => e.kind === 'error');
+
+  it('is true for a COMPLETE row with the characters applied and empty, and posts one feed error', async () => {
     const h = make();
     ended(h);
     expect(h.hub.endedWithoutCharacter.value).toBe(true);
-    expect(h.hub.feed.entries.value.filter((e) => e.kind === 'error')).toHaveLength(1);
+    expect(errors(h)).toHaveLength(0); // deferred to a microtask
+    await flush();
+    expect(errors(h)).toHaveLength(1);
     h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE', { characterName: 'x' })];
-    expect(h.hub.feed.entries.value.filter((e) => e.kind === 'error')).toHaveLength(1);
+    await flush();
+    expect(errors(h)).toHaveLength(1);
+  });
+
+  it('WR-05: posts nothing when the character and active id land in the same synchronous burst', async () => {
+    const h = make();
+    h.signIn('aa');
+    h.connect();
+    h.applyState();
+    h.charactersApplied.value = true; // the characters binding applied with zero rows
+    // The finalize burst: the state callback first, the character and player callbacks after it.
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'CONFIRMING')];
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    expect(h.hub.endedWithoutCharacter.value).toBe(true); // the transient window
+    h.activeCharacterId.value = 4n;
+    h.characters.value = [makeCharacter(4n, { locationId: 0n })];
+    h.activeCharacter.value = makeCharacter(4n, { locationId: 0n });
+    await flush();
+    expect(h.hub.endedWithoutCharacter.value).toBe(false);
+    expect(errors(h)).toHaveLength(0);
+  });
+
+  it('WR-05: a reset or dispose before the microtask cancels the notice', async () => {
+    const h = make();
+    ended(h);
+    h.hub.reset();
+    await flush();
+    expect(errors(h)).toHaveLength(0);
+
+    const g = make();
+    ended(g);
+    g.hub.dispose();
+    await flush();
+    expect(errors(g)).toHaveLength(0);
+  });
+
+  it('IN-13: never calls startCreation in the ended-without-character state', () => {
+    const h = make();
+    h.signIn('aa');
+    h.hub.mount();
+    const c = h.connect();
+    // The initial subscription delivers the COMPLETE row before it reports applied.
+    h.find('Q_STATE_aa').rows.value = [stateRow(1n, 'COMPLETE')];
+    h.applyEvents();
+    h.charactersApplied.value = true;
+    h.applyState();
+    expect(h.hub.endedWithoutCharacter.value).toBe(true);
+    expect(c.reducers.startCreation).not.toHaveBeenCalled();
   });
 
   it('is false before the characters applied, with a character, for an unplaced active character and at other steps', () => {

@@ -89,6 +89,8 @@ export function createCreationData<C extends CreationConn>(
   let handoffFired = false;
   let disposed = false;
   let endedNoticed = false;
+  // Bumped by reset() so a pending microtask check from before the reset does nothing.
+  let resetEpoch = 0;
 
   const connected = computed(() => input.status.value === 'connected' && input.conn.value !== null);
 
@@ -192,18 +194,6 @@ export function createCreationData<C extends CreationConn>(
       effectiveCreationStep(state.value?.step ?? null, unplacedActive.value),
     );
 
-    // Start gate (RESEARCH Pitfall 4): the greeting is only safe once the event subscription
-    // has applied. Zero characters, and never for an unplaced active character.
-    const startReady = computed(
-      () =>
-        connected.value &&
-        input.charactersApplied.value &&
-        input.characters.value.length === 0 &&
-        !unplacedActive.value &&
-        stateApplied.value &&
-        eventsApplied.value,
-    );
-
     const stateStep = computed(() => state.value?.step ?? null);
 
     // A COMPLETE row with no character behind it (the character was removed): say so once.
@@ -215,12 +205,34 @@ export function createCreationData<C extends CreationConn>(
         input.characters.value.length === 0 &&
         !unplacedActive.value,
     );
+
+    // Start gate (RESEARCH Pitfall 4): the greeting is only safe once the event subscription
+    // has applied. Zero characters, and never for an unplaced active character.
+    const startReady = computed(
+      () =>
+        connected.value &&
+        input.charactersApplied.value &&
+        input.characters.value.length === 0 &&
+        !unplacedActive.value &&
+        stateApplied.value &&
+        eventsApplied.value &&
+        !endedWithoutCharacter.value,
+    );
+
     watch(
       endedWithoutCharacter,
       (ended) => {
         if (!ended || endedNoticed) return;
-        endedNoticed = true;
-        feed.appendError(ENDED_WITHOUT_CHARACTER_TEXT);
+        // Same callback-order hazard as the hand-off below (review WR-05): the finalize burst
+        // refreshes the state, characters and player bindings one table callback at a time, so a
+        // sync reading can say "COMPLETE, characters applied and empty" before the character row
+        // lands. The condition is confirmed after the whole burst, and a reset cancels a pending check.
+        const epoch = resetEpoch;
+        queueMicrotask(() => {
+          if (disposed || endedNoticed || epoch !== resetEpoch || !endedWithoutCharacter.value) return;
+          endedNoticed = true;
+          feed.appendError(ENDED_WITHOUT_CHARACTER_TEXT);
+        });
       },
       { immediate: true, flush: 'sync' },
     );
@@ -353,6 +365,7 @@ export function createCreationData<C extends CreationConn>(
     handoffArmed.value = false;
     handoffFired = false;
     endedNoticed = false;
+    resetEpoch += 1;
   }
 
   function dispose(): void {
