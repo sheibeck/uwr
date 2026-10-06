@@ -148,7 +148,7 @@ describe('turn_in_quest item reward (real handler)', () => {
     expect(inst.qualityTier).toBe(tpl.rarity);
 
     // The rest of the turn-in still happens.
-    expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+    expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
     expect(rows(ctx, 'character')[0].xp).toBe(40n);
     expect(rows(ctx, 'event_private').some((e) => e.message === 'Received: Bellwright Token!')).toBe(true);
   });
@@ -220,7 +220,7 @@ describe('turn_in_quest without an item reward', () => {
     const ch = rows(ctx, 'character')[0];
     expect(ch.xp).toBe(40n);
     expect(ch.gold).toBe(35n);
-    expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+    expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
   });
 
   it('an xp quest with no reward type creates no item', () => {
@@ -248,7 +248,7 @@ describe('"turn in <quest>" intent grants the item reward (real submit_intent ha
     turnInByIntent(ctx);
 
     expect(failures(ctx)).toEqual([]);
-    expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+    expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
     const tpl = rows(ctx, 'item_template')[0];
     const inst = rows(ctx, 'item_instance')[0];
     expect(tpl).toBeDefined();
@@ -268,6 +268,6 @@ describe('"turn in <quest>" intent grants the item reward (real submit_intent ha
     expect(rows(ctx, 'item_template')).toHaveLength(0);
     expect(rows(ctx, 'item_instance')).toHaveLength(0);
     expect(rows(ctx, 'character')[0].gold).toBe(35n);
-    expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+    expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
   });
 });

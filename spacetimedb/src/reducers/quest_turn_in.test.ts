@@ -122,7 +122,7 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
     it("records the quest in the giver's memory", () => {
       const ctx = newCtx();
       turnIn(ctx);
-      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
       const memory = rows(ctx, 'npc_memory').filter((m) => m.characterId === 1n && m.npcId === NPC_ID);
       expect(memory).toHaveLength(1);
       expect(JSON.parse(memory[0].memoryJson).questsCompleted).toEqual([QUEST_NAME]);
@@ -269,7 +269,7 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
 
       ctx.db.item_instance.id.delete(1000n);
       turnIn(ctx);
-      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
       expect(rows(ctx, 'character')[0].gold).toBe(35n);
       expect(rows(ctx, 'item_template').some((t) => t.name === 'Bellwright Token')).toBe(true);
       expect(rows(ctx, 'item_instance')).toHaveLength(MAX_INVENTORY_SLOTS + 1);
@@ -278,14 +278,14 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
     it('one free slot is enough', () => {
       const ctx = newCtx({ seed: bagSeed(MAX_INVENTORY_SLOTS - 1) });
       turnIn(ctx);
-      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
       expect(rows(ctx, 'item_instance')).toHaveLength(MAX_INVENTORY_SLOTS + 1);
     });
 
     it('an xp/gold quest needs no bag space', () => {
       const ctx = newCtx({ seed: bagSeed(MAX_INVENTORY_SLOTS), qt: { rewardType: 'gold', rewardItemName: undefined } });
       turnIn(ctx);
-      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'quest_instance').map((q) => q.completedAt)).toEqual([ctx.timestamp]); // turned in, kept as history
       expect(rows(ctx, 'character')[0].gold).toBe(35n);
     });
   });

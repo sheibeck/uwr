@@ -5,7 +5,7 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { findRaceDefinition, levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 import { flattenLineBreaks } from '../helpers/chat_text';
-import { turnInCompletedQuest, questTurnInNpcId } from './quests';
+import { turnInCompletedQuest, questTurnInNpcId, questObjectiveText, isQuestTurnedIn } from './quests';
 
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
@@ -106,7 +106,7 @@ export const registerCommandReducers = (deps: any) => {
     // shared turn-in path, so hailing gives the same rewards as turn_in_quest and the "turn in" intent.
     // A refusal (full bags) shows the NPC's in-voice message and leaves the quest ready to turn in.
     const readyHere = [...ctx.db.quest_instance.by_character.filter(character.id)]
-      .filter((qi: any) => qi.completed)
+      .filter((qi: any) => qi.completed && !isQuestTurnedIn(qi))
       .map((qi: any) => ({ qi, qt: ctx.db.quest_template.id.find(qi.questTemplateId) }))
       .filter(({ qt }: any) => qt && questTurnInNpcId(qt) === npc.id);
     let turnedIn = false;
@@ -344,9 +344,7 @@ export const registerCommandReducers = (deps: any) => {
                   completedAt: undefined,
                 });
 
-                const enemy = ctx.db.enemy_template.id.find(questTemplate.targetEnemyTemplateId);
-                const targetNameText = enemy ? enemy.name : 'creatures';
-                const questAccept = `${npc.name} offers you "${questTemplate.name}". Objective: Slay ${questTemplate.requiredCount} ${targetNameText}(s). Quest accepted.`;
+                const questAccept = `${npc.name} offers you "${questTemplate.name}". Objective: ${questObjectiveText(ctx, questTemplate)} Quest accepted.`;
                 appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', questAccept);
                 appendNpcDialog(ctx, character.id, npc.id, questAccept);
               } else {

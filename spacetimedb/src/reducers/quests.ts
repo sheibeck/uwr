@@ -3,6 +3,7 @@ import { recordQuestCompletion } from '../helpers/npc_conversation';
 import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
 import { findItemTemplateByName, getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
 import { awardXp } from '../helpers/combat_rewards';
+import { appendNpcDialog } from '../helpers/events';
 import { MAX_LEVEL } from '../data/xp';
 import { npcGender, npcPronouns } from '../data/npc_gender';
 
@@ -173,18 +174,124 @@ export function questTurnInNpcId(qt: any): bigint | undefined {
   return qt.npcId || undefined;
 }
 
+/** Whether a quest instance has been turned in: completedAt is set only by turnInCompletedQuest. */
+export function isQuestTurnedIn(qi: any): boolean {
+  return qi.completedAt !== undefined && qi.completedAt !== null;
+}
+
+function enemyNameOf(ctx: any, qt: any): string | undefined {
+  return qt.targetEnemyTemplateId ? ctx.db.enemy_template.id.find(qt.targetEnemyTemplateId)?.name : undefined;
+}
+
+function locationNameOf(ctx: any, locationId: bigint | undefined): string | undefined {
+  return locationId ? ctx.db.location.id.find(locationId)?.name : undefined;
+}
+
+function npcNameOf(ctx: any, npcId: bigint | undefined): string | undefined {
+  return npcId ? ctx.db.npc.id.find(npcId)?.name : undefined;
+}
+
+/**
+ * The objective sentence of a quest, worded for its type (Slay / Hunt and collect / Explore / Deliver /
+ * Defeat / Gather / Escort / Interact / Discover, the verbs the quests list uses).
+ */
+export function questObjectiveText(ctx: any, qt: any): string {
+  const count = qt.requiredCount ?? 1n;
+  const enemy = enemyNameOf(ctx, qt);
+  const item = qt.targetItemName as string | undefined;
+  const place = locationNameOf(ctx, qt.targetLocationId);
+  switch (qt.questType ?? 'kill') {
+    case 'kill':
+      return `Slay ${count} ${enemy ?? 'creatures'}(s).`;
+    case 'kill_loot':
+      return `Hunt ${enemy ?? 'creatures'}(s) and collect ${count} ${item ?? 'item'}(s).`;
+    case 'explore':
+      return place ? `Explore ${place}.` : 'Explore the place named in the quest.';
+    case 'delivery': {
+      const recipient = npcNameOf(ctx, qt.targetNpcId);
+      return `Deliver ${item ?? 'the package'}${recipient ? ` to ${recipient}` : ''}${place ? ` at ${place}` : ''}.`;
+    }
+    case 'boss_kill':
+      return `Defeat ${item ?? enemy ?? 'the named foe'}${place ? ` at ${place}` : ''}.`;
+    case 'gather':
+      return `Gather ${count} ${item ?? 'resource'}(s).`;
+    case 'escort': {
+      const charge = npcNameOf(ctx, qt.targetNpcId);
+      return `Escort ${charge ?? 'your charge'}${place ? ` to ${place}` : ''}.`;
+    }
+    case 'interact':
+      return `Interact with ${item ?? 'the object named in the quest'}${place ? ` at ${place}` : ''}.`;
+    case 'discover':
+      return `Discover ${item ?? place ?? 'the secret named in the quest'}.`;
+    default:
+      return `Complete ${qt.name}.`;
+  }
+}
+
+/**
+ * The line an NPC says (and the Journal keeps) when a quest is turned in to them, worded for the quest type.
+ * The kill and delivery wording is what hailing used to write.
+ */
+export function questTurnInJournalLine(ctx: any, qt: any, npc: any): string {
+  const count = qt.requiredCount ?? 1n;
+  const item = qt.targetItemName as string | undefined;
+  const place = locationNameOf(ctx, qt.targetLocationId);
+  let said: string;
+  switch (qt.questType ?? 'kill') {
+    case 'kill':
+      said = `Well done! You have slain ${count} ${enemyNameOf(ctx, qt) ?? 'creatures'}(s).`;
+      break;
+    case 'kill_loot':
+      said = `Well done! You have brought me ${count} ${item ?? 'item'}(s).`;
+      break;
+    case 'boss_kill':
+      said = `It is done, then. ${item ?? enemyNameOf(ctx, qt) ?? 'The beast'} is dead. Well done!`;
+      break;
+    case 'explore':
+      said = place ? `So you found your way to ${place}. Well done!` : 'So you found your way there. Well done!';
+      break;
+    case 'delivery':
+      said = item ? `Ah, you've brought ${item}. Thank you.` : "Ah, you've brought it. Thank you.";
+      break;
+    case 'gather':
+      said = `You have gathered ${count} ${item ?? 'resource'}(s). Well done!`;
+      break;
+    case 'escort':
+      said = 'You saw the journey through. Thank you.';
+      break;
+    case 'interact':
+      said = "You've seen to it. Thank you.";
+      break;
+    case 'discover':
+      said = `You found ${item ?? place ?? 'it'}, then. Well done!`;
+      break;
+    default:
+      said = `Well done! "${qt.name}" is finished.`;
+  }
+  return `${npc.name} says, "${said}"`;
+}
+
 /**
  * Turns in a completed quest: the one reward path shared by the turn_in_quest reducer, the
  * "turn in <quest>" intent and hailing the turn-in NPC (commands.ts hailNpc), so all behave identically.
  * The caller has already checked that qi is the character's completed instance of qt. Awards xp, gold,
  * the item reward and affinity with the turn-in NPC (questTurnInNpcId), records the quest in the giver's
- * memory (and the recipient's, for a delivery to someone else), and removes the quest instance.
+ * memory (and the recipient's, for a delivery to someone else), writes the NPC's line in the Journal,
+ * removes the quest's package rows (quest_item) and marks the instance turned in (completedAt): the row
+ * stays as the character's quest history and is never active again.
  *
- * Refuses (visible message, nothing applied, quest stays ready to turn in) when the character is not at
- * the turn-in NPC's location or the quest's item reward would not fit in their bags. Returns whether the
- * quest was turned in.
+ * Refuses (visible message, nothing applied) when the instance is already turned in (completedAt set),
+ * when the character is not at the turn-in NPC's location, or when the quest's item reward would not fit
+ * in their bags; in the last two the quest stays ready to turn in. Returns whether the quest was turned in.
  */
 export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any, appendPrivateEvent: any, fail: any): boolean {
+  // Re-read the row: a turned-in quest (completedAt set) is history and is never paid twice.
+  const row = ctx.db.quest_instance.id.find(qi.id) ?? qi;
+  if (isQuestTurnedIn(row)) {
+    fail(ctx, character, `You've already turned in ${qt.name}.`);
+    return false;
+  }
+
   const turnInNpcId = questTurnInNpcId(qt);
   const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
 
@@ -246,9 +353,88 @@ export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any,
   if (qt.npcId) recordQuestCompletion(ctx, character.id, qt.npcId, qt.name);
   if (turnInNpcId && turnInNpcId !== qt.npcId) recordQuestCompletion(ctx, character.id, turnInNpcId, qt.name);
 
-  // Delete the completed quest instance (frees the quest slot)
-  ctx.db.quest_instance.id.delete(qi.id);
+  // The NPC's line in the Journal, worded for the quest type
+  if (npc) appendNpcDialog(ctx, character.id, npc.id, questTurnInJournalLine(ctx, qt, npc));
+
+  // The delivered package (and any other quest_item row of this quest) is spent
+  for (const item of [...ctx.db.quest_item.by_character.filter(character.id)]) {
+    if (item.questTemplateId === qt.id) ctx.db.quest_item.id.delete(item.id);
+  }
+
+  // Keep the instance as history: completedAt marks it turned in, so no path pays or advances it again
+  ctx.db.quest_instance.id.update({ ...row, completedAt: ctx.timestamp });
   return true;
+}
+
+/**
+ * Picks up a discovered quest item (a delivery's package, an explore quest's object): the one path shared by
+ * the loot_quest_item reducer and the "loot <item>" intent. The caller has validated the row (the
+ * character's own, discovered, not yet looted). Marks it looted, completes the character's matching
+ * unfinished quest instance (a turned-in or completed row is never touched), says so, and then rolls the
+ * 30% aggro chance. The roll is deterministic: (characterId ^ ctx.timestamp) % 100 < 30; a failed aggro
+ * (safe zone etc.) is skipped silently.
+ */
+export function pickUpQuestItem(
+  ctx: any,
+  character: any,
+  questItem: any,
+  appendPrivateEvent: any,
+  aggro: { ensureSpawnsForLocation: any; effectiveGroupId: any; startCombatForSpawn: any },
+): void {
+  ctx.db.quest_item.id.update({ ...questItem, looted: true });
+
+  // Find the matching quest instance (not completed, matching template)
+  let questInstance: any = null;
+  for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
+    if (qi.completed) continue;
+    if (qi.questTemplateId === questItem.questTemplateId) {
+      questInstance = qi;
+      break;
+    }
+  }
+
+  // Picking the item up completes the quest's objective
+  if (questInstance) {
+    ctx.db.quest_instance.id.update({ ...questInstance, progress: 1n, completed: true });
+
+    const qt = ctx.db.quest_template.id.find(questInstance.questTemplateId);
+    if (qt) {
+      const turnInNpcId = questTurnInNpcId(qt);
+      const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
+      const giver = npc ? npc.name : 'the quest giver';
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+        `Quest complete: ${qt.name}. Return to ${giver}.`);
+    }
+  }
+
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `You found ${questItem.name}!`);
+
+  // 30% aggro chance (deterministic roll)
+  const roll = (BigInt(character.id) ^ ctx.timestamp.microsSinceUnixEpoch) % 100n;
+  if (roll < 30n) {
+    try {
+      aggro.ensureSpawnsForLocation(ctx, character.locationId);
+      // Find an available spawn at the character's location
+      let availableSpawn: any = null;
+      for (const spawn of ctx.db.enemy_spawn.by_location.filter(character.locationId)) {
+        if (spawn.state === 'available') {
+          availableSpawn = spawn;
+          break;
+        }
+      }
+      if (availableSpawn) {
+        const groupId = aggro.effectiveGroupId(character);
+        const participants = groupId
+          ? [...ctx.db.group_member.by_group.filter(groupId)]
+              .map((m: any) => ctx.db.character.id.find(m.characterId))
+              .filter(Boolean)
+          : [character];
+        aggro.startCombatForSpawn(ctx, character, availableSpawn, participants, groupId ?? null);
+      }
+    } catch (_e) {
+      // If aggro fails (safe zone etc.), skip silently
+    }
+  }
 }
 
 export const registerQuestReducers = (deps: any) => {
@@ -282,67 +468,7 @@ export const registerQuestReducers = (deps: any) => {
       if (!questItem.discovered) { fail(ctx, character, 'You have not yet discovered this item'); return; }
       if (questItem.looted) { fail(ctx, character, 'You have already looted this item'); return; }
 
-      // Mark as looted
-      ctx.db.quest_item.id.update({ ...questItem, looted: true });
-
-      // Find matching quest instance (not completed, matching template)
-      let questInstance: any = null;
-      for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
-        if (qi.completed) continue;
-        if (qi.questTemplateId === questItem.questTemplateId) {
-          questInstance = qi;
-          break;
-        }
-      }
-
-      // If found, advance explore quest progress (complete on single item loot)
-      if (questInstance) {
-        ctx.db.quest_instance.id.update({
-          ...questInstance,
-          progress: 1n,
-          completed: true,
-          completedAt: questInstance.completedAt,
-        });
-
-        const qt = ctx.db.quest_template.id.find(questInstance.questTemplateId);
-        if (qt) {
-          const turnInNpcId = questTurnInNpcId(qt);
-          const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
-          const giver = npc ? npc.name : 'the quest giver';
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-            `Quest complete: ${qt.name}. Return to ${giver}.`);
-        }
-      }
-
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-        `You found ${questItem.name}!`);
-
-      // 30% aggro chance (deterministic roll)
-      const roll = (BigInt(character.id) ^ ctx.timestamp.microsSinceUnixEpoch) % 100n;
-      if (roll < 30n) {
-        try {
-          ensureSpawnsForLocation(ctx, character.locationId);
-          // Find an available spawn at the character's location
-          let availableSpawn: any = null;
-          for (const spawn of ctx.db.enemy_spawn.by_location.filter(character.locationId)) {
-            if (spawn.state === 'available') {
-              availableSpawn = spawn;
-              break;
-            }
-          }
-          if (availableSpawn) {
-            const groupId = effectiveGroupId(character);
-            const participants = groupId
-              ? [...ctx.db.group_member.by_group.filter(groupId)]
-                  .map((m: any) => ctx.db.character.id.find(m.characterId))
-                  .filter(Boolean)
-              : [character];
-            startCombatForSpawn(ctx, character, availableSpawn, participants, groupId ?? null);
-          }
-        } catch (_e) {
-          // If aggro fails (safe zone etc.), skip silently
-        }
-      }
+      pickUpQuestItem(ctx, character, questItem, appendPrivateEvent, { ensureSpawnsForLocation, effectiveGroupId, startCombatForSpawn });
     }
   );
 
@@ -417,6 +543,9 @@ export const registerQuestReducers = (deps: any) => {
 
     const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
     const questName = qt ? qt.name : 'Unknown Quest';
+
+    // A turned-in quest is history, not an open quest
+    if (isQuestTurnedIn(qi)) { fail(ctx, character, `You've already turned in ${questName}; it cannot be abandoned.`); return; }
 
     // Delete quest instance
     ctx.db.quest_instance.id.delete(qi.id);

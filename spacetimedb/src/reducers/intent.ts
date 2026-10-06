@@ -17,7 +17,7 @@ import {
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
 import { findRaceDefinition } from '../data/race_bonuses';
-import { turnInCompletedQuest, questTurnInNpcId } from './quests';
+import { turnInCompletedQuest, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -642,26 +642,12 @@ export const registerIntentReducers = (deps: any) => {
       const match = questItemsAtLoc.find((qi: any) => qi.name.toLowerCase() === itemName.toLowerCase()
         || qi.name.toLowerCase().includes(itemName.toLowerCase()));
       if (match) {
-        // Mark as looted
-        ctx.db.quest_item.id.update({ ...match, looted: true });
-
-        // Find and update matching quest instance progress
-        for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
-          if (qi.completed) continue;
-          if (qi.questTemplateId === match.questTemplateId) {
-            ctx.db.quest_instance.id.update({ ...qi, progress: 1n, completed: true });
-            const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
-            if (qt) {
-              const turnInNpcId = questTurnInNpcId(qt);
-              const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
-              const giver = npc ? npc.name : 'the quest giver';
-              appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-                `Quest complete: ${qt.name}. Return to ${giver}.`);
-            }
-            break;
-          }
-        }
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `You found ${match.name}!`);
+        // Same pickup as the loot_quest_item reducer (looted, quest completed, messages, 30% aggro roll)
+        pickUpQuestItem(ctx, character, match, appendPrivateEvent, {
+          ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
+          effectiveGroupId: deps.effectiveGroupId,
+          startCombatForSpawn: deps.startCombatForSpawn,
+        });
         return;
       }
       // Fall through to fail
@@ -721,7 +707,8 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- QUESTS ---
     if (lower === 'quests' || lower === 'quest') {
-      const instances = [...ctx.db.quest_instance.by_character.filter(character.id)];
+      // Turned-in quests (completedAt set) stay as history and are not listed as active
+      const instances = [...ctx.db.quest_instance.by_character.filter(character.id)].filter((qi: any) => !isQuestTurnedIn(qi));
       if (instances.length === 0) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
           'You have no active quests. Speak with NPCs to discover what needs doing.');
@@ -800,6 +787,9 @@ export const registerIntentReducers = (deps: any) => {
         const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
         if (!qt) continue;
         if (qt.name.toLowerCase() !== questName.toLowerCase()) continue;
+        if (isQuestTurnedIn(qi)) {
+          return fail(ctx, character, `You've already turned in ${qt.name}; it cannot be abandoned.`);
+        }
 
         ctx.db.quest_instance.id.delete(qi.id);
         if (qt.npcId) {
@@ -821,6 +811,9 @@ export const registerIntentReducers = (deps: any) => {
         const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
         if (!qt) continue;
         if (qt.name.toLowerCase() !== questName.toLowerCase()) continue;
+        if (isQuestTurnedIn(qi)) {
+          return fail(ctx, character, `You've already turned in ${qt.name}; it cannot be abandoned.`);
+        }
 
         let warning = `{{color:#f59e0b}}--- Abandon ${qt.name}? ---{{/color}}\n`;
         if (qt.npcId) {
