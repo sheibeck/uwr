@@ -779,10 +779,24 @@ describe('HotbarRow ability tooltip', () => {
     await first.trigger('pointerenter', { pointerType: 'mouse' });
     expect(tip(s.wrapper).exists()).toBe(true);
     expect(tip(s.wrapper).get('.tip-name').text()).toBe('Firebolt');
+    expect(tip(s.wrapper).get('.tip-type').text()).toBe('Damage');
     expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 6s cooldown · 2s cast');
     expect(tip(s.wrapper).get('.tip-description').text()).toBe('Hurls a bolt of fire.');
     await first.trigger('pointerleave', { pointerType: 'mouse' });
     expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('names the ability type for a damage over time and a heal over time slot', async () => {
+    const s = setup({
+      abilities: [ability(11n, 'Ignite', 'dot'), ability(12n, 'Renew', 'hot'), ability(13n, 'Mark', 'debuff')],
+    });
+    const types: string[] = [];
+    for (const index of [0, 1, 9]) {
+      await slots(s.wrapper)[index].trigger('pointerenter', { pointerType: 'mouse' });
+      types.push(tip(s.wrapper).get('.tip-type').text());
+      await slots(s.wrapper)[index].trigger('pointerleave', { pointerType: 'mouse' });
+    }
+    expect(types).toEqual(['Damage over time', 'Heal over time', 'Debuff']);
   });
 
   it('follows the hovered slot and says Instant for a zero cast time', async () => {
@@ -791,6 +805,7 @@ describe('HotbarRow ability tooltip', () => {
     await slots(s.wrapper)[0].trigger('pointerleave', { pointerType: 'mouse' });
     await slots(s.wrapper)[1].trigger('pointerenter', { pointerType: 'pen' });
     expect(tip(s.wrapper).get('.tip-name').text()).toBe('Mend');
+    expect(tip(s.wrapper).get('.tip-type').text()).toBe('Heal');
     expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 6s cooldown · Instant');
   });
 
@@ -833,8 +848,8 @@ describe('HotbarRow ability tooltip', () => {
   it('links every filled slot to a description holding the same text through aria-describedby', () => {
     const s = withFirebolt();
     const first = slots(s.wrapper)[0];
-    expect(describedText(first)).toBe('10 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.');
-    expect(describedText(slots(s.wrapper)[1])).toBe('10 mana, 6s cooldown, Instant. Mend description.');
+    expect(describedText(first)).toBe('Damage, 10 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.');
+    expect(describedText(slots(s.wrapper)[1])).toBe('Heal, 10 mana, 6s cooldown, Instant. Mend description.');
     const ids = slots(s.wrapper)
       .map((slot) => slot.attributes('aria-describedby'))
       .filter((id) => id !== undefined);
@@ -858,7 +873,7 @@ describe('HotbarRow ability tooltip', () => {
     const s = setup({ abilities: [ability(11n, 'Firebolt', 'damage', { description: '  ' }), ...DEFAULT_ABILITIES.slice(1)] });
     await slots(s.wrapper)[0].trigger('pointerenter', { pointerType: 'mouse' });
     expect(tip(s.wrapper).find('.tip-description').exists()).toBe(false);
-    expect(describedText(slots(s.wrapper)[0])).toBe('10 mana, 6s cooldown, Instant');
+    expect(describedText(slots(s.wrapper)[0])).toBe('Damage, 10 mana, 6s cooldown, Instant');
   });
 
   it('renders hostile name and description as text, never markup', async () => {

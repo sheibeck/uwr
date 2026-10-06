@@ -2,7 +2,8 @@
 import { computed, inject } from 'vue';
 import { PhCaretUp, PhDotsThree, PhHourglassMedium } from '@phosphor-icons/vue';
 import { COMBAT_KEY, GAME_KEY, createInertCombat, createInertGame } from '../game/context';
-import { encounterHeading, hostileViews, livingHostileIds } from './hostiles';
+import EffectChips from '../rails/EffectChips.vue';
+import { STRIP_EFFECT_LIMIT, encounterHeading, hostileViews, livingHostileIds } from './hostiles';
 
 // The mobile encounter strip (48-UI-SPEC "Mobile (390 x 844), combat", CMB-01, CMB-03, CMB-05): a
 // header button that opens the encounter sheet, an account button that keeps Log out reachable
@@ -23,6 +24,7 @@ const hostiles = computed(() =>
     templates: combat.enemyTemplates.value,
     abilities: combat.enemyAbilities.value,
     casts: combat.casts.value,
+    effects: combat.enemyEffects.value,
     currentRound: combat.roundNumber.value,
     playerLevel: game.character.value?.level ?? 0n,
     targetId: game.character.value?.combatTargetEnemyId ?? null,
@@ -73,7 +75,11 @@ function onChip(id: bigint, defeated: boolean): void {
         :key="String(hostile.id)"
         type="button"
         class="hostile-chip"
-        :class="{ targeted: hostile.targeted, defeated: hostile.defeated }"
+        :class="{
+          targeted: hostile.targeted,
+          defeated: hostile.defeated,
+          'has-effects': hostile.effects.length > 0,
+        }"
         :aria-pressed="hostile.targeted"
         :aria-disabled="hostile.defeated ? 'true' : undefined"
         :aria-label="hostile.ariaLabel"
@@ -83,6 +89,14 @@ function onChip(id: bigint, defeated: boolean): void {
           <span class="chip-name" :class="hostile.con.className">{{ hostile.name }}</span>
           <PhHourglassMedium v-if="hostile.windups.length > 0" class="chip-windup" :size="12" aria-hidden="true" />
         </span>
+        <EffectChips
+          v-if="hostile.effects.length > 0"
+          :effects="hostile.effects"
+          :limit="STRIP_EFFECT_LIMIT"
+          compact
+          nowrap
+          inline
+        />
         <span class="sliver"><span class="sliver-fill" :style="{ width: hostile.widthPercent }"></span></span>
       </button>
     </div>
@@ -213,6 +227,11 @@ function onChip(id: bigint, defeated: boolean): void {
   box-shadow:
     inset 0 0 0 1px var(--color-accent),
     0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* A chip that carries effect chips sizes to its content so the chips are not clipped; the row scrolls. */
+.hostile-chip.has-effects {
+  flex-basis: auto;
 }
 
 .hostile-chip.defeated {

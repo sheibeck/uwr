@@ -29,6 +29,10 @@ export interface EffectView {
   timeText: string | null;
   text: string;
   title: string;
+  /** Shorter chip text for a tight spot (the mobile strip); chips fall back to text. */
+  compactText?: string;
+  /** Screen reader phrase for a host that labels itself ('Ignite on Rotfang, 3 rounds left'). */
+  ariaText?: string;
 }
 
 /** Chips shown before the overflow chip `+n`. */
@@ -36,7 +40,7 @@ export const EFFECT_CHIP_LIMIT = 8;
 
 const NAMED_DEBUFFS: readonly string[] = ['damage_taken', 'dot', 'fear', ...CC_TYPES];
 
-const REGEN_TYPES: readonly string[] = [
+export const REGEN_TYPES: readonly string[] = [
   'regen',
   'mana_regen',
   'stamina_regen',

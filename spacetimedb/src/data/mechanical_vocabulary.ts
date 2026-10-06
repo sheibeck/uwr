@@ -98,6 +98,38 @@ export const ABILITY_KINDS = [
 ] as const;
 export type AbilityKind = (typeof ABILITY_KINDS)[number];
 
+// Player-facing name of every ability kind (hotbar tooltip type line, effect chip type text).
+// Typed as a full Record so a kind added above cannot be left without a label.
+export const ABILITY_KIND_LABELS: Record<AbilityKind, string> = {
+  damage: 'Damage',
+  heal: 'Heal',
+  dot: 'Damage over time',
+  hot: 'Heal over time',
+  buff: 'Buff',
+  debuff: 'Debuff',
+  shield: 'Shield',
+  taunt: 'Taunt',
+  aoe_damage: 'Area damage',
+  aoe_heal: 'Area heal',
+  summon: 'Summon',
+  cc: 'Crowd control',
+  drain: 'Drain',
+  execute: 'Execute',
+  utility: 'Utility',
+  song: 'Song',
+  aura: 'Aura',
+  travel: 'Travel',
+  fear: 'Fear',
+  bandage: 'Bandage',
+  potion: 'Potion',
+  food_summon: 'Food',
+  resurrect: 'Resurrect',
+  group_heal: 'Group heal',
+  craft_boost: 'Crafting boost',
+  gather_boost: 'Gathering boost',
+  pet_command: 'Pet command',
+};
+
 // What resource an ability costs to use
 export const RESOURCE_TYPES = ['mana', 'stamina', 'hp', 'none'] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];

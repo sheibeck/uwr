@@ -10,6 +10,7 @@ import type {
   CombatAction,
   CombatEnemy,
   CombatEnemyCast,
+  CombatEnemyEffect,
   CombatNarrative,
   CombatParticipant,
   CombatRound,
@@ -69,7 +70,7 @@ import { createServerClock } from './serverClock';
 //   by id list           party and inviter characters, quest templates, event objectives,
 //                        the enemy templates of the spawns here (level, for the con color)
 //   combat (48)          own participant and own choice rows by character; participants,
-//                        enemies, rounds, casts, narratives and pets of the one fight by combat
+//                        enemies, enemy effects, rounds, casts, narratives and pets of the one fight by combat
 //                        id (the key follows the own participant row); enemy templates and
 //                        abilities by id list; my_combat_aggro once per connection
 //
@@ -125,6 +126,7 @@ export interface GameConn extends ConnLike {
     combatRound: Row<CombatRound>;
     combatAction: Row<CombatAction>;
     combatEnemyCast: Row<CombatEnemyCast>;
+    combatEnemyEffect: Row<CombatEnemyEffect>;
     combatNarrative: Row<CombatNarrative>;
     activePet: Row<ActivePet>;
     myCombatAggro: Row<MyCombatAggroEntry>;
@@ -459,6 +461,12 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     queries.combatCasts,
     (row, k) => row.combatId === k,
   );
+  const fightEnemyEffects = keyedTable<CombatEnemyEffect, bigint>(
+    combatKey,
+    (c) => c.db.combatEnemyEffect,
+    queries.combatEnemyEffects,
+    (row, k) => row.combatId === k,
+  );
   const fightPets = keyedTable<ActivePet, bigint>(
     combatKey,
     (c) => c.db.activePet,
@@ -582,6 +590,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     fightEnemies,
     fightRounds,
     fightCasts,
+    fightEnemyEffects,
     fightPets,
     fightNarratives,
     enemyTemplates,
@@ -671,6 +680,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     actions: ownActionRows,
     ownAction,
     casts: keyedRows(fightCasts),
+    enemyEffects: keyedRows(fightEnemyEffects),
     narratives: keyedRows(fightNarratives),
     pets: petRows,
     aggro: combatAggro.rows,

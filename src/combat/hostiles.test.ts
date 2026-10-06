@@ -241,6 +241,110 @@ describe('hostileViews labels', () => {
   });
 });
 
+function effect(id: bigint, enemyId: bigint, over: Record<string, unknown> = {}) {
+  return {
+    id,
+    enemyId,
+    effectType: 'dot',
+    magnitude: 6n,
+    roundsRemaining: 3n,
+    sourceAbility: 'Ignite',
+    ...over,
+  };
+}
+
+describe('hostileViews effects', () => {
+  it('has no effects when none are given', () => {
+    const [view] = hostileViews(input());
+    expect(view.effects).toEqual([]);
+  });
+
+  it('gives each hostile only its own effects, in ascending id', () => {
+    const views = hostileViews(
+      input({
+        enemies: [enemy(1n), enemy(2n), enemy(3n)],
+        effects: [
+          effect(8n, 2n, { effectType: 'armor_down', sourceAbility: 'Sunder' }),
+          effect(5n, 2n),
+          effect(6n, 1n, { effectType: 'stun', sourceAbility: 'Bash' }),
+        ],
+      }),
+    );
+    expect(views.map((v) => v.effects.map((e) => e.id))).toEqual([[6n], [5n, 8n], []]);
+  });
+
+  it('reads the type in the vocabulary words and the rounds as N rounds', () => {
+    const [view] = hostileViews(
+      input({
+        effects: [
+          effect(1n, 1n),
+          effect(2n, 1n, { effectType: 'regen', sourceAbility: 'Mend', roundsRemaining: 1n }),
+          effect(3n, 1n, { effectType: 'armor_down', sourceAbility: 'Sunder', roundsRemaining: 2n }),
+          effect(4n, 1n, { effectType: 'damage_up', sourceAbility: 'Rage', roundsRemaining: 5n }),
+          effect(5n, 1n, { effectType: 'stun', sourceAbility: 'Bash', roundsRemaining: 2n }),
+        ],
+      }),
+    );
+    expect(view.effects.map((e) => e.text)).toEqual([
+      'Damage over time · 3 rounds',
+      'Heal over time · 1 round',
+      'Debuff · 2 rounds',
+      'Buff · 5 rounds',
+      'Crowd control · 2 rounds',
+    ]);
+    expect(view.effects.map((e) => e.compactText)).toEqual(['3 rounds', '1 round', '2 rounds', '5 rounds', '2 rounds']);
+    expect(view.effects[0].title).toBe('Ignite · Damage over time · 3 rounds');
+    expect(view.effects[0].polarity).toBe('debuff');
+    expect(view.effects[3].polarity).toBe('buff');
+  });
+
+  it('names the effect from the type when there is no source ability, and omits a zero rounds count', () => {
+    const [view] = hostileViews(
+      input({
+        effects: [effect(1n, 1n, { sourceAbility: null, effectType: 'damage_taken', roundsRemaining: 0n })],
+      }),
+    );
+    expect(view.effects[0].name).toBe('damage taken');
+    expect(view.effects[0].timeText).toBeNull();
+    expect(view.effects[0].text).toBe('Debuff');
+    expect(view.effects[0].ariaText).toBe('damage taken on Enemy 1');
+  });
+
+  it('adds "{effect} on {enemy}, N rounds left" to the aria label', () => {
+    const [view] = hostileViews(
+      input({
+        enemies: [enemy(1n, { displayName: 'Rotfang' })],
+        effects: [effect(1n, 1n), effect(2n, 1n, { sourceAbility: 'Sunder', effectType: 'armor_down', roundsRemaining: 1n })],
+      }),
+    );
+    expect(view.effects[0].ariaText).toBe('Ignite on Rotfang, 3 rounds left');
+    expect(view.effects[1].ariaText).toBe('Sunder on Rotfang, 1 round left');
+    expect(view.ariaLabel).toBe(
+      'Rotfang, level 3, Even match, 100% health, Ignite on Rotfang, 3 rounds left, Sunder on Rotfang, 1 round left',
+    );
+  });
+
+  it('shows none on a defeated hostile', () => {
+    const [view] = hostileViews(input({ enemies: [enemy(1n, { currentHp: 0n })], effects: [effect(1n, 1n)] }));
+    expect(view.defeated).toBe(true);
+    expect(view.effects).toEqual([]);
+    expect(view.ariaLabel).not.toContain('Ignite');
+  });
+
+  it('keeps hostile effect names as plain strings', () => {
+    const [view] = hostileViews(input({ effects: [effect(1n, 1n, { sourceAbility: XSS })] }));
+    expect(view.effects[0].name).toBe(XSS);
+    expect(view.effects[0].title).toBe(`${XSS} · Damage over time · 3 rounds`);
+    expect(view.effects[0].ariaText).toBe(`${XSS} on Enemy 1, 3 rounds left`);
+  });
+
+  it('does not reorder the caller effect array', () => {
+    const effects = [effect(8n, 1n), effect(5n, 1n)];
+    hostileViews(input({ effects }));
+    expect(effects.map((e) => e.id)).toEqual([8n, 5n]);
+  });
+});
+
 describe('livingHostileIds and encounterHeading', () => {
   it('skips defeated rows', () => {
     const views = hostileViews(

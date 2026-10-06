@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { PhCrosshairSimple, PhHourglassMedium } from '@phosphor-icons/vue';
+import EffectChips from '../rails/EffectChips.vue';
+import { HOSTILE_EFFECT_LIMIT } from './hostiles';
 import type { HostileView } from './hostiles';
 
 // One hostile in the encounter rail and sheet (48-UI-SPEC "Encounter panel", CMB-01, CMB-03).
@@ -42,6 +44,14 @@ function onClick(): void {
       <span class="hp-fill" :style="{ width: hostile.widthPercent }"></span>
       <span class="hp-value">{{ hostile.hpText }}</span>
     </span>
+    <EffectChips
+      v-if="hostile.effects.length > 0"
+      class="hostile-effects"
+      :effects="hostile.effects"
+      :limit="HOSTILE_EFFECT_LIMIT"
+      dense
+      inline
+    />
     <span v-for="(windup, index) in hostile.windups" :key="index" class="windup">
       <PhHourglassMedium class="windup-icon" :size="14" aria-hidden="true" />
       <span class="windup-text">{{ windup.text }}</span>

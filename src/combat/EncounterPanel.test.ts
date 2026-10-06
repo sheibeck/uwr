@@ -26,6 +26,7 @@ interface Setup {
   templates?: Array<Record<string, unknown>>;
   abilities?: Array<Record<string, unknown>>;
   casts?: Array<Record<string, unknown>>;
+  effects?: Array<Record<string, unknown>>;
   aggro?: Array<Record<string, unknown>>;
   aggroApplied?: boolean;
   applied?: boolean;
@@ -64,6 +65,7 @@ function mountPanel(setup: Setup = {}, props: { variant?: 'rail' | 'sheet' } = {
       setup.abilities ?? [{ enemyTemplateId: 100n, abilityKey: 'bile_spray', name: 'Bile Spray' }],
     ),
     casts: ref(setup.casts ?? []),
+    enemyEffects: ref(setup.effects ?? []),
     aggro: ref(setup.aggro ?? []),
     roundNumber: ref(setup.roundNumber === undefined ? 3n : setup.roundNumber),
     characterNames: ref(setup.characterNames ?? new Map<bigint, string>()),
@@ -271,6 +273,117 @@ describe('EncounterPanel variants', () => {
     expect(wrapper!.classes()).toContain('sheet');
     expect(wrapper!.find('.hint').exists()).toBe(false);
     expect(wrapper!.get('.hostile-card').classes()).toContain('sheet');
+  });
+});
+
+function fx(id: bigint, enemyId: bigint, over: Record<string, unknown> = {}) {
+  return {
+    id,
+    combatId: 1n,
+    enemyId,
+    effectType: 'dot',
+    magnitude: 6n,
+    roundsRemaining: 3n,
+    sourceAbility: 'Ignite',
+    ...over,
+  };
+}
+
+describe('EncounterPanel enemy effect chips', () => {
+  it('shows no chip row for a hostile without effects', () => {
+    mountPanel();
+    expect(wrapper!.find('.hostile-effects').exists()).toBe(false);
+  });
+
+  it('shows each hostile only its own effects', () => {
+    mountPanel({
+      effects: [
+        fx(1n, 9n),
+        fx(2n, 9n, { effectType: 'armor_down', sourceAbility: 'Sunder', roundsRemaining: 2n }),
+        fx(3n, 3n, { effectType: 'stun', sourceAbility: 'Bash', roundsRemaining: 1n }),
+      ],
+    });
+    const [gnawer, rotfang] = wrapper!.findAll('.hostile-card');
+    expect(gnawer.findAll('.effect-chips .tag').map((chip) => chip.text())).toEqual(['Crowd control · 1 round']);
+    expect(rotfang.findAll('.effect-chips .tag').map((chip) => chip.text())).toEqual([
+      'Damage over time · 3 rounds',
+      'Debuff · 2 rounds',
+    ]);
+  });
+
+  it('shows the type text for damage over time, heal over time, debuff and buff', () => {
+    mountPanel({
+      enemies: [enemy(9n, 'Rotfang')],
+      effects: [
+        fx(1n, 9n),
+        fx(2n, 9n, { effectType: 'regen', sourceAbility: 'Mend' }),
+        fx(3n, 9n, { effectType: 'armor_down', sourceAbility: 'Sunder' }),
+        fx(4n, 9n, { effectType: 'damage_up', sourceAbility: 'Rage' }),
+      ],
+    });
+    // limit 3 shows three chips and a +1
+    expect(wrapper!.findAll('.effect-chips .tag').map((chip) => chip.text())).toEqual([
+      'Damage over time · 3 rounds',
+      'Heal over time · 3 rounds',
+      'Debuff · 3 rounds',
+      '+1',
+    ]);
+  });
+
+  it('reads one round in the singular and N rounds in the plural', () => {
+    mountPanel({
+      enemies: [enemy(9n, 'Rotfang')],
+      effects: [fx(1n, 9n, { roundsRemaining: 1n }), fx(2n, 9n, { roundsRemaining: 12n, sourceAbility: 'Rot' })],
+    });
+    const texts = wrapper!.findAll('.effect-chips .tag').map((chip) => chip.text());
+    expect(texts).toEqual(['Damage over time · 1 round', 'Damage over time · 12 rounds']);
+  });
+
+  it('shows a +N chip when more effects than fit, and the total never exceeds the limit plus one', () => {
+    const effects = [1n, 2n, 3n, 4n, 5n, 6n].map((id) => fx(id, 9n, { sourceAbility: `Rot ${id}` }));
+    mountPanel({ enemies: [enemy(9n, 'Rotfang')], effects });
+    const chips = wrapper!.findAll('.effect-chips .tag');
+    expect(chips).toHaveLength(4);
+    expect(chips[3].text()).toBe('+3');
+    expect(chips[3].classes()).toContain('tag-neutral');
+    expect(chips[3].attributes('title')).toBe('3 more effects');
+  });
+
+  it('shows no +N chip at exactly the limit', () => {
+    mountPanel({
+      enemies: [enemy(9n, 'Rotfang')],
+      effects: [fx(1n, 9n), fx(2n, 9n), fx(3n, 9n)],
+    });
+    expect(wrapper!.findAll('.effect-chips .tag')).toHaveLength(3);
+    expect(wrapper!.find('.tag-neutral').exists()).toBe(false);
+  });
+
+  it('names the effect in the title and "{effect} on {enemy}, N rounds left" in the card label', () => {
+    mountPanel({ enemies: [enemy(9n, 'Rotfang')], effects: [fx(1n, 9n)] });
+    const card = wrapper!.get('.hostile-card');
+    expect(card.get('.effect-chips .tag').attributes('title')).toBe('Ignite · Damage over time · 3 rounds');
+    expect(card.attributes('aria-label')).toContain('Ignite on Rotfang, 3 rounds left');
+  });
+
+  it('keeps chips inline (spans) inside the card button and does not change what a click does', async () => {
+    const { requestTarget } = mountPanel({ enemies: [enemy(9n, 'Rotfang')], effects: [fx(1n, 9n)] });
+    expect(wrapper!.get('.hostile-card .effect-chips').element.tagName).toBe('SPAN');
+    await wrapper!.get('.hostile-card .effect-chips .tag').trigger('click');
+    expect(requestTarget).toHaveBeenCalledWith(9n);
+  });
+
+  it('shows chips on the sheet variant too', () => {
+    mountPanel({ enemies: [enemy(9n, 'Rotfang')], effects: [fx(1n, 9n)] }, { variant: 'sheet' });
+    expect(wrapper!.findAll('.effect-chips .tag')).toHaveLength(1);
+  });
+
+  it('renders an effect name as text, never markup', () => {
+    mountPanel({ enemies: [enemy(9n, 'Rotfang')], effects: [fx(1n, 9n, { sourceAbility: XSS })] });
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.effect-chips .tag').attributes('title')).toContain(XSS);
+    expect(wrapper!.get('.hostile-card').attributes('aria-label')).toContain(`${XSS} on Rotfang, 3 rounds left`);
+    expect(wrapper!.get('.effect-chips').text()).not.toContain('onerror');
+    expect(wrapper!.element.querySelector('img')).toBeNull();
   });
 });
 

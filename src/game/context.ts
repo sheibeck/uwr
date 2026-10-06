@@ -10,6 +10,7 @@ import type {
   CombatAction,
   CombatEnemy,
   CombatEnemyCast,
+  CombatEnemyEffect,
   CombatNarrative,
   CombatParticipant,
   CombatRound,
@@ -127,6 +128,8 @@ export interface CombatData {
   /** The player's choice row for the open round only. */
   readonly ownAction: Readonly<Ref<CombatAction | null>>;
   readonly casts: List<CombatEnemyCast>;
+  /** Active effects (damage over time, debuffs, crowd control, buffs) on the enemies of the fight. */
+  readonly enemyEffects: List<CombatEnemyEffect>;
   /** Lingers for a short while after the fight ends, so a late narration still matches its round. */
   readonly narratives: List<CombatNarrative>;
   readonly pets: List<ActivePet>;
@@ -297,6 +300,7 @@ export function createInertCombatData(): CombatData {
     actions: empty<CombatAction>(),
     ownAction: constant<CombatAction | null>(null),
     casts: empty<CombatEnemyCast>(),
+    enemyEffects: empty<CombatEnemyEffect>(),
     narratives: empty<CombatNarrative>(),
     pets: empty<ActivePet>(),
     aggro: empty<MyCombatAggroEntry>(),
