@@ -1,7 +1,12 @@
 import { awardNpcAffinity } from '../helpers/npc_affinity';
 import { recordQuestCompletion } from '../helpers/npc_conversation';
+import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
 
-function computeQuestRewardStats(playerLevel: bigint, questType: string) {
+// Slots the quest reward cycles through by player level. All are EQUIPMENT_SLOTS (helpers/items.ts);
+// 'mainHand' is the weapon slot.
+export const QUEST_REWARD_SLOTS = ['head', 'chest', 'legs', 'boots', 'hands', 'mainHand'] as const;
+
+export function computeQuestRewardStats(playerLevel: bigint, questType: string) {
   const levelNum = Number(playerLevel);
   const baseBudget = levelNum * 2 + 5;
 
@@ -15,10 +20,8 @@ function computeQuestRewardStats(playerLevel: bigint, questType: string) {
   const totalBudget = Math.round(baseBudget * typeMult);
 
   // Pick slot based on level parity for variety
-  const slots = ['head', 'chest', 'legs', 'feet', 'hands', 'weapon'];
-  const slotIdx = levelNum % slots.length;
-  const slot = slots[slotIdx];
-  const isWeapon = slot === 'weapon';
+  const slot = QUEST_REWARD_SLOTS[levelNum % QUEST_REWARD_SLOTS.length];
+  const isWeapon = slot === 'mainHand';
 
   // Rarity based on total budget
   let rarity = 'common';
@@ -34,7 +37,7 @@ function computeQuestRewardStats(playerLevel: bigint, questType: string) {
 
   return {
     slot,
-    armorType: isWeapon ? 'none' : 'medium',
+    isWeapon,
     rarity,
     vendorValue: totalBudget * 3,
     damage,
@@ -47,6 +50,76 @@ function computeQuestRewardStats(playerLevel: bigint, questType: string) {
     maxHp: Math.round(totalBudget * 0.2),
     maxMana: 0,
   };
+}
+
+// Heaviest armor first, as grantStarterItems picks starter armor.
+const REWARD_ARMOR_ORDER = ['plate', 'chain', 'leather', 'cloth'] as const;
+
+/** The heaviest armor type the character is proficient in; 'cloth' when none is listed (everyone wears cloth). */
+export function questRewardArmorType(character: any): string {
+  const profs = String(character.armorProficiencies ?? '').split(',').map((p) => p.trim());
+  return REWARD_ARMOR_ORDER.find((a) => profs.includes(a)) ?? 'cloth';
+}
+
+/** The character's first proficient weapon type; 'sword' when none is listed (legacy characters, allowedClasses 'any'). */
+export function questRewardWeaponType(character: any): string {
+  const profs = String(character.weaponProficiencies ?? '').split(',').map((p) => p.trim());
+  return profs.find((p) => (WEAPON_TYPES as readonly string[]).includes(p)) ?? 'sword';
+}
+
+/**
+ * Creates the item reward of an item-reward quest (qt.rewardType 'item' with a rewardItemName) for the
+ * character who turned it in: an item_template row with every schema column, typed so that character can
+ * equip it (armor or weapon type from their proficiencies, allowedClasses 'any', requiredLevel = their
+ * level), and one item_instance in their bags. Does nothing for other quests.
+ */
+export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPrivateEvent: any) {
+  if (qt.rewardType !== 'item' || !qt.rewardItemName) return undefined;
+  const itemStats = computeQuestRewardStats(character.level, qt.questType || 'kill');
+
+  const itemTemplate = ctx.db.item_template.insert({
+    id: 0n,
+    name: qt.rewardItemName,
+    slot: itemStats.slot,
+    armorType: itemStats.isWeapon ? 'none' : questRewardArmorType(character),
+    rarity: itemStats.rarity,
+    tier: BigInt(Math.max(1, Math.floor(Number(character.level) / 3))),
+    isJunk: false,
+    vendorValue: BigInt(itemStats.vendorValue),
+    requiredLevel: character.level,
+    allowedClasses: 'any',
+    strBonus: BigInt(itemStats.str),
+    dexBonus: BigInt(itemStats.dex),
+    chaBonus: BigInt(itemStats.cha),
+    wisBonus: BigInt(itemStats.wis),
+    intBonus: BigInt(itemStats.int),
+    hpBonus: BigInt(itemStats.maxHp),
+    manaBonus: BigInt(itemStats.maxMana),
+    armorClassBonus: BigInt(itemStats.armor),
+    magicResistanceBonus: 0n,
+    // Starter weapons carry dps = base damage + 1 (ensureStarterItemTemplates).
+    weaponBaseDamage: BigInt(itemStats.damage),
+    weaponDps: itemStats.isWeapon ? BigInt(itemStats.damage + 1) : 0n,
+    weaponType: itemStats.isWeapon ? questRewardWeaponType(character) : '',
+    stackable: false,
+    wellFedDurationMicros: 0n,
+    wellFedBuffType: '',
+    wellFedBuffMagnitude: 0n,
+    description: qt.rewardItemDesc || undefined,
+  });
+
+  const instance = ctx.db.item_instance.insert({
+    id: 0n,
+    templateId: itemTemplate.id,
+    ownerCharacterId: character.id,
+    equippedSlot: undefined,
+    quantity: 1n,
+    qualityTier: itemStats.rarity,
+  });
+
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+    `Received: ${qt.rewardItemName}!`);
+  return instance;
 }
 
 export const registerQuestReducers = (deps: any) => {
@@ -226,40 +299,7 @@ export const registerQuestReducers = (deps: any) => {
     }
 
     // Generate item reward if applicable
-    if (qt.rewardType === 'item' && qt.rewardItemName) {
-      const itemStats = computeQuestRewardStats(character.level, qt.questType || 'kill');
-
-      const itemTemplate = ctx.db.item_template.insert({
-        id: 0n,
-        name: qt.rewardItemName,
-        slot: itemStats.slot,
-        armorType: itemStats.armorType,
-        rarity: itemStats.rarity,
-        tier: BigInt(Math.max(1, Math.floor(Number(character.level) / 3))),
-        isJunk: false,
-        vendorValue: BigInt(itemStats.vendorValue),
-        damage: BigInt(itemStats.damage),
-        armor: BigInt(itemStats.armor),
-        str: BigInt(itemStats.str),
-        dex: BigInt(itemStats.dex),
-        int: BigInt(itemStats.int),
-        wis: BigInt(itemStats.wis),
-        cha: BigInt(itemStats.cha),
-        maxHp: BigInt(itemStats.maxHp),
-        maxMana: BigInt(itemStats.maxMana),
-        description: qt.rewardItemDesc || undefined,
-      });
-
-      ctx.db.item_instance.insert({
-        id: 0n,
-        templateId: itemTemplate.id,
-        ownerCharacterId: character.id,
-        quantity: 1n,
-      });
-
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-        `Received: ${qt.rewardItemName}!`);
-    }
+    grantQuestItemReward(ctx, character, qt, appendPrivateEvent);
 
     // Award NPC affinity for quest completion
     if (qt.npcId) {
