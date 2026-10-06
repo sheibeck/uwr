@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import RoundRow from './RoundRow.vue';
+import FeedShell from '../frame/FeedShell.vue';
 import {
   COMBAT_KEY,
   FRAME_KEY,
@@ -377,5 +378,27 @@ describe('RoundRow source', () => {
 
   it('breaks at 520px', () => {
     expect(source).toContain('ROUND_ROW_STACK_PX = 520');
+  });
+});
+
+describe('RoundRow in the feed shell', () => {
+  it('is the first child of the composer, before the hotbar row, and absent with the inert game', () => {
+    wrapper = mount(FeedShell);
+    expect(wrapper.find('.round-row').exists()).toBe(false);
+    expect(wrapper.get('section.composer').element.firstElementChild?.classList.contains('hotbar-row')).toBe(true);
+    wrapper.unmount();
+
+    const combat = { ...createInertCombatData(), active: ref(true) };
+    const game = { ...createInertGame(), combat } as unknown as GameData;
+    wrapper = mount(FeedShell, { global: { provide: { [GAME_KEY as symbol]: game } } });
+    const composer = wrapper.get('section.composer').element;
+    expect(composer.firstElementChild?.classList.contains('round-row')).toBe(true);
+    expect(composer.children[1]?.classList.contains('hotbar-row')).toBe(true);
+  });
+
+  it('lists RoundRow before HotbarRow in the FeedShell template', () => {
+    const shell = readFileSync(resolve(__dirname, '../frame/FeedShell.vue'), 'utf8');
+    expect(shell.indexOf('<RoundRow')).toBeGreaterThan(-1);
+    expect(shell.indexOf('<RoundRow')).toBeLessThan(shell.indexOf('<HotbarRow'));
   });
 });

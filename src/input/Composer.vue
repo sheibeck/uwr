@@ -31,6 +31,7 @@ const target = computed(() => consoleApi.conversation.value);
 const sendDisabled = computed(() => !connected.value || draft.value.trim() === '');
 const placeholder = computed(() => {
   if (!connected.value) return 'Reconnecting…';
+  if (game.combat.active.value) return 'Choose your action…';
   if (target.value !== null) return `Say something to ${target.value.name}…`;
   return 'What do you do?';
 });

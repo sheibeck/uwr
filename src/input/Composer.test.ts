@@ -11,6 +11,7 @@ import {
   CONSOLE_KEY,
   FRAME_KEY,
   GAME_KEY,
+  createInertCombatData,
   createInertConsole,
   createInertFrame,
   createInertGame,
@@ -39,17 +40,19 @@ interface Setup {
   focusTick: Ref<number>;
   inputFocused: Ref<boolean>;
   connected: Ref<boolean>;
+  combatActive: Ref<boolean>;
   isDesktop: Ref<boolean>;
   activeScreen: Ref<any>;
 }
 
-function setup(opts: { desktop?: boolean; connected?: boolean } = {}): Setup {
+function setup(opts: { desktop?: boolean; connected?: boolean; combat?: boolean } = {}): Setup {
   const draft = ref('');
   const conversation = shallowRef<ConversationTarget | null>(null);
   const focusTick = ref(0);
   const inputFocused = ref(false);
   const connected = ref(opts.connected ?? true);
   const isDesktop = ref(opts.desktop ?? true);
+  const combatActive = ref(opts.combat ?? false);
   const activeScreen = ref<any>(null);
   const submit = vi.fn(() => 'sent' as const);
   const recallPrevious = vi.fn();
@@ -66,7 +69,11 @@ function setup(opts: { desktop?: boolean; connected?: boolean } = {}): Setup {
     recallNext,
     endConversation,
   } as unknown as ConsoleApi;
-  const game = { ...createInertGame(), connected } as unknown as GameData;
+  const game = {
+    ...createInertGame(),
+    connected,
+    combat: { ...createInertCombatData(), active: combatActive },
+  } as unknown as GameData;
   const frame = { ...createInertFrame(), isDesktop, activeScreen } as unknown as FrameControls;
   const el = document.createElement('div');
   document.body.appendChild(el);
@@ -87,6 +94,7 @@ function setup(opts: { desktop?: boolean; connected?: boolean } = {}): Setup {
     focusTick,
     inputFocused,
     connected,
+    combatActive,
     isDesktop,
     activeScreen,
   };
@@ -206,6 +214,28 @@ describe('Composer offline', () => {
     await nextTick();
     expect(el.attributes('disabled')).toBeUndefined();
     expect(input(s.wrapper).value).toBe('half done');
+  });
+});
+
+describe('Composer combat placeholder', () => {
+  it('invites a combat action while in combat and connected', async () => {
+    const s = setup({ combat: true });
+    expect(s.wrapper.find('input.input').attributes('placeholder')).toBe('Choose your action…');
+    s.combatActive.value = false;
+    await nextTick();
+    expect(s.wrapper.find('input.input').attributes('placeholder')).toBe('What do you do?');
+  });
+
+  it('lets Reconnecting win while offline in combat', () => {
+    const s = setup({ combat: true, connected: false });
+    expect(s.wrapper.find('input.input').attributes('placeholder')).toBe('Reconnecting…');
+  });
+
+  it('keeps the conversation text out of combat', async () => {
+    const s = setup();
+    s.conversation.value = { npcId: 3n, name: 'Ferryman' };
+    await nextTick();
+    expect(s.wrapper.find('input.input').attributes('placeholder')).toBe('Say something to Ferryman…');
   });
 });
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RoundRow from '../combat/RoundRow.vue';
 import FeedView from '../console/FeedView.vue';
 import HotbarRow from '../hotbar/HotbarRow.vue';
 import Composer from '../input/Composer.vue';
@@ -10,6 +11,7 @@ const props = defineProps<{ compact?: boolean }>();
   <main class="feed" :class="{ compact: props.compact }">
     <FeedView :compact="props.compact" />
     <section class="composer">
+      <RoundRow />
       <HotbarRow />
       <Composer />
     </section>
