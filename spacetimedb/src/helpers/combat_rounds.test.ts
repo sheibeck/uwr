@@ -245,9 +245,8 @@ describe('static guard', () => {
   it('imports only combat_constants and never converts to Number', () => {
     const here = fileURLToPath(new URL('.', import.meta.url));
     const source: string = readFileSync(join(here, 'combat_rounds.ts'), 'utf8');
-    const importLines = source.split('\n').filter((l: string) => /^\s*import\b/.test(l));
-    expect(importLines).toHaveLength(1);
-    expect(importLines[0]).toContain("from '../data/combat_constants'");
+    expect(source.match(/^import\b/gm)).toHaveLength(1);
+    expect(source.match(/\bfrom\s+'[^']+'/g)).toEqual(["from '../data/combat_constants'"]);
     expect(source).not.toMatch(/\brequire\(|\bimport\(/);
     expect(source).not.toContain('Number(');
   });
