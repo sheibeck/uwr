@@ -3,6 +3,7 @@ import type { RenownPerkInput } from '../data/llm_layers';
 import { appendPrivateEvent, appendSystemMessage, appendWorldEvent } from './events';
 import { enqueueLlmJob, hasActiveJobForCharacter, resolveCharacterPlayerId, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
+import { perkBonusByField } from '../data/perk_rules';
 
 /** Keeper line posted when static perk options stand in for a generated offer. */
 export const RENOWN_STATIC_OPTIONS_MESSAGE =
@@ -363,29 +364,11 @@ export function getPerkProcs(ctx: any, characterId: bigint, eventType: string) {
 }
 
 export function getPerkBonusByField(ctx: any, characterId: bigint, fieldName: string, characterLevel?: bigint): number {
-  let total = 0;
-  for (const perkRow of ctx.db.renown_perk.by_character.filter(characterId)) {
-    let perkDef: any = null;
-    for (const rankNum in RENOWN_PERK_POOLS) {
-      const pool = RENOWN_PERK_POOLS[Number(rankNum)];
-      const found = pool.find((p) => p.key === perkRow.perkKey);
-      if (found) {
-        perkDef = found;
-        break;
-      }
-    }
-    if (!perkDef) continue;
-    const effect = perkDef.effect;
-    const fieldValue = (effect as any)[fieldName];
-    if (fieldValue === undefined || fieldValue === null) continue;
-    let value = typeof fieldValue === 'bigint' ? Number(fieldValue) : fieldValue;
-    // Handle scaling perks
-    if (effect.scalesWithLevel && effect.perLevelBonus && characterLevel !== undefined) {
-      value += effect.perLevelBonus * Number(characterLevel);
-    }
-    total += value;
-  }
-  return total;
+  return perkBonusByField(
+    [...ctx.db.renown_perk.by_character.filter(characterId)].map((row: any) => row.perkKey),
+    fieldName,
+    characterLevel
+  );
 }
 
 export function getAllPerkEffects(ctx: any, characterId: bigint, characterLevel?: bigint) {
