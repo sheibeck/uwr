@@ -206,6 +206,7 @@ import LocationConnectionRow from "./location_connection_table";
 import LootTableRow from "./loot_table_table";
 import MyBankSlotsRow from "./my_bank_slots_table";
 import MyCharacterEffectsRow from "./my_character_effects_table";
+import MyCombatAggroRow from "./my_combat_aggro_table";
 import MyCombatLootRow from "./my_combat_loot_table";
 import MyCombatResultsRow from "./my_combat_results_table";
 import MyFactionStandingsRow from "./my_faction_standings_table";
@@ -1678,6 +1679,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyCharacterEffectsRow),
+  myCombatAggro: __table({
+    name: 'my_combat_aggro',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCombatAggroRow),
   myCombatLoot: __table({
     name: 'my_combat_loot',
     indexes: [
@@ -2052,6 +2060,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "my_bank_slots": Omit<typeof tablesSchema.schemaType.tables["myBankSlots"], "accessorName"> & { readonly accessorName: "my_bank_slots" };
     /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
     readonly "my_character_effects": Omit<typeof tablesSchema.schemaType.tables["myCharacterEffects"], "accessorName"> & { readonly accessorName: "my_character_effects" };
+    /** @deprecated Use `myCombatAggro` instead. This alias will be removed in the next major version. */
+    readonly "my_combat_aggro": Omit<typeof tablesSchema.schemaType.tables["myCombatAggro"], "accessorName"> & { readonly accessorName: "my_combat_aggro" };
     /** @deprecated Use `myCombatLoot` instead. This alias will be removed in the next major version. */
     readonly "my_combat_loot": Omit<typeof tablesSchema.schemaType.tables["myCombatLoot"], "accessorName"> & { readonly accessorName: "my_combat_loot" };
     /** @deprecated Use `myCombatResults` instead. This alias will be removed in the next major version. */
@@ -2177,6 +2187,7 @@ const tableAccessorAliases = {
   "admin_llm_status": "adminLlmStatus",
   "my_bank_slots": "myBankSlots",
   "my_character_effects": "myCharacterEffects",
+  "my_combat_aggro": "myCombatAggro",
   "my_combat_loot": "myCombatLoot",
   "my_combat_results": "myCombatResults",
   "my_faction_standings": "myFactionStandings",
@@ -2372,6 +2383,8 @@ export type DbView = __DbViewBase & {
   readonly "my_bank_slots": __DbViewBase["myBankSlots"];
   /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
   readonly "my_character_effects": __DbViewBase["myCharacterEffects"];
+  /** @deprecated Use `myCombatAggro` instead. This alias will be removed in the next major version. */
+  readonly "my_combat_aggro": __DbViewBase["myCombatAggro"];
   /** @deprecated Use `myCombatLoot` instead. This alias will be removed in the next major version. */
   readonly "my_combat_loot": __DbViewBase["myCombatLoot"];
   /** @deprecated Use `myCombatResults` instead. This alias will be removed in the next major version. */
@@ -2564,6 +2577,8 @@ export type Tables = __TablesBase & {
   readonly "my_bank_slots": __TablesBase["myBankSlots"];
   /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
   readonly "my_character_effects": __TablesBase["myCharacterEffects"];
+  /** @deprecated Use `myCombatAggro` instead. This alias will be removed in the next major version. */
+  readonly "my_combat_aggro": __TablesBase["myCombatAggro"];
   /** @deprecated Use `myCombatLoot` instead. This alias will be removed in the next major version. */
   readonly "my_combat_loot": __TablesBase["myCombatLoot"];
   /** @deprecated Use `myCombatResults` instead. This alias will be removed in the next major version. */

@@ -972,6 +972,18 @@ export type MyBankSlots = __Infer<typeof MyBankSlots>;
 export const MyCharacterEffects = __t.object("MyCharacterEffects", {});
 export type MyCharacterEffects = __Infer<typeof MyCharacterEffects>;
 
+export const MyCombatAggro = __t.object("MyCombatAggro", {});
+export type MyCombatAggro = __Infer<typeof MyCombatAggro>;
+
+export const MyCombatAggroEntry = __t.object("MyCombatAggroEntry", {
+  id: __t.u64(),
+  combatId: __t.u64(),
+  enemyId: __t.u64(),
+  characterId: __t.u64(),
+  value: __t.u64(),
+});
+export type MyCombatAggroEntry = __Infer<typeof MyCombatAggroEntry>;
+
 export const MyCombatLoot = __t.object("MyCombatLoot", {});
 export type MyCombatLoot = __Infer<typeof MyCombatLoot>;
 
