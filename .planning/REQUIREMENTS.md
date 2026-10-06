@@ -27,13 +27,13 @@
 
 - [x] **CON-01**: The feed renders each entry as a labelled line by kind: Keeper narration, NPC speech, whisper, party chat, system, quest update, ripple / world event.
 - [x] **CON-02**: NPCs, places and objects in the feed show as soft accent keywords. Clicking one acts on it (hail, examine, travel).
-- [ ] **CON-03**: The vitals rail shows HP, MP, SP and XP bars, active effects with time remaining, and party members with health and an Invite button.
-- [ ] **CON-04**: The context rail shows:
+- [x] **CON-03**: The vitals rail shows HP, MP, SP and XP bars, active effects with time remaining, and party members with health and an Invite button.
+- [x] **CON-04**: The context rail shows:
   - routes out, with level ranges or "safe"
   - Nearby (NPCs, objects, resource nodes, players) with one-click actions
   - tracked quests with progress
   - the active world event with its faction split
-- [ ] **CON-05**: The hotbar shows iconed ability slots with cooldowns, and the player can switch between their hotbars.
+- [x] **CON-05**: The hotbar shows iconed ability slots with cooldowns, and the player can switch between their hotbars.
 - [ ] **CON-06**: While an LLM job runs, the player sees the Keeper's progress lines, and staged reveals (world, class) land in the feed.
 
 ### Input (INP)
@@ -131,9 +131,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-07 | Phase 45 | Complete |
 | CON-01 | Phase 47 | Complete |
 | CON-02 | Phase 47 | Complete |
-| CON-03 | Phase 47 | Pending |
-| CON-04 | Phase 47 | Pending |
-| CON-05 | Phase 47 | Pending |
+| CON-03 | Phase 47 | Complete |
+| CON-04 | Phase 47 | Complete |
+| CON-05 | Phase 47 | Complete |
 | CON-06 | Phase 47 | Pending |
 | INP-01 | Phase 47 | Complete |
 | INP-02 | Phase 47 | Complete |
