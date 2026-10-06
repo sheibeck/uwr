@@ -1454,7 +1454,8 @@ Plans:
 - **Supersedes the Phase 50 Stats screen (LDG-03).** That screen is being built in Phase 50 from the older "UWR Ledger Screens" mock 2c: plans 50-16 (stats model, PerkChooser) and 50-17 (Stats screen).
   - This item replaces its layout and rail with the new design and renames it everywhere: the header button, the More row, the `SCREENS` entry and title, the drawer and sheet titles, and tests.
   - Reuse the Phase 50 stats model, the shared `@game-data` helpers (item stats, perk rules, faction tier) and the hub.
-- **Run it as a UI phase** (`/gsd-ui-phase` from the fresh import, then plan and execute). It could also be done as a fast follow-up right after Phase 50.
+- **Timing (owner, 2026-10-06):** follow up after the v3.0 milestone is complete. Phase 50 keeps its current Stats screen.
+- **Run it as a UI phase** (`/gsd-ui-phase` from the fresh import, then plan and execute).
 - **Design guards apply:**
   - no literal colors (map the mock's hex values to existing tokens; the token pin stays at 23)
   - no v-html, no `<svg`
