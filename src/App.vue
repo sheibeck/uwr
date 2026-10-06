@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, provide } from 'vue';
+import { CREATION_KEY, createInertCreation } from './creation/creationContext';
+import CreationView from './creation/CreationView.vue';
 import { GAME_KEY, createInertGame } from './game/context';
 import AppFrame from './frame/AppFrame.vue';
 import CharacterPicker from './session/CharacterPicker.vue';
-import NoCharactersNote from './session/NoCharactersNote.vue';
 import SplashScreen from './session/SplashScreen.vue';
 import { createDefaultSession } from './session/useSession';
 import type { Session } from './session/useSession';
@@ -16,6 +17,8 @@ const session: Session =
 
 // Components reach the game data hub by injection; a session without one gets an inert hub.
 provide(GAME_KEY, session.game ?? createInertGame());
+// The creation interview hub is session-owned (its feed outlives the view); same fallback.
+provide(CREATION_KEY, session.creation ?? createInertCreation());
 
 // Plain-object refs are not auto-unwrapped in the template: alias them here.
 const { screen, frame, characters, pickerPendingId, pickerFailed, reconnecting, nextRetryAt, versionPrompt } =
@@ -41,7 +44,14 @@ onBeforeUnmount(() => session.dispose());
       @select="session.selectCharacter"
       @logout="session.logout()"
     />
-    <NoCharactersNote v-else-if="screen.kind === 'noCharacters'" @logout="session.logout()" />
+    <CreationView
+      v-else-if="screen.kind === 'creation'"
+      :reconnecting="reconnecting"
+      :next-retry-at="nextRetryAt"
+      :version-prompt="versionPrompt"
+      @logout="session.logout()"
+      @reload="session.reload()"
+    />
     <AppFrame
       v-else-if="screen.kind === 'frame' && frame"
       :view="frame"

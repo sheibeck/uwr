@@ -5,7 +5,7 @@ import { computed, defineComponent, h, inject, nextTick, ref, shallowRef } from 
 import App from './App.vue';
 import SplashScreen from './session/SplashScreen.vue';
 import CharacterPicker from './session/CharacterPicker.vue';
-import NoCharactersNote from './session/NoCharactersNote.vue';
+import CreationView from './creation/CreationView.vue';
 import AppFrame from './frame/AppFrame.vue';
 import type { Session } from './session/useSession';
 import type { AppScreen } from './session/deriveScreen';
@@ -13,6 +13,8 @@ import type { FrameView } from './session/frameView';
 import type { Character } from './module_bindings/types';
 import { GAME_KEY } from './game/context';
 import type { GameData } from './game/context';
+import { CREATION_KEY } from './creation/creationContext';
+import type { CreationData } from './creation/creationContext';
 
 const frameView: FrameView = {
   characterName: 'Brannoch',
@@ -106,7 +108,7 @@ describe('App screen switch', () => {
     const w = mountApp(fake);
     expect(w.findComponent(SplashScreen).props('state')).toBe('connecting');
     expect(w.findComponent(CharacterPicker).exists()).toBe(false);
-    expect(w.findComponent(NoCharactersNote).exists()).toBe(false);
+    expect(w.findComponent(CreationView).exists()).toBe(false);
     expect(w.findComponent(AppFrame).exists()).toBe(false);
 
     fake.screen.value = { kind: 'splash', state: 'idle' };
@@ -131,12 +133,21 @@ describe('App screen switch', () => {
     expect(fake.fns.logout).toHaveBeenCalledTimes(1);
   });
 
-  it('noCharacters renders the note and Log out calls session.logout', async () => {
-    const fake = fakeSession({ kind: 'noCharacters' });
+  it('creation renders CreationView, not the picker or the frame, and routes logout, reload and the notice props', () => {
+    const fake = fakeSession({ kind: 'creation' });
     const w = mountApp(fake);
-    expect(w.findComponent(NoCharactersNote).exists()).toBe(true);
-    await w.find('.btn-secondary').trigger('click');
+    const creation = w.findComponent(CreationView);
+    expect(creation.exists()).toBe(true);
+    expect(w.findComponent(CharacterPicker).exists()).toBe(false);
+    expect(w.findComponent(AppFrame).exists()).toBe(false);
+    expect(creation.props('reconnecting')).toBe(true);
+    expect(creation.props('nextRetryAt')).toBe(12345);
+    expect(creation.props('versionPrompt')).toBe(true);
+
+    creation.vm.$emit('logout');
     expect(fake.fns.logout).toHaveBeenCalledTimes(1);
+    creation.vm.$emit('reload');
+    expect(fake.fns.reload).toHaveBeenCalledTimes(1);
   });
 
   it('frame renders AppFrame with the session view and routes logout and reload', () => {
@@ -235,5 +246,50 @@ describe('App game hub provide', () => {
     expect(game!.connected.value).toBe(false);
     expect(game!.reducers.value).toBeNull();
     expect(game!.feed.entries.value).toEqual([]);
+  });
+});
+
+describe('App creation hub provide', () => {
+  // A stand-in for CreationView that reports the CreationData it injects.
+  const seen: { creation: CreationData | undefined }[] = [];
+  const Probe = defineComponent({
+    name: 'ProbeCreation',
+    setup() {
+      const creation = inject(CREATION_KEY);
+      seen.push({ creation });
+      return () => h('div', { class: 'creation-probe' }, creation ? 'creation' : 'none');
+    },
+  });
+
+  beforeEach(() => {
+    seen.length = 0;
+  });
+
+  it('provides session.creation to the creation view', () => {
+    const fake = fakeSession({ kind: 'creation' });
+    const creation = { marker: 'session-creation' } as unknown as CreationData;
+    (fake.session as unknown as { creation: CreationData }).creation = creation;
+    wrapper = mount(App, {
+      attachTo: document.body,
+      props: { session: fake.session },
+      global: { stubs: { CreationView: Probe } },
+    });
+    expect(wrapper.find('.creation-probe').text()).toBe('creation');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].creation).toBe(creation);
+  });
+
+  it('provides an inert creation hub when the session has none', () => {
+    const fake = fakeSession({ kind: 'creation' });
+    wrapper = mount(App, {
+      attachTo: document.body,
+      props: { session: fake.session },
+      global: { stubs: { CreationView: Probe } },
+    });
+    const creation = seen[0].creation;
+    expect(creation).toBeDefined();
+    expect(creation!.connected.value).toBe(false);
+    expect(creation!.state.value).toBeNull();
+    expect(creation!.feed.entries.value).toEqual([]);
   });
 });

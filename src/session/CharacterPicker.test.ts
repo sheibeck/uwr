@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import CharacterPicker from './CharacterPicker.vue';
-import NoCharactersNote from './NoCharactersNote.vue';
 import PreFrameHeader from './PreFrameHeader.vue';
 import type { Character } from '../module_bindings/types';
 import { parseDecls, sfcStyleBlocks } from '../styles/cssContract';
@@ -126,31 +125,14 @@ describe('CharacterPicker', () => {
     expect(name['text-overflow']).toBe('ellipsis');
   });
 
+  it('has no New character button (one character per account)', () => {
+    const w = mountPicker({ characters: [ARIA, BORIN] });
+    expect(w.text()).not.toContain('New character');
+  });
+
   it('renders markup in a name as text, never as elements', () => {
     const w = mountPicker({ characters: [makeCharacter({ name: '<b>x</b>' })] });
     expect(w.find('.name b').exists()).toBe(false);
     expect(w.find('.name').text()).toBe('<b>x</b>');
-  });
-});
-
-describe('NoCharactersNote', () => {
-  it('shows the note copy and a Log out button', async () => {
-    wrapper = mount(NoCharactersNote);
-    expect(wrapper.find('header').text()).toContain('Characters');
-    expect(wrapper.find('.card-kicker').text()).toBe('No characters yet');
-    expect(wrapper.find('.card-title').text()).toBe('Character creation is not ready yet');
-    expect(wrapper.find('.card-body').text()).toBe(
-      'Check back soon. Until then, sign in with an account that already has a character.',
-    );
-    const button = wrapper.find('button.btn.btn-secondary');
-    expect(button.text()).toBe('Log out');
-    await button.trigger('click');
-    expect(wrapper.emitted('logout')).toHaveLength(1);
-  });
-
-  it('emits logout from the header too', async () => {
-    wrapper = mount(NoCharactersNote);
-    await wrapper.find('header button').trigger('click');
-    expect(wrapper.emitted('logout')).toHaveLength(1);
   });
 });
