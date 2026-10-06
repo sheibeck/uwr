@@ -1418,6 +1418,11 @@ Plans:
 - **Owner correction (2026-10-06):** the 10s `ROUND_TIMER_MICROS` is only the decision wait. It is **not** how long a round lasts and must not be used to reason about real time. ("The 10s is NOT how long a round lasts.")
 - **Owner decision (2026-10-06): cooldowns use exactly the same seconds-to-rounds rule as cast times.** "Let's make cooldowns work just like cast times will work." Under the cast rule above, `cooldownRounds = ceil(cooldownSeconds / 2)`, with whatever minimum the cast rule sets for a non-zero value. If planning changes the cast rule, cooldowns change with it, through one shared function.
   - Grudge Stab (5s) becomes ceil(5 / 2) = 3 rounds. Make this a test row.
+- **Owner decision (2026-10-06): seconds stay the source of truth.** In the owner's words: "It's OK to keep the cast time in seconds… then we can adjust cooldown/cast times according to its true cast time. If we convert to rounds then we have to rebalance by rounds."
+  - Abilities keep `castSeconds` and `cooldownSeconds` as stored and authored values. All balancing, the power budget and the generator ranges are tuned in seconds.
+  - Rounds are only derived at combat time, through the one shared rule. There is no rounds column, and no stored or authored value in rounds.
+  - Changing an ability's seconds changes its rounds automatically.
+  - The UI can show both values, for example "3 rounds (5s)", so the true value stays visible.
 
 Decide and test all of the following:
 1. **One seconds-to-rounds rule, decided by the owner:** cast time and cooldown share it. Implement a single function used by both `castRounds` and `cooldownRounds` (and by `windupRounds` for enemies), and remove the separate 4s `EFFECT_ROUND_CONVERSION_MICROS` path for cooldowns. Whether effect durations (DoT/HoT/buff rounds) also move to this rule is a planning decision. Raise it with the owner.
@@ -1721,4 +1726,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after the owner set cooldowns to follow the cast-time rule (999.17)*
+*Last updated: 2026-10-06 after the owner kept seconds as the source of truth for cast and cooldown (999.17)*
