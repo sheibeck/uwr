@@ -139,6 +139,7 @@ const R = {
   armorT3: 112n,
   armorUnknown: 113n,
   potion: 120n,
+  repeated: 130n,
   missing: 999n,
 };
 const RECIPES = [
@@ -151,6 +152,8 @@ const RECIPES = [
   recipe(R.armorT3, ID.t3, ID.armor, 'armor'),
   recipe(R.armorUnknown, ID.unknownMat, ID.armor, 'armor'),
   recipe(R.potion, ID.t1, ID.potion, 'consumable'),
+  // Requirements 1 and 2 are the same template (counts 2 and 3): the plan must count the sum.
+  { ...recipe(R.repeated, ID.t2, ID.weapon, 'weapon'), req2TemplateId: ID.t2, req2Count: 3n },
 ];
 
 let nextInstance = 1000n;
@@ -321,6 +324,36 @@ describe('craft_recipe success with an essence', () => {
   });
 });
 
+describe('craft_recipe decorates the instance it created', () => {
+  it('an older plain copy of the output already in the bag is left untouched', () => {
+    // Lower id than anything the craft inserts, and listed first by owner: the old lookup picked it.
+    const older = { ...stack(ID.weapon, 1n), id: 5n };
+    const ctx = newCtx([older, ...plentyOfMaterials(), stack(ID.essence, 1n), stack(ID.modA, 1n)]);
+    craft(ctx, {
+      recipeTemplateId: R.weaponT2,
+      catalystTemplateId: ID.essence,
+      modifier1TemplateId: ID.modA,
+    });
+    const weapons = rows(ctx, 'item_instance').filter((i) => i.templateId === ID.weapon);
+    expect(weapons).toHaveLength(2);
+    const oldRow = weapons.find((i) => i.id === 5n)!;
+    const newRow = weapons.find((i) => i.id !== 5n)!;
+    // The older copy: still plain, no quality, no name, no affix rows.
+    expect(oldRow.craftQuality).toBeUndefined();
+    expect(oldRow.qualityTier).toBeUndefined();
+    expect(oldRow.displayName).toBeUndefined();
+    expect(rows(ctx, 'item_affix').filter((a) => a.itemInstanceId === 5n)).toEqual([]);
+    // The crafted copy: carries the quality, the display name and every affix.
+    expect(newRow.craftQuality).toBe('reinforced');
+    expect(newRow.qualityTier).toBe('common');
+    expect(newRow.displayName).toBeTruthy();
+    const newAffixes = rows(ctx, 'item_affix').filter((a) => a.itemInstanceId === newRow.id);
+    expect(newAffixes.some((a) => a.affixType === 'suffix' && a.statKey === MOD_A.statKey)).toBe(true);
+    expect(newAffixes.some((a) => a.affixType === 'implicit')).toBe(true);
+    expect(messages(ctx)).toEqual([`You craft ${newRow.displayName}.`]);
+  });
+});
+
 describe('craft_recipe refusals cost nothing', () => {
   it('missing materials', () => {
     const ctx = newCtx([stack(ID.t2, 1n), stack(ID.second, 1n)]);
@@ -334,6 +367,21 @@ describe('craft_recipe refusals cost nothing', () => {
       { recipeTemplateId: R.weaponT2, catalystTemplateId: ID.lesser, modifier1TemplateId: ID.modA },
       'Essence tier too low for this craft quality',
     );
+  });
+
+  it('a recipe that repeats a material template is refused on the merged total, with the server text', () => {
+    // Counts 2 and 3 of the same template with 4 on hand: each is met alone, the sum (5) is not.
+    const ctx = newCtx([stack(ID.t2, 4n)]);
+    expectRefused(ctx, { recipeTemplateId: R.repeated }, 'Missing materials to craft this recipe.');
+    expect(countOf(ctx, ID.t2)).toBe(4n);
+  });
+
+  it('a recipe that repeats a material template crafts when the merged total is on hand', () => {
+    const ctx = newCtx([stack(ID.t2, 5n)]);
+    craft(ctx, { recipeTemplateId: R.repeated });
+    expect(countOf(ctx, ID.t2)).toBe(0n);
+    expect(crafted(ctx, ID.weapon)).toHaveLength(1);
+    expect(messages(ctx)).toEqual(['You craft Test Blade.']);
   });
 
   it('essence named but none on hand', () => {

@@ -4,7 +4,7 @@ import { buildLookOutput } from '../helpers/look';
 import { parseLookCommand, describeLookTarget, lookMissLine } from '../helpers/examine';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { sellInstanceToVendor } from '../helpers/vendor_sale';
-import { sellPayout } from '../data/vendor_pricing';
+import { appliedSellBonusPercent, sellPayout } from '../data/vendor_pricing';
 import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
@@ -954,7 +954,7 @@ export const registerIntentReducers = (deps: any) => {
         ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + total });
         const preview = soldNames.slice(0, 3);
         const extra = soldNames.length > 3 ? ` and ${soldNames.length - 3} more` : '';
-        const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
+        const bonusMsg = appliedSellBonusPercent(vendorSellBonus) > 0 ? ` (${appliedSellBonusPercent(vendorSellBonus)}% perk bonus)` : '';
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
           `You sell ${soldNames.length} junk item(s) for ${total} gold${bonusMsg}: ${preview.join(', ')}${extra}.`);
         return;
@@ -1021,7 +1021,7 @@ export const registerIntentReducers = (deps: any) => {
           ctx.db.item_instance.id.delete(inst.id);
         }
         ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + totalGold });
-        const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
+        const bonusMsg = appliedSellBonusPercent(vendorSellBonus) > 0 ? ` (${appliedSellBonusPercent(vendorSellBonus)}% perk bonus)` : '';
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
           `You sell ${toSell.length}x ${soldTemplateName} for ${totalGold} gold${bonusMsg}.`);
         return;

@@ -182,13 +182,13 @@ describe('sell_item refuses quest items and changes nothing', () => {
     expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
   });
 
-  it('refuses even when the vendor is not a vendor npc', () => {
+  it('a non-vendor npc is refused first (as on the typed path); the quest item stays and nothing is recorded', () => {
     const ctx = newCtx({
       templates: [tpl(81n, 'Sealed Writ', { slot: 'quest' })],
       instances: [inst(810n, 81n, 1n)],
     });
     sellItem(ctx, { characterId: 1n, itemInstanceId: 810n, npcId: NON_VENDOR });
-    expect(messages(ctx)).toEqual([REFUSAL]);
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
     expect(rows(ctx, 'item_instance')).toHaveLength(1);
     expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
   });
@@ -295,26 +295,49 @@ describe('sell_item records the single sale', () => {
     expect(buyback[0]).toMatchObject({ templateId: 82n, itemName: 'Iron Nails', price: sellPayout(7n, 1n, 0, 0n) });
   });
 
-  it('selling to a non-vendor npc still pays, lists nothing and names the npc', () => {
+  // The buyer must be a vendor npc at the character's location (the typed 'sell <item>' rule).
+  // Every refusal is one system line and no write at all.
+  function expectNoVendorRefusal(ctx: any, npcId: bigint) {
+    const before = {
+      item_instance: snapshot(ctx, 'item_instance'),
+      item_affix: snapshot(ctx, 'item_affix'),
+      vendor_inventory: snapshot(ctx, 'vendor_inventory'),
+      vendor_buyback: snapshot(ctx, 'vendor_buyback'),
+    };
+    sellItem(ctx, { characterId: 1n, itemInstanceId: 800n, npcId });
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
+    expect(rows(ctx, 'event_private')[0].kind).toBe('system');
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(snapshot(ctx, 'item_instance')).toEqual(before.item_instance);
+    expect(snapshot(ctx, 'item_affix')).toEqual(before.item_affix);
+    expect(snapshot(ctx, 'vendor_inventory')).toEqual(before.vendor_inventory);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
+  }
+
+  it('refuses a sale to a non-vendor npc: no payout, no listing, no buy-back row', () => {
     const ctx = newCtx({
       templates: [tpl(80n, 'Test Sword', { vendorValue: 13n })],
       instances: [inst(800n, 80n, 1n)],
     });
-    sellItem(ctx, { characterId: 1n, itemInstanceId: 800n, npcId: NON_VENDOR });
-    expect(gold(ctx) - START_GOLD).toBe(sellPayout(13n, 1n, 0, 0n));
-    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
-    expect(rows(ctx, 'vendor_buyback')[0]).toMatchObject({ npcId: NON_VENDOR, npcName: 'Old Mara', listingId: undefined });
+    expectNoVendorRefusal(ctx, NON_VENDOR);
   });
 
-  it("names 'the vendor' when the npc row does not exist", () => {
+  it('refuses a sale when the npc row does not exist', () => {
     const ctx = newCtx({
       templates: [tpl(80n, 'Test Sword')],
       instances: [inst(800n, 80n, 1n)],
       npcs: [],
     });
-    sellItem(ctx, { characterId: 1n, itemInstanceId: 800n, npcId: 77n });
-    expect(rows(ctx, 'vendor_buyback')[0]).toMatchObject({ npcId: 77n, npcName: 'the vendor' });
-    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
+    expectNoVendorRefusal(ctx, 77n);
+  });
+
+  it('refuses a sale to a vendor who is at another location', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword')],
+      instances: [inst(800n, 80n, 1n)],
+      npcs: [{ id: VENDOR, name: 'Brannoc', npcType: 'vendor', locationId: HERE + 1n }],
+    });
+    expectNoVendorRefusal(ctx, VENDOR);
   });
 
   it('keeps the existing guards (equipped item is refused and nothing is recorded)', () => {
@@ -348,6 +371,52 @@ describe('sell_all_junk records nothing', () => {
     });
     sellAllJunk(ctx, { characterId: 1n });
     expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+  });
+});
+
+describe('sell_all_junk (window reducer) skips quest items like the typed sell junk', () => {
+  const junkTemplates = [
+    tpl(90n, 'Rusty Nail', { slot: 'junk', isJunk: true, vendorValue: 4n }),
+    tpl(91n, 'Junk Writ', { slot: 'quest', isJunk: true, vendorValue: 9n }),
+  ];
+
+  it('keeps a template that is both junk and quest, sells the other junk and pays only that', () => {
+    const ctx = newCtx({
+      templates: junkTemplates,
+      instances: [inst(900n, 90n, 1n), inst(910n, 91n, 2n)],
+      affixes: [affix(1n, 910n, 'keen', 2n)],
+      buyback: [EARLIER_ROW],
+    });
+    const before = snapshot(ctx, 'vendor_buyback');
+    sellAllJunk(ctx, { characterId: 1n });
+    const paid = sellPayout(4n, 1n, 0, 0n);
+    expect(gold(ctx) - START_GOLD).toBe(paid);
+    expect(messages(ctx)).toEqual([`You sell 1 junk item(s) for ${paid} gold.`]);
+    // The quest stack and its affix survive; only the plain junk is gone.
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([910n]);
+    expect(rows(ctx, 'item_instance')[0].quantity).toBe(2n);
+    expect(rows(ctx, 'item_affix').map((a) => a.id)).toEqual([1n]);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before);
+  });
+
+  it('deletes the item_affix rows of the junk it sells and leaves other instances affixes alone', () => {
+    const ctx = newCtx({
+      templates: [...junkTemplates, tpl(80n, 'Test Sword')],
+      instances: [inst(900n, 90n, 1n), inst(901n, 90n, 1n), inst(800n, 80n, 1n)],
+      affixes: [affix(1n, 900n, 'keen', 2n), affix(2n, 900n, 'slow', -1n), affix(3n, 800n, 'sharp', 5n)],
+    });
+    sellAllJunk(ctx, { characterId: 1n });
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([800n]);
+    // No affix row points at a deleted instance; the kept sword keeps its own.
+    expect(rows(ctx, 'item_affix').map((a) => [a.id, a.itemInstanceId])).toEqual([[3n, 800n]]);
+  });
+
+  it('when the only junk is a quest item nothing is sold and no gold moves', () => {
+    const ctx = newCtx({ templates: junkTemplates, instances: [inst(910n, 91n, 1n)] });
+    sellAllJunk(ctx, { characterId: 1n });
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([910n]);
+    expect(messages(ctx)).toEqual(['You sell 0 junk item(s) for 0 gold.']);
   });
 });
 

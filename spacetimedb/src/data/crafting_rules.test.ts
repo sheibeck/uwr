@@ -140,6 +140,71 @@ describe('planCraft: materials', () => {
   });
 });
 
+describe('planCraft: repeated and skipped requirements', () => {
+  it('req1 == req2 checks the merged total: counts 2 and 3 with 4 on hand is refused', () => {
+    const recipe = { ...gearRecipe, req2TemplateId: REQ1, req1Count: 2n, req2Count: 3n };
+    const plan = planCraft(input({ recipe, have: { '1': 4n } }));
+    expect(plan).toEqual({
+      ok: false,
+      reason: 'materials',
+      message: 'Missing materials to craft this recipe.',
+      templateId: REQ1,
+      have: 4n,
+      need: 5n,
+    });
+  });
+
+  it('req1 == req2 with enough for the merged total passes and consumes one merged entry', () => {
+    const recipe = { ...gearRecipe, req2TemplateId: REQ1, req1Count: 2n, req2Count: 3n };
+    const plan = planCraft(input({ recipe, have: { '1': 5n } }));
+    expect(plan.ok).toBe(true);
+    if (plan.ok) expect(plan.consumes).toEqual([{ templateId: REQ1, count: 5n }]);
+  });
+
+  it('a third requirement that repeats a template is merged into the total', () => {
+    const recipe = { ...gearRecipe, req3TemplateId: REQ1, req3Count: 2n };
+    expect(planCraft(input({ recipe, have: { '1': 3n, '2': 5n } })).ok).toBe(false);
+    const ok = planCraft(input({ recipe, have: { '1': 4n, '2': 5n } }));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(ok.consumes).toEqual([
+        { templateId: REQ1, count: 4n },
+        { templateId: REQ2, count: 1n },
+      ]);
+    }
+  });
+
+  it('a third slot with a template but no count is skipped by position, not by template id', () => {
+    // req3 repeats req1's template but has no count: req1 must still be consumed.
+    const recipe = { ...gearRecipe, req3TemplateId: REQ1, req3Count: null };
+    const plan = planCraft(input({ recipe, have: { '1': 5n, '2': 5n } }));
+    expect(plan.ok).toBe(true);
+    if (plan.ok) {
+      expect(plan.consumes).toEqual([
+        { templateId: REQ1, count: 2n },
+        { templateId: REQ2, count: 1n },
+      ]);
+    }
+    // A short first requirement is still refused rather than skipped.
+    expect(planCraft(input({ recipe, have: { '1': 1n, '2': 5n } })).ok).toBe(false);
+  });
+
+  it('a skipped third slot that repeats req2 keeps the catalyst count honest', () => {
+    // req2 (1x) plus the Essence both use template 2: with 1 on hand the Essence is short.
+    const recipe = { ...gearRecipe, req3TemplateId: REQ2, req3Count: null };
+    const plan = planCraft(
+      input({
+        recipe,
+        catalyst: { templateId: REQ2, name: ESSENCE },
+        modifiers: [{ templateId: MA, name: MOD_A.name }],
+        have: { '1': 5n, '2': 1n, '60': 1n },
+      }),
+    );
+    expect(plan.ok).toBe(false);
+    if (!plan.ok) expect(plan.reason).toBe('catalyst_missing');
+  });
+});
+
 describe('planCraft: consumables and no catalyst', () => {
   it('a consumable with a catalyst and reagents consumes only the requirements', () => {
     const plan = planCraft(

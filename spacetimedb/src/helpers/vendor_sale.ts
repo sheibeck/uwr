@@ -5,7 +5,7 @@
 // BEFORE they are deleted, as decimal strings because item_affix.magnitude is a bigint.
 import { getPerkBonusByField } from './renown';
 import { appendPrivateEvent } from './events';
-import { sellPayout } from '../data/vendor_pricing';
+import { appliedSellBonusPercent, sellPayout } from '../data/vendor_pricing';
 import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
 
 export interface AffixSnapshot {
@@ -74,6 +74,11 @@ export function parseAffixSnapshot(json: string): AffixSnapshot[] {
  * goes through addItemToInventory (merges onto an existing stack, else a plain instance); any other
  * template gets a new instance carrying the stored quality, craft quality, display name and flags,
  * plus one item_affix row per valid snapshot entry. The caller has already checked room and gold.
+ *
+ * Assumption (stackable path): a stackable template never carries quality, craft quality, a display
+ * name, flags or affixes today (only gear is crafted, named or given affixes), so merging onto the
+ * first stack loses nothing. If a stackable ever gains any of those, restore it as its own instance
+ * like the non-stackable path instead.
  */
 export function restoreBuyback(
   ctx: any,
@@ -138,7 +143,8 @@ export function sellInstanceToVendor(ctx: any, input: SellInstanceInput): boolea
   const baseValue = BigInt(vendorValue) * BigInt(quantity);
   // Vendor sell bonus perk, then CHA sell bonus (character.vendorSellMod is on 1000-scale): shared pricing.
   const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
-  const sellBonusMsg = vendorSellBonus > 0 && baseValue > 0n ? ` (${vendorSellBonus}% perk bonus)` : '';
+  const appliedBonus = appliedSellBonusPercent(vendorSellBonus);
+  const sellBonusMsg = appliedBonus > 0 && baseValue > 0n ? ` (${appliedBonus}% perk bonus)` : '';
   const value = sellPayout(vendorValue, quantity, vendorSellBonus, character.vendorSellMod ?? 0n);
 
   // Snapshot before any delete.
@@ -175,7 +181,9 @@ export function sellInstanceToVendor(ctx: any, input: SellInstanceInput): boolea
     }
   }
 
-  if (input.record) {
+  // A temporary (conjured) item is swept at logout; a buy-back row must not outlive that sweep and
+  // recreate it, so a temporary item is paid for but never recorded.
+  if (input.record && !instance.isTemporary) {
     const row = {
       characterId: character.id,
       npcId,

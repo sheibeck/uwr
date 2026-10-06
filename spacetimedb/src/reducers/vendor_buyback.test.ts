@@ -28,6 +28,7 @@ let sellItem: (...args: any[]) => any;
 let sellAllJunk: (...args: any[]) => any;
 let buyback: (...args: any[]) => any;
 let deleteCharacter: (...args: any[]) => any;
+let submitIntent: (...args: any[]) => any;
 
 function capture(name: string): (...args: any[]) => any {
   const h = capturedReducer(name);
@@ -46,6 +47,7 @@ beforeAll(async () => {
   sellAllJunk = capture('sell_all_junk');
   buyback = capture('buyback_last_sale');
   deleteCharacter = capture('delete_character');
+  submitIntent = capture('submit_intent');
 }, 120_000);
 
 const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
@@ -284,6 +286,30 @@ describe('sell then buy back', () => {
     expect(aliceGold(ctx)).toBe(START_GOLD + sellPayout(4n, 1n, 0, 0n));
   });
 
+  it("a sale made with the typed 'sell <item>' command can be bought back the same way", () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [RARE_SWORD], affixes: RARE_AFFIXES });
+    submitIntent(ctx, { characterId: 1n, text: 'sell keen test sword of slowness' });
+    const paid = sellPayout(13n, 1n, 0, 0n);
+    expect(aliceGold(ctx)).toBe(START_GOLD + paid);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(1);
+
+    buyBack(ctx);
+
+    expect(aliceGold(ctx)).toBe(START_GOLD);
+    const items = rows(ctx, 'item_instance');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      templateId: 80n,
+      qualityTier: 'rare',
+      craftQuality: 'exquisite',
+      displayName: 'Keen Test Sword of Slowness',
+    });
+    expect(rows(ctx, 'item_affix').map(affixShape)).toEqual(RARE_AFFIXES.map(affixShape));
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
+  });
+
   it('a second buy back right after a success answers Nothing to buy back.', () => {
     const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n)] });
     sell(ctx, 800n);
@@ -346,6 +372,49 @@ describe('buy back refusals change nothing', () => {
       () => 'Your backpack is full.',
       { templates: [SWORD, FILLER], instances: [RARE_SWORD] },
     );
+  });
+});
+
+describe('a temporary item is never recorded for buy-back', () => {
+  it('is paid for but writes no row, and leaves an earlier row alone', () => {
+    const NAILS = tpl(82n, 'Iron Nails', { vendorValue: 7n });
+    const ctx = newCtx({
+      templates: [SWORD, NAILS],
+      instances: [inst(800n, 80n, 1n), inst(820n, 82n, 1n, { isTemporary: true })],
+    });
+    sell(ctx, 800n);
+    const earlier = snap(ctx, 'vendor_buyback');
+    expect(earlier).toHaveLength(1);
+    sell(ctx, 820n);
+    expect(aliceGold(ctx)).toBe(START_GOLD + sellPayout(13n, 1n, 0, 0n) + sellPayout(7n, 1n, 0, 0n));
+    expect(snap(ctx, 'vendor_buyback')).toEqual(earlier);
+  });
+
+  it('a lone temporary sale creates no row at all', () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n, { isTemporary: true })] });
+    sell(ctx, 800n);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('Nothing to buy back.');
+  });
+});
+
+describe('buy back when the item template is gone', () => {
+  it('refuses with its own line (not "backpack is full"), charges nothing and clears the dead row and its listing', () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n)] });
+    sell(ctx, 800n);
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(1);
+    const goldAfterSale = aliceGold(ctx);
+    // The template is removed after the sale.
+    rows(ctx, 'item_template').length = 0;
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('That item can no longer be bought back.');
+    expect(aliceGold(ctx)).toBe(goldAfterSale);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('Nothing to buy back.');
   });
 });
 

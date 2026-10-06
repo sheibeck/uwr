@@ -1,9 +1,9 @@
 import { buildDisplayName, ensureDefaultHotbar } from '../helpers/items';
 import { getPerkBonusByField } from '../helpers/renown';
 import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
-import { buyPrice, sellPayout } from '../data/vendor_pricing';
+import { appliedBuyDiscountPercent, appliedSellBonusPercent, buyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
-import { USE_ITEM_KEYS } from '../data/item_rules';
+import { USE_ITEM_KEYS, isQuestItemTemplate } from '../data/item_rules';
 import { sellInstanceToVendor, restoreBuyback } from '../helpers/vendor_sale';
 
 export const registerItemReducers = (deps: any) => {
@@ -16,7 +16,6 @@ export const registerItemReducers = (deps: any) => {
     normalizeArmorType,
     requirePlayerUserId,
     requireCharacterOwnedBy,
-    isClassAllowed,
     recomputeCharacterDerived,
     executeAbilityAction,
     appendPrivateEvent,
@@ -128,7 +127,10 @@ export const registerItemReducers = (deps: any) => {
       // Apply vendor buy discount perk
       const vendorBuyDiscount = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
       // Perk discount then CHA discount (character.vendorBuyMod is on 1000-scale): shared pricing.
-      const discountMsg = vendorBuyDiscount > 0 ? ` (${vendorBuyDiscount}% perk discount)` : '';
+      const discountMsg =
+        appliedBuyDiscountPercent(vendorBuyDiscount) > 0
+          ? ` (${appliedBuyDiscountPercent(vendorBuyDiscount)}% perk discount)`
+          : '';
       const finalPrice = buyPrice(vendorItem.price, vendorBuyDiscount, character.vendorBuyMod);
       if ((character.gold ?? 0n) < finalPrice) return failItem(ctx, character, 'Not enough gold');
       ctx.db.character.id.update({
@@ -159,6 +161,12 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
+      // Same rule as the typed 'sell <item>' path: the buyer must be a vendor standing here. The
+      // buy-back row records the seller's place, so this is what makes "go back to the vendor" true.
+      const npc = ctx.db.npc.id.find(args.npcId);
+      if (!npc || npc.npcType !== 'vendor' || npc.locationId !== character.locationId) {
+        return failItem(ctx, character, 'There is no vendor here.');
+      }
       sellInstanceToVendor(ctx, {
         character,
         instance,
@@ -177,6 +185,15 @@ export const registerItemReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const sale = ctx.db.vendor_buyback.characterId.find(character.id);
     if (!sale) return failItem(ctx, character, 'Nothing to buy back.');
+    // A template removed since the sale can never be restored: say so (instead of "backpack is
+    // full") and clear the dead row, and the resale listing that sale created, so nothing lingers.
+    if (!ctx.db.item_template.id.find(sale.templateId)) {
+      if (sale.listingId !== undefined && sale.listingId !== null && ctx.db.vendor_inventory.id.find(sale.listingId)) {
+        ctx.db.vendor_inventory.id.delete(sale.listingId);
+      }
+      ctx.db.vendor_buyback.characterId.delete(character.id);
+      return failItem(ctx, character, 'That item can no longer be bought back.');
+    }
     if ((character.gold ?? 0n) < sale.price) {
       return failItem(ctx, character, 'Not enough gold to buy that back.');
     }
@@ -216,6 +233,8 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) continue;
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template || !template.isJunk) continue;
+      // Quest items are never sold, on any path (the typed 'sell junk' skips them the same way).
+      if (isQuestItemTemplate(template)) continue;
       total += sellPayout(
         template.vendorValue ?? 0n,
         instance.quantity ?? 1n,
@@ -223,6 +242,10 @@ export const registerItemReducers = (deps: any) => {
         character.vendorSellMod ?? 0n
       );
       count++;
+      // item_affix is public: delete the instance's affix rows first so none are orphaned.
+      for (const row of [...ctx.db.item_affix.by_instance.filter(instance.id)]) {
+        ctx.db.item_affix.id.delete(row.id);
+      }
       ctx.db.item_instance.id.delete(instance.id);
     }
     if (total > 0n) {
@@ -231,7 +254,7 @@ export const registerItemReducers = (deps: any) => {
         gold: (character.gold ?? 0n) + total,
       });
     }
-    const bonusMsg = vendorSellBonus > 0 ? ` (${vendorSellBonus}% perk bonus)` : '';
+    const bonusMsg = appliedSellBonusPercent(vendorSellBonus) > 0 ? ` (${appliedSellBonusPercent(vendorSellBonus)}% perk bonus)` : '';
     appendPrivateEvent(
       ctx,
       character.id,
