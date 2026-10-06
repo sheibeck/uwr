@@ -392,7 +392,8 @@ describe('pets act once per round, after the players and before the enemies (RND
     const player = lineIndex(ctx, 1n, /^Your fists (hit|misses|crits)/);
     const alpha = lineIndex(ctx, 1n, petAttack('Alpha'));
     const bravo = lineIndex(ctx, 1n, petAttack('Bravo'));
-    const enemy = lineIndex(ctx, 1n, ENEMY_ATTACK);
+    // the enemy may go for the pets, which hold aggro after their first hit
+    const enemy = lineIndex(ctx, 1n, /Cave Rat strikes (Alpha|Bravo)|Cave Rat (strikes you|lands a crushing blow)|strike misses you|You (dodge|parry|block) Cave Rat/);
     expect(player).toBeGreaterThanOrEqual(0);
     expect(alpha).toBeGreaterThan(player);
     expect(bravo).toBeGreaterThan(alpha);

@@ -1007,6 +1007,8 @@ export const registerCombatReducers = (deps: any) => {
   );
 
   scheduledReducers['resolve_pull'] = spacetimedb.reducer('resolve_pull', { arg: PullTick.rowType }, (ctx, { arg }) => {
+    // Scheduled reducers are callable by clients: only the module itself may resolve a pull.
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     const pull = ctx.db.pull_state.id.find(arg.pullId);
     if (!pull || pull.state !== 'pending') return;
 
@@ -1160,7 +1162,9 @@ export const registerCombatReducers = (deps: any) => {
     };
 
     if (outcome === 'partial' && addCount > 0) {
-      const delayMicros = AUTO_ATTACK_INTERVAL * PULL_ADD_DELAY_ROUNDS;
+      // The add joins at the end of round N + 1 (it acts from round N + 2), where N is the round the
+      // pull opened; arriveAtMicros is only an estimate for the client.
+      const pullRound = currentRound(ctx, combat.id)?.roundNumber ?? 1n;
       const reserved = reserveAdds(addCount);
       for (const add of reserved) {
         ctx.db.combat_pending_add.insert({
@@ -1169,8 +1173,8 @@ export const registerCombatReducers = (deps: any) => {
           enemyTemplateId: add.spawn.enemyTemplateId,
           enemyRoleTemplateId: add.roleTemplateId,
           spawnId: add.spawn.id,
-          arriveAtMicros: ctx.timestamp.microsSinceUnixEpoch + delayMicros,
-          arriveAtRound: 0n,
+          arriveAtMicros: ctx.timestamp.microsSinceUnixEpoch + roundsToEstimateMicros(PULL_ADD_DELAY_ROUNDS),
+          arriveAtRound: pullRound + PULL_ADD_DELAY_ROUNDS - 1n,
         });
       }
       for (const p of participants) {
@@ -1178,8 +1182,8 @@ export const registerCombatReducers = (deps: any) => {
           ctx,
           p,
           'system',
-          `Your ${pull.pullType} pull draws attention. You engage ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(delayMicros / 1_000_000n)}s.${reasonSuffix}`,
-          `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${Number(delayMicros / 1_000_000n)}s.`
+          `Your ${pull.pullType} pull draws attention. You engage ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${PULL_ADD_DELAY_ROUNDS} rounds.${reasonSuffix}`,
+          `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${PULL_ADD_DELAY_ROUNDS} rounds.`
         );
       }
     } else if (outcome === 'failure' && addCount > 0) {
@@ -1813,10 +1817,11 @@ export const registerCombatReducers = (deps: any) => {
     }
   };
 
-  /** Phase 4: Materialize pending add enemies that have arrived. */
-  const processPendingAdds = (ctx: any, combat: any, participants: any[], activeParticipants: any[], enemyName: string, nowMicros: bigint) => {
-    for (const pending of ctx.db.combat_pending_add.by_combat.filter(combat.id)) {
-      if (pending.arriveAtMicros > nowMicros) continue;
+  /** Materialize the pending add enemies whose arrival round has come (the end of that round). */
+  const processPendingAdds = (ctx: any, combat: any, participants: any[], activeParticipants: any[], enemyName: string, roundNumber: bigint) => {
+    for (const pending of [...ctx.db.combat_pending_add.by_combat.filter(combat.id)]) {
+      const arrived = pending.arriveAtRound <= roundNumber;
+      if (!arrived) continue;
       const spawnRow = pending.spawnId ? ctx.db.enemy_spawn.id.find(pending.spawnId) : null;
       if (spawnRow) {
         const newEnemy = addEnemyToCombat(deps, ctx, combat, spawnRow, participants, true, pending.enemyRoleTemplateId ?? undefined);
@@ -1835,56 +1840,55 @@ export const registerCombatReducers = (deps: any) => {
 
 
 
-  /** Phase 7: Pet auto-attacks and ability usage. */
-  const processPetCombat = (ctx: any, combat: any, livingEnemies: any[], nowMicros: bigint) => {
-    const pets = [...ctx.db.active_pet.by_combat.filter(combat.id)];
+  /**
+   * Pets act once per round, after the players and before the enemies, in ascending pet id. A pet
+   * uses its ability on the rounds petAbilityDue names and auto-attacks every round; neither reads or
+   * writes a wall-clock timer. Target: its own living target, else its owner current target, else
+   * the lowest-id living enemy.
+   */
+  const processPetCombat = (ctx: any, combat: any, livingEnemies: any[], roundNumber: bigint, nowMicros: bigint) => {
+    const pets = sortById([...ctx.db.active_pet.by_combat.filter(combat.id)]);
     for (let pet of pets) {
       const owner = ctx.db.character.id.find(pet.characterId);
       if (!owner || owner.hp === 0n) {
         ctx.db.active_pet.id.delete(pet.id);
         continue;
       }
-      let target = pet.targetEnemyId ? ctx.db.combat_enemy.id.find(pet.targetEnemyId) : null;
-      if (!target || target.currentHp === 0n) {
-        const preferred = owner.combatTargetEnemyId ? ctx.db.combat_enemy.id.find(owner.combatTargetEnemyId) : null;
-        target = preferred ?? livingEnemies[0] ?? null;
-      }
-      if (!target) {
-        if (pet.nextAutoAttackAt && pet.nextAutoAttackAt <= nowMicros) {
-          ctx.db.active_pet.id.update({ ...pet, nextAutoAttackAt: nowMicros + RETRY_ATTACK_INTERVAL, targetEnemyId: undefined });
+      const alive = (enemyId: bigint | undefined) => {
+        if (enemyId === undefined || enemyId === null) return null;
+        const row = ctx.db.combat_enemy.id.find(enemyId);
+        return row && row.currentHp > 0n && row.combatId === combat.id ? row : null;
+      };
+      const target = alive(pet.targetEnemyId)
+        ?? alive(owner.combatTargetEnemyId)
+        ?? livingEnemies.map((e: any) => alive(e.id)).find(Boolean)
+        ?? null;
+      if (!target) continue;
+      if (pet.abilityKey && petAbilityDue(roundNumber, pet.abilityCooldownSeconds)) {
+        try {
+          executeAbilityAction(ctx, {
+            actorType: 'pet',
+            actorId: pet.id,
+            combatId: combat.id,
+            abilityKey: pet.abilityKey,
+            targetEnemyId: target.id,
+          });
+        } catch (error) {
+          console.error(`processPetCombat: pet ${pet.id} ability failed in combat ${combat.id}: ${String(error)}`);
         }
-        continue;
+        pet = ctx.db.active_pet.id.find(pet.id) ?? pet;
       }
-      let nextAbilityAt = pet.nextAbilityAt;
-      if (pet.abilityKey && pet.nextAbilityAt && pet.nextAbilityAt <= nowMicros) {
-        const used = executeAbilityAction(ctx, {
-          actorType: 'pet',
-          actorId: pet.id,
-          combatId: combat.id,
-          abilityKey: pet.abilityKey,
-          targetEnemyId: target.id,
-        });
-        if (used) {
-          const cooldownMicros = (pet.abilityCooldownSeconds ?? 10n) * 1_000_000n;
-          nextAbilityAt = nowMicros + cooldownMicros;
-          pet = ctx.db.active_pet.id.find(pet.id) ?? pet;
-        }
-      }
-      if (pet.nextAutoAttackAt && pet.nextAutoAttackAt > nowMicros) {
-        if (nextAbilityAt !== pet.nextAbilityAt || target.id !== pet.targetEnemyId) {
-          ctx.db.active_pet.id.update({ ...pet, nextAbilityAt, targetEnemyId: target.id });
-        }
-        continue;
-      }
-      const targetName = target.displayName ?? 'enemy';
+      const current = alive(target.id);
+      if (!current) continue; // the ability finished the target; nothing left to swing at
+      const targetName = current.displayName ?? 'enemy';
       const { finalDamage } = resolveAttack(ctx, {
-        seed: nowMicros + pet.id + target.id,
+        seed: roundSeed(nowMicros + pet.id + current.id, roundNumber),
         baseDamage: pet.attackDamage ?? PET_BASE_DAMAGE,
-        targetArmor: target.armorClass,
+        targetArmor: current.armorClass,
         canBlock: false,
         canParry: false,
         canDodge: true,
-        currentHp: target.currentHp,
+        currentHp: current.currentHp,
         logTargetId: owner.id,
         logOwnerId: owner.ownerUserId,
         messages: {
@@ -1895,7 +1899,7 @@ export const registerCombatReducers = (deps: any) => {
           hit: (damage) => `${pet.name} hits ${targetName} for ${damage}.`,
         },
         applyHp: (updatedHp) => {
-          ctx.db.combat_enemy.id.update({ ...target, currentHp: updatedHp });
+          ctx.db.combat_enemy.id.update({ ...current, currentHp: updatedHp });
         },
         groupId: combat.groupId,
         groupActorId: owner.id,
@@ -1903,7 +1907,7 @@ export const registerCombatReducers = (deps: any) => {
       if (finalDamage > 0n) {
         let petEntry: typeof deps.AggroEntry.rowType | null = null;
         for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
-          if (entry.enemyId !== target.id) continue;
+          if (entry.enemyId !== current.id) continue;
           if (entry.petId && entry.petId === pet.id) {
             petEntry = entry;
             break;
@@ -1917,14 +1921,17 @@ export const registerCombatReducers = (deps: any) => {
           ctx.db.aggro_entry.insert({
             id: 0n,
             combatId: combat.id,
-            enemyId: target.id,
+            enemyId: current.id,
             characterId: owner.id,
             petId: pet.id,
             value: aggroGain,
           });
         }
       }
-      ctx.db.active_pet.id.update({ ...pet, nextAutoAttackAt: nowMicros + AUTO_ATTACK_INTERVAL, nextAbilityAt, targetEnemyId: target.id });
+      const fresh = ctx.db.active_pet.id.find(pet.id);
+      if (fresh && fresh.targetEnemyId !== current.id) {
+        ctx.db.active_pet.id.update({ ...fresh, targetEnemyId: current.id });
+      }
     }
   };
 
@@ -2869,7 +2876,7 @@ export const registerCombatReducers = (deps: any) => {
       && [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)].length > 0
     ) {
       // (d) pets
-      processPetCombat(ctx, liveCombat, livingEnemiesOf(ctx, liveCombat.id), nowMicros);
+      processPetCombat(ctx, liveCombat, livingEnemiesOf(ctx, liveCombat.id), N, nowMicros);
 
       // (e) enemies, ascending enemy id; one failing enemy can never roll back the round
       const enemyRows = sortById([...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)]);
@@ -2918,7 +2925,7 @@ export const registerCombatReducers = (deps: any) => {
       decrementRoundCooldowns(ctx, afterEnemies.map((x: any) => x.characterId));
       const fightEnemies = [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)];
       const activeForAdds = afterEnemies.filter((x: any) => x.status === 'active');
-      processPendingAdds(ctx, liveCombat, afterEnemies, activeForAdds, fightEnemyName(ctx, fightEnemies), nowMicros);
+      processPendingAdds(ctx, liveCombat, afterEnemies, activeForAdds, fightEnemyName(ctx, fightEnemies), N);
       markNewlyDeadParticipants(ctx, liveCombat, [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)]);
       const livingIds = livingEnemiesOf(ctx, liveCombat.id).map((e: any) => e.id as bigint);
       for (const p of ctx.db.combat_participant.by_combat.filter(liveCombat.id)) {
