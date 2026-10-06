@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createMockDb } from './test-utils';
 import { parseLookCommand, describeLookTarget, lookMissLine } from './examine';
 
@@ -287,5 +289,14 @@ describe('describeLookTarget: check order and existing output', () => {
   it('returns null for an unknown target', () => {
     const ctx = ctxWith({});
     expect(describeLookTarget(ctx, ME, 'nothing')).toBeNull();
+  });
+});
+
+describe('intent.ts wiring', () => {
+  const src = readFileSync(fileURLToPath(new URL('../reducers/intent.ts', import.meta.url)), 'utf8');
+  it('delegates the LOOK block to the examine helper', () => {
+    expect(src).toContain('parseLookCommand(');
+    expect(src).toContain('describeLookTarget(');
+    expect(src).toContain('lookMissLine(');
   });
 });

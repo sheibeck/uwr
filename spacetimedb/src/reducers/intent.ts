@@ -1,6 +1,7 @@
 import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
 import { performTravel } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
+import { parseLookCommand, describeLookTarget, lookMissLine } from '../helpers/examine';
 import { computeSellValue } from '../helpers/economy';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
@@ -121,11 +122,9 @@ export const registerIntentReducers = (deps: any) => {
     }
 
     // --- LOOK ---
-    const lookMatch = raw.match(/^(?:look|l)(?:\s+(.+))?$/i);
-    if (lookMatch) {
-      const lookTarget = lookMatch[1]?.trim();
-
-      if (!lookTarget) {
+    const lookTarget = parseLookCommand(raw);
+    if (lookTarget !== null) {
+      if (lookTarget === '') {
         // Bare "look" — full location overview (uses shared buildLookOutput)
         const parts = buildLookOutput(ctx, character);
         if (parts.length > 0) {
@@ -134,42 +133,14 @@ export const registerIntentReducers = (deps: any) => {
         return;
       }
 
-      // "look <target>" — inspect specific target
-      const targetLower = lookTarget.toLowerCase();
-
-      // Check NPCs
-      for (const npc of ctx.db.npc.by_location.filter(character.locationId)) {
-        if ((npc as any).name.toLowerCase() === targetLower || (npc as any).name.toLowerCase().includes(targetLower)) {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look',
-            `[${(npc as any).name}]: ${(npc as any).description}`);
-          return;
-        }
+      // "look <target>" — NPC, enemy, player, resource node, then own inventory item
+      const text = describeLookTarget(ctx, character, lookTarget);
+      if (text !== null) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', text);
+        return;
       }
 
-      // Check enemies
-      const targetSpawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-      for (const spawn of targetSpawns) {
-        if (spawn.name.toLowerCase().includes(targetLower)) {
-          const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
-          if (!template) continue;
-          let desc = `You study ${spawn.name}. Level ${template.level}. ${template.role} ${template.creatureType}.`;
-          if (template.isBoss) desc += ' This creature carries the weight of something ancient and terrible.';
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', desc);
-          return;
-        }
-      }
-
-      // Check other players
-      const locationChars = [...ctx.db.character.by_location.filter(character.locationId)];
-      for (const target of locationChars) {
-        if (target.id !== character.id && target.name.toLowerCase().includes(targetLower)) {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look',
-            `${target.name}, Level ${target.level} ${target.race} ${target.className}.`);
-          return;
-        }
-      }
-
-      return fail(ctx, character, `You don't see "${lookTarget}" here.`);
+      return fail(ctx, character, lookMissLine(lookTarget));
     }
 
     // --- INVENTORY ---
