@@ -1,5 +1,7 @@
 // Pure helper for the `look <target>` command: NPC, enemy, player, resource node, then
 // inventory item. No spacetimedb/server or schema imports, so it stays unit-testable.
+import { sumItemStats } from '../data/item_stats';
+import type { ItemStatKey } from '../data/item_stats';
 
 const LOOK_REGEX = /^(?:look|l)(?:\s+(.+))?$/i;
 
@@ -42,7 +44,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 // Display order for the Stats line: the INVENTORY block's set, then the affix-only stats.
-const STAT_LABELS: [string, string][] = [
+const STAT_LABELS: [ItemStatKey, string][] = [
   ['strBonus', 'STR'],
   ['dexBonus', 'DEX'],
   ['intBonus', 'INT'],
@@ -56,7 +58,6 @@ const STAT_LABELS: [string, string][] = [
   ['cooldownReduction', 'Cooldown reduction'],
   ['manaRegen', 'Mana regen'],
 ];
-const STAT_KEYS = STAT_LABELS.map(([key]) => key);
 
 function typeLabel(slot: unknown): string {
   const key = typeof slot === 'string' ? slot : '';
@@ -161,25 +162,16 @@ function describeItem(ctx: any, character: any, matches: NameMatcher): string | 
   // Template stats plus every affix on this instance (prefixes, suffixes and the implicit craft
   // quality affixes all live in item_affix, keyed by the same statKey names the template uses).
   const big = (v: unknown): bigint => (typeof v === 'bigint' ? v : 0n);
-  const totals = new Map<string, bigint>();
-  const add = (key: string, v: unknown) => {
-    totals.set(key, (totals.get(key) ?? 0n) + big(v));
-  };
-  for (const key of STAT_KEYS) add(key, template[key]);
-  add('weaponBaseDamage', template.weaponBaseDamage);
-  add('weaponDps', template.weaponDps);
-  for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
-    add(String(affix.statKey), affix.magnitude);
-  }
+  const totals = sumItemStats(template, [...ctx.db.item_affix.by_instance.filter(instance.id)]);
 
   const stats: string[] = [];
   for (const [key, label] of STAT_LABELS) {
-    const val = totals.get(key) ?? 0n;
+    const val = totals[key];
     if (val > 0n) stats.push(`${label} +${val}`);
   }
-  const dmg = totals.get('weaponBaseDamage') ?? 0n;
+  const dmg = totals.weaponBaseDamage;
   if (dmg > 0n) stats.push(`${dmg} damage`);
-  const dps = totals.get('weaponDps') ?? 0n;
+  const dps = totals.weaponDps;
   if (dps > 0n) stats.push(`${dps} DPS`);
   if (stats.length > 0) lines.push(`Stats: ${stats.join(', ')}.`);
 
