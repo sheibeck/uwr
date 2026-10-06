@@ -10,21 +10,14 @@
 //
 // Pure: no Vue, no stores. Game tables come from the server through @game-data.
 
-import { FACTION_STANDING_THRESHOLDS } from '@game-data/mechanical_vocabulary';
+import { factionTier } from '@game-data/faction_rules';
 import { RENOWN_RANKS } from '@game-data/renown_data';
 
 type StandingRow = { factionId: bigint; standing: bigint };
 
-const STANDING_STEPS: readonly { label: string; min: bigint }[] = Object.entries(FACTION_STANDING_THRESHOLDS)
-  .map(([key, min]) => ({ label: key.charAt(0).toUpperCase() + key.slice(1), min: min as bigint }))
-  .sort((a, b) => (a.min > b.min ? -1 : a.min < b.min ? 1 : 0));
-
-/** 'Hated' .. 'Exalted'; the highest threshold the standing reaches, else the lowest label. */
+/** 'Hated' .. 'Exalted', from the one shared tier rule the Stats screen uses too. */
 export function standingLabel(standing: bigint): string {
-  for (const step of STANDING_STEPS) {
-    if (standing >= step.min) return step.label;
-  }
-  return STANDING_STEPS[STANDING_STEPS.length - 1].label;
+  return factionTier(standing).label;
 }
 
 function standingText(standing: bigint): string {

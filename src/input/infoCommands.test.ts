@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { factionTier } from '@game-data/faction_rules';
 import {
   formatEvents,
   formatFaction,
@@ -25,8 +26,18 @@ describe('standingLabel', () => {
     [-100n, 'Hated'],
     [-500n, 'Hated'],
     [500n, 'Exalted'],
+    // The bands the shared factionTier rule moves: negative thresholds are reached with <=.
+    [-10n, 'Neutral'],
+    [-30n, 'Unfriendly'],
+    [-75n, 'Hostile'],
   ])('maps %s to %s', (standing, label) => {
     expect(standingLabel(standing)).toBe(label);
+  });
+
+  it('agrees with factionTier for every standing from -150 to 150', () => {
+    for (let n = -150; n <= 150; n += 1) {
+      expect(standingLabel(BigInt(n))).toBe(factionTier(BigInt(n)).label);
+    }
   });
 });
 
