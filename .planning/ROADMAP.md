@@ -1639,5 +1639,37 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.25: Bank and vault screen (design: UWR Bank) (BACKLOG)
+
+**Goal:** A bank or vault screen from the owner's Claude Design file, where players deposit and withdraw items on desktop and mobile. Captured 2026-10-06 (owner request).
+
+**Design source (re-import fresh when this is planned; never cached):**
+- claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Bank.dc.html
+- Focus file: `UWR Bank.dc.html`.
+- Also read the files it imports:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+- Implement `UWR Bank.dc.html`.
+
+**Notes for planning:**
+- **What the server already has.** Bindings for `my_bank_slots` and the `deposit_to_bank` and `withdraw_from_bank` reducers. Research should confirm whether the design needs more, such as gold deposits, bank capacity or expansion, sorting or tabs, or a bank-NPC location rule.
+- **Overlap with Phase 52 (Parity and Production).** Bank is one of Phase 52's parity surfaces, and the roadmap says it has "no mock". It now has one. Decide whether to build this design in Phase 52, the way 999.23 loot was pulled in, or to ship a basic parity bank there and swap in the design after the milestone.
+- **What it reuses from Phase 50:** item tiles, the inspector, backpack capacity, shared item stats, and the `LedgerData` hub pattern. Also 999.24 (max stack size 99), which applies to deposits and withdrawals.
+- **Design guards apply:**
+  - no literal colors; rarity uses `--color-rarity-*` and the pin stays at 23
+  - no v-html, no `<svg`
+  - Phosphor icons and Inter only
+  - font sizes 10/12/14/20, weights 400/500
+  - spacing 4/8/16/24/32/48/64
+  - text nodes only
+- Run it as a UI phase (`/gsd-ui-phase` from the fresh import).
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding backlog 999.24 (max stack size 99)*
+*Last updated: 2026-10-06 after adding backlog 999.25 (Bank and vault)*
