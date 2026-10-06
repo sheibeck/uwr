@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 46.1
 current_phase_name: Round-Based Combat Engine
 status: executing
-stopped_at: Completed 46.1-07-PLAN.md
-last_updated: "2026-10-06T06:07:06.543Z"
+stopped_at: Completed 46.1-08-PLAN.md
+last_updated: "2026-10-06T06:17:16.815Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 46.1 execution started
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 42
-  completed_plans: 40
+  completed_plans: 41
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 46.1 (Round-Based Combat Engine) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 46.1 execution started
 
-Progress: [██████████] 95%
+Progress: [██████████] 98%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -178,6 +178,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase 46.1]: 46.1-05: combat_loop is a module-guarded drain that only calls ensureRound and never reschedules; combat_loop_tick stays defined
 - [Phase ?]: 46.1-06: flee is the player's whole action for the round; success deletes the participant row (no fleeing/fled status); resolveRound skips the enemy phase when no participant is left
 - [Phase ?]: 46.1-07: stun interrupts a winding-up enemy (A2); pet ability fires every petAbilityDue round, auto-attack every round (A3); partial-pull adds store arriveAtRound N+1
+- [Phase ?]: 46.1-08: moment tail runs after the victory/defeat checks (final round never narrates a moment); row written before the enqueue so a refusal still counts against the 3-per-fight budget
 
 ### Roadmap Evolution
 
@@ -298,8 +299,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T06:07:06.507Z
-Stopped at: Completed 46.1-07-PLAN.md
+Last session: 2026-10-06T06:17:16.785Z
+Stopped at: Completed 46.1-08-PLAN.md
 
 ## Performance Metrics
 
@@ -423,6 +424,7 @@ Stopped at: Completed 46.1-07-PLAN.md
 | Phase 46.1 P05 | ~1h | 2 tasks | 4 files |
 | Phase 46.1 P06 | 25min | 2 tasks | 5 files |
 | Phase 46.1 P07 | ~45min | 2 tasks | 3 files |
+| Phase 46.1 P08 | 35min | 2 tasks | 14 files |
 
 ## Operator Next Steps
 
