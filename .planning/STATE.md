@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 48
 current_phase_name: Combat Encounter
 status: executing
-stopped_at: Completed 48-10-PLAN.md
-last_updated: "2026-10-06T09:32:42.859Z"
+stopped_at: Completed 48-11-PLAN.md
+last_updated: "2026-10-06T09:44:12.306Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 48 execution started
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 56
-  completed_plans: 52
+  completed_plans: 53
   percent: 44
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 48 (Combat Encounter) — EXECUTING
-Plan: 11 of 14
+Plan: 12 of 14
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 48 execution started
 
-Progress: [█████████░] 93%
+Progress: [██████████] 95%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -182,6 +182,8 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [46.1-09] Local publish with --break-clients (additive, no clear) kept the stored key length 108; generated types.ts carries a CombatMoment row struct (generator emits private-table row types) with no table binding
 - [Phase ?]: [48-01] my_combat_aggro view (row MyCombatAggroEntry, pets dropped, combat ids deduplicated) published locally with --break-clients only (no clear, key 108 before and after); bindings carry myCombatAggro
 - [Phase ?]: 48-05: Tab scope bails when a role=menu is in the DOM; hidden target status is set on request, not on echo
+- [Phase ?]: 48-11: HeaderBar combat lock uses a new inCombat prop with aria-disabled; native disabled prop unchanged
+- [Phase ?]: 48-11: VitalsRail latches the damage-flash key with the hp prop so a character switch never reads as a drop
 
 ### Roadmap Evolution
 
@@ -314,8 +316,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T09:32:42.829Z
-Stopped at: Completed 48-10-PLAN.md
+Last session: 2026-10-06T09:44:12.278Z
+Stopped at: Completed 48-11-PLAN.md
 
 ## Performance Metrics
 
@@ -451,6 +453,7 @@ Stopped at: Completed 48-10-PLAN.md
 | Phase 48 P08 | 15min | 2 tasks | 6 files |
 | Phase 48 P09 | 20min | 2 tasks | 5 files |
 | Phase 48 P10 | 10min | 2 tasks | 2 files |
+| Phase 48 P11 | 35min | 3 tasks | 11 files |
 
 ## Operator Next Steps
 
