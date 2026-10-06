@@ -980,7 +980,7 @@ Plans:
 
 - **Strong rules:** two quality axes: rarity (common to legendary, rolled from world tier and region danger, `spacetimedb/src/helpers/items.ts` `TIER_RARITY_WEIGHTS` and `rollQualityTier`) and craft quality (dented to mastercraft, `spacetimedb/src/data/crafting_rules.ts`). There are prefix and suffix affixes with set strength per tier (`spacetimedb/src/data/affix_catalog.ts`), and crafting with material tiers, essences, modifier reagents, salvage and research.
 - **Missing content:** since the v2.0 removal of seeded content, server code never inserts `loot_table`, `loot_table_entry` or `recipe_template` rows. Enemies and bosses cannot drop gear (`findLootTable` in `spacetimedb/src/reducers/combat.ts` always returns nothing), and research has no recipes to find. Item templates come only from starter gear, the admin `grant_item`, and quest rewards.
-- **Quest reward gear looks broken (not yet verified at runtime; quick fix requested 2026-10-06):** `turn_in_quest` (`spacetimedb/src/reducers/quests.ts`) inserts an `item_template` with columns that do not exist (`damage`, `armor`, `str`, `maxHp`, …), without required ones (`requiredLevel`, `allowedClasses`, …), and with invalid slots (`feet`, `weapon`; the real names are `boots`, `mainHand`). If the insert throws, the whole turn-in rolls back, so item-reward quests cannot be completed. It also scales the reward from the player's level, not the quest's difficulty.
+- **Quest reward gear was broken; fixed 2026-10-06 by quick task 261006-g12** (`grantQuestItemReward` in `quests.ts`, used by both `turn_in_quest` and the "turn in <quest>" intent). The original problem, kept for context: `turn_in_quest` (`spacetimedb/src/reducers/quests.ts`) inserts an `item_template` with columns that do not exist (`damage`, `armor`, `str`, `maxHp`, …), without required ones (`requiredLevel`, `allowedClasses`, …), and with invalid slots (`feet`, `weapon`; the real names are `boots`, `mainHand`). If the insert throws, the whole turn-in rolls back, so item-reward quests cannot be completed. It also scales the reward from the player's level, not the quest's difficulty.
 
 **1. One power budget for every source (owner decisions, 2026-10-06):**
 
@@ -1031,7 +1031,7 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 **Open questions:**
 
 - Merge 999.3 into this item, or keep 999.3 as the first slice (drops and quest rewards) with this item as the follow-up?
-- Quest-reward insert: being fixed now as a quick task (owner decision, 2026-10-06); check the result when this item is promoted.
+- Quest-reward follow-ups found by quick task 261006-g12 (not fixed): neither turn-in path checks inventory space; quest XP is added directly instead of through `awardXp`, so it never triggers a level-up check; the "turn in" intent path skips `recordQuestCompletion`; a reward named exactly like a starter item would be overwritten by `ensureStarterItemTemplates`.
 - When a legendary resurfaces held by an NPC, how does a player win it from them (a quest, high affinity, defeating them)?
 - Is internal bearer history needed at all, given rumors never name past bearers?
 - Exact point costs per stat, the baseline curve per level, and the source multipliers.
