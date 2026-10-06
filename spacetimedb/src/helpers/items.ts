@@ -11,6 +11,7 @@ import {
   JUNK_DEFS,
 } from '../data/equipment_rules';
 import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
+import { backpackSlotCount, hasBackpackSpace } from '../data/inventory_rules';
 
 export const EQUIPMENT_SLOTS = new Set([
   'head',
@@ -387,23 +388,20 @@ export function addItemToInventory(
   });
 }
 
-export const MAX_INVENTORY_SLOTS = 50;
+export { MAX_INVENTORY_SLOTS } from '../data/inventory_rules';
 
 export function getInventorySlotCount(ctx: any, characterId: bigint) {
-  return [...ctx.db.item_instance.by_owner.filter(characterId)].filter((row) => !row.equippedSlot)
-    .length;
+  return backpackSlotCount([...ctx.db.item_instance.by_owner.filter(characterId)]);
 }
 
 export function hasInventorySpace(ctx: any, characterId: bigint, templateId: bigint) {
   const template = ctx.db.item_template.id.find(templateId);
   if (!template) return false;
-  if (template.stackable) {
-    const existing = [...ctx.db.item_instance.by_owner.filter(characterId)].find(
-      (row) => row.templateId === templateId && !row.equippedSlot
-    );
-    if (existing) return true;
-  }
-  return getInventorySlotCount(ctx, characterId) < MAX_INVENTORY_SLOTS;
+  return hasBackpackSpace(
+    [...ctx.db.item_instance.by_owner.filter(characterId)],
+    templateId,
+    template.stackable ?? false
+  );
 }
 
 export function removeItemFromInventory(
