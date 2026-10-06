@@ -68,6 +68,39 @@ export function parseRaceBonuses(json: string | null | undefined): ParsedRaceBon
   };
 }
 
+/**
+ * The placeholder name of a race the player never named (validateRaceReply, finalizeCharacter).
+ * It is reserved: no race_definition is ever saved under it, and no lookup honors a row that has
+ * it, so a placeholder race can never pick up a bonus (review WR-06).
+ */
+export const PLACEHOLDER_RACE_NAME = 'Unknown';
+
+export function isPlaceholderRace(name: string | null | undefined): boolean {
+  return typeof name === 'string' && name.trim().toLowerCase() === PLACEHOLDER_RACE_NAME.toLowerCase();
+}
+
+/** The race_definition row for a race name, or undefined (always undefined for the placeholder). */
+export function findRaceDefinition(ctx: any, raceName: string | null | undefined): any {
+  const lower = String(raceName ?? '').toLowerCase();
+  if (lower === '' || isPlaceholderRace(lower)) return undefined;
+  for (const row of ctx.db.race_definition.by_name.filter(lower)) return row;
+  return undefined;
+}
+
+/**
+ * The Keeper's bonus line for stored bonuses, built from exactly what the sheet, finalize and
+ * level-up apply (parseRaceBonuses). Empty when no bonus is usable, otherwise a newline then "+2 STR, +1 DEX"
+ * with the flavor appended.
+ */
+export function raceBonusText(json: string | null | undefined): string {
+  const stored = parseRaceBonuses(json);
+  const parts: string[] = [];
+  for (const bonus of [stored.primary, stored.secondary]) {
+    if (bonus !== null) parts.push(`+${bonus.value} ${bonus.stat.toUpperCase()}`);
+  }
+  return parts.length > 0 ? `\n${parts.join(', ')}${stored.flavor ? `. ${stored.flavor}` : ''}` : '';
+}
+
 function zeroStats(): Record<StatKey, bigint> {
   return { str: 0n, dex: 0n, cha: 0n, wis: 0n, int: 0n };
 }

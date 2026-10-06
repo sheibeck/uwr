@@ -156,6 +156,27 @@ describe('apply_level_up keeps the race bonus', () => {
   });
 });
 
+describe("the reserved race name 'Unknown' (review WR-06)", () => {
+  it.each(['Unknown', 'unknown', 'UNKNOWN'])(
+    'apply_level_up ignores a definition named Unknown for a character whose race is %s',
+    (race) => {
+      const seed = levelSeed({ race, def: SALTKIN_BONUSES });
+      seed.race_definition = [raceDefinitionRow(SALTKIN_BONUSES, 'Unknown')];
+      const ctx = newCtx(seed);
+      levelUp(ctx);
+      expect(statsOf(rows(ctx, 'character')[0])).toEqual(todayStats(2n));
+    },
+  );
+
+  it('level_character ignores a definition named Unknown', () => {
+    const seed = levelSeed({ race: 'Unknown', sender: admin });
+    seed.race_definition = [raceDefinitionRow(SALTKIN_BONUSES, 'Unknown')];
+    const ctx = newCtx(seed, admin);
+    adminLevel(ctx, 3n);
+    expect(statsOf(rows(ctx, 'character')[0])).toEqual(todayStats(3n));
+  });
+});
+
 describe('level_character keeps the race bonus', () => {
   it('admin level 1 to 3 on a Saltkin keeps the bonus', () => {
     const ctx = newCtx(levelSeed({ def: SALTKIN_BONUSES, sender: admin }), admin);
@@ -189,7 +210,7 @@ describe('finalize then level up reads one race bonus (review CR-01)', () => {
   const STATE_BONUSES = '{"primary":{"stat":"cha","value":3},"secondary":{"stat":"wis","value":2}}';
   const WARRIOR_CLASS = '{"primaryStat":"str","secondaryStat":"dex"}';
 
-  function finalizeSeed(opts: { raceName?: string; def: string | null; stateBonuses: string }): Seed {
+  function finalizeSeed(opts: { raceName?: string; def: string | null; stateBonuses: string; defName?: string }): Seed {
     const seed: Seed = {
       player: [{ id: alice, userId: 7n, activeCharacterId: 1n }],
       region: [
@@ -215,7 +236,7 @@ describe('finalize then level up reads one race bonus (review CR-01)', () => {
         },
       ],
     };
-    if (opts.def !== null) seed.race_definition = [raceDefinitionRow(opts.def)];
+    if (opts.def !== null) seed.race_definition = [raceDefinitionRow(opts.def, opts.defName)];
     return seed;
   }
 
@@ -256,6 +277,22 @@ describe('finalize then level up reads one race bonus (review CR-01)', () => {
     expect(afterFinalize).toEqual(warriorAt(1n));
     expect(atL2).toEqual(warriorAt(2n));
     expect(atL3).toEqual(warriorAt(3n));
+  });
+
+  it("WR-06: a stored definition named 'Unknown' never applies to the placeholder race (finalize and two level-ups)", () => {
+    const { afterFinalize, atL2, atL3 } = finalizeAndLevelTwice(
+      finalizeSeed({ raceName: undefined, def: SALTKIN_BONUSES, defName: 'Unknown', stateBonuses: STATE_BONUSES }),
+    );
+    expect(afterFinalize).toEqual(warriorAt(1n));
+    expect(atL2).toEqual(warriorAt(2n));
+    expect(atL3).toEqual(warriorAt(3n));
+  });
+
+  it("WR-06: the reservation is case-insensitive at finalize ('UNKNOWN' state name, 'Unknown' definition)", () => {
+    const { afterFinalize } = finalizeAndLevelTwice(
+      finalizeSeed({ raceName: 'UNKNOWN', def: SALTKIN_BONUSES, defName: 'Unknown', stateBonuses: STATE_BONUSES }),
+    );
+    expect(afterFinalize).toEqual(warriorAt(1n));
   });
 });
 

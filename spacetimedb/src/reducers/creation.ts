@@ -1,5 +1,5 @@
 import { ensureDefaultHotbar } from '../helpers/items';
-import { computeCreationStats } from '../data/race_bonuses';
+import { computeCreationStats, findRaceDefinition } from '../data/race_bonuses';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
 import { startCreationGeneration, retryClassFill, CLASS_FILL_PATIENCE_LINE } from '../helpers/creation_generation';
 import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
@@ -191,10 +191,11 @@ export const registerCreationReducers = (deps: any) => {
 
     // The stored race_definition row is the one source of the race bonus (review CR-01): level-up
     // finds the bonus by the same lookup (character.race lowercased), so finalize adds exactly what
-    // level-up can subtract. A race with no definition (for example the 'Unknown' placeholder) gets
-    // no bonus. The creation state carries the same bonuses (applyCreationResult), so the sheet agrees.
+    // level-up can subtract. A race with no definition (for example the 'Unknown' placeholder, whose
+    // name is reserved: findRaceDefinition never returns a row for it) gets no bonus.
+    // The creation state carries the same bonuses (applyCreationResult), so the sheet agrees.
     const finalRace: string = state.raceName || 'Unknown';
-    const raceDef = [...ctx.db.race_definition.by_name.filter(finalRace.toLowerCase())][0];
+    const raceDef = findRaceDefinition(ctx, finalRace);
     const { stats: classStats } = computeCreationStats(primaryStat, secondaryStat, raceDef?.bonusesJson);
 
     const character = ctx.db.character.insert({

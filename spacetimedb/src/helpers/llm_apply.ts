@@ -58,7 +58,7 @@ import {
   MAX_QUESTS_PER_NPC,
 } from './npc_conversation';
 import { awardNpcAffinity } from './npc_affinity';
-import { parseRaceBonuses } from '../data/race_bonuses';
+import { findRaceDefinition, isPlaceholderRace, PLACEHOLDER_RACE_NAME, raceBonusText } from '../data/race_bonuses';
 import { handleCombatNarrationResult } from './combat_narration';
 import { insertStaticRenownPerkOptions, renownRankSettled } from './renown';
 import { toBigIntSafe } from './safe_numbers';
@@ -280,22 +280,20 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
     // Clamp, never reject: everything below is built from the validated reply only.
     const race = validateRaceReply(raw);
     // A reply that named no race (validated to the placeholder 'Unknown') is not saved for reuse.
-    const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== '';
+    // The name 'Unknown' is reserved for that placeholder (review WR-06): a reply that names it is
+    // treated as naming no race, so no definition is ever saved under it.
+    const namedRace = typeof raw?.raceName === 'string' && raw.raceName.trim() !== ''
+      && !isPlaceholderRace(race.raceName);
     const raceLower = namedRace ? race.raceName.toLowerCase() : '';
 
     // One source of truth (review CR-01): the stored race_definition row. When the name is already
     // saved, its name and bonuses go on the creation state, so the sheet, finalize and level-up all
     // read the same bonuses. A reply that named no race has no definition, so it carries no bonus
     // at all (finalize and level-up both look the race up by name and would find nothing).
-    let existing: any;
-    if (raceLower) {
-      for (const row of ctx.db.race_definition.by_name.filter(raceLower)) {
-        existing = row;
-        break;
-      }
-    }
+    const existing: any = raceLower ? findRaceDefinition(ctx, raceLower) : undefined;
     const bonusesJson: string = existing ? existing.bonusesJson : namedRace ? JSON.stringify(race.bonuses) : '{}';
-    const raceName: string = existing ? existing.name : race.raceName;
+    // A reply that names the placeholder in any case is stored under its canonical spelling.
+    const raceName: string = existing ? existing.name : isPlaceholderRace(race.raceName) ? PLACEHOLDER_RACE_NAME : race.raceName;
 
     ctx.db.character_creation_state.id.update({
       ...s,
@@ -306,14 +304,7 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
       updatedAt: ctx.timestamp,
     });
 
-    const stored = parseRaceBonuses(bonusesJson);
-    const bonusParts: string[] = [];
-    for (const bonus of [stored.primary, stored.secondary]) {
-      if (bonus !== null) bonusParts.push(`+${bonus.value} ${bonus.stat.toUpperCase()}`);
-    }
-    const bonusText = bonusParts.length > 0
-      ? `\n${bonusParts.join(', ')}${stored.flavor ? `. ${stored.flavor}` : ''}`
-      : '';
+    const bonusText = raceBonusText(bonusesJson);
 
     writeCreationSegments(ctx, job.playerId, 'creation', keeperSegments(
       `${race.narrative || 'An interesting choice.'}\n\n` +

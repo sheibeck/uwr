@@ -2,7 +2,7 @@ import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity } from '../help
 import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
-import { levelUpBaseStats } from '../data/race_bonuses';
+import { findRaceDefinition, levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 import { flattenLineBreaks } from '../helpers/chat_text';
 
@@ -605,7 +605,7 @@ export const registerCommandReducers = (deps: any) => {
     }
 
     // The race_definition bonus is kept through the rebuild (D1).
-    const raceDef = [...ctx.db.race_definition.by_name.filter(String(character.race ?? '').toLowerCase())][0];
+    const raceDef = findRaceDefinition(ctx, character.race);
     // The legacy race-table stat delta of the current level is on the character (finalize adds
     // none at level 1), so it is removed before primary/secondary detection (WR-01).
     const legacyNow = raceRow && character.level > 1n ? computeRacialAtLevelForAdmin(raceRow, character.level) : null;

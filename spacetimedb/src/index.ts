@@ -50,7 +50,7 @@ import {
   characterUsesResource,
   bestCasterStat,
 } from './data/class_stats';
-import { levelUpBaseStats } from './data/race_bonuses';
+import { findRaceDefinition, levelUpBaseStats } from './data/race_bonuses';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
 // ensureFactions removed -- factions are now generated through play
@@ -491,7 +491,7 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
   const newLevel = character.level + 1n;
 
   // Compute new base stats; the race_definition bonus is kept through the rebuild (D1).
-  const raceDef = [...ctx.db.race_definition.by_name.filter(String(character.race ?? '').toLowerCase())][0];
+  const raceDef = findRaceDefinition(ctx, character.race);
   const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
   // The legacy race-table stat delta from the previous level-up is on the character too (finalize
   // adds none at level 1), so it is removed before primary/secondary detection (WR-01).

@@ -5,9 +5,12 @@ import {
   RACE_PRIMARY_BONUS_MAX,
   RACE_SECONDARY_BONUS_MAX,
   computeCreationStats,
+  findRaceDefinition,
+  isPlaceholderRace,
   levelUpBaseStats,
   parseRaceBonuses,
   raceBonusDelta,
+  raceBonusText,
 } from './race_bonuses';
 import { BASE_STAT, computeBaseStatsForGenerated, detectPrimarySecondary } from './class_stats';
 
@@ -156,6 +159,46 @@ describe('levelUpBaseStats legacy delta (WR-01)', () => {
     const plain = levelUpBaseStats(fx, 2n, DARK_ELF).stats;
     expect(levelUpBaseStats(fx, 2n, DARK_ELF, null).stats).toEqual(plain);
     expect(levelUpBaseStats(fx, 2n, DARK_ELF, {}).stats).toEqual(plain);
+  });
+});
+
+describe('the reserved placeholder race name (review WR-06)', () => {
+  const ctxWith = (names: string[]) => ({
+    db: {
+      race_definition: {
+        by_name: { filter: (lower: string) => names.filter((n) => n.toLowerCase() === lower).map((name) => ({ name })) },
+      },
+    },
+  });
+
+  it('isPlaceholderRace is case-insensitive and ignores surrounding spaces', () => {
+    for (const name of ['Unknown', 'unknown', 'UNKNOWN', ' unknown ']) expect(isPlaceholderRace(name)).toBe(true);
+    for (const name of ['Unknowns', 'Dark-Elf', '', null, undefined]) expect(isPlaceholderRace(name)).toBe(false);
+  });
+
+  it('findRaceDefinition finds a stored race by lowercase name and never returns one for the placeholder', () => {
+    const ctx = ctxWith(['Saltkin', 'Unknown']);
+    expect(findRaceDefinition(ctx, 'SALTKIN')).toEqual({ name: 'Saltkin' });
+    expect(findRaceDefinition(ctx, 'Unknown')).toBeUndefined();
+    expect(findRaceDefinition(ctx, 'unknown')).toBeUndefined();
+    expect(findRaceDefinition(ctx, '')).toBeUndefined();
+    expect(findRaceDefinition(ctx, undefined)).toBeUndefined();
+    expect(findRaceDefinition(ctx, 'Nobody')).toBeUndefined();
+  });
+});
+
+describe('raceBonusText (review IN-11)', () => {
+  it('prints both bonuses and the flavor from the stored json', () => {
+    expect(raceBonusText(DARK_ELF)).toBe('\n+2 DEX, +1 INT. Underlight Eyes');
+  });
+
+  it('prints only what parseRaceBonuses applies: no invented default for a missing or invalid secondary', () => {
+    expect(raceBonusText('{"primary":{"stat":"str","value":2}}')).toBe('\n+2 STR');
+    expect(raceBonusText('{"primary":{"stat":"str","value":2},"secondary":{"stat":"bogus","value":1}}')).toBe('\n+2 STR');
+  });
+
+  it('is empty when no bonus is usable', () => {
+    for (const json of ['{}', 'not json', '', null, undefined]) expect(raceBonusText(json)).toBe('');
   });
 });
 

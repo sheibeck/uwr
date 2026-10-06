@@ -465,6 +465,35 @@ describe('llm apply creation_race success', () => {
     expect(rows(ctx, 'race_definition')).toHaveLength(0);
   });
 
+  it.each(['Unknown', 'unknown', ' UNKNOWN '])(
+    'WR-06: a reply that names the reserved placeholder %j saves no race_definition and carries no bonus',
+    (name) => {
+      const ctx = newCtx(seed());
+      applyLlmResult(ctx, applyJob('creation_race'), JSON.stringify({ ...RACE_JSON, raceName: name }));
+      const state = rows(ctx, 'character_creation_state')[0];
+      expect(state.step).toBe('AWAITING_ARCHETYPE');
+      expect(state.raceName).toBe('Unknown');
+      expect(JSON.parse(state.raceBonuses)).toEqual({});
+      expect(rows(ctx, 'race_definition')).toHaveLength(0);
+      const msg = rows(ctx, 'event_creation')[0].message as string;
+      expect(msg).toContain('**Unknown**');
+      expect(msg).not.toMatch(/\+\d [A-Z]{3}/);
+    },
+  );
+
+  it("WR-06: a definition already stored under 'Unknown' is neither reused nor added to", () => {
+    const stored = '{"primary":{"stat":"cha","value":3},"secondary":{"stat":"wis","value":2}}';
+    const ctx = newCtx({
+      ...seed(),
+      race_definition: [
+        { id: 9n, name: 'Unknown', nameLower: 'unknown', narrative: 'old', bonusesJson: stored, createdAt: ts(T_OLD) },
+      ],
+    }, alice, true);
+    applyLlmResult(ctx, applyJob('creation_race'), JSON.stringify({ ...RACE_JSON, raceName: 'Unknown' }));
+    expect(rows(ctx, 'race_definition')).toHaveLength(1);
+    expect(JSON.parse(rows(ctx, 'character_creation_state')[0].raceBonuses)).toEqual({});
+  });
+
   it('malformed JSON reverts the step and reports the error', () => {
     const ctx = newCtx(seed());
     exec(ctx, applyJob('creation_race'), { resultText: 'the cosmos declined to answer' });
