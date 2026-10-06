@@ -46,6 +46,10 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
     - wrong character, not enough gold, and wrong place are each refused
 - **Pacing:** plan and build all four screens in one pass, then let the owner try them. No mid-phase pause.
 
+### Owner decisions after the UI-SPEC draft (2026-10-06, owner in chat)
+- **Quest items are refused on the server too.** `sell_item` fails for quest items with `Quest items can't be sold.` This is a code-only change, published with the buy-back work, and it gets a test.
+- **Craft quality shows the single deterministic result.** It reads `Quality: {Tier}`, with a hint for what would raise it. There is no odds bar and quality is not made random (no balance change).
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
