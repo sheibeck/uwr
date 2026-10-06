@@ -125,6 +125,13 @@ describe('CharacterPicker', () => {
     expect(name['text-overflow']).toBe('ellipsis');
   });
 
+  it('sets the row text color so names never fall back to the browser button default', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/session/CharacterPicker.vue'), 'utf8');
+    const decls = sfcStyleBlocks(source).flatMap((block) => parseDecls(block, 'CharacterPicker.vue'));
+    const row = Object.fromEntries(decls.filter((d) => d.selector === '.row').map((d) => [d.prop, d.value]));
+    expect(row['color']).toBe('var(--color-text)');
+  });
+
   it('has no New character button (one character per account)', () => {
     const w = mountPicker({ characters: [ARIA, BORIN] });
     expect(w.text()).not.toContain('New character');

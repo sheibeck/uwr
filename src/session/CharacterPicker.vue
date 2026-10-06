@@ -66,6 +66,7 @@ const emit = defineEmits<{ select: [characterId: bigint]; logout: [] }>();
   padding: 8px 16px;
   border-radius: var(--radius-md);
   background: var(--color-bg);
+  color: var(--color-text);
   display: flex;
   align-items: center;
   gap: 16px;
