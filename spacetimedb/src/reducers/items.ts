@@ -110,6 +110,12 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), npcId: t.u64(), itemTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      // Same rule as sell_item and the typed sell: the seller of the goods must be a vendor npc
+      // standing at the character's location. Refused before any read of the listing or any write.
+      const vendorNpc = ctx.db.npc.id.find(args.npcId);
+      if (!vendorNpc || vendorNpc.npcType !== 'vendor' || vendorNpc.locationId !== character.locationId) {
+        return failItem(ctx, character, 'There is no vendor here.');
+      }
       const vendorItem = ctx.db.vendor_inventory
         .by_vendor
         .filter(args.npcId)
@@ -226,6 +232,12 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('sell_all_junk', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    // This reducer takes no npc id, so the rule is the typed 'sell junk' one: some vendor npc must
+    // be at the character's location. Refused before any write.
+    const hasVendorHere = [...ctx.db.npc.by_location.filter(character.locationId)].some(
+      (n: any) => n.npcType === 'vendor'
+    );
+    if (!hasVendorHere) return failItem(ctx, character, 'There is no vendor here.');
     const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
     let total = 0n;
     let count = 0;

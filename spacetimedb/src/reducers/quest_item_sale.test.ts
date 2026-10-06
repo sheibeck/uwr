@@ -27,6 +27,7 @@ const HERE = 10n;
 const REFUSAL = "Quest items can't be sold.";
 
 let sellItem: (...args: any[]) => any;
+let buyItem: (...args: any[]) => any;
 let sellAllJunk: (...args: any[]) => any;
 let submitIntent: (...args: any[]) => any;
 
@@ -44,6 +45,7 @@ function capture(name: string): (...args: any[]) => any {
 beforeAll(async () => {
   await import('../index');
   sellItem = capture('sell_item');
+  buyItem = capture('buy_item');
   sellAllJunk = capture('sell_all_junk');
   submitIntent = capture('submit_intent');
 }, 120_000);
@@ -417,6 +419,107 @@ describe('sell_all_junk (window reducer) skips quest items like the typed sell j
     expect(gold(ctx)).toBe(START_GOLD);
     expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([910n]);
     expect(messages(ctx)).toEqual(['You sell 0 junk item(s) for 0 gold.']);
+  });
+});
+
+// buy_item and sell_all_junk obey the same vendor-presence rule as sell_item and the typed sell: a
+// vendor npc must be at the character's location (sell_all_junk takes no npc id, so any vendor
+// there). Every refusal is one system line and no write at all.
+describe('buy_item requires a vendor at the location', () => {
+  const LISTING = { id: 40n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined };
+  const tables = ['item_instance', 'vendor_inventory', 'vendor_buyback', 'item_affix'];
+
+  function expectRefused(ctx: any, npcId: bigint) {
+    const before = Object.fromEntries(tables.map((tb) => [tb, snapshot(ctx, tb)]));
+    buyItem(ctx, { characterId: 1n, npcId, itemTemplateId: 80n });
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
+    expect(rows(ctx, 'event_private')[0].kind).toBe('system');
+    expect(gold(ctx)).toBe(START_GOLD);
+    for (const tb of tables) expect(snapshot(ctx, tb)).toEqual(before[tb]);
+  }
+
+  it('sells to a vendor standing here (control)', () => {
+    const ctx = newCtx({ templates: [tpl(80n, 'Test Sword')], instances: [], listings: [LISTING] });
+    buyItem(ctx, { characterId: 1n, npcId: VENDOR, itemTemplateId: 80n });
+    expect(messages(ctx)).toEqual(['You buy Test Sword for 26 gold.']);
+    expect(gold(ctx)).toBe(START_GOLD - 26n);
+    expect(rows(ctx, 'item_instance')).toHaveLength(1);
+  });
+
+  it('refuses a listing held by a non-vendor npc', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword')],
+      instances: [],
+      listings: [{ ...LISTING, npcId: NON_VENDOR }],
+    });
+    expectRefused(ctx, NON_VENDOR);
+  });
+
+  it('refuses when the npc row does not exist', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword')],
+      instances: [],
+      listings: [{ ...LISTING, npcId: 77n }],
+      npcs: [],
+    });
+    expectRefused(ctx, 77n);
+  });
+
+  it('refuses a vendor who is at another location, even with the listing in place', () => {
+    const ctx = newCtx({
+      templates: [tpl(80n, 'Test Sword')],
+      instances: [],
+      listings: [LISTING],
+      npcs: [{ id: VENDOR, name: 'Brannoc', npcType: 'vendor', locationId: HERE + 1n }],
+    });
+    expectRefused(ctx, VENDOR);
+  });
+});
+
+describe('sell_all_junk requires a vendor at the location', () => {
+  const junk = tpl(90n, 'Rusty Nail', { slot: 'junk', isJunk: true, vendorValue: 4n });
+
+  function expectRefused(npcs: any[]) {
+    const ctx = newCtx({
+      templates: [junk],
+      instances: [inst(900n, 90n, 1n)],
+      affixes: [affix(1n, 900n, 'keen', 2n)],
+      buyback: [EARLIER_ROW],
+      npcs,
+    });
+    const before = {
+      item_instance: snapshot(ctx, 'item_instance'),
+      item_affix: snapshot(ctx, 'item_affix'),
+      vendor_buyback: snapshot(ctx, 'vendor_buyback'),
+    };
+    sellAllJunk(ctx, { characterId: 1n });
+    expect(messages(ctx)).toEqual(['There is no vendor here.']);
+    expect(rows(ctx, 'event_private')[0].kind).toBe('system');
+    expect(gold(ctx)).toBe(START_GOLD);
+    expect(snapshot(ctx, 'item_instance')).toEqual(before.item_instance);
+    expect(snapshot(ctx, 'item_affix')).toEqual(before.item_affix);
+    expect(snapshot(ctx, 'vendor_buyback')).toEqual(before.vendor_buyback);
+  }
+
+  it('refuses when only a non-vendor npc is here', () => {
+    expectRefused([{ id: NON_VENDOR, name: 'Old Mara', npcType: 'quest', locationId: HERE }]);
+  });
+
+  it('refuses when there is no npc at all', () => {
+    expectRefused([]);
+  });
+
+  it('refuses when the only vendor is at another location', () => {
+    expectRefused([{ id: VENDOR, name: 'Brannoc', npcType: 'vendor', locationId: HERE + 1n }]);
+  });
+
+  it('sells normally when a vendor is here among other npcs (control)', () => {
+    const ctx = newCtx({ templates: [junk], instances: [inst(900n, 90n, 1n)] });
+    sellAllJunk(ctx, { characterId: 1n });
+    const paid = sellPayout(4n, 1n, 0, 0n);
+    expect(messages(ctx)).toEqual([`You sell 1 junk item(s) for ${paid} gold.`]);
+    expect(gold(ctx) - START_GOLD).toBe(paid);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
   });
 });
 
