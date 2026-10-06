@@ -594,6 +594,8 @@ Promote with /gsd-review-backlog when ready.
   4. The static WORLD_DROP_GEAR_DEFS constant is gone, replaced by a generation function
   5. Generated equipment names use the existing prefix/suffix affix system
 
+**Overlap (2026-10-06):** 999.12 (Gear power budget and generated items) covers criteria 1, 2, 3 and 5 and goes further. Criterion 4 is already met: `WORLD_DROP_GEAR_DEFS` no longer exists in the code. Decide whether to merge this item into 999.12 when either is promoted (see 999.12, "Relationship to 999.3").
+
 **Plans**: TBD
 
 Plans:
@@ -968,5 +970,57 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.12: Gear power budget and generated items (BACKLOG)
+
+**Goal:** A vast range of unique items, recipes, weapons and armor whose power always fits how hard they were to get. Every source (drops, named enemies, bosses, quests, rumor treasure, crafting, World events) uses one power budget with a hard cap, so quest and boss gear is worth the effort but never breaks the game. The graph pattern (999.8 to 999.11) records where items come from and how recipes connect. Captured 2026-10-06 (owner idea, refined in discussion). Related: 999.3 (overlaps, see below), 999.9 (NPC facts about items), 999.10 (treasure and craft rumors, first finds).
+
+**Today:**
+
+- **Strong rules:** two quality axes: rarity (common to legendary, rolled from world tier and region danger, `spacetimedb/src/helpers/items.ts` `TIER_RARITY_WEIGHTS` and `rollQualityTier`) and craft quality (dented to mastercraft, `spacetimedb/src/data/crafting_rules.ts`). There are prefix and suffix affixes with set strength per tier (`spacetimedb/src/data/affix_catalog.ts`), and crafting with material tiers, essences, modifier reagents, salvage and research.
+- **Missing content:** since the v2.0 removal of seeded content, server code never inserts `loot_table`, `loot_table_entry` or `recipe_template` rows. Enemies and bosses cannot drop gear (`findLootTable` in `spacetimedb/src/reducers/combat.ts` always returns nothing), and research has no recipes to find. Item templates come only from starter gear, the admin `grant_item`, and quest rewards.
+- **Quest reward gear looks broken (not yet verified at runtime):** `turn_in_quest` (`spacetimedb/src/reducers/quests.ts`) inserts an `item_template` with columns that do not exist (`damage`, `armor`, `str`, `maxHp`, …), without required ones (`requiredLevel`, `allowedClasses`, …), and with invalid slots (`feet`, `weapon`; the real names are `boots`, `mainHand`). If the insert throws, the whole turn-in rolls back, so item-reward quests cannot be completed. It also scales the reward from the player's level, not the quest's difficulty.
+
+**1. One power budget for every source (owner decisions, 2026-10-06):**
+
+```
+budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
+```
+
+- **`itemLevel` comes from the content, not the player:** enemy level, quest difficulty, recipe material tier or region danger. `requiredLevel = itemLevel`.
+- **Source multipliers reflect effort:** normal drop 1.0, named enemy 1.15, boss 1.3, quest by type (reuse `typeMultipliers` in `quests.ts`), rumor treasure 1.25, end of a rumor chain 1.35, crafted by craft quality (dented 0.9 up to mastercraft 1.3), World event by tier (bronze, silver, gold).
+- **Hard cap: 1.4×** (owner decision). No item exceeds 1.4 × baseline at its level.
+- **Every stat has a point cost**, affixes included (for example 1 STR = 1 point, 1 HP = 0.2), so any combination is checked against the budget. Randomness picks which stats an item gets, not how much power.
+- **Rarity is a result of budget and source**, not a separate roll.
+- **The LLM supplies names, descriptions and a theme** ("frost", "drowned", "ember") that steers which stats an item leans toward. It never sets numbers.
+
+**2. Crafting against boss gear (owner decision: agreed):** mastercraft can match boss gear, but only with rare materials from that boss or its region, so crafting and boss hunting support each other.
+
+**3. Legendaries (owner decision):** every legendary item is unique: only one player ever gets it. There can be many different legendary items. They are earned through rumors (999.10), first finds or bosses; their special effects come from the existing ability-effect vocabulary and count against the same budget and cap. Getting one is a World event with renown.
+
+**4. Where the graph helps:**
+
+- **Provenance:** each item links to its source (boss, quest, NPC, region, recipe, material). This drives first-find World events, legendary uniqueness, and NPC knowledge of items ("Borin forged that blade", 999.9 facts).
+- **Recipes as a graph:** materials connect through recipes to outputs. Materials belong to terrain and regions (`MATERIAL_DEFS` already lists gathering terrain). A newly found region can bring a regional material with a tier from its danger, which bounds crafted power. Recipes are discovered through craft rumors (999.10), NPC teaching or research.
+- **Generated loot tables:** when a region or enemy is created, the server builds its loot entries (LLM picks themes, the budget sets stats). This fixes the empty tables.
+- **Template reuse:** item templates keyed by base type, material, level band and theme, and reused so the world is not flooded with one-off templates; each instance rolls its own affixes.
+
+**5. Balance enforced by tests:** for every source and level, budget ≤ 1.4 × baseline including affixes; `requiredLevel = itemLevel`; identical inputs give identical items; a simulated fight with best-in-slot gear beats baseline gear by no more than a set margin; each legendary has at most one owner.
+
+**Relationship to 999.3 (Dynamic Equipment Generation):** 999.3 is kept (owner decision). This item covers 999.3's criteria 1 (drops scaled to enemy level and world tier), 2 (stats from formulas), 3 (quest rewards matched to quest difficulty) and 5 (names from the affix system), and adds the budget cap, sources, crafting, legendaries and provenance. 999.3's criterion 4 (remove `WORLD_DROP_GEAR_DEFS`) is already met. Proposed merge when either is promoted: fold 999.3 into this item and carry its requirement IDs EQUIP-01 to EQUIP-05.
+
+**Open questions:**
+
+- Merge 999.3 into this item, or keep 999.3 as the first slice (drops and quest rewards) with this item as the follow-up?
+- Fix the quest-reward insert now as a quick task (it may block item-reward turn-ins today), or wait for this item?
+- Legendaries: can they be traded or dropped? If one is destroyed or its owner's character is deleted, does it return to the world (for example as a new rumor)?
+- Exact point costs per stat, the baseline curve per level, and the source multipliers.
+- The best-in-slot margin for the simulated-fight test.
+
+**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, legendary single ownership, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after recording owner decisions on Backlog 999.11*
+*Last updated: 2026-10-06 after adding Backlog 999.12 (gear power budget and generated items)*
