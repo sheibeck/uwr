@@ -222,13 +222,13 @@ describe('FeedView keywords', () => {
       segments: [{ kind: 'narration', speaker: 'The Keeper', text }],
     });
 
-    it('makes the name of an available spawn a Careful pull keyword', async () => {
+    it('makes the name of an available spawn a Pull keyword', async () => {
       const h = harness({ enemiesHere: ref([spawn(9n, 'Goblin Scout', 'available')]) });
       const w = mountView(h);
       ingest(h, keeperLine('A Goblin Scout prowls the road.'));
       await settle();
       const button = w.get('button.keyword');
-      expect(button.attributes('aria-label')).toBe('Careful pull Goblin Scout');
+      expect(button.attributes('aria-label')).toBe('Pull Goblin Scout');
       await button.trigger('click');
       expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
     });
