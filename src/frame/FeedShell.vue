@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import ActionRow from '../action/ActionRow.vue';
 import RoundRow from '../combat/RoundRow.vue';
 import FeedView from '../console/FeedView.vue';
 import HotbarRow from '../hotbar/HotbarRow.vue';
 import Composer from '../input/Composer.vue';
 
 // safeBottom: in combat on mobile the tab bar that normally covers the bottom inset is hidden, so
-// the composer keeps clear of it itself.
+// the composer keeps clear of it itself. ActionRow (gather and cast progress) never shows together
+// with RoundRow: gathering and casting are out of combat and it hides while combat.active.
 const props = defineProps<{ compact?: boolean; safeBottom?: boolean }>();
 </script>
 
@@ -14,6 +16,7 @@ const props = defineProps<{ compact?: boolean; safeBottom?: boolean }>();
     <FeedView :compact="props.compact" />
     <section class="composer">
       <RoundRow />
+      <ActionRow />
       <HotbarRow />
       <Composer />
     </section>
