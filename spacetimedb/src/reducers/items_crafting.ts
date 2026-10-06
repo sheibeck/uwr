@@ -1,6 +1,8 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
 import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, planCraft } from '../data/crafting_rules';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
+import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCOVER } from '../data/recipe_rules';
+import type { BagMaterial } from '../data/recipe_rules';
 
 export const registerItemCraftingReducers = (deps: any) => {
   const {
@@ -32,46 +34,76 @@ export const registerItemCraftingReducers = (deps: any) => {
       );
       return;
     }
+    // The area level of the station: the same band and default as computeLocationTargetLevel.
+    const region = ctx.db.region.id.find(location.regionId);
+    const level = areaLevel(region?.dangerMultiplier ?? 100n, location.levelOffset ?? 0n);
+
+    // The bag: non-equipped quantities summed per template, joined to their templates.
+    const held = new Map<bigint, bigint>();
+    for (const instance of ctx.db.item_instance.by_owner.filter(character.id)) {
+      if (instance.equippedSlot) continue;
+      held.set(instance.templateId, (held.get(instance.templateId) ?? 0n) + (instance.quantity ?? 1n));
+    }
+    const bag: BagMaterial[] = [];
+    for (const [templateId, count] of held) {
+      const template = ctx.db.item_template.id.find(templateId);
+      if (!template) continue;
+      bag.push({
+        templateId,
+        name: template.name,
+        tier: template.tier,
+        vendorValue: template.vendorValue,
+        count,
+      });
+    }
+    const candidates = recipeCandidates(bag, level);
+
+    // Snapshot before any insert: the strict mock returns the live array from iter().
+    const recipesByKey = new Map<string, any>();
+    const takenNames = new Set<string>();
+    for (const recipe of [...ctx.db.recipe_template.iter()]) {
+      recipesByKey.set(recipe.key, recipe);
+      takenNames.add(recipe.name.toLowerCase());
+    }
+    for (const template of [...ctx.db.item_template.iter()]) takenNames.add(template.name.toLowerCase());
     const discovered = new Set(
       [...ctx.db.recipe_discovered.by_character.filter(character.id)].map((row) =>
         row.recipeTemplateId.toString()
       )
     );
+
     let found = 0;
-    for (const recipe of ctx.db.recipe_template.iter()) {
-      if (discovered.has(recipe.id.toString())) continue;
-      // Skip gear recipes — only consumables are auto-discoverable
-      // Gear recipes require salvaging or recipe scrolls
-      const isGearRecipe = recipe.recipeType && recipe.recipeType !== 'consumable';
-      if (isGearRecipe) continue;
-      const req1Count = getItemCount(ctx, character.id, recipe.req1TemplateId);
-      const req2Count = getItemCount(ctx, character.id, recipe.req2TemplateId);
-      const req3Count =
-        recipe.req3TemplateId != null
-          ? getItemCount(ctx, character.id, recipe.req3TemplateId)
-          : 0n;
-      const meetsReq3 = recipe.req3TemplateId == null || req3Count >= (recipe.req3Count ?? 0n);
-      if (req1Count >= recipe.req1Count && req2Count >= recipe.req2Count && meetsReq3) {
-        ctx.db.recipe_discovered.insert({
+    for (const candidate of candidates) {
+      if (found >= MAX_NEW_RECIPES_PER_DISCOVER) break;
+      let recipe = recipesByKey.get(candidate.key);
+      if (recipe && discovered.has(recipe.id.toString())) continue;
+      if (!recipe) {
+        // Stored once per key: the recipe and its output are shared by every later discoverer.
+        const made = generatedOutput(candidate, (name: string) => takenNames.has(name.toLowerCase()));
+        const outputTemplate = ctx.db.item_template.insert({ id: 0n, ...made.itemTemplate });
+        takenNames.add(outputTemplate.name.toLowerCase());
+        recipe = ctx.db.recipe_template.insert({
           id: 0n,
-          characterId: character.id,
-          recipeTemplateId: recipe.id,
-          discoveredAt: ctx.timestamp,
+          ...made.recipe,
+          outputTemplateId: outputTemplate.id,
         });
-        const req1 = ctx.db.item_template.id.find(recipe.req1TemplateId);
-        const req2 = ctx.db.item_template.id.find(recipe.req2TemplateId);
-        const req3 = recipe.req3TemplateId
-          ? ctx.db.item_template.id.find(recipe.req3TemplateId)
-          : null;
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'system',
-          `You discover ${recipe.name} because you have ${req1?.name ?? 'materials'} and ${req2?.name ?? 'materials'}${req3 ? ` and ${req3.name}` : ''}.`
-        );
-        found += 1;
+        recipesByKey.set(candidate.key, recipe);
       }
+      ctx.db.recipe_discovered.insert({
+        id: 0n,
+        characterId: character.id,
+        recipeTemplateId: recipe.id,
+        discoveredAt: ctx.timestamp,
+      });
+      discovered.add(recipe.id.toString());
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        `You discover ${recipe.name} because you have ${candidate.primary.name} and ${candidate.secondary.name}.`
+      );
+      found += 1;
     }
     if (found === 0) {
       appendPrivateEvent(
@@ -380,15 +412,13 @@ export const registerItemCraftingReducers = (deps: any) => {
       const scrollChance = rawChance < 5n ? 5n : rawChance > 95n ? 95n : rawChance;
       const roll = (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n;
       if (roll < scrollChance) {
+        // A generated recipe has no scroll item (it is learned through Discover), so a missing
+        // scroll template is normal and stays silent.
         const scrollTemplate = findItemTemplateByName(ctx, `Scroll: ${matchingRecipe.name}`);
         if (scrollTemplate) {
           addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
             `You found a recipe: ${matchingRecipe.name}.`);
-        } else {
-          // Template missing — log for debugging but don't crash
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            `[Debug] No scroll template found for: ${matchingRecipe.name}.`);
         }
       }
     }

@@ -1,0 +1,609 @@
+/**
+ * Rule-based recipe generation through the REAL handlers (Phase 50 plan 25, owner decision
+ * "recipe generation"). research_recipes, craft_recipe, eat_food and salvage_item are captured from
+ * index.ts and run on the strict mock db. Checks:
+ *   - Discover recipes generates recipes from the carried materials, at most 3 new per call, each
+ *     with a well-formed item_template and recipe_template row, consuming nothing;
+ *   - a recipe and its output are stored once per key and reused by every later discoverer;
+ *   - the output level is the area level of the station;
+ *   - every generated recipe crafts end to end (quality, essence, food, salvage);
+ *   - no station, another owner's character and unknown material names refuse or are ignored;
+ *   - level 1 outputs equal the starter gear (parity with ensureStarterItemTemplates).
+ */
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { capturedReducer, rowColumnProblems } from '../helpers/schema_recorder';
+import { createMockCtx } from '../helpers/test-utils';
+import { ensureStarterItemTemplates, STARTER_ARMOR } from '../helpers/items';
+import { canEquipItem } from '../data/item_usability';
+import { STARTER_WEAPON_DEFS } from '../data/equipment_rules';
+import {
+  CRAFTING_MODIFIER_DEFS,
+  ESSENCE_MAGNITUDE,
+  MATERIAL_DEFS,
+  getModifierMagnitude,
+} from '../data/crafting_rules';
+import {
+  ARMOR_FORMS,
+  FOOD_FORMS,
+  MATERIAL_KINDS,
+  UNMAPPED_MATERIAL_KEYS,
+  WEAPON_FORMS,
+  generatedOutput,
+  recipeCandidates,
+} from '../data/recipe_rules';
+
+vi.mock('spacetimedb/server', async () =>
+  (await import('../helpers/schema_recorder')).createRecordingServerMock(),
+);
+
+const T0 = 1_700_000_000_000_000n;
+const alice = { toHexString: () => 'a'.repeat(64) };
+const bob = { toHexString: () => 'b'.repeat(64) };
+
+let research: (...args: any[]) => any;
+let craft: (...args: any[]) => any;
+let eat: (...args: any[]) => any;
+let salvage: (...args: any[]) => any;
+
+beforeAll(async () => {
+  await import('../index');
+  const names = ['research_recipes', 'craft_recipe', 'eat_food', 'salvage_item'] as const;
+  const handlers = names.map((n) => capturedReducer(n));
+  handlers.forEach((h, i) => {
+    if (typeof h !== 'function') {
+      throw new Error(
+        `capturedReducer('${names[i]}') is not a function: the schema recorder could not capture the ` +
+          'reducer from index.ts. STOP and report; never edit production code to fix this.',
+      );
+    }
+  });
+  [research, craft, eat, salvage] = handlers as Array<(...args: any[]) => any>;
+}, 120_000);
+
+const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+const clone = <T>(v: T): T => structuredClone(v);
+
+// Template ids and values read from the local database (2026-10-06).
+const ID = {
+  clear: 33n,
+  stone: 31n,
+  herbs: 40n,
+  peat: 43n,
+  murky: 45n,
+  shard: 46n,
+  cloth: 48n,
+  lamp: 49n,
+  copper: 50n,
+  hide: 51n,
+  lesser: 60n,
+  life: 68n,
+  ironOre: 70n,
+  mystery: 80n,
+  ctor: 81n,
+  proto: 82n,
+};
+
+const material = (id: bigint, name: string, tier = 1n, vendorValue = 1n, over: Record<string, unknown> = {}) => ({
+  id,
+  name,
+  slot: 'material',
+  armorType: 'none',
+  rarity: 'common',
+  tier,
+  isJunk: false,
+  vendorValue,
+  requiredLevel: 1n,
+  allowedClasses: 'any',
+  strBonus: 0n,
+  dexBonus: 0n,
+  chaBonus: 0n,
+  wisBonus: 0n,
+  intBonus: 0n,
+  hpBonus: 0n,
+  manaBonus: 0n,
+  armorClassBonus: 0n,
+  magicResistanceBonus: 0n,
+  weaponBaseDamage: 0n,
+  weaponDps: 0n,
+  weaponType: '',
+  stackable: true,
+  wellFedDurationMicros: 0n,
+  wellFedBuffType: '',
+  wellFedBuffMagnitude: 0n,
+  description: undefined,
+  ...over,
+});
+
+const baseTemplates = () => [
+  material(ID.clear, 'Clear Water'),
+  material(ID.stone, 'Stone'),
+  material(ID.herbs, 'Herbs'),
+  material(ID.peat, 'Peat'),
+  material(ID.murky, 'Murky Water'),
+  material(ID.shard, 'Iron Shard', 1n, 2n),
+  material(ID.cloth, 'Scrap Cloth'),
+  material(ID.lamp, 'Lamp Oil'),
+  material(ID.copper, 'Copper Ore', 1n, 2n),
+  material(ID.hide, 'Rough Hide', 1n, 2n),
+  material(ID.lesser, 'Lesser Essence', 1n, 3n),
+  material(ID.life, 'Life Stone', 1n, 3n),
+  material(ID.ironOre, 'Iron Ore', 2n, 4n),
+  material(ID.mystery, 'Mystery Scrap'),
+  material(ID.ctor, 'constructor'),
+  material(ID.proto, '__proto__'),
+];
+
+type Bag = Array<[bigint, bigint]>;
+
+// Elfansworth's 50-23 bag, and his live bag at 2026-10-06.
+const ELF_BAG: Bag = [
+  [ID.lamp, 12n], [ID.peat, 9n], [ID.herbs, 18n], [ID.cloth, 11n],
+  [ID.shard, 3n], [ID.stone, 11n], [ID.murky, 4n], [ID.life, 1n],
+];
+const LIVE_BAG: Bag = [
+  [ID.copper, 6n], [ID.clear, 5n], [ID.lamp, 16n], [ID.cloth, 21n], [ID.peat, 9n],
+  [ID.herbs, 18n], [ID.murky, 4n], [ID.shard, 3n], [ID.stone, 11n], [ID.life, 1n],
+];
+
+const STATION = 4097n;
+const NO_STATION = 4100n;
+const HIGH_STATION = 4200n;
+
+let nextInstance = 1000n;
+const stacks = (owner: bigint, bag: Bag) =>
+  bag.map(([templateId, quantity]) => ({
+    id: nextInstance++,
+    templateId,
+    ownerCharacterId: owner,
+    equippedSlot: undefined,
+    quantity,
+  }));
+
+function character(id: bigint, userId: bigint, name: string) {
+  return {
+    id,
+    ownerUserId: userId,
+    name,
+    className: 'Gloamweaver',
+    level: 3n,
+    int: 18n,
+    gold: 10n,
+    locationId: STATION,
+    weaponProficiencies: 'dagger,wand,staff',
+    armorProficiencies: 'cloth,leather',
+  };
+}
+
+function newCtx(opts: { bag?: Bag; bag2?: Bag; templates?: any[]; at?: bigint } = {}) {
+  const at = opts.at ?? STATION;
+  const characters = [character(1n, 7n, 'Elfansworth'), character(2n, 8n, 'Armond')];
+  characters[0].locationId = at;
+  characters[1].locationId = at;
+  return createMockCtx({
+    seed: {
+      player: [
+        { id: alice, userId: 7n, activeCharacterId: 1n },
+        { id: bob, userId: 8n, activeCharacterId: 2n },
+      ],
+      character: characters,
+      region: [
+        { id: 4097n, name: 'Tessarine Shelf', dangerMultiplier: 169n },
+        { id: 5n, name: 'Highmarch', dangerMultiplier: 300n },
+      ],
+      location: [
+        { id: STATION, name: 'Cormorant Stair', regionId: 4097n, levelOffset: 0n, craftingAvailable: true },
+        { id: NO_STATION, name: "Saltwidow's Rest", regionId: 4097n, levelOffset: 2n, craftingAvailable: false },
+        { id: HIGH_STATION, name: 'High Forge', regionId: 5n, levelOffset: 0n, craftingAvailable: true },
+      ],
+      item_template: opts.templates ?? baseTemplates(),
+      item_instance: [...stacks(1n, opts.bag ?? ELF_BAG), ...stacks(2n, opts.bag2 ?? [])],
+      item_affix: [],
+      recipe_template: [],
+      recipe_discovered: [],
+      character_effect: [],
+    },
+    sender: alice,
+    timestampMicros: T0,
+    strict: true,
+  });
+}
+
+const discover = (ctx: any, characterId = 1n) => research(ctx, { characterId });
+const lines = (ctx: any, characterId = 1n): string[] =>
+  rows(ctx, 'event_private').filter((e) => e.characterId === characterId).map((e) => e.message);
+const countOf = (ctx: any, characterId: bigint, templateId: bigint): bigint =>
+  rows(ctx, 'item_instance')
+    .filter((i) => i.ownerCharacterId === characterId && i.templateId === templateId && !i.equippedSlot)
+    .reduce((sum, i) => sum + i.quantity, 0n);
+const recipeByName = (ctx: any, name: string) => {
+  const found = rows(ctx, 'recipe_template').find((r) => r.name === name);
+  if (!found) throw new Error(`no recipe ${name}; have ${rows(ctx, 'recipe_template').map((r) => r.name).join(', ')}`);
+  return found;
+};
+const templateByName = (ctx: any, name: string) => rows(ctx, 'item_template').find((t) => t.name === name);
+const generatedTemplates = (ctx: any) =>
+  rows(ctx, 'item_template').filter((t) => typeof t.description === 'string' && t.description.startsWith('Crafted from'));
+
+describe('Discover recipes generates recipes from the carried materials', () => {
+  it('the first Discover creates three recipes, their outputs and the discovered rows, and consumes nothing', () => {
+    const ctx = newCtx();
+    const itemsBefore = clone(rows(ctx, 'item_instance'));
+    const goldBefore = rows(ctx, 'character')[0].gold;
+    const templatesBefore = rows(ctx, 'item_template').length;
+    discover(ctx);
+    expect(rows(ctx, 'item_template')).toHaveLength(templatesBefore + 3);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(3);
+    const mine = rows(ctx, 'recipe_discovered').filter((d) => d.characterId === 1n);
+    expect(mine).toHaveLength(3);
+    expect(mine.map((d) => d.recipeTemplateId)).toEqual(rows(ctx, 'recipe_template').map((r) => r.id));
+    expect(lines(ctx)).toEqual([
+      'You discover Iron Shard Dagger because you have Iron Shard and Scrap Cloth.',
+      'You discover Scrap Cloth Robe because you have Scrap Cloth and Iron Shard.',
+      'You discover Stone Pendant because you have Stone and Scrap Cloth.',
+    ]);
+    expect(rows(ctx, 'event_private').every((e) => e.kind === 'system')).toBe(true);
+    expect(rows(ctx, 'item_instance')).toEqual(itemsBefore);
+    expect(rows(ctx, 'character')[0].gold).toBe(goldBefore);
+    for (const row of generatedTemplates(ctx)) expect(rowColumnProblems('item_template', row), row.name).toEqual([]);
+    for (const row of rows(ctx, 'recipe_template')) expect(rowColumnProblems('recipe_template', row), row.name).toEqual([]);
+    for (const row of rows(ctx, 'recipe_discovered')) expect(rowColumnProblems('recipe_discovered', row)).toEqual([]);
+  });
+
+  it('the second Discover adds Herbal Draught only and the third finds nothing new', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    const before = lines(ctx).length;
+    discover(ctx);
+    expect(lines(ctx).slice(before)).toEqual(['You discover Herbal Draught because you have Herbs and Murky Water.']);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(4);
+    const templates = rows(ctx, 'item_template').length;
+    const recipes = rows(ctx, 'recipe_template').length;
+    const discovered = rows(ctx, 'recipe_discovered').length;
+    const eventsBefore = lines(ctx).length;
+    discover(ctx);
+    expect(lines(ctx).slice(eventsBefore)).toEqual(['You discover nothing new.']);
+    expect(rows(ctx, 'item_template')).toHaveLength(templates);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(recipes);
+    expect(rows(ctx, 'recipe_discovered')).toHaveLength(discovered);
+  });
+
+  it('never uses a reagent or utility material and never asks for more than the bag holds', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    discover(ctx);
+    const bag = (id: bigint) => countOf(ctx, 1n, id);
+    for (const recipe of rows(ctx, 'recipe_template')) {
+      for (const id of [recipe.req1TemplateId, recipe.req2TemplateId]) {
+        expect([ID.lamp, ID.peat, ID.life]).not.toContain(id);
+      }
+      expect(bag(recipe.req1TemplateId)).toBeGreaterThanOrEqual(recipe.req1Count);
+      expect(bag(recipe.req2TemplateId)).toBeGreaterThanOrEqual(recipe.req2Count);
+    }
+  });
+
+  it('the live bag gives three, then two, then nothing new', () => {
+    const ctx = newCtx({ bag: LIVE_BAG });
+    discover(ctx);
+    expect(lines(ctx)).toEqual([
+      'You discover Copper Dagger because you have Copper Ore and Scrap Cloth.',
+      'You discover Scrap Cloth Robe because you have Scrap Cloth and Copper Ore.',
+      'You discover Stone Pendant because you have Stone and Scrap Cloth.',
+    ]);
+    const before = lines(ctx).length;
+    discover(ctx);
+    expect(lines(ctx).slice(before)).toEqual([
+      'You discover Herbal Draught because you have Herbs and Clear Water.',
+      'You discover Iron Shard Dagger because you have Iron Shard and Scrap Cloth.',
+    ]);
+    const after = lines(ctx).length;
+    discover(ctx);
+    expect(lines(ctx).slice(after)).toEqual(['You discover nothing new.']);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(5);
+  });
+
+  it('a short count gives no recipe for that category', () => {
+    const ctx = newCtx({ bag: [[ID.shard, 2n], [ID.cloth, 5n]] });
+    discover(ctx);
+    expect(rows(ctx, 'recipe_template').map((r) => r.name)).toEqual(['Scrap Cloth Robe']);
+  });
+
+  it('unknown, prototype-named and unmapped materials are ignored without error', () => {
+    const ctx = newCtx({
+      bag: [
+        [ID.lamp, 5n], [ID.peat, 5n], [ID.life, 5n], [ID.lesser, 5n],
+        [ID.mystery, 5n], [ID.ctor, 5n], [ID.proto, 5n],
+      ],
+    });
+    const templates = rows(ctx, 'item_template').length;
+    expect(() => discover(ctx)).not.toThrow();
+    expect(lines(ctx)).toEqual(['You discover nothing new.']);
+    expect(rows(ctx, 'item_template')).toHaveLength(templates);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(0);
+    expect(rows(ctx, 'recipe_discovered')).toHaveLength(0);
+  });
+});
+
+describe('a recipe and its output are stored once and shared', () => {
+  it('a second character reuses the rows and only gets recipe_discovered rows', () => {
+    const ctx = newCtx({ bag2: ELF_BAG });
+    discover(ctx);
+    const recipes = clone(rows(ctx, 'recipe_template'));
+    const templates = rows(ctx, 'item_template').length;
+    ctx.sender = bob;
+    discover(ctx, 2n);
+    expect(rows(ctx, 'recipe_template')).toEqual(recipes);
+    expect(rows(ctx, 'item_template')).toHaveLength(templates);
+    const theirs = rows(ctx, 'recipe_discovered').filter((d) => d.characterId === 2n);
+    expect(theirs.map((d) => d.recipeTemplateId)).toEqual(recipes.map((r) => r.id));
+    expect(lines(ctx, 2n)).toEqual(lines(ctx, 1n));
+  });
+
+  it('the Herbal Draught recipe is created once by the first discoverer and reused by the other', () => {
+    const ctx = newCtx({ bag2: ELF_BAG });
+    discover(ctx);
+    ctx.sender = bob;
+    discover(ctx, 2n);
+    discover(ctx, 2n); // the second character is first to find Herbal Draught
+    expect(rows(ctx, 'recipe_template').filter((r) => r.name === 'Herbal Draught')).toHaveLength(1);
+    const recipes = rows(ctx, 'recipe_template').length;
+    const templates = rows(ctx, 'item_template').length;
+    ctx.sender = alice;
+    discover(ctx, 1n);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(recipes);
+    expect(rows(ctx, 'item_template')).toHaveLength(templates);
+    const draught = recipeByName(ctx, 'Herbal Draught');
+    expect(rows(ctx, 'recipe_discovered').filter((d) => d.recipeTemplateId === draught.id).map((d) => d.characterId).sort()).toEqual([1n, 2n]);
+    const keys = rows(ctx, 'recipe_template').map((r) => r.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('the output level is the area level', () => {
+  it('a level 3 station makes new keys at level 3 and leaves the level 1 rows alone', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    const level1 = clone(rows(ctx, 'recipe_template'));
+    const level1Templates = clone(generatedTemplates(ctx));
+    rows(ctx, 'character')[0].locationId = HIGH_STATION;
+    discover(ctx);
+    const all = rows(ctx, 'recipe_template');
+    const added = all.slice(level1.length);
+    expect(added.map((r) => r.name)).toEqual(['Iron Shard Rapier', 'Scrap Cloth Trousers', 'Stone Ring']);
+    for (const r of added) expect(r.key.endsWith(':L3')).toBe(true);
+    for (const r of level1) expect(r.key.endsWith(':L1')).toBe(true);
+    expect(all.slice(0, level1.length)).toEqual(level1);
+    expect(generatedTemplates(ctx).slice(0, level1Templates.length)).toEqual(level1Templates);
+    const rapier = templateByName(ctx, 'Iron Shard Rapier');
+    expect([rapier.weaponBaseDamage, rapier.weaponDps, rapier.requiredLevel]).toEqual([6n, 7n, 3n]);
+    const trousers = templateByName(ctx, 'Scrap Cloth Trousers');
+    expect([trousers.armorClassBonus, trousers.slot, trousers.requiredLevel]).toEqual([2n, 'legs', 3n]);
+    const ring = templateByName(ctx, 'Stone Ring');
+    expect([ring.slot, ring.wisBonus, ring.requiredLevel]).toEqual(['earrings', 1n, 3n]);
+    for (const row of generatedTemplates(ctx)) expect(rowColumnProblems('item_template', row)).toEqual([]);
+  });
+
+  it('a station with a level offset adds it to the region band', () => {
+    const ctx = newCtx();
+    rows(ctx, 'location')[0].levelOffset = 2n; // Cormorant Stair: dm 169 -> 1, plus 2
+    discover(ctx);
+    expect(rows(ctx, 'recipe_template').every((r) => r.key.endsWith(':L3'))).toBe(true);
+  });
+});
+
+describe('a generated recipe crafts end to end', () => {
+  it('the dagger consumes the stated materials, stores standard quality and equips', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    const dagger = recipeByName(ctx, 'Iron Shard Dagger');
+    const before = lines(ctx).length;
+    craft(ctx, { characterId: 1n, recipeTemplateId: dagger.id });
+    expect(countOf(ctx, 1n, ID.shard)).toBe(0n);
+    expect(countOf(ctx, 1n, ID.cloth)).toBe(10n);
+    const made = rows(ctx, 'item_instance').filter((i) => i.templateId === dagger.outputTemplateId);
+    expect(made).toHaveLength(1);
+    expect(made[0].craftQuality).toBe('standard');
+    expect(made[0].qualityTier).toBe('common');
+    expect(lines(ctx).slice(before)).toEqual(['You craft Iron Shard Dagger.']);
+    const template = rows(ctx, 'item_template').find((t) => t.id === dagger.outputTemplateId);
+    expect(canEquipItem(template, rows(ctx, 'character')[0]).ok).toBe(true);
+  });
+
+  it('every gear output can be equipped by the discoverer', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    for (const t of generatedTemplates(ctx)) {
+      expect(canEquipItem(t, rows(ctx, 'character')[0]).ok, t.name).toBe(true);
+    }
+  });
+
+  it('a tier 2 primary crafts reinforced with the implicit quality affixes', () => {
+    const ctx = newCtx({ bag: [[ID.ironOre, 3n], [ID.hide, 1n]] });
+    discover(ctx);
+    expect(lines(ctx)).toEqual(['You discover Iron Sword because you have Iron Ore and Rough Hide.']);
+    const sword = recipeByName(ctx, 'Iron Sword');
+    craft(ctx, { characterId: 1n, recipeTemplateId: sword.id });
+    const made = rows(ctx, 'item_instance').find((i) => i.templateId === sword.outputTemplateId)!;
+    expect(made.craftQuality).toBe('reinforced');
+    const affixes = rows(ctx, 'item_affix').filter((a) => a.itemInstanceId === made.id);
+    expect(affixes.map((a) => [a.statKey, a.magnitude]).sort()).toEqual([
+      ['weaponBaseDamage', 1n],
+      ['weaponDps', 1n],
+    ]);
+  });
+
+  it('a Lesser Essence and a Life Stone add the vitality affix', () => {
+    const ctx = newCtx({ bag: [...ELF_BAG, [ID.lesser, 1n]] });
+    discover(ctx);
+    const dagger = recipeByName(ctx, 'Iron Shard Dagger');
+    craft(ctx, {
+      characterId: 1n,
+      recipeTemplateId: dagger.id,
+      catalystTemplateId: ID.lesser,
+      modifier1TemplateId: ID.life,
+    });
+    const made = rows(ctx, 'item_instance').find((i) => i.templateId === dagger.outputTemplateId)!;
+    const affix = rows(ctx, 'item_affix').find((a) => a.itemInstanceId === made.id && a.statKey === 'hpBonus')!;
+    expect(affix.magnitude).toBe(getModifierMagnitude('lesser_essence', 'hpBonus'));
+    expect(affix.magnitude).toBe(5n);
+    expect(affix.affixName).toBe('of Vitality');
+    expect(made.displayName).toContain('of Vitality');
+    expect(countOf(ctx, 1n, ID.lesser)).toBe(0n);
+    expect(countOf(ctx, 1n, ID.life)).toBe(0n);
+  });
+
+  it('a craft refused for a missing material changes nothing', () => {
+    const ctx = newCtx({ bag: [[ID.shard, 3n], [ID.cloth, 1n]] });
+    discover(ctx);
+    const dagger = recipeByName(ctx, 'Iron Shard Dagger');
+    ctx.db._tables.item_instance.splice(0, ctx.db._tables.item_instance.length, ...stacks(1n, [[ID.shard, 2n], [ID.cloth, 1n]]));
+    const before = clone(rows(ctx, 'item_instance'));
+    craft(ctx, { characterId: 1n, recipeTemplateId: dagger.id });
+    expect(rows(ctx, 'item_instance')).toEqual(before);
+    expect(lines(ctx).at(-1)).toBe('Missing materials to craft this recipe.');
+  });
+
+  it('the food recipe crafts a stackable food that eat_food turns into a Well Fed effect', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    discover(ctx);
+    const draught = recipeByName(ctx, 'Herbal Draught');
+    craft(ctx, { characterId: 1n, recipeTemplateId: draught.id });
+    expect(countOf(ctx, 1n, ID.herbs)).toBe(16n);
+    expect(countOf(ctx, 1n, ID.murky)).toBe(3n);
+    const made = rows(ctx, 'item_instance').filter((i) => i.templateId === draught.outputTemplateId);
+    expect(made).toHaveLength(1);
+    expect(made[0].quantity).toBe(1n);
+    const template = rows(ctx, 'item_template').find((t) => t.id === draught.outputTemplateId);
+    expect(template.stackable).toBe(true);
+    expect(template.slot).toBe('food');
+    eat(ctx, { characterId: 1n, itemInstanceId: made[0].id });
+    const effects = rows(ctx, 'character_effect');
+    expect(effects).toHaveLength(1);
+    expect(effects[0]).toMatchObject({
+      characterId: 1n,
+      effectType: 'food_health_regen',
+      magnitude: 1n,
+      sourceAbility: 'Well Fed',
+    });
+    expect(rows(ctx, 'item_instance').some((i) => i.id === made[0].id)).toBe(false);
+  });
+
+  it('every food form the rules can make is eaten into an effect', () => {
+    const effectOf: Record<string, string> = {
+      health_regen: 'food_health_regen',
+      mana_regen: 'food_mana_regen',
+      stamina_regen: 'food_stamina_regen',
+      str: 'str_bonus',
+      dex: 'dex_bonus',
+    };
+    const candidate = recipeCandidates(
+      [
+        { templateId: ID.herbs, name: 'Herbs', tier: 1n, vendorValue: 1n, count: 18n },
+        { templateId: ID.murky, name: 'Murky Water', tier: 1n, vendorValue: 1n, count: 4n },
+      ],
+      1n,
+    )[0];
+    FOOD_FORMS.forEach((form, k) => {
+      const taken = new Set(FOOD_FORMS.slice(0, k).map((f) => `herbal ${f.word}`.toLowerCase()));
+      const out = generatedOutput(candidate, (name) => taken.has(name.toLowerCase()));
+      expect(out.itemTemplate.wellFedBuffType).toBe(form.buffType);
+      const ctx = newCtx({ bag: [] });
+      const template = ctx.db.item_template.insert({ id: 0n, ...out.itemTemplate });
+      const instance = ctx.db.item_instance.insert({
+        id: 0n, templateId: template.id, ownerCharacterId: 1n, equippedSlot: undefined, quantity: 2n,
+      });
+      eat(ctx, { characterId: 1n, itemInstanceId: instance.id });
+      const effect = rows(ctx, 'character_effect');
+      expect(effect, form.buffType).toHaveLength(1);
+      expect(effect[0].effectType).toBe(effectOf[form.buffType]);
+      expect(effect[0].magnitude).toBe(1n);
+    });
+  });
+});
+
+describe('salvaging a crafted piece is silent about scrolls', () => {
+  it('yields the tier 1 ore, deletes the instance and writes no debug line', () => {
+    const ctx = newCtx();
+    discover(ctx);
+    const dagger = recipeByName(ctx, 'Iron Shard Dagger');
+    craft(ctx, { characterId: 1n, recipeTemplateId: dagger.id });
+    const made = rows(ctx, 'item_instance').find((i) => i.templateId === dagger.outputTemplateId)!;
+    const before = lines(ctx).length;
+    // The scroll roll (T0 + 1) % 100 = 1 is under the chance 8 + (18 - 10) * 3, so the scroll branch runs.
+    salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+    expect(rows(ctx, 'item_instance').some((i) => i.id === made.id)).toBe(false);
+    expect(countOf(ctx, 1n, ID.copper)).toBe(2n);
+    const written = lines(ctx).slice(before);
+    expect(written).toEqual(['You salvaged Iron Shard Dagger and received 2x Copper Ore.']);
+    expect(rows(ctx, 'event_private').some((e) => e.message.includes('[Debug]'))).toBe(false);
+  });
+});
+
+describe('refusals', () => {
+  it('without a station it writes the station line and nothing else', () => {
+    const ctx = newCtx({ at: NO_STATION });
+    discover(ctx);
+    expect(lines(ctx)).toEqual(['Crafting is only available at locations with crafting stations.']);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(0);
+    expect(rows(ctx, 'recipe_discovered')).toHaveLength(0);
+    expect(generatedTemplates(ctx)).toHaveLength(0);
+  });
+
+  it("another owner's call throws and inserts nothing", () => {
+    const ctx = newCtx();
+    ctx.sender = bob;
+    expect(() => research(ctx, { characterId: 1n })).toThrow('Not your character');
+    expect(rows(ctx, 'recipe_template')).toHaveLength(0);
+    expect(rows(ctx, 'recipe_discovered')).toHaveLength(0);
+    expect(generatedTemplates(ctx)).toHaveLength(0);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+});
+
+describe('level 1 outputs equal the starter gear', () => {
+  const starter = () => {
+    const ctx = createMockCtx({ seed: { item_template: [] }, strict: true });
+    ensureStarterItemTemplates(ctx);
+    return ctx;
+  };
+
+  it('each starter weapon matches the weapon form of its type', () => {
+    const ctx = starter();
+    for (const def of STARTER_WEAPON_DEFS) {
+      const template = templateByName(ctx, def.name);
+      const form = WEAPON_FORMS.find((f) => f.weaponType === def.weaponType)!;
+      expect(form, def.weaponType).toBeDefined();
+      expect([template.weaponBaseDamage, template.weaponDps], def.name).toEqual([form.baseDamage, form.dps]);
+    }
+  });
+
+  it('starter cloth and leather armor match the armor forms and end with the form word', () => {
+    const ctx = starter();
+    for (const type of ['cloth', 'leather'] as const) {
+      const set = STARTER_ARMOR[type];
+      for (const slot of ['chest', 'legs', 'boots'] as const) {
+        const form = ARMOR_FORMS.find((f) => f.slot === slot)!;
+        const template = templateByName(ctx, set[slot].name);
+        expect(template.armorClassBonus, set[slot].name).toBe(form.baseAc[type]);
+        expect(set[slot].name.endsWith(form.words[type]), set[slot].name).toBe(true);
+      }
+    }
+  });
+
+  it('every starter material is mapped, deliberately unmapped, an essence or a reagent', () => {
+    const ctx = starter();
+    const known = new Set<string>([
+      ...Object.keys(MATERIAL_KINDS),
+      ...UNMAPPED_MATERIAL_KEYS,
+      ...Object.keys(ESSENCE_MAGNITUDE),
+      ...CRAFTING_MODIFIER_DEFS.map((d) => d.key),
+    ]);
+    const materials = rows(ctx, 'item_template').filter((t) => t.slot === 'material');
+    expect(materials.length).toBeGreaterThan(20);
+    for (const t of materials) {
+      const key = t.name.toLowerCase().replace(/\s+/g, '_');
+      expect(known.has(key), t.name).toBe(true);
+    }
+    for (const def of MATERIAL_DEFS) expect(materials.some((t) => t.name === def.name)).toBe(true);
+  });
+});
