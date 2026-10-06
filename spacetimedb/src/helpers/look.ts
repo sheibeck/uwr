@@ -1,4 +1,5 @@
 import { getWorldState } from './location';
+import { isNodeVisibleTo } from './examine';
 
 /**
  * Build the full LOOK output for a character at their current location.
@@ -87,7 +88,7 @@ export function buildLookOutput(ctx: any, character: any): string[] {
 
   // 7. Resources
   const resources = [...ctx.db.resource_node.by_location.filter(character.locationId)]
-    .filter((r: any) => r.state === 'available');
+    .filter((r: any) => r.state === 'available' && isNodeVisibleTo(r, character));
   if (resources.length > 0) {
     const resourceCounts = new Map<string, number>();
     for (const r of resources) {

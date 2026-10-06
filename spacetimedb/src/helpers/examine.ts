@@ -63,11 +63,16 @@ function typeLabel(slot: unknown): string {
 
 type NameMatcher = (name: string) => boolean;
 
+/** A node is visible to its owner (a personal node) and to everyone when it has no owner. */
+export function isNodeVisibleTo(node: any, character: any): boolean {
+  const owner = node.characterId;
+  return owner === undefined || owner === null || owner === character.id;
+}
+
 function describeNode(ctx: any, character: any, matches: NameMatcher): string | null {
   const visible: any[] = [];
   for (const n of ctx.db.resource_node.by_location.filter(character.locationId)) {
-    const owner = (n as any).characterId;
-    if (owner === undefined || owner === null || owner === character.id) visible.push(n);
+    if (isNodeVisibleTo(n, character)) visible.push(n);
   }
   const pool = visible.filter((n) => matches(String(n.name)));
   if (pool.length === 0) return null;

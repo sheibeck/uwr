@@ -197,6 +197,41 @@ describe('buildLookOutput', () => {
     expect(parts[0]).toBe('{{color:#fbbf24}}Town{{/color}}');
     expect(parts.join('\n')).not.toContain('Quest items');
   });
+
+  describe('resource nodes and privacy', () => {
+    const lookWith = (resource_node: any[]) => {
+      const db = createMockDb({
+        location: [{ id: 1n, name: 'Town', description: 'A town.', isSafe: true, bindStone: false, craftingAvailable: false }],
+        world_state: [{ id: 1n, isNight: false, nextTransitionAtMicros: 2000000000000n }],
+        npc: [],
+        character: [],
+        enemy_spawn: [],
+        resource_node,
+        location_connection: [],
+        quest_item: [],
+      });
+      const ctx = { db, timestamp: { microsSinceUnixEpoch: 1000000000000n } };
+      return buildLookOutput(ctx, { id: 10n, locationId: 1n, level: 1n }).join('\n');
+    };
+
+    it('lists shared nodes and the character\'s own personal nodes', () => {
+      const out = lookWith([
+        { id: 1n, locationId: 1n, name: 'Stone', state: 'available' },
+        { id: 2n, locationId: 1n, name: 'Iron Shard', state: 'available', characterId: 10n },
+      ]);
+      expect(out).toContain('Gather Stone');
+      expect(out).toContain('Gather Iron Shard');
+    });
+
+    it('hides another character\'s personal node', () => {
+      const out = lookWith([
+        { id: 1n, locationId: 1n, name: 'Stone', state: 'available' },
+        { id: 2n, locationId: 1n, name: 'Iron Shard', state: 'available', characterId: 99n },
+      ]);
+      expect(out).toContain('Gather Stone');
+      expect(out).not.toContain('Iron Shard');
+    });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
