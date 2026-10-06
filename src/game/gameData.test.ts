@@ -64,6 +64,7 @@ const queries: GameQueries = {
   combatCasts: (id) => `Q_CASTS_${id}`,
   combatNarratives: (id) => `Q_NARR_${id}`,
   combatPets: (id) => `Q_PETS_${id}`,
+  combatEnemyEffects: (id) => `Q_ENEMY_EFFECTS_${id}`,
   renown: (id) => `Q_RENOWN_${id}`,
   renownPerks: (id) => `Q_PERKS_${id}`,
   resourceGathers: (id) => `Q_GATHERS_${id}`,
@@ -637,6 +638,7 @@ describe('createGameData: combat', () => {
     'Q_ROUNDS_10',
     'Q_CASTS_10',
     'Q_PETS_10',
+    'Q_ENEMY_EFFECTS_10',
   ];
 
   // The player (character 5) takes part in fight 10.
@@ -771,7 +773,14 @@ describe('createGameData: combat', () => {
     const h = inFight();
     expect(filterOf(h, 'Q_ENEMIES_10')({ combatId: 10n })).toBe(true);
     expect(filterOf(h, 'Q_ENEMIES_10')({ combatId: 11n })).toBe(false);
-    for (const sql of ['Q_PARTS_10', 'Q_ROUNDS_10', 'Q_CASTS_10', 'Q_PETS_10', 'Q_NARR_10']) {
+    for (const sql of [
+      'Q_PARTS_10',
+      'Q_ROUNDS_10',
+      'Q_CASTS_10',
+      'Q_PETS_10',
+      'Q_NARR_10',
+      'Q_ENEMY_EFFECTS_10',
+    ]) {
       expect(filterOf(h, sql)({ combatId: 11n })).toBe(false);
       expect(filterOf(h, sql)({ combatId: 10n })).toBe(true);
     }
@@ -779,6 +788,60 @@ describe('createGameData: combat', () => {
     expect(filterOf(h, 'Q_PART_OF_5')({ characterId: 6n })).toBe(false);
     expect(filterOf(h, 'Q_ACTIONS_5')({ characterId: 5n })).toBe(true);
     expect(filterOf(h, 'Q_ACTIONS_5')({ characterId: 6n })).toBe(false);
+  });
+
+  describe('enemy effects (quick 261006-hpp)', () => {
+    it('binds combat_enemy_effect by the fight combat id, and only once in a fight', () => {
+      const idle = harness();
+      idle.connect();
+      idle.character.value = makeCharacter(5n);
+      expect(idle.bindings.some((b) => b.sql[0].startsWith('Q_ENEMY_EFFECTS_'))).toBe(false);
+      expect(idle.game.combat.enemyEffects.value).toEqual([]);
+
+      const h = inFight();
+      expect(h.live('Q_ENEMY_EFFECTS_10')).toHaveLength(1);
+    });
+
+    it('filters out rows of another fight, whatever the shared cache holds', () => {
+      const h = inFight();
+      const filter = filterOf(h, 'Q_ENEMY_EFFECTS_10');
+      expect(filter({ combatId: 10n })).toBe(true);
+      expect(filter({ combatId: 11n })).toBe(false);
+    });
+
+    it('exposes the rows of the binding as combat.enemyEffects', () => {
+      const h = inFight();
+      expect(h.game.combat.enemyEffects.value).toEqual([]);
+      h.find('Q_ENEMY_EFFECTS_10').rows.value = [
+        { id: 1n, combatId: 10n, enemyId: 4n, effectType: 'dot', roundsRemaining: 3n },
+      ];
+      expect(h.game.combat.enemyEffects.value).toHaveLength(1);
+      expect(h.game.combat.enemyEffects.value[0].effectType).toBe('dot');
+    });
+
+    it('follows the fight: a new combat id rebinds, and the old fight rows go with it', () => {
+      const h = inFight();
+      const own = h.find('Q_PART_OF_5');
+      own.rows.value = [{ id: 2n, combatId: 11n, characterId: 5n, status: 'active' }];
+      expect(h.live('Q_ENEMY_EFFECTS_11')).toHaveLength(1);
+      h.find('Q_ENEMY_EFFECTS_11').applied.value = true;
+      expect(h.live('Q_ENEMY_EFFECTS_10')).toHaveLength(0);
+    });
+
+    it('is disposed when the fight ends, and by reset()', () => {
+      const h = inFight();
+      h.find('Q_ENEMY_EFFECTS_10').rows.value = [
+        { id: 1n, combatId: 10n, enemyId: 4n, effectType: 'dot', roundsRemaining: 3n },
+      ];
+      h.game.reset();
+      expect(h.live('Q_ENEMY_EFFECTS_10')).toHaveLength(0);
+      expect(h.game.combat.enemyEffects.value).toEqual([]);
+
+      const ended = inFight();
+      ended.find('Q_PART_OF_5').rows.value = [];
+      expect(ended.live('Q_ENEMY_EFFECTS_10')).toHaveLength(0);
+      expect(ended.game.combat.enemyEffects.value).toEqual([]);
+    });
   });
 
   describe('when the fight ends', () => {
@@ -1123,6 +1186,7 @@ describe('inert defaults', () => {
       combat.rounds,
       combat.actions,
       combat.casts,
+      combat.enemyEffects,
       combat.narratives,
       combat.pets,
       combat.aggro,

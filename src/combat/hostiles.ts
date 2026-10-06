@@ -5,6 +5,8 @@
 // render text nodes and apply classes. Names are server or model text and pass through
 // concatenation only, never markup.
 import { barFraction } from '../frame/vitals';
+import { effectIcon, effectName, effectPolarity, effectTimeText, type EffectView } from '../rails/effects';
+import { enemyEffectKind, kindLabel } from './kindLabel';
 import { conFor, type ConView } from './difficulty';
 import {
   enemyAbilityName,
@@ -45,6 +47,22 @@ export interface HostileCastRow {
   landsAtRound: bigint;
 }
 
+/** Effect chips on a hostile row before the "+N" chip (desktop rail and sheet). */
+export const HOSTILE_EFFECT_LIMIT = 3;
+
+/** Effect chips on a mobile strip chip before the "+N" chip. */
+export const STRIP_EFFECT_LIMIT = 1;
+
+/** One combat_enemy_effect row. */
+export interface HostileEffectRow {
+  id: bigint;
+  enemyId: bigint;
+  effectType: string;
+  magnitude: bigint;
+  roundsRemaining: bigint;
+  sourceAbility?: string | null;
+}
+
 export interface HostileView {
   id: bigint;
   name: string;
@@ -63,6 +81,8 @@ export interface HostileView {
   defeated: boolean;
   targeted: boolean;
   windups: WindupParts[];
+  /** Effects on this enemy in ascending id; none once it is defeated. */
+  effects: EffectView[];
   ariaLabel: string;
   title: string;
 }
@@ -72,6 +92,8 @@ export interface HostileViewsInput {
   templates: readonly HostileTemplateRow[];
   abilities: readonly HostileAbilityRow[];
   casts: readonly HostileCastRow[];
+  /** combat_enemy_effect rows of the fight; omitted means none. */
+  effects?: readonly HostileEffectRow[];
   /** Open round number, or null when no round row is known (casts then use the announcement N). */
   currentRound: bigint | null;
   playerLevel: bigint;
@@ -85,6 +107,35 @@ function compareIds(a: bigint, b: bigint): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/**
+ * Chips for the effects on one enemy. Text reads '{Type} · N rounds' with the type in the server
+ * vocabulary's words ('Damage over time'); the compact text is the rounds alone ('3 rounds'). The
+ * title names the effect, and the aria text reads '{effect} on {enemy}, N rounds left'. Effect names
+ * are server or model text and pass through concatenation only.
+ */
+export function enemyEffectViews(rows: readonly HostileEffectRow[], enemyName: string): EffectView[] {
+  return [...rows]
+    .sort((a, b) => compareIds(a.id, b.id))
+    .map((row): EffectView => {
+      const polarity = effectPolarity(row.effectType, row.magnitude);
+      const name = effectName(row);
+      const type = kindLabel(enemyEffectKind(row.effectType, row.magnitude));
+      const timeText = effectTimeText(row.roundsRemaining, true);
+      const text = timeText === null ? type : `${type} · ${timeText}`;
+      return {
+        id: row.id,
+        name,
+        polarity,
+        icon: effectIcon(row.effectType, polarity),
+        timeText,
+        text,
+        compactText: timeText === null ? type : timeText,
+        title: `${name} · ${text}`,
+        ariaText: timeText === null ? `${name} on ${enemyName}` : `${name} on ${enemyName}, ${timeText} left`,
+      };
+    });
+}
+
 export function hostileViews(input: HostileViewsInput): HostileView[] {
   const templateById = new Map<bigint, HostileTemplateRow>();
   for (const template of input.templates) templateById.set(template.id, template);
@@ -94,6 +145,13 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
     const list = castsByEnemy.get(cast.enemyId);
     if (list) list.push(cast);
     else castsByEnemy.set(cast.enemyId, [cast]);
+  }
+
+  const effectsByEnemy = new Map<bigint, HostileEffectRow[]>();
+  for (const effect of input.effects ?? []) {
+    const list = effectsByEnemy.get(effect.enemyId);
+    if (list) list.push(effect);
+    else effectsByEnemy.set(effect.enemyId, [effect]);
   }
 
   return [...input.enemies]
@@ -130,11 +188,14 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
         });
       });
 
+      const effects = defeated ? [] : enemyEffectViews(effectsByEnemy.get(enemy.id) ?? [], enemy.displayName);
+
       let ariaLabel = enemy.displayName;
       if (template) ariaLabel += `, level ${template.level}`;
       ariaLabel += `, ${con.meaning}, ${percent}% health`;
       if (isBoss) ariaLabel += ', boss';
       if (abilityNames.length > 0) ariaLabel += `, winding up ${abilityNames[0]}`;
+      for (const effect of effects) ariaLabel += `, ${effect.ariaText}`;
 
       return {
         id: enemy.id,
@@ -150,6 +211,7 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
         defeated,
         targeted,
         windups,
+        effects,
         ariaLabel,
         title: `${enemy.displayName} · ${con.meaning}`,
       };

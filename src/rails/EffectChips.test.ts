@@ -92,6 +92,32 @@ describe('EffectChips', () => {
     for (const chip of w.findAll('.tag')) expect(chip.element.tagName).toBe('SPAN');
   });
 
+  it('shows the first `limit` chips and a +n chip for the rest', () => {
+    wrapper = mount(EffectChips, { props: { effects: many(5), limit: 2 } });
+    const chips = wrapper.findAll('.tag');
+    expect(chips.map((chip) => chip.text())).toEqual(['Effect 1', 'Effect 2', '+3']);
+  });
+
+  it('swaps in compactText only for compact, falling back to text', () => {
+    const effects = [view(1, { text: 'Damage over time · 3 rounds', compactText: '3 rounds' }), view(2)];
+    wrapper = mount(EffectChips, { props: { effects } });
+    expect(wrapper.findAll('.chip-text').map((t) => t.text())).toEqual(['Damage over time · 3 rounds', 'Effect 2']);
+    wrapper.unmount();
+    wrapper = mount(EffectChips, { props: { effects, compact: true } });
+    expect(wrapper.findAll('.chip-text').map((t) => t.text())).toEqual(['3 rounds', 'Effect 2']);
+    expect(wrapper.get('.effect-chips').classes()).toContain('compact');
+  });
+
+  it('marks dense chips, and draws a span root when inline', () => {
+    wrapper = mount(EffectChips, { props: { effects: many(1), dense: true, inline: true } });
+    const root = wrapper.get('.effect-chips');
+    expect(root.element.tagName).toBe('SPAN');
+    expect(root.classes()).toContain('dense');
+    wrapper.unmount();
+    wrapper = mount(EffectChips, { props: { effects: many(1) } });
+    expect(wrapper.get('.effect-chips').element.tagName).toBe('DIV');
+  });
+
   it('renders an effect name as text, not markup', () => {
     const payload = '<img src=x onerror=alert(1)>';
     const w = mountChips([view(1, { text: payload, title: payload })]);
@@ -102,6 +128,14 @@ describe('EffectChips', () => {
 
 describe('EffectChips source', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/rails/EffectChips.vue'), 'utf8');
+
+  it('adds only on-scale sizes and spacing for the dense and compact chips', () => {
+    expect(source).toMatch(/\.effect-chips\.compact \.tag \{\s*font-size: 10px;/);
+    expect(source).toMatch(/\.effect-chips\.dense \.tag,\s*\.effect-chips\.compact \.tag \{\s*padding: 0 4px;/);
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+    expect(source).not.toContain('v-html');
+    expect(source).not.toContain('<svg');
+  });
 
   it('carries the debuff color mix from the UI-SPEC', () => {
     expect(source).toContain('color-mix(in srgb, var(--color-health) 24%, var(--color-surface))');

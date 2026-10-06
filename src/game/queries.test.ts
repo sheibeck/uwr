@@ -140,6 +140,7 @@ describe('gameQueries: combat', () => {
       [q.combatCasts(10n), 'combat_enemy_cast'],
       [q.combatNarratives(10n), 'combat_narrative'],
       [q.combatPets(10n), 'active_pet'],
+      [q.combatEnemyEffects(10n), 'combat_enemy_effect'],
     ];
     for (const [sql, table] of cases) {
       expect(sql).toContain(`FROM "${table}"`);
@@ -181,6 +182,7 @@ describe('gameQueries: combat', () => {
       q.combatCasts(1n),
       q.combatNarratives(1n),
       q.combatPets(1n),
+      q.combatEnemyEffects(1n),
       q.enemyTemplatesById([1n]),
       q.enemyAbilitiesByTemplate([1n]),
     ]) {

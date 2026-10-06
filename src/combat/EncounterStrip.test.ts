@@ -26,6 +26,7 @@ afterEach(() => {
 interface Setup {
   enemies?: Array<Record<string, unknown>>;
   casts?: Array<Record<string, unknown>>;
+  effects?: Array<Record<string, unknown>>;
   applied?: boolean;
   target?: bigint | null;
 }
@@ -62,6 +63,7 @@ function mountStrip(setup: Setup = {}, props: { collapsed?: boolean } = {}) {
     enemyTemplates: ref([{ id: 100n, level: 6n }]),
     enemyAbilities: ref([{ enemyTemplateId: 100n, abilityKey: 'bile_spray', name: 'Bile Spray' }]),
     casts: ref(setup.casts ?? [CAST]),
+    enemyEffects: ref(setup.effects ?? []),
     roundNumber: ref<bigint | null>(3n),
   };
   const game = {
@@ -185,6 +187,90 @@ describe('EncounterStrip chips', () => {
     expect(wrapper!.find('img').exists()).toBe(false);
     expect(wrapper!.get('.chip-name').text()).toBe(XSS);
     expect(wrapper!.get('button.hostile-chip').attributes('aria-label')).toContain(XSS);
+  });
+});
+
+function fx(id: bigint, enemyId: bigint, over: Record<string, unknown> = {}) {
+  return {
+    id,
+    combatId: 1n,
+    enemyId,
+    effectType: 'dot',
+    magnitude: 6n,
+    roundsRemaining: 3n,
+    sourceAbility: 'Ignite',
+    ...over,
+  };
+}
+
+describe('EncounterStrip effect chips', () => {
+  it('shows no effect chips for a chip without effects', () => {
+    mountStrip();
+    expect(wrapper!.find('.effect-chips').exists()).toBe(false);
+    expect(wrapper!.findAll('button.hostile-chip').some((chip) => chip.classes().includes('has-effects'))).toBe(false);
+  });
+
+  it('shows each chip only its own effects, as the rounds with an icon', () => {
+    mountStrip({
+      effects: [fx(1n, 9n), fx(2n, 3n, { effectType: 'stun', sourceAbility: 'Bash', roundsRemaining: 1n })],
+    });
+    const [gnawer, rotfang] = wrapper!.findAll('button.hostile-chip');
+    expect(gnawer.findAll('.effect-chips .tag').map((chip) => chip.text())).toEqual(['1 round']);
+    expect(rotfang.findAll('.effect-chips .tag').map((chip) => chip.text())).toEqual(['3 rounds']);
+    expect(rotfang.find('.effect-chips .tag svg').exists()).toBe(true);
+    expect(rotfang.classes()).toContain('has-effects');
+  });
+
+  it('carries the type and the effect name in the chip title', () => {
+    mountStrip({ effects: [fx(1n, 9n)] });
+    expect(wrapper!.get('.effect-chips .tag').attributes('title')).toBe('Ignite · Damage over time · 3 rounds');
+  });
+
+  it('adds "{effect} on {enemy}, N rounds left" to the chip label', () => {
+    mountStrip({ effects: [fx(1n, 9n)] });
+    const rotfang = wrapper!.findAll('button.hostile-chip')[1];
+    expect(rotfang.attributes('aria-label')).toBe(
+      'Rotfang, level 6, Hard, 44% health, winding up Bile Spray, Ignite on Rotfang, 3 rounds left',
+    );
+  });
+
+  it('keeps the strip compact: one chip, then a +N chip for the rest', () => {
+    mountStrip({
+      effects: [fx(1n, 9n), fx(2n, 9n, { sourceAbility: 'Rot' }), fx(3n, 9n, { sourceAbility: 'Bile' })],
+    });
+    const chips = wrapper!.findAll('button.hostile-chip')[1].findAll('.effect-chips .tag');
+    expect(chips.map((chip) => chip.text())).toEqual(['3 rounds', '+2']);
+    expect(wrapper!.get('.effect-chips').classes()).toContain('nowrap');
+  });
+
+  it('shows no +N chip for a single effect', () => {
+    mountStrip({ effects: [fx(1n, 9n)] });
+    expect(wrapper!.find('.tag-neutral').exists()).toBe(false);
+  });
+
+  it('keeps the chip a button without nested block elements, and clicking a chip still targets', async () => {
+    const { requestTarget } = mountStrip({ effects: [fx(1n, 9n)] });
+    const rotfang = wrapper!.findAll('button.hostile-chip')[1];
+    expect(rotfang.get('.effect-chips').element.tagName).toBe('SPAN');
+    expect(rotfang.find('div').exists()).toBe(false);
+    await rotfang.get('.effect-chips .tag').trigger('click');
+    expect(requestTarget).toHaveBeenCalledWith(9n);
+  });
+
+  it('shows no effect chips when collapsed or on a defeated chip', () => {
+    mountStrip({ effects: [fx(1n, 9n)] }, { collapsed: true });
+    expect(wrapper!.find('.effect-chips').exists()).toBe(false);
+    wrapper?.unmount();
+    mountStrip({ enemies: [enemy(9n, 'Rotfang', { currentHp: 0n })], effects: [fx(1n, 9n)] });
+    expect(wrapper!.find('.effect-chips').exists()).toBe(false);
+  });
+
+  it('renders an effect name as text, never markup', () => {
+    mountStrip({ effects: [fx(1n, 9n, { sourceAbility: XSS })] });
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.effect-chips .tag').attributes('title')).toContain(XSS);
+    expect(wrapper!.findAll('button.hostile-chip')[1].attributes('aria-label')).toContain(`${XSS} on Rotfang, 3 rounds left`);
+    expect(document.body.querySelector('img')).toBeNull();
   });
 });
 

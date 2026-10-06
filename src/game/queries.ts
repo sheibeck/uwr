@@ -41,6 +41,7 @@ export interface GameQueries {
   combatCasts(combatId: bigint): string;
   combatNarratives(combatId: bigint): string;
   combatPets(combatId: bigint): string;
+  combatEnemyEffects(combatId: bigint): string;
   renown(characterId: bigint): string;
   renownPerks(characterId: bigint): string;
   resourceGathers(characterId: bigint): string;
@@ -108,6 +109,8 @@ export function gameQueries(): GameQueries {
     combatNarratives: (combatId) =>
       toSql(tables.combatNarrative.where((r) => r.combatId.eq(combatId))),
     combatPets: (combatId) => toSql(tables.activePet.where((r) => r.combatId.eq(combatId))),
+    combatEnemyEffects: (combatId) =>
+      toSql(tables.combatEnemyEffect.where((r) => r.combatId.eq(combatId))),
     renown: (characterId) => toSql(tables.renown.where((r) => r.characterId.eq(characterId))),
     renownPerks: (characterId) =>
       toSql(tables.renownPerk.where((r) => r.characterId.eq(characterId))),

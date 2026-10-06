@@ -22,6 +22,7 @@ const hostiles = computed(() =>
     templates: combat.enemyTemplates.value,
     abilities: combat.enemyAbilities.value,
     casts: combat.casts.value,
+    effects: combat.enemyEffects.value,
     currentRound: combat.roundNumber.value,
     playerLevel: game.character.value?.level ?? 0n,
     targetId: game.character.value?.combatTargetEnemyId ?? null,
