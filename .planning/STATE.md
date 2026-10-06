@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 47
 current_phase_name: Console, Rails, Hotbar and Input
 status: executing
-stopped_at: Completed 47-04-PLAN.md
-last_updated: "2026-10-06T00:38:44.195Z"
+stopped_at: Completed 47-05-PLAN.md
+last_updated: "2026-10-06T00:51:22.592Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 47 execution started
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 33
-  completed_plans: 25
+  completed_plans: 26
   percent: 22
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 47 (Console, Rails, Hotbar and Input) — EXECUTING
-Plan: 5 of 12
+Plan: 6 of 12
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 47 execution started
 
-Progress: [████████░░] 76%
+Progress: [████████░░] 79%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -163,6 +163,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 47-02: keyword-eligible lines are Keeper, NPC, scene, quest, ripple, world event, system and warning; player-authored text never eligible
 - [Phase ?]: 47-03: route levels use the per-location rule (region base + levelOffset); item_cooldown unused (no slot-to-item link)
 - [Phase ?]: 47-04: No client Error line for failed jobs; queue gate excludes world_gen fill route; feed cap keeps the newest entry
+- [Phase ?]: 47-05: createKeyed disposes its bindings when the owning effect scope stops; queries throw on empty id lists (callers use idListKey null)
 
 ### Roadmap Evolution
 
@@ -276,8 +277,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T00:38:44.164Z
-Stopped at: Completed 47-04-PLAN.md
+Last session: 2026-10-06T00:51:22.549Z
+Stopped at: Completed 47-05-PLAN.md
 
 ## Performance Metrics
 
@@ -386,6 +387,7 @@ Stopped at: Completed 47-04-PLAN.md
 | Phase 47 P02 | 20min | 3 tasks | 9 files |
 | Phase 47 P03 | 25min | 4 tasks | 16 files |
 | Phase 47 P04 | 20min | 3 tasks | 8 files |
+| Phase 47 P05 | 15min | 3 tasks | 8 files |
 
 ## Operator Next Steps
 

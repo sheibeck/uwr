@@ -236,7 +236,7 @@ Plans:
   4. Typing a natural sentence that starts with a command word ("Who is that over there?", "Leave him alone", "End this now", "Accept my apology") reaches the conversation or intent path, while exact forms (`who`, `/who`, `invite <name>`) still run the command.
   5. At 390×844 the feed, keywords, hotbar and input are usable, and the vitals, routes, Nearby, quests and active event are reachable from the compact strip and tab bar.
 
-**Plans**: 4/12 plans executed
+**Plans**: 5/12 plans executed
 
 Plans:
 **Wave 1**
@@ -245,7 +245,7 @@ Plans:
 - [x] 47-02-PLAN.md — Feed text: line classification by kind, server markup cleaning, whisper/chat/NPC parsers, keyword matcher
 - [x] 47-03-PLAN.md — Rail and hotbar derivations: effects, XP, party, quests, route levels, Nearby, world event card, hotbar slots and cooldowns
 - [x] 47-04-PLAN.md — Console state: ported indicator selection and queue gate, narrative queue, info formatters, capped feed store
-- [ ] 47-05-PLAN.md — Subscription primitives: event-table binding, keyed swap-on-applied bindings, server clock, filtered queries
+- [x] 47-05-PLAN.md — Subscription primitives: event-table binding, keyed swap-on-applied bindings, server clock, filtered queries
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -399,7 +399,7 @@ Plans:
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
-| 47. Console, Rails, Hotbar and Input | v3.0 | 4/12 | In Progress|  |
+| 47. Console, Rails, Hotbar and Input | v3.0 | 5/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |
