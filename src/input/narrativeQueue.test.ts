@@ -3,7 +3,7 @@ import { QUEUE_MAX, createNarrativeQueue } from './narrativeQueue';
 import type { QueuedLine } from './narrativeQueue';
 
 function line(n: number): QueuedLine {
-  return { text: `line ${n}`, mode: 'narrative', echoKey: `local:${n}` };
+  return { text: `line ${n}`, mode: 'narrative', echoKey: `local:${n}`, conversationNpcId: null };
 }
 
 describe('createNarrativeQueue', () => {

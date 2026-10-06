@@ -535,6 +535,88 @@ describe('narrative queue', () => {
     expect(echoLine).toEqual({ kind: 'echo', message: 'How far is the crossing?', queued: false });
   });
 
+  describe('a queued line never reaches a different NPC (WR-06)', () => {
+    async function talkingTo(id: bigint, name: string) {
+      const s = setup();
+      s.npcsHere.value = [npc(3n, 'Ferryman'), npc(4n, 'Smith')];
+      s.api.draft.value = `hail ${name}`;
+      s.api.submit();
+      s.settle('submitIntent');
+      await flush();
+      expect(s.api.conversation.value).toEqual({ npcId: id, name });
+      return s;
+    }
+
+    it('queued to A while still talking to A goes to A', async () => {
+      const s = await talkingTo(3n, 'Ferryman');
+      s.llmJobs.value = [job(1)];
+      s.api.draft.value = 'How far is the crossing?';
+      expect(s.api.submit()).toBe('queued');
+      s.llmJobs.value = [];
+      await flush();
+      expect(s.reducers.talkToNpc).toHaveBeenCalledTimes(1);
+      expect(s.reducers.talkToNpc).toHaveBeenCalledWith({
+        characterId: 1n,
+        npcId: 3n,
+        message: 'How far is the crossing?',
+      });
+    });
+
+    it('queued to A, then hail B: the line goes to intent and never to B', async () => {
+      const s = await talkingTo(3n, 'Ferryman');
+      s.llmJobs.value = [job(1)];
+      s.api.draft.value = 'How far is the crossing?';
+      expect(s.api.submit()).toBe('queued');
+      s.api.draft.value = 'hail Smith';
+      expect(s.api.submit()).toBe('queued');
+      expect(s.api.conversation.value).toEqual({ npcId: 4n, name: 'Smith' });
+
+      s.llmJobs.value = [];
+      await flush();
+      s.settle('submitIntent');
+      await flush();
+      expect(s.reducers.talkToNpc).not.toHaveBeenCalled();
+      expect(s.reducers.submitIntent).toHaveBeenCalledWith({ characterId: 1n, text: 'How far is the crossing?' });
+      expect(s.reducers.submitIntent).toHaveBeenLastCalledWith({ characterId: 1n, text: 'hail Smith' });
+    });
+
+    it('queued to A, then the conversation ends: the line goes to intent', async () => {
+      const s = await talkingTo(3n, 'Ferryman');
+      s.llmJobs.value = [job(1)];
+      s.api.draft.value = 'How far is the crossing?';
+      expect(s.api.submit()).toBe('queued');
+      s.api.draft.value = 'goodbye';
+      s.api.submit();
+      expect(s.api.conversation.value).toBeNull();
+
+      s.llmJobs.value = [];
+      await flush();
+      expect(s.reducers.talkToNpc).not.toHaveBeenCalled();
+      expect(s.reducers.submitIntent).toHaveBeenLastCalledWith({
+        characterId: 1n,
+        text: 'How far is the crossing?',
+      });
+    });
+
+    it('queued with no conversation, then a conversation starts: the line stays an intent', async () => {
+      const s = setup();
+      s.npcsHere.value = [npc(3n, 'Ferryman')];
+      s.llmJobs.value = [job(1)];
+      s.api.draft.value = 'What a fine morning';
+      expect(s.api.submit()).toBe('queued');
+      s.api.draft.value = 'hail Ferryman';
+      expect(s.api.submit()).toBe('queued');
+      expect(s.api.conversation.value).toEqual({ npcId: 3n, name: 'Ferryman' });
+
+      s.llmJobs.value = [];
+      await flush();
+      s.settle('submitIntent');
+      await flush();
+      expect(s.reducers.talkToNpc).not.toHaveBeenCalled();
+      expect(s.reducers.submitIntent).toHaveBeenCalledWith({ characterId: 1n, text: 'What a fine morning' });
+    });
+  });
+
   it('losing the connection with queued lines announces them as not sent', async () => {
     const s = setup();
     s.llmJobs.value = [job(1)];

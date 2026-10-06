@@ -176,7 +176,13 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
         return 'refused';
       }
       const echoKey = game.feed.appendLocal('echo', line.echo ?? line.text, { queued: true });
-      queue.enqueue({ text: line.text, mode: line.mode, echoKey });
+      // Record the NPC the line was typed to; release decides the route against it (WR-06).
+      queue.enqueue({
+        text: line.text,
+        mode: line.mode,
+        echoKey,
+        conversationNpcId: conversation.value === null ? null : conversation.value.npcId,
+      });
       return 'queued';
     }
 
@@ -203,13 +209,19 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
       queue.settle(token);
       return;
     }
-    const target = conversation.value;
-    const npcStillHere = target !== null && game.npcsHere.value.some((n) => n.id === target.npcId);
+    // The route is decided now, against the NPC the line was typed to. A talk line goes out only
+    // while the conversation is still with that same NPC and the NPC is here. In every other case
+    // (conversation ended, another NPC hailed, or typed outside a conversation) it is an intent,
+    // so a queued line never reaches a different NPC (WR-06).
+    const queuedTo = line.conversationNpcId;
+    const current = conversation.value;
+    const sameNpc = queuedTo !== null && current !== null && current.npcId === queuedTo;
+    const npcStillHere = sameNpc && game.npcsHere.value.some((n) => n.id === queuedTo);
     let sent: Promise<void>;
-    if (line.mode === 'narrative' && target !== null && npcStillHere) {
+    if (line.mode === 'narrative' && queuedTo !== null && npcStillHere) {
       // The server echoes talk_to_npc itself, so the Queued echo goes away.
       game.feed.remove(line.echoKey);
-      sent = fire('talkToNpc', (r) => r.talkToNpc({ characterId, npcId: target.npcId, message: line.text }));
+      sent = fire('talkToNpc', (r) => r.talkToNpc({ characterId, npcId: queuedTo, message: line.text }));
     } else {
       game.feed.setQueued(line.echoKey, false);
       sent = fire('submitIntent', (r) => r.submitIntent({ characterId, text: line.text }));

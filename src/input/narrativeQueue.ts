@@ -17,6 +17,11 @@ export interface QueuedLine {
   mode: 'narrative' | 'intent';
   /** Key of the local echo entry showing this line with its Queued suffix. */
   echoKey: string;
+  /**
+   * The conversation NPC when the line was queued, or null when no conversation was open. A talk
+   * line is only released to that same NPC and never to one the player met later (WR-06).
+   */
+  conversationNpcId: bigint | null;
 }
 
 export interface NarrativeQueue {
