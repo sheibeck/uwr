@@ -12,6 +12,8 @@ import { createActionRunner } from '../ledger/actionRunner';
 import type { ActionRunner } from '../ledger/actionRunner';
 import RenownPanel from './RenownPanel.vue';
 import StatsMeta from './StatsMeta.vue';
+import StatsScreen from './StatsScreen.vue';
+import { createFeedStore } from '../console/feedStore';
 
 const XSS = '<img src=x onerror=alert(1)>';
 const read = (file: string): string => readFileSync(resolve(process.cwd(), 'src/stats', file), 'utf8');
@@ -97,8 +99,11 @@ function world(w: World = {}) {
   const reducersRef = computed(() => (connected.value ? reducers : null));
   const pendingPerks = shallowRef<readonly Row[]>(w.pendingPerks ?? []);
   const renownPerks = shallowRef<readonly Row[]>(w.renownPerks ?? []);
+  const feed = createFeedStore();
+  feed.setCharacter(7n);
   const game = {
     ...createInertGame(),
+    feed,
     character: ref(w.character === undefined ? HERO : w.character),
     renown: ref(w.renown ?? []),
     renownPerks,
@@ -121,7 +126,15 @@ function world(w: World = {}) {
   const runner: ActionRunner = createActionRunner({
     online: computed(() => connected.value && reducersRef.value !== null),
   });
+  let nextRowId = 1n;
+  function sendServerLine(kind: string, message: string): void {
+    const id = nextRowId;
+    nextRowId += 1n;
+    feed.ingest('private', { id, kind, message, createdAt: { microsSinceUnixEpoch: id * 10n }, characterId: 7n } as never);
+    feed.flush();
+  }
   return {
+    sendServerLine,
     chooseRenownPerk,
     connected,
     pendingPerks,
@@ -285,6 +298,260 @@ describe('StatsMeta', () => {
 
   it('renders nothing without a character', () => {
     mountMeta({ character: null });
+    expect(wrapper!.find('.stats-meta').exists()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// StatsScreen (desktop drawer and 390x844 sheet)
+// ---------------------------------------------------------------------------
+
+const FACTIONS: Row[] = [
+  { id: 1n, name: 'Wardens' },
+  { id: 2n, name: 'Ashen Court' },
+  { id: 3n, name: 'Reavers' },
+];
+const STANDINGS: Row[] = [
+  { id: 1n, characterId: 7n, factionId: 1n, standing: 60n },
+  { id: 2n, characterId: 7n, factionId: 2n, standing: 0n },
+  { id: 3n, characterId: 7n, factionId: 3n, standing: -60n },
+];
+
+function screenWorld(w: World = {}): World {
+  return {
+    factions: FACTIONS,
+    factionStandings: STANDINGS,
+    templates: [{ id: 1n, name: 'Vest', slot: 'chest', strBonus: 4n }],
+    items: [{ id: 1n, templateId: 1n, ownerCharacterId: 7n, equippedSlot: 'chest', quantity: 1n }],
+    renown: [{ characterId: 7n, points: 300n, currentRank: 3n }],
+    ...w,
+  };
+}
+
+function mountScreen(w: World = {}) {
+  const ctx = world(screenWorld(w));
+  wrapper = mount(StatsScreen, { attachTo: document.body, global: ctx.global });
+  return ctx;
+}
+
+describe('StatsScreen desktop', () => {
+  it('draws five base stat rows with the name, abbreviation, total, base and a two-segment bar', () => {
+    mountScreen();
+    const rows = wrapper!.findAll('.stat-row');
+    expect(rows.map((r) => r.find('.stat-name').text())).toEqual([
+      'Strength',
+      'Dexterity',
+      'Intelligence',
+      'Wisdom',
+      'Charisma',
+    ]);
+    expect(rows.map((r) => r.find('.stat-abbr').text())).toEqual(['STR', 'DEX', 'INT', 'WIS', 'CHA']);
+    expect(rows[0].find('.stat-total').text()).toBe('14');
+    expect(rows[0].find('.stat-base').text()).toBe('(10)');
+    expect(rows[0].find('.bar').attributes('aria-hidden')).toBe('true');
+    expect(rows[0].find('.base-seg').attributes('style')).toContain('width: 50%');
+    expect(rows[0].find('.gear-seg').attributes('style')).toContain('width: 20%');
+    expect(rows[0].find('.sr-only').text()).toBe('Strength 14, base 10, plus 4 from gear');
+    expect(rows[1].find('.gear-seg').attributes('style')).toContain('width: 0%');
+  });
+
+  it('colors the gear segment with the accent and the base segment neutral', () => {
+    const source = read('StatBars.vue');
+    expect(source).toMatch(/\.gear-seg\s*\{\s*background: var\(--color-accent\);/);
+    expect(source).toMatch(/\.base-seg\s*\{\s*background: var\(--color-neutral-400\);/);
+    expect(source).toMatch(/\.bar\s*\{[^}]*height: 4px;/);
+  });
+
+  it('headings read Base stats with the base plus gear note, Derived and Faction standing', () => {
+    mountScreen();
+    const headings = wrapper!.findAll('h6').map((h) => h.text());
+    expect(headings).toContain('Base stats · base + gear');
+    expect(headings).toContain('Derived');
+    expect(headings).toContain('Faction standing');
+  });
+
+  it('draws the Derived table as a real table with a screen-reader caption and row headers', () => {
+    mountScreen();
+    const table = wrapper!.get('table');
+    expect(table.get('caption').text()).toBe('Derived stats');
+    expect(table.get('caption').classes()).toContain('sr-only');
+    expect(table.find('thead').exists()).toBe(false);
+    const heads = table.findAll('th');
+    expect(heads.every((h) => h.attributes('scope') === 'row')).toBe(true);
+    expect(heads.map((h) => h.text())).toEqual([
+      'Hit',
+      'Dodge',
+      'Parry',
+      'Crit (Melee)',
+      'Crit (Ranged)',
+      'Crit (Divine)',
+      'Crit (Arcane)',
+      'Armor Class',
+      'Perception',
+      'Search',
+      'CC Power',
+      'Vendor Buy / Sell',
+    ]);
+    expect(table.findAll('td')[0].text()).toBe('75.00%');
+    expect(table.findAll('td')[11].text()).toBe('−2.00% / +3.50%');
+    expect(read('DerivedTable.vue')).toMatch(/td\.value\s*\{\s*text-align: right;/);
+    expect(read('DerivedTable.vue')).toMatch(/\.derived\s*\{\s*font-size: 12px;/);
+    expect(read('DerivedTable.vue')).toMatch(/\.derived th\s*\{\s*font-size: 10px;\s*letter-spacing: 0\.1em;/);
+  });
+
+  it('draws faction rows by standing with the tier word in its color, a bar and an aria label', () => {
+    mountScreen();
+    const rows = wrapper!.findAll('.faction-row');
+    expect(rows.map((r) => r.find('.faction-name').text())).toEqual(['Wardens', 'Ashen Court', 'Reavers']);
+    expect(rows[0].attributes('aria-label')).toBe('Wardens, Honored, standing 60');
+    expect(rows[0].find('.faction-tier').classes()).toContain('tier-friendly');
+    expect(rows[1].find('.faction-tier').text()).toBe('Neutral');
+    expect(rows[2].find('.faction-tier').classes()).toContain('tier-hostile');
+    expect(rows[2].find('.fill').attributes('style')).toContain('width: 20%');
+    expect(rows[1].find('.fill').attributes('style')).toContain('width: 50%');
+    expect(rows[0].find('.fill').classes()).toContain('fill-friendly');
+  });
+
+  it('says there is no standing with any faction yet', () => {
+    mountScreen({ factionStandings: [] });
+    expect(wrapper!.get('.empty').text()).toBe('No standing with any faction yet.');
+    expect(wrapper!.find('.faction-row').exists()).toBe(false);
+  });
+
+  it('orders the desktop columns base stats and renown, derived, factions', () => {
+    mountScreen();
+    const cols = Array.from(wrapper!.get('.desk-grid').element.children).map((el) => el.className.split(' ').slice(0, 2).join(' '));
+    expect(cols).toEqual(['col stats-col', 'col derived-col', 'col factions-col']);
+    expect(wrapper!.get('.stats-col').find('.renown').exists()).toBe(true);
+    expect(wrapper!.get('.derived-col').find('table').exists()).toBe(true);
+    expect(wrapper!.get('.factions-col').find('.factions').exists()).toBe(true);
+  });
+
+  it('sets the three-column and two-column grids and per-column scroll regions in the source', () => {
+    const source = read('StatsScreen.vue');
+    expect(source).toMatch(/grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\) 280px;/);
+    expect(source).toMatch(/'stats derived'\s*'stats factions'/);
+    expect(source).toMatch(/\.col\s*\{\s*min-height: 0;\s*overflow-y: auto;/);
+    expect(source).toMatch(/\.stats-screen\s*\{\s*height: 100%;\s*min-height: 0;\s*display: flex;\s*flex-direction: column;/);
+    expect(source).toMatch(/@media \(min-width: 1200px\)/);
+  });
+
+  it('has no Keeper card or empty slot for it', () => {
+    mountScreen();
+    expect(wrapper!.text().toLowerCase()).not.toContain('assessment');
+    expect(wrapper!.text().toLowerCase()).not.toContain('keeper');
+    for (const file of ['StatsScreen.vue', 'StatBars.vue', 'DerivedTable.vue', 'FactionList.vue', 'RenownPanel.vue', 'StatsMeta.vue', 'PerkChooser.vue']) {
+      expect(/assessment/i.test(read(file))).toBe(false);
+    }
+  });
+
+  it('shows No stats to show yet. without a character', () => {
+    mountScreen({ character: null });
+    expect(wrapper!.text()).toContain('No stats to show yet.');
+    expect(wrapper!.text()).toContain('Choose a character to see its numbers.');
+    expect(wrapper!.find('.desk-grid').exists()).toBe(false);
+  });
+
+  it('shows only the chooser button while a perk is pending and the rejection reaches the notice line', async () => {
+    const ctx = mountScreen({
+      pendingPerks: [pending(1n, 4n)],
+      chooseRenownPerk: vi.fn().mockRejectedValue(new Error('no')),
+    });
+    await wrapper!.get('.choose-button').trigger('click');
+    await wrapper!.get('button.option').trigger('click');
+    await wrapper!.get('.take').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await settle();
+    expect(ctx.chooseRenownPerk).toHaveBeenCalledWith({ characterId: 7n, perkId: 1n });
+    expect(wrapper!.get('[role="status"]').text()).toBe("Couldn't send that. Try again.");
+  });
+
+  it('shows the server line that follows a perk choice in the notice line', async () => {
+    const ctx = mountScreen();
+    ctx.sendServerLine('system', 'You take Iron Will.');
+    await settle();
+    expect(wrapper!.get('[role="status"]').text()).toBe('You take Iron Will.');
+  });
+
+  it('renders a faction name with markup literally', () => {
+    mountScreen({ factions: [{ id: 1n, name: XSS }, ...FACTIONS.slice(1)] });
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.faction-name').text()).toBe(XSS);
+  });
+});
+
+describe('StatsScreen mobile 390x844', () => {
+  it('shows the identity row with a 44px avatar, the name, the mobile line and no tag by default', () => {
+    mountScreen({ isDesktop: false });
+    expect(wrapper!.get('.avatar').text()).toBe('H');
+    expect(wrapper!.get('.avatar').attributes('aria-hidden')).toBe('true');
+    expect(wrapper!.get('.who-name').text()).toBe('Hero');
+    expect(wrapper!.get('.who-line').text()).toBe('Lv 3 Human Warrior · 300/480 XP');
+    expect(wrapper!.find('.level-up').exists()).toBe(false);
+    expect(wrapper!.find('.desk-grid').exists()).toBe(false);
+    expect(read('StatsScreen.vue')).toMatch(/\.avatar\s*\{[^}]*width: 44px;\s*height: 44px;/);
+  });
+
+  it('shows a non-interactive Level up available tag when levels are pending', () => {
+    mountScreen({ isDesktop: false, character: { ...HERO, pendingLevels: 2n } });
+    const tag = wrapper!.get('.identity .level-up');
+    expect(tag.text()).toBe('Level up available');
+    expect(tag.element.tagName).toBe('SPAN');
+    expect(wrapper!.find('.identity button').exists()).toBe(false);
+  });
+
+  it('offers the Stats, Derived, Renown and Factions tabs and opens on Stats without abbreviations', () => {
+    mountScreen({ isDesktop: false });
+    expect(wrapper!.get('[role="tablist"]').attributes('aria-label')).toBe('Stats view');
+    expect(wrapper!.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Stats', 'Derived', 'Renown', 'Factions']);
+    expect(wrapper!.findAll('.stat-row')).toHaveLength(5);
+    expect(wrapper!.find('.stat-abbr').exists()).toBe(false);
+    expect(wrapper!.find('table').exists()).toBe(false);
+  });
+
+  it('shows each tab panel in turn', async () => {
+    mountScreen({ isDesktop: false });
+    const tabs = () => wrapper!.findAll('[role="tab"]');
+    await tabs()[1].trigger('click');
+    expect(wrapper!.get('table caption').text()).toBe('Derived stats');
+    await tabs()[2].trigger('click');
+    expect(wrapper!.find('[role="progressbar"]').exists()).toBe(true);
+    expect(wrapper!.get('.renown-heading').text()).toBe('Renown · Rank 3, Recognized');
+    await tabs()[3].trigger('click');
+    expect(wrapper!.findAll('.faction-row')).toHaveLength(3);
+    expect(wrapper!.find('[role="progressbar"]').exists()).toBe(false);
+  });
+
+  it('opens the chooser inside the Renown panel with 44px controls', async () => {
+    mountScreen({ isDesktop: false, pendingPerks: [pending(1n, 4n)] });
+    await wrapper!.findAll('[role="tab"]')[2].trigger('click');
+    await wrapper!.get('.choose-button').trigger('click');
+    expect(wrapper!.get('.perk-chooser').classes()).toContain('mobile');
+    expect(read('PerkChooser.vue')).toMatch(/\.mobile \.take,\s*\.mobile \.not-now\s*\{\s*min-height: 44px;/);
+    expect(read('PerkChooser.vue')).toMatch(/\.mobile \.option\s*\{\s*min-height: 44px;/);
+  });
+
+  it('carries min-height 44px for the tabs and the chooser sources', () => {
+    expect(readFileSync(resolve(process.cwd(), 'src/ledger/SegTabs.vue'), 'utf8')).toMatch(
+      /\.seg-opt\s*\{[^}]*min-height: 44px;/,
+    );
+  });
+
+  it('shows No stats to show yet. without a character', () => {
+    mountScreen({ isDesktop: false, character: null });
+    expect(wrapper!.text()).toContain('No stats to show yet.');
+  });
+
+  it('renders a faction name with markup literally on the Factions tab', async () => {
+    mountScreen({ isDesktop: false, factions: [{ id: 1n, name: XSS }, ...FACTIONS.slice(1)] });
+    await wrapper!.findAll('[role="tab"]')[3].trigger('click');
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('.faction-name').text()).toBe(XSS);
+  });
+
+  it('leaves the header meta to the identity row on mobile', () => {
+    const ctx = world({ isDesktop: false, character: { ...HERO, pendingLevels: 1n } });
+    wrapper = mount(StatsMeta, { global: ctx.global });
     expect(wrapper!.find('.stats-meta').exists()).toBe(false);
   });
 });
