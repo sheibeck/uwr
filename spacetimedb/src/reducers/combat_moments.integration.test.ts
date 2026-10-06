@@ -332,8 +332,7 @@ describe('near death and phase moments (RND-05)', () => {
   });
 
   it('a near death and a first kill in the same round give one row, the near death', () => {
-    const seed = firstKillSeed({ character_effect: [characterDot(12n)] });
-    seed.character[0].hp = 25n;
+    const seed = firstKillSeed({ character_effect: [characterDot(12n)] }, { playerHp: 25n });
     const ctx = fightCtx(seed, MODULE, T0 + TEN_S);
     fire(ctx);
 

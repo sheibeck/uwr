@@ -29,7 +29,9 @@ import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { incrementWorldStat } from '../helpers/world_events';
-import { enqueueCombatOutroNarration } from '../helpers/combat_narration';
+import { enqueueCombatOutroNarration, enqueueCombatMomentNarration } from '../helpers/combat_narration';
+import { detectMoment, isBossOrNamed } from '../helpers/combat_moments';
+import type { EnemySnapshot, PlayerSnapshot } from '../helpers/combat_moments';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
 import {
   awardEventContribution,
@@ -2821,6 +2823,160 @@ export const registerCombatReducers = (deps: any) => {
       ? (enemies[0].displayName ?? ctx.db.enemy_template.id.find(enemies[0].enemyTemplateId)?.name ?? 'enemy')
       : 'enemy';
 
+  // ── Big moments (RND-05) ──────────────────────────────────────────────
+  // A round never waits for narration: everything below is snapshot, compare, one private row and one
+  // fire-and-forget enqueue, inside a try/catch that only logs. The row is written BEFORE the enqueue, so
+  // a refused or failed enqueue still counts against the fight's budget and is never retried.
+
+  type MomentSnapshot = {
+    enemies: Map<bigint, { name: string; hp: bigint; maxHp: bigint; enemyTemplateId: bigint }>;
+    players: Map<bigint, { name: string; hp: bigint; maxHp: bigint }>;
+    characterIds: bigint[];
+  };
+  type KillRecord = { killerName: string; abilityName?: string; damage: bigint };
+
+  /** HP of every enemy row of the fight (dead ones included, at 0) and of the roster's characters. Never throws. */
+  const snapshotForMoments = (ctx: any, combatId: bigint, roster: any[]): MomentSnapshot | null => {
+    try {
+      const enemies = new Map<bigint, { name: string; hp: bigint; maxHp: bigint; enemyTemplateId: bigint }>();
+      for (const enemy of ctx.db.combat_enemy.by_combat.filter(combatId)) {
+        enemies.set(enemy.id, {
+          name: enemy.displayName ?? 'enemy',
+          hp: enemy.currentHp,
+          maxHp: enemy.maxHp,
+          enemyTemplateId: enemy.enemyTemplateId,
+        });
+      }
+      const players = new Map<bigint, { name: string; hp: bigint; maxHp: bigint }>();
+      const characterIds: bigint[] = [];
+      for (const p of roster) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character) continue;
+        characterIds.push(character.id);
+        players.set(character.id, { name: character.name, hp: character.hp, maxHp: character.maxHp });
+      }
+      return { enemies, players, characterIds };
+    } catch (error) {
+      console.error(`big moments: snapshot failed in combat ${combatId}: ${String(error)}`);
+      return null;
+    }
+  };
+
+  /** Current HP of every living enemy of the fight, for the killing-blow attribution. Never throws. */
+  const livingHpMap = (ctx: any, combatId: bigint): Map<bigint, bigint> => {
+    const map = new Map<bigint, bigint>();
+    try {
+      for (const enemy of ctx.db.combat_enemy.by_combat.filter(combatId)) {
+        if (enemy.currentHp > 0n) map.set(enemy.id, enemy.currentHp);
+      }
+    } catch (error) {
+      console.error(`big moments: hp read failed in combat ${combatId}: ${String(error)}`);
+    }
+    return map;
+  };
+
+  /**
+   * After one player's action: every enemy that went from above 0 to 0 was killed by that player; the
+   * damage is the HP it had before the action. A kill by a DoT or a pet is never recorded here.
+   */
+  const recordKillsBy = (
+    ctx: any, combatId: bigint, before: Map<bigint, bigint>, killers: Map<bigint, KillRecord>,
+    character: any, abilityName: string | undefined
+  ): void => {
+    try {
+      for (const [enemyId, hpBefore] of before) {
+        if (killers.has(enemyId)) continue;
+        const enemy = ctx.db.combat_enemy.id.find(enemyId);
+        if (enemy && enemy.currentHp > 0n) continue;
+        killers.set(enemyId, { killerName: character.name, abilityName, damage: hpBefore });
+      }
+    } catch (error) {
+      console.error(`big moments: killer attribution failed in combat ${combatId}: ${String(error)}`);
+    }
+  };
+
+  /** The number of moment rows of the fight (the narration budget already used); the fallback on any error. */
+  const momentCountOf = (ctx: any, combatId: bigint, fallback: bigint): bigint => {
+    try {
+      return BigInt([...ctx.db.combat_moment.by_combat.filter(combatId)].length);
+    } catch (error) {
+      console.error(`big moments: count failed in combat ${combatId}: ${String(error)}`);
+      return fallback;
+    }
+  };
+
+  /**
+   * Compare the round's start snapshot with the state after it, pick at most one moment, record it and
+   * ask for its narration. Called only for a round that does not end the fight. Never throws.
+   */
+  const recordBigMoment = (
+    ctx: any, combat: any, roundNumber: bigint, snapshot: MomentSnapshot | null, killers: Map<bigint, KillRecord>
+  ): void => {
+    if (!snapshot) return;
+    try {
+      const fired = [...ctx.db.combat_moment.by_combat.filter(combat.id)]
+        .map((row: any) => ({ kind: row.kind as string, subjectKey: row.subjectKey as string }));
+      const namedTemplateIds = new Set<bigint>();
+      for (const characterId of snapshot.characterIds) {
+        for (const named of ctx.db.named_enemy.by_character.filter(characterId)) {
+          namedTemplateIds.add(named.enemyTemplateId);
+        }
+      }
+      const enemies: EnemySnapshot[] = [];
+      for (const [id, before] of snapshot.enemies) {
+        const now = ctx.db.combat_enemy.id.find(id);
+        const template = ctx.db.enemy_template.id.find(before.enemyTemplateId);
+        enemies.push({
+          id,
+          name: before.name,
+          hpBefore: before.hp,
+          hpAfter: now ? now.currentHp : 0n,
+          maxHp: before.maxHp,
+          bossOrNamed: isBossOrNamed(template, before.enemyTemplateId, namedTemplateIds),
+        });
+      }
+      const players: PlayerSnapshot[] = [];
+      for (const [characterId, before] of snapshot.players) {
+        const now = ctx.db.character.id.find(characterId);
+        players.push({
+          characterId,
+          name: before.name,
+          hpBefore: before.hp,
+          hpAfter: now ? now.hp : 0n,
+          maxHp: before.maxHp,
+        });
+      }
+
+      const pick = detectMoment({ enemies, players, fired, fightEnded: false });
+      if (!pick) return;
+
+      ctx.db.combat_moment.insert({
+        id: 0n,
+        combatId: combat.id,
+        kind: pick.kind,
+        subjectKey: pick.subjectKey,
+        roundNumber,
+        createdAt: ctx.timestamp,
+      });
+
+      const killer = pick.kind === 'kill' ? killers.get(pick.subjectId) : undefined;
+      const freshParticipants = [...ctx.db.combat_participant.by_combat.filter(combat.id)];
+      const freshEnemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
+      enqueueCombatMomentNarration(ctx, combat, freshParticipants, freshEnemies, {
+        kind: pick.kind,
+        roundNumber,
+        subjectName: pick.subjectName,
+        first: pick.first,
+        bossOrNamed: pick.bossOrNamed,
+        killerName: killer?.killerName,
+        abilityName: killer?.abilityName,
+        damage: killer?.damage,
+      });
+    } catch (error) {
+      console.error(`big moments: detection failed in combat ${combat.id}: ${String(error)}`);
+    }
+  };
+
   /**
    * Resolve one round in a single transaction, in a fixed order: players (ascending character id; the
    * stored choice, else an auto-attack), pets, enemies (ascending enemy id; a stunned enemy skips),
@@ -2844,6 +3000,9 @@ export const registerCombatReducers = (deps: any) => {
       [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)],
       (p: any) => p.characterId
     );
+    // Big moments: the state at the start of the round, and who landed a killing blow during it.
+    const momentSnapshot = snapshotForMoments(ctx, liveCombat.id, roster);
+    const killers = new Map<bigint, KillRecord>();
     for (const p of roster) {
       if (livingEnemiesOf(ctx, liveCombat.id).length === 0) break;
       const participant = ctx.db.combat_participant.id.find(p.id);
@@ -2857,9 +3016,11 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
       let acted = false;
+      const livingBefore = livingHpMap(ctx, liveCombat.id);
       if (choice && choice.actionType === 'ability' && choice.abilityTemplateId !== undefined && choice.abilityTemplateId !== null) {
         acted = resolveAbilityChoice(ctx, liveCombat, character, choice);
       }
+      const abilityUsed = acted ? ctx.db.ability_template.id.find(choice.abilityTemplateId)?.name : undefined;
       if (!acted) {
         // Re-read: a failed ability may have changed the character before it threw.
         const current = ctx.db.character.id.find(character.id) ?? character;
@@ -2868,6 +3029,7 @@ export const registerCombatReducers = (deps: any) => {
           [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)], nowMicros, N
         );
       }
+      recordKillsBy(ctx, liveCombat.id, livingBefore, killers, character, abilityUsed);
     }
 
     // (c) nothing left to fight, or nobody left to fight them (everyone fled): straight to the end of the fight
@@ -2957,11 +3119,14 @@ export const registerCombatReducers = (deps: any) => {
       return;
     }
 
+    // (g2) a big moment of a round that does not end the fight: the row first, then a fire-and-forget enqueue
+    recordBigMoment(ctx, liveCombat, N, momentSnapshot, killers);
+
     // (h) the next round: this one is resolved and its choices go in the same transaction
     const resolvedRow = ctx.db.combat_round.id.find(open.id);
     if (resolvedRow) ctx.db.combat_round.id.update({ ...resolvedRow, state: ROUND_STATE.resolved });
     clearRoundChoices(ctx, liveCombat.id, N);
-    startRound(ctx, liveCombat.id, N + 1n, open.narrationCount);
+    startRound(ctx, liveCombat.id, N + 1n, momentCountOf(ctx, liveCombat.id, open.narrationCount));
   };
 
   // ── Round choices ─────────────────────────────────────────────────────
