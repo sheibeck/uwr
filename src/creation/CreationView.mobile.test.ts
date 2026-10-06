@@ -206,6 +206,31 @@ describe('CreationView: mobile sheet', () => {
   });
 });
 
+describe('CreationView: breakpoint change', () => {
+  it('moves focus to the composer input when the open ledger closes because the viewport became desktop', async () => {
+    const listeners = new Set<(event: { matches: boolean }) => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
+    }));
+    window.matchMedia = globalThis.matchMedia;
+    const hub = makeHub();
+    seedClassStep(hub);
+    const w = mountView(hub);
+    await chip(w).trigger('click');
+    expect(document.activeElement).toBe(w.get('button[aria-label="Close The ledger so far"]').element);
+
+    for (const listener of listeners) listener({ matches: true });
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(input(w).element);
+  });
+});
+
 describe('CreationView: mobile keyboard', () => {
   it('hides the step text row and the chip while the input is focused with a short viewport, and restores them on blur', async () => {
     const viewport = stubViewport();

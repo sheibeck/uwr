@@ -25,7 +25,8 @@ import StepBar from './StepBar.vue';
 const props = defineProps<{ reconnecting: boolean; nextRetryAt: number | null; versionPrompt: boolean }>();
 const emit = defineEmits<{ logout: []; reload: [] }>();
 
-const creation = inject(CREATION_KEY, createInertCreation());
+// Factory form: the inert hub is only built when no hub is provided.
+const creation = inject(CREATION_KEY, () => createInertCreation(), true);
 const { isDesktop } = useBreakpoint();
 
 let release: (() => void) | null = null;
@@ -80,6 +81,7 @@ const inputFocused = ref(false);
 const { keyboardOpen } = useKeyboardOpen(inputFocused);
 const sheetOpen = ref(false);
 const stepBar = ref<InstanceType<typeof StepBar> | null>(null);
+const composer = ref<InstanceType<typeof CreationComposer> | null>(null);
 
 function onFocusChange(focused: boolean): void {
   inputFocused.value = focused;
@@ -95,8 +97,13 @@ async function closeSheet(): Promise<void> {
   stepBar.value?.focusChip();
 }
 
-watch(isDesktop, (desktop) => {
-  if (desktop) sheetOpen.value = false;
+// Crossing to desktop closes the sheet, and the focused close button goes with it, so focus moves
+// to the composer input (the mobile chip does not exist on desktop).
+watch(isDesktop, async (desktop) => {
+  if (!desktop || !sheetOpen.value) return;
+  sheetOpen.value = false;
+  await nextTick();
+  composer.value?.focusInput();
 });
 </script>
 
@@ -124,6 +131,7 @@ watch(isDesktop, (desktop) => {
           />
         </CreationFeed>
         <CreationComposer
+          ref="composer"
           :controls="controls"
           :inert="inert"
           :desktop="true"
@@ -155,6 +163,7 @@ watch(isDesktop, (desktop) => {
           />
         </CreationFeed>
         <CreationComposer
+          ref="composer"
           :controls="controls"
           :inert="inert"
           :desktop="false"

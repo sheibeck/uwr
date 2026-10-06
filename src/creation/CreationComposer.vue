@@ -106,6 +106,9 @@ function runDecision(button: DecisionButton): void {
     confirmingStartOver.value = false;
   }
 }
+
+// The view moves focus here when the mobile sheet closes on a breakpoint change.
+defineExpose({ focusInput: keepFocus });
 </script>
 
 <template>
