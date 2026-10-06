@@ -2,6 +2,8 @@ import { awardNpcAffinity } from '../helpers/npc_affinity';
 import { recordQuestCompletion } from '../helpers/npc_conversation';
 import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
 import { getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
+import { awardXp } from '../helpers/combat_rewards';
+import { MAX_LEVEL } from '../data/xp';
 
 // Slots the quest reward cycles through by player level. All are EQUIPMENT_SLOTS (helpers/items.ts);
 // 'mainHand' is the weapon slot.
@@ -129,6 +131,21 @@ export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPr
 }
 
 /**
+ * Awards a quest's xp through awardXp so a crossed level threshold adds pending levels, as combat xp does.
+ * awardXp scales by level difference; passing the character's own level gives the 100% modifier, so the
+ * amount is exactly what the quest promised. At MAX_LEVEL awardXp grants nothing; the promised xp is
+ * still added there (no level-up is possible), as quest xp always was.
+ */
+export function awardQuestXp(ctx: any, character: any, xp: bigint): { xpGained: bigint; leveledUp: boolean; pendingLevels?: bigint } {
+  if (xp <= 0n) return { xpGained: 0n, leveledUp: false };
+  if (character.level >= MAX_LEVEL) {
+    ctx.db.character.id.update({ ...character, xp: character.xp + xp });
+    return { xpGained: xp, leveledUp: false };
+  }
+  return awardXp(ctx, character, character.level, xp);
+}
+
+/**
  * Turns in a completed quest: the one reward path shared by the turn_in_quest reducer and the
  * "turn in <quest>" intent, so both behave identically. The caller has already checked that qi is the
  * character's completed instance of qt. Awards xp, gold, the item reward and NPC affinity, records the
@@ -153,13 +170,22 @@ export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any,
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
     `You present your completed quest "${qt.name}" to ${npc?.name || 'the quest giver'}.`);
 
-  // Award XP
+  // Award XP (through awardXp, so crossing a level threshold earns a pending level)
   const xpReward = qt.rewardXp || 0n;
   if (xpReward > 0n) {
     const freshChar = ctx.db.character.id.find(character.id)!;
-    ctx.db.character.id.update({ ...freshChar, xp: freshChar.xp + xpReward });
+    const reward = awardQuestXp(ctx, freshChar, xpReward);
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-      `Quest "${qt.name}" complete! +${xpReward} XP`);
+      `Quest "${qt.name}" complete! +${reward.xpGained} XP`);
+    if (reward.leveledUp) {
+      // Same wording as a combat level-up (reducers/combat.ts); the level_up reducer applies it.
+      const pending = reward.pendingLevels ?? 1n;
+      const targetLevel = freshChar.level + 1n;
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
+        pending > 1n
+          ? `You have ${pending} levels pending (next: level ${targetLevel})! Click [Level Up] when ready.`
+          : `You can advance to level ${targetLevel}! Click [Level Up] when ready.`);
+    }
   }
 
   // Award gold

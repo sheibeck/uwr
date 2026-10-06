@@ -5,12 +5,15 @@
  * for both paths:
  *   - the quest is recorded in the giver's NPC memory (the intent path used to skip it);
  *   - an item-reward quest is refused with a visible message when the bags are full, and nothing
- *     (xp, gold, item, affinity, memory, quest removal) is applied; freeing a slot lets it go through.
+ *     (xp, gold, item, affinity, memory, quest removal) is applied; freeing a slot lets it go through;
+ *   - quest xp goes through awardXp: crossing a level threshold earns pending levels and the [Level Up]
+ *     prompt, the promised amount is not rescaled, and max level still receives it.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import { MAX_INVENTORY_SLOTS } from '../helpers/items';
+import { MAX_LEVEL } from '../data/xp';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -120,6 +123,47 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
       const memory = rows(ctx, 'npc_memory').filter((m) => m.characterId === 1n && m.npcId === NPC_ID);
       expect(memory).toHaveLength(1);
       expect(JSON.parse(memory[0].memoryJson).questsCompleted).toEqual([QUEST_NAME]);
+    });
+  });
+
+  describe('quest xp and level-ups', () => {
+    // level 2 with 120 xp; level 3 needs 260 total, level 4 needs 480 (data/xp.ts).
+    it('xp crossing a level threshold earns a pending level and the [Level Up] prompt', () => {
+      const ctx = newCtx({ qt: { rewardXp: 150n } });
+      turnIn(ctx);
+      const ch = rows(ctx, 'character')[0];
+      expect(ch.xp).toBe(270n); // exactly the promised 150, not rescaled
+      expect(ch.pendingLevels).toBe(1n);
+      expect(ch.level).toBe(2n); // applied later by the level_up reducer, as for combat xp
+      expect(messages(ctx)).toContain(`Quest "${QUEST_NAME}" complete! +150 XP`);
+      expect(messages(ctx)).toContain('You can advance to level 3! Click [Level Up] when ready.');
+    });
+
+    it('xp crossing two thresholds earns two pending levels', () => {
+      const ctx = newCtx({ qt: { rewardXp: 500n } });
+      turnIn(ctx);
+      const ch = rows(ctx, 'character')[0];
+      expect(ch.xp).toBe(620n);
+      expect(ch.pendingLevels).toBe(2n);
+      expect(messages(ctx)).toContain('You have 2 levels pending (next: level 3)! Click [Level Up] when ready.');
+    });
+
+    it('xp below the next threshold earns no level', () => {
+      const ctx = newCtx();
+      turnIn(ctx);
+      const ch = rows(ctx, 'character')[0];
+      expect(ch.xp).toBe(160n);
+      expect(ch.pendingLevels).toBe(0n);
+      expect(messages(ctx).some((m) => m.includes('[Level Up]'))).toBe(false);
+    });
+
+    it('at max level the promised xp is still added, with no level-up', () => {
+      const ctx = newCtx({ char: { level: MAX_LEVEL, xp: 3100n } });
+      turnIn(ctx);
+      const ch = rows(ctx, 'character')[0];
+      expect(ch.xp).toBe(3140n);
+      expect(ch.pendingLevels).toBe(0n);
+      expect(messages(ctx)).toContain(`Quest "${QUEST_NAME}" complete! +40 XP`);
     });
   });
 
