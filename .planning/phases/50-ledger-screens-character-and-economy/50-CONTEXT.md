@@ -57,6 +57,19 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
   - Code only, published locally with the buy-back work. The client still pre-gates these cases.
 - **Renown passive perks with no effect: todo for later, not this phase.** Chosen passives are stored as `renown_rank{N}_{key}`, which never matches `RENOWN_PERK_POOLS`. The Stats screen shows perk names correctly, and the bug is filed under `.planning/todos/pending/`.
 
+### Owner decision after the build (2026-10-06, owner in chat): vendor base stock
+- The owner said: "Vendors should sell what players sell to them and they should have a selection of items appropriate to the area."
+- **Source.** Stock is chosen by rules from item templates that already exist in the world. There is no LLM call and no new prompt.
+  - Each vendor stocks templates that suit its role, which research reads from the vendor NPC's existing data. Examples: a provisioner sells food, consumables and materials; a smith sells weapons and armor.
+  - The selection also suits the area's level band (region or location danger and level).
+  - Rarity is weighted toward common.
+  - Nothing is pre-seeded: templates come from play and the starter set.
+- **Restock.** Stock refills on a timer through a scheduled table, using the module-identity guard pattern. Player-sold listings stay as they are and are never removed by restock.
+- **Determinism.** Selection is deterministic per vendor and restock tick, from ctx-based seeds, never `Math.random`.
+- **Prices.** Prices come from the shared `vendor_pricing` (`buyPrice` with rapport). Buy-back and the quest-item refusal are unchanged.
+- **Timing.** This is a Phase 50 follow-up (plan 50-24), built now, before Phase 51. It is a server change with real-handler tests. Publish locally only, with the key check before and after, and expect no binding change unless a new scheduled table is added (additive).
+- **Later.** LLM-themed specialty stock is out of scope, unless the owner asks for it later.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
