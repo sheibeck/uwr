@@ -35,3 +35,8 @@ Two independent parts:
 2. **Server prompt (needs explicit owner approval, SEG-03 / Keeper Bible rule).** Optionally make the outro length scale with the fight. For example, ask for one narration segment of two or three sentences for short fights (up to about 3 rounds), and allow more only for long or boss fights. Pass the round count in `buildCombatOutroVolatile`. Re-check the golden tests after any wording change. Do not change the prompt without the owner's go-ahead.
 
 Check the round tag: per the 48-UAT item 5, late narration carries "THE KEEPER · ROUND M". The grouped label must keep that tag.
+
+## Status (2026-10-06)
+
+- **Client part:** done in quick 261006-h5w (one label per reply).
+- **Prompt part:** the owner approved it in chat on 2026-10-06 ("We need short fight summaries to be shorter"). Queued as quick 261006-hpo.
