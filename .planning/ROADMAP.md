@@ -1550,6 +1550,9 @@ Plans:
 - **Where the menus attach:** party members in the vitals rail (`src/rails/PartyBlock.vue`, Phase 47) and players in the context rail's Nearby list (`src/frame/ContextRail.vue`). The design decides any other places, such as names in the feed.
 - **Reuse existing actions:** the group reducers (`spacetimedb/src/reducers/groups.ts`) and the social command words (invite, kick, promote, leave, whisper, friend). Menu entries should act by role, for example kick and promote only for the leader. Confirm in research whether the design needs anything the server does not have yet. Server changes stay additive and publish locally only.
 - **Overlap with Phase 51 (LDG-05, Social screen):** that screen also has party invite, leave, kick and promote, and friends. Share one set of action helpers between the menus and the Social screen, and decide in discuss which phase builds them first.
+- **Player trade (owner, 2026-10-06; the design was revised to add it).** `UWR Party.dc.html` now also covers player-to-player trading: starting a trade from the player and party menus, and the trade window itself. Take the exact flow, layout and copy from the fresh import.
+  - **Server.** Trade reducers and tables already exist; `cancel_trade` is in the bindings. Research confirms the full set and any gaps, such as offer and accept steps, gold in trades, the bag-space check, and the 999.24 stack cap.
+  - **Overlap with Phase 52.** Trade is one of Phase 52's parity surfaces and was listed there as having no mock. It now has one, in this file. Whether the designed trade is built in Phase 52 or after the milestone is the owner's decision; see the Phase 52 design-source note.
 - **Run it as a UI phase** (`/gsd-ui-phase` from the fresh import, then plan and execute). Desktop and mobile at 390x844 (the menu may need a sheet or long-press on touch).
 - **Design guards apply:**
   - no literal colors (map the mock's hex values to existing tokens; the token pin stays at 23)
@@ -1674,4 +1677,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding the UWR Admin Screens design to Phase 52*
+*Last updated: 2026-10-06 after noting player trade in the UWR Party design (999.22)*
