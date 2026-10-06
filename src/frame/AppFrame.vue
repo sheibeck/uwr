@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, provide, watch } from 'vue';
 import { createConsole } from '../console/useConsole';
+import EncounterPanel from '../combat/EncounterPanel.vue';
+import EncounterStrip from '../combat/EncounterStrip.vue';
+import { sheetMeta } from '../combat/roundClock';
 import { createCombatController } from '../combat/useCombatController';
 import { COMBAT_KEY, CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertGame } from '../game/context';
 import type { FrameControls } from '../game/context';
@@ -71,6 +74,10 @@ const activeId = computed<ScreenId | null>(() => {
 });
 const activeDef = computed(() => (activeId.value === null ? null : getScreen(activeId.value)));
 const sheetOpen = computed(() => screens.active.value !== null);
+// Mobile combat layout (48-CONTEXT A5/A6): the tab bar and the location row give way to the
+// encounter strip. Log out stays reachable through the strip's account button.
+const combatActive = computed(() => game.combat.active.value);
+const encounterMeta = computed(() => sheetMeta(game.combat.roundNumber.value, combatController.timer.value));
 
 function onToggleScreen(id: ScreenId, opener: HTMLElement): void {
   screens.toggle(id, opener);
@@ -143,24 +150,49 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         :new-skill="props.view.newSkill"
         :compact="sheetOpen || keyboardOpen"
       />
-      <LocationRow v-show="!sheetOpen && !keyboardOpen" :location-name="props.view.locationName" :time-of-day="props.view.timeOfDay" />
+      <LocationRow
+        v-if="!combatActive"
+        v-show="!sheetOpen && !keyboardOpen"
+        :location-name="props.view.locationName"
+        :time-of-day="props.view.timeOfDay"
+      />
       <NoticeBars
         :reconnecting="props.reconnecting"
         :next-retry-at="props.nextRetryAt"
         :version-prompt="props.versionPrompt"
         @reload="emit('reload')"
       />
-      <FeedShell v-show="!sheetOpen" compact />
+      <EncounterStrip
+        v-if="combatActive"
+        v-show="!sheetOpen"
+        :collapsed="keyboardOpen"
+        @open="(opener) => screens.open('encounter', opener)"
+        @account="(opener) => screens.open('more', opener)"
+      />
+      <FeedShell v-show="!sheetOpen" compact :safe-bottom="combatActive" />
       <MoreSheet
         v-if="screens.active.value === 'more'"
+        :class="{ 'bottom-safe': combatActive }"
+        :logout-only="combatActive"
         @select="screens.openFromMore"
         @logout="emit('logout')"
         @close="screens.close()"
       />
+      <Sheet
+        v-else-if="screens.active.value === 'encounter'"
+        title="Encounter"
+        :class="{ 'bottom-safe': combatActive }"
+        @close="screens.close()"
+      >
+        <template #meta>
+          <span class="sheet-meta">{{ encounterMeta }}</span>
+        </template>
+        <EncounterPanel variant="sheet" />
+      </Sheet>
       <Sheet v-else-if="activeDef" :key="activeDef.id" :title="activeDef.title" @close="screens.close()">
         <component :is="activeDef.component" />
       </Sheet>
-      <TabBar :active-tab="tabForScreen(screens.active.value)" :sheet-open="sheetOpen" @select="onSelectTab" />
+      <TabBar v-if="!combatActive" :active-tab="tabForScreen(screens.active.value)" :sheet-open="sheetOpen" @select="onSelectTab" />
     </template>
   </div>
 </template>
@@ -180,6 +212,17 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.sheet-meta {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The tab bar that normally covers the bottom inset is hidden in combat. */
+:deep(.sheet.bottom-safe) {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .frame-body {

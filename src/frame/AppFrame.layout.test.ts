@@ -259,6 +259,154 @@ describe('AppFrame layout', () => {
     });
   });
 
+  describe('mobile combat', () => {
+    interface MobileCombat {
+      game: GameData;
+      active: ReturnType<typeof ref<boolean>>;
+      applied: ReturnType<typeof ref<boolean>>;
+    }
+
+    function mobileCombat(opts: { active?: boolean; connected?: boolean } = {}): MobileCombat {
+      const active = ref(opts.active ?? true);
+      const applied = ref(true);
+      const inert = createInertGame();
+      const game = {
+        ...inert,
+        connected: ref(opts.connected ?? false),
+        character: ref({ id: 5n, name: 'Hero', level: 4n, combatTargetEnemyId: 9n }),
+        characterId: ref(5n),
+        combat: {
+          ...inert.combat,
+          active,
+          applied,
+          roundNumber: ref<bigint | null>(3n),
+          openRound: ref(null),
+          enemies: ref([
+            { id: 9n, combatId: 1n, enemyTemplateId: 100n, displayName: 'Rotfang', currentHp: 212n, maxHp: 480n },
+            { id: 3n, combatId: 1n, enemyTemplateId: 100n, displayName: 'Gnawer', currentHp: 50n, maxHp: 100n },
+          ]),
+          enemyTemplates: ref([{ id: 100n, level: 6n }]),
+        },
+      } as unknown as GameData;
+      return { game, active, applied };
+    }
+
+    it('with no fight the mobile frame is unchanged: no strip, location row and tab bar present', () => {
+      const { game } = mobileCombat({ active: false });
+      const w = mountFrame(false, {}, game);
+      expect(w.find('.encounter-strip').exists()).toBe(false);
+      expect(w.find('.location-row').exists()).toBe(true);
+      expect(w.find('.tab-bar').exists()).toBe(true);
+      expect(w.get('main.feed').classes()).not.toContain('safe-bottom');
+    });
+
+    it('in a fight hides the tab bar and the location row and puts the strip before the feed', () => {
+      const { game } = mobileCombat();
+      const w = mountFrame(false, {}, game);
+      expect(w.find('.tab-bar').exists()).toBe(false);
+      expect(w.find('.location-row').exists()).toBe(false);
+      const strip = w.get('section.encounter-strip').element;
+      const feed = w.get('main.feed').element;
+      expect(strip.compareDocumentPosition(feed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(w.findAll('button.hostile-chip')).toHaveLength(2);
+    });
+
+    it('in a fight the feed carries safe-bottom', () => {
+      const { game } = mobileCombat();
+      const w = mountFrame(false, {}, game);
+      expect(w.get('main.feed').classes()).toContain('safe-bottom');
+    });
+
+    it('the strip header opens the encounter sheet with the round meta and the sheet panel, hiding strip and feed', async () => {
+      const { game } = mobileCombat();
+      const w = mountFrame(false, {}, game);
+      await w.get('button.strip-open').trigger('click');
+      const dialog = w.get('[role="dialog"]');
+      expect(dialog.get('h4').text()).toBe('Encounter');
+      expect(dialog.get('.sheet-meta').text().startsWith('Round 3 · ')).toBe(true);
+      const panel = dialog.get('section.encounter-panel');
+      expect(panel.classes()).toContain('sheet');
+      expect(dialog.classes()).toContain('bottom-safe');
+      expect(w.get('section.encounter-strip').attributes('style') ?? '').toContain('display: none');
+      expect(w.get('main.feed').attributes('style') ?? '').toContain('display: none');
+    });
+
+    it('the encounter sheet closes from its close button and the strip returns', async () => {
+      const { game } = mobileCombat();
+      const w = mountFrame(false, {}, game);
+      await w.get('button.strip-open').trigger('click');
+      await w.get('[role="dialog"] button.sheet-close').trigger('click');
+      expect(w.find('[role="dialog"]').exists()).toBe(false);
+      expect(w.get('section.encounter-strip').attributes('style') ?? '').not.toContain('display: none');
+    });
+
+    it('the account button opens the More sheet with only Log out, which emits logout', async () => {
+      const { game } = mobileCombat();
+      const w = mountFrame(false, {}, game);
+      await w.get('button.strip-account').trigger('click');
+      const dialog = w.get('[role="dialog"]');
+      expect(dialog.get('h4').text()).toBe('More');
+      expect(dialog.classes()).toContain('bottom-safe');
+      const rows = w.findAll('button.more-row');
+      expect(rows.map((row) => row.text())).toEqual(['Log out']);
+      await rows[0].trigger('click');
+      expect(w.emitted('logout')).toHaveLength(1);
+    });
+
+    it('ending the fight with the encounter sheet open closes it and brings the tab bar and location row back', async () => {
+      const { game, active } = mobileCombat();
+      const w = mountFrame(false, {}, game);
+      await w.get('button.strip-open').trigger('click');
+      expect(w.find('[role="dialog"]').exists()).toBe(true);
+      active.value = false;
+      await nextTick();
+      expect(w.find('[role="dialog"]').exists()).toBe(false);
+      expect(w.find('.encounter-strip').exists()).toBe(false);
+      expect(w.find('.tab-bar').exists()).toBe(true);
+      expect(w.find('.location-row').exists()).toBe(true);
+      expect(w.get('main.feed').attributes('style') ?? '').not.toContain('display: none');
+    });
+
+    it('starting a fight swaps the tab bar for the strip', async () => {
+      const { game, active } = mobileCombat({ active: false });
+      const w = mountFrame(false, {}, game);
+      active.value = true;
+      await nextTick();
+      expect(w.find('.tab-bar').exists()).toBe(false);
+      expect(w.find('.encounter-strip').exists()).toBe(true);
+    });
+
+    it('with the software keyboard open the strip is only its header row', async () => {
+      class StubViewport extends EventTarget {
+        height = 844;
+      }
+      const viewport = new StubViewport();
+      window.innerHeight = 844;
+      Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true });
+      try {
+        const { game } = mobileCombat({ connected: true });
+        const w = mountFrame(false, {}, game);
+        expect(w.find('.chip-row').exists()).toBe(true);
+        (w.get('input.composer-input').element as HTMLInputElement).focus();
+        viewport.height = 500;
+        viewport.dispatchEvent(new Event('resize'));
+        await nextTick();
+        expect(w.find('.chip-row').exists()).toBe(false);
+        expect(w.find('button.strip-open').exists()).toBe(true);
+        expect(w.find('button.strip-account').exists()).toBe(true);
+      } finally {
+        Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
+      }
+    });
+
+    it('the desktop layout is unchanged in a fight: no strip', () => {
+      const { game } = mobileCombat();
+      const w = mountFrame(true, {}, game);
+      expect(w.find('.encounter-strip').exists()).toBe(false);
+      expect(w.find('.header-bar').exists()).toBe(true);
+    });
+  });
+
   it('Log out from the header account menu emits logout', async () => {
     const w = mountFrame(true);
     await w.get('button[aria-label="Account menu"]').trigger('click');
