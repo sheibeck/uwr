@@ -138,6 +138,7 @@ function setup() {
   const frame: FrameControls = {
     isDesktop: ref(true),
     activeScreen: ref(null),
+    screenArgs: ref(null),
     openScreen,
     closeScreen,
   };

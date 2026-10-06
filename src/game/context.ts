@@ -201,10 +201,18 @@ export interface GameData {
   dispose(): void;
 }
 
+/** Arguments a screen opens with (the vendor screen: which NPC). */
+export interface ScreenArgs {
+  npcId?: bigint;
+  npcName?: string;
+}
+
 export interface FrameControls {
   readonly isDesktop: Readonly<Ref<boolean>>;
   readonly activeScreen: Readonly<Ref<ActiveScreen>>;
-  openScreen(id: ScreenId | 'encounter'): void;
+  /** The arguments of the open vendor screen; null for every other screen and when closed. */
+  readonly screenArgs: Readonly<Ref<ScreenArgs | null>>;
+  openScreen(id: ScreenId | 'encounter', args?: ScreenArgs): void;
   /** No-op when nothing is open. */
   closeScreen(): void;
 }
@@ -359,6 +367,7 @@ export function createInertFrame(): FrameControls {
   return {
     isDesktop: constant(true),
     activeScreen: constant<ActiveScreen>(null),
+    screenArgs: constant<ScreenArgs | null>(null),
     openScreen() {},
     closeScreen() {},
   };

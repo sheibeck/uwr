@@ -28,6 +28,8 @@ export interface ScreenDef {
   icon: Component;
   /** Body component (empty-state shell in Phase 45). */
   component: Component;
+  /** Header meta (slots, gold, station); rendered in the drawer and sheet #meta slot. */
+  meta?: Component;
   /** Has a desktop header button. */
   inHeader: boolean;
 }

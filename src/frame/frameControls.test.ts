@@ -3,9 +3,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { defineComponent, h, inject, nextTick } from 'vue';
 import AppFrame from './AppFrame.vue';
-import { FRAME_KEY } from '../game/context';
+import { FRAME_KEY, createInertFrame } from '../game/context';
 import type { FrameControls } from '../game/context';
 import type { FrameView } from '../session/frameView';
+
+// The meta rendering is tested through the real shells: the map screen gets a header meta
+// component, every other screen has none.
+vi.mock('../screens/screens', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../screens/screens')>();
+  const { defineComponent: define, h: hh } = await import('vue');
+  const MapMeta = define({
+    name: 'TestMapMeta',
+    setup: () => () => hh('span', { class: 'test-meta' }, '3 / 50 slots'),
+  });
+  return {
+    ...actual,
+    getScreen: (id: Parameters<typeof actual.getScreen>[0]) =>
+      id === 'map' ? { ...actual.getScreen(id), meta: MapMeta } : actual.getScreen(id),
+  };
+});
 
 type Listener = (event: { matches: boolean }) => void;
 
@@ -49,6 +65,25 @@ const Probe = defineComponent({
       h('div', { class: 'frame-probe' }, [
         h('button', { class: 'probe-open-map', onClick: () => controls?.openScreen('map') }, 'map'),
         h('button', { class: 'probe-open-bag', onClick: () => controls?.openScreen('bag') }, 'bag'),
+        h(
+          'button',
+          {
+            class: 'probe-open-vendor',
+            onClick: () => controls?.openScreen('vendor', { npcId: 5n, npcName: 'Marta' }),
+          },
+          'vendor',
+        ),
+        h(
+          'button',
+          {
+            class: 'probe-reopen-vendor',
+            onClick: () => {
+              controls?.closeScreen();
+              controls?.openScreen('vendor', { npcId: 6n, npcName: 'Ilse' });
+            },
+          },
+          'reopen',
+        ),
         h('button', { class: 'probe-close', onClick: () => controls?.closeScreen() }, 'close'),
       ]);
   },
@@ -136,5 +171,122 @@ describe('AppFrame frame controls (FRAME_KEY)', () => {
     await w.get('button[data-screen="stats"]').trigger('click');
     await settle();
     expect(controls!.activeScreen.value).toBe('stats');
+  });
+});
+
+describe('AppFrame screen arguments (FrameControls.screenArgs)', () => {
+  it('opens the vendor screen with its arguments', async () => {
+    const w = mountFrame(true);
+    expect(controls!.screenArgs.value).toBeNull();
+    await w.get('.probe-open-vendor').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('vendor');
+    expect(controls!.screenArgs.value).toEqual({ npcId: 5n, npcName: 'Marta' });
+    expect(w.get('[role="dialog"] h4').text()).toBe('Vendor');
+  });
+
+  it('opening a screen without arguments leaves them null', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-bag').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('bag');
+    expect(controls!.screenArgs.value).toBeNull();
+  });
+
+  it('closeScreen clears the arguments', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-vendor').trigger('click');
+    await w.get('.probe-close').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBeNull();
+    expect(controls!.screenArgs.value).toBeNull();
+  });
+
+  it('opening another screen or a header screen clears the arguments', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-vendor').trigger('click');
+    await w.get('.probe-open-map').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('map');
+    expect(controls!.screenArgs.value).toBeNull();
+
+    await w.get('.probe-open-vendor').trigger('click');
+    await w.get('button[data-screen="stats"]').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('stats');
+    expect(controls!.screenArgs.value).toBeNull();
+  });
+
+  it('close then open in the same tick ends on the new vendor (the Trade sequence)', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-vendor').trigger('click');
+    await w.get('.probe-reopen-vendor').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('vendor');
+    expect(controls!.screenArgs.value).toEqual({ npcId: 6n, npcName: 'Ilse' });
+  });
+
+  it('re-opening the open vendor for another NPC replaces the arguments', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-vendor').trigger('click');
+    controls!.openScreen('vendor', { npcId: 9n, npcName: 'Tomas' });
+    await settle();
+    expect(controls!.screenArgs.value).toEqual({ npcId: 9n, npcName: 'Tomas' });
+  });
+
+  it('the More tab clears them and openFromMore leaves them null (mobile)', async () => {
+    const w = mountFrame(false);
+    await w.get('.probe-open-vendor').trigger('click');
+    await settle();
+    expect(controls!.screenArgs.value).toEqual({ npcId: 5n, npcName: 'Marta' });
+    await w.get('button[data-tab="more"]').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('more');
+    expect(controls!.screenArgs.value).toBeNull();
+    const vendorRow = w.findAll('.more-row').find((row) => row.text() === 'Vendor');
+    expect(vendorRow).toBeDefined();
+    await vendorRow!.trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('vendor');
+    expect(controls!.screenArgs.value).toBeNull();
+  });
+
+  it('the inert frame has null screen arguments', () => {
+    const inert = createInertFrame();
+    expect(inert.screenArgs.value).toBeNull();
+    expect(() => inert.openScreen('vendor', { npcId: 1n, npcName: 'x' })).not.toThrow();
+    expect(inert.screenArgs.value).toBeNull();
+  });
+});
+
+describe('AppFrame header meta', () => {
+  it('renders a screen meta component in the desktop drawer header', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-map').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"] .drawer-meta .test-meta').text()).toBe('3 / 50 slots');
+  });
+
+  it('renders a screen meta component in the mobile sheet header', async () => {
+    const w = mountFrame(false);
+    await w.get('.probe-open-map').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"] .sheet-header .test-meta').text()).toBe('3 / 50 slots');
+  });
+
+  it('renders no meta for a screen without one', async () => {
+    const desktop = mountFrame(true);
+    await desktop.get('.probe-open-bag').trigger('click');
+    await settle();
+    expect(desktop.find('.test-meta').exists()).toBe(false);
+    expect(desktop.get('.drawer-meta').text()).toBe('');
+    desktop.unmount();
+    wrapper = null;
+
+    const mobile = mountFrame(false);
+    await mobile.get('.probe-open-bag').trigger('click');
+    await settle();
+    expect(mobile.find('.test-meta').exists()).toBe(false);
+    expect(mobile.find('.sheet-header .sheet-meta').exists()).toBe(false);
   });
 });

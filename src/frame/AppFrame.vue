@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, provide, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 import { createConsole } from '../console/useConsole';
 import EncounterPanel from '../combat/EncounterPanel.vue';
 import EncounterStrip from '../combat/EncounterStrip.vue';
 import { sheetMeta } from '../combat/roundClock';
 import { createCombatController } from '../combat/useCombatController';
 import { COMBAT_KEY, CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertGame } from '../game/context';
-import type { FrameControls } from '../game/context';
+import type { FrameControls, ScreenArgs } from '../game/context';
 import { getScreen, type ScreenId } from '../screens/screens';
 import type { FrameView } from '../session/frameView';
 import ContextRail from './ContextRail.vue';
@@ -41,13 +41,27 @@ const screens = useScreens({ locked: computed(() => game.combat.active.value) })
 
 watch(isDesktop, (desktop) => screens.syncLayout(desktop));
 
+// The vendor screen's arguments (which NPC). Cleared synchronously whenever the active screen is
+// not the vendor, so close, More, tabs and other screens never carry a stale vendor.
+const screenArgs = shallowRef<ScreenArgs | null>(null);
+watch(
+  screens.active,
+  (id) => {
+    if (id !== 'vendor') screenArgs.value = null;
+  },
+  { flush: 'sync' },
+);
+
 // Built once; the console reuses it. Components reach it through FRAME_KEY.
 const frameControls: FrameControls = {
   isDesktop,
   activeScreen: screens.active,
-  openScreen(id: ScreenId | 'encounter') {
+  screenArgs: computed(() => screenArgs.value),
+  openScreen(id: ScreenId | 'encounter', args?: ScreenArgs) {
     const focused = document.activeElement;
     screens.open(id, focused instanceof HTMLElement ? focused : null);
+    // Set after open: a refused open (combat lock) or another screen keeps the arguments null.
+    screenArgs.value = id === 'vendor' && screens.active.value === 'vendor' ? (args ?? null) : null;
   },
   closeScreen() {
     if (screens.active.value !== null) screens.close();
@@ -131,6 +145,7 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         <FeedShell />
         <ContextRail />
         <Drawer v-if="activeDef" :key="activeDef.id" :title="activeDef.title" @close="screens.close()">
+          <template v-if="activeDef.meta" #meta><component :is="activeDef.meta" /></template>
           <component :is="activeDef.component" />
         </Drawer>
       </div>
@@ -190,6 +205,7 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         <EncounterPanel variant="sheet" />
       </Sheet>
       <Sheet v-else-if="activeDef" :key="activeDef.id" :title="activeDef.title" @close="screens.close()">
+        <template v-if="activeDef.meta" #meta><component :is="activeDef.meta" /></template>
         <component :is="activeDef.component" />
       </Sheet>
       <TabBar v-if="!combatActive" :active-tab="tabForScreen(screens.active.value)" :sheet-open="sheetOpen" @select="onSelectTab" />
