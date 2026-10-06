@@ -701,5 +701,49 @@ Promote with /gsd-review-backlog when ready.
 **Requirements:** v3.0 INP-01, INP-02
 **Plans:** tracked under v3.0 Phase 47
 
+### Phase 999.8: Learned intent graph for natural-language input (BACKLOG)
+
+**Goal:** `submit_intent` maps natural phrasing to a known game intent through a phrase-to-intent graph stored in SpacetimeDB tables. The graph learns as players play, so a phrase is resolved once and then mapped from the tables, with no LLM call and no token cost. Captured 2026-10-06 (owner idea, refined in discussion).
+
+**Today:** `submit_intent` (`spacetimedb/src/reducers/intent.ts`, about 1,700 lines) is a chain of exact-match and regex checks. Anything it does not recognize ends at the sardonic fallback ("…means nothing here"). The client router (`src/input/routeInput.ts`, Phase 47) already keeps command words in natural sentences off the command path; this item is about what the server does with those sentences.
+
+**Design (from discussion):**
+
+- **No graph engine.** SpacetimeDB has no native graph features. Model the graph as node and edge tables with btree indexes, as `location` and `location_connection` already do. Indexed lookups are in memory and take microseconds. The speed gain comes from skipping the LLM, not from the graph shape. Graphify is a dev-time CLI over repo files and cannot run inside a reducer.
+- **Intent registry first.** Refactor the if-chain into a declarative registry: each intent with its verbs, aliases, argument shape and handler. These are the intent nodes. Bootstrap words come from the existing command words and aliases (mechanical rules, not seeded content).
+- **Layer 1, phrase cache (exact):** `intent_phrase { id, pattern, context, intent, hits }`, index on `[pattern, context]`. Normalize before lookup: lowercase, strip punctuation, drop filler ("i want to", "please", "let's"), and replace names of things around the character with placeholders, so "ask Borin about the mine" becomes `ask {npc} about {topic}`. One pattern covers every NPC, place and item.
+- **Layer 2, word-to-intent weights (fuzzy):** `intent_token { token, intent, weight }`, index on `token`. On a cache miss, look up each word, add up the weights per intent, and take the best intent if it clears a threshold. Deterministic and token-free.
+- **`context`** is `explore` or `combat`, because the same phrase can mean different things in each.
+
+**Learning without the LLM:**
+
+1. **Player confirmation (primary).** On a miss, the Keeper offers in-character choices from the closest matches and what is around the character ("Did you mean: travel to Ashford, talk to Borin, look at the mine?"). The click writes the pattern and strengthens its word weights.
+2. **Next-action signal (secondary, lower weight).** A miss followed within a few seconds by a successful command links the phrase to that command.
+3. **Optional LLM fallback.** At most one call per new pattern, with the answer kept permanently. It can be left out entirely.
+
+Write a mapping only when it is confirmed, never for every typed line, or the graph fills with chatter and typos.
+
+**Guardrails:**
+
+- **Never during NPC conversation.** While the "Talking with …" lock is on (client side, `src/console/useConsole.ts` `conversation`), free text goes to `talk_to_npc` and never reaches `submit_intent`. Keep it that way, and do not add graph lookups to the in-conversation break-outs.
+- **Tighten `isGameAction`** (`src/input/conversation.ts`). Today any line starting with `buy`, `sell`, `craft`, `attack`, `fight` or `kill` leaves the conversation, so "sell me your finest blade?" said to a vendor runs a sell command. Match exact command forms, as `routeExactCommand` does.
+- **Exact commands always win.** Learned mappings never override `look`, `sell`, `attack` or the other registry commands.
+- **Private tables.** Reducers read them; clients never subscribe.
+- **Gradual promotion.** A mapping applies to one character first and becomes global only after several different players confirm it, which limits bad or deliberately misleading mappings.
+
+**Order of checks in `submit_intent` (outside conversation):** exact command forms → phrase cache → word weights → name match against what is around the character → player-confirm prompt (optional LLM) → sardonic fallback.
+
+**Open questions:**
+
+- Is the graph shared by all players or per character, and what threshold promotes a mapping to global?
+- Should the server know about the conversation lock? Not needed while the client never sends locked text to `submit_intent`; it matters only if the lock must hold across devices.
+- How should the confirm-choices prompt look in the v3.0 console?
+
+**Requirements:** TBD (unit tests required: normalization and placeholders, cache hit and miss, weight scoring and threshold, the conversation lock skipping the lookup, exact commands outranking learned mappings, promotion threshold)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-05 after v3.0 roadmap creation (Phases 45-52; Backlog 999.1-999.5 preserved, 999.6 and 999.7 promoted to v3.0)*
+*Last updated: 2026-10-06 after adding Backlog 999.8 (learned intent graph)*
