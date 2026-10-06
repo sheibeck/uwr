@@ -5,7 +5,7 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { findRaceDefinition, levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 import { flattenLineBreaks } from '../helpers/chat_text';
-import { turnInCompletedQuest, questTurnInNpcId, questObjectiveText, isQuestTurnedIn } from './quests';
+import { turnInQuestsAtNpc, questObjectiveText } from './quests';
 
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
@@ -105,16 +105,8 @@ export const registerCommandReducers = (deps: any) => {
     // Turn in every completed quest this NPC accepts (the giver, or a delivery's recipient) through the
     // shared turn-in path, so hailing gives the same rewards as turn_in_quest and the "turn in" intent.
     // A refusal (full bags) shows the NPC's in-voice message and leaves the quest ready to turn in.
-    const readyHere = [...ctx.db.quest_instance.by_character.filter(character.id)]
-      .filter((qi: any) => qi.completed && !isQuestTurnedIn(qi))
-      .map((qi: any) => ({ qi, qt: ctx.db.quest_template.id.find(qi.questTemplateId) }))
-      .filter(({ qt }: any) => qt && questTurnInNpcId(qt) === npc.id);
-    let turnedIn = false;
-    for (const { qi, qt } of readyHere) {
-      if (turnInCompletedQuest(ctx, character, qi, qt, appendPrivateEvent, fail)) turnedIn = true;
-    }
     // A turn-in takes priority over the greeting; a refused one still gets the greeting below.
-    if (turnedIn) return;
+    if (turnInQuestsAtNpc(ctx, character, npc, appendPrivateEvent, fail)) return;
 
     // Get the root dialogue option (empty playerText)
     let rootOption: any | null = null;

@@ -19,7 +19,7 @@ import {
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
 import { findRaceDefinition } from '../data/race_bonuses';
-import { turnInCompletedQuest, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
+import { turnInCompletedQuest, turnInQuestsAtNpc, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -1514,6 +1514,10 @@ export const registerIntentReducers = (deps: any) => {
         }
       }
       if (!npc) return fail(ctx, character, `No one named "${npcName}" is here.`);
+
+      // Hailing the NPC a completed quest is turned in to (its giver, or a delivery's recipient) turns it in,
+      // through the same shared path as the hail_npc reducer; a turn-in takes priority over the greeting.
+      if (turnInQuestsAtNpc(ctx, character, npc, appendPrivateEvent, fail)) return;
 
       // Display NPC greeting — further conversation goes through talk_to_npc reducer
       const greeting = npc.greeting || `${npc.name} regards you silently.`;
