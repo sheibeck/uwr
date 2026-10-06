@@ -3,7 +3,6 @@ phase: 48
 slug: combat-encounter
 status: approved
 reviewed_at: 2026-10-06
-reviewed_at: pending
 shadcn_initialized: false
 preset: none
 created: 2026-10-06
