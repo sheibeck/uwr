@@ -495,6 +495,23 @@ describe('createGameData: combat', () => {
     expect(h.game.combat.self.value).toBeNull();
   });
 
+  it('reports participantApplied only once the own participant binding has applied, empty or not', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    // A reload: nothing has arrived, so inactive is not a server confirmation.
+    expect(h.game.combat.active.value).toBe(false);
+    expect(h.game.combat.participantApplied.value).toBe(false);
+    // The snapshot arrived empty: the server confirmed the character is not in a fight.
+    h.find('Q_PART_OF_5').applied.value = true;
+    expect(h.game.combat.active.value).toBe(false);
+    expect(h.game.combat.participantApplied.value).toBe(true);
+    // A fight starts: the row arrives and the flag stays applied.
+    h.find('Q_PART_OF_5').rows.value = [{ id: 1n, combatId: 10n, characterId: 5n, status: 'active' }];
+    expect(h.game.combat.active.value).toBe(true);
+    expect(h.game.combat.participantApplied.value).toBe(true);
+  });
+
   it('follows the combat id of the own participant row', () => {
     const h = inFight();
     expect(h.game.combat.active.value).toBe(true);
@@ -914,6 +931,7 @@ describe('inert defaults', () => {
       combat.castsApplied,
       combat.aggroApplied,
       combat.roundsApplied,
+      combat.participantApplied,
     ]) {
       expect(flag.value).toBe(false);
     }

@@ -21,6 +21,7 @@ interface Fake {
   participants: Ref<unknown[]>;
   openRound: Ref<unknown>;
   roundsApplied: Ref<boolean>;
+  participantApplied: Ref<boolean>;
   groupMembers: Ref<unknown[]>;
   knownCharacters: Ref<unknown[]>;
   setNow(micros: number): void;
@@ -52,6 +53,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
   ]);
   const openRound = ref<unknown>(null);
   const roundsApplied = ref(false);
+  const participantApplied = ref(false);
   const groupMembers = ref<unknown[]>([{ id: 1n, characterId: 5n }, { id: 2n, characterId: 8n }]);
   const knownCharacters = ref<unknown[]>([{ id: 8n, hp: 30n }]);
   const game = {
@@ -63,7 +65,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
     groupMembers,
     knownCharacters,
     clock: { nowMicros: () => now },
-    combat: { ...createInertCombatData(), active, enemies, participants, openRound, roundsApplied },
+    combat: { ...createInertCombatData(), active, enemies, participants, openRound, roundsApplied, participantApplied },
   } as unknown as GameData;
   const frame = {
     isDesktop: ref(true),
@@ -84,6 +86,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
     participants,
     openRound,
     roundsApplied,
+    participantApplied,
     groupMembers,
     knownCharacters,
     setNow(micros) {
@@ -578,8 +581,9 @@ describe('round clock', () => {
 
     it('does not read a fresh fight round as expired', async () => {
       const { fake, open } = skewed();
-      // The fight starts while the controller watches: it saw combat inactive first.
+      // The fight starts while the controller watches: the server confirmed it was not in a fight.
       fake.active.value = false;
+      fake.participantApplied.value = true;
       const c = start(fake);
       fake.active.value = true;
       // Without a sample the estimate is 10 s past the server, so 6 s rounds would read expired.
@@ -593,6 +597,7 @@ describe('round clock', () => {
       vi.useFakeTimers();
       const { fake, open, advance } = skewed();
       fake.active.value = false;
+      fake.participantApplied.value = true;
       const c = start(fake);
       fake.active.value = true;
       fake.openRound.value = open(1n);
@@ -607,14 +612,34 @@ describe('round clock', () => {
       expect(c.timer.value.seconds).toBe(6);
     });
 
-    it('does not sample a Round 1 snapshot delivered to a controller that starts in combat', async () => {
+    it('does not sample a Round 1 snapshot on a reload, where inactive is not yet server-confirmed', async () => {
       const { fake, open } = skewed();
-      // A reload, late join or reconnect during Round 1: the round began 5 s ago.
+      // The production reload order: the controller mounts with the own-participant binding not yet
+      // applied, so active is false only because nothing has arrived.
+      fake.active.value = false;
+      fake.participantApplied.value = false;
       const c = start(fake);
+      // The participant snapshot arrives (active flips, then the flag), then the Round 1 snapshot
+      // of a round that began 5 s ago.
+      fake.active.value = true;
+      fake.participantApplied.value = true;
       fake.openRound.value = open(1n, SERVER_MS - 5_000);
       await nextTick();
       expect(fake.game.clock.skewMicros.value).toBe(0);
       expect(c.resolving.value).toBe(true);
+    });
+
+    it('samples Round 1 of a fight that starts after the server confirmed no fight', async () => {
+      const { fake, open } = skewed();
+      fake.active.value = false;
+      fake.participantApplied.value = true;
+      const c = start(fake);
+      // The fight starts while watching: the participant row arrives, then a live Round 1.
+      fake.active.value = true;
+      fake.openRound.value = open(1n);
+      await nextTick();
+      expect(fake.game.clock.skewMicros.value).not.toBe(0);
+      expect(c.resolving.value).toBe(false);
     });
 
     it('does not sample a later round first seen as a snapshot', async () => {
@@ -630,6 +655,7 @@ describe('round clock', () => {
     it('does not sample a later round snapshot after the controller saw combat inactive', async () => {
       const { fake, open } = skewed();
       fake.active.value = false;
+      fake.participantApplied.value = true;
       start(fake);
       // A late join into a fight already in round 3: the snapshot lands before the binding applied.
       fake.active.value = true;

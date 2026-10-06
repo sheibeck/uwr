@@ -158,15 +158,18 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
     // controls, so a round that arrives live samples its startedAt too. Live means:
     //   - the round binding has applied (a snapshot is published before the applied flag flips, so
     //     only later rows pass), or
-    //   - this controller has seen combat.active === false and the row is Round 1, the fresh start
-    //     of a fight that began while it was watching.
+    //   - the server confirmed this character is not in a fight (the own-participant binding applied
+    //     and is empty) and the row is Round 1, the fresh start of a fight that began while it was
+    //     watching.
     // Anything else is a snapshot (a reload, a late join or a reconnect) that can be up to one round
-    // old, so it never samples: it would bias the estimate behind a correct clock.
+    // old, so it never samples: it would bias the estimate behind a correct clock. A bare
+    // active === false is not enough: on a reload the participant binding has not applied yet, so
+    // active is false only because nothing has arrived.
     let seenInactive = false;
     watch(
-      combat.active,
-      (active) => {
-        if (!active) seenInactive = true;
+      () => combat.participantApplied.value && !combat.active.value,
+      (idle) => {
+        if (idle) seenInactive = true;
       },
       { flush: 'sync', immediate: true },
     );
