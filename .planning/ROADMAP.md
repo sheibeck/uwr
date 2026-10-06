@@ -1318,6 +1318,7 @@ Plans:
   - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
   - `support.js`
 - Implement `UWR Journal.dc.html`.
+- **Revised mock (owner, 2026-10-06, later the same day):** the owner updated `UWR Journal.dc.html` with a new version of the Journal screen and its rail. The link and file list are unchanged. Plan against the latest version from a fresh import, not against anything summarized from the earlier one. Where the revised design differs from this entry's notes (including the owner's list above), the revised design wins.
 - The menu item is "Journal". Where this entry says "Quests menu item" or "Quests screen", read Journal. If the design differs from the list above, the design wins and the owner's list is checked against it.
 - Run it as a UI phase (`/gsd-ui-phase` from the fresh import, then plan and execute). Timing: after the v3.0 milestone, with 999.19.
 
@@ -1563,4 +1564,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding 999.22 (party and player context menus)*
+*Last updated: 2026-10-06 after noting the revised Journal mock on 999.16*
