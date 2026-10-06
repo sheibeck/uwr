@@ -1,12 +1,15 @@
 /**
- * Combat narration (Phase 41, PIPE-07): a victory or defeat outro only.
+ * Combat narration (Phase 41, PIPE-07; Phase 46.1, RND-05): the end of the fight and its big moments.
  *
- * Combat is real-time (no round hook), so narration is enqueued once per fight from
- * handleVictory / handleDefeat, BEFORE the combat artifacts (participant rows) are cleared.
- * The outro summary is snapshotted into the job's request, so the executor never reads combat
- * state later. Narration is lowest priority and can never touch combat: enqueueCombatOutroNarration
- * catches every error, a refusal (daily cost, daily calls, phase cap) is skipped silently, and the
- * executor drops a narration that is older than 20 s. handleCombatNarrationResult applies a reply.
+ * Phase 46.1 narrates big moments (kill, near death, phase change) through the same
+ * combat_narration route: at most 3 per fight plus the end (the cap lives with the round
+ * resolver), and rounds never wait for narration. The victory or defeat outro is enqueued once
+ * per fight from handleVictory / handleDefeat, BEFORE the combat artifacts (participant rows) are
+ * cleared, and carries the final round number. Each summary is snapshotted into the job's request,
+ * so the executor never reads combat state later. Narration is lowest priority and can never touch
+ * combat: the enqueue helpers catch every error, a refusal (daily cost, daily calls, phase cap) is
+ * skipped silently, and the executor drops a narration that is older than 20 s.
+ * handleCombatNarrationResult applies a reply of any narrativeType through one segment path.
  */
 
 import { appendPrivateEvent } from './events';
@@ -21,7 +24,7 @@ import { redactSecrets } from './measurement';
 export type RoundEventSummary = {
   combatId: bigint;
   roundNumber: bigint;
-  narrativeType: 'intro' | 'round' | 'victory' | 'defeat';
+  narrativeType: 'intro' | 'round' | 'kill' | 'near_death' | 'phase' | 'victory' | 'defeat';
   playerActions: Array<{
     characterName: string;
     actionType: string;
@@ -54,24 +57,46 @@ export type RoundEventSummary = {
   locationName?: string;
   enemyNames?: string[];
   playerNames?: string[];
+  // Big-moment fields (strings and booleans only: no bigint revival path is needed)
+  momentSubject?: string;      // name of the fallen enemy, the player near death or the enemy past half
+  momentFirst?: boolean;       // kill only: it is the first death of the fight
+  momentBossOrNamed?: boolean; // kill only: the fallen enemy is a boss or a named foe
 };
 
-// ── Outro enqueue ──
+/** The facts of one big moment, supplied by the round resolver (46.1-08) after detectMoment. */
+export type CombatMomentFacts = {
+  kind: 'kill' | 'near_death' | 'phase';
+  roundNumber: bigint;
+  subjectName: string;
+  first?: boolean;
+  bossOrNamed?: boolean;
+  killerName?: string;   // kill only, a player character who landed the killing blow
+  abilityName?: string;  // kill only, absent for an auto-attack
+  damage?: bigint;       // kill only, damage of the killing action
+};
+
+// ── Shared enqueue ──
 
 /** A participant at or below this share of max HP (percent) counts as near death. */
 const NEAR_DEATH_PERCENT = 10n;
 
 /**
- * Snapshot of a finished fight for the outro prompt. Reads characters fresh (their HP is final
- * once handleVictory / handleDefeat has marked the dead) and the location by id.
+ * The highest combat_round.roundNumber of a fight, 0n when it has no round rows. Never throws.
  */
-export function buildCombatOutroSummary(
-  ctx: any,
-  combat: any,
-  participants: any[],
-  enemies: any[],
-  narrativeType: 'victory' | 'defeat',
-): RoundEventSummary {
+export function finalCombatRound(ctx: any, combatId: bigint): bigint {
+  try {
+    let max = 0n;
+    for (const row of ctx.db.combat_round.by_combat.filter(combatId)) {
+      if (row.roundNumber > max) max = row.roundNumber;
+    }
+    return max;
+  } catch {
+    return 0n;
+  }
+}
+
+/** The facts every summary shares: names, HP, who is down, the location. Reads characters fresh. */
+function gatherFight(ctx: any, combat: any, participants: any[], enemies: any[]) {
   const deaths: string[] = [];
   const nearDeathNames: string[] = [];
   const playerNames: string[] = [];
@@ -94,32 +119,90 @@ export function buildCombatOutroSummary(
   }
 
   const location = ctx.db.location.id.find(combat.locationId);
+  return { deaths, nearDeathNames, playerNames, enemyNames, participantHpSummary, locationName: location?.name };
+}
+
+function logNarrationSkipped(e: unknown): void {
+  console.error('combat narration skipped: ' + redactSecrets(String(e)));
+}
+
+/**
+ * Enqueue one combat_narration job. Never throws and never changes combat: any error is logged
+ * (redacted) and swallowed, a refused enqueue (budget) is skipped silently, and nothing is written
+ * with no participants or unless a leader's player resolves. Charged to the combat leader's player
+ * (else the first participant's). The request fields are the keys handleCombatNarrationResult reads.
+ */
+function enqueueNarrationJob(
+  ctx: any,
+  combat: any,
+  participants: any[],
+  job: { narrativeType: string; roundNumber: bigint; sourceKey: string; buildSummary: () => RoundEventSummary },
+): void {
+  try {
+    if (participants.length === 0) return;
+    const leaderId = combat.leaderCharacterId ?? participants[0]?.characterId;
+    if (leaderId === undefined) return;
+    const leader = ctx.db.character.id.find(leaderId);
+    if (!leader) return;
+    const playerId = resolveCharacterPlayerId(ctx, leader);
+    if (!playerId) return;
+
+    const summary = job.buildSummary();
+    // A refusal (result.refused) is deliberately ignored: narration is skipped silently.
+    enqueueLlmJob(ctx, {
+      route: 'combat_narration',
+      playerId,
+      characterId: leader.id,
+      sourceKey: job.sourceKey,
+      request: {
+        combatId: combat.id.toString(),
+        roundNumber: job.roundNumber.toString(),
+        narrativeType: job.narrativeType,
+        participantCharacterIds: participants.map((p: any) => p.characterId.toString()),
+        input: encodeRouteInput(summary),
+      },
+    });
+  } catch (e) {
+    logNarrationSkipped(e);
+  }
+}
+
+// ── Outro enqueue ──
+
+/**
+ * Snapshot of a finished fight for the outro prompt. Reads characters fresh (their HP is final
+ * once handleVictory / handleDefeat has marked the dead) and the location by id. The round number
+ * is the fight's final round (0 when it has no round rows).
+ */
+export function buildCombatOutroSummary(
+  ctx: any,
+  combat: any,
+  participants: any[],
+  enemies: any[],
+  narrativeType: 'victory' | 'defeat',
+): RoundEventSummary {
+  const fight = gatherFight(ctx, combat, participants, enemies);
   return {
     combatId: combat.id,
-    roundNumber: 0n,
+    roundNumber: finalCombatRound(ctx, combat.id),
     narrativeType,
     playerActions: [],
     enemyActions: [],
     effectsApplied: [],
     effectsExpired: [],
-    deaths,
-    nearDeathNames,
+    deaths: fight.deaths,
+    nearDeathNames: fight.nearDeathNames,
     hasCrit: false,
-    hasKill: deaths.length > 0,
-    hasNearDeath: nearDeathNames.length > 0,
-    participantHpSummary,
-    locationName: location?.name,
-    enemyNames,
-    playerNames,
+    hasKill: fight.deaths.length > 0,
+    hasNearDeath: fight.nearDeathNames.length > 0,
+    participantHpSummary: fight.participantHpSummary,
+    locationName: fight.locationName,
+    enemyNames: fight.enemyNames,
+    playerNames: fight.playerNames,
   };
 }
 
-/**
- * Enqueue the outro narration for a finished fight. Never throws and never changes combat: any
- * error is logged (redacted) and swallowed, a refused enqueue (budget) is skipped silently, and
- * nothing is written unless a leader's player resolves. Charged to the combat leader's player
- * (else the first participant's).
- */
+/** Enqueue the outro narration for a finished fight (victory or defeat), tagged with its final round. */
 export function enqueueCombatOutroNarration(
   ctx: any,
   combat: any,
@@ -128,30 +211,86 @@ export function enqueueCombatOutroNarration(
   narrativeType: 'victory' | 'defeat',
 ): void {
   try {
-    const leaderId = combat.leaderCharacterId ?? participants[0]?.characterId;
-    if (leaderId === undefined) return;
-    const leader = ctx.db.character.id.find(leaderId);
-    if (!leader) return;
-    const playerId = resolveCharacterPlayerId(ctx, leader);
-    if (!playerId) return;
-
-    const summary = buildCombatOutroSummary(ctx, combat, participants, enemies, narrativeType);
-    // A refusal (result.refused) is deliberately ignored: narration is skipped silently.
-    enqueueLlmJob(ctx, {
-      route: 'combat_narration',
-      playerId,
-      characterId: leader.id,
-      sourceKey: SOURCE_KEYS.combatNarration(combat.id, 0, narrativeType),
-      request: {
-        combatId: combat.id.toString(),
-        roundNumber: '0',
-        narrativeType,
-        participantCharacterIds: participants.map((p: any) => p.characterId.toString()),
-        input: encodeRouteInput(summary),
-      },
+    const roundNumber = finalCombatRound(ctx, combat.id);
+    enqueueNarrationJob(ctx, combat, participants, {
+      narrativeType,
+      roundNumber,
+      sourceKey: SOURCE_KEYS.combatNarration(combat.id, roundNumber, narrativeType),
+      buildSummary: () => buildCombatOutroSummary(ctx, combat, participants, enemies, narrativeType),
     });
   } catch (e) {
-    console.error('combat narration skipped: ' + redactSecrets(String(e)));
+    logNarrationSkipped(e);
+  }
+}
+
+// ── Big-moment enqueue ──
+
+/**
+ * Snapshot of one big moment (kill, near death, phase change) for the moment prompt. Same fight
+ * facts as the outro; the moment fields carry the subject, and a kill with a known killer adds one
+ * player action (the killing blow).
+ */
+export function buildCombatMomentSummary(
+  ctx: any,
+  combat: any,
+  participants: any[],
+  enemies: any[],
+  facts: CombatMomentFacts,
+): RoundEventSummary {
+  const fight = gatherFight(ctx, combat, participants, enemies);
+  const playerActions: RoundEventSummary['playerActions'] = [];
+  if (facts.kind === 'kill' && facts.killerName) {
+    playerActions.push({
+      characterName: facts.killerName,
+      actionType: facts.abilityName ? 'ability' : 'auto_attack',
+      abilityName: facts.abilityName,
+      targetName: facts.subjectName,
+      damageDealt: facts.damage,
+    });
+  }
+  return {
+    combatId: combat.id,
+    roundNumber: facts.roundNumber,
+    narrativeType: facts.kind,
+    playerActions,
+    enemyActions: [],
+    effectsApplied: [],
+    effectsExpired: [],
+    deaths: fight.deaths,
+    nearDeathNames: fight.nearDeathNames,
+    hasCrit: false,
+    hasKill: facts.kind === 'kill',
+    hasNearDeath: facts.kind === 'near_death',
+    participantHpSummary: fight.participantHpSummary,
+    locationName: fight.locationName,
+    enemyNames: fight.enemyNames,
+    playerNames: fight.playerNames,
+    momentSubject: facts.subjectName,
+    momentFirst: Boolean(facts.first),
+    momentBossOrNamed: Boolean(facts.bossOrNamed),
+  };
+}
+
+/**
+ * Enqueue the narration of one big moment, keyed on the combat, the real round and the kind (so the
+ * same moment is never narrated twice). Fire and forget: never throws, a refusal is silent.
+ */
+export function enqueueCombatMomentNarration(
+  ctx: any,
+  combat: any,
+  participants: any[],
+  enemies: any[],
+  facts: CombatMomentFacts,
+): void {
+  try {
+    enqueueNarrationJob(ctx, combat, participants, {
+      narrativeType: facts.kind,
+      roundNumber: facts.roundNumber,
+      sourceKey: SOURCE_KEYS.combatNarration(combat.id, facts.roundNumber, facts.kind),
+      buildSummary: () => buildCombatMomentSummary(ctx, combat, participants, enemies, facts),
+    });
+  } catch (e) {
+    logNarrationSkipped(e);
   }
 }
 
