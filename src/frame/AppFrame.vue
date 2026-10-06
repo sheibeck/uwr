@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, provide, watch } from 'vue';
+import { FRAME_KEY } from '../game/context';
+import type { FrameControls } from '../game/context';
 import { getScreen, type ScreenId } from '../screens/screens';
 import type { FrameView } from '../session/frameView';
 import ContextRail from './ContextRail.vue';
@@ -30,6 +32,20 @@ const { isDesktop } = useBreakpoint();
 const screens = useScreens();
 
 watch(isDesktop, (desktop) => screens.syncLayout(desktop));
+
+// Built once; the console (47-09) reuses it. Components reach it through FRAME_KEY.
+const frameControls: FrameControls = {
+  isDesktop,
+  activeScreen: screens.active,
+  openScreen(id) {
+    const focused = document.activeElement;
+    screens.open(id, focused instanceof HTMLElement ? focused : null);
+  },
+  closeScreen() {
+    if (screens.active.value !== null) screens.close();
+  },
+};
+provide(FRAME_KEY, frameControls);
 
 const activeId = computed<ScreenId | null>(() => {
   const active = screens.active.value;
