@@ -122,6 +122,51 @@ export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPr
   return instance;
 }
 
+/**
+ * Turns in a completed quest: the one reward path shared by the turn_in_quest reducer and the
+ * "turn in <quest>" intent, so both behave identically. The caller has already checked that qi is the
+ * character's completed instance of qt. Awards xp, gold, the item reward and NPC affinity, records the
+ * quest in the giver's memory, and removes the quest instance.
+ */
+export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any, appendPrivateEvent: any, _fail: any): boolean {
+  const npc = qt.npcId ? ctx.db.npc.id.find(qt.npcId) : undefined;
+
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+    `You present your completed quest "${qt.name}" to ${npc?.name || 'the quest giver'}.`);
+
+  // Award XP
+  const xpReward = qt.rewardXp || 0n;
+  if (xpReward > 0n) {
+    const freshChar = ctx.db.character.id.find(character.id)!;
+    ctx.db.character.id.update({ ...freshChar, xp: freshChar.xp + xpReward });
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+      `Quest "${qt.name}" complete! +${xpReward} XP`);
+  }
+
+  // Award gold
+  const goldReward = qt.rewardGold || 0n;
+  if (goldReward > 0n) {
+    const freshChar = ctx.db.character.id.find(character.id)!;
+    ctx.db.character.id.update({ ...freshChar, gold: freshChar.gold + goldReward });
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
+      `+${goldReward} gold from quest reward.`);
+  }
+
+  // Award the item reward (item-reward quests only)
+  grantQuestItemReward(ctx, ctx.db.character.id.find(character.id)!, qt, appendPrivateEvent);
+
+  if (qt.npcId) {
+    // NPC affinity for the completion
+    awardNpcAffinity(ctx, ctx.db.character.id.find(character.id)!, qt.npcId, 10n);
+    // Quest name in the giver's memory, for narrative continuity and follow-up chains
+    recordQuestCompletion(ctx, character.id, qt.npcId, qt.name);
+  }
+
+  // Delete the completed quest instance (frees the quest slot)
+  ctx.db.quest_instance.id.delete(qi.id);
+  return true;
+}
+
 export const registerQuestReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -272,44 +317,7 @@ export const registerQuestReducers = (deps: any) => {
     const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
     if (!qt) { fail(ctx, character, 'Quest template not found.'); return; }
 
-    // Award XP
-    const xpReward = qt.rewardXp || 0n;
-    if (xpReward > 0n) {
-      ctx.db.character.id.update({
-        ...character,
-        xp: character.xp + xpReward,
-      });
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-        `Quest "${qt.name}" complete! +${xpReward} XP`);
-    }
-
-    // Award gold if specified
-    const goldReward = qt.rewardGold || 0n;
-    if (goldReward > 0n) {
-      // Re-read character in case XP update changed it
-      const freshChar = ctx.db.character.id.find(character.id);
-      if (freshChar) {
-        ctx.db.character.id.update({
-          ...freshChar,
-          gold: freshChar.gold + goldReward,
-        });
-      }
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-        `+${goldReward} gold from quest reward.`);
-    }
-
-    // Generate item reward if applicable
-    grantQuestItemReward(ctx, character, qt, appendPrivateEvent);
-
-    // Award NPC affinity for quest completion
-    if (qt.npcId) {
-      awardNpcAffinity(ctx, character, qt.npcId, 10n);
-      // Record quest name in NPC memory for narrative continuity and follow-up chains
-      recordQuestCompletion(ctx, character.id, qt.npcId, qt.name);
-    }
-
-    // Delete the completed quest instance (free up quest slot)
-    ctx.db.quest_instance.id.delete(qi.id);
+    turnInCompletedQuest(ctx, character, qi, qt, appendPrivateEvent, fail);
   });
 
   // Abandon a quest to free up a quest slot

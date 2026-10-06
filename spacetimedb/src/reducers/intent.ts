@@ -17,7 +17,7 @@ import {
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
 import { findRaceDefinition } from '../data/race_bonuses';
-import { grantQuestItemReward } from './quests';
+import { turnInCompletedQuest } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -783,32 +783,8 @@ export const registerIntentReducers = (deps: any) => {
           return fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || `${npcPronouns(npcGender(npc)).possessive} post`} to turn in this quest.`);
         }
 
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-          `You present your completed quest "${qt.name}" to ${npc?.name || 'the quest giver'}.`);
-
-        // Award XP
-        const xpReward = qt.rewardXp || 0n;
-        if (xpReward > 0n) {
-          const freshChar = ctx.db.character.id.find(character.id)!;
-          ctx.db.character.id.update({ ...freshChar, xp: freshChar.xp + xpReward });
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-            `Quest "${qt.name}" complete! +${xpReward} XP`);
-        }
-        // Award gold
-        const goldReward = qt.rewardGold || 0n;
-        if (goldReward > 0n) {
-          const freshChar2 = ctx.db.character.id.find(character.id)!;
-          ctx.db.character.id.update({ ...freshChar2, gold: freshChar2.gold + goldReward });
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `+${goldReward} gold from quest reward.`);
-        }
-        // Award the item reward (item-reward quests only)
-        grantQuestItemReward(ctx, character, qt, appendPrivateEvent);
-        // Award NPC affinity
-        if (qt.npcId) {
-          awardNpcAffinity(ctx, ctx.db.character.id.find(character.id)!, qt.npcId, 10n);
-        }
-        // Delete quest instance
-        ctx.db.quest_instance.id.delete(qi.id);
+        // Same reward path as the turn_in_quest reducer (xp, gold, item, affinity, NPC memory)
+        turnInCompletedQuest(ctx, character, qi, qt, appendPrivateEvent, fail);
         return;
       }
       return fail(ctx, character, `No quest found called "${questName}".`);
