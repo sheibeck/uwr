@@ -236,8 +236,8 @@ describe('auto-attack target (RND-02)', () => {
     });
     const ctx = fightCtx(seed, MODULE, T0 + TEN_S);
     fire(ctx);
-    expect(lines(ctx, 1n, /Your fists hit Bat/)).toHaveLength(1);
-    expect(lines(ctx, 1n, /Your fists hit Grub/)).toHaveLength(0);
+    expect(lines(ctx, 1n, /Your fists (hits|crits) Bat/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /Your fists (hits|crits) Grub/)).toHaveLength(0);
   });
 
   it('a living current target is the one attacked', () => {
@@ -250,8 +250,8 @@ describe('auto-attack target (RND-02)', () => {
     });
     const ctx = fightCtx(seed, MODULE, T0 + TEN_S);
     fire(ctx);
-    expect(lines(ctx, 1n, /Your fists hit Grub/)).toHaveLength(1);
-    expect(lines(ctx, 1n, /Your fists hit Bat/)).toHaveLength(0);
+    expect(lines(ctx, 1n, /Your fists (hits|crits) Grub/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /Your fists (hits|crits) Bat/)).toHaveLength(0);
   });
 });
 

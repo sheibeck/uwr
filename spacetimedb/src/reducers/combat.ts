@@ -6,11 +6,16 @@ import {
   getAbilityStatScaling, getAbilityMultiplier,
   statOffset, BLOCK_CHANCE_BASE, BLOCK_CHANCE_DEX_PER_POINT,
   BLOCK_MITIGATION_BASE, BLOCK_MITIGATION_STR_PER_POINT, WIS_PULL_BONUS_PER_POINT,
-  EFFECT_TICK_SECONDS, DOT_LIFE_DRAIN_PERCENT,
+  DOT_LIFE_DRAIN_PERCENT,
 } from '../data/combat_scaling';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
 import { scheduleCombatTick } from '../helpers/combat';
+import {
+  startRound, currentRound, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
+  setRoundCooldown, roundCooldownRemaining, decrementRoundCooldowns, beginCombatCooldowns,
+} from '../helpers/combat_round_state';
+import { ROUND_STATE, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed } from '../helpers/combat_rounds';
 import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
@@ -123,7 +128,7 @@ const addEnemyToCombat = (
     attackDamage,
     armorClass,
     aggroTargetCharacterId: undefined,
-    nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + 1_000_000n + (spawnToUse.id % 2_000_000n),
+    nextAutoAttackAt: 0n, // legacy column: the round engine acts once per round, no per-enemy timer
   });
 
   for (const p of participants) {
@@ -180,14 +185,15 @@ export const startCombatForSpawn = (
   addEnemyToCombat(deps, ctx, combat, spawnToUse, participants);
 
   for (const p of participants) {
-    const pWeapon = deps.getEquippedWeaponStats(ctx, p.id);
     ctx.db.combat_participant.insert({
       id: 0n,
       combatId: combat.id,
       characterId: p.id,
       status: 'active',
-      nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + pWeapon.speed,
+      nextAutoAttackAt: 0n, // legacy column: rounds replace the per-weapon swing timer
     });
+    // A live wall-clock cooldown becomes rounds for the length of the fight.
+    beginCombatCooldowns(ctx, p.id);
   }
 
   for (const p of participants) {
@@ -248,8 +254,8 @@ export const startCombatForSpawn = (
     appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', 'The world grows still around you.');
   }
 
-  // Start combat immediately -- no LLM delay
-  scheduleCombatTick(ctx, combat.id);
+  // Round 1 opens in the same transaction that creates the fight: its row and its one tick.
+  startRound(ctx, combat.id, 1n);
 
   return combat;
 };
@@ -2254,25 +2260,26 @@ export const registerCombatReducers = (deps: any) => {
     applyDeathPenalties(ctx, deps, participants, appendPrivateEvent);
   };
 
-  // ── Round-Based Combat Functions (REMOVED -- real-time combat_loop handles everything) ──
-
-  // (getCurrentRound, upsertCombatAction, checkAllSubmittedAndResolve, resolveRound all removed)
+  // ── Round-Based Combat Functions ──
+  // Phase 46.1: a fight runs in rounds. resolveRound (below) is the only clock inside a fight.
 
   /** Process a single player auto-attack during round resolution. */
   // NOTE: Ability damage is logged separately via executeAbility -> resolveAbility -> appendPrivateEvent
   // in spacetimedb/src/helpers/combat.ts. This function only handles weapon auto-attacks.
   const processPlayerAutoAttackForRound = (
     ctx: any, combat: any, character: any, participant: any,
-    enemies: any[], nowMicros: bigint
+    enemies: any[], nowMicros: bigint, roundNumber: bigint
   ) => {
-    const livingEnemies = enemies
-      .map((e: any) => ctx.db.combat_enemy.id.find(e.id))
-      .filter((e: any) => e && e.currentHp > 0n);
+    const livingEnemies = sortById(
+      enemies
+        .map((e: any) => ctx.db.combat_enemy.id.find(e.id))
+        .filter((e: any) => e && e.currentHp > 0n)
+    );
     if (livingEnemies.length === 0) return;
 
-    const targetEnemy = character.combatTargetEnemyId
-      ? livingEnemies.find((e: any) => e.id === character.combatTargetEnemyId) ?? livingEnemies[0]
-      : livingEnemies[0];
+    // The current target when it still lives, else the lowest living enemy id.
+    const targetId = autoAttackTargetId(character.combatTargetEnemyId, livingEnemies.map((e: any) => e.id));
+    const targetEnemy = livingEnemies.find((e: any) => e.id === targetId) ?? livingEnemies[0];
 
     const weapon = deps.getEquippedWeaponStats(ctx, character.id);
     const bonuses = getEquippedBonuses(ctx, character.id);
@@ -2283,7 +2290,7 @@ export const registerCombatReducers = (deps: any) => {
     const template = ctx.db.enemy_template.id.find(targetEnemy.enemyTemplateId);
     const eName = targetEnemy.displayName ?? template?.name ?? 'enemy';
     const groupId = effectiveGroupId(character);
-    const seed = nowMicros + character.id * 37n + targetEnemy.id;
+    const seed = roundSeed(nowMicros + character.id * 37n + targetEnemy.id, roundNumber);
     const shieldEquipped = hasShieldEquipped(ctx, character.id);
 
     resolveAttack(ctx, {
@@ -2416,7 +2423,7 @@ export const registerCombatReducers = (deps: any) => {
   /** Process a single enemy auto-attack during round resolution. */
   const processEnemyAutoAttackForRound = (
     ctx: any, combat: any, enemy: any, template: any,
-    participants: any[], activeParticipants: any[], nowMicros: bigint
+    participants: any[], activeParticipants: any[], nowMicros: bigint, roundNumber: bigint
   ) => {
     if (activeParticipants.length === 0) return;
     const target = pickEnemyTarget('aggro', activeParticipants, ctx, combat.id, enemy.id);
@@ -2447,7 +2454,7 @@ export const registerCombatReducers = (deps: any) => {
     const groupId = effectiveGroupId(character);
     const eName = enemy.displayName ?? template?.name ?? 'enemy';
     const baseDamage = enemy.attackDamage ?? template.baseDamage ?? 5n;
-    const seed = nowMicros + enemy.id * 41n + character.id;
+    const seed = roundSeed(nowMicros + enemy.id * 41n + character.id, roundNumber);
     const shieldEquipped = hasShieldEquipped(ctx, character.id);
 
     const result = resolveAttack(ctx, {
@@ -2495,24 +2502,21 @@ export const registerCombatReducers = (deps: any) => {
 
   /** Tick all effects once per round (replaces EffectTick/HotTick). */
   const tickEffectsForRound = (ctx: any, combatId: bigint, participants: any[], _nowMicros: bigint) => {
-    // Tick character effects (DoTs, HoTs, buffs)
-    // Duration decrements every 1s tick, but damage/heal only applies every EFFECT_TICK_SECONDS
+    // Tick character effects (DoTs, HoTs, buffs): once per round, damage or heal and the duration
+    // countdown together, so an effect with 1 round left ticks once and is then removed.
     for (const p of participants) {
       const effects = [...ctx.db.character_effect.by_character.filter(p.characterId)];
       for (const effect of effects) {
         const character = ctx.db.character.id.find(p.characterId);
         if (!character) continue;
 
-        // Only apply DoT/HoT damage on tick boundaries (every 3s)
-        const isDamageTick = effect.roundsRemaining % EFFECT_TICK_SECONDS === 0n;
-
-        if (effect.effectType === 'regen' && character.hp > 0n && isDamageTick) {
+        if (effect.effectType === 'regen' && character.hp > 0n) {
           const healed = character.hp + effect.magnitude > character.maxHp
             ? character.maxHp : character.hp + effect.magnitude;
           ctx.db.character.id.update({ ...character, hp: healed });
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal',
             `${effect.sourceAbility ?? 'Regeneration'} soothes you for ${effect.magnitude} HP.`);
-        } else if (effect.effectType === 'dot' && character.hp > 0n && isDamageTick) {
+        } else if (effect.effectType === 'dot' && character.hp > 0n) {
           const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
           const nextHp = character.hp > dmg ? character.hp - dmg : 0n;
           ctx.db.character.id.update({ ...character, hp: nextHp });
@@ -2562,8 +2566,8 @@ export const registerCombatReducers = (deps: any) => {
         continue;
       }
 
-      // Only apply DoT damage on tick boundaries (every 3s)
-      if (effect.effectType === 'dot' && effect.roundsRemaining % EFFECT_TICK_SECONDS === 0n) {
+      // DoT damage lands every round
+      if (effect.effectType === 'dot') {
         const dmg = effect.magnitude > 0n ? effect.magnitude : -effect.magnitude;
         const nextHp = enemy.currentHp > dmg ? enemy.currentHp - dmg : 0n;
         ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
@@ -2619,6 +2623,195 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.combat_enemy_effect.id.update({ ...effect, roundsRemaining: newRounds });
       }
     }
+  };
+
+  // ── Round resolution ──────────────────────────────────────────────────
+
+  /** Living enemies of a fight, ascending id. */
+  const livingEnemiesOf = (ctx: any, combatId: bigint): any[] =>
+    sortById([...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((e: any) => e.currentHp > 0n));
+
+  const abilityChoiceFailed = (ctx: any, character: any, message: string) =>
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', `Ability failed: ${message}`);
+
+  /**
+   * A stored ability choice at the player's turn. True when the ability ran (it is the player's action
+   * for the round); false when it could not run, and the caller auto-attacks instead, so a player never
+   * loses a round to an invalid choice. Everything is re-validated here: the choice was made up to a
+   * round ago, and the input-side checks (46.1-06) do not bind a later state.
+   */
+  const resolveAbilityChoice = (ctx: any, combat: any, character: any, choice: any): boolean => {
+    const ability = ctx.db.ability_template.id.find(choice.abilityTemplateId);
+    if (!ability || ability.characterId !== character.id) {
+      abilityChoiceFailed(ctx, character, 'Ability not available');
+      return false;
+    }
+    if (roundCooldownRemaining(ctx, character.id, ability.id) > 0n) {
+      abilityChoiceFailed(ctx, character, `${ability.name} is on cooldown`);
+      return false;
+    }
+    const hasAllyTarget = choice.targetCharacterId !== undefined && choice.targetCharacterId !== null;
+    let targetName = 'yourself';
+    if (hasAllyTarget) {
+      const ally = ctx.db.character.id.find(choice.targetCharacterId);
+      const allyParticipant = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
+        .find((row: any) => row.characterId === choice.targetCharacterId);
+      if (!ally || ally.hp === 0n || !allyParticipant || allyParticipant.status !== 'active') {
+        failCombat(ctx, character, 'Your target is no longer in the fight.');
+        return false;
+      }
+      targetName = ally.name ?? 'your target';
+    } else {
+      const enemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
+      const preferred = character.combatTargetEnemyId
+        ? enemies.find((row: any) => row.id === character.combatTargetEnemyId)
+        : null;
+      const enemy = preferred ?? enemies.find((row: any) => row.currentHp > 0n) ?? enemies[0];
+      if (enemy) {
+        const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+        targetName = template?.name ?? 'enemy';
+      }
+    }
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+      `You use ${ability.name} on ${targetName}.`);
+    try {
+      const executed = executeAbilityAction(ctx, {
+        actorType: 'character',
+        actorId: character.id,
+        abilityTemplateId: ability.id,
+        targetCharacterId: hasAllyTarget ? choice.targetCharacterId : undefined,
+      });
+      if (!executed) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Ability had no effect.');
+        return false;
+      }
+      setRoundCooldown(ctx, character.id, ability.id, ability.cooldownSeconds);
+      return true;
+    } catch (error) {
+      abilityChoiceFailed(ctx, character, String(error).replace(/^SenderError:\s*/i, ''));
+      return false;
+    }
+  };
+
+  const fightEnemyName = (ctx: any, enemies: any[]): string =>
+    enemies[0]
+      ? (enemies[0].displayName ?? ctx.db.enemy_template.id.find(enemies[0].enemyTemplateId)?.name ?? 'enemy')
+      : 'enemy';
+
+  /**
+   * Resolve one round in a single transaction, in a fixed order: players (ascending character id; the
+   * stored choice, else an auto-attack), pets, enemies (ascending enemy id; a stunned enemy skips),
+   * then effects and DoT/HoT, cooldowns, adds, deaths, retarget, then victory, defeat or the next
+   * round. The timer path (resolve_round_timer) and the early path (46.1-06) both call this.
+   */
+  const resolveRound = (ctx: any, combat: any, round: any, opts?: { firedScheduledId?: bigint }): void => {
+    // (a) only the open round of an active fight resolves; it is 'resolving' for the rest of this transaction
+    const liveCombat = ctx.db.combat_encounter.id.find(combat.id);
+    if (!liveCombat || liveCombat.state !== 'active') return;
+    const open = currentRound(ctx, liveCombat.id);
+    if (!open || open.id !== round.id) return;
+    ctx.db.combat_round.id.update({ ...open, state: ROUND_STATE.resolving });
+    cancelRoundTicks(ctx, liveCombat.id, opts?.firedScheduledId);
+    const nowMicros = ctx.timestamp.microsSinceUnixEpoch as bigint;
+    const N = open.roundNumber as bigint;
+    const choices = choicesForRound(ctx, liveCombat.id, N);
+
+    // (b) players, ascending character id
+    const roster = sortByKey(
+      [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)],
+      (p: any) => p.characterId
+    );
+    for (const p of roster) {
+      if (livingEnemiesOf(ctx, liveCombat.id).length === 0) break;
+      const participant = ctx.db.combat_participant.id.find(p.id);
+      if (!participant || participant.status !== 'active') continue;
+      const character = ctx.db.character.id.find(p.characterId);
+      if (!character || character.hp === 0n) continue;
+      const choice = choices.find((c: any) => c.characterId === character.id);
+      let acted = false;
+      if (choice && choice.actionType === 'ability' && choice.abilityTemplateId !== undefined && choice.abilityTemplateId !== null) {
+        acted = resolveAbilityChoice(ctx, liveCombat, character, choice);
+      }
+      if (!acted) {
+        // Re-read: a failed ability may have changed the character before it threw.
+        const current = ctx.db.character.id.find(character.id) ?? character;
+        processPlayerAutoAttackForRound(
+          ctx, liveCombat, current, participant,
+          [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)], nowMicros, N
+        );
+      }
+    }
+
+    // (c) nothing left to fight: straight to the end of the fight
+    if (livingEnemiesOf(ctx, liveCombat.id).length > 0) {
+      // (d) pets
+      processPetCombat(ctx, liveCombat, livingEnemiesOf(ctx, liveCombat.id), nowMicros);
+
+      // (e) enemies, ascending enemy id; one failing enemy can never roll back the round
+      const enemyRows = sortById([...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)]);
+      for (const row of enemyRows) {
+        const enemy = ctx.db.combat_enemy.id.find(row.id);
+        if (!enemy || enemy.currentHp === 0n) continue;
+        const stunned = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
+          .some((effect: any) => effect.effectType === 'stun' && effect.roundsRemaining > 0n);
+        if (stunned) continue;
+        const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+        if (!template) continue;
+        const allParticipants = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
+        const activeNow = allParticipants.filter((x: any) => x.status === 'active');
+        try {
+          const usedAbility = tryEnemyAbilityForRound(ctx, liveCombat, enemy, template, activeNow, nowMicros);
+          if (!usedAbility) {
+            processEnemyAutoAttackForRound(ctx, liveCombat, enemy, template, allParticipants, activeNow, nowMicros, N);
+          }
+        } catch (error) {
+          console.error(`resolveRound: enemy ${enemy.id} turn failed in combat ${liveCombat.id}: ${String(error)}`);
+        }
+      }
+
+      // (f) end of the round: effects, cooldowns, adds, deaths, retarget
+      const afterEnemies = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
+      tickEffectsForRound(ctx, liveCombat.id, afterEnemies, nowMicros);
+      decrementRoundCooldowns(ctx, afterEnemies.map((x: any) => x.characterId));
+      const fightEnemies = [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)];
+      const activeForAdds = afterEnemies.filter((x: any) => x.status === 'active');
+      processPendingAdds(ctx, liveCombat, afterEnemies, activeForAdds, fightEnemyName(ctx, fightEnemies), nowMicros);
+      markNewlyDeadParticipants(ctx, liveCombat, [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)]);
+      const livingIds = livingEnemiesOf(ctx, liveCombat.id).map((e: any) => e.id as bigint);
+      for (const p of ctx.db.combat_participant.by_combat.filter(liveCombat.id)) {
+        const character = ctx.db.character.id.find(p.characterId);
+        if (!character || !character.combatTargetEnemyId) continue;
+        if (livingIds.includes(character.combatTargetEnemyId)) continue;
+        ctx.db.character.id.update({
+          ...character,
+          combatTargetEnemyId: autoAttackTargetId(character.combatTargetEnemyId, livingIds),
+        });
+      }
+    }
+
+    // (g) the end of the fight, from fresh reads
+    const enemies = [...ctx.db.combat_enemy.by_combat.filter(liveCombat.id)];
+    const participants = [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)];
+    const activeParticipants = participants.filter((x: any) => x.status === 'active');
+    const enemyName = fightEnemyName(ctx, enemies);
+    if (!enemies.some((e: any) => e.currentHp > 0n)) {
+      handleVictory(ctx, liveCombat, enemies, participants, activeParticipants, enemyName, nowMicros);
+      return;
+    }
+    const someoneStands = activeParticipants.some((x: any) => {
+      const character = ctx.db.character.id.find(x.characterId);
+      return Boolean(character) && character.hp > 0n;
+    });
+    if (!someoneStands) {
+      handleDefeat(ctx, liveCombat, enemies, participants, enemyName, nowMicros);
+      return;
+    }
+
+    // (h) the next round: this one is resolved and its choices go in the same transaction
+    const resolvedRow = ctx.db.combat_round.id.find(open.id);
+    if (resolvedRow) ctx.db.combat_round.id.update({ ...resolvedRow, state: ROUND_STATE.resolved });
+    clearRoundChoices(ctx, liveCombat.id, N);
+    startRound(ctx, liveCombat.id, N + 1n, open.narrationCount);
   };
 
   // ── Use Ability Realtime Reducer ──────────────────────────────────────
@@ -2704,13 +2897,19 @@ export const registerCombatReducers = (deps: any) => {
 
   // ── Post-Combat Summary (removed — LLM narration too slow) ──
 
-  // ── Resolve Round Timer (kept registered but no-ops -- tables still exist) ──
+  // ── Resolve Round Timer ──
+  // The one scheduled tick per fight. A client can call a scheduled reducer directly, so the module
+  // identity is checked before anything is read; a stale or repeated tick resolves nothing.
 
   if (RoundTimerTick) {
     scheduledReducers['resolve_round_timer'] = spacetimedb.reducer(
       'resolve_round_timer', { arg: RoundTimerTick.rowType }, (ctx, { arg }) => {
-        // No-op: round-based combat removed
-        return;
+        if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
+        const combat = ctx.db.combat_encounter.id.find(arg.combatId);
+        if (!combat || combat.state !== 'active') return;
+        const round = currentRound(ctx, arg.combatId);
+        if (isStaleTick(arg.roundNumber, round)) return;
+        resolveRound(ctx, combat, round, { firedScheduledId: arg.scheduledId });
       }
     );
   }
@@ -2745,7 +2944,7 @@ export const registerCombatReducers = (deps: any) => {
       if (!participant || participant.status !== 'active') continue;
       // Only auto-attack if nextAutoAttackAt has passed
       if (participant.nextAutoAttackAt > nowMicros) continue;
-      processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros);
+      processPlayerAutoAttackForRound(ctx, combat, character, participant, enemies, nowMicros, 0n);
       // Schedule next auto-attack based on weapon speed
       const weapon = deps.getEquippedWeaponStats(ctx, character.id);
       ctx.db.combat_participant.id.update({
@@ -2766,7 +2965,7 @@ export const registerCombatReducers = (deps: any) => {
       if (!template) continue;
       const usedAbility = tryEnemyAbilityForRound(ctx, combat, enemy, template, refreshedActive, nowMicros);
       if (!usedAbility) {
-        processEnemyAutoAttackForRound(ctx, combat, enemy, template, participants, refreshedActive, nowMicros);
+        processEnemyAutoAttackForRound(ctx, combat, enemy, template, participants, refreshedActive, nowMicros, 0n);
       }
       // Schedule next enemy auto-attack
       const speed = deps.getEnemyAttackSpeed(template.role ?? 'damage');
