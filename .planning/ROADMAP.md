@@ -1568,5 +1568,41 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.23: Combat loot rails (design: UWR Combat) (BACKLOG)
+
+**Goal:** After a fight, show loot in the rails as the owner's Claude Design file draws it, so players can see what dropped and take it item by item or all at once, on desktop and mobile. Captured 2026-10-06 (owner request).
+
+**Design source (re-import fresh when this is planned; never cached):**
+- claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Combat.dc.html
+- Focus file: `UWR Combat.dc.html`.
+- Also read the files it imports:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+- Implement `UWR Combat.dc.html`, the combat loot rails.
+
+**Notes for planning:**
+- **What the server already has.** Bindings exist for `combat_loot`, `my_combat_loot`, `loot_table`, the `take_loot` and `take_all_loot` reducers, and the corpse reducers `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs, and whether anything is missing (for example a loot-mode rule for parties, see Phase 51 LDG-06).
+- **Overlap with Phase 52 (Parity and Production).** The new client has no loot UI yet. The old `v2.2-client` LootPanel is on Phase 52's parity audit list. If Phase 52 adds a basic loot action for parity, this item replaces it with the designed rails. Decide during Phase 52 planning whether to pull this item in.
+- **Builds on Phase 48.** It reuses the Encounter panel, the rail swap at fight end, and the mobile encounter strip.
+- **Design guards apply:**
+  - no literal colors; map rarity to the existing `--color-rarity-*` tokens, and the token pin stays 23
+  - no v-html, no `<svg`
+  - Phosphor icons and Inter only
+  - font sizes 10/12/14/20 and weights 400/500
+  - spacing 4/8/16/24/32/48/64
+  - text nodes only
+- **Run it as a UI phase** (`/gsd-ui-phase` from the fresh import, then plan and execute).
+- **Related:**
+  - 999.12 (gear power budget and generated items)
+  - 999.20 (Examine button)
+  - Phase 50 inventory (backpack capacity, item inspector and comparison, which the loot rows can reuse)
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding quest details from the main screen to 999.16 (second Journal mock revision)*
+*Last updated: 2026-10-06 after adding backlog 999.23 (Combat loot rails)*
