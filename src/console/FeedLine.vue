@@ -145,6 +145,15 @@ function disabledAttr(): 'true' | undefined {
 
 .body {
   min-width: 0;
+  white-space: pre-wrap;
+}
+
+/* Player-typed text keeps normal wrapping so a typed newline cannot draw a fake second line. */
+.line-echo .body,
+.line-say .body,
+.line-whisper .body,
+.line-party .body {
+  white-space: normal;
 }
 
 .micro {

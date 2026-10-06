@@ -6,7 +6,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import FeedLine from './FeedLine.vue';
 import { keywordActionLabel } from './keywordLabel';
 import type { FeedLineView } from './lines';
-import type { KeywordEntry } from './keywords';
+import { buildVocabulary, findKeywords, type KeywordEntry } from './keywords';
+import { cleanServerText } from './cleanServerText';
 
 let wrapper: VueWrapper | null = null;
 
@@ -393,5 +394,45 @@ describe('FeedLine source', () => {
     }
     expect(source).toContain('var(--color-accent-700)');
     expect(source).toContain('var(--color-con-orange)');
+  });
+});
+
+describe('FeedLine line breaks', () => {
+  const source = readFileSync(resolve(process.cwd(), 'src/console/FeedLine.vue'), 'utf8');
+
+  it('keeps white-space on the base body and normal wrapping on player-authored kinds', () => {
+    const base = source.match(/\n\.body \{([^}]*)\}/);
+    expect(base).not.toBeNull();
+    expect(base![1]).toContain('white-space: pre-wrap;');
+    const playerRule = source.match(/((?:\.line-[a-z]+ \.body,?\s*)+)\{\s*white-space: normal;\s*\}/);
+    expect(playerRule).not.toBeNull();
+    for (const kind of ['echo', 'say', 'whisper', 'party']) {
+      expect(playerRule![1]).toContain(`.line-${kind} .body`);
+    }
+    const scene = source.match(/\.line-scene \.body \{([^}]*)\}/);
+    expect(scene![1]).toContain('pre-wrap');
+  });
+
+  it('keeps newlines as text in a server line with no line break elements', () => {
+    const text = 'Commands:\n  look (l) — Survey your surroundings.\n  time — Check the hour.';
+    const w = render(makeLine({ kind: 'system', text }));
+    expect(w.get('.body').element.textContent).toBe(text);
+    expect(w.find('br').exists()).toBe(false);
+  });
+
+  it('keeps keywords clickable across line breaks', () => {
+    const text = cleanServerText('Resources:\n  [Old Well]\nExits: [Gloamwood].');
+    const vocabulary = buildVocabulary({
+      npcs: [],
+      places: [{ id: 2n, name: 'Gloamwood' }],
+      nodes: [{ id: 4n, name: 'Old Well' }],
+      players: [],
+    });
+    const parts = findKeywords(text, vocabulary);
+    const w = render(makeLine({ kind: 'system', text, keywordEligible: true, parts }));
+    const buttons = w.findAll('button.keyword');
+    expect(buttons.map((b) => b.text())).toEqual(['Old Well', 'Gloamwood']);
+    expect(w.get('.body').element.textContent).toBe(text);
+    expect(text).toContain('\n');
   });
 });
