@@ -103,8 +103,28 @@ function describeItem(ctx: any, character: any, matches: NameMatcher): string | 
     if (!template) continue;
     candidates.push({ instance, template, display: String((instance as any).displayName || template.name) });
   }
-  const hit = candidates.find((c) => matches(c.display) || matches(String(c.template.name)));
-  if (!hit) return null;
+  // Instance id order, so the answer never depends on index iteration order.
+  candidates.sort((x, y) => (x.instance.id < y.instance.id ? -1 : x.instance.id > y.instance.id ? 1 : 0));
+  const first = candidates.find((c) => matches(c.display) || matches(String(c.template.name)));
+  if (!first) return null;
+
+  // Copies of the same item (same template, display name and quality) are one entry: the count
+  // adds their quantities, and the item counts as equipped when any copy is. The described copy
+  // is an equipped one when there is one, so the shown stats are the stats in use.
+  const group = candidates.filter(
+    (c) =>
+      c.instance.templateId === first.instance.templateId &&
+      c.display === first.display &&
+      (c.instance.qualityTier ?? '') === (first.instance.qualityTier ?? ''),
+  );
+  const hit = group.find((c) => c.instance.equippedSlot) ?? first;
+  let total = 0n;
+  let equippedCopies = 0;
+  for (const c of group) {
+    const q = c.instance.quantity;
+    total += typeof q === 'bigint' && q > 0n ? q : 1n;
+    if (c.instance.equippedSlot) equippedCopies += 1;
+  }
 
   const { instance, template, display } = hit;
   const rarity = String(instance.qualityTier || template.rarity || 'common').toLowerCase();
@@ -117,10 +137,12 @@ function describeItem(ctx: any, character: any, matches: NameMatcher): string | 
 
   const lines: string[] = [display, `${rarityCap} ${typeLabel(template.slot)}${extraStr}.`];
 
-  if (instance.equippedSlot) {
+  if (equippedCopies > 0 && total <= 1n) {
     lines.push('You have it equipped.');
-  } else if (BigInt(instance.quantity ?? 1n) > 1n) {
-    lines.push(`You carry ${instance.quantity}.`);
+  } else if (equippedCopies > 0) {
+    lines.push(`You carry ${total} (${equippedCopies === 1 ? 'one' : equippedCopies} equipped).`);
+  } else if (total > 1n) {
+    lines.push(`You carry ${total}.`);
   } else {
     lines.push('You carry one.');
   }

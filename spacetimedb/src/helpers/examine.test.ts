@@ -224,6 +224,49 @@ describe('describeLookTarget: inventory items', () => {
     expect(lines.some((l) => l.startsWith('Stats:') || l.startsWith('Requires'))).toBe(false);
   });
 
+  it('counts duplicate unstacked copies', () => {
+    const ctx = ctxWith({
+      item_instance: [instance({ id: 201n }), instance({ id: 202n }), instance({ id: 203n })],
+      item_template: [bowTemplate],
+    });
+    expect(describeLookTarget(ctx, ME, 'Ashwood Bow')!.split('\n')[2]).toBe('You carry 3.');
+  });
+
+  it('adds stacks and loose copies together', () => {
+    const ctx = ctxWith({
+      item_instance: [instance({ id: 201n, quantity: 2n }), instance({ id: 202n, quantity: 1n })],
+      item_template: [bowTemplate],
+    });
+    expect(describeLookTarget(ctx, ME, 'Ashwood Bow')!.split('\n')[2]).toBe('You carry 3.');
+  });
+
+  it('is equipped when any copy is equipped, whatever the row order', () => {
+    const equippedFirst = ctxWith({
+      item_instance: [instance({ id: 201n, equippedSlot: 'mainHand' }), instance({ id: 202n }), instance({ id: 203n })],
+      item_template: [bowTemplate],
+    });
+    const equippedLast = ctxWith({
+      item_instance: [instance({ id: 203n }), instance({ id: 202n }), instance({ id: 201n, equippedSlot: 'mainHand' })],
+      item_template: [bowTemplate],
+    });
+    const a = describeLookTarget(equippedFirst, ME, 'Ashwood Bow');
+    expect(a!.split('\n')[2]).toBe('You carry 3 (one equipped).');
+    expect(describeLookTarget(equippedLast, ME, 'Ashwood Bow')).toBe(a);
+  });
+
+  it('does not merge copies with different display names', () => {
+    const ctx = ctxWith({
+      item_instance: [
+        instance({ id: 201n, displayName: 'Keen Ashwood Bow' }),
+        instance({ id: 202n, displayName: 'Sturdy Ashwood Bow' }),
+      ],
+      item_template: [bowTemplate],
+    });
+    const out = describeLookTarget(ctx, ME, 'Ashwood Bow')!;
+    expect(out.split('\n')[0]).toBe('Keen Ashwood Bow');
+    expect(out.split('\n')[2]).toBe('You carry one.');
+  });
+
   it('adds affix and craft-quality bonuses to the Stats line', () => {
     const ctx = ctxWith({
       item_instance: [instance({ displayName: 'Sturdy Ashwood Bow of Haste' })],
