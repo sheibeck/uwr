@@ -80,6 +80,15 @@ describe('parseLookCommand', () => {
     ['look at the Old Well', 'Old Well'],
     ['look an Iron Shard', 'Iron Shard'],
     ['look attic', 'attic'],
+    ['look the', ''],
+    ['look a', ''],
+    ['look an', ''],
+    ['look at the', ''],
+    ['look at a', ''],
+    ['look at at', ''],
+    ['l the', ''],
+    ['look theron', 'theron'],
+    ['look at the at', ''],
     ['lookout', null],
     ['say look', null],
   ])('%s -> %j', (raw, expected) => {
@@ -282,6 +291,20 @@ describe('describeLookTarget: inventory items', () => {
     });
     const lines = describeLookTarget(ctx, ME, 'Ashwood Bow')!.split('\n');
     expect(lines).toContain('Stats: DEX +5, AC +4, Cooldown reduction +10, 9 damage.');
+  });
+
+  it('does not read the object prototype for an odd template slot', () => {
+    const ctx = ctxWith({
+      item_instance: [instance({ templateId: 7n, qualityTier: undefined })],
+      item_template: [{ ...ironTemplate, slot: 'toString' }],
+      resource_node: [node()],
+    });
+    expect(describeLookTarget(ctx, ME, 'Iron Shard')).toContain('(common tostring)');
+    const itemOnly = ctxWith({
+      item_instance: [instance({ templateId: 7n, qualityTier: undefined })],
+      item_template: [{ ...ironTemplate, slot: 'constructor' }],
+    });
+    expect(describeLookTarget(itemOnly, ME, 'Iron Shard')!.split('\n')[1]).toBe('Common constructor.');
   });
 
   it('never describes an item owned by another character', () => {

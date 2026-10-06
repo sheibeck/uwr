@@ -5,14 +5,17 @@ const LOOK_REGEX = /^(?:look|l)(?:\s+(.+))?$/i;
 
 /**
  * null = not a look command; '' = bare look; otherwise the normalized target (original casing).
- * A leading whole-word "at" and one leading article (the, a, an) are stripped.
+ * A leading whole-word "at" and one leading article (the, a, an) are stripped. A target that is
+ * only filler words ("look the", "look at the", "look a", "look at at") is a bare look, so it never
+ * partial-matches the first name that happens to contain those letters.
  */
 export function parseLookCommand(raw: string): string | null {
   const match = raw.trim().match(LOOK_REGEX);
   if (!match) return null;
   let target = (match[1] ?? '').trim();
   target = target.replace(/^at(?:\s+|$)/i, '').trim();
-  target = target.replace(/^(?:the|an|a)\s+/i, '').trim();
+  target = target.replace(/^(?:the|an|a)(?:\s+|$)/i, '').trim();
+  if (/^at$/i.test(target)) target = '';
   return target;
 }
 
@@ -58,7 +61,8 @@ const STAT_KEYS = STAT_LABELS.map(([key]) => key);
 function typeLabel(slot: unknown): string {
   const key = typeof slot === 'string' ? slot : '';
   if (!key) return 'item';
-  return TYPE_LABELS[key] ?? key.toLowerCase();
+  // Own keys only: a slot named constructor or toString must not read the object prototype.
+  return Object.prototype.hasOwnProperty.call(TYPE_LABELS, key) ? TYPE_LABELS[key] : key.toLowerCase();
 }
 
 type NameMatcher = (name: string) => boolean;
