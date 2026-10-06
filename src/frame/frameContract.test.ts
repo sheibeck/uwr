@@ -83,8 +83,10 @@ describe('breakpoint', () => {
     expect(DESKTOP_QUERY).toBe('(min-width: 900px)');
   });
 
-  it('every width media query is exactly the 900px pair', () => {
-    const allowed = new Set(['(min-width: 900px)', '(max-width: 899px)']);
+  it('every width media query is the 900px pair or the Ledger screens\' 1200px tier', () => {
+    // 50-UI-SPEC "Layout Contract": the Phase 50 screens switch their columns at 1200px of viewport
+    // width; the 900px desktop/mobile switch stays the frame's.
+    const allowed = new Set(['(min-width: 900px)', '(max-width: 899px)', '(min-width: 1200px)']);
     const offenders: string[] = [];
     for (const { file, css } of allStyleSources()) {
       for (const params of atRules(css, 'media', file)) {
