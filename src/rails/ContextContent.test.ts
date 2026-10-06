@@ -5,7 +5,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import ContextContent from './ContextContent.vue';
-import { CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertConsole, createInertFrame, createInertGame } from '../game/context';
+import {
+  CONSOLE_KEY,
+  FRAME_KEY,
+  GAME_KEY,
+  createInertCombatData,
+  createInertConsole,
+  createInertFrame,
+  createInertGame,
+} from '../game/context';
 import type { ConsoleApi, FrameControls, GameData } from '../game/context';
 
 let wrapper: VueWrapper | null = null;
@@ -45,6 +53,7 @@ function mountContent(setup: Setup = {}) {
     whisperTo: vi.fn(),
     invite: vi.fn(),
     trade: vi.fn(),
+    pull: vi.fn(),
   };
   const game = {
     ...createInertGame(),
@@ -253,6 +262,117 @@ describe('Nearby list', () => {
   });
 });
 
+describe('Nearby enemies (quick-261006-a0i)', () => {
+  const spawn = (id: bigint, name: string, state: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    name,
+    state,
+    locationId: 10n,
+    enemyTemplateId: 1n,
+    groupCount: 1n,
+    ...extra,
+  });
+  const ENEMIES = lists({
+    enemiesHere: [
+      spawn(3n, 'Goblin Scout', 'available', { groupCount: 3n }),
+      spawn(4n, 'Ash Wolf', 'pulling'),
+      spawn(5n, 'Bone Rat', 'engaged', { lockedCombatId: 1n }),
+      spawn(6n, 'Ghost', 'gone'),
+    ],
+    enemyTemplatesHere: [{ id: 1n, level: 8n }],
+    npcsHere: [{ id: 2n, name: 'Marta', npcType: 'quest' }],
+  });
+
+  it('lists enemy rows ahead of the other kinds, one per visible spawn', () => {
+    const { w } = mountContent(ENEMIES);
+    const rows = w.findAll('.nearby-row');
+    expect(rows.map((r) => r.get('.row-name').text())).toEqual([
+      'Ash Wolf',
+      'Bone Rat',
+      'Goblin Scout',
+      'Marta',
+    ]);
+    for (const row of rows.slice(0, 3)) expect(row.classes()).toContain('kind-enemy');
+    expect(w.text()).not.toContain('Ghost');
+  });
+
+  it('colors the name and icon by con and shows title, level and group count', () => {
+    const { w } = mountContent(ENEMIES);
+    const row = w.findAll('.nearby-row')[2];
+    expect(row.get('.row-name').classes()).toContain('con-orange');
+    expect(row.get('.row-icon').classes()).toContain('con-orange');
+    expect(row.get('.row-name').attributes('title')).toBe('Goblin Scout · Hard');
+    expect(row.get('.row-hint').text()).toBe('Lv 8 · ×3');
+  });
+
+  it('gives an available enemy one always-visible Pull button that starts a careful pull', async () => {
+    const { w, calls } = mountContent(ENEMIES);
+    const row = w.findAll('.nearby-row')[2];
+    expect(row.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Pull Goblin Scout']);
+    const button = row.get('[aria-label="Pull Goblin Scout"]');
+    expect(button.classes()).toEqual(expect.arrayContaining(['btn', 'btn-ghost', 'btn-icon']));
+    expect(button.attributes('title')).toBe('Pull Goblin Scout');
+    await button.trigger('click');
+    expect(calls.pull).toHaveBeenCalledTimes(1);
+    expect(calls.pull).toHaveBeenCalledWith({ id: 3n, name: 'Goblin Scout' }, 'careful');
+  });
+
+  it('shows Being pulled and In combat without buttons, the in-combat row dimmed', () => {
+    const { w } = mountContent(ENEMIES);
+    const [pulling, engaged] = w.findAll('.nearby-row');
+    expect(pulling.get('.row-hint').text()).toBe('Lv 8 · Being pulled');
+    expect(pulling.find('button').exists()).toBe(false);
+    expect(pulling.classes()).not.toContain('in-combat');
+    expect(engaged.get('.row-hint').text()).toBe('Lv 8 · In combat');
+    expect(engaged.find('button').exists()).toBe(false);
+    expect(engaged.classes()).toContain('in-combat');
+  });
+
+  it('disables the pull buttons in a fight and sends nothing', async () => {
+    const { w, calls } = mountContent({
+      game: {
+        ...ENEMIES.game,
+        combat: { ...createInertCombatData(), active: ref(true) },
+      },
+    });
+    const buttons = w.findAll('[aria-label="Pull Goblin Scout"]');
+    expect(buttons).toHaveLength(1);
+    for (const button of buttons) {
+      expect(button.attributes('aria-disabled')).toBe('true');
+      await button.trigger('click');
+    }
+    expect(calls.pull).not.toHaveBeenCalled();
+  });
+
+  it('disables the pull buttons offline and sends nothing', async () => {
+    const { w, calls } = mountContent({ game: { ...ENEMIES.game, connected: ref(false) } });
+    const buttons = w.findAll('[aria-label="Pull Goblin Scout"]');
+    expect(buttons).toHaveLength(1);
+    for (const button of buttons) {
+      expect(button.attributes('aria-disabled')).toBe('true');
+      await button.trigger('click');
+    }
+    expect(calls.pull).not.toHaveBeenCalled();
+  });
+
+  it('does not show the empty line when only enemies are present, and still shows it when empty', () => {
+    const only = mountContent(lists({ enemiesHere: [spawn(3n, 'Goblin Scout', 'available')] }));
+    expect(only.w.text()).not.toContain('No one is nearby.');
+    wrapper?.unmount();
+    const none = mountContent();
+    expect(none.w.text()).toContain('No one is nearby.');
+  });
+
+  it('renders a markup enemy name as text', () => {
+    const { w } = mountContent(lists({ enemiesHere: [spawn(3n, PAYLOAD, 'available')] }));
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.kind-enemy .row-name').text()).toBe(PAYLOAD);
+    expect(w.get('.kind-enemy [aria-label^="Pull "]').attributes('aria-label')).toBe(
+      `Pull ${PAYLOAD}`,
+    );
+  });
+});
+
 describe('Tracking list', () => {
   function quest(id: bigint, templateId: bigint, progress: bigint, over: Record<string, unknown> = {}) {
     return {
@@ -407,5 +527,6 @@ describe('mobile sizing and sources', () => {
     expect(read('NearbyList.vue')).toContain('Trade with');
     expect(read('NearbyList.vue')).toContain('Whisper ');
     expect(read('NearbyList.vue')).toContain('Invite ');
+    expect(read('NearbyList.vue')).toContain('Pull ');
   });
 });
