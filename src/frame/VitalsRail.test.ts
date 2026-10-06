@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest';
-import { ref } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick, ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
@@ -238,5 +238,202 @@ describe('VitalsRail party', () => {
 
   it('shows no crown without a party', () => {
     expect(mountRail().find('.name-row .crown').exists()).toBe(false);
+  });
+});
+
+describe('VitalsRail damage flash', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+  });
+
+  afterEach(() => {
+    wrapper?.unmount();
+    wrapper = null;
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function mountFlash(hp = 200n, characterId = ref<bigint | null>(1n)): { w: VueWrapper; characterId: typeof characterId } {
+    const w = mountRail({ hp, maxHp: 260n }, { characterId });
+    return { w, characterId };
+  }
+
+  const healthBar = (w: VueWrapper) => w.findAll('.bar')[0];
+
+  it('shows no flash class, ghost or delta on mount', () => {
+    const { w } = mountFlash();
+    const bar = healthBar(w);
+    expect(bar.classes()).not.toContain('flash-motion');
+    expect(bar.classes()).not.toContain('flash-reduced');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('flashes on a drop: class, ghost over the lost portion and the delta, then clears on time', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n });
+    const bar = healthBar(w);
+    expect(bar.classes()).toContain('flash-motion');
+    const ghost = w.get('.ghost');
+    expect(ghost.attributes('aria-hidden')).toBe('true');
+    expect(ghost.element.parentElement?.classList.contains('track')).toBe(true);
+    const style = (ghost.element as HTMLElement).style;
+    expect(style.left).toBe(`${Math.round((178 / 260) * 10000) / 100}%`);
+    expect(style.width).toBe(`${Math.round((22 / 260) * 10000) / 100}%`);
+    const delta = w.get('.delta');
+    expect(delta.text()).toBe('−22');
+    expect(delta.attributes('aria-hidden')).toBe('true');
+    // after the value text
+    expect(w.get('.readout').element.lastElementChild).toBe(delta.element);
+    expect(w.findAll('.value')[0].text()).toBe('178 / 260');
+
+    vi.advanceTimersByTime(599);
+    await nextTick();
+    expect(healthBar(w).classes()).toContain('flash-motion');
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(healthBar(w).classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(true);
+
+    vi.advanceTimersByTime(899);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(true);
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('sums drops inside the window and restarts the timers', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 190n });
+    vi.advanceTimersByTime(1000);
+    await w.setProps({ hp: 170n });
+    expect(w.get('.delta').text()).toBe('−30');
+    vi.advanceTimersByTime(1499);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(true);
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('uses the static flash-reduced class under reduced motion and still shows the delta', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n });
+    const bar = healthBar(w);
+    expect(bar.classes()).toContain('flash-reduced');
+    expect(bar.classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(true);
+    expect(w.get('.delta').text()).toBe('−22');
+    vi.advanceTimersByTime(600);
+    await nextTick();
+    expect(healthBar(w).classes()).not.toContain('flash-reduced');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(true);
+    vi.advanceTimersByTime(900);
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('never flashes on healing', async () => {
+    const { w } = mountFlash(100n);
+    await w.setProps({ hp: 150n });
+    expect(healthBar(w).classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(false);
+  });
+
+  it('never flashes on a character switch, with a lower hp arriving together with the new id', async () => {
+    const { w, characterId } = mountFlash();
+    characterId.value = 2n;
+    await w.setProps({ hp: 100n });
+    expect(healthBar(w).classes()).not.toContain('flash-motion');
+    expect(w.find('.ghost').exists()).toBe(false);
+    expect(w.find('.delta').exists()).toBe(false);
+    // the new character's own drop flashes afterwards
+    await w.setProps({ hp: 90n });
+    expect(w.get('.delta').text()).toBe('−10');
+  });
+
+  it('a switch alone does not make the next drop of the new character vanish', async () => {
+    const { w, characterId } = mountFlash();
+    characterId.value = 2n;
+    await nextTick();
+    expect(w.find('.delta').exists()).toBe(false);
+    await w.setProps({ hp: 190n });
+    expect(w.get('.delta').text()).toBe('−10');
+  });
+
+  it('never flashes the mana or stamina bars', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n, mana: 10n, stamina: 1n });
+    const [, mana, stamina] = w.findAll('.bar');
+    for (const bar of [mana, stamina]) {
+      expect(bar.classes()).not.toContain('flash-motion');
+      expect(bar.classes()).not.toContain('flash-reduced');
+      expect(bar.find('.ghost').exists()).toBe(false);
+      expect(bar.find('.delta').exists()).toBe(false);
+    }
+    expect(w.findAll('.ghost')).toHaveLength(1);
+    expect(w.findAll('.delta')).toHaveLength(1);
+  });
+
+  it('keeps the value rows and the party cards out of the flash', async () => {
+    const { w } = mountFlash();
+    await w.setProps({ hp: 178n });
+    expect(w.findAll('.value').map((v) => v.text())).toEqual(['178 / 260', '300 / 260', '0 / 0']);
+    expect(w.findAll('.fill')).toHaveLength(3);
+  });
+
+  describe('source', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsRail.vue'), 'utf8');
+
+    function rules(): Array<{ selector: string; body: string }> {
+      const out: Array<{ selector: string; body: string }> = [];
+      const re = /([^{}@]+)\{([^{}]*)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = re.exec(source.slice(source.indexOf('<style')))) !== null) {
+        out.push({ selector: match[1].trim(), body: match[2] });
+      }
+      return out;
+    }
+
+    it('carries the composable call, both state classes and the reduced-motion block', () => {
+      expect(source).toContain('useDamageFlash(');
+      expect(source).toContain('flash-motion');
+      expect(source).toContain('flash-reduced');
+      expect(source).toContain('prefers-reduced-motion');
+    });
+
+    it('declares no animation or transition in the flash-reduced rules', () => {
+      const reduced = rules().filter((r) => r.selector.includes('flash-reduced'));
+      expect(reduced.length).toBeGreaterThan(0);
+      for (const rule of reduced) {
+        expect(rule.body).not.toContain('animation');
+        expect(rule.body).not.toContain('transition');
+      }
+    });
+
+    it('removes every flash-motion animation inside the prefers-reduced-motion block', () => {
+      const start = source.indexOf('@media (prefers-reduced-motion: reduce)');
+      expect(start).toBeGreaterThan(-1);
+      const block = source.slice(start, source.indexOf('</style>'));
+      for (const part of ['.flash-motion .ghost', '.flash-motion .fill-health', '.flash-motion .value']) {
+        expect(block).toContain(part);
+      }
+      expect(block).toContain('animation: none');
+    });
+
+    it('has no transition anywhere in the flash styles', () => {
+      expect(source).not.toContain('transition');
+    });
+
+    it('uses the con red token for the delta and the colour state, with no literal colour', () => {
+      expect(source).toContain('var(--color-con-red)');
+      expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    });
   });
 });

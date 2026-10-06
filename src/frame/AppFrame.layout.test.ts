@@ -231,7 +231,7 @@ describe('AppFrame layout', () => {
       const { game } = combatGame(true, 2n);
       const w = mountFrame(true, {}, game);
       expect(w.get('.header-bar').text()).toContain('In combat · Round 2');
-      expect(w.get('.header-bar .in-combat-tag').exists()).toBe(true);
+      expect(w.find('.header-bar .in-combat-tag').exists()).toBe(true);
       expect(w.get('button[data-screen="map"]').attributes('aria-disabled')).toBe('true');
     });
 

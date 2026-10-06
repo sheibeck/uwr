@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed, inject, shallowRef, watch } from 'vue';
 import { PhCrownSimple } from '@phosphor-icons/vue';
+import { useDamageFlash } from '../combat/useDamageFlash';
 import { GAME_KEY, createInertGame } from '../game/context';
 import EffectChips from '../rails/EffectChips.vue';
 import PartyBlock from '../rails/PartyBlock.vue';
@@ -32,6 +33,23 @@ const xp = computed(() => {
 const effects = computed(() => effectViews(game.effects.value, game.characterId.value, game.inCombat.value));
 const leader = computed(() => isPartyLeader(game.group.value, game.characterId.value));
 
+// HP damage flash (48-UI-SPEC "Damage flash", CMB-05, A19): the active character's own HP bar only,
+// in or out of combat. The flash key is the character id, latched so it only moves together with the
+// hp prop (this component is fed through props, which lag the game refs by a render): a character
+// switch then reads as a switch, never as a drop.
+const flashKey = shallowRef<bigint | null>(game.characterId.value);
+watch(() => props.hp, () => { flashKey.value = game.characterId.value; }, { flush: 'sync' });
+watch(() => game.characterId.value, (id) => { flashKey.value = id; }, { flush: 'pre' });
+const { active: flashActive, reduced: flashReduced, delta: flashDelta, ghost: flashGhost } = useDamageFlash({
+  hp: () => props.hp,
+  maxHp: () => props.maxHp,
+  key: () => flashKey.value,
+});
+const flashClass = computed(() => {
+  if (!flashActive.value) return null;
+  return flashReduced.value ? 'flash-reduced' : 'flash-motion';
+});
+
 const bars = computed(() => [
   { key: 'health', label: 'Health', value: props.hp, max: props.maxHp },
   { key: 'mana', label: 'Mana', value: props.mana, max: props.maxMana },
@@ -53,10 +71,13 @@ const bars = computed(() => [
     </div>
 
     <div class="bars">
-      <div v-for="bar in bars" :key="bar.key" class="bar">
+      <div v-for="bar in bars" :key="bar.key" class="bar" :class="bar.key === 'health' ? flashClass : null">
         <div class="bar-row">
           <span class="label">{{ bar.label }}</span>
-          <span class="value">{{ vitalText(bar.value, bar.max) }}</span>
+          <span class="readout">
+            <span class="value">{{ vitalText(bar.value, bar.max) }}</span>
+            <span v-if="bar.key === 'health' && flashDelta !== null" class="delta" aria-hidden="true">−{{ flashDelta }}</span>
+          </span>
         </div>
         <div
           class="track"
@@ -67,6 +88,12 @@ const bars = computed(() => [
           :aria-valuemax="Number(bar.max)"
         >
           <div class="fill" :class="`fill-${bar.key}`" :style="{ width: `${barFraction(bar.value, bar.max) * 100}%` }"></div>
+          <div
+            v-if="bar.key === 'health' && flashGhost"
+            class="ghost"
+            aria-hidden="true"
+            :style="{ left: flashGhost.left, width: flashGhost.width }"
+          ></div>
         </div>
       </div>
 
@@ -186,7 +213,13 @@ const bars = computed(() => [
   font-variant-numeric: tabular-nums;
 }
 
+.readout {
+  display: inline-flex;
+  align-items: baseline;
+}
+
 .track {
+  position: relative;
   height: 6px;
   border-radius: var(--radius-sm);
   background: var(--color-neutral-900);
@@ -207,6 +240,75 @@ const bars = computed(() => [
 
 .fill-stamina {
   background: var(--color-stamina);
+}
+
+.ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--color-health) 35%, transparent);
+}
+
+.delta {
+  margin-left: 4px;
+  font-size: 12px;
+  color: var(--color-con-red);
+  font-variant-numeric: tabular-nums;
+}
+
+.flash-motion .ghost {
+  animation: ghost-fade 600ms ease-out forwards;
+}
+
+.flash-motion .fill-health {
+  animation: flash-fill 400ms ease-out;
+}
+
+.flash-motion .value {
+  animation: flash-text 400ms ease-out;
+}
+
+@keyframes ghost-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes flash-fill {
+  from {
+    background: var(--color-con-red);
+  }
+  to {
+    background: var(--color-health);
+  }
+}
+
+@keyframes flash-text {
+  from {
+    color: var(--color-con-red);
+  }
+  to {
+    color: var(--color-neutral-200);
+  }
+}
+
+.flash-reduced .fill-health {
+  background: var(--color-con-red);
+}
+
+.flash-reduced .value {
+  color: var(--color-con-red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-motion .ghost,
+  .flash-motion .fill-health,
+  .flash-motion .value {
+    animation: none;
+  }
 }
 
 .xp-row {
