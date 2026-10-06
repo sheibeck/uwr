@@ -15,4 +15,5 @@ export type ViewDeps = {
   Faction: any;
   FactionStanding: any;
   UiPanelLayout: any;
+  VendorBuyback: any;
 };

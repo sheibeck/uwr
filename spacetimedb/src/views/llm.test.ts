@@ -520,7 +520,7 @@ describe('registerViews wiring', () => {
     for (const k of [
       'Player', 'FriendRequest', 'Friend', 'GroupInvite', 'EventGroup', 'GroupMember',
       'CharacterEffect', 'CombatResult', 'CombatLoot', 'NpcDialog', 'QuestInstance',
-      'Faction', 'FactionStanding', 'UiPanelLayout',
+      'Faction', 'FactionStanding', 'UiPanelLayout', 'VendorBuyback',
     ]) {
       deps[k] = { rowType: {} };
     }
