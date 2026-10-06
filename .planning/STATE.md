@@ -287,19 +287,28 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
 
-### Resume note (2026-10-05, before /compact)
+### Resume note (2026-10-06, overnight run)
 
-- Running: /gsd-autonomous --from 45 (v3.0). Resume with `/gsd-autonomous --from 46`.
-- Phase 45: built (11/11 plans), code review clean after 3 iterations, verification human_needed. Hands-on UAT deferred to the end of the milestone (45-UAT.md; owner wants ALL testing in one pass at the end).
-- Phase 46: CONTEXT committed (discuss done) and RESEARCH committed. Next: VALIDATION.md (Nyquist, from the RESEARCH Validation Architecture), pattern-mapper, planner, plan-checker. Plan with --skip-ui: backend only, and the UI gate is a keyword false positive.
-- Phase 46 research facts:
-  - The optional segments column on event tables publishes locally with --break-clients and needs no clear.
-  - npc_conversation stays a prompt-JSON text route.
-  - SEG-04 drills go in a new llm_segment_drills.test.ts.
-  - Owner open questions OQ1-OQ7 (see 46-RESEARCH.md) belong in the single 46-VOICE-CHANGES.md approval checkpoint, along with the 44 Fix 2 range decision (OQ3).
-- Execution mode: sequential on the main checkout (local master is ahead of origin, so the worktree base check degrades). Executors must never push or publish to maincloud.
-- Baseline test failures to ignore: scripts/llm/call_log_report, golden_run and proof_rules tests, plus spacetimedb/src/helpers/measurement.results.test.ts.
-- Open todo: CR-01 / login_email trusts client email (.planning/todos/pending/2026-10-05-login-email-trusts-client-supplied-email.md).
+- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47 and 46.1. To resume, run `/gsd-autonomous --from 48`. That runs 48, then 49, 50, 51 and 52, then the lifecycle (audit, complete, cleanup).
+- Overnight autonomy is active (see above): take the recommended option for every question and log it as "auto-approved (owner overnight instruction)". Hard limits:
+  - no paid LLM calls (the golden run is deferred)
+  - no maincloud
+  - no git push
+  - never `--clear-database`
+- Testing is deferred. Every phase that verifies human_needed gets a {N}-UAT.md and a row in the Deferred Verification table, and the run continues. At the end of the milestone, before the audit, present one consolidated checklist covering 45, 46, 47 and 46.1 onward, plus the paid golden run with a cost estimate (about $0.62 worst case).
+- Execution is sequential on the main checkout: the worktree base check degrades because local master is ahead of origin.
+- The owner's local SpacetimeDB server (PID 12020, 127.0.0.1:3000) and a Vite dev server (port 5173, started by Claude for the owner's try-out) are running. Do not stop either.
+- Local publish: `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`. Check `admin_llm_status` key_length (108) before and after.
+- Baseline test failures to ignore: `scripts/llm/call_log_report.test.mjs`, `scripts/llm/proof_rules.test.mjs` and `spacetimedb/src/helpers/measurement.results.test.ts`. `golden_run.test.mjs` was repaired in Phase 46.
+- Design import for UI phases: the claude_design MCP project "Unwritten Realms" (id 1a7a975f-7b14-488b-9a38-188bc56294cf), files "UWR Ledger Screens.dc.html" and "UWR Console & Combat.dc.html", plus the Nocturne `_ds`. Re-import fresh through a general-purpose agent into the scratchpad (never cached).
+- Phase 48 builds on the 46.1 round and choice contract (46.1-09-SUMMARY "Round and choice contract for Phase 48") and on the Phase 47 client (FeedShell, HotbarRow, useConsole).
+- Open todos:
+  - CR-01 `login_email` trusts the client email (high priority).
+  - Event tables are public (T-47-04b, `2026-10-05-event-tables-public-read.md`).
+- Morning items for the owner:
+  - Review 46.1-VOICE-ADDENDUM.md (auto-approved).
+  - Decide on the stale stun wording in mechanical_vocabulary.ts.
+  - Note that the WR-01 Phase 46 NPC prompt wording was owner-approved in chat.
 
 **Resume file:** None
 
