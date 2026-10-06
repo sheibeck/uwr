@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, provide, watch } from 'vue';
-import { FRAME_KEY } from '../game/context';
+import { computed, inject, onBeforeUnmount, provide, watch } from 'vue';
+import { createConsole } from '../console/useConsole';
+import { CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertGame } from '../game/context';
 import type { FrameControls } from '../game/context';
 import { getScreen, type ScreenId } from '../screens/screens';
 import type { FrameView } from '../session/frameView';
@@ -33,7 +34,7 @@ const screens = useScreens();
 
 watch(isDesktop, (desktop) => screens.syncLayout(desktop));
 
-// Built once; the console (47-09) reuses it. Components reach it through FRAME_KEY.
+// Built once; the console reuses it. Components reach it through FRAME_KEY.
 const frameControls: FrameControls = {
   isDesktop,
   activeScreen: screens.active,
@@ -46,6 +47,11 @@ const frameControls: FrameControls = {
   },
 };
 provide(FRAME_KEY, frameControls);
+
+// One console per frame: the composer and the feed keywords reach the same instance.
+const consoleApi = createConsole({ game: inject(GAME_KEY, createInertGame()), frame: frameControls });
+provide(CONSOLE_KEY, consoleApi);
+onBeforeUnmount(() => consoleApi.dispose());
 
 const activeId = computed<ScreenId | null>(() => {
   const active = screens.active.value;
