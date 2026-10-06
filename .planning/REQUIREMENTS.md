@@ -25,8 +25,8 @@
 
 ### Console (CON)
 
-- [ ] **CON-01**: The feed renders each entry as a labelled line by kind: Keeper narration, NPC speech, whisper, party chat, system, quest update, ripple / world event.
-- [ ] **CON-02**: NPCs, places and objects in the feed show as soft accent keywords. Clicking one acts on it (hail, examine, travel).
+- [x] **CON-01**: The feed renders each entry as a labelled line by kind: Keeper narration, NPC speech, whisper, party chat, system, quest update, ripple / world event.
+- [x] **CON-02**: NPCs, places and objects in the feed show as soft accent keywords. Clicking one acts on it (hail, examine, travel).
 - [ ] **CON-03**: The vitals rail shows HP, MP, SP and XP bars, active effects with time remaining, and party members with health and an Invite button.
 - [ ] **CON-04**: The context rail shows:
   - routes out, with level ranges or "safe"
@@ -129,8 +129,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-05 | Phase 45 | Complete |
 | FND-06 | Phase 45 | Complete |
 | FND-07 | Phase 45 | Complete |
-| CON-01 | Phase 47 | Pending |
-| CON-02 | Phase 47 | Pending |
+| CON-01 | Phase 47 | Complete |
+| CON-02 | Phase 47 | Complete |
 | CON-03 | Phase 47 | Pending |
 | CON-04 | Phase 47 | Pending |
 | CON-05 | Phase 47 | Pending |

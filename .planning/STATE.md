@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 47
 current_phase_name: Console, Rails, Hotbar and Input
 status: executing
-stopped_at: Completed 47-01-PLAN.md
-last_updated: "2026-10-06T00:13:33.513Z"
+stopped_at: Completed 47-02-PLAN.md
+last_updated: "2026-10-06T00:20:48.049Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 47 execution started
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 33
-  completed_plans: 22
+  completed_plans: 23
   percent: 22
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 47 (Console, Rails, Hotbar and Input) — EXECUTING
-Plan: 2 of 12
+Plan: 3 of 12
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 47 execution started
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 70%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -160,6 +160,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46-09: OQ6 (i) all 27 string pairs and the 4 fallback pairs applied byte for byte; D2, D3 and OQ2 kept as built (segments.ts unchanged)
 - [Phase ?]: 46-10: OQ3 (a) applied. Power budgets stated in the per-call text of skill_gen, renown_perk_gen, creation_class_reveal and creation_class, read from the server clamp; range_violation stays a failure
 - [Phase ?]: 47-01: command words run only in exact typed shape; slash lines always commands; bare leave/end end a conversation
+- [Phase ?]: 47-02: keyword-eligible lines are Keeper, NPC, scene, quest, ripple, world event, system and warning; player-authored text never eligible
 
 ### Roadmap Evolution
 
@@ -273,8 +274,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T00:13:33.481Z
-Stopped at: Completed 47-01-PLAN.md
+Last session: 2026-10-06T00:20:48.023Z
+Stopped at: Completed 47-02-PLAN.md
 
 ## Performance Metrics
 
@@ -380,6 +381,7 @@ Stopped at: Completed 47-01-PLAN.md
 | Phase 46 P09 | 40min | 3 tasks | 18 files |
 | Phase 46 P10 | 55min | 2 tasks | 8 files |
 | Phase 47 P01 | 25min | 2 tasks | 7 files |
+| Phase 47 P02 | 20min | 3 tasks | 9 files |
 
 ## Operator Next Steps
 
