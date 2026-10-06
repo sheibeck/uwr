@@ -215,6 +215,50 @@ describe('AppFrame layout', () => {
     });
   });
 
+  describe('desktop combat header', () => {
+    function combatGame(active: boolean, round: bigint | null): { game: GameData; active: ReturnType<typeof ref<boolean>>; round: ReturnType<typeof ref<bigint | null>> } {
+      const activeRef = ref(active);
+      const roundRef = ref<bigint | null>(round);
+      const inert = createInertGame();
+      const game = {
+        ...inert,
+        combat: { ...inert.combat, active: activeRef, roundNumber: roundRef },
+      } as unknown as GameData;
+      return { game, active: activeRef, round: roundRef };
+    }
+
+    it('shows In combat and the round in the header with the buttons locked', () => {
+      const { game } = combatGame(true, 2n);
+      const w = mountFrame(true, {}, game);
+      expect(w.get('.header-bar').text()).toContain('In combat · Round 2');
+      expect(w.get('.header-bar .in-combat-tag').exists()).toBe(true);
+      expect(w.get('button[data-screen="map"]').attributes('aria-disabled')).toBe('true');
+    });
+
+    it('shows no tag when there is no fight', () => {
+      const { game } = combatGame(false, null);
+      const w = mountFrame(true, {}, game);
+      expect(w.find('.in-combat-tag').exists()).toBe(false);
+      expect(w.get('.header-bar').text()).not.toContain('In combat');
+      expect(w.get('button[data-screen="map"]').attributes('aria-disabled')).toBeUndefined();
+    });
+
+    it('follows the fight start, the round and the end', async () => {
+      const { game, active, round } = combatGame(false, null);
+      const w = mountFrame(true, {}, game);
+      active.value = true;
+      round.value = 1n;
+      await nextTick();
+      expect(w.get('.in-combat-tag').text()).toBe('In combat · Round 1');
+      round.value = 2n;
+      await nextTick();
+      expect(w.get('.in-combat-tag').text()).toBe('In combat · Round 2');
+      active.value = false;
+      await nextTick();
+      expect(w.find('.in-combat-tag').exists()).toBe(false);
+    });
+  });
+
   it('Log out from the header account menu emits logout', async () => {
     const w = mountFrame(true);
     await w.get('button[aria-label="Account menu"]').trigger('click');

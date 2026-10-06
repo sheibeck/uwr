@@ -132,6 +132,98 @@ describe('HeaderBar', () => {
   });
 });
 
+describe('HeaderBar in combat', () => {
+  it('shows no tag and no lock when inCombat is false or absent', () => {
+    const w = mountHeader();
+    expect(w.find('.in-combat-tag').exists()).toBe(false);
+    const absent = w.findAll('button.screen-btn');
+    absent.forEach((b) => {
+      expect(b.attributes('aria-disabled')).toBeUndefined();
+      expect(b.classes()).not.toContain('combat-locked');
+    });
+    w.unmount();
+    const off = mountHeader({ inCombat: false, roundNumber: 3n });
+    expect(off.find('.in-combat-tag').exists()).toBe(false);
+  });
+
+  it('renders the tag between the location and the time of day with the round', () => {
+    const w = mountHeader({ inCombat: true, roundNumber: 3n });
+    const tag = w.get('.in-combat-tag');
+    expect(tag.text()).toBe('In combat · Round 3');
+    expect(tag.attributes('aria-label')).toBe('In combat, round 3');
+    expect(tag.get('.dot').attributes('aria-hidden')).toBe('true');
+    const html = w.html();
+    expect(html.indexOf('class="location"')).toBeLessThan(html.indexOf('in-combat-tag'));
+    expect(html.indexOf('in-combat-tag')).toBeLessThan(html.indexOf('class="time"'));
+  });
+
+  it('reads In combat without a round number', () => {
+    const w = mountHeader({ inCombat: true, roundNumber: null });
+    expect(w.get('.in-combat-tag').text()).toBe('In combat');
+    expect(w.get('.in-combat-tag').attributes('aria-label')).toBe('In combat');
+  });
+
+  it('locks every screen button with aria-disabled, the title and no native disabled', () => {
+    const w = mountHeader({ inCombat: true, roundNumber: 1n });
+    const buttons = w.findAll('button.screen-btn');
+    expect(buttons).toHaveLength(6);
+    buttons.forEach((b) => {
+      expect(b.attributes('aria-disabled')).toBe('true');
+      expect(b.attributes('title')).toBe('Unavailable in combat');
+      expect(b.classes()).toContain('combat-locked');
+      expect(b.attributes('disabled')).toBeUndefined();
+    });
+  });
+
+  it('keeps the locked buttons focusable and a click emits nothing', async () => {
+    const w = mountHeader({ inCombat: true, roundNumber: 1n });
+    const map = w.get('button[data-screen="map"]');
+    (map.element as HTMLElement).focus();
+    expect(document.activeElement).toBe(map.element);
+    await map.trigger('click');
+    await w.get('button[data-screen="bag"]').trigger('click');
+    expect(w.emitted('toggle-screen')).toBeUndefined();
+  });
+
+  it('leaves the account button enabled and the Level up and New skill tags in place', async () => {
+    const w = mountHeader({ inCombat: true, roundNumber: 1n, levelUp: true, newSkill: true });
+    const account = w.get('button[aria-label="Account menu"]');
+    expect(account.attributes('aria-disabled')).toBeUndefined();
+    expect(account.attributes('disabled')).toBeUndefined();
+    expect(w.find('.tag-outline').exists()).toBe(true);
+    expect(w.find('.tag-accent').exists()).toBe(true);
+    await account.trigger('click');
+    expect(account.attributes('aria-expanded')).toBe('true');
+  });
+
+  it('keeps the native disabled prop working alongside inCombat', () => {
+    const w = mountHeader({ disabled: true, inCombat: true });
+    w.findAll('button.screen-btn').forEach((b) => expect(b.attributes('disabled')).toBeDefined());
+  });
+
+  it('swaps the tag and the lock instantly when the fight starts and ends', async () => {
+    const w = mountHeader();
+    await w.setProps({ inCombat: true, roundNumber: 2n });
+    expect(w.find('.in-combat-tag').exists()).toBe(true);
+    expect(w.get('button[data-screen="map"]').attributes('aria-disabled')).toBe('true');
+    await w.setProps({ inCombat: false });
+    expect(w.find('.in-combat-tag').exists()).toBe(false);
+    expect(w.get('button[data-screen="map"]').attributes('aria-disabled')).toBeUndefined();
+    expect(w.get('button[data-screen="map"]').attributes('title')).toBe('Map');
+  });
+
+  it('declares the lock style and no animation for the tag', () => {
+    const src = readSource('HeaderBar.vue');
+    expect(src).toContain('Unavailable in combat');
+    expect(src).toContain('combat-locked');
+    expect(src).toContain('InCombatTag');
+    const tagSrc = readFileSync(resolve(process.cwd(), 'src/combat/InCombatTag.vue'), 'utf8');
+    expect(tagSrc).not.toContain('animation');
+    expect(tagSrc).not.toContain('transition');
+    expect(tagSrc).toContain('in-combat-tag');
+  });
+});
+
 describe('AccountMenu', () => {
   function mountMenu(): VueWrapper {
     wrapper = mount(AccountMenu, {

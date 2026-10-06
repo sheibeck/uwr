@@ -98,6 +98,8 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         :active-screen="activeId"
         :character-name="props.view.characterName"
         :account-line="props.view.accountLine"
+        :in-combat="game.combat.active.value"
+        :round-number="game.combat.roundNumber.value"
         @toggle-screen="onToggleScreen"
         @logout="emit('logout')"
       />
