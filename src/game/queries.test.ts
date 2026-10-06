@@ -57,6 +57,8 @@ describe('gameQueries: keyed tables', () => {
       [q.eventContributions(9n), 'event_contribution'],
       [q.renown(9n), 'renown'],
       [q.renownPerks(9n), 'renown_perk'],
+      [q.resourceGathers(9n), 'resource_gather'],
+      [q.characterCasts(9n), 'character_cast'],
     ];
     for (const [sql, table] of cases) {
       expect(sql).toContain(`FROM "${table}"`);

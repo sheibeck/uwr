@@ -43,6 +43,8 @@ export interface GameQueries {
   combatPets(combatId: bigint): string;
   renown(characterId: bigint): string;
   renownPerks(characterId: bigint): string;
+  resourceGathers(characterId: bigint): string;
+  characterCasts(characterId: bigint): string;
   group(groupId: bigint): string;
   groupMembers(groupId: bigint): string;
   /** Non-empty list: an OR chain on id. */
@@ -109,6 +111,10 @@ export function gameQueries(): GameQueries {
     renown: (characterId) => toSql(tables.renown.where((r) => r.characterId.eq(characterId))),
     renownPerks: (characterId) =>
       toSql(tables.renownPerk.where((r) => r.characterId.eq(characterId))),
+    resourceGathers: (characterId) =>
+      toSql(tables.resourceGather.where((r) => r.characterId.eq(characterId))),
+    characterCasts: (characterId) =>
+      toSql(tables.characterCast.where((r) => r.characterId.eq(characterId))),
     group: (groupId) => toSql(tables.group.where((r) => r.id.eq(groupId))),
     groupMembers: (groupId) => toSql(tables.groupMember.where((r) => r.groupId.eq(groupId))),
     charactersById: (ids) => {

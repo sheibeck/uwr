@@ -5,6 +5,7 @@ import type {
   AbilityTemplate,
   ActivePet,
   Character,
+  CharacterCast,
   CharacterEffect,
   CombatAction,
   CombatEnemy,
@@ -38,6 +39,7 @@ import type {
   Region,
   Renown,
   RenownPerk,
+  ResourceGather,
   ResourceNode,
   WorldEvent,
 } from '../module_bindings/types';
@@ -61,7 +63,7 @@ import { createServerClock } from './serverClock';
 //   by location          event_location, npc, enemy_spawn, resource_node, character,
 //                        location_connection
 //   by character         hotbar, hotbar_slot, ability_template, ability_cooldown,
-//                        event_contribution, renown, renown_perk
+//                        event_contribution, renown, renown_perk, resource_gather, character_cast
 //   by group             group, group_member, event_group
 //   by id list           party and inviter characters, quest templates, event objectives,
 //                        the enemy templates of the spawns here (level, for the con color)
@@ -109,6 +111,8 @@ export interface GameConn extends ConnLike {
     eventContribution: Row<EventContribution>;
     renown: Row<Renown>;
     renownPerk: Row<RenownPerk>;
+    resourceGather: Row<ResourceGather>;
+    characterCast: Row<CharacterCast>;
     group: Row<Group>;
     groupMember: Row<GroupMember>;
     questTemplate: Row<QuestTemplate>;
@@ -384,6 +388,18 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     queries.renownPerks,
     (row, k) => row.characterId === k,
   );
+  const ownGathers = keyedTable<ResourceGather, bigint>(
+    characterKey,
+    (c) => c.db.resourceGather,
+    queries.resourceGathers,
+    (row, k) => row.characterId === k,
+  );
+  const ownCasts = keyedTable<CharacterCast, bigint>(
+    characterKey,
+    (c) => c.db.characterCast,
+    queries.characterCasts,
+    (row, k) => row.characterId === k,
+  );
 
   const groups = keyedTable<Group, bigint>(
     groupKey,
@@ -552,6 +568,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     contributions,
     renown,
     renownPerks,
+    ownGathers,
+    ownCasts,
     groups,
     members,
     known,
@@ -699,6 +717,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     factionStandings: factionStandings.rows,
     renown: keyedRows(renown),
     renownPerks: keyedRows(renownPerks),
+    gathers: keyedRows(ownGathers),
+    characterCasts: keyedRows(ownCasts),
     privateEventsApplied,
     combat,
     feed,

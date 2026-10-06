@@ -5,6 +5,7 @@ import type {
   AbilityTemplate,
   ActivePet,
   Character,
+  CharacterCast,
   CharacterEffect,
   CombatAction,
   CombatEnemy,
@@ -34,6 +35,7 @@ import type {
   Region,
   Renown,
   RenownPerk,
+  ResourceGather,
   ResourceNode,
   WorldEvent,
 } from '../module_bindings/types';
@@ -176,6 +178,10 @@ export interface GameData {
   readonly factionStandings: List<FactionStanding>;
   readonly renown: List<Renown>;
   readonly renownPerks: List<RenownPerk>;
+  /** The active character's resource_gather rows; the server allows one. */
+  readonly gathers: List<ResourceGather>;
+  /** The active character's out-of-combat character_cast rows (distinct from combat.casts, the enemy wind-ups). */
+  readonly characterCasts: List<CharacterCast>;
   readonly privateEventsApplied: Readonly<Ref<boolean>>;
   readonly combat: CombatData;
   readonly feed: FeedStore;
@@ -326,6 +332,8 @@ export function createInertGame(): GameData {
     factionStandings: empty<FactionStanding>(),
     renown: empty<Renown>(),
     renownPerks: empty<RenownPerk>(),
+    gathers: empty<ResourceGather>(),
+    characterCasts: empty<CharacterCast>(),
     privateEventsApplied: constant(false),
     combat: createInertCombatData(),
     feed: createFeedStore(),

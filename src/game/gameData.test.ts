@@ -66,6 +66,8 @@ const queries: GameQueries = {
   combatPets: (id) => `Q_PETS_${id}`,
   renown: (id) => `Q_RENOWN_${id}`,
   renownPerks: (id) => `Q_PERKS_${id}`,
+  resourceGathers: (id) => `Q_GATHERS_${id}`,
+  characterCasts: (id) => `Q_CHAR_CASTS_${id}`,
   group: (id) => `Q_GROUP_${id}`,
   groupMembers: (id) => `Q_MEMBERS_${id}`,
   charactersById: (ids) => `Q_CHARS_BY_ID_${ids.join(',')}`,
@@ -469,6 +471,10 @@ describe('createGameData: location keyed bindings', () => {
     expect(filterOf('Q_CONTRIB_5')({ characterId: 6n })).toBe(false);
     expect(filterOf('Q_RENOWN_5')({ characterId: 6n })).toBe(false);
     expect(filterOf('Q_PERKS_5')({ characterId: 6n })).toBe(false);
+    expect(filterOf('Q_GATHERS_5')({ characterId: 5n })).toBe(true);
+    expect(filterOf('Q_GATHERS_5')({ characterId: 6n })).toBe(false);
+    expect(filterOf('Q_CHAR_CASTS_5')({ characterId: 5n })).toBe(true);
+    expect(filterOf('Q_CHAR_CASTS_5')({ characterId: 6n })).toBe(false);
     expect(filterOf('Q_GROUP_4')({ id: 4n })).toBe(true);
     expect(filterOf('Q_GROUP_4')({ id: 5n })).toBe(false);
     expect(filterOf('Q_MEMBERS_4')({ groupId: 5n })).toBe(false);
@@ -499,9 +505,27 @@ describe('createGameData: location keyed bindings', () => {
       'Q_CONTRIB_',
       'Q_RENOWN_',
       'Q_PERKS_',
+      'Q_GATHERS_',
+      'Q_CHAR_CASTS_',
     ]) {
       expect(h.live(`${prefix}5`)).toHaveLength(1);
     }
+  });
+
+  it('exposes the gather and cast rows of the active character', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    expect(h.game.gathers.value).toEqual([]);
+    expect(h.game.characterCasts.value).toEqual([]);
+    const gathers = h.find('Q_GATHERS_5');
+    gathers.rows.value = [{ id: 1n, characterId: 5n, nodeId: 3n }];
+    gathers.applied.value = true;
+    const casts = h.find('Q_CHAR_CASTS_5');
+    casts.rows.value = [{ id: 2n, characterId: 5n, abilityTemplateId: 20n }];
+    casts.applied.value = true;
+    expect(h.game.gathers.value.map((row) => row.id)).toEqual([1n]);
+    expect(h.game.characterCasts.value.map((row) => row.id)).toEqual([2n]);
   });
 });
 
@@ -974,6 +998,8 @@ describe('inert defaults', () => {
       game.factionStandings,
       game.renown,
       game.renownPerks,
+      game.gathers,
+      game.characterCasts,
     ]) {
       expect(list.value).toEqual([]);
     }
