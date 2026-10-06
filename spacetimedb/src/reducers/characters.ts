@@ -341,6 +341,7 @@ export const registerCharacterReducers = (deps: any) => {
     'character_logout',
     { arg: CharacterLogoutTick.rowType },
     (ctx, { arg }) => {
+      if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
       const character = ctx.db.character.id.find(arg.characterId);
       if (!character) return;
       for (const player of ctx.db.player.iter()) {

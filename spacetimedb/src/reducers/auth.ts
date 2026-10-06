@@ -58,6 +58,7 @@ export const registerAuthReducers = (deps: any) => {
     'disconnect_logout',
     { arg: DisconnectLogoutTick.rowType },
     (ctx, { arg }) => {
+      if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
       const player = ctx.db.player.id.find(arg.playerId);
       if (!player) return;
       if (

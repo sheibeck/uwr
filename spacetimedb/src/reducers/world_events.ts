@@ -168,6 +168,7 @@ export function registerWorldEventReducers(deps: any) {
     'despawn_event_content',
     { arg: EventDespawnTick.rowType },
     (ctx: any, { arg }: any) => {
+      if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
       const event = ctx.db.world_event.id.find(arg.eventId);
       if (!event || event.status !== 'active') return;
       resolveWorldEvent(ctx, event, 'failure');

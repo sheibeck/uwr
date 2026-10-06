@@ -1231,6 +1231,7 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['respawn_enemy'] = spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     const location = ctx.db.location.id.find(arg.locationId);
     if (location?.isSafe) return;
     // Respect spawn cap — event spawns don't count against it
@@ -1341,6 +1342,7 @@ export const registerCombatReducers = (deps: any) => {
   const HOT_TICK_MICROS = 3_000_000n;
 
   scheduledReducers['regen_health'] = spacetimedb.reducer('regen_health', { arg: HealthRegenTick.rowType }, (ctx) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     for (const character of ctx.db.character.iter()) {
       const activelyInCombat = !!activeCombatIdForCharacter(ctx, character.id);
       const inCooldown = !activelyInCombat && character.lastCombatEndAt !== undefined && character.lastCombatEndAt !== null &&
@@ -1573,17 +1575,20 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['tick_effects'] = spacetimedb.reducer('tick_effects', { arg: deps.EffectTick.rowType }, (ctx) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     // Old real-time effect ticking disabled — effects tick per-round in resolveRound
     return;
   });
 
   scheduledReducers['tick_hot'] = spacetimedb.reducer('tick_hot', { arg: deps.HotTick.rowType }, (ctx) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     // Old real-time HoT ticking disabled — HoTs tick per-round in resolveRound
     return;
   });
 
   // Bard song tick: fires every 6 seconds to apply active song group effects.
   scheduledReducers['tick_bard_songs'] = spacetimedb.reducer('tick_bard_songs', { arg: deps.BardSongTick.rowType }, (ctx, { arg }) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     const bardCombatId = arg.combatId;
     if (bardCombatId !== undefined) {
       const combat = ctx.db.combat_encounter.id.find(bardCombatId);
@@ -1717,6 +1722,7 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   scheduledReducers['tick_casts'] = spacetimedb.reducer('tick_casts', { arg: deps.CastTick.rowType }, (ctx) => {
+    if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
     for (const cast of ctx.db.character_cast.iter()) {
       if (cast.endsAtMicros > nowMicros) continue;

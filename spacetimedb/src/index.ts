@@ -258,6 +258,7 @@ _moduleExports['my_bank_slots'] = myBankSlotsView;
 // === END V2 EXPORT COLLECTION ===
 
 scheduledReducers['tick_day_night'] = spacetimedb.reducer('tick_day_night', { arg: DayNightTick.rowType }, (ctx) => {
+  if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
   const world = getWorldState(ctx);
   if (!world) return;
   const now = ctx.timestamp.microsSinceUnixEpoch;
@@ -295,6 +296,7 @@ const INACTIVITY_TIMEOUT_MICROS = 900_000_000n; // 15 minutes
 const INACTIVITY_SWEEP_INTERVAL_MICROS = 300_000_000n; // 5 minutes
 
 scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', { arg: InactivityTick.rowType }, (ctx) => {
+  if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
   const now = ctx.timestamp.microsSinceUnixEpoch;
 
   ctx.db.inactivity_tick.insert({

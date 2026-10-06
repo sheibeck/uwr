@@ -133,6 +133,7 @@ export const registerItemGatheringReducers = (deps: any) => {
     'finish_gather',
     { arg: ResourceGatherTick.rowType },
     (ctx, { arg }) => {
+      if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
       const gather = ctx.db.resource_gather.id.find(arg.gatherId);
       if (!gather) return;
       if (!gather) return;
