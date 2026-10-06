@@ -503,6 +503,16 @@ describe('createGameData: combat', () => {
     for (const sql of [...FIGHT_SQL, 'Q_NARR_10']) expect(h.live(sql)).toHaveLength(1);
   });
 
+  it('wires the combat rows into the feed (round header for the open round)', () => {
+    const h = inFight();
+    h.find('Q_ROUNDS_10').rows.value = [
+      { id: 1n, combatId: 10n, roundNumber: 1n, state: 'resolved', startedAtMicros: 100n },
+      { id: 2n, combatId: 10n, roundNumber: 2n, state: 'action_select', startedAtMicros: 200n },
+    ];
+    h.game.feed.flush();
+    expect(h.game.feed.entries.value.map((entry) => entry.key)).toEqual(['round:10:2']);
+  });
+
   it('reports applied only once the enemy binding has applied', () => {
     const h = inFight();
     expect(h.game.combat.applied.value).toBe(false);

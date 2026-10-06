@@ -43,6 +43,7 @@ import type {
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
 import { createFeedStore } from '../console/feedStore';
+import { wireCombatFeed } from '../combat/combatFeed';
 import type { EventRowLike, ServerFeedSource } from '../console/feedStore';
 import type { CombatData, GameData, GameReducers } from './context';
 import type { BindEventTableOptions, EventTableBinding, EventTableLike } from './bindEventTable';
@@ -620,6 +621,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     characterNames,
     petNames,
   };
+  // Round headers, wind-up blocks and narrated rounds reach the feed from the combat rows.
+  wireCombatFeed({ combat, feed, clock, selfId: characterKey });
   const reducers = computed<GameReducers | null>(() => {
     const conn = input.conn.value;
     return connected.value && conn !== null ? conn.reducers : null;
