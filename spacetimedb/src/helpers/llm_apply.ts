@@ -307,9 +307,10 @@ export function applyCreationResult(ctx: any, job: ApplyJob, resultText: string)
     });
 
     const stored = parseRaceBonuses(bonusesJson);
-    const bonusParts = [stored.primary, stored.secondary]
-      .filter((b): b is { stat: string; value: bigint } => b !== null)
-      .map((b) => `+${b.value} ${b.stat.toUpperCase()}`);
+    const bonusParts: string[] = [];
+    for (const bonus of [stored.primary, stored.secondary]) {
+      if (bonus !== null) bonusParts.push(`+${bonus.value} ${bonus.stat.toUpperCase()}`);
+    }
     const bonusText = bonusParts.length > 0
       ? `\n${bonusParts.join(', ')}${stored.flavor ? `. ${stored.flavor}` : ''}`
       : '';
