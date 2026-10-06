@@ -66,6 +66,19 @@ Out of scope:
   - This changes balance for new characters. Existing characters are not recomputed.
 - **`race_definition` is already public and bound.** No new view is needed for the race cards.
 
+### Owner decision after research (2026-10-06, owner in chat): D1
+- **The race bonus survives level-up.** Leveling up currently rebuilds all five stats from the class (`apply_level_up` at index.ts:495, and the admin level command at commands.ts:607). Both places now carry the bonus through:
+  - Look up the race from `race_definition` using `character.race`.
+  - Subtract the race bonus before `detectPrimarySecondary`.
+  - Add the bonus back after `computeBaseStatsForGenerated`.
+  - Reuse the shared `computeCreationStats` and `parseRaceBonuses` helpers.
+- No schema change and no marker column. This is still code only, with the same local publish rules.
+- Characters created before this phase never got the bonus, so their stats can come out slightly off at their next level-up. The owner accepted this as a greenfield trade-off.
+- Tests must pin both cases:
+  - A level-up keeps the race bonus.
+  - A race with no stored definition or no bonuses levels up exactly as it does today.
+- Research finding F1 (finalize crashes when `secondaryStat` is `'none'`) gets fixed as part of the same helper.
+
 ### Claude's Discretion
 - The race selection rule.
 - Component layout under `src/` (for example `src/creation/`).
