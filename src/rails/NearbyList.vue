@@ -225,10 +225,7 @@ h6 {
   min-width: 0;
 }
 
-.nearby-row.depleted {
-  opacity: 0.45;
-}
-
+.nearby-row.depleted,
 .nearby-row.in-combat {
   opacity: 0.45;
 }
