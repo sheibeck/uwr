@@ -867,7 +867,7 @@ describe('keyword and rail actions', () => {
       enemySpawnId: 9n,
       pullType: 'body',
     });
-    expect(lines(s.feed).map((l) => l.message)).toContain('careful pull Goblin Scout');
+    expect(lines(s.feed).map((l) => l.message)).toContain('pull Goblin Scout');
     expect(lines(s.feed).map((l) => l.message)).toContain('body pull Goblin Scout');
   });
 
@@ -879,7 +879,7 @@ describe('keyword and rail actions', () => {
       enemySpawnId: 9n,
       pullType: 'careful',
     });
-    expect(lines(s.feed)).toEqual([{ kind: 'echo', message: 'careful pull Goblin Scout', queued: false }]);
+    expect(lines(s.feed)).toEqual([{ kind: 'echo', message: 'pull Goblin Scout', queued: false }]);
     expect(s.closeScreen).toHaveBeenCalled();
   });
 

@@ -415,7 +415,8 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     if (game.combat.active.value) return;
     frame.closeScreen();
     conversation.value = null;
-    echo(`${pullType} pull ${enemy.name}`);
+    // The echo mirrors the visible "Pull {name}" label; only the unreachable body pull is prefixed.
+    echo(pullType === 'body' ? `body pull ${enemy.name}` : `pull ${enemy.name}`);
     void fire('startPull', (r) => r.startPull({ characterId, enemySpawnId: enemy.id, pullType }));
     bump();
   }
