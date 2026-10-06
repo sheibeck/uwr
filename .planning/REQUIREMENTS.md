@@ -34,7 +34,7 @@
   - tracked quests with progress
   - the active world event with its faction split
 - [x] **CON-05**: The hotbar shows iconed ability slots with cooldowns, and the player can switch between their hotbars.
-- [ ] **CON-06**: While an LLM job runs, the player sees the Keeper's progress lines, and staged reveals (world, class) land in the feed.
+- [x] **CON-06**: While an LLM job runs, the player sees the Keeper's progress lines, and staged reveals (world, class) land in the feed.
 
 ### Input (INP)
 
@@ -134,7 +134,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CON-03 | Phase 47 | Complete |
 | CON-04 | Phase 47 | Complete |
 | CON-05 | Phase 47 | Complete |
-| CON-06 | Phase 47 | Pending |
+| CON-06 | Phase 47 | Complete |
 | INP-01 | Phase 47 | Complete |
 | INP-02 | Phase 47 | Complete |
 | RND-01 | Phase 46.1 | Pending |
