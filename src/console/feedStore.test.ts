@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEED_LINE_CAP, acceptRow, createFeedStore } from './feedStore';
+import { FEED_LINE_CAP, HELD_PRIVATE_CAP, acceptRow, createFeedStore } from './feedStore';
 import type { EventRowLike, FeedEntry } from './feedStore';
 import type { LineSource } from './lines';
 
@@ -512,5 +512,134 @@ describe('combat entries', () => {
     store.flush();
     const source: LineSource = store.entries.value[0];
     expect(source.source).toBe('combat');
+  });
+});
+
+describe('held private rows (49 O3: starter tips written before the character is active)', () => {
+  function priv(id: number, characterId: bigint | undefined, extra: Partial<EventRowLike> & { micros?: number } = {}): EventRowLike {
+    return row(id, { kind: 'system', ...(characterId === undefined ? {} : { characterId }), ...extra });
+  }
+
+  it('shows a held private row after setCharacter for its character', () => {
+    const { store } = manualStore();
+    store.ingest('private', priv(1, 5n));
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+    store.setCharacter(5n);
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1']);
+  });
+
+  it('shows the held row after a flush through the scheduler', () => {
+    const { store, runScheduled } = manualStore();
+    store.ingest('private', priv(1, 5n));
+    store.setCharacter(5n);
+    runScheduled();
+    expect(keys(store.entries.value)).toEqual(['private:1']);
+  });
+
+  it('drops a row held for another character, even after a later setCharacter for that character', () => {
+    const { store } = manualStore();
+    store.ingest('private', priv(1, 6n));
+    store.ingest('private', priv(2, 5n));
+    store.setCharacter(5n);
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:2']);
+    store.setCharacter(null);
+    store.setCharacter(6n);
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+  });
+
+  it('never holds presence rows', () => {
+    const { store } = manualStore();
+    store.ingest('private', row(1, { kind: 'presence', characterId: 5n }));
+    store.setCharacter(5n);
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+  });
+
+  it('never holds rows from the location, group or world sources', () => {
+    const { store } = manualStore();
+    store.ingest('location', priv(1, 5n));
+    store.ingest('group', priv(2, 5n));
+    store.ingest('world', priv(3, 5n));
+    store.setCharacter(5n);
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+  });
+
+  it('never holds a private row without a characterId', () => {
+    const { store } = manualStore();
+    store.ingest('private', priv(1, undefined));
+    store.setCharacter(5n);
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+  });
+
+  it('keeps only the newest 50 of 60 held rows, ordered by createdAt then id after setCharacter', () => {
+    const { store } = manualStore();
+    expect(HELD_PRIVATE_CAP).toBe(50);
+    // Arrival order is reversed against createdAt, so the replay must go through the normal sort.
+    for (let i = 1; i <= 60; i++) store.ingest('private', priv(i, 5n, { micros: 1000 - i }));
+    store.setCharacter(5n);
+    store.flush();
+    const got = keys(store.entries.value);
+    expect(got).toHaveLength(50);
+    // Rows 11..60 arrived last and are kept; the oldest createdAt (row 60) sorts first.
+    expect(got[0]).toBe('private:60');
+    expect(got[49]).toBe('private:11');
+    expect(got).not.toContain('private:10');
+  });
+
+  it('counts only held rows for the new character toward what appears', () => {
+    const { store } = manualStore();
+    for (let i = 1; i <= 30; i++) store.ingest('private', priv(i, i % 2 === 0 ? 5n : 6n));
+    store.setCharacter(5n);
+    store.flush();
+    expect(store.entries.value).toHaveLength(15);
+  });
+
+  it('ignores a duplicate of a held row', () => {
+    const { store } = manualStore();
+    store.ingest('private', priv(1, 5n));
+    store.ingest('private', priv(1, 5n));
+    store.setCharacter(5n);
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1']);
+  });
+
+  it('empties the held buffer on clear()', () => {
+    const { store } = manualStore();
+    store.ingest('private', priv(1, 5n));
+    store.clear();
+    store.setCharacter(5n);
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+  });
+
+  it('empties the held buffer once a character is set, so it never replays twice', () => {
+    const { store } = manualStore();
+    store.ingest('private', priv(1, 5n));
+    store.setCharacter(5n);
+    store.flush();
+    store.setCharacter(null);
+    store.setCharacter(5n);
+    store.flush();
+    expect(store.entries.value).toEqual([]);
+  });
+
+  it('keeps accepting rows normally once a character is active (no holding)', () => {
+    const { store } = manualStore();
+    store.setCharacter(5n);
+    store.ingest('private', priv(1, 5n));
+    store.ingest('private', priv(2, 6n));
+    store.flush();
+    expect(keys(store.entries.value)).toEqual(['private:1']);
+  });
+
+  it('leaves acceptRow unchanged', () => {
+    expect(acceptRow('private', priv(1, 5n), null)).toBe(false);
+    expect(acceptRow('private', priv(1, 5n), 5n)).toBe(true);
   });
 });

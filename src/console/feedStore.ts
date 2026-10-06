@@ -22,6 +22,11 @@
 //   saw stays in the store, so deleting the round rows moves no line, and one it never saw is
 //   never invented (a round with startedAt 0 produces no header).
 // - setNarratedRound() stamps a late combat_narration entry with the round it narrates (by key).
+// - Private rows that arrive while no character is active (the finalize starter tips, written
+//   before the new character is set active) are held, bounded to the newest HELD_PRIVATE_CAP, and
+//   replayed through ingest() when setCharacter() receives the character they belong to. Rows
+//   for any other character are dropped, and clear() empties the buffer. Private source only,
+//   presence rows and rows without a characterId are never held.
 //
 // acceptRow is the second, client-side filter after the server-side subscription filters
 // (T-47-04a; research Pitfall 9):
@@ -38,6 +43,8 @@ import type { Ref, ShallowRef } from 'vue';
 import type { WindupParts } from '../combat/windup';
 
 export const FEED_LINE_CAP = 300;
+/** Private rows held while no character is active (49 O3), newest by arrival. */
+export const HELD_PRIVATE_CAP = 50;
 
 export type ServerFeedSource = 'private' | 'location' | 'group' | 'world';
 export type FeedSource = ServerFeedSource | 'local' | 'combat';
@@ -168,6 +175,7 @@ export function createFeedStore(options: { cap?: number; schedule?: (fn: () => v
   const characterId = ref<bigint | null>(null);
 
   let pending: FeedEntry[] = [];
+  let held: EventRowLike[] = [];
   const pendingKeys = new Set<string>();
   const knownKeys = new Set<string>();
   let scheduled = false;
@@ -224,6 +232,41 @@ export function createFeedStore(options: { cap?: number; schedule?: (fn: () => v
     }
   }
 
+  function holdPrivateRow(row: EventRowLike): void {
+    if (row.characterId === undefined || row.characterId === null || row.kind === 'presence') return;
+    if (held.some((h) => h.id === row.id)) return;
+    held.push(row);
+    if (held.length > HELD_PRIVATE_CAP) held = held.slice(held.length - HELD_PRIVATE_CAP);
+  }
+
+  function ingest(source: ServerFeedSource, row: EventRowLike): void {
+    if (characterId.value === null) {
+      if (source === 'private') holdPrivateRow(row);
+      return;
+    }
+    if (!acceptRow(source, row, characterId.value)) return;
+    const key = `${source}:${row.id}`;
+    if (knownKeys.has(key) || pendingKeys.has(key)) return;
+    const segments = segmentsOf(row);
+    pendingKeys.add(key);
+    pending.push({
+      key,
+      source,
+      id: row.id,
+      kind: row.kind,
+      message: row.message,
+      segments,
+      characterId: row.characterId ?? null,
+      createdAtMicros: row.createdAt.microsSinceUnixEpoch,
+      queued: false,
+      lineCount: lineCountOf(segments),
+    });
+    if (!scheduled) {
+      scheduled = true;
+      schedule(flush);
+    }
+  }
+
   return {
     entries,
     characterId,
@@ -231,30 +274,15 @@ export function createFeedStore(options: { cap?: number; schedule?: (fn: () => v
       if (characterId.value === id) return;
       characterId.value = id;
       reset();
-    },
-    ingest(source, row) {
-      if (!acceptRow(source, row, characterId.value)) return;
-      const key = `${source}:${row.id}`;
-      if (knownKeys.has(key) || pendingKeys.has(key)) return;
-      const segments = segmentsOf(row);
-      pendingKeys.add(key);
-      pending.push({
-        key,
-        source,
-        id: row.id,
-        kind: row.kind,
-        message: row.message,
-        segments,
-        characterId: row.characterId ?? null,
-        createdAtMicros: row.createdAt.microsSinceUnixEpoch,
-        queued: false,
-        lineCount: lineCountOf(segments),
-      });
-      if (!scheduled) {
-        scheduled = true;
-        schedule(flush);
+      // Replay the private rows held while no character was active, for this character only.
+      const replay = held;
+      held = [];
+      if (id === null) return;
+      for (const row of replay) {
+        if (row.characterId === id) ingest('private', row);
       }
     },
+    ingest,
     addRoundHeader({ combatId, roundNumber, startedAtMicros }) {
       if (startedAtMicros === 0n) return;
       queueCombatEntry({
@@ -333,6 +361,7 @@ export function createFeedStore(options: { cap?: number; schedule?: (fn: () => v
     },
     clear() {
       reset();
+      held = [];
     },
     flush,
   };
