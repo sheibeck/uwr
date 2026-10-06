@@ -2275,6 +2275,30 @@ export const LlmAdminState = table(
   }
 );
 
+// One row per vendor_inventory row that is base stock, so restock can tell its own listings from
+// player-sold ones (both look identical in vendor_inventory). Private: clients never read it.
+export const VendorBaseStock = table(
+  {
+    name: 'vendor_base_stock',
+    indexes: [{ accessor: 'by_vendor', algorithm: 'btree', columns: ['npcId'] }],
+  },
+  {
+    listingId: t.u64().primaryKey(),
+    npcId: t.u64(),
+  }
+);
+
+// Private scheduled tick that restocks vendor base stock. afterNpcId is the batch cursor (0n starts
+// a pass over all vendors).
+export const VendorRestockTick = table(
+  { name: 'vendor_restock_tick', scheduled: () => scheduledReducers['restock_vendors'] },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    afterNpcId: t.u64(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -2396,6 +2420,8 @@ const spacetimedb = schema({
   combat_narrative: CombatNarrative,
   round_timer_tick: RoundTimerTick,
   combat_moment: CombatMoment,
+  vendor_base_stock: VendorBaseStock,
+  vendor_restock_tick: VendorRestockTick,
 });
 export default spacetimedb;
 export { spacetimedb };

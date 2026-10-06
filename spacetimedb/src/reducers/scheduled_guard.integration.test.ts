@@ -30,6 +30,7 @@ const SCHEDULED: Array<{ name: string; file: string; arg: any; touchesDb: boolea
   { name: 'character_logout', file: './characters.ts', arg: { scheduledId: 1n, characterId: 1n, ownerUserId: 7n }, touchesDb: true },
   { name: 'finish_gather', file: './items_gathering.ts', arg: { scheduledId: 1n, gatherId: 1n }, touchesDb: true },
   { name: 'despawn_event_content', file: './world_events.ts', arg: { scheduledId: 1n, eventId: 1n }, touchesDb: true },
+  { name: 'restock_vendors', file: '../index.ts', arg: { scheduledId: 1n, afterNpcId: 0n }, touchesDb: true },
 ];
 
 const handlers: Record<string, (...args: any[]) => any> = {};
@@ -74,6 +75,7 @@ describe('a forged call cannot fork a second self-rescheduling chain (CR-01)', (
     { name: 'regen_health', table: 'health_regen_tick', seed: () => startSeed() },
     { name: 'tick_casts', table: 'cast_tick', seed: () => startSeed() },
     { name: 'sweep_inactivity', table: 'inactivity_tick', seed: () => startSeed() },
+    { name: 'restock_vendors', table: 'vendor_restock_tick', seed: () => startSeed() },
     {
       name: 'tick_day_night',
       table: 'day_night_tick',

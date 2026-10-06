@@ -28,7 +28,16 @@ import spacetimedb, {
   ActivePet,
   PendingSkill,
   PendingRenownPerk,
+  VendorRestockTick,
 } from './schema/tables';
+import {
+  VENDOR_RESTOCK_BATCH,
+  VENDOR_RESTOCK_CONTINUE_MICROS,
+  VENDOR_RESTOCK_INTERVAL_MICROS,
+  listPriceFor,
+  planRestockBatch,
+  selectBaseStock,
+} from './data/vendor_stock';
 export default spacetimedb;
 import { registerReducers } from './reducers';
 import {
@@ -323,7 +332,78 @@ scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', 
   }
 });
 
-spacetimedb.reducer('set_app_version', { version: t.string() }, (ctx, { version }) => {
+// Vendor base stock: a private scheduled tick refills each vendor's base listings about every 15
+// minutes. Only listings with a vendor_base_stock marker are replaced; player-sold ones never are.
+// A tick due now is armed on connect when none is pending, because init does not run again on a
+// republish (the first fill on an existing database comes from clientConnected).
+function ensureVendorRestockScheduled(ctx: any): void {
+  if ([...ctx.db.vendor_restock_tick.iter()].length > 0) return;
+  ctx.db.vendor_restock_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch),
+    afterNpcId: 0n,
+  });
+}
+
+function restockVendor(ctx: any, npc: any, templates: any[], tickMicros: bigint): void {
+  // Drop this vendor's previous base stock (marked rows only), then forget the markers.
+  for (const marker of [...ctx.db.vendor_base_stock.by_vendor.filter(npc.id)]) {
+    if (ctx.db.vendor_inventory.id.find(marker.listingId)) {
+      ctx.db.vendor_inventory.id.delete(marker.listingId);
+    }
+    ctx.db.vendor_base_stock.listingId.delete(marker.listingId);
+  }
+  // What is left are player-sold listings: never edited or deleted here, and never duplicated.
+  const excludeTemplateIds: bigint[] = [];
+  for (const row of ctx.db.vendor_inventory.by_vendor.filter(npc.id)) {
+    excludeTemplateIds.push(row.itemTemplateId);
+  }
+  const location = ctx.db.location.id.find(npc.locationId);
+  const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
+  const picks = selectBaseStock({
+    templates,
+    vendor: npc,
+    dangerMultiplier: region?.dangerMultiplier ?? 100n,
+    levelOffset: location?.levelOffset ?? 0n,
+    excludeTemplateIds,
+    tickMicros,
+  });
+  for (const pick of picks) {
+    const listing = ctx.db.vendor_inventory.insert({
+      id: 0n,
+      npcId: npc.id,
+      itemTemplateId: pick.id,
+      price: listPriceFor(pick.vendorValue ?? 0n),
+      qualityTier: undefined,
+    });
+    ctx.db.vendor_base_stock.insert({ listingId: listing.id, npcId: npc.id });
+  }
+}
+
+scheduledReducers['restock_vendors'] = spacetimedb.reducer('restock_vendors', { arg: VendorRestockTick.rowType }, (ctx, { arg }) => {
+  if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const vendors = [...ctx.db.npc.iter()].filter((n: any) => n.npcType === 'vendor');
+  const plan = planRestockBatch(
+    vendors.map((n: any) => n.id),
+    arg.afterNpcId ?? 0n,
+    VENDOR_RESTOCK_BATCH
+  );
+  if (plan.batch.length > 0) {
+    const templates = [...ctx.db.item_template.iter()];
+    for (const id of plan.batch) {
+      const npc = vendors.find((n: any) => n.id === id);
+      if (npc) restockVendor(ctx, npc, templates, now);
+    }
+  }
+  ctx.db.vendor_restock_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(now + (plan.more ? VENDOR_RESTOCK_CONTINUE_MICROS : VENDOR_RESTOCK_INTERVAL_MICROS)),
+    afterNpcId: plan.more ? plan.nextAfterNpcId : 0n,
+  });
+});
+
+spacetimedb.reducer('set_app_version',{ version: t.string() }, (ctx, { version }) => {
   requireAdmin(ctx);
   const existing = [...ctx.db.app_version.iter()][0];
   if (existing) {
@@ -575,6 +655,7 @@ spacetimedb.init((ctx) => {
   // A fresh database starts with the kill switch on (calls run) and the default daily ceiling.
   ensureLlmAdminState(ctx);
   initScheduledTables(ctx);
+  ensureVendorRestockScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -599,6 +680,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureDayNightTickScheduled(ctx);
   ensureInactivityTickScheduled(ctx);
   ensureLlmSweepScheduled(ctx);
+  ensureVendorRestockScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
