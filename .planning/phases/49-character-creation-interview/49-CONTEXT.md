@@ -56,6 +56,16 @@ Out of scope:
 ### Mobile (390×844)
 - The interview (feed, cards, input) is usable at 390×844, and the sheet is reachable from the "Sheet" chip.
 
+### Owner decisions after the UI-SPEC draft (2026-10-06, owner in chat)
+- **One character per account stays.** The server's one-character rule is unchanged. The character picker does NOT get a "New character" button. Creation runs only for an account with no character. This supersedes the earlier "New character" entry point.
+- **Race stat bonuses are applied on the server.** When a character is finalized, `finalizeCharacter` adds the race's stored stat bonuses to the stats. Today the stats come from the class only.
+  - This is a small server change in this phase: code only, no schema change expected.
+  - Publish locally with `--break-clients`. Never use `--clear-database` or maincloud. Check that `admin_llm_status` key_length is 108 before and after.
+  - Add a test that pins the finalized stats as class base plus race bonus.
+  - The live sheet then shows the final values with the race bonus included. The bonus can still be marked "+N (race)" to explain it.
+  - This changes balance for new characters. Existing characters are not recomputed.
+- **`race_definition` is already public and bound.** No new view is needed for the race cards.
+
 ### Claude's Discretion
 - The race selection rule.
 - Component layout under `src/` (for example `src/creation/`).
