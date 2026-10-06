@@ -388,3 +388,173 @@ export function getCraftQualityStatBonus(craftQuality: string): bigint {
   if (craftQuality === 'mastercraft') return 3n;
   return 0n;
 }
+
+// ---------------------------------------------------------------------------
+// CRAFT PLANNING -- one pure decision shared by craft_recipe (validate before it mutates) and
+// the client crafting model (pre-gates Craft, shows the quality and the "what would raise it"
+// hint). Import-free, ES2020 only, never throws.
+// ---------------------------------------------------------------------------
+
+/** Template name to item key: lowercase, each whitespace run becomes one underscore. */
+export function itemKeyFromName(name: string): string {
+  return (typeof name === 'string' ? name : '').toLowerCase().replace(/\s+/g, '_');
+}
+
+/** Craft quality from the recipe's first material: its MATERIAL_DEFS tier (default T1). */
+export function craftQualityForMaterialName(name: string | null | undefined): string {
+  const key = itemKeyFromName(name ?? '');
+  const def = key === '' ? undefined : MATERIAL_DEFS.find((m) => m.key === key);
+  return materialTierToCraftQuality(def ? def.tier : 1n);
+}
+
+/**
+ * The next material tier up and the quality it gives, or null when the quality is the top
+ * reachable tier (exquisite) or is not on the material ladder.
+ */
+export function craftQualityUpgrade(quality: string): { materialTier: bigint; quality: string } | null {
+  const tiers = [1n, 2n, 3n];
+  for (const tier of tiers) {
+    if (materialTierToCraftQuality(tier) !== quality) continue;
+    if (tier === 3n) return null;
+    const next = tier + 1n;
+    return { materialTier: next, quality: materialTierToCraftQuality(next) };
+  }
+  return null;
+}
+
+/** Gear recipes (weapon, armor, accessory) take an Essence and reagents; consumables do not. */
+export function isGearRecipe(recipe: { recipeType?: string | null }): boolean {
+  return !!(recipe && recipe.recipeType && recipe.recipeType !== 'consumable');
+}
+
+export interface CraftPlanInput {
+  recipe: {
+    req1TemplateId: bigint;
+    req1Count: bigint;
+    req2TemplateId: bigint;
+    req2Count: bigint;
+    req3TemplateId?: bigint | null;
+    req3Count?: bigint | null;
+    recipeType?: string | null;
+  };
+  /** Name of the first requirement's item template (sets the quality). */
+  primaryMaterialName: string | null;
+  /** The chosen Essence, or null. A missing template is passed with name ''. */
+  catalyst: { templateId: bigint; name: string } | null;
+  /** The chosen reagents in slot order, null slots already dropped. name null = no template. */
+  modifiers: ReadonlyArray<{ templateId: bigint; name: string | null }>;
+  /** Non-equipped count the character holds of a template. */
+  countOf: (templateId: bigint) => bigint;
+}
+
+export type CraftPlan =
+  | {
+      ok: true;
+      gear: boolean;
+      quality: string | null;
+      consumes: { templateId: bigint; count: bigint }[];
+      usesCatalyst: boolean;
+      reagents: { templateId: bigint; statKey: string; magnitude: bigint }[];
+    }
+  | {
+      ok: false;
+      reason: 'materials' | 'essence_tier' | 'catalyst_missing' | 'modifier_missing' | 'no_reagent';
+      message: string;
+      templateId?: bigint;
+      have?: bigint;
+      need?: bigint;
+    };
+
+function ownValue<T>(map: Record<string, T>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
+/**
+ * Every craft refusal in the server's order with the server's exact messages, decided before
+ * anything is consumed. A catalyst or reagent that shares a template with a requirement (or
+ * appears twice) is counted against what is still on hand after the earlier needs, the way the
+ * reducer's sequential removals count it. The reducer additionally needs an output template and
+ * a found instance for the essence step; those are server-only facts.
+ */
+export function planCraft(input: CraftPlanInput): CraftPlan {
+  const { recipe } = input;
+  const consumes: { templateId: bigint; count: bigint }[] = [];
+  const need = (templateId: bigint, count: bigint) => {
+    const hit = consumes.find((c) => c.templateId === templateId);
+    if (hit) hit.count += count;
+    else consumes.push({ templateId, count });
+  };
+  const consumed = (templateId: bigint): bigint => {
+    const hit = consumes.find((c) => c.templateId === templateId);
+    return hit ? hit.count : 0n;
+  };
+
+  // Materials: each requirement against the raw count, like the reducer.
+  const reqs: { templateId: bigint; count: bigint }[] = [
+    { templateId: recipe.req1TemplateId, count: recipe.req1Count },
+    { templateId: recipe.req2TemplateId, count: recipe.req2Count },
+  ];
+  if (recipe.req3TemplateId != null) {
+    reqs.push({ templateId: recipe.req3TemplateId, count: recipe.req3Count ?? 0n });
+  }
+  for (const req of reqs) {
+    const have = input.countOf(req.templateId);
+    if (have < req.count) {
+      return {
+        ok: false,
+        reason: 'materials',
+        message: 'Missing materials to craft this recipe.',
+        templateId: req.templateId,
+        have,
+        need: req.count,
+      };
+    }
+  }
+  // The reducer only removes a third requirement that has a count.
+  for (const req of reqs) {
+    if (req.templateId === recipe.req3TemplateId && recipe.req3Count == null) continue;
+    need(req.templateId, req.count);
+  }
+
+  const gear = isGearRecipe(recipe);
+  if (!gear) {
+    return { ok: true, gear: false, quality: null, consumes, usesCatalyst: false, reagents: [] };
+  }
+  const quality = craftQualityForMaterialName(input.primaryMaterialName);
+  const catalyst = input.catalyst;
+  if (!catalyst) {
+    return { ok: true, gear: true, quality, consumes, usesCatalyst: false, reagents: [] };
+  }
+
+  const catalystKey = itemKeyFromName(catalyst.name);
+  const allowed = ownValue(ESSENCE_QUALITY_GATE, catalystKey) ?? [];
+  if (allowed.indexOf(quality) === -1) {
+    return { ok: false, reason: 'essence_tier', message: 'Essence tier too low for this craft quality' };
+  }
+  if (input.countOf(catalyst.templateId) - consumed(catalyst.templateId) < 1n) {
+    return { ok: false, reason: 'catalyst_missing', message: 'Missing catalyst (Essence)' };
+  }
+  need(catalyst.templateId, 1n);
+
+  const slots = ownValue(AFFIX_SLOTS_BY_QUALITY, quality) ?? 1;
+  const reagents: { templateId: bigint; statKey: string; magnitude: bigint }[] = [];
+  for (const mod of input.modifiers.slice(0, slots)) {
+    if (!mod || mod.name == null || mod.name === '') continue;
+    const modKey = itemKeyFromName(mod.name);
+    const def = CRAFTING_MODIFIER_DEFS.find((d) => d.key === modKey);
+    if (!def) continue;
+    if (input.countOf(mod.templateId) - consumed(mod.templateId) < 1n) {
+      return { ok: false, reason: 'modifier_missing', message: `Missing modifier: ${mod.name}` };
+    }
+    need(mod.templateId, 1n);
+    reagents.push({
+      templateId: mod.templateId,
+      statKey: def.statKey,
+      magnitude: getModifierMagnitude(catalystKey, def.statKey),
+    });
+  }
+  if (reagents.length === 0) {
+    return { ok: false, reason: 'no_reagent', message: 'Must provide at least one reagent when using an Essence' };
+  }
+  return { ok: true, gear: true, quality, consumes, usesCatalyst: true, reagents };
+}
