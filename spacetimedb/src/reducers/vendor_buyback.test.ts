@@ -390,3 +390,42 @@ describe('a damaged snapshot', () => {
     expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
   });
 });
+
+describe('delete_character cleanup', () => {
+  const otherRow = (characterId: bigint) => ({
+    characterId,
+    npcId: VENDOR,
+    npcName: 'Brannoc',
+    locationId: HERE,
+    templateId: 80n,
+    itemName: 'Test Sword',
+    rarity: 'common',
+    quantity: 1n,
+    price: 5n,
+    qualityTier: undefined,
+    craftQuality: undefined,
+    displayName: undefined,
+    isNamed: undefined,
+    isTemporary: undefined,
+    affixesJson: '[]',
+    listingId: undefined,
+    soldAt: { microsSinceUnixEpoch: T0 - 1n },
+  });
+
+  it('removes the deleted character row and leaves another character row untouched', () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n)], buyback: [otherRow(2n)] });
+    sell(ctx, 800n);
+    expect(rows(ctx, 'vendor_buyback').map((r) => r.characterId).sort()).toEqual([1n, 2n]);
+    const bobRow = { ...rows(ctx, 'vendor_buyback').find((r) => r.characterId === 2n) };
+    deleteCharacter(ctx, { characterId: 1n });
+    expect(rows(ctx, 'vendor_buyback')).toEqual([bobRow]);
+    expect(rows(ctx, 'character').map((c) => c.id)).toEqual([2n]);
+  });
+
+  it('succeeds for a character with no row', () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [], buyback: [otherRow(2n)] });
+    expect(() => deleteCharacter(ctx, { characterId: 1n })).not.toThrow();
+    expect(rows(ctx, 'vendor_buyback').map((r) => r.characterId)).toEqual([2n]);
+    expect(rows(ctx, 'character').map((c) => c.id)).toEqual([2n]);
+  });
+});

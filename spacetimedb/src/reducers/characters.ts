@@ -267,6 +267,8 @@ export const registerCharacterReducers = (deps: any) => {
       ctx.db.corpse.id.delete(corpse.id);
     }
 
+    ctx.db.vendor_buyback.characterId.delete(characterId);
+
     ctx.db.character.id.delete(characterId);
   });
 
