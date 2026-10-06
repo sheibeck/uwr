@@ -4,7 +4,7 @@ import { buildLookOutput } from '../helpers/look';
 import { parseLookCommand, describeLookTarget, lookMissLine } from '../helpers/examine';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { sellInstanceToVendor } from '../helpers/vendor_sale';
-import { appliedSellBonusPercent, sellPayout } from '../data/vendor_pricing';
+import { appliedSellBonusPercent, listingBuyPrice, sellPayout } from '../data/vendor_pricing';
 import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
@@ -527,9 +527,21 @@ export const registerIntentReducers = (deps: any) => {
       if (vendorInv.length === 0) {
         parts.push('  Nothing for sale.');
       } else {
+        // The price shown is the price buy_item and buy_listing charge: the list price after the
+        // perk and Charisma discounts, never below what the character earns selling it back.
+        const perkBuyPct = getPerkBonusByField(ctx, character.id, 'vendorBuyDiscount', character.level);
+        const perkSellPct = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
         for (const vi of vendorInv) {
           const template = ctx.db.item_template.id.find(vi.itemTemplateId);
           if (!template) continue;
+          const chargedPrice = listingBuyPrice({
+            listPrice: vi.price,
+            vendorValue: template.vendorValue ?? 0n,
+            perkBuyPct,
+            perkSellPct,
+            vendorBuyMod: character.vendorBuyMod,
+            vendorSellMod: character.vendorSellMod ?? 0n,
+          });
           const rarity = (vi.qualityTier || template.rarity || 'common').toLowerCase();
           const color = RARITY_COLORS[rarity] || '#ffffff';
 
@@ -546,7 +558,7 @@ export const registerIntentReducers = (deps: any) => {
             statParts.push(`${template.weaponBaseDamage} dmg`);
           }
           const statsStr = statParts.length > 0 ? ` (${statParts.join(', ')})` : '';
-          parts.push(`  {{color:${color}}}[Buy ${template.name}]{{/color}} — ${vi.price} gold ×${vi.quantity}${statsStr}`);
+          parts.push(`  {{color:${color}}}[Buy ${template.name}]{{/color}} — ${chargedPrice} gold ×${vi.quantity}${statsStr}`);
         }
       }
       parts.push(`\nYour gold: ${character.gold ?? 0n}`);
@@ -966,7 +978,9 @@ export const registerIntentReducers = (deps: any) => {
       // --- SELL N <item> ---
       const sellNMatch = sellArg.match(/^(\d+)\s+(.+)$/i);
       if (sellNMatch) {
-        const wanted = BigInt(sellNMatch[1]) > 1n ? BigInt(sellNMatch[1]) : 1n;
+        // Zero is refused with the window's own line instead of selling one: nothing is written.
+        const wanted = BigInt(sellNMatch[1]);
+        if (wanted < 1n) return fail(ctx, character, 'Choose at least one to sell.');
         const itemNameTarget = sellNMatch[2].trim();
         const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
 

@@ -803,6 +803,17 @@ describe('typed commands share the helper', () => {
     expect(rows(ctx, 'vendor_buyback')).toEqual([EARLIER_ROW]);
   });
 
+  it("'sell 0 <item>' is refused with the window line and writes nothing", () => {
+    const ctx = newCtx({ instances: [inst(700n, 70n, 4n)] });
+    const before = state(ctx);
+    say(ctx, 'sell 0 iron ore');
+    expect(lastMessage(ctx)).toBe('Choose at least one to sell.');
+    expect(state(ctx)).toEqual(before);
+    say(ctx, 'sell 00 iron ore');
+    expect(lastMessage(ctx)).toBe('Choose at least one to sell.');
+    expect(state(ctx)).toEqual(before);
+  });
+
   it("the typed single 'sell <item>' sells the whole instance into the listing", () => {
     const ctx = newCtx({ instances: [inst(700n, 70n, 4n)] });
     say(ctx, 'sell iron ore');
@@ -824,6 +835,34 @@ describe('typed commands share the helper', () => {
     expect(text).toContain('[Buy Test Sword]');
     expect(text).toContain('×2');
     expect(text).not.toContain('Iron Ore');
+  });
+
+  it("'shop' shows the price buy_item charges (perk, Charisma and the floor), not the list price", () => {
+    for (const perk of [false, true]) {
+      const ctx = newCtx({
+        buyMod: 150n,
+        sellMod: 150n,
+        perk,
+        listings: [{ id: 41n, npcId: VENDOR, itemTemplateId: 80n, price: 26n, qualityTier: undefined, quantity: 2n }],
+      });
+      const perkBuy = perk ? perkBonusByField([PERK_KEY], 'vendorBuyDiscount', LEVEL) : 0;
+      const perkSell = perk ? perkBonusByField([PERK_KEY], 'vendorSellBonus', LEVEL) : 0;
+      const charged = listingBuyPrice({
+        listPrice: 26n,
+        vendorValue: 13n,
+        perkBuyPct: perkBuy,
+        perkSellPct: perkSell,
+        vendorBuyMod: 150n,
+        vendorSellMod: 150n,
+      });
+      expect(charged).not.toBe(26n);
+      say(ctx, 'shop');
+      expect(lastMessage(ctx)).toContain(`— ${charged} gold ×2`);
+      // The same number leaves the gold when the character buys it.
+      const before = goldOf(ctx);
+      buyAs(ctx, 80n, 'alice');
+      expect(before - goldOf(ctx)).toBe(charged);
+    }
   });
 
   it("'shop' with every listing at 0 reads Nothing for sale.", () => {
