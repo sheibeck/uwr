@@ -230,24 +230,11 @@ export function addCharacterEffect(
     }
   }
 
-  // Apply the first tick immediately for DoTs so the effect is felt on cast.
-  // Regen (HoT) does NOT get an immediate tick here — the resolveAbility 'hot' handler
-  // already applies a direct heal. Subsequent regen ticks are handled by tick_hot scheduler.
-  if (effectType === 'dot') {
-    if (character && character.hp > 0n) {
-      if (effectType === 'regen') {
-        const healed = character.hp + magnitude > character.maxHp ? character.maxHp : character.hp + magnitude;
-        ctx.db.character.id.update({ ...character, hp: healed });
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'heal',
-          `${sourceAbility} soothes you for ${magnitude} HP.`);
-      } else {
-        const nextHp = character.hp > magnitude ? character.hp - magnitude : 0n;
-        ctx.db.character.id.update({ ...character, hp: nextHp });
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'damage',
-          `You suffer ${magnitude} damage from ${sourceAbility}.`);
-      }
-    }
-  }
+  // A DoT does NOT tick here. A round engine ticks an effect of D rounds exactly D times, at the end
+  // of each round (tickEffectsForRound), the same for a DoT on a player and a DoT on an enemy. The
+  // landing round counts as the first of the D, so an immediate tick would make it D + 1.
+  // Regen (HoT) likewise gets no tick here: the resolveAbility 'hot' handler already applies a
+  // direct heal, and the following ticks come from tickEffectsForRound.
 }
 
 export function addEnemyEffect(

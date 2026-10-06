@@ -268,15 +268,16 @@ describe('addCharacterEffect', () => {
     expect(effects[0].sourceAbility).toBe('warrior_rally');
   });
 
-  it('inserts a DoT effect and applies first tick', () => {
+  it('inserts a DoT effect WITHOUT an immediate tick (WR-04: D rounds tick D times, at the end of each round)', () => {
     addCharacterEffect(ctx, 1n, 'dot', 10n, 3n, 'poison');
     const effects = ctx.db.character_effect._rows();
     expect(effects).toHaveLength(1);
     expect(effects[0].effectType).toBe('dot');
+    expect(effects[0].roundsRemaining).toBe(3n);
 
-    // First tick applied: hp = 80 - 10 = 70
+    // No tick on application: hp stays at 80 (tickEffectsForRound deals the damage)
     const char = ctx.db.character.id.find(1n);
-    expect(char.hp).toBe(70n);
+    expect(char.hp).toBe(80n);
   });
 
   it('inserts a HoT effect WITHOUT applying immediate tick (no double-heal)', () => {
@@ -296,11 +297,11 @@ describe('addCharacterEffect', () => {
     expect(char.hp).toBe(80n); // no immediate tick, hp unchanged
   });
 
-  it('DoT does not go below 0 hp', () => {
+  it('a lethal DoT does not hurt on application either (the round tick does, and clamps at 0)', () => {
     // Character has 80hp, DoT does 100
     addCharacterEffect(ctx, 1n, 'dot', 100n, 3n, 'lethal_poison');
     const char = ctx.db.character.id.find(1n);
-    expect(char.hp).toBe(0n);
+    expect(char.hp).toBe(80n);
   });
 
   it('updates existing effect instead of inserting duplicate', () => {
@@ -471,9 +472,9 @@ describe('combat flow: attack with crit + DoT', () => {
     expect(effects).toHaveLength(1);
     expect(effects[0].effectType).toBe('dot');
 
-    // DoT first tick applied
+    // No immediate tick: the effect ticks at the end of each round
     const target = ctx.db.character.id.find(2n);
-    expect(target.hp).toBe(185n); // 200 - 15
+    expect(target.hp).toBe(200n);
   });
 });
 
@@ -784,15 +785,11 @@ describe('addCharacterEffect narrative messages', () => {
     });
   });
 
-  it('DoT first tick emits narrative damage message with source ability name', () => {
+  it('DoT application emits no damage line (the round tick does, once per round)', () => {
     addCharacterEffect(ctx, 1n, 'dot', 10n, 3n, 'Poison Strike');
-    expect(appendPrivateEvent).toHaveBeenCalledWith(
+    expect(appendPrivateEvent).not.toHaveBeenCalledWith(
       ctx, 1n, 100n, 'damage',
-      expect.stringContaining('You suffer')
-    );
-    expect(appendPrivateEvent).toHaveBeenCalledWith(
-      ctx, 1n, 100n, 'damage',
-      expect.stringContaining('Poison Strike')
+      expect.anything()
     );
   });
 
