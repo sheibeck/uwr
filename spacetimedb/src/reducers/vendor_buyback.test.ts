@@ -349,6 +349,25 @@ describe('buy back refusals change nothing', () => {
   });
 });
 
+describe('buy back when the item template is gone', () => {
+  it('refuses with its own line (not "backpack is full"), charges nothing and clears the dead row and its listing', () => {
+    const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n)] });
+    sell(ctx, 800n);
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(1);
+    const goldAfterSale = aliceGold(ctx);
+    // The template is removed after the sale.
+    rows(ctx, 'item_template').length = 0;
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('That item can no longer be bought back.');
+    expect(aliceGold(ctx)).toBe(goldAfterSale);
+    expect(rows(ctx, 'item_instance')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_buyback')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_inventory')).toHaveLength(0);
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('Nothing to buy back.');
+  });
+});
+
 describe('only the owner can buy back', () => {
   it("bob calling alice's characterId throws Not your character and alice's row stays", () => {
     const ctx = newCtx({ templates: [SWORD], instances: [inst(800n, 80n, 1n)] });

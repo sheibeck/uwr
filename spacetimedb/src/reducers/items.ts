@@ -183,6 +183,15 @@ export const registerItemReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const sale = ctx.db.vendor_buyback.characterId.find(character.id);
     if (!sale) return failItem(ctx, character, 'Nothing to buy back.');
+    // A template removed since the sale can never be restored: say so (instead of "backpack is
+    // full") and clear the dead row, and the resale listing that sale created, so nothing lingers.
+    if (!ctx.db.item_template.id.find(sale.templateId)) {
+      if (sale.listingId !== undefined && sale.listingId !== null && ctx.db.vendor_inventory.id.find(sale.listingId)) {
+        ctx.db.vendor_inventory.id.delete(sale.listingId);
+      }
+      ctx.db.vendor_buyback.characterId.delete(character.id);
+      return failItem(ctx, character, 'That item can no longer be bought back.');
+    }
     if ((character.gold ?? 0n) < sale.price) {
       return failItem(ctx, character, 'Not enough gold to buy that back.');
     }
