@@ -152,7 +152,7 @@ describe('CreationFeed: progress line and slot', () => {
     expect(w.find('[role="status"]').exists()).toBe(false);
   });
 
-  it('renders the default slot after the progress line and after the last line, inside the log', () => {
+  it('renders the default slot after the progress line and the last line, in the scroller but outside the live log', () => {
     const store = createCreationFeedStore();
     serverRow(store, 'creation', 'Greeting.');
     const w = mountFeed(store, {
@@ -160,10 +160,12 @@ describe('CreationFeed: progress line and slot', () => {
       slot: true,
     });
     const log = w.find('[role="log"]').element;
-    const slot = log.querySelector('.choice-slot');
+    const scroller = w.find('.feed-scroll').element;
+    const slot = scroller.querySelector('.choice-slot');
     const progress = log.querySelector('[role="status"]');
     const line = log.querySelector('.line-keeper');
     expect(slot).not.toBeNull();
+    expect(log.contains(slot)).toBe(false);
     expect(progress).not.toBeNull();
     expect(line).not.toBeNull();
     expect(line!.compareDocumentPosition(progress!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

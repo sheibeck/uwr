@@ -140,9 +140,10 @@ onBeforeUnmount(stopRotation);
         <div v-if="indicator.indicatorLine !== null" class="feed-tail">
           <KeeperProgress :text="indicator.indicatorLine" />
         </div>
-        <div v-if="$slots.default" class="feed-choice">
-          <slot />
-        </div>
+      </div>
+      <!-- Outside the polite live log: the cards are controls, not new log content to read out. -->
+      <div v-if="$slots.default" class="feed-choice">
+        <slot />
       </div>
     </div>
     <button
@@ -222,6 +223,7 @@ onBeforeUnmount(stopRotation);
 .feed-choice {
   width: 100%;
   min-width: 0;
+  margin-top: 8px;
 }
 
 .empty {
