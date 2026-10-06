@@ -890,10 +890,79 @@ function buildCombatOutroVolatile(events: RoundEventSummary, isVictory: boolean)
   return lines.join('\n');
 }
 
+/**
+ * One big moment (Phase 46.1: kill, near death, phase change). Every name goes through the same
+ * renderer as the round and the outro: player names tagged, world names escaped. No HP numbers, no
+ * pronoun for the subject (a person or a beast both read correctly). The Keeper's voice and the
+ * route block are unchanged: only this per-call text is new (see 46.1-VOICE-ADDENDUM.md).
+ */
+function buildCombatMomentVolatile(events: RoundEventSummary): string {
+  const render = nameRenderer(collectPlayerNames(events));
+  const subject = render(events.momentSubject ?? '');
+  const round = String(events.roundNumber);
+  const lines: string[] = [];
+
+  if (events.narrativeType === 'kill') {
+    lines.push(`A moment in the fight, round ${round}: ${subject} has just fallen. Narrate this one beat; the fight is not over.`);
+    if (events.momentFirst) lines.push('It is the first death of the fight.');
+    if (events.momentBossOrNamed) lines.push(`${subject} is a named foe, the most dangerous one here.`);
+  } else if (events.narrativeType === 'near_death') {
+    lines.push(`A moment in the fight, round ${round}: ${subject} has been driven below a fifth of full health. Narrate this one beat; the fight is not over.`);
+  } else {
+    lines.push(`A moment in the fight, round ${round}: ${subject} has been wounded past the halfway mark and the fight turns. Narrate this one beat; the fight is not over.`);
+  }
+
+  // Context lines: same text and rules as the outro.
+  if (events.locationName) lines.push(`Setting: ${w(events.locationName)}`);
+  if (events.enemyNames?.length) lines.push(`Enemies faced: ${events.enemyNames.map(render).join(', ')}`);
+  if (events.playerNames?.length === 1) {
+    lines.push(`Your character (address as you, never by name): ${render(events.playerNames[0])}`);
+  } else if (events.playerNames?.length) {
+    lines.push(`Your party (address together as you): ${events.playerNames.map(render).join(', ')}`);
+  }
+  const survivorNames = events.participantHpSummary
+    .filter((p) => p.hp > 0n && !p.isEnemy)
+    .map((p) => render(p.name));
+  if (survivorNames.length > 0) lines.push(`Survivors: ${survivorNames.join(', ')}`);
+
+  // The killing blow (kill only).
+  const abilityNames = new Set<string>();
+  if (events.narrativeType === 'kill' && events.playerActions.length > 0) {
+    lines.push('The killing blow:');
+    for (const a of events.playerActions) {
+      const who = render(a.characterName);
+      const target = a.targetName ? render(a.targetName) : subject;
+      const damage = a.damageDealt !== undefined && a.damageDealt > 0n ? String(a.damageDealt) : undefined;
+      if (a.abilityName) {
+        abilityNames.add(w(a.abilityName));
+        lines.push(`- ${who} used ${w(a.abilityName)} on ${target}${damage ? `, dealing ${damage} damage` : ''}`);
+      } else {
+        lines.push(`- ${who} auto-attacked ${target}${damage ? ` for ${damage} damage` : ''}`);
+      }
+    }
+  }
+  if (abilityNames.size > 0) {
+    lines.push('');
+    lines.push(`IMPORTANT: Use ONLY these exact ability names in your narration: ${[...abilityNames].join(', ')}. Do NOT invent or rename abilities.`);
+  }
+
+  lines.push('');
+  lines.push("Reply with the segments JSON object: the Keeper's narration of this one moment only, in the second person, two sentences at most.");
+  return lines.join('\n');
+}
+
 export function buildCombatNarrationVolatile(events: CombatNarrationInput): string {
-  return events.narrativeType === 'victory' || events.narrativeType === 'defeat'
-    ? buildCombatOutroVolatile(events, events.narrativeType === 'victory')
-    : buildCombatRoundVolatile(events);
+  switch (events.narrativeType) {
+    case 'victory':
+    case 'defeat':
+      return buildCombatOutroVolatile(events, events.narrativeType === 'victory');
+    case 'kill':
+    case 'near_death':
+    case 'phase':
+      return buildCombatMomentVolatile(events);
+    default:
+      return buildCombatRoundVolatile(events);
+  }
 }
 
 export function buildSmokeTestVolatile(_input?: SmokeTestInput): string {
