@@ -733,15 +733,20 @@ Write a mapping only when it is confirmed, never for every typed line, or the gr
 - **Tighten `isGameAction`** (`src/input/conversation.ts`). Today any line starting with `buy`, `sell`, `craft`, `attack`, `fight` or `kill` leaves the conversation, so "sell me your finest blade?" said to a vendor runs a sell command. Match exact command forms, as `routeExactCommand` does.
 - **Exact commands always win.** Learned mappings never override `look`, `sell`, `attack` or the other registry commands.
 - **Private tables.** Reducers read them; clients never subscribe.
-- **Gradual promotion.** A mapping applies to one character first and becomes global only after several different players confirm it, which limits bad or deliberately misleading mappings.
+- **One global graph, with gradual promotion.** The graph is shared by all players (owner). Recommended guardrail: a newly learned mapping applies at once for the player who confirmed it and becomes global after 3 different players confirm it, which limits bad or deliberately misleading mappings.
 
 **Order of checks in `submit_intent` (outside conversation):** exact command forms → phrase cache → word weights → name match against what is around the character → player-confirm prompt (optional LLM) → sardonic fallback.
 
+**Decisions (2026-10-06, open-question review):**
+
+- The intent graph is **global** (shared by all players), with the gradual-promotion guardrail above.
+- The server does **not** need to know about the conversation lock.
+- On a miss, the Keeper shows **the closest intent match** ("Did you mean: travel to Ashford?"), not a list of choices.
+
 **Open questions:**
 
-- Is the graph shared by all players or per character, and what threshold promotes a mapping to global?
-- Should the server know about the conversation lock? Not needed while the client never sends locked text to `submit_intent`; it matters only if the lock must hold across devices.
-- How should the confirm-choices prompt look in the v3.0 console?
+- Confirm the promotion threshold (recommended: 3 different players).
+- When the player answers "no" to the closest match, does the Keeper offer the next match, or fall back to the sardonic line?
 
 **Requirements:** TBD (unit tests required: normalization and placeholders, cache hit and miss, weight scoring and threshold, the conversation lock skipping the lookup, exact commands outranking learned mappings, promotion threshold)
 **Plans:** 0 plans
@@ -773,7 +778,7 @@ npc_memory_event {
 
 - Kinds: `met`, `talked`, `gift`, `quest_given`, `quest_completed`, `quest_abandoned`, `fought_nearby`, `died_nearby`, `helped`, `insulted`, `secret_shared`.
 - Written by the reducers that already handle the event (`talk_to_npc`, quest accept and `turn_in_quest`, `give_gift_to_npc`, combat at the NPC's location). Exact and token-free. The LLM may suggest at most a tag from a fixed vocabulary, which the server validates.
-- Short-term rows expire (for example after one in-game day). A scheduled sweep moves high-salience or frequently repeated memories to long-term and drops the rest. Long-term salience fades over time, and each NPC keeps its top N, so the table stays bounded.
+- **Short-term memory is a small, fast-lookup buffer per NPC** (owner decision): when it reaches its size limit, the oldest short-term memories move to long-term instead of being dropped. There is no time-based expiry. Long-term salience fades over time, and each NPC keeps its top N, so the table stays bounded.
 
 **Kind 2: who the NPC is (LLM-revealed, permanent canon).**
 
@@ -808,11 +813,17 @@ npc_fact_known { factId, characterId }   // who has heard it (doubles as a playe
 
 **Migration:** retire the `memoryJson` blob and `lastConversationSummary`. The `npc_dialog` transcript stays as a display log. Local `--clear-database` is acceptable (greenfield rule).
 
+**Decisions (2026-10-06, open-question review):**
+
+- **NPCs never name other players.** They say "another traveler" or similar.
+- **Short-term memory** is a size-limited fast-lookup buffer; overflow moves the oldest memories to long-term (section "Kind 1" above).
+- **NPCs know only one or two important rumors** (see 999.10).
+
 **Open questions:**
 
-- Privacy: may NPCs name other players, or say "another traveler" unless there is a relationship? Per-character opt-out?
-- Short-term duration, salience weights, decay rate, and the long-term cap per NPC.
-- Facts per NPC cap, and how far rumors spread.
+- Size of the short-term buffer per NPC, the long-term cap, and the long-term fade rate.
+- Cap on non-rumor facts per NPC (backstory, opinions, relationships).
+- Do rumors spread to other NPCs at all, now that rumors are rare and tied to quests?
 
 **Requirements:** TBD (unit tests required: event memory writes per event kind, short-to-long promotion and expiry, decay, per-NPC cap, recall ranking, the `about` name check, fact caps and reveal-tier gating, mirrored relationship edges, no LLM facts about players, exclusive-quest check, tables private)
 **Plans:** 0 plans
@@ -830,7 +841,7 @@ Plans:
 
 - New `npc` columns: `homeLocationId`, `wanderStyle`:
   - `anchored`: never moves. Forced in code for service NPC types (vendor, banker, crafting); generation cannot override it. `ensureRegionServices` keeps a start location's vendor and banker, and anchoring keeps them there.
-  - `roamer`: moves along `location_connection` between locations of the same region, optionally within a few steps of home.
+  - `roamer`: moves along `location_connection` but **stays within its own zone** (owner decision), and moves **at most about once per in-game day** (about once per real hour with the 999.14 calendar).
   - `commuter` (optional): moves between a day spot and a night spot on the day/night tick.
 - A scheduled `npc_wander_tick` decides moves with deterministic seeds (NPC id and timestamp), never `Math.random`.
 - An NPC does not leave while a player has talked to it in the last few minutes.
@@ -852,7 +863,7 @@ Plans:
 
 **4. Rumored places (special and rare, owner decisions 2026-10-06):**
 
-- **Only rumor keepers know place rumors.** Not every NPC knows one. `npc.rumorKeeper` is decided by the server at NPC generation (deterministic seed, never by the LLM), with a small cap per region (for example one or two keepers).
+- **Only rumor keepers know place rumors.** Not every NPC knows one. `npc.rumorKeeper` is decided by the server at NPC generation (deterministic seed, never by the LLM), with **a handful of keepers per region** (owner decision). Rumors are rare and valuable.
 - **One place rumor per keeper, ever.** A keeper holds exactly one place rumor. It is created lazily, the first time any player reaches the reveal tier with that keeper: the reply schema's `newPlace` (name, one-line hint, route hint) is accepted only then. After that it is fixed, and every later player who earns the keeper's trust hears the same rumor. The NPC never invents a second or different place rumor; `newPlace` from any other NPC, or from a keeper that already has one, is dropped.
 - **Earned through the relationship.** The rumor is an `npc_fact` (999.9) with `revealTier` set high: `trusted` for a location, `bonded` for a region. Affinity rises from kind conversation, completed quests and gifts, and falls from rudeness and abandoned quests (existing `awardNpcAffinity` sources: conversation ±5 per reply, quest turn-in +10, abandon −3, gifts). Optional teaser at `friendly`: the keeper hints there is something they do not talk about yet, without naming it.
 - **Rumors never expire.**
@@ -890,20 +901,38 @@ rumor { id, keeperNpcId, kind, whereLocationId? /* real or rumored */, hint, rou
 - **Discoveries are World events.** Finding a place, person, creature, faction or race grows the world: it becomes shared, is announced to everyone as a World event, appears on the World events screen, and earns the discoverer server-first renown. **First finds of every kind are World events that reward renown** (owner, 2026-10-06), including the first claim of a treasure and the first craft of a discovered recipe.
 - **Discovered races become selectable at character creation** (owner, 2026-10-06): once a race rumor is found, the race (`race_definition`) is offered alongside the freeform race entry.
 - **Rumor kinds are mechanical vocabulary** (`spacetimedb/src/data/mechanical_vocabulary.ts`). The LLM supplies only flavor for the kind it is given (name, hint). The server sets the payoff from the region's danger, so a rumor can never promise more than the region allows.
-- **Keepers have a specialty** that fits who they are, from `npcType` and `personalityJson.knowledgeDomains` (a miner knows treasure, a hunter knows creatures, a barkeep knows people, a smith knows crafts). A keeper holds at most one rumor per kind it knows, and most know one kind.
+- **Keepers have a specialty** that fits who they are, from `npcType` and `personalityJson.knowledgeDomains` (a miner knows treasure, a hunter knows creatures, a barkeep knows people, a smith knows crafts). **A keeper knows only one or two important rumors** (owner decision), not one per kind.
 - **Reveal tiers by kind:** person and creature at `friendly`; treasure, craft and location at `trusted`; region, faction and race at `bonded`.
 - **Rarity budgets by kind:** creatures and people are the most common; then treasure and crafts; then locations; regions, factions and races are the rarest, each with a global cap on open (undiscovered) rumors.
 - **Chains:** a payoff can carry the next rumor (a map in a treasure cache becomes a region rumor; a found person can be a keeper). Chain depth is capped so chains stay rare.
 
+**6. Rumor quests: the race to finish first (owner decisions, 2026-10-06):**
+
+- Rumors usually lead into a quest, often a multi-step one.
+- **Several players can be on the same rumor quest at once.**
+- The race:
+  1. Get the quest (earn the keeper's trust).
+  2. **Complete it first:** only the first finisher claims the big reward: renown plus the World event announcement.
+  3. **Second place and later:** players who were already on the quest and finish afterwards get a smaller reward (a little renown or faction standing; for a new place, a reward for also finding it).
+  4. **Once completed, the quest closes:** no other character can take it again.
+- Some other quests may also allow several finishers with smaller rewards; first-finisher-only rewards apply to rumor quests and other first finds.
+- Not the same as an exclusive quest (999.9): an exclusive quest has one holder at a time; a rumor quest has many holders and one winner.
+
 **Terminology:** these discoveries are always called **World events**. Never use "ripple" for this concept in code, player-facing text or docs (owner, 2026-10-06).
+
+**Decisions (2026-10-06, open-question review):**
+
+- Wanderers stay within their zone and move at most about once per in-game day.
+- A handful of rumor keepers per region; each keeper knows one or two important rumors; rumors are rare and valuable.
+- The abandon penalty (−3 against +10 for completion) stays as it is.
+- Rumor quests are a race with tiered rewards and close once completed (section 6).
 
 **Open questions:**
 
-- Wander tick rate, step limit from home, and how many roamers per region.
-- Should commuters be part of the first cut?
-- Exact budgets: keepers per region, the global cap on open rumored regions.
-- Is abandon (−3) too light against turn-in (+10) now that affinity gates rumors?
-- Should the `friendly` teaser be in the first cut?
+- Commuter NPCs (a day spot and a night spot): build them together with wandering when this item is promoted, or leave them for later?
+- The `friendly`-tier teaser (a keeper hints they know something before revealing it): build it with rumors, or later?
+- Exact numbers: keepers per region, the global cap on rumored regions nobody has reached.
+- Reward sizes for second place and later on a rumor quest.
 
 **Requirements:** TBD (unit tests required: service NPC types never wander, moves stay within the region and step limit, no move during a recent conversation, deterministic move choice, sightings written to NPCs at both ends, the perception roll, no player sightings, newest sighting wins, bearing validation and reverse bearings, route search limited to NPC knowledge, only rumor keepers can create a place rumor, one rumor per keeper and the same rumor for every player, reveal gated by affinity tier, region rumors only from bonded keepers and within the global cap, rumors never expire, rumor duplicate check, rumor visibility only for players who heard it, rumor goes public only when a path links it, charting a location triggers world fill and charting a region triggers region generation, every rumor kind resolves into its payoff system, treasure claimable once, first finds of every kind (including treasure claims and first crafts) announced as World events with server-first renown, discovered races offered at character creation, payoff tier set by the server from region danger, keeper specialty and per-kind reveal tiers and budgets, chain depth cap)
 **Plans:** 0 plans
@@ -925,11 +954,7 @@ Plans:
 - A legacy `race` table (with `unlocked`) is still written by `spacetimedb/src/data/races.ts` and `spacetimedb/src/helpers/world_events.ts`. Remove it or merge it into `race_definition` as part of this item.
 - Players have one character, so a new race cannot be tried by rolling a new character.
 
-**1. List races on request:**
-
-- "races", "show me the races" or a "See all races" control lists every playable race: name plus a one-line description. No LLM call.
-- Playable means: full races created by players, plus races discovered through a rumor (999.10; public once found). Rumored races nobody has found stay hidden (a player at creation has heard no rumors).
-- A race with only a stub (a discovered race may have just a name and hint) is generated in full the first time someone chooses it: bonuses, description, racial ability, and a starting zone if it has none. From then on everyone gets the same race.
+**1. List races on request:** moved to its own backlog item, 999.15 (Phase 49 is complete).
 
 **2. Similar-race matching (trait graph):**
 
@@ -949,7 +974,7 @@ Plans:
 - A starting zone is linked to a race and its history: when a race's zone is generated, its history and the zone's facts (region biome, landmarks, dominant faction, 999.9-style facts) are stored as edges between the race and the zone.
 - Those edges decide which races can start in which zones: a lineage, a new race created after the cap is reached, and a discovered race without its own zone each start in the zone whose history and traits best fit the race (trait and fact overlap, computed by the server; no LLM call). A zone can host several races.
 - A daily limit on new races, alongside the LLM daily budget.
-- Whether discovered races (999.10) may generate their own zone when the cap is reached, or always join the best-fitting existing zone, is still open.
+- **A race discovered through questing always gets its own starting zone**, even when the 20-zone cap is reached (owner decision).
 
 **4. Rite of Becoming (change race; owner decisions, 2026-10-06):**
 
@@ -960,11 +985,15 @@ Plans:
 - Effect: race bonuses swap, and level bonuses are recomputed through the existing `recompute_racial_all` / `computeRacialAtLevelFromRow`; the racial ability swaps; optional rebind to the race's home. Class, level and gear stay.
 - Becoming the discovered race is part of that first find's World event with renown (999.10 first-finds rule).
 
-**Open questions (to discuss when this item is picked up):**
+**Decisions (2026-10-06, open-question review):**
 
-1. Where to record "list all races on request": in Phase 49 (CRE-03, small and close to the existing cards) or only here.
-2. When the starting-zone cap is full, can a discovered race still get its own zone, or does it always join the best-fitting existing zone?
-3. If the discoverer declines or abandons the Rite, is it gone for good?
+- "List all races on request" is its own backlog item, 999.15.
+- A race discovered through questing gets its own starting zone even past the cap.
+- **A discoverer who declines the Rite can never get it back.**
+
+**Open questions:**
+
+- Does abandoning the Rite quest partway count as declining (gone for good)?
 
 **Requirements:** TBD (unit tests required: race list contents and hidden rumored races, stub race filled on first choice and then shared, trait scoring, strong match suggests an existing race and places the player at its starting zone, the `creation_race` reply choosing existing versus new, near-identical blocked, an insisted close match becomes a lineage and never a new race, at most 20 starting zones, race-to-zone history edges, best-fit zone selection for lineages and post-cap races, daily new-race limit, Rite offered only to the discoverer of a race discovered in play and only once, bonus and ability swap with recompute, class, level and gear unchanged, World event with renown)
 **Plans:** 0 plans
@@ -1046,15 +1075,21 @@ budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
 
 Suggested slicing when promoted: (a) power budget and generated drops and loot tables (criteria 1, 2, 5), (b) quest rewards by quest difficulty (criterion 3), (c) crafting, regional materials and recipe graph, (d) legendaries and provenance.
 
+**Decisions (2026-10-06, open-question review):**
+
+- **Winning a legendary from an NPC who holds it varies by story:** a quest; affinity (for example a dying holder chooses you as their successor, see 999.13 seats); or an epic tale that ends in a fight (you find them, confront them, and eventually fight).
+- **NPCs cannot be attacked at will.** Monsters can be fought freely; an NPC can only be fought as the climax of a story quest.
+- **Keep internal bearer history** for admin information and fun facts. It is never shown in rumors.
+- **If every eligible player refuses a legendary**, it slips away into history and resurfaces as a new rumor.
+- The four quest turn-in follow-ups found by quick task 261006-g12 are being fixed as a quick task (owner, 2026-10-06).
+
 **Open questions:**
 
-- Quest-reward follow-ups found by quick task 261006-g12 (not fixed): neither turn-in path checks inventory space; quest XP is added directly instead of through `awardXp`, so it never triggers a level-up check; the "turn in" intent path skips `recordQuestCompletion`; a reward named exactly like a starter item would be overwritten by `ensureStarterItemTemplates`.
-- When a legendary resurfaces held by an NPC, how does a player win it from them (a quest, high affinity, defeating them)?
-- Is internal bearer history needed at all, given rumors never name past bearers?
-- Exact point costs per stat, the baseline curve per level, and the source multipliers.
-- The best-in-slot margin for the simulated-fight test.
-- What counts as the minimum participation for a World event kill (contribution threshold, damage or healing share, time present)?
-- If every eligible player refuses a legendary, does it go into history as a new rumor?
+- What counts as minimum participation for a World event kill (needs more discussion).
+- Tuning numbers, to set when this item is picked up:
+  - How many points each stat is worth, so different stats can be compared (for example 1 STR against 1 HP against 1 armor).
+  - How strong a normal item is at each level (the baseline), and the multiplier for each source (boss 1.3 and so on).
+  - A balance test that simulates a fight in best gear against normal gear: how much faster may the best gear win before the test fails?
 
 **Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, zone bosses respawn and drop named items (many copies), legendary bosses die once and trigger a World event with a world change, legendary claim-or-refuse among group members, minimum participation for World event kills, legendary single ownership, legendaries cannot be traded or destroyed, legendary lost immediately on character deletion and after six months of bearer inactivity, lost legendary resurfacing as a new NPC rumor that names a location or NPC holder and never a past bearer, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
 **Plans:** 0 plans
@@ -1083,6 +1118,24 @@ Plans:
   - Other events to define (for example faction conflict or a boss rising nearby).
 - **The successor has only a chance to carry things on** (owner decision): each quest, rumor and memory of the dead NPC passes to the successor with some probability, not automatically. Otherwise a death would change nothing. What is not carried on ends: a quest ends gracefully for the players on it, a rumor is lost or passes to another keeper, a memory is forgotten. A carried memory sounds like an heir's ("My father spoke of you").
 
+**Ages, seats and illness (owner decisions, 2026-10-06):**
+
+- **Lifespans come from race:** each race has a lifespan, and NPCs live to their race's maximum unless something else kills them. **Each NPC starts at a random age.** (NPCs have no race or age today: the `npc` table needs a race and a birth date, and `race_definition` needs a lifespan.)
+- **Carry-over is a coin flip:** each quest, rumor and memory has a **50/50** chance of passing to the successor.
+- **Seat vacancies:**
+  - **Boss seats** stay empty for up to **6 in-game months** and never longer (about 180 real hours at one real hour per in-game day, 999.14).
+  - **Seats players rely on** (shopkeeper, banker, crafting) are filled quickly.
+  - **Leadership seats** (for example a town leader) may stay empty for a while, and the vacancy can become a quest: find the heir, or help the town choose a leader.
+- **Disease and illness:** a sick NPC can give a time-limited quest to find a cure. The cure can spawn harvestable ingredients, or drops on specific monsters that must be slain. If the cure does not arrive in time, the NPC can die.
+- **NPCs cannot be attacked at will** (see 999.12): an NPC is only fought as the climax of a story quest.
+
+**Town overruns (proposal for owner approval):**
+
+- Overruns are **World events announced in advance**, so players know they are coming (for example a warning one in-game day ahead).
+- The defense works like other participation-based World events (`world_event` with objectives, thresholds and time limits): players fight the attacking monsters, and success depends on how much the defenders achieve.
+- NPCs are not simulated in combat. Instead, **if the event fails, each notable NPC in the town rolls a chance of dying**; defenders who took part raise the town's odds.
+- On success, defenders earn renown tiers and affinity with the town's NPCs.
+
 **Things every system must handle when an occupant dies:** quests, rumors, memories, wandering and sightings, delivery targets, legendary holders (999.12: a legendary held by a dying NPC resurfaces as a new rumor), and faction leadership.
 
 **Build order:**
@@ -1090,13 +1143,13 @@ Plans:
 1. Boss succession only: seats for bosses, vacancy, a successor rises (World event). No aging needed.
 2. NPC life cycle: aging, disease, overrun events, heirs and faction leaders, and seats for service NPCs. Needs 999.9, 999.10 and 999.14.
 
+**Decisions (2026-10-06, open-question review):** see "Ages, seats and illness" above: race lifespans with random starting ages, 50/50 carry-over, seat vacancy rules, disease quests, and no attacking NPCs at will.
+
 **Open questions:**
 
-- NPC lifespans and death rates (how rare is rare?), and which NPCs can die at all (quest givers, rumor keepers, service NPCs).
-- The chance a successor carries on each quest, rumor and memory, and whether it depends on the successor's relationship to the dead NPC (child versus rival).
-- How long a boss seat stays empty before something new rises.
-- How overrun events are triggered and how often; how players are alerted in time to defend a town.
-- Other death causes beyond age, disease and overruns.
+- Approve or change the town-overrun proposal: warning lead time, success threshold, and the chance an NPC dies when the defense fails.
+- Disease: how often an NPC falls ill, how long the cure window is, and whether an uncured NPC always dies or rolls a chance.
+- Other death causes beyond age, disease, overruns and story fights.
 
 **Requirements:** TBD (unit tests required: seats and occupants, successor chosen from linked candidates before generating one, service seats never empty, boss seat vacancy then a rise World event, deaths only from defined causes and at defined rates, overrun defense where players can save NPCs, per-item carry-over chance for quests, rumors and memories, graceful handling of everything not carried over, legendary held by a dead NPC resurfacing as a rumor)
 **Plans:** 0 plans
@@ -1117,17 +1170,46 @@ Plans:
 
 **Design:**
 
-- A world clock anchored to a fixed epoch timestamp (stored once on `world_state`), so the current in-game date and time is computed from `ctx.timestamp` deterministically: day number, hour, day or night.
+- A world clock anchored to an epoch timestamp and a random starting date (both stored once on `world_state` at world start), so the current in-game date and time is computed from `ctx.timestamp` deterministically: day number, hour, day or night.
 - Change the constants to 40 minutes of day and 20 minutes of night (one real hour per in-game day).
 - At one real hour per day, a 365-day year takes about 15 real days, so an NPC living 60 to 80 years lasts about 2.5 to 3.3 real years.
 - "time" and "look" show the date and the in-game hour as well as day or night.
-- Unit tests: day and night lengths, the date computed from timestamps, the transition schedule, and the time and look output.
+- **Full calendar** (owner): days, months and years, named months and weekdays, and seasons.
+- **The world starts on a random calendar date** (owner): players enter the world in medias res.
+- **Weather system** (owner): weather by region and time, which can affect combat, the harvestable materials available, and which enemies appear in a zone at that time.
+- **Players can see the date, the weather and the time** (owner). The UI shows day or night today.
+- Unit tests: day and night lengths, the date computed from timestamps, the random start date, the transition schedule, weather selection, and the time and look output.
+
+**Decisions (2026-10-06, open-question review):** full calendar with named months, weekdays and seasons; a random starting date; a weather system that affects combat, materials and enemies; date, weather and time visible to players; day/night timing ships with the calendar.
 
 **Open questions:**
 
-- Year length and structure: days per month, months per year, named months and weekdays, seasons (and whether seasons change gathering, weather or events).
-- Is the calendar shown to players (date in the vitals rail or the "time" command), and in what style (in-world names versus numbers)?
-- Does the epoch start at the world's first region generation, or a fixed date?
+- Calendar numbers: days per month, months per year, and whether month and weekday names are generated once at world start (LLM) or fixed.
+- Weather design: the kinds of weather, whether weather is per region or per biome, how long it lasts, and its exact effects on combat, materials and enemies.
+- Where the date, weather and time appear in the UI (for example the vitals rail).
+- Do seasons change anything beyond weather (events, materials, enemies)?
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.15: List all races on request at character creation (BACKLOG)
+
+**Goal:** During character creation the player can ask to see every playable race ("races", "show me the races", or a "See all races" control) and gets a list of names with a one-line description each. Captured 2026-10-06; split out of 999.11 because Phase 49 is complete.
+
+**Today:** Phase 49 (CRE-03) shows the 3 newest `race_definition` rows as suggestion cards (`src/creation/raceCards.ts`), and the creation context already loads every `race_definition`.
+
+**Design:**
+
+- No LLM call: the list comes from stored rows.
+- Playable races: full races created by players, plus races discovered through rumors (999.10), which are public once found. Rumored races nobody has found stay hidden.
+- Choosing a race that is only a stub (a discovered race may have just a name and hint) generates it in full the first time, with its own starting zone (999.11); from then on everyone gets the same race.
+- Choosing a listed race places the player at that race's starting zone (existing `reuseStarterRegion`).
+- Unit tests: request phrasings, list contents, hidden rumored races, stub generation on first choice, starting-zone placement.
+
+**Depends on:** 999.10 (discovered races) and 999.11 (stub races and starting zones) for the full behavior. Listing player-created races works today without them.
 
 **Requirements:** TBD
 **Plans:** 0 plans
@@ -1136,4 +1218,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding boss tiers to 999.12 and Backlog 999.13 (seats and succession) and 999.14 (world calendar)*
+*Last updated: 2026-10-06 after recording owner answers to open questions in 999.8 to 999.14 and adding 999.15*
