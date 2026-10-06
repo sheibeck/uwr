@@ -400,6 +400,91 @@ describe('FeedView pinning and the New lines pill', () => {
   });
 });
 
+describe('FeedView round headers', () => {
+  function withCombat(combatId: bigint | null, open: number | null) {
+    const base = createInertGame().combat;
+    return harness({
+      combat: {
+        ...base,
+        combatId: ref(combatId),
+        openRound: ref(open === null ? null : { roundNumber: BigInt(open) }),
+      },
+    });
+  }
+
+  function addHeaders(h: Harness): void {
+    h.feed.addRoundHeader({ combatId: 10n, roundNumber: 2n, startedAtMicros: 100n });
+    h.feed.addRoundHeader({ combatId: 10n, roundNumber: 3n, startedAtMicros: 200n });
+    h.feed.addRoundHeader({ combatId: 9n, roundNumber: 3n, startedAtMicros: 50n });
+    h.feed.flush();
+  }
+
+  it('marks only the open round of the fight as current', () => {
+    const h = withCombat(10n, 3);
+    addHeaders(h);
+    const w = mountView(h);
+    const headers = w.findAll('.line-round');
+    expect(headers).toHaveLength(3);
+    const current = headers.filter((header) => header.classes().includes('current'));
+    expect(current).toHaveLength(1);
+    expect(current[0].get('.round-label').text()).toBe('Round 3');
+    expect(headers.indexOf(current[0])).toBe(2);
+  });
+
+  it('marks no header as current without an open round or a fight', () => {
+    for (const h of [withCombat(10n, null), withCombat(null, 3)]) {
+      addHeaders(h);
+      const w = mountView(h);
+      expect(w.findAll('.line-round.current')).toHaveLength(0);
+      w.unmount();
+      wrapper = null;
+    }
+  });
+
+  it('turns the header neutral when the open round goes away', async () => {
+    const open = ref<{ roundNumber: bigint } | null>({ roundNumber: 3n });
+    const base = createInertGame().combat;
+    const h = harness({ combat: { ...base, combatId: ref(10n), openRound: open } });
+    addHeaders(h);
+    const w = mountView(h);
+    expect(w.findAll('.line-round.current')).toHaveLength(1);
+    open.value = null;
+    await settle();
+    expect(w.findAll('.line-round.current')).toHaveLength(0);
+  });
+
+  it('renders a wind-up block as text', () => {
+    const h = withCombat(10n, 3);
+    h.feed.addWindup({
+      castId: 7n,
+      combatId: 10n,
+      createdAtMicros: 10n,
+      parts: { lead: `${PAYLOAD} winds up `, ability: PAYLOAD, tail: ' → you · lands in 2 rounds', text: '' },
+    });
+    h.feed.flush();
+    const w = mountView(h);
+    expect(w.find('.line-windup').exists()).toBe(true);
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.line-windup .ability').text()).toBe(PAYLOAD);
+  });
+
+  it('tags a late Keeper line with its round', () => {
+    const h = withCombat(10n, 3);
+    h.feed.addRoundHeader({ combatId: 10n, roundNumber: 3n, startedAtMicros: 100n });
+    h.feed.ingest('private', {
+      id: 9n,
+      kind: 'combat_narration',
+      message: 'Steel rings.',
+      createdAt: { microsSinceUnixEpoch: 150n },
+      characterId: 1n,
+    } as never);
+    h.feed.flush();
+    h.feed.setNarratedRound('private:9', 2n);
+    const w = mountView(h);
+    expect(w.get('.round-tag').text()).toBe('· Round 2');
+  });
+});
+
 describe('FeedView source', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/console/FeedView.vue'), 'utf8');
 
@@ -415,5 +500,10 @@ describe('FeedView source', () => {
     expect(source).not.toContain('max-width: 760px');
     expect(source).toContain('margin-top: auto');
     expect(source).toContain('overflow-anchor: auto');
+  });
+
+  it('highlights the open round and tightens header spacing on mobile', () => {
+    expect(source).toContain(':current-round=');
+    expect(source).toMatch(/\.feed-scroll\.compact :deep\(\.line-round\)\s*\{\s*gap: 8px;\s*margin-top: 4px;/);
   });
 });

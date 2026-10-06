@@ -52,6 +52,14 @@ const lines = computed(() =>
   }),
 );
 
+// The header of the fight's open round is the accent one; every other header is neutral, so
+// all of them turn neutral once the round rows are gone (CMB-04).
+const openRoundKey = computed<string | null>(() => {
+  const combatId = game.combat.combatId.value;
+  const open = game.combat.openRound.value;
+  return combatId === null || open === null ? null : `${combatId}:${open.roundNumber}`;
+});
+
 const lastKey = computed<string | undefined>(() => {
   const all = lines.value;
   return all.length === 0 ? undefined : all[all.length - 1].key;
@@ -180,6 +188,7 @@ onBeforeUnmount(stopRotation);
           :key="line.key"
           :line="line"
           :disabled="disabled"
+          :current-round="openRoundKey !== null && line.roundKey === openRoundKey"
           @keyword="onKeyword"
         />
       </div>
@@ -218,6 +227,11 @@ onBeforeUnmount(stopRotation);
 
 .feed-scroll.compact {
   padding: 4px 16px 8px;
+}
+
+.feed-scroll.compact :deep(.line-round) {
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .feed-lines {

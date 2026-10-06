@@ -1,19 +1,40 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PhGlobeHemisphereWest, PhHourglassMedium, PhUsersThree, PhWarningCircle, PhWaveform } from '@phosphor-icons/vue';
+import {
+  PhGlobeHemisphereWest,
+  PhHourglassMedium,
+  PhUsersThree,
+  PhWarning,
+  PhWarningCircle,
+  PhWaveform,
+} from '@phosphor-icons/vue';
 import type { FeedLineView } from './lines';
 import type { KeywordEntry, KeywordPart } from './keywords';
 import { keywordActionLabel } from './keywordLabel';
+import { splitLastInteger } from '../combat/emphasis';
 
 // One labelled feed line (47-UI-SPEC "Line kinds", "Keywords"). Every string is a text node,
 // with no raw HTML, no markup interpretation and no color tokens (T-47-01). Keyword buttons come only from
 // `parts` that lines.ts builds for eligible kinds (T-47-06).
-const props = defineProps<{ line: FeedLineView; disabled: boolean }>();
+const props = defineProps<{ line: FeedLineView; disabled: boolean; currentRound?: boolean }>();
 const emit = defineEmits<{ keyword: [entry: KeywordEntry] }>();
 
 const bodyParts = computed<KeywordPart[]>(() => props.line.parts ?? [{ text: props.line.text, entry: null }]);
 const titleParts = computed<KeywordPart[]>(() =>
   props.line.title === null ? [] : (props.line.titleParts ?? [{ text: props.line.title, entry: null }]),
+);
+
+// Round dividers and wind-up warnings are client-made system copy (48-UI-SPEC "Feed Contract").
+const roundLabel = computed(() =>
+  props.line.roundNumber !== null && props.line.roundNumber !== undefined
+    ? `Round ${props.line.roundNumber}`
+    : props.line.text,
+);
+
+// Damage and heal lines emphasise the last standalone integer. The three pieces are plain
+// strings rendered as text nodes, so markup in a server line stays literal (T-48-24).
+const amountSplit = computed(() =>
+  props.line.kind === 'damage' || props.line.kind === 'heal' ? splitLastInteger(props.line.text) : null,
 );
 
 // Whisper lines and NPC speech with a known speaker are wrapped in typographic quotes.
@@ -33,8 +54,21 @@ function disabledAttr(): 'true' | undefined {
 </script>
 
 <template>
-  <div class="line" :class="[`line-${line.kind}`, { 'line-plain': line.speaker === null }]">
-    <span v-if="line.kind === 'keeper'" class="micro">{{ line.label }}</span>
+  <div v-if="line.kind === 'round'" class="line line-round" :class="{ current: currentRound === true }">
+    <span class="rule rule-left" aria-hidden="true"></span>
+    <span class="round-label">{{ roundLabel }}</span>
+    <span class="rule rule-right" aria-hidden="true"></span>
+  </div>
+  <div v-else-if="line.kind === 'windup' && line.windup" class="line line-windup">
+    <PhWarning class="icon-windup" :size="16" aria-hidden="true" />
+    <span class="body">{{ line.windup.lead }}<span class="ability">{{ line.windup.ability }}</span>{{ line.windup.tail }}</span>
+  </div>
+  <div v-else class="line" :class="[`line-${line.kind}`, { 'line-plain': line.speaker === null }]">
+    <span
+      v-if="line.kind === 'keeper'"
+      class="micro"
+      :aria-label="line.roundTag != null ? `The Keeper, about round ${line.roundTag}` : undefined"
+    >{{ line.label }}<span v-if="line.roundTag != null" class="round-tag">{{ ` · Round ${line.roundTag}` }}</span></span>
     <span v-else-if="line.kind === 'quest'" class="micro micro-inline">{{ line.label }}</span>
     <span v-else-if="line.kind === 'ripple'" class="micro micro-inline">
       <PhWaveform :size="12" aria-hidden="true" /><span>{{ line.label }}</span>
@@ -81,7 +115,8 @@ function disabledAttr(): 'true' | undefined {
       </template>
       <template v-else-if="line.kind === 'party' && line.speaker !== null"><span class="who">{{ line.speaker }}</span><span>{{ ' says, ' }}</span></template>
       <template v-else-if="line.kind === 'echo'"><span>{{ '› ' }}</span></template>
-      <template v-if="quoted"><span>{{ '“' }}</span></template><template v-for="(part, i) in bodyParts" :key="i"><button
+      <template v-if="amountSplit">{{ amountSplit.before }}<span class="amount">{{ amountSplit.amount }}</span>{{ amountSplit.after }}</template>
+      <template v-if="quoted"><span>{{ '“' }}</span></template><template v-for="(part, i) in amountSplit ? [] : bodyParts" :key="i"><button
           v-if="part.entry"
           type="button"
           class="keyword"
@@ -283,18 +318,80 @@ function disabledAttr(): 'true' | undefined {
   color: var(--color-neutral-500);
 }
 
-.line-damage {
+/* Combat lines are Body 14 / 400 neutral (the base .line); only the amount is emphasised. */
+.line-damage .amount {
+  font-weight: 500;
   color: var(--color-con-red);
 }
 
-.line-heal {
+.line-heal .amount {
+  font-weight: 500;
   color: var(--color-con-light-green);
 }
 
-.line-combat {
-  font-size: 12px;
+/* Round divider: a Micro label between two fading rules; the open round is accent. */
+.line-round {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 0;
+  font-size: 10px;
   line-height: 1.5;
-  color: var(--color-neutral-300);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-400);
+}
+
+.line-round .rule {
+  flex: 1;
+  height: 1px;
+}
+
+.line-round .rule-left {
+  background: linear-gradient(to left, var(--color-divider), transparent);
+}
+
+.line-round .rule-right {
+  background: linear-gradient(to right, var(--color-divider), transparent);
+}
+
+.line-round.current {
+  color: var(--color-accent);
+}
+
+.line-round.current .rule-left {
+  background: linear-gradient(to left, var(--color-accent-700), transparent);
+}
+
+.line-round.current .rule-right {
+  background: linear-gradient(to right, var(--color-accent-700), transparent);
+}
+
+/* Wind-up warning block. */
+.line-windup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-neutral-200);
+}
+
+.icon-windup {
+  flex: none;
+  color: var(--color-con-orange);
+}
+
+.line-windup .ability {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* Late narration: the round it describes, after the Keeper label. */
+.round-tag {
+  color: var(--color-neutral-500);
 }
 
 /* Keywords (47-UI-SPEC "Keywords"; underline offset rounded to the 4px grid by the checker note). */
