@@ -1,6 +1,6 @@
 ---
 created: 2026-10-06T22:30:00Z
-title: Crafting and backpack follow the updated mock (UWR Crafting)
+title: Crafting and inventory follow the updated mocks (UWR Crafting, UWR Inventory)
 area: ui
 files:
   - src/inventory/BackpackGrid.vue:203-213
@@ -22,6 +22,7 @@ The owner play-tested the Phase 50 screens on 2026-10-06 and sent an updated cra
 4. **Craft multiple is missing.** The mock shows a quantity modifier (×N) next to the Craft button.
 5. **The output has no real description.** For example, Herbal Draught lists its ingredients, but the crafted item shows no description. Generated recipe outputs get only `Crafted from {primary} and {secondary}.` (`recipe_rules.ts:596`). The recipe detail should show what the item is and does, with its stats (armor, damage, healing, effects and so on), like the inventory inspector.
 6. **Implement the updated mock**, `UWR Crafting.dc.html`.
+7. **Updated inventory mock (owner, 2026-10-06):** `UWR Inventory.dc.html` shows salvaging with a result window. Implement it as well: https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Inventory.dc.html (same `_ds` files and `support.js`). Craft and salvage results should share one result-window pattern if the mocks agree.
 
 ## Solution
 

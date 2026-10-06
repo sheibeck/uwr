@@ -118,6 +118,7 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - **Clear result message.** Craft, Salvage and similar actions show a clear result saying what was made, salvaged or returned, placed as the mock shows, not only a feed line low in the corner. Screen readers get a polite live region.
 - **Craft multiple.** Add the ×N quantity control next to Craft from the mock. Its maximum is what the materials allow. The server stays the authority, and every refusal leaves the bag unchanged.
 - **Output details.** The recipe detail shows what the output item is and does, with its stats (shared `item_stats` and inspector helpers) and a real description. Generated outputs today only say `Crafted from {primary} and {secondary}.`
+- **Updated inventory mock (owner, same day):** `UWR Inventory.dc.html` shows salvaging with a result window. Implement it in the same follow-up (backpack, inspector, salvage confirm and result window). Extract: `design50b/EXTRACT.md`.
 - **No odds bar (owner re-confirmed).** Quality stays deterministic from the material tier: show `Quality: {Tier}` with the hint, styled to the new mock. No random quality and no balance change.
 - Any server change is additive, publishes locally only with the key check (108) before and after, never clears the database, and comes with real-handler tests. No prompt changes.
 
