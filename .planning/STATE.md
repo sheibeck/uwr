@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 46.1
 current_phase_name: Round-Based Combat Engine
 status: executing
-stopped_at: Completed 46.1-05-PLAN.md
-last_updated: "2026-10-06T05:46:32.506Z"
+stopped_at: Completed 46.1-06-PLAN.md
+last_updated: "2026-10-06T05:56:11.462Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 46.1 execution started
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 42
-  completed_plans: 38
+  completed_plans: 39
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 46.1 (Round-Based Combat Engine) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 46.1 execution started
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 93%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -176,6 +176,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 46.1-04: round ticks deleted only by scheduledId; cooldowns convert at the fight boundary with ceil (9 s left is 3 rounds, 2 rounds is 8 s); stun stored as magnitude 1 with roundsRemaining, larger kept on re-apply
 - [Phase 46.1]: 46.1-05: stored ability choices are re-validated at resolution (ownership, round cooldown, ally target, resources) and fall back to the auto-attack
 - [Phase 46.1]: 46.1-05: combat_loop is a module-guarded drain that only calls ensureRound and never reschedules; combat_loop_tick stays defined
+- [Phase ?]: 46.1-06: flee is the player's whole action for the round; success deletes the participant row (no fleeing/fled status); resolveRound skips the enemy phase when no participant is left
 
 ### Roadmap Evolution
 
@@ -296,8 +297,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T05:46:32.475Z
-Stopped at: Completed 46.1-05-PLAN.md
+Last session: 2026-10-06T05:56:11.431Z
+Stopped at: Completed 46.1-06-PLAN.md
 
 ## Performance Metrics
 
@@ -419,6 +420,7 @@ Stopped at: Completed 46.1-05-PLAN.md
 | Phase 46.1 P03 | 20min | 2 tasks | 5 files |
 | Phase 46.1 P04 | 25min | 2 tasks | 8 files |
 | Phase 46.1 P05 | ~1h | 2 tasks | 4 files |
+| Phase 46.1 P06 | 25min | 2 tasks | 5 files |
 
 ## Operator Next Steps
 
