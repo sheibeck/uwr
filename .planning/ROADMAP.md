@@ -538,6 +538,9 @@ Plans:
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the map/travel, group and social, and world events screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
+  - **Pulled in from the backlog (owner decision 2026-10-06):**
+    - **999.22, party and player context menus** (design `UWR Party.dc.html`, re-imported fresh). Build the menus on party members and players together with the Social screen, sharing one set of action helpers. The player-trade parts of that file go to Phase 52.
+    - **999.20, Examine (eyeball) button** on things in the right-hand rail. Phase 51 already works in the context rail.
 
   - Server gaps to scope in plan-phase: the `group` table has no loot mode (LDG-06); there is no dedicated "travel with party" reducer (`move_character` moves the party when the leader travels), so the Travel versus Travel with party semantics for grouped players need a decision; confirm the data for "upcoming" events and the World event timeline. The percentile can be derived client-side from the public `event_contribution` rows.
   - Tests: route graph and legend states from location data, travel cost and party-travel rules, party actions by role (leader vs member), loot-mode control, friend and invite lists, event timers and sections, contribution percentile math.
@@ -557,6 +560,14 @@ Plans:
 **UI hint**: yes
 **Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. **Loot now has a mock:** owner decision 2026-10-06, "build the designed loot rails in Phase 52". The combat loot rails follow `UWR Combat.dc.html`, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. See backlog 999.23, which is pulled into this phase. **Bank now has a mock too:** owner decision 2026-10-06, build the designed bank in Phase 52. The bank and vault screen follows `UWR Bank.dc.html`, re-imported fresh. See backlog 999.25, which is pulled into this phase. **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 52 planning lists them and asks the owner which are in scope. **Trade now has a mock:** owner decision 2026-10-06, build the designed trade in Phase 52. The player trade window, and its "Trade" entry on a player or party member, follow the trade parts of `UWR Party.dc.html`, re-imported fresh. The rest of that file (the full party and player context menus, backlog 999.22) stays for after the milestone. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
 **Notes**:
+  - **Pulled in from the backlog (owner decision 2026-10-06).** These cover parity with the old client and are built from the owner's designs, each re-imported fresh:
+    - **999.18, Hotbar Manager** (`UWR Hotbar Manager.dc.html`). The new client cannot assign abilities to slots or create, switch or swap hotbars today. The reducers `set_hotbar_slot`, `create_hotbar`, `switch_hotbar`, `swap_hotbar_slots` and `delete_hotbar` exist, but no client code calls them.
+    - **999.16, Journal** (`UWR Journal.dc.html`, including the revised quest details from the main screen):
+      - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
+      - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
+      - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
+  - **Already in Phase 52 from the backlog:** 999.23 loot rails, 999.25 bank, the admin screens (`UWR Admin Screens`) and player trade (from `UWR Party`).
+  - **Size:** with these additions Phase 52 is large. At plan time, split it with `/gsd-phase --insert`, for example designed screens versus parity checklist and production deploy, rather than trimming scope.
 
   - Seed the parity checklist at the start of the phase from an audit of the `v2.2-client` tag: the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
   - Deploy: `.github/workflows` holds only `claude.yml` and `claude-code-review.yml`, so find how master builds and publishes to GitHub Pages before changing it. The root build scripts already belong to the new client (Phase 45). The SpacetimeAuth redirect URI for the production origin must be registered (owner action).
@@ -1296,7 +1307,9 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.16: Journal (quests) screen with tracking, abandon and region grouping (design: UWR Journal) (BACKLOG)
+### Phase 999.16: Journal (quests) screen with tracking, abandon and region grouping (design: UWR Journal) (PULLED INTO PHASE 52)
+
+**Status (owner decision 2026-10-06):** pulled into Phase 52. Plan and build it there; this entry stays as the design record.
 
 **Goal:** A Quests menu item opens a Ledger screen (desktop drawer, mobile sheet) showing the same information as the `quests` chat command, formatted properly. From it, players track or untrack quests for the right rail, abandon quests with a confirmation, and browse quests grouped by region, with a cap of 30 active quests. Captured 2026-10-06 (owner idea). No quest backlog item existed to merge into.
 
@@ -1424,7 +1437,9 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.18: Hotbar Manager (design: UWR Hotbar Manager) (BACKLOG)
+### Phase 999.18: Hotbar Manager (design: UWR Hotbar Manager) (PULLED INTO PHASE 52)
+
+**Status (owner decision 2026-10-06):** pulled into Phase 52. Plan and build it there; this entry stays as the design record.
 
 **Goal:** Build the hotbar management screen from the owner's Claude Design file, so players can arrange their abilities across hotbars on desktop and mobile. Captured 2026-10-06 (owner request).
 
@@ -1496,7 +1511,9 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.20: Examine (eyeball) button on things in the right-hand rail (BACKLOG)
+### Phase 999.20: Examine (eyeball) button on things in the right-hand rail (PULLED INTO PHASE 51)
+
+**Status (owner decision 2026-10-06):** pulled into Phase 51. Plan and build it there; this entry stays as the design record.
 
 **Goal:** Put an eyeball "examine" button next to each item, enemy, player and place in the right-hand rail, so players can explore what is around them. Clicking it "looks at" that thing, the same as typing `look <target>`. Captured 2026-10-06 (owner request).
 
@@ -1533,7 +1550,9 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.22: Party and player context menus (design: UWR Party) (BACKLOG)
+### Phase 999.22: Party and player context menus (design: UWR Party) (PULLED INTO PHASE 51 (player trade: Phase 52))
+
+**Status (owner decision 2026-10-06):** pulled into Phase 51 (player trade: Phase 52). Plan and build it there; this entry stays as the design record.
 
 **Goal:** Add context menus to party members and other players, so socializing and grouping take one click. Build it from the owner's Claude Design file. Captured 2026-10-06 (owner request).
 
@@ -1677,4 +1696,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after pulling designed trade (UWR Party) into Phase 52*
+*Last updated: 2026-10-06 after pulling 999.20 and 999.22 into Phase 51, and 999.16 and 999.18 into Phase 52 (owner)*
