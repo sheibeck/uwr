@@ -8,6 +8,8 @@ import type { BindTableOptions, TableBinding } from '../net/bindTable';
 import type { Character } from '../module_bindings/types';
 import type { GameData } from '../game/context';
 import type { GameInput } from '../game/gameData';
+import type { CreationData } from '../creation/creationContext';
+import type { CreationInput } from '../creation/creationData';
 import { createSession, defaultQueries, SIGNIN_TIMEOUT_MS } from './useSession';
 import type { Session, SessionAuth, SessionConn, SessionDeps, SessionQueries } from './useSession';
 
@@ -103,6 +105,7 @@ interface HarnessOptions {
   buildVersion?: string;
   isDev?: boolean;
   game?: SessionDeps<FakeConn>['game'];
+  creation?: SessionDeps<FakeConn>['creation'];
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -159,6 +162,7 @@ function harness(options: HarnessOptions = {}): Harness {
     isDev: options.isDev ?? false,
     reloadPage,
     game: options.game,
+    creation: options.creation,
   };
   const session = createSession(deps, { callbackError: options.callbackError ?? null });
 
@@ -435,10 +439,15 @@ describe('createSession core', () => {
       expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'signingIn' });
     });
 
-    it('shows the no-characters note with zero rows', async () => {
+    it('shows the creation screen with zero rows', async () => {
       await signedIn();
       h.binding(queries.characters(7n)).applied.value = true;
-      expect(h.session.screen.value).toEqual({ kind: 'noCharacters' });
+      expect(h.session.screen.value).toEqual({ kind: 'creation' });
+    });
+
+    it('never shows creation before the characters apply', async () => {
+      await signedIn();
+      expect(h.session.screen.value).toEqual({ kind: 'splash', state: 'signingIn' });
     });
 
     it('lists characters oldest first in the picker', async () => {
@@ -904,6 +913,107 @@ describe('game hub wiring', () => {
     h = harness({ game: factory });
     h.session.dispose();
     expect(game.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('active character placement', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+  });
+
+  async function withActive(locationId: bigint): Promise<void> {
+    h = harness();
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 1n });
+    await flush();
+    const chars = h.binding(queries.characters(7n));
+    chars.rows.value = [makeCharacter(1n, 10n, { locationId })];
+    chars.applied.value = true;
+  }
+
+  it('shows creation for an active character that is not placed (locationId 0)', async () => {
+    await withActive(0n);
+    expect(h.session.screen.value).toEqual({ kind: 'creation' });
+  });
+
+  it('shows the frame the moment the active character is placed', async () => {
+    await withActive(0n);
+    h.binding(queries.characters(7n)).rows.value = [makeCharacter(1n, 10n, { locationId: 10n })];
+    expect(h.session.screen.value).toEqual({ kind: 'frame' });
+  });
+
+  it('shows the frame for a placed active character', async () => {
+    await withActive(10n);
+    expect(h.session.screen.value).toEqual({ kind: 'frame' });
+  });
+});
+
+describe('creation hub wiring', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+  });
+
+  function spyCreation() {
+    const creation = { reset: vi.fn(), dispose: vi.fn() } as unknown as CreationData;
+    const factory = vi.fn<(input: CreationInput<FakeConn>) => CreationData>(() => creation);
+    return { creation, factory };
+  }
+
+  it('carries an inert creation hub when no factory is given', () => {
+    h = harness();
+    expect(h.session.creation.connected.value).toBe(false);
+    expect(h.session.creation.state.value).toBeNull();
+    expect(h.session.creation.feed.entries.value).toEqual([]);
+    expect(() => h.session.creation.reset()).not.toThrow();
+  });
+
+  it('builds the hub once with refs that follow the connection, identity, characters and jobs', async () => {
+    const { creation, factory } = spyCreation();
+    const gameJobs = [] as never[];
+    const game = { reset: vi.fn(), dispose: vi.fn(), llmJobs: ref(gameJobs) } as unknown as GameData;
+    h = harness({ creation: factory, game: () => game });
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(h.session.creation).toBe(creation);
+
+    const input = factory.mock.calls[0][0];
+    expect(input.conn).toBe(h.conn);
+    expect(input.status).toBe(h.status);
+    expect(input.identity.value).toBeNull();
+    expect(input.charactersApplied.value).toBe(false);
+    expect(input.activeCharacterId.value).toBeNull();
+    expect(input.activeCharacter.value).toBeNull();
+    expect(input.llmJobs).toBe(game.llmJobs);
+
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 9n });
+    await flush();
+    expect(input.identity.value).toBe('me');
+    expect(input.activeCharacterId.value).toBe(9n);
+    const chars = h.binding(queries.characters(7n));
+    chars.rows.value = [makeCharacter(9n, 1n)];
+    chars.applied.value = true;
+    expect(input.charactersApplied.value).toBe(true);
+    expect(input.characters.value.map((c) => c.id)).toEqual([9n]);
+    expect(input.activeCharacter.value?.id).toBe(9n);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('logout resets the creation hub once', async () => {
+    const { creation, factory } = spyCreation();
+    h = harness({ creation: factory });
+    h.connect();
+    h.setPlayer({ userId: 7n });
+    await h.session.logout();
+    expect(creation.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispose disposes the creation hub once', () => {
+    const { creation, factory } = spyCreation();
+    h = harness({ creation: factory });
+    h.session.dispose();
+    expect(creation.dispose).toHaveBeenCalledTimes(1);
   });
 });
 

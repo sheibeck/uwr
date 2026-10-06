@@ -16,7 +16,7 @@ export type SplashState =
 export type AppScreen =
   | { kind: 'splash'; state: SplashState }
   | { kind: 'picker' }
-  | { kind: 'noCharacters' }
+  | { kind: 'creation' }
   | { kind: 'frame' };
 
 export interface ScreenInput {
@@ -31,6 +31,8 @@ export interface ScreenInput {
   charactersApplied: boolean;
   characterCount: number;
   activeCharacterLoaded: boolean;
+  /** The active character is loaded and placed (its locationId is not 0). */
+  activeCharacterPlaced: boolean;
   /** The my_player or characters subscription reported an error. */
   bindingFailed: boolean;
   /** Connected but the session data has not arrived within the signing-in watchdog. */
@@ -56,11 +58,14 @@ export function deriveScreen(input: ScreenInput): AppScreen {
   // watchdog expired, so the splash never spins forever. Loaded data is never torn down.
   const waiting = input.bindingFailed || input.signInTimedOut ? splash('signInFailed') : splash('signingIn');
   if (!input.playerLoaded || input.userId === null) return waiting;
-  // The "no characters" note must never flash before the rows arrive.
+  // The creation screen must never flash before the rows arrive.
   if (!input.charactersApplied) return waiting;
   if (input.activeCharacterId !== null) {
-    return input.activeCharacterLoaded ? { kind: 'frame' } : waiting;
+    if (!input.activeCharacterLoaded) return waiting;
+    // A character that exists but is not placed yet keeps the player in creation until the
+    // first region places it.
+    return input.activeCharacterPlaced ? { kind: 'frame' } : { kind: 'creation' };
   }
-  if (input.characterCount === 0) return { kind: 'noCharacters' };
+  if (input.characterCount === 0) return { kind: 'creation' };
   return { kind: 'picker' };
 }

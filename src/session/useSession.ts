@@ -32,6 +32,11 @@ import type { GameData } from '../game/context';
 import { createGameData } from '../game/gameData';
 import type { GameConn, GameInput } from '../game/gameData';
 import { gameQueries } from '../game/queries';
+import { createInertCreation } from '../creation/creationContext';
+import type { CreationData } from '../creation/creationContext';
+import { createCreationData } from '../creation/creationData';
+import type { CreationConn, CreationInput } from '../creation/creationData';
+import { creationQueries } from '../creation/queries';
 
 export interface SessionAuth {
   getStoredIdToken(): string | null;
@@ -77,6 +82,8 @@ export interface SessionDeps<C extends SessionConn> {
   reloadPage(): void;
   /** Builds the game data hub. Omitted: the session carries an inert hub. */
   game?: (input: GameInput<C>) => GameData;
+  /** Builds the creation hub. Omitted: the session carries an inert hub. */
+  creation?: (input: CreationInput<C>) => CreationData;
 }
 
 export const SELECT_TIMEOUT_MS = 8000;
@@ -96,6 +103,8 @@ export interface Session {
   readonly versionPrompt: ComputedRef<boolean>;
   /** The game data hub (feed, rails, hotbar data); reset on logout. */
   readonly game: GameData;
+  /** The creation interview hub (feed, step data, actions); reset on logout. */
+  readonly creation: CreationData;
   start(): void;
   signIn(): void;
   selectCharacter(characterId: bigint): void;
@@ -124,7 +133,7 @@ export function defaultQueries(): SessionQueries {
  * the generated bindings and the stored-session helpers.
  */
 export function createDefaultSession(options: { callbackError: unknown }): Session {
-  return createSession<SessionConn & GameConn>(
+  return createSession<SessionConn & GameConn & CreationConn>(
     {
       controller: createConnectionController(defaultControllerDeps()),
       auth: { getStoredIdToken, getStoredEmail, clearAuthSession, beginSpacetimeAuthLogin },
@@ -136,6 +145,11 @@ export function createDefaultSession(options: { callbackError: unknown }): Sessi
       game: (input) =>
         createGameData(
           { bind: bindTable, bindEvent: bindEventTable, queries: gameQueries() },
+          input,
+        ),
+      creation: (input) =>
+        createCreationData(
+          { bind: bindTable, bindEvent: bindEventTable, queries: creationQueries() },
           input,
         ),
     },
@@ -310,6 +324,7 @@ function build<C extends SessionConn>(
     charactersApplied: charactersBinding.value?.applied.value ?? false,
     characterCount: characterRows.value.length,
     activeCharacterLoaded: activeCharacter.value !== null,
+    activeCharacterPlaced: activeCharacter.value !== null && activeCharacter.value.locationId !== 0n,
   }));
 
   const screen = computed(() =>
@@ -385,6 +400,19 @@ function build<C extends SessionConn>(
         regions: region.rows,
       })
     : createInertGame();
+
+  const creation: CreationData = deps.creation
+    ? deps.creation({
+        conn: controller.conn,
+        status: controller.status,
+        identity: computed(() => player.value?.id ?? null),
+        charactersApplied: computed(() => charactersBinding.value?.applied.value ?? false),
+        characters,
+        activeCharacterId,
+        activeCharacter,
+        llmJobs: game.llmJobs,
+      })
+    : createInertCreation();
 
   const pickerPendingId = ref<bigint | null>(null);
   const pickerFailed = ref(false);
@@ -481,6 +509,7 @@ function build<C extends SessionConn>(
     disposeBindings();
     // No stale rows or feed lines may reach the next sign-in.
     game.reset();
+    creation.reset();
     loginSentFor = null;
     authFailed.value = false;
     redirecting.value = false;
@@ -499,6 +528,7 @@ function build<C extends SessionConn>(
     nextRetryAt: controller.nextRetryAt,
     versionPrompt,
     game,
+    creation,
     start() {
       controller.connect();
     },
@@ -515,6 +545,7 @@ function build<C extends SessionConn>(
       clearSelectTimer();
       disposeBindings();
       game.dispose();
+      creation.dispose();
       controller.dispose();
     },
   };
