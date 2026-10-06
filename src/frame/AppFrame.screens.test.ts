@@ -403,6 +403,11 @@ describe('combat (48-05)', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
     await settle();
     expect(reducers.setCombatTarget).toHaveBeenCalledWith({ characterId: 1n, enemyId: 9n });
+    // The line follows the server: nothing is announced until the character row echoes the target.
+    expect(status.text()).toBe('');
+    const character = game.character as Ref<Record<string, unknown>>;
+    character.value = { ...character.value, combatTargetEnemyId: 9n };
+    await settle();
     expect(status.text()).toBe('Target: <img src=x onerror=alert(1)>');
     expect(status.find('img').exists()).toBe(false);
   });
