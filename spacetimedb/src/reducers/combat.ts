@@ -2701,13 +2701,19 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
 
-        // Life drain: heal the caster
+        // Life drain: heal the caster. The heal lands in the same round as the hits, so the caster's
+        // feed reports the hp it actually restored; without the line the bar moved less than the
+        // damage lines said, with nothing to explain it (261006-hbk).
         if (effect.ownerCharacterId) {
           const caster = ctx.db.character.id.find(effect.ownerCharacterId);
           if (caster && caster.hp > 0n) {
             const healAmt = (dmg * DOT_LIFE_DRAIN_PERCENT) / 100n > 0n ? (dmg * DOT_LIFE_DRAIN_PERCENT) / 100n : 1n;
             const newHp = caster.hp + healAmt > caster.maxHp ? caster.maxHp : caster.hp + healAmt;
             ctx.db.character.id.update({ ...caster, hp: newHp });
+            if (newHp > caster.hp) {
+              appendPrivateEvent(ctx, caster.id, caster.ownerUserId, 'heal',
+                `Your ${effect.sourceAbility ?? 'lingering effect'} heals you for ${newHp - caster.hp}.`);
+            }
           }
         }
       }
