@@ -215,7 +215,7 @@ Plans:
   4. The round number, its deadline and each player's chosen action are in public tables the client can subscribe to (generated bindings updated).
   5. The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget; there is no fixed every-N-rounds summary.
 
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans executed
 
 Plans:
 **Wave 1**
@@ -246,7 +246,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 46.1-09-PLAN.md — Local publish with --break-clients (no clear, key checked), bindings regeneration, client safety, phase gate, Phase 48 contract, deferred owner checklist
+- [x] 46.1-09-PLAN.md — Local publish with --break-clients (no clear, key checked), bindings regeneration, client safety, phase gate, Phase 48 contract, deferred owner checklist
 
 **Notes**:
 
@@ -430,7 +430,7 @@ Plans:
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
-| 46.1. Round-Based Combat Engine | v3.0 | 8/9 | In Progress|  |
+| 46.1. Round-Based Combat Engine | v3.0 | 9/9 | In Progress|  |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 12/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
