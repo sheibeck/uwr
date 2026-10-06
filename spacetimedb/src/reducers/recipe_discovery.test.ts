@@ -358,6 +358,62 @@ describe('a recipe and its output are stored once and shared', () => {
   });
 });
 
+// WR-03 (iteration 2 review): materials are matched by name, so a quest item, gear or junk that
+// shares a material's name must never become a recipe input, and the first holder's template id
+// must never be stored in a recipe every later discoverer shares.
+describe('only real materials count as recipe inputs', () => {
+  const IMPOSTOR = { questShard: 20n, gearCloth: 21n, junkStone: 22n };
+  const withImpostors = () => [
+    ...baseTemplates(),
+    material(IMPOSTOR.questShard, 'Iron Shard', 1n, 2n, { slot: 'quest', stackable: false }),
+    material(IMPOSTOR.gearCloth, 'Scrap Cloth', 1n, 1n, { slot: 'chest', armorType: 'cloth', stackable: false }),
+    material(IMPOSTOR.junkStone, 'Stone', 1n, 1n, { slot: 'junk', isJunk: true }),
+  ];
+
+  it('a quest item named like a material is not a recipe input and is never consumed', () => {
+    // The impostor has the lowest id and 3 units, the real Iron Shard has 3 too; the cloth is real.
+    const ctx = newCtx({
+      bag: [[IMPOSTOR.questShard, 3n], [ID.cloth, 2n]],
+      templates: withImpostors(),
+    });
+    discover(ctx);
+    expect(lines(ctx)).toEqual(['You discover nothing new.']);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(0);
+    expect(countOf(ctx, 1n, IMPOSTOR.questShard)).toBe(3n);
+  });
+
+  it('gear and junk with a material name are ignored too', () => {
+    const ctx = newCtx({
+      bag: [[ID.shard, 3n], [IMPOSTOR.gearCloth, 4n], [IMPOSTOR.junkStone, 5n]],
+      templates: withImpostors(),
+    });
+    discover(ctx);
+    expect(lines(ctx)).toEqual(['You discover nothing new.']);
+    expect(rows(ctx, 'recipe_template')).toHaveLength(0);
+  });
+
+  it('the shared recipe holds the real material ids even when the first discoverer also holds an impostor', () => {
+    const ctx = newCtx({
+      bag: [[IMPOSTOR.questShard, 3n], [ID.shard, 3n], [ID.cloth, 2n]],
+      bag2: [[ID.shard, 3n], [ID.cloth, 2n]],
+      templates: withImpostors(),
+    });
+    discover(ctx);
+    const dagger = recipeByName(ctx, 'Iron Shard Dagger');
+    expect(dagger.req1TemplateId).toBe(ID.shard);
+    expect(dagger.req2TemplateId).toBe(ID.cloth);
+    // A later discoverer without the impostor can learn it and craft it.
+    ctx.sender = bob;
+    discover(ctx, 2n);
+    craft(ctx, { characterId: 2n, recipeTemplateId: dagger.id });
+    expect(rows(ctx, 'item_instance').some((i) => i.ownerCharacterId === 2n && i.templateId === dagger.outputTemplateId)).toBe(true);
+    // The first discoverer's quest item was not touched by their own craft either.
+    ctx.sender = alice;
+    craft(ctx, { characterId: 1n, recipeTemplateId: dagger.id });
+    expect(countOf(ctx, 1n, IMPOSTOR.questShard)).toBe(3n);
+  });
+});
+
 describe('the output level is the area level', () => {
   it('a level 3 station makes new keys at level 3 and leaves the level 1 rows alone', () => {
     const ctx = newCtx();

@@ -3,6 +3,7 @@ import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, getCraftQualityStatBonus,
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCOVER } from '../data/recipe_rules';
 import type { BagMaterial } from '../data/recipe_rules';
+import { isQuestItemTemplate } from '../data/item_rules';
 
 export const registerItemCraftingReducers = (deps: any) => {
   const {
@@ -48,6 +49,10 @@ export const registerItemCraftingReducers = (deps: any) => {
     for (const [templateId, count] of held) {
       const template = ctx.db.item_template.id.find(templateId);
       if (!template) continue;
+      // Only a real material counts, never a quest item, gear or junk that shares a material's name
+      // (materials are matched by name). Otherwise craft_recipe would consume it, and the first
+      // holder's template id would be stored in a recipe every later discoverer shares.
+      if (template.slot !== 'material' || isQuestItemTemplate(template)) continue;
       bag.push({
         templateId,
         name: template.name,
