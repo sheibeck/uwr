@@ -222,7 +222,6 @@ onBeforeUnmount(stopRotation);
 
 .feed-lines {
   width: 100%;
-  max-width: 760px;
   margin-top: auto;
   display: flex;
   flex-direction: column;
@@ -231,7 +230,6 @@ onBeforeUnmount(stopRotation);
 
 .feed-tail {
   width: 100%;
-  max-width: 760px;
   margin-top: 8px;
 }
 

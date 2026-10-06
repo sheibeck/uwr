@@ -296,8 +296,6 @@ function label(state: SlotState): string {
   gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-neutral-700) transparent;
 }
 
 .slot {

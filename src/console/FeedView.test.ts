@@ -411,8 +411,8 @@ describe('FeedView source', () => {
     expect(source).toContain('buildFeedLines');
   });
 
-  it('uses the spec line width, bottom anchoring and wrap-safe anchoring', () => {
-    expect(source).toContain('max-width: 760px');
+  it('fills the column width (owner try-out), bottom anchors and anchors wrap-safe', () => {
+    expect(source).not.toContain('max-width: 760px');
     expect(source).toContain('margin-top: auto');
     expect(source).toContain('overflow-anchor: auto');
   });

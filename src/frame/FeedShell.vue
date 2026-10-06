@@ -25,12 +25,11 @@ const props = defineProps<{ compact?: boolean }>();
   flex-direction: column;
 }
 
-/* 760px is the content width: with the global border-box the 64px of side padding is added so the
-   input lines up with the feed lines. The hotbar row sits at the top of this section. */
+/* The composer fills the center column like the feed lines (owner try-out 2026-10-05, supersedes the
+   760px measure), with the same 32px side padding. The hotbar row sits at the top of this section. */
 .composer {
   flex: none;
   width: 100%;
-  max-width: calc(760px + 64px);
   padding: 8px 32px 16px;
   display: flex;
   flex-direction: column;
@@ -38,7 +37,6 @@ const props = defineProps<{ compact?: boolean }>();
 }
 
 .compact .composer {
-  max-width: none;
   padding: 8px 16px;
   background: color-mix(in srgb, var(--color-surface) 40%, transparent);
 }

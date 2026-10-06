@@ -50,10 +50,20 @@ describe('frame dimensions', () => {
   it('ContextRail is 288px wide', () => expectDecl('ContextRail.vue', '.context-rail', 'width', '288px'));
   it('HeaderBar is 48px high', () => expectDecl('HeaderBar.vue', '.header-bar', 'height', '48px'));
   it('Drawer covers the center and right columns', () => expectDecl('Drawer.vue', '.drawer', 'inset', '0 0 0 252px'));
-  it('the feed line is capped at 760px', () => {
+  // Owner try-out 2026-10-05: the 760px reading measure is gone; feed lines, composer and hotbar fill the center column.
+  it('the feed lines fill the center column (no max-width measure)', () => {
     const file = `${SRC}/console/FeedView.vue`;
     const decls = sfcStyleBlocks(read(file)).flatMap((block) => parseDecls(block, rel(file)));
-    expect(declValue(decls, '.feed-lines', 'max-width')).toBe('760px');
+    expect(declValue(decls, '.feed-lines', 'width')).toBe('100%');
+    expect(declValue(decls, '.feed-lines', 'max-width')).toBeUndefined();
+    expect(declValue(decls, '.feed-tail', 'max-width')).toBeUndefined();
+  });
+  it('the composer section fills the center column (no max-width measure)', () => {
+    const file = `${SRC}/frame/FeedShell.vue`;
+    const decls = sfcStyleBlocks(read(file)).flatMap((block) => parseDecls(block, rel(file)));
+    expect(declValue(decls, '.composer', 'width')).toBe('100%');
+    expect(declValue(decls, '.composer', 'max-width')).toBeUndefined();
+    expect(declValue(decls, '.compact .composer', 'max-width')).toBeUndefined();
   });
   it('TabBar is 64px plus the bottom safe area', () =>
     expectDecl('TabBar.vue', '.tab-bar', 'height', 'calc(64px + env(safe-area-inset-bottom))'));

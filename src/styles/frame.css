@@ -3,6 +3,21 @@
 body { font-size: 14px; line-height: 1.5; }
 #app { min-height: 100dvh; }
 
+/* Dark scrollbars (owner try-out 2026-10-05): one shared rule for every scrollable surface (feed log,
+   drawer and sheet bodies, rails, hotbar strip, the page). Standard properties first; the webkit
+   rules cover Chromium builds that ignore scrollbar-color. Surfaces that hide their bar
+   (scrollbar-width: none on the chip row and the mobile hotbar) override this with a more
+   specific selector. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-700) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--color-neutral-700); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-600); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
 .card-title { font-size: 20px; font-weight: 500; line-height: 1.12; }
 .tag, .tag-accent, .tag-outline, .tag-neutral { font-size: 12px; }
 .card-body { font-size: 14px; }

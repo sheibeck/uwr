@@ -57,10 +57,11 @@ describe('FeedShell', () => {
     expect(wrapper.classes()).toContain('compact');
   });
 
-  it('renders FeedView, which bottom-anchors a 760px line with a mobile padding variant', () => {
+  it('renders FeedView, which bottom-anchors a full-width line with a mobile padding variant', () => {
     expect(read('FeedShell.vue')).toContain('FeedView');
     const source = readFileSync(resolve(process.cwd(), 'src/console/FeedView.vue'), 'utf8');
-    expect(source).toContain('max-width: 760px');
+    expect(source).not.toContain('max-width: 760px');
+    expect(read('FeedShell.vue')).not.toContain('max-width');
     expect(source).toContain('margin-top: auto');
     expect(source).toContain('padding: 16px 32px');
     expect(source).toContain('padding: 4px 16px 8px');
