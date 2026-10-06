@@ -74,6 +74,11 @@ export function parseAffixSnapshot(json: string): AffixSnapshot[] {
  * goes through addItemToInventory (merges onto an existing stack, else a plain instance); any other
  * template gets a new instance carrying the stored quality, craft quality, display name and flags,
  * plus one item_affix row per valid snapshot entry. The caller has already checked room and gold.
+ *
+ * Assumption (stackable path): a stackable template never carries quality, craft quality, a display
+ * name, flags or affixes today (only gear is crafted, named or given affixes), so merging onto the
+ * first stack loses nothing. If a stackable ever gains any of those, restore it as its own instance
+ * like the non-stackable path instead.
  */
 export function restoreBuyback(
   ctx: any,

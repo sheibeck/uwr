@@ -1,6 +1,6 @@
 // Backpack capacity rule: the one place the bag size and the slot-count rule live. Used by
-// helpers/items.ts (buy, buy-back and craft gates through getInventorySlotCount and
-// hasInventorySpace) and by the client's slot count and full-bag reasons, so screen and server
+// helpers/items.ts (the buy and buy-back gates through getInventorySlotCount and
+// hasInventorySpace; craft_recipe has no capacity gate) and by the client's slot count and full-bag reasons, so screen and server
 // agree. No imports, so the client can reach it through @game-data. Browser-safe, ES2020 only,
 // never throws.
 
