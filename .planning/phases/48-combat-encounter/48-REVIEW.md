@@ -2,157 +2,63 @@
 phase: 48-combat-encounter
 reviewed: 2026-10-06T00:00:00Z
 depth: standard
-files_reviewed: 41
+iteration: 3
+files_reviewed: 5
 files_reviewed_list:
-  - spacetimedb/src/views/combat.ts
-  - src/combat/EncounterPanel.vue
-  - src/combat/EncounterStrip.vue
-  - src/combat/HostileCard.vue
-  - src/combat/InCombatTag.vue
-  - src/combat/RoundRow.vue
-  - src/combat/ThreatBlock.vue
-  - src/combat/ally.ts
-  - src/combat/choice.ts
-  - src/combat/combatFeed.ts
-  - src/combat/cycling.ts
-  - src/combat/difficulty.ts
-  - src/combat/emphasis.ts
-  - src/combat/hostiles.ts
-  - src/combat/roundClock.ts
-  - src/combat/roundCooldown.ts
-  - src/combat/threat.ts
   - src/combat/useCombatController.ts
-  - src/combat/useDamageFlash.ts
-  - src/combat/windup.ts
-  - src/console/FeedLine.vue
-  - src/console/FeedView.vue
-  - src/console/feedStore.ts
-  - src/console/lines.ts
-  - src/frame/AppFrame.vue
-  - src/frame/ContextRail.vue
-  - src/frame/FeedShell.vue
-  - src/frame/HeaderBar.vue
-  - src/frame/MoreSheet.vue
-  - src/frame/Sheet.vue
-  - src/frame/VitalsRail.vue
-  - src/frame/VitalsStrip.vue
-  - src/frame/tabs.ts
-  - src/frame/useScreens.ts
+  - src/combat/useCombatController.test.ts
   - src/game/context.ts
   - src/game/gameData.ts
-  - src/game/queries.ts
-  - src/hotbar/HotbarRow.vue
-  - src/input/Composer.vue
-  - src/rails/PartyBlock.vue
-  - src/rails/party.ts
+  - src/game/gameData.test.ts
 findings:
   critical: 0
-  warning: 4
+  warning: 1
   info: 5
-  total: 9
+  total: 6
 status: issues_found
 ---
 
-# Phase 48: Code Review Report
+# Phase 48: Code Review Report (iteration 3)
 
 **Reviewed:** 2026-10-06
 **Depth:** standard
-**Files Reviewed:** 41
+**Files Reviewed:** 5
 **Status:** issues_found
 
 ## Summary
 
-The 41 files were read in full. In addition, `net/bindTable.ts`, `game/keyedBinding.ts`, `game/serverClock.ts`, `hotbar/useCooldownTicker.ts`, the SpacetimeDB SDK's `SubscribeApplied` handler in `node_modules/spacetimedb/src/sdk/db_connection_impl.ts`, and the server's `set_combat_target`, `appendPrivateEvent` and `handleCombatNarrationResult` were traced for cross-file facts. The related vitest suites (src/combat, console, frame, game, hotbar, rails, input: 72 files, 1538 tests) pass, and `vue-tsc --noEmit` is clean.
+This is the final re-review after commit b45005df (WR-05 fix). I read the diff (`b45005df^..b45005df`) and traced `combat.active`, `fightRounds`, `createKeyed`, `deriveScreen` and `App.vue`/`AppFrame.vue` to see when the controller is constructed relative to the combat bindings. `vitest run src/combat src/game` passes (22 files, 407 tests) and `vue-tsc -b` is clean.
 
-The security focus areas hold up:
+Verdicts:
 
-- **`my_combat_aggro`** reaches `aggro_entry` only through chained index lookups (`player.id.find` -> `character.by_owner_user` -> `combat_participant.by_character` -> `aggro_entry.by_combat`). No `.iter()` scan is used, every index exists in `schema/tables.ts`, and the row type matches the `u64` columns. A subscriber sees only fights their own characters take part in, and pet rows are dropped.
-- **XSS:** there is no `v-html`, `innerHTML` or equivalent in any reviewed file. Every server or model string (enemy names, ability names, narration, damage lines) is rendered through `{{ }}` or title and aria attributes. `emphasis.ts` splits into three plain strings.
-- **Acting identity:** every reducer call takes `characterId` from `game.characterId`. The only other identity sent is `targetCharacterId` (the ally), and the server's `requireCharacterOwnedBy` guards the acting one. `set_combat_target` validates the enemy against the caller's combat server-side.
-- **Cleanup:** the round-clock ticker and watchers are scope-bound and `dispose()` removes the single document keydown listener. `HotbarRow`, `Composer` and `Sheet` remove their listeners on unmount. The damage-flash timers, the hotbar flash timers, the ResizeObserver (disconnected when the root `v-if` drops and on unmount) and the narrative linger timer (cleared on a new fight, on `reset()` and on scope dispose) are all released.
-- **Screen lock and `'encounter'` lifecycle:** `useScreens` closes foreign screens on lock and the encounter sheet on unlock. `syncLayout` clears `'encounter'` and `'more'` when crossing to desktop.
-
-No BLOCKER-class defect was found. One real ordering bug (WR-01) makes the "initial snapshot is only remembered" wind-up rule fail against the real subscription plumbing, and it is hidden by tests that use the opposite ordering. The other warnings are robustness gaps.
+- **Type safety and defaults: OK.** `roundsApplied` is a required member of `CombatData`. Its inert default is `constant(false)` and `gameData` supplies `computed(() => fightRounds.current.value?.applied.value ?? false)`, the same pattern as `castsApplied`. The only places that build a `CombatData` are `createInertCombatData`, `createGameData` and test fakes that spread the inert block, so every consumer still type-checks. The inert false means the sampler only runs its fresh-start branch, so a hub-less controller never samples a stale row through the applied branch.
+- **WR-01: no regression.** The `applied` branch relies on the WR-01 ordering (rows published, then the flag flips). A snapshot therefore arrives while `roundsApplied` is false. A new fight's round that arrives through a keyed promotion (the promoted binding is already applied) is correctly sampled as live.
+- **WR-03: no regression.** A round that arrives after the round binding applied samples, so the ahead-clock lockout stays fixed for Round 2 onward. A fight that starts while the controller sees `active === false` still samples Round 1, so a client clock that runs ahead does not lock the round controls at the start of a fight.
+- **WR-05: only partly resolved.** The sampler is correct for later-round snapshots and for a controller constructed with `active === true`, but it does not discriminate the main reload case in production. See WR-06.
 
 ## Warnings
 
-### WR-01: Wind-up snapshot is taken before the rows land, so every existing cast is re-announced on a mid-fight load
+### WR-06: `seenInactive` is true on every reload, so a Round 1 snapshot is still sampled (WR-05 residual is wider than documented)
 
-**File:** `src/combat/combatFeed.ts:61-114` (root cause in `src/net/bindTable.ts:111-118`)
-**Issue:** The casts watcher is `flush: 'sync'` over `[combatId, castsApplied, casts]` and treats the first `applied === true` pass as the snapshot (`snapshotTaken = true`, ids added to `seenCasts`). In the real SDK the order inside `SubscribeApplied` is: cache updated, then `subscription.emitter.emit('applied')`, then the row callbacks are dispatched (`db_connection_impl.ts` ~L968-971). In `bindTable.onApplied` the code runs `applied.value = true; failed.value = false; refresh();`. So:
+**File:** `src/combat/useCombatController.ts:166-173` (and `src/game/gameData.ts:600`, `src/session/deriveScreen.ts:62-64`)
+**Issue:** `seenInactive` is latched by an `immediate` sync watcher on `combat.active`. `combat.active` is `ownParticipantRows.length > 0`, and the own-participant binding is keyed by the character id. `AppFrame` (the only place the controller is created, `AppFrame.vue:64`) mounts as soon as the character row has loaded (`deriveScreen` returns `frame` on `activeCharacterLoaded`). That is the same tick the character key is set and the `combat_participant` binding is attached, which is a network round trip before its snapshot arrives. So on a reload, a reconnect into a new controller, or selecting a character who is mid-fight, the controller is always constructed with `active === false`, and `seenInactive` becomes true immediately. The participant snapshot then flips `active` to true, the `combat_round` binding attaches, and its Round 1 snapshot (with `roundsApplied` still false) satisfies `seenInactive && roundNumber === 1n`. The snapshot is therefore sampled, which is exactly the WR-05 scenario.
 
-1. `applied.value = true` makes the sync watcher fire while `casts` is still `[]` (the binding's rows have not been refreshed yet). The snapshot is recorded empty.
-2. `refresh()` then fills `rows` with the fight's existing casts. They are all "new" ids, so every one of them gets a `windup:{id}` block appended to the feed.
+The fix report's residual limit says only "a late joiner that sees Round 1 of a fight begun elsewhere". It is not limited to late joiners. It covers every entry into a fight that is still in Round 1, which is the common reload case. The new test "does not sample a Round 1 snapshot delivered to a controller that starts in combat" passes only because the fake starts with `active = true`; production never constructs the controller that way for this path. So the test does not cover the scenario it is named for.
 
-Visible effect: a mid-fight reload, a late join, or any open that already has active casts shows a fresh "X winds up Y" block for each. They are stamped at the server-clock "now", or at the next-round header, which contradicts the documented rule (UI-SPEC and the file header). The unit tests in `combatFeed.test.ts` (L93-L104) set `casts` before flipping `castsApplied`, which is the opposite of the production ordering, so they cannot catch this.
+Impact is bounded and self-correcting. The error is at most one round (`ROUND_TIMER_MICROS`, 10 s). `sample()` sets skew from a row up to one round old, so a correct-clock client shows up to `age` extra seconds, and the hotbar, Ready and Flee stay enabled after the round has expired. The server stays authoritative, so the result is a wrong countdown and a refused action, not corrupt state. Round 2 arrives after `roundsApplied`, so it re-samples and the error ends. Later-round reload snapshots are not sampled, so only a Round 1 reload is affected. Not worse than one round, so it is a Warning and not a Critical, but the documented fix claim ("resolved") is not accurate.
 
-**Fix:** Make `bindTable` publish rows before the flag, so a sync watcher that sees `applied` also sees the snapshot:
-```ts
-.onApplied(() => {
-  if (currentConn !== conn) { /* unchanged stale path */ return; }
-  refresh();            // rows first
-  applied.value = true; // then the flag
-  failed.value = false;
-})
-```
-Add a `gameData`-level test with a fake conn that flips `applied` before delivering rows. Alternatively, make the snapshot robust in `combatFeed.ts` by deferring the snapshot until the next microtask or until `casts` is non-empty.
+**Fix:** Latch `seenInactive` only when the own-participant binding has applied and is empty, i.e. "the server told me I am not in a fight". A reload never passes through that state; a fight that starts while watching does.
+1. Add `participantApplied: Readonly<Ref<boolean>>` to `CombatData` (inert `constant(false)`, `gameData`: `computed(() => ownParticipant.current.value?.applied.value ?? false)`).
+2. In the controller: `watch(() => combat.participantApplied.value && !combat.active.value, (idle) => { if (idle) seenInactive = true; }, { flush: 'sync', immediate: true })`.
+3. Add a test that starts the controller with `active = false` and `participantApplied = false`, then sets `active = true` and delivers `open(1n, SERVER_MS - 5_000)`; `skewMicros` must stay 0. Keep the existing fresh-start tests but set `participantApplied = true` while `active` is false.
 
-### WR-02: A refused or failed target request leaves `lastRequested` and the "Target: {name}" status line wrong
-
-**File:** `src/combat/useCombatController.ts:55-72`
-**Issue:** `send()` sets `lastRequested = enemyId` and `targetStatus = 'Target: {name}'` before the reducer resolves. `set_combat_target` is server-validated and can refuse ('Enemy not in combat'; the enemy may have died or the fight ended between the click and the call). In that case the character's real `combatTargetEnemyId` is unchanged, but:
-- the screen-reader status line has already announced a target that was never set. This is optimistic state, which CLAUDE.md ("Let subscriptions drive state") and the phase's "no optimistic state" rule say to avoid;
-- `lastRequested` becomes the cycle base, so the next Tab skips relative to a target the server never accepted. `nextTargetId` prefers `lastRequested` over `current` whenever it is still living.
-
-The `catch` only logs, and the "server writes refusals into the feed" comment covers refusals that return normally, not rejections.
-
-**Fix:** Roll back on rejection (only if nothing newer was requested), and ideally derive the announcement from the confirmed target:
-```ts
-} catch (error) {
-  if (lastRequested === enemyId) {
-    lastRequested = null;
-    targetStatus.value = '';
-  }
-  console.warn('[combat] set_combat_target failed', error);
-}
-```
-Better still, drive `targetStatus` from a `watch` on `game.character.value?.combatTargetEnemyId` so the announcement follows the server echo.
-
-### WR-03: Combat gating depends on a server-clock estimate that is only sampled from feed events
-
-**File:** `src/combat/roundClock.ts:25-41`, `src/combat/useCombatController.ts:113-119`, `src/game/gameData.ts:151-156`
-**Issue:** `resolving` (and with it `inert` for hotbar slots, Ready and Flee) is computed as `timerExpiresAtMicros - clock.nowMicros() <= 0`. `clock.nowMicros()` is `Date.now()*1000 + skew`, and skew is updated only by `onEvent` (feed rows). After a mid-fight reload, or on a quiet fight start, skew is 0 until the first event row arrives. A client whose clock is ahead of the server by more than the time left in the open round (several seconds is common on unsynced machines) shows "Resolving…" and disables all round controls while the round is actually open. This can cost a round before the next event samples the clock. The server remains authoritative, so the harm is a client-side lockout, not bad state.
-
-**Fix:** Do not let the estimate alone disable input. Either keep controls enabled and let the server refuse, or sample the clock from live round rows. For the sampling option, sample only rows first seen after the `combat_round` binding applied; the first snapshot's rows are up to one round old and would bias the skew. For example, in the rounds watcher:
-```ts
-if (appliedBefore && round.state === 'action_select' && round.startedAtMicros !== 0n) clock.sample(round.startedAtMicros);
-```
-
-### WR-04: Spurious "ready" flash on every cooling slot when combat starts or ends
-
-**File:** `src/hotbar/HotbarRow.vue:150-175` (the `remaining` unit switch at L116-L134)
-**Issue:** The ready-flash watcher fires when a slot's `remaining` goes from `> 0` to `<= 0`. `remaining` changes unit with `inCombat`: wall-clock microseconds out of combat, `Number(roundsRemaining)` in combat.
-- **Combat start:** a slot still on a wall-clock cooldown (for example 12_000_000) moves to `roundsRemaining`, usually 0. The watcher sees `> 0` then `0` and flashes the "ability ready" ring on every such slot.
-- **Combat end:** a slot with rounds left moves to a wall-clock value that is commonly 0, so it flashes again.
-
-Neither is a real cooldown completion, so the flash is a false "ready" signal. It is suppressed only under reduced motion.
-
-**Fix:** Reset the baseline when the mode changes. For example, key the comparison on `inCombat`, and skip the flash when the previous snapshot was taken in the other mode:
-```ts
-watch(
-  () => [inCombat.value, slotStates.value.map(...)] as const,
-  ([mode, next], [prevMode, previous] = [mode, []]) => {
-    if (mode !== prevMode) return;
-    /* existing comparison */
-  },
-);
-```
+If the change is deferred, at least correct the fix report to say the limit covers any entry into a Round 1 fight (including reload), and replace the misleading "starts in combat" test with one that constructs the controller with `active = false`.
 
 ## Info
 
 ### IN-01: `isTextField` and `compareIds` are copy-pasted across files
 
-**File:** `src/combat/useCombatController.ts:25-37`, `src/hotbar/HotbarRow.vue:225-232`, `src/combat/hostiles.ts:97-99`
+**File:** `src/combat/useCombatController.ts:25-37`, `src/hotbar/HotbarRow.vue:236-243`, `src/combat/hostiles.ts:97-99`
 **Issue:** `isTextField` is byte-identical in the controller and `HotbarRow`, and Composer-style checks exist elsewhere. `compareIds` is duplicated in `hostiles.ts` and the controller. The two keyboard handlers must agree on what counts as typing, so drift between the copies is a latent bug.
 **Fix:** Move `isTextField` (and `compareIds`) to one shared module, for example `src/input/focus.ts`, and import it in both places.
 
@@ -185,3 +91,7 @@ watch(
 _Reviewed: 2026-10-06_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+## Post-loop follow-up (orchestrator, 2026-10-06)
+
+The --auto loop reached its 3-iteration cap with WR-06 open. WR-06 was then fixed exactly as prescribed in commit d2d74a7b: `combat.participantApplied` added, and `seenInactive` now latches only when the server has confirmed the player is not in a fight. Two tests were added, including the production reload order. The gate passed: 1882 client tests, vue-tsc and build. The fix has not been through another review, so this file keeps `status: issues_found` until the next review. See 48-REVIEW-FIX.md (iteration 3).
