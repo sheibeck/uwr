@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, provide } from 'vue';
 import { CREATION_KEY, createInertCreation } from './creation/creationContext';
 import CreationView from './creation/CreationView.vue';
 import { GAME_KEY, createInertGame } from './game/context';
+import { LEDGER_KEY, createInertLedger } from './ledger/ledgerContext';
 import AppFrame from './frame/AppFrame.vue';
 import CharacterPicker from './session/CharacterPicker.vue';
 import SplashScreen from './session/SplashScreen.vue';
@@ -19,6 +20,8 @@ const session: Session =
 provide(GAME_KEY, session.game ?? createInertGame());
 // The creation interview hub is session-owned (its feed outlives the view); same fallback.
 provide(CREATION_KEY, session.creation ?? createInertCreation());
+// The ledger hub (items, vendor, recipes, perks) is session-owned too; same inert fallback.
+provide(LEDGER_KEY, session.ledger ?? createInertLedger());
 
 // Plain-object refs are not auto-unwrapped in the template: alias them here.
 const { screen, frame, characters, pickerPendingId, pickerFailed, reconnecting, nextRetryAt, versionPrompt } =

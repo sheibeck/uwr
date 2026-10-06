@@ -15,6 +15,8 @@ import { GAME_KEY } from './game/context';
 import type { GameData } from './game/context';
 import { CREATION_KEY } from './creation/creationContext';
 import type { CreationData } from './creation/creationContext';
+import { LEDGER_KEY, createInertLedger } from './ledger/ledgerContext';
+import type { LedgerData } from './ledger/ledgerContext';
 
 const frameView: FrameView = {
   characterName: 'Brannoch',
@@ -66,6 +68,7 @@ function fakeSession(initial: AppScreen): Fake {
     reconnecting: computed(() => true),
     nextRetryAt: ref<number | null>(12345),
     versionPrompt: computed(() => true),
+    ledger: createInertLedger(),
     ...fns,
   } as unknown as Session;
   return { session, screen, frame, fns };
@@ -291,5 +294,52 @@ describe('App creation hub provide', () => {
     expect(creation!.connected.value).toBe(false);
     expect(creation!.state.value).toBeNull();
     expect(creation!.feed.entries.value).toEqual([]);
+  });
+});
+
+describe('App ledger hub provide', () => {
+  // A stand-in for CreationView that reports the LedgerData it injects.
+  const seen: { ledger: LedgerData | undefined }[] = [];
+  const Probe = defineComponent({
+    name: 'ProbeLedger',
+    setup() {
+      const ledger = inject(LEDGER_KEY);
+      seen.push({ ledger });
+      return () => h('div', { class: 'ledger-probe' }, ledger ? 'ledger' : 'none');
+    },
+  });
+
+  beforeEach(() => {
+    seen.length = 0;
+  });
+
+  it('provides session.ledger under LEDGER_KEY', () => {
+    const fake = fakeSession({ kind: 'creation' });
+    const ledger = { marker: 'session-ledger' } as unknown as LedgerData;
+    (fake.session as unknown as { ledger: LedgerData }).ledger = ledger;
+    wrapper = mount(App, {
+      attachTo: document.body,
+      props: { session: fake.session },
+      global: { stubs: { CreationView: Probe } },
+    });
+    expect(wrapper.find('.ledger-probe').text()).toBe('ledger');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].ledger).toBe(ledger);
+  });
+
+  it('provides an inert ledger hub when the session has none', () => {
+    const fake = fakeSession({ kind: 'creation' });
+    delete (fake.session as unknown as { ledger?: LedgerData }).ledger;
+    wrapper = mount(App, {
+      attachTo: document.body,
+      props: { session: fake.session },
+      global: { stubs: { CreationView: Probe } },
+    });
+    const ledger = seen[0].ledger;
+    expect(ledger).toBeDefined();
+    expect(ledger!.connected.value).toBe(false);
+    expect(ledger!.items.value).toEqual([]);
+    expect(ledger!.reducers.value).toBeNull();
+    expect(ledger!.lastSale.value).toBeNull();
   });
 });

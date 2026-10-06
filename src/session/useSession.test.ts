@@ -10,6 +10,8 @@ import type { GameData } from '../game/context';
 import type { GameInput } from '../game/gameData';
 import type { CreationData } from '../creation/creationContext';
 import type { CreationInput } from '../creation/creationData';
+import type { LedgerData } from '../ledger/ledgerContext';
+import type { LedgerInput } from '../ledger/ledgerData';
 import { createSession, defaultQueries, SIGNIN_TIMEOUT_MS } from './useSession';
 import type { Session, SessionAuth, SessionConn, SessionDeps, SessionQueries } from './useSession';
 
@@ -106,6 +108,7 @@ interface HarnessOptions {
   isDev?: boolean;
   game?: SessionDeps<FakeConn>['game'];
   creation?: SessionDeps<FakeConn>['creation'];
+  ledger?: SessionDeps<FakeConn>['ledger'];
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -163,6 +166,7 @@ function harness(options: HarnessOptions = {}): Harness {
     reloadPage,
     game: options.game,
     creation: options.creation,
+    ledger: options.ledger,
   };
   const session = createSession(deps, { callbackError: options.callbackError ?? null });
 
@@ -1014,6 +1018,61 @@ describe('creation hub wiring', () => {
     h = harness({ creation: factory });
     h.session.dispose();
     expect(creation.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ledger hub wiring', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+  });
+
+  function spyLedger() {
+    const ledger = { reset: vi.fn(), dispose: vi.fn() } as unknown as LedgerData;
+    const factory = vi.fn<(input: LedgerInput<FakeConn>) => LedgerData>(() => ledger);
+    return { ledger, factory };
+  }
+
+  it('carries an inert ledger hub when no factory is given', () => {
+    h = harness();
+    expect(h.session.ledger.connected.value).toBe(false);
+    expect(h.session.ledger.items.value).toEqual([]);
+    expect(h.session.ledger.reducers.value).toBeNull();
+    expect(() => h.session.ledger.reset()).not.toThrow();
+  });
+
+  it('builds the hub once with the connection, status and active character refs the session uses', async () => {
+    const { ledger, factory } = spyLedger();
+    h = harness({ ledger: factory });
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(h.session.ledger).toBe(ledger);
+
+    const input = factory.mock.calls[0][0];
+    expect(input.conn).toBe(h.conn);
+    expect(input.status).toBe(h.status);
+    expect(input.activeCharacterId.value).toBeNull();
+
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 9n });
+    await flush();
+    expect(input.activeCharacterId.value).toBe(9n);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('logout resets the ledger hub once', async () => {
+    const { ledger, factory } = spyLedger();
+    h = harness({ ledger: factory });
+    h.connect();
+    h.setPlayer({ userId: 7n });
+    await h.session.logout();
+    expect(ledger.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispose disposes the ledger hub once', () => {
+    const { ledger, factory } = spyLedger();
+    h = harness({ ledger: factory });
+    h.session.dispose();
+    expect(ledger.dispose).toHaveBeenCalledTimes(1);
   });
 });
 

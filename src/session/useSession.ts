@@ -37,6 +37,11 @@ import type { CreationData } from '../creation/creationContext';
 import { createCreationData } from '../creation/creationData';
 import type { CreationConn, CreationInput } from '../creation/creationData';
 import { creationQueries } from '../creation/queries';
+import { createInertLedger } from '../ledger/ledgerContext';
+import type { LedgerData } from '../ledger/ledgerContext';
+import { createLedgerData } from '../ledger/ledgerData';
+import type { LedgerConn, LedgerInput } from '../ledger/ledgerData';
+import { ledgerQueries } from '../ledger/queries';
 
 export interface SessionAuth {
   getStoredIdToken(): string | null;
@@ -84,6 +89,8 @@ export interface SessionDeps<C extends SessionConn> {
   game?: (input: GameInput<C>) => GameData;
   /** Builds the creation hub. Omitted: the session carries an inert hub. */
   creation?: (input: CreationInput<C>) => CreationData;
+  /** Builds the ledger hub (items, vendor, recipes, perks). Omitted: the session carries an inert hub. */
+  ledger?: (input: LedgerInput<C>) => LedgerData;
 }
 
 export const SELECT_TIMEOUT_MS = 8000;
@@ -105,6 +112,8 @@ export interface Session {
   readonly game: GameData;
   /** The creation interview hub (feed, step data, actions); reset on logout. */
   readonly creation: CreationData;
+  /** The ledger hub (items, vendor stock, recipes, pending perks); reset on logout. */
+  readonly ledger: LedgerData;
   start(): void;
   signIn(): void;
   selectCharacter(characterId: bigint): void;
@@ -133,7 +142,7 @@ export function defaultQueries(): SessionQueries {
  * the generated bindings and the stored-session helpers.
  */
 export function createDefaultSession(options: { callbackError: unknown }): Session {
-  return createSession<SessionConn & GameConn & CreationConn>(
+  return createSession<SessionConn & GameConn & CreationConn & LedgerConn>(
     {
       controller: createConnectionController(defaultControllerDeps()),
       auth: { getStoredIdToken, getStoredEmail, clearAuthSession, beginSpacetimeAuthLogin },
@@ -152,6 +161,8 @@ export function createDefaultSession(options: { callbackError: unknown }): Sessi
           { bind: bindTable, bindEvent: bindEventTable, queries: creationQueries() },
           input,
         ),
+      ledger: (input) =>
+        createLedgerData({ bind: bindTable, queries: ledgerQueries() }, input),
     },
     options,
   );
@@ -414,6 +425,14 @@ function build<C extends SessionConn>(
       })
     : createInertCreation();
 
+  const ledger: LedgerData = deps.ledger
+    ? deps.ledger({
+        conn: controller.conn,
+        status: controller.status,
+        activeCharacterId,
+      })
+    : createInertLedger();
+
   const pickerPendingId = ref<bigint | null>(null);
   const pickerFailed = ref(false);
   let selectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -510,6 +529,7 @@ function build<C extends SessionConn>(
     // No stale rows or feed lines may reach the next sign-in.
     game.reset();
     creation.reset();
+    ledger.reset();
     loginSentFor = null;
     authFailed.value = false;
     redirecting.value = false;
@@ -529,6 +549,7 @@ function build<C extends SessionConn>(
     versionPrompt,
     game,
     creation,
+    ledger,
     start() {
       controller.connect();
     },
@@ -546,6 +567,7 @@ function build<C extends SessionConn>(
       disposeBindings();
       game.dispose();
       creation.dispose();
+      ledger.dispose();
       controller.dispose();
     },
   };
