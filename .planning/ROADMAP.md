@@ -452,67 +452,74 @@ Plans:
   4. Crafting shows materials on hand and a recipe list with category tabs, an "only craftable" filter and have-versus-need per recipe; the selected recipe shows quality odds, an optional reagent / affix and Craft, and Discover recipes is reachable from the screen.
   5. At 390×844 each screen opens as a full-height sheet above the tab bar (Bag opens inventory) and every action above works.
 
-**Plans**: 23 plans
+**Plans**: 27 plans (23 planned + 4 gap-closure after owner live-play feedback)
 
 Plans:
 **Wave 1**
 
-- [ ] 50-01-PLAN.md — Shared per-instance item stat sum (examine uses it, parity with getEquippedBonuses) and backpack capacity rule
-- [ ] 50-02-PLAN.md — Crafting quality helpers and pure planCraft; craft_recipe validates before it mutates (real-handler tests)
-- [ ] 50-03-PLAN.md — Perk bonus lookup and perk display names; factionTier shared by Stats and /faction
-- [ ] 50-06-PLAN.md — Private vendor_buyback table and the per-sender my_vendor_buyback view
+- [x] 50-01-PLAN.md — Shared per-instance item stat sum (examine uses it, parity with getEquippedBonuses) and backpack capacity rule
+- [x] 50-02-PLAN.md — Crafting quality helpers and pure planCraft; craft_recipe validates before it mutates (real-handler tests)
+- [x] 50-03-PLAN.md — Perk bonus lookup and perk display names; factionTier shared by Stats and /faction
+- [x] 50-06-PLAN.md — Private vendor_buyback table and the per-sender my_vendor_buyback view
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 50-04-PLAN.md — Shared equip rule (canEquipItem) and item rules (quest marker, use keys, salvage); equip_item and use_item call them
+- [x] 50-04-PLAN.md — Shared equip rule (canEquipItem) and item rules (quest marker, use keys, salvage); equip_item and use_item call them
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 50-05-PLAN.md — Shared vendor pricing and rapport; buy_item, sell_item and sell_all_junk call it (differential tests)
+- [x] 50-05-PLAN.md — Shared vendor pricing and rapport; buy_item, sell_item and sell_all_junk call it (differential tests)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 50-07-PLAN.md — Shared sell helper: quest-item refusal, affix snapshot and buy-back record on sell_item and typed sell; sell N and sell junk skip quest items
+- [x] 50-07-PLAN.md — Shared sell helper: quest-item refusal, affix snapshot and buy-back record on sell_item and typed sell; sell N and sell junk skip quest items
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 50-08-PLAN.md — buyback_last_sale reducer (owner rules) and delete_character cleanup
+- [x] 50-08-PLAN.md — buyback_last_sale reducer (owner rules) and delete_character cleanup
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 50-09-PLAN.md — Full module suite, local publish with --break-clients (key length 108 before and after), bindings regenerated (buy-back only)
+- [x] 50-09-PLAN.md — Full module suite, local publish with --break-clients (key length 108 before and after), bindings regenerated (buy-back only)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 50-10-PLAN.md — Session-owned LedgerData hub, typed filtered queries, action runner
-- [ ] 50-11-PLAN.md — Item model, comparison and backpack models; @game-data alias pins
+- [x] 50-10-PLAN.md — Session-owned LedgerData hub, typed filtered queries, action runner
+- [x] 50-11-PLAN.md — Item model, comparison and backpack models; @game-data alias pins
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 50-12-PLAN.md — Session and App wiring; FrameControls.screenArgs and the per-screen header meta slot
-- [ ] 50-13-PLAN.md — Shared parts: GoldAmount, FilterChips, SegTabs, InlineConfirm, ItemTile, NoticeLine
+- [x] 50-12-PLAN.md — Session and App wiring; FrameControls.screenArgs and the per-screen header meta slot
+- [x] 50-13-PLAN.md — Shared parts: GoldAmount, FilterChips, SegTabs, InlineConfirm, ItemTile, NoticeLine
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 50-14-PLAN.md — Inventory inspector model and component (comparison, actions, salvage confirmation)
-- [ ] 50-16-PLAN.md — Stats model, percent formatter and perk chooser
-- [ ] 50-18-PLAN.md — Nearby Trade opens the vendor by NPC; vendor model (prices, usable-by-you, sell rows, junk preview, buy-back state)
-- [ ] 50-21-PLAN.md — Crafting model (have/need, filters, single quality and hint, planCraft reasons) and reagent picker
+- [x] 50-14-PLAN.md — Inventory inspector model and component (comparison, actions, salvage confirmation)
+- [x] 50-16-PLAN.md — Stats model, percent formatter and perk chooser
+- [x] 50-18-PLAN.md — Nearby Trade opens the vendor by NPC; vendor model (prices, usable-by-you, sell rows, junk preview, buy-back state)
+- [x] 50-21-PLAN.md — Crafting model (have/need, filters, single quality and hint, planCraft reasons) and reagent picker
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
-- [ ] 50-15-PLAN.md — Inventory screen (desktop and 390x844)
-- [ ] 50-17-PLAN.md — Stats screen (desktop and 390x844)
-- [ ] 50-19-PLAN.md — Vendor sell side: Your backpack, Sell all junk, Just sold card with Buy back
-- [ ] 50-22-PLAN.md — Crafting screen (desktop and 390x844)
+- [x] 50-15-PLAN.md — Inventory screen (desktop and 390x844)
+- [x] 50-17-PLAN.md — Stats screen (desktop and 390x844)
+- [x] 50-19-PLAN.md — Vendor sell side: Your backpack, Sell all junk, Just sold card with Buy back
+- [x] 50-22-PLAN.md — Crafting screen (desktop and 390x844)
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
-- [ ] 50-20-PLAN.md — Trade screen: vendor selection, band and rapport, For sale, mobile tabs
+- [x] 50-20-PLAN.md — Trade screen: vendor selection, band and rapport, For sale, mobile tabs
 
 **Wave 12** *(blocked on Wave 11 completion)*
 
-- [ ] 50-23-PLAN.md — Register the four screens (Trade title, meta), delete placeholders, phase gate, validation map, owner try-out list and deferred UAT checklist
+- [x] 50-23-PLAN.md — Register the four screens (Trade title, meta), delete placeholders, phase gate, validation map, owner try-out list and deferred UAT checklist
+
+**Gap closure (owner live-play feedback, 2026-10-06)**
+
+- [x] 50-24-PLAN.md — Area-appropriate vendor base stock with a guarded restock scheduler; buy_item and sell_all_junk require a vendor at the location
+- [x] 50-25-PLAN.md — Rule-based recipe generation from carried materials (Discover recipes), shared and deduplicated
+- [x] 50-26-PLAN.md — Finite vendor stock (quantity column), buy-above-sell price floor, sell_item_quantity (server, published locally)
+- [x] 50-27-PLAN.md — Client: quantity "×n", sold out, sell quantity picker
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the inventory, stats, vendor and crafting screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:

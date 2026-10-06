@@ -287,6 +287,7 @@ Items acknowledged and deferred at the v2.2 close on 2026-10-05 (owner chose to 
 | 46.1 | verification_deferred_human | /gsd-verify-work 46.1 |
 | 48 | verification_deferred_human | /gsd-verify-work 48 |
 | 49 | verification_deferred_human | /gsd-verify-work 49 |
+| 50 | verification_deferred_human | /gsd-verify-work 50 |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
 
@@ -316,7 +317,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 ### Resume note (2026-10-06, overnight run)
 
-- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47, 46.1, 48 and 49 (each human_needed, UAT deferred). Quick tasks 261006-a0i, a13 and a3d (owner live-play fixes) are done. To resume, run `/gsd-autonomous --from 50`. That runs 50, 51 and 52, then the lifecycle (audit, complete, cleanup).
+- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47, 46.1, 48, 49 and 50 (each human_needed, UAT deferred). Quick tasks 261006-a0i, a13 and a3d (owner live-play fixes) are done. To resume, run `/gsd-autonomous --from 51`. That runs 51 and 52 (52 now also builds loot, bank, admin, trade, the Hotbar Manager and the Journal from the owner designs; 51 also builds the party menus and the Examine button), then the lifecycle (audit, complete, cleanup).
 - Overnight autonomy is active (see above): take the recommended option for every question and log it as "auto-approved (owner overnight instruction)". Hard limits:
   - no paid LLM calls (the golden run is deferred)
   - no maincloud
