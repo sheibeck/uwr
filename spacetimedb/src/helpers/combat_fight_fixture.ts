@@ -32,6 +32,8 @@ export type FightSeedOptions = {
   enemies?: FightEnemy[];
   playerHp?: bigint;
   withOpenRound?: boolean;
+  /** Mark the enemy template (shared by every enemy of the fight) as a boss (enemy_template.isBoss). */
+  isBoss?: boolean;
   /** Extra rows, appended to (never replacing) the table rows built here. */
   extra?: Record<string, any[]>;
 };
@@ -185,6 +187,7 @@ export function fightSeed(opts: FightSeedOptions = {}): Record<string, any[]> {
     })),
     aggro_entry: [] as any[],
   };
+  if (opts.isBoss) seed.enemy_template = seed.enemy_template.map((tpl) => ({ ...tpl, isBoss: true }));
 
   let aggroId = 1n;
   for (const enemy of enemies) {
