@@ -288,6 +288,51 @@ describe('restock_vendors never touches player-sold listings', () => {
   });
 });
 
+describe('player sales never turn base stock into permanent stock (WR-02)', () => {
+  it('selling one unit into every base row, tick after tick, keeps the base listing count bounded', () => {
+    const ctx = newCtx();
+    const sellFrom = { ...ctx, sender: alice };
+    const isBase = (id: bigint) => rows(ctx, 'vendor_base_stock').some((m) => m.listingId === id);
+    const soldTemplates = new Set<bigint>();
+    for (let tick = 0n; tick < 8n; tick += 1n) {
+      run(at(ctx, T0 + tick * VENDOR_RESTOCK_INTERVAL_MICROS));
+      const base = listingsOf(ctx, 5n).filter((r) => isBase(r.id));
+      expect(base.length).toBeLessThanOrEqual(BASE_STOCK_SIZE);
+      // Every marker points at a live row of this vendor.
+      for (const m of rows(ctx, 'vendor_base_stock').filter((x) => x.npcId === 5n)) {
+        expect(listingsOf(ctx, 5n).some((r) => r.id === m.listingId)).toBe(true);
+      }
+      for (const row of base) {
+        const unit = ctx.db.item_instance.insert({
+          id: 0n,
+          templateId: row.itemTemplateId,
+          ownerCharacterId: 1n,
+          equippedSlot: undefined,
+          quantity: 1n,
+        });
+        const quantityBefore = row.quantity;
+        soldTemplates.add(row.itemTemplateId);
+        sellItem(sellFrom, { characterId: 1n, itemInstanceId: unit.id, npcId: 5n });
+        // The base row keeps its units and its marker; the player's unit sits in its own row.
+        const after = listingsOf(ctx, 5n).find((r) => r.id === row.id)!;
+        expect(after.quantity).toBe(quantityBefore);
+        expect(isBase(row.id)).toBe(true);
+      }
+    }
+    const baseNow = listingsOf(ctx, 5n).filter((r) => isBase(r.id));
+    const playerNow = listingsOf(ctx, 5n).filter((r) => !isBase(r.id));
+    expect(baseNow.length).toBeLessThanOrEqual(BASE_STOCK_SIZE);
+    // One player row per template and tier, however many ticks passed.
+    expect(playerNow.length).toBeLessThanOrEqual(soldTemplates.size);
+    expect(new Set(playerNow.map((r) => `${r.itemTemplateId}:${r.qualityTier ?? ''}`)).size).toBe(playerNow.length);
+    // Every unit sold is still on the shelf: nothing was converted or dropped.
+    const soldUnits = rows(ctx, 'vendor_inventory')
+      .filter((r) => r.npcId === 5n && !isBase(r.id))
+      .reduce((sum, r) => sum + r.quantity, 0n);
+    expect(soldUnits).toBeGreaterThanOrEqual(BigInt(soldTemplates.size));
+  });
+});
+
 describe('prices and purchases are unchanged', () => {
   it('a real sell_item listing has the same price rule and survives a restock untouched', () => {
     const ctx = newCtx({

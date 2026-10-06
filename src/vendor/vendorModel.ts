@@ -554,16 +554,20 @@ export interface BuybackCard {
   ariaLabel: string;
 }
 
-/** True while the vendor shelf still holds at least the sold units of that template and tier. */
+/**
+ * True while some listing of that template and tier at the vendor still holds at least the sold
+ * units. A template can sit in two rows (base stock and player-sold), and the server's buy-back
+ * takes the units from the player row, or from any row that still holds them, so one row is enough.
+ */
 function stillStocked(stock: readonly VendorInventory[], sale: VendorBuyback): boolean {
   const tier = sale.qualityTier ?? undefined;
-  const row = stock.find(
+  return stock.some(
     (listing) =>
       listing.npcId === sale.npcId &&
       listing.itemTemplateId === sale.templateId &&
-      (listing.qualityTier ?? undefined) === tier,
+      (listing.qualityTier ?? undefined) === tier &&
+      listing.quantity >= sale.quantity,
   );
-  return row !== undefined && row.quantity >= sale.quantity;
 }
 
 /**

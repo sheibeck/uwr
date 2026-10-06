@@ -406,20 +406,40 @@ describe('sold-out base stock', () => {
     expect(rows(ctx, 'vendor_base_stock').find((m) => m.listingId === 40n)).toBeUndefined();
   });
 
-  it('player units sold into a base listing add to it, drop its marker, and survive restock', () => {
+  it('player units sold into a base listing get their own row: the base row and its marker stay, and only the base row rotates', () => {
     const ctx = newCtx({
       instances: [inst(700n, 70n, 2n)],
       listings: [{ ...BASE }],
       markers: [{ ...MARKER }],
     });
     sellQ(ctx, 700n, 2n);
-    const row = rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)!;
-    expect(row.quantity).toBe(4n);
-    expect(rows(ctx, 'vendor_base_stock').find((m) => m.listingId === 40n)).toBeUndefined();
-    const kept = { ...row };
+    // WR-02: the base units stay base stock (quantity 2, marker kept); the player's 2 are a separate row.
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toEqual(BASE);
+    expect(rows(ctx, 'vendor_base_stock')).toEqual([MARKER]);
+    const player = listingsFor(ctx, 70n).filter((r) => r.id !== 40n);
+    expect(player).toHaveLength(1);
+    expect(player[0].quantity).toBe(2n);
+    expect(rows(ctx, 'vendor_base_stock').find((m) => m.listingId === player[0].id)).toBeUndefined();
+    const kept = { ...player[0] };
     runRestock(ctx);
-    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toEqual(kept);
+    // Restock replaces the base row as a whole and never touches the player's units.
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toBeUndefined();
+    expect(rows(ctx, 'vendor_base_stock').find((m) => m.listingId === 40n)).toBeUndefined();
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === kept.id)).toEqual(kept);
     expect(listingsFor(ctx, 70n)).toHaveLength(1);
+  });
+
+  it('a second sale raises the same player row and never the base row', () => {
+    const ctx = newCtx({
+      instances: [inst(700n, 70n, 2n), inst(701n, 70n, 3n)],
+      listings: [{ ...BASE }],
+      markers: [{ ...MARKER }],
+    });
+    sellQ(ctx, 700n, 2n);
+    sellQ(ctx, 701n, 3n);
+    expect(listingsFor(ctx, 70n)).toHaveLength(2);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toEqual(BASE);
+    expect(listingsFor(ctx, 70n).find((r) => r.id !== 40n)!.quantity).toBe(5n);
   });
 });
 
@@ -567,7 +587,7 @@ describe('buy-back quantity (T-50-104)', () => {
     expect(rows(ctx, 'vendor_buyback')).toHaveLength(1);
   });
 
-  it('a base listing that received units goes back to its base quantity, still without a marker', () => {
+  it('a sale into a template with base stock leaves the base row alone, and the buy-back removes only the player row', () => {
     const base = { id: 40n, npcId: VENDOR, itemTemplateId: 70n, price: 14n, qualityTier: undefined, quantity: 3n };
     const ctx = newCtx({
       instances: [inst(700n, 70n, 2n)],
@@ -575,11 +595,31 @@ describe('buy-back quantity (T-50-104)', () => {
       markers: [{ listingId: 40n, npcId: VENDOR }],
     });
     sellQ(ctx, 700n, 2n);
-    expect(rows(ctx, 'vendor_inventory')[0].quantity).toBe(5n);
-    expect(rows(ctx, 'vendor_base_stock')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === 40n)).toEqual(base);
     buyBack(ctx);
     expect(rows(ctx, 'vendor_inventory')).toEqual([base]);
-    expect(rows(ctx, 'vendor_base_stock')).toHaveLength(0);
+    expect(rows(ctx, 'vendor_base_stock')).toEqual([{ listingId: 40n, npcId: VENDOR }]);
+    expect(countOf(ctx, 70n)).toBe(2n);
+  });
+
+  it('when buyers took every unit of that template and tier, the buy-back is refused and changes nothing', () => {
+    const base = { id: 40n, npcId: VENDOR, itemTemplateId: 70n, price: 14n, qualityTier: undefined, quantity: 5n };
+    const ctx = newCtx({
+      instances: [inst(700n, 70n, 2n)],
+      listings: [{ ...base }],
+      markers: [{ listingId: 40n, npcId: VENDOR }],
+    });
+    sellQ(ctx, 700n, 2n);
+    const playerId = listingsFor(ctx, 70n).find((r) => r.id !== 40n)!.id;
+    // buy_item takes the lowest id first: 5 base units, then the player's 2.
+    for (let i = 0; i < 7; i++) buyAs(ctx, 70n, 'bob');
+    expect(listingsFor(ctx, 70n).reduce((s, r) => s + r.quantity, 0n)).toBe(0n);
+    expect(rows(ctx, 'vendor_inventory').find((r) => r.id === playerId)).toBeUndefined();
+    // Nothing left anywhere: the buy-back is refused and changes nothing.
+    const before = state(ctx);
+    buyBack(ctx);
+    expect(lastMessage(ctx)).toBe('Brannoc has already sold Iron Ore.');
+    expect(state(ctx)).toEqual(before);
   });
 
   it('a template removed after the sale takes the units out of the listing and clears the row', () => {

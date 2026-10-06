@@ -692,5 +692,15 @@ describe('buybackCard', () => {
     it('names the quantity sold', () => {
       expect(buybackCard(sale({ quantity: 5n }), here, 2n, [], templates)!.name).toBe('Keen Blade ×5');
     });
+
+    it('is ready when ANY row of that template and tier holds the sold units (base and player rows)', () => {
+      // WR-02: a template can sit in a base row and a player row. The server's buy-back takes the
+      // units from the player row, or from any row that still holds them.
+      const thin = shelf(2n, 2n, 1n);
+      const base = { ...shelf(2n, 2n, 5n), id: 2n } as VendorInventory;
+      expect(buybackCard(sale({ quantity: 5n }), here, 2n, [], templates, [thin, base])!.state).toBe('ready');
+      expect(buybackCard(sale({ quantity: 5n }), here, 2n, [], templates, [base, thin])!.state).toBe('ready');
+      expect(buybackCard(sale({ quantity: 6n }), here, 2n, [], templates, [thin, base])!.state).toBe('sold');
+    });
   });
 });

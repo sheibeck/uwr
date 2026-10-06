@@ -4,7 +4,13 @@ import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { appliedBuyDiscountPercent, appliedSellBonusPercent, listingBuyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
 import { USE_ITEM_KEYS, isQuestItemTemplate } from '../data/item_rules';
-import { sellInstanceToVendor, restoreBuyback, findVendorListing, takeFromVendorListing } from '../helpers/vendor_sale';
+import {
+  sellInstanceToVendor,
+  restoreBuyback,
+  findPlayerListing,
+  findBuybackListing,
+  takeFromVendorListing,
+} from '../helpers/vendor_sale';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -230,7 +236,7 @@ export const registerItemReducers = (deps: any) => {
     // A template removed since the sale can never be restored: say so (instead of "backpack is
     // full") and clear the dead row, and the resale listing that sale created, so nothing lingers.
     if (!ctx.db.item_template.id.find(sale.templateId)) {
-      const orphan = findVendorListing(ctx, sale.npcId, sale.templateId, sale.qualityTier ?? undefined);
+      const orphan = findPlayerListing(ctx, sale.npcId, sale.templateId, sale.qualityTier ?? undefined);
       if (orphan) {
         takeFromVendorListing(ctx, orphan, sale.quantity < orphan.quantity ? sale.quantity : orphan.quantity);
       }
@@ -244,9 +250,10 @@ export const registerItemReducers = (deps: any) => {
       return failItem(ctx, character, `Go back to ${sale.npcName} to buy that back.`);
     }
     // The units must still be on the vendor's shelf: buying them back moves them out of the
-    // listing, so a vendor that has already resold them cannot be bought from twice.
-    const listing = findVendorListing(ctx, sale.npcId, sale.templateId, sale.qualityTier ?? undefined);
-    if (!listing || listing.quantity < sale.quantity) {
+    // listing, so a vendor that has already resold them cannot be bought from twice. They come
+    // from the player-sold row, or from any row of that template and tier that still holds them.
+    const listing = findBuybackListing(ctx, sale);
+    if (!listing) {
       return failItem(ctx, character, `${sale.npcName} has already sold ${sale.itemName}.`);
     }
     if (!hasInventorySpace(ctx, character.id, sale.templateId)) {

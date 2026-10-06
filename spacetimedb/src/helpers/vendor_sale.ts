@@ -4,9 +4,10 @@
 // buy-back row is the character's last single sale (one row per character, replaced by the next
 // sale); the affixes are snapshotted BEFORE they are deleted, as decimal strings because
 // item_affix.magnitude is a bigint.
-// Vendor stock is finite (plan 50-26): a vendor_inventory row has a quantity. findVendorListing,
-// addToVendorListing and takeFromVendorListing are the only writers of that quantity besides the
-// restock: a sale adds the sold units, a buy or buy-back takes exactly what it moves.
+// Vendor stock is finite (plan 50-26): a vendor_inventory row has a quantity. addToVendorListing and
+// takeFromVendorListing are the only writers of that quantity besides the restock: a sale adds the
+// sold units to the vendor's PLAYER row for that template and tier (never into a base-stock row), a
+// buy or buy-back takes exactly what it moves.
 import { getPerkBonusByField } from './renown';
 import { appendPrivateEvent } from './events';
 import { appliedSellBonusPercent, sellPayout } from '../data/vendor_pricing';
@@ -121,33 +122,70 @@ export function restoreBuyback(
   }
 }
 
+const byIdAscending = (a: any, b: any): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+function sameTemplateAndTier(row: any, templateId: bigint, qualityTier: string | undefined): boolean {
+  return row.itemTemplateId === templateId && (row.qualityTier ?? undefined) === (qualityTier ?? undefined);
+}
+
+/** True for a listing the restock owns (it has a vendor_base_stock marker). */
+export function isBaseStockListing(ctx: any, listing: any): boolean {
+  return !!listing && !!ctx.db.vendor_base_stock.listingId.find(listing.id);
+}
+
 /**
- * The listing of this template and quality tier at a vendor: the lowest id when there are several,
- * or undefined. A missing tier equals an undefined tier.
+ * The listing of this template and quality tier at a vendor, base stock or player-sold: the lowest
+ * id when there are several, or undefined. A missing tier equals an undefined tier.
  */
 export function findVendorListing(ctx: any, npcId: bigint, templateId: bigint, qualityTier: string | undefined): any {
-  const matches = [...ctx.db.vendor_inventory.by_vendor.filter(npcId)].filter(
-    (row: any) => row.itemTemplateId === templateId && (row.qualityTier ?? undefined) === (qualityTier ?? undefined)
+  const matches = [...ctx.db.vendor_inventory.by_vendor.filter(npcId)].filter((row: any) =>
+    sameTemplateAndTier(row, templateId, qualityTier)
   );
-  matches.sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  matches.sort(byIdAscending);
   return matches[0];
 }
 
 /**
- * Put sold units on a vendor's listing: raises the existing listing for that template and tier, or
- * creates it with that quantity. A base-stock listing that receives player-sold units loses its
- * vendor_base_stock marker, so restock never deletes goods a player sold.
+ * The player-sold listing of this template and tier: the lowest id among rows with no base-stock
+ * marker, or undefined. Player units live only here, so a restock never converts them (or takes
+ * base units for them).
+ */
+export function findPlayerListing(ctx: any, npcId: bigint, templateId: bigint, qualityTier: string | undefined): any {
+  const matches = [...ctx.db.vendor_inventory.by_vendor.filter(npcId)].filter(
+    (row: any) => sameTemplateAndTier(row, templateId, qualityTier) && !isBaseStockListing(ctx, row)
+  );
+  matches.sort(byIdAscending);
+  return matches[0];
+}
+
+/**
+ * The listing a buy-back takes its units from: the player-sold row when it still holds the recorded
+ * quantity, else any row of that template and tier that does. Undefined when none does.
+ */
+export function findBuybackListing(ctx: any, sale: any): any {
+  const tier = sale.qualityTier ?? undefined;
+  const player = findPlayerListing(ctx, sale.npcId, sale.templateId, tier);
+  if (player && (player.quantity ?? 0n) >= sale.quantity) return player;
+  const matches = [...ctx.db.vendor_inventory.by_vendor.filter(sale.npcId)].filter(
+    (row: any) => sameTemplateAndTier(row, sale.templateId, tier) && (row.quantity ?? 0n) >= sale.quantity
+  );
+  matches.sort(byIdAscending);
+  return matches[0];
+}
+
+/**
+ * Put sold units on a vendor's listing: raises the player-sold listing for that template and tier, or
+ * creates it with that quantity. A base-stock row is never merged into: its units stay base stock
+ * (the restock replaces them as a whole), and player units stay player stock the restock never
+ * touches. So the vendor's base listing count stays bounded, whatever players sell.
  */
 export function addToVendorListing(
   ctx: any,
   input: { npcId: bigint; templateId: bigint; qualityTier: string | undefined; quantity: bigint; price: bigint }
 ): { listingId: bigint; created: boolean } {
-  const existing = findVendorListing(ctx, input.npcId, input.templateId, input.qualityTier);
+  const existing = findPlayerListing(ctx, input.npcId, input.templateId, input.qualityTier);
   if (existing) {
     ctx.db.vendor_inventory.id.update({ ...existing, quantity: (existing.quantity ?? 0n) + input.quantity });
-    if (ctx.db.vendor_base_stock.listingId.find(existing.id)) {
-      ctx.db.vendor_base_stock.listingId.delete(existing.id);
-    }
     return { listingId: existing.id, created: false };
   }
   const listing = ctx.db.vendor_inventory.insert({
