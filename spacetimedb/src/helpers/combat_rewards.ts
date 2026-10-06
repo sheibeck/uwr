@@ -7,7 +7,6 @@
  */
 
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from '../data/xp';
-import { computeBaseStatsForGenerated, detectPrimarySecondary } from '../data/class_stats';
 import { recomputeCharacterDerived } from './character';
 import { appendPrivateEvent as appendPrivateEventHelper } from './events';
 

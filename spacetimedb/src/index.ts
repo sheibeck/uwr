@@ -47,7 +47,6 @@ import {
   MANA_MULTIPLIER,
   normalizeArmorType,
   normalizeClassName,
-  computeBaseStatsForGenerated,
   characterUsesResource,
   bestCasterStat,
 } from './data/class_stats';
@@ -735,7 +734,6 @@ const reducerDeps = {
   campCharacter,
   grantRaceAbility,
   appendCreationEvent,
-  computeBaseStatsForGenerated,
   startCombatForSpawn: null as any,
   submitCombatChoice: null as any,
 };
