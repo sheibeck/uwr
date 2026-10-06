@@ -11,7 +11,9 @@ import { useActionProgress } from './useActionProgress';
 // of combat it shows what is happening, a progress bar and the seconds left. It reads the
 // resource_gather and character_cast rows only (no optimistic state, CLAUDE.md), hides during the
 // character's own fight (the round row owns that slot) and has no Cancel control: the server has no
-// cancel reducer for either action. Node and ability names render as text nodes.
+// cancel reducer for either action. Node and ability names render as text nodes. Screen readers hear
+// the label once (the progressbar's aria-label): the visible label is aria-hidden and the value text is
+// only the time.
 const game = inject(GAME_KEY, createInertGame());
 
 const { action, progress } = useActionProgress({
@@ -44,7 +46,7 @@ const fillWidth = computed(() =>
 <template>
   <div v-if="action !== null && progress !== null" class="action-row" :title="summary">
     <component :is="icon" class="action-icon" :size="14" aria-hidden="true" />
-    <span class="action-label">{{ label }}</span>
+    <span class="action-label" aria-hidden="true">{{ label }}</span>
     <div
       class="track"
       role="progressbar"
@@ -52,7 +54,7 @@ const fillWidth = computed(() =>
       aria-valuemin="0"
       aria-valuemax="100"
       :aria-valuenow="percent"
-      :aria-valuetext="summary"
+      :aria-valuetext="timeText"
     >
       <span class="fill" :style="{ width: fillWidth }"></span>
     </div>

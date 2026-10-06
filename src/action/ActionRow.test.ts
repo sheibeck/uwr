@@ -119,7 +119,9 @@ describe('ActionRow gather', () => {
     expect(bar.attributes('aria-valuemin')).toBe('0');
     expect(bar.attributes('aria-valuemax')).toBe('100');
     expect(bar.attributes('aria-valuenow')).toBe('0');
-    expect(bar.attributes('aria-valuetext')).toBe('Gathering Ironwood · 8s');
+    expect(bar.attributes('aria-valuetext')).toBe('8s');
+    // The label is announced once, through the bar's aria-label.
+    expect(w.get('.action-label').attributes('aria-hidden')).toBe('true');
     expect(w.get('.action-row').attributes('title')).toBe('Gathering Ironwood · 8s');
   });
 
