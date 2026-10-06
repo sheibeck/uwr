@@ -1099,11 +1099,12 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 - **NPCs cannot be attacked at will.** Monsters can be fought freely; an NPC can only be fought as the climax of a story quest.
 - **Keep internal bearer history** for admin information and fun facts. It is never shown in rumors.
 - **If every eligible player refuses a legendary**, it slips away into history and resurfaces as a new rumor.
-- The four quest turn-in follow-ups found by quick task 261006-g12 are being fixed as a quick task (owner, 2026-10-06).
+- The four quest turn-in follow-ups found by quick task 261006-g12 were fixed by quick task 261006-gy6 (shared `turnInCompletedQuest` helper: inventory space check, quest XP through `awardXp`, NPC memory on both paths, reward names never clash with starter items, giver location checked on both paths).
 
 **Open questions:**
 
 - What counts as minimum participation for a World event kill (needs more discussion).
+- Quest reward defects left open by quick task 261006-gy6: the hail auto-turn-in and delivery-quest completion in `spacetimedb/src/reducers/commands.ts` are a third reward path that skips the shared helper (no gold, no item reward, no NPC memory, different affinity amounts, keeps the quest instance); the starter upsert could still overwrite a reward if a future starter item takes an already-granted reward's name (needs a template-origin column); the "turn in" intent stops at the first same-named quest even if it is incomplete.
 - Approve or change the stat point values and baseline in section 3c, and the 35% margin for the balance test (3d).
 - The base damage and base AC curves by item level, weapon or armor type and slot.
 
