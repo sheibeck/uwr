@@ -603,6 +603,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     ),
     castsApplied: computed(() => fightCasts.current.value?.applied.value ?? false),
     aggroApplied: computed(() => combatAggro.applied.value),
+    roundsApplied: computed(() => fightRounds.current.value?.applied.value ?? false),
     combatId: combatKey,
     self: computed(() => ownParticipantRows.value[0] ?? null),
     participants: fightParticipantRows,

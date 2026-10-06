@@ -20,6 +20,7 @@ interface Fake {
   enemies: Ref<unknown[]>;
   participants: Ref<unknown[]>;
   openRound: Ref<unknown>;
+  roundsApplied: Ref<boolean>;
   groupMembers: Ref<unknown[]>;
   knownCharacters: Ref<unknown[]>;
   setNow(micros: number): void;
@@ -50,6 +51,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
     { id: 2n, combatId: 1n, characterId: 8n, status: 'active' },
   ]);
   const openRound = ref<unknown>(null);
+  const roundsApplied = ref(false);
   const groupMembers = ref<unknown[]>([{ id: 1n, characterId: 5n }, { id: 2n, characterId: 8n }]);
   const knownCharacters = ref<unknown[]>([{ id: 8n, hp: 30n }]);
   const game = {
@@ -61,7 +63,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
     groupMembers,
     knownCharacters,
     clock: { nowMicros: () => now },
-    combat: { ...createInertCombatData(), active, enemies, participants, openRound },
+    combat: { ...createInertCombatData(), active, enemies, participants, openRound, roundsApplied },
   } as unknown as GameData;
   const frame = {
     isDesktop: ref(true),
@@ -81,6 +83,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
     enemies,
     participants,
     openRound,
+    roundsApplied,
     groupMembers,
     knownCharacters,
     setNow(micros) {
@@ -573,9 +576,12 @@ describe('round clock', () => {
       return { fake, open, advance: (ms: number) => void (clientMs += ms) };
     }
 
-    it('does not read a round that just arrived as expired', async () => {
+    it('does not read a fresh fight round as expired', async () => {
       const { fake, open } = skewed();
+      // The fight starts while the controller watches: it saw combat inactive first.
+      fake.active.value = false;
       const c = start(fake);
+      fake.active.value = true;
       // Without a sample the estimate is 10 s past the server, so 6 s rounds would read expired.
       fake.openRound.value = open(1n);
       await nextTick();
@@ -583,11 +589,14 @@ describe('round clock', () => {
       expect(c.timer.value.seconds).toBe(6);
     });
 
-    it('samples the next round when the open round advances', async () => {
+    it('samples the next round when it arrives after the round binding applied', async () => {
       vi.useFakeTimers();
       const { fake, open, advance } = skewed();
+      fake.active.value = false;
       const c = start(fake);
+      fake.active.value = true;
       fake.openRound.value = open(1n);
+      fake.roundsApplied.value = true;
       await nextTick();
       // Drop the sample from round 1 to prove round 2 re-samples (a client drift of +3 s).
       advance(6_000);
@@ -598,6 +607,16 @@ describe('round clock', () => {
       expect(c.timer.value.seconds).toBe(6);
     });
 
+    it('does not sample a Round 1 snapshot delivered to a controller that starts in combat', async () => {
+      const { fake, open } = skewed();
+      // A reload, late join or reconnect during Round 1: the round began 5 s ago.
+      const c = start(fake);
+      fake.openRound.value = open(1n, SERVER_MS - 5_000);
+      await nextTick();
+      expect(fake.game.clock.skewMicros.value).toBe(0);
+      expect(c.resolving.value).toBe(true);
+    });
+
     it('does not sample a later round first seen as a snapshot', async () => {
       const { fake, open } = skewed();
       const c = start(fake);
@@ -606,6 +625,29 @@ describe('round clock', () => {
       await nextTick();
       expect(fake.game.clock.skewMicros.value).toBe(0);
       expect(c.resolving.value).toBe(true);
+    });
+
+    it('does not sample a later round snapshot after the controller saw combat inactive', async () => {
+      const { fake, open } = skewed();
+      fake.active.value = false;
+      start(fake);
+      // A late join into a fight already in round 3: the snapshot lands before the binding applied.
+      fake.active.value = true;
+      fake.openRound.value = open(3n, SERVER_MS - 5_000);
+      await nextTick();
+      expect(fake.game.clock.skewMicros.value).toBe(0);
+    });
+
+    it('samples a round that arrives after the binding applied on a controller that started in combat', async () => {
+      const { fake, open } = skewed();
+      const c = start(fake);
+      fake.openRound.value = open(4n, SERVER_MS - 5_000);
+      fake.roundsApplied.value = true;
+      expect(fake.game.clock.skewMicros.value).toBe(0);
+      fake.openRound.value = open(5n, SERVER_MS + 1_000);
+      await nextTick();
+      expect(fake.game.clock.skewMicros.value).not.toBe(0);
+      expect(c.resolving.value).toBe(false);
     });
   });
 

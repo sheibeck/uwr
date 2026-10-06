@@ -155,9 +155,21 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
 
     // The countdown reads the server-clock estimate, which only feed events used to sample. A client
     // clock that runs ahead of the server would read the open round as expired and lock the round
-    // controls, so a round that arrives live (Round 1, or the round after one this controller saw)
-    // samples its startedAt too. A first sight of a later round may be a snapshot up to one round
-    // old, so it is not sampled.
+    // controls, so a round that arrives live samples its startedAt too. Live means:
+    //   - the round binding has applied (a snapshot is published before the applied flag flips, so
+    //     only later rows pass), or
+    //   - this controller has seen combat.active === false and the row is Round 1, the fresh start
+    //     of a fight that began while it was watching.
+    // Anything else is a snapshot (a reload, a late join or a reconnect) that can be up to one round
+    // old, so it never samples: it would bias the estimate behind a correct clock.
+    let seenInactive = false;
+    watch(
+      combat.active,
+      (active) => {
+        if (!active) seenInactive = true;
+      },
+      { flush: 'sync', immediate: true },
+    );
     let lastSeenRound: { combatId: bigint; roundNumber: bigint } | null = null;
     watch(
       combat.openRound,
@@ -166,9 +178,8 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
         const prev = lastSeenRound;
         if (prev !== null && prev.combatId === round.combatId && prev.roundNumber === round.roundNumber) return;
         lastSeenRound = { combatId: round.combatId, roundNumber: round.roundNumber };
-        const advanced = prev !== null && prev.combatId === round.combatId && round.roundNumber > prev.roundNumber;
-        if (!advanced && round.roundNumber !== 1n) return;
-        if (round.startedAtMicros === 0n) return;
+        const live = combat.roundsApplied.value || (seenInactive && round.roundNumber === 1n);
+        if (!live || round.startedAtMicros === 0n) return;
         game.clock.sample(round.startedAtMicros);
       },
       { flush: 'sync' },

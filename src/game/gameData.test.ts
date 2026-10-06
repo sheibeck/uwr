@@ -521,6 +521,9 @@ describe('createGameData: combat', () => {
     expect(h.game.combat.castsApplied.value).toBe(false);
     h.find('Q_CASTS_10').applied.value = true;
     expect(h.game.combat.castsApplied.value).toBe(true);
+    expect(h.game.combat.roundsApplied.value).toBe(false);
+    h.find('Q_ROUNDS_10').applied.value = true;
+    expect(h.game.combat.roundsApplied.value).toBe(true);
   });
 
   it('subscribes enemy templates and abilities by the enemies template ids', () => {
@@ -905,7 +908,13 @@ describe('inert defaults', () => {
 
   it('createInertGame carries an inert combat block', () => {
     const { combat } = createInertGame();
-    for (const flag of [combat.active, combat.applied, combat.castsApplied, combat.aggroApplied]) {
+    for (const flag of [
+      combat.active,
+      combat.applied,
+      combat.castsApplied,
+      combat.aggroApplied,
+      combat.roundsApplied,
+    ]) {
       expect(flag.value).toBe(false);
     }
     for (const single of [

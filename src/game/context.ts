@@ -99,6 +99,8 @@ export interface CombatData {
   readonly castsApplied: Readonly<Ref<boolean>>;
   /** The threat view has applied. */
   readonly aggroApplied: Readonly<Ref<boolean>>;
+  /** The fight's round binding has applied; round rows that arrive after it are live, not a snapshot. */
+  readonly roundsApplied: Readonly<Ref<boolean>>;
   readonly combatId: Readonly<Ref<bigint | null>>;
   /** The own participant row. */
   readonly self: Readonly<Ref<CombatParticipant | null>>;
@@ -256,6 +258,7 @@ export function createInertCombatData(): CombatData {
     applied: constant(false),
     castsApplied: constant(false),
     aggroApplied: constant(false),
+    roundsApplied: constant(false),
     combatId: constant<bigint | null>(null),
     self: constant<CombatParticipant | null>(null),
     participants: empty<CombatParticipant>(),
