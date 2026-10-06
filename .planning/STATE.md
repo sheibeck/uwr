@@ -317,7 +317,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 ### Resume note (2026-10-06, overnight run)
 
-- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47, 46.1, 48, 49 and 50 (each human_needed, UAT deferred). Quick tasks 261006-a0i, a13 and a3d (owner live-play fixes) are done. To resume, run `/gsd-autonomous --from 51`. That runs 51 and 52 (52 now also builds loot, bank, admin, trade, the Hotbar Manager and the Journal from the owner designs; 51 also builds the party menus and the Examine button), then the lifecycle (audit, complete, cleanup).
+- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47, 46.1, 48, 49 and 50 (each human_needed, UAT deferred). Quick tasks 261006-a0i, a13 and a3d (owner live-play fixes) are done. To resume, run `/gsd-autonomous --from 51`. Phase 50 review iteration 2 is fixed (50-REVIEW-FIX-iter2.md); a final iteration-3 re-review of those fixes is optional before Phase 51. That runs 51 and 52 (52 now also builds loot, bank, admin, trade, the Hotbar Manager and the Journal from the owner designs; 51 also builds the party menus and the Examine button), then the lifecycle (audit, complete, cleanup).
 - Overnight autonomy is active (see above): take the recommended option for every question and log it as "auto-approved (owner overnight instruction)". Hard limits:
   - no paid LLM calls (the golden run is deferred)
   - no maincloud
