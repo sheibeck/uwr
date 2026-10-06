@@ -1294,5 +1294,42 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.16: Quests screen with tracking, abandon and region grouping (BACKLOG)
+
+**Goal:** A Quests menu item opens a Ledger screen (desktop drawer, mobile sheet) showing the same information as the `quests` chat command, formatted properly. From it, players track or untrack quests for the right rail, abandon quests with a confirmation, and browse quests grouped by region, with a cap of 30 active quests. Captured 2026-10-06 (owner idea). No quest backlog item existed to merge into.
+
+**What the owner asked for:**
+1. **Quests menu item.** A new entry (header button on desktop; the More sheet or a tab on mobile) that opens a Quests screen built on the Phase 45 drawer and sheet shells.
+2. **Same information as `quests`, formatted.** Everything the chat `quests` command prints (the client formatter ported in Phase 47, `src/input/infoCommands.ts`), shown as structured rows and not as raw text. Each quest shows its name, giver or recipient, type, objective with progress, rewards, description and turn-in status.
+3. **Tracking checkbox.** One checkbox per quest. A checked quest appears in the right rail's Tracking section (Phase 47 `ContextContent`). Unchecking removes it.
+4. **Abandon.** One abandon action per quest, which reuses the existing `abandon_quest` reducer. It asks for confirmation (the Phase 49 and 50 inline confirmation pattern). The confirmation states the cost:
+   - The reputation or affinity loss. Today `awardNpcAffinity` takes 3 off the giver's affinity on abandon.
+   - The server's line "This quest may never be offered again."
+5. **Grouped by region.** Quests are listed under their region, using the quest location or the giver's location mapped to a region. Each region heading shows its count.
+6. **Limit of 30 active quests.** A character can hold at most 30 active quests at a time. The screen shows the count, for example "12 / 30".
+
+**Notes for planning:**
+- **The limit needs a server change.** Today `MAX_ACTIVE_QUESTS = 4` in `spacetimedb/src/helpers/npc_conversation.ts`. It is used by the LLM quest offer (`llm_apply.ts:750`) and by the NPC conversation context (`npc_interaction.ts:93`). Decide whether 30 replaces it as a per-character cap that every accept path enforces (dialogue accept, LLM offer, the old auto-accept), and whether the offer prompt's count changes. A prompt change needs owner approval.
+- **Where tracking state lives.** Either a small per-character table (synced across devices, server-authoritative) or per-viewer local storage. Prefer server-side so the rail matches on every device; a `my_tracked_quests` view or a column on `quest_instance` are the options.
+- **Rail cap.** The right rail Tracking section needs a cap for how many tracked quests it shows, or it overflows. A small default such as 5 is suggested; the rest show as "+N more".
+- **Related:**
+  - todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`: a "Turn in" action and a "Return to {NPC}" hint. They belong on this screen too.
+  - 999.9 (NPC memory, abandon falls on affinity).
+  - 999.12 (quest reward gear).
+  - Phase 51 (World events and Track in the sidebar share the same Tracking rail).
+- **Tests:**
+  - region grouping
+  - the 30 cap on every accept path
+  - track and untrack sync with the rail
+  - abandon confirmation copy, including the reputation loss
+  - the formatter matches what `quests` shows
+  - escape test on quest text (LLM-generated)
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after recording owner approvals and the stat point proposal (999.8, 999.10, 999.12, 999.13)*
+*Last updated: 2026-10-06 after adding backlog 999.16 (Quests screen)*
