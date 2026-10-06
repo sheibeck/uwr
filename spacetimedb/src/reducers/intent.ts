@@ -17,7 +17,7 @@ import {
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
 import { findRaceDefinition } from '../data/race_bonuses';
-import { turnInCompletedQuest } from './quests';
+import { turnInCompletedQuest, questTurnInNpcId } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
 export { buildLookOutput } from '../helpers/look';
@@ -652,7 +652,8 @@ export const registerIntentReducers = (deps: any) => {
             ctx.db.quest_instance.id.update({ ...qi, progress: 1n, completed: true });
             const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
             if (qt) {
-              const npc = ctx.db.npc.id.find(qt.npcId);
+              const turnInNpcId = questTurnInNpcId(qt);
+              const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
               const giver = npc ? npc.name : 'the quest giver';
               appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
                 `Quest complete: ${qt.name}. Return to ${giver}.`);
@@ -748,7 +749,13 @@ export const registerIntentReducers = (deps: any) => {
         const progressStr = `${qi.progress}/${qt.requiredCount}`;
         let statusLine: string;
         if (qi.completed) {
-          statusLine = `  {{color:#22c55e}}COMPLETE{{/color}} — Return to {{color:#da77f2}}[${giverName}]{{/color}} at ${locName} to {{color:#22c55e}}[Turn In ${qt.name}]{{/color}}`;
+          // Turned in to the giver, or to a delivery's recipient (questTurnInNpcId)
+          const turnInNpcId = questTurnInNpcId(qt);
+          const turnInNpc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
+          const turnInLoc = turnInNpc ? ctx.db.location.id.find(turnInNpc.locationId) : null;
+          const turnInName = turnInNpc ? turnInNpc.name : giverName;
+          const turnInLocName = turnInLoc ? turnInLoc.name : locName;
+          statusLine = `  {{color:#22c55e}}COMPLETE{{/color}} — Return to {{color:#da77f2}}[${turnInName}]{{/color}} at ${turnInLocName} to {{color:#22c55e}}[Turn In ${qt.name}]{{/color}}`;
         } else {
           statusLine = `  ${verb}: ${progressStr}`;
           if (qt.targetItemName) statusLine += ` (${qt.targetItemName})`;

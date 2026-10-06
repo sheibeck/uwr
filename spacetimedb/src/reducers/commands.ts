@@ -5,6 +5,7 @@ import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { findRaceDefinition, levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 import { flattenLineBreaks } from '../helpers/chat_text';
+import { turnInCompletedQuest, questTurnInNpcId } from './quests';
 
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
@@ -82,7 +83,6 @@ export const registerCommandReducers = (deps: any) => {
     recomputeCharacterDerived,
     xpRequiredForLevel,
     MAX_LEVEL,
-    awardXp,
     ensureStarterItemTemplates,
     ensureLocationRuntimeBootstrap,
     initScheduledTables,
@@ -102,90 +102,19 @@ export const registerCommandReducers = (deps: any) => {
     }
     if (!npc) return fail(ctx, character, 'No such NPC here');
 
-    // Check for completed quests and auto-turn them in
-    const quests = [...ctx.db.quest_template.by_npc.filter(npc.id)];
-    const questInstances = [...ctx.db.quest_instance.by_character.filter(character.id)];
-
-    for (const quest of quests) {
-      const active = questInstances.find((row) => row.questTemplateId === quest.id);
-      if (active && active.completed && !active.completedAt) {
-        // Quest is ready to turn in!
-        const enemy = ctx.db.enemy_template.id.find(quest.targetEnemyTemplateId);
-        const targetNameText = enemy ? enemy.name : 'creatures';
-
-        // Mark quest as turned in
-        ctx.db.quest_instance.id.update({
-          ...active,
-          completedAt: ctx.timestamp,
-        });
-
-        // NPC dialogue for quest completion
-        const turnInMsg = `${npc.name} says, "Well done! You have slain ${quest.requiredCount} ${targetNameText}(s)."`;
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'npc', turnInMsg);
-        appendNpcDialog(ctx, character.id, npc.id, turnInMsg);
-
-        // Award XP — use awardXp so level-up check runs
-        // Pass character.level as enemyLevel: diff=0 → 100% modifier, no scaling penalty on quest XP
-        const xpResult = awardXp(ctx, character, character.level, quest.rewardXp);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You gain ${xpResult.xpGained} XP.`);
-        if (xpResult.leveledUp) {
-          const pending = xpResult.pendingLevels ?? 1n;
-          const targetLevel = character.level + 1n;
-          const levelText = pending > 1n ? `You have ${pending} levels pending (next: level ${targetLevel})!` : `You can advance to level ${targetLevel}!`;
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-            `${levelText} Click the [Level Up] indicator when ready.`);
-        }
-
-        // Award affinity (show in faction/gold color)
-        const affinityGained = 10n;
-        awardNpcAffinity(ctx, character, npc.id, affinityGained);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'faction', `You gain ${affinityGained} affinity with ${npc.name}.`);
-
-        return; // Stop here, quest turn-in takes priority
-      }
+    // Turn in every completed quest this NPC accepts (the giver, or a delivery's recipient) through the
+    // shared turn-in path, so hailing gives the same rewards as turn_in_quest and the "turn in" intent.
+    // A refusal (full bags) shows the NPC's in-voice message and leaves the quest ready to turn in.
+    const readyHere = [...ctx.db.quest_instance.by_character.filter(character.id)]
+      .filter((qi: any) => qi.completed)
+      .map((qi: any) => ({ qi, qt: ctx.db.quest_template.id.find(qi.questTemplateId) }))
+      .filter(({ qt }: any) => qt && questTurnInNpcId(qt) === npc.id);
+    let turnedIn = false;
+    for (const { qi, qt } of readyHere) {
+      if (turnInCompletedQuest(ctx, character, qi, qt, appendPrivateEvent, fail)) turnedIn = true;
     }
-
-    // Check for delivery quest completion (new quest types)
-    const deliveryInstances = [...ctx.db.quest_instance.by_character.filter(character.id)];
-    for (const qi of deliveryInstances) {
-      if (qi.completed || qi.completedAt) continue;
-      const qt = ctx.db.quest_template.id.find(qi.questTemplateId);
-      if (!qt) continue;
-      if ((qt.questType ?? 'kill') !== 'delivery') continue;
-      if (qt.targetNpcId !== npc.id) continue;
-
-      // Delivery quest complete!
-      ctx.db.quest_instance.id.update({
-        ...qi,
-        progress: 1n,
-        completed: true,
-        completedAt: ctx.timestamp,
-      });
-
-      // Award XP — use awardXp so level-up check runs
-      const deliveryXpResult = awardXp(ctx, character, character.level, qt.rewardXp);
-
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
-        `Delivery complete: ${qt.name}. ${npc.name} accepts your delivery.`);
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-        `You gain ${deliveryXpResult.xpGained} XP.`);
-      if (deliveryXpResult.leveledUp) {
-        const pending = deliveryXpResult.pendingLevels ?? 1n;
-        const targetLevel = character.level + 1n;
-        const levelText = pending > 1n ? `You have ${pending} levels pending (next: level ${targetLevel})!` : `You can advance to level ${targetLevel}!`;
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          `${levelText} Click the [Level Up] indicator when ready.`);
-      }
-      appendNpcDialog(ctx, character.id, npc.id,
-        `${npc.name} says, "Ah, you've brought it. Thank you."`);
-
-      // Award affinity
-      awardNpcAffinity(ctx, character, npc.id, 15n);
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'faction',
-        `You gain 15 affinity with ${npc.name}.`);
-
-      // DON'T return — continue to normal hail so follow-up dialogue branches appear
-    }
+    // A turn-in takes priority over the greeting; a refused one still gets the greeting below.
+    if (turnedIn) return;
 
     // Get the root dialogue option (empty playerText)
     let rootOption: any | null = null;

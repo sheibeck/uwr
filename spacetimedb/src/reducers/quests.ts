@@ -165,19 +165,30 @@ export function awardQuestXp(ctx: any, character: any, xp: bigint): { xpGained: 
 }
 
 /**
- * Turns in a completed quest: the one reward path shared by the turn_in_quest reducer and the
- * "turn in <quest>" intent, so both behave identically. The caller has already checked that qi is the
- * character's completed instance of qt. Awards xp, gold, the item reward and NPC affinity, records the
- * quest in the giver's memory, and removes the quest instance.
+ * The NPC a completed quest is turned in to: a delivery quest's recipient (targetNpcId) when it has one,
+ * otherwise the giver (npcId). Undefined when the quest has neither.
+ */
+export function questTurnInNpcId(qt: any): bigint | undefined {
+  if ((qt.questType ?? 'kill') === 'delivery' && qt.targetNpcId) return qt.targetNpcId;
+  return qt.npcId || undefined;
+}
+
+/**
+ * Turns in a completed quest: the one reward path shared by the turn_in_quest reducer, the
+ * "turn in <quest>" intent and hailing the turn-in NPC (commands.ts hailNpc), so all behave identically.
+ * The caller has already checked that qi is the character's completed instance of qt. Awards xp, gold,
+ * the item reward and affinity with the turn-in NPC (questTurnInNpcId), records the quest in the giver's
+ * memory (and the recipient's, for a delivery to someone else), and removes the quest instance.
  *
  * Refuses (visible message, nothing applied, quest stays ready to turn in) when the character is not at
- * the giver's location or the quest's item reward would not fit in their bags. Returns whether the quest
- * was turned in.
+ * the turn-in NPC's location or the quest's item reward would not fit in their bags. Returns whether the
+ * quest was turned in.
  */
 export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any, appendPrivateEvent: any, fail: any): boolean {
-  const npc = qt.npcId ? ctx.db.npc.id.find(qt.npcId) : undefined;
+  const turnInNpcId = questTurnInNpcId(qt);
+  const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
 
-  // The quest is turned in to its giver, where the giver stands.
+  // The quest is turned in to its giver (a delivery to its recipient), where that NPC stands.
   if (npc && npc.locationId !== character.locationId) {
     fail(ctx, character, `You must return to ${npc.name} at ${ctx.db.location.id.find(npc.locationId)?.name || `${npcPronouns(npcGender(npc)).possessive} post`} to turn in this quest.`);
     return false;
@@ -226,12 +237,14 @@ export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any,
   // Award the item reward (item-reward quests only)
   grantQuestItemReward(ctx, ctx.db.character.id.find(character.id)!, qt, appendPrivateEvent);
 
-  if (qt.npcId) {
-    // NPC affinity for the completion
-    awardNpcAffinity(ctx, ctx.db.character.id.find(character.id)!, qt.npcId, 10n);
-    // Quest name in the giver's memory, for narrative continuity and follow-up chains
-    recordQuestCompletion(ctx, character.id, qt.npcId, qt.name);
+  // NPC affinity for the completion, with the NPC who accepts it
+  if (turnInNpcId) {
+    awardNpcAffinity(ctx, ctx.db.character.id.find(character.id)!, turnInNpcId, 10n);
   }
+  // Quest name in the giver's memory, for narrative continuity and follow-up chains; a delivery
+  // recipient remembers it too.
+  if (qt.npcId) recordQuestCompletion(ctx, character.id, qt.npcId, qt.name);
+  if (turnInNpcId && turnInNpcId !== qt.npcId) recordQuestCompletion(ctx, character.id, turnInNpcId, qt.name);
 
   // Delete the completed quest instance (frees the quest slot)
   ctx.db.quest_instance.id.delete(qi.id);
@@ -293,7 +306,8 @@ export const registerQuestReducers = (deps: any) => {
 
         const qt = ctx.db.quest_template.id.find(questInstance.questTemplateId);
         if (qt) {
-          const npc = ctx.db.npc.id.find(qt.npcId);
+          const turnInNpcId = questTurnInNpcId(qt);
+          const npc = turnInNpcId ? ctx.db.npc.id.find(turnInNpcId) : undefined;
           const giver = npc ? npc.name : 'the quest giver';
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
             `Quest complete: ${qt.name}. Return to ${giver}.`);
