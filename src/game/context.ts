@@ -41,6 +41,7 @@ import type { FeedStore } from '../console/feedStore';
 import type { KeywordEntry } from '../console/keywords';
 import type { ScreenId } from '../screens/screens';
 import type { ActiveScreen } from '../frame/useScreens';
+import type { RoundTimerState } from '../combat/roundClock';
 import { createServerClock } from './serverClock';
 import type { ServerClock } from './serverClock';
 
@@ -175,9 +176,33 @@ export interface GameData {
 export interface FrameControls {
   readonly isDesktop: Readonly<Ref<boolean>>;
   readonly activeScreen: Readonly<Ref<ActiveScreen>>;
-  openScreen(id: ScreenId): void;
+  openScreen(id: ScreenId | 'encounter'): void;
   /** No-op when nothing is open. */
   closeScreen(): void;
+}
+
+/**
+ * The per-frame combat controller (Phase 48): targets, Tab and Esc keys, ally selection and the
+ * round clock, shared by the rail, strip, round row, hotbar and party block.
+ */
+export interface CombatController {
+  /** The selected ally; the player's own id by default, null while no character is active. */
+  readonly allyTargetId: Readonly<Ref<bigint | null>>;
+  readonly timer: Readonly<Ref<RoundTimerState>>;
+  /** True at 0 and with no open round. */
+  readonly resolving: Readonly<Ref<boolean>>;
+  /** The character is at 0 HP. */
+  readonly down: Readonly<Ref<boolean>>;
+  /** Hidden status line: 'Target: {name}', empty when nothing was requested. */
+  readonly targetStatus: Readonly<Ref<string>>;
+  selectAlly(characterId: bigint): void;
+  /** Targets a living hostile; a defeated or unknown hostile is never requested. */
+  requestTarget(enemyId: bigint): void;
+  /** Tab (1) and Shift+Tab (-1). True when the target changed (the key acted). */
+  cycle(dir: 1 | -1): boolean;
+  /** The ally id to send for an ability, or undefined to omit it. */
+  allyArgFor(ability: { targetRule: string }): bigint | undefined;
+  dispose(): void;
 }
 
 export type SubmitResult = 'sent' | 'queued' | 'refused' | 'empty' | 'offline';
@@ -214,6 +239,7 @@ export interface ConsoleApi {
 export const GAME_KEY: InjectionKey<GameData> = Symbol('uwr.game');
 export const FRAME_KEY: InjectionKey<FrameControls> = Symbol('uwr.frame');
 export const CONSOLE_KEY: InjectionKey<ConsoleApi> = Symbol('uwr.console');
+export const COMBAT_KEY: InjectionKey<CombatController> = Symbol('uwr.combat');
 
 // A constant, read-only ref. computed() keeps rows out of deep reactivity.
 function constant<T>(value: T): Readonly<Ref<T>> {
@@ -297,6 +323,21 @@ export function createInertFrame(): FrameControls {
     activeScreen: constant<ActiveScreen>(null),
     openScreen() {},
     closeScreen() {},
+  };
+}
+
+export function createInertCombat(): CombatController {
+  return {
+    allyTargetId: constant<bigint | null>(null),
+    timer: constant<RoundTimerState>({ resolving: true, seconds: 0, fraction: 0, totalSeconds: 0 }),
+    resolving: constant(true),
+    down: constant(false),
+    targetStatus: constant(''),
+    selectAlly() {},
+    requestTarget() {},
+    cycle: () => false,
+    allyArgFor: () => undefined,
+    dispose() {},
   };
 }
 

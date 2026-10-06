@@ -1,0 +1,575 @@
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { effectScope, nextTick, ref } from 'vue';
+import type { EffectScope, Ref } from 'vue';
+import { createCombatController } from './useCombatController';
+import { createInertCombatData, createInertGame } from '../game/context';
+import type { CombatController, FrameControls, GameData } from '../game/context';
+import type { ActiveScreen } from '../frame/useScreens';
+
+interface Fake {
+  game: GameData;
+  frame: FrameControls;
+  setCombatTarget: ReturnType<typeof vi.fn>;
+  character: Ref<Record<string, unknown> | null>;
+  connected: Ref<boolean>;
+  reducers: Ref<unknown>;
+  activeScreen: Ref<ActiveScreen>;
+  active: Ref<boolean>;
+  enemies: Ref<unknown[]>;
+  participants: Ref<unknown[]>;
+  openRound: Ref<unknown>;
+  groupMembers: Ref<unknown[]>;
+  knownCharacters: Ref<unknown[]>;
+  setNow(micros: number): void;
+}
+
+let now = 1_000_000_000;
+let scope: EffectScope | null = null;
+let controller: CombatController | null = null;
+
+function enemy(id: bigint, name: string, currentHp = 10n): Record<string, unknown> {
+  return { id, combatId: 1n, enemyTemplateId: 1n, displayName: name, currentHp, maxHp: 10n };
+}
+
+function build(over: { targetId?: bigint } = {}): Fake {
+  const setCombatTarget = vi.fn().mockResolvedValue(undefined);
+  const character = ref<Record<string, unknown> | null>({
+    id: 5n,
+    hp: 40n,
+    combatTargetEnemyId: over.targetId ?? 3n,
+  });
+  const connected = ref(true);
+  const reducers = ref<unknown>({ setCombatTarget });
+  const activeScreen = ref<ActiveScreen>(null);
+  const active = ref(true);
+  const enemies = ref<unknown[]>([enemy(3n, 'Fangling'), enemy(5n, 'Rotfang'), enemy(9n, 'Cinderhound')]);
+  const participants = ref<unknown[]>([
+    { id: 1n, combatId: 1n, characterId: 5n, status: 'active' },
+    { id: 2n, combatId: 1n, characterId: 8n, status: 'active' },
+  ]);
+  const openRound = ref<unknown>(null);
+  const groupMembers = ref<unknown[]>([{ id: 1n, characterId: 5n }, { id: 2n, characterId: 8n }]);
+  const knownCharacters = ref<unknown[]>([{ id: 8n, hp: 30n }]);
+  const game = {
+    ...createInertGame(),
+    connected,
+    character,
+    characterId: ref(5n),
+    reducers,
+    groupMembers,
+    knownCharacters,
+    clock: { nowMicros: () => now },
+    combat: { ...createInertCombatData(), active, enemies, participants, openRound },
+  } as unknown as GameData;
+  const frame = {
+    isDesktop: ref(true),
+    activeScreen,
+    openScreen() {},
+    closeScreen() {},
+  } as unknown as FrameControls;
+  return {
+    game,
+    frame,
+    setCombatTarget,
+    character,
+    connected,
+    reducers,
+    activeScreen,
+    active,
+    enemies,
+    participants,
+    openRound,
+    groupMembers,
+    knownCharacters,
+    setNow(micros) {
+      now = micros;
+    },
+  };
+}
+
+function start(fake: Fake): CombatController {
+  scope = effectScope();
+  controller = scope.run(() => createCombatController({ game: fake.game, frame: fake.frame }))!;
+  return controller;
+}
+
+function key(init: KeyboardEventInit & { key: string }, target: EventTarget = document): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+  target.dispatchEvent(event);
+  return event;
+}
+
+function focusable(tag: 'button' | 'input' | 'textarea', parent: HTMLElement = document.body): HTMLElement {
+  const el = document.createElement(tag);
+  parent.appendChild(el);
+  el.focus();
+  return el;
+}
+
+function region(className: string): HTMLElement {
+  const el = document.createElement('div');
+  el.className = className;
+  document.body.appendChild(el);
+  return el;
+}
+
+beforeEach(() => {
+  now = 1_000_000_000;
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  controller?.dispose();
+  controller = null;
+  scope?.stop();
+  scope = null;
+  document.body.innerHTML = '';
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe('requestTarget', () => {
+  it('requests a living hostile once and sets the status line', () => {
+    const fake = build();
+    const c = start(fake);
+    c.requestTarget(9n);
+    expect(fake.setCombatTarget).toHaveBeenCalledTimes(1);
+    expect(fake.setCombatTarget).toHaveBeenCalledWith({ characterId: 5n, enemyId: 9n });
+    expect(c.targetStatus.value).toBe('Target: Cinderhound');
+  });
+
+  it('never requests a defeated hostile', () => {
+    const fake = build();
+    fake.enemies.value = [enemy(3n, 'Fangling'), enemy(9n, 'Rotfang', 0n)];
+    const c = start(fake);
+    c.requestTarget(9n);
+    expect(fake.setCombatTarget).not.toHaveBeenCalled();
+    expect(c.targetStatus.value).toBe('');
+  });
+
+  it('never requests an unknown hostile', () => {
+    const fake = build();
+    start(fake).requestTarget(77n);
+    expect(fake.setCombatTarget).not.toHaveBeenCalled();
+  });
+
+  it('calls nothing while offline', () => {
+    const fake = build();
+    fake.reducers.value = null;
+    start(fake).requestTarget(9n);
+    expect(fake.setCombatTarget).not.toHaveBeenCalled();
+  });
+
+  it('catches and logs a rejected reducer call', async () => {
+    const fake = build();
+    const failure = new Error('refused');
+    fake.setCombatTarget.mockRejectedValue(failure);
+    start(fake).requestTarget(9n);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(console.warn).toHaveBeenCalledWith('[combat] set_combat_target failed', failure);
+  });
+});
+
+describe('Tab cycling', () => {
+  it('targets the next living hostile and prevents the default', () => {
+    const fake = build();
+    start(fake);
+    const event = key({ key: 'Tab' });
+    expect(fake.setCombatTarget).toHaveBeenCalledWith({ characterId: 5n, enemyId: 5n });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('advances from the last requested target before the server echo', () => {
+    const fake = build();
+    start(fake);
+    key({ key: 'Tab' });
+    key({ key: 'Tab' });
+    expect(fake.setCombatTarget).toHaveBeenNthCalledWith(1, { characterId: 5n, enemyId: 5n });
+    expect(fake.setCombatTarget).toHaveBeenNthCalledWith(2, { characterId: 5n, enemyId: 9n });
+  });
+
+  it('Shift+Tab goes to the previous hostile, wrapping', () => {
+    const fake = build();
+    start(fake);
+    const event = key({ key: 'Tab', shiftKey: true });
+    expect(fake.setCombatTarget).toHaveBeenCalledWith({ characterId: 5n, enemyId: 9n });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('picks the first (Tab) or last (Shift+Tab) when nothing is targeted', () => {
+    const fake = build();
+    fake.character.value = { id: 5n, hp: 40n };
+    start(fake);
+    key({ key: 'Tab' });
+    expect(fake.setCombatTarget).toHaveBeenLastCalledWith({ characterId: 5n, enemyId: 3n });
+  });
+
+  it('Shift+Tab picks the last hostile when nothing is targeted', () => {
+    const fake = build();
+    fake.character.value = { id: 5n, hp: 40n };
+    start(fake);
+    key({ key: 'Tab', shiftKey: true });
+    expect(fake.setCombatTarget).toHaveBeenLastCalledWith({ characterId: 5n, enemyId: 9n });
+  });
+
+  it('skips defeated hostiles', () => {
+    const fake = build();
+    fake.enemies.value = [enemy(3n, 'Fangling'), enemy(5n, 'Rotfang', 0n), enemy(9n, 'Cinderhound')];
+    start(fake);
+    key({ key: 'Tab' });
+    expect(fake.setCombatTarget).toHaveBeenCalledWith({ characterId: 5n, enemyId: 9n });
+  });
+
+  it('is a native no-op with one living hostile already targeted', () => {
+    const fake = build();
+    fake.enemies.value = [enemy(3n, 'Fangling'), enemy(5n, 'Rotfang', 0n)];
+    start(fake);
+    const event = key({ key: 'Tab' });
+    expect(fake.setCombatTarget).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('is a native no-op with no living hostile', () => {
+    const fake = build();
+    fake.enemies.value = [enemy(3n, 'Fangling', 0n)];
+    start(fake);
+    const event = key({ key: 'Tab' });
+    expect(fake.setCombatTarget).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('acts with focus on a button inside the encounter panel', () => {
+    const fake = build();
+    start(fake);
+    focusable('button', region('encounter-panel'));
+    const event = key({ key: 'Tab' });
+    expect(fake.setCombatTarget).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('acts with focus on a button inside the feed', () => {
+    const fake = build();
+    start(fake);
+    focusable('button', region('feed-region'));
+    expect(key({ key: 'Tab' }).defaultPrevented).toBe(true);
+    expect(fake.setCombatTarget).toHaveBeenCalledTimes(1);
+  });
+
+  describe('is ignored (native Tab) when', () => {
+    function expectIgnored(fake: Fake, init: KeyboardEventInit = {}): void {
+      const event = key({ key: 'Tab', ...init });
+      expect(fake.setCombatTarget).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    }
+
+    it('an input has focus', () => {
+      const fake = build();
+      start(fake);
+      focusable('input');
+      expectIgnored(fake);
+    });
+
+    it('a textarea inside the feed has focus', () => {
+      const fake = build();
+      start(fake);
+      focusable('textarea', region('feed-region'));
+      expectIgnored(fake);
+    });
+
+    it('a button outside the panel and the feed has focus', () => {
+      const fake = build();
+      start(fake);
+      focusable('button');
+      expectIgnored(fake);
+    });
+
+    it('the map screen is open', () => {
+      const fake = build();
+      fake.activeScreen.value = 'map';
+      start(fake);
+      expectIgnored(fake);
+    });
+
+    it('the encounter sheet is open', () => {
+      const fake = build();
+      fake.activeScreen.value = 'encounter';
+      start(fake);
+      expectIgnored(fake);
+    });
+
+    it('a menu (the account menu) is open', () => {
+      const fake = build();
+      const menu = document.createElement('div');
+      menu.setAttribute('role', 'menu');
+      document.body.appendChild(menu);
+      start(fake);
+      expectIgnored(fake);
+    });
+
+    it('Ctrl, Meta or Alt is held', () => {
+      const fake = build();
+      start(fake);
+      expectIgnored(fake, { ctrlKey: true });
+      expectIgnored(fake, { metaKey: true });
+      expectIgnored(fake, { altKey: true });
+    });
+
+    it('the key repeats or a composition is running', () => {
+      const fake = build();
+      start(fake);
+      expectIgnored(fake, { repeat: true });
+      expectIgnored(fake, { isComposing: true });
+    });
+
+    it('offline', () => {
+      const fake = build();
+      fake.connected.value = false;
+      start(fake);
+      expectIgnored(fake);
+      fake.connected.value = true;
+      fake.reducers.value = null;
+      expectIgnored(fake);
+    });
+
+    it('combat is not active', () => {
+      const fake = build();
+      fake.active.value = false;
+      start(fake);
+      expectIgnored(fake);
+    });
+  });
+});
+
+describe('Escape', () => {
+  it('blurs a button focused inside the encounter panel', () => {
+    const fake = build();
+    start(fake);
+    const button = focusable('button', region('encounter-panel'));
+    expect(document.activeElement).toBe(button);
+    key({ key: 'Escape' });
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('blurs a button focused inside the feed', () => {
+    const fake = build();
+    start(fake);
+    const button = focusable('button', region('feed-region'));
+    key({ key: 'Escape' });
+    expect(document.activeElement).not.toBe(button);
+  });
+
+  it('leaves an input alone', () => {
+    const fake = build();
+    start(fake);
+    const input = focusable('input', region('feed-region'));
+    key({ key: 'Escape' });
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('leaves a button outside the panel and the feed alone', () => {
+    const fake = build();
+    start(fake);
+    const button = focusable('button');
+    key({ key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('does nothing with a screen open', () => {
+    const fake = build();
+    fake.activeScreen.value = 'map';
+    start(fake);
+    const button = focusable('button', region('encounter-panel'));
+    key({ key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('does nothing outside combat', () => {
+    const fake = build();
+    fake.active.value = false;
+    start(fake);
+    const button = focusable('button', region('encounter-panel'));
+    key({ key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+  });
+});
+
+describe('ally selection', () => {
+  it('defaults to the player and follows selectAlly', () => {
+    const c = start(build());
+    expect(c.allyTargetId.value).toBe(5n);
+    c.selectAlly(8n);
+    expect(c.allyTargetId.value).toBe(8n);
+    c.selectAlly(5n);
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('resets to the player when the fight ends and clears the target memory', () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    c.requestTarget(9n);
+    expect(c.targetStatus.value).toBe('Target: Cinderhound');
+    fake.active.value = false;
+    expect(c.allyTargetId.value).toBe(5n);
+    expect(c.targetStatus.value).toBe('');
+  });
+
+  it('resets when the ally participant row is gone', () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    fake.participants.value = [{ id: 1n, combatId: 1n, characterId: 5n, status: 'active' }];
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('resets when the ally leaves the party', () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    fake.groupMembers.value = [{ id: 1n, characterId: 5n }];
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('keeps a dead ally selected', () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    fake.participants.value = [
+      { id: 1n, combatId: 1n, characterId: 5n, status: 'active' },
+      { id: 2n, combatId: 1n, characterId: 8n, status: 'dead' },
+    ];
+    expect(c.allyTargetId.value).toBe(8n);
+  });
+});
+
+describe('allyArgFor', () => {
+  it('returns the id of an active living ally for a single_ally ability', () => {
+    const c = start(build());
+    c.selectAlly(8n);
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBe(8n);
+  });
+
+  it('returns undefined for other rules', () => {
+    const c = start(build());
+    c.selectAlly(8n);
+    expect(c.allyArgFor({ targetRule: 'single_enemy' })).toBeUndefined();
+  });
+
+  it('returns undefined for a dead ally', () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    fake.participants.value = [
+      { id: 1n, combatId: 1n, characterId: 5n, status: 'active' },
+      { id: 2n, combatId: 1n, characterId: 8n, status: 'dead' },
+    ];
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBeUndefined();
+  });
+
+  it('returns undefined for an ally with 0 HP', () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [{ id: 8n, hp: 0n }];
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBeUndefined();
+  });
+});
+
+describe('round clock', () => {
+  const round = (expiresInSeconds: number): Record<string, unknown> => ({
+    id: 1n,
+    combatId: 1n,
+    roundNumber: 1n,
+    state: 'action_select',
+    startedAtMicros: BigInt(now),
+    timerExpiresAtMicros: BigInt(now + expiresInSeconds * 1_000_000),
+  });
+
+  it('counts down an open round and resolves at expiry', async () => {
+    vi.useFakeTimers();
+    const fake = build();
+    fake.openRound.value = round(6);
+    const c = start(fake);
+    await nextTick();
+    expect(c.timer.value.seconds).toBe(6);
+    expect(c.resolving.value).toBe(false);
+    fake.setNow(now + 7_000_000);
+    vi.advanceTimersByTime(250);
+    expect(c.resolving.value).toBe(true);
+  });
+
+  it('is resolving with no open round', () => {
+    const c = start(build());
+    expect(c.resolving.value).toBe(true);
+    expect(c.timer.value.seconds).toBe(0);
+  });
+
+  it('ticks every 250 ms normally', () => {
+    vi.useFakeTimers();
+    const fake = build();
+    fake.openRound.value = round(6);
+    const c = start(fake);
+    fake.setNow(now + 2_000_000);
+    expect(c.timer.value.seconds).toBe(6);
+    vi.advanceTimersByTime(250);
+    expect(c.timer.value.seconds).toBe(4);
+  });
+
+  it('ticks every 1000 ms under reduced motion', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    window.matchMedia = globalThis.matchMedia;
+    const fake = build();
+    fake.openRound.value = round(6);
+    const c = start(fake);
+    fake.setNow(now + 2_000_000);
+    vi.advanceTimersByTime(250);
+    expect(c.timer.value.seconds).toBe(6);
+    vi.advanceTimersByTime(750);
+    expect(c.timer.value.seconds).toBe(4);
+  });
+
+  it('runs no interval outside combat', () => {
+    vi.useFakeTimers();
+    const fake = build();
+    fake.active.value = false;
+    fake.openRound.value = round(6);
+    start(fake);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('clears the interval on dispose', () => {
+    vi.useFakeTimers();
+    const fake = build();
+    fake.openRound.value = round(6);
+    start(fake);
+    expect(vi.getTimerCount()).toBe(1);
+    controller?.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('down', () => {
+  it('is true only at 0 HP', () => {
+    const fake = build();
+    const c = start(fake);
+    expect(c.down.value).toBe(false);
+    fake.character.value = { id: 5n, hp: 0n };
+    expect(c.down.value).toBe(true);
+    fake.character.value = null;
+    expect(c.down.value).toBe(false);
+  });
+});
+
+describe('dispose', () => {
+  it('removes the document listener', () => {
+    const fake = build();
+    const c = start(fake);
+    c.dispose();
+    key({ key: 'Tab' });
+    expect(fake.setCombatTarget).not.toHaveBeenCalled();
+  });
+});
