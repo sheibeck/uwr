@@ -2,7 +2,7 @@ import { getAffinityForNpc, canConverseWithNpc, awardNpcAffinity } from '../help
 import { appendSystemMessage, appendWorldEvent } from '../helpers/events';
 import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
-import { detectPrimarySecondary } from '../data/class_stats';
+import { levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 
 
@@ -78,7 +78,6 @@ export const registerCommandReducers = (deps: any) => {
     appendLocationEvent,
     appendGroupEvent,
     fail,
-    computeBaseStatsForGenerated,
     recomputeCharacterDerived,
     xpRequiredForLevel,
     MAX_LEVEL,
@@ -604,8 +603,9 @@ export const registerCommandReducers = (deps: any) => {
       }
     }
 
-    const { primary, secondary } = detectPrimarySecondary(character);
-    const newBase = computeBaseStatsForGenerated(primary, secondary, target);
+    // The race_definition bonus is kept through the rebuild (D1).
+    const raceDef = [...ctx.db.race_definition.by_name.filter(String(character.race ?? '').toLowerCase())][0];
+    const { stats: newBase } = levelUpBaseStats(character, target, raceDef?.bonusesJson);
 
     // Compute racial at target level using the same formula as awardXp
     const racial = raceRow ? computeRacialAtLevelForAdmin(raceRow, target) : null;

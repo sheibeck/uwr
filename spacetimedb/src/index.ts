@@ -50,8 +50,8 @@ import {
   computeBaseStatsForGenerated,
   characterUsesResource,
   bestCasterStat,
-  detectPrimarySecondary,
 } from './data/class_stats';
+import { levelUpBaseStats } from './data/race_bonuses';
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from './data/xp';
 import { RACE_DATA, ensureRaces } from './data/races';
 // ensureFactions removed -- factions are now generated through play
@@ -491,9 +491,9 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
   // Process exactly ONE level
   const newLevel = character.level + 1n;
 
-  // Compute new base stats
-  const { primary, secondary } = detectPrimarySecondary(character);
-  const newBase = computeBaseStatsForGenerated(primary, secondary, newLevel);
+  // Compute new base stats; the race_definition bonus is kept through the rebuild (D1).
+  const raceDef = [...ctx.db.race_definition.by_name.filter(String(character.race ?? '').toLowerCase())][0];
+  const { stats: newBase } = levelUpBaseStats(character, newLevel, raceDef?.bonusesJson);
 
   // Compute racial bonuses at new level
   const raceRow = [...ctx.db.race.iter()].find((r: any) => r.name === character.race);
