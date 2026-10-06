@@ -236,7 +236,7 @@ Plans:
   4. Typing a natural sentence that starts with a command word ("Who is that over there?", "Leave him alone", "End this now", "Accept my apology") reaches the conversation or intent path, while exact forms (`who`, `/who`, `invite <name>`) still run the command.
   5. At 390×844 the feed, keywords, hotbar and input are usable, and the vitals, routes, Nearby, quests and active event are reachable from the compact strip and tab bar.
 
-**Plans**: 5/12 plans executed
+**Plans**: 6/12 plans executed
 
 Plans:
 **Wave 1**
@@ -249,7 +249,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 47-06-PLAN.md — Game data hub with every filtered subscription; GAME/FRAME/CONSOLE injection contracts; session, App and AppFrame wiring
+- [x] 47-06-PLAN.md — Game data hub with every filtered subscription; GAME/FRAME/CONSOLE injection contracts; session, App and AppFrame wiring
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -399,7 +399,7 @@ Plans:
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
 | 46.1. Round-Based Combat Engine | v3.0 | 0/TBD | Not started | - |
-| 47. Console, Rails, Hotbar and Input | v3.0 | 5/12 | In Progress|  |
+| 47. Console, Rails, Hotbar and Input | v3.0 | 6/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |
