@@ -9,30 +9,6 @@ export const MIN_EFFECT_ROUNDS = 1n;
 export const MAX_COMBAT_NARRATIONS = 3n;                     // per-fight cap on big-moment narrations; the end-of-fight narration is separate (+1)
 export const COMBAT_INTRO_TIMEOUT_MICROS = 12_000_000n; // Fallback if LLM intro never completes (12 seconds)
 
-/** Weapon auto-attack intervals by type (microseconds).
- *  Fast weapons swing more often but deal less per hit.
- *  DPS is balanced via inverse damage scaling.
- *
- *  Speed tiers:
- *    Fast   (3.0s): dagger, rapier
- *    Normal (3.5s): sword, blade, mace
- *    Medium (4.0s): axe
- *    Slow   (5.0s): staff, bow, greatsword (two-handed)
- *  Default fallback (unarmed/unknown): 4_000_000n (4.0s)
- */
-export const WEAPON_SPEED_MICROS: Record<string, bigint> = {
-  dagger:     3_000_000n,
-  rapier:     3_000_000n,
-  sword:      3_500_000n,
-  blade:      3_500_000n,
-  mace:       3_500_000n,
-  axe:        4_000_000n,
-  staff:      5_000_000n,
-  bow:        5_000_000n,
-  greatsword: 5_000_000n,
-};
-export const DEFAULT_WEAPON_SPEED_MICROS = 4_000_000n;
-
 /** Weapon types that occupy both hands — cannot equip offHand alongside these. */
 export const TWO_HANDED_WEAPON_TYPES = new Set(['staff', 'bow', 'greatsword']);
 

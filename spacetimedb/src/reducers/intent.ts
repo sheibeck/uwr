@@ -1537,7 +1537,6 @@ export const registerIntentReducers = (deps: any) => {
         ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
         isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
         effectiveGroupId: deps.effectiveGroupId,
-        getEquippedWeaponStats: deps.getEquippedWeaponStats,
       }, character, matchedLocation.id);
       return;
     }
@@ -1718,7 +1717,6 @@ export const registerIntentReducers = (deps: any) => {
         ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
         isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
         effectiveGroupId: deps.effectiveGroupId,
-        getEquippedWeaponStats: deps.getEquippedWeaponStats,
       }, character, implicitDest.id);
       return;
     }

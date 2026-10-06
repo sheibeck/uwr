@@ -2,8 +2,7 @@ import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
 import { normalizeClassName } from '../data/class_stats';
 import { PREFIXES, SUFFIXES, AFFIX_COUNT_BY_QUALITY } from '../data/affix_catalog';
-import { getWeaponSpeed } from '../data/combat_scaling';
-import { DEFAULT_WEAPON_SPEED_MICROS, TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
+import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import {
   ARMOR_ALLOWED_CLASSES,
   STARTER_WEAPON_DEFS,
@@ -337,10 +336,9 @@ export function getEquippedWeaponStats(ctx: any, characterId: bigint) {
       dps: template.weaponDps + bonusDps,
       name: template.name,
       weaponType: template.weaponType,
-      speed: getWeaponSpeed(template.weaponType),
     };
   }
-  return { baseDamage: 0n, dps: 0n, name: '', weaponType: '', speed: DEFAULT_WEAPON_SPEED_MICROS };
+  return { baseDamage: 0n, dps: 0n, name: '', weaponType: '' };
 }
 
 export function findItemTemplateByName(ctx: any, name: string) {

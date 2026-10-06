@@ -13,7 +13,6 @@ export const registerMovementReducers = (deps: any) => {
     ensureSpawnsForLocation,
     isGroupLeaderOrSolo,
     effectiveGroupId,
-    getEquippedWeaponStats,
   } = deps;
 
   spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64() }, (ctx: any, args: any) => {
@@ -33,7 +32,6 @@ export const registerMovementReducers = (deps: any) => {
       ensureSpawnsForLocation,
       isGroupLeaderOrSolo,
       effectiveGroupId,
-      getEquippedWeaponStats,
     }, character, args.locationId);
   });
 };

@@ -25,7 +25,6 @@ export function performTravel(
     ensureSpawnsForLocation: (ctx: any, locationId: bigint) => void;
     isGroupLeaderOrSolo: (ctx: any, character: any) => boolean;
     effectiveGroupId: (character: any) => bigint | undefined;
-    getEquippedWeaponStats?: (ctx: any, charId: bigint) => { speed: bigint; [k: string]: any };
   },
   character: any,
   targetLocationId: bigint

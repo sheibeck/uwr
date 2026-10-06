@@ -10,19 +10,7 @@ vi.mock('../data/class_stats', () => ({
   normalizeClassName: (name: string) => name.toLowerCase(),
 }));
 
-vi.mock('../data/combat_scaling', () => ({
-  getWeaponSpeed: (type: string) => {
-    const speeds: Record<string, bigint> = {
-      dagger: 3_000_000n, rapier: 3_000_000n,
-      sword: 3_500_000n, blade: 3_500_000n, mace: 3_500_000n,
-      axe: 4_000_000n, staff: 5_000_000n, bow: 5_000_000n, greatsword: 5_000_000n,
-    };
-    return speeds[type] ?? 4_000_000n;
-  },
-}));
-
 vi.mock('../data/combat_constants', () => ({
-  DEFAULT_WEAPON_SPEED_MICROS: 4_000_000n,
   TWO_HANDED_WEAPON_TYPES: new Set(['staff', 'bow', 'greatsword']),
 }));
 
@@ -364,7 +352,7 @@ describe('getEquippedWeaponStats', () => {
     expect(stats.dps).toBe(0n);
     expect(stats.name).toBe('');
     expect(stats.weaponType).toBe('');
-    expect(stats.speed).toBe(4_000_000n);
+    expect('speed' in stats).toBe(false);
   });
 });
 

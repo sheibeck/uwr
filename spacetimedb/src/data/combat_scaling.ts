@@ -1,5 +1,4 @@
 import { detectPrimarySecondary, type StatKey } from './class_stats.js';
-import { WEAPON_SPEED_MICROS, DEFAULT_WEAPON_SPEED_MICROS } from './combat_constants.js';
 
 // ============================================================================
 // COMBAT SCALING CONSTANTS
@@ -136,13 +135,6 @@ export const ENEMY_BASE_POWER = 10n;
  * Level 1 = 15, Level 5 = 35, Level 10 = 60
  */
 export const ENEMY_LEVEL_POWER_SCALING = 5n;
-
-/**
- * DoT/HoT tick interval in seconds. Damage/heal effects apply every N combat ticks.
- * Combat loop runs at 1s intervals, so 3n = damage ticks every 3 seconds.
- * Lower = more frequent ticks (faster effect damage), higher = slower ticks.
- */
-export const EFFECT_TICK_SECONDS = 3n;
 
 /**
  * DoT life drain percentage on 100n scale.
@@ -333,13 +325,6 @@ export function calculateStatScaledAutoAttack(baseWeaponDamage: bigint, characte
 export function calculateCritChance(characterDex: bigint): bigint {
   const chance = CRIT_BASE_CHANCE + characterDex * CRIT_DEX_BONUS_PER_POINT;
   return chance > CRIT_CHANCE_CAP ? CRIT_CHANCE_CAP : chance;
-}
-
-/** Get auto-attack interval in microseconds for a weapon type.
- *  Falls back to DEFAULT_WEAPON_SPEED_MICROS for unknown types.
- */
-export function getWeaponSpeed(weaponType: string): bigint {
-  return WEAPON_SPEED_MICROS[weaponType] ?? DEFAULT_WEAPON_SPEED_MICROS;
 }
 
 /**
