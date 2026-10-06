@@ -18,6 +18,12 @@ describe('cleanServerText', () => {
     expect(cleanServerText('[a\nb]')).toBe('[a\nb]');
   });
 
+  it('trims leading and trailing whitespace but never the spacing inside', () => {
+    expect(cleanServerText('\n\n  Commands:\n  look  (l)\n\n ')).toBe('Commands:\n  look  (l)');
+    expect(cleanServerText('{{color:x}} a {{/color}}\n')).toBe('a');
+    expect(cleanServerText('   \n ')).toBe('');
+  });
+
   it('leaves empty and unmatched brackets alone', () => {
     expect(cleanServerText('[]')).toBe('[]');
     expect(cleanServerText('a [ b')).toBe('a [ b');

@@ -256,7 +256,8 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
     return [
       makeLine(key, {
         kind: 'npc',
-        text: parsed ? parsed.text : text,
+        // The spoken text sits inside typographic quotes, so its own ends are trimmed too.
+        text: parsed ? parsed.text.trim() : text,
         speaker: parsed ? parsed.name : null,
         keywordEligible: true,
       }),

@@ -10,8 +10,13 @@ const COLOR_TOKEN = /\{\{\/?color\b[^{}]*\}\}/g;
 // One or more characters that are not a bracket or newline, wrapped in square brackets.
 const BRACKET_WORD = /\[([^[\]\n]+)\]/g;
 
-/** Removes color tokens and unwraps [bracket] words. Newlines and indentation are kept. */
+/**
+ * Removes color tokens and unwraps [bracket] words. Newlines and indentation inside the text are
+ * kept (the feed body uses pre-wrap so help keeps its layout). Leading and trailing whitespace is
+ * trimmed, because pre-wrap would otherwise draw a blank row or push a closing quote onto its own
+ * line.
+ */
 export function cleanServerText(message: string): string {
   if (typeof message !== 'string' || message === '') return '';
-  return message.replace(COLOR_TOKEN, '').replace(BRACKET_WORD, '$1');
+  return message.replace(COLOR_TOKEN, '').replace(BRACKET_WORD, '$1').trim();
 }

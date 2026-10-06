@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import FeedLine from './FeedLine.vue';
 import { keywordActionLabel } from './keywordLabel';
-import type { FeedLineView } from './lines';
+import { classifyEntry, type FeedLineView, type LineSource } from './lines';
 import { buildVocabulary, findKeywords, type KeywordEntry } from './keywords';
 import { cleanServerText } from './cleanServerText';
 
@@ -434,6 +434,42 @@ describe('FeedLine line breaks', () => {
     expect(buttons.map((b) => b.text())).toEqual(['Old Well', 'Gloamwood']);
     expect(w.get('.body').element.textContent).toBe(text);
     expect(text).toContain('\n');
+  });
+
+  describe('whitespace on server-kind bodies (pre-wrap)', () => {
+    const OPEN = String.fromCharCode(0x201c);
+    const CLOSE = String.fromCharCode(0x201d);
+    const entry = (kind: string, message: string): LineSource => ({
+      key: 'private:1',
+      source: 'private',
+      kind,
+      message,
+      segments: null,
+    });
+    const renderEntry = (kind: string, message: string): VueWrapper => {
+      const [line] = classifyEntry(entry(kind, message), { partyNames: [] });
+      return render(line);
+    };
+
+    it('a quoted NPC line with trailing newlines keeps its closing quote on the same row', () => {
+      const w = renderEntry('npc', 'Mira says, "Mind the current."\n\n');
+      expect(w.get('.body').element.textContent).toBe(`Mira says, ${OPEN}Mind the current.${CLOSE}`);
+    });
+
+    it('a quoted NPC line with a trailing newline inside the quotes is trimmed too', () => {
+      const w = renderEntry('npc', 'Mira says, "Mind the current.\n"');
+      expect(w.get('.body').element.textContent).toBe(`Mira says, ${OPEN}Mind the current.${CLOSE}`);
+    });
+
+    it('a Keeper line has no leading or trailing blank rows and keeps internal spacing', () => {
+      const w = renderEntry('narrative', '\n\n  The well is dry.\n    A rope hangs in it.\n\n');
+      expect(w.get('.body').element.textContent).toBe('The well is dry.\n    A rope hangs in it.');
+    });
+
+    it('a help-style system line keeps its indentation under the header', () => {
+      const w = renderEntry('system', 'Commands:\n  look (l)\n  time\n');
+      expect(w.get('.body').element.textContent).toBe('Commands:\n  look (l)\n  time');
+    });
   });
 
   it('pins player-authored fallback lines to normal wrapping, but not real server system lines', () => {
