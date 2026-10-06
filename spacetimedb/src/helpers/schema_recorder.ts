@@ -23,6 +23,8 @@ export interface ColumnInfo {
   primaryKey: boolean;
   autoInc: boolean;
   unique: boolean;
+  /** True when the column was built with `.default(...)` (safe to append to a populated table). */
+  defaulted: boolean;
 }
 
 export interface RecordedTable {
@@ -53,12 +55,19 @@ function makeBuilder(kind: string): any {
     primaryKey: false,
     autoInc: false,
     unique: false,
+    defaulted: false,
   };
   const proxy: any = new Proxy(function () {}, {
     get(_target, prop) {
       if (prop === BUILDER_STATE_KEY) return state;
       // Never look like a thenable or an iterable to await / spread / JSON.
       if (typeof prop === 'symbol' || prop === 'then' || prop === 'toJSON') return undefined;
+      if (prop === 'default') {
+        return () => {
+          state.defaulted = true;
+          return proxy;
+        };
+      }
       if (typeof prop === 'string' && FLAG_METHODS.has(prop)) {
         return () => {
           (state as any)[prop] = true;
@@ -79,7 +88,7 @@ function columnInfoOf(builder: any): ColumnInfo {
   const state = builder?.[BUILDER_STATE_KEY];
   return state
     ? { ...state }
-    : { kind: 'unknown', optional: false, primaryKey: false, autoInc: false, unique: false };
+    : { kind: 'unknown', optional: false, primaryKey: false, autoInc: false, unique: false, defaulted: false };
 }
 
 function nameOf(nameOrOpts: any): string {

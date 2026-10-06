@@ -44,6 +44,17 @@ describe('schema recorder: tables.ts', () => {
   });
 });
 
+describe('schema recorder: defaulted flag', () => {
+  it('records defaulted true for a column built with .default(...) and false otherwise', async () => {
+    await import('../schema/tables');
+    expect(recordedTable('npc')!.cols.gender.defaulted).toBe(true);
+    const job = recordedTable('llm_job')!;
+    expect(job.cols.reservedMicroUsd.defaulted).toBe(true);
+    expect(job.cols.requestJson.defaulted).toBe(false);
+    expect(Object.values(job.cols).some((c) => c.defaulted)).toBe(true);
+  });
+});
+
 describe('rowColumnProblems', () => {
   // An llm_job-shaped row: every required column, the optional ones omitted.
   const validJobRow = {

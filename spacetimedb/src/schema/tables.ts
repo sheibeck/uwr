@@ -729,6 +729,7 @@ export const AbilityCooldown = table(
     abilityTemplateId: t.u64(),
     startedAtMicros: t.u64(),
     durationMicros: t.u64(),
+    roundsRemaining: t.u64().default(0n), // in-combat cooldown measured in rounds (0 = none)
   }
 );
 
@@ -875,6 +876,7 @@ export const CombatEnemyCooldown = table(
     enemyId: t.u64(),
     abilityKey: t.string(),
     readyAtMicros: t.u64(),
+    readyAtRound: t.u64().default(0n), // round number the ability is ready again (rounds, not microseconds)
   }
 );
 
@@ -1029,6 +1031,8 @@ export const CombatEnemyCast = table(
     endsAtMicros: t.u64(),
     targetCharacterId: t.u64().optional(),
     targetPetId: t.u64().optional(),
+    announcedRound: t.u64().default(0n), // round the wind-up was announced (rounds, not microseconds)
+    landsAtRound: t.u64().default(0n),   // round the wind-up lands
   }
 );
 
@@ -1175,6 +1179,7 @@ export const CombatPendingAdd = table(
     enemyRoleTemplateId: t.u64().optional(),
     spawnId: t.u64().optional(),
     arriveAtMicros: t.u64(),
+    arriveAtRound: t.u64().default(0n), // round number the add joins the fight (rounds, not microseconds)
   }
 );
 
@@ -2018,6 +2023,7 @@ export const CombatRound = table(
     state: t.string(),              // 'action_select', 'resolving', 'resolved'
     timerExpiresAtMicros: t.u64(),
     narrationCount: t.u64(),        // Total narrations triggered so far in this combat
+    startedAtMicros: t.u64().default(0n), // round start, u64 microseconds since the Unix epoch (0 on rows from before this column)
   }
 );
 
@@ -2054,7 +2060,7 @@ export const CombatNarrative = table(
     combatId: t.u64(),
     roundNumber: t.u64(),
     narrativeText: t.string(),
-    narrativeType: t.string(),      // 'intro', 'round', 'victory', 'defeat'
+    narrativeType: t.string(),      // 'intro', 'round', 'victory', 'defeat', 'kill', 'near_death', 'phase'
     createdAt: t.timestamp(),
   }
 );
@@ -2069,6 +2075,23 @@ export const RoundTimerTick = table(
     scheduledAt: t.scheduleAt(),
     combatId: t.u64(),
     roundNumber: t.u64(),
+  }
+);
+
+// Per-fight big-moment bookkeeping (once-per-fight flags and the narration budget). PRIVATE: no
+// `public` flag. Clients never read it.
+export const CombatMoment = table(
+  {
+    name: 'combat_moment',
+    indexes: [{ accessor: 'by_combat', algorithm: 'btree', columns: ['combatId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    combatId: t.u64(),
+    kind: t.string(),
+    subjectKey: t.string(),
+    roundNumber: t.u64(),
+    createdAt: t.timestamp(),
   }
 );
 
@@ -2344,6 +2367,7 @@ const spacetimedb = schema({
   combat_action: CombatAction,
   combat_narrative: CombatNarrative,
   round_timer_tick: RoundTimerTick,
+  combat_moment: CombatMoment,
 });
 export default spacetimedb;
 export { spacetimedb };
