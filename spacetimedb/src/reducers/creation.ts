@@ -1,4 +1,5 @@
 import { ensureDefaultHotbar } from '../helpers/items';
+import { computeCreationStats } from '../data/race_bonuses';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
 import { startCreationGeneration, retryClassFill, CLASS_FILL_PATIENCE_LINE } from '../helpers/creation_generation';
 import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
@@ -128,7 +129,6 @@ export const registerCreationReducers = (deps: any) => {
     SenderError,
     requirePlayerUserId,
     appendCreationEvent,
-    computeBaseStatsForGenerated,
     recomputeCharacterDerived,
     grantStarterItems,
     ensureStarterItemTemplates,
@@ -189,7 +189,7 @@ export const registerCreationReducers = (deps: any) => {
       armorProficiencies = 'cloth,' + armorProficiencies;
     }
 
-    const classStats = computeBaseStatsForGenerated(primaryStat, secondaryStat, 1n);
+    const { stats: classStats } = computeCreationStats(primaryStat, secondaryStat, state.raceBonuses);
 
     const character = ctx.db.character.insert({
       id: 0n,
