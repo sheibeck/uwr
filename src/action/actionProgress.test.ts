@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  actionKeys,
+  actionRowKeys,
   actionProgress,
   actionStartMicros,
   actionSummary,
@@ -98,17 +98,10 @@ describe('currentAction', () => {
   });
 });
 
-describe('actionKeys', () => {
-  it('lists every row of the character', () => {
-    expect(
-      actionKeys(
-        sources({
-          gathers: [gather(1n), gather(2n, { characterId: 6n })],
-          casts: [cast(3n), cast(4n, { characterId: 6n })],
-        }),
-      ),
-    ).toEqual(['gather:1', 'cast:3']);
-    expect(actionKeys(sources({ characterId: null, gathers: [gather(1n)] }))).toEqual([]);
+describe('actionRowKeys', () => {
+  it('lists every row, gathers then casts', () => {
+    expect(actionRowKeys([gather(1n), gather(2n)], [cast(3n)])).toEqual(['gather:1', 'gather:2', 'cast:3']);
+    expect(actionRowKeys([], [])).toEqual([]);
   });
 });
 

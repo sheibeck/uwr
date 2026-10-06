@@ -546,6 +546,72 @@ describe('createGameData: location keyed bindings', () => {
     expect(h.game.gathers.value.map((row) => row.id)).toEqual([1n]);
     expect(h.game.characterCasts.value.map((row) => row.id)).toEqual([2n]);
   });
+
+  it('records the client time an own gather or cast row first appeared, keyed by row id', () => {
+    let ms = 1_700_000_000_000;
+    const h = harness(() => ms);
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    expect(h.game.actionFirstSeen.value.size).toBe(0);
+    const gathers = h.find('Q_GATHERS_5');
+    gathers.rows.value = [{ id: 1n, characterId: 5n, nodeId: 3n }];
+    gathers.applied.value = true;
+    expect(h.game.actionFirstSeen.value.get('gather:1')).toBe(ms * 1000);
+    // A later skew sample and later rows leave the stored time alone.
+    ms += 4000;
+    h.game.clock.sample(BigInt((ms + 9000) * 1000));
+    const casts = h.find('Q_CHAR_CASTS_5');
+    casts.rows.value = [{ id: 2n, characterId: 5n, abilityTemplateId: 20n }];
+    casts.applied.value = true;
+    expect(h.game.actionFirstSeen.value.get('gather:1')).toBe((ms - 4000) * 1000);
+    expect(h.game.actionFirstSeen.value.get('cast:2')).toBe(ms * 1000);
+    // A deleted row drops its entry and keeps the others.
+    casts.rows.value = [];
+    expect([...h.game.actionFirstSeen.value.keys()]).toEqual(['gather:1']);
+    gathers.rows.value = [];
+    expect(h.game.actionFirstSeen.value.size).toBe(0);
+  });
+
+  it('keeps first-seen when the same rows are delivered again', () => {
+    let ms = 1_700_000_000_000;
+    const h = harness(() => ms);
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    const gathers = h.find('Q_GATHERS_5');
+    gathers.rows.value = [{ id: 1n, characterId: 5n, nodeId: 3n }];
+    gathers.applied.value = true;
+    ms += 3000;
+    gathers.rows.value = [{ id: 1n, characterId: 5n, nodeId: 3n }];
+    expect(h.game.actionFirstSeen.value.get('gather:1')).toBe((ms - 3000) * 1000);
+  });
+
+  it('empties the first-seen map on reset (logout)', () => {
+    const h = harness(() => 1_700_000_000_000);
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    const gathers = h.find('Q_GATHERS_5');
+    gathers.rows.value = [{ id: 1n, characterId: 5n, nodeId: 3n }];
+    gathers.applied.value = true;
+    expect(h.game.actionFirstSeen.value.size).toBe(1);
+    h.game.reset();
+    expect(h.game.actionFirstSeen.value.size).toBe(0);
+    expect(h.game.gathers.value).toEqual([]);
+  });
+
+  it('drops the first-seen entries of the previous character when the new binding applies', () => {
+    const h = harness(() => 1_700_000_000_000);
+    h.connect();
+    h.character.value = makeCharacter(5n);
+    const gathers = h.find('Q_GATHERS_5');
+    gathers.rows.value = [{ id: 1n, characterId: 5n, nodeId: 3n }];
+    gathers.applied.value = true;
+    expect(h.game.actionFirstSeen.value.size).toBe(1);
+    h.character.value = makeCharacter(6n);
+    const next = h.find('Q_GATHERS_6');
+    next.rows.value = [{ id: 9n, characterId: 6n, nodeId: 3n }];
+    next.applied.value = true;
+    expect([...h.game.actionFirstSeen.value.keys()]).toEqual(['gather:9']);
+  });
 });
 
 describe('createGameData: combat flag', () => {

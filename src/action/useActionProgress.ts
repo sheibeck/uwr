@@ -1,8 +1,9 @@
-import { computed, shallowRef, watch } from 'vue';
+import { computed } from 'vue';
 import type { Ref } from 'vue';
 import { useCooldownTicker } from '../hotbar/useCooldownTicker';
 import type { ServerClock } from '../game/serverClock';
-import { actionKeys, actionProgress, actionStartMicros, currentAction } from './actionProgress';
+import type { ActionFirstSeen } from './actionFirstSeen';
+import { actionProgress, actionStartMicros, currentAction } from './actionProgress';
 import type {
   AbilityRow,
   ActionProgress,
@@ -13,9 +14,9 @@ import type {
   NodeRow,
 } from './actionProgress';
 
-// First-seen tracking per row plus the single shared ticker for the action row (quick task
-// 261006-a13). Call it inside a component setup or an effect scope: the watch and the interval are
-// stopped on scope dispose.
+// The shown action, its progress and the single shared ticker for the action row (quick task
+// 261006-a13). First-seen times come from the data layer (createActionFirstSeen), so they survive a
+// remount. Call it inside a component setup or an effect scope: the interval is stopped on scope dispose.
 
 export interface ActionProgressInput {
   characterId: Readonly<Ref<bigint | null>>;
@@ -27,6 +28,8 @@ export interface ActionProgressInput {
   inCombat: Readonly<Ref<boolean>>;
   /** The Phase 47 server clock: first-seen is kept in client time and re-based with the current skew. */
   clock: Pick<ServerClock, 'nowMicros' | 'skewMicros'>;
+  /** Row key -> client microseconds at which the row first appeared; lives at the data layer. */
+  firstSeen: ActionFirstSeen;
 }
 
 export function useActionProgress(input: ActionProgressInput): {
@@ -40,34 +43,6 @@ export function useActionProgress(input: ActionProgressInput): {
     nodes: input.nodes.value,
     abilities: input.abilities.value,
   }));
-
-  // Row key -> CLIENT-clock microseconds at which the row was first seen. Client time never moves
-  // when the skew estimate changes; every read adds the current skew, so the start and the end of the
-  // bar always share one estimate. Covers every row of the character, so a gather keeps its start
-  // while a cast is shown over it; a key that is gone is dropped.
-  const firstSeen = shallowRef<ReadonlyMap<string, number>>(new Map());
-  const signature = computed(() => actionKeys(sources.value).join('|'));
-
-  watch(
-    signature,
-    () => {
-      const keys = actionKeys(sources.value);
-      const previous = firstSeen.value;
-      const next = new Map<string, number>();
-      let changed = keys.length !== previous.size;
-      for (const key of keys) {
-        const seen = previous.get(key);
-        if (seen === undefined) {
-          next.set(key, input.clock.nowMicros() - input.clock.skewMicros.value);
-          changed = true;
-        } else {
-          next.set(key, seen);
-        }
-      }
-      if (changed) firstSeen.value = next;
-    },
-    { immediate: true, flush: 'sync' },
-  );
 
   const action = computed<ActionView | null>(() => (input.inCombat.value ? null : currentAction(sources.value)));
 
@@ -83,7 +58,7 @@ export function useActionProgress(input: ActionProgressInput): {
     if (view === null) return null;
     const skew = input.clock.skewMicros.value;
     const tick = ticker.nowMicros.value + skew;
-    const seenClient = firstSeen.value.get(view.key);
+    const seenClient = input.firstSeen.value.get(view.key);
     const seen = seenClient === undefined ? tick : seenClient + skew;
     // The ticker can lag the row's arrival by up to a tick (a cast replacing a running gather does not
     // restart it): never read a time before the action was first seen, or the seconds exceed the total.

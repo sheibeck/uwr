@@ -45,6 +45,7 @@ import type {
 } from '../module_bindings/types';
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
+import { createActionFirstSeen } from '../action/actionFirstSeen';
 import { createFeedStore } from '../console/feedStore';
 import { wireCombatFeed } from '../combat/combatFeed';
 import type { EventRowLike, ServerFeedSource } from '../console/feedStore';
@@ -590,6 +591,16 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
   // Derived ------------------------------------------------------------------------------
   const groupRows = keyedRows(groups);
   const playerRows = keyedRows(players);
+  const gatherRows = keyedRows(ownGathers);
+  const castRows = keyedRows(ownCasts);
+
+  // First-seen time of every own gather and cast row (action row, a13), in client microseconds. It is
+  // kept here so a FeedShell remount keeps the bar's start; entries drop with their row, reset() empties it.
+  const actionSeen = createActionFirstSeen({
+    gathers: gatherRows,
+    casts: castRows,
+    now: () => (deps.now ?? Date.now)() * 1000,
+  });
 
   const characterId = characterKey;
   const connected = computed(() => input.status.value === 'connected' && input.conn.value !== null);
@@ -682,6 +693,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     narrativeKey.value = null;
     for (const binding of staticBindings) binding.dispose();
     for (const keyed of keyedAll) keyed.reset();
+    actionSeen.reset();
     feed.clear();
   }
 
@@ -717,8 +729,9 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     factionStandings: factionStandings.rows,
     renown: keyedRows(renown),
     renownPerks: keyedRows(renownPerks),
-    gathers: keyedRows(ownGathers),
-    characterCasts: keyedRows(ownCasts),
+    gathers: gatherRows,
+    characterCasts: castRows,
+    actionFirstSeen: actionSeen.firstSeen,
     privateEventsApplied,
     combat,
     feed,

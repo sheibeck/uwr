@@ -182,6 +182,12 @@ export interface GameData {
   readonly gathers: List<ResourceGather>;
   /** The active character's out-of-combat character_cast rows (distinct from combat.casts, the enemy wind-ups). */
   readonly characterCasts: List<CharacterCast>;
+  /**
+   * Action row (a13): 'gather:{id}' / 'cast:{id}' -> client microseconds at which the row first
+   * appeared. Kept here, not in a component, so a remount never restarts a bar; entries drop with
+   * their row and the map empties on reset().
+   */
+  readonly actionFirstSeen: Readonly<Ref<ReadonlyMap<string, number>>>;
   readonly privateEventsApplied: Readonly<Ref<boolean>>;
   readonly combat: CombatData;
   readonly feed: FeedStore;
@@ -334,6 +340,7 @@ export function createInertGame(): GameData {
     renownPerks: empty<RenownPerk>(),
     gathers: empty<ResourceGather>(),
     characterCasts: empty<CharacterCast>(),
+    actionFirstSeen: constant<ReadonlyMap<string, number>>(new Map()),
     privateEventsApplied: constant(false),
     combat: createInertCombatData(),
     feed: createFeedStore(),

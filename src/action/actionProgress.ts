@@ -48,6 +48,11 @@ export interface ActionProgress {
   totalSeconds: number;
 }
 
+/** The first-seen key of a gather row. */
+export const gatherKey = (id: bigint): string => `gather:${id}`;
+/** The first-seen key of a cast row. */
+export const castKey = (id: bigint): string => `cast:${id}`;
+
 function later<T extends { id: bigint; endsAtMicros: bigint }>(rows: readonly T[]): T | null {
   let best: T | null = null;
   for (const row of rows) {
@@ -73,7 +78,7 @@ export function currentAction(sources: ActionSources): ActionView | null {
     const known = ability === undefined ? 0 : Number(ability.castSeconds) * MICROS_PER_SECOND;
     return {
       kind: 'cast',
-      key: `cast:${cast.id}`,
+      key: castKey(cast.id),
       label: named ? `Casting ${ability.name}` : 'Casting',
       endsAtMicros: cast.endsAtMicros,
       knownTotalMicros: known > 0 ? known : 0,
@@ -86,7 +91,7 @@ export function currentAction(sources: ActionSources): ActionView | null {
     const named = node !== undefined && node.name.trim() !== '';
     return {
       kind: 'gather',
-      key: `gather:${gather.id}`,
+      key: gatherKey(gather.id),
       label: named ? `Gathering ${node.name}` : 'Gathering',
       endsAtMicros: gather.endsAtMicros,
       knownTotalMicros: 0,
@@ -96,13 +101,11 @@ export function currentAction(sources: ActionSources): ActionView | null {
   return null;
 }
 
-/** Every first-seen key of the character's rows, shown or not. */
-export function actionKeys(sources: ActionSources): string[] {
-  const me = sources.characterId;
-  if (me === null) return [];
+/** Every first-seen key of the given rows, shown or not: gathers first, then casts. */
+export function actionRowKeys(gathers: readonly { id: bigint }[], casts: readonly { id: bigint }[]): string[] {
   const keys: string[] = [];
-  for (const row of sources.gathers) if (row.characterId === me) keys.push(`gather:${row.id}`);
-  for (const row of sources.casts) if (row.characterId === me) keys.push(`cast:${row.id}`);
+  for (const row of gathers) keys.push(gatherKey(row.id));
+  for (const row of casts) keys.push(castKey(row.id));
   return keys;
 }
 

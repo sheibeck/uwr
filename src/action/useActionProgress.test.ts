@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
+import { createActionFirstSeen } from './actionFirstSeen';
 import { useActionProgress } from './useActionProgress';
 import type { CastRow, GatherRow } from './actionProgress';
 
@@ -25,28 +26,38 @@ afterEach(() => {
 function setup() {
   let now = T;
   const skew = ref(0);
+  const characterId = ref<bigint | null>(5n);
   const gathers = ref<readonly GatherRow[]>([]);
   const casts = ref<readonly CastRow[]>([]);
   const inCombat = ref(false);
+  const clock = { skewMicros: skew, nowMicros: () => now + skew.value };
+  // The data-layer first-seen map, in client time; shared by every composable of the test.
+  const seen = createActionFirstSeen({ gathers, casts, now: () => now });
   const scope = effectScope();
-  const result = scope.run(() =>
-    useActionProgress({
-      characterId: ref<bigint | null>(5n),
-      gathers,
-      casts,
-      nodes: ref([{ id: 3n, name: 'Ironwood' }]),
-      abilities: ref([{ id: 20n, name: 'Mend', kind: 'heal', castSeconds: 2n }]),
-      inCombat,
-      clock: { skewMicros: skew, nowMicros: () => now + skew.value },
-    }),
-  )!;
+  const mountComposable = (owner = scope) =>
+    owner.run(() =>
+      useActionProgress({
+        characterId,
+        gathers,
+        casts,
+        nodes: ref([{ id: 3n, name: 'Ironwood' }]),
+        abilities: ref([{ id: 20n, name: 'Mend', kind: 'heal', castSeconds: 2n }]),
+        inCombat,
+        clock,
+        firstSeen: seen.firstSeen,
+      }),
+    )!;
+  const result = mountComposable();
   return {
     ...result,
     gathers,
     casts,
+    characterId,
     inCombat,
     scope,
     skew,
+    seen,
+    mountComposable,
     setNow: (value: number) => {
       now = value;
     },
@@ -214,6 +225,107 @@ describe('useActionProgress', () => {
     // A 3 s window (seen at T + 1 s, ends at T + 4 s): at most 3s, bar at the start.
     expect(h.progress.value?.seconds).toBe(3);
     expect(h.progress.value?.fraction).toBe(0);
+    h.scope.stop();
+  });
+
+  it('keeps the start across a remount of the consumer', async () => {
+    const h = setup();
+    h.gathers.value = [gatherRow(1n, T + 8 * S)];
+    await nextTick();
+    h.setNow(T + 4 * S);
+    vi.advanceTimersByTime(250);
+    expect(h.progress.value?.fraction).toBe(0.5);
+    // FeedShell remounts (the desktop breakpoint): a new composable on the same data-layer map.
+    h.scope.stop();
+    expect(vi.getTimerCount()).toBe(0);
+    const again = h.mountComposable(effectScope());
+    expect(again.progress.value?.fraction).toBe(0.5);
+    expect(again.progress.value?.seconds).toBe(4);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('keeps the start across a combat toggle', async () => {
+    const h = setup();
+    h.gathers.value = [gatherRow(1n, T + 8 * S)];
+    await nextTick();
+    h.setNow(T + 2 * S);
+    h.inCombat.value = true;
+    await nextTick();
+    expect(h.progress.value).toBeNull();
+    h.setNow(T + 4 * S);
+    h.inCombat.value = false;
+    await nextTick();
+    expect(h.progress.value?.fraction).toBe(0.5);
+    expect(h.progress.value?.seconds).toBe(4);
+    h.scope.stop();
+  });
+
+  it('starts a cast seen mid-cast above 0 at once', async () => {
+    const h = setup();
+    // Mend takes 2 s; the row is first seen with 1 s left.
+    h.casts.value = [castRow(7n, T + 1 * S)];
+    await nextTick();
+    expect(h.progress.value?.seconds).toBe(1);
+    expect(h.progress.value?.fraction).toBe(0.5);
+    h.setNow(T + 500_000);
+    vi.advanceTimersByTime(250);
+    expect(h.progress.value?.fraction).toBe(0.75);
+    h.scope.stop();
+  });
+
+  it('measures an action that appears after mount from its own arrival', async () => {
+    const h = setup();
+    h.setNow(T + 30 * S);
+    vi.advanceTimersByTime(5000);
+    await nextTick();
+    h.gathers.value = [gatherRow(1n, T + 38 * S)];
+    await nextTick();
+    expect(h.progress.value?.seconds).toBe(8);
+    expect(h.progress.value?.fraction).toBe(0);
+    h.setNow(T + 32 * S);
+    vi.advanceTimersByTime(250);
+    expect(h.progress.value?.seconds).toBe(6);
+    expect(h.progress.value?.fraction).toBe(0.25);
+    h.scope.stop();
+  });
+
+  it('shows nothing for another character and for logout, and resumes for the first', async () => {
+    const h = setup();
+    h.gathers.value = [gatherRow(1n, T + 8 * S)];
+    await nextTick();
+    // A character swap: the previous character's rows are still in the cache until the new binding applies.
+    h.characterId.value = 6n;
+    await nextTick();
+    expect(h.action.value).toBeNull();
+    expect(h.progress.value).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    h.characterId.value = null;
+    await nextTick();
+    expect(h.action.value).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    h.setNow(T + 2 * S);
+    h.characterId.value = 5n;
+    await nextTick();
+    expect(h.action.value?.label).toBe('Gathering Ironwood');
+    expect(h.progress.value?.fraction).toBe(0.25);
+    h.scope.stop();
+  });
+
+  it('starts afresh after the first-seen map is reset (logout)', async () => {
+    const h = setup();
+    h.gathers.value = [gatherRow(1n, T + 8 * S)];
+    await nextTick();
+    h.setNow(T + 4 * S);
+    vi.advanceTimersByTime(250);
+    expect(h.progress.value?.fraction).toBe(0.5);
+    h.gathers.value = [];
+    h.seen.reset();
+    await nextTick();
+    expect(h.seen.firstSeen.value.size).toBe(0);
+    h.gathers.value = [gatherRow(1n, T + 12 * S)];
+    await nextTick();
+    expect(h.progress.value?.fraction).toBe(0);
+    expect(h.progress.value?.seconds).toBe(8);
     h.scope.stop();
   });
 

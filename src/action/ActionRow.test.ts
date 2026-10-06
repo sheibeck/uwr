@@ -1,11 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
+import type { Ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import ActionRow from './ActionRow.vue';
 import FeedShell from '../frame/FeedShell.vue';
+import { createActionFirstSeen } from './actionFirstSeen';
 import { GAME_KEY, createInertCombatData, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
 
@@ -50,6 +52,12 @@ function makeGame(setup: Setup = {}) {
   const gathers = ref<Array<Record<string, unknown>>>(setup.gathers ?? []);
   const casts = ref<Array<Record<string, unknown>>>(setup.casts ?? []);
   const active = ref(setup.active ?? false);
+  // The data-layer first-seen map, in client time, like createGameData builds it.
+  const seen = createActionFirstSeen({
+    gathers: gathers as unknown as Ref<readonly { id: bigint }[]>,
+    casts: casts as unknown as Ref<readonly { id: bigint }[]>,
+    now: () => now,
+  });
   const game = {
     ...createInertGame(),
     characterId: ref(5n),
@@ -58,6 +66,7 @@ function makeGame(setup: Setup = {}) {
     nodesHere: ref([{ id: 3n, name: setup.nodeName ?? 'Ironwood' }]),
     abilities: ref([{ id: 20n, name: setup.abilityName ?? 'Mend', kind: 'heal', castSeconds: 2n }]),
     combat: { ...createInertCombatData(), active },
+    actionFirstSeen: seen.firstSeen,
     clock: { skewMicros: ref(0), sample() {}, nowMicros: () => now },
   } as unknown as GameData;
   return {
@@ -65,6 +74,7 @@ function makeGame(setup: Setup = {}) {
     gathers,
     casts,
     active,
+    seen,
     setNow: (value: number) => {
       now = value;
     },
@@ -135,6 +145,53 @@ describe('ActionRow gather', () => {
     await nextTick();
     expect(w.find('.action-row').exists()).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('ActionRow lifecycle', () => {
+  it('starts an action that appears after mount from its own arrival', async () => {
+    const { w, gathers, setNow } = mountRow();
+    expect(w.find('.action-row').exists()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    setNow(T + 30 * S);
+    vi.advanceTimersByTime(5000);
+    gathers.value = [gatherRow(1n, T + 38 * S)];
+    await nextTick();
+    expect(w.get('.action-label').text()).toBe('Gathering Ironwood');
+    expect(w.get('.action-time').text()).toBe('8s');
+    expect(w.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('0');
+    expect(vi.getTimerCount()).toBe(1);
+    setNow(T + 34 * S);
+    vi.advanceTimersByTime(250);
+    await nextTick();
+    expect(w.get('.action-time').text()).toBe('4s');
+    expect(w.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('50');
+  });
+
+  it('keeps the bar where it was when the row is remounted', async () => {
+    const h = makeGame({ gathers: [gatherRow(1n, T + 8 * S)] });
+    const provide = { [GAME_KEY as symbol]: h.game };
+    const first = mount(ActionRow, { global: { provide } });
+    h.setNow(T + 4 * S);
+    vi.advanceTimersByTime(250);
+    await nextTick();
+    expect(first.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('50');
+    first.unmount();
+    // The desktop breakpoint swaps FeedShell: a new ActionRow on the same game.
+    wrapper = mount(ActionRow, { global: { provide } });
+    expect(wrapper.get('.action-time').text()).toBe('4s');
+    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('50');
+  });
+
+  it('starts over after the first-seen map is reset (logout)', async () => {
+    const h = makeGame({ gathers: [gatherRow(1n, T + 8 * S)] });
+    h.setNow(T + 4 * S);
+    h.gathers.value = [];
+    h.seen.reset();
+    h.gathers.value = [gatherRow(1n, T + 12 * S)];
+    wrapper = mount(ActionRow, { global: { provide: { [GAME_KEY as symbol]: h.game } } });
+    expect(wrapper.get('.action-time').text()).toBe('8s');
+    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('0');
   });
 });
 

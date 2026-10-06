@@ -22,6 +22,7 @@ const { action, progress } = useActionProgress({
   abilities: game.abilities,
   inCombat: game.combat.active,
   clock: game.clock,
+  firstSeen: game.actionFirstSeen,
 });
 
 const icon = computed<Component>(() => {
