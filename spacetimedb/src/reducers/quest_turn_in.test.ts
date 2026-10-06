@@ -3,11 +3,14 @@
  * "turn in <quest>" intent of submit_intent (the path the client's [Turn In] link uses), go through
  * turnInCompletedQuest. Runs the REAL handlers captured from index.ts on the strict mock db and checks,
  * for both paths:
- *   - the quest is recorded in the giver's NPC memory (the intent path used to skip it).
+ *   - the quest is recorded in the giver's NPC memory (the intent path used to skip it);
+ *   - an item-reward quest is refused with a visible message when the bags are full, and nothing
+ *     (xp, gold, item, affinity, memory, quest removal) is applied; freeing a slot lets it go through.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
+import { MAX_INVENTORY_SLOTS } from '../helpers/items';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -89,6 +92,17 @@ function newCtx(opts: { char?: Record<string, any>; qt?: Record<string, any>; se
 }
 
 const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+
+const FILLER_TEMPLATE = { id: 900n, name: 'River Pebble', slot: 'junk', isJunk: true, stackable: false };
+
+/** count unequipped filler items in the bags, plus one equipped item (equipped items take no bag slot). */
+function bagSeed(count: number) {
+  const items: any[] = Array.from({ length: count }, (_, i) => ({
+    id: 1000n + BigInt(i), templateId: 900n, ownerCharacterId: 1n, equippedSlot: undefined, quantity: 1n,
+  }));
+  items.push({ id: 2000n, templateId: 900n, ownerCharacterId: 1n, equippedSlot: 'chest', quantity: 1n });
+  return { item_template: [FILLER_TEMPLATE], item_instance: items };
+}
 const messages = (ctx: any): string[] => rows(ctx, 'event_private').map((e) => e.message);
 
 type Path = { label: string; turnIn: (ctx: any) => void };
@@ -106,6 +120,58 @@ describe.each(PATHS)('$label', ({ turnIn }) => {
       const memory = rows(ctx, 'npc_memory').filter((m) => m.characterId === 1n && m.npcId === NPC_ID);
       expect(memory).toHaveLength(1);
       expect(JSON.parse(memory[0].memoryJson).questsCompleted).toEqual([QUEST_NAME]);
+    });
+  });
+
+  describe('inventory space', () => {
+    it('full bags: refuses the turn-in with a visible message and applies nothing', () => {
+      const ctx = newCtx({ seed: bagSeed(MAX_INVENTORY_SLOTS) });
+      const before = { ...rows(ctx, 'character')[0] };
+      turnIn(ctx);
+
+      const ch = rows(ctx, 'character')[0];
+      expect(ch.xp).toBe(before.xp);
+      expect(ch.gold).toBe(before.gold);
+      expect(ch.pendingLevels).toBe(before.pendingLevels);
+      expect(rows(ctx, 'quest_instance')).toHaveLength(1);
+      expect(rows(ctx, 'item_template')).toHaveLength(1);
+      expect(rows(ctx, 'item_instance')).toHaveLength(MAX_INVENTORY_SLOTS + 1);
+      expect(rows(ctx, 'npc_affinity')).toHaveLength(0);
+      expect(rows(ctx, 'npc_memory')).toHaveLength(0);
+
+      const events = rows(ctx, 'event_private');
+      expect(events).toHaveLength(1);
+      expect(events[0].kind).toBe('system');
+      expect(events[0].message).toContain('Hesk Varrow');
+      expect(events[0].message).toContain('pack is full');
+      expect(events[0].message).toContain('turn the quest in again');
+    });
+
+    it('a freed slot lets the same quest be turned in', () => {
+      const ctx = newCtx({ seed: bagSeed(MAX_INVENTORY_SLOTS) });
+      turnIn(ctx);
+      expect(rows(ctx, 'quest_instance')).toHaveLength(1);
+
+      ctx.db.item_instance.id.delete(1000n);
+      turnIn(ctx);
+      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'character')[0].gold).toBe(35n);
+      expect(rows(ctx, 'item_template').some((t) => t.name === 'Bellwright Token')).toBe(true);
+      expect(rows(ctx, 'item_instance')).toHaveLength(MAX_INVENTORY_SLOTS + 1);
+    });
+
+    it('one free slot is enough', () => {
+      const ctx = newCtx({ seed: bagSeed(MAX_INVENTORY_SLOTS - 1) });
+      turnIn(ctx);
+      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'item_instance')).toHaveLength(MAX_INVENTORY_SLOTS + 1);
+    });
+
+    it('an xp/gold quest needs no bag space', () => {
+      const ctx = newCtx({ seed: bagSeed(MAX_INVENTORY_SLOTS), qt: { rewardType: 'gold', rewardItemName: undefined } });
+      turnIn(ctx);
+      expect(rows(ctx, 'quest_instance')).toHaveLength(0);
+      expect(rows(ctx, 'character')[0].gold).toBe(35n);
     });
   });
 });

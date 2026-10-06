@@ -1,6 +1,7 @@
 import { awardNpcAffinity } from '../helpers/npc_affinity';
 import { recordQuestCompletion } from '../helpers/npc_conversation';
 import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
+import { getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
 
 // Slots the quest reward cycles through by player level. All are EQUIPMENT_SLOTS (helpers/items.ts);
 // 'mainHand' is the weapon slot.
@@ -73,8 +74,13 @@ export function questRewardWeaponType(character: any): string {
  * equip it (armor or weapon type from their proficiencies, allowedClasses 'any', requiredLevel = their
  * level), and one item_instance in their bags. Does nothing for other quests.
  */
+/** Whether turning in this quest creates an item (rewardType 'item' with a rewardItemName). */
+export function questGrantsItem(qt: any): boolean {
+  return qt.rewardType === 'item' && !!qt.rewardItemName;
+}
+
 export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPrivateEvent: any) {
-  if (qt.rewardType !== 'item' || !qt.rewardItemName) return undefined;
+  if (!questGrantsItem(qt)) return undefined;
   const itemStats = computeQuestRewardStats(character.level, qt.questType || 'kill');
 
   const itemTemplate = ctx.db.item_template.insert({
@@ -127,9 +133,22 @@ export function grantQuestItemReward(ctx: any, character: any, qt: any, appendPr
  * "turn in <quest>" intent, so both behave identically. The caller has already checked that qi is the
  * character's completed instance of qt. Awards xp, gold, the item reward and NPC affinity, records the
  * quest in the giver's memory, and removes the quest instance.
+ *
+ * Refuses (visible message, nothing applied, quest stays ready to turn in) when the quest's item reward
+ * would not fit in the character's bags. Returns whether the quest was turned in.
  */
-export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any, appendPrivateEvent: any, _fail: any): boolean {
+export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any, appendPrivateEvent: any, fail: any): boolean {
   const npc = qt.npcId ? ctx.db.npc.id.find(qt.npcId) : undefined;
+
+  // The item reward is a new, non-stackable item: it needs a free bag slot (the take_loot rule).
+  // Checked before anything is awarded, so the player can free a slot and turn in again.
+  if (questGrantsItem(qt) && getInventorySlotCount(ctx, character.id) >= MAX_INVENTORY_SLOTS) {
+    const giver = npc
+      ? `${npc.name} holds out your reward for "${qt.name}", but your pack is full and you cannot take it.`
+      : `Your reward for "${qt.name}" waits, but your pack is full and you cannot take it.`;
+    fail(ctx, character, `${giver} Free a space in your pack and turn the quest in again.`);
+    return false;
+  }
 
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest',
     `You present your completed quest "${qt.name}" to ${npc?.name || 'the quest giver'}.`);
