@@ -1,10 +1,10 @@
 /**
  * Hail turn-in (quick 261006-hky). Hailing an NPC turns in the character's completed quests for that NPC
  * through turnInCompletedQuest, the path turn_in_quest and the "turn in <quest>" intent already share, so
- * every turn-in path gives the same rewards and leaves the quest instance in the same state (deleted).
+ * every turn-in path gives the same rewards and leaves the quest instance in the same state (kept, completedAt set).
  * Runs the REAL handlers captured from index.ts on the strict mock db and checks:
  *   - hailing the giver of a completed quest: xp (with level-up crossing), gold, item reward, NPC
- *     affinity and NPC memory equal the turn_in_quest outcome, and the instance is deleted;
+ *     affinity and NPC memory equal the turn_in_quest outcome, and the instance is kept as turned-in history (completedAt set);
  *   - a delivery quest with a recipient (targetNpcId) is turned in by hailing the recipient once the
  *     package has been picked up (instance completed), with the same rewards as turn_in_quest there;
  *     the giver's memory and the recipient's both record it; affinity goes to the recipient;
@@ -143,10 +143,13 @@ function outcome(ctx: any) {
   };
 }
 
+/** The quest instance after a turn-in: kept as history, completedAt = the turn-in time. */
+const TURNED_IN = { characterId: 1n, questTemplateId: 50n, progress: 1n, completed: true, completedAt: { microsSinceUnixEpoch: T0 } };
+
 const GREETING = (name: string) => `${name} nods but has nothing to say.`;
 
 describe('hailing the giver of a completed quest', () => {
-  it('gives the same xp, gold, item, affinity and memory as turn_in_quest, and deletes the instance', () => {
+  it('gives the same xp, gold, item, affinity and memory as turn_in_quest, and keeps the instance as turned-in history', () => {
     const viaHail = newCtx();
     hail(viaHail, GIVER);
     const viaReducer = newCtx();
@@ -155,7 +158,7 @@ describe('hailing the giver of a completed quest', () => {
     expect(outcome(viaHail)).toEqual(outcome(viaReducer));
 
     const o = outcome(viaHail);
-    expect(o.questInstances).toEqual([]);
+    expect(o.questInstances).toEqual([TURNED_IN]);
     expect(o.character).toEqual({ level: 2n, xp: 160n, pendingLevels: 0n, gold: 35n });
     expect(o.rewardTemplates.map((t: any) => t.name)).toEqual(['Bellwright Token']);
     expect(o.rewardInstances).toHaveLength(1);
@@ -187,7 +190,7 @@ describe('hailing the giver of a completed quest', () => {
 
     expect(outcome(viaHail)).toEqual(outcome(viaReducer));
     const o = outcome(viaHail);
-    expect(o.questInstances).toEqual([]);
+    expect(o.questInstances).toEqual([TURNED_IN]);
     expect(o.character).toEqual({ level: 2n, xp: 160n, pendingLevels: 0n, gold: 35n });
     expect(o.rewardTemplates).toEqual([]);
     expect(o.memory).toEqual([{ npcId: GIVER_ID, questsCompleted: [QUEST_NAME] }]);
@@ -252,7 +255,7 @@ describe('hailing the giver of a completed quest', () => {
       ctx.db.item_instance.id.delete(1000n);
       hail(ctx, GIVER);
       const o = outcome(ctx);
-      expect(o.questInstances).toEqual([]);
+      expect(o.questInstances).toEqual([TURNED_IN]);
       expect(o.character.gold).toBe(35n);
       expect(o.rewardTemplates.map((t: any) => t.name)).toEqual(['Bellwright Token']);
       expect(o.memory).toEqual([{ npcId: GIVER_ID, questsCompleted: [QUEST_NAME] }]);
@@ -263,7 +266,7 @@ describe('hailing the giver of a completed quest', () => {
 describe('delivery quest with a recipient', () => {
   const atRecipient = { locationId: 12n };
 
-  it('hailing the recipient with the package gives the same rewards as turn_in_quest there and deletes the instance', () => {
+  it('hailing the recipient with the package gives the same rewards as turn_in_quest there and keeps the instance as turned-in history', () => {
     const viaHail = newCtx({ char: atRecipient, qt: DELIVERY });
     hail(viaHail, RECIPIENT);
     const viaReducer = newCtx({ char: atRecipient, qt: DELIVERY });
@@ -272,7 +275,7 @@ describe('delivery quest with a recipient', () => {
     expect(outcome(viaHail)).toEqual(outcome(viaReducer));
 
     const o = outcome(viaHail);
-    expect(o.questInstances).toEqual([]);
+    expect(o.questInstances).toEqual([TURNED_IN]);
     expect(o.character).toEqual({ level: 2n, xp: 160n, pendingLevels: 0n, gold: 35n });
     expect(o.rewardTemplates.map((t: any) => t.name)).toEqual(['Bellwright Token']);
     expect(o.rewardInstances).toHaveLength(1);
@@ -302,7 +305,7 @@ describe('delivery quest with a recipient', () => {
     const ctx = newCtx({ char: atRecipient, qt, seed: bagSeed(MAX_INVENTORY_SLOTS) });
     hail(ctx, RECIPIENT);
     const o = outcome(ctx);
-    expect(o.questInstances).toEqual([]);
+    expect(o.questInstances).toEqual([TURNED_IN]);
     expect(o.character).toEqual({ level: 2n, xp: 160n, pendingLevels: 0n, gold: 15n });
     expect(o.rewardTemplates).toEqual([]);
   });
@@ -353,7 +356,7 @@ describe('delivery quest without a recipient', () => {
     const viaReducer = newCtx({ qt });
     turnInQuest(viaReducer);
     expect(outcome(viaHail)).toEqual(outcome(viaReducer));
-    expect(outcome(viaHail).questInstances).toEqual([]);
+    expect(outcome(viaHail).questInstances).toEqual([TURNED_IN]);
     expect(outcome(viaHail).memory).toEqual([{ npcId: GIVER_ID, questsCompleted: [QUEST_NAME] }]);
   });
 });
