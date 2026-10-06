@@ -399,6 +399,18 @@ describe('sell_all_junk (window reducer) skips quest items like the typed sell j
     expect(snapshot(ctx, 'vendor_buyback')).toEqual(before);
   });
 
+  it('deletes the item_affix rows of the junk it sells and leaves other instances affixes alone', () => {
+    const ctx = newCtx({
+      templates: [...junkTemplates, tpl(80n, 'Test Sword')],
+      instances: [inst(900n, 90n, 1n), inst(901n, 90n, 1n), inst(800n, 80n, 1n)],
+      affixes: [affix(1n, 900n, 'keen', 2n), affix(2n, 900n, 'slow', -1n), affix(3n, 800n, 'sharp', 5n)],
+    });
+    sellAllJunk(ctx, { characterId: 1n });
+    expect(rows(ctx, 'item_instance').map((i) => i.id)).toEqual([800n]);
+    // No affix row points at a deleted instance; the kept sword keeps its own.
+    expect(rows(ctx, 'item_affix').map((a) => [a.id, a.itemInstanceId])).toEqual([[3n, 800n]]);
+  });
+
   it('when the only junk is a quest item nothing is sold and no gold moves', () => {
     const ctx = newCtx({ templates: junkTemplates, instances: [inst(910n, 91n, 1n)] });
     sellAllJunk(ctx, { characterId: 1n });

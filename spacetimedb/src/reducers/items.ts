@@ -231,6 +231,10 @@ export const registerItemReducers = (deps: any) => {
         character.vendorSellMod ?? 0n
       );
       count++;
+      // item_affix is public: delete the instance's affix rows first so none are orphaned.
+      for (const row of [...ctx.db.item_affix.by_instance.filter(instance.id)]) {
+        ctx.db.item_affix.id.delete(row.id);
+      }
       ctx.db.item_instance.id.delete(instance.id);
     }
     if (total > 0n) {
