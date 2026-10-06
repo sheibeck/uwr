@@ -1320,6 +1320,11 @@ Plans:
 - Implement `UWR Journal.dc.html`.
 - **Revised mock (owner, 2026-10-06, later the same day):** the owner updated `UWR Journal.dc.html` with a new version of the Journal screen and its rail. The link and file list are unchanged. Plan against the latest version from a fresh import, not against anything summarized from the earlier one. Where the revised design differs from this entry's notes (including the owner's list above), the revised design wins.
 - The menu item is "Journal". Where this entry says "Quests menu item" or "Quests screen", read Journal. If the design differs from the list above, the design wins and the owner's list is checked against it.
+- **Quest details from the main screen (owner, 2026-10-06, second mock revision).** The owner updated `UWR Journal.dc.html` again to show how a player opens a quest's details from the main game screen, without opening the Journal first. Entry points include the right-rail Tracking section, the context rail's quest or event card, and quest names in the feed. Take the exact entry points, layout and copy from the fresh import.
+  - This is in scope for 999.16.
+  - The details view and the Journal screen share one quest-details component and data model, so both show the same objective progress, rewards, giver or recipient, region, track toggle, abandon (with confirmation) and turn-in status.
+  - Desktop and the 390×844 mobile sheet are both covered.
+  - Related: todo `2026-10-06-quest-turn-in-affordance-in-new-client.md` (a "Turn in" action belongs in these details), and 999.20 (Examine button in the right-hand rail; the two may share an interaction pattern).
 - Run it as a UI phase (`/gsd-ui-phase` from the fresh import, then plan and execute). Timing: after the v3.0 milestone, with 999.19.
 
 **Turn-in bug reported with this item (fixed in quick 261006-kpj, not part of this backlog item).** The owner could not turn in a completed quest by talking to its giver. Cause: the new client sends `hail {npc}` through `submit_intent`, and the intent HAIL/TALK branch only printed the greeting. The turn-in logic lived only in the `hail_npc` reducer. The visible "Turn in" action for the Journal and Nearby is still todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`.
@@ -1564,4 +1569,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after backlog 999.16–999.22 (post-v3.0 UX follow-ups: Journal, round wind-up, Hotbar Manager, Character screen, Examine button, creation screens, party menus)*
+*Last updated: 2026-10-06 after adding quest details from the main screen to 999.16 (second Journal mock revision)*
