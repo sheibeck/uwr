@@ -4,6 +4,7 @@ import { TWO_HANDED_WEAPON_TYPES } from '../data/combat_constants';
 import { buyPrice, sellPayout } from '../data/vendor_pricing';
 import { canEquipItem } from '../data/item_usability';
 import { USE_ITEM_KEYS } from '../data/item_rules';
+import { sellInstanceToVendor } from '../helpers/vendor_sale';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -157,54 +158,14 @@ export const registerItemReducers = (deps: any) => {
       if (instance.equippedSlot) return failItem(ctx, character, 'Unequip item first');
       const template = ctx.db.item_template.id.find(instance.templateId);
       if (!template) return failItem(ctx, character, 'Item template missing');
-      const baseValue = BigInt(template.vendorValue ?? 0) * BigInt(instance.quantity ?? 1);
-      // Vendor sell bonus perk, then CHA sell bonus (character.vendorSellMod is on 1000-scale): shared pricing.
-      const vendorSellBonus = getPerkBonusByField(ctx, character.id, 'vendorSellBonus', character.level);
-      const sellBonusMsg = vendorSellBonus > 0 && baseValue > 0n ? ` (${vendorSellBonus}% perk bonus)` : '';
-      const value = sellPayout(
-        template.vendorValue ?? 0n,
-        instance.quantity ?? 1n,
-        vendorSellBonus,
-        character.vendorSellMod ?? 0n
-      );
-      // Capture template info before deletion
-      const soldTemplateId = instance.templateId;
-      const soldVendorValue = template.vendorValue ?? 0n;
-      const soldQualityTier = instance.qualityTier ?? undefined;
-      // Clean up any affixes before deleting the item instance
-      for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
-        ctx.db.item_affix.id.delete(affix.id);
-      }
-      ctx.db.item_instance.id.delete(instance.id);
-      ctx.db.character.id.update({
-        ...character,
-        gold: (character.gold ?? 0n) + value,
+      sellInstanceToVendor(ctx, {
+        character,
+        instance,
+        template,
+        npcId: args.npcId,
+        record: true,
+        fail: failItem,
       });
-      // Add sold item to the vendor's inventory so other players can buy it
-      const npc = ctx.db.npc.id.find(args.npcId);
-      if (npc && npc.npcType === 'vendor') {
-        const alreadyListed = [...ctx.db.vendor_inventory.by_vendor.filter(args.npcId)].find(
-          (row) => row.itemTemplateId === soldTemplateId && (row.qualityTier ?? undefined) === soldQualityTier
-        );
-        if (!alreadyListed) {
-          // Price at 2x vendorValue (what the vendor paid per unit)
-          const resalePrice = soldVendorValue > 0n ? soldVendorValue * 2n : 10n;
-          ctx.db.vendor_inventory.insert({
-            id: 0n,
-            npcId: args.npcId,
-            itemTemplateId: soldTemplateId,
-            price: resalePrice,
-            qualityTier: soldQualityTier,
-          });
-        }
-      }
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'reward',
-        `You sell ${template.name} for ${value} gold.${sellBonusMsg}`
-      );
     }
   );
 
