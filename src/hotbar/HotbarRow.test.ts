@@ -7,8 +7,8 @@ import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import HotbarRow from './HotbarRow.vue';
 import FeedShell from '../frame/FeedShell.vue';
-import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
-import type { FrameControls, GameData, GameReducers } from '../game/context';
+import { COMBAT_KEY, FRAME_KEY, GAME_KEY, createInertCombat, createInertFrame, createInertGame } from '../game/context';
+import type { CombatController, FrameControls, GameData, GameReducers } from '../game/context';
 
 const PAYLOAD = '<img src=x onerror=alert(1)>';
 const CHARACTER_ID = 7n;
@@ -60,6 +60,19 @@ function cooldown(abilityTemplateId: bigint, startedAt: number, durationSeconds:
   };
 }
 
+function roundCooldownRow(abilityTemplateId: bigint, roundsRemaining: bigint) {
+  // The wall-clock fields are far in the past and zero: in combat they are ignored anyway.
+  return { ...cooldown(abilityTemplateId, 0, 0), roundsRemaining };
+}
+
+interface CombatSetup {
+  active: Ref<boolean>;
+  ownAction: Ref<any>;
+  resolving: Ref<boolean>;
+  down: Ref<boolean>;
+  allyArgFor: ReturnType<typeof vi.fn>;
+}
+
 interface Setup {
   wrapper: VueWrapper;
   useAbility: ReturnType<typeof vi.fn>;
@@ -70,6 +83,7 @@ interface Setup {
   cooldowns: Ref<any[]>;
   hotbars: Ref<any[]>;
   character: Ref<any>;
+  combat: CombatSetup;
 }
 
 interface Options {
@@ -81,6 +95,7 @@ interface Options {
   cooldowns?: any[];
   character?: any;
   useAbility?: ReturnType<typeof vi.fn>;
+  combat?: { active?: boolean; ownAction?: any; resolving?: boolean; down?: boolean; allyArg?: bigint };
 }
 
 const DEFAULT_HOTBARS = [hotbar(1n, 'Combat', 0, true), hotbar(2n, 'Travel', 1, false), hotbar(3n, 'Craft', 2, false)];
@@ -102,8 +117,22 @@ function setup(opts: Options = {}): Setup {
   const switchHotbar = vi.fn(() => Promise.resolve());
   const reducers = { useAbility, switchHotbar } as unknown as GameReducers;
   const base = createInertGame();
+  const combat: CombatSetup = {
+    active: ref(opts.combat?.active ?? false),
+    ownAction: ref<any>(opts.combat?.ownAction ?? null),
+    resolving: ref(opts.combat?.resolving ?? false),
+    down: ref(opts.combat?.down ?? false),
+    allyArgFor: vi.fn(() => opts.combat?.allyArg),
+  };
+  const controller = {
+    ...createInertCombat(),
+    resolving: combat.resolving,
+    down: combat.down,
+    allyArgFor: combat.allyArgFor,
+  } as unknown as CombatController;
   const game = {
     ...base,
+    combat: { ...base.combat, active: combat.active, ownAction: combat.ownAction },
     connected,
     character,
     characterId: ref<bigint | null>(CHARACTER_ID),
@@ -119,10 +148,10 @@ function setup(opts: Options = {}): Setup {
   document.body.appendChild(el);
   const w = mount(HotbarRow, {
     attachTo: el,
-    global: { provide: { [GAME_KEY as symbol]: game, [FRAME_KEY as symbol]: frame } },
+    global: { provide: { [GAME_KEY as symbol]: game, [FRAME_KEY as symbol]: frame, [COMBAT_KEY as symbol]: controller } },
   });
   wrapper = w;
-  return { wrapper: w, useAbility, switchHotbar, connected, activeScreen, isDesktop, cooldowns, hotbars, character };
+  return { wrapper: w, useAbility, switchHotbar, connected, activeScreen, isDesktop, cooldowns, hotbars, character, combat };
 }
 
 function slots(w: VueWrapper) {
@@ -466,6 +495,224 @@ describe('HotbarRow selector', () => {
     expect(cycle.attributes('aria-label')).toBe('Hotbar Combat, 1 of 3. Switch to next hotbar.');
     await cycle.trigger('click');
     expect(s.switchHotbar).toHaveBeenCalledWith({ characterId: CHARACTER_ID, hotbarName: 'Travel' });
+  });
+});
+
+function ownAbility(abilityTemplateId: bigint, roundNumber = 3n, actionType = 'ability') {
+  return { id: 1n, combatId: 1n, characterId: CHARACTER_ID, roundNumber, actionType, abilityTemplateId };
+}
+
+describe('HotbarRow rounds cooldowns in combat', () => {
+  it('counts rounds, ignores the wall clock, and does nothing on click or key', async () => {
+    // A 12 s ability lasts 3 rounds, so 2 remaining sweeps at 66.7%.
+    const s = setup({
+      combat: { active: true },
+      cooldowns: [roundCooldownRow(11n, 2n)],
+      abilities: [ability(11n, 'Firebolt', 'damage', { cooldownSeconds: 12n }), ...DEFAULT_ABILITIES.slice(1)],
+    });
+    const first = slots(s.wrapper)[0];
+    expect(first.classes()).toContain('cooling');
+    expect(first.get('.slot-rounds').text()).toBe('2 rounds');
+    expect(first.find('.slot-seconds').exists()).toBe(false);
+    expect(first.attributes('aria-disabled')).toBe('true');
+    expect(first.attributes('aria-label')).toBe('Firebolt, key 1, ready in 2 rounds');
+    expect(sweep(first)).toBe('66.7%');
+    expect(first.get('.slot-icon').classes()).toContain('dim');
+    expect(first.get('.slot-name').classes()).toContain('dim');
+    await first.trigger('click');
+    press('1');
+    expect(s.useAbility).not.toHaveBeenCalled();
+  });
+
+  it('reads 1 round, and a ready slot with a future wall-clock end is usable', async () => {
+    const s = setup({ combat: { active: true }, cooldowns: [roundCooldownRow(11n, 1n)] });
+    const first = slots(s.wrapper)[0];
+    expect(first.get('.slot-rounds').text()).toBe('1 round');
+    expect(first.attributes('aria-label')).toBe('Firebolt, key 1, ready in 1 round');
+    // roundsRemaining 0 with a wall-clock end far in the future: ready
+    s.cooldowns.value = [{ ...cooldown(11n, clockNow, 600), roundsRemaining: 0n }];
+    await nextTick();
+    expect(first.classes()).not.toContain('cooling');
+    expect(first.find('.slot-rounds').exists()).toBe(false);
+    expect(first.attributes('aria-disabled')).toBeUndefined();
+    expect(first.attributes('aria-label')).toBe('Firebolt, key 1');
+    await first.trigger('click');
+    expect(s.useAbility).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs no ticker for round-only cooldowns', () => {
+    const s = setup({ combat: { active: true }, cooldowns: [{ ...cooldown(11n, clockNow, 600), roundsRemaining: 0n }] });
+    expect(vi.getTimerCount()).toBe(0);
+    expect(slots(s.wrapper)[0].classes()).not.toContain('cooling');
+  });
+
+  it('flashes once when the rounds reach 0, and not under reduced motion', async () => {
+    const s = setup({ combat: { active: true }, cooldowns: [roundCooldownRow(11n, 1n)] });
+    const first = slots(s.wrapper)[0];
+    s.cooldowns.value = [roundCooldownRow(11n, 0n)];
+    await nextTick();
+    expect(first.classes()).not.toContain('cooling');
+    expect(first.classes()).toContain('ready-flash');
+    await advance(240);
+    expect(first.classes()).not.toContain('ready-flash');
+    s.wrapper.unmount();
+    wrapper = null;
+
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ matches: query.includes('reduce') })) as unknown as typeof window.matchMedia;
+    try {
+      const calm = setup({ combat: { active: true }, cooldowns: [roundCooldownRow(11n, 1n)] });
+      calm.cooldowns.value = [roundCooldownRow(11n, 0n)];
+      await nextTick();
+      expect(slots(calm.wrapper)[0].classes()).not.toContain('ready-flash');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it('goes inert while the round resolves or the player is down', async () => {
+    const s = setup({ combat: { active: true, resolving: true } });
+    for (const slot of slots(s.wrapper)) {
+      expect(slot.attributes('aria-disabled')).toBe('true');
+      expect(slot.classes()).toContain('inert');
+    }
+    await slots(s.wrapper)[0].trigger('click');
+    press('1');
+    expect(s.useAbility).not.toHaveBeenCalled();
+    s.combat.resolving.value = false;
+    await nextTick();
+    expect(slots(s.wrapper)[0].classes()).not.toContain('inert');
+    expect(slots(s.wrapper)[0].attributes('aria-disabled')).toBeUndefined();
+    s.combat.down.value = true;
+    await nextTick();
+    expect(slots(s.wrapper)[0].classes()).toContain('inert');
+    press('1');
+    await slots(s.wrapper)[1].trigger('click');
+    expect(s.useAbility).not.toHaveBeenCalled();
+    s.combat.down.value = false;
+    await nextTick();
+    press('1');
+    expect(s.useAbility).toHaveBeenCalledTimes(1);
+  });
+
+  it('is never inert out of combat, whatever the controller says', () => {
+    const s = setup({ combat: { active: false, resolving: true, down: true } });
+    expect(slots(s.wrapper)[0].classes()).not.toContain('inert');
+    expect(slots(s.wrapper)[0].attributes('aria-disabled')).toBeUndefined();
+    press('1');
+    expect(s.useAbility).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the disabled treatment when the connection drops mid-fight', async () => {
+    const s = setup({ combat: { active: true } });
+    s.connected.value = false;
+    await nextTick();
+    expect(s.wrapper.get('.hotbar-row').classes()).toContain('disconnected');
+    for (const slot of slots(s.wrapper)) expect(slot.attributes('aria-disabled')).toBe('true');
+    press('1');
+    await slots(s.wrapper)[0].trigger('click');
+    expect(s.useAbility).not.toHaveBeenCalled();
+  });
+
+  it('keeps the seconds display out of combat even with a rounds value on the row', () => {
+    const s = setup({ cooldowns: [{ ...cooldown(11n, clockNow, 12), roundsRemaining: 3n }] });
+    const first = slots(s.wrapper)[0];
+    expect(first.get('.slot-seconds').text()).toBe('12');
+    expect(first.find('.slot-rounds').exists()).toBe(false);
+    expect(first.attributes('aria-label')).toBe('Firebolt, key 1, ready in 12 seconds');
+  });
+});
+
+describe('HotbarRow chosen slot and ally argument', () => {
+  it('marks the slot of the open round choice from the server row', async () => {
+    const s = setup({ combat: { active: true, ownAction: ownAbility(11n) } });
+    const all = slots(s.wrapper);
+    expect(all[0].classes()).toContain('chosen');
+    expect(all[0].attributes('aria-pressed')).toBe('true');
+    expect(all[0].attributes('aria-label')).toBe('Firebolt, key 1, chosen');
+    expect(all[1].classes()).not.toContain('chosen');
+    expect(all[1].attributes('aria-pressed')).toBeUndefined();
+    expect(all[1].attributes('aria-label')).toBe('Mend, key 2');
+    // a replacing choice moves the mark
+    s.combat.ownAction.value = ownAbility(12n);
+    await nextTick();
+    expect(all[0].classes()).not.toContain('chosen');
+    expect(all[1].classes()).toContain('chosen');
+    // the next round clears it
+    s.combat.ownAction.value = null;
+    await nextTick();
+    for (const slot of all) {
+      expect(slot.classes()).not.toContain('chosen');
+      expect(slot.attributes('aria-pressed')).toBeUndefined();
+    }
+  });
+
+  it('does not mark a slot for no row, an auto_attack row or a flee row', () => {
+    const actions = [null, ownAbility(11n, 3n, 'auto_attack'), { ...ownAbility(11n, 3n, 'flee'), abilityTemplateId: undefined }];
+    for (const action of actions) {
+      const s = setup({ combat: { active: true, ownAction: action } });
+      for (const slot of slots(s.wrapper)) expect(slot.classes()).not.toContain('chosen');
+      s.wrapper.unmount();
+      wrapper = null;
+    }
+  });
+
+  it('never marks a slot from a click alone: only the 47 pressed state covers the wait', async () => {
+    let resolve: () => void = () => {};
+    const useAbility = vi.fn(() => new Promise<void>((r) => { resolve = r; }));
+    const s = setup({ combat: { active: true }, useAbility });
+    const first = slots(s.wrapper)[0];
+    await first.trigger('click');
+    expect(first.classes()).toContain('pressed');
+    expect(first.classes()).not.toContain('chosen');
+    expect(first.attributes('aria-pressed')).toBeUndefined();
+    resolve();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('marks nothing chosen out of combat', () => {
+    const s = setup({ combat: { active: false, ownAction: ownAbility(11n) } });
+    expect(slots(s.wrapper)[0].classes()).not.toContain('chosen');
+    expect(slots(s.wrapper)[0].attributes('aria-pressed')).toBeUndefined();
+  });
+
+  it('adds targetCharacterId only when allyArgFor returns an id', async () => {
+    const withAlly = setup({ combat: { active: true, allyArg: 8n } });
+    await slots(withAlly.wrapper)[1].trigger('click');
+    expect(withAlly.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 12n, targetCharacterId: 8n });
+    expect(withAlly.combat.allyArgFor).toHaveBeenCalledWith(expect.objectContaining({ id: 12n }));
+    withAlly.wrapper.unmount();
+    wrapper = null;
+
+    const without = setup({ combat: { active: true } });
+    await slots(without.wrapper)[1].trigger('click');
+    expect(without.useAbility).toHaveBeenCalledTimes(1);
+    const args = without.useAbility.mock.calls[0][0] as Record<string, unknown>;
+    expect(args).toEqual({ characterId: CHARACTER_ID, abilityTemplateId: 12n });
+    expect(Object.keys(args)).toEqual(['characterId', 'abilityTemplateId']);
+  });
+
+  it('number keys carry the ally argument in combat', () => {
+    const s = setup({ combat: { active: true, allyArg: 8n } });
+    press('2');
+    expect(s.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 12n, targetCharacterId: 8n });
+  });
+
+  it('never consults allyArgFor out of combat', async () => {
+    const s = setup({ combat: { active: false, allyArg: 8n } });
+    await slots(s.wrapper)[1].trigger('click');
+    expect(s.combat.allyArgFor).not.toHaveBeenCalled();
+    expect(s.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 12n });
+  });
+
+  it('renders hostile-looking ability names as text in combat', () => {
+    const s = setup({
+      combat: { active: true, ownAction: ownAbility(11n) },
+      abilities: [ability(11n, PAYLOAD)],
+    });
+    const first = slots(s.wrapper)[0];
+    expect(first.get('.slot-name').text()).toBe(PAYLOAD);
+    expect(first.find('img').exists()).toBe(false);
   });
 });
 

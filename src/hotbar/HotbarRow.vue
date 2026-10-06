@@ -2,7 +2,8 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { AbilityCooldown } from '../module_bindings/types';
 import { prefersReducedMotion } from '../console/pinning';
-import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
+import { COMBAT_KEY, FRAME_KEY, GAME_KEY, createInertCombat, createInertFrame, createInertGame } from '../game/context';
+import { roundCooldownView } from '../combat/roundCooldown';
 import HotbarSelector from './HotbarSelector.vue';
 import {
   abilityIcon,
@@ -24,6 +25,7 @@ import { useCooldownTicker } from './useCooldownTicker';
 // Ability names and kinds render as text nodes and title attributes only.
 const game = inject(GAME_KEY, createInertGame());
 const frame = inject(FRAME_KEY, createInertFrame());
+const controller = inject(COMBAT_KEY, createInertCombat());
 
 const FLASH_MS = 240;
 
@@ -38,6 +40,10 @@ const activeIndex = computed(() => {
 const names = computed(() => ordered.value.map((hotbar) => hotbar.name));
 const slots = computed(() => hotbarSlots(active.value, game.hotbarSlots.value, game.abilities.value));
 const offline = computed(() => !game.connected.value);
+// In combat cooldowns count rounds (CMB-04) and the wall-clock fields are ignored.
+const inCombat = computed(() => game.combat.active.value);
+// Inert while the round resolves or the player is down (UI-SPEC A25, A21); never out of combat.
+const inertNow = computed(() => inCombat.value && (controller.resolving.value || controller.down.value));
 
 // The latest row per ability (the one ending last), for this character's rows only.
 const cooldownRows = computed(() => {
@@ -58,6 +64,7 @@ const cooldownRows = computed(() => {
 // which starts the ticker and refreshes the value at once.
 const tickNow = ref(game.clock.nowMicros());
 const anyCooling = computed(() => {
+  if (inCombat.value) return false;
   for (const row of cooldownRows.value.values()) {
     if (cooldownRemainingMicros(row, tickNow.value) > 0) return true;
   }
@@ -91,27 +98,62 @@ interface SlotState {
   unaffordable: boolean;
   pressed: boolean;
   flash: boolean;
+  /** The server recorded this ability as the player's choice for the open round. */
+  chosen: boolean;
+  /** Round resolving or the player down (combat only). */
+  inert: boolean;
+  /** In-combat rounds text ('2 rounds'); empty out of combat. */
+  rounds: string;
+  /** The aria-label suffix for the cooldown in combat; empty otherwise. */
+  ariaSuffix: string;
 }
 
 const slotStates = computed<SlotState[]>(() => {
   const character = game.character.value;
+  const combat = inCombat.value;
+  const inert = inertNow.value;
+  const own = combat ? game.combat.ownAction.value : null;
   return slots.value.map((view) => {
     const ability = view.ability;
-    const remaining = ability === null ? 0 : remainingFor(ability.id);
     const row = ability === null ? undefined : cooldownRows.value.get(ability.id);
-    const cooling = remaining > 0;
-    const fraction = row === undefined ? 0 : cooldownFraction(remaining, row.durationMicros);
-    return {
+    const common = {
       slot: view.slot,
       key: view.key,
       ability,
-      remaining,
-      label: cooldownLabel(remaining),
-      percent: `${Math.round(fraction * 1000) / 10}%`,
-      cooling,
       unaffordable: ability !== null && character !== null && isUnaffordable(ability, character),
       pressed: ability !== null && pendingId.value === ability.id,
       flash: ability !== null && flashing.value.has(ability.id),
+      // Only the server row marks a choice; the pressed state covers the wait (CMB-06).
+      chosen:
+        ability !== null &&
+        own !== null &&
+        own.actionType === 'ability' &&
+        own.abilityTemplateId === ability.id,
+      inert,
+    };
+    if (combat && ability !== null) {
+      const rounds = roundCooldownView(row, ability);
+      return {
+        ...common,
+        // The rounds count drives the ready flash (rounds reaching 0).
+        remaining: Number(rounds.rounds),
+        label: rounds.text,
+        percent: `${Math.round(rounds.fraction * 1000) / 10}%`,
+        cooling: rounds.cooling,
+        rounds: rounds.text,
+        ariaSuffix: rounds.ariaSuffix,
+      };
+    }
+    const remaining = ability === null ? 0 : remainingFor(ability.id);
+    const fraction = row === undefined ? 0 : cooldownFraction(remaining, row.durationMicros);
+    return {
+      ...common,
+      remaining,
+      label: cooldownLabel(remaining),
+      percent: `${Math.round(fraction * 1000) / 10}%`,
+      cooling: remaining > 0,
+      rounds: '',
+      ariaSuffix: '',
     };
   });
 });
@@ -146,13 +188,20 @@ function useSlot(state: SlotState): void {
   const ability = state.ability;
   const reducers = game.reducers.value;
   const characterId = game.characterId.value;
-  if (offline.value || ability === null || state.cooling) return;
+  if (offline.value || ability === null || state.cooling || state.inert) return;
   if (reducers === null || characterId === null) return;
   if (pendingId.value === ability.id) return;
+  // In combat a single-ally ability carries the selected ally, only when the server will accept it
+  // (allyArgFor omits dead or departed allies). Out of combat the call is unchanged.
+  const allyId = inCombat.value ? controller.allyArgFor(ability) : undefined;
   pendingId.value = ability.id;
   void (async () => {
     try {
-      await reducers.useAbility({ characterId, abilityTemplateId: ability.id });
+      await reducers.useAbility({
+        characterId,
+        abilityTemplateId: ability.id,
+        ...(allyId === undefined ? {} : { targetCharacterId: allyId }),
+      });
     } catch (error) {
       // The server writes refusals into the feed; nothing is added here.
       console.warn('[hotbar] use_ability failed', error);
@@ -214,13 +263,13 @@ function sweepBackground(percent: string): string {
 }
 
 function blocked(state: SlotState): boolean {
-  return offline.value || state.ability === null || state.cooling;
+  return offline.value || state.ability === null || state.cooling || state.inert;
 }
 
 function label(state: SlotState): string {
-  return state.ability === null
-    ? `Empty slot ${state.slot}`
-    : slotAriaLabel(state.ability.name, state.slot, state.remaining);
+  if (state.ability === null) return `Empty slot ${state.slot}`;
+  if (!inCombat.value) return slotAriaLabel(state.ability.name, state.slot, state.remaining);
+  return `${slotAriaLabel(state.ability.name, state.slot, 0)}${state.ariaSuffix}${state.chosen ? ', chosen' : ''}`;
 }
 </script>
 
@@ -245,9 +294,12 @@ function label(state: SlotState): string {
             empty: state.ability === null,
             cooling: state.cooling,
             pressed: state.pressed,
+            chosen: state.chosen,
+            inert: state.inert,
             'ready-flash': state.flash,
           }"
           :aria-disabled="blocked(state) ? 'true' : undefined"
+          :aria-pressed="state.chosen ? 'true' : undefined"
           :aria-label="label(state)"
           :title="state.ability === null ? undefined : slotTitle(state.ability)"
           @click="useSlot(state)"
@@ -264,7 +316,8 @@ function label(state: SlotState): string {
             <span class="slot-name" :class="{ dim: state.cooling }">{{ state.ability.name }}</span>
           </template>
           <span v-if="state.cooling" class="sweep" :data-percent="state.percent" :style="{ background: sweepBackground(state.percent) }" aria-hidden="true"></span>
-          <span v-if="state.cooling" class="slot-seconds" aria-hidden="true">{{ state.label }}</span>
+          <span v-if="state.cooling && inCombat" class="slot-rounds" aria-hidden="true">{{ state.rounds }}</span>
+          <span v-else-if="state.cooling" class="slot-seconds" aria-hidden="true">{{ state.label }}</span>
         </button>
       </div>
     </template>
@@ -329,6 +382,14 @@ function label(state: SlotState): string {
   box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
+.slot.chosen,
+.slot.chosen:hover {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
 .slot:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
@@ -384,6 +445,23 @@ function label(state: SlotState): string {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--color-neutral-200);
+}
+
+.slot-rounds {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-200);
+  pointer-events: none;
+}
+
+.slot.inert {
+  opacity: 0.45;
 }
 
 .slot.ready-flash {
