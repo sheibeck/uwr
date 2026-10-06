@@ -1408,6 +1408,27 @@ Plans:
    - **Fallback:** if the active hotbar doesn't contain the casting ability, the round row's chip (`src/combat/RoundRow.vue`, "Casting Fireball · 1 round left") also toggles cancel. It is the same action in a second place, needed only in that case.
    - Enemies never cancel.
 
+**Cooldowns are in scope too (owner, 2026-10-06): "make sure that backlog item also handles cooldowns on abilities!"** Point 4 above ("cooldown lengths unchanged") still holds for the stored `cooldownSeconds` values. The **rounds rule for cooldowns** must be designed here, together with the cast rule. Today's behaviour:
+- In combat, a cooldown lasts `cooldownRounds(cooldownSeconds) = max(1, ceil(cooldownSeconds / 4s))` rounds (`spacetimedb/src/helpers/combat_rounds.ts`, `EFFECT_ROUND_CONVERSION_MICROS` = 4s in `data/combat_constants.ts`).
+- An ability used in round N can be chosen again from round N + C (46.1).
+- When the fight ends, the rounds left on a cooldown convert back to wall-clock time (`roundsToWallClockMicros`).
+- The hotbar shows "N rounds" in combat (48 and quick 261006-h5w/hpp).
+- The proposed cast rule divides by 2s while cooldowns divide by 4s, so the two units would not match.
+
+Decide and test all of the following:
+1. **One seconds-to-rounds rule.** Use the same rule for cast time and cooldown, or state on purpose why they differ. Record the chosen divisor and rounding next to `castRounds`.
+2. **When a cooldown starts.** It starts when the ability goes off (point 6). A cancelled wind-up starts no cooldown and charges no cost.
+3. **Enemy cooldowns.** Enemy abilities follow the same cooldown rule as player abilities.
+4. **Converting at fight start and end.** A cooldown running before a fight converts to rounds when the fight starts. At the end it converts back to wall-clock time. Both directions are exact and never round down to "free".
+5. **Shorter or longer cooldowns.** If the new rule changes how many rounds an ability is unavailable, say whether the ability's power budget or cooldown bonus (`getAbilityMultiplier`) needs an adjustment.
+6. **UI.** The hotbar cooldown sweep and "N rounds" badge use the same numbers as the server. Show the winding-up and cooling-down states clearly apart on the slot. The tooltip (quick h5w/hpp) shows the cooldown in rounds in combat.
+7. **Tests.** Cover each of the following:
+   - the shared rule's table of seconds to rounds
+   - when a cooldown starts after a wind-up, and that a cancel starts none
+   - enemy parity
+   - converting at fight start and end
+   - that the hotbar and tooltip show the same numbers as the server
+
 **Notes for planning:**
 - **Schema change.** A new player cast table (or the existing `combat_action` row carrying wind-up fields) means a local `--clear-database` publish (greenfield, allowed). Never publish to maincloud automatically.
 - **Reducers.** The cancel and resume toggle needs a reducer, or a new action type on the existing choice submit (`submit_combat_action`). Cancel and resume are only accepted while the round is in `action_select`. The client calls it from the slot and from the chip (CLAUDE.md checklist step 4).
@@ -1696,4 +1717,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after pulling 999.20 and 999.22 into Phase 51, and 999.16 and 999.18 into Phase 52 (owner)*
+*Last updated: 2026-10-06 after adding ability cooldowns to 999.17 (owner)*
