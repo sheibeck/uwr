@@ -1437,5 +1437,42 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.19: Character screen: rename Stats to Character, updated design (design: UWR Character) (BACKLOG)
+
+**Goal:** Rename the Stats menu item and screen to "Character", and rebuild that screen and its rail from the owner's updated Claude Design file. Captured 2026-10-06 (owner request).
+
+**Design source (re-import fresh when this is planned; never cached):**
+- claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Character.dc.html
+- Focus file: `UWR Character.dc.html`.
+- Also read the files it imports:
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js`
+  - `_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css`
+  - `support.js`
+- Implement `UWR Character.dc.html`.
+
+**Notes for planning:**
+- **Supersedes the Phase 50 Stats screen (LDG-03).** That screen is being built in Phase 50 from the older "UWR Ledger Screens" mock 2c: plans 50-16 (stats model, PerkChooser) and 50-17 (Stats screen).
+  - This item replaces its layout and rail with the new design and renames it everywhere: the header button, the More row, the `SCREENS` entry and title, the drawer and sheet titles, and tests.
+  - Reuse the Phase 50 stats model, the shared `@game-data` helpers (item stats, perk rules, faction tier) and the hub.
+- **Run it as a UI phase** (`/gsd-ui-phase` from the fresh import, then plan and execute). It could also be done as a fast follow-up right after Phase 50.
+- **Design guards apply:**
+  - no literal colors (map the mock's hex values to existing tokens; the token pin stays at 23)
+  - no v-html, no `<svg`
+  - Phosphor icons and Inter only
+  - font sizes 10/12/14/20, weights 400/500
+  - spacing 4/8/16/24/32/48/64
+  - text nodes only
+- **Out of scope unless the owner decides otherwise:** the "Keeper's assessment" (LDG-F1) is still deferred. If the new design draws it, record it as a decision.
+- **Related:**
+  - 999.18 (Hotbar Manager)
+  - todo `2026-10-06-race-ability-source-as-chip.md` (Race / Renown chips)
+  - todo `2026-10-06-renown-passive-perks-no-effect.md`
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding backlog 999.18 (Hotbar Manager)*
+*Last updated: 2026-10-06 after adding backlog 999.19 (Character screen)*
