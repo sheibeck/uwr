@@ -86,6 +86,12 @@ describe('FilterChips', () => {
     expect(buttons[0].classes()).toContain('tag-neutral');
   });
 
+  it('gives a mobile chip a hit area at least 44px wide and tall, centred on the chip (IN-10)', () => {
+    expect(here('FilterChips.vue')).toMatch(
+      /\.mobile \.chip::after\s*\{[^}]*left: 50%;[^}]*width: max\(100%, 44px\);[^}]*height: 44px;[^}]*translate\(-50%, -50%\)/,
+    );
+  });
+
   it('emits update:modelValue on click', async () => {
     const w = track(
       mount(FilterChips, { props: { options, modelValue: 'all', groupLabel: 'Backpack filter' } }),

@@ -177,6 +177,22 @@ describe('createLedgerData: character keyed bindings', () => {
     expect(h.find('Q_ITEMS_8').filter!({ ownerCharacterId: 8n })).toBe(true);
   });
 
+  it('drops the previous rows the moment the character changes (IN-02)', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    const items = h.find('Q_ITEMS_7');
+    items.rows.value = [item(1n, 5n)];
+    items.applied.value = true;
+    expect(h.hub.items.value).toHaveLength(1);
+    h.activeCharacterId.value = 8n;
+    expect(h.hub.items.value).toHaveLength(0);
+    expect(h.hub.itemsApplied.value).toBe(false);
+    expect(h.live('Q_ITEMS_7')).toHaveLength(0);
+    expect(h.hub.pendingPerks.value).toHaveLength(0);
+    expect(h.hub.lastSale.value).toBeNull();
+  });
+
   it('exposes applied flags and rows', () => {
     const h = make();
     h.connect();

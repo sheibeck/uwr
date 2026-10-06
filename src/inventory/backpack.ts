@@ -81,6 +81,8 @@ export function bagTiles(
 ): { items: BagEntry[]; emptyCount: number } {
   const sorted = filterBag(items, templates, filter).sort(compareBagItems);
   const usage = slotUsage(items);
-  const emptyCount = filter === 'all' && !usage.full ? Math.max(0, usage.cap - sorted.length) : 0;
+  // From the slot count, not the rendered entries: an instance whose template has not arrived is
+  // left out of `sorted` but still holds a slot, so counting `sorted` would show extra empty tiles.
+  const emptyCount = filter === 'all' && !usage.full ? Math.max(0, usage.cap - usage.used) : 0;
   return { items: sorted, emptyCount };
 }

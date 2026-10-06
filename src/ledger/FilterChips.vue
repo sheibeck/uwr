@@ -69,15 +69,16 @@ function pick(id: string): void {
   cursor: default;
 }
 
-/* A 44px hit area on mobile without growing the chip. */
+/* A 44px by 44px hit area on mobile without growing the chip: a short chip such as All is centred
+   in a slop that is never narrower than 44px. */
 .mobile .chip::after {
   content: '';
   position: absolute;
   top: 50%;
-  left: -4px;
-  right: -4px;
+  left: 50%;
+  width: max(100%, 44px);
   height: 44px;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
 }
 
 .chip:hover {

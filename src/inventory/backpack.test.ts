@@ -112,6 +112,14 @@ describe('bagTiles', () => {
     expect(tiles.emptyCount).toBe(MAX_INVENTORY_SLOTS - 6);
   });
 
+  it('counts the empty tiles from the slot count, so an instance whose template is still loading holds its slot (IN-01)', () => {
+    const loading = [...BAG, inst(99n, 999n)];
+    const tiles = bagTiles(loading, TEMPLATES, 'all');
+    expect(tiles.items).toHaveLength(6);
+    expect(tiles.emptyCount).toBe(MAX_INVENTORY_SLOTS - slotUsage(loading).used);
+    expect(tiles.emptyCount).toBe(MAX_INVENTORY_SLOTS - 7);
+  });
+
   it('gives no empty tiles over the cap', () => {
     const many = Array.from({ length: MAX_INVENTORY_SLOTS + 2 }, (_, i) => inst(BigInt(i + 1), 1n));
     expect(bagTiles(many, TEMPLATES, 'all').emptyCount).toBe(0);

@@ -116,23 +116,29 @@ export function createLedgerData<C extends LedgerConn>(
       });
     }
 
+    // The character-keyed bindings swap immediately too: after a character switch the previous
+    // character's bag, recipes, perks and last sale must never stay current until the new
+    // subscription applies (the screens render nothing while itemsApplied and the like are false).
     const itemsKeyed = keyedTable<ItemInstance, bigint>(
       characterKey,
       (c) => c.db.itemInstance,
       queries.itemInstances,
       (row, k) => row.ownerCharacterId === k,
+      'immediate',
     );
     const recipesKnownKeyed = keyedTable<RecipeDiscovered, bigint>(
       characterKey,
       (c) => c.db.recipeDiscovered,
       queries.recipesKnown,
       (row, k) => row.characterId === k,
+      'immediate',
     );
     const pendingPerksKeyed = keyedTable<PendingRenownPerk, bigint>(
       characterKey,
       (c) => c.db.pendingRenownPerk,
       queries.pendingPerks,
       (row, k) => row.characterId === k,
+      'immediate',
     );
     // The view is scoped by the sender on the server; the character filter drops a previous
     // character's row while the cache is shared.
@@ -141,6 +147,7 @@ export function createLedgerData<C extends LedgerConn>(
       (c) => c.db.myVendorBuyback,
       () => queries.myVendorBuyback,
       (row, k) => row.characterId === k,
+      'immediate',
     );
     // Immediate swap: a new vendor must never show the previous vendor's stock.
     const vendorStockKeyed = keyedTable<VendorInventory, bigint>(
