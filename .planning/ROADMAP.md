@@ -745,5 +745,73 @@ Write a mapping only when it is confirmed, never for every typed line, or the gr
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.9: NPC memory graph (BACKLOG)
+
+**Goal:** NPCs are living entities that remember. Memory is stored by the game in SpacetimeDB tables, not held in LLM output: what happened (written by game events) and who the NPC is (backstory, opinions and relationships uncovered in conversation and kept as canon). NPCs remember other players, not just the one talking. Recall is index lookups, so it costs no tokens. Captured 2026-10-06 (owner idea, refined in discussion). Shares the node-and-edge table pattern with 999.8.
+
+**Today:**
+
+- `npc_memory` (`spacetimedb/src/schema/tables.ts`) is one `memoryJson` blob per character and NPC: `topics`, `secretsShared`, `questsCompleted`, `giftsGiven` and `lastConversationSummary`, each capped at 10. The LLM writes most of it (`memoryUpdate` and `internalThought`, applied in `helpers/llm_apply.ts` `applyNpcConversationResult`). An NPC knows only the player currently talking to it.
+- **Leaks to fix whatever happens:** `npc_memory` is `public: true`, so every client can read every NPC's memory of every player, including `secretsShared`. `npc.personalityJson.secrets` (written at world gen, `helpers/world_gen.ts`) sits in the public `npc` table.
+
+**Kind 1: what happened (game-written, decays).**
+
+```ts
+npc_memory_event {
+  id, npcId, subjectCharacterId?, kind, refId?, salience, tier /* 'short' | 'long' */,
+  count, createdAt, lastSeenAt, expiresAt?
+}
+// indexes: [npcId, subjectCharacterId], [npcId, tier], expiresAt
+```
+
+- Kinds: `met`, `talked`, `gift`, `quest_given`, `quest_completed`, `quest_abandoned`, `fought_nearby`, `died_nearby`, `helped`, `insulted`, `secret_shared`.
+- Written by the reducers that already handle the event (`talk_to_npc`, quest accept and `turn_in_quest`, `give_gift_to_npc`, combat at the NPC's location). Exact and token-free. The LLM may suggest at most a tag from a fixed vocabulary, which the server validates.
+- Short-term rows expire (for example after one in-game day). A scheduled sweep moves high-salience or frequently repeated memories to long-term and drops the rest. Long-term salience fades over time, and each NPC keeps its top N, so the table stays bounded.
+
+**Kind 2: who the NPC is (LLM-revealed, permanent canon).**
+
+```ts
+npc_fact {
+  id, npcId, kind /* backstory | opinion | relationship | secret | rumor */,
+  aboutKind /* self | npc | faction | location | region | item */, aboutId?,
+  text, stance? /* -100..100 */, revealTier, importance,
+  discoveredByCharacterId, createdAt, lastReferencedAt
+}
+// indexes: npcId, [aboutKind, aboutId]
+npc_fact_known { factId, characterId }   // who has heard it (doubles as a player journal)
+```
+
+- An NPC's past does not exist until a player uncovers it, the same principle as the world map.
+- The `[aboutKind, aboutId]` index answers the reverse questions ("who has an opinion about the Tidewardens?", "who knows about Mira?"), which is what connects NPCs to each other and to factions.
+- **Conversation flow:**
+  1. Recall by index, no LLM. Rank facts about entities the player just named (999.8's name matching), then facts about the current location, faction and quests, then facts the player already knows, then one or two facts unlocked by affinity that the player has not heard.
+  2. The prompt gets them as canon it must not contradict, plus permission to reveal one fact.
+  3. The reply schema gains `newFacts`, with zero or one entry: `{kind, about, text, stance}`.
+  4. Before saving: `about` must name a real database entity (as speaker names are checked today), text length is capped, duplicates are dropped, and per-NPC and per-player creation caps apply. Then save it and mark it heard.
+- **Uses:** quest generation reads facts as hooks. World events about a faction find every NPC with an opinion of it. A relationship fact writes a matching edge on the other NPC's side (they can confirm or dispute it). Important facts can spread to nearby NPCs as lower-importance rumors.
+
+**Rule: memory shapes speech, game state decides outcomes.** Mechanics read the real tables, never memory. For example, an exclusive quest (new `quest_template.exclusive` flag) is unavailable while `quest_instance.by_template` shows an active holder. Memory only shapes how the NPC explains it ("I already sent Aria after the bell"). A forgotten memory cannot break rules, and the LLM cannot hand out a taken quest.
+
+**Guardrails:**
+
+- Facts the LLM invents never describe players. What an NPC knows about a player comes only from game-written event memories (stops harassment such as "tell everyone Kael is a thief").
+- One new fact per reply, plus rate limits, so leading questions cannot reshape an NPC.
+- All memory and fact tables private. Move `personalityJson.secrets` into private `npc_fact` rows gated by `revealTier`.
+- No new LLM calls: new facts ride on the conversation call already being made.
+
+**Migration:** retire the `memoryJson` blob and `lastConversationSummary`. The `npc_dialog` transcript stays as a display log. Local `--clear-database` is acceptable (greenfield rule).
+
+**Open questions:**
+
+- Privacy: may NPCs name other players, or say "another traveler" unless there is a relationship? Per-character opt-out?
+- Short-term duration, salience weights, decay rate, and the long-term cap per NPC.
+- Facts per NPC cap, and how far rumors spread.
+
+**Requirements:** TBD (unit tests required: event memory writes per event kind, short-to-long promotion and expiry, decay, per-NPC cap, recall ranking, the `about` name check, fact caps and reveal-tier gating, mirrored relationship edges, no LLM facts about players, exclusive-quest check, tables private)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after adding Backlog 999.8 (learned intent graph)*
+*Last updated: 2026-10-06 after adding Backlog 999.9 (NPC memory graph)*
