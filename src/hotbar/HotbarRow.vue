@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import type { AbilityCooldown } from '../module_bindings/types';
 import { prefersReducedMotion } from '../console/pinning';
 import { COMBAT_KEY, FRAME_KEY, GAME_KEY, createInertCombat, createInertFrame, createInertGame } from '../game/context';
@@ -16,18 +16,27 @@ import {
   orderedHotbars,
   slotAriaLabel,
   slotForKey,
-  slotTitle,
+  slotTooltip,
+  slotTooltipText,
 } from './hotbar';
 import { useCooldownTicker } from './useCooldownTicker';
 
 // The hotbar at the top of the composer (47-UI-SPEC "Hotbar Contract (CON-05)"): ten slots of the
 // active hotbar, cooldown sweeps from ability_cooldown, number keys, and the hotbar selector.
-// Ability names and kinds render as text nodes and title attributes only.
+// Ability names, kinds and descriptions render as text nodes only.
+//
+// Tooltip (quick 261006-h5w): hovering (mouse or pen) or keyboard-focusing a filled slot, or
+// holding a touch or pen press for LONG_PRESS_MS, opens one popover above the row with the name,
+// cost, cooldown, cast time and description. A long-press never casts: the click that follows is
+// swallowed, a normal tap still casts. Each filled slot points aria-describedby at a hidden
+// element with the same text, so screen readers get it without the popover.
 const game = inject(GAME_KEY, createInertGame());
 const frame = inject(FRAME_KEY, createInertFrame());
 const controller = inject(COMBAT_KEY, createInertCombat());
 
 const FLASH_MS = 240;
+const LONG_PRESS_MS = 500;
+const uid = useId();
 
 const ordered = computed(() => orderedHotbars(game.hotbars.value));
 const active = computed(() => activeHotbar(game.hotbars.value));
@@ -192,6 +201,93 @@ watch(
   },
 );
 
+// The slot whose popover is open (hover, focus or long-press); null when none.
+const tipSlot = ref<number | null>(null);
+let pressTimer: ReturnType<typeof setTimeout> | null = null;
+// Set when a long-press opened the popover, so the click that may follow does not cast.
+let longPressed = false;
+
+const activeTip = computed(() => {
+  if (tipSlot.value === null) return null;
+  const state = slotStates.value[tipSlot.value - 1];
+  if (state === undefined || state.ability === null) return null;
+  return slotTooltip(state.ability, inCombat.value);
+});
+
+// An ability that leaves the slot (hotbar switch) takes its popover with it.
+watch(activeTip, (tip) => {
+  if (tip === null) tipSlot.value = null;
+});
+
+function descId(slot: number): string {
+  return `${uid}-desc-${slot}`;
+}
+
+function clearPressTimer(): void {
+  if (pressTimer === null) return;
+  clearTimeout(pressTimer);
+  pressTimer = null;
+}
+
+function showTip(state: SlotState): void {
+  if (state.ability !== null) tipSlot.value = state.slot;
+}
+
+function hideTip(state: SlotState): void {
+  if (tipSlot.value === state.slot) tipSlot.value = null;
+}
+
+// A touch press fires pointerenter and pointerleave around the tap, so only mouse and pen hover.
+function onPointerEnter(event: PointerEvent, state: SlotState): void {
+  if (event.pointerType === 'touch') return;
+  showTip(state);
+}
+
+function onPointerLeave(event: PointerEvent, state: SlotState): void {
+  if (event.pointerType === 'touch') return;
+  hideTip(state);
+}
+
+// Focus from the keyboard shows the popover; focus from a mouse click does not (it would linger).
+function onFocus(event: FocusEvent, state: SlotState): void {
+  let visible = true;
+  try {
+    visible = (event.target as Element).matches(':focus-visible');
+  } catch {
+    visible = true;
+  }
+  if (visible) showTip(state);
+}
+
+function onPointerDown(event: PointerEvent, state: SlotState): void {
+  longPressed = false;
+  clearPressTimer();
+  if (event.pointerType === 'mouse' || state.ability === null) return;
+  pressTimer = setTimeout(() => {
+    pressTimer = null;
+    longPressed = true;
+    showTip(state);
+  }, LONG_PRESS_MS);
+}
+
+// A long-press must not open the browser's context menu over the popover.
+function onContextMenu(event: Event): void {
+  if (pressTimer !== null || longPressed) event.preventDefault();
+}
+
+function onSlotClick(state: SlotState): void {
+  if (longPressed) {
+    longPressed = false;
+    return;
+  }
+  useSlot(state);
+}
+
+// A touch or pen press anywhere closes an open popover; the slot's own handler may reopen it.
+function onDocumentPointerDown(event: PointerEvent): void {
+  if (event.pointerType !== 'mouse') tipSlot.value = null;
+}
+
 function useSlot(state: SlotState): void {
   const ability = state.ability;
   const reducers = game.reducers.value;
@@ -244,6 +340,10 @@ function isTextField(element: Element | null): boolean {
 
 function onDocumentKeydown(event: KeyboardEvent): void {
   if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+  if (event.key === 'Escape') {
+    tipSlot.value = null;
+    return;
+  }
   const slot = slotForKey(event.key);
   if (slot === null) return;
   if (offline.value || frame.activeScreen.value !== null) return;
@@ -256,10 +356,13 @@ function onDocumentKeydown(event: KeyboardEvent): void {
 
 onMounted(() => {
   document.addEventListener('keydown', onDocumentKeydown);
+  document.addEventListener('pointerdown', onDocumentPointerDown, true);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onDocumentKeydown);
+  document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+  clearPressTimer();
   for (const timer of flashTimers) clearTimeout(timer);
   flashTimers.clear();
 });
@@ -309,8 +412,16 @@ function label(state: SlotState): string {
           :aria-disabled="blocked(state) ? 'true' : undefined"
           :aria-pressed="state.chosen ? 'true' : undefined"
           :aria-label="label(state)"
-          :title="state.ability === null ? undefined : slotTitle(state.ability)"
-          @click="useSlot(state)"
+          :aria-describedby="state.ability === null ? undefined : descId(state.slot)"
+          @click="onSlotClick(state)"
+          @pointerenter="onPointerEnter($event, state)"
+          @pointerleave="onPointerLeave($event, state)"
+          @focus="onFocus($event, state)"
+          @blur="hideTip(state)"
+          @pointerdown="onPointerDown($event, state)"
+          @pointerup="clearPressTimer"
+          @pointercancel="clearPressTimer"
+          @contextmenu="onContextMenu"
         >
           <span class="slot-key" aria-hidden="true">{{ state.key }}</span>
           <template v-if="state.ability !== null">
@@ -328,12 +439,24 @@ function label(state: SlotState): string {
           <span v-else-if="state.cooling" class="slot-seconds" aria-hidden="true">{{ state.label }}</span>
         </button>
       </div>
+      <div v-if="activeTip !== null" class="slot-tip" aria-hidden="true">
+        <span class="tip-name">{{ activeTip.name }}</span>
+        <span class="tip-stats">{{ activeTip.stats.join(' · ') }}</span>
+        <span v-if="activeTip.description !== ''" class="tip-description">{{ activeTip.description }}</span>
+      </div>
+      <!-- The text aria-describedby points at; the popover above is its visual twin. -->
+      <div hidden>
+        <template v-for="state in slotStates" :key="state.slot">
+          <span v-if="state.ability !== null" :id="descId(state.slot)">{{ slotTooltipText(slotTooltip(state.ability, inCombat)) }}</span>
+        </template>
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
 .hotbar-row {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -378,6 +501,9 @@ function label(state: SlotState): string {
   border: 0;
   border-radius: var(--radius-md);
   box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+  /* A long-press opens the popover: no text selection or callout over it. */
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .slot:hover {
@@ -466,6 +592,44 @@ function label(state: SlotState): string {
   font-variant-numeric: tabular-nums;
   color: var(--color-neutral-200);
   pointer-events: none;
+}
+
+/* The ability popover: one panel above the row, so the scrolling strip never clips it. */
+.slot-tip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 10;
+  width: max-content;
+  max-width: min(100%, 320px);
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.tip-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.tip-stats {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.tip-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-300);
+  overflow-wrap: anywhere;
 }
 
 .slot.inert {

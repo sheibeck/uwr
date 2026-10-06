@@ -39,6 +39,7 @@ import {
   PhSword,
   PhWrench,
 } from '@phosphor-icons/vue';
+import { cooldownTotalRounds, roundsText } from '../combat/roundCooldown';
 
 export const HOTBAR_SLOT_COUNT = 10;
 
@@ -183,6 +184,47 @@ export function slotTitle(a: {
   return cost === null
     ? `${a.name} · ${a.cooldownSeconds}s`
     : `${a.name} · ${cost} · ${a.cooldownSeconds}s`;
+}
+
+export interface SlotTooltip {
+  name: string;
+  /** Cost, cooldown and cast time, in that order. */
+  stats: string[];
+  /** ability_template.description, trimmed; empty when the ability has none. */
+  description: string;
+}
+
+/**
+ * Hover, focus and long-press content for a hotbar slot. Cost reads '12 mana' ('No cost' for
+ * 'none'); the cooldown reads in rounds in combat (CMB-04) and seconds otherwise; a cast time of 0
+ * reads 'Instant'. Plain strings only: the caller renders them as text nodes.
+ */
+export function slotTooltip(
+  a: {
+    name: string;
+    description: string;
+    resourceType: string;
+    resourceCost: bigint;
+    cooldownSeconds: bigint;
+    castSeconds: bigint;
+  },
+  inCombat: boolean,
+): SlotTooltip {
+  const cost = a.resourceType === 'none' ? 'No cost' : `${a.resourceCost} ${a.resourceType}`;
+  const cooldown =
+    a.cooldownSeconds <= 0n
+      ? 'No cooldown'
+      : inCombat
+        ? `${roundsText(cooldownTotalRounds(a.cooldownSeconds))} cooldown`
+        : `${a.cooldownSeconds}s cooldown`;
+  const cast = a.castSeconds <= 0n ? 'Instant' : `${a.castSeconds}s cast`;
+  return { name: a.name, stats: [cost, cooldown, cast], description: (a.description ?? '').trim() };
+}
+
+/** The same content as one sentence for aria-describedby: 'No cost, 6s cooldown, Instant. Hurls fire.' */
+export function slotTooltipText(tip: SlotTooltip): string {
+  const stats = tip.stats.join(', ');
+  return tip.description === '' ? stats : `${stats}. ${tip.description}`;
 }
 
 /** 'Firebolt, key 3', plus ', ready in 5 seconds' while cooling. Slot 10 reads 'key 0'. */

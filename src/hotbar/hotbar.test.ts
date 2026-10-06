@@ -45,6 +45,8 @@ import {
   slotForKey,
   slotKey,
   slotTitle,
+  slotTooltip,
+  slotTooltipText,
 } from './hotbar';
 
 describe('slot keys', () => {
@@ -263,6 +265,48 @@ describe('slot text', () => {
     expect(slotAriaLabel('Firebolt', 3, 4_200_000)).toBe('Firebolt, key 3, ready in 5 seconds');
     expect(slotAriaLabel('Firebolt', 3, 1)).toBe('Firebolt, key 3, ready in 1 second');
     expect(slotAriaLabel('Firebolt', 10, 0)).toBe('Firebolt, key 0');
+  });
+});
+
+describe('slotTooltip', () => {
+  const firebolt = {
+    name: 'Firebolt',
+    description: '  Hurls a bolt of fire.  ',
+    resourceCost: 12n,
+    resourceType: 'mana',
+    cooldownSeconds: 6n,
+    castSeconds: 2n,
+  };
+
+  it('lists cost, cooldown in seconds and cast time out of combat, with the trimmed description', () => {
+    expect(slotTooltip(firebolt, false)).toEqual({
+      name: 'Firebolt',
+      stats: ['12 mana', '6s cooldown', '2s cast'],
+      description: 'Hurls a bolt of fire.',
+    });
+  });
+
+  it('reads the cooldown in rounds in combat (4 s a round, at least 1)', () => {
+    expect(slotTooltip(firebolt, true).stats[1]).toBe('2 rounds cooldown');
+    expect(slotTooltip({ ...firebolt, cooldownSeconds: 1n }, true).stats[1]).toBe('1 round cooldown');
+    expect(slotTooltip({ ...firebolt, cooldownSeconds: 12n }, true).stats[1]).toBe('3 rounds cooldown');
+  });
+
+  it('says Instant for a zero cast time and No cost / No cooldown for free, ready abilities', () => {
+    const rest = { ...firebolt, resourceType: 'none', resourceCost: 0n, cooldownSeconds: 0n, castSeconds: 0n };
+    expect(slotTooltip(rest, false).stats).toEqual(['No cost', 'No cooldown', 'Instant']);
+    expect(slotTooltip(rest, true).stats).toEqual(['No cost', 'No cooldown', 'Instant']);
+  });
+
+  it('keeps hostile text as plain strings', () => {
+    const tip = slotTooltip({ ...firebolt, name: '<b>x</b>', description: '<img src=x onerror=alert(1)>' }, false);
+    expect(tip.name).toBe('<b>x</b>');
+    expect(tip.description).toBe('<img src=x onerror=alert(1)>');
+  });
+
+  it('builds one sentence for aria-describedby, omitting an empty description', () => {
+    expect(slotTooltipText(slotTooltip(firebolt, false))).toBe('12 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.');
+    expect(slotTooltipText(slotTooltip({ ...firebolt, description: '   ' }, false))).toBe('12 mana, 6s cooldown, 2s cast');
   });
 });
 

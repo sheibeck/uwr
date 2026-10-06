@@ -38,6 +38,8 @@ function ability(id: bigint, name: string, kind = 'damage', extra: Record<string
     resourceType: 'mana',
     resourceCost: 10n,
     cooldownSeconds: 6n,
+    castSeconds: 0n,
+    description: `${name} description.`,
     ...extra,
   };
 }
@@ -184,7 +186,9 @@ describe('HotbarRow slots', () => {
     expect(all[0].find('svg').exists()).toBe(true);
     expect(all[0].get('.slot-name').text()).toBe('Firebolt');
     expect(all[0].attributes('aria-label')).toBe('Firebolt, key 1');
-    expect(all[0].attributes('title')).toBe('Firebolt · 10 mana · 6s');
+    // the native title is gone: the popover and aria-describedby carry the details
+    expect(all[0].attributes('title')).toBeUndefined();
+    expect(all[0].attributes('aria-describedby')).toBeTruthy();
     expect(all[9].get('.slot-name').text()).toBe('Sprint');
     expect(all[9].attributes('aria-label')).toBe('Sprint, key 0');
     // different kinds draw different icons
@@ -247,7 +251,7 @@ describe('HotbarRow slots', () => {
     const s = setup({ abilities: [ability(11n, PAYLOAD), ability(12n, 'Mend'), ability(13n, 'Sprint')] });
     expect(s.wrapper.find('img').exists()).toBe(false);
     expect(slots(s.wrapper)[0].get('.slot-name').text()).toBe(PAYLOAD);
-    expect(slots(s.wrapper)[0].attributes('title')).toContain(PAYLOAD);
+    expect(slots(s.wrapper)[0].attributes('title')).toBeUndefined();
     expect(slots(s.wrapper)[0].attributes('aria-label')).toBe(`${PAYLOAD}, key 1`);
   });
 
@@ -754,6 +758,268 @@ describe('HotbarRow chosen slot and ally argument', () => {
   });
 });
 
+function describedText(slot: ReturnType<typeof slots>[number]): string {
+  const id = slot.attributes('aria-describedby');
+  expect(id).toBeTruthy();
+  const target = document.getElementById(id as string);
+  expect(target).not.toBeNull();
+  return (target as HTMLElement).textContent ?? '';
+}
+
+describe('HotbarRow ability tooltip', () => {
+  const FIREBOLT = ability(11n, 'Firebolt', 'damage', { castSeconds: 2n, description: 'Hurls a bolt of fire.' });
+  const withFirebolt = (extra: Partial<Options> = {}) =>
+    setup({ abilities: [FIREBOLT, ...DEFAULT_ABILITIES.slice(1)], ...extra });
+  const tip = (w: VueWrapper) => w.find('.slot-tip');
+
+  it('shows the name, cost, cooldown, cast time and description on mouse hover, and hides on leave', async () => {
+    const s = withFirebolt();
+    const first = slots(s.wrapper)[0];
+    expect(tip(s.wrapper).exists()).toBe(false);
+    await first.trigger('pointerenter', { pointerType: 'mouse' });
+    expect(tip(s.wrapper).exists()).toBe(true);
+    expect(tip(s.wrapper).get('.tip-name').text()).toBe('Firebolt');
+    expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 6s cooldown · 2s cast');
+    expect(tip(s.wrapper).get('.tip-description').text()).toBe('Hurls a bolt of fire.');
+    await first.trigger('pointerleave', { pointerType: 'mouse' });
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('follows the hovered slot and says Instant for a zero cast time', async () => {
+    const s = withFirebolt();
+    await slots(s.wrapper)[0].trigger('pointerenter', { pointerType: 'mouse' });
+    await slots(s.wrapper)[0].trigger('pointerleave', { pointerType: 'mouse' });
+    await slots(s.wrapper)[1].trigger('pointerenter', { pointerType: 'pen' });
+    expect(tip(s.wrapper).get('.tip-name').text()).toBe('Mend');
+    expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 6s cooldown · Instant');
+  });
+
+  it('does not open for an empty slot', async () => {
+    const s = withFirebolt();
+    const empty = slots(s.wrapper)[3];
+    await empty.trigger('pointerenter', { pointerType: 'mouse' });
+    await empty.trigger('focus');
+    expect(tip(s.wrapper).exists()).toBe(false);
+    expect(empty.attributes('aria-describedby')).toBeUndefined();
+  });
+
+  it('ignores the pointerenter a touch press fires', async () => {
+    const s = withFirebolt();
+    await slots(s.wrapper)[0].trigger('pointerenter', { pointerType: 'touch' });
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('shows on keyboard focus and hides on blur', async () => {
+    const s = withFirebolt();
+    const first = slots(s.wrapper)[0];
+    // happy-dom does not model :focus-visible, so the keyboard case is stated here
+    const matches = vi.spyOn(first.element, 'matches').mockReturnValue(true);
+    await first.trigger('focus');
+    expect(matches).toHaveBeenCalledWith(':focus-visible');
+    expect(tip(s.wrapper).exists()).toBe(true);
+    expect(tip(s.wrapper).get('.tip-name').text()).toBe('Firebolt');
+    await first.trigger('blur');
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('does not show for focus that came from a mouse click', async () => {
+    const s = withFirebolt();
+    const first = slots(s.wrapper)[0];
+    vi.spyOn(first.element, 'matches').mockReturnValue(false);
+    await first.trigger('focus');
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('links every filled slot to a description holding the same text through aria-describedby', () => {
+    const s = withFirebolt();
+    const first = slots(s.wrapper)[0];
+    expect(describedText(first)).toBe('10 mana, 6s cooldown, 2s cast. Hurls a bolt of fire.');
+    expect(describedText(slots(s.wrapper)[1])).toBe('10 mana, 6s cooldown, Instant. Mend description.');
+    const ids = slots(s.wrapper)
+      .map((slot) => slot.attributes('aria-describedby'))
+      .filter((id) => id !== undefined);
+    expect(new Set(ids).size).toBe(3);
+    // the slot name and its label are unchanged
+    expect(first.attributes('aria-label')).toBe('Firebolt, key 1');
+  });
+
+  it('reads the cooldown in rounds in combat', async () => {
+    const s = withFirebolt({ combat: { active: true } });
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerenter', { pointerType: 'mouse' });
+    expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 2 rounds cooldown · 2s cast');
+    expect(describedText(first)).toContain('2 rounds cooldown');
+    s.combat.active.value = false;
+    await nextTick();
+    expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 6s cooldown · 2s cast');
+  });
+
+  it('leaves the description line out when the ability has none', async () => {
+    const s = setup({ abilities: [ability(11n, 'Firebolt', 'damage', { description: '  ' }), ...DEFAULT_ABILITIES.slice(1)] });
+    await slots(s.wrapper)[0].trigger('pointerenter', { pointerType: 'mouse' });
+    expect(tip(s.wrapper).find('.tip-description').exists()).toBe(false);
+    expect(describedText(slots(s.wrapper)[0])).toBe('10 mana, 6s cooldown, Instant');
+  });
+
+  it('renders hostile name and description as text, never markup', async () => {
+    const s = setup({
+      abilities: [ability(11n, PAYLOAD, 'damage', { description: PAYLOAD }), ...DEFAULT_ABILITIES.slice(1)],
+    });
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerenter', { pointerType: 'mouse' });
+    expect(s.wrapper.find('img').exists()).toBe(false);
+    expect(tip(s.wrapper).get('.tip-name').text()).toBe(PAYLOAD);
+    expect(tip(s.wrapper).get('.tip-description').text()).toBe(PAYLOAD);
+    expect(describedText(first)).toContain(PAYLOAD);
+    expect(document.body.querySelector('img')).toBeNull();
+  });
+
+  it('Escape dismisses the popover', async () => {
+    const s = withFirebolt();
+    await slots(s.wrapper)[0].trigger('pointerenter', { pointerType: 'mouse' });
+    expect(tip(s.wrapper).exists()).toBe(true);
+    press('Escape');
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('closes when the open slot is replaced by an empty one', async () => {
+    const s = withFirebolt();
+    await slots(s.wrapper)[0].trigger('pointerenter', { pointerType: 'mouse' });
+    expect(tip(s.wrapper).exists()).toBe(true);
+    s.hotbars.value = [hotbar(1n, 'Combat', 0, false), hotbar(2n, 'Travel', 1, true)];
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+});
+
+describe('HotbarRow long-press', () => {
+  const FIREBOLT = ability(11n, 'Firebolt', 'damage', { castSeconds: 2n, description: 'Hurls a bolt of fire.' });
+  const touchSetup = (extra: Partial<Options> = {}) =>
+    setup({ abilities: [FIREBOLT, ...DEFAULT_ABILITIES.slice(1)], desktop: false, ...extra });
+  const tip = (w: VueWrapper) => w.find('.slot-tip');
+
+  it('opens the same content after about 500 ms without casting, then swallows the trailing click', async () => {
+    const s = touchSetup();
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(499);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(true);
+    expect(tip(s.wrapper).get('.tip-name').text()).toBe('Firebolt');
+    expect(tip(s.wrapper).get('.tip-stats').text()).toBe('10 mana · 6s cooldown · 2s cast');
+    expect(tip(s.wrapper).get('.tip-description').text()).toBe('Hurls a bolt of fire.');
+    await first.trigger('pointerup', { pointerType: 'touch' });
+    // the touch pointer leaving after lift does not close it
+    await first.trigger('pointerleave', { pointerType: 'touch' });
+    expect(tip(s.wrapper).exists()).toBe(true);
+    await first.trigger('click');
+    expect(s.useAbility).not.toHaveBeenCalled();
+  });
+
+  it('a normal tap still casts and opens nothing', async () => {
+    const s = touchSetup();
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(120);
+    await first.trigger('pointerup', { pointerType: 'touch' });
+    await first.trigger('click');
+    vi.advanceTimersByTime(1000);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+    expect(s.useAbility).toHaveBeenCalledTimes(1);
+    expect(s.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 11n });
+  });
+
+  it('a tap after a long-press casts: the swallowed click does not linger', async () => {
+    const s = touchSetup();
+    const first = slots(s.wrapper)[0];
+    // a long-press with no click after it (the browser drops it)
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(500);
+    await first.trigger('pointerup', { pointerType: 'touch' });
+    expect(s.useAbility).not.toHaveBeenCalled();
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    await first.trigger('pointerup', { pointerType: 'touch' });
+    await first.trigger('click');
+    expect(s.useAbility).toHaveBeenCalledTimes(1);
+  });
+
+  it('releasing, cancelling or scrolling away before 500 ms opens nothing', async () => {
+    const s = touchSetup();
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(300);
+    await first.trigger('pointercancel', { pointerType: 'touch' });
+    vi.advanceTimersByTime(1000);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('a mouse press never starts the long-press timer', async () => {
+    const s = touchSetup();
+    await slots(s.wrapper)[0].trigger('pointerdown', { pointerType: 'mouse' });
+    vi.advanceTimersByTime(1000);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('does not open for an empty slot', async () => {
+    const s = touchSetup();
+    await slots(s.wrapper)[3].trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(1000);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('a press elsewhere closes the popover', async () => {
+    const s = touchSetup();
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(500);
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(true);
+    const pointerDown = (pointerType: string): void => {
+      const event = new Event('pointerdown', { bubbles: true });
+      Object.defineProperty(event, 'pointerType', { value: pointerType });
+      document.body.dispatchEvent(event);
+    };
+    pointerDown('mouse');
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(true);
+    pointerDown('touch');
+    await nextTick();
+    expect(tip(s.wrapper).exists()).toBe(false);
+  });
+
+  it('keeps the browser context menu off a long-press', async () => {
+    const s = touchSetup();
+    const first = slots(s.wrapper)[0];
+    await first.trigger('pointerdown', { pointerType: 'touch' });
+    vi.advanceTimersByTime(500);
+    const menu = new Event('contextmenu', { bubbles: true, cancelable: true });
+    first.element.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(true);
+    // a plain right-click with the mouse keeps its menu
+    await first.trigger('pointerdown', { pointerType: 'mouse' });
+    const mouseMenu = new Event('contextmenu', { bubbles: true, cancelable: true });
+    first.element.dispatchEvent(mouseMenu);
+    expect(mouseMenu.defaultPrevented).toBe(false);
+  });
+
+  it('clears the timer when the row unmounts', async () => {
+    const s = touchSetup();
+    await slots(s.wrapper)[0].trigger('pointerdown', { pointerType: 'touch' });
+    expect(vi.getTimerCount()).toBe(1);
+    s.wrapper.unmount();
+    wrapper = null;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe('HotbarRow source and mounting', () => {
   const read = (path: string): string => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -762,6 +1028,15 @@ describe('HotbarRow source and mounting', () => {
     for (const marker of ['useAbility({', 'switchHotbar({', 'No hotbar yet.', 'conic-gradient', 'prefers-reduced-motion']) {
       expect(source).toContain(marker);
     }
+  });
+
+  it('wires the tooltip: aria-describedby, a 500 ms long-press, text nodes only', () => {
+    const source = read('src/hotbar/HotbarRow.vue');
+    for (const marker of [':aria-describedby=', 'LONG_PRESS_MS = 500', 'slotTooltip(', '@pointerdown=', 'key === \'Escape\'']) {
+      expect(source).toContain(marker);
+    }
+    expect(source).not.toMatch(/v-html|innerHTML|replaceAll|ripple/);
+    expect(source).not.toContain('<svg');
   });
 
   it('FeedShell renders HotbarRow before the composer input', () => {
