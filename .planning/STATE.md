@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 47
 current_phase_name: Console, Rails, Hotbar and Input
 status: executing
-stopped_at: Completed 47-09-PLAN.md
-last_updated: "2026-10-06T01:42:11.255Z"
+stopped_at: Completed 47-10-PLAN.md
+last_updated: "2026-10-06T01:52:42.812Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 47 execution started
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 33
-  completed_plans: 30
+  completed_plans: 31
   percent: 22
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 47 (Console, Rails, Hotbar and Input) — EXECUTING
-Plan: 10 of 12
+Plan: 11 of 12
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 47 execution started
 
-Progress: [█████████░] 91%
+Progress: [█████████░] 94%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -167,6 +167,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: [47-06] View row lists in GameData use the underlying row types (QuestInstance, CharacterEffect, GroupInvite, FactionStanding, MyLlmJob) because the generated My* view types are empty objects
 - [Phase ?]: 47-07: smooth pill jump holds the pinned flag 600ms; pinned auto-follow scrolls instantly
 - [Phase ?]: 47-08: 'Party · n' counts every member including the player; unknown party members show a dimmed card and a plain 'Member' strip chip with no percent
+- [Phase ?]: 47-10: ContextContent is a fragment; Map sheet (47-12) must mount it in a flex column with 16px gap
 
 ### Roadmap Evolution
 
@@ -280,8 +281,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T01:42:11.227Z
-Stopped at: Completed 47-09-PLAN.md
+Last session: 2026-10-06T01:52:42.782Z
+Stopped at: Completed 47-10-PLAN.md
 
 ## Performance Metrics
 
@@ -395,6 +396,7 @@ Stopped at: Completed 47-09-PLAN.md
 | Phase 47 P07 | 40min | 3 tasks | 13 files |
 | Phase 47 P08 | 25min | 2 tasks | 8 files |
 | Phase 47 P09 | 45min | 3 tasks | 8 files |
+| Phase 47 P10 | 30min | 3 tasks | 9 files |
 
 ## Operator Next Steps
 
