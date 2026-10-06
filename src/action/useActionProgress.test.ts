@@ -24,6 +24,7 @@ afterEach(() => {
 
 function setup() {
   let now = T;
+  const skew = ref(0);
   const gathers = ref<readonly GatherRow[]>([]);
   const casts = ref<readonly CastRow[]>([]);
   const inCombat = ref(false);
@@ -36,7 +37,7 @@ function setup() {
       nodes: ref([{ id: 3n, name: 'Ironwood' }]),
       abilities: ref([{ id: 20n, name: 'Mend', kind: 'heal', castSeconds: 2n }]),
       inCombat,
-      clock: { nowMicros: () => now },
+      clock: { skewMicros: skew, nowMicros: () => now + skew.value },
     }),
   )!;
   return {
@@ -45,6 +46,7 @@ function setup() {
     casts,
     inCombat,
     scope,
+    skew,
     setNow: (value: number) => {
       now = value;
     },
@@ -162,6 +164,40 @@ describe('useActionProgress', () => {
     expect(h.progress.value?.seconds).toBe(8);
     vi.advanceTimersByTime(750);
     expect(h.progress.value?.seconds).toBe(5);
+    h.scope.stop();
+  });
+
+  it('re-bases first-seen when the skew is sampled after the row arrived', async () => {
+    const h = setup();
+    // The client reads T while the server reads T + 5 s; no event row has been sampled yet (skew 0).
+    // The server inserted the row now, so it ends 8 s after the true server time.
+    h.gathers.value = [gatherRow(1n, T + 5 * S + 8 * S)];
+    await nextTick();
+    expect(h.progress.value?.seconds).toBe(13);
+    // The first event row samples the skew: the bar must not jump.
+    h.skew.value = 5 * S;
+    expect(h.progress.value?.seconds).toBe(8);
+    expect(h.progress.value?.fraction).toBe(0);
+    h.setNow(T + 4 * S);
+    vi.advanceTimersByTime(250);
+    expect(h.progress.value?.seconds).toBe(4);
+    expect(h.progress.value?.fraction).toBe(0.5);
+    h.scope.stop();
+  });
+
+  it('does not stay stuck at 0 when the client clock is ahead and the skew arrives late', async () => {
+    const h = setup();
+    // Client T, server T - 10 s: the row ends at server time T - 10 s + 8 s.
+    h.gathers.value = [gatherRow(1n, T - 10 * S + 8 * S)];
+    await nextTick();
+    expect(h.progress.value?.finishing).toBe(true);
+    h.skew.value = -10 * S;
+    expect(h.progress.value?.finishing).toBe(false);
+    expect(h.progress.value?.seconds).toBe(8);
+    h.setNow(T + 2 * S);
+    vi.advanceTimersByTime(250);
+    expect(h.progress.value?.seconds).toBe(6);
+    expect(h.progress.value?.fraction).toBe(0.25);
     h.scope.stop();
   });
 
