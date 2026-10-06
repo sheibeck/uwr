@@ -88,6 +88,10 @@ function build(over: { targetId?: bigint } = {}): Fake {
   };
 }
 
+function confirmTarget(fake: Fake, enemyId: bigint): void {
+  fake.character.value = { ...fake.character.value, combatTargetEnemyId: enemyId };
+}
+
 function start(fake: Fake): CombatController {
   scope = effectScope();
   controller = scope.run(() => createCombatController({ game: fake.game, frame: fake.frame }))!;
@@ -131,13 +135,60 @@ afterEach(() => {
 });
 
 describe('requestTarget', () => {
-  it('requests a living hostile once and sets the status line', () => {
+  it('requests a living hostile once and sets the status line when the server echoes it', () => {
     const fake = build();
     const c = start(fake);
     c.requestTarget(9n);
     expect(fake.setCombatTarget).toHaveBeenCalledTimes(1);
     expect(fake.setCombatTarget).toHaveBeenCalledWith({ characterId: 5n, enemyId: 9n });
+    // Nothing is announced before the subscription confirms the target.
+    expect(c.targetStatus.value).toBe('');
+    confirmTarget(fake, 9n);
     expect(c.targetStatus.value).toBe('Target: Cinderhound');
+  });
+
+  it('announces at once when the confirmed target already is the requested one', () => {
+    const fake = build();
+    const c = start(fake);
+    c.requestTarget(3n);
+    expect(c.targetStatus.value).toBe('Target: Fangling');
+  });
+
+  it('does not announce a target the server never confirmed', () => {
+    const fake = build();
+    const c = start(fake);
+    c.requestTarget(9n);
+    // The server kept the old target (a refusal written to the feed): no echo, no status.
+    expect(c.targetStatus.value).toBe('');
+    // A different server-side change is not the requested one either.
+    confirmTarget(fake, 5n);
+    expect(c.targetStatus.value).toBe('');
+  });
+
+  it('rolls the cycle base back when the reducer rejects, so Tab continues from the confirmed target', async () => {
+    const fake = build();
+    fake.setCombatTarget.mockRejectedValueOnce(new Error('refused'));
+    start(fake);
+    // Confirmed target 3n. Tab requests 5n, which is rejected.
+    key({ key: 'Tab' });
+    await Promise.resolve();
+    await Promise.resolve();
+    // Without the rollback the base would be 5n and this Tab would request 9n.
+    key({ key: 'Tab' });
+    expect(fake.setCombatTarget).toHaveBeenNthCalledWith(1, { characterId: 5n, enemyId: 5n });
+    expect(fake.setCombatTarget).toHaveBeenNthCalledWith(2, { characterId: 5n, enemyId: 5n });
+  });
+
+  it('keeps a newer request when an older one is rejected', async () => {
+    const fake = build();
+    fake.setCombatTarget.mockRejectedValueOnce(new Error('refused'));
+    start(fake);
+    key({ key: 'Tab' }); // 5n, rejected later
+    key({ key: 'Tab' }); // 9n, newer
+    await Promise.resolve();
+    await Promise.resolve();
+    key({ key: 'Tab' }); // base is still 9n -> wraps to 3n
+    expect(fake.setCombatTarget).toHaveBeenNthCalledWith(3, { characterId: 5n, enemyId: 3n });
   });
 
   it('never requests a defeated hostile', () => {
@@ -411,6 +462,7 @@ describe('ally selection', () => {
     const c = start(fake);
     c.selectAlly(8n);
     c.requestTarget(9n);
+    confirmTarget(fake, 9n);
     expect(c.targetStatus.value).toBe('Target: Cinderhound');
     fake.active.value = false;
     expect(c.allyTargetId.value).toBe(5n);

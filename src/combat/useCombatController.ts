@@ -45,11 +45,18 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
   const selectedAlly = shallowRef<bigint | null>(null);
   const targetStatus = shallowRef('');
   // Plain value: only the next cycle reads it, so rapid presses advance before the server echo.
+  // It is a cycle base, never shown. A rejected call rolls it back; a refusal the server writes
+  // into the feed names an enemy that is not living in this fight, which the cycle already skips.
   let lastRequested: bigint | null = null;
 
   const allyTargetId = computed<bigint | null>(() => selectedAlly.value ?? game.characterId.value);
 
   // ---- targets -------------------------------------------------------------------------------
+
+  function announceTarget(enemyId: bigint): void {
+    const enemy = combat.enemies.value.find((row) => row.id === enemyId);
+    targetStatus.value = enemy === undefined ? '' : `Target: ${enemy.displayName}`;
+  }
 
   /** Sends set_combat_target for a living hostile; false when nothing was requested. */
   function send(enemyId: bigint): boolean {
@@ -59,12 +66,15 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
     const enemy = combat.enemies.value.find((row) => row.id === enemyId);
     if (enemy === undefined || enemy.currentHp <= 0n) return false;
     lastRequested = enemyId;
-    targetStatus.value = `Target: ${enemy.displayName}`;
+    // The status line follows the server: it is announced when the character's confirmed
+    // combatTargetEnemyId echoes this request (the watcher below), not on the click.
+    if (game.character.value?.combatTargetEnemyId === enemyId) announceTarget(enemyId);
     void (async () => {
       try {
         await reducers.setCombatTarget({ characterId, enemyId });
       } catch (error) {
-        // The server writes refusals into the feed; nothing is added here.
+        // Only roll back when nothing newer was requested meanwhile.
+        if (lastRequested === enemyId) lastRequested = null;
         console.warn('[combat] set_combat_target failed', error);
       }
     })();
@@ -139,6 +149,15 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
           lastRequested = null;
           targetStatus.value = '';
         }
+      },
+      { flush: 'sync' },
+    );
+
+    watch(
+      () => game.character.value?.combatTargetEnemyId ?? null,
+      (confirmed) => {
+        if (!combat.active.value || confirmed === null || confirmed !== lastRequested) return;
+        announceTarget(confirmed);
       },
       { flush: 'sync' },
     );
