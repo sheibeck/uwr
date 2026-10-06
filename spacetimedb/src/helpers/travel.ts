@@ -3,6 +3,7 @@ import { performPassiveSearch } from './search';
 import { getPerkBonusByField } from './renown';
 import { buildLookOutput } from './look';
 import { startWorldGeneration } from './world_gen';
+import { beginCombatCooldowns } from './combat_round_state';
 
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
@@ -24,7 +25,7 @@ export function performTravel(
     ensureSpawnsForLocation: (ctx: any, locationId: bigint) => void;
     isGroupLeaderOrSolo: (ctx: any, character: any) => boolean;
     effectiveGroupId: (character: any) => bigint | undefined;
-    getEquippedWeaponStats: (ctx: any, charId: bigint) => { speed: bigint; [k: string]: any };
+    getEquippedWeaponStats?: (ctx: any, charId: bigint) => { speed: bigint; [k: string]: any };
   },
   character: any,
   targetLocationId: bigint
@@ -39,7 +40,6 @@ export function performTravel(
     ensureSpawnsForLocation,
     isGroupLeaderOrSolo,
     effectiveGroupId,
-    getEquippedWeaponStats,
   } = deps;
 
   const fail = (msg: string) => {
@@ -219,14 +219,17 @@ export function performTravel(
           .some((p: any) => p.combatId === combat.id);
         if (alreadyIn) break;
 
-        const joinWeapon = getEquippedWeaponStats(ctx, movedChar.id);
+        // Rounds, not a weapon timer, pace a fight: the joiner acts at its place in the round, the
+        // open round now waits for its choice (or the deadline), and its live wall-clock cooldowns
+        // count in rounds from here.
         ctx.db.combat_participant.insert({
           id: 0n,
           combatId: combat.id,
           characterId: movedChar.id,
           status: 'active',
-          nextAutoAttackAt: ctx.timestamp.microsSinceUnixEpoch + joinWeapon.speed,
+          nextAutoAttackAt: 0n,
         });
+        beginCombatCooldowns(ctx, movedChar.id);
 
         const enemies = [...ctx.db.combat_enemy.by_combat.filter(combat.id)];
         for (const enemy of enemies) {

@@ -1221,32 +1221,9 @@ export const registerCombatReducers = (deps: any) => {
 
   spacetimedb.reducer('flee_combat', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    const combatId = activeCombatIdForCharacter(ctx, character.id);
-    if (!combatId) return failCombat(ctx, character, 'Combat not active');
-    const combat = ctx.db.combat_encounter.id.find(combatId);
-    if (!combat || combat.state !== 'active') return failCombat(ctx, character, 'Combat not active');
-
-    // Real-time flee: attempt immediately
-    for (const participant of ctx.db.combat_participant.by_combat.filter(combat.id)) {
-      if (participant.characterId !== character.id) continue;
-      if (participant.status !== 'active') return;
-      ctx.db.combat_participant.id.update({
-        ...participant,
-        status: 'fleeing',
-      });
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'combat',
-        'You attempt to flee...'
-      );
-      const groupId = effectiveGroupId(character);
-      if (groupId) {
-        appendGroupEvent(ctx, groupId, character.id, 'combat', `${character.name} attempts to flee.`);
-      }
-      return;
-    }
+    // Fleeing is a round choice (Phase 46.1): it is stored here and resolved at the player's turn in
+    // resolveRound under the same odds as before (calculateFleeChance of the region's danger).
+    submitCombatChoice(ctx, character, { actionType: 'flee' });
   });
 
   scheduledReducers['respawn_enemy'] = spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
@@ -1744,16 +1721,13 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.character_cast.id.delete(cast.id);
         continue;
       }
-      // Check combat state before executing ability
+      // A cast that finishes inside a fight never fires: abilities in a fight act only at their
+      // place in the round (resolveRound), so a pre-fight cast is cancelled here.
       const castCombatId = activeCombatIdForCharacter(ctx, character.id);
       if (castCombatId) {
-        const participant = [...ctx.db.combat_participant.by_combat.filter(castCombatId)].find(
-          (row) => row.characterId === character.id
-        );
-        if (participant && participant.status !== 'active') {
-          ctx.db.character_cast.id.delete(cast.id);
-          continue;
-        }
+        ctx.db.character_cast.id.delete(cast.id);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Your casting is interrupted by combat.');
+        continue;
       }
       // Apply cooldown on use, not on success — prevents kill-shot abilities from losing
       // their cooldown when combat ends before the subscription row arrives.
@@ -2689,6 +2663,49 @@ export const registerCombatReducers = (deps: any) => {
     }
   };
 
+  /**
+   * A flee choice at the player's turn, under the quick-123 rules: chance = calculateFleeChance of the
+   * region's danger (default 100), a deterministic roll from the round seed. Success removes the
+   * character from the fight (aggro, pets, target, round cooldowns carried out, choices, participant
+   * row); failure only costs the player their action for the round.
+   */
+  const resolveFleeChoice = (ctx: any, combat: any, character: any, participant: any, roundNumber: bigint, nowMicros: bigint): void => {
+    const location = ctx.db.location.id.find(combat.locationId);
+    const region = location ? ctx.db.region.id.find(location.regionId) : null;
+    const dangerMultiplier = region?.dangerMultiplier ?? 100n;
+    const fleeChance = calculateFleeChance(dangerMultiplier);
+    const roll = Number(roundSeed(nowMicros + character.id * 13n, roundNumber) % 100n);
+    if (roll >= fleeChance) {
+      logPrivateAndGroup(ctx, character, 'combat', 'You fail to flee!', `${character.name} fails to flee.`);
+      return;
+    }
+    const petIds = new Set<bigint>();
+    for (const pet of [...ctx.db.active_pet.by_combat.filter(combat.id)]) {
+      if (pet.characterId !== character.id) continue;
+      petIds.add(pet.id);
+      ctx.db.active_pet.id.delete(pet.id);
+    }
+    const doomedAggro: bigint[] = [];
+    for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
+      if (entry.characterId === character.id || (entry.petId && petIds.has(entry.petId))) doomedAggro.push(entry.id);
+    }
+    for (const id of doomedAggro) ctx.db.aggro_entry.id.delete(id);
+    for (const enemy of [...ctx.db.combat_enemy.by_combat.filter(combat.id)]) {
+      if (enemy.aggroTargetCharacterId === character.id) {
+        ctx.db.combat_enemy.id.update({ ...enemy, aggroTargetCharacterId: undefined });
+      }
+    }
+    endCombatCooldowns(ctx, character.id);
+    const doomedChoices: bigint[] = [];
+    for (const row of ctx.db.combat_action.by_character.filter(character.id)) {
+      if (row.combatId === combat.id) doomedChoices.push(row.id);
+    }
+    for (const id of doomedChoices) ctx.db.combat_action.id.delete(id);
+    ctx.db.character.id.update({ ...character, combatTargetEnemyId: undefined, lastCombatEndAt: nowMicros });
+    ctx.db.combat_participant.id.delete(participant.id);
+    logPrivateAndGroup(ctx, character, 'combat', 'You successfully flee.', `${character.name} successfully flees.`);
+  };
+
   const fightEnemyName = (ctx: any, enemies: any[]): string =>
     enemies[0]
       ? (enemies[0].displayName ?? ctx.db.enemy_template.id.find(enemies[0].enemyTemplateId)?.name ?? 'enemy')
@@ -2724,6 +2741,11 @@ export const registerCombatReducers = (deps: any) => {
       const character = ctx.db.character.id.find(p.characterId);
       if (!character || character.hp === 0n) continue;
       const choice = choices.find((c: any) => c.characterId === character.id);
+      if (choice && choice.actionType === 'flee') {
+        // The flee is the player's whole action for the round, whether it works or not.
+        resolveFleeChoice(ctx, liveCombat, character, participant, N, nowMicros);
+        continue;
+      }
       let acted = false;
       if (choice && choice.actionType === 'ability' && choice.abilityTemplateId !== undefined && choice.abilityTemplateId !== null) {
         acted = resolveAbilityChoice(ctx, liveCombat, character, choice);
@@ -2738,8 +2760,11 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
-    // (c) nothing left to fight: straight to the end of the fight
-    if (livingEnemiesOf(ctx, liveCombat.id).length > 0) {
+    // (c) nothing left to fight, or nobody left to fight them (everyone fled): straight to the end of the fight
+    if (
+      livingEnemiesOf(ctx, liveCombat.id).length > 0
+      && [...ctx.db.combat_participant.by_combat.filter(liveCombat.id)].length > 0
+    ) {
       // (d) pets
       processPetCombat(ctx, liveCombat, livingEnemiesOf(ctx, liveCombat.id), nowMicros);
 
