@@ -54,9 +54,9 @@
 - [x] **CMB-01**: In combat, the right rail becomes the encounter: hostiles with health, a boss tag and difficulty color. The player can click a hostile to target it, and Tab cycles targets.
 - [x] **CMB-02**: The player sees the threat order on the current target (from `aggro_entry`).
 - [x] **CMB-03**: The player sees an enemy wind-up warning (from `combat_enemy_cast`) before the ability lands.
-- [ ] **CMB-04**: The combat feed groups events by round, each under a round header. Effects and cooldowns show rounds remaining.
+- [x] **CMB-04**: The combat feed groups events by round, each under a round header. Effects and cooldowns show rounds remaining.
 - [x] **CMB-05**: The header shows "In combat". The player can click party members to target heals, Flee is on the hotbar, and damage taken flashes on the vitals.
-- [ ] **CMB-06**: The round timer counts down on the hotbar. The player sees the action they have chosen for this round; with no choice, the hotbar shows that they will auto-attack.
+- [x] **CMB-06**: The round timer counts down on the hotbar. The player sees the action they have chosen for this round; with no choice, the hotbar shows that they will auto-attack.
 
 ### Character Creation (CRE)
 
@@ -145,9 +145,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CMB-01 | Phase 48 | Complete |
 | CMB-02 | Phase 48 | Complete |
 | CMB-03 | Phase 48 | Complete |
-| CMB-04 | Phase 48 | Pending |
+| CMB-04 | Phase 48 | Complete |
 | CMB-05 | Phase 48 | Complete |
-| CMB-06 | Phase 48 | Pending |
+| CMB-06 | Phase 48 | Complete |
 | CRE-01 | Phase 49 | Pending |
 | CRE-02 | Phase 49 | Pending |
 | CRE-03 | Phase 49 | Pending |
