@@ -445,7 +445,7 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
         hail({ id: entry.id, name: entry.name });
         break;
       case 'enemy':
-        // One click is one action; a careful pull is the cautious choice (Body pull is in Nearby).
+        // One click is one action: a careful pull, the same as the Nearby Pull button (owner decision).
         pull({ id: entry.id, name: entry.name }, 'careful');
         break;
       case 'place':
