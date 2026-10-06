@@ -323,7 +323,23 @@ Plans:
   5. At 390×844 the encounter, targeting, hotbar and Flee are usable, and the combat feed stays readable.
   6. The round timer counts down on the hotbar, the player sees the action they have chosen for this round, and with no choice the hotbar shows that they will auto-attack.
 
-**Plans**: TBD
+**Plans**: 14 plans (sequential on the main checkout)
+
+Plans:
+- [ ] 48-01-PLAN.md — my_combat_aggro per-sender view with a no-scan test; local publish with --break-clients (no clear, key checked); bindings regeneration
+- [ ] 48-02-PLAN.md — Pure encounter modules: difficulty, wind-up copy, hostile rows, threat rows, Tab cycling, ally-target rule
+- [ ] 48-03-PLAN.md — Pure round modules: round clock, choice chip and round controls, amount emphasis, rounds cooldowns, damage flash composable
+- [ ] 48-04-PLAN.md — Data layer: combat queries, CombatData on GameData with inert defaults, combat reducers, keyed combat bindings with the narrative linger
+- [ ] 48-05-PLAN.md — Combat controller (targets, Tab and Esc keys, ally selection, round clock), 'encounter' screen value and combat screen lock, AppFrame provide
+- [ ] 48-06-PLAN.md — Feed store round headers and wind-up entries with boundary ordering; round and wind-up line kinds and the late-narration tag
+- [ ] 48-07-PLAN.md — Combat feed wiring from rows to the store; FeedLine and FeedView rendering (round dividers, wind-up block, tag, amount emphasis)
+- [ ] 48-08-PLAN.md — Desktop Encounter panel (hostile cards, threat block) and the context rail swap
+- [ ] 48-09-PLAN.md — Round row above the hotbar (chip, timer, Ready, Flee) and the combat input placeholder
+- [ ] 48-10-PLAN.md — Hotbar in combat: rounds cooldowns, inert while resolving or down, chosen slot, ally target argument
+- [ ] 48-11-PLAN.md — Header In combat tag and locked screen buttons, party ally targeting, vitals-rail damage flash
+- [ ] 48-12-PLAN.md — Mobile combat: encounter strip, encounter sheet with round meta, Log out from the strip, hidden tab bar and location row
+- [ ] 48-13-PLAN.md — Mobile vitals strip in combat: In combat tag, ally chips, damage flash
+- [ ] 48-14-PLAN.md — Populated combat frame test at both widths, phase gate, validation map, deferred owner checklist
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): Console & Combat 1a/1c (Ledger direction) and Ledger 2i/2j in combat, desktop and mobile.
 **Notes**:
