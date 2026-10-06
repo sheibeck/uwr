@@ -501,18 +501,23 @@ myCombatAggro: toSql(tables.myCombatAggro),   // exists only after the bindings 
 | A4 | Owner accepts a small account button on the mobile strip in combat | Pitfall 9, Open Q1 | Without it Log out is unreachable mid-fight (still recoverable by flee or fight end) |
 | A5 | Owner accepts "dead ally selectable but not sent" as the A26 deviation | Pitfall 2, Open Q2 | Alternative is resetting the selection to self on ally death |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Mobile account menu in combat (A5 checker note).**
    - Known: the tab bar is hidden in combat; Log out lives only in `MoreSheet` (mobile) and `AccountMenu` (desktop header).
    - Unclear: where the owner wants the control.
    - Recommendation: `PhDotsThree` 44px button, right end of the vitals strip row 1 in combat, opening `MoreSheet` listing only Log out. Planner to make it a plan task with a test that Log out is reachable in combat on mobile; mention at UAT.
+   - RESOLVED (2026-10-06, auto-approved overnight): a small account button on the encounter strip header opens a Log-out-only More sheet. See CONTEXT "Decisions after UI-SPEC and research" and plan 48-12.
 2. **A26 versus the server's ally validation.**
    - Recommendation: `allyTargetFor` (Pitfall 2). Record as a deviation.
+   - RESOLVED: `allyTargetFor` sends the ally only for `single_ally` abilities while the ally is alive and active. See CONTEXT and plans 48-02, 48-05 and 48-10.
 3. **Hostile rows while the fight data is applying.**
    - Recommendation: Pitfall 5 (`combat.applied`).
+   - RESOLVED: hostile rows wait for `combat.applied`, per Pitfall 5. See plans 48-04 and 48-08.
 4. **Threat percent basis** (UI-SPEC A8, unresolved): keep relative-to-top; only `threat.ts` changes if the owner revises.
+   - RESOLVED for now: threat percent is relative to the top entry (CONTEXT A8). It stays open for owner review at UAT.
 5. **Vite dev server.** The brief says it is running, but port 5173 did not answer during research (the SpacetimeDB server answered 200 on `/v1/ping`). Not blocking: no step of this phase needs the dev server except optional visual checks, which are deferred to the milestone UAT.
+   - RESOLVED: the Vite dev server listens on [::1]:5173 (IPv6 localhost) and answers on http://localhost:5173/. Not blocking.
 
 ## Environment Availability
 
