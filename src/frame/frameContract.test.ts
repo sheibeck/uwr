@@ -50,7 +50,11 @@ describe('frame dimensions', () => {
   it('ContextRail is 288px wide', () => expectDecl('ContextRail.vue', '.context-rail', 'width', '288px'));
   it('HeaderBar is 48px high', () => expectDecl('HeaderBar.vue', '.header-bar', 'height', '48px'));
   it('Drawer covers the center and right columns', () => expectDecl('Drawer.vue', '.drawer', 'inset', '0 0 0 252px'));
-  it('the feed line is capped at 760px', () => expectDecl('FeedShell.vue', '.feed-line', 'max-width', '760px'));
+  it('the feed line is capped at 760px', () => {
+    const file = `${SRC}/console/FeedView.vue`;
+    const decls = sfcStyleBlocks(read(file)).flatMap((block) => parseDecls(block, rel(file)));
+    expect(declValue(decls, '.feed-lines', 'max-width')).toBe('760px');
+  });
   it('TabBar is 64px plus the bottom safe area', () =>
     expectDecl('TabBar.vue', '.tab-bar', 'height', 'calc(64px + env(safe-area-inset-bottom))'));
   it('Sheet has a 20px top radius', () => expectDecl('Sheet.vue', '.sheet', 'border-radius', '20px 20px 0 0'));

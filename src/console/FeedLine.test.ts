@@ -181,7 +181,7 @@ describe('FeedLine kinds', () => {
     wrapper = null;
     const q = render(makeLine({ kind: 'echo', text: 'look at well', queued: true }));
     expect(q.get('.queued').text()).toBe('Queued');
-    expect(q.get('.queued svg').exists()).toBe(true);
+    expect(q.find('.queued svg').exists()).toBe(true);
   });
 
   it('renders warning and error lines with the warning icon', () => {

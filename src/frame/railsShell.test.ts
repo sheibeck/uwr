@@ -46,7 +46,7 @@ describe('ContextRail', () => {
 describe('FeedShell', () => {
   it('renders the empty story line', () => {
     wrapper = mount(FeedShell);
-    expect(wrapper.text()).toBe('Your story will appear here.');
+    expect(wrapper.text()).toContain('Your story will appear here.');
   });
 
   it('adds the compact class only when compact', () => {
@@ -57,11 +57,17 @@ describe('FeedShell', () => {
     expect(wrapper.classes()).toContain('compact');
   });
 
-  it('bottom-anchors with a 760px line width and a mobile padding variant', () => {
-    const source = read('FeedShell.vue');
+  it('renders FeedView, which bottom-anchors a 760px line with a mobile padding variant', () => {
+    expect(read('FeedShell.vue')).toContain('FeedView');
+    const source = readFileSync(resolve(process.cwd(), 'src/console/FeedView.vue'), 'utf8');
     expect(source).toContain('max-width: 760px');
-    expect(source).toContain('justify-content: flex-end');
+    expect(source).toContain('margin-top: auto');
     expect(source).toContain('padding: 16px 32px');
     expect(source).toContain('padding: 4px 16px 8px');
+  });
+
+  it('passes compact down to FeedView', () => {
+    wrapper = mount(FeedShell, { props: { compact: true } });
+    expect(wrapper.get('.feed-scroll').classes()).toContain('compact');
   });
 });
