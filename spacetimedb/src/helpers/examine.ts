@@ -38,6 +38,23 @@ const TYPE_LABELS: Record<string, string> = {
   consumable: 'consumable',
 };
 
+// Display order for the Stats line: the INVENTORY block's set, then the affix-only stats.
+const STAT_LABELS: [string, string][] = [
+  ['strBonus', 'STR'],
+  ['dexBonus', 'DEX'],
+  ['intBonus', 'INT'],
+  ['wisBonus', 'WIS'],
+  ['chaBonus', 'CHA'],
+  ['hpBonus', 'HP'],
+  ['manaBonus', 'Mana'],
+  ['armorClassBonus', 'AC'],
+  ['magicResistanceBonus', 'MR'],
+  ['lifeOnHit', 'Life on hit'],
+  ['cooldownReduction', 'Cooldown reduction'],
+  ['manaRegen', 'Mana regen'],
+];
+const STAT_KEYS = STAT_LABELS.map(([key]) => key);
+
 function typeLabel(slot: unknown): string {
   const key = typeof slot === 'string' ? slot : '';
   if (!key) return 'item';
@@ -110,24 +127,29 @@ function describeItem(ctx: any, character: any, matches: NameMatcher): string | 
 
   if (template.description) lines.push(String(template.description));
 
+  // Template stats plus every affix on this instance (prefixes, suffixes and the implicit craft
+  // quality affixes all live in item_affix, keyed by the same statKey names the template uses).
   const big = (v: unknown): bigint => (typeof v === 'bigint' ? v : 0n);
-  const statMap: [string, bigint][] = [
-    ['STR', big(template.strBonus)],
-    ['DEX', big(template.dexBonus)],
-    ['INT', big(template.intBonus)],
-    ['WIS', big(template.wisBonus)],
-    ['CHA', big(template.chaBonus)],
-    ['HP', big(template.hpBonus)],
-    ['Mana', big(template.manaBonus)],
-    ['AC', big(template.armorClassBonus)],
-    ['MR', big(template.magicResistanceBonus)],
-  ];
-  const stats: string[] = [];
-  for (const [name, val] of statMap) {
-    if (val > 0n) stats.push(`${name} +${val}`);
+  const totals = new Map<string, bigint>();
+  const add = (key: string, v: unknown) => {
+    totals.set(key, (totals.get(key) ?? 0n) + big(v));
+  };
+  for (const key of STAT_KEYS) add(key, template[key]);
+  add('weaponBaseDamage', template.weaponBaseDamage);
+  add('weaponDps', template.weaponDps);
+  for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {
+    add(String(affix.statKey), affix.magnitude);
   }
-  const dmg = big(template.weaponBaseDamage);
+
+  const stats: string[] = [];
+  for (const [key, label] of STAT_LABELS) {
+    const val = totals.get(key) ?? 0n;
+    if (val > 0n) stats.push(`${label} +${val}`);
+  }
+  const dmg = totals.get('weaponBaseDamage') ?? 0n;
   if (dmg > 0n) stats.push(`${dmg} damage`);
+  const dps = totals.get('weaponDps') ?? 0n;
+  if (dps > 0n) stats.push(`${dps} DPS`);
   if (stats.length > 0) lines.push(`Stats: ${stats.join(', ')}.`);
 
   if (big(template.requiredLevel) > 1n) lines.push(`Requires level ${big(template.requiredLevel)}.`);

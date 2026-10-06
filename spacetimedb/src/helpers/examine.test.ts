@@ -224,6 +224,23 @@ describe('describeLookTarget: inventory items', () => {
     expect(lines.some((l) => l.startsWith('Stats:') || l.startsWith('Requires'))).toBe(false);
   });
 
+  it('adds affix and craft-quality bonuses to the Stats line', () => {
+    const ctx = ctxWith({
+      item_instance: [instance({ displayName: 'Sturdy Ashwood Bow of Haste' })],
+      item_template: [bowTemplate],
+      item_affix: [
+        { id: 1n, itemInstanceId: 200n, affixType: 'prefix', affixKey: 'keen', affixName: 'Keen', statKey: 'dexBonus', magnitude: 3n },
+        { id: 2n, itemInstanceId: 200n, affixType: 'suffix', affixKey: 'of_haste', affixName: 'of Haste', statKey: 'cooldownReduction', magnitude: 10n },
+        { id: 3n, itemInstanceId: 200n, affixType: 'prefix', affixKey: 'reinforced', affixName: 'Reinforced', statKey: 'weaponBaseDamage', magnitude: 2n },
+        { id: 4n, itemInstanceId: 200n, affixType: 'prefix', affixKey: 'sturdy', affixName: 'Sturdy', statKey: 'armorClassBonus', magnitude: 4n },
+        // another instance's affix is never counted
+        { id: 5n, itemInstanceId: 999n, affixType: 'prefix', affixKey: 'keen', affixName: 'Keen', statKey: 'strBonus', magnitude: 50n },
+      ],
+    });
+    const lines = describeLookTarget(ctx, ME, 'Ashwood Bow')!.split('\n');
+    expect(lines).toContain('Stats: DEX +5, AC +4, Cooldown reduction +10, 9 damage.');
+  });
+
   it('never describes an item owned by another character', () => {
     const ctx = ctxWith({
       item_instance: [instance({ ownerCharacterId: 99n })],
