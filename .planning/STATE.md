@@ -232,6 +232,12 @@ See MILESTONES.md for full delivery summaries.
 
 (v2.1 quick tasks 392-405 archived in .planning/milestones/v2.1-ROADMAP.md.)
 
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261006-a0i | Enemies listed in Nearby, each with one Pull button (careful pull, an owner decision). Enemy names are feed keywords and rows show the difficulty color. Review fixes WR-01/02. | 2026-10-06 | a5b70a7e, fff5acbe | [261006-a0i-nearby-enemies-with-pull-actions-and-ene](./quick/261006-a0i-nearby-enemies-with-pull-actions-and-ene/) |
+| 261006-a13 | Action progress row above the hotbar for gathering and out-of-combat casts. Review fixes WR-01..04: client-time first-seen and a data-layer map. | 2026-10-06 | 39cb2397, 8b0b94e3 | [261006-a13-action-progress-bar-for-gathering-and-ca](./quick/261006-a13-action-progress-bar-for-gathering-and-ca/) |
+| 261006-a3d | Server `look` examines resource nodes and the player's own items, with "look at X" parsed. Server text keeps its line breaks (pre-wrap). Published locally; key 108 before and after. | 2026-10-06 | 80a0074b, 8fc50e03 | [261006-a3d-examine-nodes-and-items-and-keep-line-br](./quick/261006-a3d-examine-nodes-and-items-and-keep-line-br/) |
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close on 2026-09-29:
