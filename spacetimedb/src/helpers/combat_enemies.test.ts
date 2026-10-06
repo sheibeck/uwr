@@ -5,7 +5,6 @@ import {
   scaleByPercent,
   computeEnemyStats,
   getEnemyRole,
-  getEnemyAttackSpeed,
   ENEMY_ROLE_CONFIG,
 } from './combat_enemies';
 import { GLOBAL_DAMAGE_MULTIPLIER, calculateStatScaledAutoAttack } from '../data/combat_scaling';
@@ -135,7 +134,7 @@ describe('computeEnemyStats', () => {
     expect(result.maxHp).toBe(50n + role.baseHpBonus + role.hpBonusPerLevel * 5n);
     expect(result.attackDamage).toBe(role.baseDamage + role.damagePerLevel * 5n);
     expect(result.armorClass).toBe(5n + role.baseArmor + role.armorPerLevel * 5n);
-    expect(result.attackSpeedMicros).toBe(role.attackSpeedMicros);
+    expect(Object.keys(result).sort()).toEqual(['armorClass', 'attackDamage', 'avgLevel', 'maxHp']);
   });
 
   it('returns valid stat block for tank role', () => {
@@ -163,7 +162,9 @@ describe('computeEnemyStats', () => {
     const result = computeEnemyStats(template, roleTemplate, []);
 
     // Should use tank role config, not damage
-    expect(result.attackSpeedMicros).toBe(ENEMY_ROLE_CONFIG.tank.attackSpeedMicros);
+    const tank = ENEMY_ROLE_CONFIG.tank;
+    expect(result.attackDamage).toBe(tank.baseDamage + tank.damagePerLevel * 5n);
+    expect(result.attackDamage).not.toBe(ENEMY_ROLE_CONFIG.damage.baseDamage + ENEMY_ROLE_CONFIG.damage.damagePerLevel * 5n);
   });
 });
 
@@ -186,22 +187,6 @@ describe('getEnemyRole', () => {
   it('trims and lowercases role name', () => {
     expect(getEnemyRole('  Tank  ')).toEqual(ENEMY_ROLE_CONFIG.tank);
     expect(getEnemyRole('HEALER')).toEqual(ENEMY_ROLE_CONFIG.healer);
-  });
-});
-
-// ============================================================================
-// getEnemyAttackSpeed
-// ============================================================================
-
-describe('getEnemyAttackSpeed', () => {
-  it('returns attack speed for each role', () => {
-    expect(getEnemyAttackSpeed('damage')).toBe(3_500_000n);
-    expect(getEnemyAttackSpeed('tank')).toBe(5_000_000n);
-    expect(getEnemyAttackSpeed('healer')).toBe(4_000_000n);
-  });
-
-  it('falls back to damage role attack speed for unknown', () => {
-    expect(getEnemyAttackSpeed('unknown')).toBe(ENEMY_ROLE_CONFIG.damage.attackSpeedMicros);
   });
 });
 
@@ -268,16 +253,13 @@ describe('balance assertions', () => {
     const playerDamagePerHit = applyArmorMitigation(playerRaw, enemyStats.armorClass);
     const enemyDamagePerHit = applyArmorMitigation(enemyStats.attackDamage, PLAYER_ARMOR);
 
-    // Scale by attack speed (in units of 3.5s intervals)
-    const playerDpsScaled = (playerDamagePerHit * 1_000_000n) / 3_500_000n;
-    const enemyDpsScaled = (enemyDamagePerHit * 1_000_000n) / enemyStats.attackSpeedMicros;
-
-    // Time to kill (in 1M units = seconds)
-    const playerTtk = (enemyStats.maxHp * 1_000_000n) / playerDpsScaled;
-    const enemyTtk = (PLAYER_HP * 1_000_000n) / enemyDpsScaled;
+    // Rounds: each side swings once per round (the old 3.5 s swings of both the sword and a damage-role enemy)
+    const ceilDiv = (a: bigint, b: bigint) => (a + b - 1n) / b;
+    const roundsToKill = ceilDiv(enemyStats.maxHp, playerDamagePerHit);
+    const roundsToDie = ceilDiv(PLAYER_HP, enemyDamagePerHit);
 
     // Player should kill enemy before dying
-    expect(playerTtk).toBeLessThan(enemyTtk);
+    expect(roundsToKill).toBeLessThan(roundsToDie);
   });
 
   it('level 5 enemies are significantly harder than level 1 (1.5x+ HP)', () => {
