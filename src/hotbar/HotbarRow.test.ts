@@ -570,6 +570,44 @@ describe('HotbarRow rounds cooldowns in combat', () => {
     }
   });
 
+  it('does not flash a slot when combat starts and its wall-clock cooldown becomes a rounds count of 0', async () => {
+    // 12 s of wall-clock cooldown left out of combat; in combat the same row has 0 rounds.
+    const s = setup({
+      combat: { active: false },
+      cooldowns: [{ ...cooldown(11n, clockNow, 12), roundsRemaining: 0n }],
+    });
+    const first = slots(s.wrapper)[0];
+    expect(first.classes()).toContain('cooling');
+    s.combat.active.value = true;
+    await nextTick();
+    expect(first.classes()).not.toContain('cooling');
+    expect(first.classes()).not.toContain('ready-flash');
+    await advance(240);
+    expect(first.classes()).not.toContain('ready-flash');
+  });
+
+  it('does not flash a slot when combat ends and its rounds count becomes a wall-clock 0', async () => {
+    const s = setup({ combat: { active: true }, cooldowns: [roundCooldownRow(11n, 2n)] });
+    const first = slots(s.wrapper)[0];
+    expect(first.classes()).toContain('cooling');
+    s.combat.active.value = false;
+    await nextTick();
+    expect(first.classes()).not.toContain('cooling');
+    expect(first.classes()).not.toContain('ready-flash');
+  });
+
+  it('still flashes a real completion after switching modes', async () => {
+    const s = setup({ combat: { active: false }, cooldowns: [{ ...cooldown(11n, clockNow, 12), roundsRemaining: 2n }] });
+    const first = slots(s.wrapper)[0];
+    s.combat.active.value = true;
+    await nextTick();
+    expect(first.classes()).toContain('cooling');
+    expect(first.classes()).not.toContain('ready-flash');
+    s.cooldowns.value = [roundCooldownRow(11n, 0n)];
+    await nextTick();
+    expect(first.classes()).toContain('ready-flash');
+  });
+
   it('goes inert while the round resolves or the player is down', async () => {
     const s = setup({ combat: { active: true, resolving: true } });
     for (const slot of slots(s.wrapper)) {

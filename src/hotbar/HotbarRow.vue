@@ -159,15 +159,23 @@ const slotStates = computed<SlotState[]>(() => {
 });
 
 // Ready flash: a slot whose remaining time moves from above 0 to 0 gets one 240 ms ring.
+// `remaining` is wall-clock microseconds out of combat and rounds in combat, so a snapshot taken
+// in the other mode is not comparable: the first pass after combat starts or ends only rebases.
 // Not added under reduced motion (the stylesheet also drops the animation).
 watch(
-  () => slotStates.value.map((state) => (state.ability === null ? null : [state.ability.id, state.remaining] as const)),
+  () => ({
+    mode: inCombat.value,
+    entries: slotStates.value.map((state) =>
+      state.ability === null ? null : ([state.ability.id, state.remaining] as const),
+    ),
+  }),
   (next, previous) => {
+    if (previous === undefined || previous.mode !== next.mode) return;
     const before = new Map<bigint, number>();
-    for (const entry of previous ?? []) {
+    for (const entry of previous.entries) {
       if (entry !== null) before.set(entry[0], entry[1]);
     }
-    for (const entry of next) {
+    for (const entry of next.entries) {
       if (entry === null) continue;
       const [id, remaining] = entry;
       if (!((before.get(id) ?? 0) > 0 && remaining <= 0)) continue;
