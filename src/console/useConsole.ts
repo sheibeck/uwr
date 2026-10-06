@@ -293,7 +293,6 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
         result = runReducer(characterId, route.call, route.echo);
         break;
       case 'intent':
-        if (route.endsConversation) conversation.value = null;
         if (route.queue) {
           result = narrativeSend({ text: route.text, mode: 'intent', echo: route.echo });
         } else {
@@ -301,6 +300,8 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
           void fire('submitIntent', (r) => r.submitIntent({ characterId, text: route.text }));
           result = 'sent';
         }
+        // A refused line stays in the draft, so the player has not left the conversation.
+        if (route.endsConversation && result !== 'refused') conversation.value = null;
         break;
       case 'talk':
         result = narrativeSend({ text: route.message, mode: 'narrative', echo: null, npcId: route.npcId });

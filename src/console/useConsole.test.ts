@@ -655,6 +655,39 @@ describe('conversation lifecycle', () => {
     expect(s.api.conversation.value).toBeNull();
   });
 
+  it('a refused game-action line keeps the conversation (WR-03)', async () => {
+    const s = setup();
+    s.npcsHere.value = [npc(3n, 'Ferryman')];
+    s.api.draft.value = 'hail Ferryman';
+    s.api.submit();
+    s.settle('submitIntent');
+    await flush();
+    s.llmJobs.value = [job(1)];
+    for (const text of ['One?', 'Two?', 'Three?']) {
+      s.api.draft.value = text;
+      expect(s.api.submit()).toBe('queued');
+    }
+    expect(s.api.conversation.value).toEqual({ npcId: 3n, name: 'Ferryman' });
+
+    s.api.draft.value = 'look';
+    expect(s.api.submit()).toBe('refused');
+    expect(s.api.draft.value).toBe('look');
+    expect(s.api.conversation.value).toEqual({ npcId: 3n, name: 'Ferryman' });
+  });
+
+  it('an accepted game-action line still ends the conversation (WR-03)', async () => {
+    const s = setup();
+    s.npcsHere.value = [npc(3n, 'Ferryman')];
+    s.api.draft.value = 'hail Ferryman';
+    s.api.submit();
+    s.settle('submitIntent');
+    await flush();
+    s.llmJobs.value = [job(1)];
+    s.api.draft.value = 'look';
+    expect(s.api.submit()).toBe('queued');
+    expect(s.api.conversation.value).toBeNull();
+  });
+
   it('hail by bare npc name sets the conversation and sends hail text', () => {
     const s = setup();
     s.npcsHere.value = [npc(3n, 'Ferryman')];
