@@ -82,9 +82,12 @@ export function useActionProgress(input: ActionProgressInput): {
     const view = action.value;
     if (view === null) return null;
     const skew = input.clock.skewMicros.value;
-    const now = ticker.nowMicros.value + skew;
+    const tick = ticker.nowMicros.value + skew;
     const seenClient = firstSeen.value.get(view.key);
-    const seen = seenClient === undefined ? now : seenClient + skew;
+    const seen = seenClient === undefined ? tick : seenClient + skew;
+    // The ticker can lag the row's arrival by up to a tick (a cast replacing a running gather does not
+    // restart it): never read a time before the action was first seen, or the seconds exceed the total.
+    const now = Math.max(tick, seen);
     return actionProgress(view.endsAtMicros, actionStartMicros(view, seen), now);
   });
 

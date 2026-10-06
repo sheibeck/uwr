@@ -201,6 +201,22 @@ describe('useActionProgress', () => {
     h.scope.stop();
   });
 
+  it('never reads more seconds than the total when a new action replaces a running one', async () => {
+    stubReducedMotion(true);
+    const h = setup();
+    h.gathers.value = [gatherRow(1n, T + 8 * S)];
+    await nextTick();
+    // The clock moves on but the 1 s reduced-motion ticker has not fired yet.
+    h.setNow(T + 1 * S);
+    h.casts.value = [castRow(7n, T + 4 * S)];
+    await nextTick();
+    expect(h.action.value?.label).toBe('Casting Mend');
+    // A 3 s window (seen at T + 1 s, ends at T + 4 s): at most 3s, bar at the start.
+    expect(h.progress.value?.seconds).toBe(3);
+    expect(h.progress.value?.fraction).toBe(0);
+    h.scope.stop();
+  });
+
   it('clears the interval when the scope stops', async () => {
     const h = setup();
     h.gathers.value = [gatherRow(1n, T + 8 * S)];
