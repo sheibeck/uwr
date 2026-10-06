@@ -24,6 +24,7 @@ export interface GameQueries {
   eventLocation(locationId: bigint): string;
   eventGroup(groupId: bigint): string;
   npcsAt(locationId: bigint): string;
+  enemySpawnsAt(locationId: bigint): string;
   resourceNodesAt(locationId: bigint): string;
   charactersAt(locationId: bigint): string;
   connectionsFrom(locationId: bigint): string;
@@ -76,6 +77,8 @@ export function gameQueries(): GameQueries {
       toSql(tables.eventLocation.where((r) => r.locationId.eq(locationId))),
     eventGroup: (groupId) => toSql(tables.eventGroup.where((r) => r.groupId.eq(groupId))),
     npcsAt: (locationId) => toSql(tables.npc.where((r) => r.locationId.eq(locationId))),
+    enemySpawnsAt: (locationId) =>
+      toSql(tables.enemySpawn.where((r) => r.locationId.eq(locationId))),
     resourceNodesAt: (locationId) =>
       toSql(tables.resourceNode.where((r) => r.locationId.eq(locationId))),
     charactersAt: (locationId) => toSql(tables.character.where((r) => r.locationId.eq(locationId))),

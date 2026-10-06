@@ -13,6 +13,7 @@ import type {
   CombatParticipant,
   CombatRound,
   EnemyAbility,
+  EnemySpawn,
   EnemyTemplate,
   EventContribution,
   EventObjective,
@@ -146,6 +147,10 @@ export interface GameData {
   readonly npcsHere: List<Npc>;
   /** Raw; consumers apply visibleNodes (47-03). */
   readonly nodesHere: List<ResourceNode>;
+  /** Raw enemy spawns at the location; consumers derive with src/rails/enemies.ts. */
+  readonly enemiesHere: List<EnemySpawn>;
+  /** Templates of the spawns here (level for the con color). */
+  readonly enemyTemplatesHere: List<EnemyTemplate>;
   /** Other characters at the location. */
   readonly playersHere: List<Character>;
   /** Whole party; consumers filter by characterId. */
@@ -296,6 +301,8 @@ export function createInertGame(): GameData {
     connections: empty<LocationConnection>(),
     npcsHere: empty<Npc>(),
     nodesHere: empty<ResourceNode>(),
+    enemiesHere: empty<EnemySpawn>(),
+    enemyTemplatesHere: empty<EnemyTemplate>(),
     playersHere: empty<Character>(),
     effects: empty<CharacterEffect>(),
     quests: empty<QuestInstance>(),

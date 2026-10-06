@@ -38,6 +38,8 @@ describe('gameQueries: keyed tables', () => {
   it('filters by location', () => {
     expect(q.npcsAt(3n)).toContain('"npc"');
     expect(q.npcsAt(3n)).toContain('"location_id" = 3');
+    expect(q.enemySpawnsAt(3n)).toContain('"enemy_spawn"');
+    expect(q.enemySpawnsAt(3n)).toContain('"location_id" = 3');
     expect(q.resourceNodesAt(3n)).toContain('"resource_node"');
     expect(q.resourceNodesAt(3n)).toContain('"location_id" = 3');
     expect(q.charactersAt(3n)).toContain('"character"');

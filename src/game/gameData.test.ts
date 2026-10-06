@@ -47,6 +47,7 @@ const queries: GameQueries = {
   eventLocation: (id) => `Q_EVENT_LOCATION_${id}`,
   eventGroup: (id) => `Q_EVENT_GROUP_${id}`,
   npcsAt: (id) => `Q_NPC_${id}`,
+  enemySpawnsAt: (id) => `Q_ENEMY_SPAWNS_${id}`,
   resourceNodesAt: (id) => `Q_NODE_${id}`,
   charactersAt: (id) => `Q_CHARS_AT_${id}`,
   connectionsFrom: (id) => `Q_CONNECTIONS_${id}`,
@@ -340,10 +341,65 @@ describe('createGameData: event rows for another key (WR-01)', () => {
   });
 });
 
-describe('createGameData: location keyed bindings', () => {
-  const LOCATION_SQL = ['Q_NPC_', 'Q_NODE_', 'Q_CHARS_AT_', 'Q_CONNECTIONS_', 'Q_EVENT_LOCATION_'];
+describe('createGameData: enemy spawns here (quick-261006-a0i)', () => {
+  it('subscribes the spawns of the location and swaps the binding on a move', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 3n });
+    expect(h.live('Q_ENEMY_SPAWNS_3')).toHaveLength(1);
+    const spawns3 = h.find('Q_ENEMY_SPAWNS_3');
+    spawns3.rows.value = [{ id: 1n, locationId: 3n, enemyTemplateId: 8n }];
+    spawns3.applied.value = true;
+    expect(h.game.enemiesHere.value).toHaveLength(1);
 
-  it('creates the five location bindings for the character location', () => {
+    h.character.value = makeCharacter(5n, { locationId: 4n });
+    const spawns4 = h.find('Q_ENEMY_SPAWNS_4');
+    expect(h.game.enemiesHere.value).toHaveLength(1);
+    spawns4.rows.value = [];
+    spawns4.applied.value = true;
+    expect(h.game.enemiesHere.value).toEqual([]);
+    expect(spawns3.disposed).toBe(true);
+  });
+
+  it('subscribes the templates of the spawns here by id list, with an id filter', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 3n });
+    const spawns = h.find('Q_ENEMY_SPAWNS_3');
+    spawns.rows.value = [
+      { id: 1n, locationId: 3n, enemyTemplateId: 4n },
+      { id: 2n, locationId: 3n, enemyTemplateId: 3n },
+      { id: 3n, locationId: 3n, enemyTemplateId: 3n },
+    ];
+    spawns.applied.value = true;
+    expect(h.live('Q_ENEMY_TEMPLATES_3,4')).toHaveLength(1);
+    const options = h.find('Q_ENEMY_TEMPLATES_3,4').options as BindTableOptions<FakeConn, any>;
+    expect(options.filter?.({ id: 3n })).toBe(true);
+    expect(options.filter?.({ id: 5n })).toBe(false);
+
+    h.find('Q_ENEMY_TEMPLATES_3,4').rows.value = [{ id: 3n, level: 8n }];
+    h.find('Q_ENEMY_TEMPLATES_3,4').applied.value = true;
+    expect(h.game.enemyTemplatesHere.value).toEqual([{ id: 3n, level: 8n }]);
+  });
+
+  it('disposes both bindings on reset', () => {
+    const h = harness();
+    h.connect();
+    h.character.value = makeCharacter(5n, { locationId: 3n });
+    const spawns = h.find('Q_ENEMY_SPAWNS_3');
+    spawns.rows.value = [{ id: 1n, locationId: 3n, enemyTemplateId: 3n }];
+    spawns.applied.value = true;
+    expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(1);
+    h.game.reset();
+    expect(h.live('Q_ENEMY_SPAWNS_3')).toHaveLength(0);
+    expect(h.live('Q_ENEMY_TEMPLATES_3')).toHaveLength(0);
+  });
+});
+
+describe('createGameData: location keyed bindings', () => {
+  const LOCATION_SQL = ['Q_NPC_', 'Q_ENEMY_SPAWNS_', 'Q_NODE_', 'Q_CHARS_AT_', 'Q_CONNECTIONS_', 'Q_EVENT_LOCATION_'];
+
+  it('creates the six location bindings for the character location', () => {
     const h = harness();
     h.connect();
     h.character.value = makeCharacter(5n, { locationId: 3n });
@@ -400,6 +456,8 @@ describe('createGameData: location keyed bindings', () => {
     expect(filterOf('Q_NPC_3')({ locationId: 3n })).toBe(true);
     expect(filterOf('Q_NPC_3')({ locationId: 9n })).toBe(false);
     expect(filterOf('Q_NODE_3')({ locationId: 9n })).toBe(false);
+    expect(filterOf('Q_ENEMY_SPAWNS_3')({ locationId: 3n })).toBe(true);
+    expect(filterOf('Q_ENEMY_SPAWNS_3')({ locationId: 9n })).toBe(false);
     expect(filterOf('Q_CHARS_AT_3')({ locationId: 9n })).toBe(false);
     expect(filterOf('Q_CONNECTIONS_3')({ fromLocationId: 3n })).toBe(true);
     expect(filterOf('Q_CONNECTIONS_3')({ fromLocationId: 9n })).toBe(false);
@@ -894,6 +952,8 @@ describe('inert defaults', () => {
       game.regions,
       game.connections,
       game.npcsHere,
+      game.enemiesHere,
+      game.enemyTemplatesHere,
       game.nodesHere,
       game.playersHere,
       game.effects,

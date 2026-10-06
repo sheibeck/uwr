@@ -13,6 +13,7 @@ import type {
   CombatParticipant,
   CombatRound,
   EnemyAbility,
+  EnemySpawn,
   EnemyTemplate,
   EventContribution,
   EventGroup,
@@ -57,11 +58,13 @@ import { createServerClock } from './serverClock';
 // Scope of each subscription:
 //   once per connection  the five views, faction, active world events, event_world
 //   by user              event_private
-//   by location          event_location, npc, resource_node, character, location_connection
+//   by location          event_location, npc, enemy_spawn, resource_node, character,
+//                        location_connection
 //   by character         hotbar, hotbar_slot, ability_template, ability_cooldown,
 //                        event_contribution, renown, renown_perk
 //   by group             group, group_member, event_group
-//   by id list           party and inviter characters, quest templates, event objectives
+//   by id list           party and inviter characters, quest templates, event objectives,
+//                        the enemy templates of the spawns here (level, for the con color)
 //   combat (48)          own participant and own choice rows by character; participants,
 //                        enemies, rounds, casts, narratives and pets of the one fight by combat
 //                        id (the key follows the own participant row); enemy templates and
@@ -95,6 +98,7 @@ export interface GameConn extends ConnLike {
     eventGroup: EventRow<EventGroup>;
     eventWorld: EventRow<EventWorld>;
     npc: Row<Npc>;
+    enemySpawn: Row<EnemySpawn>;
     resourceNode: Row<ResourceNode>;
     character: Row<Character>;
     locationConnection: Row<LocationConnection>;
@@ -312,6 +316,13 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     queries.npcsAt,
     (row, k) => row.locationId === k,
   );
+  const spawns = keyedTable<EnemySpawn, bigint>(
+    locationKey,
+    (c) => c.db.enemySpawn,
+    queries.enemySpawnsAt,
+    (row, k) => row.locationId === k,
+  );
+  const spawnRows = keyedRows(spawns);
   const nodes = keyedTable<ResourceNode, bigint>(
     locationKey,
     (c) => c.db.resourceNode,
@@ -493,6 +504,18 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     (row) => row.enemyTemplateId,
   );
 
+  // Templates of the spawns here (level, for the con color). A SEPARATE binding from the
+  // fight's enemyTemplates above: the two keys differ and the fight contract stays untouched.
+  const spawnTemplateKey = computed<string | null>(() =>
+    idListKey(spawnRows.value.map((spawn) => spawn.enemyTemplateId)),
+  );
+  const spawnTemplates = keyedIdList<EnemyTemplate>(
+    spawnTemplateKey,
+    (c) => c.db.enemyTemplate,
+    queries.enemyTemplatesById,
+    (row) => row.id,
+  );
+
   const known = keyedIdList<Character>(
     partyKey,
     (c) => c.db.character,
@@ -517,6 +540,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     locationEvents,
     groupEvents,
     npcs,
+    spawns,
+    spawnTemplates,
     nodes,
     players,
     connectionRows,
@@ -652,6 +677,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     connections: keyedRows(connectionRows),
     npcsHere: keyedRows(npcs),
     nodesHere: keyedRows(nodes),
+    enemiesHere: spawnRows,
+    enemyTemplatesHere: keyedRows(spawnTemplates),
     playersHere,
     effects: effects.rows,
     quests: quests.rows,
