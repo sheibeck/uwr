@@ -1564,4 +1564,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after noting the revised Journal mock on 999.16*
+*Last updated: 2026-10-06 after backlog 999.16–999.22 (post-v3.0 UX follow-ups: Journal, round wind-up, Hotbar Manager, Character screen, Examine button, creation screens, party menus)*
