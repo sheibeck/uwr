@@ -167,6 +167,15 @@ None. T-49-34: creation shows only for zero characters or an unplaced active cha
 
 10. **49-08 pre-line note.** The plan expected FeedLine's base `.body` to be `pre-line` after quick task a3d, but the file now has `white-space: pre-wrap`. `CreationFeed.vue` keeps the scoped `:deep(.line-keeper .body) { white-space: pre-line }` rule as the UI-SPEC specifies; newlines are kept either way, and pre-line also collapses runs of spaces. Check a Keeper line with a list or blank lines and decide whether to keep the deep rule or drop it. No FeedLine edit was made.
 
+11. **Review-fix behavior changes (49-REVIEW-FIX.md; check them in play).**
+    - **CR-01, single source.** The stored `race_definition` is the only source of the race bonus. A reused race name takes the stored bonuses.
+    - **Unknown race.** A reply with no race name, or a race named "Unknown" in any case, gets NO bonus. The name "Unknown" is reserved and never stored as a definition.
+      - This changed the Phase 41 characterization pin, which used to expect +2 STR, +1 DEX.
+      - If you want unnamed races to get a bonus, that needs a stored definition per race (a follow-up).
+    - **WR-01, old race-table bonuses.** Level-up now removes the old `race`-table (RACE_DATA) racial before it detects primary and secondary stats. Human, Dark-Elf and the other old races level up the same way as everyone else.
+    - **WR-02, ability picks.** An exact ability name now wins over a substring match.
+    - **WR-03 and WR-05, entry checks.** The client re-checks the entry fallback and the "no character attached" notice after each burst of server updates.
+
 ## Self-Check: PASSED
 
 - Files exist: this SUMMARY; `src/session/NoCharactersNote.vue` is absent as intended.
