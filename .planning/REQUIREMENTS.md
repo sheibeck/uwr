@@ -25,7 +25,7 @@
 
 ### Console (CON)
 
-- [x] **CON-01**: The feed renders each entry as a labelled line by kind: Keeper narration, NPC speech, whisper, party chat, system, quest update, ripple / world event.
+- [x] **CON-01**: The feed renders each entry as a labelled line by kind: Keeper narration, NPC speech, whisper, party chat, system, quest update, world event.
 - [x] **CON-02**: NPCs, places and objects in the feed show as soft accent keywords. Clicking one acts on it (hail, examine, travel).
 - [x] **CON-03**: The vitals rail shows HP, MP, SP and XP bars, active effects with time remaining, and party members with health and an Invite button.
 - [x] **CON-04**: The context rail shows:
@@ -78,7 +78,7 @@
 - [ ] **LDG-10**: Crafting: materials on hand, and a recipe list with category tabs and an "only craftable" filter. Each recipe shows the materials you have against what it needs.
 - [ ] **LDG-11**: Crafting: the selected recipe shows its quality odds, an optional reagent / affix and Craft. Discover recipes is reachable from this screen.
 - [ ] **LDG-12**: World events: active, upcoming and recently resolved events, with region and timers.
-- [ ] **LDG-13**: World events: the event detail shows the description, the faction tug-of-war, objectives with progress across the realm, and a timeline of the ripples it caused.
+- [ ] **LDG-13**: World events: the event detail shows the description, the faction tug-of-war, objectives with progress across the realm, and a timeline of the World events it caused.
 - [ ] **LDG-14**: World events: the player's contribution and percentile, party contribution, reward tiers, Travel there, and Track in the sidebar.
 
 ### Structured Replies (SEG)

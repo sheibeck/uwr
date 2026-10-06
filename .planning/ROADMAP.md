@@ -262,7 +262,7 @@ Plans:
 **Requirements**: CON-01, CON-02, CON-03, CON-04, CON-05, CON-06, INP-01, INP-02
 **Success Criteria** (what must be TRUE):
 
-  1. The feed shows each entry as a labelled line by kind (Keeper narration, NPC speech, whisper, party chat, system, quest update, ripple / world event), an NPC reply appears as separate narration and dialogue lines, and NPCs, places and objects show as soft accent keywords that hail, examine or travel when clicked. While an LLM job runs the Keeper's progress lines appear, and staged reveals (world, class) land in the feed.
+  1. The feed shows each entry as a labelled line by kind (Keeper narration, NPC speech, whisper, party chat, system, quest update, world event), an NPC reply appears as separate narration and dialogue lines, and NPCs, places and objects show as soft accent keywords that hail, examine or travel when clicked. While an LLM job runs the Keeper's progress lines appear, and staged reveals (world, class) land in the feed.
   2. The vitals rail shows HP, MP, SP and XP bars, active effects with time remaining, and party members with health and an Invite button; the context rail shows routes out (level ranges or "safe"), Nearby (NPCs, objects, resource nodes, players) with one-click actions, tracked quests with progress, and the active world event with its faction split.
   3. The hotbar shows iconed ability slots with cooldowns, and the player can switch between their hotbars.
   4. Typing a natural sentence that starts with a command word ("Who is that over there?", "Leave him alone", "End this now", "Accept my apology") reaches the conversation or intent path, while exact forms (`who`, `/who`, `invite <name>`) still run the command.
@@ -470,7 +470,7 @@ Plans:
 
   1. Map shows the known locations of a region as a route graph with a legend (here, visited, heard of, bind point) and a region list with level ranges; picking a node shows its description, danger, travel cost, services, players there and related quests, with Travel and Travel with party.
   2. Social shows a party table (class, where, health) with invite, leave, kick and promote, a loot-mode control, and accept / decline for pending invites; it also shows group chat, friends with online status and location, a who's-online count, and pending friend requests to accept.
-  3. World events lists active, upcoming and recently resolved events with region and timers; the detail shows the description, the faction tug-of-war, objectives with progress across the realm and a timeline of the ripples the event caused.
+  3. World events lists active, upcoming and recently resolved events with region and timers; the detail shows the description, the faction tug-of-war, objectives with progress across the realm and a timeline of the World events the event caused.
   4. The event detail shows the player's contribution and percentile, the party's contribution and reward tiers, with Travel there and Track in the sidebar (the tracked event appears in the context rail).
   5. At 390×844 Map, Party and World events open as full-height sheets above the tab bar (via the Map, Party and More tabs) and every action above works.
 
@@ -479,7 +479,7 @@ Plans:
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the map/travel, group and social, and world events screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
 
-  - Server gaps to scope in plan-phase: the `group` table has no loot mode (LDG-06); there is no dedicated "travel with party" reducer (`move_character` moves the party when the leader travels), so the Travel versus Travel with party semantics for grouped players need a decision; confirm the data for "upcoming" events and the ripple timeline. The percentile can be derived client-side from the public `event_contribution` rows.
+  - Server gaps to scope in plan-phase: the `group` table has no loot mode (LDG-06); there is no dedicated "travel with party" reducer (`move_character` moves the party when the leader travels), so the Travel versus Travel with party semantics for grouped players need a decision; confirm the data for "upcoming" events and the World event timeline. The percentile can be derived client-side from the public `event_contribution` rows.
   - Tests: route graph and legend states from location data, travel cost and party-travel rules, party actions by role (leader vs member), loot-mode control, friend and invite lists, event timers and sections, contribution percentile math.
 
 ### Phase 52: Parity and Production
@@ -816,11 +816,11 @@ npc_fact_known { factId, characterId }   // who has heard it (doubles as a playe
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.10: Wandering NPCs, sightings and rumored places (BACKLOG)
+### Phase 999.10: Wandering NPCs, sightings and rumors (BACKLOG)
 
-**Goal:** Some NPCs wander their region and other NPCs notice them, so "Have you seen Rob?" gets a real answer. Places NPCs mention that do not exist yet become rumors a player can chase, and a rumor joins the shared world only when someone finds a path to it. NPCs give directions like a real person: bearings plus landmarks. Captured 2026-10-06 (owner idea, refined in discussion). **Depends on 999.9** (event memories and `npc_fact`) and uses 999.8's name matching for "Have you seen <name>?".
+**Goal:** Some NPCs wander their region and other NPCs notice them, so "Have you seen Rob?" gets a real answer. NPCs who keep rumors seed exploration: places, treasure, people, creatures, factions, races and crafts that a player earns through the relationship and then chases. Every discovery grows the world and is announced as a World event. NPCs give directions like a real person: bearings plus landmarks. Captured 2026-10-06 (owner idea, refined in discussion). **Depends on 999.9** (event memories and `npc_fact`) and uses 999.8's name matching for "Have you seen <name>?".
 
-**Today:** NPCs never move (`npc.locationId` is set at world gen and not updated). `location_connection` has only `fromLocationId` and `toLocationId`, with no bearing. Existing pieces to reuse: the day/night tick, deterministic seeds (`helpers/search.ts`, `helpers/llm_retry.ts`), `performPassiveSearch`, the world-fill pipeline (`startWorldFill`), `pickRippleMessage` and `renown_server_first`. The client already ends the "Talking with" lock when the NPC leaves (`src/console/useConsole.ts`, `npcsHere` watcher).
+**Today:** NPCs never move (`npc.locationId` is set at world gen and not updated). `location_connection` has only `fromLocationId` and `toLocationId`, with no bearing. Existing pieces to reuse: the day/night tick, deterministic seeds (`helpers/search.ts`, `helpers/llm_retry.ts`), `performPassiveSearch`, the world-fill pipeline (`startWorldFill`), the world-generation announcement lines in `helpers/world_gen.ts` and `renown_server_first`. The client already ends the "Talking with" lock when the NPC leaves (`src/console/useConsole.ts`, `npcsHere` watcher).
 
 **1. Wandering:**
 
@@ -860,8 +860,37 @@ Plans:
 - **Cheap stubs:** no connections, enemies or full description, so no tokens are spent on places nobody reaches.
 - **Per-player discovery (owner decision):** a rumored place appears on a player's map and in their journal only after they have heard it (`npc_fact_known`). Different players can earn the same rumor from the same keeper.
 - **Going public:** a rumor becomes visible to everyone only when someone finds a path that links it to the charted world. The path comes from the keeper's route hint attached to a real location (for a region, an edge location of the keeper's region), or from exploring: `performPassiveSearch` at the hinted location can roll to uncover it.
-- **When a path is found:** the stub becomes `charted`. A location is generated by the existing world-fill pipeline; a region by the existing region generation (`startWorldGeneration`, which respects generation locks). `location_connection` rows with bearings are written, a ripple announcement goes out (`pickRippleMessage`), and the discoverer gets server-first renown (`renown_server_first`).
+- **When a path is found:** the stub becomes `charted`. A location is generated by the existing world-fill pipeline; a region by the existing region generation (`startWorldGeneration`, which respects generation locks). `location_connection` rows with bearings are written, the discovery is announced to everyone as a World event, and the discoverer gets server-first renown (`renown_server_first`).
 - The LLM proposes only a name and a hint. Danger, level, enemies and loot come from the normal region rules, so a leading question ("tell me about the Golden City of Free Loot") yields nothing unless the NPC is a keeper at the right tier, and then only its one rumor.
+
+**5. Rumor kinds (exploration seeds, owner decisions 2026-10-06):**
+
+A rumor is only a pointer. It resolves into a row in the system that pays it off; it never holds the reward itself.
+
+| Kind | Example rumor | What the player finds | Pays off through |
+|---|---|---|---|
+| Place | "There's a chapel under the lake" | a location or region | world fill and region generation (section 4) |
+| Treasure | "My grandfather buried his pay near the old mill" | a hidden cache, found by searching there | `performPassiveSearch`, `search_result`, item rarity tiers, loot tables |
+| Person | "My brother went to the Hollow and never came back" | an NPC who does not exist until reached | NPC generation; 999.9 relationship facts link the two NPCs |
+| Creature | "A white stag walks the Ashwood at night" | a new creature that appears when the player arrives (at night, if the rumor says so) | `enemy_template`, `named_enemy`, the day/night tick |
+| Faction | "The ferrymen answer to someone else" | a new faction enters the world | `faction`, `faction_standing`, rival pairs (`faction_rules.ts`) |
+| Race | "Stone-skinned folk trade at the high pass" | a new people enters the world | `race_definition` |
+| Craft | "The smith at Eastgate knows how to temper starsteel" | a recipe learned from someone or found somewhere | `recipe_template`, `recipe_discovered` |
+
+```ts
+rumor { id, keeperNpcId, kind, whereLocationId? /* real or rumored */, hint, routeHint?,
+        payoffTier, revealTier, status /* rumored | found */, foundByCharacterId?, createdAt }
+```
+
+- **Treasure is a one-time claim.** The first player to find a cache takes it; after that the rumor is spent for everyone (status `found`).
+- **Discoveries are World events.** Finding a place, person, creature, faction or race grows the world: it becomes shared, is announced to everyone as a World event, appears on the World events screen, and earns the discoverer server-first renown. Treasure and crafts are personal finds; their announcement is open (below).
+- **Rumor kinds are mechanical vocabulary** (`spacetimedb/src/data/mechanical_vocabulary.ts`). The LLM supplies only flavor for the kind it is given (name, hint). The server sets the payoff from the region's danger, so a rumor can never promise more than the region allows.
+- **Keepers have a specialty** that fits who they are, from `npcType` and `personalityJson.knowledgeDomains` (a miner knows treasure, a hunter knows creatures, a barkeep knows people, a smith knows crafts). A keeper holds at most one rumor per kind it knows, and most know one kind.
+- **Reveal tiers by kind:** person and creature at `friendly`; treasure, craft and location at `trusted`; region, faction and race at `bonded`.
+- **Rarity budgets by kind:** creatures and people are the most common; then treasure and crafts; then locations; regions, factions and races are the rarest, each with a global cap on open (undiscovered) rumors.
+- **Chains:** a payoff can carry the next rumor (a map in a treasure cache becomes a region rumor; a found person can be a keeper). Chain depth is capped so chains stay rare.
+
+**Terminology:** these discoveries are always called **World events**. Never use "ripple" for this concept in code, player-facing text or docs (owner, 2026-10-06).
 
 **Open questions:**
 
@@ -870,12 +899,14 @@ Plans:
 - Exact budgets: keepers per region, the global cap on open rumored regions.
 - Is abandon (−3) too light against turn-in (+10) now that affinity gates rumors?
 - Should the `friendly` teaser be in the first cut?
+- Does a discovered race become selectable or suggested at character creation (creation is freeform today)?
+- Are treasure and craft finds announced as World events too, or only to the finder?
 
-**Requirements:** TBD (unit tests required: service NPC types never wander, moves stay within the region and step limit, no move during a recent conversation, deterministic move choice, sightings written to NPCs at both ends, the perception roll, no player sightings, newest sighting wins, bearing validation and reverse bearings, route search limited to NPC knowledge, only rumor keepers can create a place rumor, one rumor per keeper and the same rumor for every player, reveal gated by affinity tier, region rumors only from bonded keepers and within the global cap, rumors never expire, rumor duplicate check, rumor visibility only for players who heard it, rumor goes public only when a path links it, charting a location triggers world fill and charting a region triggers region generation, ripple and server-first renown)
+**Requirements:** TBD (unit tests required: service NPC types never wander, moves stay within the region and step limit, no move during a recent conversation, deterministic move choice, sightings written to NPCs at both ends, the perception roll, no player sightings, newest sighting wins, bearing validation and reverse bearings, route search limited to NPC knowledge, only rumor keepers can create a place rumor, one rumor per keeper and the same rumor for every player, reveal gated by affinity tier, region rumors only from bonded keepers and within the global cap, rumors never expire, rumor duplicate check, rumor visibility only for players who heard it, rumor goes public only when a path links it, charting a location triggers world fill and charting a region triggers region generation, every rumor kind resolves into its payoff system, treasure claimable once, discoveries of places, people, creatures, factions and races announced as World events with server-first renown, payoff tier set by the server from region danger, keeper specialty and per-kind reveal tiers and budgets, chain depth cap)
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after refining Backlog 999.10 (rumor keepers, rarity budgets, region rumors)*
+*Last updated: 2026-10-06 after adding rumor kinds to Backlog 999.10 and replacing "ripple" with World events*

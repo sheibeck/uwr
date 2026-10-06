@@ -56,7 +56,7 @@ A world that writes itself around its players — every character is unique, eve
 - ✓ LLM Pipeline (procedures + budget + status tracking + graceful degradation) — v2.0
 - ✓ Narrative UI (chat-first console, HUD, intent routing, typewriter, LLM indicators) — v2.0
 - ✓ Narrative Character Creation (freeform race, archetype, LLM-generated class, persistence) — v2.0
-- ✓ Procedural World Generation (player-triggered regions, canonical facts, ripple, generation locks) — v2.0
+- ✓ Procedural World Generation (player-triggered regions, canonical facts, World event announcements, generation locks) — v2.0
 - ✓ Dynamic Skill Generation (3 LLM skills per level-up, schema validation, power budget) — v2.0
 - ✓ NPC & Quest Generation (contextual NPCs, persistent memory/affinity, narrative quests) — v2.0
 - ✓ Narrative Combat (LLM intro narration, inline UI, data-driven ability dispatch) — v2.0
