@@ -215,14 +215,14 @@ Plans:
   4. The round number, its deadline and each player's chosen action are in public tables the client can subscribe to (generated bindings updated).
   5. The Keeper narrates big moments (a kill, a near-death, a boss phase change) and the end of the fight as speaker segments, within the per-encounter narration budget; there is no fixed every-N-rounds summary.
 
-**Plans**: 2/9 plans executed
+**Plans**: 3/9 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 46.1-01-PLAN.md — Pure round rules (seconds to rounds, cooldown meaning, wind-up length, ordering, auto-attack target) and the big-moment detector with the 3-per-fight cap; 10-second timer
 - [x] 46.1-02-PLAN.md — Additive schema: defaulted round columns on five tables, private combat_moment table, recorder default flag, insert source scan
-- [ ] 46.1-03-PLAN.md — Narration: moment summary and enqueue, outro final round, moment per-call text, 46.1-VOICE-ADDENDUM.md
+- [x] 46.1-03-PLAN.md — Narration: moment summary and enqueue, outro final round, moment per-call text, 46.1-VOICE-ADDENDUM.md
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -430,7 +430,7 @@ Plans:
 | 39-44 | v2.2 | 71/71 | Shipped (3 phases human verification deferred) | 2026-10-05 |
 | 45. Foundation, Frame and Auth | v3.0 | 11/11 | In Progress|  |
 | 46. Structured Keeper Replies | v3.0 | 10/10 | In Progress|  |
-| 46.1. Round-Based Combat Engine | v3.0 | 2/9 | In Progress|  |
+| 46.1. Round-Based Combat Engine | v3.0 | 3/9 | In Progress|  |
 | 47. Console, Rails, Hotbar and Input | v3.0 | 12/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 0/TBD | Not started | - |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |

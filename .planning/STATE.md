@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 46.1
 current_phase_name: Round-Based Combat Engine
 status: executing
-stopped_at: Completed 46.1-02-PLAN.md
-last_updated: "2026-10-06T05:17:05.629Z"
+stopped_at: Completed 46.1-03-PLAN.md
+last_updated: "2026-10-06T05:25:18.588Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 46.1 execution started
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 42
-  completed_plans: 35
+  completed_plans: 36
   percent: 33
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 46.1 (Round-Based Combat Engine) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 46.1 execution started
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 86%
 
 Milestone: v3.0 UX Overhaul -- Phases 45-52 (see ROADMAP.md). Phases 45 and 46 are independent and can run in parallel; 47 needs both.
 
@@ -172,6 +172,7 @@ See MILESTONES.md for full delivery summaries.
 - [Phase ?]: 47-12: owner try-out changes - dark shared scrollbars in frame.css and the 760px desktop feed measure removed (supersedes 45-UI-SPEC for the desktop feed)
 - [Phase ?]: [46.1-01] Round timer is 10s; seconds convert to rounds at 4s via ceil with minimum 1; MAX_COMBAT_NARRATIONS(3) caps big moments per fight
 - [Phase ?]: 46.1-02: combat_round/combat_action stay public for RND-04; combat_moment private; schema additive-only with defaulted last columns
+- [Phase ?]: 46.1-03: moment per-call text auto-approved overnight and listed in 46.1-VOICE-ADDENDUM.md; M4 says full health (no singular they); outro carries the final round
 
 ### Roadmap Evolution
 
@@ -292,8 +293,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 **Resume file:** None
 
-Last session: 2026-10-06T05:17:05.598Z
-Stopped at: Completed 46.1-02-PLAN.md
+Last session: 2026-10-06T05:25:18.558Z
+Stopped at: Completed 46.1-03-PLAN.md
 
 ## Performance Metrics
 
@@ -412,6 +413,7 @@ Stopped at: Completed 46.1-02-PLAN.md
 | Phase 47 P12 | 40min | 4 tasks | 17 files |
 | Phase 46.1 P01 | 6min | 2 tasks | 5 files |
 | Phase 46.1 P02 | 15min | 2 tasks | 7 files |
+| Phase 46.1 P03 | 20min | 2 tasks | 5 files |
 
 ## Operator Next Steps
 
