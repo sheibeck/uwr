@@ -555,7 +555,7 @@ Plans:
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. **Loot now has a mock:** owner decision 2026-10-06, "build the designed loot rails in Phase 52". The combat loot rails follow `UWR Combat.dc.html`, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. See backlog 999.23, which is pulled into this phase. **Bank now has a mock too:** owner decision 2026-10-06, build the designed bank in Phase 52. The bank and vault screen follows `UWR Bank.dc.html`, re-imported fresh. See backlog 999.25, which is pulled into this phase. The remaining undesigned surfaces (trade, help, bug report, /llm admin) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
+**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. **Loot now has a mock:** owner decision 2026-10-06, "build the designed loot rails in Phase 52". The combat loot rails follow `UWR Combat.dc.html`, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. See backlog 999.23, which is pulled into this phase. **Bank now has a mock too:** owner decision 2026-10-06, build the designed bank in Phase 52. The bank and vault screen follows `UWR Bank.dc.html`, re-imported fresh. See backlog 999.25, which is pulled into this phase. **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 52 planning lists them and asks the owner which are in scope. The remaining undesigned surfaces (trade, help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
 **Notes**:
 
   - Seed the parity checklist at the start of the phase from an audit of the `v2.2-client` tag: the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
@@ -1674,4 +1674,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after pulling 999.25 (bank and vault) into Phase 52*
+*Last updated: 2026-10-06 after adding the UWR Admin Screens design to Phase 52*
