@@ -1009,6 +1009,24 @@ budget = baseline(itemLevel) × sourceMultiplier × small variance (±5%)
 - **Rumors never name past bearers.** A legendary's rumor speaks only of where it might be (a location) and/or which NPC might hold it. Bearer history may be kept internally (game-written rows) but is never shown in rumors or NPC facts.
 - **Earned** through rumors (999.10), first finds or legendary bosses. Special effects come from the existing ability-effect vocabulary and count against the same budget and 1.4× cap.
 
+**3a. Boss tiers (owner decisions, 2026-10-06):**
+
+| | Zone boss | Legendary boss | Risen boss (successor, 999.13) |
+|---|---|---|---|
+| Respawns | yes | never: killable once | fills the seat a fallen boss left |
+| Drops | **named items**: boss gear; many copies of the same named item can exist; not legendary | a **legendary** item (section 3) | its own new unique gear |
+| When killed | normal loot | a **World event**; the world changes; the boss is gone | its rise and its fall are World events |
+| Budget | boss 1.3 | legendary, within the 1.4× cap | by its tier |
+
+- Named items record the boss that dropped them (provenance).
+- A legendary boss's death changes the world through the consequence types World events already have (`spacetimedb/src/data/world_event_data.ts`: success and failure consequences), for example lower region danger, a faction gaining ground, or a sealed place opening.
+- Today `enemy_template.isBoss` exists but nothing in world generation sets it, and `named_enemy` is per character with a respawn timer (`spacetimedb/src/helpers/search.ts`). Boss tiers are new.
+
+**3b. Who receives a legendary (owner decisions, 2026-10-06):**
+
+- **Group kill** (bosses are locked to a group): **the legendary chooses.** It picks a random group member. That player may claim it or refuse; on a refusal it picks again among the members who have not refused, until someone claims it. (The group can still agree among themselves who should claim it.)
+- **World event kill** (for example a world boss fought by many players): only **active participants** are eligible. A player must reach a minimum participation level; doing one small thing and sitting back does not qualify. Then a random eligible participant is picked, with the same claim-or-refuse rule. `event_contribution` already records participation.
+
 **4. Where the graph helps:**
 
 - **Provenance:** each item links to its source (boss, quest, NPC, region, recipe, material). This drives first-find World events, legendary uniqueness, and NPC knowledge of items ("Borin forged that blade", 999.9 facts).
@@ -1036,12 +1054,87 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 - Is internal bearer history needed at all, given rumors never name past bearers?
 - Exact point costs per stat, the baseline curve per level, and the source multipliers.
 - The best-in-slot margin for the simulated-fight test.
+- What counts as the minimum participation for a World event kill (contribution threshold, damage or healing share, time present)?
+- If every eligible player refuses a legendary, does it go into history as a new rumor?
 
-**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, legendary single ownership, legendaries cannot be traded or destroyed, legendary lost immediately on character deletion and after six months of bearer inactivity, lost legendary resurfacing as a new NPC rumor that names a location or NPC holder and never a past bearer, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
+**Requirements:** TBD (unit tests required: budget formula per source, 1.4× cap including affixes, `requiredLevel = itemLevel`, item level from content not player, deterministic generation, rarity from budget and source, LLM output never sets numbers, mastercraft parity only with boss or region materials, zone bosses respawn and drop named items (many copies), legendary bosses die once and trigger a World event with a world change, legendary claim-or-refuse among group members, minimum participation for World event kills, legendary single ownership, legendaries cannot be traded or destroyed, legendary lost immediately on character deletion and after six months of bearer inactivity, lost legendary resurfacing as a new NPC rumor that names a location or NPC holder and never a past bearer, provenance links, generated loot tables non-empty for generated enemies, template reuse, quest rewards matched to quest difficulty)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.13: Seats and succession: the living world (BACKLOG)
+
+**Goal:** NPCs and bosses rise and fall. The world has **seats** ("Lord of the Hollow", "Leader of the Tidewardens", "Smith of Eastgate", "Banker of Greyreach") held by NPCs or bosses. When an occupant dies or is overthrown, a successor takes the seat. Deaths are rare and significant, and a successor does not simply inherit everything, so a death matters. Captured 2026-10-06 (owner idea, refined in discussion). **Depends on** 999.9 (memory, relationship facts), 999.10 (rumors, wandering) and 999.14 (world calendar, for aging); boss tiers are in 999.12.
+
+**Seats:**
+
+- A seat is a node; its occupant, past occupants and successor candidates are edges (the same node-and-edge pattern as 999.8 to 999.12).
+- Successor candidates come from existing links: a child (999.9 relationship facts), a lieutenant, an up-and-coming member of the same faction, or a creature rumor (999.10). With no candidate, one is generated: the LLM writes the name and story; the server sets power from the seat's tier.
+- **Service seats are never empty** (vendor, banker, crafting): an heir or apprentice takes over at once, extending the 999.10 rule that service NPCs never wander.
+- **Boss seats:** after a legendary boss dies (999.12), the seat stays empty for a while, then something new rises. **"Something new has claimed the Hollow" is a World event** (owner, 2026-10-06), and so is the risen boss's later fall.
+
+**NPC deaths: rare and significant (owner decisions, 2026-10-06):**
+
+- Deaths are uncommon events, never routine churn.
+- Causes:
+  - **Age:** NPCs age on the world calendar (999.14) and can die of old age.
+  - **Disease.**
+  - **Overrun events:** a World event where monsters overrun a town. The monsters fight the NPCs, and the NPCs defend themselves. Players can step in and save them by fighting off the attackers; NPCs who are not saved can die.
+  - Other events to define (for example faction conflict or a boss rising nearby).
+- **The successor has only a chance to carry things on** (owner decision): each quest, rumor and memory of the dead NPC passes to the successor with some probability, not automatically. Otherwise a death would change nothing. What is not carried on ends: a quest ends gracefully for the players on it, a rumor is lost or passes to another keeper, a memory is forgotten. A carried memory sounds like an heir's ("My father spoke of you").
+
+**Things every system must handle when an occupant dies:** quests, rumors, memories, wandering and sightings, delivery targets, legendary holders (999.12: a legendary held by a dying NPC resurfaces as a new rumor), and faction leadership.
+
+**Build order:**
+
+1. Boss succession only: seats for bosses, vacancy, a successor rises (World event). No aging needed.
+2. NPC life cycle: aging, disease, overrun events, heirs and faction leaders, and seats for service NPCs. Needs 999.9, 999.10 and 999.14.
+
+**Open questions:**
+
+- NPC lifespans and death rates (how rare is rare?), and which NPCs can die at all (quest givers, rumor keepers, service NPCs).
+- The chance a successor carries on each quest, rumor and memory, and whether it depends on the successor's relationship to the dead NPC (child versus rival).
+- How long a boss seat stays empty before something new rises.
+- How overrun events are triggered and how often; how players are alerted in time to defend a town.
+- Other death causes beyond age, disease and overruns.
+
+**Requirements:** TBD (unit tests required: seats and occupants, successor chosen from linked candidates before generating one, service seats never empty, boss seat vacancy then a rise World event, deaths only from defined causes and at defined rates, overrun defense where players can save NPCs, per-item carry-over chance for quests, rumors and memories, graceful handling of everything not carried over, legendary held by a dead NPC resurfacing as a rumor)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.14: World calendar and day/night timing (BACKLOG)
+
+**Goal:** The world has a calendar (days, and years for aging in 999.13), and the day/night cycle matches it: **one real hour is one in-game 24-hour day, with 40 minutes of daytime and 20 minutes of night** (owner decisions, 2026-10-06). The owner's order: add the calendar first, then change the day/night timing.
+
+**Today:**
+
+- Day/night is a scheduled tick (`day_night_tick`) that flips `world_state.isNight` and sets `nextTransitionAtMicros` (`spacetimedb/src/index.ts`, around the day/night tick reducer; `spacetimedb/src/helpers/scheduling.ts`).
+- Durations are constants in `spacetimedb/src/helpers/location.ts`: `DAY_DURATION_MICROS` = 20 minutes, `NIGHT_DURATION_MICROS` = 10 minutes (a 30-minute cycle).
+- `world_state` has no date: there is no calendar, so nothing can age.
+- Night already changes gathering (`timeOfDay` in material gather entries), enemy spawns and the "time" and "look" output (`spacetimedb/src/helpers/look.ts`, `spacetimedb/src/reducers/intent.ts`).
+
+**Design:**
+
+- A world clock anchored to a fixed epoch timestamp (stored once on `world_state`), so the current in-game date and time is computed from `ctx.timestamp` deterministically: day number, hour, day or night.
+- Change the constants to 40 minutes of day and 20 minutes of night (one real hour per in-game day).
+- At one real hour per day, a 365-day year takes about 15 real days, so an NPC living 60 to 80 years lasts about 2.5 to 3.3 real years.
+- "time" and "look" show the date and the in-game hour as well as day or night.
+- Unit tests: day and night lengths, the date computed from timestamps, the transition schedule, and the time and look output.
+
+**Open questions:**
+
+- Year length and structure: days per month, months per year, named months and weekdays, seasons (and whether seasons change gathering, weather or events).
+- Is the calendar shown to players (date in the vitals rail or the "time" command), and in what style (in-world names versus numbers)?
+- Does the epoch start at the world's first region generation, or a fixed date?
+
+**Requirements:** TBD
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after recording legendary bonding, loss and rumor rules in 999.12*
+*Last updated: 2026-10-06 after adding boss tiers to 999.12 and Backlog 999.13 (seats and succession) and 999.14 (world calendar)*
