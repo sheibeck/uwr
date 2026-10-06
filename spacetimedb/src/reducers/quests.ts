@@ -367,6 +367,25 @@ export function turnInCompletedQuest(ctx: any, character: any, qi: any, qt: any,
 }
 
 /**
+ * Turns in every completed, not-yet-turned-in quest of the character that this NPC accepts (the giver, or a
+ * delivery's recipient: questTurnInNpcId) through turnInCompletedQuest, so hailing an NPC gives the same
+ * rewards as turn_in_quest and the "turn in" intent. Shared by the hail_npc reducer (commands.ts hailNpc) and
+ * the "hail / talk / speak <npc>" intent. A refusal (full bags) shows the NPC's in-voice message and leaves
+ * the quest ready to turn in. Returns whether at least one quest was turned in; callers skip the greeting then.
+ */
+export function turnInQuestsAtNpc(ctx: any, character: any, npc: any, appendPrivateEvent: any, fail: any): boolean {
+  const readyHere = [...ctx.db.quest_instance.by_character.filter(character.id)]
+    .filter((qi: any) => qi.completed && !isQuestTurnedIn(qi))
+    .map((qi: any) => ({ qi, qt: ctx.db.quest_template.id.find(qi.questTemplateId) }))
+    .filter(({ qt }: any) => qt && questTurnInNpcId(qt) === npc.id);
+  let turnedIn = false;
+  for (const { qi, qt } of readyHere) {
+    if (turnInCompletedQuest(ctx, character, qi, qt, appendPrivateEvent, fail)) turnedIn = true;
+  }
+  return turnedIn;
+}
+
+/**
  * Picks up a discovered quest item (a delivery's package, an explore quest's object): the one path shared by
  * the loot_quest_item reducer and the "loot <item>" intent. The caller has validated the row (the
  * character's own, discovered, not yet looted). Marks it looted, completes the character's matching
