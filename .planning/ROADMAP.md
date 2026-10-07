@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.2 and 51.3 follow 51. Phase 52 follows them, and 52.1 is last.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 to 51.4 follow 51 (51.4 needs 51.3). Phase 52 follows them, and 52.1 is last.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -85,7 +85,8 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51: Ledger Screens: Map and Travel** - Map drawer and sheet, the rail travel panel, passage collapse, and the rail's Examine, Talk and bind stone actions
 - [ ] **Phase 51.1: Party and Social** (INSERTED) - Social screen, party and player menus, invites, friends and online status, pet HUD and follow indicators, and the user and join security fixes
 - [ ] **Phase 51.2: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
-- [ ] **Phase 51.3: Loot** (INSERTED) - AI-filled loot tables per enemy type within server rules, a rule-based fallback, and the designed loot rails
+- [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
+- [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 52: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client
 - [ ] **Phase 52.1: Bank, Trade and Hotbar Manager** (INSERTED) - The designed bank, player trade and Hotbar Manager
 
@@ -616,29 +617,69 @@ Plans:
   - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 52 Journal). All changes are additive and published locally only.
   - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
 
-### Phase 51.3: Loot (INSERTED)
+### Phase 51.3: Regional Economy (INSERTED)
 
-**Goal**: Killed enemies drop loot that fits them, and players see and take it through the designed loot rails. The AI fills each enemy type's loot table within server rules.
-**Depends on**: Phase 48 (combat encounter rail), Phase 50 (inventory and item rules)
+**Goal**: Each region has its own economy, designed by the AI within server rules: materials to gather, creature drops, loot tables for its enemy types, and regional recipes. The rarest recipes need materials from several regions.
+**Depends on**: Phase 50 (item, crafting and vendor rules)
+**Requirements**: CUT-01 (loot and crafting rows of the parity checklist)
+**Success Criteria** (what must be TRUE):
+
+  1. One AI job per region, run right after the region is generated (region generation stays as fast as today), designs:
+     - the region's gatherable materials and creature drops
+     - a loot table for each of its enemy types (from those materials, plus gear and trophies)
+     - regional recipes built from those materials
+     Enemy types added later get a small follow-up job. Results are stored once and reused.
+  2. The server owns every number: entry counts, rarity mix by enemy level (better for bosses and named foes), gold ranges, drop and gather rates, and all item stats through the shared item rules. The AI supplies only names, kinds, descriptions and which materials go into which recipe; its output is validated and clamped.
+  3. Rare recipes need a material from at least one other, already-generated region. Epic and legendary recipes need materials from two or three regions. Common and uncommon recipes use local materials.
+  4. Until the job lands, or if it fails, fallbacks keep the game working: the rule-based recipes (50-25), terrain gatherables, and a rule-based loot table from existing items and gold, so a kill is never empty.
+  5. The new prompt's exact wording is approved by the owner before it ships. No paid calls in tests.
+
+**Plans**: TBD
+**Notes**:
+
+  - Owner decisions (2026-10-07):
+    - "I actually want LLM generated loot so we don't have to manage loot tables."
+    - "Recipes should also be designed by the LLM along with a region's lootables. So, region generation includes regional craft recipes and gatherables, drops and materials to support those recipes. Really rare recipes should require loot from multiple regions."
+    - Use one job per region, replacing per-enemy loot jobs.
+    - Cross-region rule: rare needs 1 other region, epic and above need 2-3.
+    - This is its own phase, separate from the loot rails (51.4).
+    - Todo: `2026-10-07-enemies-drop-no-loot.md`.
+  - Root cause of "no loot" today: `loot_table` has 0 rows, so `findLootTable` (`combat.ts`) finds nothing. The seeded tables were removed in v2.0, and nothing generates them.
+  - Reuse:
+    - the LLM job pipeline (`enqueueLlmJob` to `llm_run`, validators and clamps in `llm_apply.ts`)
+    - `recipe_rules.ts` and `crafting_rules.ts`
+    - the 50-24 vendor stock rules, so vendors can stock regional materials
+    - `item_stats`, `getGatherableResourceTemplates`
+    - `combat_loot` and the loot reducers
+  - Later, the 999.26 sub-region types will steer each sub-region's economy, so keep the rules in one shared place. Related: 999.12 (gear power budget).
+  - Server changes are additive, published locally only with the key check, never clearing the database.
+  - Tests:
+    - rule clamps on AI output
+    - cross-region recipe requirements
+    - each fallback
+    - determinism
+    - gather and drop rates
+    - recipe craftability from regional materials
+
+### Phase 51.4: Loot Rails (INSERTED)
+
+**Goal**: After a kill, players see what dropped and take it through the designed loot rails.
+**Depends on**: Phase 51.3 (loot exists), Phase 48 (combat encounter rail)
 **Requirements**: CUT-01 (the loot row of the parity checklist)
 **Success Criteria** (what must be TRUE):
 
-  1. Every enemy type gets a loot table, generated once by a small AI job when world generation creates the enemy type (or at its first kill if it has none), stored and reused.
-  2. The server owns the numbers: entry count, rarity mix by enemy level (better for bosses and named foes), gold range, drop chances and every stat, through the shared item rules. The AI supplies only fitting flavour: item names, kinds (material, consumable, gear piece, trophy) and short descriptions. New items become shared item templates, stored once.
-  3. If the AI job has not landed or fails, a rule-based fallback from existing items and gold still drops something, so a kill is never empty.
-  4. After a kill, the designed loot rails (`UWR Combat.dc.html`, backlog 999.23) show what dropped, and players take items and gold through the existing loot reducers, at desktop and 390×844.
-  5. The new prompt's exact wording is approved by the owner before it ships. No paid calls in tests.
+  1. After a kill, the loot rails (`UWR Combat.dc.html`, backlog 999.23) show each drop with its rarity, and gold, at desktop and 390×844.
+  2. Players take items and gold, one at a time or all at once, through the existing loot reducers. Refusals (a full bag, for example) show clearly and leave the loot in place.
+  3. Personal loot per fight participant stays as it is ("Loot: personal").
 
 **Plans**: TBD
 **UI hint**: yes
 **Design source**: `UWR Combat.dc.html` (loot rails), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) with the Nocturne `_ds` files and `support.js`.
 **Notes**:
 
-  - Owner decisions (2026-10-07): "I actually want LLM generated loot so we don't have to manage loot tables"; a separate job per enemy type (not inside world generation, so region generation stays as fast); one phase for AI loot tables and the loot rails, moved out of Phase 52. Todo: `2026-10-07-enemies-drop-no-loot.md`.
-  - Root cause today: `loot_table` has 0 rows, so `findLootTable` (`combat.ts`) finds nothing and kills drop no items. The seeded tables were removed in v2.0, and nothing generates them.
-  - Reuse: the LLM job pipeline (`enqueueLlmJob` to `llm_run`, validators and clamps in `llm_apply.ts`), the 50-24 and 50-25 rule-based selection patterns for the fallback, `item_stats` for stats, and the existing `combat_loot`, `take_loot`, `take_all_loot` and corpse reducers. Later, the 999.26 sub-region types will steer loot, so keep the rules in one shared place. Related: 999.12 (gear power budget).
-  - Server changes are additive, published locally only with the key check, never clearing the database.
-  - Tests: rule clamps on AI output, the fallback, determinism, loot rails content, and take and take-all flows.
+  - Moved out of Phase 52 (owner, 2026-10-07). Design record: backlog 999.23.
+  - Reuse: bindings for `combat_loot`, `my_combat_loot`, `take_loot`, `take_all_loot`, `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs.
+  - Tests: rails content per drop, take and take-all, refusals, and mobile.
 
 ### Phase 52: Parity and Production
 
@@ -653,7 +694,7 @@ Plans:
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. The designed loot rails moved to Phase 51.3 (owner, 2026-10-07). The bank moved to Phase 52.1 (owner, 2026-10-07). **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 52 planning lists them and asks the owner which are in scope. Player trade moved to Phase 52.1 (owner, 2026-10-07); the party and player menus from the same file are built in Phase 51.1. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
+**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. The designed loot rails moved to Phase 51.4 (owner, 2026-10-07). The bank moved to Phase 52.1 (owner, 2026-10-07). **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 52 planning lists them and asks the owner which are in scope. Player trade moved to Phase 52.1 (owner, 2026-10-07); the party and player menus from the same file are built in Phase 51.1. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
 **Notes**:
 
   - **Pulled in from the backlog (owner decision 2026-10-06).** These cover parity with the old client and are built from the owner's designs, each re-imported fresh:
@@ -661,7 +702,7 @@ Plans:
       - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
       - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
       - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
-  - **Already in Phase 52 from the backlog:** the admin screens (`UWR Admin Screens`). The loot rails (999.23) moved to Phase 51.3.
+  - **Already in Phase 52 from the backlog:** the admin screens (`UWR Admin Screens`). The loot rails (999.23) moved to Phase 51.4.
   - **Split (owner, 2026-10-07):** bank (999.25), player trade and the Hotbar Manager (999.18) moved to Phase 52.1.
 
   - Seed the parity checklist at the start of the phase from an audit of the `v2.2-client` tag: the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
@@ -709,7 +750,8 @@ Plans:
 | 51. Ledger Screens: Map and Travel | v3.0 | 0/TBD | Not started | - |
 | 51.1. Party and Social | v3.0 | 0/TBD | Not started | - |
 | 51.2. World Events | v3.0 | 0/TBD | Not started | - |
-| 51.3. Loot | v3.0 | 0/TBD | Not started | - |
+| 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
+| 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 52. Parity and Production | v3.0 | 0/TBD | Not started | - |
 | 52.1. Bank, Trade and Hotbar Manager | v3.0 | 0/TBD | Not started | - |
 
@@ -1783,9 +1825,9 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.23: Combat loot rails (design: UWR Combat) (PULLED INTO PHASE 51.3)
+### Phase 999.23: Combat loot rails (design: UWR Combat) (PULLED INTO PHASE 51.4)
 
-**Status (owner, 2026-10-07):** moved to Phase 51.3, Loot, together with AI-filled loot tables. Earlier (2026-10-06) it was pulled into Phase 52. This entry remains only as the design record.
+**Status (owner, 2026-10-07):** moved to Phase 51.4, Loot Rails; the AI-designed loot itself is Phase 51.3, Regional Economy. Earlier (2026-10-06) it was pulled into Phase 52. This entry remains only as the design record.
 
 **Goal:** After a fight, show loot in the rails as the owner's Claude Design file draws it, so players can see what dropped and take it item by item or all at once, on desktop and mobile. Captured 2026-10-06 (owner request).
 
@@ -1943,4 +1985,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-07 after adding Phase 51.3 Loot (AI loot tables and loot rails, owner)*
+*Last updated: 2026-10-07 after splitting loot into 51.3 Regional Economy and 51.4 Loot Rails (owner)*

@@ -36,4 +36,4 @@ There is also a second gap: the new client has no loot UI. The designed loot rai
 - "I actually want LLM generated loot so we don't have to manage loot tables, can we come up with loot rules where the LLM fills our loot table for us?"
 - **The AI fills the flavour; the server owns the numbers.** The AI picks fitting item names, kinds and descriptions. The server sets the entry count, rarity mix, gold, drop chances and all stats. A rule-based fallback is used until the job lands.
 - **A separate AI job per enemy type,** not inside world generation.
-- **Built in the new Phase 51.3 Loot,** together with the designed loot rails (999.23, moved out of Phase 52). The prompt wording needs the owner's approval.
+- **Superseded the same day by the regional economy decision:** one AI job per region designs materials, gatherables, drops, loot tables and recipes. Rare recipes need materials from 1 other region; epic and above need 2-3. This is **Phase 51.3 Regional Economy**. The loot rails are **Phase 51.4**. The prompt wording needs the owner's approval.

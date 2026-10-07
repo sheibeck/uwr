@@ -6,15 +6,15 @@ current_phase: 48
 current_phase_name: Combat Encounter
 status: verifying
 stopped_at: Completed 48-14-PLAN.md
-last_updated: "2026-10-07T01:22:31.704Z"
+last_updated: "2026-10-07T01:26:13.052Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 48 execution started
 progress:
-  total_phases: 13
+  total_phases: 14
   completed_phases: 6
   total_plans: 104
   completed_plans: 97
-  percent: 46
+  percent: 43
 ---
 
 # Project State
@@ -199,6 +199,7 @@ See MILESTONES.md for full delivery summaries.
 - Phase 51.2 inserted after Phase 51: split out of Phase 51 on 2026-10-07 (owner: phases overloaded)
 - Phase 52.1 inserted after Phase 52: split out of Phase 52 on 2026-10-07 (owner: phases overloaded)
 - Phase 51.3 inserted after Phase 51.2: Loot: AI-filled loot tables per enemy type plus the designed loot rails (owner 2026-10-07)
+- Phase 51.4 inserted after Phase 51.3: Loot Rails split from the loot phase; 51.3 renamed Regional Economy (owner 2026-10-07)
 
 ### Pending Todos
 
