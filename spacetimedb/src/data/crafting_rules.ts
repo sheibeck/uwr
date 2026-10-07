@@ -390,7 +390,7 @@ export function getCraftQualityStatBonus(craftQuality: string): bigint {
 }
 
 // ---------------------------------------------------------------------------
-// CRAFT PLANNING -- one pure decision shared by craft_recipe (validate before it mutates) and
+// CRAFT PLANNING -- one pure decision for one craft or a batch of n, shared by craft_recipe (validate before it mutates) and
 // the client crafting model (pre-gates Craft, shows the quality and the "what would raise it"
 // hint). Import-free, ES2020 only, never throws.
 // ---------------------------------------------------------------------------
@@ -400,11 +400,16 @@ export function itemKeyFromName(name: string): string {
   return (typeof name === 'string' ? name : '').toLowerCase().replace(/\s+/g, '_');
 }
 
-/** Craft quality from the recipe's first material: its MATERIAL_DEFS tier (default T1). */
-export function craftQualityForMaterialName(name: string | null | undefined): string {
+/** The MATERIAL_DEFS tier of a material name (case and spacing as itemKeyFromName), 1n when unknown. */
+export function primaryMaterialTier(name: string | null | undefined): bigint {
   const key = itemKeyFromName(name ?? '');
   const def = key === '' ? undefined : MATERIAL_DEFS.find((m) => m.key === key);
-  return materialTierToCraftQuality(def ? def.tier : 1n);
+  return def ? def.tier : 1n;
+}
+
+/** Craft quality from the recipe's first material: its MATERIAL_DEFS tier (default T1). */
+export function craftQualityForMaterialName(name: string | null | undefined): string {
+  return materialTierToCraftQuality(primaryMaterialTier(name));
 }
 
 /**
@@ -437,6 +442,8 @@ export interface CraftPlanInput {
     req3Count?: bigint | null;
     recipeType?: string | null;
   };
+  /** The batch size: 1n when omitted; a value below 1n counts as 1n. */
+  count?: bigint;
   /** Name of the first requirement's item template (sets the quality). */
   primaryMaterialName: string | null;
   /** The chosen Essence, or null. A missing template is passed with name ''. */
@@ -450,6 +457,8 @@ export interface CraftPlanInput {
 export type CraftPlan =
   | {
       ok: true;
+      /** The batch size, present only for a batch above 1n so a single craft's plan is unchanged. */
+      count?: bigint;
       gear: boolean;
       quality: string | null;
       consumes: { templateId: bigint; count: bigint }[];
@@ -478,11 +487,16 @@ function ownValue<T>(map: Record<string, T>, key: string): T | undefined {
  */
 export function planCraft(input: CraftPlanInput): CraftPlan {
   const { recipe } = input;
+  // The batch size. Every need is multiplied by it before any check, so the rule stays linear:
+  // a batch of n needs exactly n times the merged need of one craft.
+  const n: bigint = typeof input.count === 'bigint' && input.count > 1n ? input.count : 1n;
+  const batch: { count?: bigint } = n > 1n ? { count: n } : {};
   const consumes: { templateId: bigint; count: bigint }[] = [];
   const need = (templateId: bigint, count: bigint) => {
+    const total = count * n;
     const hit = consumes.find((c) => c.templateId === templateId);
-    if (hit) hit.count += count;
-    else consumes.push({ templateId, count });
+    if (hit) hit.count += total;
+    else consumes.push({ templateId, count: total });
   };
   const consumed = (templateId: bigint): bigint => {
     const hit = consumes.find((c) => c.templateId === templateId);
@@ -515,12 +529,12 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
 
   const gear = isGearRecipe(recipe);
   if (!gear) {
-    return { ok: true, gear: false, quality: null, consumes, usesCatalyst: false, reagents: [] };
+    return { ok: true, ...batch, gear: false, quality: null, consumes, usesCatalyst: false, reagents: [] };
   }
   const quality = craftQualityForMaterialName(input.primaryMaterialName);
   const catalyst = input.catalyst;
   if (!catalyst) {
-    return { ok: true, gear: true, quality, consumes, usesCatalyst: false, reagents: [] };
+    return { ok: true, ...batch, gear: true, quality, consumes, usesCatalyst: false, reagents: [] };
   }
 
   const catalystKey = itemKeyFromName(catalyst.name);
@@ -528,7 +542,7 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
   if (allowed.indexOf(quality) === -1) {
     return { ok: false, reason: 'essence_tier', message: 'Essence tier too low for this craft quality' };
   }
-  if (input.countOf(catalyst.templateId) - consumed(catalyst.templateId) < 1n) {
+  if (input.countOf(catalyst.templateId) - consumed(catalyst.templateId) < n) {
     return { ok: false, reason: 'catalyst_missing', message: 'Missing catalyst (Essence)' };
   }
   need(catalyst.templateId, 1n);
@@ -540,7 +554,7 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
     const modKey = itemKeyFromName(mod.name);
     const def = CRAFTING_MODIFIER_DEFS.find((d) => d.key === modKey);
     if (!def) continue;
-    if (input.countOf(mod.templateId) - consumed(mod.templateId) < 1n) {
+    if (input.countOf(mod.templateId) - consumed(mod.templateId) < n) {
       return { ok: false, reason: 'modifier_missing', message: `Missing modifier: ${mod.name}` };
     }
     need(mod.templateId, 1n);
@@ -553,5 +567,86 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
   if (reagents.length === 0) {
     return { ok: false, reason: 'no_reagent', message: 'Must provide at least one reagent when using an Essence' };
   }
-  return { ok: true, gear: true, quality, consumes, usesCatalyst: true, reagents };
+  return { ok: true, ...batch, gear: true, quality, consumes, usesCatalyst: true, reagents };
+}
+
+/** The most crafts one request may batch (the server cap and the stepper's top). */
+export const MAX_CRAFT_COUNT = 99n;
+
+/**
+ * The stepper maximum: the largest n in 0..MAX_CRAFT_COUNT for which planCraft with count n
+ * succeeds, and 0n when a single craft is refused for any reason. planCraft is linear in the count,
+ * so the bag counts divided by the per-craft consumes give the answer, and planCraft at this count
+ * always passes (and at one more is refused, below the cap).
+ */
+export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>): bigint {
+  const single = planCraft({ ...input, count: 1n });
+  if (!single.ok) return 0n;
+  let max = MAX_CRAFT_COUNT;
+  for (const c of single.consumes) {
+    if (c.count <= 0n) continue;
+    const fits = input.countOf(c.templateId) / c.count;
+    if (fits < max) max = fits;
+  }
+  return max < 0n ? 0n : max;
+}
+
+// ---------------------------------------------------------------------------
+// SALVAGE YIELD: one rule for salvage_item and the client preview
+// salvage_item calls these (plan 50-30), and the client values the material from MATERIAL_DEFS,
+// the same vendor value helpers/items.ts upserts into the material's item template.
+// ---------------------------------------------------------------------------
+
+/** The chance, in percent, that a salvage also yields one reagent the item's affixes could give. */
+export const SALVAGE_REAGENT_CHANCE_PCT = 12n;
+
+export interface SalvageYieldInput {
+  slot: string;
+  armorType?: string | null;
+  /** The item template tier; a missing tier counts as 1n. */
+  tier?: bigint | null;
+  /** The item template's vendor value. */
+  itemValue?: bigint | null;
+  /** The item template of the salvage material, or null when none exists. */
+  material: { name: string; vendorValue?: bigint | null } | null;
+  /** How much of that material the recipe that makes the item consumes (0n when no recipe). */
+  recipeConsumed?: bigint | null;
+}
+
+/**
+ * The guaranteed salvage material: the tier table count, capped by item value over material value
+ * (salvage never pays back more than the item is worth) and by what the recipe consumed of it
+ * (never more than the craft put in). Returns null when the slot has no salvage material or no
+ * material template exists; a count of 0n means nothing usable was left.
+ */
+export function salvageMaterialYield(input: SalvageYieldInput): { name: string; count: bigint } | null {
+  const tier = input.tier ?? 1n;
+  const name = getMaterialForSalvage(input.slot, input.armorType ?? undefined, tier);
+  if (!name || !input.material) return null;
+  let count: bigint = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
+  const materialValue = input.material.vendorValue ?? 0n;
+  if (materialValue > 0n) {
+    const byValue = (input.itemValue ?? 0n) / materialValue;
+    if (byValue < count) count = byValue;
+  }
+  const consumed = input.recipeConsumed ?? 0n;
+  if (consumed > 0n && consumed < count) count = consumed;
+  return { name, count };
+}
+
+/**
+ * The reagent defs a salvage can yield: the CRAFTING_MODIFIER_DEFS whose statKey matches one of the
+ * item's non-implicit affixes, in CRAFTING_MODIFIER_DEFS order, each once. The implicit craft-quality
+ * affixes never count (they gave a free Iron Ward for every crafted piece of armor).
+ */
+export function salvageReagentDefs(
+  affixes: ReadonlyArray<{ affixType?: string | null; statKey: string }> | null | undefined,
+): (typeof CRAFTING_MODIFIER_DEFS)[number][] {
+  if (!affixes || typeof affixes.length !== 'number') return [];
+  const keys: string[] = [];
+  for (const a of affixes) {
+    if (a && a.affixType !== 'implicit' && typeof a.statKey === 'string') keys.push(a.statKey);
+  }
+  if (keys.length === 0) return [];
+  return CRAFTING_MODIFIER_DEFS.filter((d) => keys.indexOf(d.statKey) !== -1);
 }
