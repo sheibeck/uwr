@@ -464,6 +464,28 @@ describe('SalvageDetail', () => {
       expect(ctx.w.find('.inline-confirm').exists()).toBe(false);
       expect(ctx.salvageItem).not.toHaveBeenCalled();
     });
+
+    // IN-12 (iteration 3): the stale equipped instance says why, as Inventory does.
+    it('shows the equipped reason line and points the button at it', () => {
+      const ctx = mountDetail({ items: [inst(TUNIC_ID, 3n, { equippedSlot: 'chest' })], affixes: [] }, TUNIC_ID);
+      const reasonId = buttonOf(ctx.w).attributes('aria-describedby');
+      expect(reasonId).toBeTruthy();
+      expect(ctx.w.get(`#${reasonId}`).text()).toBe("Equipped items can't be salvaged.");
+    });
+
+    it('shows no reason line for an item in the bag, and closes an open confirm when it becomes equipped', async () => {
+      const ctx = mountDetail();
+      expect(ctx.w.find('.reason').exists()).toBe(false);
+      expect(buttonOf(ctx.w).attributes('aria-describedby')).toBeUndefined();
+      await buttonOf(ctx.w).trigger('click');
+      expect(ctx.w.find('.inline-confirm').exists()).toBe(true);
+      ctx.items.value = ctx.items.value.map((row) => (row.id === ROBE_ID ? { ...row, equippedSlot: 'chest' } : row));
+      await nextTick();
+      await nextTick();
+      expect(ctx.w.find('.inline-confirm').exists()).toBe(false);
+      expect(ctx.w.get('.reason').text()).toBe("Equipped items can't be salvaged.");
+      expect(ctx.salvageItem).not.toHaveBeenCalled();
+    });
   });
 
   describe('mobile', () => {

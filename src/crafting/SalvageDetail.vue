@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, ref, useId, useTemplateRef, watch } from 'vue';
 import { PhRecycle } from '@phosphor-icons/vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
@@ -9,7 +9,7 @@ import { instanceStats } from '../ledger/compare';
 import { itemDetails, unitSellValue } from '../ledger/itemDetails';
 import { itemIcon, itemName, itemRarity, nameColor } from '../ledger/itemModel';
 import { salvagePreview } from '../ledger/salvagePreview';
-import { salvageNeedsConfirm } from '../inventory/inspector';
+import { EQUIPPED_SALVAGE, salvageNeedsConfirm } from '../inventory/inspector';
 import ItemCard from './ItemCard.vue';
 import { SALVAGE_YIELD_HEADING, salvageYieldHint } from './salvageModel';
 
@@ -95,6 +95,8 @@ const equipped = computed(() => {
   return slot !== undefined && slot !== null && slot !== '';
 });
 const inert = computed(() => offline.value || pending.value || equipped.value);
+// A stale equipped instance shows Inventory's reason and the button points at it (IN-12, iteration 3).
+const reasonId = useId();
 
 const confirming = ref(false);
 const salvageButton = useTemplateRef<HTMLButtonElement>('salvageButton');
@@ -130,7 +132,7 @@ watch(
   },
 );
 watch(instance, (next) => {
-  if (next === null) confirming.value = false;
+  if (next === null || equipped.value) confirming.value = false;
 });
 </script>
 
@@ -169,11 +171,13 @@ watch(instance, (next) => {
           type="button"
           class="btn btn-primary salvage-btn"
           :aria-disabled="inert ? 'true' : undefined"
+          :aria-describedby="equipped ? reasonId : undefined"
           @click="onSalvage"
         >
           <PhRecycle :size="16" aria-hidden="true" />
           <span class="salvage-text">Salvage {{ name }}</span>
         </button>
+        <p v-if="equipped" :id="reasonId" class="reason">{{ EQUIPPED_SALVAGE }}</p>
         <InlineConfirm
           v-if="confirming"
           warning
@@ -314,6 +318,14 @@ h6 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.reason {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
 }
 
 .salvage-btn[aria-disabled='true'] {

@@ -102,7 +102,8 @@ export interface InspectorView {
 }
 
 const BACKPACK_FULL = 'Your backpack is full.';
-const EQUIPPED_SALVAGE = "Equipped items can't be salvaged.";
+/** Why an equipped item cannot be salvaged (Inventory and the Crafting Salvage tab). */
+export const EQUIPPED_SALVAGE = "Equipped items can't be salvaged.";
 
 function filled(value: string | null | undefined): value is string {
   return value !== null && value !== undefined && value !== '';
