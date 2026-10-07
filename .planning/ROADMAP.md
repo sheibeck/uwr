@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phase 52 is last.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 and 51.2 follow 51. Phase 52 follows them, and 52.1 is last.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -82,8 +82,11 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 48: Combat Encounter** - The right rail becomes the encounter: targeting, threat order, enemy wind-up warnings, round timer on the hotbar, round-grouped combat feed
 - [ ] **Phase 49: Character Creation Interview** - Keeper interview in the feed (race, archetype, class, then the name last) with a step indicator, race suggestion cards and a live character sheet
 - [ ] **Phase 50: Ledger Screens: Character and Economy** - Inventory, stats, vendor and crafting as drawers and sheets
-- [ ] **Phase 51: Ledger Screens: World and People** - Map and travel, group and social, and world events as drawers and sheets
+- [ ] **Phase 51: Ledger Screens: Map and Travel** - Map drawer and sheet, the rail travel panel, passage collapse, and the rail's Examine, Talk and bind stone actions
+- [ ] **Phase 51.1: Party and Social** (INSERTED) - Social screen, party and player menus, invites, friends and online status, pet HUD and follow indicators, and the user and join security fixes
+- [ ] **Phase 51.2: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
 - [ ] **Phase 52: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client
+- [ ] **Phase 52.1: Bank, Trade and Hotbar Manager** (INSERTED) - The designed bank, player trade and Hotbar Manager
 
 ## Phase Details
 
@@ -430,6 +433,7 @@ Plans:
 **Wave 5** *(blocked on Wave 4 completion)*
 
 - [ ] 49-10-PLAN.md — deriveScreen 'creation', session-owned hub, App wiring, note removed; phase gate and deferred owner checklist
+
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the character creation screen in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
@@ -534,6 +538,7 @@ Plans:
 - [ ] 50-36-PLAN.md — Recipe detail: Creates card, Uses, quality line, single reagent slot, −/+/Max and Craft N×
 - [ ] 50-37-PLAN.md — Crafting columns per mock 9a, Materials on hand on the right, craft and Discover result card
 - [ ] 50-38-PLAN.md — Craft / Salvage switch with the salvage list and detail; full gates
+
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the inventory, stats, vendor and crafting screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
@@ -542,29 +547,73 @@ Plans:
   - The LLM "Keeper's assessment" on Stats is deferred (LDG-F1).
   - Tests: item comparison (▲/▼) math, filter and slot-count logic, unsellable quest items, buy-back state, recipe have-versus-need and craftable filter, usable-by-you filter.
 
-### Phase 51: Ledger Screens: World and People
+### Phase 51: Ledger Screens: Map and Travel
 
-**Goal**: Players see and travel the world, play with other people, and follow world events through Ledger drawers on desktop and sheets on mobile.
-**Depends on**: Phase 45 (drawer and sheet shells), Phase 47 (context rail tracking)
-**Requirements**: LDG-04, LDG-05, LDG-06, LDG-07, LDG-12, LDG-13, LDG-14
+**Goal**: Players see and travel the world through the Map drawer (desktop) and sheet (mobile) and the redesigned travel panel in the context rail. The rail gains Examine, Talk and bind stone actions.
+**Depends on**: Phase 45 (drawer and sheet shells), Phase 47 (context rail)
+**Requirements**: LDG-04, LDG-05
 **Success Criteria** (what must be TRUE):
 
-  1. Map shows the known locations of a region as a route graph with a legend (here, visited, heard of, bind point) and a region list with level ranges; picking a node shows its description, danger, travel cost, services, players there and related quests, with Travel and Travel with party.
-  2. Social shows a party table (class, where, health) with invite, leave, kick and promote, a loot-mode control, and accept / decline for pending invites; it also shows group chat, friends with online status and location, a who's-online count, and pending friend requests to accept.
-  3. World events lists active, upcoming and recently resolved events with region and timers; the detail shows the description, the faction tug-of-war, objectives with progress across the realm and a timeline of the World events the event caused.
-  4. The event detail shows the player's contribution and percentile, the party's contribution and reward tiers, with Travel there and Track in the sidebar (the tracked event appears in the context rail).
-  5. At 390×844 Map, Party and World events open as full-height sheets above the tab bar (via the Map, Party and More tabs) and every action above works.
+  1. Map shows the places the character knows (visited, plus heard of: neighbours of visited places) as a route graph with region borders, border crossings and a legend, and the known regions with level ranges. A region shows a lock, with the time left, only while the caller's cross-region travel timer runs.
+  2. Picking a place shows its description, danger, travel cost, services, players there and related quests. Neighbours get one Travel button (or Cross into {Region}), and members with Follow leader on come along when the leader travels. Far places show their path and no Travel button.
+  3. The context rail's travel panel lists the routes out with terrain, danger and region crossings, and travels from the panel. Every rail row has an Examine eye; NPC rows have a Talk chat bubble instead of "hail"; a bind stone row offers Bind.
+  4. Explored region passages collapse into direct border crossings once nobody stands in them; offline characters left in a passage are swept back to their own side.
+  5. At 390×844 the Map opens as a full-height sheet from the Map tab, and every action above works.
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the map/travel, group and social, and world events screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
+**Design source**: `UWR Map.dc.html` (owner's revised map, second revision 2026-10-07) and `UWR Console.dc.html` (travel panel), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). The Phase 51 UI-SPEC covers 51, 51.1 and 51.2 and is split per phase.
 **Notes**:
-  - **Pulled in from the backlog (owner decision 2026-10-06):**
-    - **999.22, party and player context menus** (design `UWR Party.dc.html`, re-imported fresh). Build the menus on party members and players together with the Social screen, sharing one set of action helpers. The player-trade parts of that file go to Phase 52.
-    - **999.20, Examine (eyeball) button** on things in the right-hand rail. Phase 51 already works in the context rail.
 
-  - Server gaps to scope in plan-phase: the `group` table has no loot mode (LDG-06); there is no dedicated "travel with party" reducer (`move_character` moves the party when the leader travels), so the Travel versus Travel with party semantics for grouped players need a decision; confirm the data for "upcoming" events and the World event timeline. The percentile can be derived client-side from the public `event_contribution` rows.
-  - Tests: route graph and legend states from location data, travel cost and party-travel rules, party actions by role (leader vs member), loot-mode control, friend and invite lists, event timers and sections, contribution percentile math.
+  - Context: `51-CONTEXT.md` (all owner decisions for 51, 51.1 and 51.2). Pulled in: 999.20 (Examine button), the bind stone row and the Talk icon (owner, 2026-10-06).
+  - SVG is allowed on the map screen only (owner); every other screen keeps the guard.
+  - Server: a per-character visited-places table, look at neighbouring places, passage collapse with a guarded sweep, and travel cost from the server rules. All changes are additive and published locally only.
+  - Tests: graph layout and legend states, border crossings, neighbours-only travel, timer locks from the server row, passage collapse and sweep, and rail row actions.
+
+### Phase 51.1: Party and Social (INSERTED)
+
+**Goal**: Players play with other people: the Social screen, party and player menus, invites, friends and online status, a pet HUD and travel-with-leader indicators.
+**Depends on**: Phase 51 (shared rail rows and travel rules)
+**Requirements**: LDG-06, LDG-07
+**Success Criteria** (what must be TRUE):
+
+  1. Social shows the party (class, where, health, online) with invite, leave, leader-only remove and promote, "Loot: personal", pending invites that expire after 5 minutes and can be cancelled, and a Follow leader switch.
+  2. Social shows party chat, friends with online status and location (never emails), a who's-online count, and friend requests to accept or decline.
+  3. Party members and players have role-aware menus from a ⋯ button and right-click (a sheet on mobile). Clicking a party member in combat still sets the ally target.
+  4. The party block shows pets under their owners and who will travel with the leader, with stamina warnings.
+  5. The public `user` table no longer exposes emails, and joining a party requires an invite.
+  6. At 390×844 Social opens from the Party tab and every action above works.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: Ledger `2e` (group and social) and `UWR Party.dc.html` (menus, invite card, pet HUD and follow indicators; updated 2026-10-07), re-imported fresh. Player trade from the same file is Phase 52.1.
+**Notes**:
+
+  - Context: `51-CONTEXT.md` (Area 2 and Area 4 decisions, and the updated party mock section). Pulled in: 999.22 (party and player menus) and the pet HUD and follow indicators todo.
+  - Server: online status, private `user` with per-sender friend views, the `join_group` invite check, invite expiry and cancel. Pets come from `active_pet`; research confirms what is readable. All changes are additive and published locally only.
+  - Tests: menu entries by role and target, invite expiry and cancel, online status, friend views without emails, the join invite check, pet rows and follow indicators.
+
+### Phase 51.2: World Events (INSERTED)
+
+**Goal**: World events actually happen and players can follow them: rule-based events per region with upcoming announcements, and the World events screen with contribution, rewards and tracking.
+**Depends on**: Phase 51 (Travel there opens the Map)
+**Requirements**: LDG-12, LDG-13, LDG-14
+**Success Criteria** (what must be TRUE):
+
+  1. Each region runs rule-based events (no LLM) from its real enemies and places, announced ahead as upcoming; resolved events and their contributions are kept as history.
+  2. World events lists active, upcoming and recently resolved events with region and timers. The detail shows the description, a For/Against bar from the real counters, objectives and a timeline.
+  3. The detail shows the player's contribution and percentile, the party's contribution and the bronze, silver and gold thresholds, with Travel there and Track (stored on the server; the tracked event leads the rail's Tracking).
+  4. `increment_event_counter` is admin-only, the failure status mismatch is fixed, and `collect_event_item` no longer crashes.
+  5. At 390×844 World events opens from More and every action above works.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: Ledger `2h` (world events), re-imported fresh.
+**Notes**:
+
+  - Context: `51-CONTEXT.md` (Area 3 decisions).
+  - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 52 Journal). All changes are additive and published locally only.
+  - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
 
 ### Phase 52: Parity and Production
 
@@ -573,28 +622,49 @@ Plans:
 **Requirements**: CUT-01, CUT-02
 **Success Criteria** (what must be TRUE):
 
-  1. A written parity checklist lists every action the old client (tag `v2.2-client`) offered, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: bank, loot, player trade, help, bug report and the /llm admin commands, built from Nocturne components.
+  1. A written parity checklist lists every action the old client (tag `v2.2-client`) offered, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: help, bug report and the /llm admin commands, built from Nocturne components. Bank, player trade and the Hotbar Manager are checked off by Phase 52.1.
   2. The production build and the GitHub Pages deploy configuration serve the new client; this is verified locally by building and previewing the production output (the push to master stays an owner action).
   3. Nothing in the repo references the old UI, and the build and the full test suite pass.
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. **Loot now has a mock:** owner decision 2026-10-06, "build the designed loot rails in Phase 52". The combat loot rails follow `UWR Combat.dc.html`, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. See backlog 999.23, which is pulled into this phase. **Bank now has a mock too:** owner decision 2026-10-06, build the designed bank in Phase 52. The bank and vault screen follows `UWR Bank.dc.html`, re-imported fresh. See backlog 999.25, which is pulled into this phase. **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 52 planning lists them and asks the owner which are in scope. **Trade now has a mock:** owner decision 2026-10-06, build the designed trade in Phase 52. The player trade window, and its "Trade" entry on a player or party member, follow the trade parts of `UWR Party.dc.html`, re-imported fresh. The rest of that file (the party and player context menus, backlog 999.22) is built in Phase 51. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
+**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. **Loot now has a mock:** owner decision 2026-10-06, "build the designed loot rails in Phase 52". The combat loot rails follow `UWR Combat.dc.html`, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. See backlog 999.23, which is pulled into this phase. The bank moved to Phase 52.1 (owner, 2026-10-07). **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 52 planning lists them and asks the owner which are in scope. Player trade moved to Phase 52.1 (owner, 2026-10-07); the party and player menus from the same file are built in Phase 51.1. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
 **Notes**:
+
   - **Pulled in from the backlog (owner decision 2026-10-06).** These cover parity with the old client and are built from the owner's designs, each re-imported fresh:
-    - **999.18, Hotbar Manager** (`UWR Hotbar Manager.dc.html`). The new client cannot assign abilities to slots or create, switch or swap hotbars today. The reducers `set_hotbar_slot`, `create_hotbar`, `switch_hotbar`, `swap_hotbar_slots` and `delete_hotbar` exist, but no client code calls them.
     - **999.16, Journal** (`UWR Journal.dc.html`, including the revised quest details from the main screen):
       - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
       - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
       - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
-  - **Already in Phase 52 from the backlog:** 999.23 loot rails, 999.25 bank, the admin screens (`UWR Admin Screens`) and player trade (from `UWR Party`).
-  - **Size:** with these additions Phase 52 is large. At plan time, split it with `/gsd-phase --insert`, for example designed screens versus parity checklist and production deploy, rather than trimming scope.
+  - **Already in Phase 52 from the backlog:** 999.23 loot rails and the admin screens (`UWR Admin Screens`).
+  - **Split (owner, 2026-10-07):** bank (999.25), player trade and the Hotbar Manager (999.18) moved to Phase 52.1.
 
   - Seed the parity checklist at the start of the phase from an audit of the `v2.2-client` tag: the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
   - Deploy: `.github/workflows` holds only `claude.yml` and `claude-code-review.yml`, so find how master builds and publishes to GitHub Pages before changing it. The root build scripts already belong to the new client (Phase 45). The SpacetimeAuth redirect URI for the production origin must be registered (owner action).
   - No push to master and no maincloud publish without the owner. The maincloud run, live end-to-end verification and Console reconciliation stay owner manual items (QUAL-02).
   - If this phase proves too heavy at plan time, split it with `/gsd-phase --insert` (undesigned surfaces versus production deploy) rather than trimming the parity checklist.
-  - Tests: parity checklist completeness check, admin gating for /llm commands, bank, loot and trade flows, and a repo guard that fails if anything references the removed old UI.
+  - Tests: parity checklist completeness check, admin gating for /llm commands, loot and Journal flows, and a repo guard that fails if anything references the removed old UI.
+
+### Phase 52.1: Bank, Trade and Hotbar Manager (INSERTED)
+
+**Goal**: Players store items in the bank, trade with other players and arrange their hotbars, each built from the owner's designs.
+**Depends on**: Phase 51.1 (player and party menus carry the Trade entry), Phase 52 (parity checklist)
+**Requirements**: CUT-01 (the bank, trade and hotbar rows of the parity checklist)
+**Success Criteria** (what must be TRUE):
+
+  1. The bank and vault screen follows `UWR Bank.dc.html` (backlog 999.25) at a banker, at desktop and 390×844.
+  2. Player trade follows the trade parts of `UWR Party.dc.html`: Trade from the player and party menus, the trade window, offer and accept, with the server as the authority.
+  3. The Hotbar Manager follows `UWR Hotbar Manager.dc.html` (backlog 999.18): assign abilities to slots, and create, switch, swap and delete hotbars through the existing reducers.
+  4. The parity checklist rows for bank, trade and hotbar management are done.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: `UWR Bank.dc.html`, `UWR Party.dc.html` (trade, screen 6c) and `UWR Hotbar Manager.dc.html`, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) with the Nocturne `_ds` files and `support.js`.
+**Notes**:
+
+  - Split out of Phase 52 on 2026-10-07 (owner) to keep both phases reviewable.
+  - Server: research confirms the bank and trade reducers and gaps (gold in trades, bag space, the 999.24 stack cap). All changes are additive and published locally only.
+  - Tests: bank deposit and withdraw, the trade flow by role, hotbar slot assignment and hotbar management.
 
 ## Progress
 
@@ -611,8 +681,11 @@ Plans:
 | 48. Combat Encounter | v3.0 | 14/14 | In Progress|  |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |
-| 51. Ledger Screens: World and People | v3.0 | 0/TBD | Not started | - |
+| 51. Ledger Screens: Map and Travel | v3.0 | 0/TBD | Not started | - |
+| 51.1. Party and Social | v3.0 | 0/TBD | Not started | - |
+| 51.2. World Events | v3.0 | 0/TBD | Not started | - |
 | 52. Parity and Production | v3.0 | 0/TBD | Not started | - |
+| 52.1. Bank, Trade and Hotbar Manager | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -843,6 +916,7 @@ Write a mapping only when it is confirmed, never for every typed line, or the gr
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.9: NPC memory graph (BACKLOG)
@@ -920,6 +994,7 @@ npc_fact_known { factId, characterId }   // who has heard it (doubles as a playe
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.10: Wandering NPCs, sightings and rumors (BACKLOG)
@@ -1028,8 +1103,8 @@ rumor { id, keeperNpcId, kind, whereLocationId? /* real or rumored */, hint, rou
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
 
+- [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.11: Race discovery, similar-race matching and the Rite of Becoming (BACKLOG)
 
@@ -1089,6 +1164,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.12: Gear power budget and generated items (BACKLOG)
@@ -1158,6 +1234,7 @@ The yardstick is what a character gains from leveling: each level adds about 8 s
   | Mana | 10 mana = 1 point | 1 caster stat gives 6 mana plus spell power (`MANA_MULTIPLIER`) |
   | Armor (AC) | 3 AC = 1 point | 1 AC cuts physical damage taken by about 1% at low AC (`applyArmorMitigation`) |
   | Magic resist | 1 MR = 1 point | worth about 3 AC (`MAGIC_RESIST_SCALING` = 3) |
+
 - **Base versus bonus:** a weapon's base damage and an armor piece's base AC come from a curve by item level, weapon or armor type and slot. The point budget covers bonus stats and affixes. Both are scaled by the same source multiplier and held under the same 1.4× cap.
 - **Baseline per item:** `baseline(L) = max(1, round(0.25 × L × slotWeight))` bonus points, with slot weights chest, legs and main hand 1.5; head, hands, boots and off hand 1.0; wrists, belt, neck, earrings and cloak 0.75 (the weights add up to about 12 across the 12 slots).
 - **What that means:** a full set of normal gear at level L adds about 25% of a level-L character's own stat points (about 30 points at level 10, against about 118 from the character). Best-in-slot gear at the 1.4× cap adds about 35%.
@@ -1204,6 +1281,7 @@ Suggested slicing when promoted: (a) power budget and generated drops and loot t
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.13: Seats and succession: the living world (BACKLOG)
@@ -1264,6 +1342,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.14: World calendar and day/night timing (BACKLOG)
@@ -1302,6 +1381,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.15: List all races on request at character creation (BACKLOG)
@@ -1326,6 +1406,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.16: Journal (quests) screen with tracking, abandon and region grouping (design: UWR Journal) (PULLED INTO PHASE 52)
@@ -1335,6 +1416,7 @@ Plans:
 **Goal:** A Quests menu item opens a Ledger screen (desktop drawer, mobile sheet) showing the same information as the `quests` chat command, formatted properly. From it, players track or untrack quests for the right rail, abandon quests with a confirmation, and browse quests grouped by region, with a cap of 30 active quests. Captured 2026-10-06 (owner idea). No quest backlog item existed to merge into.
 
 **What the owner asked for:**
+
 1. **Quests menu item.** A new entry (header button on desktop; the More sheet or a tab on mobile) that opens a Quests screen built on the Phase 45 drawer and sheet shells.
 2. **Same information as `quests`, formatted.** Everything the chat `quests` command prints (the client formatter ported in Phase 47, `src/input/infoCommands.ts`), shown as structured rows and not as raw text. Each quest shows its name, giver or recipient, type, objective with progress, rewards, description and turn-in status.
 3. **Tracking checkbox.** One checkbox per quest. A checked quest appears in the right rail's Tracking section (Phase 47 `ContextContent`). Unchecking removes it.
@@ -1345,6 +1427,7 @@ Plans:
 6. **Limit of 30 active quests.** A character can hold at most 30 active quests at a time. The screen shows the count, for example "12 / 30".
 
 **Design source (owner, 2026-10-06; re-import fresh when this is planned; never cached):** the quests screen is the **Journal**, and its rail follows the owner's Claude Design file.
+
 - claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Journal.dc.html
 - Focus file: `UWR Journal.dc.html`.
 - Also read the files it imports:
@@ -1364,6 +1447,7 @@ Plans:
 **Turn-in bug reported with this item (fixed in quick 261006-kpj, not part of this backlog item).** The owner could not turn in a completed quest by talking to its giver. Cause: the new client sends `hail {npc}` through `submit_intent`, and the intent HAIL/TALK branch only printed the greeting. The turn-in logic lived only in the `hail_npc` reducer. The visible "Turn in" action for the Journal and Nearby is still todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`.
 
 **Notes for planning:**
+
 - **The limit needs a server change.** Today `MAX_ACTIVE_QUESTS = 4` in `spacetimedb/src/helpers/npc_conversation.ts`. It is used by the LLM quest offer (`llm_apply.ts:750`) and by the NPC conversation context (`npc_interaction.ts:93`). Decide whether 30 replaces it as a per-character cap that every accept path enforces (dialogue accept, LLM offer, the old auto-accept), and whether the offer prompt's count changes. A prompt change needs owner approval.
 - **Where tracking state lives.** Either a small per-character table (synced across devices, server-authoritative) or per-viewer local storage. Prefer server-side so the rail matches on every device; a `my_tracked_quests` view or a column on `quest_instance` are the options.
 - **Rail cap.** The right rail Tracking section needs a cap for how many tracked quests it shows, or it overflows. A small default such as 5 is suggested; the rest show as "+N more".
@@ -1384,6 +1468,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.17: Combat round wind-up for cast times, with cancel on the hotbar slot (BACKLOG)
@@ -1391,12 +1476,14 @@ Plans:
 **Goal:** An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, under one rule. Between rounds the feed shows the cast in progress ("You continue casting X." / "You focus on X."). A player can cancel a wind-up from the ability's own hotbar slot during any round's decision window, then pick a new action for that round. Captured 2026-10-06 (owner decision, design agreed in conversation).
 
 **Why (today's behavior):**
+
 - **Player cast time is ignored in combat.** `resolveAbilityChoice` (`spacetimedb/src/reducers/combat.ts`) fires the chosen ability at the player's turn in the round it was chosen and never reads `castSeconds`. A cast already running when a fight starts is cancelled ("Your casting is interrupted by combat.").
 - **Cast time still raises damage.** `getAbilityMultiplier` (`spacetimedb/src/data/combat_scaling.ts`) adds +10% per cast second, so in combat a slow cast is pure upside.
 - **Enemies wind up on a different scale.** `windupRounds` (`spacetimedb/src/helpers/combat_rounds.ts`) rounds up using `EFFECT_ROUND_CONVERSION_MICROS` (4s), and the ability lands at the end of round N + windup. Any enemy cast time, even 1s, therefore delays the ability by at least one full round. The enemy posts "X begins to cast Y." once and nothing in the rounds between.
 - **The round timer is not a cast-time unit.** `ROUND_TIMER_MICROS` (10s) is only the player's decision window. It plays no part in the wind-up rule.
 
 **Agreed design:**
+
 1. **One rule for everyone.** `castRounds = ceil(castSeconds / 2)`. One round means the ability goes off at the end of the round it was chosen:
 
    | Cast time | Goes off |
@@ -1406,6 +1493,7 @@ Plans:
    | 5–6s | two rounds later (and so on) |
 
    Enemies move off the 4s scale onto this rule, so their 1–2s casts become same-round.
+
 2. **The wind-up uses the ability's real `castSeconds`.** `MANA_MIN_CAST_SECONDS = 3` stays as it is for damage only. If the wind-up used the floored value, every mana spell would take two rounds.
 3. **A wind-up bonus pays for the lost round.** Each extra round of wind-up adds about **+60%** to the ability's multiplier, on top of the existing +10%/s cast bonus and the cooldown bonus. A 3s spell goes from 1.3× to about 1.9×. The bonus applies to enemy abilities too (same `scaledPower` path), which makes enemy wind-ups bigger, telegraphed hits.
    - Level 1 estimate (damage ability value1 12, starter dagger): a 2s spell then an auto-attack ≈ 17 + 8 = 25. A 1s mana spell (floored to 1.3×) then an auto-attack ≈ 27. A two-round 3s spell without the bonus ≈ 19, about 25–30% behind; with the bonus ≈ 27.
@@ -1430,6 +1518,7 @@ Plans:
    - Enemies never cancel.
 
 **Cooldowns are in scope too (owner, 2026-10-06): "make sure that backlog item also handles cooldowns on abilities!"** Point 4 above ("cooldown lengths unchanged") still holds for the stored `cooldownSeconds` values. The **rounds rule for cooldowns** must be designed here, together with the cast rule. Today's behaviour:
+
 - In combat, a cooldown lasts `cooldownRounds(cooldownSeconds) = max(1, ceil(cooldownSeconds / 4s))` rounds (`spacetimedb/src/helpers/combat_rounds.ts`, `EFFECT_ROUND_CONVERSION_MICROS` = 4s in `data/combat_constants.ts`).
 - An ability used in round N can be chosen again from round N + C (46.1).
 - When the fight ends, the rounds left on a cooldown convert back to wall-clock time (`roundsToWallClockMicros`).
@@ -1446,6 +1535,7 @@ Plans:
   - The UI can show both values, for example "3 rounds (5s)", so the true value stays visible.
 
 Decide and test all of the following:
+
 1. **One seconds-to-rounds rule, decided by the owner:** cast time and cooldown share it. Implement a single function used by both `castRounds` and `cooldownRounds` (and by `windupRounds` for enemies), and remove the separate 4s `EFFECT_ROUND_CONVERSION_MICROS` path for cooldowns. **Effect durations follow the same rule (owner, 2026-10-06).** In the owner's words: "durations should be the same way. They should end after the final tick on the final round."
    - DoT, HoT, buff, debuff and crowd-control durations keep their seconds (or micros) as the stored, authored and balanced value.
    - Their round count comes from the same shared seconds-to-rounds function, at combat time.
@@ -1470,6 +1560,7 @@ Decide and test all of the following:
    - that the hotbar and tooltip show the same numbers as the server
 
 **Notes for planning:**
+
 - **Schema change.** A new player cast table (or the existing `combat_action` row carrying wind-up fields) means a local `--clear-database` publish (greenfield, allowed). Never publish to maincloud automatically.
 - **Reducers.** The cancel and resume toggle needs a reducer, or a new action type on the existing choice submit (`submit_combat_action`). Cancel and resume are only accepted while the round is in `action_select`. The client calls it from the slot and from the chip (CLAUDE.md checklist step 4).
 - **Choice collection.** Round collection (`allChosen` and the waiting list) must count a winding-up player as already chosen, unless the player has marked a cancel.
@@ -1496,6 +1587,7 @@ Decide and test all of the following:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.18: Hotbar Manager (design: UWR Hotbar Manager) (PULLED INTO PHASE 52)
@@ -1505,6 +1597,7 @@ Plans:
 **Goal:** Build the hotbar management screen from the owner's Claude Design file, so players can arrange their abilities across hotbars on desktop and mobile. Captured 2026-10-06 (owner request).
 
 **Design source (re-import fresh when this is planned; never cached):**
+
 - claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`). Project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Hotbar+Manager.dc.html
 - Focus file: `UWR Hotbar Manager.dc.html`.
 - Also read the files it imports:
@@ -1514,6 +1607,7 @@ Plans:
 - Implement `UWR Hotbar Manager.dc.html`: a hotbar management solution for the game.
 
 **Notes for planning:**
+
 - **Builds on Phase 47:** the hotbar (`src/hotbar/*`: HotbarRow, HotbarSelector, the cooldown ticker), the existing hotbar tables and reducers, and quick 261006-h5w / 261006-hpp (the slot tooltip with description and type).
 - **Run it as a UI phase:** `/gsd-ui-phase`, which writes a UI-SPEC from the fresh design import, then plan and execute.
 - **Desktop:** a Ledger drawer. **Mobile:** a sheet at 390×844, opened from the frame (a header button or More).
@@ -1532,6 +1626,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.19: Character screen: rename Stats to Character, updated design (design: UWR Character) (BACKLOG)
@@ -1539,6 +1634,7 @@ Plans:
 **Goal:** Rename the Stats menu item and screen to "Character", and rebuild that screen and its rail from the owner's updated Claude Design file. Captured 2026-10-06 (owner request).
 
 **Design source (re-import fresh when this is planned; never cached):**
+
 - claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Character.dc.html
 - Focus file: `UWR Character.dc.html`.
 - Also read the files it imports:
@@ -1548,6 +1644,7 @@ Plans:
 - Implement `UWR Character.dc.html`.
 
 **Notes for planning:**
+
 - **Supersedes the Phase 50 Stats screen (LDG-03).** That screen is being built in Phase 50 from the older "UWR Ledger Screens" mock 2c: plans 50-16 (stats model, PerkChooser) and 50-17 (Stats screen).
   - This item replaces its layout and rail with the new design and renames it everywhere: the header button, the More row, the `SCREENS` entry and title, the drawer and sheet titles, and tests.
   - Reuse the Phase 50 stats model, the shared `@game-data` helpers (item stats, perk rules, faction tier) and the hub.
@@ -1570,6 +1667,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.20: Examine (eyeball) button on things in the right-hand rail (PULLED INTO PHASE 51)
@@ -1579,6 +1677,7 @@ Plans:
 **Goal:** Put an eyeball "examine" button next to each item, enemy, player and place in the right-hand rail, so players can explore what is around them. Clicking it "looks at" that thing, the same as typing `look <target>`. Captured 2026-10-06 (owner request).
 
 **Notes for planning:**
+
 - **Reuse the existing look path:** the `look <target>` command in `spacetimedb/src/helpers/examine.ts` (`parseLookCommand`, which matches NPCs, enemies, players, resource nodes, then inventory items) and `spacetimedb/src/helpers/look.ts`. The button should send the same intent rather than add a parallel server path. Places may need a new look target if `look` does not cover locations yet; check this in research.
 - **Client:** the right-hand rail is `src/frame/ContextRail.vue`. Check the hostile cards (`src/combat/HostileCard.vue`) and the mobile layout at 390x844 too.
 - **Design guards apply:** Phosphor icons only (an eye icon), no `<svg`, no literal colors, text nodes only, and an accessible label (for example "Examine <name>").
@@ -1588,6 +1687,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.21: Character creation screens match the mock: left step rail, ability cards only (BACKLOG)
@@ -1595,10 +1695,12 @@ Plans:
 **Goal:** Make the character creation screens match the mock. Captured 2026-10-06 (owner request).
 
 **What is wrong today (owner):**
+
 1. **Step indicator placement:** the mock shows the current step in a left-hand rail. The build shows it in a bar along the top (`src/creation/StepBar.vue`, placed in `src/creation/CreationView.vue`).
 2. **Duplicate ability content:** when the player picks abilities, the screen shows both the printed text of the abilities and the ability cards. Show only the cards (`ChoiceBlock` fed by `parseAbilityCards` in `src/creation/abilityCards.ts`). They are easier to read and remove the duplicate content. The printed list probably comes from the Keeper's narration in `CreationFeed`; suppress or trim it while the cards are shown.
 
 **Notes for planning:**
+
 - **Design source:** re-import the character creation screen from `UWR Ledger Screens.dc.html` (mock 2a) through the claude_design MCP, never cached, the same source Phase 49 used. Check desktop and mobile at 390x844 (decide in discuss whether mobile keeps a top bar).
 - **Keep the Phase 49 owner deviations:** the name is chosen last and there is no "First words" step.
 - **Run it as a UI phase** (`/gsd-ui-phase`); the usual design guards apply (tokens only, no v-html, no `<svg`, Phosphor icons and Inter, the fixed size, weight and spacing scales).
@@ -1609,6 +1711,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.22: Party and player context menus (design: UWR Party) (PULLED INTO PHASE 51 (player trade: Phase 52))
@@ -1618,6 +1721,7 @@ Plans:
 **Goal:** Add context menus to party members and other players, so socializing and grouping take one click. Build it from the owner's Claude Design file. Captured 2026-10-06 (owner request).
 
 **Design source (re-import fresh when this is planned; never cached):**
+
 - claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`). Project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Party.dc.html
 - Focus file: `UWR Party.dc.html`.
 - Also read the files it imports:
@@ -1627,6 +1731,7 @@ Plans:
 - Implement `UWR Party.dc.html`.
 
 **Notes for planning:**
+
 - **Where the menus attach:** party members in the vitals rail (`src/rails/PartyBlock.vue`, Phase 47) and players in the context rail's Nearby list (`src/frame/ContextRail.vue`). The design decides any other places, such as names in the feed.
 - **Reuse existing actions:** the group reducers (`spacetimedb/src/reducers/groups.ts`) and the social command words (invite, kick, promote, leave, whisper, friend). Menu entries should act by role, for example kick and promote only for the leader. Confirm in research whether the design needs anything the server does not have yet. Server changes stay additive and publish locally only.
 - **Overlap with Phase 51 (LDG-05, Social screen):** that screen also has party invite, leave, kick and promote, and friends. Share one set of action helpers between the menus and the Social screen, and decide in discuss which phase builds them first.
@@ -1649,6 +1754,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.23: Combat loot rails (design: UWR Combat) (PULLED INTO PHASE 52)
@@ -1658,6 +1764,7 @@ Plans:
 **Goal:** After a fight, show loot in the rails as the owner's Claude Design file draws it, so players can see what dropped and take it item by item or all at once, on desktop and mobile. Captured 2026-10-06 (owner request).
 
 **Design source (re-import fresh when this is planned; never cached):**
+
 - claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Combat.dc.html
 - Focus file: `UWR Combat.dc.html`.
 - Also read the files it imports:
@@ -1667,6 +1774,7 @@ Plans:
 - Implement `UWR Combat.dc.html`, the combat loot rails.
 
 **Notes for planning:**
+
 - **What the server already has.** Bindings exist for `combat_loot`, `my_combat_loot`, `loot_table`, the `take_loot` and `take_all_loot` reducers, and the corpse reducers `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs, and whether anything is missing (for example a loot-mode rule for parties, see Phase 51 LDG-06).
 - **Overlap with Phase 52 (Parity and Production).** The new client has no loot UI yet. The old `v2.2-client` LootPanel is on Phase 52's parity audit list. If Phase 52 adds a basic loot action for parity, this item replaces it with the designed rails. Decide during Phase 52 planning whether to pull this item in.
 - **Builds on Phase 48.** It reuses the Encounter panel, the rail swap at fight end, and the mobile encounter strip.
@@ -1687,6 +1795,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.24: Max item stack size of 99 (BACKLOG)
@@ -1696,6 +1805,7 @@ Plans:
 **Today (code read 2026-10-06):** stackable items have no cap. `addItemToInventory` (`spacetimedb/src/helpers/items.ts` ~369) merges into any existing non-equipped stack, and `hasBackpackSpace` (`spacetimedb/src/data/inventory_rules.ts`, Phase 50) treats a stackable template with an existing stack as always fitting.
 
 **Notes for planning:**
+
 - **Shared constant.** Add `MAX_STACK_SIZE = 99` to the import-free `spacetimedb/src/data/inventory_rules.ts`, so the client, which reads it through `@game-data`, never keeps its own copy.
 - **Space rule.** A stackable item fits if an existing stack has room for the whole quantity, or there are enough free slots for the overflow. Partial fills split across stacks, and the stack and slot math is shared by every add path.
 - **Every path that adds stackable items must respect the cap:**
@@ -1720,6 +1830,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.25: Bank and vault screen (design: UWR Bank) (PULLED INTO PHASE 52)
@@ -1729,6 +1840,7 @@ Plans:
 **Goal:** A bank or vault screen from the owner's Claude Design file, where players deposit and withdraw items on desktop and mobile. Captured 2026-10-06 (owner request).
 
 **Design source (re-import fresh when this is planned; never cached):**
+
 - claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`), project "Unwritten Realms" (id `1a7a975f-7b14-488b-9a38-188bc56294cf`): https://claude.ai/design/p/1a7a975f-7b14-488b-9a38-188bc56294cf?file=UWR+Bank.dc.html
 - Focus file: `UWR Bank.dc.html`.
 - Also read the files it imports:
@@ -1738,6 +1850,7 @@ Plans:
 - Implement `UWR Bank.dc.html`.
 
 **Notes for planning:**
+
 - **What the server already has.** Bindings for `my_bank_slots` and the `deposit_to_bank` and `withdraw_from_bank` reducers. Research should confirm whether the design needs more, such as gold deposits, bank capacity or expansion, sorting or tabs, or a bank-NPC location rule.
 - **Overlap with Phase 52 (Parity and Production).** Bank is one of Phase 52's parity surfaces, and the roadmap says it has "no mock". It now has one. Decide whether to build this design in Phase 52, the way 999.23 loot was pulled in, or to ship a basic parity bank there and swap in the design after the milestone.
 - **What it reuses from Phase 50:** item tiles, the inspector, backpack capacity, shared item stats, and the `LedgerData` hub pattern. Also 999.24 (max stack size 99), which applies to deposits and withdrawals.
@@ -1754,6 +1867,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.26: World structure: 10-place regions, typed sub-regions and hidden places (NEXT MILESTONE)
@@ -1763,6 +1877,7 @@ Plans:
 **Goal:** Regions feel like real places with depth. Every region has up to 10 places. Places can open onto typed sub-regions above or below them (dungeons, towers, caves). A few hidden places per region are found through quests, not by walking around.
 
 **Owner decisions (2026-10-06, in chat):**
+
 - **10 places per region.** The 10 includes the arrival point; the Edge Beyond doorway does not count. The server enforces the cap. The world-generation prompt asks for enough places to reach 10. The owner approves the exact before and after prompt wording before it ships. Bigger regions make generation slower and cost more (a region already takes about 23 s).
 - **Sub-regions (owner term).** A place can have a sub-region beneath it, above it, or both: for example, a dungeon below an entrance, or a wizard's tower with a dungeon beneath.
   - **Generated on first entry.** World generation marks a few places as entrances (up, down or both). The sub-region is generated the first time anyone goes through. This is a prompt change the owner approves.
@@ -1776,6 +1891,7 @@ Plans:
 - **Regions lock only by the travel timer** (this rule is already built in Phase 51 for the map): the cross-region timer simulates long-distance travel and is shortened by travel-speed effects, such as bard travel songs and the renown perk.
 
 **What exists today (2026-10-06 scout):**
+
 - **Region biomes (LLM enum):** volcanic, forest, tundra, desert, swamp, mountains, plains, coastal, cavern, ruins. `mechanical_vocabulary.ts` also lists jungle, wasteland, arctic and underground.
 - **Location terrain:** mountains, woods, plains, swamp, dungeon, town, city, plus uncharted.
 - **What the type already drives:** gatherables come from terrain (`getGatherableResourceTemplates`), and enemy templates carry `terrainTypes`.
@@ -1785,6 +1901,7 @@ Plans:
 **Design source:** the owner's revised `UWR Map.dc.html` (claude_design project `1a7a975f-7b14-488b-9a38-188bc56294cf`). Re-import it fresh at planning time for the map's layer view (above and below), entrances and hidden places.
 
 **Notes for planning:**
+
 - Build on Phase 51:
   - the map screen
   - the per-character visited-places table
@@ -1796,7 +1913,8 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-06 after adding backlog 999.26 (world structure, next milestone)*
+*Last updated: 2026-10-07 after splitting Phase 51 into 51, 51.1 and 51.2, and moving bank, trade and the Hotbar Manager to Phase 52.1 (owner)*

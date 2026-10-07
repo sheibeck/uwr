@@ -6,15 +6,15 @@ current_phase: 48
 current_phase_name: Combat Encounter
 status: verifying
 stopped_at: Completed 48-14-PLAN.md
-last_updated: "2026-10-06T10:11:41.612Z"
+last_updated: "2026-10-07T01:18:26.099Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 48 execution started
 progress:
-  total_phases: 9
-  completed_phases: 5
-  total_plans: 56
-  completed_plans: 56
-  percent: 56
+  total_phases: 12
+  completed_phases: 6
+  total_plans: 104
+  completed_plans: 97
+  percent: 50
 ---
 
 # Project State
@@ -195,6 +195,9 @@ See MILESTONES.md for full delivery summaries.
 
 - 2026-10-05: v3.0 roadmap created: Phases 45-52 (45 Foundation, Frame and Auth; 46 Structured Keeper Replies; 47 Console, Rails, Hotbar and Input; 48 Combat Encounter; 49 Character Creation Interview; 50 Ledger: Character and Economy; 51 Ledger: World and People; 52 Parity and Cutover). Numbering continues from 44. Backlog 999.6 and 999.7 promoted into v3.0; 999.1-999.5 untouched.
 - Phase 46.1 inserted after Phase 46: Round-Based Combat Engine: 10s rounds that end early when all players have chosen, auto-attack default, Keeper narrates big moments and the end of the fight
+- Phase 51.1 inserted after Phase 51: split out of Phase 51 on 2026-10-07 (owner: phases overloaded)
+- Phase 51.2 inserted after Phase 51: split out of Phase 51 on 2026-10-07 (owner: phases overloaded)
+- Phase 52.1 inserted after Phase 52: split out of Phase 52 on 2026-10-07 (owner: phases overloaded)
 
 ### Pending Todos
 
