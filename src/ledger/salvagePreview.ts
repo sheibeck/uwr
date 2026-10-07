@@ -1,6 +1,7 @@
 import { PhCube } from '@phosphor-icons/vue';
 import {
   MATERIAL_DEFS,
+  SALVAGE_COMPONENT_CHANCE_PCT,
   SALVAGE_REAGENT_CHANCE_PCT,
   getMaterialForSalvage,
   itemKeyFromName,
@@ -59,8 +60,12 @@ export interface SalvagePreview {
   confirmText: string;
 }
 
-/** A component at or above this chance is "likely" in the confirm wording; below it is rare. */
-const LIKELY_PCT = 25n;
+/**
+ * A component at or above this chance is "likely" in the confirm wording; below it is rare. It is the
+ * server's tier 2 chance, so tiers 1 and 2 read as likely and tier 3 as rare even if the owner retunes
+ * the chances (no client copy of the number).
+ */
+const LIKELY_PCT = SALVAGE_COMPONENT_CHANCE_PCT[2];
 
 function requirementsOf(recipe: RecipeTemplate): { templateId: bigint; count: bigint }[] {
   const parts = [

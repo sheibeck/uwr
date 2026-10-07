@@ -1,5 +1,6 @@
 import { nextTick, shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
+import type { ResultKind } from '@game-data/action_result';
 import type { ActionResult } from '../module_bindings/types';
 import type { ActionRunner } from './actionRunner';
 
@@ -10,7 +11,8 @@ import type { ActionRunner } from './actionRunner';
 // card shows only what the server wrote. Done and Esc call close(), which returns focus to the
 // element that started the action (50-CONTEXT default "Result card").
 
-export type ResultKind = 'craft' | 'salvage' | 'discover';
+// The kinds come from the server's own list (RESULT_KINDS in action_result.ts), never a client copy.
+export type { ResultKind };
 
 export interface UseActionResultOptions {
   runner: ActionRunner;

@@ -7,6 +7,10 @@ import { createActionRunner } from './actionRunner';
 import type { ActionRunner } from './actionRunner';
 import { useActionResult } from './useActionResult';
 import type { ActionResultState, ResultKind } from './useActionResult';
+import { RESULT_KINDS } from '@game-data/action_result';
+import type { ResultKind as ServerResultKind } from '@game-data/action_result';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 function row(kind: string, seq: bigint): ActionResult {
   return {
@@ -272,5 +276,17 @@ describe('useActionResult', () => {
     expect(h.state.shown.value).toBeNull();
     d.resolve();
     await run;
+  });
+});
+
+// IN-08 (iteration 3): the result kinds come from the server's RESULT_KINDS, never a client copy.
+describe('useActionResult result kinds', () => {
+  it('uses the server kinds', () => {
+    const kinds: readonly ResultKind[] = RESULT_KINDS;
+    const back: readonly ServerResultKind[] = kinds;
+    expect(back).toEqual(['craft', 'salvage', 'discover']);
+    const source = readFileSync(resolve(process.cwd(), 'src/ledger/useActionResult.ts'), 'utf8');
+    expect(source).toContain("from '@game-data/action_result'");
+    expect(source).not.toMatch(/'craft' \| 'salvage'/);
   });
 });

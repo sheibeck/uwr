@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { PhCube } from '@phosphor-icons/vue';
 import {
   MATERIAL_DEFS,
+  SALVAGE_COMPONENT_CHANCE_PCT,
   SALVAGE_REAGENT_CHANCE_PCT,
   salvageComponents,
   salvageReagentDefs,
@@ -125,6 +128,14 @@ describe('salvagePreview: a chance at a smaller return', () => {
     });
     expect(result.yields[0]).toMatchObject({ name: 'Iron Ore', note: '', text: '×1 · 25% chance' });
     expect(result.confirmText).toBe('Salvage destroys this item. It may return some Iron Ore.');
+  });
+
+  // IN-08 (iteration 3): the likely line is the server's tier 2 chance, not a client copy of 25.
+  it('reads the likely threshold from the server tier chances', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/ledger/salvagePreview.ts'), 'utf8');
+    expect(source).toContain('const LIKELY_PCT = SALVAGE_COMPONENT_CHANCE_PCT[2];');
+    expect(source).not.toMatch(/25n/);
+    expect(SALVAGE_COMPONENT_CHANCE_PCT[2]).toBe(25n);
   });
 
   it('a likely and a rare component together', () => {
