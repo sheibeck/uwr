@@ -51,6 +51,8 @@ interface Options {
   quests?: boolean;
   npcs?: Array<{ npcType: string; locationId: bigint }>;
   visited?: bigint[];
+  /** The selected place's people subscriptions have applied (default true). */
+  peopleApplied?: boolean;
 }
 
 let wrapper: VueWrapper | null = null;
@@ -61,6 +63,7 @@ afterEach(() => {
 });
 
 function build(over: Options = {}) {
+  const selectedApplied = ref(over.peopleApplied ?? true);
   const character = ref<Record<string, unknown>>({
     id: CHARACTER,
     name: 'Brannoch',
@@ -138,6 +141,7 @@ function build(over: Options = {}) {
     selectedId,
     select,
     npcsAtSelected: ref(over.npcs ?? []),
+    selectedApplied,
   } as unknown as MapData;
 
   const game = {
@@ -191,6 +195,7 @@ function build(over: Options = {}) {
 
   return {
     w: wrapper,
+    selectedApplied,
     game,
     map,
     character,
@@ -324,6 +329,18 @@ describe('MapDock: the fail line and blocked states', () => {
 });
 
 describe('MapDock: the Details disclosure', () => {
+  it('leaves Services and Players out until the selected place has applied, never None (review WR-02)', async () => {
+    const { w, selectedApplied } = build({ selected: 11n, peopleApplied: false, npcs: [{ npcType: 'vendor', locationId: 11n }] });
+    await toggle(w).trigger('click');
+    expect(w.find('.facts-services').exists()).toBe(false);
+    expect(w.find('.facts-players').exists()).toBe(false);
+    expect(w.get('.details').text()).not.toContain('None');
+    selectedApplied.value = true;
+    await nextTick();
+    expect(w.get('.facts-services').text()).toBe('Vendor');
+    expect(w.get('.facts-players').text()).toBe('None');
+  });
+
   it('is closed to start and reveals the description, Services, Players and quests', async () => {
     const { w } = build({
       selected: 11n,

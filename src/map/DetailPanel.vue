@@ -143,7 +143,10 @@ defineExpose({ focusTitle });
         <p v-if="detail.description !== null" class="description">{{ detail.description }}</p>
         <p v-if="detail.descriptionExtra !== null" class="description-extra">{{ detail.descriptionExtra }}</p>
 
-        <dl class="trip">
+        <dl
+          v-if="detail.trip.stamina !== null || regionTravel || detail.trip.services !== null || detail.trip.players !== null"
+          class="trip"
+        >
           <template v-if="detail.trip.stamina !== null">
             <dt>Stamina</dt>
             <dd class="trip-stamina">{{ detail.trip.stamina }}</dd>
@@ -158,17 +161,21 @@ defineExpose({ focusTitle });
               <template v-else>{{ regionTravel.text }}</template>
             </dd>
           </template>
-          <dt>Services</dt>
-          <dd class="trip-services">
-            <template v-if="detail.trip.services.text !== null">{{ detail.trip.services.text }}</template>
-            <template v-else>
-              <span v-for="item in detail.trip.services.items" :key="item" class="service">
-                <component :is="SERVICE_ICONS[item]" :size="12" aria-hidden="true" />{{ item }}
-              </span>
-            </template>
-          </dd>
-          <dt>Players</dt>
-          <dd class="trip-players">{{ detail.trip.players }}</dd>
+          <template v-if="detail.trip.services !== null">
+            <dt>Services</dt>
+            <dd class="trip-services">
+              <template v-if="detail.trip.services.text !== null">{{ detail.trip.services.text }}</template>
+              <template v-else>
+                <span v-for="item in detail.trip.services.items" :key="item" class="service">
+                  <component :is="SERVICE_ICONS[item]" :size="12" aria-hidden="true" />{{ item }}
+                </span>
+              </template>
+            </dd>
+          </template>
+          <template v-if="detail.trip.players !== null">
+            <dt>Players</dt>
+            <dd class="trip-players">{{ detail.trip.players }}</dd>
+          </template>
         </dl>
 
         <ul v-if="detail.quests.length > 0" class="quests">

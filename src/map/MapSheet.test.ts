@@ -50,6 +50,8 @@ interface Options {
   quests?: boolean;
   npcs?: Array<{ npcType: string; locationId: bigint }>;
   visited?: bigint[];
+  /** The selected place's people subscriptions have applied (default true). */
+  peopleApplied?: boolean;
 }
 
 let wrapper: VueWrapper | null = null;
@@ -60,6 +62,7 @@ afterEach(() => {
 });
 
 function build(over: Options = {}) {
+  const selectedApplied = ref(over.peopleApplied ?? true);
   const character = ref<Record<string, unknown>>({
     id: CHARACTER,
     name: 'Brannoch',
@@ -160,6 +163,7 @@ function build(over: Options = {}) {
     banner,
     setBanner,
     npcsAtSelected: ref(over.npcs ?? []),
+    selectedApplied,
   } as unknown as MapData;
 
   const game = {

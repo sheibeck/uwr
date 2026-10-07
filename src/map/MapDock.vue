@@ -190,18 +190,22 @@ defineExpose({ focusName });
     <div v-if="detailsOpen" :id="`${uid}-details`" class="details">
       <p v-if="detail.description !== null" class="description">{{ detail.description }}</p>
       <p v-if="detail.descriptionExtra !== null" class="description-extra">{{ detail.descriptionExtra }}</p>
-      <dl class="facts">
-        <dt>Services</dt>
-        <dd class="facts-services">
-          <template v-if="detail.trip.services.text !== null">{{ detail.trip.services.text }}</template>
-          <template v-else>
-            <span v-for="item in detail.trip.services.items" :key="item" class="service">
-              <component :is="SERVICE_ICONS[item]" :size="12" aria-hidden="true" />{{ item }}
-            </span>
-          </template>
-        </dd>
-        <dt>Players</dt>
-        <dd class="facts-players">{{ detail.trip.players }}</dd>
+      <dl v-if="detail.trip.services !== null || detail.trip.players !== null" class="facts">
+        <template v-if="detail.trip.services !== null">
+          <dt>Services</dt>
+          <dd class="facts-services">
+            <template v-if="detail.trip.services.text !== null">{{ detail.trip.services.text }}</template>
+            <template v-else>
+              <span v-for="item in detail.trip.services.items" :key="item" class="service">
+                <component :is="SERVICE_ICONS[item]" :size="12" aria-hidden="true" />{{ item }}
+              </span>
+            </template>
+          </dd>
+        </template>
+        <template v-if="detail.trip.players !== null">
+          <dt>Players</dt>
+          <dd class="facts-players">{{ detail.trip.players }}</dd>
+        </template>
       </dl>
       <ul v-if="detail.quests.length > 0" class="quests">
         <li v-for="quest in detail.quests" :key="quest.key" class="card quest">

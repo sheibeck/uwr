@@ -58,6 +58,8 @@ interface Options {
   quests?: boolean;
   npcs?: Array<{ npcType: string; locationId: bigint }>;
   visited?: bigint[];
+  /** The selected place's people subscriptions have applied (default true). */
+  peopleApplied?: boolean;
 }
 
 let wrapper: VueWrapper | null = null;
@@ -68,6 +70,7 @@ afterEach(() => {
 });
 
 function build(over: Options = {}) {
+  const selectedApplied = ref(over.peopleApplied ?? true);
   const character = ref<Record<string, unknown>>({
     id: CHARACTER,
     name: 'Brannoch',
@@ -145,6 +148,7 @@ function build(over: Options = {}) {
     selectedId,
     select,
     npcsAtSelected: ref(over.npcs ?? []),
+    selectedApplied,
   } as unknown as MapData;
 
   const game = {
@@ -204,6 +208,7 @@ function build(over: Options = {}) {
 
   return {
     w: wrapper,
+    selectedApplied,
     game,
     map,
     character,
@@ -348,6 +353,28 @@ describe('DetailPanel: populated states', () => {
     expect(card.get('.quest-role').text()).toBe('Goal here');
     expect(card.get('.quest-name').attributes('title')).toBe(`${XSS} · 1/3`);
     expect(w.find('img').exists()).toBe(false);
+  });
+});
+
+describe('DetailPanel: the selected place still loading', () => {
+  it('leaves Services and Players out until its subscriptions apply, never None (review WR-02)', async () => {
+    const { w, selectedApplied } = build({ selected: 11n, peopleApplied: false, npcs: [{ npcType: 'vendor', locationId: 11n }] });
+    const grid = w.get('dl.trip');
+    expect(grid.text()).toContain('Stamina5 stamina');
+    expect(grid.text()).not.toContain('Services');
+    expect(grid.text()).not.toContain('Players');
+    expect(w.find('.trip-services').exists()).toBe(false);
+    expect(w.find('.trip-players').exists()).toBe(false);
+    selectedApplied.value = true;
+    await nextTick();
+    expect(w.get('.trip-services').text()).toBe('Vendor');
+    expect(w.get('.trip-players').text()).toBe('None');
+  });
+
+  it('a heard-of place still says Unknown until you visit while loading', () => {
+    const { w } = build({ selected: 20n, peopleApplied: false });
+    expect(w.get('.trip-services').text()).toBe('Unknown until you visit');
+    expect(w.find('.trip-players').exists()).toBe(false);
   });
 });
 

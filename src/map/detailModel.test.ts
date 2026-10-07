@@ -103,6 +103,7 @@ function detail(selected: bigint, o: Overrides = {}, c: ChecksOpts = {}): Detail
     boundLocationId: null,
     npcsAtSelected: [],
     charactersAtSelected: [],
+    peopleApplied: true,
     quests: [],
     questTemplates: [],
     giverNpcs: [],
@@ -388,6 +389,37 @@ describe('buildDetail, services and players', () => {
     });
     expect(three.trip.players).toBe('2');
     expect(detail(11n).trip.players).toBe('None');
+  });
+});
+
+describe('buildDetail, the selected place still loading (review WR-02)', () => {
+  it('leaves Services and Players out instead of reading None until the subscriptions apply', () => {
+    const d = detail(11n, { peopleApplied: false, npcsAtSelected: [{ npcType: 'vendor', locationId: 11n }] });
+    expect(d.trip.services).toBeNull();
+    expect(d.trip.players).toBeNull();
+  });
+
+  it('a heard-of place keeps Unknown until you visit, which needs no subscription', () => {
+    const d = detail(12n, { peopleApplied: false });
+    expect(d.trip.services).toEqual({ items: [], text: 'Unknown until you visit' });
+    expect(d.trip.players).toBeNull();
+  });
+
+  it('the fallback to your place (an unknown selection) never borrows the selected rows', () => {
+    const d = detail(999n, {
+      npcsAtSelected: [{ npcType: 'vendor', locationId: 10n }],
+      charactersAtSelected: [{ id: 2n, locationId: 10n }],
+    });
+    expect(d.title).toBe('Ember Camp');
+    expect(d.trip.services).toBeNull();
+    expect(d.trip.players).toBeNull();
+  });
+
+  it('no selection at all shows your place without the people rows', () => {
+    const d = detail(10n, { selected: null, peopleApplied: false });
+    expect(d.kind).toBe('here');
+    expect(d.trip.services).toBeNull();
+    expect(d.trip.players).toBeNull();
   });
 });
 

@@ -108,6 +108,7 @@ export function useDestination(): Destination {
       boundLocationId: bound,
       npcsAtSelected: map.npcsAtSelected.value,
       charactersAtSelected: map.charactersAtSelected.value,
+      peopleApplied: map.selectedApplied.value,
       quests: game.quests.value,
       questTemplates: game.questTemplates.value,
       giverNpcs: map.giverNpcs.value,

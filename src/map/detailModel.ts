@@ -99,8 +99,10 @@ export interface DetailView {
       timeText: string | null;
       srText: string | null;
     } | null;
-    services: { items: Array<'Vendor' | 'Banker'>; text: string | null };
-    players: string;
+    /** Null while the selected place's NPC subscription has not applied (the row is left out). */
+    services: { items: Array<'Vendor' | 'Banker'>; text: string | null } | null;
+    /** Null while the selected place's character subscription has not applied (the row is left out). */
+    players: string | null;
   };
   quests: { key: string; name: string; progress: string; role: string }[];
   route: { steps: { id: bigint; name: string; crossingInto: string | null }[]; note: string } | null;
@@ -121,6 +123,12 @@ export interface BuildDetailInput {
   boundLocationId: bigint | null;
   npcsAtSelected: readonly { npcType: string; locationId: bigint }[];
   charactersAtSelected: readonly { id: bigint; locationId: bigint }[];
+  /**
+   * The selected place's NPC and character subscriptions have applied (the hub's selectedApplied).
+   * Until then Services and Players are left out rather than read as None, and they count only for
+   * the selected place itself, never for the fallback to your place.
+   */
+  peopleApplied: boolean;
   quests: readonly DetailQuestRow[];
   questTemplates: readonly DetailQuestTemplate[];
   giverNpcs: readonly { id: bigint; locationId: bigint }[];
@@ -286,8 +294,14 @@ function tagsFor(place: DetailLocation, terrain: TerrainInfo, danger: PlaceDange
   return tags;
 }
 
+/** The people rows describe this place: its own subscriptions have applied. */
+function peopleKnown(input: BuildDetailInput, placeId: bigint): boolean {
+  return input.peopleApplied && input.selected === placeId;
+}
+
 function servicesFor(input: BuildDetailInput, placeId: bigint, unknown: boolean): DetailView['trip']['services'] {
   if (unknown) return { items: [], text: 'Unknown until you visit' };
+  if (!peopleKnown(input, placeId)) return null;
   const here = input.npcsAtSelected.filter((n) => n.locationId === placeId);
   const items: Array<'Vendor' | 'Banker'> = [];
   if (here.some((n) => n.npcType === 'vendor')) items.push('Vendor');
@@ -295,7 +309,8 @@ function servicesFor(input: BuildDetailInput, placeId: bigint, unknown: boolean)
   return items.length > 0 ? { items, text: null } : { items, text: 'None' };
 }
 
-function playersFor(input: BuildDetailInput, placeId: bigint): string {
+function playersFor(input: BuildDetailInput, placeId: bigint): string | null {
+  if (!peopleKnown(input, placeId)) return null;
   // Offline characters count until the online status of Phase 51.1 exists.
   const count = input.charactersAtSelected.filter((c) => c.locationId === placeId && c.id !== input.selfId).length;
   return count === 0 ? 'None' : String(count);
