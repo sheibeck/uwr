@@ -1,4 +1,5 @@
 import { TRAVEL_CONFIG, travelEffectDiscount, travelStaminaCost } from '../data/travel_config';
+import { comesAlongWithLeader } from '../data/group_config';
 import { performPassiveSearch } from './search';
 import { getPerkBonusByField } from './renown';
 import { buildLookOutput } from './look';
@@ -83,14 +84,21 @@ export function performTravel(
   if (groupId && isGroupLeaderOrSolo(ctx, character)) {
     const group = ctx.db.group.id.find(groupId);
     if (group && group.leaderCharacterId === character.id) {
-      // Group leader - add leader and following members at same location
+      // Group leader - add the leader and the members who come along. The owner's rule: a member
+      // travels only while following, online and standing at the leader's place; offline members are
+      // left behind (no move, no stamina check, no region timer). src/map/travelChecks.ts and
+      // src/social/follow.ts mirror it through the same predicate (parity test in plan 51.1-07).
       travelingCharacters.push(character);
       for (const member of ctx.db.group_member.by_group.filter(group.id)) {
-        if (!member.followLeader) continue;
         const memberCharacter = ctx.db.character.id.find(member.characterId);
+        if (!memberCharacter) continue;
+        const online = memberCharacter.online === true;
         if (
-          memberCharacter &&
-          memberCharacter.locationId === originLocationId &&
+          comesAlongWithLeader({
+            followLeader: member.followLeader,
+            online,
+            atLeaderPlace: memberCharacter.locationId === originLocationId,
+          }) &&
           memberCharacter.locationId !== location.id
         ) {
           travelingCharacters.push(memberCharacter);

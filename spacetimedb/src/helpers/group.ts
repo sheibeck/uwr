@@ -14,6 +14,8 @@ export const getGroupOrSoloParticipants = (ctx: any, character: any) => {
     if (!row) continue;
     // Only include members at the same location as the combat initiator
     if (row.locationId !== character.locationId) continue;
+    // Offline members are never pulled into a fight (owner decision); the initiator is always in.
+    if (row.online !== true) continue;
     seen.add(row.id.toString());
     participants.push(row);
   }

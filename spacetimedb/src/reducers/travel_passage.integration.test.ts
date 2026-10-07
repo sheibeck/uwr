@@ -130,7 +130,7 @@ describe('move_character collapses an emptied passage (real handler)', () => {
     const ctx = newCtx({
       character: [
         character({ groupId: 5n }),
-        character({ id: 2n, name: 'Follower', ownerUserId: 8n, groupId: 5n }),
+        character({ id: 2n, name: 'Follower', ownerUserId: 8n, groupId: 5n, online: true }),
       ],
       group: [{ id: 5n, leaderCharacterId: 1n }],
       group_member: [
@@ -149,7 +149,7 @@ describe('move_character collapses an emptied passage (real handler)', () => {
     const ctx = newCtx({
       character: [
         character({ groupId: 5n }),
-        character({ id: 2n, name: 'Stayer', ownerUserId: 8n, groupId: 5n }),
+        character({ id: 2n, name: 'Stayer', ownerUserId: 8n, groupId: 5n, online: true }),
       ],
       group: [{ id: 5n, leaderCharacterId: 1n }],
       group_member: [
