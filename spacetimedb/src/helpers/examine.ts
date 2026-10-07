@@ -182,7 +182,7 @@ function describeItem(ctx: any, character: any, matches: NameMatcher): string | 
 
 /**
  * A place connected to the character's current place, by name. Plain server copy (not Keeper text):
- * the name, where it lies relative to here, then its description ("Nobody has been here yet." for an
+ * the name, where it lies relative to here, then its description (a fixed line for an
  * uncharted edge that has none). Places are tried in id order so the answer never depends on index
  * iteration order.
  */

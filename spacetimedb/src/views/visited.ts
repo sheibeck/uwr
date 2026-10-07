@@ -1,7 +1,7 @@
 import type { ViewDeps } from './types';
 
 // ============================================================================
-// my_visited_locations: per-sender projection of the private visited_location table
+// Per-sender projection of the private visited_location table
 // ============================================================================
 //
 // The table is private (every place each character has stood in), so the client reads its own
