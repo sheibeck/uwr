@@ -354,11 +354,10 @@ h6 {
   opacity: 0.45;
 }
 
-/* The row's main part is a size container: the hint hides when the name would fall under 120px. */
+/* The name keeps its width first: the hint shrinks (min-width 0, overflow hidden) before the name does. */
 .row-main {
   flex: 1;
   min-width: 0;
-  container-type: inline-size;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -460,7 +459,7 @@ button.row-main[aria-disabled='true'] {
 }
 
 .row-hint {
-  flex-shrink: 1;
+  flex-shrink: 100;
   min-width: 0;
   overflow: hidden;
   margin-left: auto;
@@ -469,11 +468,6 @@ button.row-main[aria-disabled='true'] {
   white-space: nowrap;
 }
 
-@container (max-width: 200px) {
-  .row-hint {
-    display: none;
-  }
-}
 
 /* One flex group of one to three icon buttons: the row's own actions, then the eye. */
 .row-actions {
