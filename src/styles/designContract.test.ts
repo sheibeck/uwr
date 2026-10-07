@@ -268,6 +268,34 @@ describe('icons', () => {
     const offenders = svgOffenders(files.vue.map((file) => [rel(file), sfcTemplateAndScript(read(file))]));
     expect(offenders).toEqual([]);
   });
+
+  // Inside the allowed folder the svg holds shapes only (review WR-05): no foreignObject, image, use,
+  // a or script, which could carry markup, remote content or links into the plane.
+  const SVG_ELEMENTS = new Set([
+    'svg', 'g', 'defs', 'title', 'desc', 'rect', 'line', 'polyline', 'polygon', 'path', 'circle', 'ellipse',
+  ]);
+  const svgElementOffenders = (file: string, template: string): string[] => {
+    const offenders: string[] = [];
+    for (const block of template.matchAll(/<svg\b[\s\S]*?<\/svg>/gi)) {
+      for (const tag of block[0].matchAll(/<([a-zA-Z][\w-]*)/g)) {
+        if (!SVG_ELEMENTS.has(tag[1])) offenders.push(`${file}: <${tag[1]}>`);
+      }
+    }
+    return offenders;
+  };
+
+  it('flags non-shape elements inside an svg', () => {
+    expect(svgElementOffenders('f.vue', '<svg><rect /><line /><polyline /></svg>')).toEqual([]);
+    expect(svgElementOffenders('f.vue', '<svg><foreignObject><div /></foreignObject></svg>')).toHaveLength(2);
+    expect(svgElementOffenders('f.vue', '<svg><image href="x" /><use href="#a" /><a href="x"></a></svg>')).toHaveLength(3);
+  });
+
+  it('src/map/ svg uses shape elements only', () => {
+    const offenders = files.vue
+      .filter((file) => rel(file).startsWith(SVG_FOLDER))
+      .flatMap((file) => svgElementOffenders(rel(file), sfcTemplateAndScript(read(file))));
+    expect(offenders).toEqual([]);
+  });
 });
 
 describe('headings', () => {

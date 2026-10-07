@@ -163,6 +163,60 @@ export function textColorOffenders(source: string, file: string): string[] {
   return offenders;
 }
 
+// Template colour attributes (review WR-05, Phase 51 client rest). Since src/map/ may draw svg, the
+// presentation attributes are a reachable channel for literal colours, and the text scan above only
+// knows hex and functional notations. Every fill, stroke, stop-color, flood-color, lighting-color or
+// color attribute, static or a string literal in a bound expression, must be a token (var(--...)) or
+// none, currentColor, transparent or inherit. A static style attribute and string literals in a bound
+// :style are checked like a style block, so a named colour ('crimson', 'white') fails there too.
+const COLOR_ATTR =
+  /(?:^|[\s<])(v-bind:|:)?(fill|stroke|stop-color|flood-color|lighting-color|color)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+const STYLE_ATTR = /(?:^|[\s<])(v-bind:|:)?style\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+const TOKEN_OR_KEYWORD = /^(?:none|currentcolor|transparent|inherit|var\(--[\w-]+\))$/i;
+
+/** The string literals of a bound expression ('x', "x" and `x` without interpolation). */
+function stringLiterals(expression: string): string[] {
+  const out: string[] = [];
+  for (const match of expression.matchAll(/'([^'\\]*)'|"([^"\\]*)"|`([^`$\\]*)`/g)) {
+    out.push(match[1] ?? match[2] ?? match[3] ?? '');
+  }
+  return out;
+}
+
+function colorValueAllowed(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === '' || TOKEN_OR_KEYWORD.test(trimmed);
+}
+
+export function templateColorOffenders(template: string, file: string): string[] {
+  const text = stripComments(template);
+  const offenders: string[] = [];
+  for (const match of text.matchAll(COLOR_ATTR)) {
+    const bound = match[1] !== undefined;
+    const value = match[3] ?? match[4] ?? '';
+    const values = bound ? stringLiterals(value) : [value];
+    for (const candidate of values) {
+      if (!colorValueAllowed(candidate)) offenders.push(`${file}: ${match[2]}="${value}"`);
+    }
+  }
+  for (const match of text.matchAll(STYLE_ATTR)) {
+    const bound = match[1] !== undefined;
+    const value = match[2] ?? match[3] ?? '';
+    if (bound) {
+      for (const literal of stringLiterals(value)) {
+        if (valueOffends(literal)) offenders.push(`${file}: :style literal '${literal}'`);
+      }
+    } else {
+      offenders.push(...colorOffenders(`x{${value}}`, file).map((offender) => `${offender} (style attribute)`));
+    }
+  }
+  return offenders;
+}
+
+export function sfcTemplate(source: string): string {
+  return parseSfc(source).descriptor.template?.content ?? '';
+}
+
 export function definedCustomProperties(css: string): Set<string> {
   const names = new Set<string>();
   postcss.parse(css).walkDecls((decl) => {

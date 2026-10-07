@@ -5,7 +5,9 @@ import {
   colorOffenders,
   listClientFiles,
   sfcStyleBlocks,
+  sfcTemplate,
   sfcTemplateAndScript,
+  templateColorOffenders,
   textColorOffenders,
 } from './cssContract';
 
@@ -62,6 +64,36 @@ describe('textColorOffenders fixtures', () => {
   });
 });
 
+describe('templateColorOffenders fixtures (review WR-05)', () => {
+  it('flags named and literal colours in svg presentation attributes, static or bound', () => {
+    expect(templateColorOffenders('<line stroke="crimson" />', 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders('<rect fill="white" />', 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders(`<polyline :stroke="'gold'" />`, 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders(`<rect :fill="on ? 'var(--color-accent)' : 'red'" />`, 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders('<stop stop-color="#fff" />', 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders('<rect v-bind:fill="`tomato`" />', 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders('<span color="red">x</span>', 'f.vue')).toHaveLength(1);
+  });
+
+  it('allows tokens, none, currentColor, transparent and bound expressions without literals', () => {
+    const ok = [
+      '<rect fill="none" stroke="var(--color-neutral-600)" />',
+      '<line stroke="currentColor" fill="transparent" />',
+      `<rect :fill="on ? 'var(--color-accent)' : 'none'" />`,
+      '<rect :fill="band.color" :stroke="edgeColor(edge)" />',
+      '<rect stroke-width="2" fill-opacity="0.5" />',
+    ];
+    for (const template of ok) expect(templateColorOffenders(template, 'f.vue')).toEqual([]);
+  });
+
+  it('flags named colours in a static style attribute and in bound :style literals', () => {
+    expect(templateColorOffenders('<span style="color: crimson">x</span>', 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders(`<span :style="{ color: 'white' }">x</span>`, 'f.vue')).toHaveLength(1);
+    expect(templateColorOffenders(`<span :style="{ color: tag.color ?? undefined }">x</span>`, 'f.vue')).toEqual([]);
+    expect(templateColorOffenders(`<span :style="{ color: 'var(--color-accent)' }">x</span>`, 'f.vue')).toEqual([]);
+  });
+});
+
 describe('client source has no literal colors', () => {
   const files = listClientFiles(SRC);
   const exempt = new Set([`${SRC}/styles/nocturne.css`, `${SRC}/styles/tokens.client.css`]);
@@ -80,6 +112,8 @@ describe('client source has no literal colors', () => {
       const source = readFileSync(file, 'utf8');
       for (const block of sfcStyleBlocks(source)) offenders.push(...colorOffenders(block, rel(file)));
       offenders.push(...textColorOffenders(sfcTemplateAndScript(source), rel(file)));
+      // svg presentation attributes and style attributes in every template, src/map/ included
+      offenders.push(...templateColorOffenders(sfcTemplate(source), rel(file)));
     }
     for (const file of files.ts) {
       if (file === `${SRC}/styles/cssContract.ts`) continue;
