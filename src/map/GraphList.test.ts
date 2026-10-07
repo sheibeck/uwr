@@ -35,7 +35,7 @@ function mountList(rows: ListRow[]): VueWrapper {
 describe('GraphList', () => {
   it('is a ul of buttons in the given order', () => {
     const w = mountList([row(3n), row(1n), row(2n)]);
-    expect(w.get('ul').exists()).toBe(true);
+    expect(w.find('ul').exists()).toBe(true);
     const buttons = w.findAll('li > button');
     expect(buttons.map((b) => b.get('.name').text())).toEqual(['Place 3', 'Place 1', 'Place 2']);
   });

@@ -327,7 +327,7 @@ describe('MapScreen: graph and list', () => {
     expect(tablist.attributes('aria-label')).toBe('Map view');
     expect(tablist.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Graph', 'List']);
     expect(tablist.get('[aria-selected="true"]').text()).toBe('Graph');
-    expect(canvas.get('button[aria-label="Center on you"]').exists()).toBe(true);
+    expect(canvas.find('button[aria-label="Center on you"]').exists()).toBe(true);
   });
 
   it('switching to List renders GraphList with the same nodes and selecting a row calls select', async () => {
@@ -361,8 +361,8 @@ describe('MapScreen: graph and list', () => {
     const here = w.findAll('li button').find((r) => r.get('.name').text() === 'Ember Gate');
     expect(here?.get('.steps').text()).toBe('Here');
     expect(here?.get('.connects').text()).toBe('Connects to Gloamwood');
-    const gate = w.findAll('li button').find((r) => r.get('.name').text() === 'Saltmarsh Gate');
-    expect(gate?.get('.connects').text()).toBe('Connects to Gloamwood (Ashfall Wilds)');
+    const wood = w.findAll('li button').find((r) => r.get('.name').text() === 'Gloamwood');
+    expect(wood?.get('.connects').text()).toBe('Connects to Ember Gate, Ridge Walk, Saltmarsh Gate (Saltmarsh)');
   });
 
   it('selecting a node in the graph calls select', async () => {

@@ -41,13 +41,15 @@ const screens = useScreens({ locked: computed(() => game.combat.active.value) })
 
 watch(isDesktop, (desktop) => screens.syncLayout(desktop));
 
-// The vendor screen's arguments (which NPC). Cleared synchronously whenever the active screen is
-// not the vendor, so close, More, tabs and other screens never carry a stale vendor.
+// The arguments of the vendor (which NPC) and map (which place or region) screens. Cleared
+// synchronously whenever the active screen is neither, so close, More, tabs and other screens never
+// carry a stale vendor or place.
 const screenArgs = shallowRef<ScreenArgs | null>(null);
+const takesArgs = (id: unknown): boolean => id === 'vendor' || id === 'map';
 watch(
   screens.active,
   (id) => {
-    if (id !== 'vendor') screenArgs.value = null;
+    if (!takesArgs(id)) screenArgs.value = null;
   },
   { flush: 'sync' },
 );
@@ -78,7 +80,7 @@ const frameControls: FrameControls = {
       screens.open(id, element);
     }
     // Set after open: a refused open (combat lock) or another screen keeps the arguments null.
-    screenArgs.value = id === 'vendor' && screens.active.value === 'vendor' ? (args ?? null) : null;
+    screenArgs.value = (id === 'vendor' || id === 'map') && screens.active.value === id ? (args ?? null) : null;
   },
   closeScreen() {
     if (screens.active.value !== null) screens.close();

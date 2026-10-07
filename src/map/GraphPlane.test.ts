@@ -133,7 +133,7 @@ function mountPlane(options: BuildOptions = {}) {
   return { wrapper, props };
 }
 
-const nodeButton = (w: VueWrapper, id: bigint) => w.get(`button.node[data-node-id="${id}"]`);
+const nodeButton = (w: VueWrapper, id: bigint) => w.get<HTMLButtonElement>(`button.node[data-node-id="${id}"]`);
 
 describe('GraphPlane: one pixel plane and svg', () => {
   it('is a div.graph-plane sized to the layout holding one svg of the same size', () => {

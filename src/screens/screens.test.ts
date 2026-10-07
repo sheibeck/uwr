@@ -2,10 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { PhMapTrifold } from '@phosphor-icons/vue';
+import MapScreen from '../map/MapScreen.vue';
 import { HEADER_SCREENS, SCREENS, getScreen } from './screens';
 
 const COPY: Record<string, [string, string]> = {
-  map: ['No places discovered yet.', 'This screen is still being built.'],
   social: ['No friends or party yet.', 'This screen is still being built.'],
   events: ['No world events right now.', 'This screen is still being built.'],
 };
@@ -31,7 +31,7 @@ describe('screen registry', () => {
   });
 });
 
-// Map, Social and World events are still Phase 45 placeholders; the other four are the real screens.
+// Social and World events are still Phase 45 placeholders; the other five are the real screens.
 describe('screen shells', () => {
   for (const screen of SCREENS.filter((candidate) => COPY[candidate.id])) {
     it(`${screen.id} renders its empty-state copy and a hidden icon`, () => {
@@ -43,8 +43,8 @@ describe('screen shells', () => {
     });
   }
 
-  it('only map, social and events are placeholders', () => {
-    expect(SCREENS.filter((candidate) => COPY[candidate.id]).map((s) => s.id)).toEqual(['map', 'social', 'events']);
+  it('only social and events are placeholders', () => {
+    expect(SCREENS.filter((candidate) => COPY[candidate.id]).map((s) => s.id)).toEqual(['social', 'events']);
   });
 });
 
@@ -68,12 +68,22 @@ describe('ledger screens (Phase 50 registration)', () => {
     });
   }
 
+  it('the map screen is the route-graph body from src/map and shows its empty state when bare', () => {
+    expect(getScreen('map').component).toBe(MapScreen);
+    const wrapper = mount(getScreen('map').component);
+    expect(wrapper.text()).toContain('No places discovered yet.');
+    expect(wrapper.text()).toContain('Travel to a new place and it appears here.');
+    expect(wrapper.text()).not.toContain('This screen is still being built.');
+    expect(wrapper.find('svg').attributes('aria-hidden')).toBe('true');
+    wrapper.unmount();
+  });
+
   it('the vendor screen is titled Trade while its label stays Vendor', () => {
     expect(getScreen('vendor').title).toBe('Trade');
     expect(getScreen('vendor').label).toBe('Vendor');
   });
 
-  it('map, social and events keep their placeholders and have no meta', () => {
+  it('map, social and events have no meta yet (the Map header chips come with plan 51-09)', () => {
     for (const id of ['map', 'social', 'events'] as const) {
       expect(getScreen(id).meta).toBeUndefined();
     }

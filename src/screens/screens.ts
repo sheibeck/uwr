@@ -13,11 +13,11 @@ import CraftingScreen from '../crafting/CraftingScreen.vue';
 import InventoryActions from '../inventory/InventoryActions.vue';
 import InventoryMeta from '../inventory/InventoryMeta.vue';
 import InventoryScreen from '../inventory/InventoryScreen.vue';
+import MapScreen from '../map/MapScreen.vue';
 import StatsMeta from '../stats/StatsMeta.vue';
 import StatsScreen from '../stats/StatsScreen.vue';
 import VendorMeta from '../vendor/VendorMeta.vue';
 import VendorScreen from '../vendor/VendorScreen.vue';
-import MapScreen from './MapScreen.vue';
 import SocialScreen from './SocialScreen.vue';
 import WorldEventsScreen from './WorldEventsScreen.vue';
 
@@ -31,7 +31,7 @@ export interface ScreenDef {
   label: string;
   /** Phosphor component. */
   icon: Component;
-  /** Body component: the real Ledger screen, or an empty-state shell (Map, Social, World events). */
+  /** Body component: the real Ledger screen, or an empty-state shell (Social, World events). */
   component: Component;
   /** Header meta (slots, gold, station); rendered in the drawer and sheet #meta slot. */
   meta?: Component;

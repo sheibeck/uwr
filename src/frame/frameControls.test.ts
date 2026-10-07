@@ -67,6 +67,16 @@ const Probe = defineComponent({
         h('button', { class: 'probe-open-bag', onClick: () => controls?.openScreen('bag') }, 'bag'),
         h(
           'button',
+          { class: 'probe-open-map-place', onClick: () => controls?.openScreen('map', { locationId: 11n }) },
+          'map place',
+        ),
+        h(
+          'button',
+          { class: 'probe-open-map-region', onClick: () => controls?.openScreen('map', { regionId: 2n }) },
+          'map region',
+        ),
+        h(
+          'button',
           {
             class: 'probe-open-vendor',
             onClick: () => controls?.openScreen('vendor', { npcId: 5n, npcName: 'Marta' }),
@@ -249,6 +259,59 @@ describe('AppFrame screen arguments (FrameControls.screenArgs)', () => {
     await settle();
     expect(controls!.activeScreen.value).toBe('vendor');
     expect(controls!.screenArgs.value).toBeNull();
+  });
+
+  it('opens the map with a place or a region and keeps those arguments', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-map-place').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('map');
+    expect(controls!.screenArgs.value).toEqual({ locationId: 11n });
+    expect(w.get('[role="dialog"] h4').text()).toBe('Map');
+
+    controls!.openScreen('map', { regionId: 2n });
+    await settle();
+    expect(controls!.activeScreen.value).toBe('map');
+    expect(controls!.screenArgs.value).toEqual({ regionId: 2n });
+  });
+
+  it('map arguments are cleared by close, by another screen and by the More tab', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-map-place').trigger('click');
+    await w.get('.probe-close').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBeNull();
+    expect(controls!.screenArgs.value).toBeNull();
+
+    await w.get('.probe-open-map-region').trigger('click');
+    await w.get('button[data-screen="stats"]').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('stats');
+    expect(controls!.screenArgs.value).toBeNull();
+
+    w.unmount();
+    wrapper = null;
+    const mobile = mountFrame(false);
+    await mobile.get('.probe-open-map-place').trigger('click');
+    await settle();
+    expect(controls!.screenArgs.value).toEqual({ locationId: 11n });
+    await mobile.get('button[data-tab="more"]').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('more');
+    expect(controls!.screenArgs.value).toBeNull();
+  });
+
+  it('the vendor and the map each keep only their own arguments', async () => {
+    const w = mountFrame(true);
+    await w.get('.probe-open-vendor').trigger('click');
+    await w.get('.probe-open-map-place').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('map');
+    expect(controls!.screenArgs.value).toEqual({ locationId: 11n });
+    await w.get('.probe-open-vendor').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('vendor');
+    expect(controls!.screenArgs.value).toEqual({ npcId: 5n, npcName: 'Marta' });
   });
 
   it('the inert frame has null screen arguments', () => {

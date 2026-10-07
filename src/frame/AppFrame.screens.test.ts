@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import type { Ref } from 'vue';
 import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
@@ -10,6 +10,10 @@ import type { GameData } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { LedgerData } from '../ledger/ledgerContext';
 import InventoryActions from '../inventory/InventoryActions.vue';
+import { knownPlaces } from '../map/knownPlaces';
+import { MAP_KEY, createInertMap } from '../map/mapContext';
+import type { MapData } from '../map/mapContext';
+import { adjacencyOf } from '../map/route';
 import { SCREENS, getScreen } from '../screens/screens';
 
 type Listener = (event: { matches: boolean }) => void;
@@ -54,15 +58,16 @@ const view: FrameView = {
 
 let wrapper: VueWrapper | null = null;
 
-function mountFrame(isDesktop: boolean, game?: GameData, ledger?: LedgerData): VueWrapper {
+function mountFrame(isDesktop: boolean, game?: GameData, ledger?: LedgerData, map?: MapData): VueWrapper {
   installMatchMedia(isDesktop);
   const provide: Record<symbol, unknown> = {};
   if (game) provide[GAME_KEY as symbol] = game;
   if (ledger) provide[LEDGER_KEY as symbol] = ledger;
+  if (map) provide[MAP_KEY as symbol] = map;
   wrapper = mount(AppFrame, {
     attachTo: document.body,
     props: { view, reconnecting: false, nextRetryAt: null, versionPrompt: false },
-    ...(game || ledger ? { global: { provide } } : {}),
+    ...(game || ledger || map ? { global: { provide } } : {}),
   });
   return wrapper;
 }
@@ -76,8 +81,8 @@ function fakeGame(over: Record<string, unknown> = {}): { game: GameData; moveCha
     character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n }),
     characterId: ref(1n),
     locations: ref([
-      { id: 10n, name: 'Ember Gate', regionId: 1n, isSafe: false, levelOffset: 0n },
-      { id: 11n, name: 'Gloamwood', regionId: 1n, isSafe: false, levelOffset: 0n },
+      { id: 10n, name: 'Ember Gate', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'town', bindStone: false, craftingAvailable: false },
+      { id: 11n, name: 'Gloamwood', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'woods', bindStone: false, craftingAvailable: false },
     ]),
     regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 600n }]),
     connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
@@ -85,6 +90,37 @@ function fakeGame(over: Record<string, unknown> = {}): { game: GameData; moveCha
     ...over,
   } as unknown as GameData;
   return { game, moveCharacter };
+}
+
+// A ready map hub over the fake game's two places (the Map drawer renders once its data applied).
+function readyMap(game: GameData): MapData {
+  const known = computed(() =>
+    knownPlaces({
+      visitedIds: [10n, 11n],
+      currentLocationId: 10n,
+      connections: [
+        { fromLocationId: 10n, toLocationId: 11n },
+        { fromLocationId: 11n, toLocationId: 10n },
+      ],
+      locations: game.locations.value,
+    }),
+  );
+  const selectedId = ref<bigint | null>(null);
+  const shownRegionId = ref<bigint | null>(null);
+  return {
+    ...createInertMap(),
+    ready: ref(true),
+    known,
+    adjacency: computed(() => adjacencyOf(known.value.edges)),
+    selectedId,
+    shownRegionId,
+    select: (id: bigint | null) => {
+      selectedId.value = id;
+    },
+    showRegion: (id: bigint | null) => {
+      shownRegionId.value = id;
+    },
+  } as unknown as MapData;
 }
 
 function partyRows(): Record<string, unknown> {
@@ -382,12 +418,28 @@ describe('mobile sheets', () => {
 });
 
 describe('mobile sheet bodies (CON-03, CON-04)', () => {
-  it('desktop drawers keep the Phase 45 empty states even with a provided game', async () => {
+  it('the desktop Map drawer shows the legend and the route graph instead of the old empty state', async () => {
+    const { game } = fakeGame(partyRows());
+    const w = mountFrame(true, game, undefined, readyMap(game));
+    await w.get('button[data-screen="map"]').trigger('click');
+    await settle();
+    const dialog = w.get('[role="dialog"]');
+    expect(dialog.get('h4').text()).toBe('Map');
+    expect(dialog.get('.legend').text()).toContain('Danger vs Lv 6:');
+    expect(dialog.get('[role="group"]').attributes('aria-label')).toBe('Ashfall Wilds route graph');
+    expect(dialog.findAll('button.node')).toHaveLength(2);
+    expect(dialog.text()).not.toContain('No places discovered yet.');
+    expect(dialog.text()).not.toContain('This screen is still being built.');
+  });
+
+  it('desktop Social keeps its Phase 45 empty state even with a provided game', async () => {
     const { game } = fakeGame(partyRows());
     const w = mountFrame(true, game);
     await w.get('button[data-screen="map"]').trigger('click');
     await settle();
-    expect(w.get('[role="dialog"]').text()).toContain('No places discovered yet.');
+    // not ready: the Map draws nothing yet (no placeholder graph)
+    expect(w.get('[role="dialog"]').find('.legend').exists()).toBe(false);
+    expect(w.get('[role="dialog"]').text()).not.toContain('No places discovered yet.');
     await w.get('button[data-screen="social"]').trigger('click');
     await settle();
     expect(w.get('[role="dialog"]').text()).toContain('No friends or party yet.');

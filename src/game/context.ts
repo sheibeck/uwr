@@ -202,16 +202,20 @@ export interface GameData {
   dispose(): void;
 }
 
-/** Arguments a screen opens with (the vendor screen: which NPC). */
+/** Arguments a screen opens with (the vendor screen: which NPC; the Map: which place or region). */
 export interface ScreenArgs {
   npcId?: bigint;
   npcName?: string;
+  /** Map: open with this place selected and its region shown. */
+  locationId?: bigint;
+  /** Map: show this region with its start node selected (or your place when you stand in it). */
+  regionId?: bigint;
 }
 
 export interface FrameControls {
   readonly isDesktop: Readonly<Ref<boolean>>;
   readonly activeScreen: Readonly<Ref<ActiveScreen>>;
-  /** The arguments of the open vendor screen; null for every other screen and when closed. */
+  /** The arguments of the open vendor (which NPC) or map (which place or region) screen; null for every other screen and when closed. */
   readonly screenArgs: Readonly<Ref<ScreenArgs | null>>;
   openScreen(id: ScreenId | 'encounter', args?: ScreenArgs): void;
   /** No-op when nothing is open. */
