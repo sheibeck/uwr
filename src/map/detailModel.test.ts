@@ -51,7 +51,6 @@ const EDGES = [
   { a: 10n, b: 50n },
 ];
 const ADJ = adjacencyOf(EDGES);
-const NAMES = new Map<bigint, string>([...LOCATIONS].map(([id, l]) => [id, l.name]));
 const regionName = (id: bigint): string => REGIONS.find((r) => r.id === id)?.name ?? 'Unknown region';
 
 const me: TravellerLike = { id: 1n, name: 'Aldric', locationId: 10n, stamina: 50n };
