@@ -14,6 +14,9 @@ import { MAP_KEY, createInertMap } from './mapContext';
 import type { MapData } from './mapContext';
 import { adjacencyOf } from './route';
 import { useDestination } from './useDestination';
+import { useMapGraph } from './useMapGraph';
+import type { MapGraph } from './useMapGraph';
+import GraphPlane from './GraphPlane.vue';
 
 const SOURCE = readFileSync(resolve(process.cwd(), 'src/map/MapSheet.vue'), 'utf8');
 const XSS = '<img src=x onerror=alert(1)>';
@@ -182,12 +185,15 @@ function build(over: Options = {}) {
     reducers: computed(() => (connected.value ? { moveCharacter } : null)),
   } as unknown as GameData;
 
+  // The Map screen builds the one graph model and passes it to the sheet with the destination.
+  let graph: MapGraph | null = null;
   const Host = defineComponent({
     setup(_, { expose }) {
       const destination = useDestination();
+      graph = useMapGraph(() => true);
       const sheet = ref<InstanceType<typeof MapSheet> | null>(null);
       expose({ sheet });
-      return () => h(MapSheet, { ref: sheet, destination });
+      return () => h(MapSheet, { ref: sheet, destination, graph: graph as MapGraph });
     },
   });
 
@@ -217,6 +223,7 @@ function build(over: Options = {}) {
 
   return {
     w: wrapper,
+    graph: graph as unknown as MapGraph,
     game,
     map,
     character,
@@ -402,5 +409,24 @@ describe('MapSheet: safety and layout', () => {
     expect(SOURCE).not.toContain('v-html');
     expect(SOURCE).not.toMatch(/<svg/);
     expect(SOURCE).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+});
+
+describe('MapSheet: the shared graph (plan 51-12)', () => {
+  it('renders from the graph prop and feeds its plane size to graph.setCanvas', async () => {
+    const { w, graph } = build({ selected: 11n });
+    expect(w.findComponent(MapSheet).props('graph')).toBe(graph);
+    expect(graph.canvas.value).toBeNull();
+    w.findComponent(GraphPlane).vm.$emit('resize', { width: 700, height: 500 });
+    await nextTick();
+    expect(graph.canvas.value).toEqual({ width: 700, height: 500 });
+    expect(w.get('.graph-plane').attributes('style')).toContain('width: 700px');
+    expect(graph.layout.value?.caption).toBeNull();
+  });
+
+  it('source: takes the graph as a prop and never builds its own', () => {
+    expect(SOURCE).not.toContain('useMapGraph(');
+    expect(SOURCE).toContain('graph: MapGraph');
+    expect(SOURCE).toContain('@resize="props.graph.setCanvas"');
   });
 });

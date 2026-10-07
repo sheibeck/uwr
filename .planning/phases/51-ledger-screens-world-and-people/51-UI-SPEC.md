@@ -125,6 +125,7 @@ Rail changes stay in `src/rails/`. Phase 50 parts are reused from `src/ledger/`:
 | 50 frame contract: the 1200px tier only under `src/(inventory\|stats\|vendor\|crafting)/` | The allow-list adds `map` (`frameContract.test.ts` line 92). 51.1 adds `social` and 51.2 adds `events` |
 | 50 `ScreenArgs` = `{ npcId?, npcName? }`, kept only for `vendor` | Adds `{ locationId?, regionId? }` for `map`. `AppFrame` keeps args for `map` too |
 | 45 design guard: no `<svg` anywhere | `<svg` is allowed in `src/map/` only (owner) |
+| Route graph layout steps 1 to 8 (breadth-first columns, start on the left, 192 x 72 pitch, outer columns) | Owner play-test 2026-10-07 (51-CONTEXT MS-01 to MS-08, plan 51-12): the two-dimensional layout replaces the breadth-first columns. It fills the measured canvas with 160px (112px mobile) spacing, puts other regions outside the outline on the facing side, and orders nodes, the List, End and the gate pills in reading order |
 | First draft of this file: CSS-rotated `div` edges, a floating legend pill, zoom stack, two travel buttons (`Travel with party`, `Travel alone`), and a level-free crossing-timer chip only | Replaced by the map2 contract below: SVG edges in `src/map/`, a legend row, no zoom stack, **one** Travel button, and the timer pill plus chip and gate locks |
 
 ---
@@ -455,28 +456,25 @@ Mobile            sheet title Map, meta {Region}
   4. the gate pills.
 
   Every position is in plane pixels, so circles, lines, labels and pills never drift. The canvas around the plane has `overflow: auto`. There is no zoom (Mock overrides 18).
-- **Layout (deterministic, pure, tested; `src/map/graphLayout.ts`).** Input: the shown region's known places, the known places of other regions that connect to them, and the known connections. Output: positions, the border box and the gate points.
-  1. **Start node.** This is the region's start place. Research names the rule; the recommendation is the region's place with `bindStone`, lowest id, else the lowest id in the region (O2).
-  2. **Breadth-first search** runs over the region's known places from the start node, using connections between known places. Depth is the number of steps from the start.
-  3. **Columns.** Column = depth, with the start on the left. x = left margin + depth × 192. The left margin is 48, or 48 + 192 when there are left border nodes (step 6).
-  4. **Rows.** Inside a column, places are ordered by the parent's row index, then by name (`localeCompare`, base sensitivity), then by id. y = 48 + row × 72. Shorter columns are centered on the tallest.
-  5. **Unreachable known places** of the region form extra columns after the last, ordered by name then id.
-  6. **Border nodes.** A known place in another region that connects to a place in this region is drawn outside the border box:
-     - in a **left outer column** when its neighbour's depth is at most half the deepest depth (rounded down), else in a **right outer column**;
-     - at its neighbour's row when that row is free in the outer column, else at the nearest free row (ties go up);
-     - with its label on the outer side (left-column labels are right-aligned and end 20px left of the node);
-     - with a sub-line that starts with `{Region} · `.
-  7. **Border box.** The box spans from the region columns' outermost node centers, inset by 32 (left, top and bottom) and by 176 on the right (to clear labels). The outer columns sit 48 outside the box.
-  8. **Plane size.** The plane is large enough for every node, label and pill, plus 48 on each side.
-  - The same inputs always give the same layout (no randomness, no time, no measured text). The layout takes plain lists, so a later layer view (999.26) can feed it a sub-region without changes.
+- **Layout (deterministic, pure, tested; `src/map/graphLayout.ts`).** Input: the shown region's known places, the known places of other regions that connect to them, the known connections, the measured canvas size (or none) and the mode (desktop or compact mobile). Output: positions, label boxes, the border box, the caption box and the gate points. Owner play-test 2026-10-07 (51-CONTEXT MS-01 to MS-08, plan 51-12):
+  1. **Start node.** The region's place with `bindStone`, lowest id, else the lowest id in the region (`regionStartId`).
+  2. **Two dimensions (MS-01).** A stress layout on graph distances softened to the power 0.6, with a fixed number of iterations and start positions on a golden-angle spiral in breadth-first order from the start (neighbours by name with the fixed `'en'` locale, then id). A chain bends and branches split. The principal axis lies along the canvas's longer side and the start sits in the top-left quadrant.
+  3. **Breathing room (MS-03).** Place centres are at least 160px apart on desktop and 112px on mobile (`MIN_NODE_GAP`, `COMPACT_MIN_NODE_GAP`; one constant each if the owner wants more).
+  4. **Fill the canvas (MS-02).** The plane's scroll area is measured (a ResizeObserver, whole pixels) and the region is scaled up to fill it, with no in-region edge longer than 360px. A region that cannot fit keeps the minimum spacing and scrolls. Until the first measurement the layout uses the minimum spacing; the Map may shift as places are discovered (owner, 2026-10-07).
+  5. **Labels.** Each label box (144 wide, 36 high; 16 on mobile) takes the first clear slot beside its node (right, left, below, above, then the diagonals), preferring slots that stay inside the region and cross the fewest edges. Labels keep 4px from every hit box and every other label. A label left of its node is right-aligned; one above or below is centred.
+  6. **Outline.** The region outline is a rounded rectangle around the region's hit boxes and labels, padded 48 (56 at the top), grown to fill the measured canvas.
+  7. **Other regions outside (MS-04).** A known place of another region that connects to this region sits 64px outside the outline, on the side (top, right, bottom or left) that faces its neighbours inside the region; near-ties go to top or bottom. Its label sits outside the outline and its sub-line starts with `{Region} · `.
+  8. **Plane size.** The plane holds every box plus 48 on each side and is never smaller than the measured canvas (the content is centred in it). Every coordinate is a whole pixel.
+  9. **Reading order (MS-05).** Nodes and gate pills come in reading order: top to bottom, then left to right (then id or key).
+  - The same inputs always give the same layout in any input order and locale (no randomness, no time, no measured text). The layout takes plain lists, so a later layer view (999.26) can feed it a sub-region without changes.
 - **Region border.** One SVG `rect` on the border box (`rx` 24) with the border colors. There is one border, for the shown region only.
-- **Region caption.** The shown region's name in Micro 10, uppercase, 0.1em tracking, `var(--color-neutral-500)`, inside the box's top-left corner (16 in from the box edges, as plane offsets). It is `aria-hidden` (the graph group's label carries the region).
+- **Region caption.** The shown region's name in Micro 10, uppercase, 0.1em tracking, `var(--color-neutral-500)`, 16 in from the outline edges in the first clear corner of the outline (top-left, top-right, bottom-left, bottom-right), clear of nodes, labels and gate pills; when no corner is clear, a strip is added on top of the outline. Desktop only (MS-07: the mobile region row names the region). It ellipsizes at 160px. It is `aria-hidden` (the graph group's label carries the region).
 - **Edges.** One SVG `line` per undirected connection between two drawn nodes. The server writes two directed rows; they are deduped by the unordered pair.
   - Each line runs from node center to node center in plane pixels, so it is the same coordinate space as the HTML nodes.
   - Class by kind: in-region (solid), cross-region (dashed `6 4`, `--color-accent-600`), or to an uncharted place (dashed `4 4`).
   - Edges are drawn before nodes, and the SVG is `aria-hidden`.
 - **Route.** One SVG `polyline` (2px, accent) through the shortest path from the current place to the selected node. The path is found breadth-first over **all** known places in every region; ties go to the lower id. Only segments between drawn nodes are drawn. When the current place is not drawn (another region is shown), the route is drawn from the border node where the path enters.
-- **Gate pills (region entrances).** One pill per cross-region edge, centered where the edge meets the border box side.
+- **Gate pills (region entrances).** One pill per cross-region edge, centered where the edge meets the outline. When that spot is not 16px clear of every hit box, label, the caption and the other pills (on mobile the 44px tap area counts), the pill slides along its edge in 8px steps, then along the outline side (CR-01). Pills are tab stops after the graph group in reading order (IN-07).
   - It is a `button.gate` with `PhDoorOpen` 12 and `To {Region} · {Lv a–b}`. The level part is in that region's band color: a warning only, never a lock.
   - **While the caller's region-travel timer runs**, every gate shows `PhLockSimple` 12 and `{Region} · {m:ss}`. The visible time is `aria-hidden`.
   - Choosing a gate selects the node on the far side (the border node). The gate has no detail of its own.
@@ -549,14 +547,13 @@ The legend is ordinary text (swatches and icons are `aria-hidden`). On mobile it
 ### Graph keyboard and screen-reader equivalent
 
 - **Roving tabindex.** The graph is one tab stop (`role="group"`, `aria-label="{Region} route graph"`).
-  - Arrow Up and Down move within a column.
-  - Arrow Left and Right move to the nearest-row node in the previous or next column (outer columns included).
-  - Home goes to the current place (or the start node); End goes to the last node.
+  - Arrow keys move to the nearest place in their direction (places inside the 45-degree cone first, then the smallest forward plus twice the sideways offset, ties in reading order). With no place in that direction the focus stays.
+  - Home goes to the current place (or the start node); End goes to the last place in reading order.
   - Enter or Space selects. The focused node scrolls into view.
   - Gate pills are separate tab stops after the group, in layout order.
 - **Node `aria-label`:** `{name}, {here | visited | heard of}{, other region {Region}}{, uncharted}{, passage}{, bind point}{, bind stone}{, crafting}{, safe | , level {a} to {b}, {band}}`, then `, {n} steps from here` (or `, you are here`, or `, no known path`). The selected node has `aria-pressed="true"`.
 - **List view.** A view switch sits at the canvas top-right on desktop (`position: absolute`, offset 8) and above the canvas on mobile. It is a `SegTabs` (tablist `Map view`) with the tabs `Graph` (`PhGraph`) and `List` (`PhListBullets`).
-  - The List panel is a `ul` of every drawn node in layout order.
+  - The List panel is a `ul` of every drawn node in reading order (top to bottom, then left to right), the same order as the graph's nodes and End.
   - Each row is a `button` (min-height 32, 44 mobile) with the name, the state word, the level and band, and `{n} steps` (or `Here`). Under it is the sub-line `Connects to {A}, {B}` (Label 12, `var(--color-neutral-500)`). Crossings read `{place} ({Region})`.
   - Selecting a row selects the node exactly as in the graph.
   - The List view is the complete equivalent for keyboard and screen-reader users, and the graph's focus order matches it.

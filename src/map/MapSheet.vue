@@ -13,18 +13,19 @@ import RegionsListbox from './RegionsListbox.vue';
 import TravelPill from './TravelPill.vue';
 import { aboutMinutes, formatClock } from './travelTimer';
 import type { Destination } from './useDestination';
-import { useMapGraph } from './useMapGraph';
+import type { MapGraph } from './useMapGraph';
 
 // The mobile Map tab (51-UI-SPEC "Mobile map (sheet)"): the region row with the Regions button and the
 // compact travel pill, the Legend disclosure, the Graph | List switch, the canvas and the dock. It
-// renders from the same graph model as the desktop Map (useMapGraph) and the same destination model
-// as the desktop detail (the destination prop, shared with the dock), so nothing here decides a rule.
+// renders from the graph model the Map screen built (the graph prop: one useMapGraph per screen, so
+// the layout runs once) and the same destination model as the desktop detail (the destination prop,
+// shared with the dock), so nothing here decides a rule. Its plane's measured scroll area goes to
+// the graph's setCanvas, so the region fills the mobile canvas too.
 // The Map screen owns arrival, region and selection watchers and reaches the canvas and the dock
 // through the three methods exposed below. Every server string is a text node or a bound attribute.
-const props = defineProps<{ destination: Destination }>();
+const props = defineProps<{ destination: Destination; graph: MapGraph }>();
 
 const map = inject(MAP_KEY, createInertMap());
-const graph = useMapGraph(() => true);
 
 const plane = useTemplateRef<InstanceType<typeof GraphPlane>>('plane');
 const dock = useTemplateRef<InstanceType<typeof MapDock>>('dock');
@@ -38,7 +39,7 @@ const VIEW_TABS = [
 const regionsOpen = ref(false);
 const legendOpen = ref(false);
 
-const shownChip = computed(() => graph.chips.value.find((chip) => chip.isShown));
+const shownChip = computed(() => props.graph.chips.value.find((chip) => chip.isShown));
 const levelText = computed(() => shownChip.value?.levelLabel ?? '');
 const levelColor = computed(() => {
   const chip = shownChip.value;
@@ -74,9 +75,9 @@ function onView(id: string): void {
 
 /** Your place, or the start node when you are elsewhere, to the middle of the canvas. */
 function centerOnYou(): void {
-  const current = graph.layout.value;
+  const current = props.graph.layout.value;
   if (current === null) return;
-  const here = graph.currentId.value;
+  const here = props.graph.currentId.value;
   const target = here !== null && current.nodes.some((node) => node.id === here) ? here : current.startId;
   if (target !== null) plane.value?.scrollToNode(target);
 }
@@ -97,9 +98,9 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
 </script>
 
 <template>
-  <div v-if="graph.layout.value !== null" class="sheet-map">
+  <div v-if="props.graph.layout.value !== null" class="sheet-map">
     <div class="region-row">
-      <span class="region-name">{{ graph.regionName.value }}</span>
+      <span class="region-name">{{ props.graph.regionName.value }}</span>
       <span v-if="levelText !== ''" class="region-level" :style="{ color: levelColor }">{{ levelText }}</span>
       <span class="region-spacer"></span>
       <button
@@ -117,7 +118,7 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
     </div>
     <RegionsListbox
       v-if="regionsOpen"
-      :chips="graph.chips.value"
+      :chips="props.graph.chips.value"
       :locked="timer.running"
       :time-text="timeText"
       :about-text="aboutText"
@@ -134,7 +135,7 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
       <span>Legend</span>
       <PhCaretDown class="caret" :class="{ open: legendOpen }" :size="16" aria-hidden="true" />
     </button>
-    <MapLegend v-if="legendOpen" :player-level="graph.playerLevel.value" :mobile="true" />
+    <MapLegend v-if="legendOpen" :player-level="props.graph.playerLevel.value" :mobile="true" />
 
     <div class="canvas-block">
       <SegTabs
@@ -148,17 +149,18 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
         <GraphPlane
           v-if="map.view.value === 'graph'"
           ref="plane"
-          :layout="graph.layout.value"
-          :views="graph.views.value"
-          :gates="graph.gates.value"
-          :routes="graph.routes.value"
-          :region-name="graph.regionName.value"
+          :layout="props.graph.layout.value"
+          :views="props.graph.views.value"
+          :gates="props.graph.gates.value"
+          :routes="props.graph.routes.value"
+          :region-name="props.graph.regionName.value"
           :selected-id="map.selectedId.value"
-          :current-id="graph.currentId.value"
+          :current-id="props.graph.currentId.value"
           :mobile="true"
           @select="onSelect"
+          @resize="props.graph.setCanvas"
         />
-        <GraphList v-else :rows="graph.rows.value" @select="onSelect" />
+        <GraphList v-else :rows="props.graph.rows.value" @select="onSelect" />
       </SegTabs>
       <div v-if="map.banner.value" class="arrival-banner" role="status">
         <PhFootprints class="banner-icon" :size="14" aria-hidden="true" />

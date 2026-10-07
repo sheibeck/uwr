@@ -1,8 +1,8 @@
-import { computed, inject } from 'vue';
-import type { ComputedRef } from 'vue';
+import { computed, inject, shallowRef } from 'vue';
+import type { ComputedRef, ShallowRef } from 'vue';
 import { GAME_KEY, createInertGame } from '../game/context';
-import { layoutGraph } from './graphLayout';
-import type { GraphLayout, LayoutPlace } from './graphLayout';
+import { layoutGraph, regionStartId } from './graphLayout';
+import type { CanvasSize, GraphLayout, LayoutPlace } from './graphLayout';
 import { MAP_KEY, createInertMap } from './mapContext';
 import type { KnownPlacesResult } from './mapContext';
 import { gateView, listRows, nodeViews, routePolylines } from './nodeView';
@@ -13,8 +13,13 @@ import { shortestPath, stepsFrom } from './route';
 
 // What the Map draws, as one set of computeds over the game rows and the map hub: the known places,
 // the region on show, the layout, the node views, the list rows, the route and the region chips and
-// gates. The desktop Map screen and the mobile Map sheet (plan 51-11) both read it, so the two
-// layouts can never disagree about what is on the map. `mobile` only changes the gate pill text.
+// gates. The Map screen builds it once and hands the same object to the mobile Map sheet (the graph
+// prop), so the two layouts can never disagree and mobile lays the graph out once (review WR-03).
+// `mobile` selects the compact layout (112px spacing, 44px targets, no caption) and the gate pill
+// text. The canvas is the plane's measured scroll area (setCanvas, from GraphPlane's resize), so the
+// region fills it (51-12, MS-02); null lays out at the minimum spacing until the first measurement.
+// The layout reads only primitive and stable inputs, so a character row update that keeps the place
+// (the regen tick) does not lay the graph out again.
 //
 // The region rules (which region you stand in, which one is shown, the chips) are useShownRegion,
 // which useMapGraph builds on. The header chips (MapMeta, rendered by the frame outside the Map
@@ -33,7 +38,12 @@ export interface ShownRegion {
 }
 
 export interface MapGraph extends ShownRegion {
-  layoutFor(regionId: bigint): GraphLayout;
+  /** The measured canvas the layout fills; null until the plane has measured its scroll area. */
+  canvas: Readonly<ShallowRef<CanvasSize | null>>;
+  /** Sets the canvas; a size equal to the current one is ignored, null resets it. */
+  setCanvas(size: CanvasSize | null): void;
+  /** The region's start place (the start rule of the layout), without laying the region out. */
+  startIdFor(regionId: bigint): bigint | null;
   layout: ComputedRef<GraphLayout | null>;
   regionName: ComputedRef<string>;
   regionNameOf(id: bigint | null): string;
@@ -102,15 +112,34 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     };
   }
 
-  function layoutFor(regionId: bigint): GraphLayout {
-    return layoutGraph({
-      regionId,
-      places: drawn.value.map(toLayoutPlace),
-      edges: map.known.value.edges,
-    });
+  const layoutPlaces = computed(() => drawn.value.map(toLayoutPlace));
+
+  const canvas = shallowRef<CanvasSize | null>(null);
+  function setCanvas(size: CanvasSize | null): void {
+    const current = canvas.value;
+    if (size === null) {
+      canvas.value = null;
+      return;
+    }
+    if (current !== null && current.width === size.width && current.height === size.height) return;
+    canvas.value = { width: size.width, height: size.height };
   }
 
-  const layout = computed<GraphLayout | null>(() => (shownId.value === null ? null : layoutFor(shownId.value)));
+  function startIdFor(regionId: bigint): bigint | null {
+    return regionStartId(layoutPlaces.value, regionId);
+  }
+
+  const layout = computed<GraphLayout | null>(() => {
+    const regionId = shownId.value;
+    if (regionId === null) return null;
+    return layoutGraph({
+      regionId,
+      places: layoutPlaces.value,
+      edges: map.known.value.edges,
+      canvas: canvas.value,
+      compact: mobile(),
+    });
+  });
   function regionNameOf(id: bigint | null): string {
     return regions.value.find((region) => region.id === id)?.name ?? 'Unknown region';
   }
@@ -172,7 +201,9 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     drawnIds,
     currentRegionId,
     shownId,
-    layoutFor,
+    canvas,
+    setCanvas,
+    startIdFor,
     layout,
     regionName,
     regionNameOf,

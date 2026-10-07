@@ -298,6 +298,28 @@ describe('known places and adjacency', () => {
     ]);
     expect(h.hub.adjacency.value.get(2n)).toEqual([1n, 3n]);
   });
+
+  it('depends on the place id only: a row update at the same place keeps known (review WR-03)', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacter.value = { ...character(1n, 1n), stamina: 40n };
+    applyAll(h);
+    h.find('Q_CONNECTIONS').rows.value = [
+      { id: 1n, fromLocationId: 1n, toLocationId: 2n },
+      { id: 2n, fromLocationId: 2n, toLocationId: 3n },
+    ];
+    const before = h.hub.known.value;
+    const adjacencyBefore = h.hub.adjacency.value;
+    // the regen tick: a new row object, same place, other stamina
+    h.activeCharacter.value = { ...character(1n, 1n), stamina: 48n };
+    expect(h.hub.known.value).toBe(before);
+    expect(h.hub.adjacency.value).toBe(adjacencyBefore);
+    // a real move: a new known value with the new place visited
+    h.activeCharacter.value = { ...character(1n, 2n), stamina: 48n };
+    const after = h.hub.known.value;
+    expect(after).not.toBe(before);
+    expect(after.visited.has(2n)).toBe(true);
+  });
 });
 
 describe('timers', () => {

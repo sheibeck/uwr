@@ -8,10 +8,12 @@ import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/
 import type { FrameControls, GameData, ScreenArgs } from '../game/context';
 import type { Location } from '../module_bindings/types';
 import GraphList from './GraphList.vue';
+import GraphPlane from './GraphPlane.vue';
 import { knownPlaces } from './knownPlaces';
 import { MAP_KEY, createInertMap } from './mapContext';
 import type { MapData, MapView } from './mapContext';
 import MapScreen from './MapScreen.vue';
+import MapSheet from './MapSheet.vue';
 import { adjacencyOf } from './route';
 import type { TravelTimer } from './travelTimer';
 
@@ -717,5 +719,72 @@ describe('MapScreen: mobile Map and Here tabs (plan 51-11)', () => {
     expect(SOURCE).toContain('<MapSheet');
     expect(SOURCE).toContain('<NoticeLine');
     expect(SOURCE).toContain('useDestination()');
+  });
+});
+
+describe('MapScreen: one shared graph and the measured canvas (plan 51-12)', () => {
+  const graphOf = (w: VueWrapper) =>
+    (w.vm as unknown as { graph: { canvas: { value: unknown }; setCanvas(size: unknown): void } }).graph;
+  const planeWidth = (w: VueWrapper): string => (w.get('.graph-plane').attributes('style') ?? '').split(';')[0];
+
+  it('source: MapScreen builds the graph once and hands it to MapSheet', () => {
+    const sheetSource = readFileSync(resolve(process.cwd(), 'src/map/MapSheet.vue'), 'utf8');
+    expect(SOURCE.split('useMapGraph(').length - 1).toBe(1);
+    expect(sheetSource).not.toContain('useMapGraph(');
+    expect(SOURCE).toContain(':graph="graph"');
+    expect(SOURCE).toContain('startIdFor(');
+    expect(SOURCE).not.toContain('layoutFor(');
+  });
+
+  it('passes its own graph to MapSheet on mobile', async () => {
+    const h = harness({ desktop: false });
+    const w = await mountScreen(h);
+    const sheet = w.findComponent(MapSheet);
+    expect(sheet.exists()).toBe(true);
+    expect(sheet.props('graph')).toBe(graphOf(w));
+  });
+
+  it('feeds the GraphPlane resize to graph.setCanvas on desktop', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    expect(graphOf(w).canvas.value).toBeNull();
+    w.findComponent(GraphPlane).vm.$emit('resize', { width: 652, height: 600 });
+    await nextTick();
+    expect(graphOf(w).canvas.value).toEqual({ width: 652, height: 600 });
+    expect(planeWidth(w)).toBe('width: 652px');
+  });
+
+  it('feeds the GraphPlane resize to graph.setCanvas on mobile', async () => {
+    const h = harness({ desktop: false });
+    const w = await mountScreen(h);
+    w.findComponent(GraphPlane).vm.$emit('resize', { width: 700, height: 500 });
+    await nextTick();
+    expect(graphOf(w).canvas.value).toEqual({ width: 700, height: 500 });
+    expect(planeWidth(w)).toBe('width: 700px');
+  });
+
+  it('scrolls the selected place into view again after the first measured size only', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    const w = await mountScreen(h);
+    scrolled.length = 0;
+    w.findComponent(GraphPlane).vm.$emit('resize', { width: 652, height: 600 });
+    await nextTick();
+    await nextTick();
+    expect(scrolled.map((el) => el.dataset.nodeId)).toEqual(['12']);
+    w.findComponent(GraphPlane).vm.$emit('resize', { width: 900, height: 600 });
+    await nextTick();
+    await nextTick();
+    expect(scrolled).toHaveLength(1);
+  });
+
+  it('resets the canvas when the frame switches between desktop and mobile', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    w.findComponent(GraphPlane).vm.$emit('resize', { width: 652, height: 600 });
+    await nextTick();
+    expect(graphOf(w).canvas.value).not.toBeNull();
+    h.isDesktop.value = false;
+    await nextTick();
+    expect(graphOf(w).canvas.value).toBeNull();
   });
 });

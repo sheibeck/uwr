@@ -178,11 +178,17 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
       () => visitedApplied.value && connectionsApplied.value && cooldownsApplied.value,
     );
 
-    const known = computed<KnownPlacesResult>(() => {
+    // The place id alone, so a character row update that keeps the place (the regen tick, stamina, HP
+    // or XP) re-runs neither the known places nor the adjacency, steps and layout built on them
+    // (review WR-03). An equal bigint does not trigger the computeds that read it.
+    const currentLocationId = computed<bigint | null>(() => {
       const here = input.character.value?.locationId ?? 0n;
+      return here === 0n ? null : here;
+    });
+    const known = computed<KnownPlacesResult>(() => {
       return knownPlaces<Location>({
         visitedIds: visitedIds.value,
-        currentLocationId: here === 0n ? null : here,
+        currentLocationId: currentLocationId.value,
         connections: connections.value,
         locations: input.locations.value,
       });

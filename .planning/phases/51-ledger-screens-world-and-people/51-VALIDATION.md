@@ -71,6 +71,9 @@ Per-task map (plans 51-01 to 51-11, one row per task). Every command was green i
 | 51-11-T1 | 51-11 | 6 | LDG-04, LDG-05 | component + guard + type check | `pnpm exec vitest run src/map --maxWorkers=2 && pnpm exec vitest run src/styles --maxWorkers=2 && pnpm exec vue-tsc -b` | ✅ | ✅ green |
 | 51-11-T2 | 51-11 | 6 | LDG-05 | frame flow + source | `pnpm exec vitest run src/frame/AppFrame.screens.test.ts src/map/mobileTargets.test.ts --maxWorkers=2 && grep -q "one Travel button" .planning/REQUIREMENTS.md` | ✅ | ✅ green |
 | 51-11-T3 | 51-11 | 6 | LDG-04, LDG-05 | phase gate | `pnpm exec vue-tsc -b && pnpm exec vitest run src/styles src/frame/frameContract.test.ts src/legacyClientRemoval.test.ts src/map/mapGuards.test.ts --maxWorkers=2`, then the frontmatter flags and the 29-row count greps | ✅ | ✅ green |
+| 51-12-T1 | 51-12 | 7 | LDG-04 | unit (TDD) | `npx vitest run src/map/graphLayout.test.ts src/map/order.test.ts src/map/mapGuards.test.ts --maxWorkers=2` | ✅ | ✅ green |
+| 51-12-T2 | 51-12 | 7 | LDG-04 | unit + component (TDD) | `npx vitest run src/map/nodeView.test.ts src/map/GraphPlane.test.ts src/map/graphLayout.test.ts src/map/mobileTargets.test.ts --maxWorkers=2 && npx vitest run src/styles --maxWorkers=2` | ✅ | ✅ green |
+| 51-12-T3 | 51-12 | 7 | LDG-04 | component + guard + type check (TDD) | `npx vitest run src/map src/frame --maxWorkers=2 && npx vitest run src/styles --maxWorkers=2 && npx vue-tsc -b` | ✅ | ✅ green |
 
 Requirement-level map:
 
@@ -110,6 +113,7 @@ Requirement-level map:
 |----------|-------------|------------|-------------------|
 | Map reads well at 1280 and 390×844 | LDG-04 | visual layout | Deferred to the end-of-milestone UAT: open the Map, pick places, travel, cross a border |
 | Passage collapses in a live world | LDG-04 | needs a real uncharted crossing (paid LLM call) | Deferred UAT with owner go-ahead |
+| Map spacing (owner play-test 2026-10-07, plan 51-12): Sennet Basin, Tessarine Shelf and Orrowmere Teeth spread out in two dimensions, other regions outside the outline on the facing side, pills clear of places | LDG-04 | visual layout | Deferred to the end-of-milestone UAT: at 1280x800 open the Map on each region; at 390x844 open the same regions in the mobile sheet |
 
 ---
 

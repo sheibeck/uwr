@@ -27,6 +27,12 @@ import { useMapGraph } from './useMapGraph';
 // respawn) the selection moves to the new place, the graph switches region when it changed, the
 // arrival banner shows and focus moves to the detail heading. Nothing is optimistic.
 //
+// The screen builds the graph model once (useMapGraph) and hands the same object to MapSheet on
+// mobile, so the layout runs once per real change. The plane reports its measured scroll area
+// (resize), which the graph lays the region out to fill (51-12, MS-02); a switch between desktop and
+// mobile measures again from scratch, and the first measurement after open scrolls the selection
+// into view once more, onto the final layout.
+//
 // Nothing renders until the visited view, connections and travel cooldowns have applied. Screen
 // arguments only ever select among known places and regions (T-51-33); an unknown id falls back to
 // your place and region. Every name is a text node or a bound attribute (T-51-32).
@@ -68,7 +74,7 @@ const VIEW_TABS = [
 // ---------------------------------------------------------------------------
 
 const graph = useMapGraph(() => !frame.isDesktop.value);
-const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, layoutFor, layout, regionName, regionNameOf } = graph;
+const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, startIdFor, layout, regionName, regionNameOf } = graph;
 const { views, rows, routes, gates } = graph;
 
 // ---------------------------------------------------------------------------
@@ -107,7 +113,7 @@ function applyArgs(args: ScreenArgs | null): void {
     map.select(place.id);
   } else if (args?.regionId !== undefined && map.known.value.knownRegionIds.includes(args.regionId)) {
     map.showRegion(args.regionId);
-    const start = args.regionId === homeRegion ? here : layoutFor(args.regionId).startId;
+    const start = args.regionId === homeRegion ? here : startIdFor(args.regionId);
     map.select(start ?? here);
   } else {
     map.showRegion(homeRegion);
@@ -133,6 +139,22 @@ watch(
 );
 
 watch(plane, flushScroll, { flush: 'post' });
+
+// A switch between desktop and mobile shows another plane in another scroll area: measure again.
+watch(
+  () => frame.isDesktop.value,
+  () => graph.setCanvas(null),
+);
+
+// The first measured canvas after open (or after a reset) lays the region out again to fill it, so
+// the open-scroll is repeated onto the final layout (UI-SPEC "On open, the canvas scrolls so the
+// selected node is visible").
+watch(
+  () => graph.canvas.value,
+  (next, previous) => {
+    if (previous === null && next !== null && canShow.value) scrollSelectedIntoView();
+  },
+);
 
 // The Map tab opens again after the Here tab: the selected place scrolls into view.
 watch(
@@ -220,7 +242,7 @@ watch(shownId, (region) => {
   const selected = map.selectedId.value;
   if (selected !== null && placeById.value.get(selected)?.regionId === region) return;
   const here = currentId.value;
-  const start = here !== null && currentRegionId.value === region ? here : layoutFor(region).startId;
+  const start = here !== null && currentRegionId.value === region ? here : startIdFor(region);
   if (start === null) return;
   map.setBanner(null);
   map.select(start);
@@ -287,6 +309,7 @@ function centerOnYou(): void {
               :current-id="currentId"
               :mobile="false"
               @select="onSelect"
+              @resize="graph.setCanvas"
             />
             <GraphList v-else :rows="rows" @select="onSelect" />
           </SegTabs>
@@ -327,7 +350,12 @@ function centerOnYou(): void {
           title="No places discovered yet."
           body="Travel to a new place and it appears here."
         />
-        <MapSheet v-else-if="map.ready.value && layout !== null" ref="sheet" :destination="destination" />
+        <MapSheet
+          v-else-if="map.ready.value && layout !== null"
+          ref="sheet"
+          :destination="destination"
+          :graph="graph"
+        />
       </template>
       <div v-else class="here-column">
         <ContextContent />
