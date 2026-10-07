@@ -314,8 +314,48 @@ describe('ItemTile', () => {
         props: { instance: instance({ quantity: 20n }), template: template({ slot: 'material', name: 'Ore', rarity: 'common' }), selected: false },
       }),
     );
-    expect(w.get('.quantity').text()).toBe('20');
+    expect(w.get('.quantity').text()).toBe('x20');
     expect(w.attributes('aria-label')).toBe('Ore, common, quantity 20');
+  });
+
+  it('shows x{n} for every stackable including x1, and names the quantity', () => {
+    const ore = template({ slot: 'material', name: 'Ore', rarity: 'common', stackable: true });
+    const w = track(mount(ItemTile, { props: { instance: instance({ quantity: 14n }), template: ore, selected: false } }));
+    expect(w.get('.quantity').text()).toBe('x14');
+    expect(w.attributes('aria-label')).toBe('Ore, common, quantity 14');
+    w.unmount();
+    wrapper = null;
+    const one = track(mount(ItemTile, { props: { instance: instance({ quantity: 1n }), template: ore, selected: false } }));
+    expect(one.get('.quantity').text()).toBe('x1');
+    expect(one.attributes('aria-label')).toBe('Ore, common, quantity 1');
+  });
+
+  it('shows no count for a non-stackable at one, and x2 at two', () => {
+    const w = track(mount(ItemTile, { props: { instance: instance({ quantity: 1n }), template: template(), selected: false } }));
+    expect(w.find('.quantity').exists()).toBe(false);
+    w.unmount();
+    wrapper = null;
+    const two = track(mount(ItemTile, { props: { instance: instance({ quantity: 2n }), template: template(), selected: false } }));
+    expect(two.get('.quantity').text()).toBe('x2');
+  });
+
+  it('rings a common tile in neutral-200 at 1px and 2px selected with the common token', async () => {
+    const common = template({ rarity: 'common', slot: 'material', name: 'Ore' });
+    const w = track(mount(ItemTile, { props: { instance: instance(), template: common, selected: false } }));
+    expect(w.attributes('style')).toContain('0 0 0 1px var(--color-neutral-200)');
+    await w.setProps({ selected: true });
+    expect(w.attributes('style')).toContain('0 0 0 2px var(--color-rarity-common)');
+  });
+
+  it('pins the count top-right at 10px and the 44px touch size in the SFC', () => {
+    const source = here('ItemTile.vue');
+    const quantity = /\.quantity \{([^}]*)\}/.exec(source)![1];
+    expect(quantity).toMatch(/top: 4px;/);
+    expect(quantity).toMatch(/right: 4px;/);
+    expect(quantity).not.toMatch(/bottom:/);
+    expect(quantity).toMatch(/font-size: 10px;/);
+    expect(source).toMatch(/min-width: 44px;/);
+    expect(source).toMatch(/min-height: 44px;/);
   });
 
   it('hides the name on mobile and marks a selected tile pressed', () => {

@@ -224,6 +224,12 @@ describe('EquippedSlots', () => {
     expect(source).toMatch(/\.compare-target \.slot-label\s*\{\s*color: var\(--color-accent-300\);/);
   });
 
+  it('tracks the slot label at the mock 0.06em (Plan 50-32)', () => {
+    const source = read('EquippedSlots.vue');
+    const label = /\.slot-label \{([^}]*)\}/.exec(source)![1];
+    expect(label).toMatch(/letter-spacing: 0\.06em;/);
+  });
+
   it('shows Armor Class from the character and totals for stats with a gear bonus only', () => {
     mountSlots({
       items: [inst(1n, 1n, { equippedSlot: 'chest' }), inst(2n, 2n, { equippedSlot: 'head' })],
@@ -384,7 +390,7 @@ describe('BackpackGrid', () => {
     await nextTick();
     expect(document.activeElement).toBe(tiles()[5].element);
     expect(wrapper!.get('[aria-label="Backpack items"]').classes()).toContain('mobile');
-    expect(read('BackpackGrid.vue')).toMatch(/repeat\(5, minmax\(0, 1fr\)\)/);
+    expect(read('BackpackGrid.vue')).toMatch(/repeat\(5, minmax\(44px, 66px\)\)/);
   });
 
   it('jumps with Home and End and ignores other keys', async () => {

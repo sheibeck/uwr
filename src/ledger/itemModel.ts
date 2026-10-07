@@ -50,7 +50,9 @@ const RARITY_TOKENS: Record<Rarity, string> = {
 
 const JUNK_NAME_COLOR = 'var(--color-neutral-400)';
 const JUNK_RING_COLOR = 'var(--color-neutral-700)';
-const COMMON_RING_REST = 'var(--color-neutral-600)';
+// The Inventory mock rings common tiles in neutral-200 (EXTRACT I.3); this supersedes UI-SPEC A9 by
+// the owner's request to follow the updated mock.
+const COMMON_RING_REST = 'var(--color-neutral-200)';
 
 function filled(value: string | null | undefined): value is string {
   return value !== null && value !== undefined && value !== '';
@@ -93,7 +95,7 @@ export function nameColor(rarity: string, junk: boolean): string {
   return junk ? JUNK_NAME_COLOR : rarityColor(rarity);
 }
 
-/** Tile and slot ring color: common is dim at rest and bright when selected; junk is dim. */
+/** Tile and slot ring color: common is neutral-200 at rest and the common token when selected; junk is dim. */
 export function ringColor(
   rarity: string,
   options: { junk?: boolean; selected?: boolean } = {},

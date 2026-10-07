@@ -12,7 +12,9 @@ import type { BagFilterId } from './backpack';
 // The backpack (50-UI-SPEC "Backpack"): the filter chips, the sorted item tiles and the empty tiles
 // up to the capacity (under All). The grid is one tab stop with a roving tabindex: arrows move by
 // one or by a row, Home and End jump, Enter and Space select through the tile's own button. Item
-// names are server text and only reach the page as text nodes.
+// names are server text and only reach the page as text nodes. The tiles stay at the Inventory
+// mock's size (EXTRACT I.3, constants in backpack.ts) and never stretch with the column, per the
+// owner's "squares are huge"; the grid is left-aligned and the column is no wider than the grid.
 const props = withDefaults(
   defineProps<{
     selectedId: bigint | null;
@@ -174,6 +176,11 @@ defineExpose({ focusFirst, focusTile });
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-width: calc(6 * 58px + 5 * 4px);
+}
+
+.backpack.mobile {
+  max-width: calc(5 * 66px + 4 * 4px);
 }
 
 .head {
@@ -200,12 +207,13 @@ h6:focus-visible {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(6, minmax(44px, 58px));
+  gap: 4px;
+  justify-content: start;
 }
 
 .grid.mobile {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(44px, 66px));
 }
 
 .empty-tile {

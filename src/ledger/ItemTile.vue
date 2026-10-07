@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ItemInstance, ItemTemplate } from '../module_bindings/types';
+import { stackCountText } from '../inventory/backpack';
 import {
   itemCategory,
   itemIcon,
@@ -11,7 +12,8 @@ import {
 } from './itemModel';
 
 // A backpack tile (50-UI-SPEC "Backpack > Item tile"): the icon in the rarity color, the name on
-// desktop only, the quantity above 1, and a ring in the ring color (2px when selected). The item
+// desktop only, the mock's top-right 'x{n}' count for every stackable (including x1) and for any
+// item above 1, and a ring in the ring color (1px at rest, 2px when selected). The item
 // name is server or model text, so it only ever reaches the page as a text node, an attribute or a
 // title.
 const props = withDefaults(
@@ -31,11 +33,11 @@ const rarity = computed(() => itemRarity(props.instance, props.template));
 const junk = computed(() => props.template.isJunk);
 const quest = computed(() => itemCategory(props.template) === 'quest');
 const icon = computed(() => itemIcon(props.template));
-const showQuantity = computed(() => props.instance.quantity > 1n);
+const countText = computed(() => stackCountText(props.instance, props.template));
 
 const label = computed(() => {
   let text = `${name.value}, ${rarity.value}`;
-  if (showQuantity.value) text += `, quantity ${props.instance.quantity}`;
+  if (countText.value !== '') text += `, quantity ${props.instance.quantity}`;
   if (junk.value) text += ', junk';
   if (quest.value) text += ', quest item';
   return text;
@@ -64,7 +66,7 @@ const ringStyle = computed(() => ({
       <component :is="icon" :size="props.mobile ? 22 : 20" />
     </span>
     <span v-if="!props.mobile" class="name" :title="name">{{ name }}</span>
-    <span v-if="showQuantity" class="quantity" aria-hidden="true">{{ props.instance.quantity }}</span>
+    <span v-if="countText !== ''" class="quantity" aria-hidden="true">{{ countText }}</span>
   </button>
 </template>
 
@@ -123,8 +125,8 @@ const ringStyle = computed(() => ({
 
 .quantity {
   position: absolute;
+  top: 4px;
   right: 4px;
-  bottom: 4px;
   font-size: 10px;
   line-height: 1.5;
   color: var(--color-neutral-400);

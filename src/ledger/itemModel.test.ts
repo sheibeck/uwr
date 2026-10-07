@@ -103,8 +103,8 @@ describe('itemRarity and colors', () => {
     expect(nameColor('rare', false)).toBe('var(--color-rarity-rare)');
   });
 
-  it('rings: common dim at rest and bright selected, others their token, junk dimmest', () => {
-    expect(ringColor('common')).toBe('var(--color-neutral-600)');
+  it('rings: common neutral-200 at rest (the mock) and the common token selected, others their token, junk dimmest', () => {
+    expect(ringColor('common')).toBe('var(--color-neutral-200)');
     expect(ringColor('common', { selected: true })).toBe('var(--color-rarity-common)');
     expect(ringColor('epic')).toBe('var(--color-rarity-epic)');
     expect(ringColor('epic', { selected: true })).toBe('var(--color-rarity-epic)');

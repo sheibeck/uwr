@@ -224,7 +224,7 @@ button.slot-card:focus-visible {
   font-size: 10px;
   line-height: 1.5;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--color-neutral-500);
 }
 
