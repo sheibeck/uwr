@@ -12,6 +12,7 @@ import { registerPlayerViews } from './player';
 import { registerQuestViews } from './quests';
 import { registerUiViews } from './ui';
 import { registerVendorBuybackViews } from './vendor_buyback';
+import { registerActionResultViews } from './action_result';
 
 export const registerViews = (deps: ViewDeps) => {
   registerPlayerViews(deps);
@@ -23,6 +24,7 @@ export const registerViews = (deps: ViewDeps) => {
   registerQuestViews(deps);
   registerFactionViews(deps);
   registerVendorBuybackViews(deps);
+  registerActionResultViews(deps);
   registerUiViews(deps);
   registerLlmViews(deps);
 };

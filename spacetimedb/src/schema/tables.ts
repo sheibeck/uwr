@@ -1496,6 +1496,28 @@ export const VendorBuyback = table(
   }
 );
 
+// The last craft, salvage or Discover of each character, replaced by the next one. Private: it is
+// read only through the my_action_result view, so no one sees another player's results.
+// linesJson is data/action_result.ts encodeResultLines. kind is one of RESULT_KINDS.
+export const ActionResult = table(
+  { name: 'action_result' },
+  {
+    characterId: t.u64().primaryKey(),
+    seq: t.u64(),                           // raised by 1 on every write, so the client can tell a new result
+    kind: t.string(),
+    templateId: t.u64().optional(),
+    itemInstanceId: t.u64().optional(),
+    itemName: t.string(),
+    rarity: t.string(),
+    craftQuality: t.string().optional(),
+    quantity: t.u64(),
+    recipeTemplateId: t.u64().optional(),
+    craftCount: t.u64(),
+    linesJson: t.string(),
+    at: t.timestamp(),
+  }
+);
+
 export const UiPanelLayout = table(
   {
     name: 'ui_panel_layout',
@@ -2423,6 +2445,7 @@ const spacetimedb = schema({
   combat_moment: CombatMoment,
   vendor_base_stock: VendorBaseStock,
   vendor_restock_tick: VendorRestockTick,
+  action_result: ActionResult,
 });
 export default spacetimedb;
 export { spacetimedb };
