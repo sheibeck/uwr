@@ -172,7 +172,7 @@ defineExpose({ focusName });
       type="button"
       class="btn btn-ghost details-toggle"
       :aria-expanded="detailsOpen ? 'true' : 'false'"
-      :aria-controls="`${uid}-details`"
+      :aria-controls="detailsOpen ? `${uid}-details` : undefined"
       @click="detailsOpen = !detailsOpen"
     >
       <span>Details</span>

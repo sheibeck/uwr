@@ -359,6 +359,8 @@ describe('MapDock: the Details disclosure', () => {
     expect(toggle(w).attributes('aria-expanded')).toBe('false');
     expect(toggle(w).text()).toBe('Details');
     expect(w.find('.details').exists()).toBe(false);
+    // review IN-04: no aria-controls pointing at a body that is not in the DOM
+    expect(toggle(w).attributes('aria-controls')).toBeUndefined();
     await toggle(w).trigger('click');
     expect(toggle(w).attributes('aria-expanded')).toBe('true');
     expect(toggle(w).attributes('aria-controls')).toBe(w.get('.details').attributes('id'));
