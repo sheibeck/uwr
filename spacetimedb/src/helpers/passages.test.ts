@@ -307,7 +307,6 @@ describe('removal: rows that only make sense at the passage are deleted', () => 
   it.each([
     ['search_result', { id: 1n, characterId: 1n, foundResources: false, foundQuestItem: false, foundNamedEnemy: false, searchedAt: ctx0() }],
     ['resource_node', { id: 1n, itemTemplateId: 1n, name: 'Ore', timeOfDay: 'any', quantity: 1n, state: 'available' }],
-    ['event_spawn_enemy', { id: 1n, eventId: 1n, spawnId: 1n }],
     ['location_enemy_template', { id: 1n, enemyTemplateId: 1n }],
     ['pull_state', { id: 1n, characterId: 1n, enemySpawnId: 1n, pullType: 'careful', state: 'ended' }],
   ])('%s rows at the passage are deleted; rows elsewhere stay', (tableName, row) => {
@@ -344,6 +343,45 @@ describe('removal: rows that only make sense at the passage are deleted', () => 
     });
     expect(table(ctx, 'enemy_spawn').map((r) => r.id)).toEqual([2n]);
     expect(table(ctx, 'enemy_spawn_member').map((r) => r.id)).toEqual([3n]);
+  });
+});
+
+describe('world event enemies stay with their event (review IN-07)', () => {
+  it('an event enemy spawn at the passage moves to the own neighbour with its members and its event link', () => {
+    const ctx = world({
+      enemy_spawn: [
+        { id: 1n, locationId: 6n, enemyTemplateId: 1n, name: 'Raider (Event)', state: 'available', groupCount: 1n },
+        { id: 2n, locationId: 6n, enemyTemplateId: 1n, name: 'Wolves', state: 'available', groupCount: 1n },
+      ],
+      enemy_spawn_member: [
+        { id: 1n, spawnId: 1n, enemyTemplateId: 1n, roleTemplateId: 1n },
+        { id: 2n, spawnId: 2n, enemyTemplateId: 1n, roleTemplateId: 1n },
+      ],
+      event_spawn_enemy: [{ id: 1n, eventId: 9n, spawnId: 1n, locationId: 6n }],
+      event_objective: [
+        { id: 1n, eventId: 9n, objectiveType: 'kill_count', locationId: 6n, name: 'Defeat', targetCount: 1n, currentCount: 0n },
+      ],
+    });
+    expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
+    // The event enemy and its objective end up at the same place; the ordinary spawn is deleted.
+    expect(table(ctx, 'enemy_spawn').map((r) => [r.id, r.locationId])).toEqual([[1n, 5n]]);
+    expect(table(ctx, 'enemy_spawn_member').map((r) => r.id)).toEqual([1n]);
+    expect(table(ctx, 'event_spawn_enemy').map((r) => [r.id, r.spawnId, r.locationId])).toEqual([[1n, 1n, 5n]]);
+    expect(table(ctx, 'event_objective')[0].locationId).toBe(5n);
+  });
+
+  it('an event link whose enemy was already killed is re-homed too, and links elsewhere stay', () => {
+    const ctx = world({
+      event_spawn_enemy: [
+        { id: 1n, eventId: 9n, spawnId: 77n, locationId: 6n },
+        { id: 2n, eventId: 9n, spawnId: 78n, locationId: 4097n },
+      ],
+    });
+    expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
+    expect(table(ctx, 'event_spawn_enemy').map((r) => [r.id, r.locationId])).toEqual([
+      [1n, 5n],
+      [2n, 4097n],
+    ]);
   });
 });
 
@@ -399,7 +437,7 @@ describe('PASSAGE_LOCATION_COLUMNS covers every location-id column in the schema
     expect(stale, `stale PASSAGE_LOCATION_COLUMNS entries: ${stale.join(', ')}`).toEqual([]);
     expect(found).toHaveLength(26);
     expect([lists.rehome.length, lists.remove.length, lists.keep.length, lists.collapse.length, lists.ignore.length]).toEqual([
-      12, 8, 2, 3, 1,
+      13, 7, 2, 3, 1,
     ]);
   });
 });

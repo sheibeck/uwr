@@ -56,6 +56,9 @@ export const PASSAGE_LOCATION_COLUMNS: {
     // A live world event's collectibles: collect_event_item needs them reachable and counts each
     // pickup as event contribution, so they are re-homed, not deleted.
     'event_spawn_item.locationId',
+    // A live world event's enemy links: re-homed with their enemy_spawn (see enemy_spawn below), so
+    // a kill objective at the passage stays achievable at the same place as its enemies.
+    'event_spawn_enemy.locationId',
     'npc.locationId',
     'vendor_buyback.locationId',
     'combat_encounter.locationId',
@@ -68,8 +71,9 @@ export const PASSAGE_LOCATION_COLUMNS: {
   remove: [
     'search_result.locationId',
     'resource_node.locationId',
+    // Except a world event's spawn (it has an event_spawn_enemy link): that one is re-homed with
+    // its members, like the event's objectives and items.
     'enemy_spawn.locationId',
-    'event_spawn_enemy.locationId',
     'location_enemy_template.locationId',
     'enemy_respawn_tick.locationId',
     'pull_state.locationId',
@@ -186,13 +190,19 @@ export function rehomePassageDependents(ctx: any, passage: any, home: any): void
     ctx.db.resource_node.id.delete(row.id);
   }
   for (const spawn of rowsAt(ctx, 'enemy_spawn', 'locationId', pid, true)) {
+    if ([...ctx.db.event_spawn_enemy.by_spawn.filter(spawn.id)].length > 0) {
+      ctx.db.enemy_spawn.id.update({ ...spawn, locationId: hid });
+      continue;
+    }
     for (const member of [...ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)]) {
       ctx.db.enemy_spawn_member.id.delete(member.id);
     }
     ctx.db.enemy_spawn.id.delete(spawn.id);
   }
+  // Every event link at the passage, including one whose enemy was already killed (the event's
+  // despawn still walks it by event). No location index: the table holds live event enemies only.
   for (const row of rowsAt(ctx, 'event_spawn_enemy', 'locationId', pid, false)) {
-    ctx.db.event_spawn_enemy.id.delete(row.id);
+    ctx.db.event_spawn_enemy.id.update({ ...row, locationId: hid });
   }
   for (const row of rowsAt(ctx, 'location_enemy_template', 'locationId', pid, true)) {
     ctx.db.location_enemy_template.id.delete(row.id);
