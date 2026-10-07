@@ -452,7 +452,7 @@ Plans:
   4. Crafting shows materials on hand and a recipe list with category tabs, an "only craftable" filter and have-versus-need per recipe; the selected recipe shows quality odds, an optional reagent / affix and Craft, and Discover recipes is reachable from the screen.
   5. At 390×844 each screen opens as a full-height sheet above the tab bar (Bag opens inventory) and every action above works.
 
-**Plans**: 27 plans (23 planned + 4 gap-closure after owner live-play feedback)
+**Plans**: 38 plans (23 planned + 15 gap-closure after owner live-play feedback)
 
 Plans:
 **Wave 1**
@@ -520,6 +520,20 @@ Plans:
 - [x] 50-25-PLAN.md — Rule-based recipe generation from carried materials (Discover recipes), shared and deduplicated
 - [x] 50-26-PLAN.md — Finite vendor stock (quantity column), buy-above-sell price floor, sell_item_quantity (server, published locally)
 - [x] 50-27-PLAN.md — Client: quantity "×n", sold out, sell quantity picker
+
+**Gap closure (owner play-test: crafting and backpack follow the updated mocks, 2026-10-06)**
+
+- [ ] 50-28-PLAN.md — Shared rules: planCraft count and maxCraftCount, salvage yield and reagent chance, rule-based output descriptions, result line codec
+- [ ] 50-29-PLAN.md — Private action_result table and my_action_result view; craft_recipe_count (all or nothing, max 99) with the result row
+- [ ] 50-30-PLAN.md — Salvage and Discover result rows, equipped-salvage refusal test; local publish (key 108) and bindings
+- [ ] 50-31-PLAN.md — Client hub (lastResult, outputRecipes, craftRecipeCount) and models (item details, result card, salvage preview)
+- [ ] 50-32-PLAN.md — Backpack tiles capped at the mock size (58px / 66px, 44px minimum), top-right "x{n}", mock rings
+- [ ] 50-33-PLAN.md — Shared ResultCard (desktop card, mobile sheet, focus trap, Esc, live region) and useActionResult
+- [ ] 50-34-PLAN.md — Inventory: mock inspector, equipped items not salvageable, confirm naming the yield, salvage result card
+- [ ] 50-35-PLAN.md — Crafting model (can make N, stepper state, Uses, quality line, Creates card) and mock recipe rows
+- [ ] 50-36-PLAN.md — Recipe detail: Creates card, Uses, quality line, single reagent slot, −/+/Max and Craft N×
+- [ ] 50-37-PLAN.md — Crafting columns per mock 9a, Materials on hand on the right, craft and Discover result card
+- [ ] 50-38-PLAN.md — Craft / Salvage switch with the salvage list and detail; full gates
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the inventory, stats, vendor and crafting screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
 **Notes**:
