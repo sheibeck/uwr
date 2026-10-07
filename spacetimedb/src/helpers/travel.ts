@@ -1,4 +1,4 @@
-import { TRAVEL_CONFIG } from '../data/travel_config';
+import { TRAVEL_CONFIG, travelEffectDiscount, travelStaminaCost } from '../data/travel_config';
 import { performPassiveSearch } from './search';
 import { getPerkBonusByField } from './renown';
 import { buildLookOutput } from './look';
@@ -74,7 +74,6 @@ export function performTravel(
   // Determine if travel crosses regions
   const fromLocation = ctx.db.location.id.find(character.locationId);
   const isCrossRegion = fromLocation!.regionId !== location.regionId;
-  const staminaCost = isCrossRegion ? TRAVEL_CONFIG.CROSS_REGION_STAMINA : TRAVEL_CONFIG.WITHIN_REGION_STAMINA;
 
   // Collect all traveling characters (group travel)
   const travelingCharacters: any[] = [];
@@ -104,14 +103,13 @@ export function performTravel(
 
   // Validate ALL-OR-NOTHING stamina (using each traveler's effective cost)
   for (const traveler of travelingCharacters) {
-    const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
-    const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
-    const rawCost = staminaCost + costIncrease;
-    const abilityDiscount = [...ctx.db.character_effect.by_character.filter(traveler.id)]
-      .filter((e: any) => e.effectType === 'travel_discount' && e.roundsRemaining > 0n)
-      .reduce((sum: bigint, e: any) => sum + BigInt(e.magnitude), 0n);
-    const totalDiscount = costDiscount + abilityDiscount;
-    const effectiveCost = rawCost > totalDiscount ? rawCost - totalDiscount : 0n;
+    // The one stamina rule (data/travel_config.ts), shared with the client's displayed cost.
+    const effectiveCost = travelStaminaCost({
+      crossRegion: isCrossRegion,
+      racialIncrease: traveler.racialTravelCostIncrease,
+      racialDiscount: traveler.racialTravelCostDiscount,
+      effectDiscount: travelEffectDiscount([...ctx.db.character_effect.by_character.filter(traveler.id)]),
+    });
     if (traveler.stamina < effectiveCost) {
       fail(`${traveler.name} does not have enough stamina to travel`);
       return false;
@@ -139,14 +137,13 @@ export function performTravel(
 
   // Deduct stamina and apply cooldowns
   for (const traveler of travelingCharacters) {
-    const costIncrease = traveler.racialTravelCostIncrease ?? 0n;
-    const costDiscount = traveler.racialTravelCostDiscount ?? 0n;
-    const rawCost = staminaCost + costIncrease;
-    const abilityDiscount = [...ctx.db.character_effect.by_character.filter(traveler.id)]
-      .filter((e: any) => e.effectType === 'travel_discount' && e.roundsRemaining > 0n)
-      .reduce((sum: bigint, e: any) => sum + BigInt(e.magnitude), 0n);
-    const totalDiscount = costDiscount + abilityDiscount;
-    const effectiveCost = rawCost > totalDiscount ? BigInt(rawCost - totalDiscount) : 0n;
+    // The one stamina rule (data/travel_config.ts), shared with the client's displayed cost.
+    const effectiveCost = travelStaminaCost({
+      crossRegion: isCrossRegion,
+      racialIncrease: traveler.racialTravelCostIncrease,
+      racialDiscount: traveler.racialTravelCostDiscount,
+      effectDiscount: travelEffectDiscount([...ctx.db.character_effect.by_character.filter(traveler.id)]),
+    });
     ctx.db.character.id.update({ ...traveler, stamina: traveler.stamina - effectiveCost });
     if (isCrossRegion) {
       const existingCd = [...ctx.db.travel_cooldown.by_character.filter(traveler.id)][0];

@@ -30,6 +30,8 @@ import {
 import * as relativeCraftingRules from '../spacetimedb/src/data/crafting_rules';
 import { RESULT_KINDS, decodeResultLines, encodeResultLines } from '@game-data/action_result';
 import * as relativeActionResult from '../spacetimedb/src/data/action_result';
+import { travelEffectDiscount, travelStaminaCost } from '@game-data/travel_config';
+import * as relativeTravelConfig from '../spacetimedb/src/data/travel_config';
 
 // The server owns game data; client code reaches it only through the @game-data alias
 // (CONTEXT: server is source of truth, imported through a path alias).
@@ -239,5 +241,30 @@ describe('@game-data sibling modules stay import-free', () => {
     for (const file of ['mechanical_vocabulary.ts', 'class_stats.ts', 'renown_data.ts', 'crafting_rules.ts', 'action_result.ts']) {
       expect(specifiers(file)).toEqual([]);
     }
+  });
+});
+
+describe('@game-data travel_config', () => {
+  const EFFECTS = [
+    { effectType: 'travel_discount', roundsRemaining: 2n, magnitude: 2n },
+    { effectType: 'travel_discount', roundsRemaining: 0n, magnitude: 9n },
+  ];
+
+  it('resolves to the same helpers as the relative server path', () => {
+    const viaAlias = travelStaminaCost({ crossRegion: true, racialIncrease: 3n, effectDiscount: travelEffectDiscount(EFFECTS) });
+    const viaRelative = relativeTravelConfig.travelStaminaCost({
+      crossRegion: true,
+      racialIncrease: 3n,
+      effectDiscount: relativeTravelConfig.travelEffectDiscount(EFFECTS),
+    });
+    expect(viaAlias).toBe(viaRelative);
+    expect(viaAlias).toBe(11n);
+    expect(travelStaminaCost({ crossRegion: false, effectDiscount: 0n })).toBe(
+      relativeTravelConfig.travelStaminaCost({ crossRegion: false, effectDiscount: 0n }),
+    );
+  });
+
+  it('imports nothing', () => {
+    expect(specifiers('travel_config.ts')).toEqual([]);
   });
 });
