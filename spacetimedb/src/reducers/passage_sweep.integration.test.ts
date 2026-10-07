@@ -59,12 +59,16 @@ const link = (a: bigint, b: bigint) => [
   { id: 1000n + b * 10n + a, fromLocationId: b, toLocationId: a },
 ];
 
-const character = (id: bigint, locationId: bigint) => ({
+// Online means the stored flag (plan 51.1-01); seeds that hold a character in a player row also
+// set online: true, and every other character reads offline.
+const character = (id: bigint, locationId: bigint, online = false) => ({
   id,
   ownerUserId: 7n + id,
   name: `Char${id}`,
   locationId,
   boundLocationId: 5n,
+  online,
+  lastOnlineAtMicros: 0n,
 });
 
 const visit = (id: bigint, characterId: bigint, locationId: bigint, fromLocationId?: bigint) => ({
@@ -164,7 +168,7 @@ describe('sweep_passages: online characters keep the passage open', () => {
   it('an online character is not moved and the passage stays', () => {
     const ctx = newCtx({
       player: [{ id: alice, userId: 8n, activeCharacterId: 1n }],
-      character: [character(1n, 6n)],
+      character: [character(1n, 6n, true)],
     });
     run(ctx);
     expect(where(ctx, 1n)).toBe(6n);
@@ -174,7 +178,7 @@ describe('sweep_passages: online characters keep the passage open', () => {
   it('an online and an offline character together: the offline one moves, the passage stays', () => {
     const ctx = newCtx({
       player: [{ id: alice, userId: 8n, activeCharacterId: 1n }],
-      character: [character(1n, 6n), character(2n, 6n)],
+      character: [character(1n, 6n, true), character(2n, 6n)],
       visited_location: [visit(1n, 2n, 6n, 5n)],
     });
     run(ctx);
@@ -183,7 +187,7 @@ describe('sweep_passages: online characters keep the passage open', () => {
     expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
   });
 
-  it('a player row with no active character does not count as online', () => {
+  it('a player row with no active character does not count as online (the stored flag reads false)', () => {
     const ctx = newCtx({
       player: [{ id: bob, userId: 9n, activeCharacterId: undefined }],
       character: [character(1n, 6n)],
@@ -300,7 +304,7 @@ describe('sweep_passages: edge cases and ordering', () => {
     expect(sweepPassages(empty)).toEqual({ moved: 0, collapsed: 0 });
     const held = newCtx({
       player: [{ id: alice, userId: 8n, activeCharacterId: 1n }],
-      character: [character(1n, 6n)],
+      character: [character(1n, 6n, true)],
     });
     expect(sweepPassages(held)).toEqual({ moved: 0, collapsed: 0 });
   });

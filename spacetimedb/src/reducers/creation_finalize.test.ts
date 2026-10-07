@@ -180,3 +180,52 @@ describe('finalizeCharacter stats (class base plus race bonus)', () => {
     expect(statsOf(old)).toEqual({ str: 10n, dex: 10n, cha: 10n, wis: 10n, int: 10n });
   });
 });
+
+describe('finalizeCharacter online status (plan 51.1-01)', () => {
+  it('inserts the character offline with no stamp, then the sync turns it online in the same call', () => {
+    const inserted: any[] = [];
+    const ctx = newCtx(confirmSeed({}, {}));
+    const table = ctx.db.character;
+    const realInsert = table.insert;
+    const spyDb = new Proxy(ctx.db, {
+      get: (target: any, name: string) =>
+        name === 'character'
+          ? new Proxy(table, {
+              get: (t: any, prop: string) =>
+                prop === 'insert'
+                  ? (row: any) => {
+                      inserted.push({ ...row });
+                      return realInsert(row);
+                    }
+                  : t[prop],
+            })
+          : target[name],
+    });
+    submitCreationInput({ ...ctx, db: spyDb }, { text: 'confirm' });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ online: false, lastOnlineAtMicros: 0n });
+    const c = rows(ctx, 'character')[0];
+    expect(c).toMatchObject({ online: true, lastOnlineAtMicros: T0 });
+  });
+
+  it('the previous active character of the player goes offline', () => {
+    const previous = {
+      id: 9n,
+      ownerUserId: 7n,
+      name: 'Old',
+      race: 'Saltkin',
+      className: 'Warrior',
+      level: 1n,
+      online: true,
+      lastOnlineAtMicros: 5n,
+    };
+    const seed = confirmSeed({}, { character: [previous] });
+    seed.player = [{ id: alice, userId: 7n, activeCharacterId: 9n }];
+    const ctx = confirm(seed);
+    const chars = rows(ctx, 'character');
+    const created = chars.find((c: any) => c.id !== 9n);
+    expect(rows(ctx, 'player')[0].activeCharacterId).toBe(created.id);
+    expect(created).toMatchObject({ online: true, lastOnlineAtMicros: T0 });
+    expect(chars.find((c: any) => c.id === 9n)).toMatchObject({ online: false, lastOnlineAtMicros: T0 });
+  });
+});

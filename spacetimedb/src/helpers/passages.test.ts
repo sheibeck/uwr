@@ -70,13 +70,18 @@ const edges = (ctx: any): string[] =>
 const locationIds = (ctx: any): bigint[] => table(ctx, 'location').map((r) => r.id);
 
 describe('onlineCharacterIds', () => {
-  it('returns the activeCharacterId of every player row that has one', () => {
+  it('returns the ids of every character whose stored online flag is true (plan 51.1-01)', () => {
     const ctx = createMockCtx({
       seed: {
         player: [
           { id: ALICE, userId: 7n, activeCharacterId: 1n },
           { id: { toHexString: () => 'b'.repeat(64) }, userId: 8n, activeCharacterId: undefined },
           { id: { toHexString: () => 'c'.repeat(64) }, userId: 9n, activeCharacterId: 3n },
+        ],
+        character: [
+          character(1n, 5n, { online: true }),
+          character(2n, 5n, { online: false }),
+          character(3n, 5n, { online: true }),
         ],
       },
       strict: true,

@@ -80,6 +80,9 @@ function characterRow(id: bigint, ownerUserId: bigint, name: string, hp: bigint,
     createdAt: { microsSinceUnixEpoch: T0 },
     combatTargetEnemyId: targetEnemyId,
     pendingLevels: 0n,
+    // The fixture characters are the fixture players' active characters, so they read online.
+    online: true,
+    lastOnlineAtMicros: 0n,
   };
 }
 

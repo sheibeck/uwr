@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+// @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
+import { readdirSync, readFileSync } from 'node:fs';
+// @ts-ignore node types are not part of this module's tsconfig
+import { fileURLToPath } from 'node:url';
 import { createMockCtx } from './test-utils';
 import {
   isCharacterActive,
@@ -130,6 +134,48 @@ describe('reconcileOnline', () => {
     expect(row(ctx, 2n).online).toBe(false);
     expect(row(ctx, 3n).online).toBe(true);
     expect(reconcileOnline(ctx)).toBe(0);
+  });
+});
+
+describe('single writer (source guard)', () => {
+  // Only these files may write character.online or character.lastOnlineAtMicros: the helper, the
+  // column definitions, the creation insert's initial values and the shared test fixture.
+  const ALLOWED = new Set([
+    'helpers/online.ts',
+    'schema/tables.ts',
+    'reducers/creation.ts',
+    'helpers/combat_fight_fixture.ts',
+  ]);
+  const SRC = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/');
+
+  function sourceFiles(dir: string, out: string[] = []): string[] {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = `${dir}${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules') sourceFiles(`${full}/`, out);
+      } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  it('only the allowed files write the online columns', () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const rel = file.slice(SRC.length);
+      if (ALLOWED.has(rel)) continue;
+      // A type annotation (`online: boolean`, as in data/group_config.ts) is not a write.
+      if (/\b(online|lastOnlineAtMicros)\s*:(?!\s*(boolean|bigint)\b)/.test(readFileSync(file, 'utf8'))) {
+        offenders.push(rel);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('scans the whole server tree (the allowed writers are found)', () => {
+    const rels = sourceFiles(SRC).map((f) => f.slice(SRC.length));
+    for (const allowed of ALLOWED) expect(rels).toContain(allowed);
   });
 });
 
