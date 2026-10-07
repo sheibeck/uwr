@@ -126,6 +126,11 @@ export const registerCharacterReducers = (deps: any) => {
 
   spacetimedb.reducer('bind_location', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    // Same rule and wording as the typed `bind` intent (reducers/intent.ts).
+    if (activeCombatIdForCharacter(ctx, character.id)) {
+      fail(ctx, character, 'You cannot bind while in combat.');
+      return;
+    }
     const location = ctx.db.location.id.find(character.locationId);
     if (!location || !location.bindStone) {
       fail(ctx, character, 'No bindstone here');
