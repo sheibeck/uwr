@@ -17,4 +17,5 @@ export type ViewDeps = {
   UiPanelLayout: any;
   VendorBuyback: any;
   ActionResult: any;
+  VisitedLocation: any;
 };

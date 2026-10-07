@@ -10,7 +10,7 @@ import spacetimedb, {
   GroupMember, GroupInvite, EventGroup,
   CharacterEffect, CombatResult, CombatLoot,
   NpcDialog, QuestInstance,
-  Faction, FactionStanding, UiPanelLayout, VendorBuyback, ActionResult,
+  Faction, FactionStanding, UiPanelLayout, VendorBuyback, ActionResult, VisitedLocation,
   CombatParticipant, CombatLoopTick,
   CombatRound, CombatAction, CombatNarrative, RoundTimerTick,
   PullState, PullTick,
@@ -435,6 +435,7 @@ registerViews({
   UiPanelLayout,
   VendorBuyback,
   ActionResult,
+  VisitedLocation,
 });
 
 // Reducer: the player asks the Keeper for a new skill offer (recovers a failed or missed offer)

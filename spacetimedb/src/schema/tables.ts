@@ -2322,6 +2322,27 @@ export const VendorRestockTick = table(
   }
 );
 
+// Every place a character has stood in (the map draws these). Private: it is read only through the
+// my_visited_locations view, so no one sees where another player has been. fromLocationId is where
+// the last arrival here came from (the passage sweep's own-side rule, plan 51-03); respawn,
+// resurrection, first spawn and the set_active_character backfill record no origin.
+export const VisitedLocation = table(
+  {
+    name: 'visited_location',
+    indexes: [
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    locationId: t.u64(),
+    firstVisitedAt: t.timestamp(),
+    fromLocationId: t.u64().optional(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -2446,6 +2467,7 @@ const spacetimedb = schema({
   vendor_base_stock: VendorBaseStock,
   vendor_restock_tick: VendorRestockTick,
   action_result: ActionResult,
+  visited_location: VisitedLocation,
 });
 export default spacetimedb;
 export { spacetimedb };
