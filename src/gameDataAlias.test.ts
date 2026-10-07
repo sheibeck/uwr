@@ -32,6 +32,14 @@ import { RESULT_KINDS, decodeResultLines, encodeResultLines } from '@game-data/a
 import * as relativeActionResult from '../spacetimedb/src/data/action_result';
 import { travelEffectDiscount, travelStaminaCost } from '@game-data/travel_config';
 import * as relativeTravelConfig from '../spacetimedb/src/data/travel_config';
+import {
+  GROUP_INVITE_TTL_MICROS,
+  MAX_GROUP_SIZE,
+  comesAlongWithLeader,
+  inviteExpiresAtMicros,
+  isInviteExpired,
+} from '@game-data/group_config';
+import * as relativeGroupConfig from '../spacetimedb/src/data/group_config';
 
 // The server owns game data; client code reaches it only through the @game-data alias
 // (CONTEXT: server is source of truth, imported through a path alias).
@@ -266,5 +274,21 @@ describe('@game-data travel_config', () => {
 
   it('imports nothing', () => {
     expect(specifiers('travel_config.ts')).toEqual([]);
+  });
+});
+
+describe('@game-data group_config', () => {
+  it('resolves to the same rules as the relative server path', () => {
+    expect(MAX_GROUP_SIZE).toBe(relativeGroupConfig.MAX_GROUP_SIZE);
+    expect(GROUP_INVITE_TTL_MICROS).toBe(relativeGroupConfig.GROUP_INVITE_TTL_MICROS);
+    expect(inviteExpiresAtMicros).toBe(relativeGroupConfig.inviteExpiresAtMicros);
+    expect(isInviteExpired).toBe(relativeGroupConfig.isInviteExpired);
+    expect(comesAlongWithLeader).toBe(relativeGroupConfig.comesAlongWithLeader);
+    expect(isInviteExpired(0n, GROUP_INVITE_TTL_MICROS)).toBe(true);
+    expect(comesAlongWithLeader({ followLeader: true, online: true, atLeaderPlace: true })).toBe(true);
+  });
+
+  it('imports nothing', () => {
+    expect(specifiers('group_config.ts')).toEqual([]);
   });
 });
