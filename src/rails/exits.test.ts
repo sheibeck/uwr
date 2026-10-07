@@ -91,7 +91,7 @@ describe('exitRows, same region', () => {
   it('a visited neighbour: level text, band colour, note, Travel button', () => {
     const gloam = row(rowsFor(), 'Gloamwood');
     expect(gloam.rightText).toBe('Lv 3–5');
-    expect(gloam.rightColor).toBe('var(--color-con-yellow)');
+    expect(gloam.danger.color).toBe('var(--color-con-yellow)');
     expect(gloam.danger.band).toBe('tough');
     expect(gloam.crossing).toBe(false);
     expect(gloam.locked).toBe(false);
@@ -102,7 +102,7 @@ describe('exitRows, same region', () => {
     expect(gloam.note.timeText).toBeNull();
     expect(gloam.button.label).toBe('Travel');
     expect(gloam.button.ariaLabel).toBe('Travel to Gloamwood');
-    expect(gloam.button.fullLabel).toBe('Travel to Gloamwood');
+    expect(gloam.button.secondsLeft).toBeNull();
     expect(gloam.button.icon).toBe('signpost');
     expect(gloam.button.disabled).toBe(false);
     expect(gloam.following).toBe(0);
@@ -118,7 +118,7 @@ describe('exitRows, same region', () => {
     const edge = row(rowsFor({ routes: [EDGE] }), 'Beyond');
     expect(edge.rightText).toBe('');
     expect(edge.danger.kind).toBe('unknown');
-    expect(edge.rightColor).toBe('var(--color-neutral-500)');
+    expect(edge.danger.color).toBe('var(--color-neutral-500)');
     expect(edge.terrain.word).toBe('Uncharted');
   });
 
@@ -143,7 +143,7 @@ describe('exitRows, crossings', () => {
     expect(marsh.note.tone).toBe('accent');
     expect(marsh.button.label).toBe('Cross');
     expect(marsh.button.ariaLabel).toBe('Cross into Saltmarsh');
-    expect(marsh.button.fullLabel).toBe('Cross into Saltmarsh');
+    expect(marsh.button.secondsLeft).toBeNull();
     expect(marsh.button.icon).toBe('door');
     expect(marsh.button.disabled).toBe(false);
     expect(marsh.locked).toBe(false);
@@ -161,7 +161,7 @@ describe('exitRows, crossings', () => {
     expect(marsh.button.disabled).toBe(true);
     expect(marsh.button.timeText).toBe('3:12');
     expect(marsh.button.label).toBe('Cross');
-    expect(marsh.button.fullLabel).toBe('Region travel in 3:12');
+    expect(marsh.button.secondsLeft).toBe(192);
 
     const gloam = row(rows, 'Gloamwood');
     expect(gloam.locked).toBe(false);

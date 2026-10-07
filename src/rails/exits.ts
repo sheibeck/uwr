@@ -45,12 +45,12 @@ export interface ExitNote {
 export interface ExitButton {
   label: 'Travel' | 'Cross';
   ariaLabel: string;
-  /** The full-width mobile label: ariaLabel, or 'Region travel in {m:ss}' while a timer blocks. */
-  fullLabel: string;
   icon: 'signpost' | 'door';
   disabled: boolean;
   /** '{m:ss}' while a region timer blocks the crossing, else null. */
   timeText: string | null;
+  /** The server seconds behind timeText (for the minute-level sentence), else null. */
+  secondsLeft: number | null;
 }
 
 export interface ExitRow {
@@ -63,7 +63,6 @@ export interface ExitRow {
   crossing: boolean;
   regionName: string;
   rightText: string;
-  rightColor: string;
   /** Your own region timer runs and this row is a crossing (the right side shows a lock and the clock). */
   locked: boolean;
   timeText: string | null;
@@ -153,7 +152,8 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
 
     const block = checks.block;
     const timerBlocked = block !== null && (block.reason === 'selfTimer' || block.reason === 'followerTimer');
-    const buttonTime = timerBlocked ? formatClock(block.secondsLeft ?? 0) : null;
+    const buttonSeconds = timerBlocked ? (block.secondsLeft ?? 0) : null;
+    const buttonTime = buttonSeconds === null ? null : formatClock(buttonSeconds);
     const ariaLabel = crossing ? `Cross into ${regionName}` : `Travel to ${destination.name}`;
 
     const locked = crossing && checks.selfTimer.running;
@@ -167,7 +167,6 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
       crossing,
       regionName,
       rightText: danger.levelLabel,
-      rightColor: danger.color,
       locked,
       timeText: locked ? formatClock(checks.selfTimer.secondsLeft) : null,
       heardOf,
@@ -175,10 +174,10 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
       button: {
         label: crossing ? 'Cross' : 'Travel',
         ariaLabel,
-        fullLabel: buttonTime !== null ? `Region travel in ${buttonTime}` : ariaLabel,
         icon: crossing ? 'door' : 'signpost',
         disabled: !input.connected || block !== null,
         timeText: buttonTime,
+        secondsLeft: buttonSeconds,
       },
       following: checks.followers.length,
       costText: checks.costText,

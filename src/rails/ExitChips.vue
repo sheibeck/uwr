@@ -51,15 +51,11 @@ watch(
 // The region you stand in, for 'Moving within {Region} is fine.'
 const hereRegion = computed(() => here.value?.regionName ?? 'this region');
 
-function clockSeconds(text: string): number {
-  const [minutes, seconds] = text.split(':');
-  return Number(minutes) * 60 + Number(seconds);
-}
-
-// The clock is aria-hidden; the blocked button's accessible name says whole minutes.
+// The clock is aria-hidden; the blocked button's accessible name says whole minutes, from the
+// server seconds the row carries (never re-parsed from the m:ss text).
 function buttonAria(row: ExitRow): string {
-  if (row.button.timeText === null) return row.button.ariaLabel;
-  return `Region travel locked for ${aboutMinutes(clockSeconds(row.button.timeText))}`;
+  if (row.button.secondsLeft === null) return row.button.ariaLabel;
+  return `Region travel locked for ${aboutMinutes(row.button.secondsLeft)}`;
 }
 
 function terrainLine(row: ExitRow): string {
@@ -123,10 +119,7 @@ function go(row: ExitRow): void {
           <span aria-hidden="true"
             >Region travel ready in {{ openRow.note.timeText }}. Moving within {{ hereRegion }} is fine.</span
           >
-          <span class="sr-only"
-            >Region travel ready in {{ aboutMinutes(clockSeconds(openRow.note.timeText)) }}. Moving within
-            {{ hereRegion }} is fine.</span
-          >
+          <span class="sr-only">{{ openRow.note.srText }}. Moving within {{ hereRegion }} is fine.</span>
         </div>
         <div
           v-else
