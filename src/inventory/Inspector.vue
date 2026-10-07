@@ -16,7 +16,7 @@ import type { MetaPart } from './inspector';
 // card and the mobile dock. The view model decides everything shown; this component draws it and
 // runs the actions through the screen's action runner. Salvage shows the PhRecycle icon. An equipped
 // item cannot be salvaged: the button is aria-disabled with its reason and a click sends nothing.
-// The salvage confirm names the guaranteed yield through the shared salvage preview. Item names,
+// The salvage confirm speaks in chances through the shared salvage preview. Item names,
 // affixes and flavor are server text, so they only reach the page as text nodes. Nothing is
 // optimistic: the subscribed rows drive every change.
 const props = defineProps<{
