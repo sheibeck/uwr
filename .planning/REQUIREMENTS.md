@@ -70,7 +70,7 @@
 - [ ] **LDG-02**: The inventory inspector shows the selected item's rarity, tier and stats compared with what's equipped (▲/▼), plus flavor text, sell value and Equip / Salvage.
 - [ ] **LDG-03**: Stats: base stats as bars showing the gear bonus, a derived-stats table, renown rank with a perk choice, and faction standing.
 - [ ] **LDG-04**: Map: known locations in a region as a route graph, with a legend (here, visited, heard of, bind point) and a region list with level ranges.
-- [ ] **LDG-05**: Map: picking a node shows description, danger, travel cost, services, players there and related quests, with Travel and Travel with party.
+- [ ] **LDG-05**: Map: picking a node shows description, danger, travel cost, services, players there and related quests, with one Travel button (Cross into {Region} at a border); party members with Follow leader on come along when the leader travels.
 - [ ] **LDG-06**: Social: a party table (class, where, health) with invite, leave, kick and promote, a loot-mode control, and accept / decline for pending invites.
 - [ ] **LDG-07**: Social: group chat, friends with online status and location, a who's-online count, and pending friend requests to accept.
 - [ ] **LDG-08**: Vendor: the vendor's name, role, faction, quote and rapport modifiers, and a for-sale table with a "usable by you" filter and Buy.
