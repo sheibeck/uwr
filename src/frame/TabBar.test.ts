@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import TabBar from './TabBar.vue';
-import LocationRow from './LocationRow.vue';
 import { TABS, screenForTab, tabForScreen } from './tabs';
 
 let wrapper: VueWrapper | null = null;
@@ -94,25 +93,4 @@ describe('TabBar', () => {
   });
 });
 
-describe('LocationRow', () => {
-  it('shows the location with title, separator and time', () => {
-    wrapper = mount(LocationRow, { props: { locationName: 'Hollow Gate', timeOfDay: 'night' } });
-    const name = wrapper.find('.name');
-    expect(name.text()).toBe('Hollow Gate');
-    expect(name.attributes('title')).toBe('Hollow Gate');
-    expect(wrapper.text()).toContain('·');
-    expect(wrapper.text()).toContain('Night');
-  });
-
-  it('renders Day', () => {
-    wrapper = mount(LocationRow, { props: { locationName: 'Hollow Gate', timeOfDay: 'day' } });
-    expect(wrapper.text()).toContain('Day');
-  });
-
-  it('hides separator and time when timeOfDay is null', () => {
-    wrapper = mount(LocationRow, { props: { locationName: 'Hollow Gate', timeOfDay: null } });
-    expect(wrapper.text()).not.toContain('·');
-    expect(wrapper.text()).not.toContain('Day');
-    expect(wrapper.text()).not.toContain('Night');
-  });
-});
+// The mobile location line moved to LocationRow.test.ts (51-10: terrain, level and timer; no time of day).

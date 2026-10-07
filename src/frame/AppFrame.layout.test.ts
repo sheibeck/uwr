@@ -424,3 +424,96 @@ describe('AppFrame layout', () => {
     expect(w.emitted('logout')).toHaveLength(1);
   });
 });
+
+describe('AppFrame mobile exit chip strip (51-10)', () => {
+  function exitWorld(combat = false): { game: GameData; active: ReturnType<typeof ref<boolean>>; map: MapData } {
+    const inert = createInertGame();
+    const active = ref(combat);
+    const game = {
+      ...inert,
+      connected: ref(true),
+      character: ref({ id: 1n, name: 'Hero', level: 4n, stamina: 50n, locationId: 10n }),
+      characterId: ref(1n),
+      locations: ref([
+        { id: 10n, name: 'Ember Gate', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'town', bindStone: false, craftingAvailable: false },
+        { id: 11n, name: 'Gloamwood', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'woods', bindStone: false, craftingAvailable: false },
+      ]),
+      regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 300n }]),
+      connections: ref([{ id: 1n, fromLocationId: 10n, toLocationId: 11n }]),
+      combat: { ...inert.combat, active },
+    } as unknown as GameData;
+    const map = { ...createInertMap(), ready: ref(true) } as unknown as MapData;
+    return { game, active, map };
+  }
+
+  function mountWorld(isDesktop: boolean, game: GameData, map: MapData): VueWrapper {
+    installMatchMedia(isDesktop);
+    wrapper = mount(AppFrame, {
+      attachTo: document.body,
+      props: { view, reconnecting: false, nextRetryAt: null, versionPrompt: false },
+      global: { provide: { [GAME_KEY as symbol]: game, [MAP_KEY as symbol]: map } },
+    });
+    return wrapper;
+  }
+
+  it('renders under the location line on mobile, and the line carries terrain and level but no time of day', () => {
+    const { game, map } = exitWorld();
+    const w = mountWorld(false, game, map);
+    const row = w.get('.location-row').element;
+    const strip = w.get('.exit-chips').element;
+    expect(row.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(w.findAll('.exit-chips button.chip')).toHaveLength(1);
+    expect(w.get('.location-row').text()).toContain('Ember Gate');
+    expect(w.get('.location-row').text()).toContain('Town');
+    expect(w.get('.location-row').text()).not.toContain('Day');
+  });
+
+  it('hides with a sheet open and returns when it closes', async () => {
+    const { game, map } = exitWorld();
+    const w = mountWorld(false, game, map);
+    expect(w.get('.exit-chips').attributes('style') ?? '').not.toContain('display: none');
+    await w.get('button[data-tab="bag"]').trigger('click');
+    expect(w.get('.exit-chips').attributes('style') ?? '').toContain('display: none');
+  });
+
+  it('hides while the software keyboard is open', async () => {
+    class StubViewport extends EventTarget {
+      height = 844;
+    }
+    const viewport = new StubViewport();
+    window.innerHeight = 844;
+    Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true });
+    try {
+      const { game, map } = exitWorld();
+      (game.connected as unknown as { value: boolean }).value = true;
+      const w = mountWorld(false, game, map);
+      const input = w.get('input.composer-input').element as HTMLInputElement;
+      input.focus();
+      viewport.height = 500;
+      viewport.dispatchEvent(new Event('resize'));
+      await nextTick();
+      expect(w.get('.exit-chips').attributes('style') ?? '').toContain('display: none');
+      input.blur();
+      await nextTick();
+      expect(w.get('.exit-chips').attributes('style') ?? '').not.toContain('display: none');
+    } finally {
+      Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
+    }
+  });
+
+  it('is absent in combat and returns when the fight ends', async () => {
+    const { game, active, map } = exitWorld(true);
+    const w = mountWorld(false, game, map);
+    expect(w.find('.exit-chips').exists()).toBe(false);
+    active.value = false;
+    await nextTick();
+    expect(w.find('.exit-chips').exists()).toBe(true);
+  });
+
+  it('is absent on desktop', () => {
+    const { game, map } = exitWorld();
+    const w = mountWorld(true, game, map);
+    expect(w.find('.exit-chips').exists()).toBe(false);
+    expect(w.find('.context-rail button.exit-row').exists()).toBe(true);
+  });
+});
