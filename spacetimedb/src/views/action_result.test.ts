@@ -205,13 +205,20 @@ describe('writeActionResult', () => {
     expect(db.action_result.characterId.find(8n)).toEqual(other);
   });
 
-  it('throws for a kind outside RESULT_KINDS', () => {
+  it('throws a plain Error (a server bug, not a SenderError) for a kind outside RESULT_KINDS', async () => {
+    const { SenderError } = await import('spacetimedb/server');
     const db = createMockDb({ action_result: [] }, { strict: true });
-    expect(() =>
+    let thrown: unknown;
+    try {
       writeActionResult({ db, timestamp: stamp }, 7n, {
         kind: 'bogus' as any, itemName: 'X', rarity: 'common', quantity: 0n, craftCount: 1n, lines: [],
-      }),
-    ).toThrow();
+      });
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown).not.toBeInstanceOf(SenderError as any);
+    expect((thrown as Error).message).toBe('writeActionResult: unknown result kind bogus');
     expect(db.action_result.characterId.find(7n)).toBeUndefined();
   });
 });

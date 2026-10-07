@@ -2,7 +2,6 @@
 // the craft path (craft_recipe and craft_recipe_count, plan 50-29), and salvage_item and
 // research_recipes (Discover, plan 50-30). The row is the character's last result: each write
 // replaces every field and raises seq by 1, so the client can tell a new result from the old one.
-import { SenderError } from 'spacetimedb/server';
 import { encodeResultLines, isResultKind, type ResultLine } from '../data/action_result';
 
 export interface ActionResultFields {
@@ -20,8 +19,9 @@ export interface ActionResultFields {
 
 /** Insert the character's result row (seq 1n) or replace it (seq + 1n). Returns the written row. */
 export function writeActionResult(ctx: any, characterId: bigint, fields: ActionResultFields): any {
-  // An unknown kind is a programming error, not a player mistake.
-  if (!isResultKind(fields.kind)) throw new SenderError(`Unknown result kind: ${String(fields.kind)}`);
+  // An unknown kind is a server bug, not a player mistake: a plain Error, never a SenderError that
+  // would blame the caller (review IN-05). Every caller passes a literal kind.
+  if (!isResultKind(fields.kind)) throw new Error(`writeActionResult: unknown result kind ${String(fields.kind)}`);
   const existing = ctx.db.action_result.characterId.find(characterId);
   const row = {
     characterId,
