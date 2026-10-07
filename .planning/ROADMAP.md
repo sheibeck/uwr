@@ -633,21 +633,53 @@ Plans:
 **Plans**: 16 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 51.1-01-PLAN.md — Stored online status (one writer, backfill through connect and the guarded sweep), private `user`, shared party rules (`data/group_config.ts`)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 51.1-02-PLAN.md — Offline members left behind (travel, stamina check, fight pulls); offline drops out of who, look and look at; whisper refuses offline targets
 - [ ] 51.1-03-PLAN.md — Invites need consent: `join_group` invite rule, validate-before-create, guarded 5-minute expiry tick, `cancel_group_invite`, lone-group dissolve
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 51.1-04-PLAN.md — Local publish of the party server (key 108 before and after, no clear) and bindings regeneration
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 51.1-05-PLAN.md — CR-01: token-derived login email with admin bypass and a one-line rollback, email friend request neutralised, own publish, owner sign-in check
 - [ ] 51.1-06-PLAN.md — Client social hub: pets, outgoing invites, inviting group and names on the server clock; `setFollowLeader` and `cancelGroupInvite` in GameReducers
 - [ ] 51.1-07-PLAN.md — `follow.ts` (states, summary, stamina warning), online followers in `travelChecks.ts`, online Map players count, server/client parity test
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 51.1-08-PLAN.md — `playerMenu.ts` (role-aware entry groups, hints, confirms) and `partyActions.ts` (one action layer, no join without an invite)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 51.1-09-PLAN.md — StatusDot, CharacterName, FollowIcon, PetRow, PetTag, TravelSwitch and the `src/social` design guards
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 51.1-10-PLAN.md — ActionMenu (desktop popover and mobile sheet, keyboard, inline confirms) and PlayerMenu (⋯ opener, right-click, one menu at a time)
 - [ ] 51.1-11-PLAN.md — Incoming invite card (Accept, Decline, countdown, announce; also above the mobile composer) and Invited · waiting with Cancel invite
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 51.1-12-PLAN.md — Nearby: online players only, "In your party", Whisper · Examine · ⋯ with right-click, NPC Talk icon
 - [ ] 51.1-13-PLAN.md — Rail out of combat: member cards with dot, follow icon, stamina and ⋯; pets; summary and warning; gated Invite; Loot: personal; invites; self block menu, pet and switch
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 51.1-14-PLAN.md — Rail in combat: self block as the self target (replaces the 48 You card), COMBAT3 member cards with chips, XP hidden; Phase 48 tests rewritten
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
 - [ ] 51.1-15-PLAN.md — Mobile combat: self row target, row 3 with your pet tag, 3-column party grid with paws; Phase 48 strip tests rewritten
+
+**Wave 11** *(blocked on Wave 10 completion)*
+
 - [ ] 51.1-16-PLAN.md — Mobile Party sheet (every party action at 390x844), NoticeLine kinds prop, 44px proof, no-email DOM check
 
 **UI hint**: yes
@@ -658,6 +690,7 @@ Plans:
   - Owner, 2026-10-07: "The new combat mock has updated rails for character/pets/buffs/etc. So, probably relevant."
   - Context: `51.1-CONTEXT.md` (pointer and owner decisions after research) and `51-CONTEXT.md` (Areas 2 and 4, updated party mock). Research and patterns already exist for this phase.
   - Server: online flag, `join_group` invite check, invite expiry and cancel, private `user`, CR-01. All changes additive and published locally only.
+
 ### Phase 51.3: Regional Economy (INSERTED)
 
 **Goal**: Each region has its own economy, designed by the AI within server rules: materials to gather, creature drops, loot tables for its enemy types, and regional recipes. The rarest recipes need materials from several regions.
@@ -789,6 +822,7 @@ Plans:
   - Today nothing is stored: `event_private` is an event table and the console keeps 300 lines in memory only.
   - Owner accepted the defaults (2026-10-07): drop or reword the Keeper's first-person rail quote, keep the standard sheet (grabber and X) on mobile, the Log stays open in combat (read-only), and the mock's new colours map to existing tokens.
   - Server changes are additive and published locally only.
+
 ### Phase 52: Parity and Production
 
 **Goal**: The new client does everything the old client did and is what production serves.
@@ -860,6 +894,7 @@ Plans:
   - Moved out of Phase 51.1 (owner, 2026-10-07): "It's going to be bigger because we are going to add guilds."
   - Carry over from the 51.1 research (`51.1-RESEARCH.md`): private `friend` and `friend_request` with `my_friend_list` and `my_friend_request_list` views, the online count view, the party chat filter, the NoticeLine `kinds` prop, recorded character ids on friend rows.
   - Guilds need a discuss and a UI-SPEC from the new mock.
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
