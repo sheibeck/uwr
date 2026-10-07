@@ -5,6 +5,7 @@ import { buildLookOutput } from './look';
 import { startWorldGeneration } from './world_gen';
 import { beginCombatCooldowns } from './combat_round_state';
 import { markLocationVisited } from './visited';
+import { collapsePassageIfEmpty } from './passages';
 
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
@@ -263,6 +264,10 @@ export function performTravel(
   for (const traveler of travelingCharacters) {
     moveOne(traveler.id);
   }
+
+  // An explored passage collapses into a border crossing once its last traveller has left. Checked
+  // once, after every traveller (leader and followers) has moved, so no follower targets a deleted place.
+  collapsePassageIfEmpty(ctx, originLocationId);
 
   // Check if destination is uncharted -- trigger world generation
   const destLocation = ctx.db.location.id.find(targetLocationId);
