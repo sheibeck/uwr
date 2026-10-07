@@ -258,6 +258,44 @@ describe('ExitChips card', () => {
     expect(w.find('.exit-card').exists()).toBe(false);
   });
 
+  it('focus on the Travel button moves to the first chip of the new place after the trip (review WR-03)', async () => {
+    const { w, character } = build();
+    await chip(w, 'Gloamwood').trigger('click');
+    const travel = w.get('.exit-card button.card-button');
+    (travel.element as HTMLElement).focus();
+    expect(document.activeElement).toBe(travel.element);
+    character.value = { ...character.value, locationId: 11n };
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(w.find('.exit-card').exists()).toBe(false);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(w.findAll('button.chip')[0]?.element ?? w.get('.exit-chips').element);
+  });
+
+  it('with no exits at the new place focus moves to the strip, never the body', async () => {
+    const { w, character, game } = build();
+    await chip(w, 'Gloamwood').trigger('click');
+    (w.get('.exit-card button.card-button').element as HTMLElement).focus();
+    (game.connections as unknown as { value: unknown[] }).value = [];
+    character.value = { ...character.value, locationId: 11n };
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('.exit-chips').element);
+  });
+
+  it('focus outside the strip stays where it was after a move', async () => {
+    const { character } = build();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    character.value = { ...character.value, locationId: 11n };
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(outside);
+  });
+
   it('server text stays text', async () => {
     const payload = '<img src=x onerror=alert(1)>';
     const { w } = build({ longName: payload });

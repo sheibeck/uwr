@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, nextTick, ref, watch } from 'vue';
 import { PhDoorOpen, PhLockSimple, PhSignpost } from '@phosphor-icons/vue';
 import { CONSOLE_KEY, createInertConsole } from '../game/context';
 import { aboutMinutes } from '../map/travelTimer';
@@ -18,6 +18,7 @@ const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const { character, ready, here, rows, beginTravel } = useExits();
 
 const openId = ref<bigint | null>(null);
+const root = ref<HTMLElement | null>(null);
 const openRow = computed<ExitRow | null>(() => rows.value.find((r) => r.locationId === openId.value) ?? null);
 
 const chipId = (row: ExitRow): string => `exit-chip-${row.locationId}`;
@@ -28,12 +29,23 @@ function toggle(row: ExitRow): void {
   openId.value = openId.value === row.locationId ? null : row.locationId;
 }
 
-// After a move the place changes and every card closes.
+// After a move the place changes and every card closes. Focus that was inside the strip or the card
+// (the Travel button about to unmount) moves to the first chip of the new place, or to the strip
+// itself when the new place has none, so it never falls to the body (review WR-03, the HereCard
+// rule). Focus elsewhere is left alone. The check runs before the DOM updates.
 watch(
   () => character.value?.locationId,
   () => {
     openId.value = null;
+    const active = document.activeElement;
+    const inside = root.value !== null && active !== null && root.value.contains(active);
+    if (!inside) return;
+    void nextTick(() => {
+      const target = root.value?.querySelector<HTMLElement>('button.chip') ?? root.value;
+      target?.focus();
+    });
   },
+  { flush: 'pre' },
 );
 
 // The region you stand in, for 'Moving within {Region} is fine.'
@@ -68,7 +80,7 @@ function go(row: ExitRow): void {
 </script>
 
 <template>
-  <div class="exit-chips">
+  <div ref="root" class="exit-chips" tabindex="-1">
     <template v-if="ready && rows.length > 0">
       <ul class="strip" aria-label="Exits">
         <li v-for="row in rows" :key="String(row.locationId)">
