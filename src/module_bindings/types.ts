@@ -220,6 +220,8 @@ export const Character = __t.object("Character", {
   weaponProficiencies: __t.option(__t.string()),
   armorProficiencies: __t.option(__t.string()),
   pendingLevels: __t.u64(),
+  online: __t.bool(),
+  lastOnlineAtMicros: __t.u64(),
 });
 export type Character = __Infer<typeof Character>;
 
@@ -705,6 +707,13 @@ export const GroupInvite = __t.object("GroupInvite", {
   createdAt: __t.timestamp(),
 });
 export type GroupInvite = __Infer<typeof GroupInvite>;
+
+export const GroupInviteExpiryTick = __t.object("GroupInviteExpiryTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  inviteId: __t.u64(),
+});
+export type GroupInviteExpiryTick = __Infer<typeof GroupInviteExpiryTick>;
 
 export const GroupMember = __t.object("GroupMember", {
   id: __t.u64(),

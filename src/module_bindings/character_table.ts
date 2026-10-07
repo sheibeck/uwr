@@ -71,4 +71,6 @@ export default __t.row({
   weaponProficiencies: __t.option(__t.string()).name("weapon_proficiencies"),
   armorProficiencies: __t.option(__t.string()).name("armor_proficiencies"),
   pendingLevels: __t.u64().name("pending_levels"),
+  online: __t.bool(),
+  lastOnlineAtMicros: __t.u64().name("last_online_at_micros"),
 });

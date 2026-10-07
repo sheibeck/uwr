@@ -104,6 +104,7 @@ import KickGroupMemberReducer from "./kick_group_member_reducer";
 import InviteToGroupReducer from "./invite_to_group_reducer";
 import AcceptGroupInviteReducer from "./accept_group_invite_reducer";
 import RejectGroupInviteReducer from "./reject_group_invite_reducer";
+import CancelGroupInviteReducer from "./cancel_group_invite_reducer";
 import StartCombatReducer from "./start_combat_reducer";
 import StartTrackedCombatReducer from "./start_tracked_combat_reducer";
 import StartPullReducer from "./start_pull_reducer";
@@ -258,7 +259,6 @@ import TradeItemRow from "./trade_item_table";
 import TradeSessionRow from "./trade_session_table";
 import TravelCooldownRow from "./travel_cooldown_table";
 import UiPanelLayoutRow from "./ui_panel_layout_table";
-import UserRow from "./user_table";
 import VendorInventoryRow from "./vendor_inventory_table";
 import WorldEventRow from "./world_event_table";
 import WorldGenStateRow from "./world_gen_state_table";
@@ -1578,20 +1578,6 @@ const tablesSchema = __schema({
       { name: 'ui_panel_layout_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, UiPanelLayoutRow),
-  user: __table({
-    name: 'user',
-    indexes: [
-      { accessor: 'by_email', name: 'user_email_idx_btree', algorithm: 'btree', columns: [
-        'email',
-      ] },
-      { accessor: 'id', name: 'user_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'user_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, UserRow),
   vendorInventory: __table({
     name: 'vendor_inventory',
     indexes: [
@@ -1879,6 +1865,7 @@ const reducersSchema = __reducers(
   __reducerSchema("invite_to_group", InviteToGroupReducer),
   __reducerSchema("accept_group_invite", AcceptGroupInviteReducer),
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
+  __reducerSchema("cancel_group_invite", CancelGroupInviteReducer),
   __reducerSchema("start_combat", StartCombatReducer),
   __reducerSchema("start_tracked_combat", StartTrackedCombatReducer),
   __reducerSchema("start_pull", StartPullReducer),
