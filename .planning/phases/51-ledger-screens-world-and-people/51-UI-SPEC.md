@@ -208,14 +208,14 @@ The 45 scale applies to every padding, margin and gap in scoped styles: 4, 8, 16
 | `gap: 2px` | rail title block | 4 |
 | `margin: 0 -4px`, list `gap: 1px` | rail exit list | margin `0 -4px` (on scale), list gap 4 |
 | `padding: 4px 6px`, `gap: 7px` | rail exit row | `4px 8px`, gap 8 |
-| `padding: 0 6px 6px 33px`, `gap: 8px` | rail open row | `0 8px 8px 40px` (40 = row padding 8 + ring 24 + gap 8), gap 8 |
+| `padding: 0 6px 6px 33px`, `gap: 8px` | rail open row | `0 8px 8px 32px` (32 = ring 24 + gap 8; on the spacing scale, checker 2026-10-07), gap 8 |
 | `padding: 1px 8px`, `gap: 4px` | rail cooldown chip | `0 8px`, gap 4 |
 | `padding: 0 10px`, `min-height: 26px` | rail Travel/Cross button | `0 8px`, min-height 28 (44 mobile) |
 | `padding: 8px 16px 4px` | mobile location line | as mock (on scale) |
 | `padding: 4px 16px 8px`, `gap: 6px` | mobile exit chip strip | `4px 16px 8px`, gap 8 |
 | `padding: 0 10px 0 6px`, `min-height: 40px` | mobile exit chip | `0 8px 0 4px`, min-height 44 |
 | `margin: 0 12px 6px`, `padding: 10px 12px`, `gap: 6px` | mobile open card | `0 16px 8px`, `8px 16px`, gap 8 |
-| `gap: 9px`, `padding: 0` (map2 party rows) | vitals-rail party rows | the 47 card as built |
+| `gap: 9px`, `padding: 0` (map2 party rows) | vitals-rail party rows | gap 8 (snapped from 9), padding 0 |
 
 **Exceptions** are structural dimensions written as literal px in scoped styles. Each has a rationale so the checker does not flag it. The spacing guard checks only padding, margin and gap.
 
@@ -665,7 +665,7 @@ The 47 Here card in the context rail (and the mobile Map sheet's Here tab) becom
       │         name (ellipsis) + on crossings: PhDoorOpen 12 accent-300 + " · {Region}" (Micro 10, accent-300)
       │         right (Micro 10, tabular): "Lv a–b" or "Safe" in band color;
       │           while the timer runs on a crossing row: PhLockSimple 12 + "{m:ss}" (neutral-500)
-      └ [open] region (padding 0 8px 8px 40px, gap 8, align center):
+      └ [open] region (padding 0 8px 8px 32px, gap 8, align center):
               note (Label 12, flex 1, wraps)          [.btn-primary, min-height 28, padding 0 8px]
 ```
 
