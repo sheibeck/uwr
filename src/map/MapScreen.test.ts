@@ -56,6 +56,8 @@ interface Harness {
   select: ReturnType<typeof vi.fn>;
   showRegion: ReturnType<typeof vi.fn>;
   setView: ReturnType<typeof vi.fn>;
+  setBanner: ReturnType<typeof vi.fn>;
+  banner: ReturnType<typeof ref<string | null>>;
   character: ReturnType<typeof ref<Record<string, unknown> | null>>;
   ready: ReturnType<typeof ref<boolean>>;
   view: ReturnType<typeof ref<MapView>>;
@@ -85,6 +87,7 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
   const timer = ref<TravelTimer>({ running: false, secondsLeft: 0 });
   const screenArgs = ref<ScreenArgs | null>(over.args ?? null);
   const isDesktop = ref(over.desktop ?? true);
+  const banner = ref<string | null>(null);
 
   const known = computed(() => {
     const here = (character.value?.locationId as bigint | undefined) ?? 0n;
@@ -105,6 +108,9 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
   const setView = vi.fn((next: MapView) => {
     view.value = next;
   });
+  const setBanner = vi.fn((text: string | null) => {
+    banner.value = text;
+  });
 
   const map = {
     ...createInertMap(),
@@ -115,9 +121,11 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
     selectedId,
     shownRegionId,
     view,
+    banner,
     select,
     showRegion,
     setView,
+    setBanner,
   } as unknown as MapData;
 
   const game = {
@@ -127,7 +135,7 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
     regions: ref(REGIONS),
   } as unknown as GameData;
   const frame = { ...createInertFrame(), isDesktop, screenArgs } as unknown as FrameControls;
-  return { map, game, frame, select, showRegion, setView, character, ready, view, selectedId, shownRegionId, timer, screenArgs, isDesktop, locations };
+  return { map, game, frame, select, showRegion, setView, setBanner, banner, character, ready, view, selectedId, shownRegionId, timer, screenArgs, isDesktop, locations };
 }
 
 let wrapper: VueWrapper | null = null;
@@ -420,6 +428,146 @@ describe('MapScreen: Center on you', () => {
     scrolled.length = 0;
     await w.get('button[aria-label="Center on you"]').trigger('click');
     expect(scrolled.map((el) => el.dataset.nodeId)).toEqual(['20']);
+  });
+});
+
+describe('MapScreen: detail column', () => {
+  it('shows the detail of the selection beside the canvas, with the docked Travel button', async () => {
+    const h = harness({ args: { locationId: 11n } });
+    const w = await mountScreen(h);
+    const column = w.get('.detail-column');
+    expect(column.get('h4').text()).toBe('Gloamwood');
+    expect(column.get('button.travel-button').text()).toBe('Travel to Gloamwood');
+    expect(column.element.contains(w.get('.canvas').element)).toBe(false);
+    const body = w.get('.map-body').element;
+    expect(body.contains(w.get('.legend').element)).toBe(true);
+    expect(body.contains(column.element)).toBe(true);
+  });
+
+  it('the detail follows the selection and falls back to your place', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    expect(w.get('.detail-column h4').text()).toBe('Ember Gate');
+    expect(w.get('.detail-column .kicker').text()).toBe('You are here');
+    await w.get('button.node[data-node-id="12"]').trigger('click');
+    await nextTick();
+    expect(w.get('.detail-column h4').text()).toBe('Ridge Walk');
+    expect(w.get('.detail-column .kicker').text()).toBe('Destination');
+  });
+
+  it('a gate selection shows the far place detail with the Region crossing block', async () => {
+    const h = harness({ locationId: 11n });
+    const w = await mountScreen(h);
+    await w.get('button.gate').trigger('click');
+    await nextTick();
+    expect(w.get('.detail-column h4').text()).toBe('Saltmarsh Gate');
+    expect(w.get('.detail-column .crossing').text()).toContain('Region crossing');
+    expect(w.get('.detail-column button.travel-button').text()).toBe('Cross into Saltmarsh');
+  });
+
+  it('source: 304px beside the canvas from 1200px, 256px from 900 to 1199px', () => {
+    expect(SOURCE).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s*256px/);
+    expect(SOURCE).toMatch(/@media\s*\(min-width:\s*1200px\)\s*\{\s*\.map-body\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*304px/);
+    expect(SOURCE).toMatch(/column-gap:\s*24px/);
+    expect(SOURCE).toContain('useDestination()');
+    expect(SOURCE).toContain('Crossed into');
+    expect(SOURCE).toContain('Arrived at');
+  });
+});
+
+describe('MapScreen: the arrival banner box', () => {
+  it('sits at the canvas top centre as a status with tokens only', () => {
+    expect(SOURCE).toMatch(/\.arrival-banner\s*\{[^}]*position:\s*absolute/);
+    expect(SOURCE).toMatch(/\.arrival-banner\s*\{[^}]*top:\s*16px/);
+    expect(SOURCE).toMatch(/\.arrival-banner\s*\{[^}]*padding:\s*8px 16px/);
+    expect(SOURCE).toMatch(/\.arrival-banner\s*\{[^}]*var\(--shadow-md\)/);
+    expect(SOURCE).toContain('PhFootprints');
+  });
+});
+
+describe('MapScreen: region chips choose the selection', () => {
+  it('a chosen region that does not hold the selection selects its start node', async () => {
+    const h = harness();
+    await mountScreen(h);
+    expect(h.selectedId.value).toBe(10n);
+    h.select.mockClear();
+    h.showRegion(2n);
+    await nextTick();
+    await nextTick();
+    expect(h.select).toHaveBeenCalledWith(20n);
+    expect(h.selectedId.value).toBe(20n);
+  });
+
+  it('choosing your own region again selects your place', async () => {
+    const h = harness({ args: { regionId: 2n } });
+    await mountScreen(h);
+    expect(h.selectedId.value).toBe(20n);
+    h.showRegion(1n);
+    await nextTick();
+    await nextTick();
+    expect(h.selectedId.value).toBe(10n);
+  });
+
+  it('a selection already in the chosen region stays', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    await mountScreen(h);
+    h.select.mockClear();
+    h.showRegion(1n);
+    await nextTick();
+    await nextTick();
+    expect(h.select).not.toHaveBeenCalled();
+    expect(h.selectedId.value).toBe(12n);
+  });
+
+  it('a gate selection of a far-region place keeps the shown region and the selection', async () => {
+    const h = harness({ locationId: 11n });
+    const w = await mountScreen(h);
+    await w.get('button.gate').trigger('click');
+    await nextTick();
+    await nextTick();
+    expect(h.selectedId.value).toBe(20n);
+    expect(h.shownRegionId.value).toBe(1n);
+  });
+
+  it('choosing a chip clears the arrival banner', async () => {
+    const h = harness();
+    await mountScreen(h);
+    h.setBanner('Arrived at Ember Gate.');
+    h.showRegion(2n);
+    await nextTick();
+    await nextTick();
+    expect(h.banner.value).toBeNull();
+  });
+
+  it('moves focus to the graph group current node when the focus was on a chip in the header', async () => {
+    const h = harness();
+    const chip = document.createElement('button');
+    chip.setAttribute('data-region-chip', '');
+    document.body.appendChild(chip);
+    await mountScreen(h);
+    chip.focus();
+    expect(document.activeElement).toBe(chip);
+    h.showRegion(2n);
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    const active = document.activeElement as HTMLElement;
+    expect(active.tagName).toBe('BUTTON');
+    expect(active.classList.contains('node')).toBe(true);
+    expect(active.closest('[role="group"]')).not.toBeNull();
+  });
+
+  it('leaves focus alone when it was not on a chip', async () => {
+    const h = harness();
+    const other = document.createElement('button');
+    document.body.appendChild(other);
+    await mountScreen(h);
+    other.focus();
+    h.showRegion(2n);
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(other);
   });
 });
 
