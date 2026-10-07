@@ -1,3 +1,4 @@
+import { scheduledReducers } from '../schema/tables';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { MAX_GROUP_SIZE } from '../data/group_config';
 import {
@@ -8,6 +9,7 @@ import {
   liveInvitesOfGroup,
   liveInvitesTo,
   nextLeaderAfter,
+  scheduleInviteExpiry,
 } from '../helpers/group_invites';
 
 export const registerGroupReducers = (deps: any) => {
@@ -15,6 +17,7 @@ export const registerGroupReducers = (deps: any) => {
     spacetimedb,
     t,
     GroupMember,
+    GroupInviteExpiryTick,
     requireCharacterOwnedBy,
     requirePlayerUserId,
     findCharacterByName,
@@ -375,13 +378,14 @@ export const registerGroupReducers = (deps: any) => {
         appendGroupEvent(ctx, groupId, inviter.id, 'group', `${inviter.name} formed a group.`);
       }
 
-      ctx.db.group_invite.insert({
+      const invite = ctx.db.group_invite.insert({
         id: 0n,
         groupId,
         fromCharacterId: inviter.id,
         toCharacterId: target.id,
         createdAt: ctx.timestamp,
       });
+      scheduleInviteExpiry(ctx, invite);
 
       appendPrivateEvent(
         ctx,
@@ -433,6 +437,48 @@ export const registerGroupReducers = (deps: any) => {
       );
       if (!invite) return;
       endInvite(ctx, invite, 'declined', character);
+    }
+  );
+
+  // The invite's group leader or its inviter may withdraw a pending invite.
+  spacetimedb.reducer(
+    'cancel_group_invite',
+    { characterId: t.u64(), targetName: t.string() },
+    (ctx, args) => {
+      let caller = requireCharacterOwnedBy(ctx, args.characterId);
+      const targetName = args.targetName.trim();
+      if (!targetName) return failGroup(ctx, caller, 'Target required');
+      const target = findCharacterByName(ctx, targetName);
+      if (!target) return failGroup(ctx, caller, 'Target not found');
+
+      // An expired invite is ended as expired, never cancelled; a dissolve may clear groupId.
+      endExpiredInvitesTo(ctx, target.id);
+      caller = ctx.db.character.id.find(caller.id) ?? caller;
+
+      const group = caller.groupId ? ctx.db.group.id.find(caller.groupId) : null;
+      const mine = group
+        ? liveInvitesTo(ctx, target.id).filter(
+            (invite: any) =>
+              invite.groupId === group.id &&
+              (group.leaderCharacterId === caller.id || invite.fromCharacterId === caller.id)
+          )
+        : [];
+      if (mine.length === 0) return failGroup(ctx, caller, `No pending invite to ${target.name}.`);
+      for (const invite of mine) endInvite(ctx, invite, 'cancelled', caller);
+    }
+  );
+
+  // One-shot expiry tick. Ends the invite only if it still exists and is expired, so a tick for
+  // an invite already accepted, declined or cancelled is a no-op.
+  scheduledReducers['expire_group_invite'] = spacetimedb.reducer(
+    'expire_group_invite',
+    { arg: GroupInviteExpiryTick.rowType },
+    (ctx, { arg }) => {
+      if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
+      const invite = ctx.db.group_invite.id.find(arg.inviteId);
+      if (!invite) return;
+      if (inviteIsLive(invite, ctx.timestamp.microsSinceUnixEpoch)) return;
+      endInvite(ctx, invite, 'expired');
     }
   );
 };

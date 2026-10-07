@@ -1309,6 +1309,20 @@ export const DisconnectLogoutTick = table(
   }
 );
 
+// One-shot expiry for a party invite (plan 51.1-03), due at createdAt + GROUP_INVITE_TTL_MICROS.
+// Private. A tick whose invite already ended (accept, decline, cancel) is a no-op.
+export const GroupInviteExpiryTick = table(
+  {
+    name: 'group_invite_expiry_tick',
+    scheduled: () => scheduledReducers['expire_group_invite'],
+  },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    inviteId: t.u64(),
+  }
+);
+
 export const CharacterLogoutTick = table(
   {
     name: 'character_logout_tick',
@@ -2484,6 +2498,7 @@ const spacetimedb = schema({
   action_result: ActionResult,
   visited_location: VisitedLocation,
   passage_sweep_tick: PassageSweepTick,
+  group_invite_expiry_tick: GroupInviteExpiryTick,
 });
 export default spacetimedb;
 export { spacetimedb };
