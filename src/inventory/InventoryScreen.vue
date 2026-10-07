@@ -7,7 +7,7 @@ import { itemCategory } from '../ledger/itemModel';
 import NoticeLine from '../ledger/NoticeLine.vue';
 import ResultCard from '../ledger/ResultCard.vue';
 import type { ResultCardAction } from '../ledger/ResultCard.vue';
-import { resultCardView } from '../ledger/resultCard';
+import { RESULT_ACTION_OFFLINE, resultCardView } from '../ledger/resultCard';
 import { useActionResult } from '../ledger/useActionResult';
 import SegTabs from '../ledger/SegTabs.vue';
 import EmptyState from '../screens/EmptyState.vue';
@@ -29,6 +29,7 @@ const game = inject(GAME_KEY, createInertGame());
 const ledger = inject(LEDGER_KEY, createInertLedger());
 
 const mobile = computed(() => !frame.isDesktop.value);
+const offline = computed(() => !game.connected.value || ledger.reducers.value === null);
 // The runner is shared with the header actions (Organize), so a rejected Organize reaches the notice line.
 const runner = bagRunner(ledger, game);
 
@@ -102,12 +103,15 @@ const resultActions = computed<ResultCardAction[]>(() => {
     actions.push({ id: 'open-crafting', label: 'Open crafting', icon: PhHammer, tone: 'secondary' });
   }
   if (view !== null && view.scrollInstanceId !== null) {
+    // Read scroll calls a reducer: offline it is aria-disabled with the reason. Open crafting is
+    // navigation only and stays live.
     actions.push({
       id: 'read-scroll',
       label: 'Read scroll',
       icon: PhBookOpen,
       tone: 'primary',
       pending: runner.isPending('item-learn'),
+      reason: offline.value ? RESULT_ACTION_OFFLINE : undefined,
     });
   }
   return actions;

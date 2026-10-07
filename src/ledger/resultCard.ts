@@ -16,6 +16,12 @@ import { itemCategory, itemIcon, itemName, itemRarity, nameColor } from './itemM
 /** A Phosphor icon component, as itemIcon returns it. */
 type Component = ReturnType<typeof itemIcon>;
 
+/**
+ * The reason a reducer-backed card action (Craft again, Equip, Read scroll) shows while offline. The
+ * action is aria-disabled and sends nothing; navigation (Open crafting) stays live.
+ */
+export const RESULT_ACTION_OFFLINE = "You're offline. Try again once you're reconnected.";
+
 const USED_COLOR = 'var(--color-neutral-400)';
 const ACCENT_COLOR = 'var(--color-accent)';
 const MINUS = '−';

@@ -8,7 +8,7 @@ import { createActionRunner } from '../ledger/actionRunner';
 import NoticeLine from '../ledger/NoticeLine.vue';
 import ResultCard from '../ledger/ResultCard.vue';
 import type { ResultCardAction } from '../ledger/ResultCard.vue';
-import { resultCardView } from '../ledger/resultCard';
+import { RESULT_ACTION_OFFLINE, resultCardView } from '../ledger/resultCard';
 import SegTabs from '../ledger/SegTabs.vue';
 import { useActionResult } from '../ledger/useActionResult';
 import EmptyState from '../screens/EmptyState.vue';
@@ -163,14 +163,17 @@ const canEquipMade = computed(() => {
   return template !== undefined && canEquipItem(template, c).ok;
 });
 
+// Every card action here calls a reducer, so offline each one is aria-disabled with the offline reason.
 const resultActions = computed<ResultCardAction[]>(() => {
   const actions: ResultCardAction[] = [];
+  const reason = online.value ? undefined : RESULT_ACTION_OFFLINE;
   if (againCount.value !== null) {
     actions.push({
       id: 'craft-again',
       label: 'Craft again',
       tone: mobile.value ? 'primary' : 'secondary',
       pending: runner.isPending('craft'),
+      reason,
     });
   }
   if (canEquipMade.value) {
@@ -180,6 +183,7 @@ const resultActions = computed<ResultCardAction[]>(() => {
       icon: PhTShirt,
       tone: 'primary',
       pending: runner.isPending('item-equip'),
+      reason,
     });
   }
   const scrollId = resultView.value?.kind === 'salvage' ? resultView.value.scrollInstanceId : null;
@@ -190,6 +194,7 @@ const resultActions = computed<ResultCardAction[]>(() => {
       icon: PhBookOpen,
       tone: 'primary',
       pending: runner.isPending('item-learn'),
+      reason,
     });
   }
   return actions;

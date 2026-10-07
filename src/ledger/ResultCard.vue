@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
 import type { Component } from 'vue';
 import { trapTabKey } from '../frame/focusTrap';
 import type { ResultCardView } from './resultCard';
@@ -19,6 +19,11 @@ export interface ResultCardAction {
   tone: 'primary' | 'secondary';
   /** The action's call is in flight: it is aria-disabled and sends nothing. */
   pending?: boolean;
+  /**
+   * Why the action cannot run now (offline): it is aria-disabled, sends nothing, and the reason shows
+   * as a line under the buttons that describes it (the UI-SPEC "disabled with a reason" rule).
+   */
+  reason?: string;
   ariaLabel?: string;
 }
 
@@ -37,6 +42,16 @@ const doneButton = useTemplateRef<HTMLButtonElement>('doneButton');
 const liveText = ref('');
 const titleId = useId();
 const subId = useId();
+const reasonId = useId();
+
+// The distinct reasons of the unavailable actions, as one line.
+const reasonText = computed(() => {
+  const seen: string[] = [];
+  for (const action of props.actions) {
+    if (action.reason && seen.indexOf(action.reason) === -1) seen.push(action.reason);
+  }
+  return seen.join(' ');
+});
 
 let listening = false;
 // The latest announcement: a slower nextTick from an earlier result never overwrites a newer one.
@@ -112,7 +127,7 @@ function onCardKeydown(event: KeyboardEvent): void {
 }
 
 function onAction(action: ResultCardAction): void {
-  if (action.pending) return;
+  if (action.pending || action.reason) return;
   emit('action', action.id);
 }
 </script>
@@ -186,7 +201,8 @@ function onAction(action: ResultCardAction): void {
           type="button"
           class="btn card-btn"
           :class="[action.tone === 'primary' ? 'btn-primary' : 'btn-secondary', { full: props.mobile }]"
-          :aria-disabled="action.pending ? 'true' : undefined"
+          :aria-disabled="action.pending || action.reason ? 'true' : undefined"
+          :aria-describedby="action.reason ? reasonId : undefined"
           :aria-label="action.ariaLabel"
           @click="onAction(action)"
         >
@@ -194,6 +210,7 @@ function onAction(action: ResultCardAction): void {
           {{ action.label }}
         </button>
       </div>
+      <p v-if="reasonText" :id="reasonId" class="reason">{{ reasonText }}</p>
 
       <div class="footer">{{ props.view.footer }}</div>
     </section>
@@ -431,6 +448,14 @@ function onAction(action: ResultCardAction): void {
 .card-btn[aria-disabled='true'] {
   opacity: 0.45;
   cursor: default;
+}
+
+.reason {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
 }
 
 .footer {

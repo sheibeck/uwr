@@ -1386,6 +1386,31 @@ describe('Craft and Discover result card (Plan 50-37)', () => {
     await flush();
   });
 
+  // WR-06 (iteration 3): the card actions follow the offline rule like every other ledger action.
+  it('offline: Craft again and Equip are aria-disabled with the reason and send nothing', async () => {
+    const ctx = mountCard({ gear: true, items: [inst(1n, 1n, 9n), inst(2n, 4n, 3n)] });
+    await craft(1);
+    expect(cardButton('Craft again')!.attributes('aria-disabled')).toBeUndefined();
+    expect(wrapper!.find('[role="dialog"] .reason').exists()).toBe(false);
+    ctx.connected.value = false;
+    await flush();
+    const again = cardButton('Craft again')!;
+    const equip = cardButton('Equip')!;
+    for (const button of [again, equip]) {
+      expect(button.attributes('aria-disabled')).toBe('true');
+      const reasonId = button.attributes('aria-describedby');
+      expect(wrapper!.get(`#${reasonId}`).text()).toBe("You're offline. Try again once you're reconnected.");
+    }
+    expect(wrapper!.findAll('[role="dialog"] .reason')).toHaveLength(1);
+    await again.trigger('click');
+    await equip.trigger('click');
+    await flush();
+    expect(ctx.craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(ctx.calls.equipItem).not.toHaveBeenCalled();
+    expect(dialog().exists()).toBe(true);
+    expect(cardButton('Done')!.attributes('aria-disabled')).toBeUndefined();
+  });
+
   it('Equip appears for gear the character can equip, equips the made instance and closes the card', async () => {
     const ctx = mountCard({ gear: true, items: [inst(1n, 1n, 9n), inst(2n, 4n, 3n)] });
     await craft(1);

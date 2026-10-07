@@ -335,6 +335,26 @@ describe('ResultCard actions', () => {
     expect(w.emitted('action')).toBeUndefined();
   });
 
+  it('an action with a reason is aria-disabled, described by one visible reason line, and emits nothing', async () => {
+    const reason = "You're offline. Try again once you're reconnected.";
+    const w = mountCard({ actions: [{ ...ACTIONS[0], reason }, { ...ACTIONS[1], reason }] });
+    const buttons = w.findAll('button');
+    expect(buttons[0].attributes('aria-disabled')).toBeUndefined();
+    for (const button of [buttons[1], buttons[2]]) {
+      expect(button.attributes('aria-disabled')).toBe('true');
+      expect(w.get(`#${button.attributes('aria-describedby')}`).text()).toBe(reason);
+      await button.trigger('click');
+    }
+    expect(w.findAll('.reason')).toHaveLength(1);
+    expect(w.emitted('action')).toBeUndefined();
+  });
+
+  it('shows no reason line when every action is available', () => {
+    const w = mountCard({ actions: ACTIONS });
+    expect(w.find('.reason').exists()).toBe(false);
+    expect(w.findAll('button').every((b) => b.attributes('aria-describedby') === undefined)).toBe(true);
+  });
+
   it('uses the action aria label when given', () => {
     const w = mountCard({ actions: [{ ...ACTIONS[0], ariaLabel: 'Craft 3 more Herbal Draught' }] });
     expect(w.findAll('button')[1].attributes('aria-label')).toBe('Craft 3 more Herbal Draught');

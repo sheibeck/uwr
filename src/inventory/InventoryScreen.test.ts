@@ -1064,6 +1064,31 @@ describe('Salvage result card (Plan 50-34)', () => {
     expect(dialog().exists()).toBe(false);
   });
 
+  // WR-06 (iteration 3): offline, Read scroll is aria-disabled with a visible reason and sends nothing;
+  // Open crafting is navigation and stays live.
+  it('offline: Read scroll is aria-disabled with the reason and sends nothing; Open crafting stays live', async () => {
+    const ctx = await mountCard({ scroll: true });
+    await salvageRare();
+    ctx.connected.value = false;
+    await flush();
+    const read = cardButton('Read scroll')!;
+    expect(read.attributes('aria-disabled')).toBe('true');
+    const reasonId = read.attributes('aria-describedby');
+    expect(reasonId).toBeTruthy();
+    expect(wrapper!.get(`#${reasonId}`).text()).toBe("You're offline. Try again once you're reconnected.");
+    await read.trigger('click');
+    await flush();
+    expect(ctx.learnRecipeScroll).not.toHaveBeenCalled();
+    expect(dialog().exists()).toBe(true);
+    const open = cardButton('Open crafting')!;
+    expect(open.attributes('aria-disabled')).toBeUndefined();
+    expect(open.attributes('aria-describedby')).toBeUndefined();
+    ctx.connected.value = true;
+    await flush();
+    expect(cardButton('Read scroll')!.attributes('aria-disabled')).toBeUndefined();
+    expect(wrapper!.find('[role="dialog"] .reason').exists()).toBe(false);
+  });
+
   it('closes on Done and returns focus to the first backpack tile', async () => {
     await mountCard();
     await salvageRare();
