@@ -2,6 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { PhMapTrifold } from '@phosphor-icons/vue';
+import MapActions from '../map/MapActions.vue';
+import MapMeta from '../map/MapMeta.vue';
 import MapScreen from '../map/MapScreen.vue';
 import { HEADER_SCREENS, SCREENS, getScreen } from './screens';
 
@@ -83,8 +85,13 @@ describe('ledger screens (Phase 50 registration)', () => {
     expect(getScreen('vendor').label).toBe('Vendor');
   });
 
-  it('map, social and events have no meta yet (the Map header chips come with plan 51-09)', () => {
-    for (const id of ['map', 'social', 'events'] as const) {
+  it('the map header carries the region chips (meta) and the Region travel pill (actions)', () => {
+    expect(getScreen('map').meta).toBe(MapMeta);
+    expect(getScreen('map').actions).toBe(MapActions);
+  });
+
+  it('social and events have no meta yet', () => {
+    for (const id of ['social', 'events'] as const) {
       expect(getScreen(id).meta).toBeUndefined();
     }
   });

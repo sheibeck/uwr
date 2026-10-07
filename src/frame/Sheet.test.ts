@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
 import Sheet from './Sheet.vue';
 import MoreSheet from './MoreSheet.vue';
 import FeedShell from './FeedShell.vue';
@@ -168,6 +169,22 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(wrapper.get('button.sheet-close').element);
     wrapper.unmount();
     expect(mountSheet().find('.sheet-actions').exists()).toBe(false);
+  });
+
+  // Plan 51-09: the Map's header action renders nothing on mobile (the pill lives in the region row).
+  it('hides an actions wrapper whose slot renders nothing', () => {
+    const Empty = defineComponent({ setup: () => () => null });
+    wrapper = mount(Sheet, {
+      props: { title: 'Map' },
+      slots: { default: 'Body', actions: () => h(Empty) },
+      attachTo: document.body,
+    });
+    const actions = wrapper.get('.sheet-actions').element;
+    expect(Array.from(actions.childNodes).every((node) => node.nodeType === Node.COMMENT_NODE)).toBe(true);
+    expect(actions.matches(':empty')).toBe(true);
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/Sheet.vue'), 'utf8');
+    expect(source).toContain('.sheet-actions:empty');
+    expect(source).toMatch(/.sheet-actions:emptys*{s*display:s*none;/);
   });
 
   it('style has the 20px top radius, 44px close button and a reduced-motion rule', () => {

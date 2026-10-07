@@ -11,6 +11,7 @@ import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { LedgerData } from '../ledger/ledgerContext';
 import InventoryActions from '../inventory/InventoryActions.vue';
 import { knownPlaces } from '../map/knownPlaces';
+import MapActions from '../map/MapActions.vue';
 import { MAP_KEY, createInertMap } from '../map/mapContext';
 import type { MapData } from '../map/mapContext';
 import { adjacencyOf } from '../map/route';
@@ -400,10 +401,11 @@ describe('mobile sheets', () => {
     expect(w.get('.sheet-header').text()).toContain('2 / 50');
   });
 
-  it('the registry gives only the Inventory screen header actions', () => {
+  it('the registry gives only the Inventory and Map screens header actions', () => {
     expect(getScreen('bag').actions).toBe(InventoryActions);
+    expect(getScreen('map').actions).toBe(MapActions);
     for (const def of SCREENS) {
-      if (def.id !== 'bag') expect(def.actions).toBeUndefined();
+      if (def.id !== 'bag' && def.id !== 'map') expect(def.actions).toBeUndefined();
     }
   });
 
