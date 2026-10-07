@@ -1756,5 +1756,47 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.26: World structure: 10-place regions, typed sub-regions and hidden places (NEXT MILESTONE)
+
+**Status (owner decision 2026-10-06):** this becomes its own milestone after v3.0. Phase 51 stays the UX phase on today's world.
+
+**Goal:** Regions feel like real places with depth. Every region has up to 10 places. Places can open onto typed sub-regions above or below them (dungeons, towers, caves). A few hidden places per region are found through quests, not by walking around.
+
+**Owner decisions (2026-10-06, in chat):**
+- **10 places per region.** The 10 includes the arrival point; the Edge Beyond doorway does not count. The server enforces the cap. The world-generation prompt asks for enough places to reach 10. The owner approves the exact before and after prompt wording before it ships. Bigger regions make generation slower and cost more (a region already takes about 23 s).
+- **Sub-regions (owner term).** A place can have a sub-region beneath it, above it, or both: for example, a dungeon below an entrance, or a wizard's tower with a dungeon beneath.
+  - **Generated on first entry.** World generation marks a few places as entrances (up, down or both). The sub-region is generated the first time anyone goes through. This is a prompt change the owner approves.
+  - **No travel timer.** Entering, leaving or moving within a sub-region never starts the cross-region travel timer. Only crossing to a separate region does.
+  - **Typed.** A sub-region has its own type: usually dungeon, but also caves, subterranean, crypt, mine, tower and so on (research proposes the list). The type decides which creatures spawn, what can be gathered and which loot tables apply.
+  - **Cap.** A sub-region also holds at most 10 places.
+- **Hidden places.** Found through quests, usually, and later through rumours (999.10) and exploration. You cannot reach them just by moving.
+  - **Cap:** up to 3 per region, with each sub-region counted separately; they are on top of the 10.
+  - **Visibility:** everyone, once found. The first discovery reveals the place to the whole world. Until then, the server refuses travel to it.
+  - **Reveal:** quests can point to one. Quest generation may create a hidden place as a quest's target, and it is revealed when the quest is accepted. This is a prompt change the owner approves.
+- **Regions lock only by the travel timer** (this rule is already built in Phase 51 for the map): the cross-region timer simulates long-distance travel and is shortened by travel-speed effects, such as bard travel songs and the renown perk.
+
+**What exists today (2026-10-06 scout):**
+- **Region biomes (LLM enum):** volcanic, forest, tundra, desert, swamp, mountains, plains, coastal, cavern, ruins. `mechanical_vocabulary.ts` also lists jungle, wasteland, arctic and underground.
+- **Location terrain:** mountains, woods, plains, swamp, dungeon, town, city, plus uncharted.
+- **What the type already drives:** gatherables come from terrain (`getGatherableResourceTemplates`), and enemy templates carry `terrainTypes`.
+- **What is new:** loot is not keyed by terrain or biome today, so type-driven loot tables are new.
+- **Region size:** world generation asks for "2-4 more locations" (`llm_layers.ts:343`), and `world_gen.ts` keeps every location returned (no cap).
+
+**Design source:** the owner's revised `UWR Map.dc.html` (claude_design project `1a7a975f-7b14-488b-9a38-188bc56294cf`). Re-import it fresh at planning time for the map's layer view (above and below), entrances and hidden places.
+
+**Notes for planning:**
+- Build on Phase 51:
+  - the map screen
+  - the per-character visited-places table
+  - border crossings (passages collapse into direct links in Phase 51)
+  - travel-timer locks
+- Server changes are additive. Publish locally only, with the key check. Never clear the database. Show every prompt change to the owner for approval.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-06 after the owner put effect durations on the same rounds rule (999.17)*
+*Last updated: 2026-10-06 after adding backlog 999.26 (world structure, next milestone)*

@@ -84,21 +84,18 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 - **Chat bubble instead of "hail" (owner request):** NPC rows in Nearby get a chat bubble icon button that does the hail, labelled "Talk to {name}". The row hint drops "hail". The UI-SPEC decides whether the feed keyword label "Hail {name}" also becomes "Talk to {name}". Todo: `2026-10-06-nearby-npc-chat-bubble-instead-of-hail.md`.
 - **Revised map mock (owner, 2026-10-06):** `UWR Map.dc.html`, screen 11a, extracted to the session scratchpad `design51/map/MAP-EXTRACT.md`. It supersedes Ledger 2d for the map. The drawer covers the centre feed and right rail, and the real left vitals rail stays visible (not the mock's reduced copy). Region chips sit in the title row, and the legend is a floating pill. Overrides: the locked region chip means the cross-region travel timer is running (see Region list); edges are CSS, not SVG; and the missing far-place state is added (path highlighted, no Travel buttons, a note about walking step by step or teleport abilities).
 
-### Region structure: 10 places, sub-regions and hidden places (owner, 2026-10-06, pulled into Phase 51)
-- **10 places per region.** The 10 includes the arrival point; the uncharted "Edge Beyond" doorway does not count. The server enforces the cap: it keeps at most 10 and drops extras. The world-generation prompt asks for enough places to reach 10. **That prompt wording needs the owner's explicit approval before it ships**: show the exact before and after text. Note for the owner: bigger regions make generation slower and cost more (a region already takes about 23 s).
-- **Sub-regions (owner term).** A place can have a sub-region beneath it, above it, or both: for example, a dungeon below an entrance, or a wizard's tower with a dungeon beneath it.
-  - **Generated on first entry.** World generation marks a few places as entrances (up, down or both). The sub-region is generated the first time anyone goes through, like stepping past the Edge Beyond today. This needs a prompt change the owner approves.
-  - **No travel timer.** Entering or leaving a sub-region, or moving within one, never starts the cross-region travel timer. Only crossing to a separate region does.
-  - **Typed.** Each sub-region has its own type. It is usually a dungeon, but can be caves, subterranean, a crypt, a mine, a tower and so on; research proposes the list. The type decides which creatures spawn, what can be gathered and which loot tables apply.
-  - **What exists today.** Region biomes (LLM enum) are volcanic, forest, tundra, desert, swamp, mountains, plains, coastal, cavern and ruins (`mechanical_vocabulary.ts` also lists jungle, wasteland, arctic and underground). Location terrain is mountains, woods, plains, swamp, dungeon, town, city, plus uncharted. Gatherables are chosen by terrain (`getGatherableResourceTemplates`), and enemy templates list `terrainTypes`. Loot is not keyed by terrain or biome today, so type-driven loot tables are new.
-  - **Cap.** A sub-region also holds at most 10 places.
-- **Hidden places.** These are found through quests, usually, and later through rumours (999.10) and exploration. You cannot reach them just by moving.
-  - **Cap:** up to 3 per region, with each sub-region counted separately. They sit on top of the 10.
-  - **Visibility: everyone once found.** The first discovery reveals the place to the whole world. Until then, the server refuses travel to it.
-  - **Reveal: quests can point to one.** Quest generation may create a hidden place as a quest's target, and it is revealed when the quest is accepted. This needs a prompt change the owner approves.
-- **The map shows this structure.** It shows sub-region layers (above and below), entrances and where regions meet, following the owner's revised `UWR Map.dc.html` (re-imported to the session scratchpad `design51/map2/`). The owner also flagged changes to the right-pane navigation (routes) panel to show where regions meet.
-- **Scope note.** This makes Phase 51 much bigger. Plan it as separate waves: the world-structure server work first (cap, sub-regions, hidden places, type tables), then the map. Use `/gsd-phase --insert` if planning shows it is better as its own phase.
+### Region transitions collapse after discovery (owner, 2026-10-06)
+- **Keep the uncharted "Edge Beyond {Region}" until it is explored.** It is how players find the unknown, and the map shows it as "something lies beyond".
+- **After the next region is generated, the edge goes away.** Today it is renamed "The Passage to {Region}" and stays a stop of its own (`llm_apply.ts:522-531`). Instead, link its neighbour on this side directly to the new region's arrival point and delete the passage. The map draws that link as a **border crossing** showing where the regions meet, and crossing it starts the travel timer.
+- **Edge cases:**
+  - A character standing on a passage moves to the arrival point.
+  - Binds, quests and events that point at a passage are re-pointed or cleared.
+  - Existing passages in the local world are cleaned up once, by a guarded or admin step. Never clear the database (it wipes the key).
+  - Real-handler tests cover all of these.
 
+### World structure moves to its own milestone (owner, 2026-10-06)
+- 10-place regions, typed sub-regions (no travel timer inside them), hidden places revealed by quests, type-driven creatures, gatherables and loot, the two prompt changes, and the map's layer view all move to backlog **999.26**, which becomes its own milestone after v3.0. The owner's decisions are recorded there.
+- Phase 51 builds the map on today's world, with border crossings and travel-timer locks. Keep the map code ready for layers later; do not build the layer view now.
 ### Shared rules
 - Server changes are additive (new tables, views, reducers and defaulted columns). Publish locally only: `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`, checking `admin_llm_status` key length 108 before and after; never `--clear-database`; regenerate the bindings. Real-handler tests for every rule. Prefer `fail(ctx, character, msg)` where a character exists.
 - Design guards: no literal colors (the token pin stays at 23), no v-html, no `<svg`, Phosphor icons and Inter only, sizes 10/12/14/20, weights 400/500, spacing 4/8/16/24/32/48/64, text nodes only, no `replaceAll`/`.at`/`Object.hasOwn`, and never the word "ripple" (use "World event"). Map off-scale mock values to the nearest allowed ones.
@@ -158,6 +155,7 @@ Full scout report: session scratchpad `p51/scout.md`. Design extract: session sc
 - Stored party chat history.
 - Menus on names inside feed text.
 - A teleport-style ability for far travel, if none exists.
-- "Heard of" and hidden-place reveals from rumours and NPC mentions (backlog 999.10). This phase uses connections and quests.
+- "Heard of" from rumours and NPC mentions (backlog 999.10). This phase uses connections only.
+- World structure: 10-place regions, typed sub-regions, hidden places and the map layer view (backlog 999.26, next milestone).
 
 </deferred>
