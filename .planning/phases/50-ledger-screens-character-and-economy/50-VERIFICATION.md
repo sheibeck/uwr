@@ -31,6 +31,9 @@ human_verification:
   - test: "Remaining items of the 50-23-SUMMARY deferred UAT checklist (/faction tier shift, 'Usable by you' ignoring level, salvage confirmations, Sell all junk preview, notice-line icons, equipped-salvage assumption A1, subscription size A2)"
     expected: "As written in 50-23-SUMMARY.md 'Deferred UAT checklist (milestone-end)'."
     why_human: "Owner-deferred live checks."
+  - test: "Follow-up plans 50-28..50-40 (owner play-test, 2026-10-06/07): the deferred UAT list in 50-38-SUMMARY.md (backpack size and 50 slots, Organize, inventory salvage confirm in chances, Craft xN with Craft again and Equip, Discover card, crafting three columns, Craft/Salvage switch with 'May return', empty-roll card, salvage chances 50/25/10)"
+    expected: "As written in 50-38-SUMMARY.md 'Deferred UAT'. Also try WR-03/WR-04/WR-05 of 50-REVIEW-FIX-iter3-client.md (preview while a new item's recipe loads, focus after salvaging, double-click on the card) and the bag-full refusal for Craft xN."
+    why_human: "Owner-deferred live checks at 1280, 1920 and 390x844."
 ---
 
 # Phase 50: Ledger Screens: Character and Economy Verification Report
@@ -206,6 +209,10 @@ No `TBD`, `FIXME`, `XXX`, `TODO`, `HACK` or placeholder text in the 141 source f
 No gaps. Every roadmap success criterion, requirement, owner decision and plan must-have is backed by code that exists, is substantive and is wired. Each server rule has passing real-handler tests (623 tests across the 23 touched server suites). The client suite (3161 tests) and vue-tsc are green. The live local database has the `vendor_inventory.quantity`, `vendor_buyback`, `vendor_base_stock` and `vendor_restock_tick` schema, the new reducers and the view, with key_length 108.
 
 One deviation from the ROADMAP wording ("quality odds") was decided by the owner and is recorded as an override. The phase is `human_needed` only because the owner deferred the live play at 1280 and 390x844 to the end-of-milestone UAT.
+
+### Follow-up (plans 50-28 to 50-40, added 2026-10-07)
+
+The owner's play-test follow-up was executed after this report: crafting and backpack per the updated mocks (50-28..50-37), the inventory header with gold and Organize and the 50-slot fill grid (50-39), salvage by chance with no craft loop (50-40, published locally with key_length 108 before and after), and the crafting Salvage tab (50-38). Code review iteration 3 (`50-REVIEW-iter3-server.md`, `50-REVIEW-iter3-client.md`) found no Critical issues; all Warnings were fixed (`50-REVIEW-FIX-iter3-server.md` incl. the Craft xN bag-capacity gate, published locally; `50-REVIEW-FIX-iter3-client.md`). Full `npx vitest run` passes apart from the three baseline files, and `npx vue-tsc -b` is clean. Status stays `human_needed` for the owner-deferred live UAT (see the new human_verification item).
 
 ---
 

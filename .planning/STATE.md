@@ -330,17 +330,11 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
   - Done in code: 45, 46, 47, 46.1, 48, 49 and 50. Each is human_needed with UAT deferred.
   - Remaining v3.0 order, after the owner split the phases on 2026-10-07: **50 follow-up → 51 Map and Travel → 51.1 Party and Social → 51.2 World Events → 51.3 Regional Economy → 51.4 Loot Rails → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager**. Then the end-of-milestone UAT and golden run, then audit, complete and cleanup.
   - Backlog 999.26 (world structure: sub-regions, hidden places, 10-place regions) is the **next milestone**.
-- **Phase 50 follow-up from the owner's play-test** (`50-CONTEXT.md`, owner sections from 2026-10-06 and 2026-10-07):
-  - Plans 50-28 to 50-36 are done. Remaining, in this order: 50-37, 50-39 and 50-40 (written and committed in 508a5fa4), then 50-38. **Revise 50-38 before running it:** its salvage wording and interfaces (`material`, `countKnown`, "guaranteed ×n", "You will receive") must match 50-40, which uses chance wording with `components`, `knowable` and `yields`. Use a small gsd-planner revision.
-  - 50-39 covers the inventory header (gold and Organize), all 50 slots drawn, and fill columns of at most 72px (5 columns of 71px at 1280). 50-40 makes salvage a chance, never guaranteed, with rarer components returned more rarely and the strict cap kept; it publishes locally.
-  - Execute them one at a time with gsd-executor (sonnet), then run a code review of the follow-up (iteration 3).
-  - Server plans publish locally with the key 108 check before and after.
-- **Phases 51, 51.1 and 51.2 are ready to plan:**
-  - `51-CONTEXT.md` covers all three.
-  - Approved UI-SPECs: `51-UI-SPEC.md` (holds the shared sections), `51.1-party-and-social/51.1-UI-SPEC.md` and `51.2-world-events/51.2-UI-SPEC.md`, all with UI Considerations.
-  - Design extracts are in the session scratchpad `design51/` (`map2/`, `console/`, `party2/`, and `EXTRACT.md`).
-  - Next step: `/gsd-plan-phase 51` (research, patterns, planner, checker), then execute.
-  - 51.3 and 51.4 have no CONTEXT yet; they need a discuss. 51.3 has an open question: are the dials per item?
+- **Phase 50 follow-up: DONE (2026-10-07).** Plans 50-28..50-40 all executed (50-40 and the review fix published locally, key 108 before and after). Code review iteration 3 server and client: no Critical; all Warnings fixed (incl. the Craft xN bag-capacity gate). Deferred UAT list: 50-38-SUMMARY.md, recorded in 50-VERIFICATION.md (still human_needed).
+- **Phase 51 is PLANNED (11 plans, 6 waves; checker passed on iteration 2).** Research, patterns, validation strategy and plans are committed. Next step: execute 51 one plan at a time with gsd-executor (sonnet): 51-01, 51-02, then 51-03 (server; local publish with the key check), 51-04, 51-05, 51-06, 51-07, 51-08, 51-09, 51-10, 51-11. Then code review, verification.
+  - Coordinator defaults reported to the owner (owner may override): sweep sends offline characters back to their `fromLocationId`, else the lowest-id own-region neighbour; no collapse inside applyWorldStartResult; players count includes offline until 51.1; the current place counts as visited at set_active_character.
+  - Planner copy choices for owner review (in 51-11 SUMMARY): 'about 1 minute', the follower part of the uncharted note, labels for several blocked followers, one card per quest with roles joined. Mobile location line drops Day/Night (Console 12a).
+- **Phases 51.1 and 51.2** have CONTEXT (in 51-CONTEXT.md) and approved UI-SPECs; plan them after 51. 51.3 and 51.4 need a discuss (51.3 open question: per-item dials?).
 - **Owner decisions to remember:**
   - SVG is allowed only in the map folder.
   - Regions lock only by the cross-region travel timer, which is read from the server.
