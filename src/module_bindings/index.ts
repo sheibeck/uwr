@@ -226,6 +226,7 @@ import MyPanelLayoutRow from "./my_panel_layout_table";
 import MyPlayerRow from "./my_player_table";
 import MyQuestsRow from "./my_quests_table";
 import MyVendorBuybackRow from "./my_vendor_buyback_table";
+import MyVisitedLocationsRow from "./my_visited_locations_table";
 import NamedEnemyRow from "./named_enemy_table";
 import NpcRow from "./npc_table";
 import NpcAffinityRow from "./npc_affinity_table";
@@ -1797,6 +1798,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyVendorBuybackRow),
+  myVisitedLocations: __table({
+    name: 'my_visited_locations',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyVisitedLocationsRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
@@ -2116,6 +2124,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "my_quests": Omit<typeof tablesSchema.schemaType.tables["myQuests"], "accessorName"> & { readonly accessorName: "my_quests" };
     /** @deprecated Use `myVendorBuyback` instead. This alias will be removed in the next major version. */
     readonly "my_vendor_buyback": Omit<typeof tablesSchema.schemaType.tables["myVendorBuyback"], "accessorName"> & { readonly accessorName: "my_vendor_buyback" };
+    /** @deprecated Use `myVisitedLocations` instead. This alias will be removed in the next major version. */
+    readonly "my_visited_locations": Omit<typeof tablesSchema.schemaType.tables["myVisitedLocations"], "accessorName"> & { readonly accessorName: "my_visited_locations" };
   };
 };
 
@@ -2231,6 +2241,7 @@ const tableAccessorAliases = {
   "my_player": "myPlayer",
   "my_quests": "myQuests",
   "my_vendor_buyback": "myVendorBuyback",
+  "my_visited_locations": "myVisitedLocations",
 } as const;
 
 function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
@@ -2445,6 +2456,8 @@ export type DbView = __DbViewBase & {
   readonly "my_quests": __DbViewBase["myQuests"];
   /** @deprecated Use `myVendorBuyback` instead. This alias will be removed in the next major version. */
   readonly "my_vendor_buyback": __DbViewBase["myVendorBuyback"];
+  /** @deprecated Use `myVisitedLocations` instead. This alias will be removed in the next major version. */
+  readonly "my_visited_locations": __DbViewBase["myVisitedLocations"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
@@ -2643,6 +2656,8 @@ export type Tables = __TablesBase & {
   readonly "my_quests": __TablesBase["myQuests"];
   /** @deprecated Use `myVendorBuyback` instead. This alias will be removed in the next major version. */
   readonly "my_vendor_buyback": __TablesBase["myVendorBuyback"];
+  /** @deprecated Use `myVisitedLocations` instead. This alias will be removed in the next major version. */
+  readonly "my_visited_locations": __TablesBase["myVisitedLocations"];
 };
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */

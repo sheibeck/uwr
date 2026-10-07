@@ -1056,6 +1056,9 @@ export type MyQuests = __Infer<typeof MyQuests>;
 export const MyVendorBuyback = __t.object("MyVendorBuyback", {});
 export type MyVendorBuyback = __Infer<typeof MyVendorBuyback>;
 
+export const MyVisitedLocations = __t.object("MyVisitedLocations", {});
+export type MyVisitedLocations = __Infer<typeof MyVisitedLocations>;
+
 export const NamedEnemy = __t.object("NamedEnemy", {
   id: __t.u64(),
   characterId: __t.u64(),
@@ -1139,6 +1142,12 @@ export const NpcMemory = __t.object("NpcMemory", {
   lastUpdated: __t.timestamp(),
 });
 export type NpcMemory = __Infer<typeof NpcMemory>;
+
+export const PassageSweepTick = __t.object("PassageSweepTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+});
+export type PassageSweepTick = __Infer<typeof PassageSweepTick>;
 
 export const PendingRenownPerk = __t.object("PendingRenownPerk", {
   id: __t.u64(),
@@ -1509,6 +1518,15 @@ export const VendorRestockTick = __t.object("VendorRestockTick", {
   afterNpcId: __t.u64(),
 });
 export type VendorRestockTick = __Infer<typeof VendorRestockTick>;
+
+export const VisitedLocation = __t.object("VisitedLocation", {
+  id: __t.u64(),
+  characterId: __t.u64(),
+  locationId: __t.u64(),
+  firstVisitedAt: __t.timestamp(),
+  fromLocationId: __t.option(__t.u64()),
+});
+export type VisitedLocation = __Infer<typeof VisitedLocation>;
 
 export const WorldEvent = __t.object("WorldEvent", {
   id: __t.u64(),
