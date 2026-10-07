@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import GraphPlane from './GraphPlane.vue';
 import { layoutGraph } from './graphLayout';
-import type { LayoutPlace } from './graphLayout';
+import type { GraphLayout, LayoutNode, LayoutPlace } from './graphLayout';
 import { gateView, nodeViews, routePolylines } from './nodeView';
 import type { NodePlace } from './nodeView';
 import { regionChips } from './regionChips';
@@ -74,7 +74,7 @@ function build(options: BuildOptions = {}) {
     bindStone: p.bindStone,
     terrainType: p.terrainType,
   }));
-  const layout = layoutGraph({ regionId: 1n, places: layoutPlaces, edges });
+  const layout = layoutGraph({ regionId: 1n, places: layoutPlaces, edges, compact: mobile });
   const adjacency = adjacencyOf(edges);
   const views = nodeViews({
     layout,
@@ -283,15 +283,44 @@ describe('GraphPlane: nodes and labels', () => {
     expect(nodeButton(w, 4n).classes()).toContain('other');
   });
 
-  it('places right labels 20px right of the node and left-outer labels 20px (plus 144px) left', () => {
+  it('places each label at the box the layout gave it, aligned by label.align', () => {
     const { wrapper: w, props } = mountPlane();
-    const right = props.views.find((v) => v.labelSide === 'right') as (typeof props.views)[number];
-    expect(w.get(`.label[data-node-id="${right.id}"]`).attributes('style')).toContain(`left: ${right.x + 20}px`);
-    const left = props.views.find((v) => v.labelSide === 'left') as (typeof props.views)[number];
-    expect(left).toBeDefined();
-    const leftLabel = w.get(`.label[data-node-id="${left.id}"]`);
-    expect(leftLabel.attributes('style')).toContain(`left: ${left.x - 20 - 144}px`);
-    expect(leftLabel.classes()).toContain('left');
+    for (const view of props.views) {
+      const label = w.get(`.label[data-node-id="${view.id}"]`);
+      const style = label.attributes('style') ?? '';
+      expect(style).toContain(`left: ${view.label.x}px`);
+      expect(style).toContain(`top: ${view.label.y}px`);
+      expect(style).toContain(`width: ${view.label.w}px`);
+      expect(label.classes()).toContain(`align-${view.label.align}`);
+      for (const other of ['left', 'right', 'center'].filter((a) => a !== view.label.align)) {
+        expect(label.classes()).not.toContain(`align-${other}`);
+      }
+    }
+  });
+
+  it('turns a hand-placed label right-aligned, centred or left-aligned', () => {
+    const layout = handLayout();
+    const aligns: LayoutNode['label']['align'][] = ['right', 'center', 'left'];
+    const nodes = layout.nodes.map((n, i) => ({ ...n, label: { ...n.label, align: aligns[i % 3] } }));
+    const { wrapper: w } = mountHand({ ...layout, nodes });
+    for (const n of nodes) {
+      expect(w.get(`.label[data-node-id="${n.id}"]`).classes()).toContain(`align-${n.label.align}`);
+    }
+  });
+
+  it('places the caption from the layout with its max-width, and none without a caption', () => {
+    const { wrapper: w, props } = mountPlane();
+    const caption = props.layout.caption as NonNullable<GraphLayout['caption']>;
+    expect(caption).not.toBeNull();
+    const style = w.get('.caption').attributes('style') ?? '';
+    expect(style).toContain(`left: ${caption.x}px`);
+    expect(style).toContain(`top: ${caption.y}px`);
+    expect(style).toContain(`max-width: ${caption.w}px`);
+    wrapper?.unmount();
+    wrapper = null;
+    const mobile = mountPlane({ mobile: true });
+    expect(mobile.props.layout.caption).toBeNull();
+    expect(mobile.wrapper.find('.caption').exists()).toBe(false);
   });
 
   it('clicking a node or its label emits select with the id', async () => {
@@ -379,6 +408,20 @@ describe('GraphPlane: gate pills', () => {
     expect(gate.classes()).toContain('mobile');
   });
 
+  it('renders the gate pills in the layout gate order, which is the reading order (IN-07)', () => {
+    const places = [...basePlaces, loc(7n, 'Duskmere Steps', { regionId: 2n }), loc(8n, 'Far Reach', { regionId: 3n })];
+    const edges = [...baseEdges, { a: 3n, b: 7n }, { a: 6n, b: 8n }];
+    const { wrapper: w, props } = mountPlane({ places, edges });
+    expect(props.layout.gates.length).toBeGreaterThanOrEqual(3);
+    const keys = w.findAll('button.gate').map((g) => g.attributes('data-gate-key'));
+    expect(keys).toEqual(props.layout.gates.map((g) => g.key));
+    for (let i = 1; i < props.layout.gates.length; i += 1) {
+      const p = props.layout.gates[i - 1];
+      const q = props.layout.gates[i];
+      expect(p.y < q.y || (p.y === q.y && (p.x < q.x || (p.x === q.x && p.key < q.key)))).toBe(true);
+    }
+  });
+
   it('draws no gate pill when no edge crosses a region', () => {
     const places = basePlaces.filter((p) => p.id !== 4n);
     const edges = baseEdges.filter((e) => e.b !== 4n);
@@ -411,43 +454,51 @@ describe('GraphPlane: keyboard', () => {
     expect(tabStops(away.wrapper)).toEqual([String(away.props.layout.startId)]);
   });
 
-  it('ArrowDown and ArrowUp move within a column and move focus', async () => {
-    const { wrapper: w } = mountPlane();
-    nodeButton(w, 2n).element.focus();
-    await nodeButton(w, 2n).trigger('keydown', { key: 'ArrowDown' });
-    await nextTick();
-    expect(activeId()).toBe('5');
-    expect(tabStops(w)).toEqual(['5']);
-    await nodeButton(w, 5n).trigger('keydown', { key: 'ArrowUp' });
-    await nextTick();
-    expect(activeId()).toBe('2');
-    // at the edge of the column nothing moves
-    await nodeButton(w, 2n).trigger('keydown', { key: 'ArrowUp' });
-    await nextTick();
-    expect(activeId()).toBe('2');
+  it('arrow keys move to the nearest place in their direction (MS-05)', async () => {
+    const { wrapper: w } = mountHand(handLayout());
+    const press = async (from: bigint, key: string): Promise<void> => {
+      nodeButton(w, from).element.focus();
+      await nodeButton(w, from).trigger('keydown', { key });
+      await nextTick();
+    };
+    await press(HAND.centre, 'ArrowRight');
+    expect(activeId()).toBe(String(HAND.right));
+    expect(tabStops(w)).toEqual([String(HAND.right)]);
+    await press(HAND.centre, 'ArrowLeft');
+    expect(activeId()).toBe(String(HAND.left));
+    await press(HAND.centre, 'ArrowUp');
+    expect(activeId()).toBe(String(HAND.up));
+    await press(HAND.centre, 'ArrowDown');
+    expect(activeId()).toBe(String(HAND.down));
+    await press(HAND.right, 'ArrowLeft');
+    expect(activeId()).toBe(String(HAND.centre));
   });
 
-  it('ArrowRight and ArrowLeft go to the next and previous column, outer columns included', async () => {
-    const { wrapper: w } = mountPlane();
-    nodeButton(w, 1n).element.focus();
-    await nodeButton(w, 1n).trigger('keydown', { key: 'ArrowRight' });
+  it('keeps the focus when no place lies in the pressed direction', async () => {
+    const { wrapper: w } = mountHand(handLayout());
+    nodeButton(w, HAND.up).element.focus();
+    await nodeButton(w, HAND.up).trigger('keydown', { key: 'ArrowUp' });
     await nextTick();
-    expect(['2', '5']).toContain(activeId());
-    const first = activeId() as string;
-    await nodeButton(w, BigInt(first)).trigger('keydown', { key: 'ArrowLeft' });
+    expect(activeId()).toBe(String(HAND.up));
+    nodeButton(w, HAND.corner).element.focus();
+    await nodeButton(w, HAND.corner).trigger('keydown', { key: 'ArrowRight' });
     await nextTick();
-    expect(activeId()).toBe('1');
-    // the left outer column holds the other-region node
-    await nodeButton(w, 1n).trigger('keydown', { key: 'ArrowLeft' });
-    await nextTick();
-    expect(activeId()).toBe('4');
-    // and nothing lies further left
-    await nodeButton(w, 4n).trigger('keydown', { key: 'ArrowLeft' });
-    await nextTick();
-    expect(activeId()).toBe('4');
+    expect(activeId()).toBe(String(HAND.corner));
   });
 
-  it('Home goes to your place and End to the last node in layout order', async () => {
+  it('Home goes to your place and End to the last place in reading order', async () => {
+    const { wrapper: w, props } = mountHand(handLayout(), HAND.down);
+    nodeButton(w, HAND.left).element.focus();
+    await nodeButton(w, HAND.left).trigger('keydown', { key: 'Home' });
+    await nextTick();
+    expect(activeId()).toBe(String(HAND.down));
+    await nodeButton(w, HAND.down).trigger('keydown', { key: 'End' });
+    await nextTick();
+    expect(activeId()).toBe(String(HAND.corner));
+    expect(props.views[props.views.length - 1].id).toBe(HAND.corner);
+  });
+
+  it('Home and End work on a real layout too', async () => {
     const { wrapper: w, props } = mountPlane();
     nodeButton(w, 3n).element.focus();
     await nodeButton(w, 3n).trigger('keydown', { key: 'Home' });
@@ -457,7 +508,6 @@ describe('GraphPlane: keyboard', () => {
     await nextTick();
     const last = props.views[props.views.length - 1];
     expect(activeId()).toBe(String(last.id));
-    expect(last.id).toBe(6n);
   });
 
   it('Home goes to the start node when you are not in the drawn region', async () => {
@@ -476,12 +526,18 @@ describe('GraphPlane: keyboard', () => {
     expect(w.emitted('select')).toEqual([[3n], [2n]]);
   });
 
-  it('arrow keys do not emit select and are default-prevented', async () => {
-    const { wrapper: w } = mountPlane();
-    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
-    nodeButton(w, 1n).element.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true);
+  it('arrow keys do not emit select and are default-prevented, and there is one tab stop', async () => {
+    const { wrapper: w } = mountHand(handLayout());
+    for (const key of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown']) {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      nodeButton(w, HAND.centre).element.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
     expect(w.emitted('select')).toBeUndefined();
+    expect(tabStops(w)).toHaveLength(1);
+    await nodeButton(w, HAND.right).trigger('keydown', { key: 'Enter' });
+    await nodeButton(w, HAND.up).trigger('keydown', { key: ' ' });
+    expect(w.emitted('select')).toEqual([[HAND.right], [HAND.up]]);
   });
 
   it('puts the gate pills after the group in tab order (DOM order) and gives them no negative tabindex', () => {
@@ -614,4 +670,118 @@ describe('GraphPlane: mobile labels and gate pills (plan 51-11)', () => {
 
 function nodeLabel(w: VueWrapper, id: bigint): string {
   return w.get(`button.node[data-node-id="${id}"]`).attributes('aria-label') as string;
+}
+
+describe('GraphPlane: measured canvas (MS-02)', () => {
+  type Entries = Array<{ contentRect: { width: number; height: number } }>;
+  function fakeObserver() {
+    const state: { callback: ((entries: Entries) => void) | null; observed: Element[] } = { callback: null, observed: [] };
+    const disconnect = vi.fn();
+    class FakeObserver {
+      constructor(cb: (entries: Entries) => void) {
+        state.callback = cb;
+      }
+      observe = (el: Element): void => {
+        state.observed.push(el);
+      };
+      disconnect = disconnect;
+      unobserve = vi.fn();
+    }
+    vi.stubGlobal('ResizeObserver', FakeObserver);
+    return { state, disconnect };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function mountInScrollArea() {
+    const area = document.createElement('div');
+    area.className = 'scroll-area';
+    document.body.appendChild(area);
+    const props = build();
+    wrapper = mount(GraphPlane, { props, attachTo: area });
+    return { area, w: wrapper };
+  }
+
+  it('watches the scroll area (the parent element) and emits whole-pixel sizes once per change', async () => {
+    const { state, disconnect } = fakeObserver();
+    const { w } = mountInScrollArea();
+    await nextTick();
+    expect(state.observed).toHaveLength(1);
+    expect(state.observed[0]).toBe(w.get('.graph-plane').element.parentElement);
+    state.callback!([{ contentRect: { width: 652.7, height: 600.2 } }]);
+    expect(w.emitted('resize')).toEqual([[{ width: 652, height: 600 }]]);
+    state.callback!([{ contentRect: { width: 652.1, height: 600.9 } }]);
+    expect(w.emitted('resize')).toHaveLength(1);
+    state.callback!([{ contentRect: { width: 0, height: 0 } }]);
+    expect(w.emitted('resize')).toHaveLength(1);
+    state.callback!([]);
+    expect(w.emitted('resize')).toHaveLength(1);
+    state.callback!([{ contentRect: { width: 390.4, height: 320 } }]);
+    expect(w.emitted('resize')).toEqual([[{ width: 652, height: 600 }], [{ width: 390, height: 320 }]]);
+    w.unmount();
+    wrapper = null;
+    expect(disconnect).toHaveBeenCalled();
+  });
+
+  it('mounts and emits nothing without ResizeObserver', async () => {
+    vi.stubGlobal('ResizeObserver', undefined);
+    const { w } = mountInScrollArea();
+    await nextTick();
+    expect(w.find('.graph-plane').exists()).toBe(true);
+    expect(w.emitted('resize')).toBeUndefined();
+  });
+});
+
+// A hand-made layout with known positions: a centre, places right, left, up and down of it, and a
+// far corner (keyboard tests, MS-05). Nodes come in reading order, as layoutGraph returns them.
+const HAND = { centre: 11n, right: 12n, left: 13n, up: 14n, down: 15n, corner: 16n };
+
+function handLayout(): GraphLayout {
+  const at = (id: bigint, x: number, y: number): LayoutNode => ({
+    id,
+    x,
+    y,
+    side: null,
+    label: { x: x + 20, y: y - 10, w: 144, h: 36, align: 'left' },
+  });
+  const nodes = [
+    at(HAND.centre, 300, 300),
+    at(HAND.right, 500, 310),
+    at(HAND.left, 100, 290),
+    at(HAND.up, 300, 100),
+    at(HAND.down, 310, 500),
+    at(HAND.corner, 520, 520),
+  ].sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1));
+  return {
+    regionId: 1n,
+    startId: HAND.centre,
+    nodes,
+    edges: [],
+    gates: [],
+    border: { x: 48, y: 48, w: 640, h: 560 },
+    caption: { x: 64, y: 64, w: 160, h: 16 },
+    width: 760,
+    height: 660,
+  };
+}
+
+function mountHand(layout: GraphLayout, currentId: bigint | null = HAND.centre) {
+  const places = new Map<bigint, NodePlace>(layout.nodes.map((n) => [n.id, loc(n.id, `Place ${n.id}`)]));
+  const views = nodeViews({
+    layout,
+    places,
+    regions,
+    visited: new Set(places.keys()),
+    heardOf: new Set(),
+    currentLocationId: currentId,
+    selectedId: null,
+    boundLocationId: null,
+    playerLevel: 3,
+    steps: new Map(),
+  });
+  const props = { layout, views, gates: [], routes: [], regionName: 'Ashfall', selectedId: null, currentId, mobile: false };
+  wrapper = mount(GraphPlane, { props, attachTo: document.body });
+  return { wrapper, props };
 }

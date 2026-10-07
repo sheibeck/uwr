@@ -123,13 +123,12 @@ describe('nodeViews states', () => {
     expect(byId(2n)?.passage).toBe(false);
   });
 
-  it('marks another region place with the region prefix and the outer label side', () => {
+  it('marks another region place with the region prefix', () => {
     const { byId } = build();
     const v = byId(4n);
     expect(v?.otherRegion).toBe(true);
     expect(v?.regionName).toBe('Saltmarsh');
     expect(v?.subPrefix).toBe('Saltmarsh · ');
-    expect(['left', 'right']).toContain(v?.labelSide);
     expect(byId(2n)?.otherRegion).toBe(false);
     expect(byId(2n)?.subPrefix).toBe('');
   });
@@ -181,6 +180,15 @@ describe('nodeViews states', () => {
     const v = views.find((x) => x.id === 8n);
     expect(v?.terrain.icon).toBe(PhMapPin);
     expect(v?.terrain.word).toBe('Marsh');
+  });
+
+  it('copies each layout node label box into its view', () => {
+    const { layout, views } = build();
+    expect(views).toHaveLength(layout.nodes.length);
+    for (const v of views) {
+      const n = layout.nodes.find((x) => x.id === v.id);
+      expect(v.label).toEqual(n?.label);
+    }
   });
 
   it('keeps the full name in title and the position of the layout node', () => {
@@ -311,10 +319,19 @@ describe('listRows', () => {
     return listRows({ views, adjacency, places: placeMap, regions, shownRegionId: 1n });
   }
 
-  it('orders rows like the layout, by x then y then id', () => {
-    const { views } = build();
-    const expected = [...views].sort((a, b) => a.x - b.x || a.y - b.y || (a.id < b.id ? -1 : 1)).map((v) => v.id);
+  it('orders rows in the layout reading order: y, then x, then id', () => {
+    const { views, layout } = build();
+    const expected = [...views].sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1)).map((v) => v.id);
     expect(rows().map((r) => r.id)).toEqual(expected);
+    expect(rows().map((r) => r.id)).toEqual(layout.nodes.map((n) => n.id));
+  });
+
+  it('follows the reading order of whatever positions the views carry', () => {
+    const { views } = build();
+    const moved = views.map((v, i) => ({ ...v, x: 500 - i * 10, y: i % 2 === 0 ? 100 : 50 }));
+    const got = listRows({ views: moved, adjacency, places: placeMap, regions, shownRegionId: 1n }).map((r) => r.id);
+    const expected = [...moved].sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1)).map((v) => v.id);
+    expect(got).toEqual(expected);
   });
 
   it('writes the steps text', () => {
