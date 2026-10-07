@@ -4,7 +4,7 @@ import { PhCastleTurret, PhDoorOpen, PhHammer, PhLockSimple, PhShieldCheck } fro
 import type { GraphLayout } from './graphLayout';
 import type { GateView, NodeView } from './nodeView';
 
-// The route graph (51-UI-SPEC "Route graph"): one pixel plane holding, in order, the svg (border,
+// The Map graph surface (51-UI-SPEC "Route-graph" section): one pixel plane holding, in order, the svg (border,
 // edges, route), the region caption, the node buttons with their labels, and the gate pills. Every
 // position comes from the layout, so lines, circles, labels and pills share one coordinate space.
 // Renders from props only. Every server string is a text node or a bound attribute; the svg
