@@ -227,6 +227,17 @@ describe('AppFrame screen arguments (FrameControls.screenArgs)', () => {
     expect(controls!.screenArgs.value).toBeNull();
   });
 
+  it('a Map opened from the tab bar while the vendor is open carries no vendor arguments (review IN-06)', async () => {
+    const w = mountFrame(false);
+    await w.get('.probe-open-vendor').trigger('click');
+    await settle();
+    expect(controls!.screenArgs.value).toEqual({ npcId: 5n, npcName: 'Marta' });
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    expect(controls!.activeScreen.value).toBe('map');
+    expect(controls!.screenArgs.value).toBeNull();
+  });
+
   it('close then open in the same tick ends on the new vendor (the Trade sequence)', async () => {
     const w = mountFrame(true);
     await w.get('.probe-open-vendor').trigger('click');

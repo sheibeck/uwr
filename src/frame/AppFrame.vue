@@ -43,14 +43,14 @@ const screens = useScreens({ locked: computed(() => game.combat.active.value) })
 watch(isDesktop, (desktop) => screens.syncLayout(desktop));
 
 // The arguments of the vendor (which NPC) and map (which place or region) screens. Cleared
-// synchronously whenever the active screen is neither, so close, More, tabs and other screens never
-// carry a stale vendor or place.
+// synchronously on every change of the active screen, so close, More, tabs, the header toggles and
+// other screens never carry a stale vendor or place; openScreen sets them again after it opens
+// (review IN-06: a vendor's npc no longer rides into a Map opened from the header or the tab bar).
 const screenArgs = shallowRef<ScreenArgs | null>(null);
-const takesArgs = (id: unknown): boolean => id === 'vendor' || id === 'map';
 watch(
   screens.active,
-  (id) => {
-    if (!takesArgs(id)) screenArgs.value = null;
+  (id, previous) => {
+    if (id !== previous) screenArgs.value = null;
   },
   { flush: 'sync' },
 );
