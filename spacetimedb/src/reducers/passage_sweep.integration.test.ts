@@ -252,6 +252,15 @@ describe('sweep_passages: edge cases and ordering', () => {
     expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
   });
 
+  it('a passage with no far-side neighbour cannot collapse, so its offline occupant is not moved (review WR-03)', () => {
+    const ctx = newCtx({ character: [character(1n, 6n)] });
+    ctx.db._tables.location_connection.length = 0;
+    ctx.db._tables.location_connection.push(...link(3n, 6n), ...link(5n, 6n));
+    expect(sweepPassages(ctx)).toEqual({ moved: 0, collapsed: 0 });
+    expect(where(ctx, 1n)).toBe(6n);
+    expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
+  });
+
   it('two passages are both handled in id order and the counts match', () => {
     const seed = {
       location: [

@@ -254,7 +254,8 @@ export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
 }
 
 /**
- * One sweep pass. For each passage in id order that has an own side: every offline character in it
+ * One sweep pass. For each passage in id order that has an own side and a far side (so it can
+ * collapse): every offline character in it
  * (no player row has it as activeCharacterId) is moved silently, to the place it arrived from when
  * that place is an own-side neighbour of the passage, else to the lowest-id own-side neighbour,
  * never across the border; the new place is marked visited with no origin. Then the passage
@@ -269,8 +270,10 @@ export function sweepPassages(ctx: any): { moved: number; collapsed: number } {
   let moved = 0;
   let collapsed = 0;
   for (const passage of found) {
-    const { own } = passageSides(ctx, passage);
-    if (own.length === 0) continue;
+    // A passage that cannot collapse (no own side or no far side to link) is left alone: moving its
+    // offline occupants would displace them for nothing.
+    const { own, far } = passageSides(ctx, passage);
+    if (own.length === 0 || far.length === 0) continue;
     const occupants = [...ctx.db.character.by_location.filter(passage.id)].sort(byIdAsc);
     for (const occupant of occupants) {
       if (online.has(occupant.id)) continue;
