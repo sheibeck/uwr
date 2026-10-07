@@ -1,0 +1,425 @@
+/**
+ * Party invites need consent (plan 51.1-03): the real group reducers on the strict mock db.
+ * Joining needs a live invite addressed to you; invites expire after GROUP_INVITE_TTL_MICROS
+ * (lazy check here, the scheduled tick as well); a refused invite leaves no stray group; a
+ * one-member group dissolves when its last invite ends; the leader or inviter can cancel.
+ */
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { capturedReducer } from '../helpers/schema_recorder';
+import { createMockCtx } from '../helpers/test-utils';
+import { GROUP_INVITE_TTL_MICROS } from '../data/group_config';
+
+vi.mock('spacetimedb/server', async () =>
+  (await import('../helpers/schema_recorder')).createRecordingServerMock(),
+);
+
+const T0 = 1_700_000_000_000_000n;
+const TTL = GROUP_INVITE_TTL_MICROS;
+const MODULE = { toHexString: () => 'module-identity-hex' };
+
+/** One identity per user; user n owns character n - 6 (Ann = 1 is user 7). */
+const ident = (userId: bigint) => ({ toHexString: () => userId.toString(16).padStart(64, '0') });
+const USERS = [7n, 8n, 9n, 10n, 11n, 12n].map((u) => ({ userId: u, id: ident(u) }));
+const NAMES = ['Ann', 'Bram', 'Cole', 'Dena', 'Eli', 'Finn'];
+const senderOf = (characterId: bigint) => USERS[Number(characterId) - 1].id;
+
+const REDUCERS = [
+  'join_group',
+  'accept_group_invite',
+  'reject_group_invite',
+  'invite_to_group',
+  'leave_group',
+] as const;
+const handlers: Record<string, (...args: any[]) => any> = {};
+
+beforeAll(async () => {
+  await import('../index');
+  for (const name of REDUCERS) {
+    const h = capturedReducer(name);
+    if (typeof h !== 'function') {
+      throw new Error(`capturedReducer('${name}') is not a function: STOP and report; never edit production code to fix this.`);
+    }
+    handlers[name] = h;
+  }
+}, 120_000);
+
+const at = (micros: bigint) => ({ microsSinceUnixEpoch: micros });
+
+type CharOver = { groupId?: bigint; online?: boolean };
+type Seed = {
+  chars?: Record<number, CharOver>;
+  groups?: Array<{ id: bigint; leader: bigint }>;
+  members?: Array<{ id: bigint; groupId: bigint; characterId: bigint; joinedAt?: bigint; role?: string }>;
+  invites?: Array<{ id: bigint; groupId: bigint; from: bigint; to: bigint; createdAt?: bigint }>;
+};
+
+/** Six characters (Ann..Finn), all online and solo unless overridden. */
+function newCtx(s: Seed = {}) {
+  return createMockCtx({
+    seed: {
+      player: USERS.map((u, i) => ({ id: u.id, userId: u.userId, activeCharacterId: BigInt(i + 1) })),
+      character: NAMES.map((name, i) => {
+        const id = BigInt(i + 1);
+        const over = s.chars?.[i + 1] ?? {};
+        return {
+          id,
+          ownerUserId: USERS[i].userId,
+          name,
+          locationId: 10n,
+          groupId: over.groupId,
+          online: over.online ?? true,
+        };
+      }),
+      group: (s.groups ?? []).map((g) => ({
+        id: g.id,
+        name: `${NAMES[Number(g.leader) - 1]}'s group`,
+        leaderCharacterId: g.leader,
+        pullerCharacterId: g.leader,
+        createdAt: at(T0 - 10n),
+      })),
+      group_member: (s.members ?? []).map((m) => ({
+        id: m.id,
+        groupId: m.groupId,
+        characterId: m.characterId,
+        ownerUserId: USERS[Number(m.characterId) - 1].userId,
+        role: m.role ?? 'member',
+        followLeader: true,
+        joinedAt: at(m.joinedAt ?? T0 - 10n),
+      })),
+      group_invite: (s.invites ?? []).map((i) => ({
+        id: i.id,
+        groupId: i.groupId,
+        fromCharacterId: i.from,
+        toCharacterId: i.to,
+        createdAt: at(i.createdAt ?? T0),
+      })),
+    },
+    sender: USERS[0].id,
+    timestampMicros: T0,
+    strict: true,
+  });
+}
+
+/** Call a captured reducer as the owner of `characterId` at `now`. */
+function call(ctx: any, name: string, characterId: bigint, args: Record<string, unknown>, now = T0) {
+  return handlers[name]({ ...ctx, sender: senderOf(characterId), timestamp: at(now) }, { characterId, ...args });
+}
+
+const tableRows = (ctx: any, name: string): any[] => ctx.db._tables[name] ?? [];
+const char = (ctx: any, id: bigint) => tableRows(ctx, 'character').find((c) => c.id === id);
+const lines = (ctx: any, characterId: bigint): string[] =>
+  tableRows(ctx, 'event_private')
+    .filter((e: any) => e.characterId === characterId && e.kind === 'group')
+    .map((e: any) => e.message);
+const membersOf = (ctx: any, groupId: bigint) => tableRows(ctx, 'group_member').filter((m) => m.groupId === groupId);
+
+/** Ann (1) leads group 5 alone. */
+const annAlone: Seed = {
+  chars: { 1: { groupId: 5n } },
+  groups: [{ id: 5n, leader: 1n }],
+  members: [{ id: 1n, groupId: 5n, characterId: 1n, role: 'leader' }],
+};
+const withInvites = (base: Seed, invites: Seed['invites']): Seed => ({ ...base, invites });
+
+describe('join_group needs a live invite for that group', () => {
+  it('refuses without an invite and adds no member row', () => {
+    const ctx = newCtx(annAlone);
+    call(ctx, 'join_group', 2n, { groupId: 5n });
+    expect(lines(ctx, 2n)).toEqual(['You need an invite to join.']);
+    expect(membersOf(ctx, 5n)).toHaveLength(1);
+    expect(char(ctx, 2n).groupId).toBeUndefined();
+  });
+
+  it('joins with a live invite and consumes it', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'join_group', 2n, { groupId: 5n });
+    expect(membersOf(ctx, 5n).map((m) => m.characterId)).toEqual([1n, 2n]);
+    expect(char(ctx, 2n).groupId).toBe(5n);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'event_group').map((e) => e.message)).toContain('Bram joined the group.');
+  });
+
+  it('refuses when the invite is for another group', () => {
+    const ctx = newCtx({
+      chars: { 1: { groupId: 5n }, 3: { groupId: 6n } },
+      groups: [{ id: 5n, leader: 1n }, { id: 6n, leader: 3n }],
+      members: [
+        { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+        { id: 2n, groupId: 6n, characterId: 3n, role: 'leader' },
+      ],
+      invites: [{ id: 1n, groupId: 6n, from: 3n, to: 2n }],
+    });
+    call(ctx, 'join_group', 2n, { groupId: 5n });
+    expect(lines(ctx, 2n)).toEqual(['You need an invite to join.']);
+    expect(membersOf(ctx, 5n)).toHaveLength(1);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+  });
+
+  it('refuses an expired invite (now = createdAt + TTL) and ends it', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'join_group', 2n, { groupId: 5n }, T0 + TTL);
+    expect(lines(ctx, 2n)).toContain('That invite has expired.');
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_member').filter((m) => m.characterId === 2n)).toHaveLength(0);
+  });
+});
+
+describe('accept_group_invite', () => {
+  it('joins one microsecond before the invite expires', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' }, T0 + TTL - 1n);
+    expect(char(ctx, 2n).groupId).toBe(5n);
+    expect(membersOf(ctx, 5n)).toHaveLength(2);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+  });
+
+  it('refuses at exactly createdAt + TTL, ends the invite and dissolves the inviter\'s lone group', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' }, T0 + TTL);
+    expect(lines(ctx, 2n)).toEqual(['The invite from Ann expired.', 'That invite has expired.']);
+    expect(lines(ctx, 1n)).toEqual(['Your invite to Bram expired.']);
+    expect(char(ctx, 2n).groupId).toBeUndefined();
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_member')).toHaveLength(0);
+    expect(char(ctx, 1n).groupId).toBeUndefined();
+  });
+
+  it('accepting twice joins once; the second call is refused', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' });
+    call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' });
+    expect(lines(ctx, 2n)).toEqual(['Character already in a group']);
+    expect(tableRows(ctx, 'group_member').filter((m) => m.characterId === 2n)).toHaveLength(1);
+  });
+});
+
+describe('invite_to_group checks everything before creating anything', () => {
+  /** A solo Ann's refused invite must leave no group, member or invite row of hers. */
+  function expectNothingOfAnns(ctx: any) {
+    expect(tableRows(ctx, 'group').filter((g) => g.leaderCharacterId === 1n)).toHaveLength(0);
+    expect(tableRows(ctx, 'group_member').filter((m) => m.characterId === 1n)).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite').filter((i) => i.fromCharacterId === 1n)).toHaveLength(0);
+    expect(char(ctx, 1n).groupId).toBeUndefined();
+    expect(tableRows(ctx, 'event_group')).toHaveLength(0);
+  }
+
+  it('an offline target: refused, nothing created', () => {
+    const ctx = newCtx({ chars: { 2: { online: false } } });
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    expect(lines(ctx, 1n)).toEqual(['Bram is offline.']);
+    expectNothingOfAnns(ctx);
+  });
+
+  it('a target already in a group: refused, nothing created', () => {
+    const ctx = newCtx({
+      chars: { 2: { groupId: 6n }, 3: { groupId: 6n } },
+      groups: [{ id: 6n, leader: 3n }],
+      members: [
+        { id: 1n, groupId: 6n, characterId: 3n, role: 'leader' },
+        { id: 2n, groupId: 6n, characterId: 2n },
+      ],
+    });
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    expect(lines(ctx, 1n)).toEqual(['Bram is already in a group.']);
+    expectNothingOfAnns(ctx);
+  });
+
+  it('an unknown name: refused, nothing created', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Nobody' });
+    expect(lines(ctx, 1n)).toEqual(['Target not found']);
+    expectNothingOfAnns(ctx);
+  });
+
+  it('an empty name: refused with Target required, nothing created', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: '   ' });
+    expect(lines(ctx, 1n)).toEqual(['Target required']);
+    expectNothingOfAnns(ctx);
+  });
+
+  it('yourself: refused, nothing created', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'ann' });
+    expect(lines(ctx, 1n)).toEqual(['Cannot invite yourself']);
+    expectNothingOfAnns(ctx);
+  });
+
+  it('a target with a live pending invite: refused, nothing created', () => {
+    const ctx = newCtx({
+      chars: { 3: { groupId: 6n } },
+      groups: [{ id: 6n, leader: 3n }],
+      members: [{ id: 1n, groupId: 6n, characterId: 3n, role: 'leader' }],
+      invites: [{ id: 1n, groupId: 6n, from: 3n, to: 2n }],
+    });
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    expect(lines(ctx, 1n)).toEqual(['Bram already has a pending invite.']);
+    expectNothingOfAnns(ctx);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+  });
+
+  it('a non-leader member: the existing leader-only line, nothing inserted', () => {
+    const ctx = newCtx({
+      chars: { 1: { groupId: 5n }, 2: { groupId: 5n } },
+      groups: [{ id: 5n, leader: 1n }],
+      members: [
+        { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+        { id: 2n, groupId: 5n, characterId: 2n },
+      ],
+    });
+    call(ctx, 'invite_to_group', 2n, { targetName: 'Cole' });
+    expect(lines(ctx, 2n)).toEqual(['Only the group leader can invite new members.']);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group')).toHaveLength(1);
+    expect(tableRows(ctx, 'group_member')).toHaveLength(2);
+  });
+});
+
+describe('invite_to_group: the size cap counts live invites', () => {
+  /** Group 5: Ann (leader), Bram, Cole, Dena; one invite to Eli. Ann invites Finn. */
+  const fourAndAnInvite = (inviteCreatedAt: bigint): Seed => ({
+    chars: { 1: { groupId: 5n }, 2: { groupId: 5n }, 3: { groupId: 5n }, 4: { groupId: 5n } },
+    groups: [{ id: 5n, leader: 1n }],
+    members: [
+      { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+      { id: 2n, groupId: 5n, characterId: 2n },
+      { id: 3n, groupId: 5n, characterId: 3n },
+      { id: 4n, groupId: 5n, characterId: 4n },
+    ],
+    invites: [{ id: 1n, groupId: 5n, from: 1n, to: 5n, createdAt: inviteCreatedAt }],
+  });
+
+  it('4 members + 1 live invite: Your group is full.', () => {
+    const ctx = newCtx(fourAndAnInvite(T0));
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Finn' });
+    expect(lines(ctx, 1n)).toEqual(['Your group is full.']);
+    expect(tableRows(ctx, 'group_invite').map((i) => i.toCharacterId)).toEqual([5n]);
+  });
+
+  it('with that invite expired, the same call succeeds and the expired invite is ended', () => {
+    const ctx = newCtx(fourAndAnInvite(T0 - TTL));
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Finn' });
+    expect(tableRows(ctx, 'group_invite').map((i) => i.toCharacterId)).toEqual([6n]);
+    expect(lines(ctx, 1n)).toContain('You invited Finn.');
+    expect(lines(ctx, 1n)).toContain('Your invite to Eli expired.');
+    expect(membersOf(ctx, 5n)).toHaveLength(4);
+  });
+});
+
+describe('invite_to_group: success and stale invites', () => {
+  it('a solo inviter: one invite at now, the target line, the inviter line, the group and leader row', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    const invites = tableRows(ctx, 'group_invite');
+    expect(invites).toHaveLength(1);
+    expect(invites[0].createdAt.microsSinceUnixEpoch).toBe(T0);
+    expect(invites[0].fromCharacterId).toBe(1n);
+    expect(invites[0].toCharacterId).toBe(2n);
+    const group = tableRows(ctx, 'group')[0];
+    expect(group.leaderCharacterId).toBe(1n);
+    expect(invites[0].groupId).toBe(group.id);
+    expect(membersOf(ctx, group.id).map((m) => [m.characterId, m.role])).toEqual([[1n, 'leader']]);
+    expect(char(ctx, 1n).groupId).toBe(group.id);
+    expect(lines(ctx, 2n)).toEqual([
+      'Ann invited you to a group. Type [accept Ann] to join or [decline Ann] to refuse.',
+    ]);
+    expect(lines(ctx, 1n)).toEqual(['You invited Bram.']);
+  });
+
+  it('a target holding an expired invite from another group can be invited; the stale lone group dissolves', () => {
+    const ctx = newCtx({
+      chars: { 3: { groupId: 6n } },
+      groups: [{ id: 6n, leader: 3n }],
+      members: [{ id: 1n, groupId: 6n, characterId: 3n, role: 'leader' }],
+      invites: [{ id: 1n, groupId: 6n, from: 3n, to: 2n, createdAt: T0 - TTL }],
+    });
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    expect(tableRows(ctx, 'group_invite').map((i) => i.fromCharacterId)).toEqual([1n]);
+    expect(lines(ctx, 3n)).toEqual(['Your invite to Bram expired.']);
+    expect(lines(ctx, 2n)[0]).toBe('The invite from Cole expired.');
+    expect(tableRows(ctx, 'group').some((g) => g.id === 6n)).toBe(false);
+    expect(char(ctx, 3n).groupId).toBeUndefined();
+    expect(lines(ctx, 1n)).toEqual(['You invited Bram.']);
+  });
+});
+
+describe('names are trimmed and matched case-insensitively', () => {
+  for (const name of [' bram ', 'BRAM']) {
+    it(`invite '${name}' reaches Bram`, () => {
+      const ctx = newCtx();
+      call(ctx, 'invite_to_group', 1n, { targetName: name });
+      expect(tableRows(ctx, 'group_invite').map((i) => i.toCharacterId)).toEqual([2n]);
+    });
+  }
+
+  for (const name of [' ann ', 'ANN']) {
+    it(`accept '${name}' finds Ann's invite`, () => {
+      const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+      call(ctx, 'accept_group_invite', 2n, { fromName: name });
+      expect(char(ctx, 2n).groupId).toBe(5n);
+    });
+
+    it(`reject '${name}' finds Ann's invite`, () => {
+      const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+      call(ctx, 'reject_group_invite', 2n, { fromName: name });
+      expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    });
+  }
+});
+
+describe('reject_group_invite', () => {
+  it('deletes the invite, tells the inviter, and dissolves a solo inviter\'s lone group; again is silent', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' });
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(lines(ctx, 1n)).toEqual(['Bram declined your group invite.']);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(char(ctx, 1n).groupId).toBeUndefined();
+
+    const before = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' });
+    const after = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    expect(after).toBe(before);
+  });
+
+  it('a group with another member is left alone', () => {
+    const ctx = newCtx({
+      chars: { 1: { groupId: 5n }, 3: { groupId: 5n } },
+      groups: [{ id: 5n, leader: 1n }],
+      members: [
+        { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+        { id: 2n, groupId: 5n, characterId: 3n },
+      ],
+      invites: [{ id: 1n, groupId: 5n, from: 1n, to: 2n }],
+    });
+    call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' });
+    expect(tableRows(ctx, 'group')).toHaveLength(1);
+    expect(membersOf(ctx, 5n)).toHaveLength(2);
+  });
+});
+
+describe('leave_group passes leadership deterministically', () => {
+  const three = (bramJoined: bigint, coleJoined: bigint): Seed => ({
+    chars: { 1: { groupId: 5n }, 2: { groupId: 5n }, 3: { groupId: 5n } },
+    groups: [{ id: 5n, leader: 1n }],
+    members: [
+      { id: 1n, groupId: 5n, characterId: 1n, role: 'leader', joinedAt: T0 },
+      { id: 2n, groupId: 5n, characterId: 2n, joinedAt: bramJoined },
+      { id: 3n, groupId: 5n, characterId: 3n, joinedAt: coleJoined },
+    ],
+  });
+
+  it('the earliest joiner becomes leader', () => {
+    const ctx = newCtx(three(T0 + 2n, T0 + 1n));
+    call(ctx, 'leave_group', 1n, {});
+    expect(tableRows(ctx, 'group')[0].leaderCharacterId).toBe(3n);
+    expect(membersOf(ctx, 5n).find((m) => m.characterId === 3n).role).toBe('leader');
+  });
+
+  it('with equal joinedAt the lower member id wins', () => {
+    const ctx = newCtx(three(T0 + 1n, T0 + 1n));
+    call(ctx, 'leave_group', 1n, {});
+    expect(tableRows(ctx, 'group')[0].leaderCharacterId).toBe(2n);
+  });
+});
