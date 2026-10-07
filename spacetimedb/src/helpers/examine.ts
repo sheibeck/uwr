@@ -277,6 +277,11 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
  * Exact name matches win across every category before any partial match is tried, so a click on
  * the "Stone" node is never captured by a "Stone Golem" enemy. Inside a pass the category order
  * stays NPC, enemy, player, node, item, neighbouring place, bind stone.
+ *
+ * Kept on purpose (Phase 51 review IN-09): when something here has exactly the same name as a
+ * neighbouring place, the earlier category answers, so no older answer changes. A place's own
+ * exact name still beats every partial match. If the collision ever matters, the remedy is a typed
+ * look target sent by the Examine eye (for example `look at place {name}`), not a reorder.
  */
 export function describeLookTarget(ctx: any, character: any, target: string): string | null {
   const targetLower = target.toLowerCase();

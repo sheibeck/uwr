@@ -577,6 +577,17 @@ describe('describeLookTarget: the new categories come last', () => {
     expect(describeLookTarget(ctxWith(seed), HERE, 'gloamwood')).toBe('[Gloamwood]: A woman who smells of pine.');
   });
 
+  it('an exact neighbouring place name beats a partial NPC or item match (client-rest review IN-09, kept order)', () => {
+    const seed = placesSeed({
+      npc: [{ id: 50n, locationId: 10n, name: 'Gloamwood Warden', description: 'A warden.' }],
+      item_template: [{ ...ironTemplate, id: 30n, name: 'Gloamwood Bark' }],
+      item_instance: [{ id: 300n, ownerCharacterId: 10n, templateId: 30n, quantity: 1n }],
+    });
+    expect(describeLookTarget(ctxWith(seed), HERE, 'gloamwood')).toBe(
+      'Gloamwood\nNext to The Crossing.\nBlack pines lean over the road.',
+    );
+  });
+
   it('a carried item answers before the bind stone', () => {
     const seed = placesSeed({
       item_template: [{ ...ironTemplate, id: 30n, name: 'Bind Stone' }],
