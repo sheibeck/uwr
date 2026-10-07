@@ -214,6 +214,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-06-bind-stone-in-nearby-with-bind-action.md`: bind stone row in Nearby with a Bind action. Folded into Phase 51.
 - `todos/pending/2026-10-06-nearby-npc-chat-bubble-instead-of-hail.md`: NPC rows in Nearby use a chat bubble icon ("Talk to {name}") instead of the word "hail". Folded into Phase 51.
 - `todos/pending/2026-10-07-party-pet-hud-and-follow-indicators.md`: pet HUD and travel-with-leader indicators from the updated `UWR Party.dc.html`. Folded into Phase 51.
+- `todos/pending/2026-10-07-combat-outro-tells-how-the-fight-unfolded.md`: the victory outro reads as wry aftermath because the prompt gets no record of the fight. Owner wants an action-oriented summary of how the fight unfolded from the abilities both sides used. Server digest needs no approval; the prompt wording needs the owner's explicit approval of the exact text.
 
 ### Blockers/Concerns
 
