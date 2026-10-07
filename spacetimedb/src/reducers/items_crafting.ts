@@ -1,5 +1,5 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, planCraft, MAX_CRAFT_COUNT } from '../data/crafting_rules';
+import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, MAX_CRAFT_COUNT, salvageMaterialYield, salvageReagentDefs, SALVAGE_REAGENT_CHANCE_PCT } from '../data/crafting_rules';
 import { writeActionResult } from '../helpers/action_result';
 import type { ResultLine } from '../data/action_result';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
@@ -80,6 +80,7 @@ export const registerItemCraftingReducers = (deps: any) => {
     );
 
     let found = 0;
+    const foundLines: ResultLine[] = [];
     for (const candidate of candidates) {
       if (found >= MAX_NEW_RECIPES_PER_DISCOVER) break;
       let recipe = recipesByKey.get(candidate.key);
@@ -103,6 +104,14 @@ export const registerItemCraftingReducers = (deps: any) => {
         discoveredAt: ctx.timestamp,
       });
       discovered.add(recipe.id.toString());
+      foundLines.push({
+        kind: 'recipe',
+        templateId: recipe.outputTemplateId,
+        name: recipe.name,
+        quantity: 1n,
+        total: 0n,
+        instanceId: null,
+      });
       appendPrivateEvent(
         ctx,
         character.id,
@@ -121,6 +130,15 @@ export const registerItemCraftingReducers = (deps: any) => {
         'You discover nothing new.'
       );
     }
+    // What the server found, for the result card: quantity is the number of recipes, one line each.
+    writeActionResult(ctx, character.id, {
+      kind: 'discover',
+      itemName: '',
+      rarity: 'common',
+      quantity: BigInt(found),
+      craftCount: 0n,
+      lines: foundLines,
+    });
   });
 
   // Maps stat key → readable affix suffix name for crafted items
@@ -438,53 +456,59 @@ export const registerItemCraftingReducers = (deps: any) => {
     );
 
     // --- Material yield ---
-    // The tier table gives the base count, then two caps keep salvage from beating the craft:
+    // The shared rule (data/crafting_rules.ts salvageMaterialYield) gives the tier table count, then
+    // two caps keep salvage from beating the craft:
     //   - value: the materials returned are never worth more than the item (vendorValue), and
     //   - recipe: never more of a material than the recipe consumed of it.
     // Without them a crafted Void Crystal Pendant (2 Void Crystal in) paid back 3 Void Crystal.
+    // The client preview uses the same rule, so what it names is what the server gives.
+    const resultLines: ResultLine[] = [];
     const materialName = getMaterialForSalvage(template.slot, template.armorType, tier);
-    if (materialName) {
-      const materialTemplate = findItemTemplateByName(ctx, materialName);
-      if (materialTemplate) {
-        let yieldCount: bigint = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
-        const materialValue: bigint = materialTemplate.vendorValue ?? 0n;
-        if (materialValue > 0n) {
-          const byValue = (template.vendorValue ?? 0n) / materialValue;
-          if (byValue < yieldCount) yieldCount = byValue;
-        }
-        if (matchingRecipe) {
-          let consumed = 0n;
-          if (matchingRecipe.req1TemplateId === materialTemplate.id) consumed += matchingRecipe.req1Count ?? 0n;
-          if (matchingRecipe.req2TemplateId === materialTemplate.id) consumed += matchingRecipe.req2Count ?? 0n;
-          if (matchingRecipe.req3TemplateId === materialTemplate.id) consumed += matchingRecipe.req3Count ?? 0n;
-          if (consumed > 0n && consumed < yieldCount) yieldCount = consumed;
-        }
-        if (yieldCount > 0n) {
-          addItemToInventory(ctx, character.id, materialTemplate.id, yieldCount);
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-            `You salvaged ${itemName} and received ${yieldCount}x ${materialTemplate.name}.`);
-        } else {
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-            `You salvaged ${itemName}, but nothing usable was left.`);
-        }
+    const materialTemplate = materialName ? findItemTemplateByName(ctx, materialName) : null;
+    let recipeConsumed = 0n;
+    if (matchingRecipe && materialTemplate) {
+      if (matchingRecipe.req1TemplateId === materialTemplate.id) recipeConsumed += matchingRecipe.req1Count ?? 0n;
+      if (matchingRecipe.req2TemplateId === materialTemplate.id) recipeConsumed += matchingRecipe.req2Count ?? 0n;
+      if (matchingRecipe.req3TemplateId === materialTemplate.id) recipeConsumed += matchingRecipe.req3Count ?? 0n;
+    }
+    const materialYield = salvageMaterialYield({
+      slot: template.slot,
+      armorType: template.armorType,
+      tier,
+      itemValue: template.vendorValue ?? 0n,
+      material: materialTemplate
+        ? { name: materialTemplate.name, vendorValue: materialTemplate.vendorValue ?? 0n }
+        : null,
+      recipeConsumed,
+    });
+    if (materialYield && materialTemplate) {
+      if (materialYield.count > 0n) {
+        addItemToInventory(ctx, character.id, materialTemplate.id, materialYield.count);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `You salvaged ${itemName} and received ${materialYield.count}x ${materialTemplate.name}.`);
+        resultLines.push({
+          kind: 'received',
+          templateId: materialTemplate.id,
+          name: materialTemplate.name,
+          quantity: materialYield.count,
+          total: 0n,
+          instanceId: null,
+        });
+      } else {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+          `You salvaged ${itemName}, but nothing usable was left.`);
       }
     }
 
-    // --- Bonus modifier reagent yield (12% chance, affix-constrained) ---
-    // Collect the unique statKey set from this item's real affixes. The implicit craft-quality
-    // affixes every tier 2 and 3 craft carries are not reagent sources: counting them gave a free
-    // Iron Ward (armorClassBonus) for every crafted piece of armor.
+    // --- Bonus modifier reagent yield (SALVAGE_REAGENT_CHANCE_PCT, affix-constrained) ---
+    // salvageReagentDefs keeps the CRAFTING_MODIFIER_DEFS whose statKey matches one of this item's
+    // real affixes. The implicit craft-quality affixes every tier 2 and 3 craft carries are not
+    // reagent sources: counting them gave a free Iron Ward for every crafted piece of armor.
     // Affix deletion happens later, so rows still exist here.
-    const affixStatKeys = new Set(
-      [...ctx.db.item_affix.by_instance.filter(instance.id)]
-        .filter(a => a.affixType !== 'implicit')
-        .map(a => a.statKey)
-    );
-    // Only yield reagents whose statKey matches one of the item's actual affixes.
-    const filteredModDefs = CRAFTING_MODIFIER_DEFS.filter(d => affixStatKeys.has(d.statKey));
+    const filteredModDefs = salvageReagentDefs([...ctx.db.item_affix.by_instance.filter(instance.id)]);
     if (filteredModDefs.length > 0) {
       const modifierRoll = (ctx.timestamp.microsSinceUnixEpoch + args.itemInstanceId * 13n) % 100n;
-      if (modifierRoll < 12n) {
+      if (modifierRoll < SALVAGE_REAGENT_CHANCE_PCT) {
         const modIdx = Number((args.itemInstanceId + character.id) % BigInt(filteredModDefs.length));
         const modDef = filteredModDefs[modIdx];
         const modifierTemplate = findItemTemplateByName(ctx, modDef.name);
@@ -492,6 +516,14 @@ export const registerItemCraftingReducers = (deps: any) => {
           addItemToInventory(ctx, character.id, modifierTemplate.id, 1n);
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
             `You also found 1x ${modDef.name} while salvaging.`);
+          resultLines.push({
+            kind: 'bonus',
+            templateId: modifierTemplate.id,
+            name: modDef.name,
+            quantity: 1n,
+            total: 0n,
+            instanceId: null,
+          });
         }
       }
     }
@@ -510,9 +542,17 @@ export const registerItemCraftingReducers = (deps: any) => {
         // scroll template is normal and stays silent.
         const scrollTemplate = findItemTemplateByName(ctx, `Scroll: ${matchingRecipe.name}`);
         if (scrollTemplate) {
-          addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
+          const scrollRow = addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
             `You found a recipe: ${matchingRecipe.name}.`);
+          resultLines.push({
+            kind: 'scroll',
+            templateId: scrollTemplate.id,
+            name: scrollTemplate.name,
+            quantity: 1n,
+            total: 0n,
+            instanceId: scrollRow?.id ?? null,
+          });
         }
       }
     }
@@ -524,5 +564,23 @@ export const registerItemCraftingReducers = (deps: any) => {
 
     // Delete the item instance
     ctx.db.item_instance.id.delete(instance.id);
+
+    // The result row: only what was granted above, each total the bag count after every grant.
+    const lines: ResultLine[] = resultLines.map((line) => ({
+      ...line,
+      total: getItemCount(ctx, character.id, line.templateId),
+    }));
+    writeActionResult(ctx, character.id, {
+      kind: 'salvage',
+      templateId: instance.templateId,
+      itemInstanceId: undefined,
+      itemName,
+      rarity: instance.qualityTier ?? template.rarity ?? 'common',
+      craftQuality: instance.craftQuality ?? undefined,
+      quantity: instance.quantity ?? 1n,
+      recipeTemplateId: undefined,
+      craftCount: 0n,
+      lines,
+    });
   });
 };
