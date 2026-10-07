@@ -9,7 +9,9 @@ import type { FrameControls, GameData } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { LedgerData, LedgerReducers } from '../ledger/ledgerContext';
 import { createActionRunner } from '../ledger/actionRunner';
-import type { ItemInstance, ItemTemplate, RecipeDiscovered, RecipeTemplate } from '../module_bindings/types';
+import { encodeResultLines } from '@game-data/action_result';
+import type { ResultLine } from '@game-data/action_result';
+import type { ActionResult, ItemInstance, ItemTemplate, RecipeDiscovered, RecipeTemplate } from '../module_bindings/types';
 import CraftingMeta from './CraftingMeta.vue';
 import CraftingScreen from './CraftingScreen.vue';
 import MaterialsOnHand from './MaterialsOnHand.vue';
@@ -149,6 +151,7 @@ interface World {
   station?: boolean;
   connected?: boolean;
   isDesktop?: boolean;
+  lastResult?: ActionResult | null;
   reducers?: Partial<LedgerReducers>;
 }
 
@@ -160,7 +163,9 @@ function buildWorld(world: World) {
     researchRecipes: vi.fn(async () => undefined),
     craftRecipe: vi.fn(async () => undefined),
     craftRecipeCount: vi.fn(async () => undefined),
+    equipItem: vi.fn(async () => undefined),
   };
+  const lastResult = shallowRef<ActionResult | null>(world.lastResult ?? null);
   const reducers = { ...calls, ...world.reducers } as unknown as LedgerReducers;
   const game = {
     ...createInertGame(),
@@ -181,6 +186,9 @@ function buildWorld(world: World) {
     recipesKnown: knownRows,
     recipesApplied: ref(world.applied ?? true),
     recipes: ref(new Map((world.recipes ?? RECIPES).map((r) => [r.id, r]))),
+    lastResult,
+    outputRecipes: ref(new Map()),
+    outputRecipesApplied: ref(true),
     reducers: computed(() => (connected.value ? reducers : null)),
   } as unknown as LedgerData;
   const frame = { ...createInertFrame(), isDesktop: ref(world.isDesktop ?? true) } as unknown as FrameControls;
@@ -189,6 +197,7 @@ function buildWorld(world: World) {
     connected,
     items,
     knownRows,
+    lastResult,
     calls,
     game,
     ledger,
@@ -1079,5 +1088,474 @@ describe('CraftingScreen mobile', () => {
     const { w } = mountScreen({ recipes: [evilRecipe], knownIds: [9n] });
     expect(w.get('.row-name').text()).toBe(XSS);
     expect(w.find('img').exists()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The shared result card for crafts and Discover (Plan 50-37)
+// ---------------------------------------------------------------------------
+
+describe('Craft and Discover result card (Plan 50-37)', () => {
+  const POTION = recipe(6n, 'Bandage Roll', {
+    outputTemplateId: 103n,
+    outputCount: 1n,
+    req1TemplateId: 1n,
+    req1Count: 2n,
+    req2TemplateId: 4n,
+    req2Count: 1n,
+    recipeType: 'consumable',
+  });
+  const MADE_ID = 50n;
+
+  function craftRow(seq: bigint, over: Record<string, unknown> = {}, lines?: ResultLine[]): ActionResult {
+    return {
+      characterId: 7n,
+      seq,
+      kind: 'craft',
+      templateId: 103n,
+      itemInstanceId: undefined,
+      itemName: 'Bandage',
+      rarity: 'common',
+      craftQuality: undefined,
+      quantity: 3n,
+      recipeTemplateId: 6n,
+      craftCount: 3n,
+      linesJson: encodeResultLines(
+        lines ?? [
+          { kind: 'used', templateId: 1n, name: 'Copper Ore', quantity: 6n, total: 0n, instanceId: null },
+          { kind: 'used', templateId: 4n, name: 'Rough Hide', quantity: 3n, total: 0n, instanceId: null },
+        ],
+      ),
+      at: {},
+      ...over,
+    } as unknown as ActionResult;
+  }
+
+  function discoverRow(seq: bigint, found: bigint, lines: ResultLine[] = []): ActionResult {
+    return {
+      characterId: 7n,
+      seq,
+      kind: 'discover',
+      templateId: undefined,
+      itemInstanceId: undefined,
+      itemName: '',
+      rarity: '',
+      craftQuality: undefined,
+      quantity: found,
+      recipeTemplateId: undefined,
+      craftCount: 0n,
+      linesJson: encodeResultLines(lines),
+      at: {},
+    } as unknown as ActionResult;
+  }
+
+  interface CardOptions {
+    isDesktop?: boolean;
+    wide?: boolean;
+    gear?: boolean;
+    outcome?: 'row' | 'reject' | 'silent';
+    preset?: ActionResult | null;
+    items?: ItemInstance[];
+    character?: Record<string, unknown>;
+    rowOver?: Record<string, unknown>;
+    discoverFound?: bigint;
+  }
+
+  // The fake server: craft_recipe_count takes the recipe's materials and writes the next result row;
+  // research_recipes writes a discover row.
+  function mountCard(opts: CardOptions = {}) {
+    setWide(opts.wide ?? opts.isDesktop !== false);
+    const holder: { ctx?: ReturnType<typeof buildWorld>; seq: bigint } = { seq: opts.preset ? opts.preset.seq : 0n };
+    const recipeUsed = opts.gear ? R_SWORD : POTION;
+    const craftRecipeCount = vi.fn(async (args: { count: bigint }) => {
+      const outcome = opts.outcome ?? 'row';
+      if (outcome === 'reject') throw new Error('no');
+      if (outcome === 'silent') return;
+      const ctx = holder.ctx!;
+      let next = ctx.items.value.map((row) => ({ ...row }));
+      for (const [templateId, per] of [
+        [recipeUsed.req1TemplateId, recipeUsed.req1Count],
+        [recipeUsed.req2TemplateId, recipeUsed.req2Count],
+      ] as Array<[bigint, bigint]>) {
+        let remaining = per * args.count;
+        next = next
+          .map((row) => {
+            if (row.templateId !== templateId || row.equippedSlot || remaining <= 0n) return row;
+            const take = row.quantity < remaining ? row.quantity : remaining;
+            remaining -= take;
+            return { ...row, quantity: row.quantity - take };
+          })
+          .filter((row) => row.quantity > 0n);
+      }
+      if (opts.gear) next.push(inst(MADE_ID, 100n, 1n, { craftQuality: 'standard' }));
+      ctx.items.value = next;
+      holder.seq += 1n;
+      ctx.lastResult.value = opts.gear
+        ? craftRow(
+            holder.seq,
+            {
+              templateId: 100n,
+              itemInstanceId: MADE_ID,
+              itemName: 'Copper Sword',
+              craftQuality: 'standard',
+              quantity: 1n,
+              recipeTemplateId: 1n,
+              craftCount: 1n,
+              ...opts.rowOver,
+            },
+            [
+              { kind: 'used', templateId: 1n, name: 'Copper Ore', quantity: 3n, total: 0n, instanceId: null },
+              { kind: 'used', templateId: 4n, name: 'Rough Hide', quantity: 1n, total: 0n, instanceId: null },
+            ],
+          )
+        : craftRow(
+            holder.seq,
+            { quantity: args.count, craftCount: args.count, ...opts.rowOver },
+            [
+              { kind: 'used', templateId: 1n, name: 'Copper Ore', quantity: 2n * args.count, total: 0n, instanceId: null },
+              { kind: 'used', templateId: 4n, name: 'Rough Hide', quantity: args.count, total: 0n, instanceId: null },
+            ],
+          );
+    });
+    const researchRecipes = vi.fn(async () => {
+      holder.seq += 1n;
+      const found = opts.discoverFound ?? 0n;
+      holder.ctx!.lastResult.value = discoverRow(
+        holder.seq,
+        found,
+        found === 0n
+          ? []
+          : [
+              { kind: 'recipe', templateId: 103n, name: 'Bandage Roll', quantity: 1n, total: 1n, instanceId: null },
+              { kind: 'recipe', templateId: 100n, name: XSS, quantity: 1n, total: 1n, instanceId: null },
+            ],
+      );
+    });
+    const ctx = buildWorld({
+      isDesktop: opts.isDesktop ?? true,
+      recipes: [POTION, R_SWORD],
+      knownIds: [opts.gear ? 1n : 6n],
+      items: opts.items ?? [inst(1n, 1n, 10n), inst(2n, 4n, 5n)],
+      character: {
+        id: 7n,
+        name: 'Hero',
+        level: 5n,
+        locationId: 10n,
+        gold: 100n,
+        className: 'Warrior',
+        vendorSellMod: 100n,
+        ...opts.character,
+      },
+      lastResult: opts.preset ?? null,
+      reducers: { craftRecipeCount, researchRecipes } as unknown as Partial<LedgerReducers>,
+    });
+    holder.ctx = ctx;
+    wrapper = mount(CraftingScreen, { attachTo: document.body, global: ctx.global });
+    return { ...ctx, craftRecipeCount, researchRecipes, w: wrapper };
+  }
+
+  const dialog = () => wrapper!.find('[role="dialog"]');
+  const cardButton = (label: string) => wrapper!.findAll('[role="dialog"] button').find((b) => b.text() === label);
+  const flush = async () => {
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+    await nextTick();
+  };
+
+  // Press the Craft button the way a click does: focus it, then click.
+  async function craft(count = 3, host = '.detail-col') {
+    await nextTick();
+    for (let i = 1; i < count; i += 1) await wrapper!.get(`${host} button[aria-label="One more"]`).trigger('click');
+    const button = wrapper!.get(`${host} button.craft-btn`);
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await flush();
+    return button;
+  }
+
+  it('opens the shared card with what the server reported after a craft of 3', async () => {
+    mountCard();
+    expect(dialog().exists()).toBe(false);
+    await craft(3);
+    const card = wrapper!.get('[role="dialog"]');
+    expect(card.attributes('aria-modal')).toBe('true');
+    expect(card.get('.kicker').text()).toBe('Crafted');
+    expect(card.get('h4').text()).toBe('Bandage');
+    expect(card.get('.qty-tag').text()).toBe('x3');
+    expect(card.get('.sub').text()).toBe('3 added to your bag');
+    expect(card.get('h6').text()).toBe('Used');
+    const rows = card.findAll('.result-row');
+    expect(rows.map((r) => r.get('.qty').text())).toEqual(['−6', '−3']);
+    expect(rows[0].text()).toContain('Copper Ore');
+    expect(card.get('.footer').text()).toBe('Items went to your backpack. Also written to your log.');
+    expect(document.activeElement).toBe(cardButton('Done')!.element);
+  });
+
+  it('Esc closes the card only (the drawer stays) and focus returns to the Craft button', async () => {
+    mountCard();
+    const button = await craft(3);
+    const drawer = vi.fn();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) drawer();
+    };
+    document.addEventListener('keydown', onKey);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(event);
+    await flush();
+    document.removeEventListener('keydown', onKey);
+    expect(event.defaultPrevented).toBe(true);
+    expect(drawer).not.toHaveBeenCalled();
+    expect(dialog().exists()).toBe(false);
+    expect(document.activeElement).toBe(button.element);
+  });
+
+  it('Done and a scrim click close the card and return focus to Craft', async () => {
+    mountCard();
+    const button = await craft(3);
+    await cardButton('Done')!.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(false);
+    expect(document.activeElement).toBe(button.element);
+    await button.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(true);
+    await wrapper!.get('.result-scrim').trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('Craft again repeats the recipe with the smaller of the last count and what the bag now allows', async () => {
+    const ctx = mountCard();
+    await craft(3);
+    // Copper 10 and Hide 5 minus a craft of 3 leaves Copper 4 and Hide 2: two more are possible.
+    expect(ctx.craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(ctx.craftRecipeCount).toHaveBeenCalledWith({ characterId: 7n, recipeTemplateId: 6n, count: 3n });
+    await cardButton('Craft again')!.trigger('click');
+    await flush();
+    expect(ctx.craftRecipeCount).toHaveBeenCalledTimes(2);
+    expect(ctx.craftRecipeCount).toHaveBeenLastCalledWith({ characterId: 7n, recipeTemplateId: 6n, count: 2n });
+    // A new row with a higher seq replaced the content of the open card.
+    expect(wrapper!.findAll('[role="dialog"]')).toHaveLength(1);
+    expect(wrapper!.get('[role="dialog"] .qty-tag').text()).toBe('x2');
+    expect(wrapper!.findAll('[role="dialog"] .result-row').map((r) => r.get('.qty').text())).toEqual(['−4', '−2']);
+  });
+
+  it('Craft again uses the last count when the bag still allows it', async () => {
+    const ctx = mountCard({ items: [inst(1n, 1n, 20n), inst(2n, 4n, 10n)] });
+    await craft(2);
+    await cardButton('Craft again')!.trigger('click');
+    await flush();
+    expect(ctx.craftRecipeCount).toHaveBeenLastCalledWith({ characterId: 7n, recipeTemplateId: 6n, count: 2n });
+  });
+
+  it('hides Craft again when the bag allows no more, and when there is no station', async () => {
+    mountCard({ items: [inst(1n, 1n, 6n), inst(2n, 4n, 3n)] });
+    await craft(3);
+    expect(dialog().exists()).toBe(true);
+    expect(cardButton('Craft again')).toBeUndefined();
+    expect(cardButton('Done')).toBeDefined();
+    wrapper!.unmount();
+    wrapper = null;
+
+    const ctx = mountCard({ items: [inst(1n, 1n, 20n), inst(2n, 4n, 10n)] });
+    await craft(1);
+    expect(cardButton('Craft again')).toBeDefined();
+    (ctx.game.locations as unknown as { value: unknown }).value = [
+      { id: 10n, name: 'Forge Gate', craftingAvailable: false },
+    ];
+    await flush();
+    expect(cardButton('Craft again')).toBeUndefined();
+  });
+
+  it('Craft again is inert while its call is pending and sends once', async () => {
+    let release: () => void = () => undefined;
+    const ctx = mountCard({ items: [inst(1n, 1n, 20n), inst(2n, 4n, 10n)] });
+    await craft(1);
+    ctx.craftRecipeCount.mockImplementation(() => new Promise<void>((resolveCall) => (release = resolveCall)));
+    const again = cardButton('Craft again')!;
+    await again.trigger('click');
+    await again.trigger('click');
+    expect(ctx.craftRecipeCount).toHaveBeenCalledTimes(2);
+    expect(cardButton('Craft again')!.attributes('aria-disabled')).toBe('true');
+    release();
+    await flush();
+  });
+
+  it('Equip appears for gear the character can equip, equips the made instance and closes the card', async () => {
+    const ctx = mountCard({ gear: true, items: [inst(1n, 1n, 9n), inst(2n, 4n, 3n)] });
+    await craft(1);
+    const card = wrapper!.get('[role="dialog"]');
+    expect(card.get('.kicker').text()).toBe('Crafted');
+    expect(card.get('.sub').text()).toContain('Standard quality');
+    const equip = cardButton('Equip')!;
+    expect(equip.find('svg').exists()).toBe(true);
+    expect(equip.classes()).toContain('btn-primary');
+    await equip.trigger('click');
+    await flush();
+    expect(ctx.calls.equipItem).toHaveBeenCalledTimes(1);
+    expect(ctx.calls.equipItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: MADE_ID });
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('hides Equip for gear the character cannot equip and for a consumable', async () => {
+    mountCard({ gear: true, items: [inst(1n, 1n, 9n), inst(2n, 4n, 3n)], character: { weaponProficiencies: 'axe' } });
+    await craft(1);
+    expect(dialog().exists()).toBe(true);
+    expect(cardButton('Equip')).toBeUndefined();
+    wrapper!.unmount();
+    wrapper = null;
+
+    mountCard();
+    await craft(3);
+    expect(cardButton('Equip')).toBeUndefined();
+    expect(cardButton('Craft again')).toBeDefined();
+  });
+
+  it('Discover ends on the card: Nothing new with the tip, focus back on the Discover button', async () => {
+    mountCard({ discoverFound: 0n });
+    await nextTick();
+    const button = wrapper!.get('.materials-col button.discover');
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await flush();
+    const card = wrapper!.get('[role="dialog"]');
+    expect(card.get('.kicker').text()).toBe('Discover recipes');
+    expect(card.get('h4').text()).toBe('Nothing new');
+    expect(card.get('h6').text()).toBe('Tip');
+    expect(card.get('.result-row').text()).toContain('Gather other materials to find new recipes.');
+    expect(cardButton('Craft again')).toBeUndefined();
+    await cardButton('Done')!.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(false);
+    expect(document.activeElement).toBe(button.element);
+  });
+
+  it('Discover with finds lists the new recipes as text', async () => {
+    mountCard({ discoverFound: 2n });
+    await nextTick();
+    const button = wrapper!.get('.materials-col button.discover');
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await flush();
+    const card = wrapper!.get('[role="dialog"]');
+    expect(card.get('h4').text()).toBe('2 new recipes');
+    expect(card.get('h6').text()).toBe('Found');
+    const names = card.findAll('.result-row .name').map((n) => n.text());
+    expect(names).toEqual(['Bandage Roll', XSS]);
+    expect(wrapper!.find('img').exists()).toBe(false);
+  });
+
+  it('Discover at 900 to 1199px returns focus to the Discover button after the list rows', async () => {
+    mountCard({ wide: false, discoverFound: 0n });
+    await nextTick();
+    const button = wrapper!.get('.list-col button.discover');
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(true);
+    await cardButton('Done')!.trigger('click');
+    await flush();
+    expect(document.activeElement).toBe(button.element);
+  });
+
+  it('opens no card for a row present at mount or one that arrives with no action started', async () => {
+    const ctx = mountCard({ preset: craftRow(1n) });
+    await flush();
+    expect(dialog().exists()).toBe(false);
+    ctx.lastResult.value = craftRow(2n);
+    await flush();
+    expect(dialog().exists()).toBe(false);
+    ctx.lastResult.value = discoverRow(3n, 0n);
+    await flush();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('opens no card on a refusal, and the notice line says so', async () => {
+    mountCard({ outcome: 'reject' });
+    await craft(1);
+    expect(dialog().exists()).toBe(false);
+    expect(wrapper!.get('[role="status"]').text()).toBe("Couldn't send that. Try again.");
+  });
+
+  it('opens no card when the call settles without a new result row', async () => {
+    mountCard({ outcome: 'silent' });
+    await craft(1);
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('renders the item and line names with markup as text', async () => {
+    mountCard({ rowOver: { itemName: XSS } });
+    await craft(3);
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('[role="dialog"] h4').text()).toBe(XSS);
+  });
+
+  it('hosts the card in a position: relative screen root, with Craft again from the detail args', () => {
+    const source = read('CraftingScreen.vue');
+    expect(source).toMatch(/\.crafting-screen\s*\{[^}]*position: relative;/);
+    expect(source).toMatch(/useActionResult\(/);
+    expect(source).toMatch(/craft: 'craft'/);
+    expect(source).toMatch(/discover: 'discover'/);
+    expect(source).toMatch(/<ResultCard/);
+    expect(source).toMatch(/craft-start/);
+    expect(source).toMatch(/craftRecipeCount\(/);
+    expect(source).not.toMatch(/hotbar/i);
+  });
+
+  describe('mobile 390x844', () => {
+    async function craftMobile(count = 3) {
+      await nextTick();
+      await wrapper!.get('button.recipe-row').trigger('click');
+      return craft(count, '.detail-view');
+    }
+
+    it('opens the bottom sheet with Done and Craft again only, no Equip and no chips', async () => {
+      mountCard({ isDesktop: false, gear: true, items: [inst(1n, 1n, 20n), inst(2n, 4n, 10n)] });
+      await craftMobile(1);
+      const sheet = wrapper!.get('[role="dialog"]');
+      expect(sheet.classes()).toContain('mobile');
+      expect(wrapper!.get('.result-scrim').classes()).toContain('mobile');
+      expect(wrapper!.findAll('[role="dialog"] button').map((b) => b.text())).toEqual(['Done', 'Craft again']);
+      expect(cardButton('Equip')).toBeUndefined();
+      expect(sheet.find('.chips').exists()).toBe(false);
+    });
+
+    it('Craft again on the sheet repeats the craft and Done returns focus to Craft', async () => {
+      const ctx = mountCard({ isDesktop: false, items: [inst(1n, 1n, 20n), inst(2n, 4n, 10n)] });
+      const button = await craftMobile(2);
+      await cardButton('Craft again')!.trigger('click');
+      await flush();
+      expect(ctx.craftRecipeCount).toHaveBeenLastCalledWith({ characterId: 7n, recipeTemplateId: 6n, count: 2n });
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(dialog().exists()).toBe(false);
+      expect(document.activeElement).toBe(button.element);
+    });
+
+    it('falls back to the selected recipe row when the Craft button is gone', async () => {
+      mountCard({ isDesktop: false });
+      await craftMobile(1);
+      expect(dialog().exists()).toBe(true);
+      await wrapper!.get('button.back').trigger('click');
+      await nextTick();
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(dialog().exists()).toBe(false);
+      expect(document.activeElement).toBe(wrapper!.get('button.recipe-row').element);
+    });
+
+    it('Discover on mobile ends on the sheet and returns to the Discover button', async () => {
+      mountCard({ isDesktop: false, discoverFound: 0n });
+      await nextTick();
+      const button = wrapper!.get('.list-view button.discover');
+      (button.element as HTMLElement).focus();
+      await button.trigger('click');
+      await flush();
+      expect(wrapper!.get('[role="dialog"]').classes()).toContain('mobile');
+      expect(wrapper!.findAll('[role="dialog"] button').map((b) => b.text())).toEqual(['Done']);
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(document.activeElement).toBe(button.element);
+    });
   });
 });
