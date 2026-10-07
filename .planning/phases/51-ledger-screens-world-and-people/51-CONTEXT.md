@@ -80,6 +80,7 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 
 ### Owner additions after discuss (2026-10-06)
 - **Bind stone in Nearby (owner request):** when the current place has `location.bindStone`, Nearby shows a bind stone row. It has a standing-stone style icon (closest Phosphor icon; the UI-SPEC names it), a **Bind** action calling the existing `bind_location`, "Bound here" when `character.boundLocationId` is this place, and the Examine eye. Todo: `2026-10-06-bind-stone-in-nearby-with-bind-action.md`.
+- **Chat bubble instead of "hail" (owner request):** NPC rows in Nearby get a chat bubble icon button that does the hail, labelled "Talk to {name}". The row hint drops "hail". The UI-SPEC decides whether the feed keyword label "Hail {name}" also becomes "Talk to {name}". Todo: `2026-10-06-nearby-npc-chat-bubble-instead-of-hail.md`.
 - **Map mock is being revised by the owner:** in the current mock the map drawer covers the left party rail. Re-import the revised Map mock before planning the map layout. Until then, keep the Phase 45 rule that drawers cover the center and right columns and the left vitals rail stays visible.
 
 ### Shared rules
