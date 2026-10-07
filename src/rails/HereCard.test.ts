@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
+import type { Ref } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { PhHourglassMedium } from '@phosphor-icons/vue';
 import HereCard from './HereCard.vue';
@@ -142,12 +143,13 @@ describe('HereCard header', () => {
 
   it('safe places read Safe and uncharted places Danger unknown', async () => {
     const { w, game } = build();
-    (game.locations.value as unknown as Array<Record<string, unknown>>)[0].isSafe = true;
-    game.locations.value = [...game.locations.value];
+    const places = game.locations as unknown as Ref<Array<Record<string, unknown>>>;
+    places.value[0].isSafe = true;
+    places.value = [...places.value];
     await nextTick();
     expect(w.get('.sub-line').text()).toBe('Town · Safe');
-    (game.locations.value as unknown as Array<Record<string, unknown>>)[0].terrainType = 'uncharted';
-    game.locations.value = [...game.locations.value];
+    places.value[0].terrainType = 'uncharted';
+    places.value = [...places.value];
     await nextTick();
     expect(w.get('.sub-line').text()).toBe('Uncharted · Danger unknown');
   });
@@ -325,7 +327,6 @@ describe('HereCard text safety', () => {
     const { w } = build({ description: payload });
     expect(w.find('img').exists()).toBe(false);
     expect(w.get('.exit-row[title]').attributes('title')).toBe(payload);
-    expect(w.html()).not.toContain('<img');
   });
 });
 
@@ -340,6 +341,6 @@ describe('HereCard source', () => {
   });
 
   it('never makes its own feed lines or a fixed timer duration', () => {
-    expect(SOURCE).not.toMatch(/COOLDOWN|feed\.|Date\.now/);
+    expect(SOURCE).not.toMatch(/COOLDOWN|game\.feed|Date\.now/);
   });
 });

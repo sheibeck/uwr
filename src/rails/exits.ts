@@ -141,7 +141,7 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
     const destination = input.locations.get(route.locationId);
     if (!destination) continue;
 
-    const terrain = terrainOf(destination.terrainType);
+    const terrain = terrainOf(destination.terrainType ?? '');
     const danger = placeDanger(destination, input.regions, input.playerLevel);
     const crossing = input.here !== null && input.here.regionId !== destination.regionId;
     const regionName = input.regions.find((r) => r.id === destination.regionId)?.name ?? 'Unknown region';
@@ -182,4 +182,16 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
     });
   }
   return rows;
+}
+
+/** The scoped colour class every rail and line component maps to a token (no inline colours). */
+export function dangerClass(danger: PlaceDanger): string {
+  if (danger.kind === 'band' && danger.band !== null) return `lv-${danger.band}`;
+  return danger.kind === 'safe' ? 'lv-safe' : 'lv-unknown';
+}
+
+/** 'Lv 2–3 · even', 'Safe' or 'Danger unknown': the sub-line and chip line 2 wording. */
+export function dangerText(danger: PlaceDanger): string {
+  if (danger.kind === 'band') return `${danger.levelLabel} · ${danger.word}`;
+  return danger.word;
 }

@@ -6,6 +6,8 @@ import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
 import { GAME_KEY, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
+import { MAP_KEY, createInertMap } from '../map/mapContext';
+import type { MapData } from '../map/mapContext';
 
 // The assembled frame with a populated game, at desktop and mobile widths (47-12 Task 3).
 // Fixtures are built here, with bigint ids and { microsSinceUnixEpoch } timestamps, and cast once
@@ -219,12 +221,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// The map hub has applied: the rail's exit rows render only then (51-10).
+const readyMap = { ...createInertMap(), ready: ref(true) } as unknown as MapData;
+
 function mountFrame(desktop: boolean, game: GameData): VueWrapper {
   installMatchMedia(desktop);
   wrapper = mount(AppFrame, {
     attachTo: document.body,
     props: { view, reconnecting: false, nextRetryAt: null, versionPrompt: false },
-    global: { provide: { [GAME_KEY as symbol]: game } },
+    global: { provide: { [GAME_KEY as symbol]: game, [MAP_KEY as symbol]: readyMap } },
   });
   return wrapper;
 }
@@ -277,7 +282,7 @@ describe('populated frame, desktop', () => {
 
     // Context rail: a route row, Nearby rows, a tracked quest and the world event card.
     const context = w.get('.context-rail');
-    expect(context.findAll('button.route-row').map((r) => r.get('.route-name').text())).toEqual(['Gloamwood']);
+    expect(context.findAll('button.exit-row').map((r) => r.get('.exit-name').text())).toEqual(['Gloamwood']);
     expect(context.findAll('.nearby-row').map((r) => r.get('.row-name').text())).toEqual([
       'The Ferryman',
       'Iron Vein',
@@ -298,10 +303,13 @@ describe('populated frame, desktop', () => {
     expect(sentIntents(reducers)).toEqual(['look']);
   });
 
-  it('a route tap travels with the same reducer the keyword uses', async () => {
+  it('an exit row expands, and its Travel button travels with the same reducer the keyword uses', async () => {
     const { game, reducers } = populatedGame();
     const w = mountFrame(true, game);
-    await w.get('.context-rail button.route-row').trigger('click');
+    await w.get('.context-rail button.exit-row').trigger('click');
+    await settle();
+    expect(reducers.moveCharacter).not.toHaveBeenCalled();
+    await w.get('.context-rail .exit-panel button.btn-primary').trigger('click');
     await settle();
     expect(reducers.moveCharacter).toHaveBeenCalledWith({ characterId: CHARACTER_ID, locationId: 11n });
   });
@@ -383,18 +391,21 @@ describe('populated frame, mobile', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('the Map sheet shows the rail content and a route tap closes the sheet', async () => {
+  it('the Map sheet shows the rail content and the Travel button closes the sheet', async () => {
     const { game, reducers } = populatedGame();
     const w = mountFrame(false, game);
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
     const sheet = w.get('[role="dialog"]');
-    expect(sheet.findAll('button.route-row')).toHaveLength(1);
+    expect(sheet.findAll('button.exit-row')).toHaveLength(1);
     expect(sheet.findAll('.nearby-row')).toHaveLength(3);
     expect(sheet.get('.quest-name').text()).toBe('Wolf pelts');
     expect(sheet.get('.event-card').text()).toContain('The Hollowmere Siege');
 
-    await sheet.get('button.route-row').trigger('click');
+    await sheet.get('button.exit-row').trigger('click');
+    await settle();
+    expect(reducers.moveCharacter).not.toHaveBeenCalled();
+    await sheet.get('.exit-panel button.btn-primary').trigger('click');
     await settle();
     expect(reducers.moveCharacter).toHaveBeenCalledWith({ characterId: CHARACTER_ID, locationId: 11n });
     expect(w.find('[role="dialog"]').exists()).toBe(false);

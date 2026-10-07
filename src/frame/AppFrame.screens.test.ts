@@ -457,14 +457,17 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     expect(sheet.text()).not.toContain('No places discovered yet.');
   });
 
-  it('the Map sheet lists route rows; tapping one moves the character and closes the sheet', async () => {
+  it('the Map sheet lists exit rows; expanding one and pressing Travel moves the character and closes the sheet', async () => {
     const { game, moveCharacter } = fakeGame();
-    const w = mountFrame(false, game);
+    const w = mountFrame(false, game, undefined, readyMap(game));
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
-    const rows = w.get('[role="dialog"]').findAll('button.route-row');
-    expect(rows.map((r) => r.get('.route-name').text())).toEqual(['Gloamwood']);
+    const rows = w.get('[role="dialog"]').findAll('button.exit-row');
+    expect(rows.map((r) => r.get('.exit-name').text())).toEqual(['Gloamwood']);
     await rows[0].trigger('click');
+    await settle();
+    expect(moveCharacter).not.toHaveBeenCalled();
+    await w.get('[role="dialog"] .exit-panel button.btn-primary').trigger('click');
     await settle();
     expect(moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 11n });
     expect(w.find('[role="dialog"]').exists()).toBe(false);

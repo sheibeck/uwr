@@ -5,8 +5,14 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import ContextRail from './ContextRail.vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
+import { MAP_KEY, createInertMap } from '../map/mapContext';
+import type { MapData } from '../map/mapContext';
 
 let wrapper: VueWrapper | null = null;
+
+// The map hub has applied: the rail's exit rows render only then (51-10).
+const readyMap = { ...createInertMap(), ready: ref(true) } as unknown as MapData;
+const provide = (game: GameData) => ({ global: { provide: { [GAME_KEY as symbol]: game, [MAP_KEY as symbol]: readyMap } } });
 
 afterEach(() => {
   wrapper?.unmount();
@@ -18,7 +24,7 @@ describe('ContextRail with game data', () => {
     const game = {
       ...createInertGame(),
       connected: ref(true),
-      character: ref({ id: 1n, name: 'Hero', locationId: 10n }),
+      character: ref({ id: 1n, name: 'Hero', locationId: 10n, level: 6n }),
       characterId: ref(1n),
       locations: ref([
         { id: 10n, name: 'Ember Gate', regionId: 1n, isSafe: false, levelOffset: 0n },
@@ -50,12 +56,13 @@ describe('ContextRail with game data', () => {
         },
       ]),
     } as unknown as GameData;
-    wrapper = mount(ContextRail, { global: { provide: { [GAME_KEY as symbol]: game } } });
+    wrapper = mount(ContextRail, provide(game));
 
     const rail = wrapper.get('aside.context-rail');
     expect(rail.attributes('aria-label')).toBe('Context');
     expect(rail.get('.card-kicker').text()).toBe('Here · Ashfall Wilds');
-    expect(rail.get('button.route-row').text()).toContain('Cinder Road');
+    expect(rail.get('button.exit-row').text()).toContain('Cinder Road');
+    expect(rail.get('button.exit-row').attributes('aria-expanded')).toBe('false');
     expect(rail.get('.nearby-row .row-name').text()).toBe('Marta');
     expect(rail.get('.quest-count').text()).toBe('2/5');
     expect(rail.get('.event-card .card-title').text()).toBe('The Hollowmere Siege');
@@ -78,7 +85,7 @@ describe('ContextRail in combat', () => {
 
   it('renders the context content while not in combat', () => {
     const game = combatGame(ref(false));
-    wrapper = mount(ContextRail, { global: { provide: { [GAME_KEY as symbol]: game } } });
+    wrapper = mount(ContextRail, provide(game));
     expect(wrapper.find('section.encounter-panel').exists()).toBe(false);
     expect(wrapper.get('.card-kicker').text()).toBe('Here · Ashfall Wilds');
   });
@@ -86,7 +93,7 @@ describe('ContextRail in combat', () => {
   it('swaps to the Encounter panel while in combat and back when the fight ends', async () => {
     const active = ref(true);
     const game = combatGame(active);
-    wrapper = mount(ContextRail, { global: { provide: { [GAME_KEY as symbol]: game } } });
+    wrapper = mount(ContextRail, provide(game));
     const rail = wrapper.get('aside.context-rail');
     expect(rail.find('section.encounter-panel').exists()).toBe(true);
     expect(rail.find('.card-kicker').exists()).toBe(false);

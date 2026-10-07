@@ -15,6 +15,8 @@ import {
   createInertGame,
 } from '../game/context';
 import type { ConsoleApi, FrameControls, GameData } from '../game/context';
+import { MAP_KEY, createInertMap } from '../map/mapContext';
+import type { MapData } from '../map/mapContext';
 
 let wrapper: VueWrapper | null = null;
 
@@ -28,7 +30,18 @@ const PAYLOAD = '<img src=x onerror=alert(1)>';
 const REGIONS = [{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 600n }];
 
 function loc(id: bigint, name: string, over: Record<string, unknown> = {}) {
-  return { id, name, regionId: 1n, isSafe: false, levelOffset: 0n, ...over };
+  return {
+    id,
+    name,
+    description: '',
+    regionId: 1n,
+    isSafe: false,
+    levelOffset: 0n,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+    ...over,
+  };
 }
 
 const LOCATIONS = [
@@ -76,9 +89,12 @@ function mountContent(setup: Setup = {}) {
     }),
   };
   const frame = { ...createInertFrame(), ...frameCalls } as unknown as FrameControls;
+  // The map hub has applied: the rail's exit rows render only then (51-10).
+  const map = { ...createInertMap(), ready: ref(true) } as unknown as MapData;
   wrapper = mount(ContextContent, {
     global: {
       provide: {
+        [MAP_KEY as symbol]: map,
         [GAME_KEY as symbol]: game,
         [CONSOLE_KEY as symbol]: consoleApi,
         [FRAME_KEY as symbol]: frame,
@@ -128,7 +144,7 @@ describe('Here card', () => {
     expect(missingRegion.w.get('.here-card .card-title').text()).toBe('Unknown place');
   });
 
-  it('renders one route row per destination with an arrow, the name and a level or Safe tag', () => {
+  it('renders one exit row per destination with the ring, the name and a level or Safe text', () => {
     const { w } = mountContent(
       lists({
         connections: [
@@ -139,31 +155,33 @@ describe('Here card', () => {
         ],
       }),
     );
-    const rows = w.findAll('button.route-row');
-    expect(rows.map((r) => r.get('.route-name').text())).toEqual(['Cinder Road', 'Hearthstead', 'Ridge Pass']);
-    for (const row of rows) expect(row.find('svg').exists()).toBe(true);
-    const tags = rows.map((r) => r.get('.tag'));
-    expect(tags.map((t) => t.text())).toEqual(['Lv 6', 'Safe', 'Lv 7–9']);
-    expect(tags[0].classes()).toContain('tag-neutral');
-    expect(tags[1].classes()).toContain('tag-accent');
-    expect(tags[2].classes()).toContain('tag-neutral');
+    const rows = w.findAll('button.exit-row');
+    expect(rows.map((r) => r.get('.exit-name').text())).toEqual(['Cinder Road', 'Hearthstead', 'Ridge Pass']);
+    for (const row of rows) expect(row.find('.ring svg').exists()).toBe(true);
+    const rights = rows.map((r) => r.get('.exit-right'));
+    expect(rights.map((t) => t.text())).toEqual(['Lv 6', 'Safe', 'Lv 7–9']);
+    expect(rights[0].classes()).toContain('lv-even');
+    expect(rights[1].classes()).toContain('lv-safe');
+    expect(rights[2].classes()).toContain('lv-deadly');
   });
 
   it('shows No known routes. with no connections', () => {
     const { w } = mountContent();
-    expect(w.findAll('button.route-row')).toHaveLength(0);
+    expect(w.findAll('button.exit-row')).toHaveLength(0);
     expect(w.text()).toContain('No known routes.');
   });
 
-  it('travels when a route is clicked', async () => {
+  it('a row click only expands it; the inner Travel button travels', async () => {
     const { w, calls } = mountContent(
       lists({ connections: [{ fromLocationId: 10n, toLocationId: 11n }] }),
     );
-    await w.get('button.route-row').trigger('click');
+    await w.get('button.exit-row').trigger('click');
+    expect(calls.travel).not.toHaveBeenCalled();
+    await w.get('.exit-panel button.btn-primary').trigger('click');
     expect(calls.travel).toHaveBeenCalledWith({ id: 11n, name: 'Cinder Road' });
   });
 
-  it('ellipsizes long names with the full name in title', () => {
+  it('ellipsizes long names with the full name in the accessible name', () => {
     const long = 'The Very Long Road Of A Thousand Winding Switchbacks';
     const { w } = mountContent({
       game: {
@@ -171,7 +189,8 @@ describe('Here card', () => {
         connections: ref([{ fromLocationId: 10n, toLocationId: 14n }]),
       },
     });
-    expect(w.get('button.route-row').attributes('title')).toBe(long);
+    expect(w.get('button.exit-row').attributes('aria-label')).toContain(long);
+    expect(w.get('.exit-label').text()).toBe(long);
   });
 });
 
@@ -434,10 +453,10 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
         enemyTemplatesHere: templates,
       },
     });
-    expect(w.get('button').attributes('aria-disabled')).toBe('true');
+    expect(w.get('[aria-label^="Pull "]').attributes('aria-disabled')).toBe('true');
     templates.value = [{ id: 1n, level: 8n }];
     await w.vm.$nextTick();
-    const button = w.get('button');
+    const button = w.get('[aria-label^="Pull "]');
     expect(button.attributes('aria-label')).toBe('Pull Rotfang (Lv 8, Hard)');
     expect(button.attributes('aria-disabled')).toBeUndefined();
     expect(w.get('.row-name').classes()).toContain('con-orange');
@@ -531,7 +550,10 @@ describe('offline', () => {
         playersHere: ref([{ id: 4n, name: 'Bo', level: 3n }]),
       },
     });
-    const buttons = w.findAll('button');
+    // A row button only expands its row, so it stays operable offline; the inner Travel button and
+    // every other button are aria-disabled.
+    await w.get('button.exit-row').trigger('click');
+    const buttons = w.findAll('button').filter((b) => !b.classes().includes('exit-row'));
     expect(buttons.length).toBeGreaterThanOrEqual(6);
     for (const button of buttons) {
       expect(button.attributes('aria-disabled')).toBe('true');
@@ -544,7 +566,8 @@ describe('offline', () => {
 
   it('does not mark buttons disabled while connected', () => {
     const { w } = mountContent(lists({ connections: [{ fromLocationId: 10n, toLocationId: 11n }] }));
-    expect(w.get('button.route-row').attributes('aria-disabled')).toBeUndefined();
+    expect(w.get('button.exit-row').attributes('aria-disabled')).toBeUndefined();
+    expect(w.get('.btn-eye').attributes('aria-disabled')).toBeUndefined();
   });
 });
 
@@ -568,7 +591,7 @@ describe('text rendering', () => {
     expect(w.find('img').exists()).toBe(false);
     expect(w.get('.card-kicker').text()).toBe(`Here · ${PAYLOAD}`);
     expect(w.get('.here-card .card-title').text()).toBe(PAYLOAD);
-    expect(w.get('.route-name').text()).toBe(PAYLOAD);
+    expect(w.get('.exit-name').text()).toBe(PAYLOAD);
     expect(w.findAll('.row-name').every((n) => n.text() === PAYLOAD)).toBe(true);
     expect(w.get('.quest-name').text()).toBe(PAYLOAD);
     expect(w.get('.quest-description').text()).toBe(PAYLOAD);
@@ -616,7 +639,7 @@ describe('mobile sizing and sources', () => {
 
   it('keeps the documented copy and wiring in source', () => {
     expect(read('HereCard.vue')).toContain('No known routes.');
-    expect(read('HereCard.vue')).toContain('routesFrom');
+    expect(read('useExits.ts')).toContain('routesFrom');
     expect(read('NearbyList.vue')).toContain('Trade with');
     expect(read('NearbyList.vue')).toContain('Whisper ');
     expect(read('NearbyList.vue')).toContain('Invite ');
