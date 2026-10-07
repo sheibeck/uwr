@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, watch } from 'vue';
-import { PhHammer, PhPlusCircle, PhSealCheck, PhX } from '@phosphor-icons/vue';
+import { PhHammer, PhMinus, PhPlus, PhPlusCircle, PhSealCheck, PhX } from '@phosphor-icons/vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { ActionRunner } from '../ledger/actionRunner';
@@ -9,8 +9,9 @@ import ItemCard from './ItemCard.vue';
 import ReagentPicker from './ReagentPicker.vue';
 import {
   bagCount,
-  craftArgs,
   craftAvailability,
+  craftCountArgs,
+  craftQuantity,
   createsCard,
   essenceKeyOf,
   essenceMagnitudeText,
@@ -21,20 +22,25 @@ import {
   stationHere,
   usesRows,
 } from './craftingModel';
+import type { CraftCountArgs, QuantityState } from './craftingModel';
 
 // The selected recipe (mock 9a, with the owner decisions that replace the odds bar and add the
 // output details): top to bottom the Creates card (what the output is and does), the Uses rows
 // (have / need for the chosen quantity), for a gear recipe the single deterministic quality line with
 // the hint that would raise it, the one essence-and-reagent slot that opens the essence slot, the
-// reagent slots and the inline picker in place, the reason line and Craft. Every verdict (materials,
-// essence, reagents, bag room) is the shared planCraft through the model, so the client shows what the
-// server will decide. Recipe, output, material and reagent names are server text and only reach the
+// reagent slots and the inline picker in place, the reason line and the quantity row (minus, the
+// shown value, plus, Max and Craft). One Craft sends the whole batch through craft_recipe_count; the
+// server re-checks every batch (plan 50-29) and the client only clamps to what the bag allows. Every
+// verdict (materials, essence, reagents, bag room) is the shared planCraft through the model, so the
+// client shows what the server will decide. Recipe, output, material and reagent names are server text and only reach the
 // page as text nodes.
 const props = defineProps<{
   recipeId: bigint;
   runner: ActionRunner;
   mobile: boolean;
 }>();
+// Craft again (plan 50-37) repeats the arguments of the last craft the screen saw start.
+const emit = defineEmits<{ 'craft-start': [{ args: CraftCountArgs }] }>();
 
 const game = inject(GAME_KEY, createInertGame());
 const ledger = inject(LEDGER_KEY, createInertLedger());
@@ -67,11 +73,19 @@ const card = computed(() => {
   );
 });
 
-const uses = computed(() => {
-  const r = recipe.value;
-  return r ? usesRows(r, ledger.templates.value, ledger.items.value, 1n) : [];
-});
-const forQtyText = computed(() => '');
+// --- how many to craft ---
+const requested = ref(1n);
+const NO_QUANTITY: QuantityState = {
+  quantity: 1n,
+  max: 0n,
+  made: 1n,
+  canDecrease: false,
+  canIncrease: false,
+  maxLabel: 'Max 0',
+  craftLabel: 'Missing materials',
+  forQtyText: '',
+  craftAriaLabel: 'Missing materials',
+};
 
 // --- the chosen essence and reagents (slot order; null is an empty slot) ---
 const essenceId = ref<bigint | null>(null);
@@ -98,6 +112,7 @@ function resetChoices(): void {
 watch(() => props.recipeId, () => {
   resetChoices();
   expanded.value = false;
+  requested.value = 1n;
 });
 
 const templateOf = (id: bigint | null) => (id === null ? undefined : ledger.templates.value.get(id));
@@ -131,6 +146,34 @@ watch(
   },
 );
 
+// The stepper state: the maximum is the server's maxCraftCount for the chosen essence and reagents.
+const qty = computed<QuantityState>(() => {
+  const r = recipe.value;
+  if (!r) return NO_QUANTITY;
+  return craftQuantity(
+    {
+      recipe: r,
+      station: station.value,
+      templates: ledger.templates.value,
+      items: ledger.items.value,
+      choice: { essenceId: essenceId.value, reagentIds: reagentIds.value },
+    },
+    requested.value,
+  );
+});
+// The request follows the live rows: a quantity above what the bag now allows steps down.
+watch(
+  () => qty.value.quantity,
+  (quantity) => {
+    if (quantity !== requested.value) requested.value = quantity;
+  },
+);
+
+const uses = computed(() => {
+  const r = recipe.value;
+  return r ? usesRows(r, ledger.templates.value, ledger.items.value, qty.value.quantity) : [];
+});
+
 const availability = computed(() => {
   const r = recipe.value;
   if (!r) return null;
@@ -140,6 +183,7 @@ const availability = computed(() => {
     templates: ledger.templates.value,
     items: ledger.items.value,
     choice: { essenceId: essenceId.value, reagentIds: reagentIds.value },
+    count: qty.value.quantity,
   });
 });
 
@@ -148,7 +192,12 @@ const REGION_ID = computed(() => `craft-reagents-${props.mobile ? 'mobile' : 'de
 const reason = computed(() => availability.value?.reason ?? null);
 const craftPending = computed(() => props.runner.isPending('craft'));
 const craftInert = computed(
-  () => offline.value || craftPending.value || availability.value === null || !availability.value.available,
+  () =>
+    offline.value ||
+    craftPending.value ||
+    availability.value === null ||
+    !availability.value.available ||
+    qty.value.max === 0n,
 );
 
 const essenceOpts = computed(() =>
@@ -241,12 +290,32 @@ function closePicker(): void {
   focusSlot(state.kind === 'essence' ? 'essence' : `reagent-${state.index}`);
 }
 
-function onCraft(): void {
+// The stepper bounds are aria-disabled, not disabled, so focus never drops to the page at a bound.
+function dec(): void {
+  if (qty.value.canDecrease) requested.value = qty.value.quantity - 1n;
+}
+
+function inc(): void {
+  if (qty.value.canIncrease) requested.value = qty.value.quantity + 1n;
+}
+
+function setMax(): void {
+  if (qty.value.canIncrease) requested.value = qty.value.max;
+}
+
+async function onCraft(): Promise<void> {
   const reducers = ledger.reducers.value;
   const c = character.value;
   if (!reducers || !c || craftInert.value) return;
-  const args = craftArgs(c.id, props.recipeId, { essenceId: essenceId.value, reagentIds: reagentIds.value });
-  void props.runner.run('craft', () => reducers.craftRecipe(args));
+  const args = craftCountArgs(
+    c.id,
+    props.recipeId,
+    { essenceId: essenceId.value, reagentIds: reagentIds.value },
+    qty.value.quantity,
+  );
+  emit('craft-start', { args });
+  const ok = await props.runner.run('craft', () => reducers.craftRecipeCount(args));
+  if (ok) requested.value = 1n;
 }
 
 function reagentName(id: bigint | null): string {
@@ -289,7 +358,7 @@ function reagentColor(id: bigint | null): string | undefined {
         <section class="uses-section">
           <div class="uses-head">
             <h6>Uses</h6>
-            <span v-if="forQtyText" class="for-qty">{{ forQtyText }}</span>
+            <span v-if="qty.forQtyText" class="for-qty">{{ qty.forQtyText }}</span>
           </div>
           <ul class="uses">
             <li v-for="row in uses" :key="String(row.templateId)" class="use-row">
@@ -416,17 +485,51 @@ function reagentColor(id: bigint | null): string | undefined {
 
       <div class="detail-dock">
         <p v-if="reason" :id="REASON_ID" class="reason">{{ reason }}</p>
-        <button
-          type="button"
-          class="btn btn-primary craft-btn"
-          :aria-label="`Craft ${detail.name}`"
-          :aria-disabled="craftInert ? 'true' : undefined"
-          :aria-describedby="reason ? REASON_ID : undefined"
-          @click="onCraft"
-        >
-          <PhHammer :size="16" aria-hidden="true" />
-          <span class="craft-text">{{ props.mobile ? 'Craft' : `Craft ${detail.name}` }}</span>
-        </button>
+        <div class="qty-row">
+          <div class="qty-group" role="group" aria-label="How many to craft">
+            <span class="stepper">
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon step-btn"
+                aria-label="One fewer"
+                :aria-disabled="qty.canDecrease ? undefined : 'true'"
+                @click="dec"
+              >
+                <PhMinus :size="16" aria-hidden="true" />
+              </button>
+              <output class="qty-value">{{ String(qty.quantity) }}</output>
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon step-btn"
+                aria-label="One more"
+                :aria-disabled="qty.canIncrease ? undefined : 'true'"
+                @click="inc"
+              >
+                <PhPlus :size="16" aria-hidden="true" />
+              </button>
+            </span>
+            <button
+              type="button"
+              class="btn btn-ghost max-btn"
+              :aria-label="`Set to the most you can make, ${qty.max}`"
+              :aria-disabled="qty.canIncrease ? undefined : 'true'"
+              @click="setMax"
+            >
+              {{ qty.maxLabel }}
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary craft-btn"
+            :aria-label="qty.craftAriaLabel"
+            :aria-disabled="craftInert ? 'true' : undefined"
+            :aria-describedby="reason ? REASON_ID : undefined"
+            @click="onCraft"
+          >
+            <PhHammer :size="16" aria-hidden="true" />
+            <span class="craft-text">{{ qty.craftLabel }}</span>
+          </button>
+        </div>
       </div>
     </template>
   </section>
@@ -755,17 +858,75 @@ h6 {
   overflow-wrap: anywhere;
 }
 
-.craft-btn {
+.qty-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.qty-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-700);
+}
+
+.step-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 36px;
+  min-height: 40px;
+}
+
+.mobile .step-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.qty-value {
+  min-width: 32px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.max-btn {
+  min-height: 40px;
+  color: var(--color-neutral-300);
+}
+
+.mobile .max-btn {
+  min-height: 44px;
+}
+
+.step-btn[aria-disabled='true'],
+.max-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.craft-btn {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
-  width: 100%;
   min-height: 40px;
   min-width: 0;
 }
 
 .mobile .craft-btn {
+  flex: 1 1 100%;
   min-height: 44px;
 }
 

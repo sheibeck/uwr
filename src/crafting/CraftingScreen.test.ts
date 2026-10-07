@@ -611,10 +611,10 @@ describe('RecipeDetail', () => {
   it('crafts with only the ids of the recipe when no essence or reagent is chosen', async () => {
     const { w, calls } = mountDetail();
     await w.get('button.craft-btn').trigger('click');
-    expect(calls.craftRecipe).toHaveBeenLastCalledWith({ characterId: 7n, recipeTemplateId: 1n });
+    expect(calls.craftRecipeCount).toHaveBeenLastCalledWith({ characterId: 7n, recipeTemplateId: 1n, count: 1n });
   });
 
-  it('sends the essence and reagent ids through craftRecipe', async () => {
+  it('sends the essence and reagent ids through craftRecipeCount', async () => {
     const items = [...ITEMS, inst(20n, 3n, 2n), inst(21n, 2n, 1n), inst(22n, 12n, 1n)];
     const { w, calls } = mountDetail({ items }, { recipeId: 3n });
     await openSlots(w);
@@ -625,10 +625,11 @@ describe('RecipeDetail', () => {
     await reagentButtons[1].trigger('click');
     await w.findAll('[role="option"]').find((o) => o.text().includes('Ancient Rune'))!.trigger('click');
     await w.get('button.craft-btn').trigger('click');
-    expect(calls.craftRecipe).toHaveBeenCalledTimes(1);
-    expect(calls.craftRecipe).toHaveBeenCalledWith({
+    expect(calls.craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(calls.craftRecipeCount).toHaveBeenCalledWith({
       characterId: 7n,
       recipeTemplateId: 3n,
+      count: 1n,
       catalystTemplateId: 12n,
       modifier1TemplateId: 21n,
     });
@@ -636,15 +637,15 @@ describe('RecipeDetail', () => {
 
   it('shows Craft with the recipe name, runs once and is inert while pending', async () => {
     let release: () => void = () => undefined;
-    const craftRecipe = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
-    const { w } = mountDetail({ reducers: { craftRecipe } as Partial<LedgerReducers> });
+    const craftRecipeCount = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
+    const { w } = mountDetail({ reducers: { craftRecipeCount } as Partial<LedgerReducers> });
     const button = w.get('button.craft-btn');
     expect(button.text()).toBe('Craft Copper Sword');
-    expect(button.attributes('aria-label')).toBe('Craft Copper Sword');
+    expect(button.attributes('aria-label')).toBe('Craft 1 Copper Sword');
     expect(button.find('svg').exists()).toBe(true);
     await button.trigger('click');
     await button.trigger('click');
-    expect(craftRecipe).toHaveBeenCalledTimes(1);
+    expect(craftRecipeCount).toHaveBeenCalledTimes(1);
     expect(button.attributes('aria-disabled')).toBe('true');
     release();
     await nextTick();
@@ -657,14 +658,14 @@ describe('RecipeDetail', () => {
     expect(craft.attributes('aria-disabled')).toBe('true');
     expect(craft.attributes('aria-describedby')).toBe(noStation.w.get('.reason').attributes('id'));
     await craft.trigger('click');
-    expect(noStation.calls.craftRecipe).not.toHaveBeenCalled();
+    expect(noStation.calls.craftRecipeCount).not.toHaveBeenCalled();
     wrapper?.unmount();
     wrapper = null;
 
     const missing = mountDetail({}, { recipeId: 4n });
     expect(missing.w.get('.reason').text()).toBe('Missing 1 Rough Hide.');
     await missing.w.get('button.craft-btn').trigger('click');
-    expect(missing.calls.craftRecipe).not.toHaveBeenCalled();
+    expect(missing.calls.craftRecipeCount).not.toHaveBeenCalled();
     missing.w.unmount();
     wrapper = null;
 
@@ -687,7 +688,7 @@ describe('RecipeDetail', () => {
     wrapper = null;
     const offline = mountDetail({ connected: false });
     await offline.w.get('button.craft-btn').trigger('click');
-    expect(offline.calls.craftRecipe).not.toHaveBeenCalled();
+    expect(offline.calls.craftRecipeCount).not.toHaveBeenCalled();
   });
 
   it('keeps the choices after a craft and clears the ones whose items are used up', async () => {
@@ -756,15 +757,15 @@ describe('RecipeDetail', () => {
     const { w } = mountDetail({ station: false }, { mobile: true, recipeId: 4n });
     expect(w.find('.kicker').exists()).toBe(false);
     const craft = w.get('button.craft-btn');
-    expect(craft.text()).toBe('Craft');
-    expect(craft.attributes('aria-label')).toBe('Craft Bandage');
+    expect(craft.text()).toBe('Missing materials');
+    expect(craft.attributes('aria-label')).toBe('Missing materials for Bandage');
     const rows = w.findAll('ul.uses li');
     expect(rows.map((r) => r.get('.use-name').text())).toEqual(['Rough Hide', 'Copper Ore']);
     expect(rows[0].get('.have').classes()).toContain('short');
     expect(rows[1].get('.have').classes()).toContain('met');
     expect(w.get('.detail-dock .reason').text()).toBe('No crafting station here.');
     const source = read('RecipeDetail.vue');
-    expect(source).toMatch(/\.mobile \.craft-btn\s*\{\s*min-height: 44px;/);
+    expect(source).toMatch(/\.mobile \.craft-btn\s*\{[^}]*min-height: 44px;/);
     expect(source).toMatch(/\.craft-btn\s*\{[^}]*min-height: 40px;/);
     expect(source).toMatch(/\.mobile \.slot-main\s*\{\s*min-height: 44px;/);
   });
@@ -892,7 +893,7 @@ describe('CraftingScreen desktop', () => {
   });
 
   it('wires Craft and Discover through the shared runner and shows the send error in the notice line', async () => {
-    const { w } = mountScreen({ reducers: { craftRecipe: async () => Promise.reject(new Error('no')) } });
+    const { w } = mountScreen({ reducers: { craftRecipeCount: async () => Promise.reject(new Error('no')) } });
     await nextTick();
     await w.get('.detail-col button.craft-btn').trigger('click');
     await vi.waitFor(() => expect(w.get('[role="status"]').text()).toContain("Couldn't send that. Try again."));
@@ -959,8 +960,8 @@ describe('CraftingScreen mobile', () => {
     expect(back.classes()).toContain('btn-ghost');
     expect(back.find('svg').exists()).toBe(true);
     expect(view.get('h4').text()).toBe('Iron Helm');
-    expect(view.get('.detail-dock button.craft-btn').text()).toBe('Craft');
-    expect(view.get('.detail-dock button.craft-btn').attributes('aria-label')).toBe('Craft Iron Helm');
+    expect(view.get('.detail-dock button.craft-btn').text()).toBe('Craft Iron Helm');
+    expect(view.get('.detail-dock button.craft-btn').attributes('aria-label')).toBe('Craft 1 Iron Helm');
     expect(read('CraftingScreen.vue')).toMatch(/\.back\s*\{[^}]*min-height: 44px;/);
   });
 

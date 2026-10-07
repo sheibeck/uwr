@@ -375,3 +375,201 @@ describe('RecipeDetail body (mock 9a)', () => {
     expect(source).not.toMatch(/v-html|<svg/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 2: the quantity row and Craft N× through craftRecipeCount
+// ---------------------------------------------------------------------------
+
+describe('RecipeDetail quantity row and batch craft', () => {
+  const btn = (w: VueWrapper, label: string) => w.get(`button[aria-label="${label}"]`);
+  const craftBtn = (w: VueWrapper) => w.get('button.craft-btn');
+  const valueOf = (w: VueWrapper) => w.get('output.qty-value').text();
+  const flush = async () => {
+    await nextTick();
+    await nextTick();
+  };
+
+  it('draws the group: minus, the shown value, plus, Max 3 and Craft, with no text input', () => {
+    const { w } = mountDetail();
+    const group = w.get('[role="group"]');
+    expect(group.attributes('aria-label')).toBe('How many to craft');
+    expect(group.findAll('button').map((b) => b.attributes('aria-label'))).toEqual([
+      'One fewer',
+      'One more',
+      'Set to the most you can make, 3',
+    ]);
+    expect(group.find('button[aria-label="One fewer"] svg').exists()).toBe(true);
+    expect(group.find('button[aria-label="One more"] svg').exists()).toBe(true);
+    expect(valueOf(w)).toBe('1');
+    expect(btn(w, 'Set to the most you can make, 3').text()).toBe('Max 3');
+    expect(craftBtn(w).text()).toBe('Craft Copper Sword');
+    expect(w.find('input').exists()).toBe(false);
+  });
+
+  it('plus scales the Uses rows, the label and the for-N-crafts text; plus and Max stop at the maximum', async () => {
+    const { w } = mountDetail();
+    expect(w.find('.for-qty').exists()).toBe(false);
+    await btn(w, 'One more').trigger('click');
+    await btn(w, 'One more').trigger('click');
+    expect(valueOf(w)).toBe('3');
+    expect(craftBtn(w).text()).toBe('Craft 3× Copper Sword');
+    const rows = w.findAll('ul.uses li');
+    expect(rows.map((r) => `${r.get('.have').text()} ${r.get('.of').text()}`)).toEqual(['9 / 9', '5 / 3']);
+    expect(w.get('.for-qty').text()).toBe('for 3 crafts');
+    expect(btn(w, 'One more').attributes('aria-disabled')).toBe('true');
+    expect(btn(w, 'Set to the most you can make, 3').attributes('aria-disabled')).toBe('true');
+    await btn(w, 'One more').trigger('click');
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    expect(valueOf(w)).toBe('3');
+  });
+
+  it('minus is aria-disabled at 1 and changes nothing; Max from 1 sets the maximum; minus steps down', async () => {
+    const { w } = mountDetail();
+    const minus = btn(w, 'One fewer');
+    expect(minus.attributes('aria-disabled')).toBe('true');
+    await minus.trigger('click');
+    expect(valueOf(w)).toBe('1');
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    expect(valueOf(w)).toBe('3');
+    expect(minus.attributes('aria-disabled')).toBeUndefined();
+    await minus.trigger('click');
+    expect(valueOf(w)).toBe('2');
+  });
+
+  it('follows the live rows: the quantity clamps when the materials drop', async () => {
+    const { w, items } = mountDetail();
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    expect(valueOf(w)).toBe('3');
+    items.value = [inst(1n, 1n, 6n), inst(2n, 4n, 5n)];
+    await flush();
+    expect(valueOf(w)).toBe('2');
+    expect(craftBtn(w).text()).toBe('Craft 2× Copper Sword');
+  });
+
+  it('with nothing to make: Missing materials, aria-disabled with the reason, Max 0, and a click sends nothing', async () => {
+    const { w, calls } = mountDetail({ items: [inst(1n, 1n, 2n), inst(2n, 4n, 5n)] });
+    expect(craftBtn(w).text()).toBe('Missing materials');
+    expect(craftBtn(w).attributes('aria-disabled')).toBe('true');
+    expect(w.get('.reason').text()).toBe('Missing 1 Copper Ore.');
+    expect(craftBtn(w).attributes('aria-describedby')).toBe(w.get('.reason').attributes('id'));
+    expect(btn(w, 'Set to the most you can make, 0').text()).toBe('Max 0');
+    expect(btn(w, 'Set to the most you can make, 0').attributes('aria-disabled')).toBe('true');
+    await craftBtn(w).trigger('click');
+    expect(calls.craftRecipeCount).not.toHaveBeenCalled();
+  });
+
+  it('Craft sends craftRecipeCount once with the count, emits craft-start first and never calls the single reducer', async () => {
+    const { w, calls } = mountDetail();
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    await craftBtn(w).trigger('click');
+    await flush();
+    expect(calls.craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(calls.craftRecipeCount).toHaveBeenCalledWith({ characterId: 7n, recipeTemplateId: 1n, count: 3n });
+    expect(w.emitted('craft-start')).toEqual([[{ args: { characterId: 7n, recipeTemplateId: 1n, count: 3n } }]]);
+    expect(calls.craftRecipe).not.toHaveBeenCalled();
+  });
+
+  it('carries the essence and reagent ids with the count', async () => {
+    const { w, calls } = mountDetail();
+    await openSlots(w);
+    await slotButton(w, 'Add essence').trigger('click');
+    await w.findAll('[role="option"]')[0].trigger('click');
+    await slotButton(w, 'Add reagent').trigger('click');
+    await w.findAll('[role="option"]').find((o) => o.text().includes('Glowing Stone'))!.trigger('click');
+    await craftBtn(w).trigger('click');
+    await flush();
+    expect(calls.craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(calls.craftRecipeCount).toHaveBeenCalledWith({
+      characterId: 7n,
+      recipeTemplateId: 1n,
+      count: 1n,
+      catalystTemplateId: 11n,
+      modifier1TemplateId: 20n,
+    });
+  });
+
+  it('ignores a second click while pending and goes back to 1 once the call resolves', async () => {
+    let release: () => void = () => undefined;
+    const craftRecipeCount = vi.fn(() => new Promise<void>((resolveCall) => (release = resolveCall)));
+    const { w } = mountDetail({ reducers: { craftRecipeCount } as Partial<LedgerReducers> });
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    await craftBtn(w).trigger('click');
+    await craftBtn(w).trigger('click');
+    expect(craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(craftBtn(w).attributes('aria-disabled')).toBe('true');
+    expect(valueOf(w)).toBe('3');
+    release();
+    await flush();
+    await flush();
+    expect(valueOf(w)).toBe('1');
+    expect(craftBtn(w).text()).toBe('Craft Copper Sword');
+  });
+
+  it('keeps the quantity when the call is rejected', async () => {
+    const craftRecipeCount = vi.fn(() => Promise.reject(new Error('no')));
+    const { w, runner } = mountDetail({ reducers: { craftRecipeCount } as Partial<LedgerReducers> });
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    await craftBtn(w).trigger('click');
+    await flush();
+    await flush();
+    expect(runner.rejection.value).toBe(1);
+    expect(valueOf(w)).toBe('3');
+  });
+
+  it('is aria-disabled and sends nothing offline, and with no station (the station reason first)', async () => {
+    const noStation = mountDetail({ station: false });
+    expect(craftBtn(noStation.w).attributes('aria-disabled')).toBe('true');
+    expect(noStation.w.get('.reason').text()).toBe('No crafting station here.');
+    await craftBtn(noStation.w).trigger('click');
+    expect(noStation.calls.craftRecipeCount).not.toHaveBeenCalled();
+    noStation.w.unmount();
+    wrapper = null;
+    const offline = mountDetail({ connected: false });
+    expect(craftBtn(offline.w).attributes('aria-disabled')).toBe('true');
+    await craftBtn(offline.w).trigger('click');
+    expect(offline.calls.craftRecipeCount).not.toHaveBeenCalled();
+    expect(offline.w.emitted('craft-start')).toBeUndefined();
+  });
+
+  it('starts over at 1 when the recipe changes', async () => {
+    const { w } = mountDetail();
+    await btn(w, 'Set to the most you can make, 3').trigger('click');
+    await w.setProps({ recipeId: 2n });
+    expect(valueOf(w)).toBe('1');
+  });
+
+  it('mobile: the same label, the stepper and Max, and a full-width Craft (44px controls)', () => {
+    const { w } = mountDetail({}, { mobile: true });
+    expect(w.find('.qty-row').exists()).toBe(true);
+    expect(craftBtn(w).text()).toBe('Craft Copper Sword');
+    expect(craftBtn(w).attributes('aria-label')).toBe('Craft 1 Copper Sword');
+    expect(w.get('.detail-dock').findAll('button.step-btn')).toHaveLength(2);
+    expect(source).toMatch(/\.mobile \.step-btn\s*\{[^}]*min-height: 44px;/);
+    expect(source).toMatch(/\.mobile \.step-btn\s*\{[^}]*min-width: 44px;/);
+    expect(source).toMatch(/\.mobile \.max-btn\s*\{\s*min-height: 44px;/);
+    expect(source).toMatch(/\.mobile \.craft-btn\s*\{[^}]*min-height: 44px;/);
+    expect(source).toMatch(/\.mobile \.craft-btn\s*\{[^}]*flex: 1 1 100%;/);
+  });
+
+  it('desktop pins 40px for the stepper group, Max and Craft', () => {
+    expect(source).toMatch(/\.stepper\s*\{[^}]*min-height: 40px;/);
+    expect(source).toMatch(/\.max-btn\s*\{[^}]*min-height: 40px;/);
+    expect(source).toMatch(/\.craft-btn\s*\{[^}]*min-height: 40px;/);
+  });
+
+  it('uses craftRecipeCount and never the single-craft reducer', () => {
+    const code = source
+      .split('\n')
+      .filter((line) => !/^\s*\/\//.test(line))
+      .join('\n');
+    expect(code).toContain('reducers.craftRecipeCount(');
+    expect(code).not.toContain('reducers.craftRecipe(');
+  });
+
+  it('renders a markup-named recipe in the Craft label as text', () => {
+    const evilRecipe = recipe(9n, XSS, { req1TemplateId: 1n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
+    const { w } = mountDetail({ recipes: [evilRecipe] }, { recipeId: 9n });
+    expect(craftBtn(w).text()).toBe(`Craft ${XSS}`);
+    expect(w.find('img').exists()).toBe(false);
+  });
+});
