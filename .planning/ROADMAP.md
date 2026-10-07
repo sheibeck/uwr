@@ -2096,5 +2096,26 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.27: Pet kinds, pet abilities and pet targeting (BACKLOG)
+
+**Source:** owner decision at the Phase 51.1 resume (2026-10-07). The updated `UWR Combat.dc.html` and `UWR Party.dc.html` draw these; 51.1 shows pets with name, level, HP and expiry only, and the "keep dropped" decision was recorded in `51.1-CONTEXT.md`.
+
+**Goal:** Pets read as real companions. A pet has a kind and an icon (for example `Summoned` with `PhSparkle`, `Wolf companion` with `PhPawPrint`), shows its ability and cooldown (`Siphon 2s`, `Maul ready`), and players can click a pet to target it with heals and buffs.
+
+**What exists today (2026-10-07 scout, COMBAT2-DIFF server gaps 8-10):**
+
+- `active_pet` has no kind column. "Summoned" could be inferred from `expiresAtMicros`. The `summon` ability kind is the only creation path, so no companions exist.
+- The schema has `abilityKey`, `nextAbilityAt` and `abilityCooldownSeconds`, but the only insert path sets `abilityKey: undefined`. Live pets have no ability, and there is no display name for a key.
+- `use_ability` takes `targetCharacterId` only (no `targetPetId`). Enemy casts can already target pets.
+
+**Notes for planning:** server changes are additive (publish locally only, key check, no clear). The pet rows from 51.1 (and the mobile tag and paw) become target buttons once targeting exists. Any prompt change for pet generation needs the owner's approval of the exact wording.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-07 after moving World Events to 51.6 and Log to 51.7 (owner)*
+*Last updated: 2026-10-07 after adding backlog 999.27 (pet kinds, abilities and targeting; owner)*
