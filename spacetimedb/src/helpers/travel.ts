@@ -4,6 +4,7 @@ import { getPerkBonusByField } from './renown';
 import { buildLookOutput } from './look';
 import { startWorldGeneration } from './world_gen';
 import { beginCombatCooldowns } from './combat_round_state';
+import { markLocationVisited } from './visited';
 
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
@@ -165,6 +166,9 @@ export function performTravel(
   const moveOne = (charId: bigint) => {
     const row = ctx.db.character.id.find(charId)!;
     ctx.db.character.id.update({ ...row, locationId: location.id });
+    // Visited places: the origin gets a row when it has none, the destination records where this arrival came from.
+    markLocationVisited(ctx, row.id, originLocationId);
+    markLocationVisited(ctx, row.id, location.id, originLocationId);
     appendPrivateEvent(ctx, row.id, row.ownerUserId, 'move', `You travel to ${location.name}.`);
     appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
     appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);

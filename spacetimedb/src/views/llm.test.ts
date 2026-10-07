@@ -521,6 +521,7 @@ describe('registerViews wiring', () => {
       'Player', 'FriendRequest', 'Friend', 'GroupInvite', 'EventGroup', 'GroupMember',
       'CharacterEffect', 'CombatResult', 'CombatLoot', 'NpcDialog', 'QuestInstance',
       'Faction', 'FactionStanding', 'UiPanelLayout', 'VendorBuyback', 'ActionResult',
+      'VisitedLocation',
     ]) {
       deps[k] = { rowType: {} };
     }

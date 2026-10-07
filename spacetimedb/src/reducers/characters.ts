@@ -1,4 +1,5 @@
 import { scheduledReducers } from '../schema/tables';
+import { markLocationVisited } from '../helpers/visited';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
@@ -70,6 +71,9 @@ export const registerCharacterReducers = (deps: any) => {
     }
 
     ctx.db.player.id.update({ ...player, activeCharacterId: character.id });
+
+    // Visited places: backfill for characters that existed before the table; the current place counts as stood in (no origin).
+    if (character.locationId !== 0n) markLocationVisited(ctx, character.id, character.locationId);
 
     // Recompute derived stats on character selection (ensures mana/stamina/etc. are correct)
     recomputeCharacterDerived(ctx, character);
@@ -267,6 +271,9 @@ export const registerCharacterReducers = (deps: any) => {
       ctx.db.corpse.id.delete(corpse.id);
     }
 
+    for (const row of ctx.db.visited_location.by_character.filter(characterId)) {
+      ctx.db.visited_location.id.delete(row.id);
+    }
     ctx.db.vendor_buyback.characterId.delete(characterId);
     ctx.db.action_result.characterId.delete(characterId);
 
@@ -304,6 +311,8 @@ export const registerCharacterReducers = (deps: any) => {
       mana: character.maxMana > 0n ? 1n : 0n,
       stamina: character.maxStamina > 0n ? 1n : 0n,
     });
+    // Visited places: the respawn place counts as stood in (no origin).
+    markLocationVisited(ctx, character.id, nextLocationId);
     appendPrivateEvent(
       ctx,
       character.id,

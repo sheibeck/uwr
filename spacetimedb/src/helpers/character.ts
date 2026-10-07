@@ -1,6 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
 import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './events';
+import { markLocationVisited } from './visited';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -272,6 +273,8 @@ export function autoRespawnDeadCharacter(ctx: any, character: any): void {
     mana: character.maxMana > 0n ? 1n : 0n,
     stamina: character.maxStamina > 0n ? 1n : 0n,
   });
+  // Visited places: the respawn place counts as stood in (no origin).
+  markLocationVisited(ctx, character.id, nextLocationId);
   appendPrivateEvent(
     ctx,
     character.id,

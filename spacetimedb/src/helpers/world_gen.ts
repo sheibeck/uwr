@@ -12,6 +12,7 @@
 // world_gen_state is public: errorMessage only ever holds a fixed in-voice line.
 
 import { connectLocations, ensureSpawnsForLocation } from './location';
+import { markLocationVisited } from './visited';
 import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { keeperFallback, flattenSegments } from './segments';
@@ -344,6 +345,8 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
     locationId: homeLocation.id,
     boundLocationId: homeLocation.id,
   });
+  // Visited places: reusing a starter region puts the character at its home place (no origin).
+  markLocationVisited(ctx, character.id, homeLocation.id);
   ensureSpawnsForLocation(ctx, homeLocation.id);
 
   ctx.db.world_gen_state.id.update({

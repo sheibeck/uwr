@@ -137,6 +137,8 @@ function dump(ctx: any): string {
   // newCtx seeds llm_admin_state empty (see there); an empty table is left out so the stored snapshots
   // stay as they were, while any row the apply path wrote to it would still show up.
   if (Array.isArray(all.llm_admin_state) && all.llm_admin_state.length === 0) delete all.llm_admin_state;
+  // Plan 51-01: a first spawn also marks the start location visited; helpers/visited_arrivals.test.ts pins that row.
+  delete all.visited_location;
   return JSON.stringify(all, null, 2);
 }
 
@@ -949,6 +951,9 @@ const LLM_PLUMBING_TABLES = ['llm_job', 'llm_dispatch', 'llm_player_budget', 'll
 function worldDump(ctx: any): string {
   const all = JSON.parse(snapshotDb(ctx.db));
   for (const table of LLM_PLUMBING_TABLES) delete all[table];
+  // Plan 51-01: the first spawn also marks the start location visited. That row is pinned by
+  // helpers/visited_arrivals.test.ts, so the stored world snapshots stay as they were.
+  delete all.visited_location;
   all._jobs = rows(ctx, 'llm_job').map((j: any) => `${j.route}:${j.status}`);
   return JSON.stringify(all, null, 2);
 }

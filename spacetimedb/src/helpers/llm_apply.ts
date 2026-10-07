@@ -46,6 +46,7 @@ import {
   worldFillCompleteLine,
 } from './world_gen';
 import { ensureSpawnsForLocation } from './location';
+import { markLocationVisited } from './visited';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { validateRenownActivePerk } from './renown_perk_validate';
 // Re-exported: the validator lives in a pure module so offline harnesses can run it without the server runtime.
@@ -539,6 +540,8 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
       locationId: startLocation.id,
       boundLocationId: startLocation.id,
     });
+    // Visited places: the first spawn is the first place the character has stood in (no origin).
+    markLocationVisited(ctx, character.id, startLocation.id);
     ensureSpawnsForLocation(ctx, startLocation.id);
 
     const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;

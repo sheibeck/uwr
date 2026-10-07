@@ -1,5 +1,6 @@
 import { Corpse, CorpseItem, Location } from '../schema/tables';
 import { appendPrivateEvent } from './events';
+import { markLocationVisited } from './visited';
 
 const CORPSE_DECAY_MICROS = 30n * 24n * 60n * 60n * 1_000_000n; // 30 days
 
@@ -164,6 +165,8 @@ export function executeResurrect(ctx: any, caster: any, target: any, corpse: any
     hp: target.maxHp / 2n,
     mana: target.maxMana / 2n,
   });
+  // Visited places: the corpse place counts as stood in (no origin).
+  markLocationVisited(ctx, target.id, corpse.locationId);
 
   appendPrivateEvent(
     ctx,
