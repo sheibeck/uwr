@@ -523,7 +523,7 @@ Plans:
 
 **Gap closure (owner play-test: crafting and backpack follow the updated mocks, 2026-10-06)**
 
-- [ ] 50-28-PLAN.md — Shared rules: planCraft count and maxCraftCount, salvage yield and reagent chance, rule-based output descriptions, result line codec
+- [x] 50-28-PLAN.md — Shared rules: planCraft count and maxCraftCount, salvage yield and reagent chance, rule-based output descriptions, result line codec
 - [ ] 50-29-PLAN.md — Private action_result table and my_action_result view; craft_recipe_count (all or nothing, max 99) with the result row
 - [ ] 50-30-PLAN.md — Salvage and Discover result rows, equipped-salvage refusal test; local publish (key 108) and bindings
 - [ ] 50-31-PLAN.md — Client hub (lastResult, outputRecipes, craftRecipeCount) and models (item details, result card, salvage preview)
