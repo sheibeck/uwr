@@ -254,6 +254,24 @@ export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
 }
 
 /**
+ * The one hook for a character that left a place by any way other than travel: a respawn at the
+ * bind point, a resurrection at the corpse, or deletion. When the place it left is a passage that
+ * is now empty, the passage collapses at once (the owner's rule), instead of waiting for the next
+ * sweep. Each of these is a single-character move, so the travel rule "check once after every
+ * traveller has moved" does not apply. `newLocationId` equal to the old place (respawning where it
+ * already stands) does nothing. Returns true when a passage collapsed.
+ */
+export function collapsePassageAfterLeaving(
+  ctx: any,
+  previousLocationId: bigint | undefined | null,
+  newLocationId?: bigint,
+): boolean {
+  if (previousLocationId === undefined || previousLocationId === null || previousLocationId === 0n) return false;
+  if (newLocationId !== undefined && newLocationId === previousLocationId) return false;
+  return collapsePassageIfEmpty(ctx, previousLocationId);
+}
+
+/**
  * One sweep pass. For each passage in id order that has an own side and a far side (so it can
  * collapse): every offline character in it
  * (no player row has it as activeCharacterId) is moved silently, to the place it arrived from when

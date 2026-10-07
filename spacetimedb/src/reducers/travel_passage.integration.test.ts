@@ -17,14 +17,25 @@ const T0 = 1_700_000_000_000_000n;
 const alice = { toHexString: () => 'a'.repeat(64) };
 
 let moveCharacter: (...args: any[]) => any;
+let respawnCharacter: (...args: any[]) => any;
+let deleteCharacter: (...args: any[]) => any;
+let autoRespawnDeadCharacter: typeof import('../helpers/character').autoRespawnDeadCharacter;
+let executeResurrect: typeof import('../helpers/corpse').executeResurrect;
 
 beforeAll(async () => {
   await import('../index');
-  const h = capturedReducer('move_character');
-  if (typeof h !== 'function') {
-    throw new Error("capturedReducer('move_character') is not a function: STOP and report; never edit production code to fix this.");
-  }
-  moveCharacter = h;
+  const grab = (name: string) => {
+    const h = capturedReducer(name);
+    if (typeof h !== 'function') {
+      throw new Error(`capturedReducer('${name}') is not a function: STOP and report; never edit production code to fix this.`);
+    }
+    return h;
+  };
+  moveCharacter = grab('move_character');
+  respawnCharacter = grab('respawn_character');
+  deleteCharacter = grab('delete_character');
+  autoRespawnDeadCharacter = (await import('../helpers/character')).autoRespawnDeadCharacter;
+  executeResurrect = (await import('../helpers/corpse')).executeResurrect;
 }, 120_000);
 
 const character = (over: Record<string, unknown> = {}) => ({
@@ -166,5 +177,54 @@ describe('move_character collapses an emptied passage (real handler)', () => {
     moveCharacter(ctx, { characterId: 1n, locationId: 5n });
     // The departure emptied the passage, so it collapses; place 5 stays.
     expect(locationIds(ctx)).toEqual([5n, 4097n]);
+  });
+});
+
+describe('the other ways out of a passage also collapse it (review WR-02)', () => {
+  const other = (over: Record<string, unknown> = {}) =>
+    character({ id: 2n, name: 'Other', ownerUserId: 8n, locationId: 5n, ...over });
+
+  it('respawn_character from a passage: the character wakes at its bind point and the passage collapses', () => {
+    const ctx = newCtx({ character: [character({ hp: 0n })] });
+    respawnCharacter(ctx, { characterId: 1n });
+    expect(where(ctx, 1n)).toBe(5n);
+    expect(locationIds(ctx)).toEqual([5n, 4097n]);
+    expect(edges(ctx)).toEqual(['4097>5', '5>4097']);
+  });
+
+  it('respawn_character leaves the passage while someone else still stands in it', () => {
+    const ctx = newCtx({ character: [character({ hp: 0n }), other({ locationId: 6n })] });
+    respawnCharacter(ctx, { characterId: 1n });
+    expect(where(ctx, 1n)).toBe(5n);
+    expect(locationIds(ctx)).toEqual([5n, 6n, 4097n]);
+  });
+
+  it('delete_character of the last character in a passage collapses it', () => {
+    const ctx = newCtx({ character: [character(), other()] });
+    deleteCharacter(ctx, { characterId: 1n });
+    expect(table(ctx, 'character').map((c) => c.id)).toEqual([2n]);
+    expect(locationIds(ctx)).toEqual([5n, 4097n]);
+    expect(edges(ctx)).toEqual(['4097>5', '5>4097']);
+  });
+
+  it('autoRespawnDeadCharacter out of a passage collapses it', () => {
+    const ctx = newCtx({ character: [character({ hp: 0n })] });
+    autoRespawnDeadCharacter(ctx, table(ctx, 'character')[0]);
+    expect(where(ctx, 1n)).toBe(5n);
+    expect(locationIds(ctx)).toEqual([5n, 4097n]);
+  });
+
+  it('a resurrection that takes the target out of a passage to its corpse collapses it', () => {
+    const ctx = newCtx({
+      character: [other({ id: 2n, name: 'Caster' }), character({ hp: 0n })],
+      corpse: [{ id: 1n, characterId: 1n, locationId: 4097n, createdAt: { microsSinceUnixEpoch: T0 } }],
+    });
+    const caster = table(ctx, 'character').find((c) => c.id === 2n);
+    const target = table(ctx, 'character').find((c) => c.id === 1n);
+    executeResurrect(ctx, caster, target, table(ctx, 'corpse')[0]);
+    expect(where(ctx, 1n)).toBe(4097n);
+    expect(locationIds(ctx)).toEqual([5n, 4097n]);
+    // The corpse at the far place is untouched by the collapse.
+    expect(table(ctx, 'corpse')[0].locationId).toBe(4097n);
   });
 });

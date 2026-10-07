@@ -1,5 +1,6 @@
 import { scheduledReducers } from '../schema/tables';
 import { markLocationVisited } from '../helpers/visited';
+import { collapsePassageAfterLeaving } from '../helpers/passages';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
@@ -278,6 +279,8 @@ export const registerCharacterReducers = (deps: any) => {
     ctx.db.action_result.characterId.delete(characterId);
 
     ctx.db.character.id.delete(characterId);
+    // A passage the deleted character stood in collapses once nobody is left in it.
+    collapsePassageAfterLeaving(ctx, character.locationId);
   });
 
   spacetimedb.reducer('respawn_character', { characterId: t.u64() }, (ctx, args) => {
@@ -313,6 +316,8 @@ export const registerCharacterReducers = (deps: any) => {
     });
     // Visited places: the respawn place counts as stood in (no origin).
     markLocationVisited(ctx, character.id, nextLocationId);
+    // A passage the character died in collapses once nobody is left in it.
+    collapsePassageAfterLeaving(ctx, character.locationId, nextLocationId);
     appendPrivateEvent(
       ctx,
       character.id,

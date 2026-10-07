@@ -1,6 +1,7 @@
 import { Corpse, CorpseItem, Location } from '../schema/tables';
 import { appendPrivateEvent } from './events';
 import { markLocationVisited } from './visited';
+import { collapsePassageAfterLeaving } from './passages';
 
 const CORPSE_DECAY_MICROS = 30n * 24n * 60n * 60n * 1_000_000n; // 30 days
 
@@ -167,6 +168,8 @@ export function executeResurrect(ctx: any, caster: any, target: any, corpse: any
   });
   // Visited places: the corpse place counts as stood in (no origin).
   markLocationVisited(ctx, target.id, corpse.locationId);
+  // A passage the target was standing in collapses once nobody is left in it.
+  collapsePassageAfterLeaving(ctx, target.locationId, corpse.locationId);
 
   appendPrivateEvent(
     ctx,

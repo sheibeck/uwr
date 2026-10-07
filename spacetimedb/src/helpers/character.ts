@@ -2,6 +2,7 @@ import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
 import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './events';
 import { markLocationVisited } from './visited';
+import { collapsePassageAfterLeaving } from './passages';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -275,6 +276,8 @@ export function autoRespawnDeadCharacter(ctx: any, character: any): void {
   });
   // Visited places: the respawn place counts as stood in (no origin).
   markLocationVisited(ctx, character.id, nextLocationId);
+  // A passage the character died in collapses once nobody is left in it.
+  collapsePassageAfterLeaving(ctx, character.locationId, nextLocationId);
   appendPrivateEvent(
     ctx,
     character.id,
