@@ -570,16 +570,33 @@ Plans:
 **Plans**: 11 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 51-01-PLAN.md — Server: shared stamina cost rule, private visited places with my_visited_locations, look at neighbouring places and the bind stone (wave 1)
 - [ ] 51-02-PLAN.md — Client guards (svg only in src/map/, map wide tier) and pure helpers: danger, terrain, travel timer, known places, routes, region chips (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 51-03-PLAN.md — Server: passage collapse on departure, guarded passage sweep, local publish (key 108) and bindings regeneration (wave 2)
 - [ ] 51-04-PLAN.md — Deterministic route-graph layout and node, list, route and gate views (TDD, wave 2)
 - [ ] 51-05-PLAN.md — Travel checks and the destination detail model with the one Travel button (TDD, wave 2)
 - [ ] 51-06-PLAN.md — Rail rows: Examine eye, Talk chat bubble, bind stone row with Bind, enemy-card eye, party stamina (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 51-07-PLAN.md — Map data hub (visited, connections, travel timers, selected place) and session wiring (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 51-08-PLAN.md — Map screen: svg route graph, keyboard, list view, legend, screen arguments and registry (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 51-09-PLAN.md — Destination detail, Travel and arrival banner, region chips and the Region travel pill (wave 5)
 - [ ] 51-10-PLAN.md — Rail travel panel: Here card exits, mobile location line and exit chips (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 51-11-PLAN.md — Mobile Map sheet with Map and Here tabs and the dock, phase gate, LDG-05 wording (wave 6)
 
 **UI hint**: yes
