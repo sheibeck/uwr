@@ -238,7 +238,7 @@ describe('GraphPlane: nodes and labels', () => {
     }
   });
 
-  it('uses the view aria-label, an aria-hidden circle and icon, and aria-pressed only on the selected node', () => {
+  it('uses the view aria-label, an aria-hidden circle and icon, and aria-pressed true only on the selected node (false on the rest, review IN-03)', () => {
     const { wrapper: w, props } = mountPlane({ selectedId: 2n });
     for (const view of props.views) {
       const button = nodeButton(w, view.id);
@@ -246,7 +246,7 @@ describe('GraphPlane: nodes and labels', () => {
       expect(button.get('.circle').attributes('aria-hidden')).toBe('true');
       expect(button.get('.circle svg').attributes('aria-hidden')).toBe('true');
       if (view.id === 2n) expect(button.attributes('aria-pressed')).toBe('true');
-      else expect(button.attributes('aria-pressed')).toBeUndefined();
+      else expect(button.attributes('aria-pressed')).toBe('false');
     }
   });
 

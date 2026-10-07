@@ -21,7 +21,7 @@ function levelClass(row: ListRow): string {
         type="button"
         class="row"
         :class="{ selected: row.selected }"
-        :aria-pressed="row.selected ? 'true' : undefined"
+        :aria-pressed="row.selected ? 'true' : 'false'"
         @click="emit('select', row.id)"
       >
         <span class="main">

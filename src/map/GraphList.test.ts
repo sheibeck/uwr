@@ -80,10 +80,10 @@ describe('GraphList', () => {
     expect(connects[0].text()).toBe('Connects to Alpha, Beta (Saltmarsh)');
   });
 
-  it('the selected row has aria-pressed true and the selected class; others have no aria-pressed', () => {
+  it('the selected row has aria-pressed true and the selected class; every other row is a toggle that is not pressed (review IN-03)', () => {
     const w = mountList([row(1n), row(2n, { selected: true })]);
     const buttons = w.findAll('button');
-    expect(buttons[0].attributes('aria-pressed')).toBeUndefined();
+    expect(buttons[0].attributes('aria-pressed')).toBe('false');
     expect(buttons[0].classes()).not.toContain('selected');
     expect(buttons[1].attributes('aria-pressed')).toBe('true');
     expect(buttons[1].classes()).toContain('selected');

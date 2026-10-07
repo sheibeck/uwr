@@ -242,7 +242,7 @@ defineExpose({ focusCurrent, scrollToNode });
           :style="nodeStyle(view)"
           :data-node-id="String(view.id)"
           :aria-label="view.ariaLabel"
-          :aria-pressed="view.pressed ? 'true' : undefined"
+          :aria-pressed="view.pressed ? 'true' : 'false'"
           :tabindex="view.id === tabId ? 0 : -1"
           @focus="focusedId = view.id"
           @keydown="onKeydown($event, view.id)"
