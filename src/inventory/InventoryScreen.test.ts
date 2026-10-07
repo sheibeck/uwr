@@ -14,7 +14,9 @@ import {
 import type { FrameControls, GameData } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { LedgerData, LedgerReducers } from '../ledger/ledgerContext';
-import type { ItemAffix, ItemInstance, ItemTemplate } from '../module_bindings/types';
+import { encodeResultLines } from '@game-data/action_result';
+import type { ResultLine } from '@game-data/action_result';
+import type { ActionResult, ItemAffix, ItemInstance, ItemTemplate } from '../module_bindings/types';
 import EquippedSlots from './EquippedSlots.vue';
 import BackpackGrid from './BackpackGrid.vue';
 import InventoryMeta from './InventoryMeta.vue';
@@ -88,6 +90,8 @@ export interface World {
   connected?: boolean;
   isDesktop?: boolean;
   reducers?: Partial<LedgerReducers>;
+  /** The hub's own latest action_result row (Plan 50-34). */
+  lastResult?: ActionResult | null;
 }
 
 export const HERO = {
@@ -110,6 +114,7 @@ export const HERO = {
 export function worldContext(world: World) {
   const connected = ref(world.connected ?? true);
   const items = shallowRef<readonly ItemInstance[]>(world.items ?? []);
+  const lastResult = shallowRef<ActionResult | null>(world.lastResult ?? null);
   const reducers = {
     equipItem: async () => undefined,
     unequipItem: async () => undefined,
@@ -131,11 +136,19 @@ export function worldContext(world: World) {
     itemsApplied: ref(world.applied ?? true),
     affixes: ref(world.affixes ?? []),
     templates: ref(new Map((world.templates ?? []).map((t) => [t.id, t]))),
+    lastResult,
+    outputRecipes: ref(new Map()),
+    outputRecipesApplied: ref(true),
     reducers: computed(() => (connected.value ? reducers : null)),
   } as unknown as LedgerData;
-  const frame = { ...createInertFrame(), isDesktop: ref(world.isDesktop ?? true) } as unknown as FrameControls;
+  const frame = {
+    ...createInertFrame(),
+    isDesktop: ref(world.isDesktop ?? true),
+    openScreen: vi.fn(),
+  } as unknown as FrameControls;
   return {
     items,
+    lastResult,
     connected,
     game,
     ledger,
@@ -726,5 +739,353 @@ describe('InventoryScreen mobile 390x844', () => {
     await new Promise((r) => setTimeout(r, 0));
     await nextTick();
     expect(wrapper!.get('[role="status"]').text()).toBe("Couldn't send that. Try again.");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Salvage result card (Plan 50-34)
+// ---------------------------------------------------------------------------
+
+describe('Salvage result card (Plan 50-34)', () => {
+  const RARE_ID = 10n;
+  const COMMON_ID = 11n;
+  const SCROLL_ID = 20n;
+  const CARD_TEMPLATES = [
+    tpl(10n, { name: 'Gilded Vest', slot: 'chest', rarity: 'rare', armorClassBonus: 4n }),
+    tpl(11n, { name: 'Plain Vest', slot: 'chest', armorClassBonus: 1n }),
+    tpl(3n, { name: 'Ore', slot: 'material', armorType: '' }),
+    tpl(30n, { name: 'Rough Hide', slot: 'material', armorType: '' }),
+    tpl(31n, { name: 'Ancient Rune', slot: 'material', armorType: '', rarity: 'rare' }),
+    tpl(32n, { name: 'Scroll: Rope', slot: 'misc', armorType: '' }),
+  ];
+
+  function cardItems(extra: ItemInstance[] = []): ItemInstance[] {
+    return [inst(RARE_ID, 10n), inst(COMMON_ID, 11n), inst(3n, 3n, { quantity: 4n }), ...extra];
+  }
+
+  function salvageRow(seq: bigint, over: Record<string, unknown> = {}, scroll = false): ActionResult {
+    const lines: ResultLine[] = [
+      { kind: 'received', templateId: 30n, name: 'Rough Hide', quantity: 2n, total: 6n, instanceId: null },
+      { kind: 'bonus', templateId: 31n, name: 'Ancient Rune', quantity: 1n, total: 1n, instanceId: null },
+    ];
+    if (scroll) {
+      lines.push({ kind: 'scroll', templateId: 32n, name: 'Scroll: Rope', quantity: 1n, total: 1n, instanceId: SCROLL_ID });
+    }
+    return {
+      characterId: 7n,
+      seq,
+      kind: 'salvage',
+      templateId: 10n,
+      itemInstanceId: undefined,
+      itemName: 'Gilded Vest',
+      rarity: 'rare',
+      craftQuality: undefined,
+      quantity: 1n,
+      recipeTemplateId: undefined,
+      craftCount: 0n,
+      linesJson: encodeResultLines(lines),
+      at: {},
+      ...over,
+    } as unknown as ActionResult;
+  }
+
+  interface CardOptions {
+    isDesktop?: boolean;
+    scroll?: boolean;
+    removeId?: bigint;
+    outcome?: 'row' | 'reject' | 'silent';
+    preset?: ActionResult | null;
+    rowOver?: Record<string, unknown>;
+    items?: ItemInstance[];
+    learn?: ReturnType<typeof vi.fn>;
+  }
+
+  // The fake server: a salvage drops the instance from the bag and writes the next result row.
+  async function mountCard(opts: CardOptions = {}) {
+    const holder: { ctx?: ReturnType<typeof worldContext>; seq: bigint } = { seq: 0n };
+    const salvageItem = vi.fn().mockImplementation(async (args: { itemInstanceId: bigint }) => {
+      const outcome = opts.outcome ?? 'row';
+      if (outcome === 'reject') throw new Error('no');
+      if (outcome === 'silent') return;
+      const ctx = holder.ctx!;
+      ctx.items.value = ctx.items.value.filter((row) => row.id !== (opts.removeId ?? args.itemInstanceId));
+      holder.seq += 1n;
+      ctx.lastResult.value = salvageRow(holder.seq, opts.rowOver ?? {}, opts.scroll ?? false);
+    });
+    const learnRecipeScroll = opts.learn ?? vi.fn().mockResolvedValue(undefined);
+    const items = opts.items ?? cardItems(opts.scroll ? [inst(SCROLL_ID, 32n)] : []);
+    const ctx = worldContext({
+      templates: CARD_TEMPLATES,
+      items,
+      isDesktop: opts.isDesktop ?? true,
+      lastResult: opts.preset ?? null,
+      reducers: { salvageItem, learnRecipeScroll } as unknown as Partial<LedgerReducers>,
+    });
+    holder.ctx = ctx;
+    holder.seq = opts.preset ? opts.preset.seq : 0n;
+    wrapper = mount(InventoryScreen, { attachTo: document.body, global: ctx.global });
+    await nextTick();
+    return { ...ctx, salvageItem, learnRecipeScroll };
+  }
+
+  const dialog = () => wrapper!.find('[role="dialog"]');
+  const cardButton = (label: string) =>
+    wrapper!.findAll('[role="dialog"] button').find((b) => b.text() === label);
+  const salvageBtn = (variantClass: string) => wrapper!.get(`${variantClass} .action.salvage`);
+  const flush = async () => {
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+    await nextTick();
+  };
+
+  async function salvageRare(host = '.inspector-col') {
+    await tile('Gilded Vest').trigger('click');
+    await salvageBtn(host).trigger('click');
+    await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
+    await flush();
+  }
+
+  it('opens the shared card with exactly what the server reported', async () => {
+    await mountCard();
+    expect(dialog().exists()).toBe(false);
+    await salvageRare();
+    const card = wrapper!.get('[role="dialog"]');
+    expect(card.attributes('aria-modal')).toBe('true');
+    expect(card.get('.kicker').text()).toBe('Salvaged');
+    expect(card.get('h4').text()).toBe('Gilded Vest');
+    expect(card.get('h6').text()).toBe('Received');
+    const rows = card.findAll('.result-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].text()).toContain('Rough Hide');
+    expect(rows[0].get('.qty').text()).toBe('+2');
+    expect(rows[0].get('.total').text()).toBe('now 6');
+    expect(rows[0].find('.row-tag').exists()).toBe(false);
+    expect(rows[1].get('.qty').text()).toBe('+1');
+    expect(rows[1].get('.row-tag').text()).toBe('Bonus');
+    expect(card.text()).not.toContain('Recipe found');
+    expect(card.get('.footer').text()).toBe('Materials went to your backpack. Also written to your log.');
+    expect(document.activeElement).toBe(cardButton('Done')!.element);
+    expect(wrapper!.get('.sr-only[role="status"][aria-live="polite"]').text()).toBe(
+      'Salvaged Gilded Vest. Received 2 Rough Hide, 1 Ancient Rune.',
+    );
+  });
+
+  it('offers Open crafting on desktop, only Read scroll when a scroll was granted', async () => {
+    await mountCard();
+    await salvageRare();
+    expect(cardButton('Open crafting')).toBeDefined();
+    expect(cardButton('Read scroll')).toBeUndefined();
+    wrapper!.unmount();
+
+    await mountCard({ scroll: true });
+    await salvageRare();
+    expect(cardButton('Open crafting')).toBeDefined();
+    expect(cardButton('Read scroll')).toBeDefined();
+    expect(wrapper!.get('[role="dialog"]').text()).toContain('Recipe found');
+  });
+
+  it('does not offer Read scroll when the scroll row is no longer in the bag', async () => {
+    await mountCard({ scroll: true, items: cardItems() });
+    await salvageRare();
+    expect(dialog().exists()).toBe(true);
+    expect(cardButton('Read scroll')).toBeUndefined();
+  });
+
+  it('Open crafting closes the card and opens the Crafting screen', async () => {
+    const ctx = await mountCard();
+    await salvageRare();
+    await cardButton('Open crafting')!.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(false);
+    expect(ctx.frame.openScreen).toHaveBeenCalledTimes(1);
+    expect(ctx.frame.openScreen).toHaveBeenCalledWith('craft');
+  });
+
+  it('Read scroll calls learnRecipeScroll once on that scroll, then closes the card', async () => {
+    const ctx = await mountCard({ scroll: true });
+    await salvageRare();
+    await cardButton('Read scroll')!.trigger('click');
+    await flush();
+    expect(ctx.learnRecipeScroll).toHaveBeenCalledTimes(1);
+    expect(ctx.learnRecipeScroll).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: SCROLL_ID });
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('ignores a second Read scroll click while the first is pending', async () => {
+    let release: () => void = () => undefined;
+    const learn = vi.fn().mockImplementation(() => new Promise<void>((done) => { release = done; }));
+    await mountCard({ scroll: true, learn });
+    await salvageRare();
+    await cardButton('Read scroll')!.trigger('click');
+    await nextTick();
+    await cardButton('Read scroll')!.trigger('click');
+    expect(learn).toHaveBeenCalledTimes(1);
+    expect(cardButton('Read scroll')!.attributes('aria-disabled')).toBe('true');
+    release();
+    await flush();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('closes on Done and returns focus to the first backpack tile', async () => {
+    await mountCard();
+    await salvageRare();
+    await cardButton('Done')!.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(false);
+    expect(document.activeElement).toBe(wrapper!.get('button.item-tile').element);
+  });
+
+  it('closes on a scrim click', async () => {
+    await mountCard();
+    await salvageRare();
+    await wrapper!.get('.result-scrim').trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('closes on Esc without closing the drawer', async () => {
+    await mountCard();
+    await salvageRare();
+    const drawer = vi.fn();
+    // The frame's own Escape handler runs in the bubble phase and honors defaultPrevented.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) drawer();
+    };
+    document.addEventListener('keydown', onKey);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(event);
+    await flush();
+    document.removeEventListener('keydown', onKey);
+    expect(event.defaultPrevented).toBe(true);
+    expect(drawer).not.toHaveBeenCalled();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('does not let the inventory focus-after-removal rule move focus while the card is open', async () => {
+    const ctx = await mountCard();
+    await salvageRare();
+    const done = cardButton('Done')!.element;
+    expect(document.activeElement).toBe(done);
+    await tile('Ore').trigger('click');
+    // Focus is lost (as when the focused element is removed): the rule would move it to a tile.
+    (done as HTMLElement).blur();
+    ctx.items.value = ctx.items.value.filter((row) => row.id !== 3n);
+    await flush();
+    expect(wrapper!.get('.inspector-col').text()).toBe('Select an item to see its details.');
+    expect(document.activeElement).not.toBe(wrapper!.get('button.item-tile').element);
+  });
+
+  it('returns focus to the Salvage button that started a common salvage when it still exists', async () => {
+    // The common item stays in the bag (the server step here removes another row), so the button is kept.
+    await mountCard({ removeId: 3n });
+    await tile('Plain Vest').trigger('click');
+    const button = salvageBtn('.inspector-col');
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(true);
+    await cardButton('Done')!.trigger('click');
+    await flush();
+    expect(document.activeElement).toBe(salvageBtn('.inspector-col').element);
+  });
+
+  it('opens the card after a common item salvages at once, with no confirm', async () => {
+    const ctx = await mountCard();
+    await tile('Plain Vest').trigger('click');
+    await salvageBtn('.inspector-col').trigger('click');
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
+    await flush();
+    expect(ctx.salvageItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: COMMON_ID });
+    expect(dialog().exists()).toBe(true);
+  });
+
+  it('never opens a card for a row present at mount or one that arrives with no salvage started', async () => {
+    const ctx = await mountCard({ preset: salvageRow(1n) });
+    expect(dialog().exists()).toBe(false);
+    ctx.lastResult.value = salvageRow(2n);
+    await flush();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('opens no card on a refusal, and the notice line says so', async () => {
+    await mountCard({ outcome: 'reject' });
+    await salvageRare();
+    expect(dialog().exists()).toBe(false);
+    expect(wrapper!.get('[role="status"]').text()).toBe("Couldn't send that. Try again.");
+  });
+
+  it('opens no card when the call settles without a new result row', async () => {
+    await mountCard({ outcome: 'silent' });
+    await salvageRare();
+    expect(dialog().exists()).toBe(false);
+  });
+
+  it('renders item and line names with markup as text', async () => {
+    await mountCard({ rowOver: { itemName: XSS, linesJson: encodeResultLines([
+      { kind: 'received', templateId: 30n, name: XSS, quantity: 2n, total: 6n, instanceId: null },
+    ]) } });
+    await salvageRare();
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.get('[role="dialog"] h4').text()).toBe(XSS);
+    expect(wrapper!.get('[role="dialog"] .result-row .name').text()).toBe(XSS);
+  });
+
+  it('hosts the card in a position: relative screen root', () => {
+    const source = read('InventoryScreen.vue');
+    expect(source).toMatch(/\.inventory-screen\s*\{[^}]*position: relative;/);
+    expect(source).toMatch(/useActionResult\(/);
+    expect(source).toMatch(/'item-salvage': 'salvage'/);
+    expect(source).toMatch(/<ResultCard/);
+    expect(source).toMatch(/learnRecipeScroll/);
+  });
+
+  describe('mobile 390x844', () => {
+    async function salvageRareMobile() {
+      await tile('Gilded Vest').trigger('click');
+      await salvageBtn('.dock').trigger('click');
+      expect(wrapper!.find('.inline-confirm').exists()).toBe(true);
+      await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
+      await flush();
+    }
+
+    it('still asks first for a rare item, then opens the bottom sheet with Done only', async () => {
+      const ctx = await mountCard({ isDesktop: false });
+      await tile('Gilded Vest').trigger('click');
+      await salvageBtn('.dock').trigger('click');
+      expect(ctx.salvageItem).not.toHaveBeenCalled();
+      expect(wrapper!.get('.inline-confirm').classes()).toContain('mobile');
+      await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
+      await flush();
+      const sheet = wrapper!.get('[role="dialog"]');
+      expect(sheet.classes()).toContain('mobile');
+      expect(wrapper!.get('.result-scrim').classes()).toContain('mobile');
+      expect(cardButton('Done')).toBeDefined();
+      expect(cardButton('Open crafting')).toBeUndefined();
+      expect(cardButton('Read scroll')).toBeUndefined();
+      expect(sheet.find('.chips').exists()).toBe(false);
+    });
+
+    it('adds Read scroll when a scroll line exists, and reads it', async () => {
+      const ctx = await mountCard({ isDesktop: false, scroll: true });
+      await salvageRareMobile();
+      expect(cardButton('Open crafting')).toBeUndefined();
+      await cardButton('Read scroll')!.trigger('click');
+      await flush();
+      expect(ctx.learnRecipeScroll).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: SCROLL_ID });
+      expect(dialog().exists()).toBe(false);
+    });
+
+    it('returns focus to the first tile when Done closes the sheet', async () => {
+      await mountCard({ isDesktop: false });
+      await salvageRareMobile();
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(document.activeElement).toBe(wrapper!.get('button.item-tile').element);
+    });
+
+    it('pins 44px minimums for the sheet buttons in the shared card source', () => {
+      const source = readFileSync(resolve(process.cwd(), 'src/ledger/ResultCard.vue'), 'utf8');
+      expect(source).toMatch(/\.mobile \.card-btn\s*\{\s*min-height: 44px;/);
+    });
   });
 });

@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue';
-import { PhBackpack } from '@phosphor-icons/vue';
+import { PhBackpack, PhBookOpen, PhHammer } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import { createActionRunner } from '../ledger/actionRunner';
 import { itemCategory } from '../ledger/itemModel';
 import NoticeLine from '../ledger/NoticeLine.vue';
+import ResultCard from '../ledger/ResultCard.vue';
+import type { ResultCardAction } from '../ledger/ResultCard.vue';
+import { resultCardView } from '../ledger/resultCard';
+import { useActionResult } from '../ledger/useActionResult';
 import SegTabs from '../ledger/SegTabs.vue';
 import EmptyState from '../screens/EmptyState.vue';
 import BackpackGrid from './BackpackGrid.vue';
@@ -16,7 +20,9 @@ import type { BagFilterId } from './backpack';
 // The Inventory screen (50-UI-SPEC "Inventory Contract" and "Layout Contract > Inventory"): the
 // equipment slots and the backpack with the inspector, as three columns in the desktop drawer and as
 // two tabs with an inspector dock in the mobile sheet. The selection is a local id; the subscribed
-// rows drive every other change, and nothing here is optimistic. Registration in SCREENS is Plan 23.
+// rows drive every other change, and nothing here is optimistic. A salvage ends on the shared result
+// card, which shows what the server reported (Open crafting on desktop, Read scroll when a scroll
+// dropped); the feed line and the notice line stay. Registration in SCREENS is Plan 23.
 const frame = inject(FRAME_KEY, createInertFrame());
 const game = inject(GAME_KEY, createInertGame());
 const ledger = inject(LEDGER_KEY, createInertLedger());
@@ -58,16 +64,78 @@ function focusLost(): boolean {
   return active === null || active === document.body || !active.isConnected;
 }
 
-// Focus after the selected item vanished (UI-SPEC focus table): the first tile, else the Backpack
-// heading; on the mobile Equipped tab, where there is no grid, the selected tab. Never body.
-function restoreFocusAfterRemoval(): void {
-  if (!focusLost()) return;
+// The first tile, else the Backpack heading; on the mobile Equipped tab, where there is no grid, the
+// selected tab. Never body.
+function focusAfterResult(): void {
   if (grid.value) {
     grid.value.focusFirst();
     return;
   }
   const tabButton = root.value?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
   tabButton?.focus();
+}
+
+// The shared result card for a salvage this screen started (never a stale row).
+const result = useActionResult({
+  runner,
+  lastResult: ledger.lastResult,
+  keys: { 'item-salvage': 'salvage' },
+  fallbackFocus: focusAfterResult,
+});
+
+const resultView = computed(() =>
+  result.shown.value
+    ? resultCardView({
+        row: result.shown.value,
+        templates: ledger.templates.value,
+        items: ledger.items.value,
+        affixes: ledger.affixes.value,
+      })
+    : null,
+);
+
+const resultActions = computed<ResultCardAction[]>(() => {
+  const view = resultView.value;
+  const actions: ResultCardAction[] = [];
+  if (!mobile.value) {
+    actions.push({ id: 'open-crafting', label: 'Open crafting', icon: PhHammer, tone: 'secondary' });
+  }
+  if (view !== null && view.scrollInstanceId !== null) {
+    actions.push({
+      id: 'read-scroll',
+      label: 'Read scroll',
+      icon: PhBookOpen,
+      tone: 'primary',
+      pending: runner.isPending('item-learn'),
+    });
+  }
+  return actions;
+});
+
+async function onResultAction(id: string): Promise<void> {
+  if (id === 'open-crafting') {
+    result.close();
+    frame.openScreen('craft');
+    return;
+  }
+  if (id !== 'read-scroll') return;
+  const scrollId = resultView.value?.scrollInstanceId ?? null;
+  const reducers = ledger.reducers.value;
+  const character = game.character.value;
+  if (scrollId === null || !reducers || !character) return;
+  const characterId = character.id;
+  const done = await runner.run('item-learn', () =>
+    reducers.learnRecipeScroll({ characterId, itemInstanceId: scrollId }),
+  );
+  if (done) result.close();
+}
+
+// Focus after the selected item vanished (UI-SPEC focus table). While the result card is open it owns
+// focus, and its close runs the same fallback.
+function restoreFocusAfterRemoval(): void {
+  if (result.shown.value !== null) return;
+  if (!focusLost()) return;
+  focusAfterResult();
 }
 
 watch(
@@ -149,6 +217,13 @@ function closeDock(): void {
         </div>
       </template>
       <NoticeLine :rejection="runner.rejection.value" />
+      <ResultCard
+        :view="resultView"
+        :mobile="mobile"
+        :actions="resultActions"
+        @close="result.close()"
+        @action="onResultAction"
+      />
     </template>
   </div>
 </template>
@@ -159,6 +234,7 @@ function closeDock(): void {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .desk-grid {
