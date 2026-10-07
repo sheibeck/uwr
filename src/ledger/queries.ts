@@ -5,10 +5,13 @@ import { tables } from '../module_bindings';
 // item_template, vendor_inventory, recipe_discovered, recipe_template and pending_renown_perk are
 // public tables: the client filters each one to scope its cache, not to protect data (pre-existing,
 // not widened by this phase). The last sale comes only from the per-sender my_vendor_buyback view,
-// which the server scopes to the caller; it is the one query without a WHERE.
+// which the server scopes to the caller; it has no WHERE. The result of the last craft, salvage or
+// Discover (my_action_result) comes the same way, only from the per-sender view.
 
 export interface LedgerQueries {
   myVendorBuyback: string;
+  /** The sender's own last craft, salvage or Discover row (per-sender view, no WHERE). */
+  myActionResult: string;
   itemInstances(characterId: bigint): string;
   vendorStock(npcId: bigint): string;
   recipesKnown(characterId: bigint): string;
@@ -19,6 +22,8 @@ export interface LedgerQueries {
   itemTemplates(ids: readonly bigint[]): string;
   /** Non-empty list: an OR chain on id. */
   recipeTemplates(ids: readonly bigint[]): string;
+  /** Non-empty list: an OR chain on output_template_id (the recipes that make those items). */
+  recipesByOutput(ids: readonly bigint[]): string;
 }
 
 function requireIds(ids: readonly bigint[]): void {
@@ -28,6 +33,7 @@ function requireIds(ids: readonly bigint[]): void {
 export function ledgerQueries(): LedgerQueries {
   return {
     myVendorBuyback: toSql(tables.myVendorBuyback),
+    myActionResult: toSql(tables.myActionResult),
     itemInstances: (characterId) =>
       toSql(tables.itemInstance.where((r) => r.ownerCharacterId.eq(characterId))),
     vendorStock: (npcId) => toSql(tables.vendorInventory.where((r) => r.npcId.eq(npcId))),
@@ -53,6 +59,14 @@ export function ledgerQueries(): LedgerQueries {
       requireIds(ids);
       return toSql(
         tables.recipeTemplate.where((r) => ids.map((id) => r.id.eq(id)).reduce((a, b) => a.or(b))),
+      );
+    },
+    recipesByOutput: (ids) => {
+      requireIds(ids);
+      return toSql(
+        tables.recipeTemplate.where((r) =>
+          ids.map((id) => r.outputTemplateId.eq(id)).reduce((a, b) => a.or(b)),
+        ),
       );
     },
   };

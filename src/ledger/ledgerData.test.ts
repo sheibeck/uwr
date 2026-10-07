@@ -22,6 +22,7 @@ const REDUCER_NAMES = [
   'buybackLastSale',
   'researchRecipes',
   'craftRecipe',
+  'craftRecipeCount',
   'chooseRenownPerk',
 ] as const;
 
@@ -44,6 +45,7 @@ interface FakeBinding {
 const ids = (list: readonly bigint[]) => list.join(',');
 const queries: LedgerQueries = {
   myVendorBuyback: 'Q_BUYBACK',
+  myActionResult: 'Q_RESULT',
   itemInstances: (c) => `Q_ITEMS_${c}`,
   vendorStock: (n) => `Q_STOCK_${n}`,
   recipesKnown: (c) => `Q_KNOWN_${c}`,
@@ -51,6 +53,7 @@ const queries: LedgerQueries = {
   itemAffixes: (list) => `Q_AFFIX_${ids(list)}`,
   itemTemplates: (list) => `Q_TPL_${ids(list)}`,
   recipeTemplates: (list) => `Q_RECIPES_${ids(list)}`,
+  recipesByOutput: (list) => `Q_OUTPUT_${ids(list)}`,
 };
 
 let connCounter = 0;
@@ -156,7 +159,7 @@ describe('createLedgerData: character keyed bindings', () => {
     const h = make();
     h.connect();
     h.activeCharacterId.value = 7n;
-    expect(h.liveSql().sort()).toEqual(['Q_BUYBACK', 'Q_ITEMS_7', 'Q_KNOWN_7', 'Q_PERKS_7']);
+    expect(h.liveSql().sort()).toEqual(['Q_BUYBACK', 'Q_ITEMS_7', 'Q_KNOWN_7', 'Q_PERKS_7', 'Q_RESULT']);
     const items = h.find('Q_ITEMS_7');
     expect(items.filter!({ ownerCharacterId: 7n })).toBe(true);
     expect(items.filter!({ ownerCharacterId: 8n })).toBe(false);
@@ -193,6 +196,7 @@ describe('createLedgerData: character keyed bindings', () => {
     expect(h.live('Q_ITEMS_7')).toHaveLength(0);
     expect(h.hub.pendingPerks.value).toHaveLength(0);
     expect(h.hub.lastSale.value).toBeNull();
+    expect(h.hub.lastResult.value).toBeNull();
   });
 
   it('exposes applied flags and rows', () => {
@@ -352,6 +356,101 @@ describe('createLedgerData: vendor and last sale', () => {
   });
 });
 
+describe('createLedgerData: last result and output recipes', () => {
+  const resultRow = (extra: Record<string, unknown> = {}) => ({
+    characterId: 7n,
+    seq: 1n,
+    kind: 'craft',
+    templateId: undefined,
+    linesJson: '[]',
+    ...extra,
+  });
+
+  it('is null with no character and before a row arrives', () => {
+    const h = make();
+    h.connect();
+    expect(h.hub.lastResult.value).toBeNull();
+    h.activeCharacterId.value = 7n;
+    expect(h.hub.lastResult.value).toBeNull();
+  });
+
+  it('reads the row, filters other characters, and replaces an updated row', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    const binding = h.find('Q_RESULT');
+    expect(binding.filter!({ characterId: 7n })).toBe(true);
+    expect(binding.filter!({ characterId: 8n })).toBe(false);
+    binding.rows.value = [resultRow()];
+    expect(h.hub.lastResult.value?.seq).toBe(1n);
+    binding.rows.value = [resultRow({ seq: 2n })];
+    expect(h.hub.lastResult.value?.seq).toBe(2n);
+  });
+
+  it('drops the previous character result at once on a switch', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    h.find('Q_RESULT').rows.value = [resultRow()];
+    expect(h.hub.lastResult.value).not.toBeNull();
+    h.activeCharacterId.value = 8n;
+    expect(h.hub.lastResult.value).toBeNull();
+    expect(h.live('Q_RESULT')).toHaveLength(1);
+  });
+
+  it('keys output recipes by the owned template ids and keeps the lowest id', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    expect(h.hub.outputRecipes.value.size).toBe(0);
+    expect(h.hub.outputRecipesApplied.value).toBe(false);
+    expect(h.liveSql().some((s) => s.indexOf('Q_OUTPUT') === 0)).toBe(false);
+    h.find('Q_ITEMS_7').rows.value = [item(1n, 20n), item(2n, 5n), item(3n, 20n)];
+    h.find('Q_ITEMS_7').applied.value = true;
+    const out = h.find('Q_OUTPUT_5,20');
+    expect(out.filter!({ outputTemplateId: 20n })).toBe(true);
+    expect(out.filter!({ outputTemplateId: 21n })).toBe(false);
+    out.rows.value = [
+      { id: 60n, outputTemplateId: 20n },
+      { id: 50n, outputTemplateId: 20n },
+      { id: 70n, outputTemplateId: 5n },
+    ];
+    out.applied.value = true;
+    expect(h.hub.outputRecipesApplied.value).toBe(true);
+    expect(h.hub.outputRecipes.value.get(20n)?.id).toBe(50n);
+    expect(h.hub.outputRecipes.value.get(5n)?.id).toBe(70n);
+    expect(h.hub.outputRecipes.value.size).toBe(2);
+  });
+
+  it('loads the templates the last result and output recipes name', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    h.find('Q_ITEMS_7').rows.value = [item(1n, 20n)];
+    h.find('Q_ITEMS_7').applied.value = true;
+    h.find('Q_OUTPUT_20').rows.value = [
+      {
+        id: 50n,
+        outputTemplateId: 20n,
+        req1TemplateId: 41n,
+        req2TemplateId: 42n,
+        req3TemplateId: 43n,
+      },
+    ];
+    h.find('Q_RESULT').rows.value = [
+      resultRow({
+        templateId: 30n,
+        linesJson: JSON.stringify([
+          { kind: 'received', templateId: '31', name: 'Ore', quantity: '2', total: '6', instanceId: '' },
+          { kind: 'scroll', templateId: '32', name: 'Scroll: X', quantity: '1', total: '1', instanceId: '55' },
+        ]),
+      }),
+    ];
+    const sql = h.liveSql().filter((s) => s.indexOf('Q_TPL') === 0);
+    expect(sql[sql.length - 1]).toBe('Q_TPL_20,30,31,32,41,42,43');
+  });
+});
+
 describe('createLedgerData: reducers', () => {
   it('is null unless connected', () => {
     const h = make();
@@ -391,6 +490,10 @@ describe('createLedgerData: reducers', () => {
     await r.buyListing(purchase);
     expect(conn.reducers.buyListing).toHaveBeenCalledTimes(1);
     expect(conn.reducers.buyListing).toHaveBeenCalledWith(purchase);
+    const batch = { characterId: 7n, recipeTemplateId: 3n, count: 4n };
+    await r.craftRecipeCount(batch);
+    expect(conn.reducers.craftRecipeCount).toHaveBeenCalledTimes(1);
+    expect(conn.reducers.craftRecipeCount).toHaveBeenCalledWith(batch);
     await r.unequipItem({ characterId: 7n, slot: 'head' });
     expect(conn.reducers.unequipItem).toHaveBeenCalledWith({ characterId: 7n, slot: 'head' });
     expect(Object.keys(r).sort()).toEqual([...REDUCER_NAMES].sort());

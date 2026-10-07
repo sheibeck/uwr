@@ -49,10 +49,19 @@ describe('ledgerQueries: id-list OR chains', () => {
     expect(recipes).toContain('OR');
   });
 
+  it('chains recipe_template on output_template_id', () => {
+    const sql = q.recipesByOutput([5n, 9n]);
+    expect(sql).toContain('"recipe_template"');
+    expect(sql).toContain('"output_template_id" = 5');
+    expect(sql).toContain('"output_template_id" = 9');
+    expect(sql).toContain('OR');
+  });
+
   it('refuses an empty id list', () => {
     expect(() => q.itemAffixes([])).toThrow();
     expect(() => q.itemTemplates([])).toThrow();
     expect(() => q.recipeTemplates([])).toThrow();
+    expect(() => q.recipesByOutput([])).toThrow();
   });
 });
 
@@ -60,6 +69,11 @@ describe('ledgerQueries: the last sale view', () => {
   it('is the unfiltered per-sender view', () => {
     expect(q.myVendorBuyback).toContain('"my_vendor_buyback"');
     expect(q.myVendorBuyback).not.toContain('WHERE');
+  });
+
+  it('reads the result row from the unfiltered per-sender view', () => {
+    expect(q.myActionResult).toContain('"my_action_result"');
+    expect(q.myActionResult).not.toContain('WHERE');
   });
 
   it('puts a WHERE on every public table query', () => {
@@ -70,6 +84,7 @@ describe('ledgerQueries: the last sale view', () => {
       q.vendorStock(1n),
       q.recipesKnown(1n),
       q.recipeTemplates([1n]),
+      q.recipesByOutput([1n]),
       q.pendingPerks(1n),
     ]) {
       expect(sql).toContain('WHERE');
@@ -93,6 +108,9 @@ describe('createInertLedger', () => {
     expect(inert.recipes.value.size).toBe(0);
     expect(inert.pendingPerks.value).toEqual([]);
     expect(inert.lastSale.value).toBeNull();
+    expect(inert.lastResult.value).toBeNull();
+    expect(inert.outputRecipes.value.size).toBe(0);
+    expect(inert.outputRecipesApplied.value).toBe(false);
     expect(inert.reducers.value).toBeNull();
   });
 

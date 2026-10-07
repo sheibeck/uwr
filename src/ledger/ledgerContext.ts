@@ -1,6 +1,7 @@
 import { computed } from 'vue';
 import type { InjectionKey, Ref } from 'vue';
 import type {
+  ActionResult,
   ItemAffix,
   ItemInstance,
   ItemTemplate,
@@ -36,6 +37,16 @@ export interface LedgerReducers {
   craftRecipe(a: {
     characterId: bigint;
     recipeTemplateId: bigint;
+    catalystTemplateId?: bigint;
+    modifier1TemplateId?: bigint;
+    modifier2TemplateId?: bigint;
+    modifier3TemplateId?: bigint;
+  }): Promise<void>;
+  /** Craft a batch: all or nothing, 1 to 99. */
+  craftRecipeCount(a: {
+    characterId: bigint;
+    recipeTemplateId: bigint;
+    count: bigint;
     catalystTemplateId?: bigint;
     modifier1TemplateId?: bigint;
     modifier2TemplateId?: bigint;
@@ -77,6 +88,12 @@ export interface LedgerData {
   readonly pendingPerks: List<PendingRenownPerk>;
   /** The sender's last single sale (my_vendor_buyback), or null. */
   readonly lastSale: Readonly<Ref<VendorBuyback | null>>;
+  /** The active character's last craft, salvage or Discover (my_action_result), or null. */
+  readonly lastResult: Readonly<Ref<ActionResult | null>>;
+  /** Recipes that make an owned template, by output template id (the lowest recipe id wins). */
+  readonly outputRecipes: Readonly<Ref<ReadonlyMap<bigint, RecipeTemplate>>>;
+  /** The output recipe subscription has applied. */
+  readonly outputRecipesApplied: Readonly<Ref<boolean>>;
   /** Null unless connected: reducers are never exposed while reconnecting. */
   readonly reducers: Readonly<Ref<LedgerReducers | null>>;
   /** Open (or close, with null) the vendor stock subscription for an NPC. */
@@ -113,6 +130,9 @@ export function createInertLedger(): LedgerData {
     recipes: constant<ReadonlyMap<bigint, RecipeTemplate>>(new Map()),
     pendingPerks: empty<PendingRenownPerk>(),
     lastSale: constant<VendorBuyback | null>(null),
+    lastResult: constant<ActionResult | null>(null),
+    outputRecipes: constant<ReadonlyMap<bigint, RecipeTemplate>>(new Map()),
+    outputRecipesApplied: constant(false),
     reducers: constant<LedgerReducers | null>(null),
     setVendor() {},
     reset() {},

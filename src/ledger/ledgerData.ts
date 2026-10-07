@@ -1,6 +1,7 @@
 import { computed, effectScope, shallowRef } from 'vue';
 import type { Ref, ShallowRef } from 'vue';
 import type {
+  ActionResult,
   ItemAffix,
   ItemInstance,
   ItemTemplate,
@@ -12,6 +13,7 @@ import type {
 } from '../module_bindings/types';
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
+import { decodeResultLines } from '@game-data/action_result';
 import { createKeyed, idListKey, keyedRows, parseIdListKey } from '../game/keyedBinding';
 import type { LedgerData, LedgerReducers, VendorTarget } from './ledgerContext';
 import type { LedgerQueries } from './queries';
@@ -25,12 +27,16 @@ import type { LedgerQueries } from './queries';
 //   item_instance        key: the active character id (owner_character_id)
 //   recipe_discovered    key: the active character id
 //   pending_renown_perk  key: the active character id
+//   my_action_result     key: the active character id (the view is scoped by the sender on the
+//                        server): the last craft, salvage or Discover
 //   my_vendor_buyback    key: the active character id (the view is scoped by the sender on the server)
 //   item_affix           key: ids of owned instances that are rolled (quality tier), crafted
 //                        (craft quality) or equipped, so gear totals are exact; none, no binding
 //   item_template        key: owned template ids, the open vendor's stock, the known recipes'
-//                        parts and output, and the last sale's template
-//   recipe_template      key: the discovered recipe template ids
+//                        parts and output, the last sale's template, the last result's templates
+//                        and the parts of the recipes that make owned items
+//   recipe_template      key: the discovered recipe template ids (recipes), and a second binding
+//                        on the owned template ids by output_template_id (outputRecipes)
 //   vendor_inventory     key: the open vendor's npc id (setVendor), cleared by setVendor(null)
 //
 // Shared-cache rule: the SDK cache is shared by every subscription of the same table, so each
@@ -49,6 +55,7 @@ export interface LedgerConn extends ConnLike {
     recipeTemplate: Row<RecipeTemplate>;
     pendingRenownPerk: Row<PendingRenownPerk>;
     myVendorBuyback: Row<VendorBuyback>;
+    myActionResult: Row<ActionResult>;
   };
   reducers: LedgerReducers;
 }
@@ -149,6 +156,15 @@ export function createLedgerData<C extends LedgerConn>(
       (row, k) => row.characterId === k,
       'immediate',
     );
+    // The result row, like the last sale: the view is scoped by the sender on the server, and the
+    // immediate swap plus the character filter keep a previous character's result from showing.
+    const lastResultKeyed = keyedTable<ActionResult, bigint>(
+      characterKey,
+      (c) => c.db.myActionResult,
+      () => queries.myActionResult,
+      (row, k) => row.characterId === k,
+      'immediate',
+    );
     // Immediate swap: a new vendor must never show the previous vendor's stock.
     const vendorStockKeyed = keyedTable<VendorInventory, bigint>(
       vendorKey,
@@ -164,6 +180,8 @@ export function createLedgerData<C extends LedgerConn>(
     const vendorStock = keyedRows(vendorStockKeyed);
     const lastSaleRows = keyedRows(lastSaleKeyed);
     const lastSale = computed<VendorBuyback | null>(() => lastSaleRows.value[0] ?? null);
+    const lastResultRows = keyedRows(lastResultKeyed);
+    const lastResult = computed<ActionResult | null>(() => lastResultRows.value[0] ?? null);
 
     // Affixes exist only on rolled, crafted or equipped instances.
     const affixKey = computed<string | null>(() => {
@@ -193,6 +211,19 @@ export function createLedgerData<C extends LedgerConn>(
     );
     const recipeRows = keyedRows(recipesKeyed);
 
+    // The recipes that make an item the character owns (the salvage cap and the result card read
+    // them). Keyed by every owned template id, so it never depends on the template subscription.
+    const outputKey = computed<string | null>(() =>
+      idListKey(itemRows.value.map((row) => row.templateId)),
+    );
+    const outputRecipesKeyed = keyedIdList<RecipeTemplate>(
+      outputKey,
+      (c) => c.db.recipeTemplate,
+      queries.recipesByOutput,
+      (row) => row.outputTemplateId,
+    );
+    const outputRecipeRows = keyedRows(outputRecipesKeyed);
+
     const templateKey = computed<string | null>(() => {
       const ids: bigint[] = [];
       for (const row of itemRows.value) ids.push(row.templateId);
@@ -203,8 +234,19 @@ export function createLedgerData<C extends LedgerConn>(
           ids.push(recipe.req3TemplateId);
         }
       }
+      for (const recipe of outputRecipeRows.value) {
+        ids.push(recipe.req1TemplateId, recipe.req2TemplateId);
+        if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) {
+          ids.push(recipe.req3TemplateId);
+        }
+      }
       const sale = lastSale.value;
       if (sale !== null) ids.push(sale.templateId);
+      const result = lastResult.value;
+      if (result !== null) {
+        if (result.templateId !== undefined && result.templateId !== null) ids.push(result.templateId);
+        for (const line of decodeResultLines(result.linesJson)) ids.push(line.templateId);
+      }
       return idListKey(ids);
     });
     const templatesKeyed = keyedIdList<ItemTemplate>(
@@ -226,15 +268,26 @@ export function createLedgerData<C extends LedgerConn>(
       return map;
     });
 
+    const outputRecipes = computed<ReadonlyMap<bigint, RecipeTemplate>>(() => {
+      const map = new Map<bigint, RecipeTemplate>();
+      for (const row of outputRecipeRows.value) {
+        const known = map.get(row.outputTemplateId);
+        if (known === undefined || row.id < known.id) map.set(row.outputTemplateId, row);
+      }
+      return map;
+    });
+
     return {
       keyed: [
         itemsKeyed,
         recipesKnownKeyed,
         pendingPerksKeyed,
         lastSaleKeyed,
+        lastResultKeyed,
         vendorStockKeyed,
         affixesKeyed,
         recipesKeyed,
+        outputRecipesKeyed,
         templatesKeyed,
       ],
       items: itemRows,
@@ -248,6 +301,9 @@ export function createLedgerData<C extends LedgerConn>(
       recipes,
       pendingPerks,
       lastSale,
+      lastResult,
+      outputRecipes,
+      outputRecipesApplied: computed(() => outputRecipesKeyed.current.value?.applied.value ?? false),
     };
   })!;
 
@@ -271,6 +327,7 @@ export function createLedgerData<C extends LedgerConn>(
       buybackLastSale: (a) => r.buybackLastSale(a),
       researchRecipes: (a) => r.researchRecipes(a),
       craftRecipe: (a) => r.craftRecipe(a),
+      craftRecipeCount: (a) => r.craftRecipeCount(a),
       chooseRenownPerk: (a) => r.chooseRenownPerk(a),
     };
   });
@@ -303,6 +360,9 @@ export function createLedgerData<C extends LedgerConn>(
     recipes: run.recipes,
     pendingPerks: run.pendingPerks,
     lastSale: run.lastSale,
+    lastResult: run.lastResult,
+    outputRecipes: run.outputRecipes,
+    outputRecipesApplied: run.outputRecipesApplied,
     reducers,
     setVendor,
     reset,
