@@ -122,7 +122,14 @@ export function passageSides(ctx: any, passage: any): { own: any[]; far: any[] }
   return { own, far };
 }
 
-/** Rows of a table whose `column` equals the passage id (collected first, so writes are safe). */
+/**
+ * Rows of a table whose `column` equals the passage id (collected first, so writes are safe).
+ * `indexed` uses the table's by_location index. The others (character.boundLocationId,
+ * quest_template, event_objective, vendor_buyback, search_result, event_spawn_enemy,
+ * enemy_respawn_tick) have no index on the column, so they are scanned. That cost is accepted
+ * (review IN-02): a collapse happens once per explored edge. Adding an index to an existing table
+ * was left out until a local publish confirms it migrates without a clear.
+ */
 function rowsAt(ctx: any, tableName: string, column: string, passageId: bigint, indexed: boolean): any[] {
   if (indexed) return [...ctx.db[tableName].by_location.filter(passageId)];
   return [...ctx.db[tableName].iter()].filter((row: any) => row[column] === passageId);
@@ -303,6 +310,8 @@ export function collapsePassageAfterLeaving(
  */
 export function sweepPassages(ctx: any): { moved: number; collapsed: number } {
   const online = onlineCharacterIds(ctx);
+  // location has no index on terrainType, so this reads the whole table once per 5-minute tick
+  // (review IN-01, accepted; see rowsAt for why no index was added to an existing table).
   const found = [...ctx.db.location.iter()].filter((l: any) => l.terrainType === 'passage');
   found.sort(byIdAsc);
   let moved = 0;
