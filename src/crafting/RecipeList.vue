@@ -10,8 +10,11 @@ import MaterialsOnHand from './MaterialsOnHand.vue';
 import { RECIPE_FILTERS, recipeRows, stationHere } from './craftingModel';
 import type { RecipeFilterId, RecipeRow } from './craftingModel';
 
-// The recipe list (50-UI-SPEC "Recipe list"): category chips, the Show only craftable box, and one
-// row per known recipe with its have-over-need counts. The list holds its own filter state. On
+// The recipe list (50-UI-SPEC "Recipe list", mock 9a): category chips, the Show only craftable box,
+// and one row per known recipe: a 32px icon tile with the output's item icon, the name in the output's
+// rarity color (muted while uncraftable, at full opacity per the house rule), the short type and one
+// status line, 'Can make N' (the server's maxCraftCount times the output count) or 'Missing A, B'.
+// The list holds its own filter state. On
 // desktop it also keeps a visible selection: when nothing is selected, or the selection is filtered
 // out, it selects the first visible row (select with null when no row is visible). Names are server
 // text and only reach the page as text nodes.
@@ -189,17 +192,15 @@ function discover(): void {
             :aria-label="row.ariaLabel"
             @click="emit('select', row.id)"
           >
-            <span class="line-one">
-              <span class="row-name" :title="row.name">{{ row.name }}</span>
-              <span class="row-meta">{{ row.meta }}</span>
+            <span class="row-icon" :style="{ color: row.nameColor }">
+              <component :is="row.icon" :size="18" aria-hidden="true" />
             </span>
-            <span class="line-two">
-              <span
-                v-for="req in row.requirements"
-                :key="String(req.templateId)"
-                class="req"
-                :class="req.met ? 'met' : 'short'"
-              >{{ req.text }}</span>
+            <span class="row-text">
+              <span class="line-one">
+                <span class="row-name" :style="row.craftable ? { color: row.nameColor } : undefined" :title="row.name">{{ row.name }}</span>
+                <span class="row-meta">{{ row.meta }}</span>
+              </span>
+              <span class="row-status" :class="row.statusTone">{{ row.statusText }}</span>
             </span>
           </button>
         </li>
@@ -260,8 +261,8 @@ function discover(): void {
 
 .recipe-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 8px 16px;
   border: 0;
@@ -294,6 +295,24 @@ function discover(): void {
   box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
+.row-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-700);
+}
+
+.row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .line-one {
   display: flex;
   align-items: baseline;
@@ -305,11 +324,8 @@ function discover(): void {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 14px;
-  line-height: 1.5;
-}
-
-.recipe-row.selected .row-name {
   font-weight: 500;
+  line-height: 1.5;
 }
 
 .recipe-row.uncraftable .row-name {
@@ -326,19 +342,17 @@ function discover(): void {
   color: var(--color-neutral-600);
 }
 
-.line-two {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.row-status {
   font-size: 12px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
-.req.met {
+.row-status.met {
   color: var(--color-con-light-green);
 }
 
-.req.short {
+.row-status.short {
   color: var(--color-con-red);
 }
 

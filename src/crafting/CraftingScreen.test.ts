@@ -361,10 +361,16 @@ describe('RecipeList', () => {
     const rows = w.findAll('button.recipe-row');
     expect(rows.map((r) => r.get('.row-name').text())).toEqual(['Copper Sword', 'Iron Helm', 'Odd Trinket', 'Bandage', 'Darksteel Blade']);
     expect(rows[0].get('.row-meta').text()).toBe('Weapon · T1');
-    expect(rows[0].findAll('.req').map((r) => r.text())).toEqual(['Copper Ore 5/3', 'Rough Hide 1/1']);
-    expect(rows[0].findAll('.req').every((r) => r.classes().includes('met'))).toBe(true);
+    // Mock 9a: an icon tile, the name and short type, and one status line (no per-material spans).
+    expect(rows[0].find('.req').exists()).toBe(false);
+    expect(rows[0].get('.row-icon').find('svg').exists()).toBe(true);
+    expect(rows[0].get('.row-icon').attributes('style')).toContain('var(--color-text)');
+    expect(rows[0].get('.row-name').attributes('style')).toContain('var(--color-text)');
+    expect(rows[0].get('.row-status').text()).toBe('Can make 1');
+    expect(rows[0].get('.row-status').classes()).toContain('met');
     const bandage = rows[3];
-    expect(bandage.findAll('.req').map((r) => r.classes().includes('short'))).toEqual([true, false]);
+    expect(bandage.get('.row-status').text()).toBe('Missing Rough Hide');
+    expect(bandage.get('.row-status').classes()).toContain('short');
     expect(bandage.classes()).toContain('uncraftable');
     expect(bandage.attributes('aria-label')).toBe('Bandage, Consumable tier 1, missing Rough Hide');
     expect(rows[0].attributes('aria-label')).toBe('Copper Sword, Weapon tier 1, can make 1');
@@ -485,8 +491,26 @@ describe('RecipeList', () => {
     const evilRecipe = recipe(9n, XSS, { req1TemplateId: 50n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
     const { w } = mountList({ recipes: [evilRecipe], knownIds: [9n], templates: [...TEMPLATES, tpl(50n, XSS)] }, { mobile: true });
     expect(w.get('.row-name').text()).toBe(XSS);
-    expect(w.get('.req').text()).toBe(`${XSS} 0/1`);
+    expect(w.get('.row-status').text()).toBe(`Missing ${XSS}`);
     expect(w.find('img').exists()).toBe(false);
+  });
+
+  it('draws the mock 9a row: a 32px icon tile, a 14px name, and a status in the met or short color', () => {
+    const source = read('RecipeList.vue');
+    expect(source).toContain('row.statusText');
+    expect(source).not.toContain('req.text');
+    expect(source).toMatch(/\.row-icon\s*\{[^}]*width: 32px;\s*height: 32px;/);
+    expect(source).toMatch(/\.row-status\.met\s*\{\s*color: var\(--color-con-light-green\);/);
+    expect(source).toMatch(/\.row-status\.short\s*\{\s*color: var\(--color-con-red\);/);
+    expect(source).not.toMatch(/opacity: 0\.55/);
+  });
+
+  it('keeps an uncraftable row at full opacity with the muted name and the red status', () => {
+    const { w } = mountList({}, { mobile: true });
+    const bandage = w.findAll('button.recipe-row')[3];
+    expect(bandage.classes()).toContain('uncraftable');
+    expect(bandage.get('.row-status').classes()).toContain('short');
+    expect(read('RecipeList.vue')).toMatch(/\.recipe-row\.uncraftable \.row-name\s*\{\s*color: var\(--color-neutral-400\);/);
   });
 
   it('keeps the 56px mobile rows and the squared checkbox dot in the source', () => {
