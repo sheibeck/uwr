@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
 import type { ItemInstance, ItemTemplate } from '../module_bindings/types';
 import {
+  BACKPACK_COLUMNS,
+  BACKPACK_GAP_PX,
+  BACKPACK_TILE_MAX_PX,
+  BACKPACK_TILE_MIN_PX,
   BAG_FILTERS,
   FILTER_EMPTY_TEXT,
+  backpackTileSize,
   bagTiles,
   filterBag,
   slotMetaText,
   slotUsage,
+  stackCountText,
 } from './backpack';
 
 function inst(id: bigint, templateId: bigint, extra: Record<string, unknown> = {}): ItemInstance {
@@ -136,5 +142,67 @@ describe('FILTER_EMPTY_TEXT', () => {
     expect(FILTER_EMPTY_TEXT.gear).toBe('No gear in your backpack.');
     expect(FILTER_EMPTY_TEXT.materials).toBe('No materials in your backpack.');
     expect(FILTER_EMPTY_TEXT.food).toBe('No food in your backpack.');
+  });
+});
+
+describe('tile size and stack count (Plan 50-32)', () => {
+  // The old rule, kept only to compare: 6 columns of 1fr with an 8px gap.
+  const oldStretch = (width: number): number => (width - 8 * 5) / 6;
+
+  it('exposes the mock constants', () => {
+    expect(BACKPACK_COLUMNS).toEqual({ desktop: 6, mobile: 5 });
+    expect(BACKPACK_TILE_MAX_PX).toEqual({ desktop: 58, mobile: 66 });
+    expect(BACKPACK_TILE_MIN_PX).toBe(44);
+    expect(BACKPACK_GAP_PX).toBe(4);
+  });
+
+  it('caps a desktop tile at 58px on any wide column', () => {
+    expect(backpackTileSize(372, false)).toBe(58);
+    expect(backpackTileSize(532, false)).toBe(58);
+    expect(backpackTileSize(1012, false)).toBe(58);
+    expect(backpackTileSize(292, false)).toBe(45);
+  });
+
+  it('caps a mobile tile at 66px and shrinks on a narrow phone', () => {
+    expect(backpackTileSize(358, true)).toBe(66);
+    expect(backpackTileSize(288, true)).toBe(54);
+  });
+
+  it('never goes below the 44px touch target', () => {
+    expect(backpackTileSize(100, false)).toBe(44);
+    expect(backpackTileSize(0, true)).toBe(44);
+  });
+
+  it('is at most half the old stretch at 1920 and smaller at 1440', () => {
+    expect(backpackTileSize(1012, false)).toBeLessThanOrEqual(oldStretch(1012) / 2);
+    expect(backpackTileSize(532, false)).toBeLessThan(oldStretch(532));
+  });
+
+  it('stays at or under 58px across the stacked widths, smaller wherever the old size was above 58', () => {
+    for (let width = 316; width <= 615; width += 1) {
+      const size = backpackTileSize(width, false);
+      expect(size).toBeLessThanOrEqual(58);
+      if (oldStretch(width) > 58) expect(size).toBeLessThan(oldStretch(width));
+    }
+  });
+
+  it('is within 3px of the old size at 1280', () => {
+    expect(Math.abs(backpackTileSize(372, false) - oldStretch(372))).toBeLessThanOrEqual(3);
+  });
+
+  describe('stackCountText', () => {
+    const tpl = (stackable: boolean): ItemTemplate => ({ stackable }) as unknown as ItemTemplate;
+    it('shows x{n} for a stackable, including x1', () => {
+      expect(stackCountText(inst(1n, 1n, { quantity: 14n }), tpl(true))).toBe('x14');
+      expect(stackCountText(inst(1n, 1n, { quantity: 1n }), tpl(true))).toBe('x1');
+    });
+    it('shows a non-stackable count only above 1', () => {
+      expect(stackCountText(inst(1n, 1n, { quantity: 1n }), tpl(false))).toBe('');
+      expect(stackCountText(inst(1n, 1n, { quantity: 2n }), tpl(false))).toBe('x2');
+    });
+    it('treats a missing quantity as 1', () => {
+      expect(stackCountText(inst(1n, 1n, { quantity: undefined }), tpl(true))).toBe('x1');
+      expect(stackCountText(inst(1n, 1n, { quantity: undefined }), tpl(false))).toBe('');
+    });
   });
 });

@@ -86,3 +86,36 @@ export function bagTiles(
   const emptyCount = filter === 'all' && !usage.full ? Math.max(0, usage.cap - usage.used) : 0;
   return { items: sorted, emptyCount };
 }
+
+// The backpack tile size (Plan 50-32, 50-CONTEXT "Backpack squares are too big"). The Inventory
+// mock's tile size (EXTRACT I.3: 58.33px desktop, 66.8px mobile, rounded down) caps every grid
+// track, so a wider column leaves the grid at the mock size instead of stretching the squares. The
+// mock's 6px gap maps to 4px on the spacing scale.
+export const BACKPACK_COLUMNS = { desktop: 6, mobile: 5 } as const;
+export const BACKPACK_TILE_MAX_PX = { desktop: 58, mobile: 66 } as const;
+export const BACKPACK_TILE_MIN_PX = 44;
+export const BACKPACK_GAP_PX = 4;
+
+/**
+ * The square tile edge a capped grid gives in a column of the given width: the even share of the
+ * width, held between the 44px touch target and the mock's size.
+ */
+export function backpackTileSize(columnWidthPx: number, mobile: boolean): number {
+  const cols = mobile ? BACKPACK_COLUMNS.mobile : BACKPACK_COLUMNS.desktop;
+  const max = mobile ? BACKPACK_TILE_MAX_PX.mobile : BACKPACK_TILE_MAX_PX.desktop;
+  const share = Math.floor((columnWidthPx - BACKPACK_GAP_PX * (cols - 1)) / cols);
+  return Math.min(max, Math.max(BACKPACK_TILE_MIN_PX, share));
+}
+
+/**
+ * The tile's top-right count, as the mock draws it: 'x14' for every stackable (including 'x1'), and
+ * for a non-stackable only above 1. Empty when no count shows. A missing quantity counts as 1.
+ */
+export function stackCountText(
+  instance: Pick<ItemInstance, 'quantity'>,
+  template: Pick<ItemTemplate, 'stackable'>,
+): string {
+  const quantity = typeof instance.quantity === 'bigint' ? instance.quantity : 1n;
+  if (template.stackable || quantity > 1n) return `x${quantity}`;
+  return '';
+}
