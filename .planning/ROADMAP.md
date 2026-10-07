@@ -458,7 +458,7 @@ Plans:
   4. Crafting shows materials on hand and a recipe list with category tabs, an "only craftable" filter and have-versus-need per recipe; the selected recipe shows quality odds, an optional reagent / affix and Craft, and Discover recipes is reachable from the screen.
   5. At 390×844 each screen opens as a full-height sheet above the tab bar (Bag opens inventory) and every action above works.
 
-**Plans**: 38 plans (23 planned + 15 gap-closure after owner live-play feedback)
+**Plans**: 40 plans (23 planned + 17 gap-closure after owner live-play feedback)
 
 Plans:
 **Wave 1**
@@ -540,6 +540,11 @@ Plans:
 - [x] 50-36-PLAN.md — Recipe detail: Creates card, Uses, quality line, single reagent slot, −/+/Max and Craft N×
 - [ ] 50-37-PLAN.md — Crafting columns per mock 9a, Materials on hand on the right, craft and Discover result card
 - [ ] 50-38-PLAN.md — Craft / Salvage switch with the salvage list and detail; full gates
+
+**Gap closure (owner play-test: inventory header and bag grid, salvage by chance, 2026-10-07)**
+
+- [ ] 50-39-PLAN.md — Inventory header per mock 10a ("{used} / 50 slots", gold, Organize via consolidate_stacks), bag always sorted type / rarity / name, all 50 slots drawn, fill-width grid (71px at 1280, 44px minimum)
+- [ ] 50-40-PLAN.md — Salvage by chance per component (50/25/10% by material tier, half amounts, strictly under every recipe's need so no craft loop); preview and confirm in chance wording; local publish (key 108)
 
 **UI hint**: yes
 **Design source**: Re-import via `/gsd-ui-phase` from the claude_design MCP (never cached): the inventory, stats, vendor and crafting screens in `UWR Ledger Screens.dc.html`, desktop and mobile.
