@@ -237,7 +237,8 @@ describe('MapMeta desktop chips', () => {
     expect(SOURCE).toMatch(/gap:\s*4px/);
     expect(SOURCE).toMatch(/max-width:\s*144px/);
     expect(SOURCE).toMatch(/min-height:\s*32px/);
-    expect(SOURCE).toMatch(/min-height:\s*44px|height:\s*44px/);
+    // Desktop-only chips: no mobile 44px slop rule for a control the phone never renders (review IN-05).
+    expect(SOURCE).not.toContain('::after');
     expect(SOURCE).toMatch(/min-width:\s*0/);
     expect(SOURCE).not.toContain('v-html');
     expect(SOURCE).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

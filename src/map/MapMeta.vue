@@ -9,9 +9,10 @@ import { useShownRegion } from './useMapGraph';
 
 // The Map header meta (51-UI-SPEC "Region chips and the Region travel pill"), rendered by the frame
 // in the drawer and sheet #meta slot. Desktop: one button chip per known region (yours first, then by
-// name, then id) with its level range; choosing one only asks the hub to show that region (chooseRegion,
-// which also counts the choice), and the Map screen picks the selection and the focus. Mobile: the shown region's name as text (the chips
-// become the Regions listbox of plan 51-11).
+// name, then id) with its level range; choosing one only asks the hub to show that region
+// (chooseRegion, which also counts the choice), and the Map screen picks the selection and the focus.
+// Mobile: the shown region's name as text (the chips become the Regions listbox of plan 51-11), so
+// the chips need no mobile hit-area rule.
 //
 // There is no level lock anywhere. While your own region travel timer runs, every region but the one
 // you stand in shows a lock and the server's time left; the chip stays operable because the lock
@@ -78,7 +79,6 @@ function ariaLabel(chip: RegionChip): string {
 }
 
 .region-chip {
-  position: relative;
   box-sizing: border-box;
   min-height: 32px;
   gap: 4px;
@@ -147,18 +147,5 @@ function ariaLabel(chip: RegionChip): string {
   font-size: 12px;
   color: var(--color-neutral-400);
   overflow-wrap: anywhere;
-}
-
-/* A 44px by 44px hit area on mobile without growing the chip (the 47 and 50 chip rule). */
-@media (max-width: 899px) {
-  .region-chip::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: max(100%, 44px);
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }
 </style>
