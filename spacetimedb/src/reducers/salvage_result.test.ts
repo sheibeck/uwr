@@ -19,6 +19,7 @@ import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import {
   CRAFTING_MODIFIER_DEFS,
+  MATERIAL_DEFS,
   SALVAGE_REAGENT_CHANCE_PCT,
   SALVAGE_REAGENT_ROLL_INDEX,
   SALVAGE_SCROLL_ROLL_INDEX,
@@ -797,6 +798,71 @@ function discoverCtx(bagItems: Array<[bigint, bigint]>, at = 10n) {
   return ctx;
 }
 const discover = (ctx: any) => research(ctx, { characterId: 1n });
+
+// Review IN-03: one fixture through both the server's input assembly (salvage_item on the strict
+// mock, every component forced to come back) and the client's (src/ledger/salvagePreview.ts). The
+// templates carry the MATERIAL_DEFS vendor values, as ensureStarterItemTemplates upserts them in play.
+describe('salvage_item and the client salvagePreview agree on one fixture', () => {
+  // A non-literal specifier keeps the server type check out of the client module; vitest resolves it
+  // (and its @game-data alias) at run time.
+  const PREVIEW_MODULE = '../../../src/ledger/salvagePreview';
+  let salvagePreview: (input: any) => any;
+  beforeAll(async () => {
+    salvagePreview = (await import(/* @vite-ignore */ PREVIEW_MODULE)).salvagePreview;
+  });
+
+  const defValue = (name: string) => MATERIAL_DEFS.find((m) => m.name === name)!.vendorValue;
+  const parityTemplates = (gear: any) => [
+    ...MATERIALS.map(([id, name]) => tpl(id, name, { vendorValue: defValue(name) })),
+    ...reagentTemplates(),
+    gear,
+  ];
+  const affixes = [
+    { id: 1n, itemInstanceId: INSTANCE, affixType: 'suffix', affixKey: 'k1', affixName: 'of Strength', statKey: 'strBonus', magnitude: 2n },
+    { id: 2n, itemInstanceId: INSTANCE, affixType: 'suffix', affixKey: 'k2', affixName: 'of Intellect', statKey: 'intBonus', magnitude: 2n },
+    { id: 3n, itemInstanceId: INSTANCE, affixType: 'implicit', affixKey: 'q', affixName: 'Quality', statKey: 'armorClassBonus', magnitude: 1n },
+  ];
+  const fixtures: Array<{ label: string; gear: any; recipe: any | null }> = [
+    {
+      label: 'a recipe-made chest',
+      gear: gearTemplate({ tier: 2n, vendorValue: 40n }),
+      recipe: chestRecipe({ req1TemplateId: 72n, req1Count: 5n, req2TemplateId: 70n, req2Count: 3n, req3TemplateId: HIDE, req3Count: 2n }),
+    },
+    { label: 'a chest no recipe makes', gear: gearTemplate({ tier: 2n, vendorValue: 40n }), recipe: null },
+  ];
+
+  for (const { label, gear, recipe } of fixtures) {
+    it(`${label}: the granted components and the reagent are the preview's`, () => {
+      const templates = parityTemplates(gear);
+      const ctx = newCtx({ templates, affixes, recipes: recipe ? [recipe] : [] });
+      const preview = salvagePreview({
+        instance: { id: INSTANCE },
+        template: gear,
+        affixes,
+        characterId: 1n,
+        outputRecipe: recipe,
+        templates: new Map(templates.map((t: any) => [t.id, t])),
+      });
+      expect(preview.knowable).toBe(true);
+      expect(preview.components.length).toBeGreaterThan(0);
+      // Every component and the reagent come back at this timestamp.
+      setTs(ctx, tsWhere(ctx, { comps: (r) => r.length === preview.components.length, reagent: 'hit' }));
+      salvageIt(ctx);
+      const { lines } = resultOf(ctx);
+      const received = lines.filter((l) => l.kind === 'received');
+      // The preview names the slot material without a template id (it reads MATERIAL_DEFS); the
+      // server grants that material's template.
+      expect(received.map((l) => [l.name, l.quantity])).toEqual(
+        preview.components.map((c: SalvageComponent) => [c.name, c.amount]),
+      );
+      preview.components.forEach((c: SalvageComponent, i: number) => {
+        if (c.templateId !== null) expect(received[i].templateId).toBe(c.templateId);
+      });
+      const reagentYield = preview.yields.find((y: any) => y.key === 'reagent');
+      expect(lines.filter((l) => l.kind === 'bonus').map((l) => l.name)).toEqual([reagentYield.name]);
+    });
+  }
+});
 
 describe('Discover recipes result row', () => {
   it('a find writes kind discover, the count and one recipe line per find in discovery order', () => {
