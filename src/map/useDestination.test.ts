@@ -229,7 +229,7 @@ describe('useDestination: the detail model', () => {
     expect(crossing.action.disabled).toBe(true);
     expect(crossing.action.label).toBe('Region travel in');
     expect(crossing.action.timeText).toBe('3:12');
-    r.select(12n);
+    r.map.select(12n);
     await nextTick();
     expect(r.result().detail.value?.action.disabled).toBe(false);
   });
@@ -340,7 +340,7 @@ describe('useDestination: selectFirstStop()', () => {
   it('does nothing for a neighbour, your place or no selection', () => {
     const r = rig({ selected: 11n });
     expect(r.result().selectFirstStop()).toBeNull();
-    r.select(10n);
+    r.map.select(10n);
     expect(r.result().selectFirstStop()).toBeNull();
     expect(r.select).toHaveBeenCalledTimes(1);
   });

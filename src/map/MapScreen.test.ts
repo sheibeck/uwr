@@ -491,7 +491,7 @@ describe('MapScreen: region chips choose the selection', () => {
     await mountScreen(h);
     expect(h.selectedId.value).toBe(10n);
     h.select.mockClear();
-    h.showRegion(2n);
+    h.map.showRegion(2n);
     await nextTick();
     await nextTick();
     expect(h.select).toHaveBeenCalledWith(20n);
@@ -502,7 +502,7 @@ describe('MapScreen: region chips choose the selection', () => {
     const h = harness({ args: { regionId: 2n } });
     await mountScreen(h);
     expect(h.selectedId.value).toBe(20n);
-    h.showRegion(1n);
+    h.map.showRegion(1n);
     await nextTick();
     await nextTick();
     expect(h.selectedId.value).toBe(10n);
@@ -512,7 +512,7 @@ describe('MapScreen: region chips choose the selection', () => {
     const h = harness({ args: { locationId: 12n } });
     await mountScreen(h);
     h.select.mockClear();
-    h.showRegion(1n);
+    h.map.showRegion(1n);
     await nextTick();
     await nextTick();
     expect(h.select).not.toHaveBeenCalled();
@@ -532,8 +532,8 @@ describe('MapScreen: region chips choose the selection', () => {
   it('choosing a chip clears the arrival banner', async () => {
     const h = harness();
     await mountScreen(h);
-    h.setBanner('Arrived at Ember Gate.');
-    h.showRegion(2n);
+    h.map.setBanner('Arrived at Ember Gate.');
+    h.map.showRegion(2n);
     await nextTick();
     await nextTick();
     expect(h.banner.value).toBeNull();
@@ -547,7 +547,7 @@ describe('MapScreen: region chips choose the selection', () => {
     await mountScreen(h);
     chip.focus();
     expect(document.activeElement).toBe(chip);
-    h.showRegion(2n);
+    h.map.showRegion(2n);
     await nextTick();
     await nextTick();
     await nextTick();
@@ -563,7 +563,7 @@ describe('MapScreen: region chips choose the selection', () => {
     document.body.appendChild(other);
     await mountScreen(h);
     other.focus();
-    h.showRegion(2n);
+    h.map.showRegion(2n);
     await nextTick();
     await nextTick();
     await nextTick();

@@ -180,11 +180,16 @@ describe('Sheet', () => {
       attachTo: document.body,
     });
     const actions = wrapper.get('.sheet-actions').element;
-    expect(Array.from(actions.childNodes).every((node) => node.nodeType === Node.COMMENT_NODE)).toBe(true);
-    expect(actions.matches(':empty')).toBe(true);
+    // Only comments and zero-length text anchors: neither counts against :empty.
+    expect(
+      Array.from(actions.childNodes).every(
+        (node) => node.nodeType === Node.COMMENT_NODE || (node.nodeType === Node.TEXT_NODE && node.textContent === ''),
+      ),
+    ).toBe(true);
+    expect(actions.children).toHaveLength(0);
     const source = readFileSync(resolve(process.cwd(), 'src/frame/Sheet.vue'), 'utf8');
     expect(source).toContain('.sheet-actions:empty');
-    expect(source).toMatch(/.sheet-actions:emptys*{s*display:s*none;/);
+    expect(source).toMatch(/\.sheet-actions:empty\s*\{\s*display:\s*none;/);
   });
 
   it('style has the 20px top radius, 44px close button and a reduced-motion rule', () => {

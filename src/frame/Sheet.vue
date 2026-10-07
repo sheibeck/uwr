@@ -97,6 +97,12 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
+/* A screen whose header action renders nothing on mobile (the Map) adds no gap. A component that
+   renders nothing leaves only a comment node, which :empty ignores. */
+.sheet-actions:empty {
+  display: none;
+}
+
 .sheet-close {
   width: 44px;
   height: 44px;

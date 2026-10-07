@@ -13,6 +13,8 @@ import CraftingScreen from '../crafting/CraftingScreen.vue';
 import InventoryActions from '../inventory/InventoryActions.vue';
 import InventoryMeta from '../inventory/InventoryMeta.vue';
 import InventoryScreen from '../inventory/InventoryScreen.vue';
+import MapActions from '../map/MapActions.vue';
+import MapMeta from '../map/MapMeta.vue';
 import MapScreen from '../map/MapScreen.vue';
 import StatsMeta from '../stats/StatsMeta.vue';
 import StatsScreen from '../stats/StatsScreen.vue';
@@ -42,7 +44,16 @@ export interface ScreenDef {
 }
 
 export const SCREENS: readonly ScreenDef[] = [
-  { id: 'map', title: 'Map', label: 'Map', icon: PhMapTrifold, component: MapScreen, inHeader: true },
+  {
+    id: 'map',
+    title: 'Map',
+    label: 'Map',
+    icon: PhMapTrifold,
+    component: MapScreen,
+    meta: MapMeta,
+    actions: MapActions,
+    inHeader: true,
+  },
   {
     id: 'bag',
     title: 'Inventory',

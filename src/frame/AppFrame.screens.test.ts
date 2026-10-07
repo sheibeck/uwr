@@ -82,8 +82,8 @@ function fakeGame(over: Record<string, unknown> = {}): { game: GameData; moveCha
     character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n }),
     characterId: ref(1n),
     locations: ref([
-      { id: 10n, name: 'Ember Gate', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'town', bindStone: false, craftingAvailable: false },
-      { id: 11n, name: 'Gloamwood', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'woods', bindStone: false, craftingAvailable: false },
+      { id: 10n, name: 'Ember Gate', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'town', bindStone: false, craftingAvailable: false },
+      { id: 11n, name: 'Gloamwood', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'woods', bindStone: false, craftingAvailable: false },
     ]),
     regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 600n }]),
     connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
