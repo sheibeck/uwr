@@ -222,7 +222,8 @@ describe('RecipeDetail body (mock 9a)', () => {
     expect(toggle.text()).toContain('Add Essence + reagent');
     expect(toggle.text()).toContain('optional · adds an affix');
     expect(toggle.attributes('aria-expanded')).toBe('false');
-    expect(toggle.attributes('aria-controls')).toBeTruthy();
+    // IN-10 (iteration 3): the region is not rendered while collapsed, so nothing points at it.
+    expect(toggle.attributes('aria-controls')).toBeUndefined();
     expect(w.find('button.slot-main').exists()).toBe(false);
   });
 
@@ -273,11 +274,15 @@ describe('RecipeDetail body (mock 9a)', () => {
     const toggle = w.get('button.reagent-toggle');
     await toggle.trigger('click');
     expect(toggle.attributes('aria-expanded')).toBe('true');
-    const region = w.get(`#${toggle.attributes('aria-controls')}`);
+    const controls = toggle.attributes('aria-controls');
+    expect(controls).toBeTruthy();
+    const region = w.get(`#${controls}`);
     expect(region.text()).toContain('Add essence');
     expect(region.text()).toContain('Unlocks reagents');
     await toggle.trigger('click');
     expect(toggle.attributes('aria-expanded')).toBe('false');
+    expect(toggle.attributes('aria-controls')).toBeUndefined();
+    expect(w.find(`#${controls}`).exists()).toBe(false);
     expect(w.find('button.slot-main').exists()).toBe(false);
   });
 

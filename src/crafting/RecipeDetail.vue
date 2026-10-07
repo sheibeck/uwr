@@ -387,7 +387,7 @@ function reagentColor(id: bigint | null): string | undefined {
             type="button"
             class="reagent-toggle"
             :aria-expanded="expanded ? 'true' : 'false'"
-            :aria-controls="REGION_ID"
+            :aria-controls="expanded ? REGION_ID : undefined"
             :aria-disabled="slotsDisabled ? 'true' : undefined"
             :aria-describedby="slotsDisabled && reason ? REASON_ID : undefined"
             @click="toggleSlots"
