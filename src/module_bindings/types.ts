@@ -53,6 +53,23 @@ export const Achievement = __t.object("Achievement", {
 });
 export type Achievement = __Infer<typeof Achievement>;
 
+export const ActionResult = __t.object("ActionResult", {
+  characterId: __t.u64(),
+  seq: __t.u64(),
+  kind: __t.string(),
+  templateId: __t.option(__t.u64()),
+  itemInstanceId: __t.option(__t.u64()),
+  itemName: __t.string(),
+  rarity: __t.string(),
+  craftQuality: __t.option(__t.string()),
+  quantity: __t.u64(),
+  recipeTemplateId: __t.option(__t.u64()),
+  craftCount: __t.u64(),
+  linesJson: __t.string(),
+  at: __t.timestamp(),
+});
+export type ActionResult = __Infer<typeof ActionResult>;
+
 export const ActiveBardSong = __t.object("ActiveBardSong", {
   id: __t.u64(),
   bardCharacterId: __t.u64(),
@@ -965,6 +982,9 @@ export const LootTableEntry = __t.object("LootTableEntry", {
   weight: __t.u64(),
 });
 export type LootTableEntry = __Infer<typeof LootTableEntry>;
+
+export const MyActionResult = __t.object("MyActionResult", {});
+export type MyActionResult = __Infer<typeof MyActionResult>;
 
 export const MyBankSlots = __t.object("MyBankSlots", {});
 export type MyBankSlots = __Infer<typeof MyBankSlots>;

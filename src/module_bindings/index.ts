@@ -75,6 +75,7 @@ import UseAbilityReducer from "./use_ability_reducer";
 import UseItemReducer from "./use_item_reducer";
 import ResearchRecipesReducer from "./research_recipes_reducer";
 import CraftRecipeReducer from "./craft_recipe_reducer";
+import CraftRecipeCountReducer from "./craft_recipe_count_reducer";
 import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
 import SalvageItemReducer from "./salvage_item_reducer";
 import StartGatherResourceReducer from "./start_gather_resource_reducer";
@@ -207,6 +208,7 @@ import ItemTemplateRow from "./item_template_table";
 import LocationRow from "./location_table";
 import LocationConnectionRow from "./location_connection_table";
 import LootTableRow from "./loot_table_table";
+import MyActionResultRow from "./my_action_result_table";
 import MyBankSlotsRow from "./my_bank_slots_table";
 import MyCharacterEffectsRow from "./my_character_effects_table";
 import MyCombatAggroRow from "./my_combat_aggro_table";
@@ -1669,6 +1671,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, AdminLlmStatusRow),
+  myActionResult: __table({
+    name: 'my_action_result',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyActionResultRow),
   myBankSlots: __table({
     name: 'my_bank_slots',
     indexes: [
@@ -1833,6 +1842,7 @@ const reducersSchema = __reducers(
   __reducerSchema("use_item", UseItemReducer),
   __reducerSchema("research_recipes", ResearchRecipesReducer),
   __reducerSchema("craft_recipe", CraftRecipeReducer),
+  __reducerSchema("craft_recipe_count", CraftRecipeCountReducer),
   __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("salvage_item", SalvageItemReducer),
   __reducerSchema("start_gather_resource", StartGatherResourceReducer),
@@ -2070,6 +2080,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_state": Omit<typeof tablesSchema.schemaType.tables["worldState"], "accessorName"> & { readonly accessorName: "world_state" };
     /** @deprecated Use `adminLlmStatus` instead. This alias will be removed in the next major version. */
     readonly "admin_llm_status": Omit<typeof tablesSchema.schemaType.tables["adminLlmStatus"], "accessorName"> & { readonly accessorName: "admin_llm_status" };
+    /** @deprecated Use `myActionResult` instead. This alias will be removed in the next major version. */
+    readonly "my_action_result": Omit<typeof tablesSchema.schemaType.tables["myActionResult"], "accessorName"> & { readonly accessorName: "my_action_result" };
     /** @deprecated Use `myBankSlots` instead. This alias will be removed in the next major version. */
     readonly "my_bank_slots": Omit<typeof tablesSchema.schemaType.tables["myBankSlots"], "accessorName"> & { readonly accessorName: "my_bank_slots" };
     /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
@@ -2201,6 +2213,7 @@ const tableAccessorAliases = {
   "world_stat_tracker": "worldStatTracker",
   "world_state": "worldState",
   "admin_llm_status": "adminLlmStatus",
+  "my_action_result": "myActionResult",
   "my_bank_slots": "myBankSlots",
   "my_character_effects": "myCharacterEffects",
   "my_combat_aggro": "myCombatAggro",
@@ -2396,6 +2409,8 @@ export type DbView = __DbViewBase & {
   readonly "world_state": __DbViewBase["worldState"];
   /** @deprecated Use `adminLlmStatus` instead. This alias will be removed in the next major version. */
   readonly "admin_llm_status": __DbViewBase["adminLlmStatus"];
+  /** @deprecated Use `myActionResult` instead. This alias will be removed in the next major version. */
+  readonly "my_action_result": __DbViewBase["myActionResult"];
   /** @deprecated Use `myBankSlots` instead. This alias will be removed in the next major version. */
   readonly "my_bank_slots": __DbViewBase["myBankSlots"];
   /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
@@ -2592,6 +2607,8 @@ export type Tables = __TablesBase & {
   readonly "world_state": __TablesBase["worldState"];
   /** @deprecated Use `adminLlmStatus` instead. This alias will be removed in the next major version. */
   readonly "admin_llm_status": __TablesBase["adminLlmStatus"];
+  /** @deprecated Use `myActionResult` instead. This alias will be removed in the next major version. */
+  readonly "my_action_result": __TablesBase["myActionResult"];
   /** @deprecated Use `myBankSlots` instead. This alias will be removed in the next major version. */
   readonly "my_bank_slots": __TablesBase["myBankSlots"];
   /** @deprecated Use `myCharacterEffects` instead. This alias will be removed in the next major version. */
