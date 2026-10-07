@@ -5,7 +5,10 @@ import { createMockDb } from '../helpers/test-utils';
 import {
   MAX_INVENTORY_SLOTS,
   backpackSlotCount,
+  craftBatchFits,
+  craftSlotsAfter,
   hasBackpackSpace,
+  rowsSurelyEmptied,
 } from './inventory_rules';
 import { EQUIPMENT_SLOTS as VOCAB_SLOTS } from './mechanical_vocabulary';
 import {
@@ -95,6 +98,69 @@ describe('hasBackpackSpace', () => {
   it('a stackable template with no stack needs a free slot', () => {
     expect(hasBackpackSpace(full, 999n, true)).toBe(false);
     expect(hasBackpackSpace(full.slice(1), 999n, true)).toBe(true);
+  });
+});
+
+// Review WR-01: the capacity gate craft_recipe and craft_recipe_count run before any write.
+describe('craft room (craftSlotsAfter, craftBatchFits)', () => {
+  const row = (templateId: bigint, quantity: bigint, equippedSlot?: string) => ({ templateId, quantity, equippedSlot });
+  const filler = (n: number) => Array.from({ length: n }, (_, i) => row(BigInt(1000 + i), 1n));
+  const ORE = 1n;
+  const CLOTH = 2n;
+  const SWORD = { templateId: 10n, stackable: false };
+  const POTION = { templateId: 11n, stackable: true };
+
+  it('rowsSurelyEmptied takes the biggest stacks first, so the bound holds for any row order', () => {
+    expect(rowsSurelyEmptied([row(ORE, 3n), row(ORE, 5n)], ORE, 3n)).toBe(0);
+    expect(rowsSurelyEmptied([row(ORE, 5n), row(ORE, 3n)], ORE, 3n)).toBe(0);
+    expect(rowsSurelyEmptied([row(ORE, 3n), row(ORE, 5n)], ORE, 5n)).toBe(1);
+    expect(rowsSurelyEmptied([row(ORE, 3n), row(ORE, 5n)], ORE, 8n)).toBe(2);
+    expect(rowsSurelyEmptied([row(ORE, 3n, 'mainHand'), row(ORE, 3n)], ORE, 3n)).toBe(1);
+    expect(rowsSurelyEmptied([row(CLOTH, 3n)], ORE, 3n)).toBe(0);
+  });
+
+  it('a non-stackable output needs one row per craft', () => {
+    const rows = [row(ORE, 60n), row(CLOTH, 20n), ...filler(47)];
+    const consumes = (n: bigint) => [{ templateId: ORE, count: 3n * n }, { templateId: CLOTH, count: n }];
+    expect(craftSlotsAfter(rows, consumes(1n), SWORD, 1n)).toBe(50);
+    expect(craftBatchFits(rows, consumes(1n), SWORD, 1n)).toBe(true);
+    // 20 crafts empty both the ore (60) and the cloth (20) rows: 49 - 2 + 20.
+    expect(craftSlotsAfter(rows, consumes(20n), SWORD, 20n)).toBe(67);
+    expect(craftBatchFits(rows, consumes(2n), SWORD, 2n)).toBe(false);
+  });
+
+  it('counts the rows the consumed inputs empty', () => {
+    // 50 used: the ore and cloth stacks are both emptied by one craft, so two rows are freed.
+    const rows = [row(ORE, 3n), row(CLOTH, 1n), ...filler(48)];
+    const consumes = [{ templateId: ORE, count: 3n }, { templateId: CLOTH, count: 1n }];
+    expect(craftSlotsAfter(rows, consumes, SWORD, 1n)).toBe(49);
+    expect(craftBatchFits(rows, consumes, SWORD, 1n)).toBe(true);
+  });
+
+  it('a stackable output merges into a surviving stack for free, else takes one row for the batch', () => {
+    const full = [row(ORE, 60n), row(POTION.templateId, 2n), ...filler(48)];
+    const consumes = [{ templateId: ORE, count: 30n }];
+    expect(craftSlotsAfter(full, consumes, POTION, 30n)).toBe(50);
+    expect(craftBatchFits(full, consumes, POTION, 30n)).toBe(true);
+    const noStack = [row(ORE, 60n), ...filler(49)];
+    expect(craftSlotsAfter(noStack, consumes, POTION, 30n)).toBe(51);
+    expect(craftBatchFits(noStack, consumes, POTION, 30n)).toBe(false);
+    // An equipped row of the output is not a stack.
+    const equipped = [row(ORE, 60n), row(POTION.templateId, 1n, 'mainHand'), ...filler(49)];
+    expect(craftBatchFits(equipped, consumes, POTION, 30n)).toBe(false);
+  });
+
+  it('a stack of the output the inputs consume whole does not count as a merge target', () => {
+    const rows = [row(POTION.templateId, 2n), ...filler(49)];
+    const consumes = [{ templateId: POTION.templateId, count: 2n }];
+    // The stack is emptied (one row freed) and the output makes one new row: 50.
+    expect(craftSlotsAfter(rows, consumes, POTION, 1n)).toBe(50);
+  });
+
+  it('never grows an over-full bag, but allows a batch that does not grow it', () => {
+    const over = [row(ORE, 3n), row(CLOTH, 5n), ...filler(53)];
+    expect(craftBatchFits(over, [{ templateId: ORE, count: 3n }, { templateId: CLOTH, count: 1n }], SWORD, 1n)).toBe(true);
+    expect(craftBatchFits(over, [{ templateId: ORE, count: 2n }, { templateId: CLOTH, count: 1n }], SWORD, 1n)).toBe(false);
   });
 });
 

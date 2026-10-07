@@ -146,7 +146,8 @@ watch(
   },
 );
 
-// The stepper state: the maximum is the server's maxCraftCount for the chosen essence and reagents.
+// The stepper state: the maximum is the server's maxCraftCount for the chosen essence and reagents,
+// bounded by the backpack room of the hub's item rows (the same craftBatchFits gate the reducer runs).
 const qty = computed<QuantityState>(() => {
   const r = recipe.value;
   if (!r) return NO_QUANTITY;

@@ -574,6 +574,46 @@ describe('maxCraftCount', () => {
     expect(maxCraftCount(input({ recipe, have: { '1': 12n } }))).toBe(2n);
   });
 
+  // Review WR-01: the backpack is a bound when a room is passed.
+  describe('with a room', () => {
+    const recipe = { ...gearRecipe, req1Count: 1n, req2Count: 1n };
+    const roomOf = (freeSlots: bigint) => ({
+      fits: (_consumes: ReadonlyArray<{ templateId: bigint; count: bigint }>, count: bigint) => count <= freeSlots,
+    });
+
+    it('bounds the materials maximum by the room', () => {
+      expect(maxCraftCount(input({ recipe, have: { '1': 500n, '2': 500n } }), roomOf(5n))).toBe(5n);
+      expect(maxCraftCount(input({ recipe, have: { '1': 3n, '2': 3n } }), roomOf(5n))).toBe(3n);
+      expect(maxCraftCount(input({ recipe, have: { '1': 500n, '2': 500n } }), roomOf(500n))).toBe(99n);
+      expect(maxCraftCount(input({ recipe, have: { '1': 500n, '2': 500n } }), roomOf(0n))).toBe(0n);
+    });
+
+    it('stays 0n when a single craft is refused, whatever the room', () => {
+      expect(maxCraftCount(input({ have: { '1': 1n, '2': 5n } }), roomOf(50n))).toBe(0n);
+    });
+
+    it('passes the batch totals and the count to the room', () => {
+      const seen: Array<[bigint, bigint[]]> = [];
+      const room = {
+        fits: (consumes: ReadonlyArray<{ templateId: bigint; count: bigint }>, count: bigint) => {
+          seen.push([count, consumes.map((c) => c.count)]);
+          return count < 3n;
+        },
+      };
+      expect(maxCraftCount(input({ recipe: { ...gearRecipe, req1Count: 2n, req2Count: 1n }, have: { '1': 20n, '2': 20n } }), room)).toBe(2n);
+      expect(seen).toEqual([
+        [1n, [2n, 1n]],
+        [2n, [4n, 2n]],
+        [3n, [6n, 3n]],
+      ]);
+    });
+
+    it('stops at the first batch that does not fit, so every count up to the maximum fits', () => {
+      const room = { fits: (_c: ReadonlyArray<{ templateId: bigint; count: bigint }>, count: bigint) => count !== 4n };
+      expect(maxCraftCount(input({ recipe, have: { '1': 50n, '2': 50n } }), room)).toBe(3n);
+    });
+  });
+
   it('grid property: planCraft at max is ok and at max + 1 is refused (below the cap)', () => {
     const shapes: CraftPlanInput['recipe'][] = [
       { ...gearRecipe, req1Count: 1n, req2Count: 1n },

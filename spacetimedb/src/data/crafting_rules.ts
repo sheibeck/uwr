@@ -574,12 +574,26 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
 export const MAX_CRAFT_COUNT = 99n;
 
 /**
+ * The backpack bound of maxCraftCount: whether a batch of `count` with these batch-total consumes
+ * fits the bag. Callers pass inventory_rules' craftBatchFits over the character's rows and the
+ * output (this file stays import-free), the same gate craft_recipe_count runs before any write.
+ */
+export interface CraftRoom {
+  fits: (consumes: ReadonlyArray<{ templateId: bigint; count: bigint }>, count: bigint) => boolean;
+}
+
+/**
  * The stepper maximum: the largest n in 0..MAX_CRAFT_COUNT for which planCraft with count n
  * succeeds, and 0n when a single craft is refused for any reason. planCraft is linear in the count,
  * so the bag counts divided by the per-craft consumes give the answer, and planCraft at this count
  * always passes (and at one more is refused, below the cap).
+ *
+ * With a room, the backpack is a bound too (review WR-01): the answer is the largest n for which
+ * every batch of 1..n passes room.fits (craftBatchFits, the capacity gate the reducer runs), so
+ * the stepper never offers a batch the server refuses for a full bag. Without a room it is the
+ * materials-only maximum.
  */
-export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>): bigint {
+export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>, room?: CraftRoom): bigint {
   const single = planCraft({ ...input, count: 1n });
   if (!single.ok) return 0n;
   let max = MAX_CRAFT_COUNT;
@@ -588,7 +602,13 @@ export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>): bigint {
     const fits = input.countOf(c.templateId) / c.count;
     if (fits < max) max = fits;
   }
-  return max < 0n ? 0n : max;
+  if (max < 0n) return 0n;
+  if (!room) return max;
+  for (let n = 1n; n <= max; n += 1n) {
+    const consumes = single.consumes.map((c) => ({ templateId: c.templateId, count: c.count * n }));
+    if (!room.fits(consumes, n)) return n - 1n;
+  }
+  return max;
 }
 
 // ---------------------------------------------------------------------------

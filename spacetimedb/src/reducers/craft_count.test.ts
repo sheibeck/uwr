@@ -8,7 +8,10 @@
  *   - count = maxCraftCount succeeds and count + 1 is refused (the stepper maximum is the server's);
  *   - every craft writes the private action_result row (seq + 1, every field replaced);
  *   - craft_recipe keeps its line and crafts one through the same path;
- *   - delete_character removes this character's action_result row and no one else's.
+ *   - delete_character removes this character's action_result row and no one else's;
+ *   - the backpack (review WR-01): a batch that would push the bag past 50 slots is refused before
+ *     any write, a batch that fits (counting the rows its inputs empty) still crafts, and
+ *     maxCraftCount with the craftBatchFits room is exactly the count the server accepts.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
@@ -22,6 +25,7 @@ import {
   MAX_CRAFT_COUNT,
 } from '../data/crafting_rules';
 import { decodeResultLines } from '../data/action_result';
+import { MAX_INVENTORY_SLOTS, craftBatchFits } from '../data/inventory_rules';
 import { buildDisplayName } from '../helpers/items';
 
 vi.mock('spacetimedb/server', async () =>
@@ -476,6 +480,87 @@ describe('craft_recipe_count refusals cost nothing', () => {
     expect(snapshot(ctx)).toEqual(before);
     expect(rows(ctx, 'event_private')).toEqual([]);
   });
+});
+
+// Review WR-01: craft_recipe_count respects the 50-slot backpack, refusing before any write.
+describe('craft_recipe_count respects the backpack capacity', () => {
+  // Non-stackable filler rows (Odd Box), one slot each.
+  const filler = (n: number) => Array.from({ length: n }, () => ({ ...stack(ID.oddBox, 1n) }));
+  // 49 used: T2 60 and Bone Shard 20 (neither emptied by a small batch) plus 47 filler.
+  const at49 = () => [stack(ID.t2, 60n), stack(ID.second, 20n), ...filler(MAX_INVENTORY_SLOTS - 3)];
+
+  it('at 49/50 a count-2 gear batch is refused and every table stays the same', () => {
+    expectRefused(newCtx(at49()), { recipeTemplateId: R.weaponT2, count: 2n }, 'Your backpack has no room for 2 more.');
+  });
+
+  it('at 49/50 a count-20 gear batch is refused too (no partial craft)', () => {
+    expectRefused(newCtx(at49()), { recipeTemplateId: R.weaponT2, count: 20n }, 'Your backpack has no room for 20 more.');
+  });
+
+  it('at 50/50 a single craft is refused through craft_recipe with the bag-full line', () => {
+    const ctx = newCtx([...at49(), ...filler(1)]);
+    const before = snapshot(ctx);
+    craftRecipe(ctx, { characterId: 1n, recipeTemplateId: R.weaponT2 });
+    expect(snapshot(ctx)).toEqual(before);
+    expect(messages(ctx)).toEqual(['Your backpack is full.']);
+    expect(rows(ctx, 'event_private')[0].kind).toBe('system');
+  });
+
+  it('at 49/50 a count of 1 still fits and crafts', () => {
+    const ctx = newCtx(at49());
+    batch(ctx, { recipeTemplateId: R.weaponT2, count: 1n });
+    expect(copies(ctx, ID.weapon)).toHaveLength(1);
+    expect(rows(ctx, 'item_instance').filter((i) => !i.equippedSlot)).toHaveLength(MAX_INVENTORY_SLOTS);
+    expect(rows(ctx, 'event_private')[0].kind).toBe('reward');
+  });
+
+  it('a batch that fits because its inputs empty their rows still crafts', () => {
+    // 50 used: T2 4 and Bone Shard 2 are both emptied by two crafts, which frees two slots.
+    const ctx = newCtx([stack(ID.t2, 4n), stack(ID.second, 2n), ...filler(MAX_INVENTORY_SLOTS - 2)]);
+    batch(ctx, { recipeTemplateId: R.weaponT2, count: 2n });
+    expect(copies(ctx, ID.weapon)).toHaveLength(2);
+    expect(rows(ctx, 'item_instance').filter((i) => !i.equippedSlot)).toHaveLength(MAX_INVENTORY_SLOTS);
+  });
+
+  it('a stackable batch merges into its stack even at 50/50', () => {
+    const ctx = newCtx([stack(ID.t1, 60n), stack(ID.second, 60n), stack(ID.potion, 1n), ...filler(MAX_INVENTORY_SLOTS - 3)]);
+    batch(ctx, { recipeTemplateId: R.potion, count: 20n });
+    expect(bag(ctx, ID.potion)).toBe(21n);
+    expect(copies(ctx, ID.potion)).toHaveLength(1);
+  });
+
+  it('a stackable batch with no stack needs one free slot', () => {
+    expectRefused(
+      newCtx([stack(ID.t1, 60n), stack(ID.second, 60n), ...filler(MAX_INVENTORY_SLOTS - 2)]),
+      { recipeTemplateId: R.potion, count: 20n },
+      'Your backpack has no room for 20 more.',
+    );
+  });
+
+  for (const used of [45, 48, 49, 50]) {
+    it(`maxCraftCount with the bag's room is the server's limit at ${used}/50`, () => {
+      const items = () => [stack(ID.t2, 60n), stack(ID.second, 20n), ...filler(used - 2)];
+      const ctx = newCtx(items());
+      const output = { templateId: ID.weapon, stackable: false };
+      const max = maxCraftCount(
+        {
+          recipe: RECIPES[0],
+          primaryMaterialName: T2,
+          catalyst: null,
+          modifiers: [],
+          countOf: (id: bigint) => bag(ctx, id),
+        },
+        { fits: (consumes, n) => craftBatchFits(rows(ctx, 'item_instance'), consumes, output, n) },
+      );
+      expect(max).toBe(BigInt(MAX_INVENTORY_SLOTS - used));
+      expectRefused(ctx, { recipeTemplateId: R.weaponT2, count: max + 1n });
+      if (max > 0n) {
+        const ok = newCtx(items());
+        batch(ok, { recipeTemplateId: R.weaponT2, count: max });
+        expect(copies(ok, ID.weapon)).toHaveLength(Number(max));
+      }
+    });
+  }
 });
 
 describe('the action_result row is replaced by every craft', () => {

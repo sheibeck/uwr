@@ -657,10 +657,64 @@ describe('craftQuantity', () => {
   });
 
   it('caps the maximum at 99', () => {
-    const state = qty({ items: [inst(1n, 1n, 500n), inst(2n, 4n, 500n)] }, 500n);
+    // A stackable output lands on one stack, so the bag is no bound here.
+    const state = qty({ recipe: R_BANDAGE, items: [inst(1n, 1n, 500n), inst(2n, 4n, 500n)] }, 500n);
     expect(state.max).toBe(99n);
     expect(state.quantity).toBe(99n);
     expect(state.maxLabel).toBe('Max 99');
+  });
+
+  // Review WR-01: the stepper maximum is bounded by the backpack's free slots, with the same
+  // craftBatchFits gate craft_recipe_count runs.
+  describe('bounded by the backpack', () => {
+    const filler = (n: number): ItemInstance[] => {
+      const rows: ItemInstance[] = [];
+      for (let i = 0; i < n; i += 1) rows.push(inst(BigInt(2000 + i), 105n, 1n));
+      return rows;
+    };
+    // Copper 500 and Hide 500 allow 99 swords by materials; neither stack is emptied.
+    const plentyOf = [inst(1n, 1n, 500n), inst(2n, 4n, 500n)];
+
+    it('a non-stackable output gets one free slot per craft', () => {
+      // 2 material rows + 43 filler = 45 used, 5 free.
+      const state = qty({ items: [...plentyOf, ...filler(43)] }, 20n);
+      expect(state.max).toBe(5n);
+      expect(state.quantity).toBe(5n);
+      expect(state.maxLabel).toBe('Max 5');
+      expect(state.canIncrease).toBe(false);
+      // An empty bag but for the materials: 48 free slots.
+      expect(qty({ items: plentyOf }, 99n).max).toBe(48n);
+    });
+
+    it('counts the rows the consumed materials surely free', () => {
+      // 49 used: Copper 6 and Hide 2 are emptied by two crafts, which frees both rows.
+      const items = [inst(1n, 1n, 6n), inst(2n, 4n, 2n), ...filler(47)];
+      expect(qty({ items }, 9n).max).toBe(2n);
+    });
+
+    it('a full bag says Backpack full rather than Missing materials', () => {
+      const state = qty({ items: [...plentyOf, ...filler(MAX_INVENTORY_SLOTS - 2)] }, 3n);
+      expect(state.max).toBe(0n);
+      expect(state.quantity).toBe(1n);
+      expect(state.canIncrease).toBe(false);
+      expect(state.craftLabel).toBe('Backpack full');
+      expect(state.craftAriaLabel).toBe('Backpack full, no room for Copper Sword');
+      expect(state.maxLabel).toBe('Max 0');
+    });
+
+    it('a stackable output that joins a stack is not bounded by a full bag', () => {
+      const items = [inst(1n, 1n, 500n), inst(2n, 4n, 500n), inst(3n, 103n, 1n), ...filler(MAX_INVENTORY_SLOTS - 3)];
+      expect(qty({ recipe: R_BANDAGE, items }, 99n).max).toBe(99n);
+    });
+
+    it('the availability for the clamped quantity agrees with the maximum', () => {
+      const items = [...plentyOf, ...filler(43)];
+      const base = { recipe: R_SWORD, station: true, templates, items, choice: { essenceId: null, reagentIds: [] } };
+      expect(craftAvailability({ ...base, count: 5n }).available).toBe(true);
+      const six = craftAvailability({ ...base, count: 6n });
+      expect(six.available).toBe(false);
+      expect(six.reason).toBe('Your backpack is full.');
+    });
   });
 });
 

@@ -13,8 +13,9 @@ import {
   planCraft,
   primaryMaterialTier,
   type CraftPlan,
+  type CraftRoom,
 } from '@game-data/crafting_rules';
-import { hasBackpackSpace } from '@game-data/inventory_rules';
+import { craftBatchFits } from '@game-data/inventory_rules';
 import { sumItemStats } from '@game-data/item_stats';
 import { PhPackage } from '@phosphor-icons/vue';
 import type { Component } from 'vue';
@@ -719,20 +720,20 @@ function planInputOf(input: CraftAvailabilityInput) {
   };
 }
 
-/** The instances left after the plan's consumption, in the order the server removes them. */
-function itemsAfter(items: readonly ItemInstance[], consumes: ReadonlyArray<{ templateId: bigint; count: bigint }>): ItemInstance[] {
-  const left = items.map((instance) => ({ ...instance }));
-  for (const need of consumes) {
-    let remaining = need.count;
-    for (const instance of left) {
-      if (remaining <= 0n) break;
-      if (instance.templateId !== need.templateId || isEquipped(instance)) continue;
-      const take = instance.quantity < remaining ? instance.quantity : remaining;
-      instance.quantity -= take;
-      remaining -= take;
-    }
-  }
-  return left.filter((instance) => instance.quantity > 0n);
+/**
+ * The backpack the batch lands in, for the shared capacity rule: the active character's rows from
+ * the hub and the output's id and stackability (a missing output template counts as not stackable,
+ * the stricter case).
+ */
+function outputOf(input: CraftAvailabilityInput): { templateId: bigint; stackable: boolean } {
+  const output = input.templates.get(input.recipe.outputTemplateId);
+  return { templateId: input.recipe.outputTemplateId, stackable: output ? output.stackable : false };
+}
+
+/** The maxCraftCount room: the shared craftBatchFits over the hub's rows and this output. */
+function roomOf(input: CraftAvailabilityInput): CraftRoom {
+  const output = outputOf(input);
+  return { fits: (consumes, count) => craftBatchFits(input.items, consumes, output, count) };
 }
 
 /**
@@ -772,9 +773,7 @@ export function craftAvailability(input: CraftAvailabilityInput): CraftAvailabil
     return { available: false, reason, plan };
   }
 
-  const output = input.templates.get(input.recipe.outputTemplateId);
-  const remaining = itemsAfter(input.items, plan.consumes);
-  if (!hasBackpackSpace(remaining, input.recipe.outputTemplateId, output ? output.stackable : false)) {
+  if (!craftBatchFits(input.items, plan.consumes, outputOf(input), input.count ?? 1n)) {
     return { available: false, reason: BACKPACK_FULL, plan };
   }
   return { available: true, reason: null, plan };
@@ -783,7 +782,7 @@ export function craftAvailability(input: CraftAvailabilityInput): CraftAvailabil
 export interface QuantityState {
   /** The clamped request: 1..max, or 1n while max is 0n. */
   quantity: bigint;
-  /** The stepper maximum: maxCraftCount for the chosen essence and reagents (0..99). */
+  /** The stepper maximum: maxCraftCount for the chosen essence and reagents and the bag's room (0..99). */
   max: bigint;
   /** Items made: quantity times the recipe's output count. */
   made: bigint;
@@ -791,7 +790,7 @@ export interface QuantityState {
   canIncrease: boolean;
   /** 'Max {max}'. */
   maxLabel: string;
-  /** 'Craft {name}', 'Craft {made}× {name}' or 'Missing materials' at max 0. */
+  /** 'Craft {name}', 'Craft {made}× {name}', or at max 0 'Missing materials' ('Backpack full' when only the bag stops it). */
   craftLabel: string;
   /** 'for {n} crafts' when quantity is above one, else ''. */
   forQtyText: string;
@@ -800,11 +799,15 @@ export interface QuantityState {
 
 /**
  * The stepper state from the shared rule: the maximum is the server's maxCraftCount on the same
- * planCraft input craft_recipe_count validates, so the quantity the stepper reaches is accepted.
+ * planCraft input craft_recipe_count validates, bounded by the backpack's room with the same
+ * craftBatchFits gate the reducer runs, so the quantity the stepper reaches is accepted.
  */
 export function craftQuantity(input: CraftAvailabilityInput, requested: bigint): QuantityState {
   const { recipe } = input;
-  const max = maxCraftCount(planInputOf({ ...input, count: undefined }));
+  const planInput = planInputOf({ ...input, count: undefined });
+  const max = maxCraftCount(planInput, roomOf(input));
+  // Only the bag stops it: the materials allow a craft, but there is no room for even one.
+  const bagFull = max === 0n && maxCraftCount(planInput) > 0n;
   let quantity = requested < 1n ? 1n : requested;
   if (max === 0n) quantity = 1n;
   else if (quantity > max) quantity = max;
@@ -818,9 +821,13 @@ export function craftQuantity(input: CraftAvailabilityInput, requested: bigint):
     canDecrease: !blocked && quantity > 1n,
     canIncrease: !blocked && quantity < max,
     maxLabel: `Max ${max}`,
-    craftLabel: blocked ? 'Missing materials' : made > 1n ? `Craft ${made}× ${name}` : `Craft ${name}`,
+    craftLabel: bagFull ? 'Backpack full' : blocked ? 'Missing materials' : made > 1n ? `Craft ${made}× ${name}` : `Craft ${name}`,
     forQtyText: quantity > 1n ? `for ${quantity} crafts` : '',
-    craftAriaLabel: blocked ? `Missing materials for ${name}` : `Craft ${made} ${name}`,
+    craftAriaLabel: bagFull
+      ? `Backpack full, no room for ${name}`
+      : blocked
+        ? `Missing materials for ${name}`
+        : `Craft ${made} ${name}`,
   };
 }
 

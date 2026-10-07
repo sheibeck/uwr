@@ -6,6 +6,7 @@ import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } f
 import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCOVER } from '../data/recipe_rules';
 import type { BagMaterial } from '../data/recipe_rules';
 import { isQuestItemTemplate } from '../data/item_rules';
+import { craftBatchFits } from '../data/inventory_rules';
 
 export const registerItemCraftingReducers = (deps: any) => {
   const {
@@ -247,8 +248,9 @@ export const registerItemCraftingReducers = (deps: any) => {
 
   // One craft or a whole batch, all or nothing: every refusal is decided before the first write.
   // Order: owner, station, count below 1, count above the cap, recipe, discovered, output template,
-  // then planCraft with the count (materials, essence tier, essence, reagents). No backpack
-  // capacity gate, the same as craft_recipe has always had (data/inventory_rules.ts).
+  // then planCraft with the count (materials, essence tier, essence, reagents), then the backpack:
+  // the batch must fit the 50 slots after the inputs are removed (craftBatchFits in
+  // data/inventory_rules.ts, the same rule that bounds the client stepper through maxCraftCount).
   const craftBatch = (ctx: any, args: CraftArgs, count: bigint) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     const location = ctx.db.location.id.find(character.locationId);
@@ -302,6 +304,21 @@ export const registerItemCraftingReducers = (deps: any) => {
         return;
       }
       return failItem(ctx, character, plan.message);
+    }
+    // The backpack: a stack merge is free, otherwise one row for a stackable batch or one row per
+    // non-stackable craft, less the rows the inputs are sure to empty. Refused before any write.
+    const fits = craftBatchFits(
+      [...ctx.db.item_instance.by_owner.filter(character.id)],
+      plan.consumes,
+      { templateId: output.id, stackable: output.stackable ?? false },
+      count
+    );
+    if (!fits) {
+      return failItem(
+        ctx,
+        character,
+        count === 1n ? 'Your backpack is full.' : `Your backpack has no room for ${count} more.`
+      );
     }
 
     // --- Mutate: the plan passed, so nothing below refuses. plan.consumes are the batch totals:
