@@ -533,7 +533,7 @@ Plans:
 - [x] 50-29-PLAN.md — Private action_result table and my_action_result view; craft_recipe_count (all or nothing, max 99) with the result row
 - [x] 50-30-PLAN.md — Salvage and Discover result rows, equipped-salvage refusal test; local publish (key 108) and bindings
 - [x] 50-31-PLAN.md — Client hub (lastResult, outputRecipes, craftRecipeCount) and models (item details, result card, salvage preview)
-- [ ] 50-32-PLAN.md — Backpack tiles capped at the mock size (58px / 66px, 44px minimum), top-right "x{n}", mock rings
+- [x] 50-32-PLAN.md — Backpack tiles capped at the mock size (58px / 66px, 44px minimum), top-right "x{n}", mock rings
 - [ ] 50-33-PLAN.md — Shared ResultCard (desktop card, mobile sheet, focus trap, Esc, live region) and useActionResult
 - [ ] 50-34-PLAN.md — Inventory: mock inspector, equipped items not salvageable, confirm naming the yield, salvage result card
 - [ ] 50-35-PLAN.md — Crafting model (can make N, stepper state, Uses, quality line, Creates card) and mock recipe rows
@@ -628,12 +628,14 @@ Plans:
   2. The server owns every number: entry counts, rarity mix by enemy level (better for bosses and named foes), gold ranges, drop and gather rates, and all item stats through the shared item rules. The AI supplies only names, kinds, descriptions and which materials go into which recipe; its output is validated and clamped.
   3. Rare recipes need a material from at least one other, already-generated region. Epic and legendary recipes need materials from two or three regions. Common and uncommon recipes use local materials.
   4. Until the job lands, or if it fails, fallbacks keep the game working: the rule-based recipes (50-25), terrain gatherables, and a rule-based loot table from existing items and gold, so a kill is never empty.
-  5. The new prompt's exact wording is approved by the owner before it ships. No paid calls in tests.
+  5. Economy dials let an admin raise or lower loot rarity and rates without code changes. The global dials are a rarity shift, drop rate, gold, gather rate and a boss or named-foe rarity bonus, and each one can be overridden per region. They live in a private server config table whose defaults equal today's tuning. An admin-only action changes them, each value is clamped to a safe range, and every roll reads them. An admin command (for example `/economy rarity +1`) shows and sets them; the Phase 52 admin screens get a panel for them.
+  6. The new prompt's exact wording is approved by the owner before it ships. No paid calls in tests.
 
 **Plans**: TBD
 **Notes**:
 
   - Owner decisions (2026-10-07):
+    - "We'll want dials for increasing/decreasing loot rarity in those phases as well." These are the economy dials in criterion 5.
     - "I actually want LLM generated loot so we don't have to manage loot tables."
     - "Recipes should also be designed by the LLM along with a region's lootables. So, region generation includes regional craft recipes and gatherables, drops and materials to support those recipes. Really rare recipes should require loot from multiple regions."
     - Use one job per region, replacing per-enemy loot jobs.
@@ -698,7 +700,7 @@ Plans:
       - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
       - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
       - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
-  - **Already in Phase 52 from the backlog:** the admin screens (`UWR Admin Screens`). The loot rails (999.23) moved to Phase 51.4.
+  - **Already in Phase 52 from the backlog:** the admin screens (`UWR Admin Screens`). The admin screens include a panel for the Phase 51.3 economy dials (rarity, drop, gold and gather rates, global and per region). The loot rails (999.23) moved to Phase 51.4.
   - **Split (owner, 2026-10-07):** bank (999.25), player trade and the Hotbar Manager (999.18) moved to Phase 52.1.
 
   - Seed the parity checklist at the start of the phase from an audit of the `v2.2-client` tag: the old client's panels, modals, composables and command handlers (for example BankPanel, LootPanel, TradePanel, BugReportModal, CraftingModal, TrackPanel, RacialProfilePanel) and its reducer calls. Earlier phases may append the actions they cover.
@@ -1981,4 +1983,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-07 after splitting loot into 51.3 Regional Economy and 51.4 Loot Rails (owner)*
+*Last updated: 2026-10-07 after adding economy dials to Phase 51.3 (owner)*
