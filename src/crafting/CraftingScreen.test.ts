@@ -159,13 +159,14 @@ function buildWorld(world: World) {
   const calls = {
     researchRecipes: vi.fn(async () => undefined),
     craftRecipe: vi.fn(async () => undefined),
+    craftRecipeCount: vi.fn(async () => undefined),
   };
   const reducers = { ...calls, ...world.reducers } as unknown as LedgerReducers;
   const game = {
     ...createInertGame(),
     character: ref(
       world.character === undefined
-        ? { id: 7n, name: 'Hero', level: 5n, locationId: 10n, gold: 100n, className: 'Warrior' }
+        ? { id: 7n, name: 'Hero', level: 5n, locationId: 10n, gold: 100n, className: 'Warrior', vendorSellMod: 100n }
         : world.character,
     ),
     locations: ref([{ id: 10n, name: 'Forge Gate', craftingAvailable: world.station ?? true }]),
@@ -544,55 +545,17 @@ describe('RecipeDetail', () => {
     return w.findAll('button.slot-main').find((b) => b.text().includes(label))!;
   }
 
-  it('shows the Recipe kicker, the h4 name, the meta line with the level in red and the have-of-need tiles', () => {
-    const { w } = mountDetail({}, { recipeId: 2n });
-    expect(w.get('.kicker').text()).toBe('Recipe');
-    expect(w.get('h4').text()).toBe('Iron Helm');
-    expect(w.get('.meta').text()).toBe('Head · Plate · Tier 2 · Requires Lv 6');
-    expect(w.get('.meta-part.short').text()).toBe('Requires Lv 6');
-    const tiles = w.findAll('.tile');
-    expect(tiles.map((t) => t.get('.tile-name').text())).toEqual(['Iron Ore', 'Rough Hide']);
-    expect(tiles[0].get('.have').text()).toBe('3');
-    expect(tiles[0].get('.of').text()).toBe('of 2');
-    expect(tiles[0].get('.have').classes()).not.toContain('short');
-  });
+  // The single 'Add Essence + reagent' slot opens the essence and reagent slots in place.
+  async function openSlots(w: VueWrapper): Promise<void> {
+    const toggle = w.get('button.reagent-toggle');
+    if (toggle.attributes('aria-expanded') !== 'true') await toggle.trigger('click');
+  }
 
-  it('marks a short have count in red', () => {
-    const { w } = mountDetail({}, { recipeId: 4n });
-    const tiles = w.findAll('.tile');
-    expect(tiles[0].get('.have').text()).toBe('1');
-    expect(tiles[0].get('.have').classes()).toContain('short');
-    expect(tiles[1].get('.have').classes()).not.toContain('short');
-  });
-
-  it('shows Quality with the tier in its craft color and the upgrade hint, with no bar, legend or percent', () => {
-    const { w } = mountDetail();
-    const quality = w.get('.quality');
-    expect(quality.get('h6').text()).toBe('Quality');
-    expect(quality.get('.tier').text()).toBe('Standard');
-    expect(quality.get('.tier').attributes('style')).toContain('var(--color-craft-standard)');
-    expect(quality.get('.hint').text()).toBe('A recipe with a tier 2 primary material would make it Reinforced.');
-    expect(w.text()).not.toContain('%');
-    expect(w.text()).not.toContain('Likely quality');
-    expect(w.find('[role="img"]').exists()).toBe(false);
-  });
-
-  it('shows no hint for the top tier and uses the matching craft color', () => {
-    const { w } = mountDetail({}, { recipeId: 3n });
-    expect(w.get('.tier').text()).toBe('Exquisite');
-    expect(w.get('.tier').attributes('style')).toContain('var(--color-craft-exquisite)');
-    expect(w.find('.hint').exists()).toBe(false);
-  });
-
-  it('renders neither the quality line nor the reagent section for a consumable recipe', () => {
-    const { w } = mountDetail({}, { recipeId: 4n });
-    expect(w.find('.quality').exists()).toBe(false);
-    expect(w.find('.reagents').exists()).toBe(false);
-    expect(w.get('.meta').text()).toBe('Tier 1 · Makes 2');
-  });
+  // The Creates card, Uses rows, quality line and reagent slot cases live in RecipeDetail.test.ts.
 
   it('opens the essence picker, fills the slot with the chosen essence and reveals the reagent slots', async () => {
     const { w } = mountDetail();
+    await openSlots(w);
     expect(slotButton(w, 'Add essence').text()).toContain('Unlocks reagents');
     expect(w.find('.slots-line').exists()).toBe(false);
     const essence = slotButton(w, 'Add essence');
@@ -614,6 +577,7 @@ describe('RecipeDetail', () => {
 
   it('lists a too-weak essence as aria-disabled and cannot choose it', async () => {
     const { w } = mountDetail({}, { recipeId: 2n });
+    await openSlots(w);
     await slotButton(w, 'Add essence').trigger('click');
     const options = w.findAll('[role="option"]');
     const lesser = options.find((o) => o.text().includes('Lesser Essence'))!;
@@ -625,6 +589,7 @@ describe('RecipeDetail', () => {
 
   it('chooses a reagent with its effect, removes it, and clears the reagent slots when the essence is removed', async () => {
     const { w } = mountDetail();
+    await openSlots(w);
     await slotButton(w, 'Add essence').trigger('click');
     await w.findAll('[role="option"]')[0].trigger('click');
     await slotButton(w, 'Add reagent').trigger('click');
@@ -652,6 +617,7 @@ describe('RecipeDetail', () => {
   it('sends the essence and reagent ids through craftRecipe', async () => {
     const items = [...ITEMS, inst(20n, 3n, 2n), inst(21n, 2n, 1n), inst(22n, 12n, 1n)];
     const { w, calls } = mountDetail({ items }, { recipeId: 3n });
+    await openSlots(w);
     await slotButton(w, 'Add essence').trigger('click');
     await w.findAll('[role="option"]').find((o) => o.text().includes('Greater Essence'))!.trigger('click');
     const reagentButtons = w.findAll('button.slot-main').filter((b) => b.text().includes('Add reagent'));
@@ -703,6 +669,7 @@ describe('RecipeDetail', () => {
     wrapper = null;
 
     const reagentless = mountDetail();
+    await openSlots(reagentless.w);
     await slotButton(reagentless.w, 'Add essence').trigger('click');
     await reagentless.w.findAll('[role="option"]')[0].trigger('click');
     expect(reagentless.w.get('.reason').text()).toBe('Add a reagent to use the essence, or remove it.');
@@ -711,9 +678,10 @@ describe('RecipeDetail', () => {
 
   it('keeps the slots unavailable without a station and offline', async () => {
     const { w } = mountDetail({ station: false });
-    const essence = slotButton(w, 'Add essence');
-    expect(essence.attributes('aria-disabled')).toBe('true');
-    await essence.trigger('click');
+    const toggle = w.get('button.reagent-toggle');
+    expect(toggle.attributes('aria-disabled')).toBe('true');
+    await toggle.trigger('click');
+    expect(toggle.attributes('aria-expanded')).toBe('false');
     expect(w.find('[role="listbox"]').exists()).toBe(false);
     wrapper?.unmount();
     wrapper = null;
@@ -724,6 +692,7 @@ describe('RecipeDetail', () => {
 
   it('keeps the choices after a craft and clears the ones whose items are used up', async () => {
     const { w, items } = mountDetail();
+    await openSlots(w);
     await slotButton(w, 'Add essence').trigger('click');
     await w.findAll('[role="option"]')[0].trigger('click');
     await slotButton(w, 'Add reagent').trigger('click');
@@ -747,6 +716,7 @@ describe('RecipeDetail', () => {
 
   it('closes only the picker on Escape (prevented, so the drawer stays) and returns focus to the slot', async () => {
     const { w } = mountDetail();
+    await openSlots(w);
     const essence = slotButton(w, 'Add essence');
     await essence.trigger('click');
     expect(w.find('[role="listbox"]').exists()).toBe(true);
@@ -761,6 +731,7 @@ describe('RecipeDetail', () => {
 
   it('chooses with the keyboard and returns focus to the slot that opened the picker', async () => {
     const { w } = mountDetail();
+    await openSlots(w);
     const essence = slotButton(w, 'Add essence');
     await essence.trigger('click');
     press(w.get('[role="listbox"]').element, 'Enter');
@@ -772,6 +743,7 @@ describe('RecipeDetail', () => {
 
   it('starts over with empty choices when the recipe changes', async () => {
     const { w } = mountDetail();
+    await openSlots(w);
     await slotButton(w, 'Add essence').trigger('click');
     await w.findAll('[role="option"]')[0].trigger('click');
     expect(w.find('.slot.filled').exists()).toBe(true);
@@ -780,21 +752,20 @@ describe('RecipeDetail', () => {
     expect(w.find('.slot.filled').exists()).toBe(false);
   });
 
-  it('mobile: Craft text with the full aria-label, material rows with have / need, no kicker, a docked reason', () => {
+  it('mobile: Craft text with the full aria-label, Uses rows with have / need, no kicker, a docked reason', () => {
     const { w } = mountDetail({ station: false }, { mobile: true, recipeId: 4n });
     expect(w.find('.kicker').exists()).toBe(false);
     const craft = w.get('button.craft-btn');
     expect(craft.text()).toBe('Craft');
     expect(craft.attributes('aria-label')).toBe('Craft Bandage');
-    const rows = w.findAll('li.material-row');
-    expect(rows.map((r) => r.text())).toEqual(['Rough Hide1 / 2', 'Copper Ore5 / 1']);
-    expect(rows[0].get('.mat-count').classes()).toContain('short');
-    expect(rows[1].get('.mat-count').classes()).toContain('met');
+    const rows = w.findAll('ul.uses li');
+    expect(rows.map((r) => r.get('.use-name').text())).toEqual(['Rough Hide', 'Copper Ore']);
+    expect(rows[0].get('.have').classes()).toContain('short');
+    expect(rows[1].get('.have').classes()).toContain('met');
     expect(w.get('.detail-dock .reason').text()).toBe('No crafting station here.');
     const source = read('RecipeDetail.vue');
     expect(source).toMatch(/\.mobile \.craft-btn\s*\{\s*min-height: 44px;/);
     expect(source).toMatch(/\.craft-btn\s*\{[^}]*min-height: 40px;/);
-    expect(source).toMatch(/\.material-row\s*\{[^}]*min-height: 44px;/);
     expect(source).toMatch(/\.mobile \.slot-main\s*\{\s*min-height: 44px;/);
   });
 
@@ -803,7 +774,7 @@ describe('RecipeDetail', () => {
       const { w } = mountDetail({}, { mobile });
       expect(w.text()).not.toContain('%');
       expect(w.text()).not.toContain('Likely quality');
-      expect(w.get('.quality h6').text()).toBe('Quality');
+      expect(w.get('.quality-line').text()).toContain('Quality: Standard');
       wrapper?.unmount();
       wrapper = null;
     }
@@ -813,16 +784,17 @@ describe('RecipeDetail', () => {
     const evilRecipe = recipe(9n, XSS, { req1TemplateId: 50n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
     const evilMaterial = tpl(50n, XSS);
     const evilReagent = tpl(23n, 'Silver Token', { slot: 'misc', name: XSS });
+    const evilOutput = tpl(100n, XSS, { slot: 'mainHand', weaponType: 'sword', tier: 1n, stackable: false });
     const { w } = mountDetail(
       {
         recipes: [evilRecipe],
-        templates: [...TEMPLATES, evilMaterial, evilReagent],
+        templates: [...TEMPLATES.filter((t) => t.id !== 100n), evilOutput, evilMaterial, evilReagent],
         items: [...ITEMS, inst(30n, 50n, 1n)],
       },
       { recipeId: 9n },
     );
     expect(w.get('h4').text()).toBe(XSS);
-    expect(w.get('.tile-name').text()).toBe(XSS);
+    expect(w.get('.use-name').text()).toBe(XSS);
     expect(w.find('img').exists()).toBe(false);
   });
 });
@@ -929,17 +901,18 @@ describe('CraftingScreen desktop', () => {
   it('shows the single quality line in the detail with no percent and no odds legend', async () => {
     const { w } = mountScreen();
     await nextTick();
-    expect(w.get('.detail-col .quality .tier').text()).toBe('Standard');
+    expect(w.get('.detail-col .quality-line').text()).toContain('Quality: Standard');
     expect(w.get('.detail-col').text()).not.toContain('%');
     expect(w.get('.detail-col').text()).not.toContain('Likely quality');
   });
 
   it('renders recipe and material names with markup literally', async () => {
     const evilRecipe = recipe(9n, XSS, { req1TemplateId: 50n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
+    const evilOutput = tpl(100n, XSS, { slot: 'mainHand', weaponType: 'sword', tier: 1n, stackable: false });
     const { w } = mountScreen({
       recipes: [evilRecipe],
       knownIds: [9n],
-      templates: [...TEMPLATES, tpl(50n, XSS)],
+      templates: [...TEMPLATES.filter((t) => t.id !== 100n), evilOutput, tpl(50n, XSS)],
       items: [...ITEMS, inst(30n, 50n, 1n)],
     });
     await nextTick();
@@ -1038,7 +1011,7 @@ describe('CraftingScreen mobile', () => {
   it('shows the single quality line and no percent in the mobile detail', async () => {
     const { w } = mountScreen();
     await w.findAll('button.recipe-row')[0].trigger('click');
-    expect(w.get('.detail-view .quality .tier').text()).toBe('Standard');
+    expect(w.get('.detail-view .quality-line').text()).toContain('Quality: Standard');
     expect(w.get('.detail-view').text()).not.toContain('%');
     expect(w.get('.detail-view').text()).not.toContain('Likely quality');
   });

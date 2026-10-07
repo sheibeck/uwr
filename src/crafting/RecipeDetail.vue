@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, watch } from 'vue';
-import { PhHammer, PhPlusCircle, PhX } from '@phosphor-icons/vue';
+import { PhHammer, PhPlusCircle, PhSealCheck, PhX } from '@phosphor-icons/vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { ActionRunner } from '../ledger/actionRunner';
 import { rarityColor } from '../ledger/itemModel';
+import ItemCard from './ItemCard.vue';
 import ReagentPicker from './ReagentPicker.vue';
 import {
   bagCount,
   craftArgs,
   craftAvailability,
+  createsCard,
   essenceKeyOf,
   essenceMagnitudeText,
   essenceOptions,
@@ -17,15 +19,17 @@ import {
   reagentOptions,
   recipeDetail,
   stationHere,
+  usesRows,
 } from './craftingModel';
 
-// The selected recipe (50-UI-SPEC "Recipe detail", "Craft unavailable", "After Craft", "Optional
-// reagent", with the owner decision that replaces the odds bar): the Recipe kicker, the name, the
-// meta line, the have-of-need tiles, for a gear recipe the single deterministic Quality line with
-// the hint that would raise it, the essence slot and the reagent slots with the inline picker, the
-// reason line and Craft. Every verdict (materials, essence, reagents, bag room) is the shared
-// planCraft through the model, so the client shows what the server will decide. Recipe, material
-// and reagent names are server text and only reach the page as text nodes.
+// The selected recipe (mock 9a, with the owner decisions that replace the odds bar and add the
+// output details): top to bottom the Creates card (what the output is and does), the Uses rows
+// (have / need for the chosen quantity), for a gear recipe the single deterministic quality line with
+// the hint that would raise it, the one essence-and-reagent slot that opens the essence slot, the
+// reagent slots and the inline picker in place, the reason line and Craft. Every verdict (materials,
+// essence, reagents, bag room) is the shared planCraft through the model, so the client shows what the
+// server will decide. Recipe, output, material and reagent names are server text and only reach the
+// page as text nodes.
 const props = defineProps<{
   recipeId: bigint;
   runner: ActionRunner;
@@ -34,14 +38,6 @@ const props = defineProps<{
 
 const game = inject(GAME_KEY, createInertGame());
 const ledger = inject(LEDGER_KEY, createInertLedger());
-
-const CRAFT_COLORS: Readonly<Record<string, string>> = {
-  dented: 'var(--color-craft-dented)',
-  standard: 'var(--color-craft-standard)',
-  reinforced: 'var(--color-craft-reinforced)',
-  exquisite: 'var(--color-craft-exquisite)',
-  mastercraft: 'var(--color-craft-mastercraft)',
-};
 
 const offline = computed(() => !game.connected.value || ledger.reducers.value === null);
 const character = computed(() => game.character.value);
@@ -57,17 +53,33 @@ const detail = computed(() => {
   ) : null;
 });
 
-const tierColor = computed(() => {
-  const key = detail.value?.qualityKey ?? null;
-  if (key === null || !Object.prototype.hasOwnProperty.call(CRAFT_COLORS, key)) return undefined;
-  return CRAFT_COLORS[key];
+// What the output is and does; null while the output template has not arrived (the name and meta
+// line stand in).
+const card = computed(() => {
+  const r = recipe.value;
+  const c = character.value;
+  if (!r || !c) return null;
+  return createsCard(
+    r,
+    ledger.templates.value,
+    c,
+    game.renownPerks.value.map((perk) => perk.perkKey),
+  );
 });
+
+const uses = computed(() => {
+  const r = recipe.value;
+  return r ? usesRows(r, ledger.templates.value, ledger.items.value, 1n) : [];
+});
+const forQtyText = computed(() => '');
 
 // --- the chosen essence and reagents (slot order; null is an empty slot) ---
 const essenceId = ref<bigint | null>(null);
 const reagentIds = ref<Array<bigint | null>>([]);
 type PickerState = { kind: 'essence' } | { kind: 'reagent'; index: number } | null;
 const picker = ref<PickerState>(null);
+// The single essence-and-reagent slot: collapsed until opened, and kept open while choosing.
+const expanded = ref(false);
 
 const slotButtons = new Map<string, HTMLElement>();
 function setSlotButton(key: string, el: unknown): void {
@@ -83,7 +95,10 @@ function resetChoices(): void {
   reagentIds.value = [];
   picker.value = null;
 }
-watch(() => props.recipeId, resetChoices);
+watch(() => props.recipeId, () => {
+  resetChoices();
+  expanded.value = false;
+});
 
 const templateOf = (id: bigint | null) => (id === null ? undefined : ledger.templates.value.get(id));
 const essenceTemplate = computed(() => templateOf(essenceId.value));
@@ -129,6 +144,7 @@ const availability = computed(() => {
 });
 
 const REASON_ID = computed(() => `craft-reason-${props.mobile ? 'mobile' : 'desktop'}`);
+const REGION_ID = computed(() => `craft-reagents-${props.mobile ? 'mobile' : 'desktop'}`);
 const reason = computed(() => availability.value?.reason ?? null);
 const craftPending = computed(() => props.runner.isPending('craft'));
 const craftInert = computed(
@@ -153,6 +169,25 @@ const reagentOpts = computed(() => {
 });
 
 const slotsDisabled = computed(() => !station.value);
+
+const chosenReagents = computed(() => reagentIds.value.filter((id) => id !== null).length);
+const toggleLabel = computed(() =>
+  essenceId.value === null
+    ? 'Add Essence + reagent'
+    : `${reagentName(essenceId.value)} + ${chosenReagents.value} ${chosenReagents.value === 1 ? 'reagent' : 'reagents'}`,
+);
+
+const toggleButton = ref<HTMLElement | null>(null);
+function toggleSlots(): void {
+  if (slotsDisabled.value) return;
+  if (expanded.value) {
+    expanded.value = false;
+    picker.value = null;
+    void nextTick(() => toggleButton.value?.focus());
+    return;
+  }
+  expanded.value = true;
+}
 
 function toggleEssencePicker(): void {
   if (slotsDisabled.value) return;
@@ -231,121 +266,151 @@ function reagentColor(id: bigint | null): string | undefined {
   <section class="recipe-detail" :class="{ mobile: props.mobile }" aria-label="Recipe details">
     <template v-if="detail">
       <div class="detail-body">
-        <span v-if="!props.mobile" class="kicker">Recipe</span>
-        <h4 class="title">{{ detail.name }}</h4>
-        <p v-if="detail.metaParts.length > 0" class="meta">
-          <template v-for="(part, index) in detail.metaParts" :key="index">
-            <span v-if="index > 0" aria-hidden="true"> · </span>
-            <span class="meta-part" :class="{ short: part.tone === 'short' }">{{ part.text }}</span>
-          </template>
-        </p>
+        <ItemCard
+          v-if="card"
+          :kicker="props.mobile ? '' : 'Creates'"
+          :name="card.name"
+          :color="card.color"
+          :icon="card.icon"
+          :yield-tag="card.yieldTag"
+          :details="card.details"
+          :mobile="props.mobile"
+        />
+        <template v-else>
+          <h4 class="title">{{ detail.name }}</h4>
+          <p v-if="detail.metaParts.length > 0" class="meta">
+            <template v-for="(part, index) in detail.metaParts" :key="index">
+              <span v-if="index > 0" aria-hidden="true"> · </span>
+              <span class="meta-part" :class="{ short: part.tone === 'short' }">{{ part.text }}</span>
+            </template>
+          </p>
+        </template>
 
-        <ul v-if="props.mobile" class="material-rows">
-          <li v-for="tile in detail.tiles" :key="String(tile.templateId)" class="material-row">
-            <span class="mat-name" :title="tile.name">{{ tile.name }}</span>
-            <span class="mat-count" :class="tile.short ? 'short' : 'met'">{{ tile.mobileText }}</span>
-          </li>
-        </ul>
-        <div v-else class="tiles">
-          <div v-for="tile in detail.tiles" :key="String(tile.templateId)" class="tile">
-            <span class="tile-name" :title="tile.name">{{ tile.name }}</span>
-            <span class="tile-count">
-              <span class="have" :class="{ short: tile.short }">{{ tile.have }}</span>
-              <span class="of"> of {{ tile.need }}</span>
-            </span>
+        <section class="uses-section">
+          <div class="uses-head">
+            <h6>Uses</h6>
+            <span v-if="forQtyText" class="for-qty">{{ forQtyText }}</span>
           </div>
-        </div>
+          <ul class="uses">
+            <li v-for="row in uses" :key="String(row.templateId)" class="use-row">
+              <component :is="row.icon" :size="14" class="use-icon" aria-hidden="true" />
+              <span class="use-name" :style="{ color: row.color }" :title="row.name">{{ row.name }}</span>
+              <span class="use-count">
+                <span class="have" :class="row.short ? 'short' : 'met'">{{ row.have }}</span>
+                <span class="of"> / {{ row.need }}</span>
+              </span>
+            </li>
+          </ul>
+        </section>
 
         <section v-if="detail.gear" class="quality">
-          <h6>Quality</h6>
-          <span class="tier" :style="tierColor ? { color: tierColor } : undefined">{{ detail.quality }}</span>
+          <p v-if="detail.qualityLine" class="quality-line">
+            <PhSealCheck :size="16" class="seal" aria-hidden="true" />
+            <span>{{ detail.qualityLine }}</span>
+          </p>
           <p v-if="detail.qualityHint" class="hint">{{ detail.qualityHint }}</p>
         </section>
 
         <section v-if="detail.gear" class="reagents">
-          <h6>Optional reagent</h6>
-          <div class="slot-block">
-            <div class="slot" :class="essenceId === null ? 'empty' : 'filled'">
-              <button
-                :ref="(el) => setSlotButton('essence', el)"
-                type="button"
-                class="slot-main"
-                :aria-expanded="picker !== null && picker.kind === 'essence' ? 'true' : 'false'"
-                :aria-disabled="slotsDisabled ? 'true' : undefined"
-                @click="toggleEssencePicker"
-              >
-                <template v-if="essenceId === null">
-                  <PhPlusCircle :size="16" class="plus" aria-hidden="true" />
-                  <span class="slot-label">Add essence</span>
-                  <span class="slot-right">Unlocks reagents</span>
-                </template>
-                <template v-else>
-                  <span class="slot-name" :style="{ color: reagentColor(essenceId) }" :title="reagentName(essenceId)">{{ reagentName(essenceId) }}</span>
-                  <span class="slot-right">{{ essenceMagnitudeText(essenceKey) }}</span>
-                </template>
-              </button>
-              <button
-                v-if="essenceId !== null"
-                type="button"
-                class="btn btn-ghost btn-icon remove"
-                :aria-label="`Remove ${reagentName(essenceId)}`"
-                @click="removeEssence"
-              >
-                <PhX :size="14" aria-hidden="true" />
-              </button>
-            </div>
-            <ReagentPicker
-              v-if="picker !== null && picker.kind === 'essence'"
-              kind="essence"
-              :options="essenceOpts"
-              :mobile="props.mobile"
-              @choose="chooseEssence"
-              @close="closePicker"
-            />
-          </div>
+          <button
+            ref="toggleButton"
+            type="button"
+            class="reagent-toggle"
+            :aria-expanded="expanded ? 'true' : 'false'"
+            :aria-controls="REGION_ID"
+            :aria-disabled="slotsDisabled ? 'true' : undefined"
+            :aria-describedby="slotsDisabled && reason ? REASON_ID : undefined"
+            @click="toggleSlots"
+          >
+            <PhPlusCircle :size="16" class="plus" aria-hidden="true" />
+            <span class="toggle-label" :style="essenceId !== null ? { color: reagentColor(essenceId) } : undefined">{{ toggleLabel }}</span>
+            <span class="toggle-hint">optional · adds an affix</span>
+          </button>
 
-          <template v-if="essenceId !== null && detail.slots > 0">
-            <p class="slots-line">{{ detail.slotsLine }}</p>
-            <div v-for="(slotId, index) in reagentIds" :key="index" class="slot-block">
-              <div class="slot" :class="slotId === null ? 'empty' : 'filled'">
+          <div v-if="expanded" :id="REGION_ID" class="reagent-region">
+            <div class="slot-block">
+              <div class="slot" :class="essenceId === null ? 'empty' : 'filled'">
                 <button
-                  :ref="(el) => setSlotButton(`reagent-${index}`, el)"
+                  :ref="(el) => setSlotButton('essence', el)"
                   type="button"
                   class="slot-main"
-                  :aria-expanded="picker !== null && picker.kind === 'reagent' && picker.index === index ? 'true' : 'false'"
+                  :aria-expanded="picker !== null && picker.kind === 'essence' ? 'true' : 'false'"
                   :aria-disabled="slotsDisabled ? 'true' : undefined"
-                  @click="toggleReagentPicker(index)"
+                  @click="toggleEssencePicker"
                 >
-                  <template v-if="slotId === null">
+                  <template v-if="essenceId === null">
                     <PhPlusCircle :size="16" class="plus" aria-hidden="true" />
-                    <span class="slot-label">Add reagent</span>
-                    <span class="slot-right">+ affix</span>
+                    <span class="slot-label">Add essence</span>
+                    <span class="slot-right">Unlocks reagents</span>
                   </template>
                   <template v-else>
-                    <span class="slot-name" :style="{ color: reagentColor(slotId) }" :title="reagentName(slotId)">{{ reagentName(slotId) }}</span>
-                    <span class="slot-right">{{ reagentEffectText(essenceKey, reagentName(slotId)) }}</span>
+                    <span class="slot-name" :style="{ color: reagentColor(essenceId) }" :title="reagentName(essenceId)">{{ reagentName(essenceId) }}</span>
+                    <span class="slot-right">{{ essenceMagnitudeText(essenceKey) }}</span>
                   </template>
                 </button>
                 <button
-                  v-if="slotId !== null"
+                  v-if="essenceId !== null"
                   type="button"
                   class="btn btn-ghost btn-icon remove"
-                  :aria-label="`Remove ${reagentName(slotId)}`"
-                  @click="removeReagent(index)"
+                  :aria-label="`Remove ${reagentName(essenceId)}`"
+                  @click="removeEssence"
                 >
                   <PhX :size="14" aria-hidden="true" />
                 </button>
               </div>
               <ReagentPicker
-                v-if="picker !== null && picker.kind === 'reagent' && picker.index === index"
-                kind="reagent"
-                :options="reagentOpts"
+                v-if="picker !== null && picker.kind === 'essence'"
+                kind="essence"
+                :options="essenceOpts"
                 :mobile="props.mobile"
-                @choose="chooseReagent"
+                @choose="chooseEssence"
                 @close="closePicker"
               />
             </div>
-          </template>
+
+            <template v-if="essenceId !== null && detail.slots > 0">
+              <p class="slots-line">{{ detail.slotsLine }}</p>
+              <div v-for="(slotId, index) in reagentIds" :key="index" class="slot-block">
+                <div class="slot" :class="slotId === null ? 'empty' : 'filled'">
+                  <button
+                    :ref="(el) => setSlotButton(`reagent-${index}`, el)"
+                    type="button"
+                    class="slot-main"
+                    :aria-expanded="picker !== null && picker.kind === 'reagent' && picker.index === index ? 'true' : 'false'"
+                    :aria-disabled="slotsDisabled ? 'true' : undefined"
+                    @click="toggleReagentPicker(index)"
+                  >
+                    <template v-if="slotId === null">
+                      <PhPlusCircle :size="16" class="plus" aria-hidden="true" />
+                      <span class="slot-label">Add reagent</span>
+                      <span class="slot-right">+ affix</span>
+                    </template>
+                    <template v-else>
+                      <span class="slot-name" :style="{ color: reagentColor(slotId) }" :title="reagentName(slotId)">{{ reagentName(slotId) }}</span>
+                      <span class="slot-right">{{ reagentEffectText(essenceKey, reagentName(slotId)) }}</span>
+                    </template>
+                  </button>
+                  <button
+                    v-if="slotId !== null"
+                    type="button"
+                    class="btn btn-ghost btn-icon remove"
+                    :aria-label="`Remove ${reagentName(slotId)}`"
+                    @click="removeReagent(index)"
+                  >
+                    <PhX :size="14" aria-hidden="true" />
+                  </button>
+                </div>
+                <ReagentPicker
+                  v-if="picker !== null && picker.kind === 'reagent' && picker.index === index"
+                  kind="reagent"
+                  :options="reagentOpts"
+                  :mobile="props.mobile"
+                  @choose="chooseReagent"
+                  @close="closePicker"
+                />
+              </div>
+            </template>
+          </div>
         </section>
       </div>
 
@@ -395,14 +460,6 @@ function reagentColor(id: bigint | null): string | undefined {
   gap: 16px;
 }
 
-.kicker {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  line-height: 1.5;
-  color: var(--color-accent);
-}
-
 h4 {
   margin: 0;
   font-size: 20px;
@@ -423,35 +480,67 @@ h4 {
   color: var(--color-con-red);
 }
 
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.uses-section {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.tile {
+.uses-head {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  align-items: baseline;
+  gap: 8px;
 }
 
-.tile-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  line-height: 1.5;
+h6 {
+  margin: 0;
   color: var(--color-neutral-400);
 }
 
-.have {
-  font-size: 14px;
-  font-weight: 400;
+.for-qty {
+  font-size: 12px;
   line-height: 1.5;
+  color: var(--color-neutral-500);
+}
+
+.uses {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.use-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.use-icon {
+  flex: none;
+  color: var(--color-neutral-400);
+}
+
+.use-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.use-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.have.met {
+  color: var(--color-con-light-green);
 }
 
 .have.short {
@@ -459,39 +548,7 @@ h4 {
 }
 
 .of {
-  font-size: 12px;
   color: var(--color-neutral-500);
-}
-
-.material-rows {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.material-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 44px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.mat-name {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.mat-count.met {
-  color: var(--color-con-light-green);
-}
-
-.mat-count.short {
-  color: var(--color-con-red);
 }
 
 .quality,
@@ -501,15 +558,20 @@ h4 {
   gap: 8px;
 }
 
-h6 {
+.quality-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  color: var(--color-neutral-400);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-300);
+  overflow-wrap: anywhere;
 }
 
-.tier {
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.5;
+.seal {
+  flex: none;
+  color: var(--color-accent);
 }
 
 .hint {
@@ -518,6 +580,63 @@ h6 {
   line-height: 1.5;
   color: var(--color-neutral-400);
   overflow-wrap: anywhere;
+}
+
+.reagent-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  color: var(--color-neutral-400);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reagent-toggle:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.reagent-toggle:active {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+.reagent-toggle:focus-visible {
+  outline-offset: -2px;
+}
+
+.reagent-toggle[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mobile .reagent-toggle {
+  min-height: 44px;
+}
+
+.toggle-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toggle-hint {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.reagent-region {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .slots-line {
