@@ -23,7 +23,7 @@ import {
   createInertFrame,
   createInertGame,
 } from '../game/context';
-import { createActionRunner } from '../ledger/actionRunner';
+import { SEND_ERROR_TEXT, createActionRunner } from '../ledger/actionRunner';
 import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
@@ -44,6 +44,16 @@ const frame = inject(FRAME_KEY, createInertFrame());
 const connected = computed(() => game.connected.value);
 
 const runner = createActionRunner({ online: connected });
+
+// A rejected Bind (the transport failed, or the reducer threw a SenderError) prints the client
+// rejection line in the feed, where the rail's other results go (UI-SPEC copy: "Couldn't send that.
+// Try again."). Server refusals made with fail() arrive as their own feed lines.
+watch(
+  () => runner.rejection.value,
+  (next, previous) => {
+    if (next > previous) game.feed.appendLocal('system', SEND_ERROR_TEXT);
+  },
+);
 
 // The current place: the bind stone row shows only where the place has one.
 const place = computed(() => {
@@ -173,7 +183,8 @@ const bindBlocked = computed(
 );
 
 // Bind is inert until the promise settles and nothing changes optimistically: the row turns to
-// 'Bound here' only when the character row changes. Refusals and the server's line print in the feed.
+// 'Bound here' only when the character row changes. Refusals and the server's line print in the feed,
+// and so does the send error of a rejected call (watch above).
 async function bind(): Promise<void> {
   const characterId = game.characterId.value;
   const reducers = game.reducers.value;

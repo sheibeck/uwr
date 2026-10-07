@@ -240,6 +240,27 @@ describe('bind stone row', () => {
     expect(bind.attributes('aria-disabled')).toBeUndefined();
   });
 
+  it("a rejected Bind prints Couldn't send that. Try again. in the feed (review WR-01)", async () => {
+    const bindLocation = vi.fn(() => Promise.reject(new Error('socket')));
+    const { w, data } = mountList({}, bindLocation);
+    const before = data.feed.entries.value.length;
+    await w.get('.btn-bind').trigger('click');
+    await vi.waitFor(() => expect(data.feed.entries.value.length).toBe(before + 1));
+    const line = data.feed.entries.value[data.feed.entries.value.length - 1];
+    expect(line.message).toBe("Couldn't send that. Try again.");
+    expect(line.kind).toBe('system');
+    expect(w.get('.btn-bind').attributes('aria-disabled')).toBeUndefined();
+  });
+
+  it('a resolved Bind prints no send error', async () => {
+    const { w, data } = mountList();
+    const before = data.feed.entries.value.length;
+    await w.get('.btn-bind').trigger('click');
+    await nextTick();
+    await nextTick();
+    expect(data.feed.entries.value.length).toBe(before);
+  });
+
   it('is aria-disabled offline and sends nothing', async () => {
     const { w, bindLocation } = mountList({ connected: ref(false) });
     const bind = w.get('.btn-bind');
