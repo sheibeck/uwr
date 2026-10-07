@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 to 51.6 follow 51 in order (51.4 needs 51.3). Phase 52 follows them, and 52.1 is last.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 to 51.6 follow 51 in order (51.4 needs 51.3). Phase 52 follows them, then 52.1, and 52.2 Social and Guilds is last.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -83,7 +83,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 49: Character Creation Interview** - Keeper interview in the feed (race, archetype, class, then the name last) with a step indicator, race suggestion cards and a live character sheet
 - [ ] **Phase 50: Ledger Screens: Character and Economy** - Inventory, stats, vendor and crafting as drawers and sheets
 - [ ] **Phase 51: Ledger Screens: Map and Travel** - Map drawer and sheet, the rail travel panel, passage collapse, and the rail's Examine, Talk and bind stone actions
-- [ ] **Phase 51.1: Party and Social** (INSERTED) - Social screen, party and player menus, invites, friends and online status, pet HUD and follow indicators, and the user and join security fixes
+- [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
 - [ ] **Phase 51.2: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
@@ -91,6 +91,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.6: Log** (INSERTED) - A stored, searchable log of what happened to the character
 - [ ] **Phase 52: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client
 - [ ] **Phase 52.1: Bank, Trade and Hotbar Manager** (INSERTED) - The designed bank, player trade and Hotbar Manager
+- [ ] **Phase 52.2: Social and Guilds** (INSERTED) - The Social screen, party chat, friends, who is online, and guilds
 
 ## Phase Details
 
@@ -615,29 +616,29 @@ Plans:
   - Server: a per-character visited-places table, look at neighbouring places, passage collapse with a guarded sweep, and travel cost from the server rules. All changes are additive and published locally only.
   - Tests: graph layout and legend states, border crossings, neighbours-only travel, timer locks from the server row, passage collapse and sweep, and rail row actions.
 
-### Phase 51.1: Party and Social (INSERTED)
+### Phase 51.1: Party (INSERTED)
 
-**Goal**: Players play with other people: the Social screen, party and player menus, invites, friends and online status, a pet HUD and travel-with-leader indicators.
+**Goal**: Party play works safely: who is online, who travels with the leader, pets in the party block, invites that expire, and role-aware menus on party and player rows. The login and user-table security fixes ship first.
 **Depends on**: Phase 51 (shared rail rows and travel rules)
-**Requirements**: LDG-06, LDG-07
+**Requirements**: LDG-06 (party actions and invites from the rail; the Social party table is Phase 52.2)
 **Success Criteria** (what must be TRUE):
 
-  1. Social shows the party (class, where, health, online) with invite, leave, leader-only remove and promote, "Loot: personal", pending invites that expire after 5 minutes and can be cancelled, and a "Travel with leader" switch (the owner's party mock name for Follow leader).
-  2. Social shows party chat, friends with online status and location (never emails), a who's-online count, and friend requests to accept or decline.
-  3. Party members and players have role-aware menus from a ⋯ button and right-click (a sheet on mobile). Clicking a party member in combat still sets the ally target.
-  4. The party block shows pets under their owners and who will travel with the leader, with stamina warnings.
-  5. The public `user` table no longer exposes emails, and joining a party requires an invite.
-  6. At 390×844 Social opens from the Party tab and every action above works.
+  1. Each character has a server-stored online status. Offline party members are left behind: they neither travel with the leader nor count in its stamina check, and they are not pulled into the leader's fights. Online status shows in the party block and Nearby, and the Map's players count uses it.
+  2. The party block shows pets under their owners and who will travel with the leader ("Travel with leader"), with stamina warnings.
+  3. Party members and players have role-aware menus from a ⋯ button and right-click (a sheet on mobile): invite, leave, leader-only remove and promote, "Loot: personal". Clicking a party member in combat still sets the ally target.
+  4. Joining a party requires an invite. Invites expire after 5 minutes and can be cancelled.
+  5. The public `user` table no longer exposes emails, and sign-in no longer trusts a client-sent email (CR-01), rolled out safely with an owner sign-in check after the local publish.
+  6. At 390x844 every action above works.
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: Ledger `2e` (group and social) and `UWR Party.dc.html` (menus, invite card, pet HUD and follow indicators; updated 2026-10-07), re-imported fresh. Player trade from the same file is Phase 52.1.
+**Design source**: `UWR Party.dc.html` (menus, invite card, pet HUD and follow indicators; updated 2026-10-07) and the updated `UWR Combat.dc.html` rails for character, pets and buffs (owner, 2026-10-07). The party and rail parts of `51.1-UI-SPEC.md` apply; its Social screen parts move to Phase 52.2.
 **Notes**:
 
-  - Context: `51-CONTEXT.md` (Area 2 and Area 4 decisions, and the updated party mock section). Pulled in: 999.22 (party and player menus) and the pet HUD and follow indicators todo.
-  - Server: online status, private `user` with per-sender friend views, the `join_group` invite check, invite expiry and cancel. Pets come from `active_pet`; research confirms what is readable. All changes are additive and published locally only.
-  - Tests: menu entries by role and target, invite expiry and cancel, online status, friend views without emails, the join invite check, pet rows and follow indicators.
-
+  - Owner, 2026-10-07: "can we move social to it's own phase further down the line? It's going to be bigger because we are going to add guilds." The owner kept these pieces early: the login security fix, online status with offline members left behind, and the party rail (pets, follow, invites, menus).
+  - Owner, 2026-10-07: "The new combat mock has updated rails for character/pets/buffs/etc. So, probably relevant."
+  - Context: `51.1-CONTEXT.md` (pointer and owner decisions after research) and `51-CONTEXT.md` (Areas 2 and 4, updated party mock). Research and patterns already exist for this phase.
+  - Server: online flag, `join_group` invite check, invite expiry and cancel, private `user`, CR-01. All changes additive and published locally only.
 ### Phase 51.2: World Events (INSERTED)
 
 **Goal**: World events actually happen and players can follow them: rule-based events per region with upcoming announcements, and the World events screen with contribution, rewards and tracking.
@@ -818,6 +819,26 @@ Plans:
   - Server: research confirms the bank and trade reducers and gaps (gold in trades, bag space, the 999.24 stack cap). All changes are additive and published locally only.
   - Tests: bank deposit and withdraw, the trade flow by role, hotbar slot assignment and hotbar management.
 
+### Phase 52.2: Social and Guilds (INSERTED)
+
+**Goal**: Players find and keep company: the Social screen with the party table, party chat, friends, who is online, and guilds.
+**Depends on**: Phase 51.1 (online status, party menus, private user), Phase 52.1
+**Requirements**: LDG-06 (the Social party table), LDG-07
+**Success Criteria** (what must be TRUE):
+
+  1. Social shows the party (class, where, health, online) with its actions, pending invites and the "Travel with leader" switch.
+  2. Social shows party chat, friends with online status and location (never emails), a who's-online count, and friend requests to accept or decline.
+  3. Guilds: scope set in this phase's discuss from the owner's new Social mock.
+  4. At 390x844 Social opens from the Party tab and every action works.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: the owner's new Social mock (incoming 2026-10-07), re-imported fresh; Ledger `2e` and `UWR Party.dc.html` for anything it does not replace.
+**Notes**:
+
+  - Moved out of Phase 51.1 (owner, 2026-10-07): "It's going to be bigger because we are going to add guilds."
+  - Carry over from the 51.1 research (`51.1-RESEARCH.md`): private `friend` and `friend_request` with `my_friend_list` and `my_friend_request_list` views, the online count view, the party chat filter, the NoticeLine `kinds` prop, recorded character ids on friend rows.
+  - Guilds need a discuss and a UI-SPEC from the new mock.
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -834,7 +855,7 @@ Plans:
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 40/40 | Code complete, UAT deferred | - |
 | 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
-| 51.1. Party and Social | v3.0 | 0/TBD | Not started | - |
+| 51.1. Party | v3.0 | 0/TBD | Not started | - |
 | 51.2. World Events | v3.0 | 0/TBD | Not started | - |
 | 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
@@ -842,6 +863,7 @@ Plans:
 | 51.6. Log | v3.0 | 0/TBD | Not started | - |
 | 52. Parity and Production | v3.0 | 0/TBD | Not started | - |
 | 52.1. Bank, Trade and Hotbar Manager | v3.0 | 0/TBD | Not started | - |
+| 52.2. Social and Guilds | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -2073,4 +2095,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-07 after adding Phase 51.5 Character and 51.6 Log (owner)*
+*Last updated: 2026-10-07 after moving Social into 52.2 Social and Guilds (owner)*

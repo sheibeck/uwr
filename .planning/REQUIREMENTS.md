@@ -156,8 +156,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LDG-03 | Phase 50 | Pending |
 | LDG-04 | Phase 51 | Pending |
 | LDG-05 | Phase 51 | Pending |
-| LDG-06 | Phase 51 | Pending |
-| LDG-07 | Phase 51 | Pending |
+| LDG-06 | Phase 51.1 (rail party actions), Phase 52.2 (Social party table) | Pending |
+| LDG-07 | Phase 52.2 | Pending |
 | LDG-08 | Phase 50 | Pending |
 | LDG-09 | Phase 50 | Pending |
 | LDG-10 | Phase 50 | Pending |
