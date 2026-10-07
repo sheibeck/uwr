@@ -567,41 +567,42 @@ Plans:
   4. Explored region passages collapse into direct border crossings once nobody stands in them; offline characters left in a passage are swept back to their own side.
   5. At 390×844 the Map opens as a full-height sheet from the Map tab, and every action above works.
 
-**Plans**: 12 plans
+**Plans**: 13 plans (complete in code; UAT deferred to the milestone end)
 
 Plans:
 **Wave 1**
 
-- [ ] 51-01-PLAN.md — Server: shared stamina cost rule, private visited places with my_visited_locations, look at neighbouring places and the bind stone (wave 1)
-- [ ] 51-02-PLAN.md — Client guards (svg only in src/map/, map wide tier) and pure helpers: danger, terrain, travel timer, known places, routes, region chips (wave 1)
+- [x] 51-01-PLAN.md — Server: shared stamina cost rule, private visited places with my_visited_locations, look at neighbouring places and the bind stone (wave 1)
+- [x] 51-02-PLAN.md — Client guards (svg only in src/map/, map wide tier) and pure helpers: danger, terrain, travel timer, known places, routes, region chips (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 51-03-PLAN.md — Server: passage collapse on departure, guarded passage sweep, local publish (key 108) and bindings regeneration (wave 2)
-- [ ] 51-04-PLAN.md — Deterministic route-graph layout and node, list, route and gate views (TDD, wave 2)
-- [ ] 51-05-PLAN.md — Travel checks and the destination detail model with the one Travel button (TDD, wave 2)
-- [ ] 51-06-PLAN.md — Rail rows: Examine eye, Talk chat bubble, bind stone row with Bind, enemy-card eye, party stamina (wave 2)
+- [x] 51-03-PLAN.md — Server: passage collapse on departure, guarded passage sweep, local publish (key 108) and bindings regeneration (wave 2)
+- [x] 51-04-PLAN.md — Deterministic route-graph layout and node, list, route and gate views (TDD, wave 2)
+- [x] 51-05-PLAN.md — Travel checks and the destination detail model with the one Travel button (TDD, wave 2)
+- [x] 51-06-PLAN.md — Rail rows: Examine eye, Talk chat bubble, bind stone row with Bind, enemy-card eye, party stamina (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 51-07-PLAN.md — Map data hub (visited, connections, travel timers, selected place) and session wiring (wave 3)
+- [x] 51-07-PLAN.md — Map data hub (visited, connections, travel timers, selected place) and session wiring (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 51-08-PLAN.md — Map screen: svg route graph, keyboard, list view, legend, screen arguments and registry (wave 4)
+- [x] 51-08-PLAN.md — Map screen: svg route graph, keyboard, list view, legend, screen arguments and registry (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 51-09-PLAN.md — Destination detail, Travel and arrival banner, region chips and the Region travel pill (wave 5)
-- [ ] 51-10-PLAN.md — Rail travel panel: Here card exits, mobile location line and exit chips (wave 5)
+- [x] 51-09-PLAN.md — Destination detail, Travel and arrival banner, region chips and the Region travel pill (wave 5)
+- [x] 51-10-PLAN.md — Rail travel panel: Here card exits, mobile location line and exit chips (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 51-11-PLAN.md — Mobile Map sheet with Map and Here tabs and the dock, phase gate, LDG-05 wording (wave 6)
+- [x] 51-11-PLAN.md — Mobile Map sheet with Map and Here tabs and the dock, phase gate, LDG-05 wording (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion; gap closure from the owner's map-spacing play-test)*
 
-- [ ] 51-12-PLAN.md — Two-dimensional route-graph layout that fills the measured canvas, clear gate pills, reading-order keyboard, one shared graph (gap closure, wave 7)
+- [x] 51-12-PLAN.md — Two-dimensional route-graph layout that fills the measured canvas, clear gate pills, reading-order keyboard, one shared graph (gap closure, wave 7)
+- [x] 51-13 (no PLAN file; owner request) — Remove the Map List view and the Graph/List switch; the graph is the only view (gap closure)
 
 **UI hint**: yes
 **Design source**: `UWR Map.dc.html` (owner's revised map, second revision 2026-10-07) and `UWR Console.dc.html` (travel panel), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). The Phase 51 UI-SPEC covers 51, 51.1 and 51.2 and is split per phase.
@@ -785,8 +786,8 @@ Plans:
 | 47. Console, Rails, Hotbar and Input | v3.0 | 12/12 | In Progress|  |
 | 48. Combat Encounter | v3.0 | 14/14 | In Progress|  |
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
-| 50. Ledger Screens: Character and Economy | v3.0 | 0/TBD | Not started | - |
-| 51. Ledger Screens: Map and Travel | v3.0 | 0/TBD | Not started | - |
+| 50. Ledger Screens: Character and Economy | v3.0 | 40/40 | Code complete, UAT deferred | - |
+| 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.1. Party and Social | v3.0 | 0/TBD | Not started | - |
 | 51.2. World Events | v3.0 | 0/TBD | Not started | - |
 | 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
