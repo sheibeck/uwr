@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { acceptFriendRequestLogic } from './social';
+import { capturedReducer } from '../helpers/schema_recorder';
+
+vi.mock('spacetimedb/server', async () =>
+  (await import('../helpers/schema_recorder')).createRecordingServerMock(),
+);
 
 // ---------------------------------------------------------------------------
 // Purpose-built mock ctx for the friend tables.
@@ -108,4 +113,49 @@ describe('acceptFriendRequestLogic', () => {
     expect(friends.filter((f: any) => f.userId === 2n && f.friendUserId === 1n)).toHaveLength(1);
     expect(friends).toHaveLength(2);
   });
+});
+
+// ---------------------------------------------------------------------------
+// send_friend_request { email } is neutralised (plan 51.1-05, CR-01 / research Q10).
+// It used to read the private user table by email and answer 'User not found', so any client
+// could test whether an email exists. It now refuses before touching any table.
+// ---------------------------------------------------------------------------
+describe('send_friend_request (email) is closed', () => {
+  let sendFriendRequest: (...args: any[]) => any;
+
+  beforeAll(async () => {
+    await import('../index');
+    const h = capturedReducer('send_friend_request');
+    if (typeof h !== 'function') {
+      throw new Error("capturedReducer('send_friend_request') is not a function: STOP and report.");
+    }
+    sendFriendRequest = h;
+  }, 120_000);
+
+  // Any table access (user, player, friend, friend_request, ...) is recorded and throws.
+  const trappedCtx = () => {
+    const touched: string[] = [];
+    const db = new Proxy({} as any, {
+      get: (_: any, name: string | symbol) => {
+        touched.push(String(name));
+        throw new Error(`table ${String(name)} must not be read`);
+      },
+    });
+    return {
+      touched,
+      ctx: {
+        db,
+        sender: { toHexString: () => 'a'.repeat(64) },
+        timestamp: { microsSinceUnixEpoch: 1_000n },
+      },
+    };
+  };
+
+  for (const email of ['bob@example.com', 'ann@example.com', 'nobody', '']) {
+    it(`refuses ${JSON.stringify(email)} without reading or writing any table`, () => {
+      const { ctx, touched } = trappedCtx();
+      expect(() => sendFriendRequest(ctx, { email })).toThrow('Send friend requests by character name.');
+      expect(touched).toEqual([]);
+    });
+  }
 });
