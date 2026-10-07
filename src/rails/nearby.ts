@@ -1,10 +1,10 @@
 // Nearby rows for the context rail (47-UI-SPEC "Nearby", CON-04).
-// Order: NPCs, objects, resource nodes, players; alphabetical inside a group, ties by id.
+// Order: NPCs, bind stone, objects, resource nodes, players; alphabetical inside a group, ties by id.
 // Objects have no subscribed source today (research Q3, A7), so the list defaults to [].
 // Node state vocabulary (spacetimedb items_gathering.ts): 'available' can be gathered,
 // 'harvesting' is in use while lockedByCharacterId is set, any other state is depleted.
 
-export type NearbyKind = 'npc' | 'object' | 'node' | 'player';
+export type NearbyKind = 'npc' | 'bindStone' | 'object' | 'node' | 'player';
 export type NodeStatus = 'gather' | 'depleted' | 'inUse';
 
 export interface NearbyRow {
@@ -15,6 +15,8 @@ export interface NearbyRow {
   /** True for vendor NPCs: the row gets a Trade action. */
   vendor: boolean;
   nodeStatus: NodeStatus | null;
+  /** True for the bind stone row of a place the character is bound to. */
+  bound: boolean;
   /** Player level for player rows. */
   level: bigint | null;
 }
@@ -43,7 +45,7 @@ export function nodeStatus(node: { state: string; lockedByCharacterId?: bigint |
   return 'depleted';
 }
 
-const KIND_ORDER: Record<NearbyKind, number> = { npc: 0, object: 1, node: 2, player: 3 };
+const KIND_ORDER: Record<NearbyKind, number> = { npc: 0, bindStone: 1, object: 2, node: 3, player: 4 };
 
 export function nearbyRows(input: {
   npcs: readonly { id: bigint; name: string; npcType: string }[];
@@ -56,6 +58,8 @@ export function nearbyRows(input: {
   }[];
   players: readonly { id: bigint; name: string; level: bigint }[];
   objects?: readonly { id: bigint; name: string }[];
+  /** The current place has a bind stone: the row and whether the character is bound here. */
+  bindStone?: { placeName: string; bound: boolean } | null;
   selfId: bigint | null;
 }): NearbyRow[] {
   const { npcs, nodes, players, selfId } = input;
@@ -67,9 +71,22 @@ export function nearbyRows(input: {
       kind: 'npc',
       id: npc.id,
       name: npc.name,
-      hint: 'NPC · hail',
+      hint: 'NPC',
       vendor: npc.npcType === 'vendor',
       nodeStatus: null,
+      bound: false,
+      level: null,
+    });
+  }
+  if (input.bindStone) {
+    rows.push({
+      kind: 'bindStone',
+      id: 0n,
+      name: 'Bind stone',
+      hint: input.bindStone.bound ? 'Bound here' : '',
+      vendor: false,
+      nodeStatus: null,
+      bound: input.bindStone.bound,
       level: null,
     });
   }
@@ -78,9 +95,10 @@ export function nearbyRows(input: {
       kind: 'object',
       id: object.id,
       name: object.name,
-      hint: 'Examine',
+      hint: '',
       vendor: false,
       nodeStatus: null,
+      bound: false,
       level: null,
     });
   }
@@ -93,6 +111,7 @@ export function nearbyRows(input: {
       hint: NODE_HINTS[status],
       vendor: false,
       nodeStatus: status,
+      bound: false,
       level: null,
     });
   }
@@ -105,6 +124,7 @@ export function nearbyRows(input: {
       hint: `Lv ${player.level}`,
       vendor: false,
       nodeStatus: null,
+      bound: false,
       level: player.level,
     });
   }

@@ -68,8 +68,8 @@ describe('nearbyRows', () => {
   it('writes the hint per kind and flags vendors', () => {
     const rows = nearbyRows({ ...base, objects: [{ id: 50n, name: 'Old Well' }] });
     const hint = (name: string) => rows.find((r) => r.name === name)!.hint;
-    expect(hint('Marisol')).toBe('NPC · hail');
-    expect(hint('Old Well')).toBe('Examine');
+    expect(hint('Marisol')).toBe('NPC');
+    expect(hint('Old Well')).toBe('');
     expect(hint('Copper Vein')).toBe('Gather');
     expect(hint('Ash Tree')).toBe('Depleted');
     expect(hint('Bramble')).toBe('In use');
@@ -126,5 +126,45 @@ describe('nearbyRows', () => {
   it('returns [] when nothing is here', () => {
     expect(nearbyRows({ npcs: [], nodes: [], players: [], selfId: null })).toEqual([]);
     expect(nearbyRows({ npcs: [], nodes: [], players: [], objects: [], selfId: 1n })).toEqual([]);
+  });
+});
+
+describe('nearbyRows bind stone', () => {
+  const base = {
+    npcs: [{ id: 1n, name: 'Ferryman', npcType: 'quest' }],
+    nodes: [{ id: 10n, name: 'Copper Vein', state: 'available' }],
+    players: [{ id: 5n, name: 'Zed', level: 4n }],
+    objects: [{ id: 50n, name: 'Old Well' }],
+    selfId: 9n,
+  };
+
+  it('puts the bind stone after every NPC and before objects', () => {
+    const rows = nearbyRows({ ...base, bindStone: { placeName: 'The Crossing', bound: false } });
+    expect(rows.map((r) => r.kind)).toEqual(['npc', 'bindStone', 'object', 'node', 'player']);
+  });
+
+  it('has a fixed name and an empty hint when not bound', () => {
+    const row = nearbyRows({ ...base, bindStone: { placeName: 'The Crossing', bound: false } }).find(
+      (r) => r.kind === 'bindStone',
+    )!;
+    expect(row).toMatchObject({ name: 'Bind stone', hint: '', bound: false, vendor: false, nodeStatus: null });
+  });
+
+  it('says Bound here when bound', () => {
+    const row = nearbyRows({ ...base, bindStone: { placeName: 'The Crossing', bound: true } }).find(
+      (r) => r.kind === 'bindStone',
+    )!;
+    expect(row).toMatchObject({ name: 'Bind stone', hint: 'Bound here', bound: true });
+  });
+
+  it('has no bind stone row without one', () => {
+    expect(nearbyRows(base).some((r) => r.kind === 'bindStone')).toBe(false);
+    expect(nearbyRows({ ...base, bindStone: null }).some((r) => r.kind === 'bindStone')).toBe(false);
+  });
+
+  it('keeps the NPC hint and an empty object hint', () => {
+    const rows = nearbyRows(base);
+    expect(rows.find((r) => r.kind === 'npc')!.hint).toBe('NPC');
+    expect(rows.find((r) => r.kind === 'object')!.hint).toBe('');
   });
 });

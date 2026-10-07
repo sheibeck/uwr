@@ -87,6 +87,7 @@ export interface GameReducers {
   moveCharacter(a: { characterId: bigint; locationId: bigint }): Promise<void>;
   startGatherResource(a: { characterId: bigint; nodeId: bigint }): Promise<void>;
   startPull(a: { characterId: bigint; enemySpawnId: bigint; pullType: string }): Promise<void>;
+  bindLocation(a: { characterId: bigint }): Promise<void>;
 }
 
 type List<T> = Readonly<Ref<readonly T[]>>;
@@ -266,6 +267,8 @@ export interface ConsoleApi {
   hail(npc: { id: bigint; name: string }): void;
   travel(location: { id: bigint; name: string }): void;
   examine(name: string): void;
+  /** A bare look at the place (the Here card title eye). No-op offline. */
+  look(): void;
   gather(node: { id: bigint; name: string }): void;
   /** Starts a pull on an enemy spawn. No-op offline and while game.combat.active. */
   pull(enemy: { id: bigint; name: string }, pullType: 'careful' | 'body'): void;
@@ -405,6 +408,7 @@ export function createInertConsole(): ConsoleApi {
     hail() {},
     travel() {},
     examine() {},
+    look() {},
     gather() {},
     pull() {},
     whisperTo() {},

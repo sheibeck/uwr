@@ -823,6 +823,30 @@ describe('keyword and rail actions', () => {
     expect(lines(s.feed)).toEqual([{ kind: 'echo', message: 'look at Old Well', queued: false }]);
   });
 
+  it('look: sends a bare look intent with an echo, closes the screen, clears the conversation', async () => {
+    const s = setup();
+    s.api.hail({ id: 3n, name: 'Ferryman' });
+    s.settle('submitIntent');
+    await flush();
+    s.closeScreen.mockClear();
+    s.reducers.submitIntent.mockClear();
+    s.api.look();
+    expect(s.closeScreen).toHaveBeenCalled();
+    expect(s.api.conversation.value).toBeNull();
+    expect(s.reducers.submitIntent).toHaveBeenCalledTimes(1);
+    expect(s.reducers.submitIntent).toHaveBeenCalledWith({ characterId: 1n, text: 'look' });
+    expect(lines(s.feed).map((l) => l.message)).toContain('look');
+  });
+
+  it('look sends nothing while offline', () => {
+    const s = setup();
+    s.connected.value = false;
+    s.api.look();
+    expect(s.reducers.submitIntent).not.toHaveBeenCalled();
+    expect(s.closeScreen).not.toHaveBeenCalled();
+    expect(s.feed.entries.value).toHaveLength(0);
+  });
+
   it('player keyword pre-fills the whisper, focuses and keeps the old draft in history', () => {
     const s = setup();
     s.api.draft.value = 'half typed';

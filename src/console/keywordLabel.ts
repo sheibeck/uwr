@@ -3,7 +3,7 @@
 import type { KeywordEntry, KeywordKind } from './keywords';
 
 const VERBS: Readonly<Record<KeywordKind, string>> = {
-  npc: 'Hail',
+  npc: 'Talk to',
   enemy: 'Pull',
   place: 'Travel to',
   node: 'Examine',

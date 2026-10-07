@@ -47,7 +47,7 @@ const MARISOL: KeywordEntry = { kind: 'player', id: 3n, name: 'Marisol' };
 
 describe('keywordActionLabel', () => {
   it('names the action for each keyword kind', () => {
-    expect(keywordActionLabel(FERRYMAN)).toBe('Hail Ferryman');
+    expect(keywordActionLabel(FERRYMAN)).toBe('Talk to Ferryman');
     expect(keywordActionLabel(GLOAM)).toBe('Travel to Gloamwood');
     expect(keywordActionLabel(WELL)).toBe('Examine Old Well');
     expect(keywordActionLabel(MARISOL)).toBe('Whisper Marisol');
@@ -113,7 +113,7 @@ describe('FeedLine kinds', () => {
       }),
     );
     const button = w.get('button.keyword');
-    expect(button.attributes('aria-label')).toBe('Hail The Ferryman');
+    expect(button.attributes('aria-label')).toBe('Talk to The Ferryman');
     expect(w.text()).toBe('The Ferryman says, “Mind the current.”');
     await button.trigger('click');
     expect(w.emitted('keyword')).toEqual([[{ kind: 'npc', id: 1n, name: 'The Ferryman' }]]);

@@ -2,6 +2,7 @@
 import { computed, inject } from 'vue';
 import {
   PhChatCircle,
+  PhCastleTurret,
   PhCircleDashed,
   PhCube,
   PhSkull,
@@ -75,6 +76,7 @@ function pull(row: EnemyRow): void {
 
 const ICONS: Record<NearbyKind, Component> = {
   npc: PhUser,
+  bindStone: PhCastleTurret,
   object: PhCircleDashed,
   node: PhCube,
   player: PhUserCircle,

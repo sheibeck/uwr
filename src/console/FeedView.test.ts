@@ -188,7 +188,7 @@ describe('FeedView keywords', () => {
     });
     await settle();
     const labels = w.findAll('button.keyword').map((b) => b.attributes('aria-label'));
-    expect(labels).toEqual(['Hail Ferryman', 'Travel to Gloamwood', 'Examine Old Well', 'Whisper Marisol']);
+    expect(labels).toEqual(['Talk to Ferryman', 'Travel to Gloamwood', 'Examine Old Well', 'Whisper Marisol']);
   });
 
   it('calls actOnKeyword with the entry on click', async () => {

@@ -398,6 +398,14 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     if (narrativeSend({ text, mode: 'intent', echo: text }) !== 'refused') bump();
   }
 
+  // A bare look at the place (the Here card title eye, plan 51-10): the examine pattern with no name.
+  function look(): void {
+    if (!ready()) return;
+    frame.closeScreen();
+    conversation.value = null;
+    if (narrativeSend({ text: 'look', mode: 'intent', echo: 'look' }) !== 'refused') bump();
+  }
+
   function gather(node: { id: bigint; name: string }): void {
     const characterId = game.characterId.value;
     if (!ready() || characterId === null) return;
@@ -487,6 +495,7 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     hail,
     travel,
     examine,
+    look,
     gather,
     pull,
     whisperTo,
