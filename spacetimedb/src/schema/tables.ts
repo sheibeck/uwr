@@ -17,10 +17,11 @@ export const Player = table(
   }
 );
 
+// Private (Phase 51.1 security fix, CONTEXT Area 2): emails never leave the server.
+// login_email and send_friend_request read it inside reducers; no client subscribes to it.
 export const User = table(
   {
     name: 'user',
-    public: true,
     indexes: [{ accessor: 'by_email', algorithm: 'btree', columns: ['email'] }],
   },
   {
@@ -346,6 +347,10 @@ export const Character = table(
     weaponProficiencies: t.string().optional(),
     armorProficiencies: t.string().optional(),
     pendingLevels: t.u64().default(0n),
+    // Phase 51.1 online status. Written only by helpers/online.ts (setCharacterOnline).
+    online: t.bool().default(false),
+    // u64 microseconds of the last online/offline flip; 0 = never recorded.
+    lastOnlineAtMicros: t.u64().default(0n),
   }
 );
 
