@@ -579,7 +579,7 @@ Plans:
 **Requirements**: LDG-06, LDG-07
 **Success Criteria** (what must be TRUE):
 
-  1. Social shows the party (class, where, health, online) with invite, leave, leader-only remove and promote, "Loot: personal", pending invites that expire after 5 minutes and can be cancelled, and a Follow leader switch.
+  1. Social shows the party (class, where, health, online) with invite, leave, leader-only remove and promote, "Loot: personal", pending invites that expire after 5 minutes and can be cancelled, and a "Travel with leader" switch (the owner's party mock name for Follow leader).
   2. Social shows party chat, friends with online status and location (never emails), a who's-online count, and friend requests to accept or decline.
   3. Party members and players have role-aware menus from a ⋯ button and right-click (a sheet on mobile). Clicking a party member in combat still sets the ally target.
   4. The party block shows pets under their owners and who will travel with the leader, with stamina warnings.
