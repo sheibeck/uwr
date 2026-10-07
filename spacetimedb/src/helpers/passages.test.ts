@@ -103,6 +103,19 @@ describe('passageSides', () => {
     expect(sides.own.map((l: any) => l.id)).toEqual([3n, 5n]);
     expect(sides.far.map((l: any) => l.id)).toEqual([4097n]);
   });
+
+  it('counts a neighbour that only links into the passage (one-way row, review WR-01)', () => {
+    const ctx = world({
+      location: [place(3n, 'One Way In', 1n), place(4098n, 'Far One Way', 4097n)],
+      location_connection: [
+        { id: 2001n, fromLocationId: 3n, toLocationId: 6n },
+        { id: 2002n, fromLocationId: 4098n, toLocationId: 6n },
+      ],
+    });
+    const sides = passages.passageSides(ctx, ctx.db.location.id.find(6n));
+    expect(sides.own.map((l: any) => l.id)).toEqual([3n, 5n]);
+    expect(sides.far.map((l: any) => l.id)).toEqual([4097n, 4098n]);
+  });
 });
 
 describe('collapsePassageIfEmpty', () => {
@@ -132,6 +145,16 @@ describe('collapsePassageIfEmpty', () => {
     });
     expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
     expect(edges(ctx)).toEqual(['3>4097', '3>4098', '4097>3', '4097>5', '4098>3', '4098>5', '5>4097', '5>4098']);
+  });
+
+  it('a place with only a one-way row into the passage gets a crossing, never a dead end (review WR-01)', () => {
+    const ctx = world({
+      location: [place(3n, 'One Way In', 1n)],
+      location_connection: [{ id: 2001n, fromLocationId: 3n, toLocationId: 6n }],
+    });
+    expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
+    expect(locationIds(ctx)).toEqual([5n, 4097n, 3n]);
+    expect(edges(ctx)).toEqual(['3>4097', '4097>3', '4097>5', '5>4097']);
   });
 
   it('with a character at the passage it returns false and changes nothing', () => {

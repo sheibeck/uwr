@@ -90,17 +90,23 @@ export const PASSAGE_LOCATION_COLUMNS: {
 const byIdAsc = (a: any, b: any): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /**
- * The neighbours of a passage through location_connection.by_from, deduped, split into the own
- * side (same regionId as the passage) and the far side (another region), each ordered by id.
+ * The neighbours of a passage through both location_connection.by_from and by_to, deduped, split
+ * into the own side (same regionId as the passage) and the far side (another region), each ordered
+ * by id. A place linked only one way (X -> passage, or passage -> X) still counts, so the collapse
+ * gives it a crossing instead of deleting its only link and stranding it.
  */
 export function passageSides(ctx: any, passage: any): { own: any[]; far: any[] } {
   const own: any[] = [];
   const far: any[] = [];
   const seen = new Set<bigint>();
-  for (const row of [...ctx.db.location_connection.by_from.filter(passage.id)]) {
-    if (seen.has(row.toLocationId)) continue;
-    seen.add(row.toLocationId);
-    const neighbour = ctx.db.location.id.find(row.toLocationId);
+  const neighbourIds: bigint[] = [
+    ...[...ctx.db.location_connection.by_from.filter(passage.id)].map((row: any) => row.toLocationId),
+    ...[...ctx.db.location_connection.by_to.filter(passage.id)].map((row: any) => row.fromLocationId),
+  ];
+  for (const neighbourId of neighbourIds) {
+    if (seen.has(neighbourId)) continue;
+    seen.add(neighbourId);
+    const neighbour = ctx.db.location.id.find(neighbourId);
     if (!neighbour || neighbour.id === passage.id) continue;
     (neighbour.regionId === passage.regionId ? own : far).push(neighbour);
   }
