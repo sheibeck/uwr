@@ -141,6 +141,17 @@ describe('collapsePassageIfEmpty', () => {
     expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v))).toBe(before);
   });
 
+  it('with an active combat encounter at the passage it returns false and changes nothing (review CR-01)', () => {
+    const ctx = world({
+      character: [],
+      combat_encounter: [{ id: 1n, locationId: 6n, state: 'active', addCount: 0n, pendingAddCount: 0n }],
+      enemy_spawn: [{ id: 1n, locationId: 6n, enemyTemplateId: 1n, name: 'Wolves', state: 'engaged', lockedCombatId: 1n, groupCount: 1n }],
+    });
+    const before = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v));
+    expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(false);
+    expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v))).toBe(before);
+  });
+
   it('with no far neighbour it returns false and changes nothing', () => {
     const ctx = world({ location_connection: [] });
     ctx.db._tables.location_connection.length = 0;

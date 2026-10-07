@@ -193,6 +193,55 @@ describe('sweep_passages: online characters keep the passage open', () => {
   });
 });
 
+describe('sweep_passages: a fight pins the passage (review CR-01)', () => {
+  const encounter = (state: string) => ({
+    id: 1n,
+    locationId: 6n,
+    state,
+    addCount: 0n,
+    pendingAddCount: 0n,
+    createdAt: { microsSinceUnixEpoch: T0 },
+  });
+  const participant = { id: 1n, combatId: 1n, characterId: 1n, status: 'active', nextAutoAttackAt: 0n };
+
+  it('an offline occupant in an active fight is not moved, and the passage and its fight stay', () => {
+    const ctx = newCtx({
+      character: [character(1n, 6n)],
+      combat_encounter: [encounter('active')],
+      combat_participant: [participant],
+      enemy_spawn: [{ id: 1n, locationId: 6n, enemyTemplateId: 1n, name: 'Wolves', state: 'engaged', lockedCombatId: 1n, groupCount: 1n }],
+    });
+    run(ctx);
+    expect(where(ctx, 1n)).toBe(6n);
+    expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
+    expect(table(ctx, 'combat_encounter')[0].locationId).toBe(6n);
+    expect(table(ctx, 'enemy_spawn').map((r) => r.id)).toEqual([1n]);
+  });
+
+  it('an empty passage with an active encounter at it does not collapse', () => {
+    const ctx = newCtx({ combat_encounter: [encounter('active')] });
+    run(ctx);
+    expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
+    expect(table(ctx, 'combat_encounter')[0].locationId).toBe(6n);
+  });
+
+  it('once the fight ends, a later sweep moves the occupant and collapses the passage', () => {
+    const ctx = newCtx({
+      character: [character(1n, 6n)],
+      combat_encounter: [encounter('active')],
+      combat_participant: [participant],
+    });
+    run(ctx);
+    expect(where(ctx, 1n)).toBe(6n);
+    ctx.db._tables.combat_encounter[0] = { ...ctx.db._tables.combat_encounter[0], state: 'resolved' };
+    run(ctx);
+    expect(where(ctx, 1n)).toBe(3n);
+    expect(locationIds(ctx)).toEqual([3n, 5n, 4097n]);
+    // The finished encounter is history and is re-homed with the other rows.
+    expect(table(ctx, 'combat_encounter')[0].locationId).toBe(3n);
+  });
+});
+
 describe('sweep_passages: edge cases and ordering', () => {
   it('a passage with no own-side neighbour keeps its offline occupant and stays', () => {
     const ctx = newCtx({ character: [character(1n, 6n)] });

@@ -24,6 +24,7 @@
 // cleanup of passages that existed before collapse did.
 // ============================================================================
 
+import { activeCombatIdForCharacter } from './events';
 import { areLocationsConnected, connectLocations } from './location';
 import { onlineCharacterIds } from './online';
 import { markLocationVisited, visitedRowFor } from './visited';
@@ -195,15 +196,26 @@ function ensureLink(ctx: any, fromId: bigint, toId: bigint): void {
   ctx.db.location_connection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
 }
 
+/** True when a combat encounter at the place is still being fought. */
+function hasActiveEncounterAt(ctx: any, locationId: bigint): boolean {
+  for (const combat of ctx.db.combat_encounter.by_location.filter(locationId)) {
+    if (combat.state === 'active') return true;
+  }
+  return false;
+}
+
 /**
  * Collapse the passage into direct border crossings when nobody stands in it. Returns true when it
  * collapsed. Returns false, changing nothing, when the place does not exist, is not a passage,
- * has a character in it, or has no own-side or no far-side neighbour (nothing to link).
+ * has a character in it, has a fight still going on at it (the encounter and its locked enemy
+ * spawn must stay where the fight is; the sweep collapses it after the fight ends), or has no
+ * own-side or no far-side neighbour (nothing to link).
  */
 export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
   const passage = ctx.db.location.id.find(passageId);
   if (!passage || passage.terrainType !== 'passage') return false;
   if ([...ctx.db.character.by_location.filter(passageId)].length > 0) return false;
+  if (hasActiveEncounterAt(ctx, passageId)) return false;
   const { own, far } = passageSides(ctx, passage);
   if (own.length === 0 || far.length === 0) return false;
 
@@ -240,7 +252,9 @@ export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
  * (no player row has it as activeCharacterId) is moved silently, to the place it arrived from when
  * that place is an own-side neighbour of the passage, else to the lowest-id own-side neighbour,
  * never across the border; the new place is marked visited with no origin. Then the passage
- * collapses if it is empty. Online characters are never moved and keep the passage open.
+ * collapses if it is empty. Online characters are never moved and keep the passage open. An offline
+ * character in an active fight is never moved either: combat outlives a disconnect, and travel is
+ * refused in combat, so the fight pins the character (and the passage) until it ends.
  */
 export function sweepPassages(ctx: any): { moved: number; collapsed: number } {
   const online = onlineCharacterIds(ctx);
@@ -254,6 +268,7 @@ export function sweepPassages(ctx: any): { moved: number; collapsed: number } {
     const occupants = [...ctx.db.character.by_location.filter(passage.id)].sort(byIdAsc);
     for (const occupant of occupants) {
       if (online.has(occupant.id)) continue;
+      if (activeCombatIdForCharacter(ctx, occupant.id)) continue;
       const cameFrom = visitedRowFor(ctx, occupant.id, passage.id)?.fromLocationId;
       const target = own.find((l: any) => l.id === cameFrom) ?? own[0];
       ctx.db.character.id.update({ ...occupant, locationId: target.id });
