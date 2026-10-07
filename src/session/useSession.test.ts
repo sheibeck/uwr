@@ -12,6 +12,8 @@ import type { CreationData } from '../creation/creationContext';
 import type { CreationInput } from '../creation/creationData';
 import type { LedgerData } from '../ledger/ledgerContext';
 import type { LedgerInput } from '../ledger/ledgerData';
+import type { MapData } from '../map/mapContext';
+import type { MapInput } from '../map/mapData';
 import { createSession, defaultQueries, SIGNIN_TIMEOUT_MS } from './useSession';
 import type { Session, SessionAuth, SessionConn, SessionDeps, SessionQueries } from './useSession';
 
@@ -109,6 +111,7 @@ interface HarnessOptions {
   game?: SessionDeps<FakeConn>['game'];
   creation?: SessionDeps<FakeConn>['creation'];
   ledger?: SessionDeps<FakeConn>['ledger'];
+  map?: SessionDeps<FakeConn>['map'];
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -167,6 +170,7 @@ function harness(options: HarnessOptions = {}): Harness {
     game: options.game,
     creation: options.creation,
     ledger: options.ledger,
+    map: options.map,
   };
   const session = createSession(deps, { callbackError: options.callbackError ?? null });
 
@@ -1073,6 +1077,84 @@ describe('ledger hub wiring', () => {
     h = harness({ ledger: factory });
     h.session.dispose();
     expect(ledger.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('map hub wiring', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+  });
+
+  function spyMap() {
+    const map = { reset: vi.fn(), dispose: vi.fn() } as unknown as MapData;
+    const factory = vi.fn<(input: MapInput<FakeConn>) => MapData>(() => map);
+    return { map, factory };
+  }
+
+  function fakeGame() {
+    const groupMembers = ref<{ characterId: bigint }[]>([]);
+    const questTemplates = ref<{ npcId: bigint }[]>([]);
+    const clock = { nowMicros: () => 42 };
+    const game = { reset: vi.fn(), dispose: vi.fn(), groupMembers, questTemplates, clock } as unknown as GameData;
+    return { game, groupMembers, questTemplates, clock };
+  }
+
+  it('carries an inert map hub when no factory is given', () => {
+    h = harness();
+    expect(h.session.map.ready.value).toBe(false);
+    expect(h.session.map.visitedIds.value).toEqual([]);
+    expect(() => h.session.map.reset()).not.toThrow();
+  });
+
+  it('builds the hub once with the session refs, the party ids and the quest giver ids', async () => {
+    const { map, factory } = spyMap();
+    const { game, groupMembers, questTemplates, clock } = fakeGame();
+    h = harness({ map: factory, game: () => game });
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(h.session.map).toBe(map);
+
+    const input = factory.mock.calls[0][0];
+    expect(input.conn).toBe(h.conn);
+    expect(input.status).toBe(h.status);
+    expect(input.character.value).toBeNull();
+    expect(input.locations.value).toEqual([]);
+    expect(input.regions.value).toEqual([]);
+    expect(input.clock).toBe(clock);
+    expect(input.partyCharacterIds.value).toEqual([]);
+    expect(input.questGiverIds.value).toEqual([]);
+
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 9n });
+    await flush();
+    const chars = h.binding(queries.characters(7n));
+    chars.rows.value = [makeCharacter(9n, 1n)];
+    chars.applied.value = true;
+    expect(input.character.value?.id).toBe(9n);
+
+    groupMembers.value = [{ characterId: 9n }, { characterId: 12n }, { characterId: 10n }];
+    expect(input.partyCharacterIds.value).toEqual([12n, 10n]);
+    questTemplates.value = [{ npcId: 5n }, { npcId: 6n }, { npcId: 5n }];
+    expect(input.questGiverIds.value).toEqual([5n, 6n]);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('logout resets the map hub once', async () => {
+    const { map, factory } = spyMap();
+    const { game } = fakeGame();
+    h = harness({ map: factory, game: () => game });
+    h.connect();
+    h.setPlayer({ userId: 7n });
+    await h.session.logout();
+    expect(map.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispose disposes the map hub once', () => {
+    const { map, factory } = spyMap();
+    const { game } = fakeGame();
+    h = harness({ map: factory, game: () => game });
+    h.session.dispose();
+    expect(map.dispose).toHaveBeenCalledTimes(1);
   });
 });
 

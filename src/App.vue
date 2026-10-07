@@ -4,6 +4,7 @@ import { CREATION_KEY, createInertCreation } from './creation/creationContext';
 import CreationView from './creation/CreationView.vue';
 import { GAME_KEY, createInertGame } from './game/context';
 import { LEDGER_KEY, createInertLedger } from './ledger/ledgerContext';
+import { MAP_KEY, createInertMap } from './map/mapContext';
 import AppFrame from './frame/AppFrame.vue';
 import CharacterPicker from './session/CharacterPicker.vue';
 import SplashScreen from './session/SplashScreen.vue';
@@ -22,6 +23,8 @@ provide(GAME_KEY, session.game ?? createInertGame());
 provide(CREATION_KEY, session.creation ?? createInertCreation());
 // The ledger hub (items, vendor, recipes, perks) is session-owned too; same inert fallback.
 provide(LEDGER_KEY, session.ledger ?? createInertLedger());
+// The map hub (known places, travel timers, the selected place) is session-owned; same fallback.
+provide(MAP_KEY, session.map ?? createInertMap());
 
 // Plain-object refs are not auto-unwrapped in the template: alias them here.
 const { screen, frame, characters, pickerPendingId, pickerFailed, reconnecting, nextRetryAt, versionPrompt } =

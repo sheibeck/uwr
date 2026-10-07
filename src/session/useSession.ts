@@ -42,6 +42,11 @@ import type { LedgerData } from '../ledger/ledgerContext';
 import { createLedgerData } from '../ledger/ledgerData';
 import type { LedgerConn, LedgerInput } from '../ledger/ledgerData';
 import { ledgerQueries } from '../ledger/queries';
+import { createInertMap } from '../map/mapContext';
+import type { MapData } from '../map/mapContext';
+import { createMapData } from '../map/mapData';
+import type { MapConn, MapInput } from '../map/mapData';
+import { mapQueries } from '../map/queries';
 
 export interface SessionAuth {
   getStoredIdToken(): string | null;
@@ -91,6 +96,8 @@ export interface SessionDeps<C extends SessionConn> {
   creation?: (input: CreationInput<C>) => CreationData;
   /** Builds the ledger hub (items, vendor, recipes, perks). Omitted: the session carries an inert hub. */
   ledger?: (input: LedgerInput<C>) => LedgerData;
+  /** Builds the map hub (visited places, connections, travel timers, selected place). Omitted: the session carries an inert hub. */
+  map?: (input: MapInput<C>) => MapData;
 }
 
 export const SELECT_TIMEOUT_MS = 8000;
@@ -114,6 +121,8 @@ export interface Session {
   readonly creation: CreationData;
   /** The ledger hub (items, vendor stock, recipes, pending perks); reset on logout. */
   readonly ledger: LedgerData;
+  /** The map hub (known places, travel timers, the selected place); reset on logout. */
+  readonly map: MapData;
   start(): void;
   signIn(): void;
   selectCharacter(characterId: bigint): void;
@@ -142,7 +151,7 @@ export function defaultQueries(): SessionQueries {
  * the generated bindings and the stored-session helpers.
  */
 export function createDefaultSession(options: { callbackError: unknown }): Session {
-  return createSession<SessionConn & GameConn & CreationConn & LedgerConn>(
+  return createSession<SessionConn & GameConn & CreationConn & LedgerConn & MapConn>(
     {
       controller: createConnectionController(defaultControllerDeps()),
       auth: { getStoredIdToken, getStoredEmail, clearAuthSession, beginSpacetimeAuthLogin },
@@ -163,6 +172,7 @@ export function createDefaultSession(options: { callbackError: unknown }): Sessi
         ),
       ledger: (input) =>
         createLedgerData({ bind: bindTable, queries: ledgerQueries() }, input),
+      map: (input) => createMapData({ bind: bindTable, queries: mapQueries() }, input),
     },
     options,
   );
@@ -433,6 +443,30 @@ function build<C extends SessionConn>(
       })
     : createInertLedger();
 
+  // Party members other than you, and the NPCs who give your active quests, follow the game hub.
+  const partyCharacterIds = computed<readonly bigint[]>(() => {
+    const own = activeCharacterId.value;
+    return game.groupMembers.value.map((member) => member.characterId).filter((id) => id !== own);
+  });
+  const questGiverIds = computed<readonly bigint[]>(() => {
+    const ids = new Set<bigint>();
+    for (const template of game.questTemplates.value) ids.add(template.npcId);
+    return [...ids];
+  });
+
+  const map: MapData = deps.map
+    ? deps.map({
+        conn: controller.conn,
+        status: controller.status,
+        character: activeCharacter,
+        locations: location.rows,
+        regions: region.rows,
+        partyCharacterIds,
+        questGiverIds,
+        clock: game.clock,
+      })
+    : createInertMap();
+
   const pickerPendingId = ref<bigint | null>(null);
   const pickerFailed = ref(false);
   let selectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -530,6 +564,7 @@ function build<C extends SessionConn>(
     game.reset();
     creation.reset();
     ledger.reset();
+    map.reset();
     loginSentFor = null;
     authFailed.value = false;
     redirecting.value = false;
@@ -550,6 +585,7 @@ function build<C extends SessionConn>(
     game,
     creation,
     ledger,
+    map,
     start() {
       controller.connect();
     },
@@ -568,6 +604,7 @@ function build<C extends SessionConn>(
       game.dispose();
       creation.dispose();
       ledger.dispose();
+      map.dispose();
       controller.dispose();
     },
   };
