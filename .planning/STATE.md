@@ -206,6 +206,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-06-combat-victory-summary-looks-like-three-keeper-lines.md`: one victory outro split into three segments renders as three "The Keeper" lines. The client fix is to group the segments under one label. Changing the outro length in the prompt needs owner approval.
 - `todos/pending/2026-10-06-hotbar-hover-shows-ability-description.md`: hovering a hotbar slot should show the ability description, cost, cooldown and cast time. It must work on keyboard focus and on mobile (long-press). Client only.
 - `todos/pending/2026-10-06-crafting-and-backpack-follow-the-updated-mock.md`: owner play-test plus the new `UWR Crafting.dc.html` mock. Smaller backpack squares, a clear craft and salvage result message, craft ×N, and output descriptions with stats. The odds bar stays off unless the owner decides otherwise.
+- `todos/pending/2026-10-06-bind-stone-in-nearby-with-bind-action.md`: bind stone row in Nearby with a Bind action. Folded into Phase 51.
 
 ### Blockers/Concerns
 

@@ -78,6 +78,10 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
   - Invites expire after 5 minutes, and the inviter can cancel a pending invite (additive). Today an invite never expires, and a stale one blocks anyone else from inviting that player.
   - Fix the solo inviter auto-creating a group when the invite then fails.
 
+### Owner additions after discuss (2026-10-06)
+- **Bind stone in Nearby (owner request):** when the current place has `location.bindStone`, Nearby shows a bind stone row. It has a standing-stone style icon (closest Phosphor icon; the UI-SPEC names it), a **Bind** action calling the existing `bind_location`, "Bound here" when `character.boundLocationId` is this place, and the Examine eye. Todo: `2026-10-06-bind-stone-in-nearby-with-bind-action.md`.
+- **Map mock is being revised by the owner:** in the current mock the map drawer covers the left party rail. Re-import the revised Map mock before planning the map layout. Until then, keep the Phase 45 rule that drawers cover the center and right columns and the left vitals rail stays visible.
+
 ### Shared rules
 - Server changes are additive (new tables, views, reducers and defaulted columns). Publish locally only: `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`, checking `admin_llm_status` key length 108 before and after; never `--clear-database`; regenerate the bindings. Real-handler tests for every rule. Prefer `fail(ctx, character, msg)` where a character exists.
 - Design guards: no literal colors (the token pin stays at 23), no v-html, no `<svg`, Phosphor icons and Inter only, sizes 10/12/14/20, weights 400/500, spacing 4/8/16/24/32/48/64, text nodes only, no `replaceAll`/`.at`/`Object.hasOwn`, and never the word "ripple" (use "World event"). Map off-scale mock values to the nearest allowed ones.
