@@ -94,7 +94,6 @@ Rail changes stay in `src/rails/`. Phase 50 parts are reused from `src/ledger/`:
 | Check failed | `PhXCircle` |
 | Mobile fail line, low stamina | `PhWarningCircle` |
 | Your region chip | `PhMapPin` |
-| Graph / list view switch | `PhGraph`, `PhListBullets` |
 | Center on you | `PhCrosshair` |
 | Arrival banner | `PhFootprints` |
 | Examine | `PhEye` |
@@ -125,7 +124,8 @@ Rail changes stay in `src/rails/`. Phase 50 parts are reused from `src/ledger/`:
 | 50 frame contract: the 1200px tier only under `src/(inventory\|stats\|vendor\|crafting)/` | The allow-list adds `map` (`frameContract.test.ts` line 92). 51.1 adds `social` and 51.2 adds `events` |
 | 50 `ScreenArgs` = `{ npcId?, npcName? }`, kept only for `vendor` | Adds `{ locationId?, regionId? }` for `map`. `AppFrame` keeps args for `map` too |
 | 45 design guard: no `<svg` anywhere | `<svg` is allowed in `src/map/` only (owner) |
-| Route graph layout steps 1 to 8 (breadth-first columns, start on the left, 192 x 72 pitch, outer columns) | Owner play-test 2026-10-07 (51-CONTEXT MS-01 to MS-08, plan 51-12): the two-dimensional layout replaces the breadth-first columns. It fills the measured canvas with 160px (112px mobile) spacing, puts other regions outside the outline on the facing side, and orders nodes, the List, End and the gate pills in reading order |
+| Route graph layout steps 1 to 8 (breadth-first columns, start on the left, 192 x 72 pitch, outer columns) | Owner play-test 2026-10-07 (51-CONTEXT MS-01 to MS-08, plan 51-12): the two-dimensional layout replaces the breadth-first columns. It fills the measured canvas with 160px (112px mobile) spacing, puts other regions outside the outline on the facing side, and orders nodes, End and the gate pills in reading order |
+| List view (a Graph / List switch on the canvas, the `GraphList` panel, `PhGraph` and `PhListBullets`) | List view removed (owner, 2026-10-07): the Map is the route graph only. It was a screen-reader and keyboard equivalent from this spec, not from the mock. The graph now carries that guarantee itself: roving-tabindex keyboard navigation, a spoken `aria-label` per place and gate pills as buttons (Accessibility Contract). The `Map sheet view` Map / Here tabs on mobile are a different switch and stay |
 | First draft of this file: CSS-rotated `div` edges, a floating legend pill, zoom stack, two travel buttons (`Travel with party`, `Travel alone`), and a level-free crossing-timer chip only | Replaced by the map2 contract below: SVG edges in `src/map/`, a legend row, no zoom stack, **one** Travel button, and the timer pill plus chip and gate locks |
 
 ---
@@ -415,16 +415,16 @@ Desktop >= 1200   header row (Drawer.vue): h4 Map · region chips (meta slot, wr
                                            Region travel pill (new `end` slot) · close
                   legend row (wraps)
                   [ Graph canvas fluid (about 652 x 600 at 1280x800)   ]  [ Detail 304             ]
-                    view switch top-right (Graph | List)                  kicker, h4, region line,
-                    Center on you bottom-right                            tags, crossing block,
-                    arrival banner top-center (after travel)              description, trip grid,
-                    plane: border, caption, edges, route, nodes, gates    quests, route, checklist
+                    Center on you bottom-right                            kicker, h4, region line,
+                    arrival banner top-center (after travel)              tags, crossing block,
+                    plane: border, caption, edges, route, nodes, gates    description, trip grid,
+                                                                          quests, route, checklist
                                                                           ── docked: button, note
 Desktop 900-1199  same; the detail column is 256px
 Mobile            sheet title Map, meta {Region}
                   [ Map | Here ] tabs
                   Map tab:  region row ({Region} · Lv a–b · Regions button · pill)
-                            legend disclosure, view switch, canvas (flex 1), dock
+                            legend disclosure, canvas (flex 1), dock
                   Here tab: ContextContent (Here, Nearby, Tracking)
                   notice line
 ```
@@ -552,11 +552,7 @@ The legend is ordinary text (swatches and icons are `aria-hidden`). On mobile it
   - Enter or Space selects. The focused node scrolls into view.
   - Gate pills are separate tab stops after the group, in layout order.
 - **Node `aria-label`:** `{name}, {here | visited | heard of}{, other region {Region}}{, uncharted}{, passage}{, bind point}{, bind stone}{, crafting}{, safe | , level {a} to {b}, {band}}`, then `, {n} steps from here` (or `, you are here`, or `, no known path`). The selected node has `aria-pressed="true"`.
-- **List view.** A view switch sits at the canvas top-right on desktop (`position: absolute`, offset 8) and above the canvas on mobile. It is a `SegTabs` (tablist `Map view`) with the tabs `Graph` (`PhGraph`) and `List` (`PhListBullets`).
-  - The List panel is a `ul` of every drawn node in reading order (top to bottom, then left to right), the same order as the graph's nodes and End.
-  - Each row is a `button` (min-height 32, 44 mobile) with the name, the state word, the level and band, and `{n} steps` (or `Here`). Under it is the sub-line `Connects to {A}, {B}` (Label 12, `var(--color-neutral-500)`). Crossings read `{place} ({Region})`.
-  - Selecting a row selects the node exactly as in the graph.
-  - The List view is the complete equivalent for keyboard and screen-reader users, and the graph's focus order matches it.
+- **No List view (owner, 2026-10-07).** The canvas shows the route graph only. Keyboard and screen-reader users use the graph itself: every drawn place is a button with its full `aria-label`, reached by the roving tabindex and the arrow, Home and End keys above.
 
 ### Destination detail (map2 A.6)
 
@@ -621,7 +617,7 @@ Order, top to bottom (gap 16):
 ### Mobile map (sheet)
 
 - The sheet title is `Map` and the meta is `{Region}`. Tabs are `Map` and `Here` (tablist `Map sheet view`).
-- **Map tab:** the region row, the `Legend` disclosure, the `Graph | List` switch, then the canvas (`flex: 1`, min-height 240), then the dock.
+- **Map tab:** the region row, the `Legend` disclosure, then the canvas (`flex: 1`, min-height 240), then the dock.
 - **Dock** (`flex: none`; background `var(--color-surface)`, `--shadow-md`, `--radius-lg`, padding 16, gap 8):
   1. the name (Body 14 / 500) and the region line (Label 12, neutral-400);
   2. the tags;
@@ -798,7 +794,6 @@ All states are themed from the accent ramp (Nocturne). Disabled is 45% opacity. 
 | Graph node | per state | label underline; the circle gains a 1px `var(--color-neutral-300)` outer ring | — | halo, accent-200 name, `aria-pressed` | n/a |
 | Gate pill | open colors | background `var(--color-accent-900)` | text 14% overlay | accent ring and glow when its far node is selected | timer: neutral ring, lock, time; still operable (it selects) |
 | Region chip | `.tag-neutral` | text 7% overlay | text 14% | `.tag-accent`, `aria-pressed` | timer: neutral-500 text and lock; still operable |
-| List-view row | transparent | text 7% | text 14% | background `var(--color-bg)`, inset 1px accent | n/a |
 | Rail exit row | transparent | background `var(--color-neutral-800)` | text 14% | open: `var(--color-bg)`, inset 1px accent-700, `aria-expanded="true"` | offline: the inner button only |
 | Mobile exit chip | surface, neutral-800 ring | text 7% | text 14% | accent ring, `aria-expanded="true"` | n/a |
 | `.btn-primary` (Travel, Cross, Bind) | accent outline | 12% accent | 22% accent | — | 45%, `aria-disabled` with a reason, or inert while pending |
@@ -812,7 +807,7 @@ All states are themed from the accent ramp (Nocturne). Disabled is 45% opacity. 
 ## Accessibility Contract
 
 - **Drawers, sheets, tabs, notice line, disabled-with-reason and focus after removal** work as in 50.
-- **Route graph:** a roving-tabindex group with full `aria-label`s per node, gate pills as their own buttons, and the `List` view as the complete keyboard and screen-reader equivalent. The SVG, circles and captions are `aria-hidden`.
+- **Route graph:** a roving-tabindex group with full `aria-label`s per node, gate pills as their own buttons. Every drawn place is reachable by keyboard with its full `aria-label`, so there is no separate List view. The SVG, circles and captions are `aria-hidden`.
 - **Expanding rows:** the exit row buttons have `aria-expanded` and `aria-controls`; the mobile chips likewise.
 - **Live regions:** the notice line (polite, 50); the arrival banner (`role="status"`); the once-only unlock status. Timers are **not** live.
 - **Focus targets after changes** (`tabindex="-1"`):
@@ -827,7 +822,7 @@ All states are themed from the accent ramp (Nocturne). Disabled is 45% opacity. 
 | Bind succeeds | the bind stone row's Examine button |
 
 - **44px mobile targets:** every button, tab, row, node hit box, gate pill, chip, dock action and icon button.
-- **Color is never the only cue:** bands have words, locks have icons and text, node states are in the `aria-label` and the List view, and checks have icons and labels.
+- **Color is never the only cue:** bands have words, locks have icons and text, node states are in the `aria-label`, and checks have icons and labels.
 - **Text:** all server strings are text nodes; `overflow-wrap: anywhere` applies to names and descriptions.
 
 ---
@@ -847,9 +842,8 @@ Plain system copy: short, no exclamation marks, no first person, never speaking 
 | Legend | `You`, `Visited`, `Heard of`; `Town`, `City`, `Dungeon`, `Woods`, `Plains`, `Mountains`, `Swamp`, `Uncharted`; `Safe`, `Danger vs Lv {n}:`, `easy`, `even`, `tough`, `deadly`; `Region entrance`, `Bind`, `Crafting` |
 | Node sub-lines | `{Region} · ` + terrain word + ` · you` / ` · heard of` + level; `Uncharted`; `Passage` |
 | Gate pills | `To {Region} · Lv {a}–{b}`; locked `{Region} · {m:ss}`; mobile `{Region}`; aria `To {Region}, {level}, {band}` (+ `, region travel locked for about {n} minutes`) |
-| Map view switch | `Graph`, `List`; tablist `Map view`; mobile tabs `Map`, `Here`, tablist `Map sheet view` |
+| Map sheet tabs | mobile tabs `Map`, `Here`, tablist `Map sheet view` |
 | Graph group | `{Region} route graph` |
-| List row sub-line | `Connects to {A}, {B}`; crossings `{place} ({Region})` |
 | Detail kickers | `Destination`, `You are here` |
 | Region line | `{Region} · {Lv a–b} · visited` / `heard of` |
 | Tags | terrain word (`Dungeon`, …); `Lv {a}–{b} · {band}`; `Safe`; `Danger unknown`; `Bind stone`; `Your bind point`; `Crafting`; `Passage` |
@@ -895,7 +889,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 - **M7 Far-place state**: media, control, static [+ list]
 - **M8 Passages**: list [+ control, static]
 - **M9 Gate pills**: control, static [+ list]
-- **M10 Graph / List switch and List view**: list, nav, control [+ static]
 - **R1 Rail Here card**: list, control, static
 - **R2 Rail exit rows**: list, media, control
 - **R3 Rail timer chip**: list, media, static
@@ -913,7 +906,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | empty | M7 Far-place state | ✅ covered | No known path: `No known path from here.`, no chain and no button (Route; Travel button) |
 | empty | M8 Passages | ✅ covered | No passage row means no passage node; passages show only while their row exists |
 | empty | M9 Gate pills | ✅ covered | No cross-region edge means no gate pill |
-| empty | M10 Graph / List switch and List view | ✅ covered | The List mirrors the drawn nodes; no location is the Map EmptyState |
 | empty | R1 Rail Here card | ✅ covered | No character: `Your location appears here.`; no exits: `No known routes.` (47) |
 | empty | R2 Rail exit rows | ✅ covered | `No known routes.` (47) |
 | empty | R3 Rail timer chip | ✅ covered | Hidden when the timer is not running (A3) |
@@ -923,7 +915,7 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | empty | N3 Bind stone row | ✅ covered | The row is absent when the place has no bind stone |
 | empty | S1 Mobile Map sheet | ✅ covered | The Map tab shows the Map EmptyState; the Here tab keeps the 47 empty lines |
 | empty | M2 Legend row | ➖ not applicable | Fixed vocabulary: every legend item is always shown, in order, so it is never empty |
-| loading | M1 Route graph; M3 Region chips; M7 Far-place state; M8 Passages; M9 Gate pills; M10 Graph / List switch and List view; S1 Mobile Map sheet | ✅ covered | Nothing renders until the visited view, locations, connections and the caller's `travel_cooldown` row apply; no placeholder (Map empty and loading states, 45 rule) |
+| loading | M1 Route graph; M3 Region chips; M7 Far-place state; M8 Passages; M9 Gate pills; S1 Mobile Map sheet | ✅ covered | Nothing renders until the visited view, locations, connections and the caller's `travel_cooldown` row apply; no placeholder (Map empty and loading states, 45 rule) |
 | loading | M2 Legend row | ✅ covered | Renders with the Map once its rows apply; `Danger vs Lv {n}:` reads the character level, which is present whenever the Map renders |
 | loading | M5 Destination detail | ✅ covered | Nothing renders until the visited view, locations, connections and the caller's `travel_cooldown` row apply; no placeholder (Map empty and loading states, 45 rule); follower stamina and timers read party rows that are subscribed with the party |
 | loading | R1 Rail Here card | ✅ covered | Nothing renders until the rows apply (45 rule) |
@@ -934,7 +926,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | error | M3 Region chips; M9 Gate pills | ✅ covered | Selecting is local and sends nothing, so it cannot fail; a lock limits travel, never viewing (Region chips; Gate pills) |
 | error | M7 Far-place state | ✅ covered | `Select first stop` only selects locally and sends nothing, so it cannot fail |
 | error | M8 Passages | ✅ covered | If a passage collapses before travel lands, the server's refusal shows in the notice line and the redraw removes the node |
-| error | M10 Graph / List switch and List view | ✅ covered | Switching tabs and selecting a row are local and send nothing |
 | error | R1 Rail Here card; R2 Rail exit rows | ✅ covered | Refusals print in the feed (rails); pending is inert; offline `aria-disabled` (Rail Travel Panel; Interaction States) |
 | error | R3 Rail timer chip | ✅ covered | If the client clock reaches 0 but the server disagrees, the server's refusal shows in the feed (Shared rules: server time) |
 | error | R4 Mobile location line and exit chips | ✅ covered | Refusals print in the feed, which is visible on the Story screen; offline `aria-disabled` |
@@ -949,7 +940,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | populated | M7 Far-place state | ✅ covered | The chain with `PhCaretRight`, `PhDoorOpen` at crossings (with `.sr-only` text), the stops note, and `Select first stop: {name}`, which selects the first step and focuses its `h4` |
 | populated | M8 Passages | ✅ covered | Passage node with `PhDoorOpen`, sub-line `Passage`, the `Passage` tag and the note `This passage closes once nobody stands in it.` |
 | populated | M9 Gate pills | ✅ covered | Open colors with the band-colored level; while the timer runs, `PhLockSimple` and `{Region} · {m:ss}`; accent ring and glow when its far node is selected |
-| populated | M10 Graph / List switch and List view | ✅ covered | Rows in layout order with name, state word, level and band, and `{n} steps` or `Here`; the selected row uses the List-view selected state |
 | populated | R1 Rail Here card | ✅ covered | Kicker, title with the eye, the band sub-line, and the timer chip only while the timer runs (A3) |
 | populated | R2 Rail exit rows | ✅ covered | One open row at a time with its note per state (same region, crossing idle, crossing running, followers, gathering, short stamina); after travel every row closes and focus moves to the card title |
 | populated | R3 Rail timer chip | ✅ covered | `PhHourglassMedium` and `{m:ss}` with an `.sr-only` minute sentence; `title="Region travel timer"` |
@@ -964,7 +954,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | partial | M7 Far-place state | ✅ covered | The route runs over known places only (BFS, ties to the lower id); a gap in knowledge is `No known path from here.` |
 | partial | M8 Passages | ✅ covered | A passage with no level uses the uncharted dashed ring (Color > State colors) |
 | partial | M9 Gate pills | ✅ covered | The level part reuses the region chip range (`Lv {a}–{b}`, `Lv {n}` or `Safe`), so it always has a value |
-| partial | M10 Graph / List switch and List view | ✅ covered | (new) An unreachable known place reads `No known path` in place of `{n} steps` (matching the node `aria-label`); a place with no known connection omits the `Connects to` line |
 | partial | R1 Rail Here card | ✅ covered | Unknown terrain uses `PhMapPin`; uncharted reads `Danger unknown`; safe reads `Safe` |
 | partial | R2 Rail exit rows | ✅ covered | Heard-of neighbours look like visited ones and say ` · heard of` in the note; the row `title` is the description only when known |
 | partial | R4 Mobile location line and exit chips | ✅ covered | As the rail rows: unknown terrain `PhMapPin`, `Danger unknown`, `Safe` |
@@ -976,13 +965,12 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | partial | R3 Rail timer chip | ➖ not applicable | One value from one row; it cannot be partly present |
 | overflow | M6 Travel / Cross button | ✅ covered | Docked at the column bottom (`flex: none`), so it never scrolls away (Layout Contract: Map) |
 | overflow | M7 Far-place state | ✅ covered | The chain wraps (gap 4) inside the scrolling detail body |
-| overflow | M10 Graph / List switch and List view | ✅ covered | (new) The List panel takes the canvas box and scrolls vertically with the dark scrollbar |
 | overflow | R1 Rail Here card | ✅ covered | The `.card-title` ellipsizes; the eye keeps its 28px |
 | overflow | R2 Rail exit rows | ✅ covered | The name ellipsizes first, the right-hand level or timer keeps its width, the open note wraps, and the rail column scrolls (47) |
 | overflow | R3 Rail timer chip | ✅ covered | Fixed tabular `m:ss` at `margin-left: auto`; the kicker gives way first (R1) |
 | overflow | N1 Examine eye; N2 Talk (NPC rows) | ✅ covered | At most three icon buttons, `flex-shrink: 0`; the name ellipsizes first and the hint hides below 120px of name (Nearby row anatomy) |
 | overflow | N3 Bind stone row | ✅ covered | Fixed label `Bind stone` and at most two controls (`Bind`, Examine) |
-| overflow | M1 Route graph | 🧪 backstop | Visual test with a 20-place region at 1280 and at 900 (canvas about 320 wide): the plane scrolls in both axes, labels do not overlap at the 192 x 72 pitch, and the view switch, Center on you and the banner do not overlap |
+| overflow | M1 Route graph | 🧪 backstop | Visual test with a 20-place region at 1280 and at 900 (canvas about 320 wide): the plane scrolls in both axes, labels do not overlap at the 192 x 72 pitch, and Center on you and the banner do not overlap |
 | overflow | M2 Legend row | 🧪 backstop | Visual test at 900: the row wraps to at most three lines; on mobile the `Legend` disclosure expands inline above the canvas |
 | overflow | M3 Region chips | 🧪 backstop | Visual test with 8 regions at 900 and 1280: chips wrap and the canvas keeps at least 320px; at 390 the open `Regions` listbox reaches every option at 44px |
 | overflow | M4 Region travel pill | 🧪 backstop | Part of the 8-region header visual test: the pill sits in the `end` slot with `flex: none`, so the chips wrap first and the pill never wraps |
@@ -997,7 +985,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | zero-one-many | M7 Far-place state | ✅ covered | `all within {Region}` with no crossing; `1 region crossing`; `{k} region crossings` (Copywriting > Route) |
 | zero-one-many | M8 Passages | ✅ covered | Usually none; each passage is one node; after collapse each becomes a gate pill on its direct crossing |
 | zero-one-many | M9 Gate pills | ✅ covered | One pill per cross-region edge; 0 to many |
-| zero-one-many | M10 Graph / List switch and List view | ✅ covered | (new) `1 step` for a neighbour, `{n} steps` otherwise; the node `aria-label` reads `1 step from here` likewise |
 | zero-one-many | R1 Rail Here card | ✅ covered | Exits 0 (`No known routes.`), 1 or many rows |
 | zero-one-many | R2 Rail exit rows | ✅ covered | Rows from `routesFrom()`, ordered by name then id; 0 to many |
 | zero-one-many | R4 Mobile location line and exit chips | ✅ covered | One chip per exit, 0 to many |
@@ -1013,7 +1000,6 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | long-text | M6 Travel / Cross button | ✅ covered | (new) The visible label ellipsizes on one line inside the full-width button; the full `Travel to {place}` / `Cross into {Region}` text stays in `aria-label` and `title`. Blocked labels are fixed copy |
 | long-text | M7 Far-place state | ✅ covered | Chain step names wrap; the button follows the Travel button rule (M6): one-line ellipsis with the full text in `aria-label` |
 | long-text | M9 Gate pills | ✅ covered | (new) The region name inside the pill ellipsizes at 144px; the `aria-label` carries the full name |
-| long-text | M10 Graph / List switch and List view | ✅ covered | Names ellipsize with `title`; the `Connects to` line wraps (`overflow-wrap: anywhere`) |
 | long-text | R1 Rail Here card | ✅ covered | (new) The place title ellipsizes with the full name in `title`; the kicker `Here · {Region}` ellipsizes before the timer chip shrinks |
 | long-text | R2 Rail exit rows | ✅ covered | The name and region suffix ellipsize as one span; the full text stays in the accessible name |
 | long-text | R4 Mobile location line and exit chips | ✅ covered | (new) Chip line 1 ellipsizes at 144px with the full name in the chip `aria-label`; the location line ellipsizes the place name before the terrain and level; the open card name wraps |
@@ -1029,7 +1015,7 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
 | disabled | M6 Travel / Cross button | ✅ covered | Blocking order gathering, your timer, a follower's timer, your stamina, a follower's stamina; one label each with the checklist row as the reason |
-| a11y | M1, M9, M10, R2 | ✅ covered | Roving-tabindex graph, gate pills as their own buttons, the List view as the full equivalent, `aria-expanded` rows, timers not live (Accessibility Contract) |
+| a11y | M1, M9, R2 | ✅ covered | Roving-tabindex graph with every place reachable and spoken by its full `aria-label`, gate pills as their own buttons, `aria-expanded` rows, timers not live (Accessibility Contract) |
 | a11y | R2, R4 | ✅ covered | Nocturne focus ring kept on every row and chip (no bare `all:unset`) |
 | a11y | Every mobile control | ✅ covered | 44px targets (48 dock button) |
 | a11y | M1 | ✅ covered | `<svg` only in `src/map/` (guard with one allowed folder) |
@@ -1070,7 +1056,7 @@ Probe coverage: 132 applicable considerations across 18 elements; 132 closed, 0 
    - here, selected, visited, heard of, uncharted, passage, other region, bind point, bind stone and crafting;
    - band rings and words from `dangerBand` (the boundaries at −2, 0 and 2), Safe and unknown;
    - the legend includes Swamp and the node states;
-   - node `aria-label` text, List-view rows in graph order, and the roving tabindex rules.
+   - node `aria-label` text, every drawn place reachable by keyboard, and the roving tabindex rules.
 3. **Region chips and timer:**
    - level range from `routeLevel` min to max; `Safe`; order; `aria-pressed`; the `PhMapPin` on your region;
    - with a running `travel_cooldown`, every other chip and every gate pill shows the lock and the `m:ss` from the server row, with no client reduction math and no `5:00` anywhere;

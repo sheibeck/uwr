@@ -60,7 +60,7 @@ Per-task map (plans 51-01 to 51-11, one row per task). Every command was green i
 | 51-07-T1 | 51-07 | 3 | LDG-04, LDG-05 | unit + type check | `pnpm exec vitest run src/map --maxWorkers=2 && pnpm exec vue-tsc -b` | ✅ | ✅ green |
 | 51-07-T2 | 51-07 | 3 | LDG-04, LDG-05 | integration + type check | `pnpm exec vitest run src/session src/App.test.ts src/map --maxWorkers=2 && pnpm exec vue-tsc -b` | ✅ | ✅ green |
 | 51-08-T1 | 51-08 | 4 | LDG-04 | component + guard | `pnpm exec vitest run src/map/GraphPlane.test.ts src/styles src/map/mapGuards.test.ts --maxWorkers=2` | ✅ | ✅ green |
-| 51-08-T2 | 51-08 | 4 | LDG-04 | component + guard | `pnpm exec vitest run src/map/GraphList.test.ts src/map/MapLegend.test.ts src/styles --maxWorkers=2` | ✅ | ✅ green |
+| 51-08-T2 | 51-08 | 4 | LDG-04 | component + guard | `pnpm exec vitest run src/map/MapLegend.test.ts src/styles --maxWorkers=2` (the List view and its `GraphList.test.ts` were removed in 51-13) | ✅ | ✅ green |
 | 51-08-T3 | 51-08 | 4 | LDG-04 | component + guard + type check | `pnpm exec vitest run src/map src/screens src/frame --maxWorkers=2 && pnpm exec vitest run src/styles --maxWorkers=2 && pnpm exec vue-tsc -b` | ✅ | ✅ green |
 | 51-09-T1 | 51-09 | 5 | LDG-04, LDG-05 | component + guard | `pnpm exec vitest run src/map/useDestination.test.ts src/map/DetailPanel.test.ts src/styles src/map/mapGuards.test.ts --maxWorkers=2` | ✅ | ✅ green |
 | 51-09-T2 | 51-09 | 5 | LDG-04, LDG-05 | component + guard | `pnpm exec vitest run src/map --maxWorkers=2 && pnpm exec vitest run src/styles src/frame/frameContract.test.ts --maxWorkers=2` | ✅ | ✅ green |
@@ -82,7 +82,7 @@ Requirement-level map:
 | LDG-04 | Visited upsert, from-location, my view only the active character's rows | server unit | `npx vitest run spacetimedb/src/helpers/visited.test.ts spacetimedb/src/views/visited.test.ts` | ✅ | ✅ green |
 | LDG-04 | Known places (visited, current, heard-of neighbours, known regions) | unit | `npx vitest run src/map/knownPlaces.test.ts` | ✅ | ✅ green |
 | LDG-04 | Deterministic graph layout, borders, gates, SVG endpoints | unit | `npx vitest run src/map/graphLayout.test.ts` | ✅ | ✅ green |
-| LDG-04 | Node states, legend, danger bands, list view, roving tabindex | unit + component | `npx vitest run src/map/danger.test.ts src/map/MapScreen.test.ts` | ✅ | ✅ green |
+| LDG-04 | Node states, legend, danger bands, roving tabindex, every drawn place keyboard-reachable with its full aria-label (no List view, 51-13) | unit + component | `npx vitest run src/map/danger.test.ts src/map/MapScreen.test.ts src/map/GraphPlane.test.ts` | ✅ | ✅ green |
 | LDG-04 | Region chips, timer locks from the server row only | unit + component | `npx vitest run src/map/regionChips.test.ts src/map/travelTimer.test.ts` | ✅ | ✅ green |
 | LDG-04 | Passage node redraw after collapse | component | `npx vitest run src/map/passageRedraw.test.ts` | ✅ | ✅ green |
 | LDG-04 | Passage collapse and guarded sweep | server real-handler | `npx vitest run spacetimedb/src/helpers/passages.test.ts spacetimedb/src/reducers/passage_sweep.integration.test.ts spacetimedb/src/reducers/scheduled_guard.integration.test.ts` | ✅ | ✅ green |

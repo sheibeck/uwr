@@ -108,8 +108,8 @@ Decisions (coordinator and planner, 2026-10-07; the owner may override any of th
   - Gate pills stay 16px clear of every hit box, label, caption and other pill (on mobile, the pill's 44px tap area counts). A pill sits where its edge meets the outline. If that spot is taken, it slides along its edge, then along the outline.
   - The region caption takes the first clear corner of the outline.
 - **MS-04 Other regions sit outside the outline.** They go on the side (top, right, bottom or left) that faces their neighbour inside the region; near-ties go to top or bottom, where a pill fits on its line. The outline is a large rounded rectangle with generous padding (48px, 56px at the top).
-- **MS-05 Everything else stays.** This covers one pixel plane for the svg and the HTML nodes, token colours only, svg only in `src/map/`, the List view, gates selecting the far node, Center on you, and 44px mobile targets.
-  - The reading order (top to bottom, then left to right) sets the node order, the List order, End, and the gate pill tab order.
+- **MS-05 Everything else stays.** This covers one pixel plane for the svg and the HTML nodes, token colours only, svg only in `src/map/`, gates selecting the far node, Center on you, and 44px mobile targets. (The List view named here was later removed by the owner, see "Owner play-test: no List view" below.)
+  - The reading order (top to bottom, then left to right) sets the node order, End, and the gate pill tab order.
   - Arrow keys move to the nearest place in that direction.
 - **MS-06 Review findings folded in** (`51-REVIEW-client-map.md`):
   - CR-01: gate pills covered node circles, including the mobile 44px tap areas.
@@ -118,6 +118,12 @@ Decisions (coordinator and planner, 2026-10-07; the owner may override any of th
   - WR-03, layout part only: on mobile the layout is computed once, and a character row update that keeps the same place does not run the layout again.
 - **MS-07 No caption on mobile (planner).** The mobile sheet's region row already names the region, as in the mock's mobile frame.
 - **MS-08 Visual check** at 1280 x 800 and 390 x 844 stays a deferred end-of-milestone UAT item.
+
+### Owner play-test: no List view (2026-10-07)
+Owner, verbatim: "I think we should remove list view from the map. That seems ... not as fun as as the graph. Why do we have list?"
+- **Why it existed.** The List came from our UI-SPEC as a keyboard and screen-reader equivalent of the graph. It was not in the mock.
+- **Decision: remove it** (plan 51-13). The Map is the route graph only on desktop and in the mobile Map sheet. The Graph / List switch, `GraphList`, the list row model and the hub's view state are gone. The mobile `Map` / `Here` tabs (`Map sheet view`) are a different switch and stay.
+- **Accessibility holds without it.** The graph has roving-tabindex keyboard navigation (arrows, Home, End, Enter, Space), a spoken `aria-label` per place (name, state, terrain marks, danger, steps) and gate pills as their own buttons. Tests keep every drawn place keyboard-reachable with its full label.
 
 ### Region transitions collapse after discovery (owner, 2026-10-06)
 - **Keep the uncharted "Edge Beyond {Region}" until it is explored.** It is how players find the unknown, and the map shows it as "something lies beyond".
