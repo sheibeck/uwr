@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { PhCastleTurret, PhDoorOpen, PhHammer, PhLockSimple, PhShieldCheck } from '@phosphor-icons/vue';
-import type { GraphLayout } from './graphLayout';
+import { compareReading } from './graphLayout';
+import type { CanvasSize, GraphLayout } from './graphLayout';
 import type { GateView, NodeView } from './nodeView';
 
 // The Map graph surface (51-UI-SPEC "Route-graph" section): one pixel plane holding, in order, the svg (border,
@@ -9,6 +10,8 @@ import type { GateView, NodeView } from './nodeView';
 // position comes from the layout, so lines, circles, labels and pills share one coordinate space.
 // Renders from props only. Every server string is a text node or a bound attribute; the svg
 // paints only through the scoped classes below (var(--...) tokens, never a literal colour).
+// The plane also measures its scroll area (the parent element) and reports the whole-pixel size as
+// `resize`, so the graph model can lay the region out to fill it (51-12, MS-02).
 const props = defineProps<{
   layout: GraphLayout;
   views: NodeView[];
@@ -22,15 +25,12 @@ const props = defineProps<{
   mobile: boolean;
 }>();
 
-const emit = defineEmits<{ select: [id: bigint] }>();
+const emit = defineEmits<{ select: [id: bigint]; resize: [size: CanvasSize] }>();
 
 const root = useTemplateRef<HTMLElement>('root');
 
 const HIT_DESKTOP = 32;
 const HIT_MOBILE = 44;
-const LABEL_WIDTH = 144;
-const LABEL_OFFSET = 20;
-const LABEL_TOP = 10;
 
 const hit = computed(() => (props.mobile ? HIT_MOBILE : HIT_DESKTOP));
 
@@ -45,8 +45,11 @@ function nodeStyle(view: NodeView): Record<string, string> {
 }
 
 function labelStyle(view: NodeView): Record<string, string> {
-  const left = view.labelSide === 'left' ? view.x - LABEL_OFFSET - LABEL_WIDTH : view.x + LABEL_OFFSET;
-  return { left: `${left}px`, top: `${view.y - LABEL_TOP}px`, width: `${LABEL_WIDTH}px` };
+  return { left: `${view.label.x}px`, top: `${view.label.y}px`, width: `${view.label.w}px` };
+}
+
+function captionStyle(caption: NonNullable<GraphLayout['caption']>): Record<string, string> {
+  return { left: `${caption.x}px`, top: `${caption.y}px`, maxWidth: `${caption.w}px` };
 }
 
 function gateStyle(index: number): Record<string, string> {
@@ -75,12 +78,6 @@ function nodeClasses(view: NodeView): string[] {
 // ---------------------------------------------------------------------------
 
 const focusedId = ref<bigint | null>(null);
-
-const columnOf = computed(() => {
-  const map = new Map<bigint, number>();
-  for (const node of props.layout.nodes) map.set(node.id, node.column);
-  return map;
-});
 
 const viewIds = computed(() => new Set(props.views.map((view) => view.id)));
 
@@ -114,16 +111,6 @@ function moveTo(id: bigint): void {
   element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
-interface NavNode {
-  id: bigint;
-  y: number;
-  column: number;
-}
-
-const navNodes = computed<NavNode[]>(() =>
-  props.views.map((view) => ({ id: view.id, y: view.y, column: columnOf.value.get(view.id) ?? 0 })),
-);
-
 const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
 function homeId(): bigint | null {
@@ -133,34 +120,44 @@ function homeId(): bigint | null {
   return props.views.length > 0 ? props.views[0].id : null;
 }
 
-/** The node a navigation key leads to from `id`; null keeps focus where it is. */
+/**
+ * The node a navigation key leads to from `id`; null keeps focus where it is (MS-05). Home is your
+ * place (else the start); End is the last view, since views follow the reading order. An arrow goes
+ * to the nearest place in its direction: places inside the 45-degree cone first, then the lowest
+ * forward offset + 2 x sideways offset, ties in reading order.
+ */
 function target(key: string, id: bigint): bigint | null {
   if (key === 'Home') return homeId();
   if (key === 'End') return props.views.length > 0 ? props.views[props.views.length - 1].id : null;
 
-  const here = navNodes.value.find((node) => node.id === id);
+  const here = props.views.find((view) => view.id === id);
   if (here === undefined) return null;
+  const horizontal = key === 'ArrowLeft' || key === 'ArrowRight';
+  const sign = key === 'ArrowRight' || key === 'ArrowDown' ? 1 : -1;
 
-  if (key === 'ArrowUp' || key === 'ArrowDown') {
-    const column = navNodes.value
-      .filter((node) => node.column === here.column)
-      .sort((a, b) => a.y - b.y || (a.id < b.id ? -1 : 1));
-    const index = column.findIndex((node) => node.id === id);
-    const next = column[index + (key === 'ArrowDown' ? 1 : -1)];
-    return next === undefined ? null : next.id;
+  let best: NodeView | null = null;
+  let bestCone = false;
+  let bestScore = Infinity;
+  for (const view of props.views) {
+    if (view.id === id) continue;
+    const dx = view.x - here.x;
+    const dy = view.y - here.y;
+    const forward = (horizontal ? dx : dy) * sign;
+    if (forward <= 0) continue;
+    const side = Math.abs(horizontal ? dy : dx);
+    const cone = side <= forward;
+    const score = forward + 2 * side;
+    const better =
+      best === null ||
+      (cone && !bestCone) ||
+      (cone === bestCone && (score < bestScore || (score === bestScore && compareReading(view, best) < 0)));
+    if (better) {
+      best = view;
+      bestCone = cone;
+      bestScore = score;
+    }
   }
-
-  // Left and Right: the nearest existing column, then the nearest row in it (ties go up).
-  const forward = key === 'ArrowRight';
-  let nearest: number | null = null;
-  for (const node of navNodes.value) {
-    if (forward ? node.column <= here.column : node.column >= here.column) continue;
-    if (nearest === null || (forward ? node.column < nearest : node.column > nearest)) nearest = node.column;
-  }
-  if (nearest === null) return null;
-  const candidates = navNodes.value.filter((node) => node.column === nearest);
-  candidates.sort((a, b) => Math.abs(a.y - here.y) - Math.abs(b.y - here.y) || a.y - b.y || (a.id < b.id ? -1 : 1));
-  return candidates[0].id;
+  return best === null ? null : best.id;
 }
 
 function onKeydown(event: KeyboardEvent, id: bigint): void {
@@ -185,6 +182,42 @@ function focusCurrent(): void {
 function scrollToNode(id: bigint, block: 'center' | 'nearest' = 'center'): void {
   nodeElement(id)?.scrollIntoView?.({ block, inline: block });
 }
+
+// ---------------------------------------------------------------------------
+// measured canvas: one ResizeObserver on the scroll area (the parent element), feature-detected,
+// disconnected on unmount; whole pixels, only above zero and only when the size changes
+// ---------------------------------------------------------------------------
+
+let observer: ResizeObserver | null = null;
+let lastSize: CanvasSize | null = null;
+
+function stopObserving(): void {
+  if (observer !== null) observer.disconnect();
+  observer = null;
+}
+
+watch(
+  root,
+  (el) => {
+    stopObserving();
+    const area = el?.parentElement ?? null;
+    if (area === null || typeof ResizeObserver === 'undefined') return;
+    observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (entry === undefined) return;
+      const width = Math.floor(entry.contentRect.width);
+      const height = Math.floor(entry.contentRect.height);
+      if (width <= 0 || height <= 0) return;
+      if (lastSize !== null && lastSize.width === width && lastSize.height === height) return;
+      lastSize = { width, height };
+      emit('resize', { width, height });
+    });
+    observer.observe(area);
+  },
+  { flush: 'post', immediate: true },
+);
+
+onBeforeUnmount(stopObserving);
 
 defineExpose({ focusCurrent, scrollToNode });
 </script>
@@ -230,7 +263,7 @@ defineExpose({ focusCurrent, scrollToNode });
       v-if="props.layout.caption"
       class="caption"
       aria-hidden="true"
-      :style="{ left: `${props.layout.caption.x}px`, top: `${props.layout.caption.y}px` }"
+      :style="captionStyle(props.layout.caption)"
       >{{ props.regionName }}</span
     >
 
@@ -255,7 +288,7 @@ defineExpose({ focusCurrent, scrollToNode });
         <div
           class="label"
           :class="[
-            view.labelSide,
+            `align-${view.label.align}`,
             `state-${view.stateWord === 'heard of' ? 'heard' : view.stateWord}`,
             { selected: view.pressed, other: view.otherRegion, mobile: props.mobile },
           ]"
@@ -374,9 +407,11 @@ defineExpose({ focusCurrent, scrollToNode });
 /* ---- caption ---- */
 .caption {
   position: absolute;
+  overflow: hidden;
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  text-overflow: ellipsis;
   color: var(--color-neutral-500);
   pointer-events: none;
   white-space: nowrap;
@@ -521,8 +556,12 @@ defineExpose({ focusCurrent, scrollToNode });
   text-align: left;
 }
 
-.label.left {
+.label.align-right {
   text-align: right;
+}
+
+.label.align-center {
+  text-align: center;
 }
 
 .line {
@@ -534,8 +573,12 @@ defineExpose({ focusCurrent, scrollToNode });
   font-weight: 400;
 }
 
-.label.left .line {
+.label.align-right .line {
   justify-content: flex-end;
+}
+
+.label.align-center .line {
+  justify-content: center;
 }
 
 /* Mobile: one Micro 10 line, the name then the level in its band colour; the full sub-line stays in

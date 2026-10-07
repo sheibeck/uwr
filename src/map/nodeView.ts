@@ -7,7 +7,8 @@
 
 import { BAND_WORD, BAND_COLOR, placeDanger } from './danger';
 import type { PlaceDanger } from './danger';
-import type { GraphLayout, LayoutGate } from './graphLayout';
+import { compareReading } from './graphLayout';
+import type { GraphLayout, LabelBox, LayoutGate } from './graphLayout';
 import { compareBigint, compareNames } from './order';
 import type { RegionChip } from './regionChips';
 import { terrainOf } from './terrain';
@@ -113,7 +114,8 @@ export interface NodeView {
   /** 'Lv a–b', 'Safe' or '' (uncharted). */
   levelLabel: string;
   levelColor: string;
-  labelSide: 'left' | 'right';
+  /** The label box the layout placed for this node (top-left, size, text alignment). */
+  label: LabelBox;
   /** Steps from your place; null when no known path exists. */
   steps: number | null;
   ariaLabel: string;
@@ -179,7 +181,7 @@ export function nodeViews(input: NodeViewsInput): NodeView[] {
       subState: isHere ? ' · you' : stateWord === 'heard of' ? ' · heard of' : '',
       levelLabel: danger.levelLabel,
       levelColor: danger.color,
-      labelSide: node.labelSide,
+      label: node.label,
       steps,
       ariaLabel: nodeAriaLabel({
         name: place.name,
@@ -228,7 +230,8 @@ export function listRows(input: {
   regions: readonly NodeRegion[];
   shownRegionId: bigint;
 }): ListRow[] {
-  const ordered = [...input.views].sort((a, b) => a.x - b.x || a.y - b.y || compareBigint(a.id, b.id));
+  // the layout's reading order (top to bottom, then left to right), shared with the graph and End
+  const ordered = [...input.views].sort(compareReading);
   return ordered.map((view) => {
     const neighbours: NodePlace[] = [];
     for (const id of input.adjacency.get(view.id) ?? []) {
