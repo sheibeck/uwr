@@ -624,11 +624,7 @@ Plans:
 **Requirements**: CUT-01 (loot and crafting rows of the parity checklist)
 **Success Criteria** (what must be TRUE):
 
-  1. One AI job per region, run right after the region is generated (region generation stays as fast as today), designs:
-     - the region's gatherable materials and creature drops
-     - a loot table for each of its enemy types (from those materials, plus gear and trophies)
-     - regional recipes built from those materials
-     Enemy types added later get a small follow-up job. Results are stored once and reused.
+  1. One AI job per region, run right after the region is generated (region generation stays as fast as today), designs the region's gatherable materials and creature drops, a loot table for each of its enemy types (from those materials, plus gear and trophies), and regional recipes built from those materials. Enemy types added later get a small follow-up job. Results are stored once and reused.
   2. The server owns every number: entry counts, rarity mix by enemy level (better for bosses and named foes), gold ranges, drop and gather rates, and all item stats through the shared item rules. The AI supplies only names, kinds, descriptions and which materials go into which recipe; its output is validated and clamped.
   3. Rare recipes need a material from at least one other, already-generated region. Epic and legendary recipes need materials from two or three regions. Common and uncommon recipes use local materials.
   4. Until the job lands, or if it fails, fallbacks keep the game working: the rule-based recipes (50-25), terrain gatherables, and a rule-based loot table from existing items and gold, so a kill is never empty.
