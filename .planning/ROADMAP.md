@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 to 51.4 follow 51 (51.4 needs 51.3). Phase 52 follows them, and 52.1 is last.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 to 51.6 follow 51 in order (51.4 needs 51.3). Phase 52 follows them, and 52.1 is last.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -87,6 +87,8 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.2: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
+- [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
+- [ ] **Phase 51.6: Log** (INSERTED) - A stored, searchable log of what happened to the character
 - [ ] **Phase 52: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client
 - [ ] **Phase 52.1: Bank, Trade and Hotbar Manager** (INSERTED) - The designed bank, player trade and Hotbar Manager
 
@@ -721,6 +723,50 @@ Plans:
   - Reuse: bindings for `combat_loot`, `my_combat_loot`, `take_loot`, `take_all_loot`, `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs.
   - Tests: rails content per drop, take and take-all, refusals, and mobile.
 
+### Phase 51.5: Character, Level Up and New Skill (INSERTED)
+
+**Goal**: Players level up and choose their new skills, and read their character on the redesigned Character screen (formerly Stats).
+**Depends on**: Phase 50 (Stats screen, stats model, perk chooser), Phase 51.4
+**Requirements**: LDG-03 (Character screen), CUT-01 (level-up row of the parity checklist)
+**Success Criteria** (what must be TRUE):
+
+  1. Every Level up entry point (header tag, mobile button, Character header, pending-skill callouts, the console line) opens the Level Up flow: Claim level (stats before and after), the drafting state while the Keeper drafts skills, Choose skill (three cards, select then Learn, hotbar placement line), and Done. It calls the existing `apply_level_up` and `choose_skill`, confirms from the character and pending-skill rows, refuses in combat with the reason, and lets the player close and choose later.
+  2. A banked second level is claimed only after the current skill is chosen.
+  3. Stats is renamed Character everywhere (header button, More row, screen registry, drawer and sheet titles) and follows `UWR Character.dc.html`: Overview, Abilities, Renown and factions, and Achievements tabs, using the data the server has today; content the server does not store is decided per item (built, deferred or a server follow-up).
+  4. At 390x844 Character and Level Up open as full-height sheets and every action works.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: `UWR Character.dc.html` and `UWR Level Up.dc.html` (owner, updated 2026-10-07), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). A fresh extract and code scout are in the session scratchpad `design-character/`.
+**Notes**:
+
+  - Pulled in from backlog 999.19 (owner, 2026-10-07: "we already have a phase to go back and update the character UX based on new mocks. Update that phase with this updated version of the mocks").
+  - Root cause of "can't level up": no client calls `apply_level_up` or `choose_skill` (todo `2026-10-07-level-up-and-new-skill-tags-do-nothing.md`). The flows are client-only; the reducers exist.
+  - Server gaps the mock shows (class card fields, achievements content, skill flavor line, the Keeper's assessment, server firsts by character, HP and mana preview) need owner calls in the discuss.
+  - Owner calls: first-person Keeper quotes in the mock (voice rule), 40px and 30px level numerals and other off-scale sizes, the positive-green token.
+  - Related todos: `2026-10-06-renown-passive-perks-no-effect.md`, `2026-10-06-race-ability-source-as-chip.md`, `2026-10-06-hotbar-hover-shows-ability-description.md`.
+
+### Phase 51.6: Log (INSERTED)
+
+**Goal**: Players read a stored, searchable log of what happened to their character, by category and day.
+**Depends on**: Phase 51.5
+**Requirements**: CUT-01 (the log row of the parity checklist)
+**Success Criteria** (what must be TRUE):
+
+  1. The server stores one log entry per meaningful action (quests, items and gold, crafting, combat with one summary per fight, travel, social, progress) in a private per-character table with a `my_*` view, with place, amounts and a link target, pruned to a cap.
+  2. A Log screen (header button and mobile entry) follows `UWR Log.dc.html`: category chips with counts, search over text and place, newest first grouped by day, links to existing screens, and the empty state.
+  3. The result card line "Also written to your log." opens the Log.
+  4. At 390x844 the Log opens as a full-height sheet and every action works.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: `UWR Log.dc.html` (owner, 2026-10-07), re-imported fresh. A fresh extract and code scout are in the session scratchpad `design-log/`.
+**Notes**:
+
+  - Owner, 2026-10-07: "When I salvage an item it says it goes into my backpack and my log. It would be good to have a Log view."
+  - Today nothing is stored: `event_private` is an event table and the console keeps 300 lines in memory only.
+  - Owner accepted the defaults (2026-10-07): drop or reword the Keeper's first-person rail quote, keep the standard sheet (grabber and X) on mobile, the Log stays open in combat (read-only), and the mock's new colours map to existing tokens.
+  - Server changes are additive and published locally only.
 ### Phase 52: Parity and Production
 
 **Goal**: The new client does everything the old client did and is what production serves.
@@ -792,6 +838,8 @@ Plans:
 | 51.2. World Events | v3.0 | 0/TBD | Not started | - |
 | 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
+| 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
+| 51.6. Log | v3.0 | 0/TBD | Not started | - |
 | 52. Parity and Production | v3.0 | 0/TBD | Not started | - |
 | 52.1. Bank, Trade and Hotbar Manager | v3.0 | 0/TBD | Not started | - |
 
@@ -1737,7 +1785,7 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.19: Character screen: rename Stats to Character, updated design (design: UWR Character) (BACKLOG)
+### Phase 999.19: Character screen: rename Stats to Character, updated design (design: UWR Character) (PULLED INTO PHASE 51.5)
 
 **Goal:** Rename the Stats menu item and screen to "Character", and rebuild that screen and its rail from the owner's updated Claude Design file. Captured 2026-10-06 (owner request).
 
@@ -2025,4 +2073,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-07 after adding economy dials to Phase 51.3 (owner)*
+*Last updated: 2026-10-07 after adding Phase 51.5 Character and 51.6 Log (owner)*
