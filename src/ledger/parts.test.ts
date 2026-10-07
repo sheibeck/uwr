@@ -273,6 +273,19 @@ describe('InlineConfirm', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it('shows a warning icon before the prompt only when asked', () => {
+    const plain = mountConfirm();
+    expect(plain.w.find('.warn-icon').exists()).toBe(false);
+    plain.w.unmount();
+    wrapper = null;
+    const { w } = mountConfirm({ warning: true });
+    const icon = w.get('.warn-icon');
+    expect(icon.attributes('aria-hidden')).toBe('true');
+    const children = Array.from(w.element.children);
+    expect(children.indexOf(icon.element)).toBe(children.indexOf(w.get('.confirm-prompt').element) - 1);
+    expect(here('InlineConfirm.vue')).toMatch(/\.warn-icon\s*\{[^}]*color: var\(--color-con-yellow\);/);
+  });
+
   it('confirm emits confirm and is inert while pending', async () => {
     const { w } = mountConfirm();
     await w.findAll('button')[0].trigger('click');

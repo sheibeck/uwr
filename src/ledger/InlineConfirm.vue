@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
+import { PhWarning } from '@phosphor-icons/vue';
 
 // Inline confirmation (50-UI-SPEC "Inline confirmation", the 49 Start over pattern): it replaces
 // an action row in place. Focus starts on Keep it (the safe default). Keep it and Esc hand back
@@ -13,10 +14,12 @@ const props = withDefaults(
     /** The confirmed call is in flight: the confirm button is inert. */
     pending?: boolean;
     mobile?: boolean;
+    /** A warning icon before the prompt: the salvage confirms (EXTRACT I.5). */
+    warning?: boolean;
     /** The element that opened the confirmation; it takes focus back on Keep it or Esc. */
     opener?: HTMLElement | null;
   }>(),
-  { keepLabel: 'Keep it', pending: false, mobile: false, opener: null },
+  { keepLabel: 'Keep it', pending: false, mobile: false, warning: false, opener: null },
 );
 const emit = defineEmits<{ confirm: []; keep: [] }>();
 
@@ -53,6 +56,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="inline-confirm" :class="{ mobile: props.mobile }">
+    <PhWarning v-if="props.warning" :size="16" class="warn-icon" aria-hidden="true" />
     <!-- Live region: a prompt that changes (the Sell quantity total) is announced, atomically. -->
     <span class="confirm-prompt" aria-live="polite" aria-atomic="true">{{ props.prompt }}</span>
     <!-- Optional controls between the prompt and the decisions, used by the Sell quantity picker. -->
@@ -82,6 +86,11 @@ onBeforeUnmount(() => {
 
 .inline-confirm.mobile {
   min-height: 44px;
+}
+
+.warn-icon {
+  color: var(--color-con-yellow);
+  flex: none;
 }
 
 .confirm-prompt {
