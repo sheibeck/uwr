@@ -630,7 +630,26 @@ Plans:
   5. The public `user` table no longer exposes emails, and sign-in no longer trusts a client-sent email (CR-01), rolled out safely with an owner sign-in check after the local publish.
   6. At 390x844 every action above works.
 
-**Plans**: TBD
+**Plans**: 16 plans
+
+Plans:
+- [ ] 51.1-01-PLAN.md — Stored online status (one writer, backfill through connect and the guarded sweep), private `user`, shared party rules (`data/group_config.ts`)
+- [ ] 51.1-02-PLAN.md — Offline members left behind (travel, stamina check, fight pulls); offline drops out of who, look and look at; whisper refuses offline targets
+- [ ] 51.1-03-PLAN.md — Invites need consent: `join_group` invite rule, validate-before-create, guarded 5-minute expiry tick, `cancel_group_invite`, lone-group dissolve
+- [ ] 51.1-04-PLAN.md — Local publish of the party server (key 108 before and after, no clear) and bindings regeneration
+- [ ] 51.1-05-PLAN.md — CR-01: token-derived login email with admin bypass and a one-line rollback, email friend request neutralised, own publish, owner sign-in check
+- [ ] 51.1-06-PLAN.md — Client social hub: pets, outgoing invites, inviting group and names on the server clock; `setFollowLeader` and `cancelGroupInvite` in GameReducers
+- [ ] 51.1-07-PLAN.md — `follow.ts` (states, summary, stamina warning), online followers in `travelChecks.ts`, online Map players count, server/client parity test
+- [ ] 51.1-08-PLAN.md — `playerMenu.ts` (role-aware entry groups, hints, confirms) and `partyActions.ts` (one action layer, no join without an invite)
+- [ ] 51.1-09-PLAN.md — StatusDot, CharacterName, FollowIcon, PetRow, PetTag, TravelSwitch and the `src/social` design guards
+- [ ] 51.1-10-PLAN.md — ActionMenu (desktop popover and mobile sheet, keyboard, inline confirms) and PlayerMenu (⋯ opener, right-click, one menu at a time)
+- [ ] 51.1-11-PLAN.md — Incoming invite card (Accept, Decline, countdown, announce; also above the mobile composer) and Invited · waiting with Cancel invite
+- [ ] 51.1-12-PLAN.md — Nearby: online players only, "In your party", Whisper · Examine · ⋯ with right-click, NPC Talk icon
+- [ ] 51.1-13-PLAN.md — Rail out of combat: member cards with dot, follow icon, stamina and ⋯; pets; summary and warning; gated Invite; Loot: personal; invites; self block menu, pet and switch
+- [ ] 51.1-14-PLAN.md — Rail in combat: self block as the self target (replaces the 48 You card), COMBAT3 member cards with chips, XP hidden; Phase 48 tests rewritten
+- [ ] 51.1-15-PLAN.md — Mobile combat: self row target, row 3 with your pet tag, 3-column party grid with paws; Phase 48 strip tests rewritten
+- [ ] 51.1-16-PLAN.md — Mobile Party sheet (every party action at 390x844), NoticeLine kinds prop, 44px proof, no-email DOM check
+
 **UI hint**: yes
 **Design source**: `UWR Party.dc.html` (menus, invite card, pet HUD and follow indicators; updated 2026-10-07) and the updated `UWR Combat.dc.html` rails for character, pets and buffs (owner, 2026-10-07). The party and rail parts of `51.1-UI-SPEC.md` apply; its Social screen parts move to Phase 52.2.
 **Notes**:
