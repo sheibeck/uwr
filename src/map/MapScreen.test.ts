@@ -1,0 +1,454 @@
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { computed, nextTick, ref } from 'vue';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
+import type { FrameControls, GameData, ScreenArgs } from '../game/context';
+import type { Location } from '../module_bindings/types';
+import GraphList from './GraphList.vue';
+import { knownPlaces } from './knownPlaces';
+import { MAP_KEY, createInertMap } from './mapContext';
+import type { MapData, MapView } from './mapContext';
+import MapScreen from './MapScreen.vue';
+import { adjacencyOf } from './route';
+import type { TravelTimer } from './travelTimer';
+
+const XSS = '<img src=x onerror=alert(1)>';
+const SOURCE = readFileSync(resolve(process.cwd(), 'src/map/MapScreen.vue'), 'utf8');
+
+const place = (id: bigint, name: string, regionId: bigint, over: Record<string, unknown> = {}): Location =>
+  ({
+    id,
+    name,
+    description: '',
+    zone: '',
+    regionId,
+    levelOffset: 0n,
+    isSafe: false,
+    terrainType: 'woods',
+    bindStone: false,
+    craftingAvailable: false,
+    ...over,
+  }) as unknown as Location;
+
+const LOCATIONS = (): Location[] => [
+  place(10n, 'Ember Gate', 1n, { terrainType: 'town', isSafe: true, bindStone: true }),
+  place(11n, 'Gloamwood', 1n),
+  place(12n, 'Ridge Walk', 1n, { terrainType: 'mountains' }),
+  place(20n, 'Saltmarsh Gate', 2n),
+];
+const REGIONS = [
+  { id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 300n },
+  { id: 2n, name: 'Saltmarsh', dangerMultiplier: 400n },
+];
+const links = (pairs: Array<[bigint, bigint]>) =>
+  pairs.flatMap(([a, b]) => [
+    { fromLocationId: a, toLocationId: b },
+    { fromLocationId: b, toLocationId: a },
+  ]);
+
+interface Harness {
+  map: MapData;
+  game: GameData;
+  frame: FrameControls;
+  select: ReturnType<typeof vi.fn>;
+  showRegion: ReturnType<typeof vi.fn>;
+  setView: ReturnType<typeof vi.fn>;
+  character: ReturnType<typeof ref<Record<string, unknown> | null>>;
+  ready: ReturnType<typeof ref<boolean>>;
+  view: ReturnType<typeof ref<MapView>>;
+  selectedId: ReturnType<typeof ref<bigint | null>>;
+  shownRegionId: ReturnType<typeof ref<bigint | null>>;
+  timer: ReturnType<typeof ref<TravelTimer>>;
+  screenArgs: ReturnType<typeof ref<ScreenArgs | null>>;
+  isDesktop: ReturnType<typeof ref<boolean>>;
+  locations: ReturnType<typeof ref<Location[]>>;
+}
+
+function harness(over: { args?: ScreenArgs | null; locationId?: bigint; locations?: Location[]; desktop?: boolean } = {}): Harness {
+  const character = ref<Record<string, unknown> | null>({
+    id: 1n,
+    name: 'Brannoch',
+    locationId: over.locationId ?? 10n,
+    level: 6n,
+    boundLocationId: 0n,
+  });
+  const locations = ref<Location[]>(over.locations ?? LOCATIONS());
+  const visitedIds = ref<bigint[]>([10n, 11n]);
+  const connections = ref(links([[10n, 11n], [11n, 12n], [11n, 20n]]));
+  const ready = ref(true);
+  const view = ref<MapView>('graph');
+  const selectedId = ref<bigint | null>(null);
+  const shownRegionId = ref<bigint | null>(null);
+  const timer = ref<TravelTimer>({ running: false, secondsLeft: 0 });
+  const screenArgs = ref<ScreenArgs | null>(over.args ?? null);
+  const isDesktop = ref(over.desktop ?? true);
+
+  const known = computed(() => {
+    const here = (character.value?.locationId as bigint | undefined) ?? 0n;
+    return knownPlaces<Location>({
+      visitedIds: visitedIds.value,
+      currentLocationId: here === 0n ? null : here,
+      connections: connections.value,
+      locations: locations.value,
+    });
+  });
+  const adjacency = computed(() => adjacencyOf(known.value.edges));
+  const select = vi.fn((id: bigint | null) => {
+    selectedId.value = id;
+  });
+  const showRegion = vi.fn((id: bigint | null) => {
+    shownRegionId.value = id;
+  });
+  const setView = vi.fn((next: MapView) => {
+    view.value = next;
+  });
+
+  const map = {
+    ...createInertMap(),
+    ready,
+    known,
+    adjacency,
+    selfTimer: timer,
+    selectedId,
+    shownRegionId,
+    view,
+    select,
+    showRegion,
+    setView,
+  } as unknown as MapData;
+
+  const game = {
+    ...createInertGame(),
+    character,
+    locations,
+    regions: ref(REGIONS),
+  } as unknown as GameData;
+  const frame = { ...createInertFrame(), isDesktop, screenArgs } as unknown as FrameControls;
+  return { map, game, frame, select, showRegion, setView, character, ready, view, selectedId, shownRegionId, timer, screenArgs, isDesktop, locations };
+}
+
+let wrapper: VueWrapper | null = null;
+const scrolled: HTMLElement[] = [];
+const originalScroll = Element.prototype.scrollIntoView;
+
+beforeEach(() => {
+  scrolled.length = 0;
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled.push(this as HTMLElement);
+  };
+});
+
+afterEach(() => {
+  wrapper?.unmount();
+  wrapper = null;
+  document.body.innerHTML = '';
+  Element.prototype.scrollIntoView = originalScroll;
+});
+
+async function mountScreen(h: Harness): Promise<VueWrapper> {
+  wrapper = mount(MapScreen, {
+    attachTo: document.body,
+    global: { provide: { [GAME_KEY as symbol]: h.game, [FRAME_KEY as symbol]: h.frame, [MAP_KEY as symbol]: h.map } },
+  });
+  await nextTick();
+  await nextTick();
+  return wrapper;
+}
+
+const nodeIds = (w: VueWrapper): string[] => w.findAll('button.node').map((b) => b.attributes('data-node-id') as string);
+
+describe('MapScreen: loading and empty', () => {
+  it('renders nothing but an empty root until the map data has applied', async () => {
+    const h = harness();
+    h.ready.value = false;
+    const w = await mountScreen(h);
+    expect(w.element.children).toHaveLength(0);
+    expect(w.text()).toBe('');
+    expect(h.select).not.toHaveBeenCalled();
+    h.ready.value = true;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.legend').exists()).toBe(true);
+    expect(h.select).toHaveBeenCalledWith(10n);
+  });
+
+  it('shows the empty state for a character with no location', async () => {
+    const h = harness({ locationId: 0n });
+    const w = await mountScreen(h);
+    expect(w.text()).toContain('No places discovered yet.');
+    expect(w.text()).toContain('Travel to a new place and it appears here.');
+    expect(w.find('.legend').exists()).toBe(false);
+    expect(w.find('svg[aria-hidden="true"]').exists()).toBe(true);
+  });
+
+  it('shows the empty state with no character even while the hub is not ready', async () => {
+    const h = harness();
+    h.character.value = null;
+    h.ready.value = false;
+    const w = await mountScreen(h);
+    expect(w.text()).toContain('No places discovered yet.');
+  });
+
+  it('mounts bare against the inert providers with the empty state', () => {
+    wrapper = mount(MapScreen);
+    expect(wrapper.text()).toContain('No places discovered yet.');
+  });
+});
+
+describe('MapScreen: screen arguments', () => {
+  it('with no arguments shows your region with your place selected', async () => {
+    const h = harness();
+    await mountScreen(h);
+    expect(h.showRegion).toHaveBeenCalledWith(1n);
+    expect(h.select).toHaveBeenCalledWith(10n);
+    expect(h.selectedId.value).toBe(10n);
+  });
+
+  it('locationId selects that place and shows its region', async () => {
+    const h = harness({ args: { locationId: 20n } });
+    await mountScreen(h);
+    expect(h.select).toHaveBeenCalledWith(20n);
+    expect(h.showRegion).toHaveBeenCalledWith(2n);
+    expect(h.select).not.toHaveBeenCalledWith(10n);
+  });
+
+  it('locationId of a place in your own region keeps that region', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    await mountScreen(h);
+    expect(h.showRegion).toHaveBeenCalledWith(1n);
+    expect(h.select).toHaveBeenCalledWith(12n);
+  });
+
+  it("regionId shows that region with its start node selected", async () => {
+    const h = harness({ args: { regionId: 2n } });
+    await mountScreen(h);
+    expect(h.showRegion).toHaveBeenCalledWith(2n);
+    expect(h.select).toHaveBeenCalledWith(20n);
+  });
+
+  it('regionId of the region you stand in selects your place', async () => {
+    const h = harness({ args: { regionId: 1n } });
+    await mountScreen(h);
+    expect(h.showRegion).toHaveBeenCalledWith(1n);
+    expect(h.select).toHaveBeenCalledWith(10n);
+  });
+
+  it('an unknown location or region falls back to your place and region', async () => {
+    const a = harness({ args: { locationId: 999n } });
+    await mountScreen(a);
+    expect(a.showRegion).toHaveBeenCalledWith(1n);
+    expect(a.select).toHaveBeenCalledWith(10n);
+    wrapper?.unmount();
+    wrapper = null;
+
+    const b = harness({ args: { regionId: 77n } });
+    await mountScreen(b);
+    expect(b.showRegion).toHaveBeenCalledWith(1n);
+    expect(b.select).toHaveBeenCalledWith(10n);
+  });
+
+  it('a place that is known only as a row but not drawn is not selectable through arguments', async () => {
+    // 21 exists as a location but nothing connects it to a visited place
+    const h = harness({ args: { locationId: 21n }, locations: [...LOCATIONS(), place(21n, 'Unseen', 2n)] });
+    await mountScreen(h);
+    expect(h.select).toHaveBeenCalledWith(10n);
+    expect(h.select).not.toHaveBeenCalledWith(21n);
+  });
+
+  it('arguments that arrive while the Map is open are applied', async () => {
+    const h = harness();
+    await mountScreen(h);
+    h.screenArgs.value = { locationId: 20n };
+    await nextTick();
+    await nextTick();
+    expect(h.selectedId.value).toBe(20n);
+    expect(h.shownRegionId.value).toBe(2n);
+  });
+
+  it('scrolls the selected node into view once on open', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    await mountScreen(h);
+    expect(scrolled.map((el) => el.dataset.nodeId)).toEqual(['12']);
+  });
+
+  it('clears the selection on unmount so the place subscriptions stop', async () => {
+    const h = harness();
+    await mountScreen(h);
+    h.select.mockClear();
+    wrapper?.unmount();
+    wrapper = null;
+    expect(h.select).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('MapScreen: graph and list', () => {
+  it('draws the shown region nodes plus its border node, and the legend above the canvas', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    expect(nodeIds(w).sort()).toEqual(['10', '11', '12', '20']);
+    expect(w.get('[role="group"]').attributes('aria-label')).toBe('Ashfall Wilds route graph');
+    expect(w.get('.caption').text()).toBe('Ashfall Wilds');
+    expect(w.get('.danger-label').text()).toBe('Danger vs Lv 6:');
+    const legend = w.get('.legend').element;
+    const canvas = w.get('.canvas').element;
+    expect(legend.compareDocumentPosition(canvas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(canvas.contains(legend)).toBe(false);
+  });
+
+  it('marks the selected place and your place', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    const w = await mountScreen(h);
+    expect(w.get('button.node[data-node-id="12"]').attributes('aria-pressed')).toBe('true');
+    expect(w.get('button.node[data-node-id="10"]').attributes('aria-label')).toContain('you are here');
+  });
+
+  it("draws another region's graph when it is shown", async () => {
+    const h = harness({ args: { regionId: 2n } });
+    const w = await mountScreen(h);
+    expect(w.get('[role="group"]').attributes('aria-label')).toBe('Saltmarsh route graph');
+    expect(nodeIds(w).sort()).toEqual(['11', '20']);
+  });
+
+  it('draws the route to the selected place', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    const w = await mountScreen(h);
+    expect(w.findAll('polyline.route').length).toBe(1);
+    expect(w.get('polyline.route').attributes('points')?.split(' ').length).toBe(3);
+  });
+
+  it('the canvas holds the Map view tablist and Center on you', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    const canvas = w.get('.canvas');
+    const tablist = canvas.get('[role="tablist"]');
+    expect(tablist.attributes('aria-label')).toBe('Map view');
+    expect(tablist.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Graph', 'List']);
+    expect(tablist.get('[aria-selected="true"]').text()).toBe('Graph');
+    expect(canvas.get('button[aria-label="Center on you"]').exists()).toBe(true);
+  });
+
+  it('switching to List renders GraphList with the same nodes and selecting a row calls select', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    const listTab = w.findAll('[role="tab"]').find((t) => t.text() === 'List');
+    await listTab!.trigger('click');
+    await nextTick();
+    expect(h.setView).toHaveBeenCalledWith('list');
+    const list = w.findComponent(GraphList);
+    expect(list.exists()).toBe(true);
+    expect(w.find('.graph-plane').exists()).toBe(false);
+    expect(w.find('button[aria-label="Center on you"]').exists()).toBe(false);
+    const rows = list.findAll('li button');
+    expect(rows.map((r) => r.get('.name').text()).sort()).toEqual(
+      ['Ember Gate', 'Gloamwood', 'Ridge Walk', 'Saltmarsh Gate'].sort(),
+    );
+    h.select.mockClear();
+    await rows.find((r) => r.get('.name').text() === 'Ridge Walk')!.trigger('click');
+    expect(h.select).toHaveBeenCalledWith(12n);
+    // the same node is selected in the graph and in the list
+    await nextTick();
+    const selectedRow = list.findAll('li button').find((r) => r.attributes('aria-pressed') === 'true');
+    expect(selectedRow?.get('.name').text()).toBe('Ridge Walk');
+  });
+
+  it('the list rows name the steps and the connections of each place', async () => {
+    const h = harness();
+    h.view.value = 'list';
+    const w = await mountScreen(h);
+    const here = w.findAll('li button').find((r) => r.get('.name').text() === 'Ember Gate');
+    expect(here?.get('.steps').text()).toBe('Here');
+    expect(here?.get('.connects').text()).toBe('Connects to Gloamwood');
+    const gate = w.findAll('li button').find((r) => r.get('.name').text() === 'Saltmarsh Gate');
+    expect(gate?.get('.connects').text()).toBe('Connects to Gloamwood (Ashfall Wilds)');
+  });
+
+  it('selecting a node in the graph calls select', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    h.select.mockClear();
+    await w.get('button.node[data-node-id="11"]').trigger('click');
+    expect(h.select).toHaveBeenCalledWith(11n);
+  });
+});
+
+describe('MapScreen: gates', () => {
+  it('the gate pill of a crossing selects the far node', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    const gate = w.get('button.gate');
+    expect(gate.text()).toContain('To Saltmarsh');
+    h.select.mockClear();
+    await gate.trigger('click');
+    expect(h.select).toHaveBeenCalledWith(20n);
+    await nextTick();
+    expect(w.get('button.gate').classes()).toContain('selected');
+  });
+
+  it('while the region timer runs (192 s) the gate shows a lock and 3:12 and no Lv', async () => {
+    const h = harness();
+    h.timer.value = { running: true, secondsLeft: 192 };
+    const w = await mountScreen(h);
+    const gate = w.get('button.gate');
+    expect(gate.classes()).toContain('locked');
+    expect(gate.find('.gate-lock').exists()).toBe(true);
+    expect(gate.text()).toContain('3:12');
+    expect(gate.text()).not.toContain('Lv');
+    h.select.mockClear();
+    await gate.trigger('click');
+    expect(h.select).toHaveBeenCalledWith(20n);
+  });
+});
+
+describe('MapScreen: Center on you', () => {
+  it('scrolls your place to the middle and leaves the selection alone', async () => {
+    const h = harness({ args: { locationId: 12n } });
+    const w = await mountScreen(h);
+    scrolled.length = 0;
+    h.select.mockClear();
+    await w.get('button[aria-label="Center on you"]').trigger('click');
+    expect(scrolled.map((el) => el.dataset.nodeId)).toEqual(['10']);
+    expect(h.select).not.toHaveBeenCalled();
+    expect(h.selectedId.value).toBe(12n);
+  });
+
+  it('scrolls the start node when you are in another region than the one shown', async () => {
+    const h = harness({ args: { regionId: 2n } });
+    const w = await mountScreen(h);
+    scrolled.length = 0;
+    await w.get('button[aria-label="Center on you"]').trigger('click');
+    expect(scrolled.map((el) => el.dataset.nodeId)).toEqual(['20']);
+  });
+});
+
+describe('MapScreen: safety and layout', () => {
+  it('renders hostile place and region names as text', async () => {
+    const locations = LOCATIONS().map((l) => (l.id === 11n ? { ...l, name: XSS } : l));
+    const h = harness({ locations });
+    const w = await mountScreen(h);
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.label[data-node-id="11"] .name').text()).toBe(XSS);
+  });
+
+  it('on mobile keeps the Here view until the Map tabs exist (plan 51-11)', async () => {
+    const h = harness({ desktop: false });
+    const w = await mountScreen(h);
+    expect(w.find('.map-sheet').exists()).toBe(true);
+    expect(w.find('.legend').exists()).toBe(false);
+    expect(h.select).not.toHaveBeenCalled();
+  });
+
+  it('source: canvas minimum height, the tokens-only glow and the guards', () => {
+    expect(SOURCE).toContain('MAP_KEY');
+    expect(SOURCE).toContain('Travel to a new place and it appears here.');
+    expect(SOURCE).toContain('layoutGraph(');
+    expect(SOURCE).toMatch(/min-height:\s*320px/);
+    expect(SOURCE).toContain('radial-gradient');
+    expect(SOURCE).toContain('var(--color-accent-900)');
+    expect(SOURCE).not.toContain('v-html');
+    expect(SOURCE).not.toMatch(/<svg/);
+    expect(SOURCE).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+});
