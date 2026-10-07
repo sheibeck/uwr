@@ -84,12 +84,12 @@ describe('breakpoint', () => {
     expect(DESKTOP_QUERY).toBe('(min-width: 900px)');
   });
 
-  it('every width media query is the 900px pair, or the 1200px tier inside the four Ledger screen folders', () => {
+  it('every width media query is the 900px pair, or the 1200px tier inside the four Ledger screen folders and the map folder', () => {
     // 50-UI-SPEC "Layout Contract": the Phase 50 screens switch their columns at 1200px of viewport
     // width; the 900px desktop/mobile switch stays the frame's. The 1200px tier is allowed only in
-    // src/(inventory|stats|vendor|crafting)/, so the frame and the shared screens cannot grow one.
+    // src/(inventory|stats|vendor|crafting|map)/, so the frame and the shared screens cannot grow one.
     const frameQueries = new Set(['(min-width: 900px)', '(max-width: 899px)']);
-    const ledgerScreen = /^src\/(inventory|stats|vendor|crafting)\//;
+    const ledgerScreen = /^src\/(inventory|stats|vendor|crafting|map)\//;
     const offenders: string[] = [];
     for (const { file, css } of allStyleSources()) {
       for (const params of atRules(css, 'media', file)) {

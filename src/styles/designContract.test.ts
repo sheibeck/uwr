@@ -248,10 +248,24 @@ describe('icons', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('no .vue template draws an inline svg', () => {
-    const offenders = files.vue
-      .filter((file) => /<svg\b/i.test(sfcTemplateAndScript(read(file))))
-      .map(rel);
+  // Exactly one folder may draw inline svg: the Map's graph plane (51-UI-SPEC O1; CONTEXT "SVG is
+  // allowed on the map screen only"). The prefix ends in a slash so a sibling such as src/mapping/
+  // is still flagged.
+  const SVG_FOLDER = 'src/map/';
+  const svgOffenders = (entries: Array<[string, string]>): string[] =>
+    entries
+      .filter(([file, text]) => !file.startsWith(SVG_FOLDER) && /<svg\b/i.test(text))
+      .map(([file]) => file);
+
+  it('the svg allowance is exactly the src/map/ folder', () => {
+    const svg = '<template><svg viewBox="0 0 1 1"></svg></template>';
+    expect(svgOffenders([['src/rails/X.vue', svg]])).toEqual(['src/rails/X.vue']);
+    expect(svgOffenders([['src/map/GraphPlane.vue', svg]])).toEqual([]);
+    expect(svgOffenders([['src/mapping/X.vue', svg]])).toEqual(['src/mapping/X.vue']);
+  });
+
+  it('no .vue template outside src/map/ draws an inline svg', () => {
+    const offenders = svgOffenders(files.vue.map((file) => [rel(file), sfcTemplateAndScript(read(file))]));
     expect(offenders).toEqual([]);
   });
 });
