@@ -1,5 +1,5 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT } from '../data/crafting_rules';
+import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageRoll, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT, SALVAGE_REAGENT_ROLL_INDEX, SALVAGE_SCROLL_ROLL_INDEX } from '../data/crafting_rules';
 import { writeActionResult } from '../helpers/action_result';
 import type { ResultLine } from '../data/action_result';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
@@ -516,10 +516,10 @@ export const registerItemCraftingReducers = (deps: any) => {
         ? { templateId: materialTemplate.id, name: materialTemplate.name, vendorValue: materialTemplate.vendorValue ?? 0n }
         : null,
     });
-    const returned = rollSalvage(
-      components,
-      salvageSeed(ctx.timestamp.microsSinceUnixEpoch, instance.id, character.id)
-    );
+    // One seed for every roll of this salvage: the components at their positions, the reagent and the
+    // scroll at their own fixed indexes, so no roll decides another.
+    const seed = salvageSeed(ctx.timestamp.microsSinceUnixEpoch, instance.id, character.id);
+    const returned = rollSalvage(components, seed);
     const receivedNames: string[] = [];
     for (const component of returned) {
       if (component.templateId === null) continue;
@@ -544,7 +544,7 @@ export const registerItemCraftingReducers = (deps: any) => {
     // Affix deletion happens later, so rows still exist here.
     const filteredModDefs = salvageReagentDefs([...ctx.db.item_affix.by_instance.filter(instance.id)]);
     if (filteredModDefs.length > 0) {
-      const modifierRoll = (ctx.timestamp.microsSinceUnixEpoch + args.itemInstanceId * 13n) % 100n;
+      const modifierRoll = salvageRoll(seed, SALVAGE_REAGENT_ROLL_INDEX);
       if (modifierRoll < SALVAGE_REAGENT_CHANCE_PCT) {
         const modIdx = Number((args.itemInstanceId + character.id) % BigInt(filteredModDefs.length));
         const modDef = filteredModDefs[modIdx];
@@ -572,7 +572,7 @@ export const registerItemCraftingReducers = (deps: any) => {
       const rawChance = SALVAGE_SCROLL_CHANCE_BASE + intOffset;
       // Clamp to [5n, 95n]
       const scrollChance = rawChance < 5n ? 5n : rawChance > 95n ? 95n : rawChance;
-      const roll = (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n;
+      const roll = salvageRoll(seed, SALVAGE_SCROLL_ROLL_INDEX);
       if (roll < scrollChance) {
         // A generated recipe has no scroll item (it is learned through Discover), so a missing
         // scroll template is normal and stays silent.

@@ -637,8 +637,9 @@ export const SALVAGE_REAGENT_CHANCE_PCT = 12n;
 // keeps the sum of all amounts under the total any such recipe consumes and the value of the
 // components under the item's own vendor value. So even when every roll hits, salvaging returns
 // strictly fewer units than the craft took, and a craft then salvage then craft loop can never repeat
-// without new materials. The bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and the scroll roll are
-// separate and unchanged. Deterministic: the seed comes from the server timestamp and ids.
+// without new materials. The bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and the INT scroll are
+// separate rolls on the same seed at their own indexes (SALVAGE_REAGENT_ROLL_INDEX and
+// SALVAGE_SCROLL_ROLL_INDEX). Deterministic: the seed comes from the server timestamp and ids.
 // ---------------------------------------------------------------------------
 
 /** The chance, in percent, that a component of material tier 1, 2 and 3 (and above) comes back. */
@@ -835,9 +836,17 @@ export function salvageSeed(timestampMicros: bigint, instanceId: bigint, charact
 }
 
 /**
- * One roll from 0 to 99 for component number `index`: a splitmix64 step over BigInt. The reagent roll
- * ((timestamp + instance id * 13) % 100) and the scroll roll ((timestamp + character id) % 100) are
- * separate and unchanged.
+ * The roll index of the bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and of the INT recipe scroll. The
+ * components use 0, 1, 2 (one per recipe input, or the one slot material), so these fixed indexes
+ * never meet a component's, and the three kinds of roll are independent of each other (review IN-02).
+ */
+export const SALVAGE_REAGENT_ROLL_INDEX = 100n;
+export const SALVAGE_SCROLL_ROLL_INDEX = 101n;
+
+/**
+ * One roll from 0 to 99 for roll number `index` of a salvage: a splitmix64 step over BigInt.
+ * Components roll at their own position; the reagent and the scroll roll at
+ * SALVAGE_REAGENT_ROLL_INDEX and SALVAGE_SCROLL_ROLL_INDEX on the same seed.
  */
 export function salvageRoll(seed: bigint, index: bigint): bigint {
   let z = BigInt.asUintN(64, seed + (index + 1n) * 0x9e3779b97f4a7c15n);

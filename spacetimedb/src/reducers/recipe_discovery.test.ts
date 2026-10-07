@@ -24,7 +24,9 @@ import {
   getModifierMagnitude,
   rollSalvage,
   salvageComponents,
+  salvageRoll,
   salvageSeed,
+  SALVAGE_REAGENT_ROLL_INDEX,
 } from '../data/crafting_rules';
 import type { SalvageComponent } from '../data/crafting_rules';
 import {
@@ -704,10 +706,17 @@ describe('salvaging returns strictly less than crafting took', () => {
     rows(ctx, 'item_instance')
       .filter((i) => i.ownerCharacterId === characterId && !i.equippedSlot)
       .reduce((sum, i) => sum + valueOf(ctx, i.templateId) * (i.quantity ?? 1n), 0n);
-  // A salvage timestamp whose reagent roll, (ts + instanceId * 13) % 100, is 0 (under the 12% chance).
-  const rollReagent = (ctx: any, instanceId: bigint) => {
+  // A salvage timestamp whose reagent roll (salvageRoll on the salvage seed at
+  // SALVAGE_REAGENT_ROLL_INDEX) is 0, under the 12% chance.
+  const rollReagent = (ctx: any, instanceId: bigint, characterId = 1n) => {
     const base = T0 + 5_000_000n;
-    ctx.timestamp = { microsSinceUnixEpoch: base + ((100n - ((base + instanceId * 13n) % 100n)) % 100n) };
+    for (let k = 0n; k < 20000n; k += 1n) {
+      if (salvageRoll(salvageSeed(base + k, instanceId, characterId), SALVAGE_REAGENT_ROLL_INDEX) === 0n) {
+        ctx.timestamp = { microsSinceUnixEpoch: base + k };
+        return;
+      }
+    }
+    throw new Error('rollReagent: no timestamp gives a reagent roll of 0');
   };
 
   it('a crafted Void Crystal Pendant with every roll hitting gives back 1 Void Crystal (it took 2) and no secondary', () => {

@@ -8,6 +8,9 @@
  *   - salvage_item is a chance at a smaller return, never a guaranteed one (Plan 50-40, owner
  *     2026-10-07): it grants exactly what rollSalvage says for salvageComponents and the seed from the
  *     timestamp, the instance and the character (T-50-126);
+ *   - the 12% reagent and the INT scroll roll on that same seed at their own fixed indexes
+ *     (SALVAGE_REAGENT_ROLL_INDEX, SALVAGE_SCROLL_ROLL_INDEX), independent of each other and of the
+ *     component rolls (review IN-02);
  *   - Discover recipes writes kind 'discover' with one 'recipe' line per find, none when nothing is
  *     new, and no row without a station.
  */
@@ -17,10 +20,13 @@ import { createMockCtx } from '../helpers/test-utils';
 import {
   CRAFTING_MODIFIER_DEFS,
   SALVAGE_REAGENT_CHANCE_PCT,
+  SALVAGE_REAGENT_ROLL_INDEX,
+  SALVAGE_SCROLL_ROLL_INDEX,
   getMaterialForSalvage,
   rollSalvage,
   salvageComponents,
   salvageReagentDefs,
+  salvageRoll,
   salvageSeed,
 } from '../data/crafting_rules';
 import type { SalvageComponent } from '../data/crafting_rules';
@@ -211,9 +217,19 @@ const setTs = (ctx: any, ts: bigint) => {
   ctx.timestamp = { microsSinceUnixEpoch: ts };
 };
 
-// A timestamp whose reagent roll, (ts + instanceId * 13) % 100, equals `roll`.
-const tsForReagentRoll = (instanceId: bigint, roll: bigint, base = T0 + 5_000_000n) =>
-  base + ((100n + roll - ((base + instanceId * 13n) % 100n)) % 100n);
+// The reagent and scroll rolls the handler makes: salvageRoll on the salvage seed at their fixed indexes.
+const reagentRollAt = (ts: bigint, instanceId = INSTANCE, characterId = 1n) =>
+  salvageRoll(salvageSeed(ts, instanceId, characterId), SALVAGE_REAGENT_ROLL_INDEX);
+const scrollRollAt = (ts: bigint, instanceId = INSTANCE, characterId = 1n) =>
+  salvageRoll(salvageSeed(ts, instanceId, characterId), SALVAGE_SCROLL_ROLL_INDEX);
+
+// The first timestamp from `base` upward whose reagent roll equals `roll`.
+const tsForReagentRoll = (instanceId: bigint, roll: bigint, base = T0 + 5_000_000n) => {
+  for (let k = 0n; k < 20000n; k += 1n) {
+    if (reagentRollAt(base + k, instanceId) === roll) return base + k;
+  }
+  throw new Error('tsForReagentRoll: no timestamp gives that roll');
+};
 
 const bag = (ctx: any, templateId: bigint): bigint =>
   rows(ctx, 'item_instance')
@@ -274,8 +290,8 @@ function tsWhere(
     const ts = T0 + 5_000_000n + k;
     const returned = rollSalvage(components, salvageSeed(ts, instanceId, characterId));
     if (want.comps && !want.comps(returned)) continue;
-    if (!rollOk(reagent, (ts + instanceId * 13n) % 100n, SALVAGE_REAGENT_CHANCE_PCT)) continue;
-    if (scroll !== 'any' && !rollOk(scroll, (ts + characterId) % 100n, SCROLL_CHANCE)) continue;
+    if (!rollOk(reagent, reagentRollAt(ts, instanceId, characterId), SALVAGE_REAGENT_CHANCE_PCT)) continue;
+    if (scroll !== 'any' && !rollOk(scroll, scrollRollAt(ts, instanceId, characterId), SCROLL_CHANCE)) continue;
     return ts;
   }
   throw new Error('tsWhere: no timestamp matches the wanted outcome');
@@ -526,7 +542,7 @@ describe('salvage_item result row: the reagent bonus', () => {
   it('a hit under the chance adds a bonus line and the reagent', () => {
     const ctx = newCtx({ instances: [instance(), stack(501n, reagentId('Glowing Stone'), 2n)], affixes: [suffix(1n, 'strBonus')] });
     const ts = tsWhere(ctx, { comps: hit, reagent: 'hit' });
-    expect((ts + INSTANCE * 13n) % 100n).toBeLessThan(SALVAGE_REAGENT_CHANCE_PCT);
+    expect(reagentRollAt(ts)).toBeLessThan(SALVAGE_REAGENT_CHANCE_PCT);
     setTs(ctx, ts);
     salvageIt(ctx);
     expect(bag(ctx, reagentId('Glowing Stone'))).toBe(3n);
@@ -564,7 +580,7 @@ describe('salvage_item result row: the reagent bonus', () => {
   it('a miss writes no bonus line and grants nothing', () => {
     const ctx = newCtx({ affixes: [suffix(1n, 'strBonus')] });
     const ts = tsWhere(ctx, { comps: hit, reagent: SALVAGE_REAGENT_CHANCE_PCT });
-    expect((ts + INSTANCE * 13n) % 100n).toBe(SALVAGE_REAGENT_CHANCE_PCT);
+    expect(reagentRollAt(ts)).toBe(SALVAGE_REAGENT_CHANCE_PCT);
     setTs(ctx, ts);
     salvageIt(ctx);
     expect(bag(ctx, reagentId('Glowing Stone'))).toBe(0n);
@@ -605,7 +621,7 @@ describe('salvage_item result row: the recipe scroll', () => {
       instances: [instance(), stack(501n, SCROLL, 1n)],
     });
     const ts = tsWhere(ctx, { comps: hit, scroll: 'hit' });
-    expect((ts + 1n) % 100n).toBeLessThan(SCROLL_CHANCE);
+    expect(scrollRollAt(ts)).toBeLessThan(SCROLL_CHANCE);
     setTs(ctx, ts);
     salvageIt(ctx);
     // The recipe consumed 3 Rough Hide, so a hit returns 1.

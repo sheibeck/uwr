@@ -13,6 +13,8 @@ import {
   itemKeyFromName,
   MAX_CRAFT_COUNT,
   SALVAGE_REAGENT_CHANCE_PCT,
+  SALVAGE_REAGENT_ROLL_INDEX,
+  SALVAGE_SCROLL_ROLL_INDEX,
   SALVAGE_YIELD_BY_TIER,
   getMaterialForSalvage,
   materialTierToCraftQuality,
@@ -855,6 +857,51 @@ describe('salvage components (Plan 50-40)', () => {
       expect(rollSalvage(components, seed)).toEqual(expected);
     }
     expect(rollSalvage([], 5n)).toEqual([]);
+  });
+
+  // Review IN-02: the reagent and the scroll roll on the salvage seed at their own fixed indexes.
+  it('the reagent and scroll roll indexes never meet a component index', () => {
+    expect(SALVAGE_REAGENT_ROLL_INDEX).toBe(100n);
+    expect(SALVAGE_SCROLL_ROLL_INDEX).toBe(101n);
+    // A salvage has at most three components (the recipe's inputs), at indexes 0..2.
+    expect(SALVAGE_REAGENT_ROLL_INDEX > 2n && SALVAGE_SCROLL_ROLL_INDEX > 2n).toBe(true);
+    expect(SALVAGE_REAGENT_ROLL_INDEX).not.toBe(SALVAGE_SCROLL_ROLL_INDEX);
+  });
+
+  it('the reagent roll keeps its 12% rate and is independent of the scroll and the component rolls', () => {
+    // A fixed item and character over consecutive timestamps (the old formulas tied the scroll roll
+    // to the reagent roll by a constant shift, so one decided the other).
+    const N = 6000n;
+    let reagentHits = 0;
+    let both = 0;
+    let scrollHits = 0;
+    let compHits = 0;
+    let reagentAndComp = 0;
+    const shifts = new Set<bigint>();
+    for (let k = 0n; k < N; k += 1n) {
+      const seed = salvageSeed(1_700_000_000_000_000n + k, 500n, 1n);
+      const reagent = salvageRoll(seed, SALVAGE_REAGENT_ROLL_INDEX);
+      const scroll = salvageRoll(seed, SALVAGE_SCROLL_ROLL_INDEX);
+      const comp = salvageRoll(seed, 0n);
+      shifts.add((scroll - reagent + 100n) % 100n);
+      const r = reagent < SALVAGE_REAGENT_CHANCE_PCT;
+      const sc = scroll < 50n;
+      const c = comp < 50n;
+      if (r) reagentHits += 1;
+      if (sc) scrollHits += 1;
+      if (c) compHits += 1;
+      if (r && sc) both += 1;
+      if (r && c) reagentAndComp += 1;
+    }
+    const n = Number(N);
+    // The rate stays 12% (within sampling noise).
+    expect(reagentHits / n).toBeGreaterThan(0.1);
+    expect(reagentHits / n).toBeLessThan(0.14);
+    // No constant shift ties the two rolls together.
+    expect(shifts.size).toBeGreaterThan(90);
+    // Joint hit rates are the product of the single rates (independence, within sampling noise).
+    expect(Math.abs(both / n - (reagentHits / n) * (scrollHits / n))).toBeLessThan(0.015);
+    expect(Math.abs(reagentAndComp / n - (reagentHits / n) * (compHits / n))).toBeLessThan(0.015);
   });
 
   it('never uses a source of chance outside the seed', () => {
