@@ -25,7 +25,7 @@
 // ============================================================================
 
 import { activeCombatIdForCharacter } from './events';
-import { areLocationsConnected, connectLocations } from './location';
+import { areLocationsConnected } from './location';
 import { onlineCharacterIds } from './online';
 import { markLocationVisited, visitedRowFor } from './visited';
 
@@ -238,14 +238,12 @@ export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
     ctx.db.location_connection.id.delete(row.id);
   }
 
+  // Both directed rows per pair, each written only when missing (what connectLocations writes when
+  // neither exists, without duplicating a row that already does).
   for (const ownPlace of own) {
     for (const farPlace of far) {
-      if (!areLocationsConnected(ctx, ownPlace.id, farPlace.id) && !areLocationsConnected(ctx, farPlace.id, ownPlace.id)) {
-        connectLocations(ctx, ownPlace.id, farPlace.id);
-      } else {
-        ensureLink(ctx, ownPlace.id, farPlace.id);
-        ensureLink(ctx, farPlace.id, ownPlace.id);
-      }
+      ensureLink(ctx, ownPlace.id, farPlace.id);
+      ensureLink(ctx, farPlace.id, ownPlace.id);
     }
   }
 
