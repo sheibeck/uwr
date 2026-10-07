@@ -41,6 +41,20 @@ const subId = useId();
 let listening = false;
 // The latest announcement: a slower nextTick from an earlier result never overwrites a newer one.
 let announceToken = 0;
+// A scrim click closes the card only when its pointerdown also landed on the scrim. The second click of
+// a double-click on Craft or Salvage can reach the scrim once the card has appeared, but its pointerdown
+// came before the scrim existed, so it no longer dismisses the card unseen (WR-05, iteration 3).
+let downOnScrim = false;
+
+function onScrimPointerdown(event: PointerEvent): void {
+  downOnScrim = event.target === event.currentTarget;
+}
+
+function onScrimClick(event: MouseEvent): void {
+  const paired = downOnScrim && event.target === event.currentTarget;
+  downOnScrim = false;
+  if (paired) emit('close');
+}
 
 function onDocumentKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Escape') return;
@@ -66,6 +80,7 @@ watch(
       return;
     }
     listen(true);
+    if (!before) downOnScrim = false;
     if (!before || now.seq !== before.seq) {
       announceToken += 1;
       const token = announceToken;
@@ -104,7 +119,13 @@ function onAction(action: ResultCardAction): void {
 
 <template>
   <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ liveText }}</p>
-  <div v-if="props.view" class="result-scrim" :class="{ mobile: props.mobile }" @click.self="emit('close')">
+  <div
+    v-if="props.view"
+    class="result-scrim"
+    :class="{ mobile: props.mobile }"
+    @pointerdown="onScrimPointerdown"
+    @click="onScrimClick"
+  >
     <section
       ref="dialog"
       class="result-card"

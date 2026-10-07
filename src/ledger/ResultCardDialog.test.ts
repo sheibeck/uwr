@@ -282,14 +282,41 @@ describe('ResultCard focus and keys', () => {
     expect(gone.defaultPrevented).toBe(false);
   });
 
-  it('Done and a scrim click emit close; a click inside the card does not', async () => {
+  it('Done and a scrim press (pointerdown and click on the scrim) emit close; a click inside the card does not', async () => {
     const w = mountCard({ actions: ACTIONS });
+    await w.get('.result-card').trigger('pointerdown');
     await w.get('.result-card').trigger('click');
     expect(w.emitted('close')).toBeUndefined();
+    await w.get('.result-scrim').trigger('pointerdown');
     await w.get('.result-scrim').trigger('click');
     expect(w.emitted('close')).toHaveLength(1);
     await w.findAll('button')[0].trigger('click');
     expect(w.emitted('close')).toHaveLength(2);
+  });
+
+  // WR-05 (iteration 3): the second click of a double-click on Craft or Salvage lands on the scrim
+  // once the card has appeared, but its pointerdown came before the scrim existed.
+  it('a scrim click with no pointerdown on the scrim keeps the card open', async () => {
+    const w = mountCard({ actions: ACTIONS });
+    await w.get('.result-scrim').trigger('click');
+    expect(w.emitted('close')).toBeUndefined();
+    expect(w.find('[role="dialog"]').exists()).toBe(true);
+  });
+
+  it('a press that starts inside the card and ends on the scrim keeps it open', async () => {
+    const w = mountCard({ actions: ACTIONS });
+    await w.get('.result-card').trigger('pointerdown');
+    await w.get('.result-scrim').trigger('click');
+    expect(w.emitted('close')).toBeUndefined();
+  });
+
+  it('a scrim pointerdown from before the card closed does not carry over to the next card', async () => {
+    const w = mountCard({ actions: ACTIONS });
+    await w.get('.result-scrim').trigger('pointerdown');
+    await w.setProps({ view: null });
+    await w.setProps({ view: view({ seq: 2n }) });
+    await w.get('.result-scrim').trigger('click');
+    expect(w.emitted('close')).toBeUndefined();
   });
 });
 

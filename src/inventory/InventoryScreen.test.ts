@@ -1076,6 +1076,7 @@ describe('Salvage result card (Plan 50-34)', () => {
   it('closes on a scrim click', async () => {
     await mountCard();
     await salvageRare();
+    await wrapper!.get('.result-scrim').trigger('pointerdown');
     await wrapper!.get('.result-scrim').trigger('click');
     await flush();
     expect(dialog().exists()).toBe(false);

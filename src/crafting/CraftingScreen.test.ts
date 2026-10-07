@@ -1319,6 +1319,11 @@ describe('Craft and Discover result card (Plan 50-37)', () => {
     await button.trigger('click');
     await flush();
     expect(dialog().exists()).toBe(true);
+    // WR-05: the second click of a double-click (no pointerdown on the scrim) leaves the card open.
+    await wrapper!.get('.result-scrim').trigger('click');
+    await flush();
+    expect(dialog().exists()).toBe(true);
+    await wrapper!.get('.result-scrim').trigger('pointerdown');
     await wrapper!.get('.result-scrim').trigger('click');
     await flush();
     expect(dialog().exists()).toBe(false);
