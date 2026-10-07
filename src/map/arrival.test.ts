@@ -280,6 +280,29 @@ describe('Map arrival', () => {
     expect(h.setBanner).not.toHaveBeenCalled();
   });
 
+  it('closing the Map ends the banner, so a reopen after more trips shows none (review WR-01)', async () => {
+    const h = harness();
+    await open(h);
+    await moveTo(h, 11n);
+    expect(h.banner.value).toBe('Arrived at Gloamwood.');
+    wrapper?.unmount();
+    wrapper = null;
+    expect(h.banner.value).toBeNull();
+    await moveTo(h, 12n);
+    const w = await open(h);
+    expect(h.banner.value).toBeNull();
+    expect(w.find('.arrival-banner').exists()).toBe(false);
+    expect(h.selectedId.value).toBe(12n);
+  });
+
+  it('opening the Map never shows a banner left in the hub from before (review WR-01)', async () => {
+    const h = harness();
+    h.banner.value = 'Arrived at Gloamwood.';
+    const w = await open(h);
+    expect(h.banner.value).toBeNull();
+    expect(w.find('.arrival-banner').exists()).toBe(false);
+  });
+
   it('on mobile the Map tab follows the character row and focus moves to the dock place name', async () => {
     const h = harness();
     h.isDesktop.value = false;

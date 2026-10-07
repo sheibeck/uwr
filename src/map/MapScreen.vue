@@ -97,6 +97,8 @@ function applyArgs(args: ScreenArgs | null): void {
   const here = currentId.value;
   const homeRegion = currentRegionId.value;
   if (here === null || homeRegion === null) return;
+  // An opening (or a new request) is not an arrival: an older banner never carries over.
+  map.setBanner(null);
 
   const place = args?.locationId === undefined ? undefined : placeById.value.get(args.locationId);
   if (place !== undefined) {
@@ -163,9 +165,11 @@ watch(
   { flush: 'pre' },
 );
 
-// Closing the Map drops the selected-place subscriptions.
+// Closing the Map drops the selected-place subscriptions and ends the arrival banner, which lives in
+// the session hub: a trip made while the Map is closed must never reopen it on an old 'Arrived at'.
 onBeforeUnmount(() => {
   map.select(null);
+  map.setBanner(null);
 });
 
 /** A user selection (a node, a gate, a list row) ends the arrival banner. */
