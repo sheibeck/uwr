@@ -1834,6 +1834,11 @@ describe('Craft / Salvage switch (Plan 50-38)', () => {
       expect(card.get('.kicker').text()).toBe('Salvaged');
       expect(card.get('h4').text()).toBe('Gilded Vest');
       expect(card.get('.empty').text()).toBe('Nothing usable was left.');
+      // WR-01 (iteration 3): the sub (the dialog's description) and the footer never claim materials.
+      const described = card.attributes('aria-describedby');
+      expect(card.get(`#${described}`).text()).toBe('Nothing usable was left');
+      expect(card.get('.footer').text()).toBe('Also written to your log.');
+      expect(card.text()).not.toMatch(/materials/i);
       expect(card.findAll('.result-row')).toHaveLength(0);
       expect(card.find('.total').exists()).toBe(false);
       expect(card.text()).not.toContain('now ');

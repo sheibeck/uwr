@@ -309,6 +309,24 @@ describe('resultCardView: salvage', () => {
     expect(view.lines).toEqual([]);
     expect(view.emptyText).toBe('Nothing usable was left.');
     expect(view.announce).toBe('Salvaged Iron Dagger. Nothing usable was left.');
+    // WR-01 (iteration 3): an empty roll never claims materials, in the sub (the dialog's description)
+    // or the footer.
+    expect(view.sub).toBe('Nothing usable was left');
+    expect(view.footer).toBe('Also written to your log.');
+    for (const text of [view.sub, view.footer, view.announce]) expect(text).not.toMatch(/materials/i);
+  });
+
+  it('says only a scroll came back when the scroll is the one line', () => {
+    const view = resultCardView({
+      row: salvageRow([line('scroll', 62n, 'Scroll: X', 1n, 1n, 55n)]),
+      templates: templates(DAGGER, SCROLL),
+      items: [instance(55n, 62n)],
+      affixes: NO_AFFIXES,
+    });
+    expect(view.sub).toBe('Only a recipe scroll came back');
+    expect(view.footer).toBe('The scroll went to your backpack. Also written to your log.');
+    expect(view.emptyText).toBe('');
+    expect(view.scrollInstanceId).toBe(55n);
   });
 });
 

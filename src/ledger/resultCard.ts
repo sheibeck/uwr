@@ -207,15 +207,28 @@ function salvageCard(input: ResultCardInput, base: ResultCardView, lines: Result
     }
   }
   const received = views.map((v) => `${v.qtyText.slice(1)} ${v.name}`).join(', ');
+  // Salvage is a chance, never a promise (owner, 2026-10-07): the sub and the footer only speak of
+  // materials when the server reported some, and an empty roll says so plainly.
+  const materials = views.some((v) => v.kind !== 'scroll');
+  const scroll = views.some((v) => v.kind === 'scroll');
+  let sub = 'Nothing usable was left';
+  let footer = 'Also written to your log.';
+  if (materials) {
+    sub = 'Broken down into materials';
+    footer = 'Materials went to your backpack. Also written to your log.';
+  } else if (scroll) {
+    sub = 'Only a recipe scroll came back';
+    footer = 'The scroll went to your backpack. Also written to your log.';
+  }
   return {
     ...base,
     kicker: 'Salvaged',
-    sub: 'Broken down into materials',
+    sub,
     icon: template ? itemIcon(template) : PhPackage,
     listTitle: 'Received',
     lines: views,
     emptyText: views.length === 0 ? 'Nothing usable was left.' : '',
-    footer: 'Materials went to your backpack. Also written to your log.',
+    footer,
     announce:
       views.length === 0
         ? `Salvaged ${base.title}. Nothing usable was left.`
