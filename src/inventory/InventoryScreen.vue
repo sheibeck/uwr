@@ -3,7 +3,6 @@ import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { PhBackpack, PhBookOpen, PhHammer } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
-import { createActionRunner } from '../ledger/actionRunner';
 import { itemCategory } from '../ledger/itemModel';
 import NoticeLine from '../ledger/NoticeLine.vue';
 import ResultCard from '../ledger/ResultCard.vue';
@@ -16,20 +15,22 @@ import BackpackGrid from './BackpackGrid.vue';
 import EquippedSlots from './EquippedSlots.vue';
 import Inspector from './Inspector.vue';
 import type { BagFilterId } from './backpack';
+import { bagRunner } from './bagRunner';
 
 // The Inventory screen (50-UI-SPEC "Inventory Contract" and "Layout Contract > Inventory"): the
 // equipment slots and the backpack with the inspector, as three columns in the desktop drawer and as
 // two tabs with an inspector dock in the mobile sheet. The selection is a local id; the subscribed
 // rows drive every other change, and nothing here is optimistic. A salvage ends on the shared result
 // card, which shows what the server reported (Open crafting on desktop, Read scroll when a scroll
-// dropped); the feed line and the notice line stay. Registration in SCREENS is Plan 23.
+// dropped); the feed line and the notice line stay. The action runner is shared with the header actions
+// (bagRunner). Registration in SCREENS is Plan 23.
 const frame = inject(FRAME_KEY, createInertFrame());
 const game = inject(GAME_KEY, createInertGame());
 const ledger = inject(LEDGER_KEY, createInertLedger());
 
 const mobile = computed(() => !frame.isDesktop.value);
-const online = computed(() => game.connected.value && ledger.reducers.value !== null);
-const runner = createActionRunner({ online });
+// The runner is shared with the header actions (Organize), so a rejected Organize reaches the notice line.
+const runner = bagRunner(ledger, game);
 
 const selectedId = ref<bigint | null>(null);
 const filter = ref<BagFilterId>('all');

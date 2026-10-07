@@ -24,6 +24,7 @@ const REDUCER_NAMES = [
   'craftRecipe',
   'craftRecipeCount',
   'chooseRenownPerk',
+  'consolidateStacks',
 ] as const;
 
 interface FakeConn {
@@ -494,6 +495,9 @@ describe('createLedgerData: reducers', () => {
     await r.craftRecipeCount(batch);
     expect(conn.reducers.craftRecipeCount).toHaveBeenCalledTimes(1);
     expect(conn.reducers.craftRecipeCount).toHaveBeenCalledWith(batch);
+    await r.consolidateStacks({ characterId: 7n });
+    expect(conn.reducers.consolidateStacks).toHaveBeenCalledTimes(1);
+    expect(conn.reducers.consolidateStacks).toHaveBeenCalledWith({ characterId: 7n });
     await r.unequipItem({ characterId: 7n, slot: 'head' });
     expect(conn.reducers.unequipItem).toHaveBeenCalledWith({ characterId: 7n, slot: 'head' });
     expect(Object.keys(r).sort()).toEqual([...REDUCER_NAMES].sort());

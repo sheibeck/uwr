@@ -329,6 +329,7 @@ export function createLedgerData<C extends LedgerConn>(
       craftRecipe: (a) => r.craftRecipe(a),
       craftRecipeCount: (a) => r.craftRecipeCount(a),
       chooseRenownPerk: (a) => r.chooseRenownPerk(a),
+      consolidateStacks: (a) => r.consolidateStacks(a),
     };
   });
 

@@ -53,6 +53,8 @@ export interface LedgerReducers {
     modifier3TemplateId?: bigint;
   }): Promise<void>;
   chooseRenownPerk(a: { characterId: bigint; perkId: bigint }): Promise<void>;
+  /** Organize: merge every partial stack of the character's backpack (server consolidate_stacks). */
+  consolidateStacks(a: { characterId: bigint }): Promise<void>;
 }
 
 /** The vendor the open Trade screen shows. */

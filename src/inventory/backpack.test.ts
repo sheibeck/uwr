@@ -8,6 +8,7 @@ import {
   BACKPACK_TILE_MIN_PX,
   BAG_FILTERS,
   FILTER_EMPTY_TEXT,
+  backpackColumns,
   backpackTileSize,
   bagTiles,
   filterBag,
@@ -135,6 +136,55 @@ describe('bagTiles', () => {
     expect(bagTiles(BAG, TEMPLATES, 'gear').emptyCount).toBe(0);
     expect(bagTiles(BAG, TEMPLATES, 'materials').emptyCount).toBe(0);
   });
+
+  // Plan 50-39 "The bag shows every slot": under All the grid always totals the 50 slots.
+  it('draws exactly the capacity in cells under All for 1 to 49 bag rows', () => {
+    for (let used = 1; used <= MAX_INVENTORY_SLOTS - 1; used += 1) {
+      const rows = Array.from({ length: used }, (_, i) => inst(BigInt(i + 1), BigInt((i % 6) + 1)));
+      const tiles = bagTiles(rows, TEMPLATES, 'all');
+      expect(tiles.items.length + tiles.emptyCount).toBe(MAX_INVENTORY_SLOTS);
+    }
+  });
+
+  it('draws no empty cell with the bag at the cap, and none under Gear', () => {
+    const full = Array.from({ length: MAX_INVENTORY_SLOTS }, (_, i) => inst(BigInt(i + 1), 1n));
+    const tiles = bagTiles(full, TEMPLATES, 'all');
+    expect(tiles.emptyCount).toBe(0);
+    expect(tiles.items).toHaveLength(MAX_INVENTORY_SLOTS);
+    expect(bagTiles(BAG, TEMPLATES, 'gear').emptyCount).toBe(0);
+  });
+
+  it('the bag is always in Organize order (type, rarity best first, name)', () => {
+    const tpl = new Map<bigint, ItemTemplate>(
+      Object.entries({
+        10: { name: 'Abe', slot: 'head', rarity: 'common' },
+        11: { name: 'Zed', slot: 'mainHand', rarity: 'epic' },
+        12: { name: 'Ore', slot: 'material', rarity: 'common' },
+        13: { name: 'Gem', slot: 'material', rarity: 'rare' },
+        14: { name: 'Bread', slot: 'food', rarity: 'common' },
+        15: { name: 'Scroll: Rope', slot: 'misc', rarity: 'common' },
+        16: { name: 'Widget', slot: 'misc', rarity: 'common' },
+        17: { name: 'Rag', slot: 'head', rarity: 'common', isJunk: true },
+        18: { name: 'Letter', slot: 'quest', rarity: 'common' },
+      }).map(([id, t]) => [
+        BigInt(id),
+        { id: BigInt(id), isJunk: false, wellFedDurationMicros: 0n, weaponType: '', ...t } as unknown as ItemTemplate,
+      ]),
+    );
+    const mixed = [
+      inst(1n, 17n),
+      inst(2n, 14n),
+      inst(3n, 12n),
+      inst(4n, 10n),
+      inst(5n, 15n),
+      inst(6n, 13n),
+      inst(7n, 11n),
+      inst(8n, 16n),
+      inst(9n, 18n),
+    ];
+    const names = bagTiles(mixed, tpl, 'all').items.map((e) => e.template.name);
+    expect(names).toEqual(['Zed', 'Abe', 'Gem', 'Ore', 'Bread', 'Scroll: Rope', 'Widget', 'Letter', 'Rag']);
+  });
 });
 
 describe('FILTER_EMPTY_TEXT', () => {
@@ -145,22 +195,64 @@ describe('FILTER_EMPTY_TEXT', () => {
   });
 });
 
-describe('tile size and stack count (Plan 50-32)', () => {
-  // The old rule, kept only to compare: 6 columns of 1fr with an 8px gap.
+describe('tile size and stack count (Plans 50-32 and 50-39)', () => {
+  // The old 50-32 rule, kept only to compare: 6 columns of 1fr with an 8px gap.
   const oldStretch = (width: number): number => (width - 8 * 5) / 6;
 
-  it('exposes the mock constants', () => {
+  // Replaces the 50-32 'exposes the mock constants' case that pinned the 58px cap: the owner's
+  // 2026-10-07 decision (plan 50-39) raises the desktop cap to 72px and fills the column.
+  it('exposes the constants', () => {
     expect(BACKPACK_COLUMNS).toEqual({ desktop: 6, mobile: 5 });
-    expect(BACKPACK_TILE_MAX_PX).toEqual({ desktop: 58, mobile: 66 });
+    expect(BACKPACK_TILE_MAX_PX).toEqual({ desktop: 72, mobile: 66 });
     expect(BACKPACK_TILE_MIN_PX).toBe(44);
     expect(BACKPACK_GAP_PX).toBe(4);
   });
 
-  it('caps a desktop tile at 58px on any wide column', () => {
-    expect(backpackTileSize(372, false)).toBe(58);
-    expect(backpackTileSize(532, false)).toBe(58);
-    expect(backpackTileSize(1012, false)).toBe(58);
-    expect(backpackTileSize(292, false)).toBe(45);
+  describe('backpackColumns', () => {
+    it('is always 5 on mobile', () => {
+      expect(backpackColumns(358, true)).toBe(5);
+      expect(backpackColumns(0, true)).toBe(5);
+      expect(backpackColumns(1200, true)).toBe(5);
+    });
+
+    it('is 6 before the column has been measured', () => {
+      expect(backpackColumns(0, false)).toBe(6);
+      expect(backpackColumns(-10, false)).toBe(6);
+      expect(backpackColumns(Number.NaN, false)).toBe(6);
+    });
+
+    it('is the fewest columns whose tile is at most 72px', () => {
+      const table: Array<[number, number]> = [
+        [292, 4],
+        [372, 5],
+        [458, 7],
+        [532, 8],
+        [1012, 14],
+        [1652, 22],
+        [316, 5],
+        [615, 9],
+        [100, 2],
+        [60, 1],
+      ];
+      for (const [width, cols] of table) expect(backpackColumns(width, false)).toBe(cols);
+    });
+  });
+
+  // Replaces the 50-32 'caps a desktop tile at 58px on any wide column' case (owner decision
+  // 2026-10-07, plan 50-39): the grid fills the column with tiles of at most 72px.
+  it('sizes a desktop tile to fill the column, at most 72px', () => {
+    const table: Array<[number, number]> = [
+      [292, 70],
+      [372, 71],
+      [458, 62],
+      [532, 63],
+      [1012, 68],
+      [1652, 71],
+      [316, 60],
+      [615, 64],
+      [100, 48],
+    ];
+    for (const [width, size] of table) expect(backpackTileSize(width, false)).toBe(size);
   });
 
   it('caps a mobile tile at 66px and shrinks on a narrow phone', () => {
@@ -169,25 +261,31 @@ describe('tile size and stack count (Plan 50-32)', () => {
   });
 
   it('never goes below the 44px touch target', () => {
-    expect(backpackTileSize(100, false)).toBe(44);
+    expect(backpackTileSize(100, false)).toBeGreaterThanOrEqual(44);
     expect(backpackTileSize(0, true)).toBe(44);
+  });
+
+  // Replaces the 50-32 'stays at or under 58px across the stacked widths' case.
+  it('keeps a desktop tile between 56 and 72px, fitting the column, for every width', () => {
+    for (let width = 292; width <= 2600; width += 1) {
+      const cols = backpackColumns(width, false);
+      const size = backpackTileSize(width, false);
+      expect(size).toBeGreaterThanOrEqual(56);
+      expect(size).toBeLessThanOrEqual(72);
+      expect(cols * size + BACKPACK_GAP_PX * (cols - 1)).toBeLessThanOrEqual(width);
+      expect(width - (cols * size + BACKPACK_GAP_PX * (cols - 1))).toBeLessThan(cols);
+    }
+  });
+
+  // Replaces 'is within 3px of the old size at 1280': the tile is now bigger than the 58px of 50-32.
+  it('is bigger than the 50-32 tile at 1280', () => {
+    expect(backpackTileSize(372, false)).toBeGreaterThan(58);
+    expect(backpackTileSize(372, false)).toBe(71);
   });
 
   it('is at most half the old stretch at 1920 and smaller at 1440', () => {
     expect(backpackTileSize(1012, false)).toBeLessThanOrEqual(oldStretch(1012) / 2);
     expect(backpackTileSize(532, false)).toBeLessThan(oldStretch(532));
-  });
-
-  it('stays at or under 58px across the stacked widths, smaller wherever the old size was above 58', () => {
-    for (let width = 316; width <= 615; width += 1) {
-      const size = backpackTileSize(width, false);
-      expect(size).toBeLessThanOrEqual(58);
-      if (oldStretch(width) > 58) expect(size).toBeLessThan(oldStretch(width));
-    }
-  });
-
-  it('is within 3px of the old size at 1280', () => {
-    expect(Math.abs(backpackTileSize(372, false) - oldStretch(372))).toBeLessThanOrEqual(3);
   });
 
   describe('stackCountText', () => {

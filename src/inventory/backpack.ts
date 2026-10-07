@@ -87,24 +87,44 @@ export function bagTiles(
   return { items: sorted, emptyCount };
 }
 
-// The backpack tile size (Plan 50-32, 50-CONTEXT "Backpack squares are too big"). The Inventory
-// mock's tile size (EXTRACT I.3: 58.33px desktop, 66.8px mobile, rounded down) caps every grid
-// track, so a wider column leaves the grid at the mock size instead of stretching the squares. The
+// The backpack tile size (Plans 50-32 and 50-39). The owner's 2026-10-07 decision replaces the 50-32
+// cap of 58px: the desktop grid fills the backpack column, using the fewest columns whose tile is at
+// most 72px (backpackColumns), so a wider window adds columns instead of growing the tiles. 6 is only
+// the column count before the column has been measured. Mobile stays 5 columns of at most 66px. The
 // mock's 6px gap maps to 4px on the spacing scale.
 export const BACKPACK_COLUMNS = { desktop: 6, mobile: 5 } as const;
-export const BACKPACK_TILE_MAX_PX = { desktop: 58, mobile: 66 } as const;
+export const BACKPACK_TILE_MAX_PX = { desktop: 72, mobile: 66 } as const;
 export const BACKPACK_TILE_MIN_PX = 44;
 export const BACKPACK_GAP_PX = 4;
 
+// The even share of a column of the given width across `cols` columns with the gap between them.
+function tileShare(columnWidthPx: number, cols: number): number {
+  return Math.floor((columnWidthPx - BACKPACK_GAP_PX * (cols - 1)) / cols);
+}
+
 /**
- * The square tile edge a capped grid gives in a column of the given width: the even share of the
- * width, held between the 44px touch target and the mock's size.
+ * How many columns fill a column of the given width. Mobile is always 5. On desktop it is the fewest
+ * columns whose tile is at most 72px, so the grid fills the width; a column that has not been
+ * measured (zero, negative or not a number) gives the initial 6. Never a tile under 44px unless a
+ * single column is all there is.
+ */
+export function backpackColumns(columnWidthPx: number, mobile: boolean): number {
+  if (mobile) return BACKPACK_COLUMNS.mobile;
+  if (!(columnWidthPx > 0)) return BACKPACK_COLUMNS.desktop;
+  const unit = BACKPACK_TILE_MAX_PX.desktop + BACKPACK_GAP_PX;
+  let cols = Math.max(1, Math.ceil((columnWidthPx + BACKPACK_GAP_PX) / unit));
+  while (cols > 1 && tileShare(columnWidthPx, cols) < BACKPACK_TILE_MIN_PX) cols -= 1;
+  return cols;
+}
+
+/**
+ * The square tile edge the grid gives in a column of the given width: the even share of the width
+ * across the columns backpackColumns picks, held between the 44px touch target and the cap.
  */
 export function backpackTileSize(columnWidthPx: number, mobile: boolean): number {
-  const cols = mobile ? BACKPACK_COLUMNS.mobile : BACKPACK_COLUMNS.desktop;
+  const cols = backpackColumns(columnWidthPx, mobile);
   const max = mobile ? BACKPACK_TILE_MAX_PX.mobile : BACKPACK_TILE_MAX_PX.desktop;
-  const share = Math.floor((columnWidthPx - BACKPACK_GAP_PX * (cols - 1)) / cols);
-  return Math.min(max, Math.max(BACKPACK_TILE_MIN_PX, share));
+  return Math.min(max, Math.max(BACKPACK_TILE_MIN_PX, tileShare(columnWidthPx, cols)));
 }
 
 /**
