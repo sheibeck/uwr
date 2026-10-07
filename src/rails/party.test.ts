@@ -156,3 +156,53 @@ describe('selfCardView', () => {
     expect(selfCardView(character(1n, { hp: 5n, maxHp: 0n }), false).healthPercent).toBe(0);
   });
 });
+
+describe('partyMembers stamina and the low mark', () => {
+  const members = [
+    { id: 10n, characterId: 2n, joinedAt: at(1) },
+    { id: 11n, characterId: 3n, joinedAt: at(2) },
+  ];
+  const discount = (characterId: bigint, over: Record<string, unknown> = {}) => ({
+    characterId,
+    effectType: 'travel_discount',
+    roundsRemaining: 4n,
+    magnitude: 2n,
+    ...over,
+  });
+  const run = (characters: ReturnType<typeof character>[], effects?: ReturnType<typeof discount>[]) =>
+    partyMembers({ group: null, members, characters, selfId: 1n, effects });
+
+  it('carries stamina and maxStamina from the character row', () => {
+    const [a] = run([character(2n, { stamina: 12n, maxStamina: 40n }), character(3n)]);
+    expect(a).toMatchObject({ stamina: 12n, maxStamina: 40n, lowStamina: false });
+  });
+
+  it('is low only below the within-region cost (5)', () => {
+    const [a, b] = run([character(2n, { stamina: 4n }), character(3n, { stamina: 5n })]);
+    expect(a.lowStamina).toBe(true);
+    expect(b.lowStamina).toBe(false);
+  });
+
+  it('applies the racial increase and discount', () => {
+    const [a, b] = run([
+      character(2n, { stamina: 6n, racialTravelCostIncrease: 2n }),
+      character(3n, { stamina: 2n, racialTravelCostDiscount: 3n }),
+    ]);
+    expect(a.lowStamina).toBe(true);
+    expect(b.lowStamina).toBe(false);
+  });
+
+  it('lets a member own active travel_discount effect lower the threshold, never another member', () => {
+    const characters = [character(2n, { stamina: 3n }), character(3n, { stamina: 3n })];
+    const [a, b] = run(characters, [discount(2n)]);
+    expect(a.lowStamina).toBe(false);
+    expect(b.lowStamina).toBe(true);
+    const [expired] = run(characters, [discount(2n, { roundsRemaining: 0n })]);
+    expect(expired.lowStamina).toBe(true);
+  });
+
+  it('is not low for a member without a character row', () => {
+    const [a] = run([character(3n)]);
+    expect(a).toMatchObject({ known: false, stamina: 0n, maxStamina: 0n, lowStamina: false });
+  });
+});

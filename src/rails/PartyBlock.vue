@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import { PhCrownSimple, PhUserPlus } from '@phosphor-icons/vue';
+import { PhCrownSimple, PhUserPlus, PhWarningCircle } from '@phosphor-icons/vue';
 import {
   COMBAT_KEY,
   CONSOLE_KEY,
@@ -31,6 +31,7 @@ const members = computed(() =>
     members: game.groupMembers.value,
     characters: game.knownCharacters.value,
     selfId: game.characterId.value,
+    effects: game.effects.value,
   }),
 );
 
@@ -48,6 +49,17 @@ function interactive(member: { known: boolean }): boolean {
 
 function selected(member: { id: bigint }): boolean {
   return controller.allyTargetId.value === member.id;
+}
+
+// Stamina text for a known member out of combat (51-UI-SPEC "Party Stamina in the Vitals Rail").
+// The low mark means the member cannot afford even a within-region trip; the rule lives in
+// @game-data/travel_config and party.ts applies it.
+function staminaText(member: { stamina: bigint; maxStamina: bigint }): string {
+  return `Stamina ${member.stamina} of ${member.maxStamina}`;
+}
+
+function staminaScreenText(member: { stamina: bigint; maxStamina: bigint; lowStamina: boolean }): string {
+  return member.lowStamina ? `${staminaText(member)}, too low to travel` : staminaText(member);
 }
 
 function pct(value: bigint, max: bigint): string {
@@ -92,7 +104,14 @@ function invite(): void {
           <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
           <span class="member-class">{{ member.className }}</span>
           <span v-if="interactive(member)" class="member-hp">{{ member.hp }}/{{ member.maxHp }}</span>
-          <span v-else-if="member.known" class="member-level">Lv {{ member.level }}</span>
+          <span v-else-if="member.known" class="member-level" :title="staminaText(member)"
+            >Lv {{ member.level }}<span class="member-stamina" :class="{ low: member.lowStamina }" aria-hidden="true"
+              >{{ ' · ' }}<PhWarningCircle v-if="member.lowStamina" class="low-icon" :size="12" />{{
+                `${member.stamina} st`
+              }}</span
+            ></span
+          >
+          <span v-if="!interactive(member) && member.known" class="sr-only">{{ staminaScreenText(member) }}</span>
         </div>
         <div
           class="track health-track"
@@ -245,6 +264,28 @@ function invite(): void {
   margin-left: auto;
   font-size: 10px;
   color: var(--color-neutral-400);
+  white-space: nowrap;
+}
+
+.member-stamina {
+  font-variant-numeric: tabular-nums;
+}
+
+.member-stamina.low {
+  color: var(--color-con-red);
+}
+
+.low-icon {
+  margin-right: 4px;
+  vertical-align: text-bottom;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 

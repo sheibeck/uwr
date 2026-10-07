@@ -49,6 +49,7 @@ interface Setup {
   groupMembers?: unknown[];
   knownCharacters?: unknown[];
   characterId?: bigint | null;
+  effects?: unknown[];
 }
 
 function mountBlock(setup: Setup = {}): { w: VueWrapper; prefill: ReturnType<typeof vi.fn> } {
@@ -59,6 +60,7 @@ function mountBlock(setup: Setup = {}): { w: VueWrapper; prefill: ReturnType<typ
     groupMembers: ref(setup.groupMembers ?? []),
     knownCharacters: ref(setup.knownCharacters ?? []),
     characterId: ref(setup.characterId === undefined ? 1n : setup.characterId),
+    effects: ref(setup.effects ?? []),
   } as unknown as GameData;
   const consoleApi = { ...createInertConsole(), prefill } as unknown as ConsoleApi;
   wrapper = mount(PartyBlock, {
@@ -112,7 +114,7 @@ describe('PartyBlock in a party', () => {
     const [mara, bo] = w.findAll('.member');
     expect(mara.get('.member-name').attributes('title')).toBe('Mara');
     expect(mara.get('.member-class').text()).toBe('Ranger');
-    expect(mara.get('.member-level').text()).toBe('Lv 4');
+    expect(mara.get('.member-level').text()).toBe('Lv 4 · 10 st');
     expect(mara.find('.crown').exists()).toBe(true);
     expect(bo.find('.crown').exists()).toBe(false);
     expect(mara.get('.member-name').element.nextElementSibling?.classList.contains('crown')).toBe(true);
@@ -255,6 +257,8 @@ describe('PartyBlock in combat (ally targeting)', () => {
     expect(you.get('.member-hp').text()).toBe('60/120');
     expect(mara.get('.member-hp').text()).toBe('95/100');
     expect(w.find('.member-level').exists()).toBe(false);
+    expect(w.find('.member-stamina').exists()).toBe(false);
+    expect(w.find('.sr-only').exists()).toBe(false);
     expect(mara.get('.member-class').text()).toBe('Ranger');
     expect(mara.find('.crown').exists()).toBe(true);
   });
@@ -337,7 +341,7 @@ describe('PartyBlock in combat (ally targeting)', () => {
     expect(w.find('.hint').exists()).toBe(false);
     expect(w.get('button.invite').text()).toBe('Invite');
     expect(w.find('.member-hp').exists()).toBe(false);
-    expect(w.findAll('.member-level').map((l) => l.text())).toEqual(['Lv 4', 'Lv 4']);
+    expect(w.findAll('.member-level').map((l) => l.text())).toEqual(['Lv 4 · 10 st', 'Lv 4 · 10 st']);
   });
 
   it('renders ally names as text, not markup', () => {
@@ -363,5 +367,86 @@ describe('PartyBlock source', () => {
     expect(source).toContain('selectAlly');
     expect(source).toContain('aria-pressed');
     expect(source).toContain('with your next ability');
+  });
+});
+
+describe('PartyBlock stamina (51-UI-SPEC "Party Stamina in the Vitals Rail")', () => {
+  const group = { id: 1n, leaderCharacterId: 2n };
+  const groupMembers = [member(11n, 1n, 100n), member(12n, 3n, 200n), member(13n, 2n, 300n)];
+
+  it('reads Lv n then the stamina with a title and screen-reader text', () => {
+    const { w } = mountBlock({
+      group,
+      groupMembers,
+      knownCharacters: [character(2n, 'Mara', { stamina: 12n, maxStamina: 40n }), character(3n, 'Bo')],
+    });
+    const [mara, bo] = w.findAll('.member');
+    expect(mara.get('.member-level').text()).toBe('Lv 4 · 12 st');
+    expect(mara.get('.member-level').attributes('title')).toBe('Stamina 12 of 40');
+    expect(mara.get('.sr-only').text()).toBe('Stamina 12 of 40');
+    expect(mara.get('.member-stamina').attributes('aria-hidden')).toBe('true');
+    expect(mara.find('.member-stamina').classes()).not.toContain('low');
+    expect(mara.find('.low-icon').exists()).toBe(false);
+    expect(bo.get('.member-level').text()).toBe('Lv 4 · 10 st');
+  });
+
+  it('marks a member below the within-region cost with the warning icon and the too-low text', () => {
+    const { w } = mountBlock({
+      group,
+      groupMembers,
+      knownCharacters: [character(2n, 'Mara', { stamina: 3n, maxStamina: 40n }), character(3n, 'Bo')],
+    });
+    const [mara, bo] = w.findAll('.member');
+    expect(mara.get('.member-stamina').classes()).toContain('low');
+    expect(mara.find('.low-icon').exists()).toBe(true);
+    expect(mara.get('.member-level').text()).toBe('Lv 4 · 3 st');
+    expect(mara.get('.sr-only').text()).toBe('Stamina 3 of 40, too low to travel');
+    expect(bo.find('.low-icon').exists()).toBe(false);
+  });
+
+  it('honours the racial discount and that member own travel_discount effect only', () => {
+    const knownCharacters = [
+      character(2n, 'Mara', { stamina: 3n, maxStamina: 40n }),
+      character(3n, 'Bo', { stamina: 3n, maxStamina: 40n }),
+    ];
+    const discount = (characterId: bigint) => ({
+      characterId,
+      effectType: 'travel_discount',
+      roundsRemaining: 5n,
+      magnitude: 3n,
+    });
+    const { w } = mountBlock({ group, groupMembers, knownCharacters, effects: [discount(2n)] });
+    const [mara, bo] = w.findAll('.member');
+    expect(mara.find('.low-icon').exists()).toBe(false);
+    expect(bo.find('.low-icon').exists()).toBe(true);
+    wrapper?.unmount();
+    const racial = mountBlock({
+      group,
+      groupMembers,
+      knownCharacters: [
+        character(2n, 'Mara', { stamina: 3n, maxStamina: 40n, racialTravelCostDiscount: 2n }),
+        character(3n, 'Bo', { stamina: 3n, maxStamina: 40n }),
+      ],
+    });
+    const [raceMara, raceBo] = racial.w.findAll('.member');
+    expect(raceMara.find('.low-icon').exists()).toBe(false);
+    expect(raceBo.find('.low-icon').exists()).toBe(true);
+  });
+
+  it('shows no stamina text for a member with no character row', () => {
+    const { w } = mountBlock({ group, groupMembers, knownCharacters: [character(3n, 'Bo')] });
+    const [unknown] = w.findAll('.member');
+    expect(unknown.find('.member-stamina').exists()).toBe(false);
+    expect(unknown.find('.sr-only').exists()).toBe(false);
+  });
+
+  it('uses the shared stamina rule and the con-red token in source', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/rails/PartyBlock.vue'), 'utf8');
+    expect(source).toContain('too low to travel');
+    expect(source).toContain('PhWarningCircle');
+    expect(source).toContain('var(--color-con-red)');
+    const party = readFileSync(resolve(process.cwd(), 'src/rails/party.ts'), 'utf8');
+    expect(party).toContain('@game-data/travel_config');
+    expect(party).not.toMatch(/5n|10n/);
   });
 });
