@@ -301,6 +301,14 @@ describe('exitLabel and costText', () => {
     expect(exitLabel(row(rowsFor({ routes: [EDGE] }), 'Beyond'))).toBe('Beyond, Danger unknown');
   });
 
+  it('keeps the lock sentence when gathering outranks the timer as the block (review IN-04)', () => {
+    const marsh = row(rowsFor({ timerSeconds: 192, gathering: true }), 'Brackwater');
+    expect(marsh.locked).toBe(true);
+    expect(marsh.note.text).toBe('Finish gathering first.');
+    expect(marsh.note.srText).toBeNull();
+    expect(exitLabel(marsh)).toBe('Brackwater (Saltmarsh), Lv 6, tough, Region travel ready in about 4 minutes');
+  });
+
   it('carries the shared stamina text', () => {
     expect(row(rowsFor(), 'Gloamwood').costText).toBe('5 stamina');
     expect(row(rowsFor(), 'Brackwater').costText).toBe('10 stamina');

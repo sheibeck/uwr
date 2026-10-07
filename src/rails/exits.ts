@@ -68,6 +68,8 @@ export interface ExitRow {
   /** Your own region timer runs and this row is a crossing (the right side shows a lock and the clock). */
   locked: boolean;
   timeText: string | null;
+  /** While locked, the minute-level sentence of your own timer; else null (the label's lock part). */
+  lockText: string | null;
   heardOf: boolean;
   note: ExitNote;
   button: ExitButton;
@@ -184,6 +186,7 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
       rightText: danger.levelLabel,
       locked,
       timeText: locked ? formatClock(checks.selfTimer.secondsLeft) : null,
+      lockText: locked ? `Region travel ready in ${aboutMinutes(checks.selfTimer.secondsLeft)}` : null,
       heardOf,
       note,
       button: {
@@ -221,6 +224,8 @@ export function dangerText(danger: PlaceDanger): string {
 export function exitLabel(row: ExitRow): string {
   const place = row.crossing ? `${row.name} (${row.regionName})` : row.name;
   const level = row.danger.kind === 'band' ? `${row.danger.levelLabel}, ${row.danger.word}` : row.danger.word;
-  const wait = row.locked && row.note.srText !== null ? `, ${row.note.srText}` : '';
+  // From your own timer whenever the row shows the lock, even when gathering outranks the timer as
+  // the block and the note says something else (review IN-04).
+  const wait = row.lockText !== null ? `, ${row.lockText}` : '';
   return `${place}, ${level}${wait}`;
 }
