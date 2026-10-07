@@ -495,7 +495,7 @@ Healing is restoration, mending, the knitting of flesh, light washing over wound
 
 Format: reply with a JSON object holding a segments array. Each segment has a kind (narration or dialogue), a speaker and a text. Narration segments are the Keeper's: the speaker is exactly "The Keeper", and the narration segments together hold 2-4 sentences in the second person, in the dry voice of a book, with no I, me or my and no mention of the Keeper by name. A dialogue segment is only for an enemy who is a person: the speaker is that enemy's name exactly as the user message gives it, and the text is what he or she says aloud, without surrounding quotation marks. The player's own character never speaks in a segment. Use at most 6 segments. The reply is the finished narration only: never show a draft, never correct yourself, and never comment on these instructions.
 
-When the user message says combat ended in VICTORY or DEFEAT, write a brief narrative summary of the whole fight in a literary style, with no game mechanics, no numbers, no HP, mana, damage amounts or stats. Be sardonic about a triumph and darkly amused at a demise. Do not start with the location name; the location is context, not the opening word. Vary your openings. The summary keeps the second person: a lone player character is you from the first word to the last, never named, never he or she and never any other noun. Write the summary as narration segments in the same JSON shape. Keep it brief, and let its length scale with the fight: the user message states the length this fight earns. A short fight is exactly one narration segment of 2 or 3 sentences, a longer fight is at most 2 narration segments, and a fight against a boss or a named foe is at most 3 narration segments. Never write more segments than the user message allows.`;
+When the user message says combat ended in VICTORY or DEFEAT, write a brief narrative summary of the whole fight in a literary style, with no game mechanics, no numbers, no HP, mana, damage amounts or stats. Be sardonic about a triumph and darkly amused at a demise. Do not start with the location name; the location is context, not the opening word. Vary your openings. The summary keeps the second person: a lone player character is you from the first word to the last, never named, never he or she and never any other noun. Write the summary as narration segments in the same JSON shape. Keep it brief, and let its length scale with the fight: the user message states the length this fight earns. A standard fight, however many rounds it took, is exactly one short narration segment of 2 or 3 sentences, and a fight against a boss or a named foe is at most 3 narration segments. Never write more segments than the user message allows.`;
 
 const SMOKE_TEST_BLOCK = `TASK: CONNECTIVITY CHECK
 
@@ -869,23 +869,17 @@ function buildCombatRoundVolatile(events: RoundEventSummary): string {
   return lines.join('\n');
 }
 
-/** A fight of this many rounds or fewer, with no boss or named foe, is a short fight. */
-const SHORT_FIGHT_MAX_ROUNDS = 3n;
-
 /**
- * The length instruction of the combat outro, scaled with the fight: a boss or a named foe earns up to
- * 3 narration segments, a longer fight at most 2, a short fight (3 rounds or fewer) exactly one of 2 or
- * 3 sentences. The stable route block names the three tiers; this line picks the one that applies.
+ * The length instruction of the combat outro: a boss or a named foe earns up to 3 narration segments;
+ * every other fight, however many rounds it took, gets exactly one short segment of 2 or 3 sentences
+ * (owner, 2026-10-07). The stable route block names both tiers; this line picks the one that applies.
  */
 export function combatOutroLengthLine(events: Pick<RoundEventSummary, 'roundNumber' | 'fightBossOrNamed'>): string {
   const rounds = events.roundNumber === 1n ? '1 round' : `${events.roundNumber} rounds`;
   if (events.fightBossOrNamed) {
     return `Length: this fight had a boss or a named foe (${rounds}). Write at most 3 narration segments.`;
   }
-  if (events.roundNumber <= SHORT_FIGHT_MAX_ROUNDS) {
-    return `Length: this was a short fight (${rounds}). Write exactly one narration segment of 2 or 3 sentences.`;
-  }
-  return `Length: this was a longer fight (${rounds}). Write at most 2 narration segments.`;
+  return `Length: this was a standard fight (${rounds}). Write exactly one short narration segment of 2 or 3 sentences.`;
 }
 
 function buildCombatOutroVolatile(events: RoundEventSummary, isVictory: boolean): string {

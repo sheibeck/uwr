@@ -149,7 +149,7 @@ describe('enqueueCombatOutroNarration: the enqueue', () => {
     expect(volatile).toContain('VICTORY');
   });
 
-  describe('the outro length tier (short fight, longer fight, boss or named foe)', () => {
+  describe('the outro length tier (standard fight, boss or named foe)', () => {
     const lengthLine = (ctx: any, type: 'victory' | 'defeat' = 'victory') => {
       const summary = buildCombatOutroSummary(ctx, combatOf(ctx), participantsOf(ctx), enemiesOf(ctx), type);
       const { volatile } = buildRouteLayers('combat_narration', summary);
@@ -161,20 +161,20 @@ describe('enqueueCombatOutroNarration: the enqueue', () => {
       }));
     const tpl = (isBoss: boolean) => ({ id: 1n, name: 'Rat', isBoss });
 
-    it('a 3-round fight with no boss or named foe is short: exactly one segment of 2 or 3 sentences', () => {
+    it('a 3-round fight with no boss or named foe is standard: exactly one short segment of 2 or 3 sentences', () => {
       const ctx = newCtx(seed({ combat_round: withRounds(3), enemy_template: [tpl(false)] }));
       const { summary, line } = lengthLine(ctx);
       expect(summary.roundNumber).toBe(3n);
       expect(summary.fightBossOrNamed).toBe(false);
       expect(line).toEqual([
-        'Length: this was a short fight (3 rounds). Write exactly one narration segment of 2 or 3 sentences.',
+        'Length: this was a standard fight (3 rounds). Write exactly one short narration segment of 2 or 3 sentences.',
       ]);
     });
 
-    it('a fight of 4 or more rounds with no boss or named foe is longer: at most 2 segments', () => {
+    it('a 5-round fight with no boss or named foe is still standard: exactly one short segment', () => {
       const ctx = newCtx(seed({ combat_round: withRounds(5), enemy_template: [tpl(false)] }));
       expect(lengthLine(ctx).line).toEqual([
-        'Length: this was a longer fight (5 rounds). Write at most 2 narration segments.',
+        'Length: this was a standard fight (5 rounds). Write exactly one short narration segment of 2 or 3 sentences.',
       ]);
     });
 

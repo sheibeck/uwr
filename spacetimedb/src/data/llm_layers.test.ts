@@ -517,7 +517,7 @@ describe('route blocks and volatile builders', () => {
     it('combat_narration outro prompt scales the summary length with the fight and keeps its voice rules', () => {
       const block = ROUTE_BLOCKS.combat_narration;
       expect(block).toContain(
-        'Write the summary as narration segments in the same JSON shape. Keep it brief, and let its length scale with the fight: the user message states the length this fight earns. A short fight is exactly one narration segment of 2 or 3 sentences, a longer fight is at most 2 narration segments, and a fight against a boss or a named foe is at most 3 narration segments. Never write more segments than the user message allows.',
+        'Write the summary as narration segments in the same JSON shape. Keep it brief, and let its length scale with the fight: the user message states the length this fight earns. A standard fight, however many rounds it took, is exactly one short narration segment of 2 or 3 sentences, and a fight against a boss or a named foe is at most 3 narration segments. Never write more segments than the user message allows.',
       );
       expect(block).toMatch(/write a brief narrative summary of the whole fight/);
       expect(block).toMatch(/with no game mechanics, no numbers, no HP, mana, damage amounts or stats/);
@@ -585,19 +585,20 @@ describe('route blocks and volatile builders', () => {
         buildCombatNarrationVolatile({ ...outro, narrativeType: type, ...over })
           .split('\n')
           .filter((l) => l.startsWith('Length:'));
-      const SHORT = 'Length: this was a short fight (3 rounds). Write exactly one narration segment of 2 or 3 sentences.';
-      // Short: 3 rounds or fewer (and a fight with no round rows) and no boss or named foe.
+      const SHORT = 'Length: this was a standard fight (3 rounds). Write exactly one short narration segment of 2 or 3 sentences.';
+      // Standard: any fight with no boss or named foe, however many rounds (owner, 2026-10-07).
       expect(lengthLine({ roundNumber: 3n })).toEqual([SHORT]);
       expect(lengthLine({ roundNumber: 1n })).toEqual([
-        'Length: this was a short fight (1 round). Write exactly one narration segment of 2 or 3 sentences.',
+        'Length: this was a standard fight (1 round). Write exactly one short narration segment of 2 or 3 sentences.',
       ]);
-      expect(lengthLine({ roundNumber: 0n })[0]).toContain('exactly one narration segment of 2 or 3 sentences');
+      expect(lengthLine({ roundNumber: 0n })[0]).toContain('exactly one short narration segment of 2 or 3 sentences');
       expect(lengthLine({ roundNumber: 3n, fightBossOrNamed: false })).toEqual([SHORT]);
-      // Longer: 4 rounds or more.
+      // A long standard fight still earns exactly one short segment.
       expect(lengthLine({ roundNumber: 4n })).toEqual([
-        'Length: this was a longer fight (4 rounds). Write at most 2 narration segments.',
+        'Length: this was a standard fight (4 rounds). Write exactly one short narration segment of 2 or 3 sentences.',
       ]);
-      expect(lengthLine({ roundNumber: 12n })[0]).toContain('at most 2 narration segments');
+      expect(lengthLine({ roundNumber: 12n })[0]).toContain('exactly one short narration segment');
+      expect(lengthLine({ roundNumber: 12n })[0]).not.toContain('at most 2');
       // Boss or named foe: up to 3 segments, however short the fight.
       expect(lengthLine({ roundNumber: 2n, fightBossOrNamed: true })).toEqual([
         'Length: this fight had a boss or a named foe (2 rounds). Write at most 3 narration segments.',
@@ -1156,7 +1157,7 @@ describe('Phase 46.1: big-moment per-call text', () => {
         `Your character (address as you, never by name): ${TAGGED}`,
         `Fallen: ${GRUB}`,
         `Survivors: ${TAGGED}`,
-        'Length: this was a short fight (3 rounds). Write exactly one narration segment of 2 or 3 sentences.',
+        'Length: this was a standard fight (3 rounds). Write exactly one short narration segment of 2 or 3 sentences.',
       ].join('\n'),
     );
     expect(buildCombatNarrationVolatile({ ...base, narrativeType: 'defeat' }).split('\n')[0]).toBe('Combat ends in DEFEAT.');
