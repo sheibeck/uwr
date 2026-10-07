@@ -38,8 +38,10 @@ export interface ExitNote {
   tone: 'neutral' | 'accent' | 'wait' | 'bad';
   /** The clock, 'm:ss', when a region timer blocks the crossing. Shown aria-hidden. */
   timeText: string | null;
-  /** The minute-level sentence for screen readers when a timer blocks. */
+  /** The minute-level sentence for screen readers when a timer blocks (it names a waiting follower). */
   srText: string | null;
+  /** When a follower's timer blocks the crossing, who waits ('Mira can't cross yet'); else null. */
+  blocker: string | null;
 }
 
 export interface ExitButton {
@@ -98,23 +100,35 @@ function noteFor(
   if (block !== null) {
     switch (block.reason) {
       case 'gathering':
-        return { text: 'Finish gathering first.', tone: 'bad', timeText: null, srText: null };
+        return { text: 'Finish gathering first.', tone: 'bad', timeText: null, srText: null, blocker: null };
       case 'selfTimer':
       case 'followerTimer': {
         const seconds = block.secondsLeft ?? 0;
+        // A follower's timer is not yours: the note names who waits, with the region check's own
+        // label ('Mira can't cross yet'), as the Map checklist does (review IN-03).
+        const region = checks.checks.find((c) => c.key === 'region' && c.status === 'wait');
+        const blocker = block.reason === 'followerTimer' && region ? region.label : null;
+        const minutes = `Region travel ready in ${aboutMinutes(seconds)}`;
         return {
-          text: 'Region travel in ',
+          text: blocker === null ? 'Region travel in ' : `${blocker} · ready in `,
           tone: 'wait',
           timeText: formatClock(seconds),
-          srText: `Region travel ready in ${aboutMinutes(seconds)}`,
+          srText: blocker === null ? minutes : `${blocker}. ${minutes}`,
+          blocker,
         };
       }
       case 'selfStamina':
-        return { text: 'Not enough stamina.', tone: 'bad', timeText: null, srText: null };
+        return { text: 'Not enough stamina.', tone: 'bad', timeText: null, srText: null, blocker: null };
       case 'followerStamina': {
         // The stamina check's label already names who is short ('Mira is short on stamina').
         const stamina = checks.checks.find((c) => c.key === 'stamina' && c.status === 'bad');
-        return { text: `${stamina ? stamina.label : 'A follower is short on stamina'}.`, tone: 'bad', timeText: null, srText: null };
+        return {
+          text: `${stamina ? stamina.label : 'A follower is short on stamina'}.`,
+          tone: 'bad',
+          timeText: null,
+          srText: null,
+          blocker: null,
+        };
       }
     }
   }
@@ -125,6 +139,7 @@ function noteFor(
       tone: 'accent',
       timeText: null,
       srText: null,
+      blocker: null,
     };
   }
 
@@ -133,7 +148,7 @@ function noteFor(
   parts.push(checks.costText);
   if (destination.bindStone) parts.push('Bind stone');
   if (destination.craftingAvailable) parts.push('Crafting');
-  return { text: `${parts.join(' · ')}${following}`, tone: 'neutral', timeText: null, srText: null };
+  return { text: `${parts.join(' · ')}${following}`, tone: 'neutral', timeText: null, srText: null, blocker: null };
 }
 
 export function exitRows(input: ExitRowsInput): ExitRow[] {

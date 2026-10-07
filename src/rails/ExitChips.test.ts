@@ -44,6 +44,8 @@ interface Options {
   gathering?: boolean;
   followers?: boolean;
   longName?: string;
+  /** Mira's (a follower's) region timer, in seconds from the clock's zero. */
+  followerCooldownSeconds?: number;
 }
 
 function build(options: Options = {}) {
@@ -89,10 +91,14 @@ function build(options: Options = {}) {
     knownCharacters: ref(options.followers ? [mira, jory] : []),
   } as unknown as GameData;
 
-  const cooldowns =
-    options.cooldownSeconds !== undefined
+  const cooldowns = [
+    ...(options.cooldownSeconds !== undefined
       ? [{ characterId: 1n, readyAtMicros: BigInt(options.cooldownSeconds) * 1_000_000n }]
-      : [];
+      : []),
+    ...(options.followerCooldownSeconds !== undefined
+      ? [{ characterId: 2n, readyAtMicros: BigInt(options.followerCooldownSeconds) * 1_000_000n }]
+      : []),
+  ];
   const map = {
     ...createInertMap(),
     ready: ref(options.ready ?? true),
@@ -221,6 +227,18 @@ describe('ExitChips card', () => {
     expect(button.attributes('aria-describedby')).toBe(status.attributes('id'));
     await button.trigger('click');
     expect(consoleApi.travel).not.toHaveBeenCalled();
+  });
+
+  it("a follower's timer names who waits on the card (review IN-03)", async () => {
+    const { w } = build({ followers: true, followerCooldownSeconds: 75 });
+    await chip(w, 'Brackwater').trigger('click');
+    const status = w.get('.card-status');
+    expect(status.get('[aria-hidden="true"]').text()).toBe(
+      "Mira can't cross yet. Region travel ready in 1:15. Moving within Ashfall Wilds is fine.",
+    );
+    expect(status.get('.sr-only').text()).toBe(
+      "Mira can't cross yet. Region travel ready in about 2 minutes. Moving within Ashfall Wilds is fine.",
+    );
   });
 
   it('leading with followers appends the count', async () => {

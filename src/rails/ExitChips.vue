@@ -117,7 +117,8 @@ function go(row: ExitRow): void {
           class="card-status tone-wait"
         >
           <span aria-hidden="true"
-            >Region travel ready in {{ openRow.note.timeText }}. Moving within {{ hereRegion }} is fine.</span
+            ><template v-if="openRow.note.blocker !== null">{{ openRow.note.blocker }}. </template>Region travel ready
+            in {{ openRow.note.timeText }}. Moving within {{ hereRegion }} is fine.</span
           >
           <span class="sr-only">{{ openRow.note.srText }}. Moving within {{ hereRegion }} is fine.</span>
         </div>

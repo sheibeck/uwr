@@ -152,10 +152,11 @@ watch(
 
           <div v-if="isOpen(row)" :id="panelId(row)" class="exit-panel">
             <p :id="noteId(row)" class="note" :class="`tone-${row.note.tone}`">
-              {{ row.note.text }}<template v-if="row.note.timeText !== null"
-                ><span aria-hidden="true">{{ row.note.timeText }}</span
+              <template v-if="row.note.timeText !== null"
+                ><span aria-hidden="true">{{ row.note.text }}{{ row.note.timeText }}</span
                 ><span class="sr-only">{{ row.note.srText }}</span></template
               >
+              <template v-else>{{ row.note.text }}</template>
             </p>
             <button
               type="button"

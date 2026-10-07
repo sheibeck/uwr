@@ -158,6 +158,7 @@ describe('exitRows, crossings', () => {
     expect(marsh.note.timeText).toBe('3:12');
     expect(marsh.note.tone).toBe('wait');
     expect(marsh.note.srText).toBe('Region travel ready in about 4 minutes');
+    expect(marsh.note.blocker).toBeNull();
     expect(marsh.button.disabled).toBe(true);
     expect(marsh.button.timeText).toBe('3:12');
     expect(marsh.button.label).toBe('Cross');
@@ -173,7 +174,10 @@ describe('exitRows, crossings', () => {
     const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n };
     const rows = rowsFor({ followers: [mira], followerTimers: { '2': 75 } });
     const marsh = row(rows, 'Brackwater');
-    expect(marsh.note.text).toBe('Region travel in ');
+    // review IN-03: the note names who waits, never reading as your own timer
+    expect(marsh.note.text).toBe("Mira can't cross yet · ready in ");
+    expect(marsh.note.blocker).toBe("Mira can't cross yet");
+    expect(marsh.note.srText).toBe("Mira can't cross yet. Region travel ready in about 2 minutes");
     expect(marsh.note.timeText).toBe('1:15');
     expect(marsh.button.disabled).toBe(true);
     expect(marsh.button.timeText).toBe('1:15');

@@ -235,6 +235,10 @@ describe('HereCard exits', () => {
     expect(panel.get('.note').text()).toContain('Region travel in');
     expect(panel.get('.note').text()).toContain('3:12');
     expect(panel.get('.note .sr-only').text()).toBe('Region travel ready in about 4 minutes');
+    // the visible phrase is hidden as a whole, so the sentence is not read after 'Region travel in'
+    const spoken = panel.get('.note').element.cloneNode(true) as Element;
+    for (const hidden of [...spoken.querySelectorAll('[aria-hidden="true"]')]) hidden.remove();
+    expect((spoken.textContent ?? '').trim()).toBe('Region travel ready in about 4 minutes');
     const button = panel.get('button.btn-primary');
     expect(button.attributes('aria-disabled')).toBe('true');
     expect(button.text()).toContain('3:12');
