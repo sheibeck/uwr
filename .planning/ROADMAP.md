@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1 to 51.6 follow 51 in order (51.4 needs 51.3). Phase 52 follows them, then 52.1, and 52.2 Social and Guilds is last.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.4, 51.5, 51.6 and 51.7 follow 51 in that order (51.4 needs 51.3; 51.2 is unused since World Events moved to 51.6). Phase 52 follows them, then 52.1, and 52.2 Social and Guilds is last.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -84,11 +84,11 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 50: Ledger Screens: Character and Economy** - Inventory, stats, vendor and crafting as drawers and sheets
 - [ ] **Phase 51: Ledger Screens: Map and Travel** - Map drawer and sheet, the rail travel panel, passage collapse, and the rail's Examine, Talk and bind stone actions
 - [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
-- [ ] **Phase 51.2: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
-- [ ] **Phase 51.6: Log** (INSERTED) - A stored, searchable log of what happened to the character
+- [ ] **Phase 51.6: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
+- [ ] **Phase 51.7: Log** (INSERTED) - A stored, searchable log of what happened to the character
 - [ ] **Phase 52: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client
 - [ ] **Phase 52.1: Bank, Trade and Hotbar Manager** (INSERTED) - The designed bank, player trade and Hotbar Manager
 - [ ] **Phase 52.2: Social and Guilds** (INSERTED) - The Social screen, party chat, friends, who is online, and guilds
@@ -608,10 +608,10 @@ Plans:
 - [x] 51-13 (no PLAN file; owner request) — Remove the Map List view and the Graph/List switch; the graph is the only view (gap closure)
 
 **UI hint**: yes
-**Design source**: `UWR Map.dc.html` (owner's revised map, second revision 2026-10-07) and `UWR Console.dc.html` (travel panel), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). The Phase 51 UI-SPEC covers 51, 51.1 and 51.2 and is split per phase.
+**Design source**: `UWR Map.dc.html` (owner's revised map, second revision 2026-10-07) and `UWR Console.dc.html` (travel panel), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). The Phase 51 UI-SPEC covers 51, 51.1 and World Events (now 51.6) and is split per phase.
 **Notes**:
 
-  - Context: `51-CONTEXT.md` (all owner decisions for 51, 51.1 and 51.2). Pulled in: 999.20 (Examine button), the bind stone row and the Talk icon (owner, 2026-10-06).
+  - Context: `51-CONTEXT.md` (all owner decisions for 51, 51.1 and World Events, now 51.6). Pulled in: 999.20 (Examine button), the bind stone row and the Talk icon (owner, 2026-10-06).
   - SVG is allowed on the map screen only (owner); every other screen keeps the guard.
   - Server: a per-character visited-places table, look at neighbouring places, passage collapse with a guarded sweep, and travel cost from the server rules. All changes are additive and published locally only.
   - Tests: graph layout and legend states, border crossings, neighbours-only travel, timer locks from the server row, passage collapse and sweep, and rail row actions.
@@ -639,28 +639,6 @@ Plans:
   - Owner, 2026-10-07: "The new combat mock has updated rails for character/pets/buffs/etc. So, probably relevant."
   - Context: `51.1-CONTEXT.md` (pointer and owner decisions after research) and `51-CONTEXT.md` (Areas 2 and 4, updated party mock). Research and patterns already exist for this phase.
   - Server: online flag, `join_group` invite check, invite expiry and cancel, private `user`, CR-01. All changes additive and published locally only.
-### Phase 51.2: World Events (INSERTED)
-
-**Goal**: World events actually happen and players can follow them: rule-based events per region with upcoming announcements, and the World events screen with contribution, rewards and tracking.
-**Depends on**: Phase 51 (Travel there opens the Map)
-**Requirements**: LDG-12, LDG-13, LDG-14
-**Success Criteria** (what must be TRUE):
-
-  1. Each region runs rule-based events (no LLM) from its real enemies and places, announced ahead as upcoming; resolved events and their contributions are kept as history.
-  2. World events lists active, upcoming and recently resolved events with region and timers. The detail shows the description, a For/Against bar from the real counters, objectives and a timeline.
-  3. The detail shows the player's contribution and percentile, the party's contribution and the bronze, silver and gold thresholds, with Travel there and Track (stored on the server; the tracked event leads the rail's Tracking).
-  4. `increment_event_counter` is admin-only, the failure status mismatch is fixed, and `collect_event_item` no longer crashes.
-  5. At 390×844 World events opens from More and every action above works.
-
-**Plans**: TBD
-**UI hint**: yes
-**Design source**: Ledger `2h` (world events), re-imported fresh.
-**Notes**:
-
-  - Context: `51-CONTEXT.md` (Area 3 decisions).
-  - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 52 Journal). All changes are additive and published locally only.
-  - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
-
 ### Phase 51.3: Regional Economy (INSERTED)
 
 **Goal**: Each region has its own economy, designed by the AI within server rules: materials to gather, creature drops, loot tables for its enemy types, and regional recipes. The rarest recipes need materials from several regions.
@@ -747,7 +725,31 @@ Plans:
   - Owner calls: first-person Keeper quotes in the mock (voice rule), 40px and 30px level numerals and other off-scale sizes, the positive-green token.
   - Related todos: `2026-10-06-renown-passive-perks-no-effect.md`, `2026-10-06-race-ability-source-as-chip.md`, `2026-10-06-hotbar-hover-shows-ability-description.md`.
 
-### Phase 51.6: Log (INSERTED)
+### Phase 51.6: World Events (INSERTED)
+
+**Goal**: World events actually happen and players can follow them: rule-based events per region with upcoming announcements, and the World events screen with contribution, rewards and tracking.
+**Depends on**: Phase 51 (Travel there opens the Map)
+**Requirements**: LDG-12, LDG-13, LDG-14
+**Success Criteria** (what must be TRUE):
+
+  1. Each region runs rule-based events (no LLM) from its real enemies and places, announced ahead as upcoming; resolved events and their contributions are kept as history.
+  2. World events lists active, upcoming and recently resolved events with region and timers. The detail shows the description, a For/Against bar from the real counters, objectives and a timeline.
+  3. The detail shows the player's contribution and percentile, the party's contribution and the bronze, silver and gold thresholds, with Travel there and Track (stored on the server; the tracked event leads the rail's Tracking).
+  4. `increment_event_counter` is admin-only, the failure status mismatch is fixed, and `collect_event_item` no longer crashes.
+  5. At 390×844 World events opens from More and every action above works.
+
+**Plans**: TBD
+**UI hint**: yes
+**Design source**: Ledger `2h` (world events), re-imported fresh.
+**Notes**:
+
+  - Renumbered from 51.2 to 51.6 (owner, 2026-10-07: "push world events to after character / level up"). Older documents call it 51.2; its folder is `51.6-world-events` and its UI-SPEC is `51.6-UI-SPEC.md`.
+
+  - Context: `51-CONTEXT.md` (Area 3 decisions).
+  - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 52 Journal). All changes are additive and published locally only.
+  - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
+
+### Phase 51.7: Log (INSERTED)
 
 **Goal**: Players read a stored, searchable log of what happened to their character, by category and day.
 **Depends on**: Phase 51.5
@@ -856,11 +858,11 @@ Plans:
 | 50. Ledger Screens: Character and Economy | v3.0 | 40/40 | Code complete, UAT deferred | - |
 | 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.1. Party | v3.0 | 0/TBD | Not started | - |
-| 51.2. World Events | v3.0 | 0/TBD | Not started | - |
 | 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
-| 51.6. Log | v3.0 | 0/TBD | Not started | - |
+| 51.6. World Events | v3.0 | 0/TBD | Not started | - |
+| 51.7. Log | v3.0 | 0/TBD | Not started | - |
 | 52. Parity and Production | v3.0 | 0/TBD | Not started | - |
 | 52.1. Bank, Trade and Hotbar Manager | v3.0 | 0/TBD | Not started | - |
 | 52.2. Social and Guilds | v3.0 | 0/TBD | Not started | - |
@@ -2095,4 +2097,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-07 after moving Social into 52.2 Social and Guilds (owner)*
+*Last updated: 2026-10-07 after moving World Events to 51.6 and Log to 51.7 (owner)*

@@ -339,7 +339,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
   - Owner play-test: map spacing (51-12, two-dimensional layout filling the canvas, 160px minimum gap, pills clear of places; owner: "Totally ok to shift the map as new places are discovered"); List view removed (51-13).
   - Owner review items (51-11/51-12 SUMMARYs): copy choices, 1 stop vs n stops, mobile location line without Day/Night, look copy, 160 vs 180px gap, no caption on mobile.
 - **New owner requests (2026-10-07):** a Log screen (mock `UWR Log.dc.html`, import in scratchpad design-log/) — placement to decide; the combat outro should tell how the fight unfolded (todo 2026-10-07-combat-outro-tells-how-the-fight-unfolded.md; prompt wording needs approval).
-- **Next: Phase 51.1 Party and Social**, then 51.2 World Events. Both have CONTEXT (in 51-CONTEXT.md) and approved UI-SPECs; plan with the research, patterns, planner, checker flow, then execute one plan at a time. 51.3 and 51.4 need a discuss (51.3 open question: per-item dials?).
+- **Next: Phase 51.1 Party** (slimmed; Social moved to 52.2). v3.0 order now: **51.1 Party → 51.3 Regional Economy → 51.4 Loot Rails (+ new effect chips) → 51.5 Character, Level Up and New Skill → 51.6 World Events (was 51.2) → 51.7 Log → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager → 52.2 Social and Guilds**. 51.1 has research, patterns and validation; its UI-SPEC needs an update from the new UWR Combat rails (scratchpad design-combat2/) before planning. 51.3 and 51.4 need a discuss (51.3 open question: per-item dials?).
 - **Owner decisions to remember:**
   - SVG is allowed only in the map folder.
   - Regions lock only by the cross-region travel timer, which is read from the server.

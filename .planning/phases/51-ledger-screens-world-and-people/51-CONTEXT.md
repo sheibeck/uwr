@@ -48,6 +48,8 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 - **Party chat** on the Social screen shows this session's party lines from the feed (`event_group`), as today. It is not stored.
 
 ### World events (Area 3)
+
+> Phase numbering (owner, 2026-10-07): World Events is now Phase 51.6 (it runs after 51.5 Character and Level Up), and the Social screen moved to Phase 52.2 Social and Guilds. Phase 51.1 is Party only.
 - **Events start on their own, by rules, with no LLM.** Each region runs at most one event at a time from the existing event shapes (cull enemies, gather items, defend a place), filled with that region's real enemy templates and places. A scheduled table drives it, with the module-identity guard pattern. Deterministic per tick from ctx-based seeds, never `Math.random`. Event definitions that point at seeded places that no longer exist (`data/world_event_data.ts`) are replaced by generated ones.
 - **Upcoming:** the starter announces the next event ahead of time with a start time, so it shows as upcoming before it begins.
 - **For/Against bar from the real success and failure counters**, as the Phase 47 rail card does. No invented factions.
