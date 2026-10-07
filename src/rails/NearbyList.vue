@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import {
   PhCastleTurret,
   PhChatCircle,
@@ -200,9 +200,16 @@ watch(
 );
 onBeforeUnmount(clearBindTarget);
 
+// The server's bind_location refuses in combat with this line (the same as the typed bind intent);
+// the button predicts it so a fight that starts before the rail swaps to the encounter cannot bind.
+const BIND_IN_COMBAT = 'You cannot bind while in combat.';
+const BIND_TITLE = 'Respawn here after defeat';
+
 const bindBlocked = computed(
-  () => !connected.value || game.reducers.value === null || runner.isPending('bind'),
+  () => !connected.value || game.reducers.value === null || inFight.value || runner.isPending('bind'),
 );
+const bindTitle = computed(() => (inFight.value ? BIND_IN_COMBAT : BIND_TITLE));
+const bindReasonId = `${useId()}-bind-reason`;
 
 // Bind is inert until the promise settles and nothing changes optimistically: the row turns to
 // 'Bound here' only when the character row changes. Refusals and the server's line print in the feed,
@@ -212,7 +219,7 @@ async function bind(): Promise<void> {
   const reducers = game.reducers.value;
   const target = game.character.value?.locationId ?? null;
   if (!connected.value || reducers === null || characterId === null || target === null) return;
-  if (runner.isPending('bind')) return;
+  if (inFight.value || runner.isPending('bind')) return;
   clearBindTarget();
   bindTarget = target;
   const ok = await runner.run('bind', () => reducers.bindLocation({ characterId }));
@@ -317,12 +324,16 @@ async function bind(): Promise<void> {
             type="button"
             class="btn btn-primary btn-bind"
             :aria-label="`Bind to ${place?.name ?? 'this place'}`"
-            title="Respawn here after defeat"
+            :title="bindTitle"
             :aria-disabled="bindBlocked ? 'true' : undefined"
+            :aria-describedby="inFight ? bindReasonId : undefined"
             @click="bind()"
           >
             Bind
           </button>
+          <span v-if="row.kind === 'bindStone' && !row.bound && inFight" :id="bindReasonId" class="sr-only">{{
+            BIND_IN_COMBAT
+          }}</span>
           <template v-if="row.kind === 'player'">
             <button
               type="button"
@@ -362,6 +373,15 @@ async function bind(): Promise<void> {
 </template>
 
 <style scoped>
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 h6 {
   margin: 0 0 8px;
   color: var(--color-neutral-400);

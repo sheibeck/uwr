@@ -269,6 +269,23 @@ describe('bind stone row', () => {
     expect(bindLocation).not.toHaveBeenCalled();
   });
 
+  it('is aria-disabled in combat with the server reason and sends nothing (review WR-06)', async () => {
+    const combat = { ...createInertGame().combat, active: ref(true) };
+    const { w, bindLocation } = mountList({ combat });
+    const bind = w.get('.btn-bind');
+    expect(bind.attributes('aria-disabled')).toBe('true');
+    expect(bind.attributes('title')).toBe('You cannot bind while in combat.');
+    const reason = w.get(`#${bind.attributes('aria-describedby')}`);
+    expect(reason.text()).toBe('You cannot bind while in combat.');
+    await bind.trigger('click');
+    expect(bindLocation).not.toHaveBeenCalled();
+    combat.active.value = false;
+    await nextTick();
+    expect(bind.attributes('aria-disabled')).toBeUndefined();
+    expect(bind.attributes('title')).toBe('Respawn here after defeat');
+    expect(bind.attributes('aria-describedby')).toBeUndefined();
+  });
+
   it('shows Bound here and no Bind button when bound to this place', () => {
     const { w } = mountList({ character: ref(character({ boundLocationId: 10n })) });
     const row = w.get('.kind-bindStone');
