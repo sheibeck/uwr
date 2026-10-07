@@ -5,6 +5,7 @@ import { createConsole, QUEUE_FULL_LINE, QUEUE_LOST_LINE } from './useConsole';
 import { createFeedStore } from './feedStore';
 import { createInertCombatData, createInertGame } from '../game/context';
 import type { FrameControls, GameData, GameReducers } from '../game/context';
+import type { ActiveScreen } from '../frame/useScreens';
 
 const REDUCER_NAMES: (keyof GameReducers)[] = [
   'submitIntent',
@@ -135,9 +136,10 @@ function setup() {
 
   const closeScreen = vi.fn();
   const openScreen = vi.fn();
+  const activeScreen = ref<ActiveScreen>(null);
   const frame: FrameControls = {
     isDesktop: ref(true),
-    activeScreen: ref(null),
+    activeScreen,
     screenArgs: ref(null),
     openScreen,
     closeScreen,
@@ -156,6 +158,7 @@ function setup() {
     settleAll,
     closeScreen,
     openScreen,
+    activeScreen,
     connected,
     characterId,
     character,
@@ -821,6 +824,22 @@ describe('keyword and rail actions', () => {
     expect(s.closeScreen).toHaveBeenCalled();
     expect(s.reducers.submitIntent).toHaveBeenCalledWith({ characterId: 1n, text: 'look at Old Well' });
     expect(lines(s.feed)).toEqual([{ kind: 'echo', message: 'look at Old Well', queued: false }]);
+  });
+
+  it('examine from the mobile encounter sheet keeps the fight open (review IN-07)', () => {
+    const s = setup();
+    s.activeScreen.value = 'encounter';
+    s.api.examine('Goblin Scout');
+    expect(s.closeScreen).not.toHaveBeenCalled();
+    expect(s.reducers.submitIntent).toHaveBeenCalledWith({ characterId: 1n, text: 'look at Goblin Scout' });
+  });
+
+  it('examine from any other screen closes it first', () => {
+    const s = setup();
+    s.activeScreen.value = 'map';
+    s.api.examine('Gloamwood');
+    expect(s.closeScreen).toHaveBeenCalledTimes(1);
+    expect(s.reducers.submitIntent).toHaveBeenCalledWith({ characterId: 1n, text: 'look at Gloamwood' });
   });
 
   it('look: sends a bare look intent with an echo, closes the screen, clears the conversation', async () => {

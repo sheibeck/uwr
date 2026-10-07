@@ -392,7 +392,9 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
 
   function examine(name: string): void {
     if (!ready()) return;
-    frame.closeScreen();
+    // The mobile encounter sheet stays open mid-fight (review IN-07): its eye beside each hostile
+    // looks without closing the fight. Every other screen closes first, as before.
+    if (frame.activeScreen.value !== 'encounter') frame.closeScreen();
     conversation.value = null;
     const text = `look at ${name}`;
     if (narrativeSend({ text, mode: 'intent', echo: text }) !== 'refused') bump();
