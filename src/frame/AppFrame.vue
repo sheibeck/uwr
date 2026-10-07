@@ -5,6 +5,7 @@ import EncounterPanel from '../combat/EncounterPanel.vue';
 import EncounterStrip from '../combat/EncounterStrip.vue';
 import { sheetMeta } from '../combat/roundClock';
 import { createCombatController } from '../combat/useCombatController';
+import ExitChips from '../rails/ExitChips.vue';
 import { COMBAT_KEY, CONSOLE_KEY, FRAME_KEY, GAME_KEY, createInertGame } from '../game/context';
 import type { FrameControls, ScreenArgs } from '../game/context';
 import { getScreen, type ScreenId } from '../screens/screens';
@@ -189,8 +190,8 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         v-if="!combatActive"
         v-show="!sheetOpen && !keyboardOpen"
         :location-name="props.view.locationName"
-        :time-of-day="props.view.timeOfDay"
       />
+      <ExitChips v-if="!combatActive" v-show="!sheetOpen && !keyboardOpen" />
       <NoticeBars
         :reconnecting="props.reconnecting"
         :next-retry-at="props.nextRetryAt"

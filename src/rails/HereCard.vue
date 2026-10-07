@@ -4,7 +4,7 @@ import { PhDoorOpen, PhEye, PhHourglassMedium, PhLockSimple, PhSignpost } from '
 import { CONSOLE_KEY, createInertConsole } from '../game/context';
 import { UNKNOWN_PLACE } from '../session/frameView';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
-import { dangerClass, dangerText } from './exits';
+import { dangerClass, dangerText, exitLabel } from './exits';
 import type { ExitRow } from './exits';
 import { useExits } from './useExits';
 
@@ -33,15 +33,6 @@ const noteId = (row: ExitRow): string => `exit-note-${row.locationId}`;
 
 function toggle(row: ExitRow): void {
   openId.value = isOpen(row) ? null : row.locationId;
-}
-
-// The row's accessible name carries the full place and region, the level and band (colour is never
-// the only cue) and a locked crossing's minute sentence; the visible text ellipsizes.
-function rowLabel(row: ExitRow): string {
-  const place = row.crossing ? `${row.name} (${row.regionName})` : row.name;
-  const level = row.danger.kind === 'band' ? `${row.danger.levelLabel}, ${row.danger.word}` : row.danger.word;
-  const wait = row.locked && row.note.srText !== null ? `, ${row.note.srText}` : '';
-  return `${place}, ${level}${wait}`;
 }
 
 function go(row: ExitRow): void {
@@ -127,7 +118,7 @@ watch(
               class="exit-row"
               :aria-expanded="isOpen(row) ? 'true' : 'false'"
               :aria-controls="isOpen(row) ? panelId(row) : undefined"
-              :aria-label="rowLabel(row)"
+              :aria-label="exitLabel(row)"
               :title="row.title !== '' ? row.title : undefined"
               @click="toggle(row)"
             >

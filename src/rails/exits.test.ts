@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { travelChecks } from '../map/travelChecks';
 import type { TravelChecksInput, TravellerLike } from '../map/travelChecks';
-import { exitRows } from './exits';
+import { exitLabel, exitRows } from './exits';
 import type { ExitLocation, ExitRow } from './exits';
 
 // The rail exits model (51-UI-SPEC "Rail Travel Panel"): ring, suffix, right text, note and button
@@ -284,5 +284,21 @@ describe('exitRows, edge cases', () => {
         }),
     });
     expect(rows[0].crossing).toBe(false);
+  });
+});
+
+describe('exitLabel and costText', () => {
+  it('names the full place, region, level and band; a locked crossing adds the minute sentence', () => {
+    const rows = rowsFor({ timerSeconds: 192 });
+    expect(exitLabel(row(rows, 'Gloamwood'))).toBe('Gloamwood, Lv 3–5, tough');
+    expect(exitLabel(row(rows, 'Brackwater'))).toBe(
+      'Brackwater (Saltmarsh), Lv 6, tough, Region travel ready in about 4 minutes',
+    );
+    expect(exitLabel(row(rowsFor({ routes: [EDGE] }), 'Beyond'))).toBe('Beyond, Danger unknown');
+  });
+
+  it('carries the shared stamina text', () => {
+    expect(row(rowsFor(), 'Gloamwood').costText).toBe('5 stamina');
+    expect(row(rowsFor(), 'Brackwater').costText).toBe('10 stamina');
   });
 });

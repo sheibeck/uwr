@@ -71,6 +71,8 @@ export interface ExitRow {
   note: ExitNote;
   button: ExitButton;
   following: number;
+  /** '{n} stamina', or for a party '{n} stamina each' (the shared travelChecks text). */
+  costText: string;
 }
 
 export interface ExitRowsInput {
@@ -179,6 +181,7 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
         timeText: buttonTime,
       },
       following: checks.followers.length,
+      costText: checks.costText,
     });
   }
   return rows;
@@ -194,4 +197,16 @@ export function dangerClass(danger: PlaceDanger): string {
 export function dangerText(danger: PlaceDanger): string {
   if (danger.kind === 'band') return `${danger.levelLabel} · ${danger.word}`;
   return danger.word;
+}
+
+/**
+ * The accessible name of an exit row or chip: the full place and region (the visible text
+ * ellipsizes), the level and band (colour is never the only cue) and, for a locked crossing, the
+ * minute-level sentence.
+ */
+export function exitLabel(row: ExitRow): string {
+  const place = row.crossing ? `${row.name} (${row.regionName})` : row.name;
+  const level = row.danger.kind === 'band' ? `${row.danger.levelLabel}, ${row.danger.word}` : row.danger.word;
+  const wait = row.locked && row.note.srText !== null ? `, ${row.note.srText}` : '';
+  return `${place}, ${level}${wait}`;
 }

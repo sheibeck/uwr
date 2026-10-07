@@ -6,6 +6,8 @@ import AppFrame from './AppFrame.vue';
 import type { FrameView } from '../session/frameView';
 import { GAME_KEY, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
+import { MAP_KEY, createInertMap } from '../map/mapContext';
+import type { MapData } from '../map/mapContext';
 
 type Listener = (event: { matches: boolean }) => void;
 
