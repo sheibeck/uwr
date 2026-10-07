@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+// @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
 import { readFileSync } from 'node:fs';
+// @ts-ignore node types are not part of this module's tsconfig
 import { fileURLToPath } from 'node:url';
 import {
   GROUP_INVITE_TTL_MICROS,
