@@ -382,8 +382,10 @@ describe('Inspector salvage', () => {
     const confirm = wrapper!.get('.inline-confirm');
     expect(confirm.find('.warn-icon').exists()).toBe(true);
     const expected = previewFor(instance, template).confirmText;
-    expect(expected).toMatch(/^Salvage destroys this item\. You'll get \d+ /);
+    expect(expected).toMatch(/^Salvage destroys this item\. It may /);
+    expect(expected).not.toMatch(/\d/);
     expect(confirm.get('.confirm-prompt').text()).toBe(expected);
+    expect(confirm.get('.confirm-prompt').text()).not.toMatch(/\d/);
     const buttons = confirm.findAll('button');
     expect(buttons.map((b) => b.text())).toEqual(['Salvage', 'Keep it']);
     expect(document.activeElement).toBe(buttons[1].element);
@@ -414,7 +416,7 @@ describe('Inspector salvage', () => {
     expect(document.activeElement).toBe(salvage().element);
   });
 
-  it('omits the count while the recipe cap has not applied', async () => {
+  it('speaks of materials in general while the recipe has not applied', async () => {
     const template = tpl(2n, { rarity: 'rare', armorType: 'cloth' });
     const instance = inst(2n, 2n);
     mountInspector({ items: [instance], templates: [template], instanceId: 2n });
@@ -422,7 +424,7 @@ describe('Inspector salvage', () => {
     const text = wrapper!.get('.confirm-prompt').text();
     expect(text).toBe(previewFor(instance, template, [], false).confirmText);
     expect(text).not.toMatch(/\d/);
-    expect(text).toMatch(/^Salvage destroys this item\. You'll get \S/);
+    expect(text).toMatch(/^Salvage destroys this item\. It may /);
   });
 
   it('asks first for crafted gear the server stores as common, and for a reagent-affixed item (CR-01)', async () => {
@@ -446,7 +448,7 @@ describe('Inspector salvage', () => {
     expect(affixed.reducers.salvageItem).not.toHaveBeenCalled();
     expect(wrapper!.find('.inline-confirm').exists()).toBe(true);
     // The reagent chance is named in the prompt.
-    expect(wrapper!.get('.confirm-prompt').text()).toContain('maybe a reagent');
+    expect(wrapper!.get('.confirm-prompt').text()).toContain('It may also give a reagent.');
   });
 
   it('salvages exactly once after the confirm Salvage, never unequipping', async () => {

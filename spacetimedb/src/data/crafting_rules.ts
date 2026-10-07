@@ -634,6 +634,238 @@ export function salvageMaterialYield(input: SalvageYieldInput): { name: string; 
   return { name, count };
 }
 
+// ---------------------------------------------------------------------------
+// SALVAGE: a chance at a smaller return, never a guaranteed one; one rule for salvage_item and the
+// client preview (Plan 50-40).
+//
+// Owner, 2026-10-07: "Salvaging should always return less materials. A salvage should never return
+// enough parts to just infinitely remake it over and over."
+// Owner, 2026-10-07 (refinement): "Salvage should never be a guaranteed return. Just a chance for some
+// lesser amount of some components. Rare components have rarer chance to be returned."
+//
+// What can come back (salvageComponents): the inputs of the recipe that makes the item (the lowest
+// recipe id when several do), or, for an item no recipe makes, its slot material. Each component
+// rolls on its own (rollSalvage) against a chance that falls with the material tier. Amounts are half
+// the per-item count, rounded down, at least 1, and then capped strictly below what every recipe that
+// makes the item consumes of that material: at most (req - 1) / outputCount. A final full-luck trim
+// keeps the sum of all amounts under the total any such recipe consumes and the value of the
+// components under the item's own vendor value. So even when every roll hits, salvaging returns
+// strictly fewer units than the craft took, and a craft then salvage then craft loop can never repeat
+// without new materials. The bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and the scroll roll are
+// separate and unchanged. Deterministic: the seed comes from the server timestamp and ids.
+// ---------------------------------------------------------------------------
+
+/** The chance, in percent, that a component of material tier 1, 2 and 3 (and above) comes back. */
+export const SALVAGE_COMPONENT_CHANCE_PCT: Readonly<Record<number, bigint>> = {
+  1: 50n,
+  2: 25n,
+  3: 10n,
+};
+
+/** The return chance of a component by its material name: tier 1 is 50, tier 2 is 25, tier 3 and above is 10. */
+export function salvageComponentChance(name: string | null | undefined): bigint {
+  const tier = primaryMaterialTier(name);
+  if (tier >= 3n) return SALVAGE_COMPONENT_CHANCE_PCT[3];
+  if (tier === 2n) return SALVAGE_COMPONENT_CHANCE_PCT[2];
+  return SALVAGE_COMPONENT_CHANCE_PCT[1];
+}
+
+export interface SalvagePart {
+  templateId: bigint | null;
+  name: string;
+  count: bigint;
+  vendorValue?: bigint | null;
+}
+
+export interface SalvageRecipeParts {
+  id?: bigint | null;
+  outputCount?: bigint | null;
+  parts: ReadonlyArray<SalvagePart>;
+}
+
+export interface SalvageComponent {
+  templateId: bigint | null;
+  name: string;
+  /** The units that come back when this component's roll hits. */
+  amount: bigint;
+  chancePct: bigint;
+}
+
+export interface SalvageComponentsInput {
+  slot: string;
+  armorType?: string | null;
+  /** The item template tier; a missing tier counts as 1n. */
+  tier?: bigint | null;
+  /** The item template's vendor value; missing counts as 0n. */
+  itemValue?: bigint | null;
+  /** Every recipe that outputs the item's template; empty when none does. */
+  recipes: ReadonlyArray<SalvageRecipeParts>;
+  /** The item template of the slot material, or null when none exists. Used only when no recipe makes the item. */
+  slotMaterial: { templateId?: bigint | null; name: string; vendorValue?: bigint | null } | null;
+}
+
+function salvageOutputCount(recipe: SalvageRecipeParts): bigint {
+  const n = recipe.outputCount ?? 1n;
+  return n > 0n ? n : 1n;
+}
+
+function salvageRequired(recipe: SalvageRecipeParts, key: string): bigint {
+  let sum = 0n;
+  for (const p of recipe.parts) {
+    if (p && p.count > 0n && itemKeyFromName(p.name) === key) sum += p.count;
+  }
+  return sum;
+}
+
+function salvageHalf(base: bigint): bigint {
+  if (base < 1n) return 0n;
+  const half = base / 2n;
+  return half < 1n ? 1n : half;
+}
+
+/**
+ * What a salvage of one item might return, in roll order, each with its own chance. An empty list means
+ * nothing can come back. Never throws: missing or garbage input gives [].
+ */
+export function salvageComponents(input: SalvageComponentsInput): SalvageComponent[] {
+  try {
+    if (input === null || typeof input !== 'object') return [];
+    const recipes = (Array.isArray(input.recipes) ? input.recipes : []).filter(
+      (r) => r !== null && typeof r === 'object' && Array.isArray(r.parts),
+    );
+    const itemValue = input.itemValue ?? 0n;
+
+    interface Slot {
+      templateId: bigint | null;
+      name: string;
+      key: string;
+      base: bigint;
+      vendorValue: bigint;
+      amount: bigint;
+    }
+    const slots: Slot[] = [];
+
+    if (recipes.length > 0) {
+      let lowest = recipes[0];
+      for (const r of recipes) {
+        if (r.id !== undefined && r.id !== null && lowest.id !== undefined && lowest.id !== null && r.id < lowest.id) {
+          lowest = r;
+        }
+      }
+      const out = salvageOutputCount(lowest);
+      for (const p of lowest.parts) {
+        if (!p || !(p.count > 0n)) continue;
+        const key = itemKeyFromName(p.name);
+        const known = slots.find((s) => s.key === key);
+        if (known) {
+          known.base += p.count / out;
+          continue;
+        }
+        slots.push({
+          templateId: p.templateId ?? null,
+          name: p.name,
+          key,
+          base: p.count / out,
+          vendorValue: p.vendorValue ?? 0n,
+          amount: 0n,
+        });
+      }
+    } else {
+      const tier = input.tier ?? 1n;
+      const name = getMaterialForSalvage(input.slot, input.armorType ?? undefined, tier);
+      const material = input.slotMaterial;
+      if (!name || !material) return [];
+      let base: bigint = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
+      const materialValue = material.vendorValue ?? 0n;
+      if (materialValue > 0n) {
+        const byValue = itemValue / materialValue;
+        if (byValue < base) base = byValue;
+      }
+      slots.push({
+        templateId: material.templateId ?? null,
+        name: material.name,
+        key: itemKeyFromName(material.name),
+        base,
+        vendorValue: materialValue,
+        amount: 0n,
+      });
+    }
+
+    // Half, then strictly below what every recipe that makes the item consumes of the material.
+    for (const s of slots) {
+      let amount = salvageHalf(s.base);
+      for (const r of recipes) {
+        const req = salvageRequired(r, s.key);
+        if (req <= 0n) continue;
+        const cap = (req - 1n) / salvageOutputCount(r);
+        if (amount > cap) amount = cap;
+      }
+      s.amount = amount;
+    }
+
+    // Full luck: the sum stays under the total any recipe consumes, and the value under the item's.
+    let sumCap: bigint | null = null;
+    for (const r of recipes) {
+      let total = 0n;
+      for (const p of r.parts) if (p && p.count > 0n) total += p.count;
+      const cap = total > 0n ? (total - 1n) / salvageOutputCount(r) : 0n;
+      if (sumCap === null || cap < sumCap) sumCap = cap;
+    }
+    for (;;) {
+      let sum = 0n;
+      let worth = 0n;
+      for (const s of slots) {
+        sum += s.amount;
+        if (s.vendorValue > 0n) worth += s.amount * s.vendorValue;
+      }
+      if (!((sumCap !== null && sum > sumCap) || worth > itemValue)) break;
+      let last = -1;
+      for (let i = slots.length - 1; i >= 0; i -= 1) {
+        if (slots[i].amount > 0n) {
+          last = i;
+          break;
+        }
+      }
+      if (last < 0) break;
+      slots[last].amount -= 1n;
+    }
+
+    return slots
+      .filter((s) => s.amount > 0n)
+      .map((s) => ({
+        templateId: s.templateId,
+        name: s.name,
+        amount: s.amount,
+        chancePct: salvageComponentChance(s.name),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** The roll seed of one salvage: the server timestamp, the item instance id and the character id. */
+export function salvageSeed(timestampMicros: bigint, instanceId: bigint, characterId: bigint): bigint {
+  return BigInt.asUintN(64, timestampMicros * 1000003n + instanceId * 7919n + characterId);
+}
+
+/**
+ * One roll from 0 to 99 for component number `index`: a splitmix64 step over BigInt. The reagent roll
+ * ((timestamp + instance id * 13) % 100) and the scroll roll ((timestamp + character id) % 100) are
+ * separate and unchanged.
+ */
+export function salvageRoll(seed: bigint, index: bigint): bigint {
+  let z = BigInt.asUintN(64, seed + (index + 1n) * 0x9e3779b97f4a7c15n);
+  z = BigInt.asUintN(64, (z ^ (z >> 30n)) * 0xbf58476d1ce4e5b9n);
+  z = BigInt.asUintN(64, (z ^ (z >> 27n)) * 0x94d049bb133111ebn);
+  z = z ^ (z >> 31n);
+  return z % 100n;
+}
+
+/** The components that come back for this seed: each hits when its roll is below its chance, in order. */
+export function rollSalvage(components: ReadonlyArray<SalvageComponent>, seed: bigint): SalvageComponent[] {
+  return components.filter((c, i) => salvageRoll(seed, BigInt(i)) < c.chancePct);
+}
+
 /**
  * The reagent defs a salvage can yield: the CRAFTING_MODIFIER_DEFS whose statKey matches one of the
  * item's non-implicit affixes, in CRAFTING_MODIFIER_DEFS order, each once. The implicit craft-quality

@@ -19,8 +19,13 @@ import {
   maxCraftCount,
   planCraft,
   primaryMaterialTier,
+  rollSalvage,
+  salvageComponentChance,
+  salvageComponents,
   salvageMaterialYield,
   salvageReagentDefs,
+  salvageRoll,
+  salvageSeed,
 } from './crafting_rules';
 import type { CraftPlanInput } from './crafting_rules';
 
@@ -717,6 +722,152 @@ describe('salvage yield rules', () => {
     expect(salvageReagentDefs([{ statKey: a.statKey }]).map((d) => d.key)).toContain(a.key);
     expect(salvageReagentDefs([])).toEqual([]);
     expect(salvageReagentDefs(undefined as unknown as [])).toEqual([]);
+  });
+});
+
+describe('salvage components (Plan 50-40)', () => {
+  // Owner, 2026-10-07: "Salvage should never be a guaranteed return. Just a chance for some lesser
+  // amount of some components. Rare components have rarer chance to be returned."
+  const part = (name: string, count: bigint, vendorValue: bigint = 0n, templateId: bigint | null = null) => ({
+    templateId,
+    name,
+    count,
+    vendorValue,
+  });
+  const one = (parts: ReturnType<typeof part>[], over: { outputCount?: bigint; id?: bigint } = {}) => ({
+    id: over.id,
+    outputCount: over.outputCount ?? 1n,
+    parts,
+  });
+  const base = { slot: 'chest', armorType: 'cloth', tier: 1n, itemValue: 100n, slotMaterial: null };
+
+  it('chances fall with the material tier: 50, 25 and 10 percent', () => {
+    expect(salvageComponentChance('Copper Ore')).toBe(50n);
+    expect(salvageComponentChance('Iron Ore')).toBe(25n);
+    expect(salvageComponentChance('Darksteel Ore')).toBe(10n);
+    expect(salvageComponentChance('Iron Shard')).toBe(50n);
+    expect(salvageComponentChance('')).toBe(50n);
+    expect(salvageComponentChance(null as unknown as string)).toBe(50n);
+  });
+
+  it('a crafted item returns its primary input at half, and never a req 1 secondary', () => {
+    expect(
+      salvageComponents({ ...base, recipes: [one([part('Iron Shard', 3n), part('Scrap Cloth', 1n)])] }),
+    ).toEqual([{ templateId: null, name: 'Iron Shard', amount: 1n, chancePct: 50n }]);
+    expect(
+      salvageComponents({ ...base, recipes: [one([part('Void Crystal', 2n), part('Scrap Cloth', 1n)])] }),
+    ).toEqual([{ templateId: null, name: 'Void Crystal', amount: 1n, chancePct: 10n }]);
+  });
+
+  it('amounts for req 2, 3, 4, 5 and 6 with output 1 are 1, 1, 2, 2 and 3', () => {
+    const at = (req: bigint) =>
+      salvageComponents({ ...base, recipes: [one([part('Iron Shard', req)])] }).map((c) => c.amount);
+    expect(at(1n)).toEqual([]);
+    expect(at(2n)).toEqual([1n]);
+    expect(at(3n)).toEqual([1n]);
+    expect(at(4n)).toEqual([2n]);
+    expect(at(5n)).toEqual([2n]);
+    expect(at(6n)).toEqual([3n]);
+  });
+
+  it('the output count divides the strict cap: (req - 1) / outputCount', () => {
+    const at = (req: bigint, outputCount: bigint) =>
+      salvageComponents({ ...base, recipes: [one([part('Iron Shard', req)], { outputCount })] }).map((c) => c.amount);
+    expect(at(3n, 2n)).toEqual([1n]);
+    expect(at(2n, 2n)).toEqual([]);
+    expect(at(6n, 3n)).toEqual([1n]);
+    expect(at(9n, 3n)).toEqual([1n]);
+    expect(at(3n, 0n)).toEqual([1n]);
+  });
+
+  it('takes the parts of the lowest recipe id and caps by every recipe that makes the item', () => {
+    const r7 = one([part('Copper Ore', 4n)], { id: 7n });
+    const r5 = one([part('Copper Ore', 2n), part('Iron Ore', 2n)], { id: 5n });
+    expect(salvageComponents({ ...base, recipes: [r7, r5] }).map((c) => [c.name, c.amount])).toEqual([
+      ['Copper Ore', 1n],
+      ['Iron Ore', 1n],
+    ]);
+    // The other recipe asks for less Copper, so it caps harder than the half of 4.
+    const r9 = one([part('Copper Ore', 4n), part('Iron Ore', 2n)], { id: 5n });
+    const r8 = one([part('Copper Ore', 2n)], { id: 8n });
+    // The full-luck total cap also binds: recipe 8 consumes 2 units in all, so at most 1 comes back
+    // and the last component (Iron Ore) is trimmed first.
+    expect(salvageComponents({ ...base, recipes: [r8, r9] }).map((c) => [c.name, c.amount])).toEqual([
+      ['Copper Ore', 1n],
+    ]);
+  });
+
+  it('full luck is never worth more than the item: trims the last component first', () => {
+    const parts = [part('Copper Ore', 4n, 5n), part('Iron Ore', 4n, 5n)];
+    expect(
+      salvageComponents({ ...base, itemValue: 100n, recipes: [one(parts)] }).map((c) => c.amount),
+    ).toEqual([2n, 2n]);
+    expect(
+      salvageComponents({ ...base, itemValue: 10n, recipes: [one(parts)] }).map((c) => [c.name, c.amount]),
+    ).toEqual([['Copper Ore', 2n]]);
+    expect(salvageComponents({ ...base, itemValue: 4n, recipes: [one(parts)] })).toEqual([]);
+  });
+
+  it('a non-craftable item has one component: its slot material at half the old tier count', () => {
+    expect(
+      salvageComponents({ ...base, recipes: [], slotMaterial: { name: 'Rough Hide', vendorValue: 2n } }),
+    ).toEqual([{ templateId: null, name: 'Rough Hide', amount: 1n, chancePct: 50n }]);
+    expect(
+      salvageComponents({
+        slot: 'chest', armorType: 'plate', tier: 3n, itemValue: 100n, recipes: [],
+        slotMaterial: { templateId: 71n, name: 'Darksteel Ore', vendorValue: 8n },
+      }),
+    ).toEqual([{ templateId: 71n, name: 'Darksteel Ore', amount: 1n, chancePct: 10n }]);
+  });
+
+  it('a non-craftable item worth less than one material, or with no material, has none', () => {
+    expect(
+      salvageComponents({ ...base, itemValue: 1n, recipes: [], slotMaterial: { name: 'Rough Hide', vendorValue: 2n } }),
+    ).toEqual([]);
+    expect(
+      salvageComponents({ slot: 'ring', armorType: 'none', tier: 1n, itemValue: 100n, recipes: [], slotMaterial: { name: 'x', vendorValue: 1n } }),
+    ).toEqual([]);
+    expect(salvageComponents({ ...base, recipes: [], slotMaterial: null })).toEqual([]);
+    expect(salvageComponents(null as never)).toEqual([]);
+    expect(salvageComponents({} as never)).toEqual([]);
+  });
+
+  it('the roll is deterministic, between 0 and 99, and the seed follows every input', () => {
+    const seed = salvageSeed(1_700_000_000_000_000n, 500n, 1n);
+    for (let i = 0n; i < 50n; i += 1n) {
+      const roll = salvageRoll(seed, i);
+      expect(roll).toBe(salvageRoll(seed, i));
+      expect(roll >= 0n && roll <= 99n).toBe(true);
+    }
+    const seeds = new Set([
+      seed,
+      salvageSeed(1_700_000_000_000_001n, 500n, 1n),
+      salvageSeed(1_700_000_000_000_000n, 501n, 1n),
+      salvageSeed(1_700_000_000_000_000n, 500n, 2n),
+    ]);
+    expect(seeds.size).toBe(4);
+    expect(seed).toBe(BigInt.asUintN(64, 1_700_000_000_000_000n * 1000003n + 500n * 7919n + 1n));
+  });
+
+  it('rollSalvage returns exactly the components whose roll is below their chance, in order', () => {
+    const components = [
+      { templateId: 1n, name: 'A', amount: 1n, chancePct: 50n },
+      { templateId: 2n, name: 'B', amount: 1n, chancePct: 25n },
+      { templateId: 3n, name: 'C', amount: 1n, chancePct: 10n },
+    ];
+    for (let k = 0n; k < 200n; k += 1n) {
+      const seed = salvageSeed(1_700_000_000_000_000n + k, 500n, 1n);
+      const expected = components.filter((c, i) => salvageRoll(seed, BigInt(i)) < c.chancePct);
+      expect(rollSalvage(components, seed)).toEqual(expected);
+    }
+    expect(rollSalvage([], 5n)).toEqual([]);
+  });
+
+  it('never uses a source of chance outside the seed', () => {
+    const path = fileURLToPath(new URL('./crafting_rules.ts', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    expect(source).not.toContain('Math.random');
+    expect(source).not.toContain('Date.now');
   });
 });
 

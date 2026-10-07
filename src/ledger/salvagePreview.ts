@@ -4,20 +4,26 @@ import {
   SALVAGE_REAGENT_CHANCE_PCT,
   getMaterialForSalvage,
   itemKeyFromName,
-  salvageMaterialYield,
+  salvageComponents,
   salvageReagentDefs,
 } from '@game-data/crafting_rules';
+import type { SalvageComponent, SalvagePart } from '@game-data/crafting_rules';
 import { isSalvageableTemplate } from '@game-data/item_rules';
 import type { ItemAffix, ItemInstance, ItemTemplate, RecipeTemplate } from '../module_bindings/types';
 import { affixesFor } from './compare';
 import { nameColor } from './itemModel';
 
-// The salvage yield the Inventory confirm and the Crafting "You'll receive" list name. It uses the
-// server's own rule (crafting_rules salvageMaterialYield and salvageReagentDefs, which salvage_item
-// calls since plan 50-30). The material value comes from MATERIAL_DEFS, the value the server upserts
-// into each material template. The recipe cap comes from the hub's outputRecipes. A scroll is never
-// promised, because the client cannot see scroll templates and generated recipes have none; the
-// result card reports one when the server grants it. Names stay plain strings. Pure: no Vue.
+// What a salvage might give back, for the Inventory confirm and the Crafting salvage detail. Salvage is
+// a chance at a smaller return, never a sure one (owner, 2026-10-07: "Salvage should never be a
+// guaranteed return. Just a chance for some lesser amount of some components. Rare components have
+// rarer chance to be returned."), so the confirm never promises a count and speaks in chances. It calls
+// the very rule the server rolls (crafting_rules salvageComponents, salvageReagentDefs), so the
+// components, amounts and chances here are the ones salvage_item rolls for. The material values come
+// from MATERIAL_DEFS, the values the server upserts into each material template; the recipe parts come
+// from the hub's outputRecipes. The hub keeps one recipe per output, the lowest id, which is the recipe
+// the server takes the components from. A scroll is never promised, because the client cannot see
+// scroll templates and generated recipes have none; the result card reports one when the server grants
+// it. Names stay plain strings. Pure: no Vue.
 
 export interface SalvagePreviewInput {
   instance: Pick<ItemInstance, 'id'>;
@@ -36,24 +42,27 @@ export interface SalvageYieldView {
   icon: typeof PhCube;
   iconColor: string;
   name: string;
-  /** 'from “of Intelligence”' on the reagent line, else empty. */
+  /** 'unlikely' on a component under 25%, 'from “of Intelligence”' on the reagent line, else empty. */
   note: string;
-  /** '×2' for a known count, '12% chance' for the reagent, empty when the count is unknown. */
+  /** '×1 · 50% chance' on a component, '12% chance' on the reagent. */
   text: string;
-  /** The line is a chance, not a guarantee. */
+  /** The line is a chance, not a guarantee. True on every line. */
   chance: boolean;
 }
 
 export interface SalvagePreview {
-  /** The guaranteed material, or null when this slot and tier give none. count is exact only when countKnown. */
-  material: { name: string; count: bigint } | null;
-  /** False while the recipe cap cannot be read yet: the count must not be shown then. */
-  countKnown: boolean;
+  /** What might come back, each with its own chance (the server's salvageComponents). Empty while not knowable. */
+  components: SalvageComponent[];
+  /** False while the recipe parts cannot be read yet: no component can be named then. */
+  knowable: boolean;
   reagentPossible: boolean;
   yields: SalvageYieldView[];
-  /** The Inventory confirm text naming the yield. */
+  /** The Inventory confirm text in chance wording, with no digit and no promised count. */
   confirmText: string;
 }
+
+/** A component at or above this chance is "likely" in the confirm wording; below it is rare. */
+const LIKELY_PCT = 25n;
 
 function requirementsOf(recipe: RecipeTemplate): { templateId: bigint; count: bigint }[] {
   const parts = [
@@ -66,56 +75,71 @@ function requirementsOf(recipe: RecipeTemplate): { templateId: bigint; count: bi
   return parts;
 }
 
+/** 'A', 'A and B', 'A, B and C'. */
+function listOf(names: readonly string[]): string {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, names.length - 1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 /**
- * What a salvage of this instance gives, by the server's rule; null unless the template is
+ * What a salvage of this instance might give, by the server's rule; null unless the template is
  * salvageable (a non-junk template in an equipment slot).
  */
 export function salvagePreview(input: SalvagePreviewInput): SalvagePreview | null {
   const { instance, template, characterId, outputRecipe, templates } = input;
   if (!isSalvageableTemplate(template)) return null;
 
-  const tier = template.tier ?? 1n;
-  const materialName = getMaterialForSalvage(template.slot, template.armorType, tier);
-  const materialKey = materialName === undefined ? '' : itemKeyFromName(materialName);
-  const def = materialKey === '' ? undefined : MATERIAL_DEFS.find((m) => m.key === materialKey);
-
-  // The recipe cap: how much of the material the recipe consumed. Unknown while a part template is
-  // missing or the hub has not applied, so the count is never overstated.
-  let countKnown = outputRecipe !== undefined;
-  let recipeConsumed = 0n;
+  // The recipe parts, unknown while the hub has not applied or a part template is not loaded, so a
+  // component is never named from half the recipe.
+  let knowable = outputRecipe !== undefined;
+  const parts: SalvagePart[] = [];
   if (outputRecipe) {
     for (const part of requirementsOf(outputRecipe)) {
       const partTemplate = templates.get(part.templateId);
       if (partTemplate === undefined) {
-        countKnown = false;
+        knowable = false;
         continue;
       }
-      if (itemKeyFromName(partTemplate.name) === materialKey) recipeConsumed += part.count;
+      parts.push({
+        templateId: part.templateId,
+        name: partTemplate.name,
+        count: part.count,
+        vendorValue: partTemplate.vendorValue ?? null,
+      });
     }
   }
 
-  const yielded = salvageMaterialYield({
-    slot: template.slot,
-    armorType: template.armorType,
-    tier,
-    itemValue: template.vendorValue ?? 0n,
-    material: def ? { name: def.name, vendorValue: def.vendorValue } : null,
-    recipeConsumed: countKnown ? recipeConsumed : 0n,
-  });
-  const material = yielded ? { name: yielded.name, count: yielded.count } : null;
-
-  const yields: SalvageYieldView[] = [];
-  if (material !== null && (!countKnown || material.count > 0n)) {
-    yields.push({
-      key: 'material',
-      icon: PhCube,
-      iconColor: nameColor('common', false),
-      name: material.name,
-      note: '',
-      text: countKnown ? `×${material.count}` : '',
-      chance: false,
+  let components: SalvageComponent[] = [];
+  if (knowable) {
+    // No recipe: the slot material, valued from MATERIAL_DEFS by name key as the server upserts it.
+    let slotMaterial: { name: string; vendorValue: bigint } | null = null;
+    if (!outputRecipe) {
+      const name = getMaterialForSalvage(template.slot, template.armorType, template.tier ?? 1n);
+      const key = name === undefined ? '' : itemKeyFromName(name);
+      const def = key === '' ? undefined : MATERIAL_DEFS.find((m) => m.key === key);
+      slotMaterial = def ? { name: def.name, vendorValue: def.vendorValue ?? 0n } : null;
+    }
+    components = salvageComponents({
+      slot: template.slot,
+      armorType: template.armorType,
+      tier: template.tier ?? 1n,
+      itemValue: template.vendorValue ?? 0n,
+      recipes: outputRecipe
+        ? [{ id: outputRecipe.id, outputCount: outputRecipe.outputCount, parts }]
+        : [],
+      slotMaterial,
     });
   }
+
+  const yields: SalvageYieldView[] = components.map((c) => ({
+    key: `component:${itemKeyFromName(c.name)}`,
+    icon: PhCube,
+    iconColor: nameColor('common', false),
+    name: c.name,
+    note: c.chancePct < LIKELY_PCT ? 'unlikely' : '',
+    text: `×${c.amount} · ${c.chancePct}% chance`,
+    chance: true,
+  }));
 
   // The reagent the server would pick when its chance hits: deterministic from the ids.
   const own = affixesFor(instance.id, input.affixes);
@@ -136,17 +160,24 @@ export function salvagePreview(input: SalvagePreviewInput): SalvagePreview | nul
   }
 
   const lead = 'Salvage destroys this item.';
-  const maybe = reagentPossible ? ', and maybe a reagent' : '';
-  let confirmText: string;
-  if (material !== null && !countKnown) {
-    confirmText = `${lead} You'll get ${material.name}${maybe}.`;
-  } else if (material !== null && material.count > 0n) {
-    confirmText = `${lead} You'll get ${material.count} ${material.name}${maybe}.`;
-  } else if (reagentPossible) {
-    confirmText = `${lead} You'll get no materials, but maybe a reagent.`;
+  const sentences: string[] = [lead];
+  if (!knowable) {
+    sentences.push('It may return some materials.');
+    if (reagentPossible) sentences.push('It may also give a reagent.');
   } else {
-    confirmText = `${lead} Nothing usable will be left.`;
+    const likely = components.filter((c) => c.chancePct >= LIKELY_PCT).map((c) => c.name);
+    const rare = components.filter((c) => c.chancePct < LIKELY_PCT).map((c) => c.name);
+    if (likely.length > 0) sentences.push(`It may return some ${listOf(likely)}.`);
+    if (rare.length > 0) {
+      if (likely.length === 0) sentences.push(`It may rarely return ${listOf(rare)}.`);
+      else if (rare.length === 1) sentences.push(`${rare[0]} rarely comes back.`);
+      else sentences.push(`${listOf(rare)} rarely come back.`);
+    }
+    if (reagentPossible) {
+      sentences.push(components.length > 0 ? 'It may also give a reagent.' : 'It may give a reagent.');
+    }
+    if (components.length === 0 && !reagentPossible) sentences.push('Nothing usable will come of it.');
   }
 
-  return { material, countKnown, reagentPossible, yields, confirmText };
+  return { components, knowable, reagentPossible, yields, confirmText: sentences.join(' ') };
 }
