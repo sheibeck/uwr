@@ -208,6 +208,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-06-crafting-and-backpack-follow-the-updated-mock.md`: owner play-test plus the new `UWR Crafting.dc.html` mock. Smaller backpack squares, a clear craft and salvage result message, craft ×N, and output descriptions with stats. The odds bar stays off unless the owner decides otherwise.
 - `todos/pending/2026-10-06-bind-stone-in-nearby-with-bind-action.md`: bind stone row in Nearby with a Bind action. Folded into Phase 51.
 - `todos/pending/2026-10-06-nearby-npc-chat-bubble-instead-of-hail.md`: NPC rows in Nearby use a chat bubble icon ("Talk to {name}") instead of the word "hail". Folded into Phase 51.
+- `todos/pending/2026-10-07-party-pet-hud-and-follow-indicators.md`: pet HUD and travel-with-leader indicators from the updated `UWR Party.dc.html`. Folded into Phase 51.
 
 ### Blockers/Concerns
 

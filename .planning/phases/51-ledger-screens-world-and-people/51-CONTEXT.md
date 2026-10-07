@@ -92,6 +92,10 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 - **Dungeons show "Dungeon" with their danger,** as normal shared places. Drop "instanced"; the game has no instances.
 - The real left vitals rail stays (not the mock's cut-down copy), and it gains the party stamina the mock shows if the rail lacks it. Region chips are clickable and select the region. After travelling, the detail panel shows the new current place, not a blank. Add Swamp to the terrain legend.
 
+### Updated party mock and console travel panel (owner, 2026-10-07)
+- **Party: pet HUD and travel-with-leader indicators.** The updated `UWR Party.dc.html` is re-imported to the session scratchpad `design51/party2/PARTY2-EXTRACT.md`. Build it in Phase 51. Pets come from the existing `active_pet` table; research confirms what is readable and needed. The follow indicators come from `group_member.followLeader`. Todo: `2026-10-07-party-pet-hud-and-follow-indicators.md`.
+- **Console travel panel.** The owner sent `UWR Console.dc.html`, an updated travel panel in the main right rail. It is re-imported to the session scratchpad `design51/console/CONSOLE-EXTRACT.md` and is the source for the rail's routes and Here panel.
+
 ### Region transitions collapse after discovery (owner, 2026-10-06)
 - **Keep the uncharted "Edge Beyond {Region}" until it is explored.** It is how players find the unknown, and the map shows it as "something lies beyond".
 - **After the next region is generated, the edge goes away.** Today it is renamed "The Passage to {Region}" and stays a stop of its own (`llm_apply.ts:522-531`). Instead, link its neighbour on this side directly to the new region's arrival point and delete the passage. The map draws that link as a **border crossing** showing where the regions meet, and crossing it starts the travel timer.
