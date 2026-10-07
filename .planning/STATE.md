@@ -324,32 +324,50 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
 
-### Resume note (2026-10-06, overnight run)
+### Resume note (2026-10-07, before compact)
 
-- The run is `/gsd-autonomous` for v3.0. Done in code: 45, 46, 47, 46.1, 48, 49 and 50 (each human_needed, UAT deferred). Quick tasks 261006-a0i, a13 and a3d (owner live-play fixes) are done. To resume, run `/gsd-autonomous --from 51`. Phase 50 review iteration 2 is fixed (50-REVIEW-FIX-iter2.md); a final iteration-3 re-review of those fixes is optional before Phase 51. That runs 51 and 52 (52 now also builds loot, bank, admin, trade, the Hotbar Manager and the Journal from the owner designs; 51 also builds the party menus and the Examine button), then the lifecycle (audit, complete, cleanup).
-- Overnight autonomy is active (see above): take the recommended option for every question and log it as "auto-approved (owner overnight instruction)". Hard limits:
-  - no paid LLM calls (the golden run is deferred)
-  - no maincloud
-  - no git push
-  - never `--clear-database`
-- Testing is deferred. Every phase that verifies human_needed gets a {N}-UAT.md and a row in the Deferred Verification table, and the run continues. At the end of the milestone, before the audit, present one consolidated checklist covering 45, 46, 47 and 46.1 onward, plus the paid golden run with a cost estimate (about $0.62 worst case).
-- Execution is sequential on the main checkout: the worktree base check degrades because local master is ahead of origin.
-- The owner's local SpacetimeDB server (PID 12020, 127.0.0.1:3000) and a Vite dev server (port 5173, started by Claude for the owner's try-out) are running. Do not stop either.
-- Local publish: `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`. Check `admin_llm_status` key_length (108) before and after.
-- Baseline test failures to ignore: `scripts/llm/call_log_report.test.mjs`, `scripts/llm/proof_rules.test.mjs` and `spacetimedb/src/helpers/measurement.results.test.ts`. `golden_run.test.mjs` was repaired in Phase 46.
-- Design import for UI phases: the claude_design MCP project "Unwritten Realms" (id 1a7a975f-7b14-488b-9a38-188bc56294cf), files "UWR Ledger Screens.dc.html" and "UWR Console & Combat.dc.html", plus the Nocturne `_ds`. Re-import fresh through a general-purpose agent into the scratchpad (never cached).
-- Phase 48 builds on the 46.1 round and choice contract (46.1-09-SUMMARY "Round and choice contract for Phase 48") and on the Phase 47 client (FeedShell, HotbarRow, useConsole).
-- Open todos:
+- **Run:** `/gsd-autonomous` for v3.0, with the owner awake and active.
+  - Done in code: 45, 46, 47, 46.1, 48, 49 and 50. Each is human_needed with UAT deferred.
+  - Remaining v3.0 order, after the owner split the phases on 2026-10-07: **50 follow-up → 51 Map and Travel → 51.1 Party and Social → 51.2 World Events → 51.3 Regional Economy → 51.4 Loot Rails → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager**. Then the end-of-milestone UAT and golden run, then audit, complete and cleanup.
+  - Backlog 999.26 (world structure: sub-regions, hidden places, 10-place regions) is the **next milestone**.
+- **Phase 50 follow-up from the owner's play-test** (`50-CONTEXT.md`, owner sections from 2026-10-06 and 2026-10-07):
+  - Plans 50-28 to 50-35 are done. 50-36 was in flight at this note; check its SUMMARY. Plans 50-37 and 50-38 remain.
+  - Plans 50-39 (inventory header with gold and Organize, all 50 slots drawn, about 64px tiles) and 50-40 (server: salvage yield strictly below the recipe need) were being written.
+  - Execute them one at a time with gsd-executor (sonnet), then run a code review of the follow-up (iteration 3).
+  - Server plans publish locally with the key 108 check before and after.
+- **Phases 51, 51.1 and 51.2 are ready to plan:**
+  - `51-CONTEXT.md` covers all three.
+  - Approved UI-SPECs: `51-UI-SPEC.md` (holds the shared sections), `51.1-party-and-social/51.1-UI-SPEC.md` and `51.2-world-events/51.2-UI-SPEC.md`, all with UI Considerations.
+  - Design extracts are in the session scratchpad `design51/` (`map2/`, `console/`, `party2/`, and `EXTRACT.md`).
+  - Next step: `/gsd-plan-phase 51` (research, patterns, planner, checker), then execute.
+  - 51.3 and 51.4 have no CONTEXT yet; they need a discuss. 51.3 has an open question: are the dials per item?
+- **Owner decisions to remember:**
+  - SVG is allowed only in the map folder.
+  - Regions lock only by the cross-region travel timer, which is read from the server.
+  - One Travel button; followers with "Travel with leader" on come along.
+  - Passages stay until empty, then collapse; a sweep moves offline characters back to their own side.
+  - The bag stays at 50.
+  - Standard fights get one outro paragraph; bosses and named foes get up to 3 (shipped in 142e5dcd).
+  - Every prompt change needs the owner's explicit approval of the exact wording.
+- **Constraints:**
+  - No paid LLM calls without a go-ahead. The golden run is deferred, at about $0.62.
+  - No maincloud, no git push, never `--clear-database` (it wipes the key).
+  - Commit with explicit paths.
+  - Windows is case-insensitive: watch for file names that differ only in case.
+- **Servers:** the owner's local SpacetimeDB (PID 12020, 127.0.0.1:3000) and Vite (port 5173) are running. Don't stop either.
+- **Local publish:** `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`, checking `admin_llm_status` key_length 108 before and after with `grep -qE "true +[|] +108"`.
+- **Baseline test failures to ignore:** `scripts/llm/call_log_report.test.mjs`, `scripts/llm/proof_rules.test.mjs`, `spacetimedb/src/helpers/measurement.results.test.ts`.
+- **Design imports:** claude_design project "Unwritten Realms" (id 1a7a975f-7b14-488b-9a38-188bc56294cf). Re-import fresh through a general-purpose agent into the scratchpad; never use a cached copy.
+- **Open todos:**
   - CR-01 `login_email` trusts the client email (high priority).
-  - Event tables are public (T-47-04b, `2026-10-05-event-tables-public-read.md`).
-- Morning items for the owner:
-  - Review 46.1-VOICE-ADDENDUM.md (auto-approved).
-  - Decide on the stale stun wording in mechanical_vocabulary.ts.
-  - Note that the WR-01 Phase 46 NPC prompt wording was owner-approved in chat.
+  - Event tables are public (T-47-04b).
+  - The renown passive perks have no effect.
+  - The typed text reveal and login cross-fade.
+  - The race ability chip.
 
 **Resume file:** None
 
-Last session: 2026-10-06T10:11:41.580Z
+Last session: 2026-10-07T03:00:00.000Z
 Stopped at: Completed 48-14-PLAN.md
 
 ## Performance Metrics
