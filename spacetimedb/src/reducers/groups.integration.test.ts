@@ -100,10 +100,24 @@ function newCtx(s: Seed = {}) {
   });
 }
 
+function handler(name: string) {
+  const h = handlers[name] ?? capturedReducer(name);
+  if (typeof h !== 'function') throw new Error(`capturedReducer('${name}') is not a function`);
+  return h;
+}
+
 /** Call a captured reducer as the owner of `characterId` at `now`. */
 function call(ctx: any, name: string, characterId: bigint, args: Record<string, unknown>, now = T0) {
-  return handlers[name]({ ...ctx, sender: senderOf(characterId), timestamp: at(now) }, { characterId, ...args });
+  return handler(name)({ ...ctx, sender: senderOf(characterId), timestamp: at(now) }, { characterId, ...args });
 }
+
+/** Run expire_group_invite for a tick row, as `sender` (the module by default) at `now`. */
+function expire(ctx: any, tick: any, now: bigint, sender: any = MODULE) {
+  return handler('expire_group_invite')({ ...ctx, sender, timestamp: at(now) }, { arg: tick });
+}
+
+const snapshot = (ctx: any) =>
+  JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
 
 const tableRows = (ctx: any, name: string): any[] => ctx.db._tables[name] ?? [];
 const char = (ctx: any, id: bigint) => tableRows(ctx, 'character').find((c) => c.id === id);
@@ -421,5 +435,156 @@ describe('leave_group passes leadership deterministically', () => {
     const ctx = newCtx(three(T0 + 1n, T0 + 1n));
     call(ctx, 'leave_group', 1n, {});
     expect(tableRows(ctx, 'group')[0].leaderCharacterId).toBe(2n);
+  });
+});
+
+describe('invite expiry tick (expire_group_invite)', () => {
+  /** Ann (solo) invites Bram at T0 through the real reducer; returns the ctx, invite and tick. */
+  function annInvitesBram(seed: Seed = {}) {
+    const ctx = newCtx(seed);
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    const invite = tableRows(ctx, 'group_invite')[0];
+    const tick = tableRows(ctx, 'group_invite_expiry_tick')[0];
+    return { ctx, invite, tick };
+  }
+
+  it('an invite inserts exactly one tick for that invite, due at createdAt + TTL', () => {
+    const { ctx, invite } = annInvitesBram();
+    const ticks = tableRows(ctx, 'group_invite_expiry_tick');
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0].inviteId).toBe(invite.id);
+    expect(ticks[0].scheduledAt.tag).toBe('Time');
+    expect(ticks[0].scheduledAt.value.microsSinceUnixEpoch).toBe(T0 + 300_000_000n);
+  });
+
+  it('a refused invite schedules no tick', () => {
+    const ctx = newCtx({ chars: { 2: { online: false } } });
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+  });
+
+  it('the module at createdAt + TTL ends the invite, tells both, and dissolves the lone group', () => {
+    const { ctx, tick } = annInvitesBram();
+    expire(ctx, tick, T0 + TTL);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Your invite to Bram expired.']);
+    expect(lines(ctx, 2n).slice(-1)).toEqual(['The invite from Ann expired.']);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_member')).toHaveLength(0);
+    expect(char(ctx, 1n).groupId).toBeUndefined();
+  });
+
+  for (const [label, end] of [
+    ['accepted', (ctx: any) => call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' })],
+    ['declined', (ctx: any) => call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' })],
+    ['cancelled', (ctx: any) => call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' })],
+  ] as const) {
+    it(`a tick for an invite already ${label} changes nothing and writes no line`, () => {
+      const { ctx, tick } = annInvitesBram();
+      end(ctx);
+      const before = snapshot(ctx);
+      expire(ctx, tick, T0 + TTL);
+      expect(snapshot(ctx)).toBe(before);
+    });
+  }
+
+  it('a tick on a still-live invite changes nothing', () => {
+    const { ctx, tick } = annInvitesBram();
+    const before = snapshot(ctx);
+    expire(ctx, tick, T0 + TTL - 1n);
+    expect(snapshot(ctx)).toBe(before);
+  });
+
+  it('a client identity calling it changes nothing, even when the invite is expired', () => {
+    const { ctx, tick } = annInvitesBram();
+    const before = snapshot(ctx);
+    expire(ctx, tick, T0 + TTL, senderOf(1n));
+    expect(snapshot(ctx)).toBe(before);
+  });
+});
+
+describe('cancel_group_invite', () => {
+  /** Group 5: Ann leads, Cole and Dena are members; `from` invited Bram at T0. */
+  const groupWithInvite = (from: bigint): Seed => ({
+    chars: { 1: { groupId: 5n }, 3: { groupId: 5n }, 4: { groupId: 5n } },
+    groups: [{ id: 5n, leader: 1n }],
+    members: [
+      { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+      { id: 2n, groupId: 5n, characterId: 3n },
+      { id: 3n, groupId: 5n, characterId: 4n },
+    ],
+    invites: [{ id: 1n, groupId: 5n, from, to: 2n }],
+  });
+
+  it('the leader ends the invite: Bram and Ann get their lines', () => {
+    const ctx = newCtx(groupWithInvite(1n));
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(lines(ctx, 2n)).toEqual(['Ann cancelled the invite.']);
+    expect(lines(ctx, 1n)).toEqual(['You cancelled the invite to Bram.']);
+    expect(membersOf(ctx, 5n)).toHaveLength(3);
+  });
+
+  it('the inviter who no longer leads may cancel', () => {
+    const ctx = newCtx(groupWithInvite(3n));
+    call(ctx, 'cancel_group_invite', 3n, { targetName: ' bram ' });
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(lines(ctx, 2n)).toEqual(['Cole cancelled the invite.']);
+    expect(lines(ctx, 3n)).toEqual(['You cancelled the invite to Bram.']);
+  });
+
+  it('another member who neither leads nor invited is refused and the invite stays', () => {
+    const ctx = newCtx(groupWithInvite(1n));
+    call(ctx, 'cancel_group_invite', 4n, { targetName: 'Bram' });
+    expect(lines(ctx, 4n)).toEqual(['No pending invite to Bram.']);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+    expect(lines(ctx, 2n)).toEqual([]);
+  });
+
+  it('a second cancel of the same invite is refused the same way', () => {
+    const ctx = newCtx(groupWithInvite(1n));
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
+    expect(lines(ctx, 1n)).toEqual(['You cancelled the invite to Bram.', 'No pending invite to Bram.']);
+  });
+
+  it('an empty name: Target required', () => {
+    const ctx = newCtx(groupWithInvite(1n));
+    call(ctx, 'cancel_group_invite', 1n, { targetName: '  ' });
+    expect(lines(ctx, 1n)).toEqual(['Target required']);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+  });
+
+  it('an unknown name: Target not found', () => {
+    const ctx = newCtx(groupWithInvite(1n));
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Nobody' });
+    expect(lines(ctx, 1n)).toEqual(['Target not found']);
+  });
+
+  it('someone outside the group cannot cancel it', () => {
+    const ctx = newCtx(groupWithInvite(1n));
+    call(ctx, 'cancel_group_invite', 6n, { targetName: 'Bram' });
+    expect(lines(ctx, 6n)).toEqual(['No pending invite to Bram.']);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+  });
+
+  it('cancelling the last invite of a solo leader\'s lone group dissolves it', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_member')).toHaveLength(0);
+    expect(char(ctx, 1n).groupId).toBeUndefined();
+  });
+
+  it('cancelling one of two invites keeps the lone group', () => {
+    const ctx = newCtx(
+      withInvites(annAlone, [
+        { id: 1n, groupId: 5n, from: 1n, to: 2n },
+        { id: 2n, groupId: 5n, from: 1n, to: 3n },
+      ]),
+    );
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
+    expect(tableRows(ctx, 'group')).toHaveLength(1);
+    expect(tableRows(ctx, 'group_invite').map((i) => i.toCharacterId)).toEqual([3n]);
   });
 });

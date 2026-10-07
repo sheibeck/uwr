@@ -32,6 +32,7 @@ const SCHEDULED: Array<{ name: string; file: string; arg: any; touchesDb: boolea
   { name: 'despawn_event_content', file: './world_events.ts', arg: { scheduledId: 1n, eventId: 1n }, touchesDb: true },
   { name: 'restock_vendors', file: '../index.ts', arg: { scheduledId: 1n, afterNpcId: 0n }, touchesDb: true },
   { name: 'sweep_passages', file: '../index.ts', arg: { scheduledId: 1n }, touchesDb: true },
+  { name: 'expire_group_invite', file: './groups.ts', arg: { scheduledId: 1n, inviteId: 1n }, touchesDb: true },
 ];
 
 const handlers: Record<string, (...args: any[]) => any> = {};

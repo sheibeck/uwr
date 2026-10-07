@@ -14,6 +14,7 @@ import {
   endInvite,
   dissolveLoneGroup,
   nextLeaderAfter,
+  scheduleInviteExpiry,
 } from './group_invites';
 
 vi.mock('spacetimedb/server', async () =>
@@ -199,5 +200,17 @@ describe('nextLeaderAfter', () => {
   it('is null when nobody else is left', () => {
     const ctx = ctxWith({ group_member: [member(1n, 5n, 1n)] });
     expect(nextLeaderAfter(ctx, 5n, 1n)).toBeNull();
+  });
+});
+
+describe('scheduleInviteExpiry', () => {
+  it('inserts one private tick for the invite, due at createdAt + TTL', () => {
+    const ctx = ctxWith(soloLeaderSeed());
+    scheduleInviteExpiry(ctx, invite(42n, 5n, 1n, 2n, T0 + 7n));
+    const ticks = tableRows(ctx, 'group_invite_expiry_tick');
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0].inviteId).toBe(42n);
+    expect(ticks[0].scheduledAt.tag).toBe('Time');
+    expect(ticks[0].scheduledAt.value.microsSinceUnixEpoch).toBe(T0 + 7n + GROUP_INVITE_TTL_MICROS);
   });
 });
