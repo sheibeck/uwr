@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed, inject, nextTick, ref, watch } from 'vue';
 import {
-  PhChatCircle,
   PhCastleTurret,
+  PhChatCircle,
+  PhChatCircleDots,
   PhCircleDashed,
   PhCube,
+  PhEye,
   PhSkull,
   PhStorefront,
   PhSword,
@@ -21,22 +23,39 @@ import {
   createInertFrame,
   createInertGame,
 } from '../game/context';
+import { createActionRunner } from '../ledger/actionRunner';
 import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
 import type { NearbyKind, NearbyRow } from './nearby';
 
-// Nearby rows with one-click actions (47-UI-SPEC "Nearby", CON-04, CON-02). Names are server or
-// player text, rendered as text nodes only. No table lists examinable objects at a location
-// (research Q3, UI-SPEC A7), so `objects` stays empty and no object rows appear today.
-// Nearby now leads with enemies (quick-261006-a0i): they are the actionable threat. An available
+// Nearby rows with one-click actions (47-UI-SPEC "Nearby", CON-04, CON-02; 51-UI-SPEC "Rail Row
+// Additions"). Names are server or player text, rendered as text nodes only. No table lists
+// examinable objects at a location (research Q3, UI-SPEC A7), so `objects` stays empty.
+// Nearby leads with enemies (quick-261006-a0i): they are the actionable threat. An available
 // enemy has one Pull icon button (a careful pull), disabled in a fight, offline and until its
-// level is known. Difficulty color and word appear only once the level is known.
+// level is known. Every row ends its action cluster with an Examine eye that sits beside the
+// row's main part, never inside it. NPC rows talk through a chat bubble button; a bind stone row
+// offers Bind (bind_location) and turns to 'Bound here' only when the character row says so.
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const frame = inject(FRAME_KEY, createInertFrame());
 
 const connected = computed(() => game.connected.value);
+
+const runner = createActionRunner({ online: connected });
+
+// The current place: the bind stone row shows only where the place has one.
+const place = computed(() => {
+  const character = game.character.value;
+  if (character === null) return null;
+  return game.locations.value.find((location) => location.id === character.locationId) ?? null;
+});
+
+const boundHere = computed(() => {
+  const character = game.character.value;
+  return character !== null && character.boundLocationId === character.locationId;
+});
 
 const rows = computed(() =>
   nearbyRows({
@@ -45,6 +64,9 @@ const rows = computed(() =>
     players: game.playersHere.value,
     objects: [],
     selfId: game.characterId.value,
+    bindStone: place.value?.bindStone
+      ? { placeName: place.value.name, bound: boundHere.value }
+      : null,
   }),
 );
 
@@ -86,17 +108,29 @@ function rowKey(row: NearbyRow): string {
   return `${row.kind}-${row.id}`;
 }
 
-// Rows that carry a one-click main action (hail, examine, gather).
+// Only a gatherable node keeps a main-row click; every other row is static.
 function hasAction(row: NearbyRow): boolean {
-  if (row.kind === 'npc' || row.kind === 'object') return true;
   return row.kind === 'node' && row.nodeStatus === 'gather';
 }
 
 function act(row: NearbyRow): void {
   if (!connected.value) return;
-  if (row.kind === 'npc') consoleApi.hail({ id: row.id, name: row.name });
-  else if (row.kind === 'object') consoleApi.examine(row.name);
-  else if (row.kind === 'node') consoleApi.gather({ id: row.id, name: row.name });
+  if (row.kind === 'node') consoleApi.gather({ id: row.id, name: row.name });
+}
+
+// The eye's target: the bind stone is looked at as 'bind stone' (the server's look category).
+function examineName(row: NearbyRow): string {
+  return row.kind === 'bindStone' ? 'bind stone' : row.name;
+}
+
+function examine(name: string): void {
+  if (!connected.value) return;
+  consoleApi.examine(name);
+}
+
+function talk(row: NearbyRow): void {
+  if (!connected.value) return;
+  consoleApi.hail({ id: row.id, name: row.name });
 }
 
 // Trade opens the vendor screen for the chosen NPC (Phase 50, CONTEXT). The NPC rides in the
@@ -119,13 +153,43 @@ function invite(row: NearbyRow): void {
 }
 
 const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
+
+const list = ref<HTMLElement | null>(null);
+// Set when a bind resolved; the focus move waits until the character row says bound, in either order.
+let focusAfterBind = false;
+
+function focusBindEye(): void {
+  if (!focusAfterBind || !boundHere.value) return;
+  focusAfterBind = false;
+  void nextTick(() => {
+    list.value?.querySelector<HTMLElement>('.kind-bindStone .btn-eye')?.focus();
+  });
+}
+
+watch(boundHere, focusBindEye);
+
+const bindBlocked = computed(
+  () => !connected.value || game.reducers.value === null || runner.isPending('bind'),
+);
+
+// Bind is inert until the promise settles and nothing changes optimistically: the row turns to
+// 'Bound here' only when the character row changes. Refusals and the server's line print in the feed.
+async function bind(): Promise<void> {
+  const characterId = game.characterId.value;
+  const reducers = game.reducers.value;
+  if (!connected.value || reducers === null || characterId === null) return;
+  const ok = await runner.run('bind', () => reducers.bindLocation({ characterId }));
+  if (!ok) return;
+  focusAfterBind = true;
+  focusBindEye();
+}
 </script>
 
 <template>
   <section>
     <h6>Nearby</h6>
     <p v-if="rows.length === 0 && enemies.length === 0" class="empty">No one is nearby.</p>
-    <ul v-else class="rows">
+    <ul v-else ref="list" class="rows">
       <li
         v-for="enemy in enemies"
         :key="`enemy-${enemy.id}`"
@@ -137,23 +201,35 @@ const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
           <span class="row-name" :class="enemy.con?.className" :title="enemy.title">{{ enemy.name }}</span>
           <span class="row-hint">{{ enemy.hint }}</span>
         </div>
-        <button
-          v-if="enemy.status === 'available'"
-          type="button"
-          class="btn btn-ghost btn-icon"
-          :aria-label="enemy.pullLabel"
-          :title="enemy.pullLabel"
-          :aria-disabled="pullDisabledFor(enemy)"
-          @click="pull(enemy)"
-        >
-          <PhSword :size="16" aria-hidden="true" />
-        </button>
+        <span class="row-actions">
+          <button
+            v-if="enemy.status === 'available'"
+            type="button"
+            class="btn btn-ghost btn-icon"
+            :aria-label="enemy.pullLabel"
+            :title="enemy.pullLabel"
+            :aria-disabled="pullDisabledFor(enemy)"
+            @click="pull(enemy)"
+          >
+            <PhSword :size="16" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon btn-eye"
+            :aria-label="`Examine ${enemy.name}`"
+            :title="`Examine ${enemy.name}`"
+            :aria-disabled="disabledAttr"
+            @click="examine(enemy.name)"
+          >
+            <PhEye :size="16" aria-hidden="true" />
+          </button>
+        </span>
       </li>
       <li
         v-for="row in rows"
         :key="rowKey(row)"
         class="nearby-row"
-        :class="[`kind-${row.kind}`, { depleted: row.nodeStatus === 'depleted' }]"
+        :class="[`kind-${row.kind}`, { depleted: row.nodeStatus === 'depleted', bound: row.bound }]"
       >
         <button
           v-if="hasAction(row)"
@@ -172,39 +248,73 @@ const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
           <span class="row-hint">{{ row.hint }}</span>
         </div>
 
-        <button
-          v-if="row.kind === 'npc' && row.vendor"
-          type="button"
-          class="btn btn-ghost btn-icon"
-          :aria-label="`Trade with ${row.name}`"
-          :title="`Trade with ${row.name}`"
-          :aria-disabled="disabledAttr"
-          @click="trade(row)"
-        >
-          <PhStorefront :size="16" aria-hidden="true" />
-        </button>
-        <template v-if="row.kind === 'player'">
+        <span class="row-actions">
           <button
+            v-if="row.kind === 'npc'"
             type="button"
             class="btn btn-ghost btn-icon"
-            :aria-label="`Whisper ${row.name}`"
-            :title="`Whisper ${row.name}`"
+            :aria-label="`Talk to ${row.name}`"
+            :title="`Talk to ${row.name}`"
             :aria-disabled="disabledAttr"
-            @click="whisper(row)"
+            @click="talk(row)"
           >
-            <PhChatCircle :size="16" aria-hidden="true" />
+            <PhChatCircleDots :size="16" aria-hidden="true" />
           </button>
           <button
+            v-if="row.kind === 'npc' && row.vendor"
             type="button"
             class="btn btn-ghost btn-icon"
-            :aria-label="`Invite ${row.name}`"
-            :title="`Invite ${row.name}`"
+            :aria-label="`Trade with ${row.name}`"
+            :title="`Trade with ${row.name}`"
             :aria-disabled="disabledAttr"
-            @click="invite(row)"
+            @click="trade(row)"
           >
-            <PhUserPlus :size="16" aria-hidden="true" />
+            <PhStorefront :size="16" aria-hidden="true" />
           </button>
-        </template>
+          <button
+            v-if="row.kind === 'bindStone' && !row.bound"
+            type="button"
+            class="btn btn-primary btn-bind"
+            :aria-label="`Bind to ${place?.name ?? 'this place'}`"
+            title="Respawn here after defeat"
+            :aria-disabled="bindBlocked ? 'true' : undefined"
+            @click="bind()"
+          >
+            Bind
+          </button>
+          <template v-if="row.kind === 'player'">
+            <button
+              type="button"
+              class="btn btn-ghost btn-icon"
+              :aria-label="`Whisper ${row.name}`"
+              :title="`Whisper ${row.name}`"
+              :aria-disabled="disabledAttr"
+              @click="whisper(row)"
+            >
+              <PhChatCircle :size="16" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-icon"
+              :aria-label="`Invite ${row.name}`"
+              :title="`Invite ${row.name}`"
+              :aria-disabled="disabledAttr"
+              @click="invite(row)"
+            >
+              <PhUserPlus :size="16" aria-hidden="true" />
+            </button>
+          </template>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon btn-eye"
+            :aria-label="`Examine ${examineName(row)}`"
+            :title="`Examine ${examineName(row)}`"
+            :aria-disabled="disabledAttr"
+            @click="examine(examineName(row))"
+          >
+            <PhEye :size="16" aria-hidden="true" />
+          </button>
+        </span>
       </li>
     </ul>
   </section>
@@ -244,9 +354,11 @@ h6 {
   opacity: 0.45;
 }
 
+/* The row's main part is a size container: the hint hides when the name would fall under 120px. */
 .row-main {
   flex: 1;
   min-width: 0;
+  container-type: inline-size;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -288,6 +400,15 @@ button.row-main[aria-disabled='true'] {
 
 .kind-npc .row-icon {
   color: var(--color-line-npc);
+}
+
+.kind-bindStone .row-icon {
+  color: var(--color-neutral-400);
+}
+
+.kind-bindStone.bound .row-icon,
+.kind-bindStone.bound .row-hint {
+  color: var(--color-accent-300);
 }
 
 .kind-object .row-icon {
@@ -339,11 +460,27 @@ button.row-main[aria-disabled='true'] {
 }
 
 .row-hint {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
   margin-left: auto;
   font-size: 10px;
   color: var(--color-neutral-500);
   white-space: nowrap;
+}
+
+@container (max-width: 200px) {
+  .row-hint {
+    display: none;
+  }
+}
+
+/* One flex group of one to three icon buttons: the row's own actions, then the eye. */
+.row-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
 }
 
 .nearby-row .btn-icon {
@@ -353,9 +490,18 @@ button.row-main[aria-disabled='true'] {
   color: var(--color-neutral-300);
 }
 
-.nearby-row .btn-icon[aria-disabled='true'] {
+.nearby-row .btn-icon[aria-disabled='true'],
+.nearby-row .btn-bind[aria-disabled='true'] {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.nearby-row .btn-bind {
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 @media (max-width: 899px) {
@@ -366,6 +512,10 @@ button.row-main[aria-disabled='true'] {
   .nearby-row .btn-icon {
     width: 44px;
     height: 44px;
+  }
+
+  .nearby-row .btn-bind {
+    min-height: 44px;
   }
 }
 </style>

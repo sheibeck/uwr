@@ -205,7 +205,7 @@ describe('Nearby list', () => {
       'Bo',
       'Zed',
     ]);
-    expect(rows[0].get('.row-hint').text()).toBe('NPC · hail');
+    expect(rows[0].get('.row-hint').text()).toBe('NPC');
     expect(rows[2].get('.row-hint').text()).toBe('In use');
     expect(rows[3].get('.row-hint').text()).toBe('Depleted');
     expect(rows[4].get('.row-hint').text()).toBe('Gather');
@@ -213,9 +213,13 @@ describe('Nearby list', () => {
     expect(w.text()).not.toContain('No one is nearby.');
   });
 
-  it('hails an NPC on row click', async () => {
+  it('hails an NPC through the Talk button, not the row (the row is static)', async () => {
     const { w, calls } = mountContent(NEARBY);
-    await w.findAll('.nearby-row')[0].get('button.row-main').trigger('click');
+    const row = w.findAll('.nearby-row')[0];
+    expect(row.find('button.row-main').exists()).toBe(false);
+    await row.get('.row-main').trigger('click');
+    expect(calls.hail).not.toHaveBeenCalled();
+    await row.get('[aria-label="Talk to Aldric"]').trigger('click');
     expect(calls.hail).toHaveBeenCalledWith({ id: 3n, name: 'Aldric' });
   });
 
@@ -248,8 +252,8 @@ describe('Nearby list', () => {
     const rows = w.findAll('.nearby-row');
     await rows[4].get('button.row-main').trigger('click');
     expect(calls.gather).toHaveBeenCalledWith({ id: 20n, name: 'Iron Vein' });
-    expect(rows[2].find('button').exists()).toBe(false);
-    expect(rows[3].find('button').exists()).toBe(false);
+    expect(rows[2].find('button.row-main').exists()).toBe(false);
+    expect(rows[3].find('button.row-main').exists()).toBe(false);
     expect(rows[3].classes()).toContain('depleted');
     expect(rows[2].classes()).not.toContain('depleted');
   });
@@ -258,7 +262,7 @@ describe('Nearby list', () => {
     const { w, calls } = mountContent(NEARBY);
     const bo = w.findAll('.nearby-row')[5];
     expect(bo.find('button.row-main').exists()).toBe(false);
-    expect(bo.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Whisper Bo', 'Invite Bo']);
+    expect(bo.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Whisper Bo', 'Invite Bo', 'Examine Bo']);
     await bo.get('[aria-label="Whisper Bo"]').trigger('click');
     await bo.get('[aria-label="Invite Bo"]').trigger('click');
     expect(calls.whisperTo).toHaveBeenCalledWith('Bo');
@@ -333,6 +337,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     const row = w.findAll('.nearby-row')[2];
     expect(row.findAll('button').map((b) => b.attributes('aria-label'))).toEqual([
       'Pull Goblin Scout (Lv 8, Hard)',
+      'Examine Goblin Scout',
     ]);
     const button = row.get('[aria-label^="Pull "]');
     expect(button.classes()).toEqual(expect.arrayContaining(['btn', 'btn-ghost', 'btn-icon']));
@@ -347,10 +352,10 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     const { w } = mountContent(ENEMIES);
     const [pulling, engaged] = w.findAll('.nearby-row');
     expect(pulling.get('.row-hint').text()).toBe('Lv 8 · Being pulled');
-    expect(pulling.find('button').exists()).toBe(false);
+    expect(pulling.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Examine Ash Wolf']);
     expect(pulling.classes()).not.toContain('in-combat');
     expect(engaged.get('.row-hint').text()).toBe('Lv 8 · In combat');
-    expect(engaged.find('button').exists()).toBe(false);
+    expect(engaged.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Examine Bone Rat']);
     expect(engaged.classes()).toContain('in-combat');
   });
 

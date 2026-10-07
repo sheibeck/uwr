@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import { COMBAT_KEY, GAME_KEY, createInertCombat, createInertGame } from '../game/context';
+import { PhEye } from '@phosphor-icons/vue';
+import {
+  COMBAT_KEY,
+  CONSOLE_KEY,
+  GAME_KEY,
+  createInertCombat,
+  createInertConsole,
+  createInertGame,
+} from '../game/context';
 import { encounterHeading, hostileViews, livingHostileIds } from './hostiles';
 import { threatView } from './threat';
 import HostileCard from './HostileCard.vue';
@@ -13,6 +21,7 @@ withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { variant: 'rail' })
 
 const game = inject(GAME_KEY, createInertGame());
 const controller = inject(COMBAT_KEY, createInertCombat());
+const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 
 const combat = game.combat;
 
@@ -49,6 +58,12 @@ const threat = computed(() =>
 function select(id: bigint): void {
   controller.requestTarget(id);
 }
+
+// The eye sits beside the card, never inside its button (51-UI-SPEC "Examine eye button").
+function examine(name: string): void {
+  if (!game.connected.value) return;
+  consoleApi.examine(name);
+}
 </script>
 
 <template>
@@ -61,13 +76,19 @@ function select(id: bigint): void {
     <template v-if="combat.applied.value">
       <p v-if="livingCount === 0" class="empty">No hostiles left.</p>
       <div v-else class="hostiles">
-        <HostileCard
-          v-for="hostile in hostiles"
-          :key="String(hostile.id)"
-          :hostile="hostile"
-          :variant="variant"
-          @select="select"
-        />
+        <div v-for="hostile in hostiles" :key="String(hostile.id)" class="hostile-row">
+          <HostileCard :hostile="hostile" :variant="variant" @select="select" />
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon btn-eye"
+            :aria-label="`Examine ${hostile.name}`"
+            :title="`Examine ${hostile.name}`"
+            :aria-disabled="game.connected.value ? undefined : 'true'"
+            @click="examine(hostile.name)"
+          >
+            <PhEye :size="16" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <ThreatBlock v-if="threat.visible && livingCount > 0" :view="threat" />
     </template>
@@ -111,6 +132,37 @@ function select(id: bigint): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.hostile-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hostile-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.hostile-row .btn-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: var(--color-neutral-300);
+}
+
+.hostile-row .btn-icon[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 899px) {
+  .hostile-row .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .empty {

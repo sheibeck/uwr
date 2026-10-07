@@ -5,12 +5,14 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import EncounterPanel from './EncounterPanel.vue';
 import {
   COMBAT_KEY,
+  CONSOLE_KEY,
   GAME_KEY,
   createInertCombat,
   createInertCombatData,
+  createInertConsole,
   createInertGame,
 } from '../game/context';
-import type { CombatController, GameData } from '../game/context';
+import type { CombatController, ConsoleApi, GameData } from '../game/context';
 
 const XSS = '<img src=x onerror=alert(1)>';
 
@@ -49,6 +51,7 @@ function enemy(id: bigint, name: string, over: Record<string, unknown> = {}) {
 
 function mountPanel(setup: Setup = {}, props: { variant?: 'rail' | 'sheet' } = {}) {
   const requestTarget = vi.fn();
+  const examine = vi.fn();
   const combat = {
     ...createInertCombatData(),
     active: ref(true),
@@ -72,16 +75,24 @@ function mountPanel(setup: Setup = {}, props: { variant?: 'rail' | 'sheet' } = {
   };
   const game = {
     ...createInertGame(),
+    connected: ref(true),
     character: ref({ id: 5n, name: 'Hero', level: 4n, combatTargetEnemyId: setup.target === undefined ? 9n : setup.target }),
     characterId: ref(5n),
     combat,
   } as unknown as GameData;
   const controller = { ...createInertCombat(), requestTarget } as CombatController;
+  const consoleApi = { ...createInertConsole(), examine } as unknown as ConsoleApi;
   wrapper = mount(EncounterPanel, {
     props,
-    global: { provide: { [GAME_KEY as symbol]: game, [COMBAT_KEY as symbol]: controller } },
+    global: {
+      provide: {
+        [GAME_KEY as symbol]: game,
+        [COMBAT_KEY as symbol]: controller,
+        [CONSOLE_KEY as symbol]: consoleApi,
+      },
+    },
   });
-  return { requestTarget, combat, game };
+  return { requestTarget, examine, combat, game };
 }
 
 describe('EncounterPanel hostiles', () => {
@@ -92,6 +103,37 @@ describe('EncounterPanel hostiles', () => {
     expect(wrapper!.get('.hint').text()).toBe('Tab to cycle');
     const names = wrapper!.findAll('.hostile-card .name').map((n) => n.text());
     expect(names).toEqual(['Gnawer', 'Rotfang']);
+  });
+
+  it('puts each hostile in a row with an Examine eye beside the card, never inside its button', async () => {
+    const { examine } = mountPanel();
+    const rows = wrapper!.findAll('.hostile-row');
+    expect(rows).toHaveLength(2);
+    for (const [index, name] of ['Gnawer', 'Rotfang'].entries()) {
+      const row = rows[index];
+      const card = row.get('button.hostile-card');
+      const eye = row.get(`button[aria-label="Examine ${name}"]`);
+      expect(eye.attributes('title')).toBe(`Examine ${name}`);
+      expect(card.element.contains(eye.element)).toBe(false);
+      expect(eye.element.parentElement).toBe(row.element);
+      expect(card.element.querySelector('button')).toBeNull();
+      await eye.trigger('click');
+      expect(examine).toHaveBeenLastCalledWith(name);
+    }
+    expect(examine).toHaveBeenCalledTimes(2);
+  });
+
+  it('the eye does not select the hostile and is aria-disabled offline', async () => {
+    const { requestTarget, examine, game } = mountPanel();
+    await wrapper!.get('button[aria-label="Examine Rotfang"]').trigger('click');
+    expect(requestTarget).not.toHaveBeenCalled();
+    (game.connected as unknown as { value: boolean }).value = false;
+    await wrapper!.vm.$nextTick();
+    const eye = wrapper!.get('button[aria-label="Examine Rotfang"]');
+    expect(eye.attributes('aria-disabled')).toBe('true');
+    examine.mockClear();
+    await eye.trigger('click');
+    expect(examine).not.toHaveBeenCalled();
   });
 
   it('uses the singular heading for one hostile', () => {

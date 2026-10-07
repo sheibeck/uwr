@@ -305,6 +305,24 @@ describe('populated frame, desktop', () => {
     await settle();
     expect(reducers.moveCharacter).toHaveBeenCalledWith({ characterId: CHARACTER_ID, locationId: 11n });
   });
+
+  it('every Nearby row ends with an Examine eye, and the NPC Talk button hails through the console', async () => {
+    const { game, reducers } = populatedGame();
+    const w = mountFrame(true, game);
+    await settle();
+    const context = w.get('.context-rail');
+    for (const row of context.findAll('.nearby-row')) {
+      const buttons = row.findAll('button');
+      expect(buttons[buttons.length - 1].attributes('aria-label')).toMatch(/^Examine /);
+    }
+    expect(context.find('.nearby-row button.row-main').exists()).toBe(true);
+    await context.get('[aria-label="Talk to The Ferryman"]').trigger('click');
+    await settle();
+    expect(sentIntents(reducers)).toContain('hail The Ferryman');
+    await context.get('[aria-label="Examine Marisol"]').trigger('click');
+    await settle();
+    expect(sentIntents(reducers)).toContain('look at Marisol');
+  });
 });
 
 describe('populated frame, composer end to end (INP-01, INP-02)', () => {
