@@ -636,6 +636,7 @@ Plans:
 
   - Owner decisions (2026-10-07):
     - "We'll want dials for increasing/decreasing loot rarity in those phases as well." These are the economy dials in criterion 5.
+    - **Open for discuss (owner):** "I'm assuming it would be per item dials, no? But, let's talk about it when we get to that phase." Decide in 51.3 discuss whether dials are per item, per rarity tier, global, per region, or a mix.
     - "I actually want LLM generated loot so we don't have to manage loot tables."
     - "Recipes should also be designed by the LLM along with a region's lootables. So, region generation includes regional craft recipes and gatherables, drops and materials to support those recipes. Really rare recipes should require loot from multiple regions."
     - Use one job per region, replacing per-enemy loot jobs.
