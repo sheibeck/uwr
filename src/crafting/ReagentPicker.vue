@@ -61,8 +61,9 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
+// An Esc already handled by a layer above (the result card) is not this picker's (IN-01, iteration 3).
 function onDocumentKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return;
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
   event.preventDefault();
   emit('close');
 }

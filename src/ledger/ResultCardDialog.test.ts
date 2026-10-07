@@ -5,6 +5,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { PhHammer, PhMagnifyingGlass, PhScroll, PhTShirt } from '@phosphor-icons/vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import ReagentPicker from '../crafting/ReagentPicker.vue';
+import InlineConfirm from './InlineConfirm.vue';
 import ResultCard from './ResultCard.vue';
 import type { ResultCardView, ResultLineView } from './resultCard';
 
@@ -264,6 +266,34 @@ describe('ResultCard focus and keys', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(seen).toBe(true);
     expect(w.emitted('close')).toHaveLength(1);
+  });
+
+  // IN-01 (iteration 3): a reagent picker (it stays open when Craft is clicked with the pointer) or an
+  // inline confirm can sit under the scrim. Both listen on the document in the capture phase and were
+  // registered first. One Esc must close only the card, the top layer.
+  it('one Escape closes only the card, not a picker or a confirm left open under it', async () => {
+    const under: VueWrapper[] = [];
+    const confirm = mount(InlineConfirm, {
+      attachTo: document.body,
+      props: { prompt: 'Salvage destroys this item.', confirmLabel: 'Salvage' },
+    });
+    under.push(confirm);
+    const picker = mount(ReagentPicker, { attachTo: document.body, props: { kind: 'essence', options: [] } });
+    under.push(picker);
+    await nextTick();
+    const w = mountCard({ actions: ACTIONS });
+    await nextTick();
+    const event = key(document.body, { key: 'Escape' });
+    expect(event.defaultPrevented).toBe(true);
+    expect(w.emitted('close')).toHaveLength(1);
+    expect(confirm.emitted('keep')).toBeUndefined();
+    expect(picker.emitted('close')).toBeUndefined();
+    // With the card closed, the next Esc reaches the layers under it again, and still closes one only.
+    await w.setProps({ view: null });
+    key(document.body, { key: 'Escape' });
+    expect(w.emitted('close')).toHaveLength(1);
+    expect(Number(confirm.emitted('keep')?.length ?? 0) + Number(picker.emitted('close')?.length ?? 0)).toBe(1);
+    for (const layer of under) layer.unmount();
   });
 
   it('does not handle Escape while no card is shown, and stops after unmount', async () => {

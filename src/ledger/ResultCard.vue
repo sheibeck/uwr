@@ -9,7 +9,8 @@ import type { ResultCardView } from './resultCard';
 // resultCardView, which reads the server's action_result row; every server string here is a text
 // node and nothing is optimistic. The card is a labelled modal dialog. Focus moves to Done on open,
 // Tab wraps inside the card and never reaches the drawer's own document trap, and Esc is caught in
-// the capture phase and prevented so only the card closes (the 49 and 50 confirmation pattern).
+// the capture phase on window and prevented so only the card closes, not the drawer or a picker or
+// confirm under it (the 49 and 50 confirmation pattern).
 // A polite live region stays mounted for as long as the screen is, so a new result is announced.
 // The host screen root must be position: relative; the scrim covers it.
 export interface ResultCardAction {
@@ -71,8 +72,12 @@ function onScrimClick(event: MouseEvent): void {
   if (paired) emit('close');
 }
 
-function onDocumentKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return;
+// The card is the top layer, so it hears Esc first: on window in the capture phase, before the
+// document-level capture listeners of a reagent picker or an inline confirm left open under the scrim.
+// It prevents the event, and those layers (and the drawer) skip an Esc that is already prevented, so
+// one Esc closes only the card (IN-01, iteration 3).
+function onWindowKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
   event.preventDefault();
   emit('close');
 }
@@ -80,8 +85,8 @@ function onDocumentKeydown(event: KeyboardEvent): void {
 function listen(on: boolean): void {
   if (on === listening) return;
   listening = on;
-  if (on) document.addEventListener('keydown', onDocumentKeydown, true);
-  else document.removeEventListener('keydown', onDocumentKeydown, true);
+  if (on) window.addEventListener('keydown', onWindowKeydown, true);
+  else window.removeEventListener('keydown', onWindowKeydown, true);
 }
 
 // A new result (first one, or a higher seq) is announced and Done takes focus. The region is cleared
