@@ -28,6 +28,8 @@ import {
   materialTierToCraftQuality,
 } from '@game-data/crafting_rules';
 import * as relativeCraftingRules from '../spacetimedb/src/data/crafting_rules';
+import { RESULT_KINDS, decodeResultLines, encodeResultLines } from '@game-data/action_result';
+import * as relativeActionResult from '../spacetimedb/src/data/action_result';
 
 // The server owns game data; client code reaches it only through the @game-data alias
 // (CONTEXT: server is source of truth, imported through a path alias).
@@ -218,9 +220,23 @@ describe('@game-data crafting_rules', () => {
   });
 });
 
+describe('@game-data action_result', () => {
+  it('resolves to the same module as the relative server path', () => {
+    expect(RESULT_KINDS).toBe(relativeActionResult.RESULT_KINDS);
+    expect(decodeResultLines).toBe(relativeActionResult.decodeResultLines);
+    const lines = [{ kind: 'used' as const, templateId: 7n, name: 'Copper Ore', quantity: 3n, total: 12n, instanceId: null }];
+    expect(decodeResultLines(encodeResultLines(lines))).toEqual(lines);
+    expect(encodeResultLines(lines)).toBe(relativeActionResult.encodeResultLines(lines));
+  });
+
+  it('imports nothing', () => {
+    expect(specifiers('action_result.ts')).toEqual([]);
+  });
+});
+
 describe('@game-data sibling modules stay import-free', () => {
   it('mechanical_vocabulary, class_stats and renown_data import nothing', () => {
-    for (const file of ['mechanical_vocabulary.ts', 'class_stats.ts', 'renown_data.ts', 'crafting_rules.ts']) {
+    for (const file of ['mechanical_vocabulary.ts', 'class_stats.ts', 'renown_data.ts', 'crafting_rules.ts', 'action_result.ts']) {
       expect(specifiers(file)).toEqual([]);
     }
   });
