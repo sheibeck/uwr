@@ -114,9 +114,9 @@ describe('exitRows, same region', () => {
     expect(gloam.note.text).toBe('Woods · heard of · 5 stamina');
   });
 
-  it('an uncharted neighbour has no level text and the unknown colour', () => {
+  it('an uncharted neighbour reads Danger unknown in the unknown colour (review IN-08)', () => {
     const edge = row(rowsFor({ routes: [EDGE] }), 'Beyond');
-    expect(edge.rightText).toBe('');
+    expect(edge.rightText).toBe('Danger unknown');
     expect(edge.danger.kind).toBe('unknown');
     expect(edge.danger.color).toBe('var(--color-neutral-500)');
     expect(edge.terrain.word).toBe('Uncharted');

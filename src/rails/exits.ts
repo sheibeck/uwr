@@ -183,7 +183,9 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
       danger,
       crossing,
       regionName,
-      rightText: danger.levelLabel,
+      // An uncharted place has no level: the right column says 'Danger unknown', as the location line
+      // and the chip do, instead of staying blank (review IN-08).
+      rightText: danger.levelLabel !== '' ? danger.levelLabel : danger.word,
       locked,
       timeText: locked ? formatClock(checks.selfTimer.secondsLeft) : null,
       lockText: locked ? `Region travel ready in ${aboutMinutes(checks.selfTimer.secondsLeft)}` : null,

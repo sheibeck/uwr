@@ -153,6 +153,17 @@ describe('HereCard header', () => {
     await nextTick();
     expect(w.get('.sub-line').text()).toBe('Uncharted · Danger unknown');
   });
+
+  it('an uncharted exit fills its right-hand column with Danger unknown (review IN-08)', async () => {
+    const { w, game } = build();
+    const places = game.locations as unknown as Ref<Array<Record<string, unknown>>>;
+    places.value[1].terrainType = 'uncharted';
+    places.value = [...places.value];
+    await nextTick();
+    const right = rowButton(w, 'Gloamwood').get('.exit-right');
+    expect(right.text()).toBe('Danger unknown');
+    expect(right.classes()).toContain('lv-unknown');
+  });
 });
 
 describe('HereCard exits', () => {
