@@ -331,8 +331,8 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
   - Remaining v3.0 order, after the owner split the phases on 2026-10-07: **50 follow-up → 51 Map and Travel → 51.1 Party and Social → 51.2 World Events → 51.3 Regional Economy → 51.4 Loot Rails → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager**. Then the end-of-milestone UAT and golden run, then audit, complete and cleanup.
   - Backlog 999.26 (world structure: sub-regions, hidden places, 10-place regions) is the **next milestone**.
 - **Phase 50 follow-up from the owner's play-test** (`50-CONTEXT.md`, owner sections from 2026-10-06 and 2026-10-07):
-  - Plans 50-28 to 50-35 are done. 50-36 was in flight at this note; check its SUMMARY. Plans 50-37 and 50-38 remain.
-  - Plans 50-39 (inventory header with gold and Organize, all 50 slots drawn, about 64px tiles) and 50-40 (server: salvage yield strictly below the recipe need) were being written.
+  - Plans 50-28 to 50-36 are done. Remaining, in this order: 50-37, 50-39 and 50-40 (written and committed in 508a5fa4), then 50-38. **Revise 50-38 before running it:** its salvage wording and interfaces (`material`, `countKnown`, "guaranteed ×n", "You will receive") must match 50-40, which uses chance wording with `components`, `knowable` and `yields`. Use a small gsd-planner revision.
+  - 50-39 covers the inventory header (gold and Organize), all 50 slots drawn, and fill columns of at most 72px (5 columns of 71px at 1280). 50-40 makes salvage a chance, never guaranteed, with rarer components returned more rarely and the strict cap kept; it publishes locally.
   - Execute them one at a time with gsd-executor (sonnet), then run a code review of the follow-up (iteration 3).
   - Server plans publish locally with the key 108 check before and after.
 - **Phases 51, 51.1 and 51.2 are ready to plan:**
