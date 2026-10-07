@@ -295,8 +295,9 @@ describe('useDestination: travel()', () => {
     expect(r.result().isOwnArrival(11n)).toBe(false);
     expect(await r.result().travel()).toBe(true);
     expect(r.result().isOwnArrival(12n)).toBe(false);
-    // the mark was spent by the arrival elsewhere
+    // the mark was spent by the arrival elsewhere; that arrival also ends the hub's trip guard
     expect(r.result().isOwnArrival(11n)).toBe(false);
+    r.map.endTrip();
     expect(await r.result().travel()).toBe(true);
     expect(r.result().isOwnArrival(11n)).toBe(true);
     expect(r.result().isOwnArrival(11n)).toBe(false);
@@ -306,6 +307,26 @@ describe('useDestination: travel()', () => {
     const r = rig({ selected: 11n, moveImpl: () => Promise.reject(new Error('socket')) });
     expect(await r.result().travel()).toBe(false);
     expect(r.result().isOwnArrival(11n)).toBe(false);
+  });
+
+  it('a trip pending on another surface (the rail or the chips) blocks the Map travel (review WR-04)', async () => {
+    const r = rig({ selected: 11n, moveImpl: () => Promise.resolve() });
+    expect(r.map.beginTrip()).toBe(true);
+    expect(r.result().pending.value).toBe(true);
+    expect(await r.result().travel()).toBe(false);
+    expect(r.moveCharacter).not.toHaveBeenCalled();
+    r.map.endTrip();
+    expect(await r.result().travel()).toBe(true);
+    expect(r.moveCharacter).toHaveBeenCalledTimes(1);
+    // and the Map trip now blocks the other surfaces until the place changes
+    expect(r.map.travelPending.value).toBe(true);
+    expect(r.map.beginTrip()).toBe(false);
+  });
+
+  it('a rejected send releases the shared guard so Try again works', async () => {
+    const r = rig({ selected: 11n, moveImpl: () => Promise.reject(new Error('socket')) });
+    expect(await r.result().travel()).toBe(false);
+    expect(r.map.travelPending.value).toBe(false);
   });
 
   it('sends nothing offline, when blocked, for your own place or a far place', async () => {

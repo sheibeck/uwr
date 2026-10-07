@@ -32,7 +32,7 @@ const nameElement = useTemplateRef<HTMLElement>('nameElement');
 const detailsOpen = ref(false);
 
 const detail = computed(() => props.destination.detail.value);
-const pending = computed(() => props.destination.runner.pending.value.has('travel'));
+const pending = computed(() => props.destination.pending.value);
 
 const TAG_ICONS: Record<Exclude<DetailTag['icon'], 'terrain'>, Component> = {
   sword: PhSword,

@@ -18,6 +18,7 @@ import { createSecondsTick } from './secondsTick';
 import { knownPlaces } from './knownPlaces';
 import { adjacencyOf } from './route';
 import { travelTimer } from './travelTimer';
+import { createTripGuard } from './tripGuard';
 
 // The Map hub (Phase 51): the session-owned subscriptions of the Map screen and the rail travel
 // panel, the shared 1-second timer tick and the selection state the Map's sibling components share.
@@ -80,6 +81,8 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
   const view = shallowRef<MapView>('graph');
   const banner = shallowRef<string | null>(null);
   const regionChosen = shallowRef(0);
+  // The one travel guard of the session (rail rows, exit chips and the Map all ask it).
+  const trip = createTripGuard();
 
   const connected = computed(() => input.status.value === 'connected' && input.conn.value !== null);
   const characterKey = computed<bigint | null>(() => input.character.value?.id ?? null);
@@ -207,6 +210,13 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
     // New or changed rows sample the clock at once, so a timer never reads a stale second.
     watch(cooldowns, () => tick.refresh(), { flush: 'sync' });
 
+    // An arrival (or a character switch) ends the pending trip.
+    watch(
+      () => `${input.character.value?.id ?? ''}:${input.character.value?.locationId ?? ''}`,
+      () => trip.end(),
+      { flush: 'sync' },
+    );
+
     const nowMicros = tick.nowMicros;
     const selfTimer = computed(() => {
       const own = characterKey.value;
@@ -262,6 +272,7 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
     shownRegionId.value = null;
     view.value = 'graph';
     banner.value = null;
+    trip.end();
   }
 
   function dispose(): void {
@@ -309,6 +320,9 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
     charactersAtSelected: run.charactersAtSelected,
     selectedApplied: run.selectedApplied,
     giverNpcs: run.giverNpcs,
+    travelPending: trip.pending,
+    beginTrip: trip.begin,
+    endTrip: trip.end,
     reset,
     dispose,
   };

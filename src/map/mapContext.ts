@@ -8,6 +8,7 @@ import type {
   TravelCooldown,
 } from '../module_bindings/types';
 import type { KnownPlaces } from './knownPlaces';
+import { createTripGuard } from './tripGuard';
 import type { TravelTimer } from './travelTimer';
 
 // The Map data contract (Phase 51): what the Map screen, its header chips and the rail travel
@@ -68,6 +69,15 @@ export interface MapData {
   readonly selectedApplied: Readonly<Ref<boolean>>;
   /** The NPCs who give your active quests. */
   readonly giverNpcs: List<Npc>;
+  /**
+   * A trip was sent (from a rail row, an exit chip or the Map) and the character's place has not
+   * changed yet. One flag for every travel surface, so two surfaces cannot send two moves.
+   */
+  readonly travelPending: Readonly<Ref<boolean>>;
+  /** Marks a trip pending and returns true; false (send nothing) while one already is. */
+  beginTrip(): boolean;
+  /** Ends the pending trip now (a rejected send). An arrival ends it by itself. */
+  endTrip(): void;
   /** Forget the selection, view, banner and shown region (logout). */
   reset(): void;
   /** Dispose every binding and watcher. */
@@ -88,6 +98,9 @@ function empty<T>(): List<T> {
 const IDLE_TIMER: TravelTimer = { running: false, secondsLeft: 0 };
 
 export function createInertMap(): MapData {
+  // A working guard even without a session: a bare surface still sends one move at a time. With no
+  // character row to watch it lapses only by time.
+  const trip = createTripGuard();
   return {
     connected: constant(false),
     visitedIds: empty<bigint>(),
@@ -122,6 +135,9 @@ export function createInertMap(): MapData {
     charactersAtSelected: empty<Character>(),
     selectedApplied: constant(false),
     giverNpcs: empty<Npc>(),
+    travelPending: trip.pending,
+    beginTrip: trip.begin,
+    endTrip: trip.end,
     reset() {},
     dispose() {},
   };

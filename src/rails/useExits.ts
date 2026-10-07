@@ -1,5 +1,5 @@
-import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
-import type { ComputedRef, Ref } from 'vue';
+import { computed, inject } from 'vue';
+import type { ComputedRef } from 'vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { placeDanger } from '../map/danger';
 import type { PlaceDanger } from '../map/danger';
@@ -35,14 +35,14 @@ export interface ExitsPanel {
   readonly here: ComputedRef<HereView | null>;
   readonly rows: ComputedRef<ExitRow[]>;
   readonly timer: ComputedRef<{ running: boolean; secondsLeft: number }>;
-  /** A trip was requested and the character row has not changed yet. */
-  readonly pending: Ref<boolean>;
-  /** True when a trip may start now (online, not blocked, none pending); marks it pending. */
+  /**
+   * A trip was requested on any travel surface (this panel, the exit chips or the Map) and the
+   * character row has not changed yet: the map hub's one shared guard.
+   */
+  readonly pending: ComputedRef<boolean>;
+  /** True when a trip may start now (online, not blocked, none pending anywhere); marks it pending. */
   beginTravel(row: ExitRow): boolean;
 }
-
-// A refused trip leaves the character where it was, so the guard also lapses by itself.
-const PENDING_MS = 2000;
 
 export function usePlaceView(): ComputedRef<HereView | null> {
   const game = inject(GAME_KEY, createInertGame());
@@ -124,30 +124,13 @@ export function useExits(): ExitsPanel {
     });
   });
 
-  const pending = ref(false);
-  let release: ReturnType<typeof setTimeout> | null = null;
-  function clearRelease(): void {
-    if (release !== null) clearTimeout(release);
-    release = null;
-  }
-  watch(
-    () => character.value?.locationId,
-    () => {
-      clearRelease();
-      pending.value = false;
-    },
-  );
-  onBeforeUnmount(clearRelease);
+  // One guard for every travel surface (review WR-04): the hub ends it on arrival and it lapses by
+  // itself after a refusal, which leaves the character where it was.
+  const pending = computed(() => map.travelPending.value);
 
   function beginTravel(row: ExitRow): boolean {
-    if (!connected.value || row.button.disabled || pending.value) return false;
-    pending.value = true;
-    clearRelease();
-    release = setTimeout(() => {
-      pending.value = false;
-      release = null;
-    }, PENDING_MS);
-    return true;
+    if (!connected.value || row.button.disabled) return false;
+    return map.beginTrip();
   }
 
   return { character, connected, ready, here, rows, timer, pending, beginTravel };

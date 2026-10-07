@@ -11,8 +11,9 @@ import type { MapData } from '../map/mapContext';
 let wrapper: VueWrapper | null = null;
 
 // The map hub has applied: the rail's exit rows render only then (51-10).
-const readyMap = { ...createInertMap(), ready: ref(true) } as unknown as MapData;
-const provide = (game: GameData) => ({ global: { provide: { [GAME_KEY as symbol]: game, [MAP_KEY as symbol]: readyMap } } });
+// A fresh hub per mount: the travel guard inside must not carry over from one test to the next.
+const readyMap = (): MapData => ({ ...createInertMap(), ready: ref(true) }) as unknown as MapData;
+const provide = (game: GameData) => ({ global: { provide: { [GAME_KEY as symbol]: game, [MAP_KEY as symbol]: readyMap() } } });
 
 afterEach(() => {
   wrapper?.unmount();

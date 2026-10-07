@@ -386,7 +386,7 @@ describe('MapDock: the Details disclosure', () => {
 
 describe('MapDock: Travel', () => {
   it('calls the move reducer once through the shared runner and stays inert while pending', async () => {
-    const { w, moveCharacter, travelSpy, resolveMove } = build({ selected: 11n });
+    const { w, map, moveCharacter, travelSpy, resolveMove } = build({ selected: 11n });
     await button(w).trigger('click');
     expect(moveCharacter).toHaveBeenCalledTimes(1);
     expect(moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 11n });
@@ -394,6 +394,11 @@ describe('MapDock: Travel', () => {
     await button(w).trigger('click');
     expect(moveCharacter).toHaveBeenCalledTimes(1);
     resolveMove();
+    await nextTick();
+    await nextTick();
+    // The session's travel guard holds until the character row moves (review WR-04, client rest).
+    expect(button(w).attributes('aria-busy')).toBe('true');
+    map.endTrip();
     await vi.waitFor(() => expect(button(w).attributes('aria-busy')).toBeUndefined());
     expect(travelSpy).not.toHaveBeenCalled();
   });

@@ -26,6 +26,8 @@ export interface Destination {
   /** The detail model; null until the map data has applied and your place is known. */
   readonly detail: Readonly<Ref<DetailView | null>>;
   readonly runner: ActionRunner;
+  /** A trip is in flight: this Map's own call, or one sent from the rail or the exit chips. */
+  readonly pending: Readonly<Ref<boolean>>;
   /** Runs the move for a Travel or Cross button that is not blocked. True when the call resolved. */
   travel(): Promise<boolean>;
   /** Selects the first stop of a far place's route (local; never travels). Its id, or null. */
@@ -133,12 +135,18 @@ export function useDestination(): Destination {
     if (!action || !character || !reducers || locationId === null) return false;
     if ((action.kind !== 'travel' && action.kind !== 'cross') || action.disabled) return false;
     if (runner.isPending('travel') || !game.connected.value) return false;
+    // The session's one travel guard: a trip sent from the rail or the chips blocks this one too.
+    if (!map.beginTrip()) return false;
     // A new trip ends the previous arrival banner; the arrival of this one shows its own.
     map.setBanner(null);
     const characterId = character.id;
     sentTo = locationId;
     const ok = await runner.run('travel', () => reducers.moveCharacter({ characterId, locationId }));
-    if (!ok && sentTo === locationId) sentTo = null;
+    if (!ok) {
+      // Nothing is in flight after a rejected send: release the guard so Try again works.
+      map.endTrip();
+      if (sentTo === locationId) sentTo = null;
+    }
     return ok;
   }
 
@@ -156,5 +164,7 @@ export function useDestination(): Destination {
     return action.firstStopId;
   }
 
-  return { checks, detail, runner, travel, selectFirstStop, isOwnArrival };
+  const pending = computed(() => runner.pending.value.has('travel') || map.travelPending.value);
+
+  return { checks, detail, runner, pending, travel, selectFirstStop, isOwnArrival };
 }

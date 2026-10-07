@@ -387,6 +387,27 @@ describe('selection state', () => {
     expect(h.hub.regionChosen.value).toBe(2);
   });
 
+  it('one travel guard for every surface: a second trip waits until the place changes (review WR-04)', () => {
+    const h = make();
+    h.activeCharacter.value = character(1n, 1n);
+    expect(h.hub.travelPending.value).toBe(false);
+    expect(h.hub.beginTrip()).toBe(true);
+    expect(h.hub.beginTrip()).toBe(false);
+    expect(h.hub.travelPending.value).toBe(true);
+    // a character row update that keeps the place (a regen tick) keeps the guard
+    h.activeCharacter.value = { ...character(1n, 1n), stamina: 3n };
+    expect(h.hub.travelPending.value).toBe(true);
+    // the arrival ends it
+    h.activeCharacter.value = character(1n, 2n);
+    expect(h.hub.travelPending.value).toBe(false);
+    expect(h.hub.beginTrip()).toBe(true);
+    h.hub.endTrip();
+    expect(h.hub.travelPending.value).toBe(false);
+    h.hub.beginTrip();
+    h.hub.reset();
+    expect(h.hub.travelPending.value).toBe(false);
+  });
+
   it('dispose stops the scope and resets every keyed binding', () => {
     const h = make();
     h.connect();
