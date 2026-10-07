@@ -15,8 +15,13 @@ import { shortestPath, stepsFrom } from './route';
 // the region on show, the layout, the node views, the list rows, the route and the region chips and
 // gates. The desktop Map screen and the mobile Map sheet (plan 51-11) both read it, so the two
 // layouts can never disagree about what is on the map. `mobile` only changes the gate pill text.
+//
+// The region rules (which region you stand in, which one is shown, the chips) are useShownRegion,
+// which useMapGraph builds on. The header chips (MapMeta, rendered by the frame outside the Map
+// screen) read useShownRegion too, so the chips and the graph cannot disagree about the shown region
+// (review IN-01). It holds no layout, so the header never lays out a graph.
 
-export interface MapGraph {
+export interface ShownRegion {
   currentId: ComputedRef<bigint | null>;
   playerLevel: ComputedRef<number>;
   placeById: ComputedRef<Map<bigint, KnownPlacesResult['drawn'][number]>>;
@@ -24,6 +29,10 @@ export interface MapGraph {
   currentRegionId: ComputedRef<bigint | null>;
   /** The region on show: the hub's pick when it is a known region, else the region you stand in. */
   shownId: ComputedRef<bigint | null>;
+  chips: ComputedRef<RegionChip[]>;
+}
+
+export interface MapGraph extends ShownRegion {
   layoutFor(regionId: bigint): GraphLayout;
   layout: ComputedRef<GraphLayout | null>;
   regionName: ComputedRef<string>;
@@ -31,11 +40,10 @@ export interface MapGraph {
   views: ComputedRef<NodeView[]>;
   rows: ComputedRef<ListRow[]>;
   routes: ComputedRef<string[]>;
-  chips: ComputedRef<RegionChip[]>;
   gates: ComputedRef<GateView[]>;
 }
 
-export function useMapGraph(mobile: () => boolean): MapGraph {
+export function useShownRegion(): ShownRegion {
   const game = inject(GAME_KEY, createInertGame());
   const map = inject(MAP_KEY, createInertMap());
 
@@ -43,12 +51,7 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     const id = game.character.value?.locationId ?? 0n;
     return id === 0n ? null : id;
   });
-  const boundId = computed<bigint | null>(() => {
-    const id = game.character.value?.boundLocationId ?? 0n;
-    return id === 0n ? null : id;
-  });
   const playerLevel = computed(() => Number(game.character.value?.level ?? 1n));
-  const regions = computed(() => game.regions.value);
   const drawn = computed(() => map.known.value.drawn);
   const placeById = computed(() => new Map(drawn.value.map((location) => [location.id, location])));
   const drawnIds = computed(() => new Set(drawn.value.map((location) => location.id)));
@@ -63,6 +66,31 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     if (picked !== null && map.known.value.knownRegionIds.includes(picked)) return picked;
     return currentRegionId.value;
   });
+
+  const chips = computed(() =>
+    regionChips({
+      drawn: drawn.value,
+      regions: game.regions.value,
+      currentRegionId: currentRegionId.value,
+      shownRegionId: shownId.value,
+      playerLevel: playerLevel.value,
+    }),
+  );
+
+  return { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, chips };
+}
+
+export function useMapGraph(mobile: () => boolean): MapGraph {
+  const game = inject(GAME_KEY, createInertGame());
+  const map = inject(MAP_KEY, createInertMap());
+  const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, chips } = useShownRegion();
+
+  const boundId = computed<bigint | null>(() => {
+    const id = game.character.value?.boundLocationId ?? 0n;
+    return id === 0n ? null : id;
+  });
+  const regions = computed(() => game.regions.value);
+  const drawn = computed(() => map.known.value.drawn);
 
   function toLayoutPlace(location: (typeof drawn.value)[number]): LayoutPlace {
     return {
@@ -127,16 +155,6 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     if (current === null || from === null || to === null) return [];
     return routePolylines(current, shortestPath(map.adjacency.value, from, to));
   });
-
-  const chips = computed(() =>
-    regionChips({
-      drawn: drawn.value,
-      regions: regions.value,
-      currentRegionId: currentRegionId.value,
-      shownRegionId: shownId.value,
-      playerLevel: playerLevel.value,
-    }),
-  );
 
   const gates = computed(() => {
     const current = layout.value;

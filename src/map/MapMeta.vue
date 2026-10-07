@@ -3,9 +3,9 @@ import { computed, inject } from 'vue';
 import { PhLockSimple, PhMapPin } from '@phosphor-icons/vue';
 import { GAME_KEY, FRAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import { MAP_KEY, createInertMap } from './mapContext';
-import { regionChips } from './regionChips';
 import type { RegionChip } from './regionChips';
 import { aboutMinutes, formatClock } from './travelTimer';
+import { useShownRegion } from './useMapGraph';
 
 // The Map header meta (51-UI-SPEC "Region chips and the Region travel pill"), rendered by the frame
 // in the drawer and sheet #meta slot. Desktop: one button chip per known region (yours first, then by
@@ -21,30 +21,9 @@ const frame = inject(FRAME_KEY, createInertFrame());
 const map = inject(MAP_KEY, createInertMap());
 
 const ready = computed(() => map.ready.value && game.character.value !== null);
-const playerLevel = computed(() => Number(game.character.value?.level ?? 1n));
 
-const currentRegionId = computed<bigint | null>(() => {
-  const here = game.character.value?.locationId ?? 0n;
-  if (here === 0n) return null;
-  return map.known.value.drawn.find((place) => place.id === here)?.regionId ?? null;
-});
-
-/** The region on show: the hub's pick when it is a known region, else the region you stand in. */
-const shownId = computed<bigint | null>(() => {
-  const picked = map.shownRegionId.value;
-  if (picked !== null && map.known.value.knownRegionIds.includes(picked)) return picked;
-  return currentRegionId.value;
-});
-
-const chips = computed(() =>
-  regionChips({
-    drawn: map.known.value.drawn,
-    regions: game.regions.value,
-    currentRegionId: currentRegionId.value,
-    shownRegionId: shownId.value,
-    playerLevel: playerLevel.value,
-  }),
-);
+// The shown region and the chips come from the same rules the graph uses (useShownRegion).
+const { chips } = useShownRegion();
 
 const shownName = computed(() => chips.value.find((chip) => chip.isShown)?.name ?? '');
 

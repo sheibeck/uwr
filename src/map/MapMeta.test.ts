@@ -266,3 +266,16 @@ describe('MapMeta bare', () => {
     expect(wrapper.text()).toBe('');
   });
 });
+
+describe('MapMeta shares the region rules with the graph (review IN-01)', () => {
+  it('reads useShownRegion and keeps no copy of the shown-region or chip rules', () => {
+    expect(SOURCE).toContain('useShownRegion()');
+    expect(SOURCE).not.toContain('regionChips(');
+    expect(SOURCE).not.toContain('knownRegionIds');
+    const graph = readFileSync(resolve(process.cwd(), 'src/map/useMapGraph.ts'), 'utf8');
+    // one copy of each rule, built once in useShownRegion and reused by useMapGraph
+    expect(graph.match(/regionChips\(/g)).toHaveLength(1);
+    expect(graph.match(/knownRegionIds\.includes/g)).toHaveLength(1);
+    expect(graph).toMatch(/export function useMapGraph[\s\S]*useShownRegion\(\)/);
+  });
+});
