@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, useTemplateRef, watch } from 'vue';
-import { PhCrosshair, PhGraph, PhListBullets, PhMapTrifold } from '@phosphor-icons/vue';
+import { PhCrosshair, PhFootprints, PhGraph, PhListBullets, PhMapTrifold } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import type { ScreenArgs } from '../game/context';
 import SegTabs from '../ledger/SegTabs.vue';
 import ContextContent from '../rails/ContextContent.vue';
 import EmptyState from '../screens/EmptyState.vue';
+import DetailPanel from './DetailPanel.vue';
 import GraphList from './GraphList.vue';
 import GraphPlane from './GraphPlane.vue';
 import { layoutGraph } from './graphLayout';
@@ -16,11 +17,17 @@ import type { MapView } from './mapContext';
 import { gateView, listRows, nodeViews, routePolylines } from './nodeView';
 import { regionChips } from './regionChips';
 import { shortestPath, stepsFrom } from './route';
+import { useDestination } from './useDestination';
 
 // The Map screen body (51-UI-SPEC "Layout Contract: Map"): the legend row, then the canvas that
-// holds the route graph or the list, the Graph | List switch and Center on you. The detail column,
-// header chips and travel pill come in plan 51-09; the mobile Map and Here tabs in 51-11, so mobile
-// keeps the Here view for now.
+// holds the route graph or the list, the Graph | List switch and Center on you, and beside it the
+// destination detail column. The header chips and the Region travel pill are MapMeta and MapActions
+// (registered in screens.ts). The mobile Map and Here tabs come in plan 51-11, so mobile keeps the
+// Here view for now.
+//
+// The Map follows the character row: after any arrival while it is open (a Map travel, a typed go, a
+// respawn) the selection moves to the new place, the graph switches region when it changed, the
+// arrival banner shows and focus moves to the detail heading. Nothing is optimistic.
 //
 // Nothing renders until the visited view, connections and travel cooldowns have applied. Screen
 // arguments only ever select among known places and regions (T-51-33); an unknown id falls back to
@@ -30,6 +37,10 @@ const frame = inject(FRAME_KEY, createInertFrame());
 const map = inject(MAP_KEY, createInertMap());
 
 const plane = useTemplateRef<InstanceType<typeof GraphPlane>>('plane');
+const detailPanel = useTemplateRef<InstanceType<typeof DetailPanel>>('detailPanel');
+
+// One destination model for the screen: the detail column here and, in plan 51-11, the mobile dock.
+const destination = useDestination();
 
 const VIEW_TABS = [
   { id: 'graph', label: 'Graph', icon: PhGraph },
@@ -85,7 +96,10 @@ function layoutFor(regionId: bigint): GraphLayout {
 }
 
 const layout = computed<GraphLayout | null>(() => (shownId.value === null ? null : layoutFor(shownId.value)));
-const regionName = computed(() => regions.value.find((region) => region.id === shownId.value)?.name ?? 'Unknown region');
+function regionNameOf(id: bigint | null): string {
+  return regions.value.find((region) => region.id === id)?.name ?? 'Unknown region';
+}
+const regionName = computed(() => regionNameOf(shownId.value));
 
 const steps = computed(() =>
   currentId.value === null ? new Map<bigint, number>() : stepsFrom(map.adjacency.value, currentId.value),
@@ -234,6 +248,49 @@ onBeforeUnmount(() => {
   if (frame.isDesktop.value) map.select(null);
 });
 
+/** A user selection (a node, a gate, a list row) ends the arrival banner. */
+function onSelect(id: bigint): void {
+  map.setBanner(null);
+  map.select(id);
+}
+
+// Arrival: any change of the character's place while the Map is open and showing.
+watch(
+  () => game.character.value?.locationId,
+  (next, previous) => {
+    if (!canShow.value || next === undefined || next === 0n || next === previous) return;
+    const arrived = placeById.value.get(next);
+    if (arrived === undefined) return;
+    const before = previous === undefined || previous === 0n ? undefined : game.locations.value.find((l) => l.id === previous);
+    const crossed = before !== undefined && before.regionId !== arrived.regionId;
+    map.select(arrived.id);
+    if (shownId.value !== arrived.regionId) map.showRegion(arrived.regionId);
+    map.setBanner(
+      crossed ? `Crossed into ${regionNameOf(arrived.regionId)}. Arrived at ${arrived.name}.` : `Arrived at ${arrived.name}.`,
+    );
+    scrollSelectedIntoView();
+    void nextTick(() => detailPanel.value?.focusTitle());
+  },
+);
+
+// A region chosen in the header (or any other change of the shown region) that does not hold the
+// selection selects your place when you stand in that region, else the region's start node. Focus
+// that was on a chip moves into the graph, whose group shows the new region.
+watch(shownId, (region) => {
+  if (region === null) return;
+  const selected = map.selectedId.value;
+  if (selected !== null && placeById.value.get(selected)?.regionId === region) return;
+  const here = currentId.value;
+  const start = here !== null && currentRegionId.value === region ? here : layoutFor(region).startId;
+  if (start === null) return;
+  const active = document.activeElement;
+  const fromChip = active instanceof HTMLElement && active.hasAttribute('data-region-chip');
+  map.setBanner(null);
+  map.select(start);
+  scrollSelectedIntoView();
+  if (fromChip) plane.value?.focusCurrent();
+});
+
 function onView(id: string): void {
   const next: MapView = id === 'list' ? 'list' : 'graph';
   map.setView(next);
@@ -257,44 +314,53 @@ function centerOnYou(): void {
       title="No places discovered yet."
       body="Travel to a new place and it appears here."
     />
-    <template v-else-if="map.ready.value && layout !== null">
-      <MapLegend :player-level="playerLevel" :mobile="false" />
-      <div class="canvas">
-        <SegTabs
-          class="canvas-tabs"
-          :tabs="VIEW_TABS"
-          :model-value="map.view.value"
-          label="Map view"
-          id-prefix="map-view"
-          @update:model-value="onView"
-        >
-          <GraphPlane
+    <div v-else-if="map.ready.value && layout !== null" class="map-body">
+      <div class="map-main">
+        <MapLegend :player-level="playerLevel" :mobile="false" />
+        <div class="canvas">
+          <SegTabs
+            class="canvas-tabs"
+            :tabs="VIEW_TABS"
+            :model-value="map.view.value"
+            label="Map view"
+            id-prefix="map-view"
+            @update:model-value="onView"
+          >
+            <GraphPlane
+              v-if="map.view.value === 'graph'"
+              ref="plane"
+              :layout="layout"
+              :views="views"
+              :gates="gates"
+              :routes="routes"
+              :region-name="regionName"
+              :selected-id="map.selectedId.value"
+              :current-id="currentId"
+              :mobile="false"
+              @select="onSelect"
+            />
+            <GraphList v-else :rows="rows" @select="onSelect" />
+          </SegTabs>
+          <div v-if="map.banner.value" class="arrival-banner" role="status">
+            <PhFootprints class="banner-icon" :size="14" aria-hidden="true" />
+            <span>{{ map.banner.value }}</span>
+          </div>
+          <button
             v-if="map.view.value === 'graph'"
-            ref="plane"
-            :layout="layout"
-            :views="views"
-            :gates="gates"
-            :routes="routes"
-            :region-name="regionName"
-            :selected-id="map.selectedId.value"
-            :current-id="currentId"
-            :mobile="false"
-            @select="map.select"
-          />
-          <GraphList v-else :rows="rows" @select="map.select" />
-        </SegTabs>
-        <button
-          v-if="map.view.value === 'graph'"
-          type="button"
-          class="btn btn-secondary btn-icon center-button"
-          aria-label="Center on you"
-          title="Center on you"
-          @click="centerOnYou"
-        >
-          <PhCrosshair :size="16" aria-hidden="true" />
-        </button>
+            type="button"
+            class="btn btn-secondary btn-icon center-button"
+            aria-label="Center on you"
+            title="Center on you"
+            @click="centerOnYou"
+          >
+            <PhCrosshair :size="16" aria-hidden="true" />
+          </button>
+        </div>
       </div>
-    </template>
+      <aside class="detail-column">
+        <DetailPanel ref="detailPanel" :destination="destination" />
+      </aside>
+    </div>
   </div>
   <div v-else class="map-sheet">
     <ContextContent />
@@ -307,6 +373,34 @@ function centerOnYou(): void {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* The canvas beside the detail column: narrower from 900 to 1199px, wider from the 1200px tier (the
+   drawer content box is 600px at 900, so the canvas keeps about 320px). */
+.map-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 256px;
+  column-gap: 24px;
+}
+
+@media (min-width: 1200px) {
+  .map-body {
+    grid-template-columns: minmax(0, 1fr) 304px;
+  }
+}
+
+.map-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.detail-column {
+  min-width: 0;
+  min-height: 0;
 }
 
 /* The canvas: the radial accent glow over the page ground, tokens only. The plane or list scrolls
@@ -352,6 +446,32 @@ function centerOnYou(): void {
   .canvas :deep(.panel) {
     scroll-behavior: smooth;
   }
+}
+
+/* Top centre of the canvas; the view switch sits top right and stays clear of it. */
+.arrival-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 60%;
+  padding: 8px 16px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-accent-700), var(--shadow-md);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text);
+  pointer-events: none;
+}
+
+.banner-icon {
+  flex: none;
+  color: var(--color-accent);
 }
 
 .center-button {
