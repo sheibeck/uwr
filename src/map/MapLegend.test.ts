@@ -18,8 +18,6 @@ function mountLegend(playerLevel = 7, mobile = false): VueWrapper {
   return wrapper;
 }
 
-const words = (w: VueWrapper, selector: string): string[] => w.findAll(selector).map((el) => el.text());
-
 describe('MapLegend', () => {
   it('has four groups in fixed order separated by three 1px dividers', () => {
     const w = mountLegend();
@@ -39,7 +37,7 @@ describe('MapLegend', () => {
   it('Places: You, Visited and Heard of with aria-hidden swatches', () => {
     const w = mountLegend();
     const places = w.get('[data-group="places"]');
-    expect(words(places as unknown as VueWrapper, '.item')).toEqual(['You', 'Visited', 'Heard of']);
+    expect(places.findAll('.item').map((el) => el.text())).toEqual(['You', 'Visited', 'Heard of']);
     const swatches = places.findAll('.swatch');
     expect(swatches).toHaveLength(3);
     for (const swatch of swatches) expect(swatch.attributes('aria-hidden')).toBe('true');
