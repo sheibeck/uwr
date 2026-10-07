@@ -30,6 +30,12 @@ export interface Destination {
   travel(): Promise<boolean>;
   /** Selects the first stop of a far place's route (local; never travels). Its id, or null. */
   selectFirstStop(): bigint | null;
+  /**
+   * True when the character arrived where this Map's own Travel last sent it. Call it on every
+   * arrival: it answers once and forgets the trip, so a later arrival (a leader's move, a respawn)
+   * is never taken for one the player started here.
+   */
+  isOwnArrival(locationId: bigint): boolean;
 }
 
 function asId(value: bigint | undefined): bigint | null {
@@ -41,6 +47,8 @@ export function useDestination(): Destination {
   const map = inject(MAP_KEY, createInertMap());
 
   const runner = makeRunner({ online: game.connected });
+  // Where this Map's own Travel last sent the character; cleared by the next arrival or a rejection.
+  let sentTo: bigint | null = null;
 
   const currentId = computed(() => asId(game.character.value?.locationId));
   const placeById = computed(() => {
@@ -128,7 +136,16 @@ export function useDestination(): Destination {
     // A new trip ends the previous arrival banner; the arrival of this one shows its own.
     map.setBanner(null);
     const characterId = character.id;
-    return runner.run('travel', () => reducers.moveCharacter({ characterId, locationId }));
+    sentTo = locationId;
+    const ok = await runner.run('travel', () => reducers.moveCharacter({ characterId, locationId }));
+    if (!ok && sentTo === locationId) sentTo = null;
+    return ok;
+  }
+
+  function isOwnArrival(locationId: bigint): boolean {
+    const own = sentTo !== null && sentTo === locationId;
+    sentTo = null;
+    return own;
   }
 
   function selectFirstStop(): bigint | null {
@@ -139,5 +156,5 @@ export function useDestination(): Destination {
     return action.firstStopId;
   }
 
-  return { checks, detail, runner, travel, selectFirstStop };
+  return { checks, detail, runner, travel, selectFirstStop, isOwnArrival };
 }

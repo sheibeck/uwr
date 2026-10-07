@@ -136,6 +136,11 @@ async function open(h: Rig): Promise<VueWrapper> {
   return wrapper;
 }
 
+/** The player works in the Map: focus on a node of the graph. */
+function focusInMap(w: VueWrapper): void {
+  (w.get('button.node').element as HTMLElement).focus();
+}
+
 async function moveTo(h: Rig, id: bigint): Promise<void> {
   h.character.value = { ...h.character.value, locationId: id };
   await settle();
@@ -154,6 +159,7 @@ describe('Map arrival', () => {
     const h = harness();
     const w = await open(h);
     h.select(12n);
+    focusInMap(w);
     await moveTo(h, 11n);
     expect(h.selectedId.value).toBe(11n);
     expect(h.banner.value).toBe('Arrived at Gloamwood.');
@@ -168,6 +174,7 @@ describe('Map arrival', () => {
   it('crossing into another region switches the shown region and says so', async () => {
     const h = harness();
     const w = await open(h);
+    focusInMap(w);
     await moveTo(h, 11n);
     await moveTo(h, 20n);
     expect(h.selectedId.value).toBe(20n);
@@ -280,6 +287,55 @@ describe('Map arrival', () => {
     expect(h.setBanner).not.toHaveBeenCalled();
   });
 
+  it('focus outside the Map stays where it is on an arrival the Map did not start (review IN-08)', async () => {
+    const h = harness();
+    const w = await open(h);
+    const rail = document.createElement('button');
+    document.body.appendChild(rail);
+    rail.focus();
+    await moveTo(h, 11n);
+    expect(h.selectedId.value).toBe(11n);
+    expect(w.get('.arrival-banner').text()).toBe('Arrived at Gloamwood.');
+    expect(document.activeElement).toBe(rail);
+  });
+
+  it('no focus at all (the body) is not pulled into the Map either', async () => {
+    const h = harness();
+    await open(h);
+    (document.activeElement as HTMLElement | null)?.blur();
+    await moveTo(h, 11n);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("an arrival from the Map's own Travel moves focus to the heading, wherever focus went meanwhile", async () => {
+    const h = harness();
+    const w = await open(h);
+    h.map.select(11n);
+    await settle();
+    await w.get('button.travel-button').trigger('click');
+    expect(h.moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 11n });
+    const rail = document.createElement('button');
+    document.body.appendChild(rail);
+    rail.focus();
+    await moveTo(h, 11n);
+    expect(document.activeElement).toBe(w.get('h4').element);
+  });
+
+  it('the own-trip mark is used once: a later arrival with focus outside leaves it alone', async () => {
+    const h = harness();
+    const w = await open(h);
+    h.map.select(11n);
+    await settle();
+    await w.get('button.travel-button').trigger('click');
+    await moveTo(h, 11n);
+    const rail = document.createElement('button');
+    document.body.appendChild(rail);
+    rail.focus();
+    await moveTo(h, 12n);
+    expect(h.selectedId.value).toBe(12n);
+    expect(document.activeElement).toBe(rail);
+  });
+
   it('closing the Map ends the banner, so a reopen after more trips shows none (review WR-01)', async () => {
     const h = harness();
     await open(h);
@@ -307,6 +363,7 @@ describe('Map arrival', () => {
     const h = harness();
     h.isDesktop.value = false;
     const w = await open(h);
+    focusInMap(w);
     await moveTo(h, 11n);
     expect(h.select).toHaveBeenCalledWith(11n);
     expect(h.setBanner).toHaveBeenCalledWith('Arrived at Gloamwood.');

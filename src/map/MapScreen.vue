@@ -34,6 +34,7 @@ const game = inject(GAME_KEY, createInertGame());
 const frame = inject(FRAME_KEY, createInertFrame());
 const map = inject(MAP_KEY, createInertMap());
 
+const root = useTemplateRef<HTMLElement>('root');
 const plane = useTemplateRef<InstanceType<typeof GraphPlane>>('plane');
 const detailPanel = useTemplateRef<InstanceType<typeof DetailPanel>>('detailPanel');
 const sheet = useTemplateRef<InstanceType<typeof MapSheet>>('sheet');
@@ -178,13 +179,26 @@ function onSelect(id: bigint): void {
   map.select(id);
 }
 
-// Arrival: any change of the character's place while the Map is open and showing.
+/** Focus is somewhere in the Map: its body, or the drawer or sheet around it (header chips, close). */
+function focusInMap(): boolean {
+  const body = root.value;
+  const active = document.activeElement;
+  if (body === null || active === null) return false;
+  const shell = body.closest('[role="dialog"]') ?? body;
+  return shell.contains(active);
+}
+
+// Arrival: any change of the character's place while the Map is open and showing. Focus follows only
+// when the player was working in the Map or the trip came from the Map's own Travel (review IN-08): a
+// leader's move or a respawn never pulls focus away from the vitals rail or the console.
 watch(
   () => game.character.value?.locationId,
   (next, previous) => {
+    const ownTrip = next !== undefined && destination.isOwnArrival(next);
     if (!canShow.value || next === undefined || next === 0n || next === previous) return;
     const arrived = placeById.value.get(next);
     if (arrived === undefined) return;
+    const moveFocus = ownTrip || focusInMap();
     const before = previous === undefined || previous === 0n ? undefined : game.locations.value.find((l) => l.id === previous);
     const crossed = before !== undefined && before.regionId !== arrived.regionId;
     map.select(arrived.id);
@@ -193,6 +207,7 @@ watch(
       crossed ? `Crossed into ${regionNameOf(arrived.regionId)}. Arrived at ${arrived.name}.` : `Arrived at ${arrived.name}.`,
     );
     scrollSelectedIntoView();
+    if (!moveFocus) return;
     // Desktop: the detail heading. Mobile: the dock's place name (the Here tab has none to focus).
     void nextTick(() => (frame.isDesktop.value ? detailPanel.value?.focusTitle() : sheet.value?.focusName()));
   },
@@ -241,7 +256,7 @@ function centerOnYou(): void {
 </script>
 
 <template>
-  <div v-if="frame.isDesktop.value" class="map-screen">
+  <div v-if="frame.isDesktop.value" ref="root" class="map-screen">
     <EmptyState
       v-if="currentId === null"
       :icon="PhMapTrifold"
@@ -296,7 +311,7 @@ function centerOnYou(): void {
       </aside>
     </div>
   </div>
-  <div v-else class="map-sheet-root">
+  <div v-else ref="root" class="map-sheet-root">
     <SegTabs
       class="sheet-tabs"
       :tabs="SHEET_TABS"

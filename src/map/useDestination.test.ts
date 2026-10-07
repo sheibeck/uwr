@@ -290,6 +290,24 @@ describe('useDestination: travel()', () => {
     expect(r.result().runner.isPending('travel')).toBe(false);
   });
 
+  it('remembers its own trip for one arrival only (review IN-08)', async () => {
+    const r = rig({ selected: 11n, moveImpl: () => Promise.resolve() });
+    expect(r.result().isOwnArrival(11n)).toBe(false);
+    expect(await r.result().travel()).toBe(true);
+    expect(r.result().isOwnArrival(12n)).toBe(false);
+    // the mark was spent by the arrival elsewhere
+    expect(r.result().isOwnArrival(11n)).toBe(false);
+    expect(await r.result().travel()).toBe(true);
+    expect(r.result().isOwnArrival(11n)).toBe(true);
+    expect(r.result().isOwnArrival(11n)).toBe(false);
+  });
+
+  it('a rejected trip is not an own trip', async () => {
+    const r = rig({ selected: 11n, moveImpl: () => Promise.reject(new Error('socket')) });
+    expect(await r.result().travel()).toBe(false);
+    expect(r.result().isOwnArrival(11n)).toBe(false);
+  });
+
   it('sends nothing offline, when blocked, for your own place or a far place', async () => {
     const offline = rig({ selected: 11n, moveImpl: () => Promise.resolve() });
     offline.connected.value = false;
