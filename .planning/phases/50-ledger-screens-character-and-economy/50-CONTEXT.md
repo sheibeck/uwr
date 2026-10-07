@@ -135,6 +135,13 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 
 - Any server change is additive, publishes locally only with the key check (108) before and after, never clears the database, and comes with real-handler tests. No prompt changes.
 
+### Owner decision after play-testing (2026-10-07, owner in chat): inventory header and bag grid (plan 50-39)
+- **Header, as in mock 10a:** "Inventory", the "{used} / {capacity} slots" count, gold, and an **Organize** button (`ph-sort-ascending`) next to the gold.
+- **Organize merges stacks and sorts.** It calls the existing `consolidate_stacks` reducer to merge partial stacks, then orders the bag by type, then rarity (best first), then name.
+- **The bag shows every slot.** It draws all capacity slots, with empty ones visible, and the grid fills the backpack column's width.
+- **Capacity stays 50 (owner):** "Keep 50, show #/50". The counter reads, for example, `22 / 50`, and 50 slots are drawn. There is no server cap change.
+- **Slightly bigger tiles.** 50-32 capped them at 58px desktop, which the owner says is slightly too small. Make them a bit bigger, around 64px at 1280, with the column count chosen to fill the width. Keep the 44px minimum and the mobile size.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
