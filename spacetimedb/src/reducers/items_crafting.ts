@@ -1,5 +1,7 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, planCraft } from '../data/crafting_rules';
+import { getMaterialForSalvage, SALVAGE_YIELD_BY_TIER, getCraftQualityStatBonus, CRAFTING_MODIFIER_DEFS, planCraft, MAX_CRAFT_COUNT } from '../data/crafting_rules';
+import { writeActionResult } from '../helpers/action_result';
+import type { ResultLine } from '../data/action_result';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCOVER } from '../data/recipe_rules';
 import type { BagMaterial } from '../data/recipe_rules';
@@ -137,6 +139,202 @@ export const registerItemCraftingReducers = (deps: any) => {
     return map[statKey] ?? 'of Power';
   };
 
+  // The decoration a crafted gear instance gets, in one place so craft_recipe and craft_recipe_count
+  // share it: suffix affixes from the reagents (when an Essence is used), the implicit craft quality
+  // affixes, then the instance update. Returns the display name.
+  const decorateCrafted = (ctx: any, instance: any, output: any, plan: any): string => {
+    const craftQuality = plan.quality ?? 'standard';
+    const qualityTier = 'common';
+    let craftedDisplayName: string = output.name;
+    const appliedAffixes: { affixType: string; affixKey: string; affixName: string; statKey: string; magnitude: bigint }[] = [];
+
+    // Reagent suffixes: the essence and reagents were validated and consumed with the plan.
+    if (plan.usesCatalyst) {
+      for (const reagent of plan.reagents) {
+        appliedAffixes.push({
+          affixType: 'suffix',
+          affixKey: `crafted_${reagent.statKey}`,
+          affixName: statKeyToAffix(reagent.statKey),
+          statKey: reagent.statKey,
+          magnitude: reagent.magnitude,
+        });
+      }
+      for (const affix of appliedAffixes) {
+        ctx.db.item_affix.insert({
+          id: 0n,
+          itemInstanceId: instance.id,
+          affixType: affix.affixType,
+          affixKey: affix.affixKey,
+          affixName: affix.affixName,
+          statKey: affix.statKey,
+          magnitude: affix.magnitude,
+        });
+      }
+      craftedDisplayName = buildDisplayName(output.name, appliedAffixes);
+    }
+
+    // Implicit craft quality base stat bonus.
+    const statBonus = getCraftQualityStatBonus(craftQuality);
+    if (statBonus > 0n) {
+      if (output.armorClassBonus > 0n) {
+        ctx.db.item_affix.insert({
+          id: 0n,
+          itemInstanceId: instance.id,
+          affixType: 'implicit',
+          affixKey: 'craft_quality_ac',
+          affixName: 'Quality',
+          statKey: 'armorClassBonus',
+          magnitude: statBonus,
+        });
+      }
+      if (output.weaponBaseDamage > 0n) {
+        ctx.db.item_affix.insert({
+          id: 0n,
+          itemInstanceId: instance.id,
+          affixType: 'implicit',
+          affixKey: 'craft_quality_dmg',
+          affixName: 'Quality',
+          statKey: 'weaponBaseDamage',
+          magnitude: statBonus,
+        });
+        ctx.db.item_affix.insert({
+          id: 0n,
+          itemInstanceId: instance.id,
+          affixType: 'implicit',
+          affixKey: 'craft_quality_dps',
+          affixName: 'Quality',
+          statKey: 'weaponDps',
+          magnitude: statBonus,
+        });
+      }
+    }
+
+    ctx.db.item_instance.id.update({
+      ...instance,
+      qualityTier,
+      craftQuality,
+      displayName: appliedAffixes.length > 0 ? craftedDisplayName : undefined,
+    });
+    return craftedDisplayName;
+  };
+
+  type CraftArgs = {
+    characterId: bigint;
+    recipeTemplateId: bigint;
+    catalystTemplateId?: bigint;
+    modifier1TemplateId?: bigint;
+    modifier2TemplateId?: bigint;
+    modifier3TemplateId?: bigint;
+  };
+
+  // One craft or a whole batch, all or nothing: every refusal is decided before the first write.
+  // Order: owner, station, count below 1, count above the cap, recipe, discovered, output template,
+  // then planCraft with the count (materials, essence tier, essence, reagents). No backpack
+  // capacity gate, the same as craft_recipe has always had (data/inventory_rules.ts).
+  const craftBatch = (ctx: any, args: CraftArgs, count: bigint) => {
+    const character = requireCharacterOwnedBy(ctx, args.characterId);
+    const location = ctx.db.location.id.find(character.locationId);
+    if (!location?.craftingAvailable) {
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        'Crafting is only available at locations with crafting stations.'
+      );
+      return;
+    }
+    if (count < 1n) return failItem(ctx, character, 'Choose at least one to craft.');
+    if (count > MAX_CRAFT_COUNT) return failItem(ctx, character, `You can craft up to ${MAX_CRAFT_COUNT} at once.`);
+    const recipe = ctx.db.recipe_template.id.find(args.recipeTemplateId);
+    if (!recipe) return failItem(ctx, character, 'Recipe not found');
+    const discovered = [...ctx.db.recipe_discovered.by_character.filter(character.id)].find(
+      (row) => row.recipeTemplateId === recipe.id
+    );
+    if (!discovered) return failItem(ctx, character, 'Recipe not discovered');
+    // --- Plan first: every refusal is decided before anything is consumed or added ---
+    const output = ctx.db.item_template.id.find(recipe.outputTemplateId);
+    if (!output) return failItem(ctx, character, 'Recipe output not found');
+    const req1Template = ctx.db.item_template.id.find(recipe.req1TemplateId);
+    const catalystTemplate = args.catalystTemplateId
+      ? ctx.db.item_template.id.find(args.catalystTemplateId)
+      : null;
+    const modifierTemplates = [args.modifier1TemplateId, args.modifier2TemplateId, args.modifier3TemplateId]
+      .filter((id): id is bigint => id != null)
+      .map((id) => ({ templateId: id, name: ctx.db.item_template.id.find(id)?.name ?? null }));
+    const plan = planCraft({
+      recipe,
+      primaryMaterialName: req1Template?.name ?? null,
+      catalyst: args.catalystTemplateId
+        ? { templateId: args.catalystTemplateId, name: catalystTemplate?.name ?? '' }
+        : null,
+      modifiers: modifierTemplates,
+      countOf: (templateId: bigint) => getItemCount(ctx, character.id, templateId),
+      count,
+    });
+    if (!plan.ok) {
+      if (plan.reason === 'materials') {
+        appendPrivateEvent(
+          ctx,
+          character.id,
+          character.ownerUserId,
+          'system',
+          plan.message
+        );
+        return;
+      }
+      return failItem(ctx, character, plan.message);
+    }
+
+    // --- Mutate: the plan passed, so nothing below refuses. plan.consumes are the batch totals:
+    // the materials, plus the Essence and each reagent when an Essence is used. ---
+    for (const c of plan.consumes) {
+      removeItemFromInventory(ctx, character.id, c.templateId, c.count);
+    }
+    // The row the craft itself produced: a bag can already hold older plain copies of the output.
+    let lastRow: any;
+    let craftedDisplayName: string = output.name ?? recipe.name;
+    if (output.stackable ?? false) {
+      lastRow = addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount * count);
+      if (plan.gear && lastRow) craftedDisplayName = decorateCrafted(ctx, lastRow, output, plan);
+    } else {
+      for (let i = 0n; i < count; i += 1n) {
+        lastRow = addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
+        if (plan.gear && lastRow) craftedDisplayName = decorateCrafted(ctx, lastRow, output, plan);
+      }
+    }
+    const made = recipe.outputCount * count;
+
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'reward',
+      count === 1n ? `You craft ${craftedDisplayName}.` : `You craft ${made}x ${craftedDisplayName}.`
+    );
+
+    const lines: ResultLine[] = plan.consumes.map((c: { templateId: bigint; count: bigint }) => ({
+      kind: 'used' as const,
+      templateId: c.templateId,
+      name: ctx.db.item_template.id.find(c.templateId)?.name ?? 'Unknown material',
+      quantity: c.count,
+      total: getItemCount(ctx, character.id, c.templateId),
+      instanceId: null,
+    }));
+    writeActionResult(ctx, character.id, {
+      kind: 'craft',
+      templateId: output.id,
+      itemInstanceId: lastRow?.id,
+      itemName: craftedDisplayName,
+      rarity: lastRow?.qualityTier ?? output.rarity ?? 'common',
+      craftQuality: plan.gear ? plan.quality ?? undefined : undefined,
+      quantity: made,
+      recipeTemplateId: recipe.id,
+      craftCount: count,
+      lines,
+    });
+  };
+
   spacetimedb.reducer(
     'craft_recipe',
     {
@@ -147,159 +345,23 @@ export const registerItemCraftingReducers = (deps: any) => {
       modifier2TemplateId: t.u64().optional(),
       modifier3TemplateId: t.u64().optional(),
     },
-    (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const location = ctx.db.location.id.find(character.locationId);
-      if (!location?.craftingAvailable) {
-        appendPrivateEvent(
-          ctx,
-          character.id,
-          character.ownerUserId,
-          'system',
-          'Crafting is only available at locations with crafting stations.'
-        );
-        return;
-      }
-      const recipe = ctx.db.recipe_template.id.find(args.recipeTemplateId);
-      if (!recipe) return failItem(ctx, character, 'Recipe not found');
-      const discovered = [...ctx.db.recipe_discovered.by_character.filter(character.id)].find(
-        (row) => row.recipeTemplateId === recipe.id
-      );
-      if (!discovered) return failItem(ctx, character, 'Recipe not discovered');
-      // --- Plan first: every refusal is decided before anything is consumed or added ---
-      const output = ctx.db.item_template.id.find(recipe.outputTemplateId);
-      const req1Template = ctx.db.item_template.id.find(recipe.req1TemplateId);
-      const catalystTemplate = args.catalystTemplateId
-        ? ctx.db.item_template.id.find(args.catalystTemplateId)
-        : null;
-      const modifierTemplates = [args.modifier1TemplateId, args.modifier2TemplateId, args.modifier3TemplateId]
-        .filter((id): id is bigint => id != null)
-        .map((id) => ({ templateId: id, name: ctx.db.item_template.id.find(id)?.name ?? null }));
-      const plan = planCraft({
-        recipe,
-        primaryMaterialName: req1Template?.name ?? null,
-        catalyst: args.catalystTemplateId
-          ? { templateId: args.catalystTemplateId, name: catalystTemplate?.name ?? '' }
-          : null,
-        modifiers: modifierTemplates,
-        countOf: (templateId: bigint) => getItemCount(ctx, character.id, templateId),
-      });
-      if (!plan.ok) {
-        if (plan.reason === 'materials') {
-          appendPrivateEvent(
-            ctx,
-            character.id,
-            character.ownerUserId,
-            'system',
-            plan.message
-          );
-          return;
-        }
-        return failItem(ctx, character, plan.message);
-      }
+    (ctx, args) => craftBatch(ctx, args, 1n)
+  );
 
-      // --- Mutate: the plan passed, so nothing below refuses ---
-      removeItemFromInventory(ctx, character.id, recipe.req1TemplateId, recipe.req1Count);
-      removeItemFromInventory(ctx, character.id, recipe.req2TemplateId, recipe.req2Count);
-      if (recipe.req3TemplateId != null && recipe.req3Count != null) {
-        removeItemFromInventory(ctx, character.id, recipe.req3TemplateId, recipe.req3Count);
-      }
-      // The row the craft itself produced: a bag can already hold older plain copies of the output.
-      const newInstance = addItemToInventory(ctx, character.id, recipe.outputTemplateId, recipe.outputCount);
-
-      // --- Gear recipe affix application (catalyst + modifier system) ---
-      let craftedDisplayName = output?.name ?? recipe.name;
-      if (plan.gear && output) {
-        const craftQuality = plan.quality ?? 'standard';
-        const qualityTier = 'common';
-
-        // newInstance is the instance created above, never the first plain copy in the bag.
-        if (newInstance) {
-          const appliedAffixes: { affixType: string; affixKey: string; affixName: string; statKey: string; magnitude: bigint }[] = [];
-
-          // --- Catalyst (Essence) + reagents: already validated by planCraft ---
-          if (plan.usesCatalyst && args.catalystTemplateId) {
-            removeItemFromInventory(ctx, character.id, args.catalystTemplateId, 1n);
-            for (const reagent of plan.reagents) {
-              removeItemFromInventory(ctx, character.id, reagent.templateId, 1n);
-              appliedAffixes.push({
-                affixType: 'suffix',
-                affixKey: `crafted_${reagent.statKey}`,
-                affixName: statKeyToAffix(reagent.statKey),
-                statKey: reagent.statKey,
-                magnitude: reagent.magnitude,
-              });
-            }
-
-            // Insert affix rows for modifier-based affixes
-            for (const affix of appliedAffixes) {
-              ctx.db.item_affix.insert({
-                id: 0n,
-                itemInstanceId: newInstance.id,
-                affixType: affix.affixType,
-                affixKey: affix.affixKey,
-                affixName: affix.affixName,
-                statKey: affix.statKey,
-                magnitude: affix.magnitude,
-              });
-            }
-
-            craftedDisplayName = buildDisplayName(output.name, appliedAffixes);
-          }
-
-          // --- Implicit craft quality base stat bonus (unchanged) ---
-          const statBonus = getCraftQualityStatBonus(craftQuality);
-          if (statBonus > 0n) {
-            if (output.armorClassBonus > 0n) {
-              ctx.db.item_affix.insert({
-                id: 0n,
-                itemInstanceId: newInstance.id,
-                affixType: 'implicit',
-                affixKey: 'craft_quality_ac',
-                affixName: 'Quality',
-                statKey: 'armorClassBonus',
-                magnitude: statBonus,
-              });
-            }
-            if (output.weaponBaseDamage > 0n) {
-              ctx.db.item_affix.insert({
-                id: 0n,
-                itemInstanceId: newInstance.id,
-                affixType: 'implicit',
-                affixKey: 'craft_quality_dmg',
-                affixName: 'Quality',
-                statKey: 'weaponBaseDamage',
-                magnitude: statBonus,
-              });
-              ctx.db.item_affix.insert({
-                id: 0n,
-                itemInstanceId: newInstance.id,
-                affixType: 'implicit',
-                affixKey: 'craft_quality_dps',
-                affixName: 'Quality',
-                statKey: 'weaponDps',
-                magnitude: statBonus,
-              });
-            }
-          }
-
-          ctx.db.item_instance.id.update({
-            ...newInstance,
-            qualityTier,
-            craftQuality,
-            displayName: appliedAffixes.length > 0 ? craftedDisplayName : undefined,
-          });
-        }
-      }
-
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'reward',
-        `You craft ${craftedDisplayName}.`
-      );
-    }
+  // A new reducer, because reducer arguments are positional: adding a count to craft_recipe would
+  // break every client built on the old bindings, which keep calling craft_recipe for one.
+  spacetimedb.reducer(
+    'craft_recipe_count',
+    {
+      characterId: t.u64(),
+      recipeTemplateId: t.u64(),
+      count: t.u64(),
+      catalystTemplateId: t.u64().optional(),
+      modifier1TemplateId: t.u64().optional(),
+      modifier2TemplateId: t.u64().optional(),
+      modifier3TemplateId: t.u64().optional(),
+    },
+    (ctx, args) => craftBatch(ctx, args, args.count)
   );
 
   spacetimedb.reducer(
