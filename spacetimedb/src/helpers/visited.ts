@@ -9,18 +9,31 @@
 // spawn and the backfill (no origin) never touch an existing row.
 // ============================================================================
 
-/** The character's visited row for a place, or undefined. */
+/**
+ * Every visited row of the character for a place, lowest id first, read through the by_character
+ * index (no table scan). There should be at most one; see markLocationVisited.
+ */
+function visitedRowsFor(ctx: any, characterId: bigint, locationId: bigint): any[] {
+  const rows = [...ctx.db.visited_location.by_character.filter(characterId)].filter(
+    (row: any) => row.locationId === locationId,
+  );
+  rows.sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return rows;
+}
+
+/** The character's visited row for a place (the lowest-id one if duplicates exist), or undefined. */
 export function visitedRowFor(ctx: any, characterId: bigint, locationId: bigint): any | undefined {
-  for (const row of ctx.db.visited_location.by_character.filter(characterId)) {
-    if (row.locationId === locationId) return row;
-  }
-  return undefined;
+  return visitedRowsFor(ctx, characterId, locationId)[0];
 }
 
 /**
  * Record that the character has stood in a place. Inserts the row when missing; when it exists,
  * updates only fromLocationId and only when a different origin is given. locationId 0n (no place)
  * is ignored.
+ *
+ * This is the only writer that inserts visited_location rows (a source test pins that), and it
+ * keeps one row per (character, place): the table has no composite unique key, so any duplicate
+ * found here is deleted, keeping the lowest-id (first) row.
  */
 export function markLocationVisited(
   ctx: any,
@@ -29,7 +42,10 @@ export function markLocationVisited(
   fromLocationId?: bigint,
 ): void {
   if (locationId === 0n) return;
-  const existing = visitedRowFor(ctx, characterId, locationId);
+  const [existing, ...duplicates] = visitedRowsFor(ctx, characterId, locationId);
+  for (const duplicate of duplicates) {
+    ctx.db.visited_location.id.delete(duplicate.id);
+  }
   if (!existing) {
     ctx.db.visited_location.insert({
       id: 0n,

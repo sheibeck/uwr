@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+// @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { createMockDb } from './test-utils';
 import { markLocationVisited, visitedRowFor } from './visited';
 
@@ -89,5 +91,43 @@ describe('visitedRowFor', () => {
     expect(visitedRowFor(ctx, 1n, 10n)).toMatchObject({ characterId: 1n, locationId: 10n });
     expect(visitedRowFor(ctx, 1n, 11n)).toBeUndefined();
     expect(visitedRowFor(ctx, 2n, 10n)).toBeUndefined();
+  });
+});
+
+describe('one visited row per character and place (review IN-03)', () => {
+  it('markLocationVisited deletes duplicate rows for the pair, keeping the lowest-id row', () => {
+    const ctx = ctxWith([
+      { id: 5n, characterId: 1n, locationId: 10n, firstVisitedAt: T2, fromLocationId: 8n },
+      { id: 3n, characterId: 1n, locationId: 10n, firstVisitedAt: T1, fromLocationId: 9n },
+      { id: 4n, characterId: 1n, locationId: 11n, firstVisitedAt: T1 },
+      { id: 6n, characterId: 2n, locationId: 10n, firstVisitedAt: T1 },
+    ]);
+    markLocationVisited(ctx, 1n, 10n);
+    expect(rowsOf(ctx).map((r) => r.id).sort()).toEqual([3n, 4n, 6n]);
+    expect(visitedRowFor(ctx, 1n, 10n)).toMatchObject({ id: 3n, fromLocationId: 9n });
+  });
+
+  it('visitedRowFor returns the lowest-id row when duplicates exist', () => {
+    const ctx = ctxWith([
+      { id: 5n, characterId: 1n, locationId: 10n, firstVisitedAt: T2 },
+      { id: 3n, characterId: 1n, locationId: 10n, firstVisitedAt: T1 },
+    ]);
+    expect(visitedRowFor(ctx, 1n, 10n).id).toBe(3n);
+  });
+
+  it('no server source outside helpers/visited.ts inserts visited_location rows', () => {
+    const root = new URL('../', import.meta.url);
+    const files: string[] = [];
+    const walk = (dir: URL) => {
+      for (const name of readdirSync(dir)) {
+        const child = new URL(name, dir);
+        if (statSync(child).isDirectory()) walk(new URL(`${name}/`, dir));
+        else if (name.endsWith('.ts') && !name.endsWith('.test.ts')) files.push(child.href);
+      }
+    };
+    walk(root);
+    expect(files.length).toBeGreaterThan(50);
+    const writers = files.filter((href) => /visited_location\.insert\(/.test(readFileSync(new URL(href), 'utf-8')));
+    expect(writers.map((href) => href.slice(root.href.length))).toEqual(['helpers/visited.ts']);
   });
 });
