@@ -1,5 +1,5 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, MAX_CRAFT_COUNT, salvageMaterialYield, salvageReagentDefs, SALVAGE_REAGENT_CHANCE_PCT } from '../data/crafting_rules';
+import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT } from '../data/crafting_rules';
 import { writeActionResult } from '../helpers/action_result';
 import type { ResultLine } from '../data/action_result';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
@@ -450,55 +450,75 @@ export const registerItemCraftingReducers = (deps: any) => {
     const itemName = instance.displayName ?? template.name;
     const tier = template.tier ?? 1n;
 
-    // The recipe that makes this item, if any: salvage may never return more than it consumed.
-    const matchingRecipe = [...ctx.db.recipe_template.iter()].find(
-      (r) => r.outputTemplateId === instance.templateId
-    );
+    // Every recipe that makes this item, lowest id first. The first is the one the components and
+    // the recipe scroll come from; all of them cap the amounts.
+    const makingRecipes = [...ctx.db.recipe_template.iter()]
+      .filter((r: any) => r.outputTemplateId === instance.templateId)
+      .sort((x: any, y: any) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+    const matchingRecipe = makingRecipes[0];
 
-    // --- Material yield ---
-    // The shared rule (data/crafting_rules.ts salvageMaterialYield) gives the tier table count, then
-    // two caps keep salvage from beating the craft:
-    //   - value: the materials returned are never worth more than the item (vendorValue), and
-    //   - recipe: never more of a material than the recipe consumed of it.
-    // Without them a crafted Void Crystal Pendant (2 Void Crystal in) paid back 3 Void Crystal.
-    // The client preview uses the same rule, so what it names is what the server gives.
+    // --- Components: a chance at a smaller return, never a guaranteed one ---
+    // Owner, 2026-10-07: "Salvaging should always return less materials. A salvage should never return
+    // enough parts to just infinitely remake it over and over." and "Salvage should never be a guaranteed
+    // return. Just a chance for some lesser amount of some components. Rare components have rarer chance
+    // to be returned." The shared rule (data/crafting_rules.ts salvageComponents) names what can come
+    // back (the inputs of the recipe that makes the item, else its slot material), at half the amount
+    // and strictly below what every recipe consumes, so even full luck loses material. rollSalvage rolls
+    // each component on its own from a seed of the server timestamp and the instance and character ids
+    // (no source of chance outside it). The client preview calls the same rule.
     const resultLines: ResultLine[] = [];
+    const recipeParts = makingRecipes.map((r: any) => {
+      const parts: { templateId: bigint; name: string; count: bigint; vendorValue: bigint }[] = [];
+      const reqs: Array<[bigint | undefined | null, bigint | undefined | null]> = [
+        [r.req1TemplateId, r.req1Count],
+        [r.req2TemplateId, r.req2Count],
+        [r.req3TemplateId, r.req3Count],
+      ];
+      for (const [partId, count] of reqs) {
+        if (partId === undefined || partId === null) continue;
+        const partTemplate = ctx.db.item_template.id.find(partId);
+        if (!partTemplate) continue;
+        parts.push({
+          templateId: partTemplate.id,
+          name: partTemplate.name,
+          count: count ?? 0n,
+          vendorValue: partTemplate.vendorValue ?? 0n,
+        });
+      }
+      return { id: r.id, outputCount: r.outputCount, parts };
+    });
     const materialName = getMaterialForSalvage(template.slot, template.armorType, tier);
     const materialTemplate = materialName ? findItemTemplateByName(ctx, materialName) : null;
-    let recipeConsumed = 0n;
-    if (matchingRecipe && materialTemplate) {
-      if (matchingRecipe.req1TemplateId === materialTemplate.id) recipeConsumed += matchingRecipe.req1Count ?? 0n;
-      if (matchingRecipe.req2TemplateId === materialTemplate.id) recipeConsumed += matchingRecipe.req2Count ?? 0n;
-      if (matchingRecipe.req3TemplateId === materialTemplate.id) recipeConsumed += matchingRecipe.req3Count ?? 0n;
-    }
-    const materialYield = salvageMaterialYield({
+    const components = salvageComponents({
       slot: template.slot,
       armorType: template.armorType,
       tier,
       itemValue: template.vendorValue ?? 0n,
-      material: materialTemplate
-        ? { name: materialTemplate.name, vendorValue: materialTemplate.vendorValue ?? 0n }
+      recipes: recipeParts,
+      slotMaterial: materialTemplate
+        ? { templateId: materialTemplate.id, name: materialTemplate.name, vendorValue: materialTemplate.vendorValue ?? 0n }
         : null,
-      recipeConsumed,
     });
-    if (materialYield && materialTemplate) {
-      if (materialYield.count > 0n) {
-        addItemToInventory(ctx, character.id, materialTemplate.id, materialYield.count);
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-          `You salvaged ${itemName} and received ${materialYield.count}x ${materialTemplate.name}.`);
-        resultLines.push({
-          kind: 'received',
-          templateId: materialTemplate.id,
-          name: materialTemplate.name,
-          quantity: materialYield.count,
-          total: 0n,
-          instanceId: null,
-        });
-      } else {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-          `You salvaged ${itemName}, but nothing usable was left.`);
-      }
+    const returned = rollSalvage(
+      components,
+      salvageSeed(ctx.timestamp.microsSinceUnixEpoch, instance.id, character.id)
+    );
+    const receivedNames: string[] = [];
+    for (const component of returned) {
+      if (component.templateId === null) continue;
+      addItemToInventory(ctx, character.id, component.templateId, component.amount);
+      receivedNames.push(`${component.amount}x ${component.name}`);
+      resultLines.push({
+        kind: 'received',
+        templateId: component.templateId,
+        name: component.name,
+        quantity: component.amount,
+        total: 0n,
+        instanceId: null,
+      });
     }
+    // The feed's main line is written once the bonus and the scroll are known (below).
+    const feedLines: string[] = [];
 
     // --- Bonus modifier reagent yield (SALVAGE_REAGENT_CHANCE_PCT, affix-constrained) ---
     // salvageReagentDefs keeps the CRAFTING_MODIFIER_DEFS whose statKey matches one of this item's
@@ -514,8 +534,7 @@ export const registerItemCraftingReducers = (deps: any) => {
         const modifierTemplate = findItemTemplateByName(ctx, modDef.name);
         if (modifierTemplate) {
           addItemToInventory(ctx, character.id, modifierTemplate.id, 1n);
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-            `You also found 1x ${modDef.name} while salvaging.`);
+          feedLines.push(`You also found 1x ${modDef.name} while salvaging.`);
           resultLines.push({
             kind: 'bonus',
             templateId: modifierTemplate.id,
@@ -543,8 +562,7 @@ export const registerItemCraftingReducers = (deps: any) => {
         const scrollTemplate = findItemTemplateByName(ctx, `Scroll: ${matchingRecipe.name}`);
         if (scrollTemplate) {
           const scrollRow = addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
-            `You found a recipe: ${matchingRecipe.name}.`);
+          feedLines.push(`You found a recipe: ${matchingRecipe.name}.`);
           resultLines.push({
             kind: 'scroll',
             templateId: scrollTemplate.id,
@@ -556,6 +574,21 @@ export const registerItemCraftingReducers = (deps: any) => {
         }
       }
     }
+
+    // The feed, main line first: what came back, "You salvaged {item}." when only a bonus or a scroll did,
+    // or the nothing usable sentence when nothing at all did.
+    const listOf = (names: string[]): string =>
+      names.length <= 1 ? names.join('') : `${names.slice(0, names.length - 1).join(', ')} and ${names[names.length - 1]}`;
+    if (receivedNames.length > 0) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+        `You salvaged ${itemName} and received ${listOf(receivedNames)}.`);
+    } else if (feedLines.length > 0) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', `You salvaged ${itemName}.`);
+    } else {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
+        `You salvaged ${itemName}, but nothing usable was left.`);
+    }
+    for (const line of feedLines) appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', line);
 
     // Delete associated ItemAffix rows first
     for (const affix of ctx.db.item_affix.by_instance.filter(instance.id)) {

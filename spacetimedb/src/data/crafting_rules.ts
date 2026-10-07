@@ -592,47 +592,13 @@ export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>): bigint {
 }
 
 // ---------------------------------------------------------------------------
-// SALVAGE YIELD: one rule for salvage_item and the client preview
-// salvage_item calls these (plan 50-30), and the client values the material from MATERIAL_DEFS,
-// the same vendor value helpers/items.ts upserts into the material's item template.
+// SALVAGE: one rule for salvage_item and the client preview
+// salvage_item calls these, and the client values the material from MATERIAL_DEFS, the same vendor
+// value helpers/items.ts upserts into the material's item template.
 // ---------------------------------------------------------------------------
 
 /** The chance, in percent, that a salvage also yields one reagent the item's affixes could give. */
 export const SALVAGE_REAGENT_CHANCE_PCT = 12n;
-
-export interface SalvageYieldInput {
-  slot: string;
-  armorType?: string | null;
-  /** The item template tier; a missing tier counts as 1n. */
-  tier?: bigint | null;
-  /** The item template's vendor value. */
-  itemValue?: bigint | null;
-  /** The item template of the salvage material, or null when none exists. */
-  material: { name: string; vendorValue?: bigint | null } | null;
-  /** How much of that material the recipe that makes the item consumes (0n when no recipe). */
-  recipeConsumed?: bigint | null;
-}
-
-/**
- * The guaranteed salvage material: the tier table count, capped by item value over material value
- * (salvage never pays back more than the item is worth) and by what the recipe consumed of it
- * (never more than the craft put in). Returns null when the slot has no salvage material or no
- * material template exists; a count of 0n means nothing usable was left.
- */
-export function salvageMaterialYield(input: SalvageYieldInput): { name: string; count: bigint } | null {
-  const tier = input.tier ?? 1n;
-  const name = getMaterialForSalvage(input.slot, input.armorType ?? undefined, tier);
-  if (!name || !input.material) return null;
-  let count: bigint = SALVAGE_YIELD_BY_TIER[Number(tier)] ?? 2n;
-  const materialValue = input.material.vendorValue ?? 0n;
-  if (materialValue > 0n) {
-    const byValue = (input.itemValue ?? 0n) / materialValue;
-    if (byValue < count) count = byValue;
-  }
-  const consumed = input.recipeConsumed ?? 0n;
-  if (consumed > 0n && consumed < count) count = consumed;
-  return { name, count };
-}
 
 // ---------------------------------------------------------------------------
 // SALVAGE: a chance at a smaller return, never a guaranteed one; one rule for salvage_item and the

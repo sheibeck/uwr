@@ -3,9 +3,11 @@
  * research_recipes are captured from index.ts and run on the strict mock db. Checks:
  *   - an equipped item is refused with 'Unequip item first' before any write (T-50-127);
  *   - a salvage writes the character's action_result row from what the server actually granted:
- *     'received' for the guaranteed material, 'bonus' for a reagent, 'scroll' for a recipe scroll,
- *     and the bonus and scroll lines exist only when the server granted them (T-50-128);
- *   - salvage_item grants exactly what salvageMaterialYield says (T-50-126);
+ *     'received' for each component that came back, 'bonus' for a reagent, 'scroll' for a recipe
+ *     scroll, and the bonus and scroll lines exist only when the server granted them (T-50-128);
+ *   - salvage_item is a chance at a smaller return, never a guaranteed one (Plan 50-40, owner
+ *     2026-10-07): it grants exactly what rollSalvage says for salvageComponents and the seed from the
+ *     timestamp, the instance and the character (T-50-126);
  *   - Discover recipes writes kind 'discover' with one 'recipe' line per find, none when nothing is
  *     new, and no row without a station.
  */
@@ -15,9 +17,13 @@ import { createMockCtx } from '../helpers/test-utils';
 import {
   CRAFTING_MODIFIER_DEFS,
   SALVAGE_REAGENT_CHANCE_PCT,
-  salvageMaterialYield,
+  getMaterialForSalvage,
+  rollSalvage,
+  salvageComponents,
   salvageReagentDefs,
+  salvageSeed,
 } from '../data/crafting_rules';
+import type { SalvageComponent } from '../data/crafting_rules';
 import { decodeResultLines } from '../data/action_result';
 import { INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE, statOffset } from '../data/combat_scaling';
 
@@ -208,14 +214,74 @@ const setTs = (ctx: any, ts: bigint) => {
 // A timestamp whose reagent roll, (ts + instanceId * 13) % 100, equals `roll`.
 const tsForReagentRoll = (instanceId: bigint, roll: bigint, base = T0 + 5_000_000n) =>
   base + ((100n + roll - ((base + instanceId * 13n) % 100n)) % 100n);
-// A timestamp whose scroll roll, (ts + characterId) % 100, equals `roll`.
-const tsForScrollRoll = (characterId: bigint, roll: bigint, base = T0 + 5_000_000n) =>
-  base + ((100n + roll - ((base + characterId) % 100n)) % 100n);
 
 const bag = (ctx: any, templateId: bigint): bigint =>
   rows(ctx, 'item_instance')
     .filter((i) => i.templateId === templateId && !i.equippedSlot)
     .reduce((sum, i) => sum + (i.quantity ?? 1n), 0n);
+
+// What the shared rule says a salvage of `instanceTemplateId` can return, built from the same rows the
+// handler reads: every recipe that outputs the template, else the slot material.
+function componentsOf(ctx: any, instanceTemplateId = CHEST): SalvageComponent[] {
+  const template = rows(ctx, 'item_template').find((t) => t.id === instanceTemplateId);
+  const byId = (id: bigint | undefined | null) =>
+    id === undefined || id === null ? undefined : rows(ctx, 'item_template').find((t) => t.id === id);
+  const recipes = rows(ctx, 'recipe_template')
+    .filter((r) => r.outputTemplateId === instanceTemplateId)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((r) => ({
+      id: r.id,
+      outputCount: r.outputCount,
+      parts: [
+        [r.req1TemplateId, r.req1Count],
+        [r.req2TemplateId, r.req2Count],
+        [r.req3TemplateId, r.req3Count],
+      ]
+        .map(([id, count]) => ({ part: byId(id as bigint | undefined), count: count as bigint | undefined }))
+        .filter((x) => x.part !== undefined)
+        .map((x) => ({ templateId: x.part.id, name: x.part.name, count: x.count ?? 0n, vendorValue: x.part.vendorValue })),
+    }));
+  const materialName = getMaterialForSalvage(template.slot, template.armorType, template.tier ?? 1n);
+  const material = materialName ? rows(ctx, 'item_template').find((t) => t.name === materialName) : undefined;
+  return salvageComponents({
+    slot: template.slot,
+    armorType: template.armorType,
+    tier: template.tier ?? 1n,
+    itemValue: template.vendorValue ?? 0n,
+    recipes,
+    slotMaterial: material ? { templateId: material.id, name: material.name, vendorValue: material.vendorValue } : null,
+  });
+}
+
+type RollWant = 'hit' | 'miss' | bigint;
+const rollOk = (want: RollWant, roll: bigint, chance: bigint) =>
+  want === 'hit' ? roll < chance : want === 'miss' ? roll >= chance : roll === want;
+
+// A timestamp from T0 + 5_000_000 upward whose component outcome matches `comps` and whose reagent and
+// scroll rolls match (the reagent roll misses by default; the scroll roll is free unless named), so a
+// test names the outcome it wants and the real handler is checked against the shared rule instead of a
+// hand-computed one.
+function tsWhere(
+  ctx: any,
+  want: { comps?: (returned: SalvageComponent[]) => boolean; reagent?: RollWant; scroll?: RollWant | 'any' },
+  instanceId = INSTANCE,
+  characterId = 1n,
+): bigint {
+  const components = componentsOf(ctx);
+  const reagent = want.reagent ?? 'miss';
+  const scroll = want.scroll ?? 'any';
+  for (let k = 0n; k < 20000n; k += 1n) {
+    const ts = T0 + 5_000_000n + k;
+    const returned = rollSalvage(components, salvageSeed(ts, instanceId, characterId));
+    if (want.comps && !want.comps(returned)) continue;
+    if (!rollOk(reagent, (ts + instanceId * 13n) % 100n, SALVAGE_REAGENT_CHANCE_PCT)) continue;
+    if (scroll !== 'any' && !rollOk(scroll, (ts + characterId) % 100n, SCROLL_CHANCE)) continue;
+    return ts;
+  }
+  throw new Error('tsWhere: no timestamp matches the wanted outcome');
+}
+const hit = (r: SalvageComponent[]) => r.length > 0;
+const none = (r: SalvageComponent[]) => r.length === 0;
 
 const salvageIt = (ctx: any, id = INSTANCE) => salvage(ctx, { characterId: 1n, itemInstanceId: id });
 const resultOf = (ctx: any) => {
@@ -250,23 +316,18 @@ describe('salvage_item refuses an equipped item', () => {
   });
 });
 
-describe('salvage_item result row: the guaranteed material', () => {
+describe('salvage_item result row: the components that came back', () => {
   it('writes one received line with the bag total and the item facts', () => {
     const ctx = newCtx({ instances: [instance(), stack(501n, HIDE, 3n)] });
+    // A tier 1 cloth chest no recipe makes: one possible component, Rough Hide at half the old count (1)
+    // at 50%. Pick a timestamp where the shared rule says it comes back.
+    expect(componentsOf(ctx)).toEqual([{ templateId: HIDE, name: 'Rough Hide', amount: 1n, chancePct: 50n }]);
+    setTs(ctx, tsWhere(ctx, { comps: hit }));
     salvageIt(ctx);
-    const expected = salvageMaterialYield({
-      slot: 'chest',
-      armorType: 'cloth',
-      tier: 1n,
-      itemValue: 20n,
-      material: { name: 'Rough Hide', vendorValue: 2n },
-      recipeConsumed: 0n,
-    })!;
-    expect(expected.count).toBe(2n);
-    expect(bag(ctx, HIDE)).toBe(3n + expected.count);
+    expect(bag(ctx, HIDE)).toBe(4n);
     expect(rows(ctx, 'item_instance').some((i) => i.id === INSTANCE)).toBe(false);
     expect(rows(ctx, 'item_affix')).toHaveLength(0);
-    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 2x Rough Hide.']);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
     expect(rows(ctx, 'event_private')[0].kind).toBe('reward');
 
     const { row, lines } = resultOf(ctx);
@@ -282,7 +343,7 @@ describe('salvage_item result row: the guaranteed material', () => {
     expect(row.recipeTemplateId).toBeUndefined();
     expect(row.craftCount).toBe(0n);
     expect(lines).toEqual([
-      { kind: 'received', templateId: HIDE, name: 'Rough Hide', quantity: 2n, total: 5n, instanceId: null },
+      { kind: 'received', templateId: HIDE, name: 'Rough Hide', quantity: 1n, total: 4n, instanceId: null },
     ]);
   });
 
@@ -290,12 +351,126 @@ describe('salvage_item result row: the guaranteed material', () => {
     const ctx = newCtx({
       instances: [instance({ displayName: 'Frayed Robe of Strength', qualityTier: undefined, craftQuality: undefined })],
     });
+    setTs(ctx, tsWhere(ctx, { comps: hit }));
     salvageIt(ctx);
     const { row } = resultOf(ctx);
     expect(row.itemName).toBe('Frayed Robe of Strength');
     expect(row.rarity).toBe('uncommon');
     expect(row.craftQuality).toBeUndefined();
-    expect(messages(ctx)[0]).toBe('You salvaged Frayed Robe of Strength and received 2x Rough Hide.');
+    expect(messages(ctx)[0]).toBe('You salvaged Frayed Robe of Strength and received 1x Rough Hide.');
+  });
+
+  it('a crafted chest (Rough Hide x3 and Copper Ore x1) gives back 1 Rough Hide at a hit and never Copper Ore', () => {
+    const ctx = newCtx({
+      recipes: [chestRecipe()],
+      affixes: [{ id: 1n, itemInstanceId: INSTANCE, affixType: 'implicit', affixKey: 'q', affixName: 'Quality', statKey: 'armorClassBonus', magnitude: 1n }],
+    });
+    expect(componentsOf(ctx)).toEqual([{ templateId: HIDE, name: 'Rough Hide', amount: 1n, chancePct: 50n }]);
+    setTs(ctx, tsWhere(ctx, { comps: hit }));
+    salvageIt(ctx);
+    expect(bag(ctx, HIDE)).toBe(1n);
+    expect(bag(ctx, COPPER)).toBe(0n);
+    expect(rows(ctx, 'item_instance').some((i) => i.id === INSTANCE)).toBe(false);
+    expect(rows(ctx, 'item_affix')).toHaveLength(0);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
+    const { lines } = resultOf(ctx);
+    expect(lines).toEqual([
+      { kind: 'received', templateId: HIDE, name: 'Rough Hide', quantity: 1n, total: 1n, instanceId: null },
+    ]);
+  });
+
+  it('a crafted chest at a missing roll returns nothing: no lines and the nothing usable line', () => {
+    const ctx = newCtx({
+      recipes: [chestRecipe()],
+      affixes: [{ id: 1n, itemInstanceId: INSTANCE, affixType: 'implicit', affixKey: 'q', affixName: 'Quality', statKey: 'armorClassBonus', magnitude: 1n }],
+    });
+    setTs(ctx, tsWhere(ctx, { comps: none }));
+    salvageIt(ctx);
+    expect(bag(ctx, HIDE)).toBe(0n);
+    expect(bag(ctx, COPPER)).toBe(0n);
+    expect(rows(ctx, 'item_instance').some((i) => i.id === INSTANCE)).toBe(false);
+    expect(rows(ctx, 'item_affix')).toHaveLength(0);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe, but nothing usable was left.']);
+    const { row, lines } = resultOf(ctx);
+    expect(row.kind).toBe('salvage');
+    expect(lines).toEqual([]);
+  });
+
+  it('a recipe of Rough Hide x1 and Copper Ore x1 (both req 1) never returns a material', () => {
+    // Owner, 2026-10-07: "A salvage should never return enough parts to just infinitely remake it over
+    // and over." One unit in means none back, whatever the roll.
+    for (let k = 0n; k < 300n; k += 1n) {
+      const ctx = newCtx({ recipes: [chestRecipe({ req1Count: 1n })] });
+      setTs(ctx, T0 + 5_000_000n + k);
+      salvageIt(ctx);
+      expect(bag(ctx, HIDE), `ts +${k}`).toBe(0n);
+      expect(bag(ctx, COPPER), `ts +${k}`).toBe(0n);
+      expect(resultOf(ctx).lines.filter((l) => l.kind === 'received')).toEqual([]);
+    }
+  });
+
+  it('Rough Hide x2 returns 1 at a hit', () => {
+    const ctx = newCtx({ recipes: [chestRecipe({ req1Count: 2n })] });
+    expect(componentsOf(ctx).map((c) => [c.name, c.amount])).toEqual([['Rough Hide', 1n]]);
+    setTs(ctx, tsWhere(ctx, { comps: hit }));
+    salvageIt(ctx);
+    expect(bag(ctx, HIDE)).toBe(1n);
+  });
+
+  it('a tier 3 plate chest no recipe makes has one component: Darksteel Ore at 10%', () => {
+    const ctx = newCtx({
+      templates: [
+        ...baseTemplates().filter((t) => t.id !== CHEST),
+        gearTemplate({ armorType: 'plate', tier: 3n, vendorValue: 100n }),
+      ],
+    });
+    expect(componentsOf(ctx)).toEqual([{ templateId: 71n, name: 'Darksteel Ore', amount: 1n, chancePct: 10n }]);
+    setTs(ctx, tsWhere(ctx, { comps: hit }));
+    salvageIt(ctx);
+    expect(bag(ctx, 71n)).toBe(1n);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Darksteel Ore.']);
+  });
+
+  it('over 400 fresh salvages of the crafted chest about half return Rough Hide, and some return nothing', () => {
+    let returned = 0;
+    let nothing = 0;
+    for (let k = 0n; k < 400n; k += 1n) {
+      const ctx = newCtx({ recipes: [chestRecipe()] });
+      setTs(ctx, T0 + 5_000_000n + k);
+      salvageIt(ctx);
+      if (bag(ctx, HIDE) > 0n) returned += 1;
+      else nothing += 1;
+      expect(bag(ctx, COPPER)).toBe(0n);
+    }
+    expect(returned / 400).toBeGreaterThan(0.4);
+    expect(returned / 400).toBeLessThan(0.6);
+    expect(nothing).toBeGreaterThan(0);
+  });
+
+  it('two recipes make the chest: the components follow the lowest id', () => {
+    const ctx = newCtx({
+      templates: [
+        ...baseTemplates(),
+        tpl(SCROLL, 'Scroll: Frayed Robe Pattern', { slot: 'consumable', stackable: true }),
+        tpl(301n, 'Scroll: Other Pattern', { slot: 'consumable', stackable: true }),
+      ],
+      recipes: [
+        chestRecipe({ id: 901n, name: 'Other Pattern', req1Count: 3n, req2TemplateId: undefined, req2Count: undefined }),
+        chestRecipe({ id: 900n, name: 'Frayed Robe Pattern', req1Count: 2n }),
+      ],
+    });
+    expect(componentsOf(ctx).map((c) => [c.name, c.amount])).toEqual([['Rough Hide', 1n]]);
+    // The scroll is the lowest recipe's, never the other one.
+    setTs(ctx, tsWhere(ctx, { comps: hit, scroll: 'hit' }));
+    salvageIt(ctx);
+    expect(bag(ctx, HIDE)).toBe(1n);
+    expect(bag(ctx, COPPER)).toBe(0n);
+    expect(bag(ctx, SCROLL)).toBe(1n);
+    expect(bag(ctx, 301n)).toBe(0n);
+    expect(messages(ctx)).toEqual([
+      'You salvaged Frayed Robe and received 1x Rough Hide.',
+      'You found a recipe: Frayed Robe Pattern.',
+    ]);
   });
 
   it('nothing usable: no received line, the old feed line, and still a row', () => {
@@ -319,7 +494,8 @@ describe('salvage_item result row: the guaranteed material', () => {
     });
     salvageIt(ctx);
     expect(rows(ctx, 'item_instance')).toHaveLength(0);
-    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    // Nothing at all came back: the feed says so, as for any empty salvage.
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe, but nothing usable was left.']);
     const { lines } = resultOf(ctx);
     expect(lines).toEqual([]);
   });
@@ -349,13 +525,13 @@ describe('salvage_item result row: the reagent bonus', () => {
 
   it('a hit under the chance adds a bonus line and the reagent', () => {
     const ctx = newCtx({ instances: [instance(), stack(501n, reagentId('Glowing Stone'), 2n)], affixes: [suffix(1n, 'strBonus')] });
-    const ts = tsForReagentRoll(INSTANCE, SALVAGE_REAGENT_CHANCE_PCT - 1n);
+    const ts = tsWhere(ctx, { comps: hit, reagent: 'hit' });
     expect((ts + INSTANCE * 13n) % 100n).toBeLessThan(SALVAGE_REAGENT_CHANCE_PCT);
     setTs(ctx, ts);
     salvageIt(ctx);
     expect(bag(ctx, reagentId('Glowing Stone'))).toBe(3n);
     expect(messages(ctx)).toEqual([
-      'You salvaged Frayed Robe and received 2x Rough Hide.',
+      'You salvaged Frayed Robe and received 1x Rough Hide.',
       'You also found 1x Glowing Stone while salvaging.',
     ]);
     const { lines } = resultOf(ctx);
@@ -387,21 +563,35 @@ describe('salvage_item result row: the reagent bonus', () => {
 
   it('a miss writes no bonus line and grants nothing', () => {
     const ctx = newCtx({ affixes: [suffix(1n, 'strBonus')] });
-    const ts = tsForReagentRoll(INSTANCE, SALVAGE_REAGENT_CHANCE_PCT);
+    const ts = tsWhere(ctx, { comps: hit, reagent: SALVAGE_REAGENT_CHANCE_PCT });
     expect((ts + INSTANCE * 13n) % 100n).toBe(SALVAGE_REAGENT_CHANCE_PCT);
     setTs(ctx, ts);
     salvageIt(ctx);
     expect(bag(ctx, reagentId('Glowing Stone'))).toBe(0n);
-    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 2x Rough Hide.']);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
     expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['received']);
   });
 
   it('only implicit affixes never give a bonus line, even on a roll of 0', () => {
     const ctx = newCtx({ affixes: [suffix(1n, 'armorClassBonus', 'implicit')] });
-    setTs(ctx, tsForReagentRoll(INSTANCE, 0n));
+    setTs(ctx, tsWhere(ctx, { comps: hit, reagent: 0n }));
     salvageIt(ctx);
     expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['received']);
-    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 2x Rough Hide.']);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
+  });
+
+  it('a component miss with a reagent hit: no received line, one bonus line, and the short main line', () => {
+    const ctx = newCtx({ recipes: [chestRecipe()], affixes: [suffix(1n, 'strBonus')] });
+    const ts = tsWhere(ctx, { comps: none, reagent: 'hit' });
+    setTs(ctx, ts);
+    salvageIt(ctx);
+    expect(bag(ctx, HIDE)).toBe(0n);
+    expect(bag(ctx, reagentId('Glowing Stone'))).toBe(1n);
+    expect(messages(ctx)).toEqual([
+      'You salvaged Frayed Robe.',
+      'You also found 1x Glowing Stone while salvaging.',
+    ]);
+    expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['bonus']);
   });
 });
 
@@ -414,13 +604,13 @@ describe('salvage_item result row: the recipe scroll', () => {
       recipes: [chestRecipe()],
       instances: [instance(), stack(501n, SCROLL, 1n)],
     });
-    const ts = tsForScrollRoll(1n, SCROLL_CHANCE - 1n);
+    const ts = tsWhere(ctx, { comps: hit, scroll: 'hit' });
     expect((ts + 1n) % 100n).toBeLessThan(SCROLL_CHANCE);
     setTs(ctx, ts);
     salvageIt(ctx);
-    // The recipe consumed 3 Rough Hide, so the cap is the table count 2: unchanged here.
+    // The recipe consumed 3 Rough Hide, so a hit returns 1.
     expect(messages(ctx)).toEqual([
-      'You salvaged Frayed Robe and received 2x Rough Hide.',
+      'You salvaged Frayed Robe and received 1x Rough Hide.',
       'You found a recipe: Frayed Robe Pattern.',
     ]);
     const scrollRow = rows(ctx, 'item_instance').find((i) => i.templateId === SCROLL)!;
@@ -439,79 +629,100 @@ describe('salvage_item result row: the recipe scroll', () => {
 
   it('a hit without a scroll template writes no scroll line and no extra feed line', () => {
     const ctx = newCtx({ recipes: [chestRecipe()] });
-    setTs(ctx, tsForScrollRoll(1n, 0n));
+    setTs(ctx, tsWhere(ctx, { comps: hit, scroll: 0n }));
     salvageIt(ctx);
-    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 2x Rough Hide.']);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
     expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['received']);
   });
 
   it('a roll at or above the chance writes no scroll line', () => {
     const ctx = newCtx({ templates: [...baseTemplates(), scrollTemplate()], recipes: [chestRecipe()] });
-    const ts = tsForScrollRoll(1n, SCROLL_CHANCE);
+    const ts = tsWhere(ctx, { comps: hit, scroll: SCROLL_CHANCE });
     setTs(ctx, ts);
     salvageIt(ctx);
     expect(bag(ctx, SCROLL)).toBe(0n);
     expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['received']);
   });
 
-  it('the recipe cap on the material still applies (recipe consumed 1 caps the yield at 1)', () => {
-    const ctx = newCtx({ recipes: [chestRecipe({ req1Count: 1n })] });
-    setTs(ctx, tsForScrollRoll(1n, 99n));
+  it('a scroll can drop even when no component comes back', () => {
+    const ctx = newCtx({ templates: [...baseTemplates(), scrollTemplate()], recipes: [chestRecipe()] });
+    setTs(ctx, tsWhere(ctx, { comps: none, scroll: 'hit' }));
     salvageIt(ctx);
-    expect(bag(ctx, HIDE)).toBe(1n);
-    expect(resultOf(ctx).lines[0]).toMatchObject({ kind: 'received', quantity: 1n, total: 1n });
+    expect(bag(ctx, HIDE)).toBe(0n);
+    expect(bag(ctx, SCROLL)).toBe(1n);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe.', 'You found a recipe: Frayed Robe Pattern.']);
+    expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['scroll']);
   });
 });
 
-describe('salvage_item grants exactly salvageMaterialYield', () => {
+describe('salvage_item grants exactly what rollSalvage says for salvageComponents', () => {
   const ARMOR_TYPES = ['cloth', 'leather', 'chain', 'plate'];
   const cases: Array<{ slot: string; armorType: string }> = [];
   for (const slot of ['chest', 'belt']) for (const armorType of ARMOR_TYPES) cases.push({ slot, armorType });
   for (const slot of ['mainHand', 'offHand', 'earrings', 'neck', 'cloak']) cases.push({ slot, armorType: 'none' });
 
-  it('matches for every slot, tier 1 to 3, item value and with or without a recipe', () => {
+  it('matches for every slot, tier 1 to 3, item value, recipe size and two timestamps', () => {
     let checked = 0;
+    let granted = 0;
     for (const { slot, armorType } of cases) {
       for (const tier of [1n, 2n, 3n]) {
         for (const itemValue of [1n, 5n, 100n]) {
-          for (const consumed of [0n, 1n]) {
-            const gear = tpl(CHEST, 'Parity Piece', { slot, armorType, tier, vendorValue: itemValue, stackable: false });
-            const materialName = salvageMaterialYield({
-              slot, armorType, tier, itemValue, material: { name: 'x', vendorValue: 0n }, recipeConsumed: 0n,
-            })!.name;
-            const material = MATERIALS.find((m) => m[1] === materialName)!;
-            // The recipe's req1 is the salvage material of this case.
-            const ctx = newCtx({
-              templates: [...baseTemplates().filter((t) => t.id !== CHEST), gear],
-              recipes:
-                consumed > 0n
-                  ? [chestRecipe({ req1TemplateId: material[0], req1Count: consumed, req2TemplateId: undefined, req2Count: undefined })]
-                  : [],
-            });
-            // A roll that misses the scroll and the reagent (no affixes, no scroll template anyway).
-            setTs(ctx, tsForScrollRoll(1n, 50n));
-            salvageIt(ctx);
-            const expected = salvageMaterialYield({
-              slot, armorType, tier, itemValue,
-              material: { name: material[1], vendorValue: material[2] },
-              recipeConsumed: consumed,
-            })!;
-            const label = `${slot}/${armorType}/t${tier}/v${itemValue}/c${consumed}`;
-            expect(bag(ctx, material[0]), label).toBe(expected.count);
-            const lines = resultOf(ctx).lines;
-            if (expected.count > 0n) {
-              expect(lines, label).toEqual([
-                { kind: 'received', templateId: material[0], name: material[1], quantity: expected.count, total: expected.count, instanceId: null },
-              ]);
-            } else {
-              expect(lines, label).toEqual([]);
+          const gear = tpl(CHEST, 'Parity Piece', { slot, armorType, tier, vendorValue: itemValue, stackable: false });
+          const materialName = getMaterialForSalvage(slot, armorType, tier)!;
+          const material = MATERIALS.find((m) => m[1] === materialName)!;
+          // req 0 means no recipe; else the recipe's req1 is the salvage material and req2 is Copper Ore x1.
+          for (const req of [0n, 1n, 2n, 3n]) {
+            for (const tsOffset of [5_000_000n, 5_000_037n]) {
+              const ctx = newCtx({
+                templates: [...baseTemplates().filter((t) => t.id !== CHEST), gear],
+                recipes: req > 0n ? [chestRecipe({ req1TemplateId: material[0], req1Count: req })] : [],
+              });
+              // Independent of the handler: the parts are named from the test's own tables.
+              const expectedComponents = salvageComponents({
+                slot,
+                armorType,
+                tier,
+                itemValue,
+                recipes:
+                  req > 0n
+                    ? [
+                        {
+                          id: 900n,
+                          outputCount: 1n,
+                          parts: [
+                            { templateId: material[0], name: material[1], count: req, vendorValue: material[2] },
+                            { templateId: COPPER, name: 'Copper Ore', count: 1n, vendorValue: 2n },
+                          ],
+                        },
+                      ]
+                    : [],
+                slotMaterial: { templateId: material[0], name: material[1], vendorValue: material[2] },
+              });
+              const ts = T0 + tsOffset;
+              const returned = rollSalvage(expectedComponents, salvageSeed(ts, INSTANCE, 1n));
+              setTs(ctx, ts);
+              salvageIt(ctx);
+              const label = `${slot}/${armorType}/t${tier}/v${itemValue}/req${req}/+${tsOffset}`;
+              for (const m of MATERIALS) {
+                const want = returned
+                  .filter((c) => c.templateId === m[0])
+                  .reduce((sum, c) => sum + c.amount, 0n);
+                expect(bag(ctx, m[0]), `${label} ${m[1]}`).toBe(want);
+              }
+              const lines = resultOf(ctx).lines;
+              expect(lines.map((l) => [l.templateId, l.quantity]), label).toEqual(
+                returned.map((c) => [c.templateId, c.amount]),
+              );
+              granted += returned.length;
+              checked += 1;
             }
-            checked += 1;
           }
         }
       }
     }
-    expect(checked).toBe(cases.length * 3 * 3 * 2);
+    expect(checked).toBe(cases.length * 3 * 3 * 4 * 2);
+    // The grid must exercise returns, not only misses.
+    expect(granted).toBeGreaterThan(50);
   });
 });
 

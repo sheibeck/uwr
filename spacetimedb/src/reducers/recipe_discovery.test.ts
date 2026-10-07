@@ -20,8 +20,13 @@ import {
   CRAFTING_MODIFIER_DEFS,
   ESSENCE_MAGNITUDE,
   MATERIAL_DEFS,
+  getMaterialForSalvage,
   getModifierMagnitude,
+  rollSalvage,
+  salvageComponents,
+  salvageSeed,
 } from '../data/crafting_rules';
+import type { SalvageComponent } from '../data/crafting_rules';
 import {
   ARMOR_FORMS,
   FOOD_FORMS,
@@ -219,6 +224,52 @@ const recipeByName = (ctx: any, name: string) => {
   const found = rows(ctx, 'recipe_template').find((r) => r.name === name);
   if (!found) throw new Error(`no recipe ${name}; have ${rows(ctx, 'recipe_template').map((r) => r.name).join(', ')}`);
   return found;
+};
+// What the shared salvage rule says a salvage of `templateId` can return, from the same rows the
+// handler reads: every recipe that outputs it (lowest id first), else the slot material.
+const salvageComponentsFor = (ctx: any, templateId: bigint): SalvageComponent[] => {
+  const template = rows(ctx, 'item_template').find((t) => t.id === templateId);
+  const byId = (id: bigint | undefined | null) =>
+    id === undefined || id === null ? undefined : rows(ctx, 'item_template').find((t) => t.id === id);
+  const recipes = rows(ctx, 'recipe_template')
+    .filter((r) => r.outputTemplateId === templateId)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((r) => ({
+      id: r.id,
+      outputCount: r.outputCount,
+      parts: [
+        [r.req1TemplateId, r.req1Count],
+        [r.req2TemplateId, r.req2Count],
+        [r.req3TemplateId, r.req3Count],
+      ]
+        .map(([id, count]) => ({ part: byId(id as bigint | undefined), count: count as bigint | undefined }))
+        .filter((x) => x.part !== undefined)
+        .map((x) => ({ templateId: x.part.id, name: x.part.name, count: x.count ?? 0n, vendorValue: x.part.vendorValue })),
+    }));
+  const name = getMaterialForSalvage(template.slot, template.armorType, template.tier ?? 1n);
+  const material = name ? rows(ctx, 'item_template').find((t) => t.name === name) : undefined;
+  return salvageComponents({
+    slot: template.slot,
+    armorType: template.armorType,
+    tier: template.tier ?? 1n,
+    itemValue: template.vendorValue ?? 0n,
+    recipes,
+    slotMaterial: material ? { templateId: material.id, name: material.name, vendorValue: material.vendorValue } : null,
+  });
+};
+// A salvage timestamp (from T0 + 5_000_000 up) where the shared rule says every component comes back
+// (`all`) or none does, for the instance and the character, set on the ctx.
+const rollSalvageAt = (ctx: any, instance: any, all: boolean, characterId = 1n): SalvageComponent[] => {
+  const components = salvageComponentsFor(ctx, instance.templateId);
+  for (let k = 0n; k < 20000n; k += 1n) {
+    const ts = T0 + 5_000_000n + k;
+    const returned = rollSalvage(components, salvageSeed(ts, instance.id, characterId));
+    if (all ? returned.length === components.length : returned.length === 0) {
+      ctx.timestamp = { microsSinceUnixEpoch: ts };
+      return returned;
+    }
+  }
+  throw new Error('rollSalvageAt: no timestamp matches');
 };
 const templateByName = (ctx: any, name: string) => rows(ctx, 'item_template').find((t) => t.name === name);
 const generatedTemplates = (ctx: any) => {
@@ -581,26 +632,50 @@ describe('a generated recipe crafts end to end', () => {
 });
 
 describe('salvaging a crafted piece is silent about scrolls', () => {
-  it('yields the tier 1 ore, deletes the instance and writes no debug line', () => {
+  // Iron Shard Dagger: Iron Shard x3 and Scrap Cloth x1. Salvage returns the recipe's own input at half
+  // (Iron Shard x1) at a 50% chance, never the old slot material (Copper Ore).
+  const crafted = () => {
     const ctx = newCtx();
     discover(ctx);
     const dagger = recipeByName(ctx, 'Iron Shard Dagger');
     craft(ctx, { characterId: 1n, recipeTemplateId: dagger.id });
     const made = rows(ctx, 'item_instance').find((i) => i.templateId === dagger.outputTemplateId)!;
+    return { ctx, made };
+  };
+
+  it('a hit returns 1 Iron Shard, deletes the instance and writes no debug line', () => {
+    const { ctx, made } = crafted();
+    expect(salvageComponentsFor(ctx, made.templateId).map((c) => [c.name, c.amount])).toEqual([['Iron Shard', 1n]]);
+    const shardsBefore = countOf(ctx, 1n, ID.shard);
     const before = lines(ctx).length;
-    // The scroll roll (T0 + 1) % 100 = 1 is under the chance 8 + (18 - 10) * 3, so the scroll branch runs.
+    // The scroll branch runs (the recipe is the item's), but a generated recipe has no scroll template.
+    rollSalvageAt(ctx, made, true);
     salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
     expect(rows(ctx, 'item_instance').some((i) => i.id === made.id)).toBe(false);
-    expect(countOf(ctx, 1n, ID.copper)).toBe(2n);
+    expect(countOf(ctx, 1n, ID.shard)).toBe(shardsBefore + 1n);
+    expect(countOf(ctx, 1n, ID.copper)).toBe(0n);
     const written = lines(ctx).slice(before);
-    expect(written).toEqual(['You salvaged Iron Shard Dagger and received 2x Copper Ore.']);
+    expect(written).toEqual(['You salvaged Iron Shard Dagger and received 1x Iron Shard.']);
     expect(rows(ctx, 'event_private').some((e) => e.message.includes('[Debug]'))).toBe(false);
+  });
+
+  it('a miss returns nothing and says so', () => {
+    const { ctx, made } = crafted();
+    const shardsBefore = countOf(ctx, 1n, ID.shard);
+    const before = lines(ctx).length;
+    rollSalvageAt(ctx, made, false);
+    salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+    expect(rows(ctx, 'item_instance').some((i) => i.id === made.id)).toBe(false);
+    expect(countOf(ctx, 1n, ID.shard)).toBe(shardsBefore);
+    expect(lines(ctx).slice(before)).toEqual(['You salvaged Iron Shard Dagger, but nothing usable was left.']);
   });
 });
 
-// CR-01 (iteration 2 review): salvage must never return more than the craft consumed or the item is
-// worth. Real salvage_item and craft_recipe handlers; no mocked pricing.
-describe('salvaging never beats crafting', () => {
+// CR-01 (iteration 2 review) and Plan 50-40 (owner 2026-10-07: "Salvaging should always return less
+// materials. A salvage should never return enough parts to just infinitely remake it over and over."):
+// even with every roll hitting, salvage returns strictly fewer units than the craft consumed and is
+// never worth more than the item. Real salvage_item and craft_recipe handlers; no mocked pricing.
+describe('salvaging returns strictly less than crafting took', () => {
   const T = {
     voidCrystal: 90n,
     shadowhide: 91n,
@@ -635,7 +710,7 @@ describe('salvaging never beats crafting', () => {
     ctx.timestamp = { microsSinceUnixEpoch: base + ((100n - ((base + instanceId * 13n) % 100n)) % 100n) };
   };
 
-  it('a crafted Void Crystal Pendant salvages to no more Void Crystal than it consumed', () => {
+  it('a crafted Void Crystal Pendant with every roll hitting gives back 1 Void Crystal (it took 2) and no secondary', () => {
     const ctx = newCtx({ bag: [[T.voidCrystal, 2n], [ID.cloth, 1n]], templates: richTemplates() });
     discover(ctx);
     const recipe = recipeByName(ctx, 'Void Crystal Pendant');
@@ -644,15 +719,17 @@ describe('salvaging never beats crafting', () => {
     craft(ctx, { characterId: 1n, recipeTemplateId: recipe.id });
     expect(countOf(ctx, 1n, T.voidCrystal)).toBe(0n);
     const made = rows(ctx, 'item_instance').find((i) => i.templateId === recipe.outputTemplateId)!;
+    const hits = rollSalvageAt(ctx, made, true);
+    expect(hits.map((c) => [c.name, c.amount])).toEqual([['Void Crystal', 1n]]);
     salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
-    expect(countOf(ctx, 1n, T.voidCrystal)).toBeLessThanOrEqual(2n);
-    expect(countOf(ctx, 1n, T.voidCrystal)).toBeLessThan(3n);
+    expect(countOf(ctx, 1n, T.voidCrystal)).toBe(1n);
+    expect(countOf(ctx, 1n, ID.cloth)).toBe(0n);
     // Never worth more than the item: the pendant is worth what its inputs were.
     expect(countOf(ctx, 1n, T.voidCrystal) * 10n).toBeLessThanOrEqual(valueOf(ctx, recipe.outputTemplateId));
     expect(rows(ctx, 'item_instance').some((i) => i.id === made.id)).toBe(false);
   });
 
-  it('a crafted tier 3 armor and weapon return at most what the recipe consumed', () => {
+  it('a crafted tier 3 armor and weapon each give back 1 of their primary (they took 3)', () => {
     const ctx = newCtx({
       bag: [[T.shadowhide, 3n], [ID.cloth, 1n], [T.darksteel, 3n], [ID.hide, 1n]],
       templates: richTemplates(),
@@ -664,12 +741,43 @@ describe('salvaging never beats crafting', () => {
       craft(ctx, { characterId: 1n, recipeTemplateId: recipe.id });
       expect(countOf(ctx, 1n, materialId)).toBe(0n);
       const made = rows(ctx, 'item_instance').find((i) => i.templateId === recipe.outputTemplateId)!;
+      rollSalvageAt(ctx, made, true);
       salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
-      expect(countOf(ctx, 1n, materialId), recipe.name).toBeLessThanOrEqual(recipe.req1Count);
+      expect(countOf(ctx, 1n, materialId), recipe.name).toBe(1n);
+      expect(countOf(ctx, 1n, materialId), recipe.name).toBeLessThan(recipe.req1Count);
       expect(countOf(ctx, 1n, materialId) * valueOf(ctx, materialId), recipe.name).toBeLessThanOrEqual(
         valueOf(ctx, recipe.outputTemplateId),
       );
     }
+  });
+
+  it('craft, then salvage with every roll hitting, loses material each loop and ends when craft refuses', () => {
+    const ctx = newCtx({ bag: [[T.darksteel, 9n], [ID.hide, 10n]], templates: richTemplates() });
+    discover(ctx);
+    const sword = recipeByName(ctx, 'Darksteel Sword');
+    expect(sword.req1Count).toBe(3n);
+    const units = () => countOf(ctx, 1n, T.darksteel) + countOf(ctx, 1n, ID.hide);
+    let last = units();
+    let loops = 0;
+    let refused = false;
+    for (let cycle = 0; cycle < 20; cycle++) {
+      craft(ctx, { characterId: 1n, recipeTemplateId: sword.id });
+      const made = rows(ctx, 'item_instance').find((i) => i.templateId === sword.outputTemplateId);
+      if (!made) {
+        refused = true;
+        break;
+      }
+      rollSalvageAt(ctx, made, true);
+      salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
+      const now = units();
+      expect(now, `loop ${cycle}`).toBeLessThan(last);
+      last = now;
+      loops += 1;
+    }
+    // 9 Darksteel Ore: each loop takes 3 and returns 1, so 4 swords, then the craft is refused.
+    expect(refused).toBe(true);
+    expect(loops).toBe(4);
+    expect(countOf(ctx, 1n, T.darksteel)).toBe(1n);
   });
 
   it('the implicit quality affix of a crafted armor gives no free reagent', () => {
@@ -745,6 +853,8 @@ describe('salvaging never beats crafting', () => {
       const made = rows(ctx, 'item_instance').find((i) => i.templateId === recipe.outputTemplateId)!;
       expect(made, recipe.name).toBeDefined();
       const afterCraft = bagValue(ctx);
+      // The best case for the player: every component comes back.
+      rollSalvageAt(ctx, made, true);
       salvage(ctx, { characterId: 1n, itemInstanceId: made.id });
       const afterSalvage = bagValue(ctx);
       const salvaged = afterSalvage - (afterCraft - valueOf(ctx, recipe.outputTemplateId));

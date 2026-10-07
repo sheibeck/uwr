@@ -22,7 +22,6 @@ import {
   rollSalvage,
   salvageComponentChance,
   salvageComponents,
-  salvageMaterialYield,
   salvageReagentDefs,
   salvageRoll,
   salvageSeed,
@@ -647,65 +646,20 @@ describe('primaryMaterialTier', () => {
   });
 });
 
-describe('salvage yield rules', () => {
-  const hide = { name: 'Rough Hide', vendorValue: 2n };
-
+describe('salvage reagent rules', () => {
   it('SALVAGE_REAGENT_CHANCE_PCT is 12n', () => {
     expect(SALVAGE_REAGENT_CHANCE_PCT).toBe(12n);
   });
 
-  it('a cloth chest at tier 1 yields the tier count of Rough Hide', () => {
-    expect(
-      salvageMaterialYield({ slot: 'chest', armorType: 'cloth', tier: 1n, itemValue: 100n, material: hide, recipeConsumed: 0n }),
-    ).toEqual({ name: 'Rough Hide', count: 2n });
-  });
-
-  it('is null with no slot material or no material template', () => {
-    expect(
-      salvageMaterialYield({ slot: 'ring', armorType: 'none', tier: 1n, itemValue: 100n, material: hide, recipeConsumed: 0n }),
-    ).toBeNull();
-    expect(
-      salvageMaterialYield({ slot: 'material', armorType: undefined, tier: 1n, itemValue: 100n, material: hide, recipeConsumed: 0n }),
-    ).toBeNull();
-    expect(
-      salvageMaterialYield({ slot: 'chest', armorType: 'cloth', tier: 1n, itemValue: 100n, material: null, recipeConsumed: 0n }),
-    ).toBeNull();
-  });
-
-  it('the value cap keeps the yield at or below itemValue / materialValue', () => {
-    const at = (itemValue: bigint) =>
-      salvageMaterialYield({ slot: 'chest', armorType: 'cloth', tier: 1n, itemValue, material: hide, recipeConsumed: 0n });
-    expect(at(3n)).toEqual({ name: 'Rough Hide', count: 1n });
-    expect(at(1n)).toEqual({ name: 'Rough Hide', count: 0n });
-  });
-
-  it('the recipe cap holds the yield at what the recipe consumed of that material', () => {
-    const at = (recipeConsumed: bigint) =>
-      salvageMaterialYield({ slot: 'chest', armorType: 'cloth', tier: 1n, itemValue: 100n, material: hide, recipeConsumed })?.count;
-    expect(at(1n)).toBe(1n);
-    expect(at(0n)).toBe(2n);
-    expect(at(2n)).toBe(2n);
-    expect(at(5n)).toBe(2n);
-  });
-
-  it('a missing tier counts as 1n and a tier above the table uses the 2n fallback', () => {
-    const iron = { name: 'Darksteel Ore', vendorValue: 8n };
-    expect(
-      salvageMaterialYield({ slot: 'mainHand', armorType: undefined, tier: undefined, itemValue: 100n, material: { name: 'Copper Ore', vendorValue: 2n }, recipeConsumed: 0n }),
-    ).toEqual({ name: 'Copper Ore', count: 2n });
-    expect(SALVAGE_YIELD_BY_TIER[3]).toBe(3n);
-    expect(
-      salvageMaterialYield({ slot: 'mainHand', armorType: undefined, tier: 3n, itemValue: 1000n, material: iron, recipeConsumed: 0n }),
-    ).toEqual({ name: 'Darksteel Ore', count: 3n });
-    expect(
-      salvageMaterialYield({ slot: 'mainHand', armorType: undefined, tier: 4n, itemValue: 1000n, material: iron, recipeConsumed: 0n }),
-    ).toEqual({ name: 'Darksteel Ore', count: 2n });
-  });
-
-  it('a zero-value material skips the value cap', () => {
-    expect(
-      salvageMaterialYield({ slot: 'chest', armorType: 'cloth', tier: 1n, itemValue: 0n, material: { name: 'Rough Hide', vendorValue: 0n }, recipeConsumed: 0n }),
-    ).toEqual({ name: 'Rough Hide', count: 2n });
+  it('the old tier counts (2, 2, 3) stay the base a non-craftable item halves', () => {
+    expect([SALVAGE_YIELD_BY_TIER[1], SALVAGE_YIELD_BY_TIER[2], SALVAGE_YIELD_BY_TIER[3]]).toEqual([2n, 2n, 3n]);
+    // A tier above the table uses the 2n fallback, a missing tier counts as 1: both halve to 1.
+    const material = { name: 'Darksteel Ore', vendorValue: 8n };
+    for (const tier of [undefined, 4n]) {
+      expect(
+        salvageComponents({ slot: 'mainHand', tier, itemValue: 1000n, recipes: [], slotMaterial: material }).map((c) => c.amount),
+      ).toEqual([1n]);
+    }
   });
 
   it('salvageReagentDefs keeps the defs of non-implicit affix stat keys, in def order, once each', () => {
