@@ -612,15 +612,6 @@ export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>, room?: Craft
 }
 
 // ---------------------------------------------------------------------------
-// SALVAGE: one rule for salvage_item and the client preview
-// salvage_item calls these, and the client values the material from MATERIAL_DEFS, the same vendor
-// value helpers/items.ts upserts into the material's item template.
-// ---------------------------------------------------------------------------
-
-/** The chance, in percent, that a salvage also yields one reagent the item's affixes could give. */
-export const SALVAGE_REAGENT_CHANCE_PCT = 12n;
-
-// ---------------------------------------------------------------------------
 // SALVAGE: a chance at a smaller return, never a guaranteed one; one rule for salvage_item and the
 // client preview (Plan 50-40).
 //
@@ -640,7 +631,12 @@ export const SALVAGE_REAGENT_CHANCE_PCT = 12n;
 // without new materials. The bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and the INT scroll are
 // separate rolls on the same seed at their own indexes (SALVAGE_REAGENT_ROLL_INDEX and
 // SALVAGE_SCROLL_ROLL_INDEX). Deterministic: the seed comes from the server timestamp and ids.
+// salvage_item calls these, and the client preview values the slot material from MATERIAL_DEFS, the
+// same vendor value helpers/items.ts upserts into the material's item template.
 // ---------------------------------------------------------------------------
+
+/** The chance, in percent, that a salvage also yields one reagent the item's affixes could give. */
+export const SALVAGE_REAGENT_CHANCE_PCT = 12n;
 
 /** The chance, in percent, that a component of material tier 1, 2 and 3 (and above) comes back. */
 export const SALVAGE_COMPONENT_CHANCE_PCT: Readonly<Record<number, bigint>> = {

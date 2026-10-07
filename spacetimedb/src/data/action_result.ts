@@ -22,7 +22,7 @@ export function isResultKind(value: unknown): value is ResultKind {
  * What one line of a result card means:
  * - used: a material, essence or reagent a craft consumed. quantity is the units, and total is the bag
  *   count after.
- * - received: the guaranteed salvage material (or the crafted item).
+ * - received: a salvage component that came back (a chance, never guaranteed).
  * - bonus: the salvage reagent bonus.
  * - scroll: a recipe scroll from salvage, with instanceId being the scroll's bag row.
  * - recipe: a recipe Discover found. templateId is its output template and name is the recipe name.
