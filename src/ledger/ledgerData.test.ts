@@ -6,6 +6,8 @@ import type { BindTableOptions } from '../net/bindTable';
 import { createLedgerData } from './ledgerData';
 import type { LedgerConn, LedgerDeps, LedgerInput } from './ledgerData';
 import type { LedgerQueries } from './queries';
+import { salvagePreview } from './salvagePreview';
+import type { ItemTemplate } from '../module_bindings/types';
 
 const REDUCER_NAMES = [
   'equipItem',
@@ -421,6 +423,76 @@ describe('createLedgerData: last result and output recipes', () => {
     expect(h.hub.outputRecipes.value.get(20n)?.id).toBe(50n);
     expect(h.hub.outputRecipes.value.get(5n)?.id).toBe(70n);
     expect(h.hub.outputRecipes.value.size).toBe(2);
+  });
+
+  // WR-03 (iteration 3): the default swap keeps the old output binding current and applied while a
+  // new key subscribes. A newly owned template is not covered yet, so it must not read as applied.
+  it('is not applied for a newly owned template while the output key swaps', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    const items = h.find('Q_ITEMS_7');
+    items.rows.value = [item(1n, 20n)];
+    items.applied.value = true;
+    const old = h.find('Q_OUTPUT_20');
+    old.rows.value = [{ id: 50n, outputTemplateId: 20n, req1TemplateId: 41n, req2TemplateId: 42n }];
+    old.applied.value = true;
+    expect(h.hub.outputRecipesApplied.value).toBe(true);
+
+    // A crafted Darksteel Sword (template 21) lands in the bag: the new key is pending, the old is shown.
+    items.rows.value = [item(1n, 20n), item(2n, 21n)];
+    const next = h.find('Q_OUTPUT_20,21');
+    expect(old.disposed).toBe(false);
+    expect(h.hub.outputRecipes.value.get(21n)).toBeUndefined();
+    expect(h.hub.outputRecipesApplied.value).toBe(false);
+    const sword = {
+      id: 21n,
+      name: 'Darksteel Sword',
+      slot: 'mainHand',
+      armorType: '',
+      weaponType: 'sword',
+      rarity: 'common',
+      tier: 3n,
+      isJunk: false,
+      vendorValue: 40n,
+      stackable: false,
+    } as unknown as ItemTemplate;
+    const preview = salvagePreview({
+      instance: { id: 2n },
+      template: sword,
+      affixes: [],
+      characterId: 7n,
+      outputRecipe: h.hub.outputRecipesApplied.value ? (h.hub.outputRecipes.value.get(21n) ?? null) : undefined,
+      templates: new Map(),
+    });
+    expect(preview?.knowable).toBe(false);
+    expect(preview?.components).toEqual([]);
+    expect(preview?.confirmText).toBe('Salvage destroys this item. It may return some materials.');
+
+    // The new key applies: the swap completes and the flag is true again.
+    next.rows.value = [
+      { id: 50n, outputTemplateId: 20n, req1TemplateId: 41n, req2TemplateId: 42n },
+      { id: 51n, outputTemplateId: 21n, req1TemplateId: 43n, req2TemplateId: 44n },
+    ];
+    next.applied.value = true;
+    expect(old.disposed).toBe(true);
+    expect(h.hub.outputRecipesApplied.value).toBe(true);
+    expect(h.hub.outputRecipes.value.get(21n)?.id).toBe(51n);
+  });
+
+  it('stays applied while a dropped template swaps out (the old key still covers the bag)', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    const items = h.find('Q_ITEMS_7');
+    items.rows.value = [item(1n, 20n), item(2n, 21n)];
+    items.applied.value = true;
+    h.find('Q_OUTPUT_20,21').applied.value = true;
+    expect(h.hub.outputRecipesApplied.value).toBe(true);
+    items.rows.value = [item(1n, 20n)];
+    expect(h.live('Q_OUTPUT_20')).toHaveLength(1);
+    expect(h.find('Q_OUTPUT_20').applied.value).toBe(false);
+    expect(h.hub.outputRecipesApplied.value).toBe(true);
   });
 
   it('loads the templates the last result and output recipes name', () => {

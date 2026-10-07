@@ -106,11 +106,13 @@ export function createLedgerData<C extends LedgerConn>(
     }
 
     // Id-list keys carry the ids in the key string; the filter checks membership.
+    // `made` hears each new binding with the ids of its key.
     function keyedIdList<R>(
       key: Readonly<Ref<string | null>>,
       table: (c: C) => TableLike<R>,
       sql: (ids: bigint[]) => string,
       idOf: (row: R) => bigint,
+      made?: (binding: TableBinding<C, R>, ids: ReadonlySet<bigint>) => void,
     ) {
       return createKeyed<C, string, TableBinding<C, R>>({
         key,
@@ -118,7 +120,9 @@ export function createLedgerData<C extends LedgerConn>(
         make: (k) => {
           const ids = parseIdListKey(k);
           const set = new Set(ids);
-          return deps.bind<R>({ table, sql: [sql(ids)], filter: (row) => set.has(idOf(row)) });
+          const binding = deps.bind<R>({ table, sql: [sql(ids)], filter: (row) => set.has(idOf(row)) });
+          made?.(binding, set);
+          return binding;
         },
       });
     }
@@ -216,13 +220,28 @@ export function createLedgerData<C extends LedgerConn>(
     const outputKey = computed<string | null>(() =>
       idListKey(itemRows.value.map((row) => row.templateId)),
     );
+    // The template ids each output binding covers. The default swap keeps the old binding current
+    // (and applied) until the new key applies, so "applied" alone would read a template the old key
+    // never asked about as "no recipe makes it" (WR-03, iteration 3).
+    const outputCovers = new WeakMap<object, ReadonlySet<bigint>>();
     const outputRecipesKeyed = keyedIdList<RecipeTemplate>(
       outputKey,
       (c) => c.db.recipeTemplate,
       queries.recipesByOutput,
       (row) => row.outputTemplateId,
+      (binding, ids) => outputCovers.set(binding, ids),
     );
     const outputRecipeRows = keyedRows(outputRecipesKeyed);
+    // Applied for every owned template: the shown binding has applied and its key holds each owned
+    // template id. A dropped template (a salvaged item) keeps it true; a new one makes it false until
+    // the new key applies.
+    const outputRecipesApplied = computed<boolean>(() => {
+      const binding = outputRecipesKeyed.current.value;
+      if (binding === null || !binding.applied.value) return false;
+      const covers = outputCovers.get(binding);
+      if (covers === undefined) return false;
+      return itemRows.value.every((row) => covers.has(row.templateId));
+    });
 
     const templateKey = computed<string | null>(() => {
       const ids: bigint[] = [];
@@ -303,7 +322,7 @@ export function createLedgerData<C extends LedgerConn>(
       lastSale,
       lastResult,
       outputRecipes,
-      outputRecipesApplied: computed(() => outputRecipesKeyed.current.value?.applied.value ?? false),
+      outputRecipesApplied,
     };
   })!;
 

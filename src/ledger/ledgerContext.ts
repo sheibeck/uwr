@@ -94,7 +94,11 @@ export interface LedgerData {
   readonly lastResult: Readonly<Ref<ActionResult | null>>;
   /** Recipes that make an owned template, by output template id (the lowest recipe id wins). */
   readonly outputRecipes: Readonly<Ref<ReadonlyMap<bigint, RecipeTemplate>>>;
-  /** The output recipe subscription has applied. */
+  /**
+   * The output recipe subscription has applied for every owned template id. False while a newly owned
+   * template's key is still swapping in, so a missing entry in outputRecipes is never read as "no
+   * recipe makes it" too early.
+   */
   readonly outputRecipesApplied: Readonly<Ref<boolean>>;
   /** Null unless connected: reducers are never exposed while reconnecting. */
   readonly reducers: Readonly<Ref<LedgerReducers | null>>;
