@@ -327,46 +327,40 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
 
-### Resume note (2026-10-07, before compact)
+### Resume note (2026-10-07, second compact)
 
-- **Run:** `/gsd-autonomous` for v3.0, with the owner awake and active.
-  - Done in code: 45, 46, 47, 46.1, 48, 49 and 50. Each is human_needed with UAT deferred.
-  - Remaining v3.0 order, after the owner split the phases on 2026-10-07: **50 follow-up → 51 Map and Travel → 51.1 Party and Social → 51.2 World Events → 51.3 Regional Economy → 51.4 Loot Rails → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager**. Then the end-of-milestone UAT and golden run, then audit, complete and cleanup.
-  - Backlog 999.26 (world structure: sub-regions, hidden places, 10-place regions) is the **next milestone**.
-- **Phase 50 follow-up: DONE (2026-10-07).** Plans 50-28..50-40 all executed (50-40 and the review fix published locally, key 108 before and after). Code review iteration 3 server and client: no Critical; all Warnings fixed (incl. the Craft xN bag-capacity gate). Deferred UAT list: 50-38-SUMMARY.md, recorded in 50-VERIFICATION.md (still human_needed).
-- **Phase 51: DONE in code (2026-10-07), human_needed with UAT deferred** (51-VERIFICATION.md, 13/14; SC5 mobile is a live check). Plans 51-01..51-12 plus 51-13 (owner: no List view, graph only). 51-03 and the server review fix published locally (key 108 before and after); the 3 old passages collapsed in the owner DB.
-  - Code review: server CR-01 (sweep pulled fighters out of combat) and all warnings fixed; client reviews fixed (shared 2 s travel guard, Bind in combat refused, honest timers for screen readers).
-  - Owner play-test: map spacing (51-12, two-dimensional layout filling the canvas, 160px minimum gap, pills clear of places; owner: "Totally ok to shift the map as new places are discovered"); List view removed (51-13).
-  - Owner review items (51-11/51-12 SUMMARYs): copy choices, 1 stop vs n stops, mobile location line without Day/Night, look copy, 160 vs 180px gap, no caption on mobile.
-- **New owner requests (2026-10-07):** a Log screen (mock `UWR Log.dc.html`, import in scratchpad design-log/) — placement to decide; the combat outro should tell how the fight unfolded (todo 2026-10-07-combat-outro-tells-how-the-fight-unfolded.md; prompt wording needs approval).
-- **Next: Phase 51.1 Party** (slimmed; Social moved to 52.2). v3.0 order now: **51.1 Party → 51.3 Regional Economy → 51.4 Loot Rails (+ new effect chips) → 51.5 Character, Level Up and New Skill → 51.6 World Events (was 51.2) → 51.7 Log → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager → 52.2 Social and Guilds**. 51.1 has research, patterns and validation; its UI-SPEC needs an update from the new UWR Combat rails (scratchpad design-combat2/) before planning. 51.3 and 51.4 need a discuss (51.3 open question: per-item dials?).
-- **Owner decisions to remember:**
-  - SVG is allowed only in the map folder.
-  - Regions lock only by the cross-region travel timer, which is read from the server.
-  - One Travel button; followers with "Travel with leader" on come along.
-  - Passages stay until empty, then collapse; a sweep moves offline characters back to their own side.
-  - The bag stays at 50.
-  - Standard fights get one outro paragraph; bosses and named foes get up to 3 (shipped in 142e5dcd).
-  - Every prompt change needs the owner's explicit approval of the exact wording.
-- **Constraints:**
-  - No paid LLM calls without a go-ahead. The golden run is deferred, at about $0.62.
-  - No maincloud, no git push, never `--clear-database` (it wipes the key).
-  - Commit with explicit paths.
-  - Windows is case-insensitive: watch for file names that differ only in case.
-- **Servers:** the owner's local SpacetimeDB (PID 12020, 127.0.0.1:3000) and Vite (port 5173) are running. Don't stop either.
+- **Run:** `/gsd-autonomous` for v3.0, owner awake and active. Resume with `/gsd-autonomous --from 51.1`.
+  - Done in code (human_needed, UAT deferred to one end-of-milestone pass): 45, 46, 47, 46.1, 48, 49, 50 (incl. the 50-28..50-40 follow-up), **51** (13 plans incl. 51-12 two-dimensional map layout and 51-13 no List view; 51-VERIFICATION 13/14).
+  - **v3.0 order now (owner, 2026-10-07):** 51.1 Party → 51.3 Regional Economy → 51.4 Loot Rails (+ new effect chips) → 51.5 Character, Level Up and New Skill → 51.6 World Events (was 51.2) → 51.7 Log → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager → 52.2 Social and Guilds. Then the end-of-milestone UAT and golden run, audit, complete, cleanup. 51.2 is unused.
+  - Backlog 999.26 (world structure) is the next milestone.
+- **Next step: Phase 51.1 Party** (slimmed: online status with offline members left behind in travel and fights, pets and travel-with-leader in the party block, invite expiry and cancel, role-aware ⋯ and right-click menus, private `user`, CR-01 login fix as its own last plan with an owner sign-in check after the local publish).
+  - Exists: `51.1-CONTEXT.md` (pointer + owner decisions), `51.1-RESEARCH.md`, `51.1-PATTERNS.md`, `51.1-VALIDATION.md`, `51.1-UI-SPEC.md` (its Social screen sections now belong to 52.2). No plans yet (the planner was stopped before writing).
+  - **Before planning 51.1:** update `51.1-UI-SPEC.md` (gsd-ui-researcher revision + gsd-ui-checker) from the new UWR Combat rails and the Social mock's menu notes, then re-scope the research/validation to Party only, then plan (planner + checker) and execute one plan at a time.
+  - Combat rail changes that touch 51.1 (C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\design-combat2\COMBAT2-DIFF.md): clicking your own block targets yourself (replaces the Phase 48 "You" card); in-combat party cards with health/resource bars and effect chips; follow indicators, stamina warning and switch hidden in combat; XP hidden in combat.
+  - Social mock asks of 51.1 (C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\design-social\SOCIAL-DIFF.md): add a defaulted `lastOnlineAt` with `character.online` (same helper); a three-state status dot (online, busy = in combat, offline); one name component (guild tag later); extensible menu entry groups. Keep the UI-SPEC's ⋯ opener, icons (PhChatCircle, PhUserPlus), inline confirms and disabled-with-reason entries.
+- **Open owner calls (ask when the phase comes up):**
+  - Pets in combat (Combat mock): pet kind and icon, pet ability and cooldown, click a pet to target it. The server has no pet kind, pets have no abilities, and `use_ability` cannot target a pet; 51.1 UI-SPEC overrides 4-6 dropped these. Build server support, or keep them dropped?
+  - Effect chips (Combat mock, Phase 51.4): green buff colour has no token (pin 23); the effects panel wants source, total duration and description that the server does not store; enemies never get buffs.
+  - Social mock (52.2): it drops the party from Social ("Your party stays in the left bar") and mobile has no party surface while the Party tab opens Social. Guild scope (found, invite, join requests, 4 ranks with a permission matrix, roster, MOTD, transfer, disband, /g chat) and the guild chat privacy (event tables are public).
+  - Character mock (51.5): first-person Keeper quotes in the Level Up mock, 40px/30px numerals and off-scale sizes, the positive-green token; server gaps (class card, achievements content, skill flavor, Keeper's assessment, server firsts, HP/mana preview).
+  - Combat outro wording (todo `2026-10-07-combat-outro-tells-how-the-fight-unfolded.md`): offer a draft of the new prompt wording for approval.
+  - Copy choices from 51-11/51-12 SUMMARYs (1 stop vs n stops, 160 vs 180px map gap, etc.).
+- **Design extracts (fresh 2026-10-07, absolute paths; re-import fresh only if the owner sends a new version):**
+  - Character + Level Up: C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\design-character\ (CHARACTER-EXTRACT.md, CHARACTER-SCOUT.md)
+  - Log: C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\design-log\ (LOG-EXTRACT.md, LOG-SCOUT.md)
+  - Combat (rails, effect chips, loot): C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\design-combat2\ (COMBAT2-EXTRACT.md, COMBAT2-DIFF.md)
+  - Social and Guilds: C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\design-social\ (SOCIAL-EXTRACT.md, SOCIAL-DIFF.md, SOCIAL-SCOUT.md)
+  - Phase 51 executor hand-off log and rules: C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\p51\handoff.md, C:\Users\Dell\AppData\Local\Temp\claude\C--projects-uwr\2abada36-596b-490d-914e-a49b8e730067\scratchpad\p51\rules.md
+- **Constraints:** no paid LLM calls without a go-ahead (golden run deferred, about $0.62); no maincloud, no git push, never `--clear-database`; commit with explicit paths; prompt wording changes need the owner's explicit approval; Windows is case-insensitive.
+- **Servers:** the owner's local SpacetimeDB (PID 12020, 127.0.0.1:3000) and Vite (port 5173) are running; don't stop either. If Vite serves a stale empty module after an agent edit, `touch` the file (seen once with inventory_rules.ts).
 - **Local publish:** `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`, checking `admin_llm_status` key_length 108 before and after with `grep -qE "true +[|] +108"`.
-- **Baseline test failures to ignore:** `scripts/llm/call_log_report.test.mjs`, `scripts/llm/proof_rules.test.mjs`, `spacetimedb/src/helpers/measurement.results.test.ts`.
-- **Design imports:** claude_design project "Unwritten Realms" (id 1a7a975f-7b14-488b-9a38-188bc56294cf). Re-import fresh through a general-purpose agent into the scratchpad; never use a cached copy.
-- **Open todos:**
-  - CR-01 `login_email` trusts the client email (high priority).
-  - Event tables are public (T-47-04b).
-  - The renown passive perks have no effect.
-  - The typed text reveal and login cross-fade.
-  - The race ability chip.
+- **Baseline test failures to ignore:** `scripts/llm/call_log_report.test.mjs`, `scripts/llm/proof_rules.test.mjs`, `spacetimedb/src/helpers/measurement.results.test.ts`. Run vitest from the repo root.
+- **Executor practice:** one plan at a time with gsd-executor (sonnet; opus for heavy plans), each prompt pointing at a rules file and a hand-off log; code review per phase (server and client reviewers in parallel), fixers, then gsd-verifier.
+- **Open todos (pending):** level up and new skill unwired (51.5), combat outro story, combat mock effect chips (51.4), CR-01 login (51.1), event tables public, renown perks with no effect, typed text reveal, race ability chip, hotbar hover description, combat victory three Keeper lines.
 
 **Resume file:** None
 
-Last session: 2026-10-07T03:00:00.000Z
+Last session: 2026-10-07T20:00:00.000Z
 Stopped at: Completed 48-14-PLAN.md
 
 ## Performance Metrics
