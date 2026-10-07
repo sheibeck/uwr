@@ -168,8 +168,7 @@ function build(over: Options = {}) {
   } as unknown as GameData;
 
   const Host = defineComponent({
-    emits: ['travelled'],
-    setup(_, { emit, expose }) {
+    setup(_, { expose }) {
       const destination = useDestination();
       const panel = ref<InstanceType<typeof DetailPanel> | null>(null);
       expose({ panel });
@@ -177,7 +176,6 @@ function build(over: Options = {}) {
         h(DetailPanel, {
           ref: panel,
           destination,
-          onTravelled: () => emit('travelled'),
         });
     },
   });
@@ -461,7 +459,7 @@ describe('DetailPanel: blocked states', () => {
 });
 
 describe('DetailPanel: Travel', () => {
-  it('calls the move reducer once with object arguments, stays inert while pending and emits travelled', async () => {
+  it('calls the move reducer once with object arguments and stays inert while pending', async () => {
     const { w, moveCharacter, travelSpy, resolveMove } = build({ selected: 11n });
     await button(w).trigger('click');
     expect(moveCharacter).toHaveBeenCalledTimes(1);
@@ -469,10 +467,8 @@ describe('DetailPanel: Travel', () => {
     expect(button(w).attributes('aria-busy')).toBe('true');
     await button(w).trigger('click');
     expect(moveCharacter).toHaveBeenCalledTimes(1);
-    expect(w.emitted('travelled')).toBeUndefined();
     resolveMove();
-    await vi.waitFor(() => expect(w.emitted('travelled')).toHaveLength(1));
-    expect(button(w).attributes('aria-busy')).toBeUndefined();
+    await vi.waitFor(() => expect(button(w).attributes('aria-busy')).toBeUndefined());
     expect(travelSpy).not.toHaveBeenCalled();
   });
 
@@ -482,12 +478,16 @@ describe('DetailPanel: Travel', () => {
     expect(moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 20n });
   });
 
-  it('a rejected call shows the send error in the notice line and does not emit travelled', async () => {
+  it('a rejected call shows the send error in the notice line', async () => {
     const { w } = build({ selected: 11n, moveImpl: () => Promise.reject(new Error('socket')) });
     await button(w).trigger('click');
     await vi.waitFor(() => expect(w.find('.notice-line').exists()).toBe(true));
     expect(w.get('.notice-line').text()).toBe("Couldn't send that. Try again.");
-    expect(w.emitted('travelled')).toBeUndefined();
+  });
+
+  it('emits no travelled event: a resolved call can be a refusal (review IN-02)', () => {
+    expect(SOURCE).not.toContain('defineEmits');
+    expect(SOURCE).not.toContain('travelled');
   });
 
   it('a private system refusal that arrives after mount shows in the notice line', async () => {

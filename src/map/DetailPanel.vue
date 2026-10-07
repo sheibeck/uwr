@@ -29,7 +29,6 @@ import type { Destination } from './useDestination';
 // The button predicts; move_character re-checks every trip and its refusal shows in the notice line
 // at the bottom of the column. Every string is a text node or a bound attribute.
 const props = defineProps<{ destination: Destination }>();
-const emit = defineEmits<{ travelled: [] }>();
 
 const uid = useId();
 const title = useTemplateRef<HTMLElement>('title');
@@ -101,7 +100,9 @@ async function onAction(): Promise<void> {
     return;
   }
   if (action.disabled || pending.value) return;
-  if (await props.destination.travel()) emit('travelled');
+  // No event: the call resolving says nothing about the trip (a refusal resolves too). Arrival is
+  // read from the character row by the Map screen.
+  await props.destination.travel();
 }
 
 defineExpose({ focusTitle });
