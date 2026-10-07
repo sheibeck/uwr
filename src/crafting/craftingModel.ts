@@ -5,13 +5,19 @@ import {
   ESSENCE_QUALITY_GATE,
   craftQualityForMaterialName,
   craftQualityUpgrade,
+  getCraftQualityStatBonus,
   getModifierMagnitude,
   isGearRecipe,
   itemKeyFromName,
+  maxCraftCount,
   planCraft,
+  primaryMaterialTier,
   type CraftPlan,
 } from '@game-data/crafting_rules';
 import { hasBackpackSpace } from '@game-data/inventory_rules';
+import { sumItemStats } from '@game-data/item_stats';
+import { PhPackage } from '@phosphor-icons/vue';
+import type { Component } from 'vue';
 import type {
   ItemInstance,
   ItemTemplate,
@@ -19,16 +25,22 @@ import type {
   RecipeTemplate,
 } from '../module_bindings/types';
 import { STAT_ROWS } from '../ledger/compare';
-import { itemCategory, rarityColor, slotLabel } from '../ledger/itemModel';
+import { itemDetails, unitSellValue } from '../ledger/itemDetails';
+import type { ItemDetails } from '../ledger/itemDetails';
+import { itemCategory, itemIcon, rarityColor, slotLabel } from '../ledger/itemModel';
 
-// The crafting model (50-UI-SPEC "Crafting Contract" and "Owner decisions after the draft"): recipe
-// rows with the true bag counts, the category and craftable filters, Materials on hand, the recipe
-// detail with its single deterministic quality line and upgrade hint, the essence and reagent options
-// and the Craft availability. Every rule is the server's own shared module: planCraft is the same
-// function craft_recipe runs before it mutates, the quality comes from craftQualityForMaterialName,
-// the essence gate and the reagent slots from ESSENCE_QUALITY_GATE and AFFIX_SLOTS_BY_QUALITY. There
-// is no odds helper because the server's quality is one result. Names stay plain strings (no
-// escaping, no HTML): the components render them as text nodes. Pure: no Vue.
+// The crafting model (50-UI-SPEC "Crafting Contract" and "Owner decisions after the draft", and the
+// 2026-10-06 mock 9a decision): recipe rows with the true bag counts and a status line ('Can make N'
+// or 'Missing A, B'), the category and craftable filters, Materials on hand, the recipe detail with
+// its single deterministic quality line and upgrade hint, the Uses rows, the Creates card content,
+// the stepper state, the essence and reagent options and the Craft availability. Every rule is the
+// server's own shared module: planCraft is the same function craft_recipe and craft_recipe_count run
+// before they mutate, the stepper maximum and the 'Can make' number are the server's maxCraftCount
+// on that same input (so a batch the stepper allows is a batch the server accepts), the quality
+// comes from craftQualityForMaterialName, the essence gate and the reagent slots from
+// ESSENCE_QUALITY_GATE and AFFIX_SLOTS_BY_QUALITY. There is no odds helper because the server's
+// quality is one result. Names stay plain strings (no escaping, no HTML): the components render
+// them as text nodes. Pure: no Vue runtime (only a component type and icon constants).
 
 const BACKPACK_FULL = 'Your backpack is full.';
 const NO_STATION = 'No crafting station here.';
@@ -124,6 +136,16 @@ export interface RecipeRow {
   requirements: RequirementEntry[];
   craftable: boolean;
   ariaLabel: string;
+  /** How many items the bag makes now: maxCraftCount (no essence) times the recipe's output count. */
+  canMake: bigint;
+  /** 'Can make {canMake}' or 'Missing {short materials}'. */
+  statusText: string;
+  /** 'met' while canMake is above zero, else 'short'. */
+  statusTone: 'met' | 'short';
+  /** The output's rarity name color token (the text color for a common or missing output). */
+  nameColor: string;
+  /** The output's item icon (a package while the output template has not arrived). */
+  icon: Component;
 }
 
 const UNKNOWN_MATERIAL = 'Unknown material';
@@ -178,7 +200,32 @@ export function recipeRows(
     const output = input.templates.get(recipe.outputTemplateId);
     const tier = output && typeof output.tier === 'bigint' ? output.tier : null;
     const categoryWord = category ?? 'Other';
-    const firstMissing = requirements.find((req) => !req.met);
+    const canMake =
+      maxCraftCount(
+        planInputOf({
+          recipe,
+          station: true,
+          templates: input.templates,
+          items: input.items,
+          choice: { essenceId: null, reagentIds: [] },
+        }),
+      ) * recipe.outputCount;
+    const shortNames = requirements.filter((req) => !req.met).map((req) => req.name);
+    if (canMake === 0n && shortNames.length === 0) {
+      // Every requirement is met alone but the merged need (a shared template) is not: name that one.
+      const refused = planCraft({
+        ...planInputOf({
+          recipe,
+          station: true,
+          templates: input.templates,
+          items: input.items,
+          choice: { essenceId: null, reagentIds: [] },
+        }),
+      });
+      const named = !refused.ok && refused.templateId !== undefined ? input.templates.get(refused.templateId) : undefined;
+      shortNames.push(named ? named.name : 'materials');
+    }
+    const statusText = canMake > 0n ? `Can make ${canMake}` : `Missing ${shortNames.join(', ')}`;
     rows.push({
       id: recipe.id,
       name: recipe.name,
@@ -188,8 +235,13 @@ export function recipeRows(
       requirements,
       craftable,
       ariaLabel: `${recipe.name}, ${categoryWord}${tier === null ? '' : ` tier ${tier}`}, ${
-        craftable ? 'craftable' : `missing ${firstMissing ? firstMissing.name : UNKNOWN_MATERIAL}`
+        canMake > 0n ? `can make ${canMake}` : statusText.charAt(0).toLowerCase() + statusText.slice(1)
       }`,
+      canMake,
+      statusText,
+      statusTone: canMake > 0n ? 'met' : 'short',
+      nameColor: output ? nameColorOf(output) : 'var(--color-text)',
+      icon: output ? itemIcon(output) : PhPackage,
     });
   }
   rows.sort((a, b) => {
@@ -271,6 +323,129 @@ export function materialsOnHand(
   );
 }
 
+export interface MaterialRow extends MaterialEntry {
+  icon: Component;
+  /** True while the selected recipe uses this material. */
+  highlighted: boolean;
+  /** True at a count of zero (shown in the short tone). */
+  short: boolean;
+}
+
+/**
+ * The Materials on hand column (mock 9a): the materialsOnHand entries with their icons, the ones the
+ * selected recipe uses highlighted, plus every used material that is not in the bag (count 0, short)
+ * as long as its template has arrived. Sorted by name.
+ */
+export function materialRows(
+  items: readonly ItemInstance[],
+  templates: ReadonlyMap<bigint, ItemTemplate>,
+  usedTemplateIds: ReadonlySet<bigint>,
+): MaterialRow[] {
+  const entries = materialsOnHand(items, templates);
+  const listed = new Set<bigint>(entries.map((entry) => entry.templateId));
+  usedTemplateIds.forEach((templateId) => {
+    if (listed.has(templateId)) return;
+    const template = templates.get(templateId);
+    if (!template) return;
+    listed.add(templateId);
+    entries.push({
+      templateId,
+      name: template.name,
+      count: bagCount(items, templateId),
+      color: nameColorOf(template),
+    });
+  });
+  entries.sort((a, b) => {
+    const nameA = a.name.toLowerCase();
+    const nameB = b.name.toLowerCase();
+    if (nameA !== nameB) return nameA < nameB ? -1 : 1;
+    return a.templateId < b.templateId ? -1 : a.templateId > b.templateId ? 1 : 0;
+  });
+  return entries.map((entry) => ({
+    ...entry,
+    icon: itemIcon(templates.get(entry.templateId)!),
+    highlighted: usedTemplateIds.has(entry.templateId),
+    short: entry.count === 0n,
+  }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Uses rows and the Creates card
+
+export interface UsesRow {
+  templateId: bigint;
+  name: string;
+  /** The material's rarity name color token (the text color for a common or missing template). */
+  color: string;
+  icon: Component;
+  have: bigint;
+  /** The per-craft need times the quantity. */
+  need: bigint;
+  short: boolean;
+  /** '{have} / {need}'. */
+  text: string;
+}
+
+/** The recipe's requirements for a quantity of crafts: have in the bag over need times the quantity. */
+export function usesRows(
+  recipe: RecipeTemplate,
+  templates: ReadonlyMap<bigint, ItemTemplate>,
+  items: readonly ItemInstance[],
+  quantity: bigint,
+): UsesRow[] {
+  const crafts = quantity < 1n ? 1n : quantity;
+  return requirementsOf(recipe, templates, items).map((req) => {
+    const template = templates.get(req.templateId);
+    const need = req.need * crafts;
+    return {
+      templateId: req.templateId,
+      name: req.name,
+      color: template ? nameColorOf(template) : 'var(--color-text)',
+      icon: template ? itemIcon(template) : PhPackage,
+      have: req.have,
+      need,
+      short: req.have < need,
+      text: `${req.have} / ${need}`,
+    };
+  });
+}
+
+export interface CreatesCard {
+  name: string;
+  color: string;
+  icon: Component;
+  /** 'x{n}' for a recipe that makes more than one, else ''. */
+  yieldTag: string;
+  details: ItemDetails;
+}
+
+/**
+ * What a recipe's output is and does: the output template's icon, rarity color, yield tag and the
+ * shared item details (type line, stat tiles from the template's own stats, food effect, sell value
+ * and description). Null while the output template has not arrived.
+ */
+export function createsCard(
+  recipe: RecipeTemplate,
+  templates: ReadonlyMap<bigint, ItemTemplate>,
+  character: { level: bigint; vendorSellMod: bigint },
+  perkKeys: readonly string[],
+): CreatesCard | null {
+  const output = templates.get(recipe.outputTemplateId);
+  if (!output) return null;
+  return {
+    name: output.name,
+    color: nameColorOf(output),
+    icon: itemIcon(output),
+    yieldTag: recipe.outputCount > 1n ? `x${recipe.outputCount}` : '',
+    details: itemDetails({
+      template: output,
+      stats: sumItemStats(output as unknown as Readonly<Record<string, unknown>>, []),
+      characterLevel: character.level,
+      sellValue: unitSellValue(output, character, perkKeys),
+    }),
+  };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Recipe detail
 
@@ -307,6 +482,8 @@ export interface RecipeDetail {
   slots: number;
   /** '{Quality} quality takes up to {n} reagents.'; null for a consumable. */
   slotsLine: string | null;
+  /** 'Quality: Reinforced (+1 damage), set by Tier 2 Iron Ore'; null for a consumable. */
+  qualityLine: string | null;
   /** The recipe's output count and template, for Craft availability. */
   outputTemplateId: bigint;
 }
@@ -360,10 +537,21 @@ export function recipeDetail(
   let qualityHint: string | null = null;
   let slots = 0;
   let slotsLine: string | null = null;
+  let qualityLine: string | null = null;
   if (gear) {
     const primary = input.templates.get(recipe.req1TemplateId);
     qualityKey = craftQualityForMaterialName(primary ? primary.name : null);
     quality = capitalize(qualityKey);
+    // The server adds getCraftQualityStatBonus to armor class (an armor output) or to damage and DPS
+    // (a weapon output), so the line names the bonus the same way.
+    const bonus = getCraftQualityStatBonus(qualityKey);
+    let bonusText = '';
+    if (bonus > 0n && output) {
+      if (output.armorClassBonus > 0n) bonusText = ` (+${bonus} armor)`;
+      else if (output.weaponBaseDamage > 0n) bonusText = ` (+${bonus} damage)`;
+    }
+    const tierNumber = primaryMaterialTier(primary ? primary.name : null);
+    qualityLine = `Quality: ${quality}${bonusText}, set by Tier ${tierNumber} ${primary ? primary.name : UNKNOWN_MATERIAL}`;
     const upgrade = craftQualityUpgrade(qualityKey);
     if (upgrade) {
       qualityHint = `A recipe with a tier ${upgrade.materialTier} primary material would make it ${capitalize(
@@ -385,6 +573,7 @@ export function recipeDetail(
     qualityHint,
     slots,
     slotsLine,
+    qualityLine,
     outputTemplateId: recipe.outputTemplateId,
   };
 }
@@ -499,6 +688,8 @@ export interface CraftAvailabilityInput {
   templates: ReadonlyMap<bigint, ItemTemplate>;
   items: readonly ItemInstance[];
   choice: CraftChoice;
+  /** The batch size (1n when omitted): the materials, essence and reagent checks cover all of it. */
+  count?: bigint;
 }
 
 export interface CraftAvailability {
@@ -524,6 +715,7 @@ function planInputOf(input: CraftAvailabilityInput) {
       .filter((id): id is bigint => id !== null)
       .map((id) => ({ templateId: id, name: templates.get(id)?.name ?? null })),
     countOf: (templateId: bigint) => bagCount(items, templateId),
+    count: input.count,
   };
 }
 
@@ -588,6 +780,50 @@ export function craftAvailability(input: CraftAvailabilityInput): CraftAvailabil
   return { available: true, reason: null, plan };
 }
 
+export interface QuantityState {
+  /** The clamped request: 1..max, or 1n while max is 0n. */
+  quantity: bigint;
+  /** The stepper maximum: maxCraftCount for the chosen essence and reagents (0..99). */
+  max: bigint;
+  /** Items made: quantity times the recipe's output count. */
+  made: bigint;
+  canDecrease: boolean;
+  canIncrease: boolean;
+  /** 'Max {max}'. */
+  maxLabel: string;
+  /** 'Craft {name}', 'Craft {made}× {name}' or 'Missing materials' at max 0. */
+  craftLabel: string;
+  /** 'for {n} crafts' when quantity is above one, else ''. */
+  forQtyText: string;
+  craftAriaLabel: string;
+}
+
+/**
+ * The stepper state from the shared rule: the maximum is the server's maxCraftCount on the same
+ * planCraft input craft_recipe_count validates, so the quantity the stepper reaches is accepted.
+ */
+export function craftQuantity(input: CraftAvailabilityInput, requested: bigint): QuantityState {
+  const { recipe } = input;
+  const max = maxCraftCount(planInputOf({ ...input, count: undefined }));
+  let quantity = requested < 1n ? 1n : requested;
+  if (max === 0n) quantity = 1n;
+  else if (quantity > max) quantity = max;
+  const made = quantity * recipe.outputCount;
+  const name = recipe.name;
+  const blocked = max === 0n;
+  return {
+    quantity,
+    max,
+    made,
+    canDecrease: !blocked && quantity > 1n,
+    canIncrease: !blocked && quantity < max,
+    maxLabel: `Max ${max}`,
+    craftLabel: blocked ? 'Missing materials' : made > 1n ? `Craft ${made}× ${name}` : `Craft ${name}`,
+    forQtyText: quantity > 1n ? `for ${quantity} crafts` : '',
+    craftAriaLabel: blocked ? `Missing materials for ${name}` : `Craft ${made} ${name}`,
+  };
+}
+
 export interface CraftArgs {
   characterId: bigint;
   recipeTemplateId: bigint;
@@ -615,6 +851,20 @@ export function craftArgs(
   if (reagents[1] !== undefined) args.modifier2TemplateId = reagents[1];
   if (reagents[2] !== undefined) args.modifier3TemplateId = reagents[2];
   return args;
+}
+
+export interface CraftCountArgs extends CraftArgs {
+  count: bigint;
+}
+
+/** The craft_recipe_count arguments: the craftArgs ids (chosen ones only) plus the count. */
+export function craftCountArgs(
+  characterId: bigint,
+  recipeTemplateId: bigint,
+  choice: CraftChoice,
+  count: bigint,
+): CraftCountArgs {
+  return { ...craftArgs(characterId, recipeTemplateId, choice), count };
 }
 
 /** location.craftingAvailable of the character's location; false while either is unknown. */

@@ -367,7 +367,7 @@ describe('RecipeList', () => {
     expect(bandage.findAll('.req').map((r) => r.classes().includes('short'))).toEqual([true, false]);
     expect(bandage.classes()).toContain('uncraftable');
     expect(bandage.attributes('aria-label')).toBe('Bandage, Consumable tier 1, missing Rough Hide');
-    expect(rows[0].attributes('aria-label')).toBe('Copper Sword, Weapon tier 1, craftable');
+    expect(rows[0].attributes('aria-label')).toBe('Copper Sword, Weapon tier 1, can make 1');
   });
 
   it('selects a row on click (aria-pressed on the selected one) through the select event', async () => {

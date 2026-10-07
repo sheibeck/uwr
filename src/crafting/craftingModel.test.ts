@@ -6,13 +6,19 @@ import {
   planCraft,
 } from '@game-data/crafting_rules';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
+import { generatedOutput, recipeCandidates } from '@game-data/recipe_rules';
+import { PhPackage } from '@phosphor-icons/vue';
 import type { ItemInstance, ItemTemplate, RecipeDiscovered, RecipeTemplate } from '../module_bindings/types';
 import {
   RECIPE_FILTERS,
   bagCount,
   craftArgs,
   craftAvailability,
+  craftCountArgs,
+  craftQuantity,
+  createsCard,
   essenceOptions,
+  materialRows,
   materialsOnHand,
   reagentEffectText,
   reagentOptions,
@@ -21,7 +27,9 @@ import {
   recipeRows,
   recipesKnownText,
   stationHere,
+  usesRows,
 } from './craftingModel';
+import { itemIcon } from '../ledger/itemModel';
 import type { CraftAvailabilityInput, CraftingInput } from './craftingModel';
 
 const PAYLOAD = '<img src=x onerror=alert(1)>';
@@ -201,7 +209,7 @@ describe('recipeRows', () => {
     const byName = (n: string) => rows.find((r) => r.name === n)!;
     expect(byName('Copper Sword').meta).toBe('Weapon · T1');
     expect(byName('Iron Helm').meta).toBe('Armor · T2');
-    expect(byName('Copper Sword').ariaLabel).toBe('Copper Sword, Weapon tier 1, craftable');
+    expect(byName('Copper Sword').ariaLabel).toBe('Copper Sword, Weapon tier 1, can make 1');
     expect(byName('Darksteel Blade').ariaLabel).toBe('Darksteel Blade, Weapon tier 3, missing Darksteel Ore');
     expect(byName('Bandage').ariaLabel).toBe('Bandage, Consumable tier 1, missing Rough Hide');
   });
@@ -502,5 +510,364 @@ describe('craftAvailability and craftArgs', () => {
     });
     // Reagents without an essence are never sent.
     expect(craftArgs(7n, 1n, { essenceId: null, reagentIds: [20n] })).toEqual({ characterId: 7n, recipeTemplateId: 1n });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Plan 50-35: row status, the stepper, the Uses rows, the quality line, the Creates card
+
+describe('recipeRows status (mock 9a)', () => {
+  const rowsOf = (items: ItemInstance[]) => recipeRows(input(items), { filter: 'all', onlyCraftable: false });
+  const byName = (rows: ReturnType<typeof rowsOf>, name: string) => rows.find((r) => r.name === name)!;
+
+  it('says Can make N for a craftable recipe and Missing with the short material names otherwise', () => {
+    const rows = rowsOf(ITEMS);
+    const sword = byName(rows, 'Copper Sword');
+    expect(sword.canMake).toBe(1n);
+    expect(sword.statusText).toBe('Can make 1');
+    expect(sword.statusTone).toBe('met');
+    const bandage = byName(rows, 'Bandage');
+    expect(bandage.canMake).toBe(0n);
+    expect(bandage.statusText).toBe('Missing Rough Hide');
+    expect(bandage.statusTone).toBe('short');
+    expect(byName(rows, 'Darksteel Blade').statusText).toBe('Missing Darksteel Ore');
+  });
+
+  it('joins several short materials with a comma and ends the aria label with the status', () => {
+    const sword = byName(rowsOf([]), 'Copper Sword');
+    expect(sword.statusText).toBe('Missing Copper Ore, Rough Hide');
+    expect(sword.ariaLabel).toBe('Copper Sword, Weapon tier 1, missing Copper Ore, Rough Hide');
+  });
+
+  it('multiplies the craft count by the output count (a makes-2 recipe with materials for 3 says 6)', () => {
+    const bandage = byName(rowsOf([inst(1n, 4n, 6n), inst(2n, 1n, 3n)]), 'Bandage');
+    expect(bandage.canMake).toBe(6n);
+    expect(bandage.statusText).toBe('Can make 6');
+    expect(bandage.ariaLabel).toBe('Bandage, Consumable tier 1, can make 6');
+  });
+
+  it('caps Can make at 99 crafts', () => {
+    expect(byName(rowsOf([inst(1n, 1n, 900n), inst(2n, 4n, 900n)]), 'Copper Sword').canMake).toBe(99n);
+  });
+
+  it('takes the name color and icon from the output template', () => {
+    const rows = rowsOf(ITEMS);
+    expect(byName(rows, 'Copper Sword').nameColor).toBe('var(--color-text)');
+    expect(byName(rows, 'Copper Sword').icon).toBe(itemIcon(SWORD));
+    const rare = tpl(102n, 'Darksteel Blade', { slot: 'mainHand', weaponType: 'sword', tier: 3n, rarity: 'rare', stackable: false });
+    const templates = new Map(TEMPLATES.map((t) => [t.id, t]));
+    templates.set(102n, rare);
+    const withRare = recipeRows(input(ITEMS, { templates }), { filter: 'all', onlyCraftable: false });
+    expect(byName(withRare, 'Darksteel Blade').nameColor).toBe('var(--color-rarity-rare)');
+  });
+
+  it('uses the package icon and the text color while the output template is missing', () => {
+    const templates = new Map(TEMPLATES.filter((t) => t.id !== 100n).map((t) => [t.id, t]));
+    const rows = recipeRows(input(ITEMS, { templates }), { filter: 'all', onlyCraftable: false });
+    const sword = byName(rows, 'Copper Sword');
+    expect(sword.icon).toBe(PhPackage);
+    expect(sword.nameColor).toBe('var(--color-text)');
+  });
+
+  it('keeps the sort order and the craftable flag', () => {
+    const rows = rowsOf(ITEMS);
+    expect(rows.map((r) => r.name)).toEqual(['Copper Sword', 'Iron Helm', 'Odd Trinket', 'Bandage', 'Darksteel Blade']);
+    expect(byName(rows, 'Bandage').craftable).toBe(false);
+  });
+
+  it('keeps markup in a missing material name as plain text', () => {
+    const evilRecipe = recipe(9n, 'Evil', { req1TemplateId: 50n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
+    const evilMaterial = tpl(50n, PAYLOAD);
+    const rows = recipeRows(
+      input(ITEMS, {
+        known: known(9n),
+        recipes: new Map([[9n, evilRecipe]]),
+        templates: new Map([...TEMPLATES, evilMaterial].map((t) => [t.id, t])),
+      }),
+      { filter: 'all', onlyCraftable: false },
+    );
+    expect(rows[0].statusText).toBe(`Missing ${PAYLOAD}`);
+  });
+});
+
+describe('craftQuantity', () => {
+  const templates = new Map(TEMPLATES.map((t) => [t.id, t]));
+  // Copper 9 and Hide 3: the sword (3 Copper + 1 Hide) allows 3.
+  const forThree = [inst(1n, 1n, 9n), inst(2n, 4n, 3n)];
+  const qty = (over: Partial<CraftAvailabilityInput>, requested: bigint) =>
+    craftQuantity(
+      { recipe: R_SWORD, station: true, templates, items: forThree, choice: { essenceId: null, reagentIds: [] }, ...over },
+      requested,
+    );
+
+  it('clamps the request to the maximum and writes the labels', () => {
+    const state = qty({}, 5n);
+    expect(state.quantity).toBe(3n);
+    expect(state.max).toBe(3n);
+    expect(state.made).toBe(3n);
+    expect(state.canIncrease).toBe(false);
+    expect(state.canDecrease).toBe(true);
+    expect(state.maxLabel).toBe('Max 3');
+    expect(state.craftLabel).toBe('Craft 3× Copper Sword');
+    expect(state.forQtyText).toBe('for 3 crafts');
+    expect(state.craftAriaLabel).toBe('Craft 3 Copper Sword');
+  });
+
+  it('says plain Craft for one, and treats a request below one as one', () => {
+    const one = qty({}, 1n);
+    expect(one.quantity).toBe(1n);
+    expect(one.craftLabel).toBe('Craft Copper Sword');
+    expect(one.forQtyText).toBe('');
+    expect(one.canIncrease).toBe(true);
+    expect(one.canDecrease).toBe(false);
+    expect(qty({}, 0n).quantity).toBe(1n);
+    expect(qty({}, -4n).quantity).toBe(1n);
+  });
+
+  it('multiplies by the output count for the made number', () => {
+    const items = [inst(1n, 4n, 6n), inst(2n, 1n, 3n)];
+    const state = qty({ recipe: R_BANDAGE, items }, 1n);
+    expect(state.max).toBe(3n);
+    expect(state.made).toBe(2n);
+    expect(state.craftLabel).toBe('Craft 2× Bandage');
+    expect(state.craftAriaLabel).toBe('Craft 2 Bandage');
+    const two = qty({ recipe: R_BANDAGE, items }, 2n);
+    expect(two.made).toBe(4n);
+    expect(two.forQtyText).toBe('for 2 crafts');
+  });
+
+  it('is Missing materials with a quantity of one and no stepping at a maximum of zero', () => {
+    const state = qty({ items: [inst(1n, 1n, 1n)] }, 4n);
+    expect(state.max).toBe(0n);
+    expect(state.quantity).toBe(1n);
+    expect(state.canDecrease).toBe(false);
+    expect(state.canIncrease).toBe(false);
+    expect(state.craftLabel).toBe('Missing materials');
+    expect(state.maxLabel).toBe('Max 0');
+    expect(state.craftAriaLabel).toBe('Missing materials for Copper Sword');
+  });
+
+  it('limits the maximum by the chosen essence and reagent (materials for 5, 2 essences)', () => {
+    const items = [inst(1n, 1n, 15n), inst(2n, 4n, 5n), inst(3n, 10n, 2n), inst(4n, 20n, 9n)];
+    const state = qty({ items, choice: { essenceId: 10n, reagentIds: [20n] } }, 9n);
+    expect(state.max).toBe(2n);
+    expect(state.quantity).toBe(2n);
+    // An essence with no reagent is refused by the plan, so nothing can be crafted yet.
+    expect(qty({ items, choice: { essenceId: 10n, reagentIds: [null] } }, 1n).max).toBe(0n);
+  });
+
+  it('caps the maximum at 99', () => {
+    const state = qty({ items: [inst(1n, 1n, 500n), inst(2n, 4n, 500n)] }, 500n);
+    expect(state.max).toBe(99n);
+    expect(state.quantity).toBe(99n);
+    expect(state.maxLabel).toBe('Max 99');
+  });
+});
+
+describe('craftAvailability with a count', () => {
+  const templates = new Map(TEMPLATES.map((t) => [t.id, t]));
+  const base = { recipe: R_SWORD, station: true, templates, choice: { essenceId: null, reagentIds: [] } };
+
+  it('checks the whole batch and names the shortfall for that many crafts', () => {
+    // Copper 6 and Hide 2: two crafts fit, three need 9 Copper and 3 Hide.
+    const items = [inst(1n, 1n, 6n), inst(2n, 4n, 2n)];
+    expect(craftAvailability({ ...base, items, count: 2n }).available).toBe(true);
+    const three = craftAvailability({ ...base, items, count: 3n });
+    expect(three.available).toBe(false);
+    expect(three.reason).toBe('Missing 3 Copper Ore.');
+  });
+
+  it('is unchanged when the count is omitted or one', () => {
+    const items = [inst(1n, 1n, 3n), inst(2n, 4n, 1n)];
+    expect(craftAvailability({ ...base, items }).available).toBe(true);
+    expect(craftAvailability({ ...base, items, count: 1n }).available).toBe(true);
+  });
+
+  it('keeps the station reason first with a count', () => {
+    expect(craftAvailability({ ...base, items: [], station: false, count: 4n }).reason).toBe('No crafting station here.');
+  });
+});
+
+describe('craftCountArgs', () => {
+  it('is craftArgs plus the count', () => {
+    expect(craftCountArgs(7n, 1n, { essenceId: null, reagentIds: [] }, 3n)).toEqual({
+      characterId: 7n,
+      recipeTemplateId: 1n,
+      count: 3n,
+    });
+    expect(craftCountArgs(7n, 3n, { essenceId: 12n, reagentIds: [20n, null, 22n] }, 99n)).toEqual({
+      ...craftArgs(7n, 3n, { essenceId: 12n, reagentIds: [20n, null, 22n] }),
+      count: 99n,
+    });
+    expect(craftCountArgs(7n, 1n, { essenceId: null, reagentIds: [20n] }, 2n)).toEqual({
+      characterId: 7n,
+      recipeTemplateId: 1n,
+      count: 2n,
+    });
+  });
+});
+
+describe('usesRows', () => {
+  const templates = new Map(TEMPLATES.map((t) => [t.id, t]));
+
+  it('lists each requirement with have, need times the quantity and the short flag', () => {
+    const rows = usesRows(R_SWORD, templates, ITEMS, 2n);
+    expect(rows.map((r) => [r.name, r.have, r.need, r.short, r.text])).toEqual([
+      ['Copper Ore', 5n, 6n, true, '5 / 6'],
+      ['Rough Hide', 1n, 2n, true, '1 / 2'],
+    ]);
+    const one = usesRows(R_SWORD, templates, ITEMS, 1n);
+    expect(one.map((r) => [r.need, r.short])).toEqual([
+      [3n, false],
+      [1n, false],
+    ]);
+  });
+
+  it('carries the rarity name color and the item icon, with fallbacks for a missing template', () => {
+    const rows = usesRows(R_BLADE, templates, ITEMS, 1n);
+    expect(rows[0].name).toBe('Darksteel Ore');
+    expect(rows[0].color).toBe('var(--color-rarity-rare)');
+    expect(rows[0].icon).toBe(itemIcon(DARKSTEEL));
+    expect(rows[1].color).toBe('var(--color-text)');
+    const missing = usesRows(recipe(9n, 'X', { req1TemplateId: 77n }), templates, ITEMS, 1n);
+    expect(missing[0].name).toBe('Unknown material');
+    expect(missing[0].icon).toBe(PhPackage);
+  });
+
+  it('includes a third requirement and passes markup as plain text', () => {
+    const three = recipe(9n, 'Three', { req3TemplateId: 2n, req3Count: 2n });
+    expect(usesRows(three, templates, ITEMS, 3n).map((r) => r.need)).toEqual([3n, 3n, 6n]);
+    const evil = new Map(templates);
+    evil.set(1n, tpl(1n, PAYLOAD));
+    expect(usesRows(R_SWORD, evil, ITEMS, 1n)[0].name).toBe(PAYLOAD);
+  });
+});
+
+describe('recipeDetail quality line', () => {
+  const base = (items: ItemInstance[] = ITEMS) => {
+    const { known: _known, ...rest } = input(items);
+    return rest;
+  };
+  const withOutput = (id: bigint, over: Record<string, unknown>) => {
+    const parts = base();
+    const templates = new Map(parts.templates);
+    templates.set(id, { ...templates.get(id)!, ...over } as ItemTemplate);
+    return { ...parts, templates };
+  };
+
+  it('names the tier word, the bonus and the material that sets it', () => {
+    // R_BLADE is Darksteel (tier 3, exquisite): +2 damage on a weapon.
+    const blade = withOutput(102n, { weaponBaseDamage: 4n });
+    expect(recipeDetail(blade, 3n, 5n)!.qualityLine).toBe('Quality: Exquisite (+2 damage), set by Tier 3 Darksteel Ore');
+    const ironWeapon = recipe(6n, 'Iron Dagger', { outputTemplateId: 100n, req1TemplateId: 2n, req1Count: 1n });
+    const parts = withOutput(100n, { weaponBaseDamage: 4n });
+    const reinforced = recipeDetail({ ...parts, recipes: new Map([[6n, ironWeapon]]) }, 6n, 5n)!;
+    expect(reinforced.qualityLine).toBe('Quality: Reinforced (+1 damage), set by Tier 2 Iron Ore');
+  });
+
+  it('says armor for an armor output and leaves the bonus out at the standard quality', () => {
+    const armor = withOutput(101n, { armorClassBonus: 5n });
+    expect(recipeDetail(armor, 2n, 5n)!.qualityLine).toBe('Quality: Reinforced (+1 armor), set by Tier 2 Iron Ore');
+    const copperArmor = recipe(7n, 'Copper Vest', { outputTemplateId: 101n, recipeType: 'armor' });
+    expect(recipeDetail({ ...armor, recipes: new Map([[7n, copperArmor]]) }, 7n, 5n)!.qualityLine).toBe(
+      'Quality: Standard, set by Tier 1 Copper Ore',
+    );
+  });
+
+  it('gives exquisite armor +2 armor and has no line for a consumable', () => {
+    const armor = withOutput(101n, { armorClassBonus: 5n });
+    const darkArmor = recipe(8n, 'Dark Helm', { outputTemplateId: 101n, recipeType: 'armor', req1TemplateId: 3n });
+    expect(recipeDetail({ ...armor, recipes: new Map([[8n, darkArmor]]) }, 8n, 5n)!.qualityLine).toBe(
+      'Quality: Exquisite (+2 armor), set by Tier 3 Darksteel Ore',
+    );
+    expect(recipeDetail(base(), 4n, 5n)!.qualityLine).toBeNull();
+  });
+
+  it('drops the bonus when the output has neither armor nor damage', () => {
+    expect(recipeDetail(base(), 2n, 5n)!.qualityLine).toBe('Quality: Reinforced, set by Tier 2 Iron Ore');
+  });
+});
+
+describe('createsCard', () => {
+  const character = { level: 5n, vendorSellMod: 100n };
+  const generated = () => {
+    const candidate = recipeCandidates(
+      [
+        { templateId: 46n, name: 'Iron Shard', tier: 1n, vendorValue: 2n, count: 3n },
+        { templateId: 48n, name: 'Scrap Cloth', tier: 1n, vendorValue: 1n, count: 11n },
+      ],
+      1n,
+    ).find((c) => c.category === 'weapon')!;
+    return generatedOutput(candidate, () => false).itemTemplate;
+  };
+  const dagger = (over: Record<string, unknown> = {}) =>
+    tpl(9n, 'Iron Shard Dagger', { ...generated(), id: 9n, stackable: false, vendorValue: 7n, ...over });
+  const makes = (template: ItemTemplate, outputCount = 1n) => {
+    const r = recipe(20n, template.name, { outputTemplateId: template.id, outputCount });
+    return createsCard(r, new Map([[template.id, template]]), character, []);
+  };
+
+  it('gives the icon, rarity color, yield tag and the item details', () => {
+    const template = dagger({ rarity: 'rare' });
+    const card = makes(template, 1n)!;
+    expect(card.name).toBe('Iron Shard Dagger');
+    expect(card.color).toBe('var(--color-rarity-rare)');
+    expect(card.icon).toBe(itemIcon(template));
+    expect(card.yieldTag).toBe('');
+    expect(card.details.stats.map((s) => `${s.label} ${s.text}`)).toEqual(['Damage 4', 'DPS 5']);
+    expect(card.details.meta).toMatch(/^Sells for /);
+  });
+
+  it('shows the rule-based description and still shows the stats with the old two-material one', () => {
+    const fresh = makes(dagger())!;
+    expect(fresh.details.description).toContain('4 base damage at 5 DPS');
+    const old = makes(dagger({ description: 'Crafted from Iron Shard and Scrap Cloth.' }))!;
+    expect(old.details.description).toBe('Crafted from Iron Shard and Scrap Cloth.');
+    expect(old.details.stats.map((s) => s.label)).toEqual(['Damage', 'DPS']);
+  });
+
+  it('tags a makes-many output with x and the count', () => {
+    expect(makes(dagger(), 3n)!.yieldTag).toBe('x3');
+  });
+
+  it('is null while the output template is missing', () => {
+    expect(createsCard(recipe(20n, 'X', { outputTemplateId: 999n }), new Map(), character, [])).toBeNull();
+  });
+
+  it('keeps markup in the name and description as plain text', () => {
+    const card = makes(dagger({ name: PAYLOAD, description: PAYLOAD }))!;
+    expect(card.name).toBe(PAYLOAD);
+    expect(card.details.description).toBe(PAYLOAD);
+  });
+});
+
+describe('materialRows', () => {
+  const templates = new Map(TEMPLATES.map((t) => [t.id, t]));
+
+  it('adds the icon, highlights the used materials and marks a zero count short', () => {
+    const items = [inst(1n, 1n, 5n), inst(2n, 3n, 2n)];
+    const rows = materialRows(items, templates, new Set([1n]));
+    expect(rows.map((r) => [r.name, r.count, r.highlighted, r.short])).toEqual([
+      ['Copper Ore', 5n, true, false],
+      ['Darksteel Ore', 2n, false, false],
+    ]);
+    expect(rows[0].icon).toBe(itemIcon(COPPER));
+    expect(rows[1].color).toBe('var(--color-rarity-rare)');
+  });
+
+  it('includes a used material with none on hand, sorted by name', () => {
+    const rows = materialRows([inst(1n, 3n, 2n)], templates, new Set([1n, 4n]));
+    expect(rows.map((r) => [r.name, r.count, r.highlighted, r.short])).toEqual([
+      ['Copper Ore', 0n, true, true],
+      ['Darksteel Ore', 2n, false, false],
+      ['Rough Hide', 0n, true, true],
+    ]);
+  });
+
+  it('skips a used template that has not loaded and passes names through as text', () => {
+    expect(materialRows([], templates, new Set([999n]))).toEqual([]);
+    const evil = new Map(templates);
+    evil.set(1n, tpl(1n, PAYLOAD));
+    expect(materialRows([inst(1n, 1n)], evil, new Set())[0].name).toBe(PAYLOAD);
   });
 });
