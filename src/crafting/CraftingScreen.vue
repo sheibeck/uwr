@@ -366,8 +366,13 @@ watch(
                 <SalvageList ref="salvageList" :selected-id="salvageSelectedId" @select="onSalvageSelect" />
               </div>
               <aside class="col detail-col">
+                <!-- Keyed on the item: after a salvage the list auto-selects the next row, and the old
+                     detail (with the Salvage button that started the call) goes away, so the card's
+                     close never returns focus to a Salvage button for an item the player never picked.
+                     Focus falls back to the selected row instead (WR-04, iteration 3). -->
                 <SalvageDetail
                   v-if="salvageSelectedId !== null"
+                  :key="String(salvageSelectedId)"
                   :instance-id="salvageSelectedId"
                   :runner="runner"
                   :mobile="false"

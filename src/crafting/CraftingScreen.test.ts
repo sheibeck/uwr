@@ -1827,6 +1827,36 @@ describe('Craft / Salvage switch (Plan 50-38)', () => {
       expect(document.activeElement).toBe(row.element);
     });
 
+    // WR-04 (iteration 3): a common item salvages with no confirm, so the Salvage button itself started
+    // the call. The list then auto-selects the next row; focus must land on that row, never on a
+    // Salvage button that now names an item the player did not pick.
+    it('after salvaging a common item on desktop, Done focuses the selected row, not a Salvage button', async () => {
+      const ctx = mountSalvage();
+      await openSalvage();
+      await wrapper!.get(`button.salvage-row[data-instance-id="${TUNIC_ID}"]`).trigger('click');
+      await nextTick();
+      const button = wrapper!.get('.detail-col button.salvage-btn');
+      expect(button.text()).toBe('Salvage Plain Tunic');
+      (button.element as HTMLElement).focus();
+      await button.trigger('click');
+      await flush();
+      expect(ctx.salvageItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: TUNIC_ID });
+      expect(dialog().exists()).toBe(true);
+      expect(button.element.isConnected).toBe(false);
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(dialog().exists()).toBe(false);
+      const active = document.activeElement as HTMLElement;
+      expect(active.classList.contains('salvage-btn')).toBe(false);
+      expect(active.classList.contains('salvage-row')).toBe(true);
+      expect(active.getAttribute('data-instance-id')).toBe(String(GILDED_ID));
+      expect(active.getAttribute('aria-pressed')).toBe('true');
+      // A second Enter on the focused row only selects it: nothing else is salvaged.
+      await wrapper!.get(`button.salvage-row[data-instance-id="${GILDED_ID}"]`).trigger('click');
+      await flush();
+      expect(ctx.salvageItem).toHaveBeenCalledTimes(1);
+    });
+
     it('an empty roll opens the card with Nothing usable was left and nothing else', async () => {
       mountSalvage({ lines: [] });
       await salvageGilded('.detail-col');
