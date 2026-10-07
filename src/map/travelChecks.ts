@@ -132,7 +132,7 @@ export function travelChecks(input: TravelChecksInput): TravelChecks {
   const checks: TravelCheck[] = [];
 
   if (crossRegion && origin !== null) {
-    if (crossRegion && selfTimer.running) {
+    if (selfTimer.running) {
       checks.push({
         key: 'region',
         status: 'wait',
