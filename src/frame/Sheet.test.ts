@@ -149,6 +149,27 @@ describe('Sheet', () => {
     expect(kinds).toEqual(['h4', 'span', 'button']);
   });
 
+  // Plan 50-39: header actions sit after the spacer, before the close button.
+  it('puts the actions after the spacer and before the close button, and has no wrapper without them', () => {
+    wrapper = mount(Sheet, {
+      props: { title: 'Inventory' },
+      slots: {
+        default: 'Body',
+        meta: '<span class="sheet-meta">2 / 50</span>',
+        actions: '<button type="button" class="act">A</button>',
+      },
+      attachTo: document.body,
+    });
+    const kinds = Array.from(wrapper.get('.sheet-header').element.children).map(
+      (child) => child.tagName.toLowerCase() + '.' + child.className.split(' ')[0],
+    );
+    expect(kinds).toEqual(['h4.', 'span.sheet-meta', 'span.sheet-spacer', 'span.sheet-actions', 'button.btn']);
+    expect(wrapper.get('.sheet-actions .act').text()).toBe('A');
+    expect(document.activeElement).toBe(wrapper.get('button.sheet-close').element);
+    wrapper.unmount();
+    expect(mountSheet().find('.sheet-actions').exists()).toBe(false);
+  });
+
   it('style has the 20px top radius, 44px close button and a reduced-motion rule', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/frame/Sheet.vue'), 'utf8');
     expect(source).toContain('border-radius: 20px 20px 0 0');

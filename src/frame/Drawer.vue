@@ -39,6 +39,8 @@ onBeforeUnmount(() => {
       <h4 :id="titleId">{{ props.title }}</h4>
       <span class="drawer-meta"><slot name="meta" /></span>
       <span class="drawer-spacer"></span>
+      <!-- Header actions sit after the spacer, for screens whose header carries controls (Inventory: gold and Organize). -->
+      <span v-if="$slots.actions" class="drawer-actions"><slot name="actions" /></span>
       <button
         ref="closeButton"
         type="button"
@@ -84,6 +86,12 @@ onBeforeUnmount(() => {
 
 .drawer-spacer {
   flex: 1;
+}
+
+.drawer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .drawer-close {

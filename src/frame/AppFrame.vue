@@ -163,6 +163,7 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
         <ContextRail />
         <Drawer v-if="activeDef" :key="activeDef.id" :title="activeDef.title" @close="screens.close()">
           <template v-if="activeDef.meta" #meta><component :is="activeDef.meta" /></template>
+          <template v-if="activeDef.actions" #actions><component :is="activeDef.actions" /></template>
           <component :is="activeDef.component" />
         </Drawer>
       </div>
@@ -223,6 +224,7 @@ function onSelectTab(tab: TabId, opener: HTMLElement): void {
       </Sheet>
       <Sheet v-else-if="activeDef" :key="activeDef.id" :title="activeDef.title" @close="screens.close()">
         <template v-if="activeDef.meta" #meta><component :is="activeDef.meta" /></template>
+        <template v-if="activeDef.actions" #actions><component :is="activeDef.actions" /></template>
         <component :is="activeDef.component" />
       </Sheet>
       <TabBar v-if="!combatActive" :active-tab="tabForScreen(screens.active.value)" :sheet-open="sheetOpen" @select="onSelectTab" />

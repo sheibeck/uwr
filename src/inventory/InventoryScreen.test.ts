@@ -5,6 +5,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
+import { SEND_ERROR_TEXT } from '../ledger/actionRunner';
 import {
   FRAME_KEY,
   GAME_KEY,
@@ -19,6 +20,7 @@ import type { ResultLine } from '@game-data/action_result';
 import type { ActionResult, ItemAffix, ItemInstance, ItemTemplate } from '../module_bindings/types';
 import EquippedSlots from './EquippedSlots.vue';
 import BackpackGrid from './BackpackGrid.vue';
+import InventoryActions from './InventoryActions.vue';
 import InventoryMeta from './InventoryMeta.vue';
 import InventoryScreen from './InventoryScreen.vue';
 
@@ -460,10 +462,10 @@ describe('InventoryMeta', () => {
     return ctx;
   }
 
-  it('shows the slot count and the gold on desktop', () => {
+  it('shows the slot count on desktop and has no gold (the gold is in the header actions, Plan 50-39)', () => {
     mountMeta({ items: [inst(1n, 1n), inst(2n, 1n), inst(3n, 1n, { equippedSlot: 'chest' })] });
     expect(wrapper!.get('.slots').text()).toBe(`2 / ${MAX_INVENTORY_SLOTS} slots`);
-    expect(wrapper!.get('.gold').attributes('aria-label')).toBe('1284 gold');
+    expect(wrapper!.find('.gold').exists()).toBe(false);
     expect(wrapper!.get('.slots').classes()).not.toContain('full');
   });
 
@@ -486,6 +488,131 @@ describe('InventoryMeta', () => {
     wrapper!.unmount();
     mountMeta({ character: null });
     expect(wrapper!.find('.inventory-meta').exists()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// InventoryActions (Plan 50-39: the header gold and Organize, mock 10a)
+// ---------------------------------------------------------------------------
+
+describe('Inventory header actions (Plan 50-39)', () => {
+  function mountActions(
+    world: World,
+    consolidate: (...args: never[]) => Promise<void> = vi.fn().mockResolvedValue(undefined),
+  ) {
+    const ctx = worldContext({
+      templates: [tpl(1n)],
+      items: [inst(1n, 1n)],
+      reducers: { consolidateStacks: consolidate } as Partial<LedgerReducers>,
+      ...world,
+    });
+    wrapper = mount(InventoryActions, { attachTo: document.body, global: ctx.global });
+    return { ctx, consolidate };
+  }
+
+  it('renders nothing before the items apply or without a character', () => {
+    mountActions({ applied: false });
+    expect(wrapper!.find('.inventory-actions').exists()).toBe(false);
+    wrapper!.unmount();
+    mountActions({ character: null });
+    expect(wrapper!.find('.inventory-actions').exists()).toBe(false);
+  });
+
+  it('shows the gold once, then Organize with the sort icon, on desktop', () => {
+    mountActions({});
+    expect(wrapper!.findAll('.gold')).toHaveLength(1);
+    expect(wrapper!.get('.gold').attributes('aria-label')).toBe('1284 gold');
+    const button = wrapper!.get('button.organize');
+    expect(button.text()).toBe('Organize');
+    expect(button.attributes('aria-label')).toBeUndefined();
+    expect(button.find('svg').attributes('aria-hidden')).toBe('true');
+    const kids = Array.from(wrapper!.get('.inventory-actions').element.children);
+    expect(kids[0].className).toContain('gold');
+    expect(kids[kids.length - 1]).toBe(button.element);
+  });
+
+  it('calls consolidateStacks once, and a second click while pending sends nothing', async () => {
+    let release: () => void = () => undefined;
+    const consolidate = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+    mountActions({}, consolidate);
+    const button = wrapper!.get('button.organize');
+    expect(button.attributes('aria-disabled')).toBeUndefined();
+    await button.trigger('click');
+    expect(consolidate).toHaveBeenCalledTimes(1);
+    expect(consolidate).toHaveBeenCalledWith({ characterId: 7n });
+    expect(button.attributes('aria-disabled')).toBe('true');
+    expect(button.attributes('aria-busy')).toBe('true');
+    await button.trigger('click');
+    expect(consolidate).toHaveBeenCalledTimes(1);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await nextTick();
+    expect(button.attributes('aria-disabled')).toBeUndefined();
+    expect(button.attributes('aria-busy')).toBeUndefined();
+  });
+
+  it('is inert offline, and sends nothing', async () => {
+    const { consolidate } = mountActions({ connected: false });
+    const button = wrapper!.get('button.organize');
+    expect(button.attributes('aria-disabled')).toBe('true');
+    await button.trigger('click');
+    expect(consolidate).not.toHaveBeenCalled();
+  });
+
+  it('is icon-only on mobile, named Organize backpack, with 44px targets pinned in the source', () => {
+    mountActions({ isDesktop: false });
+    const button = wrapper!.get('button.organize');
+    expect(button.classes()).toContain('mobile');
+    expect(button.attributes('aria-label')).toBe('Organize backpack');
+    expect(button.attributes('title')).toBe('Organize');
+    expect(button.text()).toBe('');
+    expect(button.find('svg').exists()).toBe(true);
+    const source = read('InventoryActions.vue');
+    expect(source).toMatch(/\.organize\.mobile\s*\{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
+    expect(source).toMatch(/\.organize\s*\{\s*padding: 4px 8px;/);
+  });
+
+  it("shows a rejection in the Inventory screen's notice line, like every other bag action", async () => {
+    const consolidate = vi.fn().mockRejectedValue(new Error('no'));
+    const ctx = worldContext({
+      templates: SCREEN_TEMPLATES,
+      items: screenItems(),
+      reducers: { consolidateStacks: consolidate } as Partial<LedgerReducers>,
+    });
+    wrapper = mount(InventoryScreen, { attachTo: document.body, global: ctx.global });
+    const header = mount(InventoryActions, { attachTo: document.body, global: ctx.global });
+    await nextTick();
+    expect(wrapper.find('.notice-line').exists()).toBe(false);
+    await header.get('button.organize').trigger('click');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await nextTick();
+    header.unmount();
+    expect(consolidate).toHaveBeenCalledTimes(1);
+    expect(wrapper.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+  });
+
+  it("shows the server's Organize line in the screen's notice line as text", async () => {
+    const ctx = worldContext({ templates: SCREEN_TEMPLATES, items: screenItems() });
+    wrapper = mount(InventoryScreen, { attachTo: document.body, global: ctx.global });
+    await nextTick();
+    ctx.game.feed.setCharacter(7n);
+    ctx.game.feed.ingest('private', {
+      id: 1n,
+      kind: 'system',
+      message: 'Inventory organized: 2 stack(s) consolidated.',
+      createdAt: { microsSinceUnixEpoch: 10n },
+      characterId: 7n,
+    } as never);
+    ctx.game.feed.flush();
+    await nextTick();
+    await nextTick();
+    expect(wrapper.get('.notice-line').text()).toBe('Inventory organized: 2 stack(s) consolidated.');
+  });
+
+  it('has no inline svg and no raw html in the source', () => {
+    const source = read('InventoryActions.vue');
+    expect(source).not.toContain('<svg');
+    expect(source).not.toContain('v-html');
   });
 });
 

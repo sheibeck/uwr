@@ -152,3 +152,28 @@ describe('Drawer', () => {
     expect(source).toContain('prefers-reduced-motion');
   });
 });
+
+describe('Drawer actions slot (Plan 50-39)', () => {
+  it('puts the actions after the spacer and before the close button', () => {
+    wrapper = mount(Drawer, {
+      props: { title: 'Inventory' },
+      slots: {
+        default: 'Body',
+        meta: '<span class="m">2 / 50 slots</span>',
+        actions: '<button type="button" class="act">A</button>',
+      },
+      attachTo: document.body,
+    });
+    const kinds = Array.from(wrapper.get('.drawer-header').element.children).map(
+      (child) => child.tagName.toLowerCase() + '.' + child.className.split(' ')[0],
+    );
+    expect(kinds).toEqual(['h4.', 'span.drawer-meta', 'span.drawer-spacer', 'span.drawer-actions', 'button.btn']);
+    expect(wrapper.get('.drawer-actions .act').text()).toBe('A');
+    expect(document.activeElement).toBe(wrapper.get('button.drawer-close').element);
+  });
+
+  it('has no actions wrapper without an actions slot', () => {
+    const w = mountDrawer();
+    expect(w.find('.drawer-actions').exists()).toBe(false);
+  });
+});

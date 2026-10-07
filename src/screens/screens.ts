@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/vue';
 import CraftingMeta from '../crafting/CraftingMeta.vue';
 import CraftingScreen from '../crafting/CraftingScreen.vue';
+import InventoryActions from '../inventory/InventoryActions.vue';
 import InventoryMeta from '../inventory/InventoryMeta.vue';
 import InventoryScreen from '../inventory/InventoryScreen.vue';
 import StatsMeta from '../stats/StatsMeta.vue';
@@ -34,6 +35,8 @@ export interface ScreenDef {
   component: Component;
   /** Header meta (slots, gold, station); rendered in the drawer and sheet #meta slot. */
   meta?: Component;
+  /** Header actions after the spacer (Inventory: gold and Organize); rendered in the drawer and sheet #actions slot. */
+  actions?: Component;
   /** Has a desktop header button. */
   inHeader: boolean;
 }
@@ -47,6 +50,7 @@ export const SCREENS: readonly ScreenDef[] = [
     icon: PhBackpack,
     component: InventoryScreen,
     meta: InventoryMeta,
+    actions: InventoryActions,
     inHeader: true,
   },
   {

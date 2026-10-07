@@ -9,6 +9,8 @@ import { GAME_KEY, createInertCombatData, createInertGame } from '../game/contex
 import type { GameData } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { LedgerData } from '../ledger/ledgerContext';
+import InventoryActions from '../inventory/InventoryActions.vue';
+import { SCREENS, getScreen } from '../screens/screens';
 
 type Listener = (event: { matches: boolean }) => void;
 
@@ -322,6 +324,51 @@ describe('mobile sheets', () => {
     await w.get('button[data-screen="bag"]').trigger('click');
     await settle();
     expect(w.get('[role="dialog"]').text()).toContain('2 / 50 slots');
+    expect(w.get('.drawer-meta').text()).toBe('2 / 50 slots');
+  });
+
+  // Plan 50-39: the header gold and Organize sit after the spacer, before the close button.
+  function bagWorld() {
+    const { game } = fakeGame({
+      character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n, gold: 1284n }),
+    });
+    const bagRow = (id: bigint) => ({ id, templateId: 1n, ownerCharacterId: 1n, quantity: 1n, equippedSlot: undefined });
+    const ledger: LedgerData = {
+      ...createInertLedger(),
+      items: ref([bagRow(1n), bagRow(2n)]),
+      itemsApplied: ref(true),
+    } as unknown as LedgerData;
+    return { game, ledger };
+  }
+
+  it('the Inventory drawer header carries the gold and Organize after the spacer, before the close button', async () => {
+    const { game, ledger } = bagWorld();
+    const w = mountFrame(true, game, ledger);
+    await w.get('button[data-screen="bag"]').trigger('click');
+    await settle();
+    expect(w.get('.drawer-meta').text()).toBe('2 / 50 slots');
+    const actions = w.get('.drawer-actions');
+    expect(actions.find('.gold').attributes('aria-label')).toBe('1284 gold');
+    expect(actions.get('button.organize').text()).toBe('Organize');
+    expect(actions.element.previousElementSibling?.className).toBe('drawer-spacer');
+    expect(actions.element.nextElementSibling).toBe(w.get('button.drawer-close').element);
+  });
+
+  it('the Inventory sheet header carries the Organize backpack button on mobile', async () => {
+    const { game, ledger } = bagWorld();
+    const w = mountFrame(false, game, ledger);
+    await w.get('button[data-tab="bag"]').trigger('click');
+    await settle();
+    const actions = w.get('.sheet-actions');
+    expect(actions.find('button[aria-label="Organize backpack"]').exists()).toBe(true);
+    expect(w.get('.sheet-header').text()).toContain('2 / 50');
+  });
+
+  it('the registry gives only the Inventory screen header actions', () => {
+    expect(getScreen('bag').actions).toBe(InventoryActions);
+    for (const def of SCREENS) {
+      if (def.id !== 'bag') expect(def.actions).toBeUndefined();
+    }
   });
 
   it('Escape closes a mobile sheet', async () => {

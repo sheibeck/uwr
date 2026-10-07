@@ -40,6 +40,8 @@ onBeforeUnmount(() => {
       <h4 :id="titleId">{{ props.title }}</h4>
       <slot name="meta" />
       <span class="sheet-spacer"></span>
+      <!-- Header actions sit after the spacer, for screens whose header carries controls (Inventory: gold and Organize). -->
+      <span v-if="$slots.actions" class="sheet-actions"><slot name="actions" /></span>
       <button
         ref="closeButton"
         type="button"
