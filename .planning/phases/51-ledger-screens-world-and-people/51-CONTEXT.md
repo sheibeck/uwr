@@ -87,8 +87,11 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 ### Region transitions collapse after discovery (owner, 2026-10-06)
 - **Keep the uncharted "Edge Beyond {Region}" until it is explored.** It is how players find the unknown, and the map shows it as "something lies beyond".
 - **After the next region is generated, the edge goes away.** Today it is renamed "The Passage to {Region}" and stays a stop of its own (`llm_apply.ts:522-531`). Instead, link its neighbour on this side directly to the new region's arrival point and delete the passage. The map draws that link as a **border crossing** showing where the regions meet, and crossing it starts the travel timer.
+- **The passage stays until it is empty (owner, 2026-10-06).** Generation moves no one. The explorer and anyone else standing on the edge are still there afterwards, as today.
+  - While any character stands in it, the passage stays as a stop leading both ways.
+  - When the last character leaves, in either direction, it collapses into the direct border crossing.
+  - A periodic sweep (a scheduled table with the module-identity guard) stops offline characters from holding it open forever. It moves any offline character still standing in a passage back to the neighbour on their own side (never across the border), then collapses the passage.
 - **Edge cases:**
-  - A character standing on a passage moves to the arrival point.
   - Binds, quests and events that point at a passage are re-pointed or cleared.
   - Existing passages in the local world are cleaned up once, by a guarded or admin step. Never clear the database (it wipes the key).
   - Real-handler tests cover all of these.
