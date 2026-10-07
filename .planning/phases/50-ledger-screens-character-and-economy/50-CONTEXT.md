@@ -148,6 +148,10 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - Use the minimum over all recipes that output the template.
 - Craft → salvage → craft can never repeat without new materials.
 - The shared rule lives in `crafting_rules.ts`, so the client salvage preview shows the same number. Non-craftable items keep the vendorValue-based yield.
+- **Refined the same day (owner):** "Salvage should never be a guaranteed return. Just a chance for some lesser amount of some components. Rare components have rarer chance to be returned."
+  - Each component rolls a return chance (ctx-seeded) that falls with its rarity, and a returned component comes back in a reduced amount. Nothing is guaranteed, and an empty salvage is possible and says so plainly.
+  - The strict cap still applies on top of the chance.
+  - The confirm and the preview speak of chances, never a promised count.
 
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
