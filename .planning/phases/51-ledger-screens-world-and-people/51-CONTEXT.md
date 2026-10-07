@@ -28,7 +28,7 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 
 ### Map and travel (Area 1)
 - **Known places are recorded on the server.** Add a private per-character table of visited places, written on arrival (`performTravel`) and on character creation or first spawn, exposed through a `my_*` view. A place is **heard of** when it connects to a visited place; this is derived on the client from `location_connection`. The map grows as the player explores. Places neither visited nor heard of are not shown.
-- **The client lays out the route graph from the connections.** Places have no coordinates and the guard bans `<svg>`. Put the region's start place on the left and arrange places by their step distance from it, deterministically (same layout every time). Edges may use SVG on the map screen only (see the second revised map mock section), in the same coordinate space as the nodes, so dots and lines never drift apart.
+- **The client lays out the route graph from the connections.** Places have no coordinates and the guard bans `<svg>`. Put the region's start place on the left and arrange places by their step distance from it, deterministically (same layout every time). (Layout superseded by "Owner play-test: map spacing (2026-10-07)" below: a two-dimensional layout that fills the canvas.) Edges may use SVG on the map screen only (see the second revised map mock section), in the same coordinate space as the nodes, so dots and lines never drift apart.
 - **Travel buttons:** superseded by the second revised map mock: one Travel button (see that section). Members get a **Follow leader** switch on the Social screen and in the self menu (`set_follow_leader`, which exists but is unwired).
 - **Neighbours only (owner decision).** Travel buttons appear only for places next to the current one. Farther places show their highlighted path but no Travel button. Owner: "Travel to a far place requires a special ability, like teleport, otherwise, you must walk step by step." Research whether a teleport-style ability exists; if not, the node detail just says so (no new ability in this phase).
 - **Region list:** every generated region the player knows, with its level range from the existing rule (`routeLevel` in `src/rails/levelRange.ts`, the min to max across the region).
@@ -95,6 +95,29 @@ Mobile (390×844): Map, Party and World events open as full-height sheets above 
 ### Updated party mock and console travel panel (owner, 2026-10-07)
 - **Party: pet HUD and travel-with-leader indicators.** The updated `UWR Party.dc.html` is re-imported to the session scratchpad `design51/party2/PARTY2-EXTRACT.md`. Build it in Phase 51. Pets come from the existing `active_pet` table; research confirms what is readable and needed. The follow indicators come from `group_member.followLeader`. Todo: `2026-10-07-party-pet-hud-and-follow-indicators.md`.
 - **Console travel panel.** The owner sent `UWR Console.dc.html`, an updated travel panel in the main right rail. It is re-imported to the session scratchpad `design51/console/CONSOLE-EXTRACT.md` and is the source for the rail's routes and Here panel.
+
+### Owner play-test: map spacing (2026-10-07)
+Owner, verbatim: "the graph map needs to be spread out more. Notice how the zone line in the mock is a much bigger area with more space for the information. Right now in Sennet Basin region, the map is essentialy just a straight line all the weay to the right. We want the map to look more like a map with how the regions connect --- visually. Tesarine Shelf has two exits from Cormorant Stair, which looks much nicer since it splits, but the To Kesterlane Basin sits right on top of Comorant Stair becuase everything is so tightly packed together. Give more breathing room on the map."
+
+Decisions (coordinator and planner, 2026-10-07; the owner may override any of them). Built in gap-closure plan 51-12. They supersede the Area 1 rule "Put the region's start place on the left and arrange places by their step distance from it" and the UI-SPEC "Route graph" layout steps 1 to 8.
+- **MS-01 A two-dimensional layout replaces the columns.** `src/map/graphLayout.ts` runs a deterministic stress layout with a fixed number of iterations. There is no randomness. Start positions come from the breadth-first order on a golden-angle spiral, so the same inputs give the same output in any input order. Graph distances are softened (distance to the power 0.6), so a chain bends into two dimensions instead of a straight line, and branches split.
+- **MS-02 The region fills the canvas.** The layout takes the measured canvas size as an input: a ResizeObserver on the plane's scroll area, the BackpackGrid (50-39) pattern. The layout itself stays pure. A small region is scaled up to fill the canvas, with no edge longer than 360px. A large region keeps the minimum spacing and scrolls, as today.
+- **MS-03 Breathing room.** Place centres are at least 160px apart on desktop and 112px on mobile.
+  - The mock's neighbouring places are about 150 to 210px apart in its 696 x 622 canvas. The suggested 2.5 x the old 72px row pitch (180px) would make Sennet Basin scroll at 1280 x 800, so the minimum is one constant the owner can raise.
+  - Labels never touch each other or a node hit box (32px, or 44px on mobile).
+  - Gate pills stay 16px clear of every hit box, label, caption and other pill (on mobile, the pill's 44px tap area counts). A pill sits where its edge meets the outline. If that spot is taken, it slides along its edge, then along the outline.
+  - The region caption takes the first clear corner of the outline.
+- **MS-04 Other regions sit outside the outline.** They go on the side (top, right, bottom or left) that faces their neighbour inside the region; near-ties go to top or bottom, where a pill fits on its line. The outline is a large rounded rectangle with generous padding (48px, 56px at the top).
+- **MS-05 Everything else stays.** This covers one pixel plane for the svg and the HTML nodes, token colours only, svg only in `src/map/`, the List view, gates selecting the far node, Center on you, and 44px mobile targets.
+  - The reading order (top to bottom, then left to right) sets the node order, the List order, End, and the gate pill tab order.
+  - Arrow keys move to the nearest place in that direction.
+- **MS-06 Review findings folded in** (`51-REVIEW-client-map.md`):
+  - CR-01: gate pills covered node circles, including the mobile 44px tap areas.
+  - IN-06: name order now uses a fixed `'en'` locale.
+  - IN-07: gate pills tab in reading order.
+  - WR-03, layout part only: on mobile the layout is computed once, and a character row update that keeps the same place does not run the layout again.
+- **MS-07 No caption on mobile (planner).** The mobile sheet's region row already names the region, as in the mock's mobile frame.
+- **MS-08 Visual check** at 1280 x 800 and 390 x 844 stays a deferred end-of-milestone UAT item.
 
 ### Region transitions collapse after discovery (owner, 2026-10-06)
 - **Keep the uncharted "Edge Beyond {Region}" until it is explored.** It is how players find the unknown, and the map shows it as "something lies beyond".

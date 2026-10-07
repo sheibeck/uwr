@@ -567,7 +567,7 @@ Plans:
   4. Explored region passages collapse into direct border crossings once nobody stands in them; offline characters left in a passage are swept back to their own side.
   5. At 390×844 the Map opens as a full-height sheet from the Map tab, and every action above works.
 
-**Plans**: 11 plans
+**Plans**: 12 plans
 
 Plans:
 **Wave 1**
@@ -598,6 +598,10 @@ Plans:
 **Wave 6** *(blocked on Wave 5 completion)*
 
 - [ ] 51-11-PLAN.md — Mobile Map sheet with Map and Here tabs and the dock, phase gate, LDG-05 wording (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion; gap closure from the owner's map-spacing play-test)*
+
+- [ ] 51-12-PLAN.md — Two-dimensional route-graph layout that fills the measured canvas, clear gate pills, reading-order keyboard, one shared graph (gap closure, wave 7)
 
 **UI hint**: yes
 **Design source**: `UWR Map.dc.html` (owner's revised map, second revision 2026-10-07) and `UWR Console.dc.html` (travel panel), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). The Phase 51 UI-SPEC covers 51, 51.1 and 51.2 and is split per phase.
