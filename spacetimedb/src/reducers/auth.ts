@@ -1,4 +1,5 @@
 import { scheduledReducers } from '../schema/tables';
+import { syncCharacterOnline } from '../helpers/online';
 
 export const registerAuthReducers = (deps: any) => {
   const {
@@ -86,6 +87,7 @@ export const registerAuthReducers = (deps: any) => {
           ctx.db.active_pet.id.delete(pet.id);
         }
       }
+      const releasedCharacterId = player.activeCharacterId;
       ctx.db.player.id.update({
         ...player,
         userId: undefined,
@@ -93,6 +95,9 @@ export const registerAuthReducers = (deps: any) => {
         sessionStartedAt: undefined,
         lastSeenAt: ctx.timestamp,
       });
+      // Online status (51.1): the flag flips here, 30 s after the disconnect, never in
+      // clientDisconnected, so a page refresh does not flap (research A7).
+      syncCharacterOnline(ctx, releasedCharacterId);
     }
   );
 };

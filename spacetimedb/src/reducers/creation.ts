@@ -3,6 +3,7 @@ import { computeCreationStats, findRaceDefinition, PLACEHOLDER_RACE_NAME } from 
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
 import { startCreationGeneration, retryClassFill, CLASS_FILL_PATIENCE_LINE } from '../helpers/creation_generation';
 import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
+import { syncCharacterOnline } from '../helpers/online';
 
 // Character creation state machine — narrative flow from greeting to character finalization
 
@@ -241,6 +242,9 @@ export const registerCreationReducers = (deps: any) => {
       weaponProficiencies,
       armorProficiencies,
       pendingLevels: 0n,
+      // Online status starts off; the sync at the end of finalize turns it on.
+      online: false,
+      lastOnlineAtMicros: 0n,
     });
 
     recomputeCharacterDerived(ctx, character);
@@ -315,6 +319,7 @@ export const registerCreationReducers = (deps: any) => {
       }
     }
 
+    const previousActiveId = player.activeCharacterId;
     ctx.db.player.id.update({ ...player, activeCharacterId: character.id });
 
     ctx.db.character_creation_state.id.update({
@@ -339,6 +344,10 @@ export const registerCreationReducers = (deps: any) => {
       updatedAt: ctx.timestamp,
     });
     startWorldGeneration(ctx, starterGenState);
+
+    // Online status (51.1): the last character-row writes of finalize (research Pitfall 1).
+    if (previousActiveId != null && previousActiveId !== character.id) syncCharacterOnline(ctx, previousActiveId);
+    syncCharacterOnline(ctx, character.id);
   }
 
   // start_creation — called when client detects no character and no creation state

@@ -32,6 +32,7 @@ import spacetimedb, {
   PassageSweepTick,
 } from './schema/tables';
 import { PASSAGE_SWEEP_INTERVAL_MICROS, sweepPassages } from './helpers/passages';
+import { reconcileOnline, syncCharacterOnline } from './helpers/online';
 import {
   VENDOR_RESTOCK_BATCH,
   VENDOR_RESTOCK_CONTINUE_MICROS,
@@ -334,6 +335,10 @@ scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', 
 
     campCharacter(ctx, player, character, true);
   }
+
+  // Online status (51.1): repair every drifted flag. This is also the backfill after the 51.1
+  // publish (every row starts offline); no client-callable reducer does this.
+  reconcileOnline(ctx);
 });
 
 // Vendor base stock: a private scheduled tick refills each vendor's base listings about every 15
@@ -702,6 +707,9 @@ spacetimedb.clientConnected((ctx) => {
   } else {
     ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
   }
+  // Online status (51.1): re-sync the reconnecting player's active character (a new player row has
+  // none). With the sweep's reconcile, this backfills the flags after the publish.
+  syncCharacterOnline(ctx, existing?.activeCharacterId);
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);

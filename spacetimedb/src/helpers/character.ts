@@ -3,6 +3,7 @@ import { Character } from '../schema/tables';
 import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './events';
 import { markLocationVisited } from './visited';
 import { collapsePassageAfterLeaving } from './passages';
+import { syncCharacterOnline } from './online';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -195,6 +196,8 @@ export function campCharacter(ctx: any, player: any, character: any, afk = false
   }
 
   ctx.db.player.id.update({ ...player, activeCharacterId: undefined, lastActivityAt: undefined });
+  // Online status (51.1): offline unless another session still holds the character.
+  syncCharacterOnline(ctx, character.id);
 }
 
 export function friendUserIds(ctx: any, userId: bigint): bigint[] {

@@ -1,6 +1,7 @@
 import { scheduledReducers } from '../schema/tables';
 import { markLocationVisited } from '../helpers/visited';
 import { collapsePassageAfterLeaving } from '../helpers/passages';
+import { syncCharacterOnline } from '../helpers/online';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
@@ -108,6 +109,11 @@ export const registerCharacterReducers = (deps: any) => {
       character.id
     );
     ensureSpawnsForLocation(ctx, character.locationId);
+
+    // Online status (51.1): the last character-row writes of the reducer (research Pitfall 1).
+    // The previous character goes offline unless another session still holds it.
+    if (previousActiveId && previousActiveId !== character.id) syncCharacterOnline(ctx, previousActiveId);
+    syncCharacterOnline(ctx, character.id);
   });
 
   spacetimedb.reducer('clear_active_character', {}, (ctx, _) => {
