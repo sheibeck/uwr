@@ -83,10 +83,17 @@ describe('var() definitions', () => {
       if (file === `${SRC}/styles/cssContract.ts`) continue;
       texts.push([file, read(file)]);
     }
+    // A property a component sets itself from script (an inline style key such as
+    // :style="{ '--bag-columns': ... }") is defined by that component, not by a token file (Plan 50-39).
+    const inlineSet = new Set<string>();
+    for (const [file, text] of texts) {
+      if (!file.endsWith('.vue')) continue;
+      for (const match of text.matchAll(/['"](--[\w-]+)['"]\s*:/g)) inlineSet.add(match[1]);
+    }
     const missing: string[] = [];
     for (const [file, text] of texts) {
       for (const name of usedCustomProperties(text)) {
-        if (!defined.has(name)) missing.push(`${file.replace(ROOT, '')}: ${name}`);
+        if (!defined.has(name) && !inlineSet.has(name)) missing.push(`${file.replace(ROOT, '')}: ${name}`);
       }
     }
     expect(missing).toEqual([]);

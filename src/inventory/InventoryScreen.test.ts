@@ -672,6 +672,15 @@ describe('InventoryScreen desktop', () => {
     expect(source).toMatch(/@media \(min-width: 1200px\)/);
   });
 
+  // Plan 50-39: the backpack column draws every one of the 50 slots.
+  it('draws 3 item tiles and 47 empty cells in the backpack column', async () => {
+    await mountScreen();
+    const column = wrapper!.get('.backpack-col');
+    expect(column.findAll('button.item-tile')).toHaveLength(3);
+    expect(column.findAll('.empty-tile')).toHaveLength(MAX_INVENTORY_SLOTS - 3);
+    expect(column.get('[aria-label="Backpack items"]').element.children).toHaveLength(MAX_INVENTORY_SLOTS);
+  });
+
   it('has nothing selected on open', async () => {
     await mountScreen();
     expect(wrapper!.findAll('button.item-tile[aria-pressed="true"], button.slot-card[aria-pressed="true"]')).toHaveLength(0);
@@ -798,6 +807,8 @@ describe('InventoryScreen mobile 390x844', () => {
     expect(wrapper!.get('[aria-label="Backpack items"]').classes()).toContain('mobile');
     expect(wrapper!.find('.item-tile .name').exists()).toBe(false);
     expect(wrapper!.find('.desk-grid').exists()).toBe(false);
+    // Plan 50-39: the mobile grid keeps its fixed 5 columns, with no measured column count.
+    expect(wrapper!.get('[aria-label="Backpack items"]').attributes('style') ?? '').not.toContain('--bag-columns');
   });
 
   it('shows the slot grid and Gear totals on the Equipped tab', async () => {
