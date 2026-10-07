@@ -57,7 +57,7 @@ interface Options {
   locations?: Location[];
   quests?: boolean;
   npcs?: Array<{ npcType: string; locationId: bigint }>;
-  members?: boolean;
+  visited?: bigint[];
 }
 
 let wrapper: VueWrapper | null = null;
@@ -87,7 +87,7 @@ function build(over: Options = {}) {
       place(13n, 'Far Hollow', 1n),
     ],
   );
-  const visitedIds = ref<bigint[]>([10n, 11n, 12n]);
+  const visitedIds = ref<bigint[]>(over.visited ?? [10n, 11n, 12n]);
   const connections = ref(links([[10n, 11n], [11n, 12n], [11n, 20n], [12n, 13n]]));
   const known = computed(() =>
     knownPlaces<Location>({
@@ -327,7 +327,7 @@ describe('DetailPanel: populated states', () => {
       place(10n, 'Ember Gate', 1n, { terrainType: 'town', isSafe: true }),
       place(30n, 'Lost Shrine', 1n),
     ];
-    const { w } = build({ selected: 30n, locations: lonely });
+    const { w } = build({ selected: 30n, locations: lonely, visited: [10n, 30n] });
     expect(w.find('button.travel-button').exists()).toBe(false);
     expect(w.get('.note').text()).toBe('No known path from here.');
   });
