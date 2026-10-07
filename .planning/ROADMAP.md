@@ -714,7 +714,7 @@ Plans:
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: `UWR Combat.dc.html` (loot rails), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) with the Nocturne `_ds` files and `support.js`.
+**Design source**: `UWR Combat.dc.html` (loot rails, and the effect chips for players and enemies updated by the owner on 2026-10-07; todo `2026-10-07-combat-mock-effect-chips-update.md`), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) with the Nocturne `_ds` files and `support.js`.
 **Notes**:
 
   - Moved out of Phase 52 (owner, 2026-10-07). Design record: backlog 999.23.

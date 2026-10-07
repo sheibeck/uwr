@@ -216,6 +216,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-07-party-pet-hud-and-follow-indicators.md`: pet HUD and travel-with-leader indicators from the updated `UWR Party.dc.html`. Folded into Phase 51.
 - `todos/pending/2026-10-07-combat-outro-tells-how-the-fight-unfolded.md`: the victory outro reads as wry aftermath because the prompt gets no record of the fight. Owner wants an action-oriented summary of how the fight unfolded from the abilities both sides used. Server digest needs no approval; the prompt wording needs the owner's explicit approval of the exact text.
 - `todos/pending/2026-10-07-level-up-and-new-skill-tags-do-nothing.md`: **blocks progression.** The Level up and New skill tags are display-only; no client calls `apply_level_up` or `choose_skill` (the old button was deleted in 45-01 and every UI-SPEC deferred the flow).
+- `todos/pending/2026-10-07-combat-mock-effect-chips-update.md`: updated `UWR Combat.dc.html` changes the effect chips for players and enemies. Fold into Phase 51.4 (same design file as the loot rails).
 
 ### Blockers/Concerns
 
