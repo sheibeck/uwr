@@ -257,7 +257,7 @@ defineExpose({ focusCurrent, scrollToNode });
           :class="[
             view.labelSide,
             `state-${view.stateWord === 'heard of' ? 'heard' : view.stateWord}`,
-            { selected: view.pressed, other: view.otherRegion },
+            { selected: view.pressed, other: view.otherRegion, mobile: props.mobile },
           ]"
           :style="labelStyle(view)"
           :data-node-id="String(view.id)"
@@ -274,8 +274,14 @@ defineExpose({ focusCurrent, scrollToNode });
             />
             <PhCastleTurret v-else-if="view.bindStone" class="mark mark-bind-stone" :size="12" aria-hidden="true" />
             <PhHammer v-if="view.crafting" class="mark mark-crafting" :size="12" aria-hidden="true" />
+            <span
+              v-if="props.mobile && view.levelLabel !== '' && !view.safe"
+              class="level level-inline"
+              :style="{ color: view.levelColor }"
+              >{{ view.levelLabel }}</span
+            >
           </span>
-          <span class="sub"
+          <span v-if="!props.mobile" class="sub"
             >{{ view.subPrefix }}{{ view.terrain.word }}{{ view.subState }}<PhShieldCheck
               v-if="view.safe"
               class="sub-safe"
@@ -530,6 +536,16 @@ defineExpose({ focusCurrent, scrollToNode });
 
 .label.left .line {
   justify-content: flex-end;
+}
+
+/* Mobile: one Micro 10 line, the name then the level in its band colour; the full sub-line stays in
+   the node aria-label. */
+.label.mobile .line {
+  font-size: 10px;
+}
+
+.level-inline {
+  flex: none;
 }
 
 .name {

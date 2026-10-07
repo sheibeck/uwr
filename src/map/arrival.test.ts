@@ -280,12 +280,25 @@ describe('Map arrival', () => {
     expect(h.setBanner).not.toHaveBeenCalled();
   });
 
-  it('on mobile (the Here view) nothing is selected or announced', async () => {
+  it('on mobile the Map tab follows the character row and focus moves to the dock place name', async () => {
     const h = harness();
     h.isDesktop.value = false;
-    await open(h);
+    const w = await open(h);
     await moveTo(h, 11n);
-    expect(h.select).not.toHaveBeenCalledWith(11n);
-    expect(h.setBanner).not.toHaveBeenCalled();
+    expect(h.select).toHaveBeenCalledWith(11n);
+    expect(h.setBanner).toHaveBeenCalledWith('Arrived at Gloamwood.');
+    expect(w.get('.arrival-banner').text()).toBe('Arrived at Gloamwood.');
+    expect(document.activeElement).toBe(w.get('.dock-name').element);
+  });
+
+  it('on mobile with the Here tab open the selection follows but there is no dock to focus', async () => {
+    const h = harness();
+    h.isDesktop.value = false;
+    const w = await open(h);
+    await w.get('[role="tab"]:nth-child(2)').trigger('click');
+    await settle();
+    expect(w.find('.dock-name').exists()).toBe(false);
+    await moveTo(h, 11n);
+    expect(h.select).toHaveBeenCalledWith(11n);
   });
 });

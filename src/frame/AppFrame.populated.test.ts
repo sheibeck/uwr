@@ -239,6 +239,16 @@ async function settle(): Promise<void> {
   await nextTick();
 }
 
+// The Map sheet opens on its Map tab; the rail content (Here, Nearby, Tracking) is the Here tab (51-11).
+async function openHereTab(w: VueWrapper): Promise<void> {
+  const tab = w
+    .get('[role="dialog"] [role="tablist"][aria-label="Map sheet view"]')
+    .findAll('[role="tab"]')
+    .find((t) => t.text() === 'Here');
+  await tab!.trigger('click');
+  await settle();
+}
+
 async function typeAndSend(w: VueWrapper, text: string): Promise<void> {
   const input = w.get('input.composer-input');
   await input.setValue(text);
@@ -396,6 +406,7 @@ describe('populated frame, mobile', () => {
     const w = mountFrame(false, game);
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
+    await openHereTab(w);
     const sheet = w.get('[role="dialog"]');
     expect(sheet.findAll('button.exit-row')).toHaveLength(1);
     expect(sheet.findAll('.nearby-row')).toHaveLength(3);
@@ -421,6 +432,7 @@ describe('populated frame, mobile', () => {
 
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
+    await openHereTab(w);
     await w.get('[role="dialog"] [aria-label="Invite Marisol"]').trigger('click');
     await settle();
     expect(w.find('[role="dialog"]').exists()).toBe(false);
@@ -432,6 +444,7 @@ describe('populated frame, mobile', () => {
     const w = mountFrame(false, game);
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
+    await openHereTab(w);
     await w.get('[role="dialog"] [aria-label="Whisper Marisol"]').trigger('click');
     await settle();
     expect(w.find('[role="dialog"]').exists()).toBe(false);

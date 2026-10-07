@@ -580,23 +580,97 @@ describe('MapScreen: safety and layout', () => {
     expect(w.get('.label[data-node-id="11"] .name').text()).toBe(XSS);
   });
 
-  it('on mobile keeps the Here view until the Map tabs exist (plan 51-11)', async () => {
-    const h = harness({ desktop: false });
-    const w = await mountScreen(h);
-    expect(w.find('.map-sheet').exists()).toBe(true);
-    expect(w.find('.legend').exists()).toBe(false);
-    expect(h.select).not.toHaveBeenCalled();
-  });
-
   it('source: canvas minimum height, the tokens-only glow and the guards', () => {
     expect(SOURCE).toContain('MAP_KEY');
     expect(SOURCE).toContain('Travel to a new place and it appears here.');
-    expect(SOURCE).toContain('layoutGraph(');
+    expect(SOURCE).toContain('useMapGraph(');
     expect(SOURCE).toMatch(/min-height:\s*320px/);
     expect(SOURCE).toContain('radial-gradient');
     expect(SOURCE).toContain('var(--color-accent-900)');
     expect(SOURCE).not.toContain('v-html');
     expect(SOURCE).not.toMatch(/<svg/);
     expect(SOURCE).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+});
+
+const tab = (w: VueWrapper, name: string) => w.findAll('[role="tab"]').find((t) => t.text() === name)!;
+
+describe('MapScreen: mobile Map and Here tabs (plan 51-11)', () => {
+  it('shows the Map sheet view tabs with Map selected, the sheet, and a notice line under it', async () => {
+    const h = harness({ desktop: false });
+    const w = await mountScreen(h);
+    const tablist = w.get('[role="tablist"][aria-label="Map sheet view"]');
+    expect(tablist.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Map', 'Here']);
+    expect(tab(w, 'Map').attributes('aria-selected')).toBe('true');
+    expect(tab(w, 'Here').attributes('aria-selected')).toBe('false');
+    expect(w.find('.sheet-map').exists()).toBe(true);
+    expect(w.find('.dock').exists()).toBe(true);
+    expect(w.find('.map-body').exists()).toBe(false);
+    // The shared startup rule: your place is selected on open.
+    expect(h.select).toHaveBeenCalledWith(10n);
+    expect(w.get('.map-sheet-root').element.lastElementChild?.className ?? '').not.toContain('sheet-map');
+  });
+
+  it('the Here tab renders the rail content: Here, Nearby and Tracking', async () => {
+    const h = harness({ desktop: false });
+    const w = await mountScreen(h);
+    await tab(w, 'Here').trigger('click');
+    await nextTick();
+    // The Here card shows its place kicker once the character is placed; Nearby and Tracking follow.
+    expect(w.find('.here-column .card-kicker').exists()).toBe(true);
+    expect(w.findAll('h6').map((x) => x.text())).toEqual(['Nearby', 'Tracking']);
+    expect(w.find('.sheet-map').exists()).toBe(false);
+    await tab(w, 'Map').trigger('click');
+    await nextTick();
+    expect(w.find('.sheet-map').exists()).toBe(true);
+  });
+
+  it('draws nothing on the Map tab before the map data has applied, but keeps the tabs', async () => {
+    const h = harness({ desktop: false });
+    h.ready.value = false;
+    const w = await mountScreen(h);
+    expect(w.find('.sheet-map').exists()).toBe(false);
+    expect(w.find('.dock').exists()).toBe(false);
+    expect(w.findAll('[role="tab"]')).toHaveLength(2);
+    expect(h.select).not.toHaveBeenCalled();
+    h.ready.value = true;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.sheet-map').exists()).toBe(true);
+  });
+
+  it('shows the empty state on the Map tab when the character has no location', async () => {
+    const h = harness({ desktop: false, locationId: 0n });
+    const w = await mountScreen(h);
+    expect(w.text()).toContain('No places discovered yet.');
+    expect(w.find('.sheet-map').exists()).toBe(false);
+    await tab(w, 'Here').trigger('click');
+    await nextTick();
+    expect(w.text()).not.toContain('No places discovered yet.');
+  });
+
+  it('the dock and the canvas read the same selection', async () => {
+    const h = harness({ desktop: false });
+    const w = await mountScreen(h);
+    await w.get('button.node[data-node-id="11"]').trigger('click');
+    await nextTick();
+    expect(w.get('.dock-name').text()).toBe('Gloamwood');
+  });
+
+  it('renders hostile place names as text in the dock', async () => {
+    const locations = LOCATIONS().map((l) => (l.id === 11n ? { ...l, name: XSS } : l));
+    const h = harness({ desktop: false, locations });
+    const w = await mountScreen(h);
+    await w.get('button.node[data-node-id="11"]').trigger('click');
+    await nextTick();
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.dock-name').text()).toBe(XSS);
+  });
+
+  it('source: the tabs, the notice line and the shared destination', () => {
+    expect(SOURCE).toContain('Map sheet view');
+    expect(SOURCE).toContain('<MapSheet');
+    expect(SOURCE).toContain('<NoticeLine');
+    expect(SOURCE).toContain('useDestination()');
   });
 });

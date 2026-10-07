@@ -1,29 +1,27 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onBeforeUnmount, useTemplateRef, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { PhCrosshair, PhFootprints, PhGraph, PhListBullets, PhMapTrifold } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import type { ScreenArgs } from '../game/context';
 import SegTabs from '../ledger/SegTabs.vue';
+import NoticeLine from '../ledger/NoticeLine.vue';
 import ContextContent from '../rails/ContextContent.vue';
 import EmptyState from '../screens/EmptyState.vue';
 import DetailPanel from './DetailPanel.vue';
 import GraphList from './GraphList.vue';
 import GraphPlane from './GraphPlane.vue';
-import { layoutGraph } from './graphLayout';
-import type { GraphLayout, LayoutPlace } from './graphLayout';
 import MapLegend from './MapLegend.vue';
 import { MAP_KEY, createInertMap } from './mapContext';
 import type { MapView } from './mapContext';
-import { gateView, listRows, nodeViews, routePolylines } from './nodeView';
-import { regionChips } from './regionChips';
-import { shortestPath, stepsFrom } from './route';
+import MapSheet from './MapSheet.vue';
 import { useDestination } from './useDestination';
+import { useMapGraph } from './useMapGraph';
 
 // The Map screen body (51-UI-SPEC "Layout Contract: Map"): the legend row, then the canvas that
 // holds the route graph or the list, the Graph | List switch and Center on you, and beside it the
 // destination detail column. The header chips and the Region travel pill are MapMeta and MapActions
-// (registered in screens.ts). The mobile Map and Here tabs come in plan 51-11, so mobile keeps the
-// Here view for now.
+// (registered in screens.ts). On mobile the screen is two tabs, Map (MapSheet: region row, canvas and
+// dock) and Here (the rail content), with one notice line at the bottom under both.
 //
 // The Map follows the character row: after any arrival while it is open (a Map travel, a typed go, a
 // respawn) the selection moves to the new place, the graph switches region when it changed, the
@@ -38,9 +36,26 @@ const map = inject(MAP_KEY, createInertMap());
 
 const plane = useTemplateRef<InstanceType<typeof GraphPlane>>('plane');
 const detailPanel = useTemplateRef<InstanceType<typeof DetailPanel>>('detailPanel');
+const sheet = useTemplateRef<InstanceType<typeof MapSheet>>('sheet');
 
-// One destination model for the screen: the detail column here and, in plan 51-11, the mobile dock.
+// One destination model for the screen: the detail column on desktop and the dock on mobile read it,
+// so they share one action runner and one notice line.
 const destination = useDestination();
+
+const SHEET_TABS = [
+  { id: 'map', label: 'Map' },
+  { id: 'here', label: 'Here' },
+];
+const sheetTab = ref('map');
+
+/** The canvas that scrolls and takes focus: the plane on desktop, the sheet's plane on mobile. */
+interface Surface {
+  focusCurrent(): void;
+  scrollToNode(id: bigint, block?: 'center' | 'nearest'): void;
+}
+function surface(): Surface | null {
+  return frame.isDesktop.value ? plane.value : sheet.value;
+}
 
 const VIEW_TABS = [
   { id: 'graph', label: 'Graph', icon: PhGraph },
@@ -51,129 +66,25 @@ const VIEW_TABS = [
 // what is known and shown
 // ---------------------------------------------------------------------------
 
-const currentId = computed<bigint | null>(() => {
-  const id = game.character.value?.locationId ?? 0n;
-  return id === 0n ? null : id;
-});
-const boundId = computed<bigint | null>(() => {
-  const id = game.character.value?.boundLocationId ?? 0n;
-  return id === 0n ? null : id;
-});
-const playerLevel = computed(() => Number(game.character.value?.level ?? 1n));
-const regions = computed(() => game.regions.value);
-const drawn = computed(() => map.known.value.drawn);
-const placeById = computed(() => new Map(drawn.value.map((location) => [location.id, location])));
-const drawnIds = computed(() => new Set(drawn.value.map((location) => location.id)));
-
-const currentRegionId = computed<bigint | null>(() => {
-  const here = currentId.value;
-  return here === null ? null : (placeById.value.get(here)?.regionId ?? null);
-});
-
-/** The region on show: the hub's pick when it is a known region, else the region you stand in. */
-const shownId = computed<bigint | null>(() => {
-  const picked = map.shownRegionId.value;
-  if (picked !== null && map.known.value.knownRegionIds.includes(picked)) return picked;
-  return currentRegionId.value;
-});
-
-function toLayoutPlace(location: (typeof drawn.value)[number]): LayoutPlace {
-  return {
-    id: location.id,
-    name: location.name,
-    regionId: location.regionId,
-    bindStone: location.bindStone,
-    terrainType: location.terrainType,
-  };
-}
-
-function layoutFor(regionId: bigint): GraphLayout {
-  return layoutGraph({
-    regionId,
-    places: drawn.value.map(toLayoutPlace),
-    edges: map.known.value.edges,
-  });
-}
-
-const layout = computed<GraphLayout | null>(() => (shownId.value === null ? null : layoutFor(shownId.value)));
-function regionNameOf(id: bigint | null): string {
-  return regions.value.find((region) => region.id === id)?.name ?? 'Unknown region';
-}
-const regionName = computed(() => regionNameOf(shownId.value));
-
-const steps = computed(() =>
-  currentId.value === null ? new Map<bigint, number>() : stepsFrom(map.adjacency.value, currentId.value),
-);
-
-const views = computed(() => {
-  const current = layout.value;
-  if (current === null) return [];
-  return nodeViews({
-    layout: current,
-    places: placeById.value,
-    regions: regions.value,
-    visited: map.known.value.visited,
-    heardOf: map.known.value.heardOf,
-    currentLocationId: currentId.value,
-    selectedId: map.selectedId.value,
-    boundLocationId: boundId.value,
-    playerLevel: playerLevel.value,
-    steps: steps.value,
-  });
-});
-
-const rows = computed(() => {
-  if (shownId.value === null) return [];
-  return listRows({
-    views: views.value,
-    adjacency: map.adjacency.value,
-    places: placeById.value,
-    regions: regions.value,
-    shownRegionId: shownId.value,
-  });
-});
-
-const routes = computed(() => {
-  const current = layout.value;
-  const from = currentId.value;
-  const to = map.selectedId.value;
-  if (current === null || from === null || to === null) return [];
-  return routePolylines(current, shortestPath(map.adjacency.value, from, to));
-});
-
-const chips = computed(() =>
-  regionChips({
-    drawn: drawn.value,
-    regions: regions.value,
-    currentRegionId: currentRegionId.value,
-    shownRegionId: shownId.value,
-    playerLevel: playerLevel.value,
-  }),
-);
-
-const gates = computed(() => {
-  const current = layout.value;
-  if (current === null) return [];
-  return current.gates.map((gate) => {
-    const chip = chips.value.find((candidate) => candidate.regionId === gate.farRegionId);
-    return gateView(gate, chip, chip?.name ?? 'Unknown region', map.selfTimer.value, false);
-  });
-});
+const graph = useMapGraph(() => !frame.isDesktop.value);
+const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, layoutFor, layout, regionName, regionNameOf } = graph;
+const { views, rows, routes, gates } = graph;
 
 // ---------------------------------------------------------------------------
 // screen arguments, selection rules, scrolling
 // ---------------------------------------------------------------------------
 
-/** Desktop only (mobile keeps the Here view), with a place and its region loaded, and the hub applied. */
-const canShow = computed(() => frame.isDesktop.value && currentRegionId.value !== null && map.ready.value);
+/** A place and its region loaded, and the hub applied (desktop and mobile alike). */
+const canShow = computed(() => currentRegionId.value !== null && map.ready.value);
 
 let pendingScroll = false;
 
 function flushScroll(): void {
-  if (!pendingScroll || plane.value === null) return;
+  const target = surface();
+  if (!pendingScroll || target === null) return;
   pendingScroll = false;
   const id = map.selectedId.value ?? currentId.value;
-  if (id !== null) plane.value.scrollToNode(id);
+  if (id !== null) target.scrollToNode(id);
 }
 
 function scrollSelectedIntoView(): void {
@@ -220,6 +131,15 @@ watch(
 
 watch(plane, flushScroll, { flush: 'post' });
 
+// The Map tab opens again after the Here tab: the selected place scrolls into view.
+watch(
+  sheet,
+  (opened) => {
+    if (opened) scrollSelectedIntoView();
+  },
+  { flush: 'post' },
+);
+
 function focusIsOnNode(id: bigint): boolean {
   const active = document.activeElement;
   return active instanceof HTMLElement && active.dataset.nodeId === String(id) && active.closest('.graph-plane') !== null;
@@ -238,14 +158,14 @@ watch(
     if (here === null || !ids.has(here)) return;
     const hadFocus = focusIsOnNode(selected);
     map.select(here);
-    if (hadFocus) plane.value?.focusCurrent();
+    if (hadFocus) surface()?.focusCurrent();
   },
   { flush: 'pre' },
 );
 
 // Closing the Map drops the selected-place subscriptions.
 onBeforeUnmount(() => {
-  if (frame.isDesktop.value) map.select(null);
+  map.select(null);
 });
 
 /** A user selection (a node, a gate, a list row) ends the arrival banner. */
@@ -269,7 +189,8 @@ watch(
       crossed ? `Crossed into ${regionNameOf(arrived.regionId)}. Arrived at ${arrived.name}.` : `Arrived at ${arrived.name}.`,
     );
     scrollSelectedIntoView();
-    void nextTick(() => detailPanel.value?.focusTitle());
+    // Desktop: the detail heading. Mobile: the dock's place name (the Here tab has none to focus).
+    void nextTick(() => (frame.isDesktop.value ? detailPanel.value?.focusTitle() : sheet.value?.focusName()));
   },
 );
 
@@ -288,7 +209,7 @@ watch(shownId, (region) => {
   map.setBanner(null);
   map.select(start);
   scrollSelectedIntoView();
-  if (fromChip) plane.value?.focusCurrent();
+  if (fromChip) surface()?.focusCurrent();
 });
 
 function onView(id: string): void {
@@ -362,8 +283,29 @@ function centerOnYou(): void {
       </aside>
     </div>
   </div>
-  <div v-else class="map-sheet">
-    <ContextContent />
+  <div v-else class="map-sheet-root">
+    <SegTabs
+      class="sheet-tabs"
+      :tabs="SHEET_TABS"
+      :model-value="sheetTab"
+      label="Map sheet view"
+      id-prefix="map-sheet"
+      @update:model-value="sheetTab = $event"
+    >
+      <template v-if="sheetTab === 'map'">
+        <EmptyState
+          v-if="currentId === null"
+          :icon="PhMapTrifold"
+          title="No places discovered yet."
+          body="Travel to a new place and it appears here."
+        />
+        <MapSheet v-else-if="map.ready.value && layout !== null" ref="sheet" :destination="destination" />
+      </template>
+      <div v-else class="here-column">
+        <ContextContent />
+      </div>
+    </SegTabs>
+    <NoticeLine :rejection="destination.runner.rejection.value" />
   </div>
 </template>
 
@@ -483,7 +425,27 @@ function centerOnYou(): void {
   height: 32px;
 }
 
-.map-sheet {
+/* Mobile: the Map and Here tabs fill the sheet body; the notice line sits at the bottom. */
+.map-sheet-root {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-tabs :deep(.tablist) {
+  margin-bottom: 8px;
+}
+
+.sheet-tabs :deep(.panel) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.here-column {
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 16px;

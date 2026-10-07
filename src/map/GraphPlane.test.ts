@@ -557,3 +557,61 @@ describe('GraphPlane: source rules', () => {
     expect(SOURCE).not.toMatch(/level lock|requiredLevel|COOLDOWN|Date\.now/);
   });
 });
+
+describe('GraphPlane: mobile labels and gate pills (plan 51-11)', () => {
+  it('shows the name and the level in its band colour on one line, with no sub-line', () => {
+    const { wrapper: w, props } = mountPlane({ mobile: true });
+    const label = w.get('.label[data-node-id="2"]');
+    expect(label.classes()).toContain('mobile');
+    expect(label.find('.sub').exists()).toBe(false);
+    expect(label.get('.line .name').text()).toBe('Gloamwood');
+    const level = label.get('.line .level-inline');
+    const view = props.views.find((v) => v.id === 2n)!;
+    expect(level.text()).toBe(view.levelLabel);
+    expect(level.attributes('style')).toContain(view.levelColor);
+    expect(label.text()).not.toContain('woods');
+    expect(label.text()).not.toContain('heard of');
+  });
+
+  it('shows no level for a safe place and keeps the full sub-line in the node aria-label', () => {
+    const mobile = mountPlane({ mobile: true });
+    expect(mobile.wrapper.get('.label[data-node-id="1"]').find('.level-inline').exists()).toBe(false);
+    const mobileLabel = nodeLabel(mobile.wrapper, 2n);
+    wrapper?.unmount();
+    wrapper = null;
+    const desktop = mountPlane({ mobile: false });
+    expect(nodeLabel(desktop.wrapper, 2n)).toBe(mobileLabel);
+    expect(mobileLabel).toContain('Gloamwood');
+  });
+
+  it('keeps the desktop label as it was: a sub-line and no inline level', () => {
+    const { wrapper: w } = mountPlane({ mobile: false });
+    const label = w.get('.label[data-node-id="2"]');
+    expect(label.find('.sub').exists()).toBe(true);
+    expect(label.find('.level-inline').exists()).toBe(false);
+    expect(label.classes()).not.toContain('mobile');
+  });
+
+  it('puts the lock and the time on a mobile gate pill only while the timer runs', () => {
+    const idle = mountPlane({ mobile: true });
+    expect(idle.wrapper.get('button.gate').find('.gate-lock').exists()).toBe(false);
+    expect(idle.wrapper.get('button.gate').text()).toBe('Saltmarsh');
+    wrapper?.unmount();
+    wrapper = null;
+    const running = mountPlane({ mobile: true, timer: { running: true, secondsLeft: 192 } });
+    const gate = running.wrapper.get('button.gate');
+    expect(gate.find('.gate-lock').exists()).toBe(true);
+    expect(gate.get('.gate-time').attributes('aria-hidden')).toBe('true');
+    expect(gate.text()).toBe('Saltmarsh · 3:12');
+    expect(gate.attributes('aria-label')).toContain('region travel locked for about');
+  });
+
+  it('source: the mobile label is Micro 10 and the gate reaches 44px through its slop', () => {
+    expect(SOURCE).toMatch(/\.label\.mobile \.line \{\s*font-size: 10px;/);
+    expect(SOURCE).toMatch(/\.gate\.mobile::after \{[^}]*inset: -10px 0;/);
+  });
+});
+
+function nodeLabel(w: VueWrapper, id: bigint): string {
+  return w.get(`button.node[data-node-id="${id}"]`).attributes('aria-label') as string;
+}

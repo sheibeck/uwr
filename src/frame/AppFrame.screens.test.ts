@@ -146,6 +146,9 @@ function pressEscape(): void {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 }
 
+const mapSheetTab = (w: VueWrapper, name: string) =>
+  w.get('[role="dialog"] [role="tablist"][aria-label="Map sheet view"]').findAll('[role="tab"]').find((t) => t.text() === name)!;
+
 const HEADER_CASES: ReadonlyArray<{ id: string; title: string; line1: string }> = [
   { id: 'map', title: 'Map', line1: 'No places discovered yet.' },
   { id: 'bag', title: 'Inventory', line1: 'Your backpack is empty.' },
@@ -447,11 +450,14 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     expect(w.get('[role="dialog"]').text()).toContain('No friends or party yet.');
   });
 
-  it('the Map tab sheet holds the Here, Nearby and Tracking sections instead of the empty state', async () => {
+  it('the Map tab sheet shows the Map empty state, and its Here tab holds the Here, Nearby and Tracking sections', async () => {
     const w = mountFrame(false);
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
     const sheet = w.get('[role="dialog"]');
+    expect(sheet.text()).toContain('No places discovered yet.');
+    await mapSheetTab(w, 'Here').trigger('click');
+    await settle();
     expect(sheet.findAll('h6').map((h) => h.text())).toEqual(['Here', 'Nearby', 'Tracking']);
     expect(sheet.text()).toContain('Your location appears here.');
     expect(sheet.text()).not.toContain('No places discovered yet.');
@@ -462,6 +468,8 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     const w = mountFrame(false, game, undefined, readyMap(game));
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
+    await mapSheetTab(w, 'Here').trigger('click');
+    await settle();
     const rows = w.get('[role="dialog"]').findAll('button.exit-row');
     expect(rows.map((r) => r.get('.exit-name').text())).toEqual(['Gloamwood']);
     await rows[0].trigger('click');
@@ -471,6 +479,98 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     await settle();
     expect(moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 11n });
     expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  // Plan 51-11: the mobile Map sheet at 390x844 (the real frame, so the console closes the sheet).
+  function mobileWorld(over: Record<string, unknown> = {}) {
+    const bindLocation = vi.fn().mockResolvedValue(undefined);
+    const moveCharacter = vi.fn().mockResolvedValue(undefined);
+    const submitIntent = vi.fn().mockResolvedValue(undefined);
+    const { game } = fakeGame({
+      character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n, stamina: 50n }),
+      locations: ref([
+        { id: 10n, name: 'Ember Gate', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'town', bindStone: true, craftingAvailable: false },
+        { id: 11n, name: 'Gloamwood', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'woods', bindStone: false, craftingAvailable: false },
+      ]),
+      npcsHere: ref([{ id: 3n, name: 'Aldric', npcType: 'quest', locationId: 10n }]),
+      reducers: ref({ moveCharacter, submitIntent, bindLocation }),
+      ...over,
+    });
+    return { game, bindLocation, moveCharacter, submitIntent };
+  }
+
+  it('the Map tab opens a dialog titled Map with the region as meta, the tab bar still rendered and the Map tab selected', async () => {
+    const { game } = mobileWorld();
+    const w = mountFrame(false, game, undefined, readyMap(game));
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    const dialog = w.get('[role="dialog"]');
+    expect(dialog.get('h4').text()).toBe('Map');
+    expect(dialog.get('.sheet-header').text()).toContain('Ashfall Wilds');
+    expect(w.find('button[data-tab="map"]').exists()).toBe(true);
+    expect(w.find('button[data-tab="bag"]').exists()).toBe(true);
+    expect(mapSheetTab(w, 'Map').attributes('aria-selected')).toBe('true');
+    expect(mapSheetTab(w, 'Here').attributes('aria-selected')).toBe('false');
+    expect(dialog.find('.sheet-map').exists()).toBe(true);
+    expect(dialog.find('.dock').exists()).toBe(true);
+  });
+
+  it('picking a neighbour node and pressing the dock Travel moves the character and keeps the sheet open', async () => {
+    const { game, moveCharacter } = mobileWorld();
+    const w = mountFrame(false, game, undefined, readyMap(game));
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    await w.get('[role="dialog"] button.node[data-node-id="11"]').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"] .dock-name').text()).toBe('Gloamwood');
+    expect(moveCharacter).not.toHaveBeenCalled();
+    await w.get('[role="dialog"] .dock button.travel-button').trigger('click');
+    await settle();
+    expect(moveCharacter).toHaveBeenCalledTimes(1);
+    expect(moveCharacter).toHaveBeenCalledWith({ characterId: 1n, locationId: 11n });
+    expect(w.find('[role="dialog"]').exists()).toBe(true);
+  });
+
+  it('the Here tab shows Here, Nearby and Tracking, and its Talk closes the sheet', async () => {
+    const { game, submitIntent } = mobileWorld();
+    const w = mountFrame(false, game, undefined, readyMap(game));
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    await mapSheetTab(w, 'Here').trigger('click');
+    await settle();
+    const dialog = w.get('[role="dialog"]');
+    // With a placed character the Here card is the travel panel (a kicker, no empty heading).
+    expect(dialog.find('.here-column .card-kicker').exists()).toBe(true);
+    expect(dialog.findAll('h6').map((h) => h.text())).toEqual(['Nearby', 'Tracking']);
+    await dialog.get('[aria-label="Talk to Aldric"]').trigger('click');
+    await settle();
+    expect(submitIntent).toHaveBeenCalled();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('Examine from the Here tab closes the sheet', async () => {
+    const { game, submitIntent } = mobileWorld();
+    const w = mountFrame(false, game, undefined, readyMap(game));
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    await mapSheetTab(w, 'Here').trigger('click');
+    await settle();
+    await w.get('[role="dialog"] [aria-label="Examine Aldric"]').trigger('click');
+    await settle();
+    expect(submitIntent).toHaveBeenCalled();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('Bind from the Here tab calls bindLocation with the character', async () => {
+    const { game, bindLocation } = mobileWorld();
+    const w = mountFrame(false, game, undefined, readyMap(game));
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    await mapSheetTab(w, 'Here').trigger('click');
+    await settle();
+    await w.get('[role="dialog"] [aria-label="Bind to Ember Gate"]').trigger('click');
+    await settle();
+    expect(bindLocation).toHaveBeenCalledWith({ characterId: 1n });
   });
 
   it('the Party tab sheet shows the Party block and the empty state when not in a party', async () => {
@@ -534,6 +634,17 @@ describe('combat (48-05)', () => {
     active.value = true;
     await settle();
     expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('closes an open mobile Map sheet the moment combat starts', async () => {
+    const { game, active } = combatGame();
+    const w = mountFrame(false, game);
+    await w.get('button[data-tab="map"]').trigger('click');
+    await settle();
+    expect(w.get('[role="dialog"] h4').text()).toBe('Map');
+    active.value = true;
+    await settle();
+    expect(w.findAll('[role="dialog"] h4').map((h) => h.text())).not.toContain('Map');
   });
 
   it('does not open a header drawer while in combat', async () => {
