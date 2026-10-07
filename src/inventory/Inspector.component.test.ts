@@ -514,6 +514,41 @@ describe('Inspector salvage', () => {
     await wrapper!.setProps({ instanceId: 3n });
     expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
   });
+
+  // IN-03 (iteration 3): the item became equipped while the confirm was open (a typed equip in the
+  // console). The confirm never sends an equipped id, and it closes by itself.
+  it('sends nothing when the item became equipped while the confirm was open', async () => {
+    const { reducers, items } = mountInspector({
+      items: [inst(2n, 2n)],
+      templates: [tpl(2n, { rarity: 'rare' })],
+      instanceId: 2n,
+    });
+    await salvage().trigger('click');
+    const confirmButton = wrapper!.findAll('.inline-confirm button')[0].element as HTMLButtonElement;
+    items.value = [inst(2n, 2n, { equippedSlot: 'chest' })];
+    // The click lands before the re-render that would remove the confirm.
+    confirmButton.click();
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+    expect(reducers.salvageItem).not.toHaveBeenCalled();
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
+    expect(salvage().attributes('aria-disabled')).toBe('true');
+  });
+
+  it('closes the confirm by itself when the item becomes equipped', async () => {
+    const { reducers, items } = mountInspector({
+      items: [inst(2n, 2n)],
+      templates: [tpl(2n, { rarity: 'rare' })],
+      instanceId: 2n,
+    });
+    await salvage().trigger('click');
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(true);
+    items.value = [inst(2n, 2n, { equippedSlot: 'chest' })];
+    await nextTick();
+    await nextTick();
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
+    expect(reducers.salvageItem).not.toHaveBeenCalled();
+  });
 });
 
 describe('Inspector offline', () => {

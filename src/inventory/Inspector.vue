@@ -160,6 +160,12 @@ async function runSalvage(): Promise<void> {
   const v = view.value;
   const reducers = ledger.reducers.value;
   const character = game.character.value;
+  // The item may have become equipped while the confirm was open (a typed equip in the console): the
+  // client never sends an equipped id (IN-03, iteration 3).
+  if (v && !v.salvage.available) {
+    confirming.value = false;
+    return;
+  }
   if (!v || !reducers || !character) return;
   const characterId = character.id;
   const itemInstanceId = v.instanceId;
@@ -174,7 +180,7 @@ watch(
   },
 );
 watch(view, (next) => {
-  if (next === null) confirming.value = false;
+  if (next === null || !next.salvage.available) confirming.value = false;
 });
 </script>
 
