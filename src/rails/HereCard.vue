@@ -15,7 +15,7 @@ import { useExits } from './useExits';
 // rendered as text nodes and bound attributes only. The costs, blocks and times come from
 // travelChecks through useExits (the same prediction the Map uses); the server re-checks every trip.
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
-const { character, connected, ready, here, rows, timer, beginTravel } = useExits();
+const { character, connected, ready, here, rows, timer, pending, beginTravel } = useExits();
 
 const clock = computed(() => formatClock(timer.value.secondsLeft));
 const minutes = computed(() => `Region travel ready in ${aboutMinutes(timer.value.secondsLeft)}`);
@@ -163,6 +163,7 @@ watch(
               :aria-label="row.button.ariaLabel"
               :aria-disabled="row.button.disabled ? 'true' : undefined"
               :aria-describedby="row.note.tone === 'wait' || row.note.tone === 'bad' ? noteId(row) : undefined"
+              :aria-busy="pending ? 'true' : undefined"
               @click="go(row)"
             >
               <PhDoorOpen v-if="row.button.icon === 'door'" :size="14" aria-hidden="true" />

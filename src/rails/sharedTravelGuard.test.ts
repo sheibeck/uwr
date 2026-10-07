@@ -73,6 +73,9 @@ describe('one travel guard across the rail, the exit chips and the Map', () => {
     await w.findAll('button.chip').find((b) => b.text().includes('Harbour'))!.trigger('click');
     await w.get('.exit-card button.card-button').trigger('click');
     expect(consoleApi.travel).toHaveBeenCalledTimes(1);
+    // review IN-02: both surfaces show the pending trip
+    expect(w.get('.exit-card button.card-button').attributes('aria-busy')).toBe('true');
+    expect(w.get('.exit-panel button.btn-primary').attributes('aria-busy')).toBe('true');
   });
 
   it('a trip pending from the Map blocks both rail surfaces', async () => {

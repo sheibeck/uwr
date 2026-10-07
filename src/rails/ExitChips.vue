@@ -15,7 +15,7 @@ import { useExits } from './useExits';
 // in combat, with a sheet open and with the software keyboard open. Names are server text, rendered
 // as text nodes only.
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
-const { character, ready, here, rows, beginTravel } = useExits();
+const { character, ready, here, rows, pending, beginTravel } = useExits();
 
 const openId = ref<bigint | null>(null);
 const root = ref<HTMLElement | null>(null);
@@ -135,6 +135,7 @@ function go(row: ExitRow): void {
           :aria-label="buttonAria(openRow)"
           :aria-disabled="openRow.button.disabled ? 'true' : undefined"
           :aria-describedby="openRow.note.tone === 'wait' || openRow.note.tone === 'bad' ? statusId(openRow) : undefined"
+          :aria-busy="pending ? 'true' : undefined"
           @click="go(openRow)"
         >
           <PhDoorOpen v-if="openRow.button.icon === 'door'" :size="14" aria-hidden="true" />

@@ -206,7 +206,9 @@ describe('HereCard exits', () => {
     await rowButton(w, 'Gloamwood').trigger('click');
     const button = w.get('.exit-panel button.btn-primary');
     expect(button.attributes('aria-label')).toBe('Travel to Gloamwood');
+    expect(button.attributes('aria-busy')).toBeUndefined();
     await button.trigger('click');
+    expect(button.attributes('aria-busy')).toBe('true');
     await button.trigger('click');
     expect(consoleApi.travel).toHaveBeenCalledTimes(1);
     expect(consoleApi.travel).toHaveBeenCalledWith({ id: 11n, name: 'Gloamwood' });
