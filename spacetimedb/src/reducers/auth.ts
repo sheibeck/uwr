@@ -1,5 +1,7 @@
 import { scheduledReducers } from '../schema/tables';
 import { syncCharacterOnline } from '../helpers/online';
+import { ADMIN_IDENTITIES } from '../data/admin';
+import { TOKEN_EMAIL_CHECK, resolveLoginEmail, verifiedEmailFromAuth } from '../helpers/login_identity';
 
 export const registerAuthReducers = (deps: any) => {
   const {
@@ -28,8 +30,20 @@ export const registerAuthReducers = (deps: any) => {
   spacetimedb.reducer('login_email', { email: t.string() }, (ctx, { email }) => {
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player) throw new SenderError('Player not found');
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes('@')) throw new SenderError('Invalid email');
+    // CR-01 (51.1-05): the email comes from the verified sign-in token, not the argument.
+    // Rollback: TOKEN_EMAIL_CHECK in helpers/login_identity.ts.
+    const result = resolveLoginEmail({
+      argument: email,
+      claimed: verifiedEmailFromAuth(ctx.senderAuth),
+      isAdmin: ADMIN_IDENTITIES.has(ctx.sender.toHexString()),
+      enforce: TOKEN_EMAIL_CHECK,
+    });
+    if (!result.ok) {
+      if (result.reason === 'no_claim') throw new SenderError('Sign-in token carries no email.');
+      if (result.reason === 'mismatch') throw new SenderError('Email does not match the sign-in token.');
+      throw new SenderError('Invalid email');
+    }
+    const trimmed = result.email;
 
     const existing = [...ctx.db.user.by_email.filter(trimmed)][0];
     const user =

@@ -86,27 +86,11 @@ export const registerSocialReducers = (deps: any) => {
     ctx.db.player.id.update({ ...player, displayName: trimmed, lastSeenAt: ctx.timestamp });
   });
 
-  spacetimedb.reducer('send_friend_request', { email: t.string() }, (ctx, { email }) => {
-    const userId = requirePlayerUserId(ctx);
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes('@')) throw new SenderError('Invalid email');
-    const target = [...ctx.db.user.by_email.filter(trimmed)][0];
-    if (!target) throw new SenderError('User not found');
-    if (target.id === userId) throw new SenderError('Cannot friend yourself');
-
-    for (const row of ctx.db.friend.by_user.filter(userId)) {
-      if (row.friendUserId === target.id) return;
-    }
-    for (const row of ctx.db.friend_request.by_from.filter(userId)) {
-      if (row.toUserId === target.id) return;
-    }
-
-    ctx.db.friend_request.insert({
-      id: 0n,
-      fromUserId: userId,
-      toUserId: target.id,
-      createdAt: ctx.timestamp,
-    });
+  // Closed (51.1-05, CR-01 / research Q10): this read the private user table by email and
+  // answered 'User not found', an oracle for whether an email exists. The name and argument stay
+  // so the bindings do not change; the client only uses send_friend_request_to_character.
+  spacetimedb.reducer('send_friend_request', { email: t.string() }, () => {
+    throw new SenderError('Send friend requests by character name.');
   });
 
   spacetimedb.reducer(

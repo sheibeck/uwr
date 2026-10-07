@@ -39,6 +39,15 @@ describe('verifiedEmailFromAuth', () => {
     expect(verifiedEmailFromAuth(auth({ email: 42 }))).toBeNull();
     expect(verifiedEmailFromAuth(auth({ email: null, preferred_username: ['x@y.z'] }))).toBeNull();
   });
+
+  it('reads a payload the platform fails to parse as no email, never a throw', () => {
+    const broken = {
+      isInternal: false,
+      get hasJWT() { return true; },
+      get jwt(): unknown { throw new Error('Expected a JSON object at the top level'); },
+    };
+    expect(verifiedEmailFromAuth(broken)).toBeNull();
+  });
 });
 
 describe('resolveLoginEmail', () => {
