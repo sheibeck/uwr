@@ -39,6 +39,8 @@ const titleId = useId();
 const subId = useId();
 
 let listening = false;
+// The latest announcement: a slower nextTick from an earlier result never overwrites a newer one.
+let announceToken = 0;
 
 function onDocumentKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Escape') return;
@@ -53,7 +55,9 @@ function listen(on: boolean): void {
   else document.removeEventListener('keydown', onDocumentKeydown, true);
 }
 
-// A new result (first one, or a higher seq) is announced and Done takes focus.
+// A new result (first one, or a higher seq) is announced and Done takes focus. The region is cleared
+// first and set on the next tick, so a result whose text repeats the previous one (Craft again with the
+// same count, two empty salvages) is still a real change and is announced again.
 watch(
   () => props.view,
   (now, before) => {
@@ -63,8 +67,14 @@ watch(
     }
     listen(true);
     if (!before || now.seq !== before.seq) {
-      liveText.value = now.announce;
-      void nextTick(() => doneButton.value?.focus());
+      announceToken += 1;
+      const token = announceToken;
+      const text = now.announce;
+      liveText.value = '';
+      void nextTick(() => {
+        if (token === announceToken) liveText.value = text;
+        doneButton.value?.focus();
+      });
     }
   },
   { immediate: true },

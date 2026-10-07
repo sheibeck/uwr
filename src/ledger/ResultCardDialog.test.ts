@@ -315,12 +315,32 @@ describe('ResultCard actions', () => {
 });
 
 describe('ResultCard live region', () => {
+  const settle = async () => {
+    await nextTick();
+    await nextTick();
+  };
+
+  // Every text the region shows, in order, while the given change settles.
+  async function regionTexts(w: VueWrapper, change: () => Promise<unknown>): Promise<string[]> {
+    const region = w.get('[role="status"]').element;
+    const seen: string[] = [];
+    const observer = new MutationObserver(() => seen.push(region.textContent ?? ''));
+    observer.observe(region, { childList: true, characterData: true, subtree: true });
+    await change();
+    await settle();
+    await new Promise((r) => setTimeout(r, 0));
+    observer.disconnect();
+    return seen;
+  }
+
   it('announces the one-line summary on open and replaces it for a new result', async () => {
     const w = mountCard({ view: null });
     expect(w.get('[role="status"]').text()).toBe('');
     await w.setProps({ view: view() });
+    await settle();
     expect(w.get('[role="status"]').text()).toBe('Crafted 3 Herbal Draught.');
     await w.setProps({ view: view({ seq: 2n, announce: 'Crafted 1 Healing Salve.' }) });
+    await settle();
     expect(w.get('[role="status"]').text()).toBe('Crafted 1 Healing Salve.');
   });
 
@@ -328,7 +348,38 @@ describe('ResultCard live region', () => {
     const w = mountCard({ view: null });
     await w.setProps({ view: view() });
     await w.setProps({ view: null });
+    await settle();
     expect(w.get('[role="status"]').text()).toBe('Crafted 3 Herbal Draught.');
+  });
+
+  // WR-02 (iteration 3): Craft again with the same count, or two empty salvages, repeat the text. The
+  // region clears and then sets it again, so the repeat is a real change and is announced.
+  it('announces a new result whose text repeats the previous one: clear, then set', async () => {
+    const w = mountCard({ view: null });
+    await w.setProps({ view: view() });
+    await settle();
+    expect(w.get('[role="status"]').text()).toBe('Crafted 3 Herbal Draught.');
+    const seen = await regionTexts(w, () => w.setProps({ view: view({ seq: 2n }) }));
+    expect(seen).toEqual(['', 'Crafted 3 Herbal Draught.']);
+    const again = await regionTexts(w, () => w.setProps({ view: view({ seq: 3n }) }));
+    expect(again).toEqual(['', 'Crafted 3 Herbal Draught.']);
+  });
+
+  it('does not announce again for the same seq (a re-render of the open card)', async () => {
+    const w = mountCard({ view: null });
+    await w.setProps({ view: view() });
+    await settle();
+    const seen = await regionTexts(w, () => w.setProps({ view: view({ title: 'Herbal Draught' }) }));
+    expect(seen).toEqual([]);
+    expect(w.get('[role="status"]').text()).toBe('Crafted 3 Herbal Draught.');
+  });
+
+  it('a newer result is never overwritten by an older pending announcement', async () => {
+    const w = mountCard({ view: null });
+    await w.setProps({ view: view() });
+    await w.setProps({ view: view({ seq: 2n, announce: 'Crafted 1 Healing Salve.' }) });
+    await settle();
+    expect(w.get('[role="status"]').text()).toBe('Crafted 1 Healing Salve.');
   });
 });
 
