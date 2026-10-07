@@ -225,6 +225,16 @@ describe('sweep_passages: a fight pins the passage (review CR-01)', () => {
     expect(table(ctx, 'combat_encounter')[0].locationId).toBe(6n);
   });
 
+  it('an offline bystander who is not in the fight is not moved while the fight goes on', () => {
+    const ctx = newCtx({
+      character: [character(1n, 6n), character(2n, 6n)],
+      combat_encounter: [encounter('active')],
+      combat_participant: [participant],
+    });
+    expect(sweepPassages(ctx)).toEqual({ moved: 0, collapsed: 0 });
+    expect(where(ctx, 2n)).toBe(6n);
+  });
+
   it('once the fight ends, a later sweep moves the occupant and collapses the passage', () => {
     const ctx = newCtx({
       character: [character(1n, 6n)],
