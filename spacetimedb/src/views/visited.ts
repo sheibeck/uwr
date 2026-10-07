@@ -8,6 +8,9 @@ import type { ViewDeps } from './types';
 // active character's rows only through this view. It reaches the table with index lookups only
 // (player by sender, then visited_location by_character) and never scans, so a subscriber sees
 // where their own character has been and nobody else's.
+//
+// fromLocationId is re-pointed when a passage collapses (helpers/passages.ts), so it does not name
+// a collapsed passage. It is still an optional id, and a client resolving it must tolerate a miss.
 // ============================================================================
 
 export function myVisitedLocationRows(ctx: any): any[] {

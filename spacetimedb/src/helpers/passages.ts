@@ -59,6 +59,10 @@ export const PASSAGE_LOCATION_COLUMNS: {
     'npc.locationId',
     'vendor_buyback.locationId',
     'combat_encounter.locationId',
+    // Only on the passage's neighbours' rows (an arrival from the passage lands on a neighbour): a
+    // far-side row now comes from the own-side home, which the collapse links to it; an own-side
+    // row loses its origin (undefined), since the crossing does not run between own-side places.
+    'visited_location.fromLocationId',
   ],
   // Deleted: they only make sense at the passage.
   remove: [
@@ -75,7 +79,6 @@ export const PASSAGE_LOCATION_COLUMNS: {
   keep: [
     'world_gen_state.sourceLocationId',
     'world_state.startingLocationId',
-    'visited_location.fromLocationId',
   ],
   // Handled by the collapse itself.
   collapse: [
@@ -164,6 +167,15 @@ export function rehomePassageDependents(ctx: any, passage: any, home: any): void
   }
   for (const row of rowsAt(ctx, 'combat_encounter', 'locationId', pid, true)) {
     ctx.db.combat_encounter.id.update({ ...row, locationId: hid });
+  }
+  // visited_location.fromLocationId: read through by_location on the neighbours (see the list).
+  const { far: farSide, own: ownSide } = passageSides(ctx, passage);
+  const farIds = new Set<bigint>(farSide.map((l: any) => l.id));
+  for (const neighbour of [...ownSide, ...farSide]) {
+    for (const row of [...ctx.db.visited_location.by_location.filter(neighbour.id)]) {
+      if (row.fromLocationId !== pid) continue;
+      ctx.db.visited_location.id.update({ ...row, fromLocationId: farIds.has(neighbour.id) ? hid : undefined });
+    }
   }
 
   // Delete: rows that only make sense at the passage.

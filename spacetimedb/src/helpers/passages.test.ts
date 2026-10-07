@@ -348,14 +348,32 @@ describe('removal: rows that only make sense at the passage are deleted', () => 
 });
 
 describe('history is kept', () => {
-  it('world_gen_state.sourceLocationId and a visited row fromLocationId at another place keep the deleted id', () => {
+  it('world_gen_state.sourceLocationId keeps the deleted id', () => {
     const ctx = world({
       world_gen_state: [{ id: 1n, sourceLocationId: 6n, step: 'COMPLETE' }],
-      visited_location: [{ id: 1n, characterId: 1n, locationId: 4097n, firstVisitedAt: ctx0(), fromLocationId: 6n }],
     });
     expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
     expect(table(ctx, 'world_gen_state')[0].sourceLocationId).toBe(6n);
-    expect(table(ctx, 'visited_location')[0].fromLocationId).toBe(6n);
+  });
+});
+
+describe('visited_location.fromLocationId never points at the deleted passage (review IN-04)', () => {
+  it('a far-side row that came from the passage now comes from the own-side home; an own-side row loses its origin', () => {
+    const ctx = world({
+      visited_location: [
+        { id: 1n, characterId: 1n, locationId: 4097n, firstVisitedAt: ctx0(), fromLocationId: 6n },
+        { id: 2n, characterId: 2n, locationId: 5n, firstVisitedAt: ctx0(), fromLocationId: 6n },
+        { id: 3n, characterId: 3n, locationId: 4097n, firstVisitedAt: ctx0(), fromLocationId: 5n },
+        { id: 4n, characterId: 4n, locationId: 5n, firstVisitedAt: ctx0() },
+      ],
+    });
+    expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
+    expect(table(ctx, 'visited_location').map((r) => [r.id, r.locationId, r.fromLocationId])).toEqual([
+      [1n, 4097n, 5n],
+      [2n, 5n, undefined],
+      [3n, 4097n, 5n],
+      [4n, 5n, undefined],
+    ]);
   });
 });
 
@@ -381,7 +399,7 @@ describe('PASSAGE_LOCATION_COLUMNS covers every location-id column in the schema
     expect(stale, `stale PASSAGE_LOCATION_COLUMNS entries: ${stale.join(', ')}`).toEqual([]);
     expect(found).toHaveLength(26);
     expect([lists.rehome.length, lists.remove.length, lists.keep.length, lists.collapse.length, lists.ignore.length]).toEqual([
-      11, 8, 3, 3, 1,
+      12, 8, 2, 3, 1,
     ]);
   });
 });
