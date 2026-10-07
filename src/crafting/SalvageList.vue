@@ -44,7 +44,11 @@ const root = useTemplateRef<HTMLElement>('root');
 function focusRow(id: bigint): void {
   root.value?.querySelector<HTMLElement>(`[data-instance-id="${id}"]`)?.focus();
 }
-defineExpose({ focusRow });
+/** Puts focus on the first row (after a salvage on mobile, when the detail has closed). */
+function focusFirst(): void {
+  root.value?.querySelector<HTMLElement>('.salvage-row')?.focus();
+}
+defineExpose({ focusRow, focusFirst });
 </script>
 
 <template>

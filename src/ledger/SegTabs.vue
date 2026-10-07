@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { nextTick, useTemplateRef } from 'vue';
+import type { Component } from 'vue';
 
 // Segmented tabs (50-UI-SPEC "Segmented tabs"): real ARIA tabs styled with the Nocturne .seg and
 // .seg-opt classes. Roving tabindex, arrows wrap, Home and End jump, selection follows focus. Only
-// the selected panel renders; it is the screen's scroll region and gets the active id from the slot.
+// the selected panel renders; it is the screen's scroll region and gets the active id from the slot. A tab
+// may carry an optional icon (the Crafting Craft / Salvage switch), drawn before its label.
 const props = defineProps<{
-  tabs: ReadonlyArray<{ id: string; label: string }>;
+  tabs: ReadonlyArray<{ id: string; label: string; icon?: Component }>;
   modelValue: string;
   /** The tablist label (for example 'Inventory view'). */
   label: string;
@@ -63,6 +65,7 @@ function onKeydown(event: KeyboardEvent): void {
         :tabindex="tab.id === props.modelValue ? 0 : -1"
         @click="select(index, false)"
       >
+        <component :is="tab.icon" v-if="tab.icon" :size="14" aria-hidden="true" />
         {{ tab.label }}
       </button>
     </div>
@@ -105,6 +108,7 @@ function onKeydown(event: KeyboardEvent): void {
   color: inherit;
   font-family: inherit;
   font-size: 14px;
+  gap: 4px;
 }
 
 /* The Nocturne checked look keys on a radio input; this is the same look for aria-selected. */

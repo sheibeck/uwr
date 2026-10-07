@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
+import { PhHammer, PhRecycle } from '@phosphor-icons/vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ItemInstance, ItemTemplate } from '../module_bindings/types';
@@ -427,5 +428,53 @@ describe('ItemTile', () => {
     expect(w.get('.name').text()).toBe(XSS);
     expect(w.attributes('aria-label')).toContain(XSS);
     expect(w.element.querySelector('img')).toBeNull();
+  });
+});
+
+describe('SegTabs icons (Plan 50-38)', () => {
+  it('draws an optional icon before the label, hidden from readers, at 14px', () => {
+    const w = track(
+      mount(SegTabs, {
+        attachTo: document.body,
+        props: {
+          tabs: [
+            { id: 'craft', label: 'Craft', icon: PhHammer },
+            { id: 'salvage', label: 'Salvage', icon: PhRecycle },
+          ],
+          modelValue: 'craft',
+          label: 'Crafting mode',
+          idPrefix: 'cm',
+        },
+        slots: { default: '<template #default="{ active }"><p>{{ active }}</p></template>' },
+      }),
+    );
+    const tabEls = w.findAll('[role="tab"]');
+    expect(tabEls.map((t) => t.text())).toEqual(['Craft', 'Salvage']);
+    for (const tab of tabEls) {
+      const icon = tab.get('svg');
+      expect(icon.attributes('aria-hidden')).toBe('true');
+      expect(icon.attributes('width')).toBe('14');
+    }
+    expect(tabEls[0].element.firstElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+
+  it('renders tabs without an icon exactly as before', () => {
+    const w = track(
+      mount(SegTabs, {
+        attachTo: document.body,
+        props: {
+          tabs: [
+            { id: 'a', label: 'A' },
+            { id: 'b', label: 'B' },
+          ],
+          modelValue: 'a',
+          label: 'Plain',
+          idPrefix: 'pl',
+        },
+        slots: { default: '<p>x</p>' },
+      }),
+    );
+    expect(w.findAll('[role="tab"] svg')).toHaveLength(0);
+    expect(here('SegTabs.vue')).toContain('icon?: Component');
   });
 });

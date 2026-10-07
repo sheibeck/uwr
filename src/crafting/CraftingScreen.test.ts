@@ -1559,3 +1559,369 @@ describe('Craft and Discover result card (Plan 50-37)', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// The Craft / Salvage switch and the Salvage result (Plan 50-38)
+// ---------------------------------------------------------------------------
+
+describe('Craft / Salvage switch (Plan 50-38)', () => {
+  const GILDED = tpl(200n, 'Gilded Vest', { slot: 'chest', armorType: 'cloth', rarity: 'rare', stackable: false, vendorValue: 40n });
+  const TUNIC = tpl(201n, 'Plain Tunic', { slot: 'chest', armorType: 'cloth', stackable: false });
+  const SCROLL = tpl(202n, 'Scroll: Rope', { slot: 'misc' });
+  const EVIL = tpl(203n, XSS, { slot: 'chest', armorType: 'cloth', rarity: 'rare', stackable: false });
+  const SALVAGE_TEMPLATES = [...TEMPLATES, GILDED, TUNIC, SCROLL, EVIL];
+  const GILDED_ID = 40n;
+  const TUNIC_ID = 41n;
+  const SCROLL_ID = 60n;
+  const EVIL_ID = 42n;
+
+  const gearItems = (): ItemInstance[] => [
+    ...ITEMS,
+    inst(GILDED_ID, 200n),
+    inst(TUNIC_ID, 201n),
+    inst(43n, 201n, 1n, { equippedSlot: 'chest' }),
+  ];
+
+  function salvageRow(seq: bigint, lines: ResultLine[], over: Record<string, unknown> = {}): ActionResult {
+    return {
+      characterId: 7n,
+      seq,
+      kind: 'salvage',
+      templateId: 200n,
+      itemInstanceId: undefined,
+      itemName: 'Gilded Vest',
+      rarity: 'rare',
+      craftQuality: undefined,
+      quantity: 1n,
+      recipeTemplateId: undefined,
+      craftCount: 0n,
+      linesJson: encodeResultLines(lines),
+      at: {},
+      ...over,
+    } as unknown as ActionResult;
+  }
+
+  const HIT: ResultLine[] = [{ kind: 'received', templateId: 4n, name: 'Rough Hide', quantity: 1n, total: 3n, instanceId: null }];
+
+  interface SalvageOptions {
+    isDesktop?: boolean;
+    wide?: boolean;
+    items?: ItemInstance[];
+    templates?: ItemTemplate[];
+    lines?: ResultLine[];
+    scroll?: boolean;
+    outcome?: 'row' | 'silent';
+    preset?: ActionResult | null;
+  }
+
+  // The fake server: salvage_item drops the instance from the bag and writes the next result row.
+  function mountSalvage(opts: SalvageOptions = {}) {
+    const desktop = opts.isDesktop !== false;
+    setWide(opts.wide ?? desktop);
+    const holder: { ctx?: ReturnType<typeof buildWorld>; seq: bigint } = { seq: opts.preset ? opts.preset.seq : 0n };
+    const salvageItem = vi.fn(async (args: { itemInstanceId: bigint }) => {
+      if ((opts.outcome ?? 'row') === 'silent') return;
+      const ctx = holder.ctx!;
+      ctx.items.value = ctx.items.value.filter((row) => row.id !== args.itemInstanceId);
+      holder.seq += 1n;
+      const lines = [...(opts.lines ?? HIT)];
+      if (opts.scroll) {
+        lines.push({ kind: 'scroll', templateId: 202n, name: 'Scroll: Rope', quantity: 1n, total: 1n, instanceId: SCROLL_ID });
+      }
+      ctx.lastResult.value = salvageRow(holder.seq, lines);
+    });
+    const learnRecipeScroll = vi.fn(async () => undefined);
+    const ctx = buildWorld({
+      isDesktop: desktop,
+      templates: opts.templates ?? SALVAGE_TEMPLATES,
+      items: opts.items ?? (opts.scroll ? [...gearItems(), inst(SCROLL_ID, 202n)] : gearItems()),
+      lastResult: opts.preset ?? null,
+      reducers: { salvageItem, learnRecipeScroll } as unknown as Partial<LedgerReducers>,
+    });
+    holder.ctx = ctx;
+    wrapper = mount(CraftingScreen, { attachTo: document.body, global: ctx.global });
+    return { ...ctx, salvageItem, learnRecipeScroll, w: wrapper };
+  }
+
+  const tab = (label: string) => wrapper!.findAll('[role="tab"]').find((t) => t.text() === label)!;
+  async function openSalvage() {
+    await nextTick();
+    await tab('Salvage').trigger('click');
+    await nextTick();
+  }
+  const dialog = () => wrapper!.find('[role="dialog"]');
+  const cardButton = (label: string) => wrapper!.findAll('[role="dialog"] button').find((b) => b.text() === label);
+  const flush = async () => {
+    await new Promise((r) => setTimeout(r, 0));
+    await nextTick();
+    await nextTick();
+  };
+  const salvageRowNames = () => wrapper!.findAll('button.salvage-row .row-name').map((r) => r.text());
+
+  // Selects the Gilded Vest, presses Salvage and answers the confirm.
+  async function salvageGilded(host: string) {
+    await openSalvage();
+    await wrapper!.get(`button.salvage-row[data-instance-id="${GILDED_ID}"]`).trigger('click');
+    await nextTick();
+    await nextTick();
+    const button = wrapper!.get(`${host} button.salvage-btn`);
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await nextTick();
+    await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
+    await flush();
+  }
+
+  describe('the switch', () => {
+    it('renders a tablist named Crafting mode with Craft and Salvage and their icons, Craft selected', async () => {
+      const { w } = mountSalvage();
+      await nextTick();
+      expect(w.get('[role="tablist"]').attributes('aria-label')).toBe('Crafting mode');
+      const tabs = w.findAll('[role="tab"]');
+      expect(tabs.map((t) => t.text())).toEqual(['Craft', 'Salvage']);
+      expect(tabs.map((t) => t.attributes('aria-selected'))).toEqual(['true', 'false']);
+      for (const t of tabs) expect(t.find('svg').exists()).toBe(true);
+      expect(w.find('button.recipe-row').exists()).toBe(true);
+      expect(w.find('button.salvage-row').exists()).toBe(false);
+    });
+
+    it('works with the arrow, Home and End keys', async () => {
+      const { w } = mountSalvage();
+      await nextTick();
+      const press = async (key: string) => {
+        w.get('[role="tablist"]').element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+        await nextTick();
+        await nextTick();
+      };
+      await press('ArrowRight');
+      expect(tab('Salvage').attributes('aria-selected')).toBe('true');
+      expect(w.find('button.salvage-row').exists()).toBe(true);
+      await press('Home');
+      expect(tab('Craft').attributes('aria-selected')).toBe('true');
+      await press('End');
+      expect(tab('Salvage').attributes('aria-selected')).toBe('true');
+    });
+
+    it('starts the Salvage panel with the count line', async () => {
+      const { w } = mountSalvage();
+      await openSalvage();
+      expect(w.get('.salvage-count').text()).toBe('2 items can be salvaged');
+    });
+
+    it('says 1 item (singular) for one salvageable item', async () => {
+      mountSalvage({ items: [inst(GILDED_ID, 200n)] });
+      await openSalvage();
+      expect(wrapper!.get('.salvage-count').text()).toBe('1 item can be salvaged');
+    });
+
+    it('opens on Craft with the whole Craft panel in it', async () => {
+      const { w } = mountSalvage();
+      await nextTick();
+      expect(w.get('[role="tabpanel"] .desk-grid').classes()).toContain('wide');
+      expect(w.findAll('button.recipe-row')).toHaveLength(5);
+    });
+  });
+
+  describe('Salvage panel layouts', () => {
+    const colNames = (grid: { element: Element }) =>
+      Array.from(grid.element.children).map((c) => Array.from(c.classList).filter((k) => k !== 'col')[0]);
+
+    it('wide: the list, the detail and the Materials column, with the first row selected', async () => {
+      const { w } = mountSalvage();
+      await openSalvage();
+      const grid = w.get('[role="tabpanel"] .desk-grid');
+      expect(grid.classes()).toContain('wide');
+      expect(colNames(grid)).toEqual(['list-col', 'detail-col', 'materials-col']);
+      expect(salvageRowNames()).toEqual(['Gilded Vest', 'Plain Tunic']);
+      expect(w.get('button.salvage-row').attributes('aria-pressed')).toBe('true');
+      expect(grid.get('.detail-col .item-card h4').text()).toBe('Gilded Vest');
+      expect(grid.get('.detail-col h6').text()).toBe('May return');
+    });
+
+    it('900 to 1199: the list and the detail only', async () => {
+      const { w } = mountSalvage({ wide: false });
+      await openSalvage();
+      const grid = w.get('[role="tabpanel"] .desk-grid');
+      expect(grid.classes()).not.toContain('wide');
+      expect(colNames(grid)).toEqual(['list-col', 'detail-col']);
+      expect(grid.find('.detail-col .salvage-detail').exists()).toBe(true);
+    });
+
+    it('selecting another row shows its detail', async () => {
+      const { w } = mountSalvage();
+      await openSalvage();
+      await w.findAll('button.salvage-row')[1].trigger('click');
+      expect(w.get('.detail-col .item-card h4').text()).toBe('Plain Tunic');
+    });
+
+    it('shows the empty line and no detail with nothing to salvage', async () => {
+      const { w } = mountSalvage({ items: ITEMS });
+      await openSalvage();
+      expect(w.get('.salvage-count').text()).toBe('0 items can be salvaged');
+      expect(w.get('.salvage-list .empty').text()).toBe('Nothing left to salvage.');
+      expect(w.find('.salvage-detail').exists()).toBe(false);
+    });
+
+    it('mobile: the list view, then the detail with All gear (44px) that returns focus to the row', async () => {
+      const { w } = mountSalvage({ isDesktop: false });
+      await openSalvage();
+      expect(w.find('.salvage-detail-view').exists()).toBe(false);
+      expect(w.get('.salvage-list-view').attributes('style') ?? '').not.toContain('display: none');
+      expect(w.get('button.salvage-row').attributes('aria-pressed')).toBe('false');
+      await w.findAll('button.salvage-row')[1].trigger('click');
+      await nextTick();
+      await nextTick();
+      expect(w.get('.salvage-list-view').attributes('style')).toContain('display: none');
+      const back = w.get('.salvage-detail-view button.back');
+      expect(back.text()).toBe('All gear');
+      expect(document.activeElement).toBe(back.element);
+      expect(w.get('.salvage-detail-view .item-card h4').text()).toBe('Plain Tunic');
+      expect(read('CraftingScreen.vue')).toMatch(/\.back\s*\{[^}]*min-height: 44px;/);
+      await back.trigger('click');
+      await nextTick();
+      await nextTick();
+      expect(w.find('.salvage-detail-view').exists()).toBe(false);
+      expect(document.activeElement).toBe(w.findAll('button.salvage-row')[1].element);
+    });
+  });
+
+  describe('the salvage result', () => {
+    it('ends on the shared card with exactly what the server reported', async () => {
+      const ctx = mountSalvage();
+      await salvageGilded('.detail-col');
+      expect(ctx.salvageItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: GILDED_ID });
+      const card = wrapper!.get('[role="dialog"]');
+      expect(card.get('.kicker').text()).toBe('Salvaged');
+      expect(card.get('h4').text()).toBe('Gilded Vest');
+      const rows = card.findAll('.result-row');
+      expect(rows).toHaveLength(1);
+      expect(rows[0].text()).toContain('Rough Hide');
+      expect(rows[0].get('.qty').text()).toBe('+1');
+      expect(rows[0].get('.total').text()).toBe('now 3');
+      expect(card.text()).not.toMatch(/chance/i);
+      expect(card.text()).not.toContain('May return');
+      expect(cardButton('Read scroll')).toBeUndefined();
+      expect(cardButton('Open crafting')).toBeUndefined();
+    });
+
+    it('offers Read scroll only for a granted scroll, calls learnRecipeScroll once and closes', async () => {
+      const ctx = mountSalvage({ scroll: true });
+      await salvageGilded('.detail-col');
+      expect(wrapper!.findAll('[role="dialog"] button').map((b) => b.text())).toEqual(['Done', 'Read scroll']);
+      await cardButton('Read scroll')!.trigger('click');
+      await flush();
+      expect(ctx.learnRecipeScroll).toHaveBeenCalledTimes(1);
+      expect(ctx.learnRecipeScroll).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: SCROLL_ID });
+      expect(dialog().exists()).toBe(false);
+    });
+
+    it('after Done, focus lands on the newly selected salvage row (desktop)', async () => {
+      mountSalvage();
+      await salvageGilded('.detail-col');
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(dialog().exists()).toBe(false);
+      expect(salvageRowNames()).toEqual(['Plain Tunic']);
+      const row = wrapper!.get('button.salvage-row');
+      expect(row.attributes('aria-pressed')).toBe('true');
+      expect(document.activeElement).toBe(row.element);
+    });
+
+    it('an empty roll opens the card with Nothing usable was left and nothing else', async () => {
+      mountSalvage({ lines: [] });
+      await salvageGilded('.detail-col');
+      const card = wrapper!.get('[role="dialog"]');
+      expect(card.get('.kicker').text()).toBe('Salvaged');
+      expect(card.get('h4').text()).toBe('Gilded Vest');
+      expect(card.get('.empty').text()).toBe('Nothing usable was left.');
+      expect(card.findAll('.result-row')).toHaveLength(0);
+      expect(card.find('.total').exists()).toBe(false);
+      expect(card.text()).not.toContain('now ');
+      expect(cardButton('Read scroll')).toBeUndefined();
+      expect(wrapper!.get('[role="status"]').text()).toBe('Salvaged Gilded Vest. Nothing usable was left.');
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(dialog().exists()).toBe(false);
+      expect(document.activeElement).toBe(wrapper!.get('button.salvage-row').element);
+    });
+
+    it('a refused salvage (no row) opens no card', async () => {
+      const ctx = mountSalvage({ outcome: 'silent' });
+      await salvageGilded('.detail-col');
+      expect(ctx.salvageItem).toHaveBeenCalledTimes(1);
+      expect(dialog().exists()).toBe(false);
+    });
+
+    it('a row present at mount opens no card', async () => {
+      mountSalvage({ preset: salvageRow(5n, HIT) });
+      await openSalvage();
+      expect(dialog().exists()).toBe(false);
+    });
+  });
+
+  describe('mobile 390x844', () => {
+    it('tabs are at least 44px tall (the SegTabs rule)', () => {
+      expect(readFileSync(resolve(process.cwd(), 'src/ledger/SegTabs.vue'), 'utf8')).toMatch(/\.seg-opt\s*\{[^}]*min-height: 44px/);
+    });
+
+    it('still asks for a rare item with the shared prompt, then ends on the bottom sheet', async () => {
+      const ctx = mountSalvage({ isDesktop: false });
+      await openSalvage();
+      await wrapper!.get('button.salvage-row').trigger('click');
+      await nextTick();
+      await wrapper!.get('.salvage-detail-view button.salvage-btn').trigger('click');
+      const prompt = wrapper!.get('.inline-confirm .confirm-prompt').text();
+      expect(prompt.startsWith('Salvage destroys this item.')).toBe(true);
+      expect(prompt).not.toMatch(/\d/);
+      expect(ctx.salvageItem).not.toHaveBeenCalled();
+      await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
+      await flush();
+      const sheet = wrapper!.get('[role="dialog"]');
+      expect(sheet.classes()).toContain('mobile');
+      expect(sheet.find('.result-row').exists()).toBe(true);
+    });
+
+    it('an empty roll shows the plain text in the bottom sheet, and Done returns to the list', async () => {
+      mountSalvage({ isDesktop: false, lines: [] });
+      await salvageGilded('.salvage-detail-view');
+      const sheet = wrapper!.get('[role="dialog"]');
+      expect(sheet.classes()).toContain('mobile');
+      expect(sheet.get('.empty').text()).toBe('Nothing usable was left.');
+      await cardButton('Done')!.trigger('click');
+      await flush();
+      expect(dialog().exists()).toBe(false);
+      expect(wrapper!.find('.salvage-detail-view').exists()).toBe(false);
+      expect(wrapper!.get('.salvage-list').element.contains(document.activeElement)).toBe(true);
+    });
+  });
+
+  describe('escape', () => {
+    it('renders a markup item name as text in the list and the detail', async () => {
+      mountSalvage({ items: [inst(EVIL_ID, 203n)], lines: [] });
+      await openSalvage();
+      expect(wrapper!.get('.row-name').text()).toBe(XSS);
+      expect(wrapper!.get('.detail-col .item-card h4').text()).toBe(XSS);
+      expect(wrapper!.find('img').exists()).toBe(false);
+    });
+
+    it('renders a markup line name in the card as text', async () => {
+      mountSalvage({
+        lines: [{ kind: 'received', templateId: 4n, name: XSS, quantity: 1n, total: 1n, instanceId: null }],
+      });
+      await salvageGilded('.detail-col');
+      expect(wrapper!.get('[role="dialog"] .result-row .name').text()).toBe(XSS);
+      expect(wrapper!.find('img').exists()).toBe(false);
+    });
+  });
+
+  describe('source', () => {
+    it('adds the switch, the salvage key and both salvage components', () => {
+      const source = read('CraftingScreen.vue');
+      expect(source).toContain('Crafting mode');
+      expect(source).toContain("salvage: 'salvage'");
+      expect(source).toContain('<SalvageList');
+      expect(source).toContain('<SalvageDetail');
+      expect(source.match(/PhRecycle/g)!.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+});
