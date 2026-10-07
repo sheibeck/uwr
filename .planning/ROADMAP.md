@@ -535,7 +535,7 @@ Plans:
 - [x] 50-31-PLAN.md — Client hub (lastResult, outputRecipes, craftRecipeCount) and models (item details, result card, salvage preview)
 - [x] 50-32-PLAN.md — Backpack tiles capped at the mock size (58px / 66px, 44px minimum), top-right "x{n}", mock rings
 - [x] 50-33-PLAN.md — Shared ResultCard (desktop card, mobile sheet, focus trap, Esc, live region) and useActionResult
-- [ ] 50-34-PLAN.md — Inventory: mock inspector, equipped items not salvageable, confirm naming the yield, salvage result card
+- [x] 50-34-PLAN.md — Inventory: mock inspector, equipped items not salvageable, confirm naming the yield, salvage result card
 - [x] 50-35-PLAN.md — Crafting model (can make N, stepper state, Uses, quality line, Creates card) and mock recipe rows
 - [ ] 50-36-PLAN.md — Recipe detail: Creates card, Uses, quality line, single reagent slot, −/+/Max and Craft N×
 - [ ] 50-37-PLAN.md — Crafting columns per mock 9a, Materials on hand on the right, craft and Discover result card
