@@ -12,6 +12,7 @@ import {
   ACCESSORY_STATS,
   ARMOR_FORMS,
   EDIBLE_WORDS,
+  FOOD_BUFF_LABELS,
   FOOD_DURATION_MICROS,
   FOOD_FORMS,
   MATERIAL_KINDS,
@@ -23,6 +24,7 @@ import {
   UNMAPPED_MATERIAL_KEYS,
   WEAPON_FORMS,
   areaLevel,
+  generatedDescription,
   generatedOutput,
   levelStep,
   materialKey,
@@ -30,7 +32,7 @@ import {
   recipeCandidates,
   recipeKey,
 } from './recipe_rules';
-import type { BagMaterial, RecipeCandidate, RecipeCategory } from './recipe_rules';
+import type { BagMaterial, GeneratedDescriptionInput, RecipeCandidate, RecipeCategory } from './recipe_rules';
 import {
   CRAFTING_MODIFIER_DEFS,
   ESSENCE_MAGNITUDE,
@@ -294,7 +296,7 @@ describe('generated output columns', () => {
       wellFedDurationMicros: 0n,
       wellFedBuffType: '',
       wellFedBuffMagnitude: 0n,
-      description: 'Crafted from Iron Shard and Scrap Cloth.',
+      description: 'A dagger forged from Iron Shard, wrapped in Scrap Cloth. It deals 4 base damage at 5 DPS.',
     });
     expect(recipe).toEqual({
       key: 'gen:weapon:iron_shard+scrap_cloth:L1',
@@ -401,6 +403,192 @@ describe('generated output columns', () => {
       const { itemTemplate: t } = generatedOutput(c, NONE_TAKEN);
       const nonZero = statColumns.filter((col) => t[col] !== 0n);
       expect(nonZero.length, `${t.name}: ${nonZero.join(',')}`).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+describe('generated descriptions (Plan 50-28)', () => {
+  const BANNED = ['rip', 'ple'].join('');
+  const base: GeneratedDescriptionInput = {
+    category: 'weapon',
+    formWord: 'Dagger',
+    slot: 'mainHand',
+    armorType: 'none',
+    weaponType: 'dagger',
+    primaryName: 'Iron Shard',
+    secondaryName: 'Scrap Cloth',
+    secondaryKind: 'cloth',
+    baseDamage: 4n,
+    dps: 5n,
+    armorClass: 0n,
+    stat: null,
+    buffType: '',
+    buffMagnitude: 0n,
+  };
+  const armor = (over: Partial<GeneratedDescriptionInput>): GeneratedDescriptionInput => ({
+    ...base,
+    category: 'armor',
+    formWord: 'Jerkin',
+    slot: 'chest',
+    armorType: 'leather',
+    weaponType: '',
+    primaryName: 'Rough Hide',
+    secondaryName: 'Scrap Cloth',
+    secondaryKind: 'cloth',
+    baseDamage: 0n,
+    dps: 0n,
+    armorClass: 3n,
+    ...over,
+  });
+  const accessory = (over: Partial<GeneratedDescriptionInput>): GeneratedDescriptionInput => ({
+    ...base,
+    category: 'accessory',
+    formWord: 'Pendant',
+    slot: 'neck',
+    weaponType: '',
+    primaryName: 'Bone Shard',
+    secondaryName: 'Scrap Cloth',
+    secondaryKind: 'cloth',
+    baseDamage: 0n,
+    dps: 0n,
+    stat: { key: 'hpBonus', amount: 3n },
+    ...over,
+  });
+  const food = (over: Partial<GeneratedDescriptionInput>): GeneratedDescriptionInput => ({
+    ...base,
+    category: 'consumable',
+    formWord: 'Broth',
+    slot: 'food',
+    weaponType: '',
+    primaryName: 'Wild Berries',
+    secondaryName: 'Clear Water',
+    secondaryKind: 'base',
+    baseDamage: 0n,
+    dps: 0n,
+    buffType: 'mana_regen',
+    buffMagnitude: 1n,
+    ...over,
+  });
+
+  it('FOOD_BUFF_LABELS holds the five eat_food words', () => {
+    expect(FOOD_BUFF_LABELS).toEqual({
+      str: 'strength',
+      dex: 'dexterity',
+      mana_regen: 'mana regeneration',
+      stamina_regen: 'stamina regeneration',
+      health_regen: 'health regeneration',
+    });
+    for (const f of FOOD_FORMS) expect(FOOD_BUFF_LABELS[f.buffType]).toBeTruthy();
+  });
+
+  it('weapon: the exact sentence, with the grip and haft variants', () => {
+    expect(generatedDescription(base)).toBe(
+      'A dagger forged from Iron Shard, wrapped in Scrap Cloth. It deals 4 base damage at 5 DPS.',
+    );
+    expect(generatedDescription({ ...base, formWord: 'Sword', secondaryName: 'Rough Hide', secondaryKind: 'hide', baseDamage: 6n, dps: 7n })).toBe(
+      'A sword forged from Iron Shard, with a Rough Hide grip. It deals 6 base damage at 7 DPS.',
+    );
+    expect(generatedDescription({ ...base, formWord: 'Staff', secondaryName: 'Wood', secondaryKind: 'wood', baseDamage: 8n, dps: 9n })).toBe(
+      'A staff forged from Iron Shard, on a Wood haft. It deals 8 base damage at 9 DPS.',
+    );
+  });
+
+  it('armor: lining, plate and the pair form', () => {
+    expect(generatedDescription(armor({}))).toBe('A leather jerkin cut from Rough Hide, lined with Scrap Cloth. It adds 3 armor.');
+    expect(generatedDescription(armor({ armorType: 'cloth', formWord: 'Robe', primaryName: 'Scrap Cloth', secondaryName: 'Rough Hide', secondaryKind: 'hide', armorClass: 2n }))).toBe(
+      'A cloth robe woven from Scrap Cloth, lined with Rough Hide. It adds 2 armor.',
+    );
+    expect(generatedDescription(armor({ secondaryName: 'Copper Ore', secondaryKind: 'metal' }))).toBe(
+      'A leather jerkin cut from Rough Hide, reinforced with Copper Ore. It adds 3 armor.',
+    );
+    for (const word of ['Boots', 'Trousers', 'Pants']) {
+      expect(generatedDescription(armor({ formWord: word, armorClass: 2n }))).toBe(
+        `A pair of leather ${word.toLowerCase()} cut from Rough Hide, lined with Scrap Cloth. It adds 2 armor.`,
+      );
+    }
+  });
+
+  it('accessory: cord, setting, the stat words and the slot sentence', () => {
+    expect(generatedDescription(accessory({}))).toBe('A pendant set with Bone Shard, on a Scrap Cloth cord. It adds 3 health.');
+    expect(generatedDescription(accessory({ secondaryName: 'Copper Ore', secondaryKind: 'metal', formWord: 'Ring', slot: 'earrings' }))).toBe(
+      'A ring set with Bone Shard, in a Copper Ore setting. It adds 3 health.',
+    );
+    const words: Record<string, string> = {
+      hpBonus: 'health',
+      intBonus: 'intelligence',
+      wisBonus: 'wisdom',
+      magicResistanceBonus: 'magic resistance',
+      strBonus: 'strength',
+      dexBonus: 'dexterity',
+      chaBonus: 'charisma',
+      manaBonus: 'mana',
+    };
+    for (const key of Object.keys(words)) {
+      expect(generatedDescription(accessory({ stat: { key, amount: 2n } }))).toContain(`It adds 2 ${words[key]}.`);
+    }
+    expect(generatedDescription(accessory({ stat: null }))).toBe('A pendant set with Bone Shard, on a Scrap Cloth cord. It is worn at the neck.');
+    expect(generatedDescription(accessory({ stat: null, slot: 'earrings', formWord: 'Ring' }))).toBe(
+      'A ring set with Bone Shard, on a Scrap Cloth cord. It is worn at the ears.',
+    );
+  });
+
+  it('consumable: the food sentence names the buff from FOOD_BUFF_LABELS', () => {
+    expect(generatedDescription(food({}))).toBe(
+      'A broth cooked from Wild Berries and Clear Water. Eating it makes you well fed: +1 mana regeneration.',
+    );
+    for (const buffType of Object.keys(FOOD_BUFF_LABELS)) {
+      expect(generatedDescription(food({ buffType, buffMagnitude: 2n }))).toContain(`+2 ${FOOD_BUFF_LABELS[buffType]}.`);
+    }
+  });
+
+  it('the article is An before a vowel sound in the first word', () => {
+    expect(generatedDescription({ ...base, formWord: 'Axe', baseDamage: 7n, dps: 8n })).toMatch(/^An axe forged/);
+    expect(generatedDescription(armor({ armorType: 'cloth', formWord: 'Robe' }))).toMatch(/^A cloth robe/);
+    expect(generatedDescription(food({ formWord: 'Egg stew' }))).toMatch(/^An egg stew/);
+  });
+
+  it('an unmapped secondary kind falls back to with, and bad input never throws', () => {
+    expect(generatedDescription({ ...base, secondaryKind: null })).toBe(
+      'A dagger forged from Iron Shard, with Scrap Cloth. It deals 4 base damage at 5 DPS.',
+    );
+    expect(() => generatedDescription({} as GeneratedDescriptionInput)).not.toThrow();
+    expect(() => generatedDescription(null as unknown as GeneratedDescriptionInput)).not.toThrow();
+    expect(typeof generatedDescription({ ...base, category: 'bogus' as RecipeCategory })).toBe('string');
+  });
+
+  it('every category at levels 1, 5 and 10: generatedOutput writes a described, bounded, stable description', () => {
+    const bag = [
+      mat(1n, 'Copper Ore', 6n, 1n, 2n),
+      mat(2n, 'Rough Hide', 6n, 1n, 2n),
+      mat(3n, 'Bone Shard', 6n, 1n, 2n),
+      mat(4n, 'Scrap Cloth', 6n),
+      mat(5n, 'Herbs', 6n),
+      mat(6n, 'Clear Water', 6n),
+    ];
+    for (const level of [1n, 5n, 10n]) {
+      const candidates = recipeCandidates(bag, level);
+      expect(new Set(candidates.map((c) => c.category)).size).toBe(4);
+      for (const c of candidates) {
+        const a = generatedOutput(c, NONE_TAKEN).itemTemplate;
+        const b = generatedOutput(c, NONE_TAKEN).itemTemplate;
+        expect(a.description, a.name).toBe(b.description);
+        const d = a.description;
+        expect(d.length, d).toBeLessThanOrEqual(160);
+        expect(d.indexOf('Crafted from'), d).toBe(-1);
+        expect(d.toLowerCase().indexOf(BANNED), d).toBe(-1);
+        const stated =
+          c.category === 'weapon'
+            ? [a.weaponBaseDamage, a.weaponDps]
+            : c.category === 'armor'
+              ? [a.armorClassBonus]
+              : c.category === 'consumable'
+                ? [a.wellFedBuffMagnitude]
+                : [a.hpBonus, a.intBonus, a.wisBonus, a.magicResistanceBonus, a.strBonus, a.dexBonus, a.chaBonus, a.manaBonus].filter((n) => n > 0n);
+        expect(stated.length, d).toBeGreaterThan(0);
+        for (const n of stated) expect(d, d).toContain(String(n));
+        expect(d).toContain(c.primary.name);
+        expect(d).toContain(c.secondary.name);
+      }
     }
   });
 });

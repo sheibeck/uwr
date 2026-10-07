@@ -4,6 +4,8 @@
 // the material kind picks the category, the area level sets the output level, names are composed
 // from vocabulary words, and the craft quality of a gear recipe comes later from the primary
 // material's tier (craftQualityForMaterialName). Nothing here asks a language model for anything.
+// The description of a generated output is built from rules too (generatedDescription): what the
+// item is, from its category and form, and what it does, from its stats.
 //
 // Users: the research_recipes reducer (reducers/items_crafting.ts) and the client crafting model
 // test (src/crafting/generatedRecipes.test.ts, through the @game-data alias).
@@ -408,6 +410,8 @@ interface Chosen {
   dps: bigint;
   armorClass: bigint;
   buffType: string;
+  /** The form word as the name uses it. */
+  formWord: string;
 }
 
 /** The first free name walking the forms cyclically from the start form; a numeral when all are taken. */
@@ -446,6 +450,7 @@ function choose(candidate: RecipeCandidate, isNameTaken: (name: string) => boole
     dps: 0n,
     armorClass: 0n,
     buffType: '',
+    formWord: '',
   };
   const secondaryKind = materialKind(secondary.name);
   const primaryKind = materialKind(primary.name);
@@ -460,6 +465,7 @@ function choose(candidate: RecipeCandidate, isNameTaken: (name: string) => boole
       ...base,
       name,
       slot: 'mainHand',
+      formWord: form.word,
       weaponType: form.weaponType,
       baseDamage: form.baseDamage + growth,
       dps: form.dps + growth,
@@ -472,6 +478,7 @@ function choose(candidate: RecipeCandidate, isNameTaken: (name: string) => boole
       ...base,
       name,
       slot: form.slot,
+      formWord: form.words[type],
       armorType: type,
       armorClass: form.baseAc[type] + armorGrowth(level),
     };
@@ -479,14 +486,132 @@ function choose(candidate: RecipeCandidate, isNameTaken: (name: string) => boole
   if (category === 'accessory') {
     const start = secondaryKind === 'metal' ? indexOfForm(ACCESSORY_FORMS, (f) => f.slot === 'earrings') : 0;
     const { form, name } = walk(ACCESSORY_FORMS, start, (f) => `${word} ${f.word}`, isNameTaken);
-    return { ...base, name, slot: form.slot };
+    return { ...base, name, slot: form.slot, formWord: form.word };
   }
   // consumable
   const edible = has(EDIBLE_WORDS, primary.key) ? EDIBLE_WORDS[primary.key] : { word, buffType: 'health_regen' };
   const startBuff = secondaryKind === 'edible' ? 'dex' : edible.buffType;
   const start = indexOfForm(FOOD_FORMS, (f) => f.buffType === startBuff);
   const { form, name } = walk(FOOD_FORMS, start, (f) => `${edible.word} ${f.word}`, isNameTaken);
-  return { ...base, name, slot: 'food', buffType: form.buffType };
+  return { ...base, name, slot: 'food', formWord: form.word, buffType: form.buffType };
+}
+
+// ---------------------------------------------------------------------------
+// DESCRIPTIONS (rule-based: what the item is and what it does; no language model, no prompt)
+// ---------------------------------------------------------------------------
+
+/**
+ * The eat_food line words and the client effect line words for each food buff type. One map, so the
+ * server's "You eat the ... (+1 strength)" line and the client text can never disagree.
+ */
+export const FOOD_BUFF_LABELS: Readonly<Record<string, string>> = {
+  str: 'strength',
+  dex: 'dexterity',
+  mana_regen: 'mana regeneration',
+  stamina_regen: 'stamina regeneration',
+  health_regen: 'health regeneration',
+};
+
+/** The words of the accessory stat columns, as the player reads them. */
+const STAT_WORDS: Readonly<Record<string, string>> = {
+  hpBonus: 'health',
+  intBonus: 'intelligence',
+  wisBonus: 'wisdom',
+  magicResistanceBonus: 'magic resistance',
+  strBonus: 'strength',
+  dexBonus: 'dexterity',
+  chaBonus: 'charisma',
+  manaBonus: 'mana',
+};
+
+/** The facts a generated output's description is built from. */
+export interface GeneratedDescriptionInput {
+  category: RecipeCategory;
+  /** The form word as the name uses it (Dagger, Jerkin, Pendant, Broth). */
+  formWord: string;
+  slot: string;
+  armorType: string;
+  weaponType: string;
+  primaryName: string;
+  secondaryName: string;
+  secondaryKind: MaterialKind | null;
+  baseDamage: bigint;
+  dps: bigint;
+  armorClass: bigint;
+  /** The accessory stat column key and its amount, or null. */
+  stat: { key: string; amount: bigint } | null;
+  buffType: string;
+  buffMagnitude: bigint;
+}
+
+function article(firstWord: string): string {
+  return /^[aeiou]/i.test(firstWord) ? 'An' : 'A';
+}
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+/**
+ * What a generated output is and what it does, from its category, form and stats. Fixed sentence
+ * shapes only: never a language model, never player data. Never throws.
+ */
+export function generatedDescription(input: GeneratedDescriptionInput): string {
+  if (input === null || typeof input !== 'object') return '';
+  const form = text(input.formWord).toLowerCase();
+  const primary = text(input.primaryName);
+  const secondary = text(input.secondaryName);
+  const kind = input.secondaryKind;
+
+  if (input.category === 'weapon') {
+    const tail =
+      kind === 'cloth'
+        ? `wrapped in ${secondary}`
+        : kind === 'hide'
+          ? `with a ${secondary} grip`
+          : kind === 'wood'
+            ? `on a ${secondary} haft`
+            : `with ${secondary}`;
+    return `${article(form)} ${form} forged from ${primary}, ${tail}. It deals ${input.baseDamage} base damage at ${input.dps} DPS.`;
+  }
+
+  if (input.category === 'armor') {
+    const type = text(input.armorType);
+    const noun = type === '' || type === 'none' ? form : `${type} ${form}`;
+    const lead = /s$/.test(form) ? `A pair of ${noun}` : `${article(noun)} ${noun}`;
+    const source = type === 'leather' ? 'cut from' : 'woven from';
+    const lining = kind === 'metal' ? 'reinforced with' : kind === 'cloth' || kind === 'hide' ? 'lined with' : 'with';
+    return `${lead} ${source} ${primary}, ${lining} ${secondary}. It adds ${input.armorClass} armor.`;
+  }
+
+  if (input.category === 'accessory') {
+    const tail =
+      kind === 'metal'
+        ? `in a ${secondary} setting`
+        : kind === 'cloth' || kind === 'hide'
+          ? `on a ${secondary} cord`
+          : `with ${secondary}`;
+    const stat = input.stat;
+    const word = stat && Object.prototype.hasOwnProperty.call(STAT_WORDS, stat.key) ? STAT_WORDS[stat.key] : '';
+    const slot = input.slot;
+    const end = word
+      ? `It adds ${stat ? stat.amount : 0n} ${word}.`
+      : slot === 'neck'
+        ? 'It is worn at the neck.'
+        : slot === 'earrings'
+          ? 'It is worn at the ears.'
+          : 'It is worn as jewelry.';
+    return `${article(form)} ${form} set with ${primary}, ${tail}. ${end}`;
+  }
+
+  if (input.category === 'consumable') {
+    const label = Object.prototype.hasOwnProperty.call(FOOD_BUFF_LABELS, input.buffType)
+      ? FOOD_BUFF_LABELS[input.buffType]
+      : text(input.buffType);
+    return `${article(form)} ${form} cooked from ${primary} and ${secondary}. Eating it makes you well fed: +${input.buffMagnitude} ${label}.`;
+  }
+
+  return `Made from ${primary} and ${secondary}.`;
 }
 
 export interface GeneratedItemTemplate {
@@ -562,9 +687,14 @@ export function generatedOutput(
     manaBonus: 0n,
     magicResistanceBonus: 0n,
   };
+  let accessoryStat: { key: string; amount: bigint } | null = null;
   if (category === 'accessory' && has(ACCESSORY_STATS, primary.key)) {
     const entry = ACCESSORY_STATS[primary.key];
-    if (has(stats, entry.stat)) (stats as Record<string, bigint>)[entry.stat] = entry.base * levelStep(level);
+    if (has(stats, entry.stat)) {
+      const amount = entry.base * levelStep(level);
+      (stats as Record<string, bigint>)[entry.stat] = amount;
+      accessoryStat = { key: entry.stat, amount };
+    }
   }
 
   const itemTemplate: GeneratedItemTemplate = {
@@ -593,7 +723,22 @@ export function generatedOutput(
     wellFedDurationMicros: food ? FOOD_DURATION_MICROS : 0n,
     wellFedBuffType: food ? chosen.buffType : '',
     wellFedBuffMagnitude: food ? levelStep(level) : 0n,
-    description: `Crafted from ${primary.name} and ${secondary.name}.`,
+    description: generatedDescription({
+      category,
+      formWord: chosen.formWord,
+      slot: chosen.slot,
+      armorType: chosen.armorType,
+      weaponType: chosen.weaponType,
+      primaryName: primary.name,
+      secondaryName: secondary.name,
+      secondaryKind: materialKind(secondary.name),
+      baseDamage: chosen.baseDamage,
+      dps: chosen.dps,
+      armorClass: chosen.armorClass,
+      stat: accessoryStat,
+      buffType: chosen.buffType,
+      buffMagnitude: food ? levelStep(level) : 0n,
+    }),
   };
 
   const recipe: GeneratedRecipe = {

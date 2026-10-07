@@ -221,8 +221,10 @@ const recipeByName = (ctx: any, name: string) => {
   return found;
 };
 const templateByName = (ctx: any, name: string) => rows(ctx, 'item_template').find((t) => t.name === name);
-const generatedTemplates = (ctx: any) =>
-  rows(ctx, 'item_template').filter((t) => typeof t.description === 'string' && t.description.startsWith('Crafted from'));
+const generatedTemplates = (ctx: any) => {
+  const outputs = new Set(rows(ctx, 'recipe_template').map((r) => r.outputTemplateId));
+  return rows(ctx, 'item_template').filter((t) => outputs.has(t.id));
+};
 
 describe('Discover recipes generates recipes from the carried materials', () => {
   it('the first Discover creates three recipes, their outputs and the discovered rows, and consumes nothing', () => {
@@ -542,6 +544,7 @@ describe('a generated recipe crafts end to end', () => {
       sourceAbility: 'Well Fed',
     });
     expect(rows(ctx, 'item_instance').some((i) => i.id === made[0].id)).toBe(false);
+    expect(lines(ctx).at(-1)).toBe('You eat the Herbal Draught and feel well fed (+1 health regeneration).');
   });
 
   it('every food form the rules can make is eaten into an effect', () => {

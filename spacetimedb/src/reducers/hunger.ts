@@ -1,10 +1,4 @@
-const BUFF_TYPE_LABELS: Record<string, string> = {
-  'str': 'strength',
-  'dex': 'dexterity',
-  'mana_regen': 'mana regeneration',
-  'stamina_regen': 'stamina regeneration',
-  'health_regen': 'health regeneration',
-};
+import { FOOD_BUFF_LABELS } from '../data/recipe_rules';
 
 export const registerFoodReducers = (deps: any) => {
   const {
@@ -72,7 +66,7 @@ export const registerFoodReducers = (deps: any) => {
             sourceAbility: 'Well Fed',
           });
 
-          const statLabel = BUFF_TYPE_LABELS[template.wellFedBuffType] || template.wellFedBuffType;
+          const statLabel = FOOD_BUFF_LABELS[template.wellFedBuffType] || template.wellFedBuffType;
           appendPrivateEvent(
             ctx,
             character.id,
