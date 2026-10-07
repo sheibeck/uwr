@@ -111,7 +111,8 @@ describe('move_character collapses an emptied passage (real handler)', () => {
     expect(locationIds(ctx)).toEqual([5n, 4097n]);
     expect(edges(ctx)).toEqual(['4097>5', '5>4097']);
     const visited = table(ctx, 'visited_location');
-    expect(visited.find((r) => r.characterId === 1n && r.locationId === 5n)).toMatchObject({ fromLocationId: 6n });
+    // The arrival came from the passage, which no longer exists, so the own-side row keeps no origin (review IN-04).
+    expect(visited.find((r) => r.characterId === 1n && r.locationId === 5n)).toMatchObject({ fromLocationId: undefined });
     expect(visited.filter((r) => r.locationId === 6n)).toEqual([]);
   });
 
