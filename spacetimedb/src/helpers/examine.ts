@@ -1,5 +1,6 @@
-// Pure helper for the `look <target>` command: NPC, enemy, player, resource node, then
-// inventory item. No spacetimedb/server or schema imports, so it stays unit-testable.
+// Pure helper for the `look <target>` command: NPC, enemy, player, resource node, inventory
+// item, then (the last two categories, so every older answer is unchanged) a place connected to
+// this one and the bind stone. No spacetimedb/server or schema imports, so it stays unit-testable.
 import { sumItemStats } from '../data/item_stats';
 import type { ItemStatKey } from '../data/item_stats';
 
@@ -179,7 +180,60 @@ function describeItem(ctx: any, character: any, matches: NameMatcher): string | 
   return lines.join('\n');
 }
 
-/** One pass over every category (NPC, enemy, player, node, item) with one name predicate. */
+/**
+ * A place connected to the character's current place, by name. Plain server copy (not Keeper text):
+ * the name, where it lies relative to here, then its description ("Nobody has been here yet." for an
+ * uncharted edge that has none). Places are tried in id order so the answer never depends on index
+ * iteration order.
+ */
+function describeNeighbourPlace(ctx: any, character: any, matches: NameMatcher): string | null {
+  const here = ctx.db.location.id.find(character.locationId);
+  const seen = new Set<bigint>();
+  const neighbours: any[] = [];
+  for (const row of ctx.db.location_connection.by_from.filter(character.locationId)) {
+    if (seen.has(row.toLocationId)) continue;
+    seen.add(row.toLocationId);
+    const place = ctx.db.location.id.find(row.toLocationId);
+    if (place) neighbours.push(place);
+  }
+  neighbours.sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+  const hit = neighbours.find((p) => matches(String(p.name)));
+  if (!hit) return null;
+
+  const hereName = String(here?.name ?? 'here');
+  const lines: string[] = [String(hit.name)];
+  if (here && hit.regionId !== here.regionId) {
+    const region = ctx.db.region.id.find(hit.regionId);
+    lines.push(`Next to ${hereName}, across the border in ${region?.name ?? 'another region'}.`);
+  } else {
+    lines.push(`Next to ${hereName}.`);
+  }
+  if (hit.description) {
+    lines.push(String(hit.description));
+  } else if (hit.terrainType === 'uncharted') {
+    lines.push('Nobody has been here yet.');
+  }
+  return lines.join('\n');
+}
+
+/** The bind stone of the current place (only when it has one): whether the character is bound here. */
+function describeBindStone(ctx: any, character: any, matches: NameMatcher): string | null {
+  const here = ctx.db.location.id.find(character.locationId);
+  if (!here || !here.bindStone) return null;
+  if (!matches('Bind stone')) return null;
+  const bound = character.boundLocationId === here.id;
+  return [
+    'Bind stone',
+    bound
+      ? 'You are bound here. You return here after defeat.'
+      : 'You are not bound here. Bind here to return after defeat.',
+  ].join('\n');
+}
+
+/**
+ * One pass over every category (NPC, enemy, player, node, item, then neighbouring place and bind
+ * stone) with one name predicate. The last two come last so no existing answer changes.
+ */
 function describeAll(ctx: any, character: any, matches: NameMatcher): string | null {
   // (a) NPCs
   for (const npc of ctx.db.npc.by_location.filter(character.locationId)) {
@@ -208,15 +262,21 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
     }
   }
 
-  // (d) Resource nodes at the location, (e) the character's own inventory
-  return describeNode(ctx, character, matches) ?? describeItem(ctx, character, matches);
+  // (d) Resource nodes at the location, (e) the character's own inventory, then (f) a place
+  // connected to this one and (g) the bind stone
+  return (
+    describeNode(ctx, character, matches) ??
+    describeItem(ctx, character, matches) ??
+    describeNeighbourPlace(ctx, character, matches) ??
+    describeBindStone(ctx, character, matches)
+  );
 }
 
 /**
  * Text for appendPrivateEvent(..., 'look', text), or null when nothing matches.
  * Exact name matches win across every category before any partial match is tried, so a click on
  * the "Stone" node is never captured by a "Stone Golem" enemy. Inside a pass the category order
- * stays NPC, enemy, player, node, item.
+ * stays NPC, enemy, player, node, item, neighbouring place, bind stone.
  */
 export function describeLookTarget(ctx: any, character: any, target: string): string | null {
   const targetLower = target.toLowerCase();

@@ -435,3 +435,153 @@ describe('intent.ts wiring', () => {
     expect(src).toContain('lookMissLine(');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Plan 51-01: neighbouring places and the bind stone (the last two categories of each pass)
+// ---------------------------------------------------------------------------
+
+const HERE = { id: 10n, locationId: 10n, level: 5n, name: 'Hero', race: 'Human', className: 'Warrior', boundLocationId: 10n };
+const placeRow = (over: Record<string, unknown>) => ({
+  id: 11n,
+  name: 'Gloamwood',
+  description: 'Black pines lean over the road.',
+  regionId: 1n,
+  isSafe: false,
+  bindStone: false,
+  craftingAvailable: false,
+  terrainType: 'woods',
+  ...over,
+});
+const linkRows = (from: bigint, to: bigint) => [
+  { id: from * 100n + to, fromLocationId: from, toLocationId: to },
+  { id: to * 100n + from, fromLocationId: to, toLocationId: from },
+];
+const placesSeed = (extra: Record<string, any[]> = {}) => ({
+  region: [
+    { id: 1n, name: 'Ashfall Wilds' },
+    { id: 2n, name: 'Saltmarsh' },
+  ],
+  location: [
+    placeRow({ id: 10n, name: 'The Crossing', description: 'A crossroads.', bindStone: true, terrainType: 'town' }),
+    placeRow({ id: 11n, name: 'Gloamwood' }),
+    placeRow({ id: 12n, name: 'The Edge Beyond Ashfall', description: '', terrainType: 'uncharted' }),
+    placeRow({ id: 13n, name: 'Saltmarsh Gate', description: 'A rusted gate.', regionId: 2n }),
+    placeRow({ id: 14n, name: 'Far Off', description: 'Not connected.' }),
+  ],
+  location_connection: [...linkRows(10n, 11n), ...linkRows(10n, 12n), ...linkRows(10n, 13n)],
+  ...extra,
+});
+
+describe('describeLookTarget: neighbouring places', () => {
+  it('describes a connected place in the same region: name, next-to line, description', () => {
+    const ctx = ctxWith(placesSeed());
+    expect(describeLookTarget(ctx, HERE, 'gloamwood')).toBe(
+      'Gloamwood\nNext to The Crossing.\nBlack pines lean over the road.',
+    );
+  });
+
+  it('an uncharted edge with no description says nobody has been there', () => {
+    const ctx = ctxWith(placesSeed());
+    expect(describeLookTarget(ctx, HERE, 'the edge beyond ashfall')).toBe(
+      'The Edge Beyond Ashfall\nNext to The Crossing.\nNobody has been here yet.',
+    );
+  });
+
+  it('an uncharted place that has a description shows it', () => {
+    const seed = placesSeed();
+    seed.location[2] = placeRow({ id: 12n, name: 'The Edge Beyond Ashfall', description: 'Mist.', terrainType: 'uncharted' });
+    expect(describeLookTarget(ctxWith(seed), HERE, 'edge beyond')).toBe(
+      'The Edge Beyond Ashfall\nNext to The Crossing.\nMist.',
+    );
+  });
+
+  it('a charted place with no description has no third line', () => {
+    const seed = placesSeed();
+    seed.location[1] = placeRow({ id: 11n, name: 'Gloamwood', description: '' });
+    expect(describeLookTarget(ctxWith(seed), HERE, 'gloamwood')).toBe('Gloamwood\nNext to The Crossing.');
+  });
+
+  it('a place in another region names the region across the border', () => {
+    const ctx = ctxWith(placesSeed());
+    expect(describeLookTarget(ctx, HERE, 'saltmarsh gate')).toBe(
+      'Saltmarsh Gate\nNext to The Crossing, across the border in Saltmarsh.\nA rusted gate.',
+    );
+  });
+
+  it('falls back to another region when the region row is missing', () => {
+    const seed = placesSeed();
+    seed.region = [{ id: 1n, name: 'Ashfall Wilds' }];
+    expect(describeLookTarget(ctxWith(seed), HERE, 'saltmarsh gate')).toBe(
+      'Saltmarsh Gate\nNext to The Crossing, across the border in another region.\nA rusted gate.',
+    );
+  });
+
+  it('a place that is not connected to the current one is a miss', () => {
+    expect(describeLookTarget(ctxWith(placesSeed()), HERE, 'far off')).toBeNull();
+  });
+
+  it('with two connected places that match a partial name, the lowest id answers', () => {
+    const seed = placesSeed();
+    seed.location.push(placeRow({ id: 15n, name: 'Gloamwood Deep', description: 'Deeper.' }));
+    seed.location_connection.push(...linkRows(10n, 15n));
+    expect(describeLookTarget(ctxWith(seed), HERE, 'gloam')?.startsWith('Gloamwood\n')).toBe(true);
+  });
+
+  it('an exact name beats an earlier partial match', () => {
+    const seed = placesSeed();
+    seed.location.push(placeRow({ id: 9n, name: 'Gloamwood Deep', description: 'Deeper.' }));
+    seed.location_connection.push(...linkRows(10n, 9n));
+    expect(describeLookTarget(ctxWith(seed), HERE, 'gloamwood')?.startsWith('Gloamwood\nNext to')).toBe(true);
+  });
+});
+
+describe('describeLookTarget: bind stone', () => {
+  it('says the character is bound here', () => {
+    expect(describeLookTarget(ctxWith(placesSeed()), HERE, 'bind stone')).toBe(
+      'Bind stone\nYou are bound here. You return here after defeat.',
+    );
+  });
+
+  it('says the character is not bound here when bound elsewhere or never bound', () => {
+    const expected = 'Bind stone\nYou are not bound here. Bind here to return after defeat.';
+    expect(describeLookTarget(ctxWith(placesSeed()), { ...HERE, boundLocationId: 99n }, 'bind stone')).toBe(expected);
+    expect(describeLookTarget(ctxWith(placesSeed()), { ...HERE, boundLocationId: undefined }, 'bind stone')).toBe(expected);
+  });
+
+  it('is a miss at a place without a bind stone', () => {
+    const seed = placesSeed();
+    seed.location[0] = placeRow({ id: 10n, name: 'The Crossing', bindStone: false });
+    expect(describeLookTarget(ctxWith(seed), HERE, 'bind stone')).toBeNull();
+  });
+
+  it('is a miss when the current place row is missing', () => {
+    expect(describeLookTarget(ctxWith({}), HERE, 'bind stone')).toBeNull();
+  });
+});
+
+describe('describeLookTarget: the new categories come last', () => {
+  it('a Stone node still wins look at stone over a neighbouring place named Stone', () => {
+    const seed = placesSeed({
+      resource_node: [node({ id: 100n, locationId: 10n, name: 'Stone', itemTemplateId: 7n })],
+      item_template: [ironTemplate],
+    });
+    seed.location.push(placeRow({ id: 16n, name: 'Stone', description: 'A town of stone.' }));
+    seed.location_connection.push(...linkRows(10n, 16n));
+    expect(describeLookTarget(ctxWith(seed), HERE, 'stone')?.startsWith('Stone\nReady to gather.')).toBe(true);
+  });
+
+  it('an NPC named like a neighbouring place answers before the place', () => {
+    const seed = placesSeed({
+      npc: [{ id: 50n, locationId: 10n, name: 'Gloamwood', description: 'A woman who smells of pine.' }],
+    });
+    expect(describeLookTarget(ctxWith(seed), HERE, 'gloamwood')).toBe('[Gloamwood]: A woman who smells of pine.');
+  });
+
+  it('a carried item answers before the bind stone', () => {
+    const seed = placesSeed({
+      item_template: [{ ...ironTemplate, id: 30n, name: 'Bind Stone' }],
+      item_instance: [{ id: 300n, ownerCharacterId: 10n, templateId: 30n, quantity: 1n }],
+    });
+    expect(describeLookTarget(ctxWith(seed), HERE, 'bind stone')?.startsWith('Bind Stone\nCommon material')).toBe(true);
+  });
+});
