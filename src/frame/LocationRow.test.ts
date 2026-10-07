@@ -70,6 +70,12 @@ describe('LocationRow', () => {
     expect(w.get('.name').text()).toBe('The Crossing');
     expect(w.get('.name').attributes('title')).toBe('The Crossing');
     expect(w.get('.terrain').text()).toBe('· Woods ·');
+    // review IN-05: the separators are hidden from screen readers
+    const seps = w.findAll('.terrain [aria-hidden="true"]').map((s) => s.text());
+    expect(seps).toEqual(['·', '·']);
+    const spoken = w.get('.terrain').element.cloneNode(true) as Element;
+    for (const hidden of [...spoken.querySelectorAll('[aria-hidden="true"]')]) hidden.remove();
+    expect((spoken.textContent ?? '').trim()).toBe('Woods');
     const level = w.get('.level');
     expect(level.text()).toBe('Lv 2–4');
     expect(level.classes()).toContain('lv-even');

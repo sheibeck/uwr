@@ -32,7 +32,8 @@ const levelText = computed(() => {
     <PhMapPin class="pin" :size="14" aria-hidden="true" />
     <span class="name" :title="props.locationName">{{ props.locationName }}</span>
     <template v-if="here">
-      <span class="terrain">· {{ here.terrain.word }} ·</span>
+      <!-- The separators are visual only: screen readers hear 'Woods', not 'dot Woods dot'. -->
+      <span class="terrain"><span aria-hidden="true">· </span>{{ here.terrain.word }}<span aria-hidden="true"> ·</span></span>
       <span class="level" :class="dangerClass(here.danger)">{{ levelText }}</span>
     </template>
     <template v-if="timer.running">
