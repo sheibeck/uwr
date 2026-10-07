@@ -567,7 +567,21 @@ Plans:
   4. Explored region passages collapse into direct border crossings once nobody stands in them; offline characters left in a passage are swept back to their own side.
   5. At 390×844 the Map opens as a full-height sheet from the Map tab, and every action above works.
 
-**Plans**: TBD
+**Plans**: 11 plans
+
+Plans:
+- [ ] 51-01-PLAN.md — Server: shared stamina cost rule, private visited places with my_visited_locations, look at neighbouring places and the bind stone (wave 1)
+- [ ] 51-02-PLAN.md — Client guards (svg only in src/map/, map wide tier) and pure helpers: danger, terrain, travel timer, known places, routes, region chips (wave 1)
+- [ ] 51-03-PLAN.md — Server: passage collapse on departure, guarded passage sweep, local publish (key 108) and bindings regeneration (wave 2)
+- [ ] 51-04-PLAN.md — Deterministic route-graph layout and node, list, route and gate views (TDD, wave 2)
+- [ ] 51-05-PLAN.md — Travel checks and the destination detail model with the one Travel button (TDD, wave 2)
+- [ ] 51-06-PLAN.md — Rail rows: Examine eye, Talk chat bubble, bind stone row with Bind, enemy-card eye, party stamina (wave 2)
+- [ ] 51-07-PLAN.md — Map data hub (visited, connections, travel timers, selected place) and session wiring (wave 3)
+- [ ] 51-08-PLAN.md — Map screen: svg route graph, keyboard, list view, legend, screen arguments and registry (wave 4)
+- [ ] 51-09-PLAN.md — Destination detail, Travel and arrival banner, region chips and the Region travel pill (wave 5)
+- [ ] 51-10-PLAN.md — Rail travel panel: Here card exits, mobile location line and exit chips (wave 5)
+- [ ] 51-11-PLAN.md — Mobile Map sheet with Map and Here tabs and the dock, phase gate, LDG-05 wording (wave 6)
+
 **UI hint**: yes
 **Design source**: `UWR Map.dc.html` (owner's revised map, second revision 2026-10-07) and `UWR Console.dc.html` (travel panel), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`). The Phase 51 UI-SPEC covers 51, 51.1 and 51.2 and is split per phase.
 **Notes**:
