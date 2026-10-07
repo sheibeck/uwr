@@ -142,6 +142,13 @@ Mobile (390×844): each screen opens as a full-height sheet above the tab bar. B
 - **Capacity stays 50 (owner):** "Keep 50, show #/50". The counter reads, for example, `22 / 50`, and 50 slots are drawn. There is no server cap change.
 - **Slightly bigger tiles.** 50-32 capped them at 58px desktop, which the owner says is slightly too small. Make them a bit bigger, around 64px at 1280, with the column count chosen to fill the width. Keep the 44px minimum and the mobile size.
 
+### Owner decision (2026-10-07, owner in chat): salvage always returns less (plan 50-40)
+- The owner said: "Salvaging should always return less materials. A salvage should never return enough parts to just infinitely remake it over and over."
+- This settles the open review question (the iteration-2 CR-01 cap was "at most what the recipe consumed"). The yield is now strictly less: for every recipe that outputs the item, each input material's salvage yield is below that recipe's required count. For example, at most req − 1, so 0 when req is 1.
+- Use the minimum over all recipes that output the template.
+- Craft → salvage → craft can never repeat without new materials.
+- The shared rule lives in `crafting_rules.ts`, so the client salvage preview shows the same number. Non-craftable items keep the vendorValue-based yield.
+
 ### Screens and shells
 - Each screen fills the Phase 45 drawer (desktop) or sheet (mobile) for its `ActiveScreen` value, replacing the placeholder. Opening and closing, focus trap and Esc stay as Phase 45 built them.
 - The Nearby vendor action from Phase 47 opens the Vendor screen for that NPC. Crafting is reached from the existing screen entry points. Phase 45 tabs, Bag and More decide which screen opens on mobile.
