@@ -90,7 +90,6 @@ describe('salvagePreview: a chance at a smaller return', () => {
       name: 'Rough Hide',
       note: '',
       text: '×1 · 50% chance',
-      chance: true,
       icon: PhCube,
     });
     expect(result.confirmText).toBe('Salvage destroys this item. It may return some Rough Hide.');
@@ -249,7 +248,6 @@ describe('salvagePreview: reagent', () => {
       name: pick.name,
       text: `${SALVAGE_REAGENT_CHANCE_PCT}% chance`,
       note: 'from “of Intelligence”',
-      chance: true,
     });
     expect(result.confirmText).toBe(
       'Salvage destroys this item. It may return some Rough Hide. It may also give a reagent.',

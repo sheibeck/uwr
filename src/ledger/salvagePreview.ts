@@ -44,10 +44,8 @@ export interface SalvageYieldView {
   name: string;
   /** 'unlikely' on a component under 25%, 'from “of Intelligence”' on the reagent line, else empty. */
   note: string;
-  /** '×1 · 50% chance' on a component, '12% chance' on the reagent. */
+  /** '×1 · 50% chance' on a component, '12% chance' on the reagent: every line is a chance. */
   text: string;
-  /** The line is a chance, not a guarantee. True on every line. */
-  chance: boolean;
 }
 
 export interface SalvagePreview {
@@ -138,7 +136,6 @@ export function salvagePreview(input: SalvagePreviewInput): SalvagePreview | nul
     name: c.name,
     note: c.chancePct < LIKELY_PCT ? 'unlikely' : '',
     text: `×${c.amount} · ${c.chancePct}% chance`,
-    chance: true,
   }));
 
   // The reagent the server would pick when its chance hits: deterministic from the ids.
@@ -155,7 +152,6 @@ export function salvagePreview(input: SalvagePreviewInput): SalvagePreview | nul
       name: pick.name,
       note: source ? `from “${source.affixName}”` : '',
       text: `${SALVAGE_REAGENT_CHANCE_PCT}% chance`,
-      chance: true,
     });
   }
 

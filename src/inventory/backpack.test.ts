@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
 import type { ItemInstance, ItemTemplate } from '../module_bindings/types';
 import {
@@ -9,7 +11,6 @@ import {
   BAG_FILTERS,
   FILTER_EMPTY_TEXT,
   backpackColumns,
-  backpackTileSize,
   bagTiles,
   filterBag,
   slotMetaText,
@@ -198,6 +199,26 @@ describe('FILTER_EMPTY_TEXT', () => {
 describe('tile size and stack count (Plans 50-32 and 50-39)', () => {
   // The old 50-32 rule, kept only to compare: 6 columns of 1fr with an 8px gap.
   const oldStretch = (width: number): number => (width - 8 * 5) / 6;
+
+  // The tile edge BackpackGrid's CSS gives: backpackColumns tracks of minmax(44px, 72px) (desktop) or
+  // 5 of minmax(44px, 66px) (mobile) with the 4px gap. backpack.ts no longer exports a tile-size helper
+  // because only these tests read it (IN-09, iteration 3); the model lives here.
+  const backpackTileSize = (columnWidthPx: number, mobile: boolean): number => {
+    const cols = backpackColumns(columnWidthPx, mobile);
+    const max = mobile ? BACKPACK_TILE_MAX_PX.mobile : BACKPACK_TILE_MAX_PX.desktop;
+    const share = Math.floor((columnWidthPx - BACKPACK_GAP_PX * (cols - 1)) / cols);
+    return Math.min(max, Math.max(BACKPACK_TILE_MIN_PX, share));
+  };
+
+  it('models the grid CSS tracks it describes', () => {
+    const grid = readFileSync(resolve(process.cwd(), 'src/inventory/BackpackGrid.vue'), 'utf8');
+    expect(grid).toContain(
+      `repeat(var(--bag-columns, ${BACKPACK_COLUMNS.desktop}), minmax(${BACKPACK_TILE_MIN_PX}px, ${BACKPACK_TILE_MAX_PX.desktop}px))`,
+    );
+    expect(grid).toContain(
+      `repeat(${BACKPACK_COLUMNS.mobile}, minmax(${BACKPACK_TILE_MIN_PX}px, ${BACKPACK_TILE_MAX_PX.mobile}px))`,
+    );
+  });
 
   // Replaces the 50-32 'exposes the mock constants' case that pinned the 58px cap: the owner's
   // 2026-10-07 decision (plan 50-39) raises the desktop cap to 72px and fills the column.

@@ -117,7 +117,7 @@ describe('words', () => {
 });
 
 describe('salvageYieldHint', () => {
-  const yieldRow = { key: 'k', icon: PhCube, iconColor: 'c', name: 'n', note: '', text: 't', chance: true };
+  const yieldRow = { key: 'k', icon: PhCube, iconColor: 'c', name: 'n', note: '', text: 't' };
 
   it('says materials may come back while the recipe parts are not known, even with a reagent', () => {
     expect(salvageYieldHint({ knowable: false, yields: [] })).toBe(SALVAGE_UNKNOWN);

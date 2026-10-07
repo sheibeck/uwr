@@ -118,16 +118,6 @@ export function backpackColumns(columnWidthPx: number, mobile: boolean): number 
 }
 
 /**
- * The square tile edge the grid gives in a column of the given width: the even share of the width
- * across the columns backpackColumns picks, held between the 44px touch target and the cap.
- */
-export function backpackTileSize(columnWidthPx: number, mobile: boolean): number {
-  const cols = backpackColumns(columnWidthPx, mobile);
-  const max = mobile ? BACKPACK_TILE_MAX_PX.mobile : BACKPACK_TILE_MAX_PX.desktop;
-  return Math.min(max, Math.max(BACKPACK_TILE_MIN_PX, tileShare(columnWidthPx, cols)));
-}
-
-/**
  * The tile's top-right count, as the mock draws it: 'x14' for every stackable (including 'x1'), and
  * for a non-stackable only above 1. Empty when no count shows. A missing quantity counts as 1.
  */
