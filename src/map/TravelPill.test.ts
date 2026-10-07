@@ -36,6 +36,13 @@ function build(props: { compact: boolean } = { compact: false }, timer: TravelTi
 
 const status = (w: VueWrapper) => w.get('[role="status"]');
 
+/** What a screen reader reads: the text with every aria-hidden subtree removed, spaces collapsed. */
+function spokenText(element: Element): string {
+  const clone = element.cloneNode(true) as Element;
+  for (const hidden of [...clone.querySelectorAll('[aria-hidden="true"]')]) hidden.remove();
+  return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 describe('TravelPill', () => {
   it('idle: the check icon and Region travel: Ready', () => {
     const { w } = build();
@@ -43,6 +50,23 @@ describe('TravelPill', () => {
     expect(w.findComponent(PhHourglassMedium).exists()).toBe(false);
     expect(w.get('.pill-text').text()).toBe('Region travel: Ready');
     expect(w.classes()).toContain('ready');
+    expect(spokenText(w.element)).toBe('Region travel: Ready');
+  });
+
+  it('a screen reader hears only the minute sentence while the timer runs (review WR-04)', async () => {
+    const { w, selfTimer } = build({ compact: false }, { running: true, secondsLeft: 192 });
+    expect(w.get('.pill-text').attributes('aria-hidden')).toBe('true');
+    expect(spokenText(w.element)).toBe('Region travel ready in about 4 minutes');
+    expect(spokenText(w.element)).not.toContain('left');
+    selfTimer.value = { running: false, secondsLeft: 0 };
+    await nextTick();
+    expect(w.get('.pill-text').attributes('aria-hidden')).toBeUndefined();
+    expect(spokenText(w.element)).toBe(`Region travel: Ready${UNLOCK}`);
+  });
+
+  it('compact: the clock alone is hidden and the sentence speaks', () => {
+    const { w } = build({ compact: true }, { running: true, secondsLeft: 192 });
+    expect(spokenText(w.element)).toBe('Region travel ready in about 4 minutes');
   });
 
   it('running: the hourglass, the hidden clock and a screen reader minute sentence', () => {

@@ -78,11 +78,8 @@ const describedBy = computed(() => {
   return `${uid}-check-${action.describedBy}`;
 });
 
-const regionTravel = computed(() => {
-  const row = detail.value?.trip.regionTravel;
-  if (!row) return null;
-  return { ...row, parts: aroundClock(row.text, row.timeText) };
-});
+// 'Blocked · {m:ss} left' is hidden as a whole while its minute sentence speaks for it.
+const regionTravel = computed(() => detail.value?.trip.regionTravel ?? null);
 
 const showFooter = computed(() => {
   const action = detail.value?.action;
@@ -154,9 +151,9 @@ defineExpose({ focusTitle });
           <template v-if="regionTravel">
             <dt>Region travel</dt>
             <dd class="trip-region" :class="`tone-${regionTravel.tone}`">
-              <template v-if="regionTravel.parts"
-                >{{ regionTravel.parts.before }}<span aria-hidden="true">{{ regionTravel.timeText }}</span
-                >{{ regionTravel.parts.after }}<span class="sr-only">{{ regionTravel.srText }}</span></template
+              <template v-if="regionTravel.srText !== null"
+                ><span aria-hidden="true">{{ regionTravel.text }}</span
+                ><span class="sr-only">{{ regionTravel.srText }}</span></template
               >
               <template v-else>{{ regionTravel.text }}</template>
             </dd>

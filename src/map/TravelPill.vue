@@ -6,8 +6,8 @@ import { aboutMinutes, formatClock } from './travelTimer';
 
 // The Region travel pill (51-UI-SPEC "Region chips and the Region travel pill"): Ready, or the
 // server's time left while your own timer runs. It is plain text with no focusable element, so the
-// close button stays the first focusable control after the chips. The visible clock is aria-hidden;
-// screen readers get a minute-level sentence that is not a live region. Only the state change is
+// close button stays the first focusable control after the chips. While a timer runs the visible
+// phrase (clock included) is aria-hidden; screen readers get a minute-level sentence that is not a live region. Only the state change is
 // announced: the polite status below says once that you can cross again when a running timer ends.
 const props = defineProps<{ compact: boolean }>();
 
@@ -31,7 +31,9 @@ watch(running, (now, before) => {
   <span class="pill" :class="running ? 'running' : 'ready'">
     <PhHourglassMedium v-if="running" class="pill-icon" :size="12" aria-hidden="true" />
     <PhCheckCircle v-else class="pill-icon" :size="12" aria-hidden="true" />
-    <span class="pill-text">
+    <!-- While a timer runs the whole visible phrase is hidden, so a screen reader hears only the
+         minute sentence below, never 'Region travel: left'. -->
+    <span class="pill-text" :aria-hidden="running ? 'true' : undefined">
       <template v-if="props.compact"
         ><span v-if="running" class="pill-clock" aria-hidden="true">{{ clock }}</span
         ><template v-else>Ready</template></template

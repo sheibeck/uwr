@@ -55,23 +55,14 @@ const ACTION_ICONS: Record<NonNullable<TravelAction['icon']>, Component> = {
   firstStop: PhArrowBendUpRight,
 };
 
-/** Splits a line around its clock so the time can be aria-hidden; no clock leaves the text whole. */
-function aroundClock(text: string, clock: string | null): { before: string; after: string } | null {
-  if (clock === null) return null;
-  const at = text.indexOf(clock);
-  if (at < 0) return null;
-  return { before: text.slice(0, at), after: text.slice(at + clock.length) };
-}
-
-/** '{n} stamina · {region travel text}', or whichever part exists; null when neither does. */
+/**
+ * '{n} stamina · {region travel text}', or whichever part exists; null when neither does. A blocked
+ * region line ('Blocked · {m:ss} left') is hidden as a whole while its minute sentence speaks for it.
+ */
 const tripLine = computed(() => {
   const trip = detail.value?.trip;
   if (!trip || (trip.stamina === null && trip.regionTravel === null)) return null;
-  const row = trip.regionTravel;
-  return {
-    stamina: trip.stamina,
-    region: row ? { ...row, parts: aroundClock(row.text, row.timeText) } : null,
-  };
+  return { stamina: trip.stamina, region: trip.regionTravel };
 });
 
 /** The failing check labels (wait or bad) joined with ' · '; null when every check is ok. */
@@ -144,9 +135,9 @@ defineExpose({ focusName });
       <template v-if="tripLine.stamina !== null">{{ tripLine.stamina }}</template>
       <template v-if="tripLine.stamina !== null && tripLine.region"> · </template>
       <span v-if="tripLine.region" class="trip-region" :class="`tone-${tripLine.region.tone}`">
-        <template v-if="tripLine.region.parts"
-          >{{ tripLine.region.parts.before }}<span aria-hidden="true">{{ tripLine.region.timeText }}</span
-          >{{ tripLine.region.parts.after }}<span class="sr-only">{{ tripLine.region.srText }}</span></template
+        <template v-if="tripLine.region.srText !== null"
+          ><span aria-hidden="true">{{ tripLine.region.text }}</span
+          ><span class="sr-only">{{ tripLine.region.srText }}</span></template
         >
         <template v-else>{{ tripLine.region.text }}</template>
       </span>

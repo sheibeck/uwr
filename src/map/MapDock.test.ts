@@ -216,6 +216,13 @@ function build(over: Options = {}) {
 const button = (w: VueWrapper) => w.get('button.travel-button');
 const toggle = (w: VueWrapper) => w.get('button.details-toggle');
 
+/** What a screen reader reads: the text with every aria-hidden subtree removed, spaces collapsed. */
+function spokenText(element: Element): string {
+  const clone = element.cloneNode(true) as Element;
+  for (const hidden of [...clone.querySelectorAll('[aria-hidden="true"]')]) hidden.remove();
+  return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 describe('MapDock: populated states', () => {
   it('shows a same-region neighbour in the UI-SPEC order', () => {
     const { w } = build({ selected: 11n });
@@ -298,6 +305,8 @@ describe('MapDock: the fail line and blocked states', () => {
     expect(b.get('.travel-time').attributes('aria-hidden')).toBe('true');
     expect(b.attributes('aria-describedby')).toBe(fail.attributes('id'));
     expect(w.get('.trip-line').text()).toContain('Blocked · 3:12 left');
+    // review WR-04: the whole visible phrase is hidden, never 'Blocked ·  left'
+    expect(spokenText(w.get('.trip-line').element)).toBe('10 stamina · Region travel ready in about 4 minutes');
     await b.trigger('click');
     expect(moveCharacter).not.toHaveBeenCalled();
   });

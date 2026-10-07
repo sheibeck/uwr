@@ -227,6 +227,13 @@ function build(over: Options = {}) {
 
 const button = (w: VueWrapper) => w.get('button.travel-button');
 
+/** What a screen reader reads: the text with every aria-hidden subtree removed, spaces collapsed. */
+function spokenText(element: Element): string {
+  const clone = element.cloneNode(true) as Element;
+  for (const hidden of [...clone.querySelectorAll('[aria-hidden="true"]')]) hidden.remove();
+  return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 describe('DetailPanel: populated states', () => {
   it('shows a same-region neighbour in UI-SPEC order', () => {
     const { w } = build({ selected: 11n });
@@ -398,6 +405,8 @@ describe('DetailPanel: blocked states', () => {
     const trip = w.get('.trip-region');
     expect(trip.text()).toContain('Blocked · 3:12 left');
     expect(trip.get('.sr-only').text()).toBe('Region travel ready in about 4 minutes');
+    // review WR-04: the whole visible phrase is hidden, never 'Blocked ·  left'
+    expect(spokenText(trip.element)).toBe('Region travel ready in about 4 minutes');
     await b.trigger('click');
     expect(moveCharacter).not.toHaveBeenCalled();
   });
