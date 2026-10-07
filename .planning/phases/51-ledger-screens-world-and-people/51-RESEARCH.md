@@ -589,23 +589,31 @@ Client:
 | A9 | `look at {neighbour place}` text is plain deterministic server copy (name and description, no Keeper voice, no LLM) | Findings O5 | Owner may want to approve the wording; flagged in Open Question 8 |
 | A10 | The region chip level range uses only known places and excludes safe places from the min/max (a region whose known places are all safe shows `Safe`) | Region chips | Range may differ from the owner's mental model if CONTEXT meant every place in the region; UI-SPEC wording supports known-only |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Own side for offline characters in a passage (A1).**
    - What we know: nothing stores where a character came from; the explorer comes from the passage's own region side; a crosser from the far side would be misplaced by the region-side fallback.
    - What's unclear: whether the owner wants the extra `fromLocationId` field.
    - Recommendation: store it on the visited row (cheap, already written on every arrival).
+   - RESOLVED: `visited_location.fromLocationId` (optional) records where the last arrival came from; 51-01 Task 2 writes it on every move (respawn, resurrection, first spawn and the backfill pass no origin). The sweep in 51-03 Task 2 sends an offline character in a passage to that place when it is an own-side neighbour of the passage (same regionId), else to the lowest-id own-side neighbour, never across the border (coordinator decision 1). Listed as owner-review item A1 in the 51-11 phase-gate SUMMARY.
 2. **Collapse timing after generation (A2).**
    - What we know: the passage is renamed in `applyWorldStartResult`; characterization tests at `llm_apply.characterization.test.ts:1120` and `llm_apply.test.ts:946` expect the renamed passage to exist.
    - Recommendation: no immediate collapse there; the sweep and the departure trigger cover it.
+   - RESOLVED: no collapse inside `applyWorldStartResult` (51-03 coordinator decision 2). The departure trigger `collapsePassageIfEmpty(ctx, originLocationId)` after the move loop (51-03 Task 1) and the guarded sweep (51-03 Task 2) cover it, so a freshly renamed, unoccupied passage lasts at most one sweep interval and the llm_apply characterization tests are unchanged (51-01 adds new spawn-path tests rather than editing pinned snapshots).
 3. **One-time cleanup of the three local passages.**
    - What we know: all three are empty; the first sweep tick collapses them.
    - Recommendation: rely on the sweep; add the admin reducer only if the owner wants an explicit button.
+   - RESOLVED: the sweep's first tick is the one-time cleanup; `ensurePassageSweepScheduled` arms it in `init` and `clientConnected` (51-03 Task 2). No admin reducer and no new client-callable mutating reducer is added (51-03 planner decision). 51-03 Task 3 records the passage rows before and after the local publish without connecting a client to force the tick.
 4. **Players count semantics until 51.1 (A4).** Recommendation: count characters at the place excluding yourself; switch to online-only in 51.1.
+   - RESOLVED: the destination detail's Players line counts the characters at the place other than you, including offline characters, until Phase 51.1 adds the stored online flag (51-05 Task 2 `buildDetail`, coordinator decision 3; the keyed `character WHERE location_id` subscription for the selected place is in the 51-07 map hub). On the server, `onlineCharacterIds` in `helpers/online.ts` (51-03 Task 1) is the single body 51.1 swaps. Listed as owner-review item A4 in the 51-11 SUMMARY.
 5. **Seconds timer cost.** A 1-second tick only while a seconds timer is on screen. Recommendation: one shared composable in `src/map/` (also reusable by 51.2).
+   - RESOLVED: 51-07 Task 1 adds `createSecondsTick` in `src/map/secondsTick.ts`, a 1000 ms server-clock tick that runs only while its `active` ref is true and is cleared on scope dispose. It lives in the dedicated `src/map/` hub (`mapContext.ts`, `mapData.ts`, `queries.ts`; coordinator decision 4, research A5), which 51.1 and 51.2 reuse as their hub template.
 6. **Backfill for existing characters (A8).** Recommendation: upsert current place at `set_active_character`, optional.
+   - RESOLVED: adopted, not optional. 51-01 Task 2 marks the character's current place visited (no origin, never touching an existing fromLocationId) in `set_active_character`, and every move also inserts the origin when it has no row, so characters that existed before this phase see their place at once (coordinator decision 5).
 7. **LDG-05 text is stale in `REQUIREMENTS.md`.** Recommendation: edit the line to "one Travel button; followers with Follow leader on come along" when the phase completes (ROADMAP criterion 2 already says this).
+   - RESOLVED: 51-11 Task 2 edits only the LDG-05 line in `.planning/REQUIREMENTS.md` (one scoped Edit) to the one-Travel-button wording with followers who have Follow leader on coming along; the checkbox state and the traceability table are unchanged.
 8. **No LLM prompt wording is needed.** The neighbour and bind stone look lines are server copy, not Keeper text. Flag for owner glance only if they want to review that copy; do not write any prompt.
+   - RESOLVED: no prompt is written or changed. 51-01 Task 3 adds the neighbour-place and bind stone look lines as plain deterministic server copy (51-01 prohibition: no LLM prompt, Keeper text or route block change), and the 51-11 phase-gate SUMMARY lists the copy as owner-review item A9 for the end-of-milestone UAT.
 
 ## Environment Availability
 
