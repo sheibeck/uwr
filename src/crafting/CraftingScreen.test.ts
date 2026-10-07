@@ -244,7 +244,10 @@ describe('CraftingMeta', () => {
 // ---------------------------------------------------------------------------
 
 describe('MaterialsOnHand', () => {
-  function mountMaterials(world: World = {}, props: { mode?: 'column' | 'disclosure'; showDiscover?: boolean; mobile?: boolean } = {}) {
+  function mountMaterials(
+    world: World = {},
+    props: { mode?: 'column' | 'disclosure'; showDiscover?: boolean; mobile?: boolean; usedTemplateIds?: bigint[] } = {},
+  ) {
     const ctx = buildWorld(world);
     wrapper = mount(MaterialsOnHand, {
       attachTo: document.body,
@@ -254,21 +257,50 @@ describe('MaterialsOnHand', () => {
     return { ...ctx, w: wrapper };
   }
 
-  it('column: heading and a name and count grid sorted by name, with plain and rarity colors', () => {
+  it('column: heading and an icon, name and count row sorted by name, with plain and rarity colors', () => {
     const { w } = mountMaterials({ items: [...ITEMS, inst(9n, 3n, 2n)] });
     expect(w.get('h6').text()).toBe('Materials on hand');
-    const names = w.findAll('dt').map((n) => n.text());
+    expect(w.findAll('.m-row').every((row) => row.find('svg').exists())).toBe(true);
+    const names = w.findAll('.m-name').map((n) => n.text());
     expect(names).toEqual(['Ancient Rune', 'Copper Ore', 'Darksteel Ore', 'Essence', 'Glowing Stone', 'Iron Ore', 'Lesser Essence', 'Rough Hide']);
-    const counts = w.findAll('dd').map((n) => n.text());
+    const counts = w.findAll('.m-count').map((n) => n.text());
     expect(counts[1]).toBe('5');
-    expect(w.findAll('dt')[1].attributes('style')).toContain('var(--color-text)');
-    expect(w.findAll('dt')[2].attributes('style')).toContain('var(--color-rarity-rare)');
+    expect(w.findAll('.m-name')[1].attributes('style')).toContain('var(--color-text)');
+    expect(w.findAll('.m-name')[2].attributes('style')).toContain('var(--color-rarity-rare)');
+  });
+
+  it('column: the selected recipe materials are highlighted, a used material with none on hand is listed in red', () => {
+    const { w } = mountMaterials({ items: [inst(1n, 1n, 5n)] }, { usedTemplateIds: [1n, 4n] });
+    const rows = w.findAll('.m-row');
+    expect(rows.map((r) => r.get('.m-name').text())).toEqual(['Copper Ore', 'Rough Hide']);
+    expect(rows.every((r) => r.classes().includes('highlighted'))).toBe(true);
+    expect(rows[0].get('.m-count').classes()).not.toContain('short');
+    expect(rows[1].get('.m-count').text()).toBe('0');
+    expect(rows[1].get('.m-count').classes()).toContain('short');
+    expect(w.get('.caption').text()).toBe('Highlighted: used by the selected recipe.');
+  });
+
+  it('column: an unused material is not highlighted and the highlight caption is absent with no selection', () => {
+    const { w } = mountMaterials({}, { usedTemplateIds: [1n] });
+    const lit = w.findAll('.m-row').filter((r) => r.classes().includes('highlighted'));
+    expect(lit).toHaveLength(1);
+    expect(lit[0].get('.m-name').text()).toBe('Copper Ore');
+    wrapper?.unmount();
+    wrapper = null;
+    const none = mountMaterials();
+    expect(none.w.find('.caption').exists()).toBe(false);
+    expect(none.w.findAll('.m-row').some((r) => r.classes().includes('highlighted'))).toBe(false);
+  });
+
+  it('column: Discover carries its caption under the button', () => {
+    const { w } = mountMaterials({}, { showDiscover: true });
+    expect(w.get('.discover-slot .discover-caption').text()).toBe('Finds new recipes from the materials you carry.');
   });
 
   it('column: shows the empty line with nothing on hand', () => {
     const { w } = mountMaterials({ items: [] });
     expect(w.get('.empty').text()).toBe('No materials on hand.');
-    expect(w.find('dl').exists()).toBe(false);
+    expect(w.find('.m-rows').exists()).toBe(false);
   });
 
   it('disclosure: a collapsed ghost button with the count, aria-expanded and aria-controls that expands', async () => {
@@ -282,7 +314,7 @@ describe('MaterialsOnHand', () => {
     await button.trigger('click');
     expect(button.attributes('aria-expanded')).toBe('true');
     expect(target.attributes('style') ?? '').not.toContain('display: none');
-    expect(target.findAll('dt')).toHaveLength(7);
+    expect(target.findAll('.m-row')).toHaveLength(7);
     await button.trigger('click');
     expect(button.attributes('aria-expanded')).toBe('false');
   });
@@ -324,7 +356,7 @@ describe('MaterialsOnHand', () => {
   it('renders material names with markup literally', () => {
     const evil = tpl(30n, XSS);
     const { w } = mountMaterials({ templates: [evil], items: [inst(1n, 30n, 2n)] });
-    expect(w.get('dt').text()).toBe(XSS);
+    expect(w.get('.m-name').text()).toBe(XSS);
     expect(w.find('img').exists()).toBe(false);
   });
 
@@ -821,19 +853,44 @@ describe('CraftingScreen desktop', () => {
     return { ...ctx, w: wrapper };
   }
 
-  it('at 1200px and wider shows the Materials column with Discover pinned, the list and the selected detail', async () => {
+  it('at 1200px and wider shows the list, the detail and the Materials column (mock 9a order) with Discover pinned', async () => {
     const { w } = mountScreen();
     await nextTick();
     expect(w.get('.desk-grid').classes()).toContain('wide');
+    expect(w.findAll('.desk-grid > .col').map((c) => c.classes().filter((k) => k !== 'col')[0])).toEqual([
+      'list-col',
+      'detail-col',
+      'materials-col',
+    ]);
     const materials = w.get('.materials-col');
     expect(materials.get('h6').text()).toBe('Materials on hand');
     expect(materials.find('button.discover').exists()).toBe(true);
     expect(w.findAll('button.recipe-row')).toHaveLength(5);
     expect(w.find('button.disclosure').exists()).toBe(false);
+    expect(w.findAll('button.discover')).toHaveLength(1);
     expect(w.get('.detail-col h4').text()).toBe('Copper Sword');
     expect(w.findAll('button.recipe-row')[0].attributes('aria-pressed')).toBe('true');
-    expect(read('CraftingScreen.vue')).toMatch(/\.desk-grid\.wide\s*\{\s*grid-template-columns: 200px 360px minmax\(0, 1fr\);/);
+    expect(read('CraftingScreen.vue')).toMatch(/\.desk-grid\.wide\s*\{\s*grid-template-columns: 300px minmax\(0, 1fr\) 210px;/);
     expect(read('CraftingScreen.vue')).toMatch(/\.desk-grid\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) 320px;/);
+  });
+
+  it('highlights the selected recipe materials in the Materials column and follows the selection', async () => {
+    const { w } = mountScreen();
+    await nextTick();
+    const lit = () => w.findAll('.materials-col .m-row.highlighted').map((r) => r.get('.m-name').text());
+    expect(lit()).toEqual(['Copper Ore', 'Rough Hide']);
+    expect(w.get('.materials-col .caption').text()).toBe('Highlighted: used by the selected recipe.');
+    await w.findAll('button.recipe-row')[1].trigger('click');
+    expect(lit()).toEqual(['Iron Ore', 'Rough Hide']);
+  });
+
+  it('keeps the list and materials as the two columns, list first, with no recipes known', () => {
+    const { w } = mountScreen({ knownIds: [] });
+    expect(w.findAll('.desk-grid > .col').map((c) => c.classes().filter((k) => k !== 'col')[0])).toEqual([
+      'list-col',
+      'materials-col',
+    ]);
+    expect(read('CraftingScreen.vue')).toMatch(/\.desk-grid\.empty-grid\.wide\s*\{\s*grid-template-columns: minmax\(0, 1fr\) 210px;/);
   });
 
   it('at 900 to 1199px moves Materials into the list as a disclosure with Discover after the rows', async () => {

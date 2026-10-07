@@ -4,11 +4,13 @@ import { PhCaretDown, PhCaretRight, PhMagnifyingGlass } from '@phosphor-icons/vu
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { ActionRunner } from '../ledger/actionRunner';
-import { materialsOnHand, stationHere } from './craftingModel';
+import { materialRows, stationHere } from './craftingModel';
 
-// Materials on hand (50-UI-SPEC "Materials on hand"): the bag's materials, essences and reagents
-// with their counts, as a column at 1200px and wider and as a collapsed disclosure below that and on
-// mobile. The column form carries Discover recipes pinned under the scrolling grid. Names are
+// Materials on hand (50-UI-SPEC "Materials on hand", mock 9a): the bag's materials, essences and
+// reagents as rows (the item icon, the name in its rarity color and the count, a 0 in red), as the
+// right-hand column at 1200px and wider and as a collapsed disclosure below that and on mobile. The
+// selected recipe's materials are highlighted, including a used material with none on hand. The
+// column form carries Discover recipes pinned under the scrolling rows, with its caption. Names are
 // server text and only reach the page as text nodes.
 const props = withDefaults(
   defineProps<{
@@ -17,14 +19,19 @@ const props = withDefaults(
     mobile?: boolean;
     /** The Discover recipes button (the column form pins it at the bottom). */
     showDiscover?: boolean;
+    /** Template ids of the selected recipe's requirements: those rows are highlighted. */
+    usedTemplateIds?: readonly bigint[];
   }>(),
-  { mobile: false, showDiscover: false },
+  { mobile: false, showDiscover: false, usedTemplateIds: () => [] },
 );
 
 const game = inject(GAME_KEY, createInertGame());
 const ledger = inject(LEDGER_KEY, createInertLedger());
 
-const entries = computed(() => materialsOnHand(ledger.items.value, ledger.templates.value));
+const entries = computed(() =>
+  materialRows(ledger.items.value, ledger.templates.value, new Set<bigint>(props.usedTemplateIds)),
+);
+const anyUsed = computed(() => props.usedTemplateIds.length > 0);
 const expanded = ref(false);
 const GRID_ID = 'materials-grid';
 
@@ -52,12 +59,19 @@ function discover(): void {
       <h6>Materials on hand</h6>
       <div class="grid-scroll">
         <p v-if="entries.length === 0" class="empty">No materials on hand.</p>
-        <dl v-else class="grid">
-          <template v-for="entry in entries" :key="String(entry.templateId)">
-            <dt class="m-name" :style="{ color: entry.color }" :title="entry.name">{{ entry.name }}</dt>
-            <dd class="m-count">{{ entry.count }}</dd>
-          </template>
-        </dl>
+        <ul v-else class="m-rows">
+          <li
+            v-for="entry in entries"
+            :key="String(entry.templateId)"
+            class="m-row"
+            :class="{ highlighted: entry.highlighted }"
+          >
+            <component :is="entry.icon" class="m-icon" :size="14" aria-hidden="true" />
+            <span class="m-name" :style="{ color: entry.color }" :title="entry.name">{{ entry.name }}</span>
+            <span class="m-count" :class="{ short: entry.short }">{{ entry.count }}</span>
+          </li>
+        </ul>
+        <p v-if="anyUsed" class="caption">Highlighted: used by the selected recipe.</p>
       </div>
     </template>
     <template v-else>
@@ -74,12 +88,18 @@ function discover(): void {
       </button>
       <div v-show="expanded" :id="GRID_ID" class="disclosure-body">
         <p v-if="entries.length === 0" class="empty">No materials on hand.</p>
-        <dl v-else class="grid">
-          <template v-for="entry in entries" :key="String(entry.templateId)">
-            <dt class="m-name" :style="{ color: entry.color }" :title="entry.name">{{ entry.name }}</dt>
-            <dd class="m-count">{{ entry.count }}</dd>
-          </template>
-        </dl>
+        <ul v-else class="m-rows">
+          <li
+            v-for="entry in entries"
+            :key="String(entry.templateId)"
+            class="m-row"
+            :class="{ highlighted: entry.highlighted }"
+          >
+            <component :is="entry.icon" class="m-icon" :size="14" aria-hidden="true" />
+            <span class="m-name" :style="{ color: entry.color }" :title="entry.name">{{ entry.name }}</span>
+            <span class="m-count" :class="{ short: entry.short }">{{ entry.count }}</span>
+          </li>
+        </ul>
       </div>
     </template>
 
@@ -95,6 +115,7 @@ function discover(): void {
         Discover recipes
       </button>
       <p v-if="!station" :id="REASON_ID" class="reason">Find a crafting station to discover recipes.</p>
+      <p v-if="props.mode === 'column'" class="discover-caption">Finds new recipes from the materials you carry.</p>
     </div>
   </section>
 </template>
@@ -124,17 +145,36 @@ h6 {
   overflow-y: auto;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  row-gap: 8px;
-  column-gap: 8px;
+.m-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
   line-height: 1.5;
 }
 
+.m-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.m-row.highlighted {
+  background: var(--color-accent-900);
+}
+
+.m-icon {
+  flex: none;
+  color: var(--color-neutral-400);
+}
+
 .m-name {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -142,9 +182,25 @@ h6 {
 }
 
 .m-count {
-  margin: 0;
+  flex: none;
   text-align: right;
   color: var(--color-neutral-300);
+}
+
+.m-count.short {
+  color: var(--color-con-red);
+}
+
+.caption,
+.discover-caption {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-500);
+}
+
+.discover-caption {
+  margin: 0;
 }
 
 .empty {

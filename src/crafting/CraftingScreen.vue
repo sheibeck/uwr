@@ -12,10 +12,10 @@ import RecipeList from './RecipeList.vue';
 import { stationHere } from './craftingModel';
 import { useWideLayout } from './useWideLayout';
 
-// The Crafting screen (50-UI-SPEC "Crafting Contract" and "Layout Contract > Crafting"): Materials on
-// hand, the recipe list and the selected recipe's detail as columns in the desktop drawer (Materials
-// moves into the list as a disclosure below 1200px), and a list view and a detail view in the mobile
-// sheet. The selection is a local id; the subscribed rows drive every other change and nothing here
+// The Crafting screen (50-UI-SPEC "Crafting Contract" and "Layout Contract > Crafting", mock 9a):
+// the recipe list, the selected recipe's detail and Materials on hand (with Discover pinned under it)
+// as three columns in the desktop drawer at 1200px and wider (below that Materials moves into the list
+// as a disclosure beside a 320px detail), and a list view and a detail view in the mobile sheet. The selection is a local id; the subscribed rows drive every other change and nothing here
 // is optimistic. One action runner is shared by Craft, Discover recipes and the notice line.
 // Registration in SCREENS is Plan 23.
 const frame = inject(FRAME_KEY, createInertFrame());
@@ -33,6 +33,16 @@ const noneKnown = computed(() => ledger.recipesKnown.value.length === 0);
 const station = computed(() => stationHere(character.value?.locationId, game.locations.value));
 
 const selectedId = ref<bigint | null>(null);
+
+// The selected recipe's requirement template ids: Materials on hand highlights these rows.
+const usedTemplateIds = computed<bigint[]>(() => {
+  const id = selectedId.value;
+  const recipe = id === null ? undefined : ledger.recipes.value.get(id);
+  if (!recipe) return [];
+  const ids = [recipe.req1TemplateId, recipe.req2TemplateId];
+  if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) ids.push(recipe.req3TemplateId);
+  return ids;
+});
 const view = ref<'list' | 'detail'>('list');
 const list = useTemplateRef<InstanceType<typeof RecipeList>>('list');
 
@@ -73,19 +83,16 @@ async function backToList(): Promise<void> {
           <RecipeList :selected-id="null" :runner="runner" mobile show-materials-disclosure />
         </div>
         <div v-else class="desk-grid empty-grid" :class="{ wide }">
-          <div v-if="wide" class="col materials-col">
-            <MaterialsOnHand mode="column" :runner="runner" />
-          </div>
           <div class="col list-col">
             <RecipeList :selected-id="null" :runner="runner" :show-materials-disclosure="!wide" />
+          </div>
+          <div v-if="wide" class="col materials-col">
+            <MaterialsOnHand mode="column" :runner="runner" />
           </div>
         </div>
       </template>
 
       <div v-else-if="!mobile" class="desk-grid" :class="{ wide }">
-        <div v-if="wide" class="col materials-col">
-          <MaterialsOnHand mode="column" :runner="runner" show-discover />
-        </div>
         <div class="col list-col">
           <RecipeList
             ref="list"
@@ -100,6 +107,9 @@ async function backToList(): Promise<void> {
           <RecipeDetail v-if="selectedId !== null" :recipe-id="selectedId" :runner="runner" :mobile="false" />
           <p v-else class="empty">{{ list ? list.emptyText : '' }}</p>
         </aside>
+        <div v-if="wide" class="col materials-col">
+          <MaterialsOnHand mode="column" :runner="runner" :used-template-ids="usedTemplateIds" show-discover />
+        </div>
       </div>
 
       <template v-else>
@@ -160,7 +170,7 @@ async function backToList(): Promise<void> {
 }
 
 .desk-grid.wide {
-  grid-template-columns: 200px 360px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr) 210px;
 }
 
 .desk-grid.empty-grid {
@@ -168,7 +178,7 @@ async function backToList(): Promise<void> {
 }
 
 .desk-grid.empty-grid.wide {
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 210px;
 }
 
 .col {
