@@ -59,7 +59,6 @@ function harness() {
   const shownRegionId = ref<bigint | null>(null);
   const banner = ref<string | null>(null);
   const isDesktop = ref(true);
-  const view = ref<'graph' | 'list'>('graph');
   const known = computed(() => {
     const here = (character.value?.locationId as bigint | undefined) ?? 0n;
     return knownPlaces<Location>({
@@ -86,13 +85,9 @@ function harness() {
     selectedId,
     shownRegionId,
     banner,
-    view,
     select,
     showRegion,
     setBanner,
-    setView: (next: 'graph' | 'list') => {
-      view.value = next;
-    },
   } as unknown as MapData;
   const moveCharacter = vi.fn(() => Promise.resolve());
   const connected = ref(true);
@@ -221,18 +216,16 @@ describe('Map arrival', () => {
     expect(w.find('.arrival-banner').exists()).toBe(false);
   });
 
-  it('choosing a list row clears the banner too', async () => {
+  it('choosing a gate pill clears the banner too', async () => {
     const h = harness();
     const w = await open(h);
     await moveTo(h, 11n);
     expect(w.find('.arrival-banner').exists()).toBe(true);
-    await w.findAll('[role="tab"]').find((t) => t.text() === 'List')!.trigger('click');
+    const gate = w.find('[data-gate-key]');
+    expect(gate.exists()).toBe(true);
+    await gate.trigger('click');
     await settle();
-    expect(w.find('.arrival-banner').exists()).toBe(true);
-    const row = w.findAll('li button').find((r) => r.get('.name').text() === 'Ridge Walk');
-    await row!.trigger('click');
-    await settle();
-    expect(h.selectedId.value).toBe(12n);
+    expect(h.selectedId.value).toBe(20n);
     expect(w.find('.arrival-banner').exists()).toBe(false);
   });
 

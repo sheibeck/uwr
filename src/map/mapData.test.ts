@@ -382,16 +382,13 @@ describe('selection state', () => {
   it('setters update their refs and reset clears them', () => {
     const h = make();
     h.hub.showRegion(2n);
-    h.hub.setView('list');
     h.hub.setBanner('Hello');
     h.hub.select(4n);
     expect(h.hub.shownRegionId.value).toBe(2n);
-    expect(h.hub.view.value).toBe('list');
     expect(h.hub.banner.value).toBe('Hello');
     expect(h.hub.selectedId.value).toBe(4n);
     h.hub.reset();
     expect(h.hub.shownRegionId.value).toBeNull();
-    expect(h.hub.view.value).toBe('graph');
     expect(h.hub.banner.value).toBeNull();
     expect(h.hub.selectedId.value).toBeNull();
   });

@@ -7,11 +7,10 @@ import { resolve } from 'node:path';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import type { FrameControls, GameData, ScreenArgs } from '../game/context';
 import type { Location } from '../module_bindings/types';
-import GraphList from './GraphList.vue';
 import GraphPlane from './GraphPlane.vue';
 import { knownPlaces } from './knownPlaces';
 import { MAP_KEY, createInertMap } from './mapContext';
-import type { MapData, MapView } from './mapContext';
+import type { MapData } from './mapContext';
 import MapScreen from './MapScreen.vue';
 import MapSheet from './MapSheet.vue';
 import { adjacencyOf } from './route';
@@ -57,12 +56,10 @@ interface Harness {
   frame: FrameControls;
   select: ReturnType<typeof vi.fn>;
   showRegion: ReturnType<typeof vi.fn>;
-  setView: ReturnType<typeof vi.fn>;
   setBanner: ReturnType<typeof vi.fn>;
   banner: ReturnType<typeof ref<string | null>>;
   character: ReturnType<typeof ref<Record<string, unknown> | null>>;
   ready: ReturnType<typeof ref<boolean>>;
-  view: ReturnType<typeof ref<MapView>>;
   selectedId: ReturnType<typeof ref<bigint | null>>;
   shownRegionId: ReturnType<typeof ref<bigint | null>>;
   timer: ReturnType<typeof ref<TravelTimer>>;
@@ -83,7 +80,6 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
   const visitedIds = ref<bigint[]>([10n, 11n]);
   const connections = ref(links([[10n, 11n], [11n, 12n], [11n, 20n]]));
   const ready = ref(true);
-  const view = ref<MapView>('graph');
   const selectedId = ref<bigint | null>(null);
   const shownRegionId = ref<bigint | null>(null);
   const timer = ref<TravelTimer>({ running: false, secondsLeft: 0 });
@@ -107,9 +103,6 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
   const showRegion = vi.fn((id: bigint | null) => {
     shownRegionId.value = id;
   });
-  const setView = vi.fn((next: MapView) => {
-    view.value = next;
-  });
   const setBanner = vi.fn((text: string | null) => {
     banner.value = text;
   });
@@ -127,13 +120,11 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
     selfTimer: timer,
     selectedId,
     shownRegionId,
-    view,
     banner,
     select,
     showRegion,
     chooseRegion,
     regionChosen,
-    setView,
     setBanner,
   } as unknown as MapData;
 
@@ -144,7 +135,7 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
     regions: ref(REGIONS),
   } as unknown as GameData;
   const frame = { ...createInertFrame(), isDesktop, screenArgs } as unknown as FrameControls;
-  return { map, game, frame, select, showRegion, setView, setBanner, banner, character, ready, view, selectedId, shownRegionId, timer, screenArgs, isDesktop, locations };
+  return { map, game, frame, select, showRegion, setBanner, banner, character, ready, selectedId, shownRegionId, timer, screenArgs, isDesktop, locations };
 }
 
 let wrapper: VueWrapper | null = null;
@@ -301,7 +292,7 @@ describe('MapScreen: screen arguments', () => {
   });
 });
 
-describe('MapScreen: graph and list', () => {
+describe('MapScreen: graph', () => {
   it('draws the shown region nodes plus its border node, and the legend above the canvas', async () => {
     const h = harness();
     const w = await mountScreen(h);
@@ -336,50 +327,32 @@ describe('MapScreen: graph and list', () => {
     expect(w.get('polyline.route').attributes('points')?.split(' ').length).toBe(3);
   });
 
-  it('the canvas holds the Map view tablist and Center on you', async () => {
+  it('the canvas holds the graph and Center on you, with no view switch and no list', async () => {
     const h = harness();
     const w = await mountScreen(h);
     const canvas = w.get('.canvas');
-    const tablist = canvas.get('[role="tablist"]');
-    expect(tablist.attributes('aria-label')).toBe('Map view');
-    expect(tablist.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Graph', 'List']);
-    expect(tablist.get('[aria-selected="true"]').text()).toBe('Graph');
+    expect(canvas.find('.graph-plane').exists()).toBe(true);
+    expect(canvas.find('[role="tablist"]').exists()).toBe(false);
+    expect(canvas.find('[role="tab"]').exists()).toBe(false);
+    expect(w.find('[aria-label="Map view"]').exists()).toBe(false);
+    expect(w.find('.graph-list').exists()).toBe(false);
+    expect(w.find('li button').exists()).toBe(false);
     expect(canvas.find('button[aria-label="Center on you"]').exists()).toBe(true);
+    expect(SOURCE).not.toMatch(/GraphList|PhListBullets|PhGraph|SegTabs[^>]*Map view|setView/);
   });
 
-  it('switching to List renders GraphList with the same nodes and selecting a row calls select', async () => {
+  it('every drawn place is a keyboard-reachable button with its full spoken label', async () => {
     const h = harness();
     const w = await mountScreen(h);
-    const listTab = w.findAll('[role="tab"]').find((t) => t.text() === 'List');
-    await listTab!.trigger('click');
-    await nextTick();
-    expect(h.setView).toHaveBeenCalledWith('list');
-    const list = w.findComponent(GraphList);
-    expect(list.exists()).toBe(true);
-    expect(w.find('.graph-plane').exists()).toBe(false);
-    expect(w.find('button[aria-label="Center on you"]').exists()).toBe(false);
-    const rows = list.findAll('li button');
-    expect(rows.map((r) => r.get('.name').text()).sort()).toEqual(
-      ['Ember Gate', 'Gloamwood', 'Ridge Walk', 'Saltmarsh Gate'].sort(),
-    );
-    h.select.mockClear();
-    await rows.find((r) => r.get('.name').text() === 'Ridge Walk')!.trigger('click');
-    expect(h.select).toHaveBeenCalledWith(12n);
-    // the same node is selected in the graph and in the list
-    await nextTick();
-    const selectedRow = list.findAll('li button').find((r) => r.attributes('aria-pressed') === 'true');
-    expect(selectedRow?.get('.name').text()).toBe('Ridge Walk');
-  });
-
-  it('the list rows name the steps and the connections of each place', async () => {
-    const h = harness();
-    h.view.value = 'list';
-    const w = await mountScreen(h);
-    const here = w.findAll('li button').find((r) => r.get('.name').text() === 'Ember Gate');
-    expect(here?.get('.steps').text()).toBe('Here');
-    expect(here?.get('.connects').text()).toBe('Connects to Gloamwood');
-    const wood = w.findAll('li button').find((r) => r.get('.name').text() === 'Gloamwood');
-    expect(wood?.get('.connects').text()).toBe('Connects to Ember Gate, Ridge Walk, Saltmarsh Gate (Saltmarsh)');
+    const nodes = w.findAll('button.node');
+    expect(nodes.map((n) => n.attributes('data-node-id')).sort()).toEqual(['10', '11', '12', '20']);
+    // roving tabindex: one tab stop into the graph, the rest reached by arrow keys
+    expect(nodes.filter((n) => n.attributes('tabindex') === '0')).toHaveLength(1);
+    const labels = Object.fromEntries(nodes.map((n) => [n.attributes('data-node-id'), n.attributes('aria-label') ?? '']));
+    expect(labels['10']).toMatch(/^Ember Gate, here, .*you are here$/);
+    expect(labels['11']).toMatch(/^Gloamwood, visited, .*1 step from here$/);
+    expect(labels['12']).toMatch(/^Ridge Walk, heard of, .*2 steps from here$/);
+    expect(labels['20']).toMatch(/^Saltmarsh Gate, heard of, .*2 steps from here$/);
   });
 
   it('selecting a node in the graph calls select', async () => {

@@ -103,10 +103,6 @@ function build(over: Options = {}) {
   const showRegion = vi.fn((id: bigint | null) => {
     shownRegionId.value = id;
   });
-  const view = ref<'graph' | 'list'>('graph');
-  const setView = vi.fn((next: 'graph' | 'list') => {
-    view.value = next;
-  });
   const banner = ref<string | null>(null);
   const setBanner = vi.fn((text: string | null) => {
     banner.value = text;
@@ -161,8 +157,6 @@ function build(over: Options = {}) {
     select,
     shownRegionId,
     showRegion,
-    view,
-    setView,
     banner,
     setBanner,
     npcsAtSelected: ref(over.npcs ?? []),
@@ -230,7 +224,6 @@ function build(over: Options = {}) {
     select,
     showRegion,
     shownRegionId,
-    setView,
     banner,
     selectedId,
     nowMicros,
@@ -329,12 +322,11 @@ describe('MapSheet: the Legend disclosure', () => {
 });
 
 describe('MapSheet: the canvas and the dock', () => {
-  it('stacks region row, Legend, view switch, canvas and dock in order', () => {
+  it('stacks region row, Legend, canvas and dock in order', () => {
     const { w } = build({ selected: 11n });
     const order = [
       w.get('.region-row').element,
       legendButton(w).element,
-      w.get('[role="tablist"][aria-label="Map view"]').element,
       w.get('.graph-plane').element,
       w.get('.dock').element,
     ];
@@ -360,16 +352,24 @@ describe('MapSheet: the canvas and the dock', () => {
     expect(w.get('.dock-name').text()).toBe('Ridge Walk');
   });
 
-  it('the List view replaces the plane and the switch calls setView', async () => {
-    const { w, setView } = build({ selected: 11n });
-    const tabs = w.get('[role="tablist"][aria-label="Map view"]').findAll('[role="tab"]');
-    expect(tabs.map((t) => t.text())).toEqual(['Graph', 'List']);
-    await tabs[1].trigger('click');
-    await nextTick();
-    expect(setView).toHaveBeenCalledWith('list');
-    expect(w.find('.graph-plane').exists()).toBe(false);
-    expect(w.find('.graph-list').exists()).toBe(true);
-    expect(w.find('button.center-button').exists()).toBe(false);
+  it('the canvas is the graph only: no view switch, no list, Center on you always there', () => {
+    const { w } = build({ selected: 11n });
+    expect(w.find('[role="tablist"]').exists()).toBe(false);
+    expect(w.find('[role="tab"]').exists()).toBe(false);
+    expect(w.find('[aria-label="Map view"]').exists()).toBe(false);
+    expect(w.find('.graph-list').exists()).toBe(false);
+    expect(w.find('.graph-plane').exists()).toBe(true);
+    expect(w.find('button.center-button').exists()).toBe(true);
+  });
+
+  it('every drawn place is a keyboard-reachable button with its full spoken label', () => {
+    const { w } = build({ selected: 11n });
+    const nodes = w.findAll('button.node');
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(nodes.filter((n) => n.attributes('tabindex') === '0')).toHaveLength(1);
+    for (const node of nodes) {
+      expect(node.attributes('aria-label') ?? '').toMatch(/, (here|visited|heard of)/);
+    }
   });
 
   it('the dock Travel runs the shared runner once', async () => {

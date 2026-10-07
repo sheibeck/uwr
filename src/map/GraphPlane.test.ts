@@ -519,6 +519,37 @@ describe('GraphPlane: keyboard', () => {
     expect(activeId()).toBe(String(props.layout.startId));
   });
 
+  it('reaches every drawn place by keyboard alone, each with its full aria-label (the graph is the only view of the places)', async () => {
+    const { wrapper: w, props } = mountPlane({ selectedId: 2n });
+    const drawn = props.views.map((view) => String(view.id));
+    expect(drawn.length).toBeGreaterThan(3);
+    // one tab stop enters the group; arrows (and Home, End) walk from it to every other place
+    expect(tabStops(w)).toHaveLength(1);
+    const reached = new Set<string>(tabStops(w));
+    const queue = [...reached];
+    while (queue.length > 0) {
+      const from = queue.shift() as string;
+      for (const key of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End']) {
+        nodeButton(w, BigInt(from)).element.focus();
+        await nodeButton(w, BigInt(from)).trigger('keydown', { key });
+        await nextTick();
+        const landed = activeId();
+        if (landed !== undefined && !reached.has(landed)) {
+          reached.add(landed);
+          queue.push(landed);
+        }
+      }
+    }
+    expect([...reached].sort()).toEqual([...drawn].sort());
+    // every one of them is a real button whose spoken label is the full node label
+    for (const view of props.views) {
+      const button = nodeButton(w, view.id);
+      expect(button.element.tagName).toBe('BUTTON');
+      expect(view.ariaLabel.startsWith(`${view.name}, `)).toBe(true);
+      expect(button.attributes('aria-label')).toBe(view.ariaLabel);
+    }
+  });
+
   it('Enter and Space emit select for the focused node', async () => {
     const { wrapper: w } = mountPlane();
     await nodeButton(w, 3n).trigger('keydown', { key: 'Enter' });

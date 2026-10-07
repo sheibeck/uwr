@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { PhMapPin } from '@phosphor-icons/vue';
 import { layoutGraph } from './graphLayout';
 import type { GraphLayout, LayoutPlace } from './graphLayout';
-import { gateView, listRows, nodeAriaLabel, nodeViews, routePolylines } from './nodeView';
+import { gateView, nodeAriaLabel, nodeViews, routePolylines } from './nodeView';
 import type { NodePlace } from './nodeView';
 import { adjacencyOf, stepsFrom } from './route';
 import { placeDanger } from './danger';
@@ -313,56 +313,29 @@ describe('aria-labels', () => {
   });
 });
 
-describe('listRows', () => {
-  function rows(selectedId: bigint | null = null) {
-    const { views } = build({ selectedId });
-    return listRows({ views, adjacency, places: placeMap, regions, shownRegionId: 1n });
-  }
-
-  it('orders rows in the layout reading order: y, then x, then id', () => {
+describe('nodeViews: the graph is the only way to the places (no List view)', () => {
+  it('gives every drawn place a view in the layout reading order (y, then x, then id)', () => {
     const { views, layout } = build();
     const expected = [...views].sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1)).map((v) => v.id);
-    expect(rows().map((r) => r.id)).toEqual(expected);
-    expect(rows().map((r) => r.id)).toEqual(layout.nodes.map((n) => n.id));
+    expect(views.map((v) => v.id)).toEqual(expected);
+    expect(views.map((v) => v.id)).toEqual(layout.nodes.map((n) => n.id));
   });
 
-  it('follows the reading order of whatever positions the views carry', () => {
+  it('gives every place a spoken label with its name, state, danger and distance', () => {
     const { views } = build();
-    const moved = views.map((v, i) => ({ ...v, x: 500 - i * 10, y: i % 2 === 0 ? 100 : 50 }));
-    const got = listRows({ views: moved, adjacency, places: placeMap, regions, shownRegionId: 1n }).map((r) => r.id);
-    const expected = [...moved].sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1)).map((v) => v.id);
-    expect(got).toEqual(expected);
+    expect(views.length).toBeGreaterThan(0);
+    for (const v of views) {
+      expect(v.ariaLabel.startsWith(`${v.name}, `)).toBe(true);
+      expect(v.ariaLabel).toContain(v.stateWord);
+      expect(v.ariaLabel).toMatch(/you are here|step[s]? from here|no known path/);
+    }
+    expect(build().byId(7n)?.ariaLabel).toContain('no known path');
+    expect(build().byId(3n)?.ariaLabel).toContain('2 steps from here');
   });
 
-  it('writes the steps text', () => {
-    const byId = (id: bigint) => rows().find((r) => r.id === id);
-    expect(byId(1n)?.stepsText).toBe('Here');
-    expect(byId(2n)?.stepsText).toBe('1 step');
-    expect(byId(3n)?.stepsText).toBe('2 steps');
-    expect(byId(7n)?.stepsText).toBe('No known path');
-  });
-
-  it('writes the name, state word, level and band', () => {
-    const row = rows().find((r) => r.id === 2n);
-    expect(row?.name).toBe('Gloamwood');
-    expect(row?.stateWord).toBe('visited');
-    expect(row?.levelText).toBe('Lv 3–5');
-    expect(row?.bandWord).toBe('tough');
-    expect(rows().find((r) => r.id === 1n)?.levelText).toBe('Safe');
-    expect(rows().find((r) => r.id === 1n)?.bandWord).toBe('');
-  });
-
-  it('lists neighbours in name order with crossings in brackets', () => {
-    expect(rows().find((r) => r.id === 2n)?.connectsTo).toBe('Connects to Ashgrove, Saltmarsh Gate (Saltmarsh), The Crossing');
-  });
-
-  it('omits the Connects to line for a place with no known connection', () => {
-    expect(rows().find((r) => r.id === 7n)?.connectsTo).toBeNull();
-  });
-
-  it('marks the selected row', () => {
-    expect(rows(3n).filter((r) => r.selected).map((r) => r.id)).toEqual([3n]);
-    expect(rows().some((r) => r.selected)).toBe(false);
+  it('marks only the selected place as pressed', () => {
+    expect(build({ selectedId: 3n }).views.filter((v) => v.pressed).map((v) => v.id)).toEqual([3n]);
+    expect(build().views.some((v) => v.pressed)).toBe(false);
   });
 });
 

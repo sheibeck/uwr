@@ -12,7 +12,7 @@ import type {
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
 import { createKeyed, idListKey, keyedRows, parseIdListKey } from '../game/keyedBinding';
-import type { KnownPlacesResult, MapData, MapView } from './mapContext';
+import type { KnownPlacesResult, MapData } from './mapContext';
 import type { MapQueries } from './queries';
 import { createSecondsTick } from './secondsTick';
 import { knownPlaces } from './knownPlaces';
@@ -78,7 +78,6 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
 
   const selectedId = shallowRef<bigint | null>(null);
   const shownRegionId = shallowRef<bigint | null>(null);
-  const view = shallowRef<MapView>('graph');
   const banner = shallowRef<string | null>(null);
   const regionChosen = shallowRef(0);
   // The one travel guard of the session (rail rows, exit chips and the Map all ask it).
@@ -276,7 +275,6 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
   function reset(): void {
     selectedId.value = null;
     shownRegionId.value = null;
-    view.value = 'graph';
     banner.value = null;
     trip.end();
   }
@@ -303,7 +301,6 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
     timerFor: run.timerFor,
     selectedId,
     shownRegionId,
-    view,
     banner,
     regionChosen,
     select(id) {
@@ -315,9 +312,6 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
     chooseRegion(id) {
       shownRegionId.value = id;
       regionChosen.value += 1;
-    },
-    setView(next) {
-      view.value = next;
     },
     setBanner(text) {
       banner.value = text;

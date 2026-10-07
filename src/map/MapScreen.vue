@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
-import { PhCrosshair, PhFootprints, PhGraph, PhListBullets, PhMapTrifold } from '@phosphor-icons/vue';
+import { PhCrosshair, PhFootprints, PhMapTrifold } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import type { ScreenArgs } from '../game/context';
 import SegTabs from '../ledger/SegTabs.vue';
@@ -8,18 +8,15 @@ import NoticeLine from '../ledger/NoticeLine.vue';
 import ContextContent from '../rails/ContextContent.vue';
 import EmptyState from '../screens/EmptyState.vue';
 import DetailPanel from './DetailPanel.vue';
-import GraphList from './GraphList.vue';
 import GraphPlane from './GraphPlane.vue';
 import MapLegend from './MapLegend.vue';
 import { MAP_KEY, createInertMap } from './mapContext';
-import type { MapView } from './mapContext';
 import MapSheet from './MapSheet.vue';
 import { useDestination } from './useDestination';
 import { useMapGraph } from './useMapGraph';
 
 // The Map screen body (51-UI-SPEC "Layout Contract: Map"): the legend row, then the canvas that
-// holds the route graph or the list, the Graph | List switch and Center on you, and beside it the
-// destination detail column. The header chips and the Region travel pill are MapMeta and MapActions
+// holds the route graph and Center on you, and beside it the destination detail column. The header chips and the Region travel pill are MapMeta and MapActions
 // (registered in screens.ts). On mobile the screen is two tabs, Map (MapSheet: region row, canvas and
 // dock) and Here (the rail content), with one notice line at the bottom under both.
 //
@@ -64,18 +61,13 @@ function surface(): Surface | null {
   return frame.isDesktop.value ? plane.value : sheet.value;
 }
 
-const VIEW_TABS = [
-  { id: 'graph', label: 'Graph', icon: PhGraph },
-  { id: 'list', label: 'List', icon: PhListBullets },
-];
-
 // ---------------------------------------------------------------------------
 // what is known and shown
 // ---------------------------------------------------------------------------
 
 const graph = useMapGraph(() => !frame.isDesktop.value);
 const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, startIdFor, layout, regionName, regionNameOf } = graph;
-const { views, rows, routes, gates } = graph;
+const { views, routes, gates } = graph;
 
 // ---------------------------------------------------------------------------
 // screen arguments, selection rules, scrolling
@@ -195,7 +187,7 @@ onBeforeUnmount(() => {
   map.setBanner(null);
 });
 
-/** A user selection (a node, a gate, a list row) ends the arrival banner. */
+/** A user selection (a node or a gate) ends the arrival banner. */
 function onSelect(id: bigint): void {
   map.setBanner(null);
   map.select(id);
@@ -262,11 +254,6 @@ watch(
   },
 );
 
-function onView(id: string): void {
-  const next: MapView = id === 'list' ? 'list' : 'graph';
-  map.setView(next);
-}
-
 /** Your place, or the start node when you are elsewhere, to the middle of the canvas. */
 function centerOnYou(): void {
   const current = layout.value;
@@ -289,16 +276,8 @@ function centerOnYou(): void {
       <div class="map-main">
         <MapLegend :player-level="playerLevel" :mobile="false" />
         <div class="canvas">
-          <SegTabs
-            class="canvas-tabs"
-            :tabs="VIEW_TABS"
-            :model-value="map.view.value"
-            label="Map view"
-            id-prefix="map-view"
-            @update:model-value="onView"
-          >
+          <div class="canvas-scroll">
             <GraphPlane
-              v-if="map.view.value === 'graph'"
               ref="plane"
               :layout="layout"
               :views="views"
@@ -311,14 +290,12 @@ function centerOnYou(): void {
               @select="onSelect"
               @resize="graph.setCanvas"
             />
-            <GraphList v-else :rows="rows" @select="onSelect" />
-          </SegTabs>
+          </div>
           <div v-if="map.banner.value" class="arrival-banner" role="status">
             <PhFootprints class="banner-icon" :size="14" aria-hidden="true" />
             <span>{{ map.banner.value }}</span>
           </div>
           <button
-            v-if="map.view.value === 'graph'"
             type="button"
             class="btn btn-secondary btn-icon center-button"
             aria-label="Center on you"
@@ -401,8 +378,8 @@ function centerOnYou(): void {
   min-height: 0;
 }
 
-/* The canvas: the radial accent glow over the page ground, tokens only. The plane or list scrolls
-   inside it (the SegTabs panel); the view switch and Center on you stay put. */
+/* The canvas: the radial accent glow over the page ground, tokens only. The plane scrolls inside it
+   (the canvas-scroll area the plane measures); Center on you stays put. */
 .canvas {
   position: relative;
   flex: 1;
@@ -414,39 +391,19 @@ function centerOnYou(): void {
     var(--color-bg);
 }
 
-.canvas-tabs {
+.canvas-scroll {
   position: absolute;
   inset: 0;
-}
-
-.canvas :deep(.tablist) {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  width: auto;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.canvas :deep(.seg-opt) {
-  flex: none;
-  min-height: 32px;
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
-.canvas :deep(.panel) {
   overflow: auto;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .canvas :deep(.panel) {
+  .canvas-scroll {
     scroll-behavior: smooth;
   }
 }
 
-/* Top centre of the canvas; the view switch sits top right and stays clear of it. */
+/* Top centre of the canvas. */
 .arrival-banner {
   position: absolute;
   top: 16px;

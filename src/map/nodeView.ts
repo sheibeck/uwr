@@ -1,4 +1,4 @@
-// Node, list row, route and gate views for the Map (51-UI-SPEC "Node states", "Graph keyboard and
+// Node, route and gate views for the Map (51-UI-SPEC "Node states", "Graph keyboard and
 // screen-reader equivalent", "Gate pills" and "Route"). The components of plans 51-08, 51-09 and
 // 51-11 only render what these functions return: every string is plain text for a text node or a
 // bound attribute (no HTML is ever built), and every colour is a CSS token from danger.ts.
@@ -7,9 +7,7 @@
 
 import { BAND_WORD, BAND_COLOR, placeDanger } from './danger';
 import type { PlaceDanger } from './danger';
-import { compareReading } from './graphLayout';
 import type { GraphLayout, LabelBox, LayoutGate } from './graphLayout';
-import { compareBigint, compareNames } from './order';
 import type { RegionChip } from './regionChips';
 import { terrainOf } from './terrain';
 import type { TerrainInfo } from './terrain';
@@ -200,59 +198,6 @@ export function nodeViews(input: NodeViewsInput): NodeView[] {
     });
   }
   return views;
-}
-
-export interface ListRow {
-  id: bigint;
-  name: string;
-  stateWord: StateWord;
-  /** 'Lv a–b', 'Safe', 'Danger unknown'. */
-  levelText: string;
-  /** easy, even, tough or deadly; '' for safe and unknown places. */
-  bandWord: string;
-  /** 'Here', '1 step', '{n} steps' or 'No known path'. */
-  stepsText: string;
-  /** 'Connects to {A}, {B}' with crossings as '{place} ({Region})'; null with no known connection. */
-  connectsTo: string | null;
-  selected: boolean;
-}
-
-function stepsText(view: NodeView): string {
-  if (view.stateWord === 'here') return 'Here';
-  if (view.steps === null) return 'No known path';
-  return view.steps === 1 ? '1 step' : `${view.steps} steps`;
-}
-
-export function listRows(input: {
-  views: readonly NodeView[];
-  adjacency: ReadonlyMap<bigint, readonly bigint[]>;
-  places: ReadonlyMap<bigint, NodePlace>;
-  regions: readonly NodeRegion[];
-  shownRegionId: bigint;
-}): ListRow[] {
-  // the layout's reading order (top to bottom, then left to right), shared with the graph and End
-  const ordered = [...input.views].sort(compareReading);
-  return ordered.map((view) => {
-    const neighbours: NodePlace[] = [];
-    for (const id of input.adjacency.get(view.id) ?? []) {
-      const place = input.places.get(id);
-      if (place && !neighbours.some((n) => n.id === id)) neighbours.push(place);
-    }
-    neighbours.sort((a, b) => compareNames(a.name, b.name) || compareBigint(a.id, b.id));
-    const names = neighbours.map((n) =>
-      n.regionId === input.shownRegionId ? n.name : `${n.name} (${regionNameOf(input.regions, n.regionId)})`,
-    );
-    return {
-      id: view.id,
-      name: view.name,
-      stateWord: view.stateWord,
-      levelText: view.danger.kind === 'unknown' ? view.danger.word : view.levelLabel,
-      bandWord: view.danger.kind === 'band' && view.danger.band !== null ? BAND_WORD[view.danger.band] : '',
-      stepsText: stepsText(view),
-      connectsTo: names.length === 0 ? null : `Connects to ${names.join(', ')}`,
-      selected: view.pressed,
-    };
-  });
 }
 
 /**

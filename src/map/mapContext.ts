@@ -20,8 +20,6 @@ type List<T> = Readonly<Ref<readonly T[]>>;
 /** Known places over the session's whole location list (the shape knownPlaces returns). */
 export type KnownPlacesResult = KnownPlaces<Location>;
 
-export type MapView = 'graph' | 'list';
-
 export interface MapData {
   /** The socket is connected and a connection object exists. */
   readonly connected: Readonly<Ref<boolean>>;
@@ -48,7 +46,6 @@ export interface MapData {
   timerFor(characterId: bigint): TravelTimer;
   readonly selectedId: Readonly<Ref<bigint | null>>;
   readonly shownRegionId: Readonly<Ref<bigint | null>>;
-  readonly view: Readonly<Ref<MapView>>;
   readonly banner: Readonly<Ref<string | null>>;
   /** Counts region chip choices, including a chip of the region already shown. */
   readonly regionChosen: Readonly<Ref<number>>;
@@ -59,7 +56,6 @@ export interface MapData {
    * focus into the graph even when the region (or the selection in it) does not change.
    */
   chooseRegion(id: bigint): void;
-  setView(view: MapView): void;
   setBanner(text: string | null): void;
   /** NPCs at the selected place; empty while nothing is selected. */
   readonly npcsAtSelected: List<Npc>;
@@ -78,7 +74,7 @@ export interface MapData {
   beginTrip(): boolean;
   /** Ends the pending trip now (a rejected send). An arrival ends it by itself. */
   endTrip(): void;
-  /** Forget the selection, view, banner and shown region (logout). */
+  /** Forget the selection, banner and shown region (logout). */
   reset(): void;
   /** Dispose every binding and watcher. */
   dispose(): void;
@@ -123,13 +119,11 @@ export function createInertMap(): MapData {
     timerFor: () => IDLE_TIMER,
     selectedId: constant<bigint | null>(null),
     shownRegionId: constant<bigint | null>(null),
-    view: constant<MapView>('graph'),
     banner: constant<string | null>(null),
     regionChosen: constant(0),
     select() {},
     showRegion() {},
     chooseRegion() {},
-    setView() {},
     setBanner() {},
     npcsAtSelected: empty<Npc>(),
     charactersAtSelected: empty<Character>(),

@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, useTemplateRef } from 'vue';
-import { PhCaretDown, PhCrosshair, PhFootprints, PhGraph, PhListBullets } from '@phosphor-icons/vue';
-import SegTabs from '../ledger/SegTabs.vue';
+import { PhCaretDown, PhCrosshair, PhFootprints } from '@phosphor-icons/vue';
 import { BAND_COLOR } from './danger';
-import GraphList from './GraphList.vue';
 import GraphPlane from './GraphPlane.vue';
 import MapDock from './MapDock.vue';
 import MapLegend from './MapLegend.vue';
 import { MAP_KEY, createInertMap } from './mapContext';
-import type { MapView } from './mapContext';
 import RegionsListbox from './RegionsListbox.vue';
 import TravelPill from './TravelPill.vue';
 import { aboutMinutes, formatClock } from './travelTimer';
@@ -16,7 +13,7 @@ import type { Destination } from './useDestination';
 import type { MapGraph } from './useMapGraph';
 
 // The mobile Map tab (51-UI-SPEC "Mobile map (sheet)"): the region row with the Regions button and the
-// compact travel pill, the Legend disclosure, the Graph | List switch, the canvas and the dock. It
+// compact travel pill, the Legend disclosure, the canvas and the dock. It
 // renders from the graph model the Map screen built (the graph prop: one useMapGraph per screen, so
 // the layout runs once) and the same destination model as the desktop detail (the destination prop,
 // shared with the dock), so nothing here decides a rule. Its plane's measured scroll area goes to
@@ -30,11 +27,6 @@ const map = inject(MAP_KEY, createInertMap());
 const plane = useTemplateRef<InstanceType<typeof GraphPlane>>('plane');
 const dock = useTemplateRef<InstanceType<typeof MapDock>>('dock');
 const regionsButton = useTemplateRef<HTMLButtonElement>('regionsButton');
-
-const VIEW_TABS = [
-  { id: 'graph', label: 'Graph', icon: PhGraph },
-  { id: 'list', label: 'List', icon: PhListBullets },
-];
 
 const regionsOpen = ref(false);
 const legendOpen = ref(false);
@@ -66,11 +58,6 @@ function closeRegions(): void {
 function onSelect(id: bigint): void {
   map.setBanner(null);
   map.select(id);
-}
-
-function onView(id: string): void {
-  const next: MapView = id === 'list' ? 'list' : 'graph';
-  map.setView(next);
 }
 
 /** Your place, or the start node when you are elsewhere, to the middle of the canvas. */
@@ -138,16 +125,8 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
     <MapLegend v-if="legendOpen" :player-level="props.graph.playerLevel.value" :mobile="true" />
 
     <div class="canvas-block">
-      <SegTabs
-        class="view-tabs"
-        :tabs="VIEW_TABS"
-        :model-value="map.view.value"
-        label="Map view"
-        id-prefix="map-sheet-view"
-        @update:model-value="onView"
-      >
+      <div class="canvas-scroll">
         <GraphPlane
-          v-if="map.view.value === 'graph'"
           ref="plane"
           :layout="props.graph.layout.value"
           :views="props.graph.views.value"
@@ -160,14 +139,12 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
           @select="onSelect"
           @resize="props.graph.setCanvas"
         />
-        <GraphList v-else :rows="props.graph.rows.value" @select="onSelect" />
-      </SegTabs>
+      </div>
       <div v-if="map.banner.value" class="arrival-banner" role="status">
         <PhFootprints class="banner-icon" :size="14" aria-hidden="true" />
         <span>{{ map.banner.value }}</span>
       </div>
       <button
-        v-if="map.view.value === 'graph'"
         type="button"
         class="btn btn-secondary btn-icon center-button"
         aria-label="Center on you"
@@ -238,23 +215,18 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
   transform: rotate(180deg);
 }
 
-/* The view switch sits above the canvas; the canvas keeps 240px however long the dock is. */
+/* The canvas keeps 240px however long the dock is. */
 .canvas-block {
   position: relative;
   flex: 1;
-  /* the 240px canvas plus the 44px view switch above it */
-  min-height: calc(240px + 44px + 4px);
+  min-height: 240px;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.view-tabs {
+.canvas-scroll {
   flex: 1;
-  min-height: 0;
-}
-
-.canvas-block :deep(.panel) {
   min-height: 240px;
   overflow: auto;
   border-radius: var(--radius-md);
@@ -263,13 +235,9 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
     var(--color-bg);
 }
 
-.canvas-block :deep(.tablist) {
-  margin-bottom: 4px;
-}
-
 .arrival-banner {
   position: absolute;
-  top: 48px;
+  top: 8px;
   left: 50%;
   z-index: 3;
   display: flex;

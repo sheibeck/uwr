@@ -5,14 +5,14 @@ import { layoutGraph, regionStartId } from './graphLayout';
 import type { CanvasSize, GraphLayout, LayoutPlace } from './graphLayout';
 import { MAP_KEY, createInertMap } from './mapContext';
 import type { KnownPlacesResult } from './mapContext';
-import { gateView, listRows, nodeViews, routePolylines } from './nodeView';
-import type { GateView, ListRow, NodeView } from './nodeView';
+import { gateView, nodeViews, routePolylines } from './nodeView';
+import type { GateView, NodeView } from './nodeView';
 import { regionChips } from './regionChips';
 import type { RegionChip } from './regionChips';
 import { shortestPath, stepsFrom } from './route';
 
 // What the Map draws, as one set of computeds over the game rows and the map hub: the known places,
-// the region on show, the layout, the node views, the list rows, the route and the region chips and
+// the region on show, the layout, the node views, the route and the region chips and
 // gates. The Map screen builds it once and hands the same object to the mobile Map sheet (the graph
 // prop), so the two layouts can never disagree and mobile lays the graph out once (review WR-03).
 // `mobile` selects the compact layout (112px spacing, 44px targets, no caption) and the gate pill
@@ -48,7 +48,6 @@ export interface MapGraph extends ShownRegion {
   regionName: ComputedRef<string>;
   regionNameOf(id: bigint | null): string;
   views: ComputedRef<NodeView[]>;
-  rows: ComputedRef<ListRow[]>;
   routes: ComputedRef<string[]>;
   gates: ComputedRef<GateView[]>;
 }
@@ -166,17 +165,6 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     });
   });
 
-  const rows = computed(() => {
-    if (shownId.value === null) return [];
-    return listRows({
-      views: views.value,
-      adjacency: map.adjacency.value,
-      places: placeById.value,
-      regions: regions.value,
-      shownRegionId: shownId.value,
-    });
-  });
-
   const routes = computed(() => {
     const current = layout.value;
     const from = currentId.value;
@@ -208,7 +196,6 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     regionName,
     regionNameOf,
     views,
-    rows,
     routes,
     chips,
     gates,

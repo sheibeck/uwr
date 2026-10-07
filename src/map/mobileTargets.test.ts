@@ -108,7 +108,6 @@ const TARGETS: Target[] = [
   { file: 'src/map/MapDock.vue', selector: '.travel-button', properties: ['min-height'], min: 48 },
   { file: 'src/map/MapDock.vue', selector: '.details-toggle', properties: ['min-height'], min: 44 },
   // Shared with desktop: the mobile rules sit under the 899px query or a mobile class
-  { file: 'src/map/GraphList.vue', selector: '.row', properties: ['min-height'], min: 44 },
   { file: 'src/map/DetailPanel.vue', selector: '.travel-button', properties: ['min-height'], min: 44 },
   { file: 'src/map/DetailPanel.vue', selector: '.travel-button.btn-primary', properties: ['min-height'], min: 48 },
   { file: 'src/ledger/SegTabs.vue', selector: '.seg-opt', properties: ['min-height'], min: 44 },
@@ -166,7 +165,6 @@ describe('mobile touch targets in src/map', () => {
   // Every <button> rendered by a src/map component carries one of these classes. A new control must
   // be given a row in TARGETS above (or a reason here) before it can ship.
   const COVERED_BY_CLASS: Record<string, string[]> = {
-    'GraphList.vue': ['row'],
     'GraphPlane.vue': ['nodeClasses', 'gate'],
     'MapDock.vue': ['travel-button', 'details-toggle'],
     // Desktop branch only (frame.isDesktop): the phone chooses regions in the RegionsListbox.
@@ -198,8 +196,8 @@ describe('mobile touch targets in src/map', () => {
     expect(read('src/map/RegionsListbox.vue')).toContain('role="option"');
     const listbox = read('src/map/RegionsListbox.vue');
     expect(mobileSizeOf(listbox, '.region-option', 'min-height')).toBeGreaterThanOrEqual(44);
-    // The Map sheet view switch and the Map | Here tabs are SegTabs, whose options are 44px.
-    expect(read('src/map/MapSheet.vue')).toContain('<SegTabs');
+    // The Map | Here tabs are SegTabs, whose options are 44px. The Map sheet has no view switch.
     expect(read('src/map/MapScreen.vue')).toContain('<SegTabs');
+    expect(read('src/map/MapSheet.vue')).not.toContain('<SegTabs');
   });
 });
