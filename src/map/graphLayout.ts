@@ -3,6 +3,17 @@
 // Pure: plain lists in, one plain object out. No randomness, no time and no measured text, so the
 // same places and connections give the same layout in any input order. The SVG layer and the HTML
 // nodes of plans 51-08 and 51-09 both read this object, so a line always ends on a dot's centre.
+//
+// Steps (UI-SPEC numbering), each a small private function below:
+//   normalise      places by id, edges deduped by unordered pair
+//   pickStart      1  the bind stone place, else the lowest id
+//   bfsColumns     2, 4  breadth-first depth columns, rows by parent row, then name, then id
+//   regionColumns  5  unreachable places as further breadth-first groups
+//   regionGrid     3, 4  column index and centred y of every region place
+//   placeBorderNodes  6  other-region neighbours: side, then the nearest free row
+//   placeNodes     3, 7  x from the margin, the border box, the outer columns
+//   edgesAndGates  edges (typed) and one gate per border crossing
+//   shiftToPlane   8  one final shift to a 48 margin, plane width and height
 
 import { compareBigint, compareNames } from './order';
 
@@ -219,11 +230,19 @@ function emptyLayout(regionId: bigint): GraphLayout {
   };
 }
 
-export function layoutGraph(input: LayoutInput): GraphLayout {
-  const { byId, edges } = normalise(input);
-  const regionPlaces = [...byId.values()].filter((p) => p.regionId === input.regionId);
-  if (regionPlaces.length === 0) return emptyLayout(input.regionId);
+interface Grid {
+  columns: bigint[][];
+  columnOf: Map<bigint, number>;
+  /** Plane y per region place, before the final shift (shorter columns centred on the tallest). */
+  yOf: Map<bigint, number>;
+}
 
+/** Steps 1 to 5 without x: the columns, each place's column, and its centred y. */
+function regionGrid(
+  regionPlaces: readonly LayoutPlace[],
+  edges: readonly { a: bigint; b: bigint }[],
+  byId: ReadonlyMap<bigint, LayoutPlace>,
+): { grid: Grid; start: LayoutPlace } {
   const inRegion = new Set<bigint>(regionPlaces.map((p) => p.id));
   const adjacency = new Map<bigint, bigint[]>();
   const link = (from: bigint, to: bigint): void => {
@@ -237,97 +256,123 @@ export function layoutGraph(input: LayoutInput): GraphLayout {
       link(edge.b, edge.a);
     }
   }
-
-  // Steps 1 to 5: columns and rows of the region's own places (x is added once the margin is known).
   const start = pickStart(regionPlaces);
   const columns = regionColumns(regionPlaces, start, adjacency, byId);
   const tallest = Math.max(...columns.map((c) => c.length));
   const columnOf = new Map<bigint, number>();
-  const regionY = new Map<bigint, number>();
+  const yOf = new Map<bigint, number>();
   columns.forEach((ids, column) => {
     const centring = ((tallest - ids.length) * ROW_PITCH) / 2;
     ids.forEach((id, row) => {
       columnOf.set(id, column);
-      regionY.set(id, PLANE_MARGIN + row * ROW_PITCH + centring);
+      yOf.set(id, PLANE_MARGIN + row * ROW_PITCH + centring);
     });
   });
-  const deepest = columns.length - 1;
+  return { grid: { columns, columnOf, yOf }, start };
+}
 
-  // Step 6: border nodes, the places of other regions that touch the region.
+interface BorderNode {
+  id: bigint;
+  side: 'left' | 'right';
+  y: number;
+}
+
+/** Step 6: the places of other regions that touch the region, with their side and free row. */
+function placeBorderNodes(
+  regionIds: ReadonlySet<bigint>,
+  edges: readonly { a: bigint; b: bigint }[],
+  grid: Grid,
+  byId: ReadonlyMap<bigint, LayoutPlace>,
+): BorderNode[] {
   const neighboursOf = new Map<bigint, bigint[]>();
   for (const edge of edges) {
-    const aIn = inRegion.has(edge.a);
-    const bIn = inRegion.has(edge.b);
-    if (aIn === bIn) continue;
+    const aIn = regionIds.has(edge.a);
+    if (aIn === regionIds.has(edge.b)) continue;
     const far = aIn ? edge.b : edge.a;
     const near = aIn ? edge.a : edge.b;
     const list = neighboursOf.get(far);
     if (list) list.push(near);
     else neighboursOf.set(far, [near]);
   }
-  const borderNodes = [...neighboursOf.entries()].map(([id, nears]) => {
+
+  const deepest = grid.columns.length - 1;
+  const candidates = [...neighboursOf.entries()].map(([id, nears]) => {
     const near = [...nears].sort(
       (x, y) =>
-        (columnOf.get(x) as number) - (columnOf.get(y) as number) ||
-        (regionY.get(x) as number) - (regionY.get(y) as number) ||
+        (grid.columnOf.get(x) as number) - (grid.columnOf.get(y) as number) ||
+        (grid.yOf.get(x) as number) - (grid.yOf.get(y) as number) ||
         compareBigint(x, y),
     )[0];
-    const column = columnOf.get(near) as number;
+    const column = grid.columnOf.get(near) as number;
     return {
       id,
       column,
-      wantedY: regionY.get(near) as number,
+      wantedY: grid.yOf.get(near) as number,
       side: column <= Math.floor(deepest / 2) ? ('left' as const) : ('right' as const),
     };
   });
-  borderNodes.sort(
+  candidates.sort(
     (x, y) =>
       x.column - y.column ||
       x.wantedY - y.wantedY ||
       byNameThenId(byId.get(x.id) as LayoutPlace, byId.get(y.id) as LayoutPlace),
   );
-  const takenY = { left: [] as number[], right: [] as number[] };
-  const outerY = new Map<bigint, number>();
-  for (const node of borderNodes) {
-    const y = freeY(node.wantedY, takenY[node.side]);
-    takenY[node.side].push(y);
-    outerY.set(node.id, y);
-  }
-  const hasLeft = borderNodes.some((n) => n.side === 'left');
 
-  // Step 3 with the margin known, then step 7: the border box and the outer columns.
+  const taken = { left: [] as number[], right: [] as number[] };
+  return candidates.map((c) => {
+    const y = freeY(c.wantedY, taken[c.side]);
+    taken[c.side].push(y);
+    return { id: c.id, side: c.side, y };
+  });
+}
+
+type Border = { x: number; y: number; w: number; h: number };
+
+/** Step 3 with the margin known, step 7 and the nodes: x from columns, the box, the outer columns. */
+function placeNodes(
+  grid: Grid,
+  borderNodes: readonly BorderNode[],
+): { nodes: Map<bigint, LayoutNode>; border: Border } {
+  const hasLeft = borderNodes.some((n) => n.side === 'left');
   const leftMargin = PLANE_MARGIN + (hasLeft ? COLUMN_PITCH : 0);
-  const points = new Map<bigint, Point>();
-  for (const [id, y] of regionY) points.set(id, { x: leftMargin + (columnOf.get(id) as number) * COLUMN_PITCH, y });
-  const regionPoints = [...points.values()];
-  const minX = Math.min(...regionPoints.map((p) => p.x));
-  const maxX = Math.max(...regionPoints.map((p) => p.x));
-  const minY = Math.min(...regionPoints.map((p) => p.y));
-  const maxY = Math.max(...regionPoints.map((p) => p.y));
+  const nodes = new Map<bigint, LayoutNode>();
+  for (const [id, y] of grid.yOf) {
+    const column = grid.columnOf.get(id) as number;
+    nodes.set(id, { id, x: leftMargin + column * COLUMN_PITCH, y, column, outer: null, labelSide: 'right' });
+  }
+  const region = [...nodes.values()];
+  const minX = Math.min(...region.map((p) => p.x));
+  const maxX = Math.max(...region.map((p) => p.x));
+  const minY = Math.min(...region.map((p) => p.y));
+  const maxY = Math.max(...region.map((p) => p.y));
   const border = {
     x: minX - BORDER_INSET,
     y: minY - BORDER_INSET,
     w: maxX + BORDER_RIGHT - (minX - BORDER_INSET),
     h: maxY + BORDER_INSET - (minY - BORDER_INSET),
   };
-  const nodes = new Map<bigint, LayoutNode>();
-  for (const [id, point] of points) {
-    nodes.set(id, { id, x: point.x, y: point.y, column: columnOf.get(id) as number, outer: null, labelSide: 'right' });
-  }
+  const deepest = grid.columns.length - 1;
   for (const node of borderNodes) {
     const left = node.side === 'left';
-    const x = left ? border.x - OUTER_GAP : border.x + border.w + OUTER_GAP;
     nodes.set(node.id, {
       id: node.id,
-      x,
-      y: outerY.get(node.id) as number,
+      x: left ? border.x - OUTER_GAP : border.x + border.w + OUTER_GAP,
+      y: node.y,
       column: left ? -1 : deepest + 1,
       outer: node.side,
       labelSide: left ? 'left' : 'right',
     });
   }
+  return { nodes, border };
+}
 
-  // Edges (never between two border nodes) and one gate per edge that crosses the border.
+/** Edges (never between two border nodes) and one gate per edge that crosses the border. */
+function edgesAndGates(
+  edges: readonly { key: string; a: bigint; b: bigint }[],
+  nodes: ReadonlyMap<bigint, LayoutNode>,
+  border: Border,
+  byId: ReadonlyMap<bigint, LayoutPlace>,
+): { edges: LayoutEdge[]; gates: LayoutGate[] } {
   const layoutEdges: LayoutEdge[] = [];
   const gates: LayoutGate[] = [];
   for (const edge of edges) {
@@ -344,6 +389,7 @@ export function layoutGraph(input: LayoutInput): GraphLayout {
           : 'in';
     layoutEdges.push({ key: edge.key, a: edge.a, b: edge.b, x1: a.x, y1: a.y, x2: b.x, y2: b.y, kind });
     if (pa.regionId === pb.regionId) continue;
+
     const near = a.outer === null ? a : b;
     const far = a.outer === null ? b : a;
     const side = far.outer as 'left' | 'right';
@@ -359,34 +405,53 @@ export function layoutGraph(input: LayoutInput): GraphLayout {
       side,
     });
   }
+  return { edges: layoutEdges, gates };
+}
 
-  // Step 8: one final shift so the smallest x and y of every circle, label, pill and the box is 48.
-  const allBoxes: Box[] = [{ left: border.x, top: border.y, right: border.x + border.w, bottom: border.y + border.h }];
-  for (const node of nodes.values()) allBoxes.push(...nodeBoxes(node, node.labelSide));
-  for (const gate of gates) {
-    allBoxes.push({
+/** Step 8: one shift so the smallest x and y of every circle, label, pill and the box is 48. */
+function shiftToPlane(
+  regionId: bigint,
+  startId: bigint,
+  nodes: ReadonlyMap<bigint, LayoutNode>,
+  parts: { edges: LayoutEdge[]; gates: LayoutGate[] },
+  border: Border,
+): GraphLayout {
+  const boxes: Box[] = [{ left: border.x, top: border.y, right: border.x + border.w, bottom: border.y + border.h }];
+  for (const node of nodes.values()) boxes.push(...nodeBoxes(node, node.labelSide));
+  for (const gate of parts.gates) {
+    boxes.push({
       left: gate.x - GATE_WIDTH / 2,
       top: gate.y - GATE_HEIGHT / 2,
       right: gate.x + GATE_WIDTH / 2,
       bottom: gate.y + GATE_HEIGHT / 2,
     });
   }
-  const dx = PLANE_MARGIN - Math.min(...allBoxes.map((b) => b.left));
-  const dy = PLANE_MARGIN - Math.min(...allBoxes.map((b) => b.top));
-  const width = Math.max(...allBoxes.map((b) => b.right)) + dx + PLANE_MARGIN;
-  const height = Math.max(...allBoxes.map((b) => b.bottom)) + dy + PLANE_MARGIN;
+  const dx = PLANE_MARGIN - Math.min(...boxes.map((b) => b.left));
+  const dy = PLANE_MARGIN - Math.min(...boxes.map((b) => b.top));
 
   return {
-    regionId: input.regionId,
-    startId: start.id,
+    regionId,
+    startId,
     nodes: [...nodes.values()]
       .map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }))
       .sort((p, q) => p.x - q.x || p.y - q.y || compareBigint(p.id, q.id)),
-    edges: layoutEdges.map((e) => ({ ...e, x1: e.x1 + dx, y1: e.y1 + dy, x2: e.x2 + dx, y2: e.y2 + dy })),
-    gates: gates.map((g) => ({ ...g, x: g.x + dx, y: g.y + dy })),
+    edges: parts.edges.map((e) => ({ ...e, x1: e.x1 + dx, y1: e.y1 + dy, x2: e.x2 + dx, y2: e.y2 + dy })),
+    gates: parts.gates.map((g) => ({ ...g, x: g.x + dx, y: g.y + dy })),
     border: { x: border.x + dx, y: border.y + dy, w: border.w, h: border.h },
     caption: { x: border.x + dx + CAPTION_INSET, y: border.y + dy + CAPTION_INSET },
-    width,
-    height,
+    width: Math.max(...boxes.map((b) => b.right)) + dx + PLANE_MARGIN,
+    height: Math.max(...boxes.map((b) => b.bottom)) + dy + PLANE_MARGIN,
   };
+}
+
+export function layoutGraph(input: LayoutInput): GraphLayout {
+  const { byId, edges } = normalise(input);
+  const regionPlaces = [...byId.values()].filter((p) => p.regionId === input.regionId);
+  if (regionPlaces.length === 0) return emptyLayout(input.regionId);
+
+  const { grid, start } = regionGrid(regionPlaces, edges, byId);
+  const borderNodes = placeBorderNodes(new Set(regionPlaces.map((p) => p.id)), edges, grid, byId);
+  const { nodes, border } = placeNodes(grid, borderNodes);
+  const parts = edgesAndGates(edges, nodes, border, byId);
+  return shiftToPlane(input.regionId, start.id, nodes, parts, border);
 }
