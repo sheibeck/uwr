@@ -624,6 +624,7 @@ export const registerCommandReducers = (deps: any) => {
         }
       }
       if (!target) return fail(ctx, character, 'Target not found', 'whisper');
+      if (target.online !== true) return fail(ctx, character, `${target.name} is offline.`, 'whisper');
 
       const senderUserId = requirePlayerUserId(ctx);
       appendPrivateEvent(

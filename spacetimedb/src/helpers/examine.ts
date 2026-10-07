@@ -257,7 +257,8 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
   // (c) Other players
   const locationChars = [...ctx.db.character.by_location.filter(character.locationId)];
   for (const other of locationChars) {
-    if (other.id !== character.id && matches(other.name)) {
+    // Offline characters are not described (CONTEXT Area 2).
+    if (other.id !== character.id && other.online === true && matches(other.name)) {
       return `${other.name}, Level ${other.level} ${other.race} ${other.className}.`;
     }
   }

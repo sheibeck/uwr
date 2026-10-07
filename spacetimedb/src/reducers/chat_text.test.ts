@@ -44,7 +44,7 @@ function newCtx(extra: Record<string, any[]> = {}) {
       player: [{ id: alice, userId: 7n, activeCharacterId: 1n }],
       character: [
         { id: 1n, ownerUserId: 7n, name: 'Mirel', locationId: 10n, groupId: 5n },
-        { id: 2n, ownerUserId: 8n, name: 'Tamsin', locationId: 10n },
+        { id: 2n, ownerUserId: 8n, name: 'Tamsin', locationId: 10n, online: true },
       ],
       npc: [],
       npc_dialogue_option: [],

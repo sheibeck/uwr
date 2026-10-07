@@ -374,7 +374,7 @@ describe('describeLookTarget: check order and existing output', () => {
 
   it('a node named Wood is not captured by a player named Woodrow', () => {
     const ctx = ctxWith({
-      character: [ME, { id: 11n, locationId: 1n, level: 3n, name: 'Woodrow', race: 'Human', className: 'Ranger' }],
+      character: [ME, { id: 11n, locationId: 1n, level: 3n, name: 'Woodrow', race: 'Human', className: 'Ranger', online: true }],
       resource_node: [node({ name: 'Wood', itemTemplateId: 9n })],
       item_template: [{ ...ironTemplate, id: 9n, name: 'Wood' }],
     });
@@ -415,10 +415,22 @@ describe('describeLookTarget: check order and existing output', () => {
     const ctx = ctxWith({
       character: [
         ME,
-        { id: 11n, locationId: 1n, level: 4n, name: 'Mira', race: 'Elf', className: 'Mage' },
+        { id: 11n, locationId: 1n, level: 4n, name: 'Mira', race: 'Elf', className: 'Mage', online: true },
       ],
     });
     expect(describeLookTarget(ctx, ME, 'mira')).toBe('Mira, Level 4 Elf Mage.');
+  });
+
+  it('does not match an offline player, or a row without the online flag', () => {
+    const ctx = ctxWith({
+      character: [
+        ME,
+        { id: 11n, locationId: 1n, level: 4n, name: 'Mira', race: 'Elf', className: 'Mage', online: false },
+        { id: 12n, locationId: 1n, level: 4n, name: 'Tamsin', race: 'Elf', className: 'Mage' },
+      ],
+    });
+    expect(describeLookTarget(ctx, ME, 'mira')).toBeNull();
+    expect(describeLookTarget(ctx, ME, 'tamsin')).toBeNull();
   });
 
   it('returns null for an unknown target', () => {

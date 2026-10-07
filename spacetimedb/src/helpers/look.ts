@@ -49,7 +49,8 @@ export function buildLookOutput(ctx: any, character: any): string[] {
 
   // 5. Other players
   const allChars = [...ctx.db.character.by_location.filter(character.locationId)];
-  const otherPlayers = allChars.filter((c: any) => c.id !== character.id);
+  // Offline characters drop out of the line (CONTEXT Area 2).
+  const otherPlayers = allChars.filter((c: any) => c.id !== character.id && c.online === true);
   if (otherPlayers.length > 0) {
     const playerNames = otherPlayers.map((c: any) => `{{color:#69db7c}}[${c.name}]{{/color}}`);
     if (playerNames.length === 1) {

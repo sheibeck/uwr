@@ -709,7 +709,8 @@ export const registerIntentReducers = (deps: any) => {
     // --- PLAYERS ---
     if (lower === 'players' || lower === 'who') {
       const allChars = [...ctx.db.character.by_location.filter(character.locationId)];
-      const others = allChars.filter((c: any) => c.id !== character.id);
+      // Offline characters drop out of who (CONTEXT Area 2).
+      const others = allChars.filter((c: any) => c.id !== character.id && c.online === true);
       if (others.length === 0) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'No other players nearby.');
         return;
@@ -1507,6 +1508,7 @@ export const registerIntentReducers = (deps: any) => {
         }
       }
       if (!target) return fail(ctx, character, `No one named "${targetName}" can be found.`);
+      if (target.online !== true) return fail(ctx, character, `${target.name} is offline.`);
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'whisper',
         `You whisper to ${target.name}: "${message}"`);
