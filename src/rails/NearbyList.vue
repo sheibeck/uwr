@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import {
   PhCastleTurret,
   PhChatCircle,
@@ -165,18 +165,40 @@ function invite(row: NearbyRow): void {
 const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
 
 const list = ref<HTMLElement | null>(null);
-// Set when a bind resolved; the focus move waits until the character row says bound, in either order.
-let focusAfterBind = false;
+
+// The place a Bind was sent for (bind_location binds wherever the character stands when it runs).
+// Focus moves to the bind stone's eye only when the character row says bound to that place while the
+// character still stands there, in either order with the promise. The mark is dropped on a move, a
+// rejection, or a short while after the call resolved without the row changing (a fail() refusal
+// resolves too), so it can never fire later for another visit (review WR-02).
+const BIND_FOCUS_MS = 2000;
+let bindTarget: bigint | null = null;
+let bindLapse: ReturnType<typeof setTimeout> | null = null;
+
+function clearBindTarget(): void {
+  bindTarget = null;
+  if (bindLapse !== null) clearTimeout(bindLapse);
+  bindLapse = null;
+}
 
 function focusBindEye(): void {
-  if (!focusAfterBind || !boundHere.value) return;
-  focusAfterBind = false;
+  const character = game.character.value;
+  if (bindTarget === null || character === null) return;
+  if (character.locationId !== bindTarget || character.boundLocationId !== bindTarget) return;
+  clearBindTarget();
   void nextTick(() => {
     list.value?.querySelector<HTMLElement>('.kind-bindStone .btn-eye')?.focus();
   });
 }
 
 watch(boundHere, focusBindEye);
+watch(
+  () => game.character.value?.locationId,
+  (next) => {
+    if (bindTarget !== null && next !== bindTarget) clearBindTarget();
+  },
+);
+onBeforeUnmount(clearBindTarget);
 
 const bindBlocked = computed(
   () => !connected.value || game.reducers.value === null || runner.isPending('bind'),
@@ -188,11 +210,19 @@ const bindBlocked = computed(
 async function bind(): Promise<void> {
   const characterId = game.characterId.value;
   const reducers = game.reducers.value;
-  if (!connected.value || reducers === null || characterId === null) return;
+  const target = game.character.value?.locationId ?? null;
+  if (!connected.value || reducers === null || characterId === null || target === null) return;
+  if (runner.isPending('bind')) return;
+  clearBindTarget();
+  bindTarget = target;
   const ok = await runner.run('bind', () => reducers.bindLocation({ characterId }));
-  if (!ok) return;
-  focusAfterBind = true;
+  if (bindTarget !== target) return;
+  if (!ok) {
+    clearBindTarget();
+    return;
+  }
   focusBindEye();
+  if (bindTarget === target) bindLapse = setTimeout(clearBindTarget, BIND_FOCUS_MS);
 }
 </script>
 

@@ -314,6 +314,65 @@ describe('bind stone row', () => {
   });
 });
 
+describe('focus after Bind only for the place that was bound (review WR-02)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('a refusal (resolved, no row change) never moves focus on a later visit', async () => {
+    vi.useFakeTimers();
+    const { w, characterRef } = mountList();
+    await w.get('.btn-bind').trigger('click');
+    await nextTick();
+    await nextTick();
+    vi.advanceTimersByTime(2000);
+    // later the player is bound here by other means and comes back
+    characterRef.value = character({ locationId: 11n });
+    await nextTick();
+    characterRef.value = character({ locationId: 10n, boundLocationId: 10n });
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).not.toBe(w.get('.kind-bindStone .btn-eye').element);
+  });
+
+  it('moved before the bind ran: binding elsewhere moves no focus, and a return visit neither', async () => {
+    let resolve: () => void = () => {};
+    const bindLocation = vi.fn(
+      () =>
+        new Promise<void>((done) => {
+          resolve = done;
+        }),
+    );
+    const { w, characterRef } = mountList({}, bindLocation);
+    await w.get('.btn-bind').trigger('click');
+    // the leader's move runs first; the bind lands at the new place
+    characterRef.value = character({ locationId: 11n, boundLocationId: 11n });
+    await nextTick();
+    resolve();
+    await nextTick();
+    await nextTick();
+    characterRef.value = character({ locationId: 10n, boundLocationId: 10n });
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).not.toBe(w.get('.kind-bindStone .btn-eye').element);
+  });
+
+  it('a rejected Bind clears the mark', async () => {
+    const bindLocation = vi.fn(() => Promise.reject(new Error('socket')));
+    const { w, characterRef } = mountList({}, bindLocation);
+    await w.get('.btn-bind').trigger('click');
+    await nextTick();
+    await nextTick();
+    characterRef.value = character({ boundLocationId: 10n });
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).not.toBe(w.get('.kind-bindStone .btn-eye').element);
+  });
+});
+
 describe('source', () => {
   const source = readFileSync(resolve(__dirname, 'NearbyList.vue'), 'utf8');
 
