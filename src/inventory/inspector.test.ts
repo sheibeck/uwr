@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sellPayout } from '@game-data/vendor_pricing';
 import type { ItemAffix, ItemInstance, ItemTemplate } from '../module_bindings/types';
-import { dockSummary, inspectorView, salvagePrompt } from './inspector';
+import { dockSummary, inspectorView, salvageNeedsConfirm } from './inspector';
 import type { InspectorInput } from './inspector';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
 
@@ -230,11 +230,11 @@ describe('inspectorView comparison', () => {
 });
 
 describe('inspectorView actions', () => {
-  it('gives bag gear Equip item (mobile Equip) and Salvage', () => {
+  it('gives bag gear Equip (mock 10a) and Salvage', () => {
     const view = inspectorView(input(inst(1n, 1n), [tpl(1n)]))!;
     expect(view.primary).toEqual({
       kind: 'equip',
-      label: 'Equip item',
+      label: 'Equip',
       mobileLabel: 'Equip',
       available: true,
       reason: null,
@@ -264,19 +264,19 @@ describe('inspectorView actions', () => {
   it('gives equipped gear Unequip, unavailable with a full bag', () => {
     const worn = inst(1n, 1n, { equippedSlot: 'chest' });
     const ok = inspectorView(input(worn, [tpl(1n)]))!;
-    expect(ok.primary).toMatchObject({ kind: 'unequip', label: 'Unequip item', mobileLabel: 'Unequip', available: true });
+    expect(ok.primary).toMatchObject({ kind: 'unequip', label: 'Unequip', mobileLabel: 'Unequip', available: true });
     const full = inspectorView(input(worn, [tpl(1n)], { usage: FULL }))!;
     expect(full.primary!.available).toBe(false);
     expect(full.primary!.reason).toBe('Your backpack is full.');
-    expect(full.salvage.available).toBe(false);
-    expect(full.salvage.reason).toBe('Your backpack is full.');
+    // The bag-full salvage reason is gone: an equipped item is refused for being equipped.
+    expect(full.salvage.reason).not.toBe('Your backpack is full.');
   });
 
   it('offers Use only for effectful food and consumables', () => {
     const bread = tpl(1n, { slot: 'food', name: 'Simple Rations', armorType: '' });
     expect(inspectorView(input(inst(1n, 1n), [bread]))!.primary).toMatchObject({
       kind: 'use',
-      label: 'Use item',
+      label: 'Use',
       mobileLabel: 'Use',
     });
     const torch = tpl(1n, { slot: 'consumable', name: 'Torch', armorType: '' });
@@ -285,12 +285,12 @@ describe('inspectorView actions', () => {
     expect(salvageable.salvage.visible).toBe(false);
   });
 
-  it('offers Eat item (mobile Eat) for generated food the use_item keys do not cover (WR-01)', () => {
+  it('offers Eat (mock 10a) for generated food the use_item keys do not cover (WR-01)', () => {
     const stew = tpl(1n, { slot: 'food', name: 'Hearthstone Stew', armorType: '', wellFedDurationMicros: 60n });
     const view = inspectorView(input(inst(1n, 1n), [stew]))!;
     expect(view.primary).toEqual({
       kind: 'eat',
-      label: 'Eat item',
+      label: 'Eat',
       mobileLabel: 'Eat',
       available: true,
       reason: null,
@@ -345,19 +345,38 @@ describe('inspectorView salvage', () => {
     expect(inspectorView(input(bag, [tpl(1n)], { affixes: other }))!.salvage.needsConfirm).toBe(false);
   });
 
-  it('needs confirmation for an equipped item even when common', () => {
+  it('refuses an equipped item up front: visible, not available, with the reason (T-50-142)', () => {
     const view = inspectorView(input(inst(1n, 1n, { equippedSlot: 'chest' }), [tpl(1n)]))!;
-    expect(view.salvage.needsConfirm).toBe(true);
-    expect(view.salvage.available).toBe(true);
+    expect(view.salvage.visible).toBe(true);
+    expect(view.salvage.available).toBe(false);
+    expect(view.salvage.reason).toBe("Equipped items can't be salvaged.");
+    const bag = inspectorView(input(inst(1n, 1n), [tpl(1n)]))!;
+    expect(bag.salvage.available).toBe(true);
+    expect(bag.salvage.reason).toBeNull();
   });
 
-  it('writes the bag and equipped prompts', () => {
-    expect(salvagePrompt('Old Vest', false)).toBe(
-      "Salvage Old Vest? It breaks down into materials. This can't be undone.",
-    );
-    expect(salvagePrompt('Old Vest', true)).toBe(
-      "Salvage Old Vest? It's unequipped first, then broken down into materials. This can't be undone.",
-    );
+  it('keeps the equipped refusal even with a full bag (the bag-full reason no longer exists)', () => {
+    const view = inspectorView(input(inst(1n, 1n, { equippedSlot: 'chest' }), [tpl(1n)], { usage: FULL }))!;
+    expect(view.salvage.reason).toBe("Equipped items can't be salvaged.");
+    const bag = inspectorView(input(inst(1n, 1n), [tpl(1n)], { usage: FULL }))!;
+    expect(bag.salvage.available).toBe(true);
+    expect(bag.salvage.reason).toBeNull();
+  });
+});
+
+describe('salvageNeedsConfirm', () => {
+  const t = tpl(1n);
+  it('is false for a plain common bag item, whether or not it is equipped', () => {
+    expect(salvageNeedsConfirm(inst(1n, 1n), t, [])).toBe(false);
+    expect(salvageNeedsConfirm(inst(1n, 1n, { equippedSlot: 'chest' }), t, [])).toBe(false);
+  });
+
+  it('is true above common, for a craft quality or for a non-implicit affix', () => {
+    expect(salvageNeedsConfirm(inst(1n, 1n), tpl(1n, { rarity: 'rare' }), [])).toBe(true);
+    expect(salvageNeedsConfirm(inst(1n, 1n, { qualityTier: 'epic' }), t, [])).toBe(true);
+    expect(salvageNeedsConfirm(inst(1n, 1n, { craftQuality: 'standard' }), t, [])).toBe(true);
+    expect(salvageNeedsConfirm(inst(1n, 1n), t, [affix(1n, 1n, 'intBonus', 2n)])).toBe(true);
+    expect(salvageNeedsConfirm(inst(1n, 1n), t, [affix(2n, 1n, 'armorClassBonus', 1n, 'implicit', 'Standard')])).toBe(false);
   });
 });
 

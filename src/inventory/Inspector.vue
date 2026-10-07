@@ -1,20 +1,24 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue';
-import { PhX } from '@phosphor-icons/vue';
+import { computed, inject, ref, useTemplateRef, watch } from 'vue';
+import { PhRecycle, PhX } from '@phosphor-icons/vue';
 import { GAME_KEY, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
 import type { ActionRunner } from '../ledger/actionRunner';
 import GoldAmount from '../ledger/GoldAmount.vue';
 import InlineConfirm from '../ledger/InlineConfirm.vue';
+import { salvagePreview } from '../ledger/salvagePreview';
 import { slotUsage } from './backpack';
-import { dockSummary, inspectorView, salvagePrompt } from './inspector';
+import { dockSummary, inspectorView } from './inspector';
 import type { MetaPart } from './inspector';
 
 // The inventory inspector (50-UI-SPEC "Inspector", "Comparison", "Actions per item", "Salvage
-// confirmation", "Mobile inventory > Inspector dock"): the desktop card and the mobile dock. The
-// view model decides everything shown; this component draws it and runs the actions through the
-// screen's action runner. Item names, affixes and flavor are server text, so they only reach the
-// page as text nodes. Nothing is optimistic: the subscribed rows drive every change.
+// confirmation", "Mobile inventory > Inspector dock", as updated by owner mock 10a): the desktop
+// card and the mobile dock. The view model decides everything shown; this component draws it and
+// runs the actions through the screen's action runner. Salvage shows the PhRecycle icon. An equipped
+// item cannot be salvaged: the button is aria-disabled with its reason and a click sends nothing.
+// The salvage confirm names the guaranteed yield through the shared salvage preview. Item names,
+// affixes and flavor are server text, so they only reach the page as text nodes. Nothing is
+// optimistic: the subscribed rows drive every change.
 const props = defineProps<{
   instanceId: bigint | null;
   variant: 'card' | 'dock';
@@ -58,6 +62,26 @@ const dock = computed(() => props.variant === 'dock');
 const offline = computed(() => !game.connected.value || ledger.reducers.value === null);
 
 const summary = computed(() => (view.value ? dockSummary(view.value) : ''));
+
+// What a salvage of the selected item gives, by the server's own rule. The recipe cap is passed only
+// once the hub has applied it, so the confirm never names a count it cannot know.
+const preview = computed(() => {
+  const item = instance.value;
+  const character = game.character.value;
+  if (item === null || character === null || view.value === null) return null;
+  const template = ledger.templates.value.get(item.templateId);
+  if (!template) return null;
+  return salvagePreview({
+    instance: item,
+    template,
+    affixes: ledger.affixes.value,
+    characterId: character.id,
+    outputRecipe: ledger.outputRecipesApplied.value
+      ? (ledger.outputRecipes.value.get(template.id) ?? null)
+      : undefined,
+    templates: ledger.templates.value,
+  });
+});
 const reason = computed(() => {
   const v = view.value;
   if (!v) return null;
@@ -85,12 +109,6 @@ function metaStyle(part: MetaPart): Record<string, string> | undefined {
   if (part.tone !== 'craft' || part.craftQuality === undefined) return undefined;
   if (!Object.prototype.hasOwnProperty.call(CRAFT_COLORS, part.craftQuality)) return undefined;
   return { color: CRAFT_COLORS[part.craftQuality] };
-}
-
-function stillEquipped(instanceId: bigint): boolean {
-  const row = ledger.items.value.find((item) => item.id === instanceId);
-  if (!row) return false;
-  return row.equippedSlot !== undefined && row.equippedSlot !== null && row.equippedSlot !== '';
 }
 
 function onPrimary(): void {
@@ -136,10 +154,8 @@ function onSalvage(): void {
   void runSalvage();
 }
 
-// The server refuses to salvage an equipped item, so an equipped item is unequipped first. The
-// salvage is sent only after the unequip settles and only while the ledger no longer shows the
-// item equipped (RESEARCH assumption A1: skipped, harmlessly, when the cache lags). One pending
-// key covers both calls, so the confirm button stays inert for the whole flow.
+// One call: the server refuses an equipped item, and the client never offers it (the button is
+// unavailable), so there is no unequip step. The result card opens from the server's own row.
 async function runSalvage(): Promise<void> {
   const v = view.value;
   const reducers = ledger.reducers.value;
@@ -147,15 +163,7 @@ async function runSalvage(): Promise<void> {
   if (!v || !reducers || !character) return;
   const characterId = character.id;
   const itemInstanceId = v.instanceId;
-  const slot = v.equippedSlot;
-  await props.runner.run('item-salvage', async () => {
-    if (slot !== null) {
-      await reducers.unequipItem({ characterId, slot });
-      await nextTick();
-      if (stillEquipped(itemInstanceId)) return;
-    }
-    await reducers.salvageItem({ characterId, itemInstanceId });
-  });
+  await props.runner.run('item-salvage', () => reducers.salvageItem({ characterId, itemInstanceId }));
   confirming.value = false;
 }
 
@@ -253,13 +261,15 @@ watch(view, (next) => {
             :aria-describedby="salvageDescribed ? reasonId : undefined"
             @click="onSalvage"
           >
-            {{ dock ? 'Salvage' : 'Salvage item' }}
+            <PhRecycle :size="16" aria-hidden="true" />
+            Salvage
           </button>
         </div>
         <InlineConfirm
-          v-if="confirming"
-          :prompt="salvagePrompt(view.name, view.equipped)"
-          confirm-label="Yes, salvage"
+          v-if="confirming && preview"
+          warning
+          :prompt="preview.confirmText"
+          confirm-label="Salvage"
           :pending="salvagePending"
           :mobile="dock"
           :opener="salvageButton"

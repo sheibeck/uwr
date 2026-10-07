@@ -553,7 +553,7 @@ describe('InventoryScreen desktop', () => {
     await mountScreen();
     await wrapper!.get('button.slot-card').trigger('click');
     expect(wrapper!.get('.inspector-col .name').text()).toBe('Old Vest');
-    expect(wrapper!.get('.inspector-col .action.primary').text()).toBe('Unequip item');
+    expect(wrapper!.get('.inspector-col .action.primary').text()).toBe('Unequip');
     expect(wrapper!.get('button.slot-card').attributes('aria-pressed')).toBe('true');
   });
 
@@ -595,12 +595,12 @@ describe('InventoryScreen desktop', () => {
     const ctx = await mountScreen({ items: [inst(2n, 2n)] });
     await tile('New Vest').trigger('click');
     const primary = wrapper!.get('.inspector-col .action.primary');
-    expect(primary.text()).toBe('Equip item');
+    expect(primary.text()).toBe('Equip');
     (primary.element as HTMLElement).focus();
     ctx.items.value = [inst(2n, 2n, { equippedSlot: 'chest' })];
     await settle();
     const after = wrapper!.get('.inspector-col .action.primary');
-    expect(after.text()).toBe('Unequip item');
+    expect(after.text()).toBe('Unequip');
     expect(wrapper!.get('.inspector-col .name').text()).toBe('New Vest');
     expect(document.activeElement).toBe(after.element);
     expect(wrapper!.get('button.slot-card').attributes('aria-pressed')).toBe('true');

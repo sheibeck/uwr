@@ -22,9 +22,12 @@ import {
 import type { SlotUsage } from './backpack';
 
 // The inventory inspector view model (50-UI-SPEC "Inspector", "Comparison", "Actions per item",
-// "Salvage confirmation"). Everything the card and the dock show is derived here from the selected
-// instance and the server's shared rules (equip rule, item kinds, sell payout, perk percent), so the
-// component only draws. Pure: no Vue.
+// "Salvage confirmation", as updated by owner mock 10a in plan 50-34). Everything the card and the
+// dock show is derived here from the selected instance and the server's shared rules (equip rule,
+// item kinds, sell payout, perk percent), so the component only draws. The primaries read Equip,
+// Unequip, Use, Eat and Learn recipe on both layouts. An equipped item cannot be salvaged: the
+// button stays visible but unavailable with a reason, and the server refuses it too. The salvage
+// confirm text comes from the shared salvage preview, not from here. Pure: no Vue.
 
 export interface InspectorCharacter {
   level: bigint;
@@ -99,6 +102,7 @@ export interface InspectorView {
 }
 
 const BACKPACK_FULL = 'Your backpack is full.';
+const EQUIPPED_SALVAGE = "Equipped items can't be salvaged.";
 
 function filled(value: string | null | undefined): value is string {
   return value !== null && value !== undefined && value !== '';
@@ -168,7 +172,7 @@ function equipPrimary(template: ItemTemplate, character: InspectorCharacter): In
   }
   return {
     kind: 'equip',
-    label: 'Equip item',
+    label: 'Equip',
     mobileLabel: 'Equip',
     available: check.ok,
     reason,
@@ -227,7 +231,7 @@ export function inspectorView(input: InspectorInput): InspectorView | null {
   } else if (gear && equipped) {
     primary = {
       kind: 'unequip',
-      label: 'Unequip item',
+      label: 'Unequip',
       mobileLabel: 'Unequip',
       available: !usage.full,
       reason: usage.full ? BACKPACK_FULL : null,
@@ -241,23 +245,18 @@ export function inspectorView(input: InspectorInput): InspectorView | null {
       reason: null,
     };
   } else if (category === 'food' && isUsableItemName(template.name)) {
-    primary = { kind: 'use', label: 'Use item', mobileLabel: 'Use', available: true, reason: null };
+    primary = { kind: 'use', label: 'Use', mobileLabel: 'Use', available: true, reason: null };
   } else if (template.slot === 'food') {
     // Generated food: the server consumes it through eat_food (hunger.ts), not use_item.
-    primary = { kind: 'eat', label: 'Eat item', mobileLabel: 'Eat', available: true, reason: null };
+    primary = { kind: 'eat', label: 'Eat', mobileLabel: 'Eat', available: true, reason: null };
   }
 
   const salvageVisible = isSalvageableTemplate(template);
-  const salvageBlocked = salvageVisible && equipped && usage.full;
-  // craft_recipe stores every crafted instance as 'common', so rarity alone cannot protect crafted
-  // gear: a crafted quality or any non-implicit affix (reagent or rolled) also asks first.
-  const crafted = filled(instance.craftQuality);
-  const affixed = affixesFor(instance.id, affixes).some((a) => a.affixType !== 'implicit');
   const salvage: InspectorSalvage = {
     visible: salvageVisible,
-    needsConfirm: salvageVisible && (rarity !== 'common' || equipped || crafted || affixed),
-    available: !salvageBlocked,
-    reason: salvageBlocked ? BACKPACK_FULL : null,
+    needsConfirm: salvageVisible && salvageNeedsConfirm(instance, template, affixes),
+    available: salvageVisible && !equipped,
+    reason: salvageVisible && equipped ? EQUIPPED_SALVAGE : null,
   };
 
   let footer: InspectorFooter;
@@ -297,11 +296,19 @@ export function inspectorView(input: InspectorInput): InspectorView | null {
   };
 }
 
-/** The confirmation prompt for Salvage (UI-SPEC "Salvage confirmation"). */
-export function salvagePrompt(name: string, equipped: boolean): string {
-  return equipped
-    ? `Salvage ${name}? It's unequipped first, then broken down into materials. This can't be undone.`
-    : `Salvage ${name}? It breaks down into materials. This can't be undone.`;
+/**
+ * Whether salvaging this instance asks first: rarity above common, a crafted quality or any
+ * non-implicit affix. craft_recipe stores every crafted instance as 'common', so rarity alone cannot
+ * protect crafted gear. Equipped status does not matter: an equipped item is refused, not confirmed.
+ */
+export function salvageNeedsConfirm(
+  instance: ItemInstance,
+  template: ItemTemplate,
+  affixes: readonly ItemAffix[],
+): boolean {
+  if (itemRarity(instance, template) !== 'common') return true;
+  if (filled(instance.craftQuality)) return true;
+  return affixesFor(instance.id, affixes).some((a) => a.affixType !== 'implicit');
 }
 
 /** The mobile dock summary: 'Rare chest · AC 14 ▲3 · INT +3 ▲1', at most four stats. */

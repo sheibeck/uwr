@@ -11,6 +11,7 @@ import type { LedgerData, LedgerReducers } from '../ledger/ledgerContext';
 import { createActionRunner } from '../ledger/actionRunner';
 import type { ActionRunner } from '../ledger/actionRunner';
 import type { ItemAffix, ItemInstance, ItemTemplate } from '../module_bindings/types';
+import { salvagePreview } from '../ledger/salvagePreview';
 import Inspector from './Inspector.vue';
 
 const XSS = '<img src=x onerror=alert(1)>';
@@ -89,6 +90,8 @@ interface Setup {
   connected?: boolean;
   reducers?: Partial<LedgerReducers>;
   level?: bigint;
+  /** The hub's recipe cap state: undefined = not applied (count unknown), null = applied with no recipe. */
+  outputRecipe?: null;
 }
 
 function mountInspector(setup: Setup) {
@@ -123,6 +126,8 @@ function mountInspector(setup: Setup) {
     items,
     affixes: ref(setup.affixes ?? []),
     templates: ref(new Map(setup.templates.map((t) => [t.id, t]))),
+    outputRecipes: ref(new Map()),
+    outputRecipesApplied: ref(setup.outputRecipe === null),
     reducers: reducersRef,
   } as unknown as LedgerData;
   const runner: ActionRunner = createActionRunner({
@@ -219,7 +224,7 @@ describe('Inspector card', () => {
       instanceId: 2n,
       reducers: { equipItem },
     });
-    expect(primary().text()).toBe('Equip item');
+    expect(primary().text()).toBe('Equip');
     expect(primary().attributes('aria-disabled')).toBeUndefined();
     await primary().trigger('click');
     expect(equipItem).toHaveBeenCalledTimes(1);
@@ -279,7 +284,7 @@ describe('Inspector card', () => {
       templates: [tpl(1n)],
       instanceId: 1n,
     });
-    expect(primary().text()).toBe('Unequip item');
+    expect(primary().text()).toBe('Unequip');
     await primary().trigger('click');
     expect(worn.reducers.unequipItem).toHaveBeenCalledWith({ characterId: 7n, slot: 'chest' });
     wrapper!.unmount();
@@ -289,7 +294,7 @@ describe('Inspector card', () => {
       templates: [tpl(3n, { slot: 'food', name: 'Simple Rations', armorType: '' })],
       instanceId: 3n,
     });
-    expect(primary().text()).toBe('Use item');
+    expect(primary().text()).toBe('Use');
     expect(wrapper!.find('.action.salvage').exists()).toBe(false);
     await primary().trigger('click');
     expect(food.reducers.useItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 3n });
@@ -300,7 +305,7 @@ describe('Inspector card', () => {
       templates: [tpl(6n, { slot: 'food', name: 'Hearthstone Stew', armorType: '', wellFedDurationMicros: 60n })],
       instanceId: 6n,
     });
-    expect(primary().text()).toBe('Eat item');
+    expect(primary().text()).toBe('Eat');
     await primary().trigger('click');
     expect(stew.reducers.eatFood).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 6n });
     expect(stew.reducers.useItem).not.toHaveBeenCalled();
@@ -328,35 +333,96 @@ describe('Inspector card', () => {
 });
 
 describe('Inspector salvage', () => {
+  const previewFor = (
+    instance: ItemInstance,
+    template: ItemTemplate,
+    affixes: ItemAffix[] = [],
+    applied = true,
+  ) =>
+    salvagePreview({
+      instance,
+      template,
+      affixes,
+      characterId: 7n,
+      outputRecipe: applied ? null : undefined,
+      templates: new Map([[template.id, template]]),
+    })!;
+
+  it('shows a PhRecycle icon and the text Salvage on the card and the dock', () => {
+    for (const variant of ['card', 'dock'] as const) {
+      mountInspector({ items: [inst(2n, 2n)], templates: [tpl(2n)], instanceId: 2n, variant });
+      expect(salvage().text()).toBe('Salvage');
+      const icon = salvage().find('svg');
+      expect(icon.exists()).toBe(true);
+      expect(icon.attributes('aria-hidden')).toBe('true');
+      wrapper!.unmount();
+    }
+    expect(source).toMatch(/PhRecycle/);
+  });
+
   it('salvages a common bag item at once', async () => {
     const { reducers } = mountInspector({ items: [inst(2n, 2n)], templates: [tpl(2n)], instanceId: 2n });
-    expect(salvage().text()).toBe('Salvage item');
+    expect(salvage().text()).toBe('Salvage');
     await salvage().trigger('click');
     expect(reducers.salvageItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 2n });
     expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
   });
 
-  it('asks first above common, focusing Keep it, and Keep it sends nothing and refocuses Salvage', async () => {
+  it('asks first above common with the warning icon, naming the yield, focusing Keep it', async () => {
+    const template = tpl(2n, { name: 'Fine Vest', rarity: 'uncommon', armorType: 'cloth' });
+    const instance = inst(2n, 2n);
+    const { reducers } = mountInspector({
+      items: [instance],
+      templates: [template],
+      instanceId: 2n,
+      outputRecipe: null,
+    });
+    await salvage().trigger('click');
+    expect(reducers.salvageItem).not.toHaveBeenCalled();
+    const confirm = wrapper!.get('.inline-confirm');
+    expect(confirm.find('.warn-icon').exists()).toBe(true);
+    const expected = previewFor(instance, template).confirmText;
+    expect(expected).toMatch(/^Salvage destroys this item\. You'll get \d+ /);
+    expect(confirm.get('.confirm-prompt').text()).toBe(expected);
+    const buttons = confirm.findAll('button');
+    expect(buttons.map((b) => b.text())).toEqual(['Salvage', 'Keep it']);
+    expect(document.activeElement).toBe(buttons[1].element);
+  });
+
+  it('Keep it and Esc send nothing and refocus the Salvage button', async () => {
     const { reducers } = mountInspector({
       items: [inst(2n, 2n)],
       templates: [tpl(2n, { name: 'Fine Vest', rarity: 'uncommon' })],
       instanceId: 2n,
     });
     await salvage().trigger('click');
-    expect(reducers.salvageItem).not.toHaveBeenCalled();
-    const confirm = wrapper!.get('.inline-confirm');
-    expect(confirm.get('.confirm-prompt').text()).toBe(
-      "Salvage Fine Vest? It breaks down into materials. This can't be undone.",
-    );
-    const buttons = confirm.findAll('button');
-    expect(buttons.map((b) => b.text())).toEqual(['Yes, salvage', 'Keep it']);
-    expect(document.activeElement).toBe(buttons[1].element);
-    await buttons[1].trigger('click');
+    await wrapper!.findAll('.inline-confirm button')[1].trigger('click');
     await nextTick();
     await nextTick();
     expect(reducers.salvageItem).not.toHaveBeenCalled();
     expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
     expect(document.activeElement).toBe(salvage().element);
+
+    await salvage().trigger('click');
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(event);
+    await nextTick();
+    await nextTick();
+    expect(event.defaultPrevented).toBe(true);
+    expect(reducers.salvageItem).not.toHaveBeenCalled();
+    expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
+    expect(document.activeElement).toBe(salvage().element);
+  });
+
+  it('omits the count while the recipe cap has not applied', async () => {
+    const template = tpl(2n, { rarity: 'rare', armorType: 'cloth' });
+    const instance = inst(2n, 2n);
+    mountInspector({ items: [instance], templates: [template], instanceId: 2n });
+    await salvage().trigger('click');
+    const text = wrapper!.get('.confirm-prompt').text();
+    expect(text).toBe(previewFor(instance, template, [], false).confirmText);
+    expect(text).not.toMatch(/\d/);
+    expect(text).toMatch(/^Salvage destroys this item\. You'll get \S/);
   });
 
   it('asks first for crafted gear the server stores as common, and for a reagent-affixed item (CR-01)', async () => {
@@ -379,9 +445,11 @@ describe('Inspector salvage', () => {
     await salvage().trigger('click');
     expect(affixed.reducers.salvageItem).not.toHaveBeenCalled();
     expect(wrapper!.find('.inline-confirm').exists()).toBe(true);
+    // The reagent chance is named in the prompt.
+    expect(wrapper!.get('.confirm-prompt').text()).toContain('maybe a reagent');
   });
 
-  it('salvages after Yes, salvage', async () => {
+  it('salvages exactly once after the confirm Salvage, never unequipping', async () => {
     const { reducers } = mountInspector({
       items: [inst(2n, 2n)],
       templates: [tpl(2n, { rarity: 'rare' })],
@@ -392,6 +460,7 @@ describe('Inspector salvage', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(reducers.salvageItem).toHaveBeenCalledTimes(1);
     expect(reducers.salvageItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 2n });
+    expect(reducers.unequipItem).not.toHaveBeenCalled();
   });
 
   it('closes only the confirmation on Escape and prevents the event', async () => {
@@ -408,50 +477,28 @@ describe('Inspector salvage', () => {
     expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
   });
 
-  it('unequips first, waits, then salvages when the ledger no longer shows it equipped', async () => {
-    const order: string[] = [];
-    const ctx: { items?: ReturnType<typeof mountInspector>['items'] } = {};
-    const unequipItem = vi.fn().mockImplementation(async () => {
-      order.push('unequip');
-      await new Promise((r) => setTimeout(r, 5));
-      ctx.items!.value = [inst(1n, 1n)];
-      order.push('unequip settled');
-    });
-    const salvageItem = vi.fn().mockImplementation(async () => {
-      order.push('salvage');
-    });
-    const setup = mountInspector({
-      items: [inst(1n, 1n, { equippedSlot: 'chest' })],
-      templates: [tpl(1n, { name: 'Worn Vest' })],
-      instanceId: 1n,
-      reducers: { unequipItem, salvageItem },
-    });
-    ctx.items = setup.items;
-    await salvage().trigger('click');
-    expect(wrapper!.get('.confirm-prompt').text()).toBe(
-      "Salvage Worn Vest? It's unequipped first, then broken down into materials. This can't be undone.",
-    );
-    await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
-    await new Promise((r) => setTimeout(r, 30));
-    expect(unequipItem).toHaveBeenCalledWith({ characterId: 7n, slot: 'chest' });
-    expect(salvageItem).toHaveBeenCalledWith({ characterId: 7n, itemInstanceId: 1n });
-    expect(order).toEqual(['unequip', 'unequip settled', 'salvage']);
-  });
+  it.each(['card', 'dock'] as const)(
+    'refuses an equipped item up front in the %s: aria-disabled, described by the reason, nothing sent (T-50-142)',
+    async (variant) => {
+      const { reducers } = mountInspector({
+        items: [inst(1n, 1n, { equippedSlot: 'chest' })],
+        templates: [tpl(1n, { rarity: 'rare' })],
+        instanceId: 1n,
+        variant,
+      });
+      expect(wrapper!.find('.action.salvage').exists()).toBe(true);
+      expect(salvage().attributes('aria-disabled')).toBe('true');
+      const reasonId = salvage().attributes('aria-describedby')!;
+      expect(wrapper!.get(`#${reasonId}`).text()).toBe("Equipped items can't be salvaged.");
+      await salvage().trigger('click');
+      expect(wrapper!.find('.inline-confirm').exists()).toBe(false);
+      expect(reducers.unequipItem).not.toHaveBeenCalled();
+      expect(reducers.salvageItem).not.toHaveBeenCalled();
+    },
+  );
 
-  it('does not salvage when the item still shows as equipped after the unequip settles', async () => {
-    const unequipItem = vi.fn().mockResolvedValue(undefined);
-    const salvageItem = vi.fn().mockResolvedValue(undefined);
-    mountInspector({
-      items: [inst(1n, 1n, { equippedSlot: 'chest' })],
-      templates: [tpl(1n)],
-      instanceId: 1n,
-      reducers: { unequipItem, salvageItem },
-    });
-    await salvage().trigger('click');
-    await wrapper!.findAll('.inline-confirm button')[0].trigger('click');
-    await new Promise((r) => setTimeout(r, 10));
-    expect(unequipItem).toHaveBeenCalledTimes(1);
-    expect(salvageItem).not.toHaveBeenCalled();
+  it('has no unequip-first flow left in the source', () => {
+    expect(source).not.toMatch(/stillEquipped/);
   });
 
   it('closes the confirmation by itself when the selected instance changes', async () => {
@@ -562,16 +609,17 @@ describe('Inspector escaping', () => {
     expect(wrapper!.text()).toContain(XSS);
   });
 
-  it('renders a markup item name in the salvage prompt as text', async () => {
+  it('renders markup in the salvage prompt as text (item name and affix name)', async () => {
     mountInspector({
       items: [inst(2n, 2n, { displayName: XSS })],
       templates: [tpl(2n, { rarity: 'rare' })],
+      affixes: [{ ...affix(1n, 2n, 'intBonus', 1n), affixName: XSS } as ItemAffix],
       instanceId: 2n,
     });
     await salvage().trigger('click');
-    const prompt = wrapper!.get('.confirm-prompt');
-    expect(prompt.find('img').exists()).toBe(false);
-    expect(prompt.text()).toContain(XSS);
+    expect(wrapper!.get('.confirm-prompt').find('img').exists()).toBe(false);
+    expect(wrapper!.find('img').exists()).toBe(false);
+    expect(wrapper!.text()).toContain(XSS);
   });
 
   it('does not use v-html anywhere in the source', () => {
