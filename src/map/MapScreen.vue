@@ -198,9 +198,8 @@ watch(
   },
 );
 
-// A region chosen in the header (or any other change of the shown region) that does not hold the
-// selection selects your place when you stand in that region, else the region's start node. Focus
-// that was on a chip moves into the graph, whose group shows the new region.
+// A change of the shown region (a header chip, the mobile Regions list, an argument) that does not
+// hold the selection selects your place when you stand in that region, else the region's start node.
 watch(shownId, (region) => {
   if (region === null) return;
   const selected = map.selectedId.value;
@@ -208,13 +207,23 @@ watch(shownId, (region) => {
   const here = currentId.value;
   const start = here !== null && currentRegionId.value === region ? here : layoutFor(region).startId;
   if (start === null) return;
-  const active = document.activeElement;
-  const fromChip = active instanceof HTMLElement && active.hasAttribute('data-region-chip');
   map.setBanner(null);
   map.select(start);
   scrollSelectedIntoView();
-  if (fromChip) surface()?.focusCurrent();
 });
+
+// A region chip chosen in the header (UI-SPEC Accessibility "Region chip chosen -> the graph group"):
+// the selection scrolls into view and focus moves into the graph, also when the chosen region already
+// held the selection or was already shown (review WR-05). Runs after the shownId watcher above, which
+// is queued first by the same choice, so the new selection is in place.
+watch(
+  () => map.regionChosen.value,
+  () => {
+    if (!canShow.value) return;
+    scrollSelectedIntoView();
+    surface()?.focusCurrent();
+  },
+);
 
 function onView(id: string): void {
   const next: MapView = id === 'list' ? 'list' : 'graph';

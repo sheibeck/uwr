@@ -49,8 +49,15 @@ export interface MapData {
   readonly shownRegionId: Readonly<Ref<bigint | null>>;
   readonly view: Readonly<Ref<MapView>>;
   readonly banner: Readonly<Ref<string | null>>;
+  /** Counts region chip choices, including a chip of the region already shown. */
+  readonly regionChosen: Readonly<Ref<number>>;
   select(id: bigint | null): void;
   showRegion(id: bigint | null): void;
+  /**
+   * A region chip was chosen: shows that region and counts the choice, so the Map screen moves
+   * focus into the graph even when the region (or the selection in it) does not change.
+   */
+  chooseRegion(id: bigint): void;
   setView(view: MapView): void;
   setBanner(text: string | null): void;
   /** NPCs at the selected place; empty while nothing is selected. */
@@ -105,8 +112,10 @@ export function createInertMap(): MapData {
     shownRegionId: constant<bigint | null>(null),
     view: constant<MapView>('graph'),
     banner: constant<string | null>(null),
+    regionChosen: constant(0),
     select() {},
     showRegion() {},
+    chooseRegion() {},
     setView() {},
     setBanner() {},
     npcsAtSelected: empty<Npc>(),

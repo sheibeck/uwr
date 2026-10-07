@@ -79,6 +79,7 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
   const shownRegionId = shallowRef<bigint | null>(null);
   const view = shallowRef<MapView>('graph');
   const banner = shallowRef<string | null>(null);
+  const regionChosen = shallowRef(0);
 
   const connected = computed(() => input.status.value === 'connected' && input.conn.value !== null);
   const characterKey = computed<bigint | null>(() => input.character.value?.id ?? null);
@@ -287,11 +288,16 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
     shownRegionId,
     view,
     banner,
+    regionChosen,
     select(id) {
       selectedId.value = id;
     },
     showRegion(id) {
       shownRegionId.value = id;
+    },
+    chooseRegion(id) {
+      shownRegionId.value = id;
+      regionChosen.value += 1;
     },
     setView(next) {
       view.value = next;

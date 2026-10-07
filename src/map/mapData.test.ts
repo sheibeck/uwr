@@ -374,6 +374,19 @@ describe('selection state', () => {
     expect(h.hub.selectedId.value).toBeNull();
   });
 
+  it('chooseRegion shows the region and counts every choice, also of the region already shown', () => {
+    const h = make();
+    expect(h.hub.regionChosen.value).toBe(0);
+    h.hub.chooseRegion(2n);
+    expect(h.hub.shownRegionId.value).toBe(2n);
+    expect(h.hub.regionChosen.value).toBe(1);
+    h.hub.chooseRegion(2n);
+    expect(h.hub.shownRegionId.value).toBe(2n);
+    expect(h.hub.regionChosen.value).toBe(2);
+    h.hub.showRegion(1n);
+    expect(h.hub.regionChosen.value).toBe(2);
+  });
+
   it('dispose stops the scope and resets every keyed binding', () => {
     const h = make();
     h.connect();

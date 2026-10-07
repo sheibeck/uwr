@@ -9,8 +9,8 @@ import { aboutMinutes, formatClock } from './travelTimer';
 
 // The Map header meta (51-UI-SPEC "Region chips and the Region travel pill"), rendered by the frame
 // in the drawer and sheet #meta slot. Desktop: one button chip per known region (yours first, then by
-// name, then id) with its level range; choosing one only asks the hub to show that region, and the
-// Map screen picks the selection and the focus. Mobile: the shown region's name as text (the chips
+// name, then id) with its level range; choosing one only asks the hub to show that region (chooseRegion,
+// which also counts the choice), and the Map screen picks the selection and the focus. Mobile: the shown region's name as text (the chips
 // become the Regions listbox of plan 51-11).
 //
 // There is no level lock anywhere. While your own region travel timer runs, every region but the one
@@ -76,7 +76,7 @@ function ariaLabel(chip: RegionChip): string {
         :aria-pressed="chip.isShown ? 'true' : 'false'"
         :aria-label="ariaLabel(chip)"
         data-region-chip
-        @click="map.showRegion(chip.regionId)"
+        @click="map.chooseRegion(chip.regionId)"
       >
         <PhMapPin v-if="chip.isYours && !chip.isShown" class="chip-icon" :size="12" aria-hidden="true" />
         <PhLockSimple v-if="locked(chip)" class="chip-icon" :size="12" aria-hidden="true" />

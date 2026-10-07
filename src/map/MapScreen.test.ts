@@ -111,6 +111,11 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
   const setBanner = vi.fn((text: string | null) => {
     banner.value = text;
   });
+  const regionChosen = ref(0);
+  const chooseRegion = vi.fn((id: bigint) => {
+    shownRegionId.value = id;
+    regionChosen.value += 1;
+  });
 
   const map = {
     ...createInertMap(),
@@ -124,6 +129,8 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
     banner,
     select,
     showRegion,
+    chooseRegion,
+    regionChosen,
     setView,
     setBanner,
   } as unknown as MapData;
@@ -539,7 +546,7 @@ describe('MapScreen: region chips choose the selection', () => {
     expect(h.banner.value).toBeNull();
   });
 
-  it('moves focus to the graph group current node when the focus was on a chip in the header', async () => {
+  it('a chip choice moves focus to the graph group current node', async () => {
     const h = harness();
     const chip = document.createElement('button');
     chip.setAttribute('data-region-chip', '');
@@ -547,7 +554,7 @@ describe('MapScreen: region chips choose the selection', () => {
     await mountScreen(h);
     chip.focus();
     expect(document.activeElement).toBe(chip);
-    h.map.showRegion(2n);
+    h.map.chooseRegion(2n);
     await nextTick();
     await nextTick();
     await nextTick();
@@ -555,6 +562,44 @@ describe('MapScreen: region chips choose the selection', () => {
     expect(active.tagName).toBe('BUTTON');
     expect(active.classList.contains('node')).toBe(true);
     expect(active.closest('[role="group"]')).not.toBeNull();
+    expect(active.dataset.nodeId).toBe('20');
+  });
+
+  it('a chip whose region already holds the selection still moves focus and scrolls (review WR-05)', async () => {
+    const h = harness({ locationId: 11n });
+    const w = await mountScreen(h);
+    // the gate selects the far place in region 2 while region 1 is shown
+    await w.get('button.gate').trigger('click');
+    await nextTick();
+    expect(h.selectedId.value).toBe(20n);
+    const chip = document.createElement('button');
+    document.body.appendChild(chip);
+    chip.focus();
+    scrolled.length = 0;
+    h.map.chooseRegion(2n);
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(h.selectedId.value).toBe(20n);
+    const active = document.activeElement as HTMLElement;
+    expect(active.classList.contains('node')).toBe(true);
+    expect(active.dataset.nodeId).toBe('20');
+    expect(scrolled.some((element) => element.dataset.nodeId === '20')).toBe(true);
+  });
+
+  it('choosing the chip of the region already shown moves focus into the graph (review WR-05)', async () => {
+    const h = harness();
+    await mountScreen(h);
+    const chip = document.createElement('button');
+    document.body.appendChild(chip);
+    chip.focus();
+    h.map.chooseRegion(1n);
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    const active = document.activeElement as HTMLElement;
+    expect(active.classList.contains('node')).toBe(true);
+    expect(active.dataset.nodeId).toBe('10');
   });
 
   it('leaves focus alone when it was not on a chip', async () => {

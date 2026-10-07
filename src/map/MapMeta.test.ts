@@ -78,6 +78,9 @@ function build(over: Options = {}) {
   const showRegion = vi.fn((id: bigint | null) => {
     shownRegionId.value = id;
   });
+  const chooseRegion = vi.fn((id: bigint) => {
+    shownRegionId.value = id;
+  });
   const map = {
     ...createInertMap(),
     ready,
@@ -85,6 +88,7 @@ function build(over: Options = {}) {
     selfTimer: timer,
     shownRegionId,
     showRegion,
+    chooseRegion,
   } as unknown as MapData;
   const game = {
     ...createInertGame(),
@@ -102,7 +106,7 @@ function build(over: Options = {}) {
     attachTo: document.body,
     global: { provide: { [GAME_KEY as symbol]: game, [FRAME_KEY as symbol]: frame, [MAP_KEY as symbol]: map } },
   });
-  return { w: wrapper, timer, ready, showRegion, shownRegionId, character, desktop };
+  return { w: wrapper, timer, ready, showRegion, chooseRegion, shownRegionId, character, desktop };
 }
 
 const chips = (w: VueWrapper) => w.findAll('button.region-chip');
@@ -165,9 +169,16 @@ describe('MapMeta desktop chips', () => {
   });
 
   it('choosing a chip shows that region and nothing else', async () => {
-    const { w, showRegion } = build();
+    const { w, chooseRegion, showRegion } = build();
     await chips(w)[1].trigger('click');
-    expect(showRegion).toHaveBeenCalledWith(2n);
+    expect(chooseRegion).toHaveBeenCalledWith(2n);
+    expect(showRegion).not.toHaveBeenCalled();
+  });
+
+  it('choosing the chip of the region already shown is still a choice (review WR-05)', async () => {
+    const { w, chooseRegion } = build({ shown: 2n });
+    await chips(w)[1].trigger('click');
+    expect(chooseRegion).toHaveBeenCalledWith(2n);
   });
 
   it('with no timer running nothing is locked, whatever the level difference', () => {
@@ -178,7 +189,7 @@ describe('MapMeta desktop chips', () => {
   });
 
   it('while the timer runs every region but your current one shows the lock and the clock, and stays operable', async () => {
-    const { w, timer, showRegion } = build({ third: true });
+    const { w, timer, chooseRegion } = build({ third: true });
     timer.value = { running: true, secondsLeft: 192 };
     await nextTick();
     const list = chips(w);
@@ -197,7 +208,7 @@ describe('MapMeta desktop chips', () => {
     const salt = list.find((c) => c.get('.chip-name').text() === 'Saltmarsh')!;
     expect(salt.attributes('aria-label')).toBe('Saltmarsh, Lv 4, region travel locked for about 4 minutes');
     await salt.trigger('click');
-    expect(showRegion).toHaveBeenCalledWith(2n);
+    expect(chooseRegion).toHaveBeenCalledWith(2n);
   });
 
   it('the timer ending unlocks every chip at once', async () => {
