@@ -17,9 +17,16 @@
 // Rows that point at the passage are classified by PASSAGE_LOCATION_COLUMNS: re-homed to the
 // lowest-id own-side neighbour (they are still meaningful there), deleted (they only make sense
 // at the passage), kept (history), handled by the collapse itself, or ignored (transient).
+//
+// Offline characters would hold a passage open forever, so a guarded periodic sweep (the
+// sweep_passages scheduled reducer) returns each offline character standing in a passage to its
+// own side and then collapses the passage if it is empty. The first tick is also the one-time
+// cleanup of passages that existed before collapse did.
 // ============================================================================
 
 import { areLocationsConnected, connectLocations } from './location';
+import { onlineCharacterIds } from './online';
+import { markLocationVisited, visitedRowFor } from './visited';
 
 /** The passage sweep runs every 5 minutes (the sweep_inactivity interval). */
 export const PASSAGE_SWEEP_INTERVAL_MICROS = 300_000_000n;
@@ -226,4 +233,34 @@ export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
 
   ctx.db.location.id.delete(passageId);
   return true;
+}
+
+/**
+ * One sweep pass. For each passage in id order that has an own side: every offline character in it
+ * (no player row has it as activeCharacterId) is moved silently, to the place it arrived from when
+ * that place is an own-side neighbour of the passage, else to the lowest-id own-side neighbour,
+ * never across the border; the new place is marked visited with no origin. Then the passage
+ * collapses if it is empty. Online characters are never moved and keep the passage open.
+ */
+export function sweepPassages(ctx: any): { moved: number; collapsed: number } {
+  const online = onlineCharacterIds(ctx);
+  const found = [...ctx.db.location.iter()].filter((l: any) => l.terrainType === 'passage');
+  found.sort(byIdAsc);
+  let moved = 0;
+  let collapsed = 0;
+  for (const passage of found) {
+    const { own } = passageSides(ctx, passage);
+    if (own.length === 0) continue;
+    const occupants = [...ctx.db.character.by_location.filter(passage.id)].sort(byIdAsc);
+    for (const occupant of occupants) {
+      if (online.has(occupant.id)) continue;
+      const cameFrom = visitedRowFor(ctx, occupant.id, passage.id)?.fromLocationId;
+      const target = own.find((l: any) => l.id === cameFrom) ?? own[0];
+      ctx.db.character.id.update({ ...occupant, locationId: target.id });
+      markLocationVisited(ctx, occupant.id, target.id);
+      moved += 1;
+    }
+    if (collapsePassageIfEmpty(ctx, passage.id)) collapsed += 1;
+  }
+  return { moved, collapsed };
 }

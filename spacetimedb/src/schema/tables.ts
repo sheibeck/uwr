@@ -2343,6 +2343,16 @@ export const VisitedLocation = table(
   }
 );
 
+// Private scheduled tick that sweeps passages (plan 51-03): offline characters in a passage go back
+// to their own side and an empty passage collapses. One pending row at a time.
+export const PassageSweepTick = table(
+  { name: 'passage_sweep_tick', scheduled: () => scheduledReducers['sweep_passages'] },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  }
+);
+
 const spacetimedb = schema({
   player: Player,
   user: User,
@@ -2468,6 +2478,7 @@ const spacetimedb = schema({
   vendor_restock_tick: VendorRestockTick,
   action_result: ActionResult,
   visited_location: VisitedLocation,
+  passage_sweep_tick: PassageSweepTick,
 });
 export default spacetimedb;
 export { spacetimedb };

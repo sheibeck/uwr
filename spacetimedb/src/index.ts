@@ -29,7 +29,9 @@ import spacetimedb, {
   PendingSkill,
   PendingRenownPerk,
   VendorRestockTick,
+  PassageSweepTick,
 } from './schema/tables';
+import { PASSAGE_SWEEP_INTERVAL_MICROS, sweepPassages } from './helpers/passages';
 import {
   VENDOR_RESTOCK_BATCH,
   VENDOR_RESTOCK_CONTINUE_MICROS,
@@ -406,6 +408,27 @@ scheduledReducers['restock_vendors'] = spacetimedb.reducer('restock_vendors', { 
   });
 });
 
+// Passage sweep: a private scheduled tick every 5 minutes returns offline characters standing in an
+// explored passage to their own side and collapses empty passages into border crossings. The first
+// tick is also the one-time cleanup of passages that existed before this phase. A tick due now is
+// armed in init and on connect when none is pending, because init does not run again on a republish.
+function ensurePassageSweepScheduled(ctx: any): void {
+  if ([...ctx.db.passage_sweep_tick.iter()].length > 0) return;
+  ctx.db.passage_sweep_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch),
+  });
+}
+
+scheduledReducers['sweep_passages'] = spacetimedb.reducer('sweep_passages', { arg: PassageSweepTick.rowType }, (ctx) => {
+  if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
+  ctx.db.passage_sweep_tick.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + PASSAGE_SWEEP_INTERVAL_MICROS),
+  });
+  sweepPassages(ctx);
+});
+
 spacetimedb.reducer('set_app_version',{ version: t.string() }, (ctx, { version }) => {
   requireAdmin(ctx);
   const existing = [...ctx.db.app_version.iter()][0];
@@ -661,6 +684,7 @@ spacetimedb.init((ctx) => {
   ensureLlmAdminState(ctx);
   initScheduledTables(ctx);
   ensureVendorRestockScheduled(ctx);
+  ensurePassageSweepScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -686,6 +710,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureInactivityTickScheduled(ctx);
   ensureLlmSweepScheduled(ctx);
   ensureVendorRestockScheduled(ctx);
+  ensurePassageSweepScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
