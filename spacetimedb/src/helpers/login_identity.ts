@@ -12,7 +12,9 @@
  * an argument that differs from the token's email.
  *
  * Admin identities (data/admin.ts, which includes the CLI identity) may still supply the email,
- * so the live-proof scripts (scripts/llm/drills.live.ts, prove-live.live.ts) keep signing in.
+ * but only a proof address on PROOF_LOGIN_EMAIL_DOMAIN (IN-07), so the live-proof scripts
+ * (scripts/llm/drills.live.ts, prove-live.live.ts) keep signing in while an admin token is not a
+ * master key to every player's account.
  *
  * ROLLBACK: TOKEN_EMAIL_CHECK is the owner's one-line switch. If real sign-in is refused, set it
  * to false and republish locally; login_email then trusts the argument exactly as before (no
@@ -20,7 +22,7 @@
  *
  * Imports nothing from spacetimedb, so it is plain logic and unit-testable.
  */
-import { SPACETIMEAUTH_CLIENT_IDS, SPACETIMEAUTH_ISSUER } from '../data/auth_config';
+import { PROOF_LOGIN_EMAIL_DOMAIN, SPACETIMEAUTH_CLIENT_IDS, SPACETIMEAUTH_ISSUER } from '../data/auth_config';
 
 export const TOKEN_EMAIL_CHECK = true;
 
@@ -94,10 +96,14 @@ export function verifiedEmailFromAuth(senderAuth: unknown): string | null {
   return readTokenEmail(senderAuth).email;
 }
 
+/** A live-proof address: anything @PROOF_LOGIN_EMAIL_DOMAIN (already normalised). */
+export const isProofEmail = (email: string): boolean => email.endsWith('@' + PROOF_LOGIN_EMAIL_DOMAIN);
+
 /**
  * Which email login_email links. An argument without '@' is always invalid. With the switch off
- * (rollback) or for an admin identity, the normalised argument is used. Otherwise the token must
- * carry an email and the argument must equal it (ignoring case and surrounding spaces).
+ * (rollback), or for an admin identity supplying a proof address, the normalised argument is used.
+ * Otherwise the token must carry an email and the argument must equal it (ignoring case and
+ * surrounding spaces); an admin is no exception.
  */
 export function resolveLoginEmail(input: {
   argument: string;
@@ -107,7 +113,8 @@ export function resolveLoginEmail(input: {
 }): LoginEmailResult {
   const argument = normalise(input.argument);
   if (!argument || !argument.includes('@')) return { ok: false, reason: 'invalid' };
-  if (!input.enforce || input.isAdmin) return { ok: true, email: argument };
+  if (!input.enforce) return { ok: true, email: argument };
+  if (input.isAdmin && isProofEmail(argument)) return { ok: true, email: argument };
   const claimed = input.claimed == null ? null : claimString(input.claimed);
   if (!claimed) return { ok: false, reason: 'no_claim' };
   if (claimed !== argument) return { ok: false, reason: 'mismatch' };

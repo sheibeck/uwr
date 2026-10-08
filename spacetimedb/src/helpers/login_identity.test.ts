@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 // @ts-ignore node builtins are not in the server tsconfig types
 import { fileURLToPath } from 'node:url';
-import { verifiedEmailFromAuth, readTokenEmail, resolveLoginEmail } from './login_identity';
+import { verifiedEmailFromAuth, readTokenEmail, resolveLoginEmail, isProofEmail } from './login_identity';
 import { SPACETIMEAUTH_CLIENT_IDS, SPACETIMEAUTH_ISSUER } from '../data/auth_config';
 
 /** A SpacetimeAuth id token for our client: the pinned issuer and audience. */
@@ -131,10 +131,37 @@ describe('resolveLoginEmail', () => {
     ).toEqual({ ok: true, email: 'bob@example.com' });
   });
 
-  it('lets an admin identity supply the email', () => {
-    expect(resolveLoginEmail({ argument: 'Proof@Example.com', claimed: null, isAdmin: true, enforce: true })).toEqual({
+  it('lets an admin identity supply a live-proof address (@example.test)', () => {
+    expect(resolveLoginEmail({ argument: 'Proof-1@Example.TEST', claimed: null, isAdmin: true, enforce: true })).toEqual({
       ok: true,
-      email: 'proof@example.com',
+      email: 'proof-1@example.test',
+    });
+  });
+
+  it('gives an admin no bypass for any other email (IN-07)', () => {
+    expect(resolveLoginEmail({ argument: 'victim@example.com', claimed: null, isAdmin: true, enforce: true })).toEqual({
+      ok: false,
+      reason: 'no_claim',
+    });
+    expect(
+      resolveLoginEmail({ argument: 'victim@example.com', claimed: 'owner@example.com', isAdmin: true, enforce: true }),
+    ).toEqual({ ok: false, reason: 'mismatch' });
+    expect(resolveLoginEmail({ argument: 'x@notexample.test.com', claimed: null, isAdmin: true, enforce: true }).ok).toBe(false);
+    expect(
+      resolveLoginEmail({ argument: 'owner@example.com', claimed: 'owner@example.com', isAdmin: true, enforce: true }),
+    ).toEqual({ ok: true, email: 'owner@example.com' });
+  });
+
+  it('the live-proof scripts send an address the bypass accepts', async () => {
+    // @ts-ignore plain .mjs script module without types
+    const { proofEmail } = await import('../../../scripts/llm/proof_rules.mjs');
+    expect(isProofEmail(proofEmail(1_700_000_000_000).toLowerCase())).toBe(true);
+  });
+
+  it('gives a non-admin no bypass for a proof address', () => {
+    expect(resolveLoginEmail({ argument: 'proof-1@example.test', claimed: null, isAdmin: false, enforce: true })).toEqual({
+      ok: false,
+      reason: 'no_claim',
     });
   });
 

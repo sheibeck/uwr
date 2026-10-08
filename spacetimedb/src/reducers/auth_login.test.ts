@@ -160,12 +160,19 @@ describe('login_email takes the email from the sign-in token (CR-01)', () => {
     expect(users(ctx)).toHaveLength(0);
   });
 
-  it('lets an admin identity (the CLI) supply the email without a token', () => {
+  it('lets an admin identity (the CLI) supply a live-proof email without a token', () => {
     expect(ADMIN_IDENTITIES.has(CLI_ADMIN_HEX)).toBe(true);
     const ctx = newCtx(noJwt, cliAdmin);
-    loginEmail(ctx, { email: 'proof@example.com' });
+    loginEmail(ctx, { email: 'proof-1700000000000@example.test' });
     expect(users(ctx)).toHaveLength(1);
-    expect(users(ctx)[0].email).toBe('proof@example.com');
+    expect(users(ctx)[0].email).toBe('proof-1700000000000@example.test');
     expect(playerOf(ctx, cliAdmin).userId).toBe(users(ctx)[0].id);
+  });
+
+  it("refuses an admin identity linking a real player's email without a matching token (IN-07)", () => {
+    const ctx = newCtx(noJwt, cliAdmin, { user: [{ id: 9n, email: 'victim@example.com', createdAt: at(T0) }] });
+    expect(() => loginEmail(ctx, { email: 'victim@example.com' })).toThrow('Sign-in token carries no email.');
+    expect(users(ctx)).toHaveLength(1);
+    expect(playerOf(ctx, cliAdmin)).toEqual(playerRow(cliAdmin));
   });
 });

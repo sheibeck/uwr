@@ -15,3 +15,11 @@ export const SPACETIMEAUTH_ISSUER = 'https://auth.spacetimedb.com/oidc';
 
 /** Client ids whose id tokens may sign a player in (the token's `aud` must contain one). */
 export const SPACETIMEAUTH_CLIENT_IDS: readonly string[] = ['client_032PmGBhDqP6SjkKuAORIQ'];
+
+/**
+ * The email domain the live-proof scripts sign in with (scripts/llm/proof_rules.mjs proofEmail:
+ * proof-{n}@example.test). The admin bypass in login_email covers only this domain (IN-07), so an
+ * admin identity, including the CLI token on the dev machine, cannot link itself to a real
+ * player's email. An admin signing in with a real email goes through the normal token check.
+ */
+export const PROOF_LOGIN_EMAIL_DOMAIN = 'example.test';
