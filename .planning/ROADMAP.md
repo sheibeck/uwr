@@ -2470,5 +2470,21 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 
+### Phase 999.31: Require a verified email at sign-in (BACKLOG)
+
+**Source:** WR-04 from the Phase 51.1 code review. Owner, 2026-10-08: "No, we don't need to verify the email address at this point. can we backlog that?" It is no longer a maincloud blocker.
+
+**Goal:** Sign-in only links a character to an email the provider has verified. Today `login_email` refuses a token whose `email_verified` is false, but a token without the `email_verified` claim still passes (`spacetimedb/src/helpers/login_identity.ts`). The issuer and audience pins limit this to tokens SpacetimeAuth issues for our own client.
+  - Record whether SpacetimeAuth's id token carries `email_verified`.
+  - If it does, require it and add a test for a token without the claim.
+  - If it does not, record in `spacetimedb/src/data/auth_config.ts` which sign-in methods the client allows, and confirm that each one verifies the address.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
-*Last updated: 2026-10-08 after adding the updated Map mock and owner decisions to backlog 999.28*
+*Last updated: 2026-10-08 after adding backlog 999.31 (verified email at sign-in, from WR-04; owner)*
