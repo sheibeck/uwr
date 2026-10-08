@@ -1,15 +1,17 @@
 /**
- * Phase 51.3 Plan 07 (SC2, SC5): the REAL finish_gather scheduled reducer, captured from index.ts on
- * the strict mock db. The base yield (2 to 6, from the clock and the node id) is multiplied by the
- * region's effective gather rate with a floor of 1, before the perk bonuses; a modifier reagent node
- * still yields exactly 1 at every dial; a region override replaces the global value; a missing dial
- * row reads as 100 percent (today's yield).
+ * Phase 51.3 Plan 07 (SC2, SC5), review A WR-06: the REAL finish_gather scheduled reducer, captured
+ * from index.ts on the strict mock db. CONTEXT Area 1: "a dial change takes effect on the next roll
+ * only. Loot already dropped and nodes already found keep their rolls." The gather dial therefore
+ * applies when a node is spawned (helpers/location.ts spawnResourceNode stores the scaled quantity),
+ * and finish_gather yields the node's stored quantity before the perk bonuses, whatever the dial says
+ * by then. A modifier reagent node still yields exactly 1; a node with no stored quantity falls back
+ * to today's 2 to 6 roll.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import { MODULE, startSeed } from '../helpers/combat_fight_fixture';
-import { DEFAULT_DIALS, gatherYield } from '../data/economy_rules';
+import { DEFAULT_DIALS } from '../data/economy_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -45,6 +47,7 @@ function newCtx(opts: {
   nodeTemplate?: bigint;
   dials?: Record<string, any> | null;
   regionDial?: Record<string, any> | null;
+  quantity?: bigint;
 }) {
   const nodeName = opts.nodeName ?? 'Stone';
   return createMockCtx({
@@ -60,7 +63,7 @@ function newCtx(opts: {
           itemTemplateId: opts.nodeTemplate ?? STONE,
           name: nodeName,
           timeOfDay: 'any',
-          quantity: 4n,
+          quantity: opts.quantity ?? 4n,
           state: 'harvesting',
           lockedByCharacterId: 1n,
           respawnAtMicros: undefined,
@@ -92,66 +95,29 @@ const bagCount = (ctx: any, templateId: bigint): bigint =>
 
 const run = (ctx: any) => finish(ctx, { arg: { scheduledId: 1n, gatherId: 1n } });
 
-describe('finish_gather scales the base yield by the gather dial', () => {
-  it('at 100 percent yields exactly today\'s quantity', () => {
-    for (const want of [2n, 3n, 4n, 5n, 6n]) {
-      const ts = tsForBase(want);
-      const ctx = newCtx({ ts, dials: { gatherRatePct: 100n } });
-      run(ctx);
-      expect(bagCount(ctx, STONE)).toBe(want);
+describe('finish_gather yields the quantity the node was found with', () => {
+  it('yields the stored quantity at every dial: a change after the node was found never alters it', () => {
+    for (const quantity of [1n, 3n, 9n, 18n]) {
+      for (const dial of [{ gatherRatePct: 50n }, { gatherRatePct: 100n }, { gatherRatePct: 300n }, null]) {
+        const ctx = newCtx({ ts: tsForBase(6n), dials: dial, quantity });
+        run(ctx);
+        expect(bagCount(ctx, STONE)).toBe(quantity);
+      }
     }
   });
 
-  it('at 50 percent yields half, never below 1', () => {
-    const six = newCtx({ ts: tsForBase(6n), dials: { gatherRatePct: 50n } });
-    run(six);
-    expect(bagCount(six, STONE)).toBe(3n);
-    const two = newCtx({ ts: tsForBase(2n), dials: { gatherRatePct: 50n } });
-    run(two);
-    expect(bagCount(two, STONE)).toBe(1n);
-    const three = newCtx({ ts: tsForBase(3n), dials: { gatherRatePct: 50n } });
-    run(three);
-    expect(bagCount(three, STONE)).toBe(gatherYield(3n, 50n));
-    expect(bagCount(three, STONE)).toBe(1n);
-  });
-
-  it('at 300 percent yields three times', () => {
-    for (const want of [2n, 4n, 6n]) {
-      const ctx = newCtx({ ts: tsForBase(want), dials: { gatherRatePct: 300n } });
-      run(ctx);
-      expect(bagCount(ctx, STONE)).toBe(want * 3n);
-    }
-  });
-
-  it('a region override applies over the global value', () => {
-    const ts = tsForBase(4n);
-    const raised = newCtx({ ts, dials: { gatherRatePct: 100n }, regionDial: { gatherRatePct: 200n } });
-    run(raised);
-    expect(bagCount(raised, STONE)).toBe(8n);
-    const lowered = newCtx({ ts, dials: { gatherRatePct: 300n }, regionDial: { gatherRatePct: 50n } });
-    run(lowered);
-    expect(bagCount(lowered, STONE)).toBe(2n);
-  });
-
-  it('a region row that leaves gatherRatePct unset inherits the global value', () => {
-    const ctx = newCtx({ ts: tsForBase(4n), dials: { gatherRatePct: 300n }, regionDial: { dropRatePct: 10n } });
-    run(ctx);
-    expect(bagCount(ctx, STONE)).toBe(12n);
-  });
-
-  it('a missing economy_dials row reads as 100 percent', () => {
-    const ctx = newCtx({ ts: tsForBase(5n), dials: null });
+  it('a region override set after the node was found changes nothing either', () => {
+    const ctx = newCtx({ ts: tsForBase(4n), dials: { gatherRatePct: 100n }, regionDial: { gatherRatePct: 300n }, quantity: 5n });
     run(ctx);
     expect(bagCount(ctx, STONE)).toBe(5n);
   });
 
-  it('clamps an out-of-range stored dial to the 50 to 300 window', () => {
-    const wild = newCtx({ ts: tsForBase(6n), dials: { gatherRatePct: 100000n } });
-    run(wild);
-    expect(bagCount(wild, STONE)).toBe(18n);
-    const zero = newCtx({ ts: tsForBase(6n), dials: { gatherRatePct: 0n } });
-    run(zero);
-    expect(bagCount(zero, STONE)).toBe(3n);
+  it('a node with no stored quantity falls back to the 2 to 6 roll, without the dial', () => {
+    for (const want of [2n, 4n, 6n]) {
+      const ctx = newCtx({ ts: tsForBase(want), dials: { gatherRatePct: 300n }, quantity: 0n });
+      run(ctx);
+      expect(bagCount(ctx, STONE)).toBe(want);
+    }
   });
 });
 

@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx } from './test-utils';
+import { DEFAULT_DIALS, gatherYield } from '../data/economy_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -167,6 +168,38 @@ describe('spawnResourceNode', () => {
     seed.economy_item_dial = ids.map((id: bigint) => ({ itemTemplateId: id, dropRatePct: 0n }));
     const ctx = ctxFor(seed);
     expect(location.spawnResourceNode(ctx, 10n, undefined, 0n)).toBeUndefined();
+  });
+
+  // Review A WR-06: the gather dial applies when the node is found and is stored on it.
+  it('stores the quantity scaled by the gather dial at spawn', () => {
+    const plain = ctxFor(world());
+    const seed = world();
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, gatherRatePct: 300n }];
+    const tripled = ctxFor(seed);
+    let compared = 0;
+    for (let offset = 0n; offset < 60n; offset += 1n) {
+      const a = location.spawnResourceNode(plain, 10n, undefined, offset);
+      const b = location.spawnResourceNode(tripled, 10n, undefined, offset);
+      expect(b.itemTemplateId).toBe(a.itemTemplateId);
+      expect(a.quantity >= 2n && a.quantity <= 6n).toBe(true);
+      expect(b.quantity).toBe(gatherYield(a.quantity, 300n));
+      compared += 1;
+    }
+    expect(compared).toBe(60);
+  });
+
+  it('a region override of the gather dial applies at spawn, never below 1', () => {
+    const seed = world();
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, gatherRatePct: 300n }];
+    seed.economy_region_dial = [{ regionId: 1n, gatherRatePct: 50n }];
+    const ctx = ctxFor(seed);
+    const plain = ctxFor(world());
+    for (let offset = 0n; offset < 30n; offset += 1n) {
+      const a = location.spawnResourceNode(plain, 10n, undefined, offset);
+      const b = location.spawnResourceNode(ctx, 10n, undefined, offset);
+      expect(b.quantity).toBe(gatherYield(a.quantity, 50n));
+      expect(b.quantity >= 1n).toBe(true);
+    }
   });
 
   it('at a region-2 swamp location only region 2 gatherables join the pool', () => {

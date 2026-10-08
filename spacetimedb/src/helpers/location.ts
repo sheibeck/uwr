@@ -2,8 +2,8 @@ import { SenderError } from 'spacetimedb/server';
 import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { regionalGatherEntries } from './regional_gather';
-import { loadItemPins } from './economy_state';
-import { pinPct, scaleWeights } from '../data/economy_rules';
+import { loadEffectiveDials, loadItemPins } from './economy_state';
+import { gatherYield, pinPct, scaleWeights } from '../data/economy_rules';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 import { placeLevelBand, placeSpawnLevel, effectiveEnemyLevel } from '../data/enemy_rules';
@@ -210,7 +210,12 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
   const minQty = 2n;
   const maxQty = 6n;
   const qtyRange = maxQty - minQty + 1n;
-  const quantity = isModifierReagent ? 1n : minQty + (quantitySeed % qtyRange);
+  // The gather dial (global, or the region's override) applies when the node is found, and the scaled
+  // quantity is stored on it (review A WR-06, CONTEXT Area 1: "nodes already found keep their rolls"),
+  // so a later dial change never alters a node already found. Modifier reagents stay 1.
+  const quantity = isModifierReagent
+    ? 1n
+    : gatherYield(minQty + (quantitySeed % qtyRange), loadEffectiveDials(ctx, location.regionId).gatherRatePct);
   return ctx.db.resource_node.insert({
     id: 0n,
     locationId,
