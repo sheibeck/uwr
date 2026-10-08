@@ -24,4 +24,6 @@ export default __t.row({
   req3Count: __t.option(__t.u64()).name("req_3_count"),
   recipeType: __t.option(__t.string()).name("recipe_type"),
   materialType: __t.option(__t.string()).name("material_type"),
+  req4TemplateId: __t.u64().name("req_4_template_id"),
+  req4Count: __t.u64().name("req_4_count"),
 });

@@ -476,6 +476,51 @@ export const DisconnectLogoutTick = __t.object("DisconnectLogoutTick", {
 });
 export type DisconnectLogoutTick = __Infer<typeof DisconnectLogoutTick>;
 
+export const EconomyDials = __t.object("EconomyDials", {
+  id: __t.u64(),
+  rarityShift: __t.i64(),
+  dropRatePct: __t.u64(),
+  goldPct: __t.u64(),
+  gatherRatePct: __t.u64(),
+  bossRarityBonus: __t.u64(),
+  tierCommonPct: __t.u64(),
+  tierUncommonPct: __t.u64(),
+  tierRarePct: __t.u64(),
+  tierEpicPct: __t.u64(),
+  tierLegendaryPct: __t.u64(),
+  aiEnabled: __t.bool(),
+});
+export type EconomyDials = __Infer<typeof EconomyDials>;
+
+export const EconomyItem = __t.object("EconomyItem", {
+  itemTemplateId: __t.u64(),
+  regionId: __t.u64(),
+  role: __t.string(),
+  slotKey: __t.string(),
+  kind: __t.string(),
+  rarity: __t.string(),
+  terrain: __t.string(),
+  timeOfDay: __t.string(),
+  enemyTemplateId: __t.u64(),
+});
+export type EconomyItem = __Infer<typeof EconomyItem>;
+
+export const EconomyItemDial = __t.object("EconomyItemDial", {
+  itemTemplateId: __t.u64(),
+  dropRatePct: __t.u64(),
+});
+export type EconomyItemDial = __Infer<typeof EconomyItemDial>;
+
+export const EconomyRegionDial = __t.object("EconomyRegionDial", {
+  regionId: __t.u64(),
+  rarityShift: __t.option(__t.i64()),
+  dropRatePct: __t.option(__t.u64()),
+  goldPct: __t.option(__t.u64()),
+  gatherRatePct: __t.option(__t.u64()),
+  bossRarityBonus: __t.option(__t.u64()),
+});
+export type EconomyRegionDial = __Infer<typeof EconomyRegionDial>;
+
 export const EffectTick = __t.object("EffectTick", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
@@ -493,6 +538,16 @@ export const EnemyAbility = __t.object("EnemyAbility", {
   targetRule: __t.string(),
 });
 export type EnemyAbility = __Infer<typeof EnemyAbility>;
+
+export const EnemyLootEntry = __t.object("EnemyLootEntry", {
+  id: __t.u64(),
+  enemyTemplateId: __t.u64(),
+  regionId: __t.u64(),
+  itemTemplateId: __t.u64(),
+  role: __t.string(),
+  weight: __t.u64(),
+});
+export type EnemyLootEntry = __Infer<typeof EnemyLootEntry>;
 
 export const EnemyRespawnTick = __t.object("EnemyRespawnTick", {
   scheduledId: __t.u64(),
@@ -1355,6 +1410,8 @@ export const RecipeTemplate = __t.object("RecipeTemplate", {
   req3Count: __t.option(__t.u64()),
   recipeType: __t.option(__t.string()),
   materialType: __t.option(__t.string()),
+  req4TemplateId: __t.u64(),
+  req4Count: __t.u64(),
 });
 export type RecipeTemplate = __Infer<typeof RecipeTemplate>;
 
@@ -1372,6 +1429,26 @@ export const Region = __t.object("Region", {
   starterForRace: __t.option(__t.string()),
 });
 export type Region = __Infer<typeof Region>;
+
+export const RegionEconomy = __t.object("RegionEconomy", {
+  regionId: __t.u64(),
+  status: __t.string(),
+  jobId: __t.u64(),
+  otherRegionIds: __t.string(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type RegionEconomy = __Infer<typeof RegionEconomy>;
+
+export const RegionRecipe = __t.object("RegionRecipe", {
+  recipeTemplateId: __t.u64(),
+  regionId: __t.u64(),
+  tier: __t.string(),
+  learnBy: __t.string(),
+  scrollTemplateId: __t.u64(),
+  foreignRegionIds: __t.string(),
+});
+export type RegionRecipe = __Infer<typeof RegionRecipe>;
 
 export const Renown = __t.object("Renown", {
   id: __t.u64(),
