@@ -35,6 +35,8 @@ function character(id: bigint, name: string, over: Record<string, unknown> = {})
   return {
     id,
     name,
+    // PlayerMenu's header reads race (51.1); the member cards mount a menu once your row exists.
+    race: 'Human',
     className: 'Ranger',
     level: 4n,
     hp: 95n,
@@ -175,8 +177,9 @@ describe('PartyBlock in a party', () => {
     expect(known.get('.member-name').text()).toBe('Bo');
   });
 
-  it('keeps the Invite button visible and working inside a party', async () => {
-    const { w, prefill } = mountBlock(PARTY);
+  it('keeps the Invite button visible and working inside a party you lead', async () => {
+    // 51.1: a member who is not the leader sees Invite disabled (see the out of combat block below).
+    const { w, prefill } = mountBlock({ ...PARTY, group: { id: 1n, leaderCharacterId: 1n } });
     await w.get('button.invite').trigger('click');
     expect(prefill).toHaveBeenCalledWith('invite ');
   });
@@ -356,7 +359,8 @@ describe('PartyBlock in combat (ally targeting)', () => {
       expect(card.attributes('aria-pressed')).toBeUndefined();
     }
     expect(w.find('.hint').exists()).toBe(false);
-    expect(w.get('button.invite').text()).toBe('Invite');
+    // You are a member here, so 51.1 adds the reason after the visible label.
+    expect(w.get('button.invite').text()).toBe('InviteOnly the leader can invite.');
     expect(w.find('.member-hp').exists()).toBe(false);
     expect(w.findAll('.member-level').map((l) => l.text())).toEqual(['Lv 4 · 10 st', 'Lv 4 · 10 st']);
   });
@@ -681,7 +685,8 @@ describe('PartyBlock out of combat (51.1)', () => {
     const { w } = mountBlock(
       leading({ social: { petOf: (id: bigint) => (id === BO ? boPet : null) as never, petSecondsLeft: () => null } }),
     );
-    expect(childClasses(w.get('.cards').element)).toEqual(['member-card', 'pet-row', 'member-card']);
+    const entries = w.findAll('.cards > .member-entry');
+    expect(entries.map((entry) => childClasses(entry.element))).toEqual([['member-card', 'pet-row'], ['member-card']]);
     const row = w.get('.pet-row');
     expect(row.get('.sr-only').text()).toBe("Bo's pet");
     expect(row.get('.pet-name').text()).toBe('Fang');

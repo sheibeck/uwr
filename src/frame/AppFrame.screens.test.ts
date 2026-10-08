@@ -132,7 +132,7 @@ function partyRows(): Record<string, unknown> {
       { id: 12n, groupId: 1n, characterId: 2n, joinedAt: { microsSinceUnixEpoch: 200n } },
     ]),
     knownCharacters: ref([
-      { id: 2n, name: 'Mara', className: 'Ranger', level: 4n, hp: 95n, maxHp: 100n, mana: 20n, maxMana: 40n, stamina: 10n, maxStamina: 10n },
+      { id: 2n, name: 'Mara', race: 'Human', className: 'Ranger', level: 4n, hp: 95n, maxHp: 100n, mana: 20n, maxMana: 40n, stamina: 10n, maxStamina: 10n },
     ]),
   };
 }

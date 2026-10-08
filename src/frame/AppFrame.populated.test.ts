@@ -75,6 +75,8 @@ function populatedGame(): { game: GameData; reducers: Reducers } {
   const character = {
     id: CHARACTER_ID,
     name: 'Brannoch',
+    // Party member cards and the self block mount a PlayerMenu (51.1-13); its header reads race.
+    race: 'Human',
     className: 'Wizard',
     level: 3n,
     xp: 318n,
@@ -89,6 +91,7 @@ function populatedGame(): { game: GameData; reducers: Reducers } {
   const mara = {
     id: 2n,
     name: 'Mara',
+    race: 'Human',
     className: 'Ranger',
     level: 4n,
     hp: 95n,
@@ -298,8 +301,8 @@ describe('populated frame, desktop', () => {
     expect(rail.find('[aria-label="Experience"]').exists()).toBe(true);
     expect(rail.findAll('.effect-chips .tag')).toHaveLength(1);
     expect(rail.get('.effect-chips').text()).toContain('Bless');
-    expect(rail.findAll('.member')).toHaveLength(1);
-    expect(rail.get('.member').text()).toContain('Mara');
+    expect(rail.findAll('.member-card')).toHaveLength(1);
+    expect(rail.get('.member-card').text()).toContain('Mara');
 
     // Context rail: a route row, Nearby rows, a tracked quest and the world event card.
     const context = w.get('.context-rail');
@@ -480,7 +483,11 @@ describe('first frame before any rows arrive', () => {
     expect(w.get('.context-rail').text()).toContain('No one is nearby.');
     expect(w.get('.context-rail').text()).toContain('No quests tracked.');
     // The hidden combat target status (48-05) is a status element too; no loading status shows.
-    expect(w.find('[role="status"]:not(.target-status)').exists()).toBe(false);
+    // The rail's invite card (51.1-13) keeps an empty polite region mounted for the arrival line.
+    const statuses = w
+      .findAll('[role="status"]:not(.target-status)')
+      .filter((el) => !el.element.parentElement?.classList.contains('invite-root') || el.text() !== '');
+    expect(statuses).toHaveLength(0);
     expect(w.find('.spinner').exists()).toBe(false);
   });
 });
