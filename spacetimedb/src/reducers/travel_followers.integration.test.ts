@@ -224,3 +224,17 @@ describe('move_character: which members come along (real handler)', () => {
     expect(where(ctx, 3n)).toBe(10n);
   });
 });
+
+describe('move_character: the leader moves once (code review WR-03)', () => {
+  it('a group move gives the leader exactly one "You travel to" line and one arrival', () => {
+    const ctx = newCtx([{ id: 2n, name: 'Bram' }]);
+    moveCharacter(ctx, { characterId: 1n, locationId: 11n });
+    expect(privateLines(ctx, 7n, 'move').filter((m) => m === 'You travel to Gloamwood.')).toHaveLength(1);
+    expect(privateLines(ctx, 102n, 'move').filter((m) => m === 'You travel to Gloamwood.')).toHaveLength(1);
+    const arrivals = (ctx.db._tables.event_location ?? []).filter(
+      (e: any) => e.locationId === 11n && String(e.message).startsWith('Mirel '),
+    );
+    expect(arrivals.length).toBeLessThanOrEqual(1);
+    expect(stamina(ctx, 1n)).toBe(50n - COST);
+  });
+});

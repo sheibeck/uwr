@@ -90,6 +90,8 @@ export function performTravel(
       // src/social/follow.ts mirror it through the same predicate (parity test in plan 51.1-07).
       travelingCharacters.push(character);
       for (const member of ctx.db.group_member.by_group.filter(group.id)) {
+        // The leader is already in the list; his own member row must not move him twice (WR-03).
+        if (member.characterId === character.id) continue;
         const memberCharacter = ctx.db.character.id.find(member.characterId);
         if (!memberCharacter) continue;
         const online = memberCharacter.online === true;
