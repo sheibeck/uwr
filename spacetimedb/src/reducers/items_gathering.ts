@@ -2,6 +2,8 @@ import { scheduledReducers } from '../schema/tables';
 import { getPerkBonusByField } from '../helpers/renown';
 import { getGroupOrSoloParticipants } from '../helpers/group';
 import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
+import { gatherYield } from '../data/economy_rules';
+import { loadEffectiveDials } from '../helpers/economy_state';
 
 export const registerItemGatheringReducers = (deps: any) => {
   const {
@@ -160,6 +162,10 @@ export const registerItemGatheringReducers = (deps: any) => {
         quantity =
           RESOURCE_GATHER_MIN_QTY +
           ((ctx.timestamp.microsSinceUnixEpoch + node.id) % qtyRange);
+        // Phase 51.3: the gather dial (global, or the region's override) scales the yield, at least 1,
+        // before the perk bonuses. Read on every gather, so a dial change applies at once.
+        const nodeLocation = ctx.db.location.id.find(node.locationId);
+        quantity = gatherYield(quantity, loadEffectiveDials(ctx, nodeLocation?.regionId).gatherRatePct);
       }
 
       // Apply gathering perk bonuses — skipped for modifier reagents (always exactly 1)

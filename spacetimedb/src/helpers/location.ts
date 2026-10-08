@@ -1,6 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
+import { regionalGatherEntries } from './regional_gather';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 import { placeLevelBand, placeSpawnLevel, effectiveEnemyLevel } from '../data/enemy_rules';
@@ -62,7 +63,7 @@ export function findEnemyTemplateByName(ctx: any, name: string) {
   return null;
 }
 
-export function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?: string, zoneTier: number = 3) {
+export function getGatherableResourceTemplates(ctx: any, terrainType: string, timePref?: string, zoneTier: number = 3, regionId?: bigint) {
   const pools: Record<
     string,
     { name: string; weight: bigint; timeOfDay: string }[]
@@ -159,6 +160,8 @@ export function getGatherableResourceTemplates(ctx: any, terrainType: string, ti
         : null;
     })
     .filter(Boolean) as { template: any; weight: bigint; timeOfDay: string }[];
+  // Phase 51.3: the region's own AI gatherables join the pool on matching terrain (by template id).
+  if (typeof regionId === 'bigint') return [...resolved, ...regionalGatherEntries(ctx, regionId, key, timePref)];
   return resolved;
 }
 export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bigint, seedOffset?: bigint): any {
@@ -168,7 +171,7 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
   const region = ctx.db.region.id.find(location.regionId);
   const dm = region?.dangerMultiplier ?? 100n;
   const zoneTier = dm < 130n ? 1 : dm < 190n ? 2 : 3;
-  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref, zoneTier);
+  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref, zoneTier, location.regionId);
   if (pool.length === 0) throw new SenderError('No resource templates for location');
   const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0n);
   const offset = seedOffset ?? 0n;
