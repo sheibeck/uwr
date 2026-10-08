@@ -24,11 +24,12 @@ function read(name: string): string {
 }
 
 describe('generated economy bindings', () => {
-  it('binds the economy_set_dial, economy_reset and economy_set_ai_enabled reducers', () => {
+  it('binds the economy_set_dial, economy_reset, economy_set_ai_enabled and economy_repair_region reducers', () => {
     for (const file of [
       'economy_set_dial_reducer.ts',
       'economy_reset_reducer.ts',
       'economy_set_ai_enabled_reducer.ts',
+      'economy_repair_region_reducer.ts',
     ]) {
       expect(existsSync(`${BINDINGS}/${file}`), file).toBe(true);
     }
@@ -36,10 +37,12 @@ describe('generated economy bindings', () => {
     expect(index).toContain('__reducerSchema("economy_set_dial", EconomySetDialReducer)');
     expect(index).toContain('__reducerSchema("economy_reset", EconomyResetReducer)');
     expect(index).toContain('__reducerSchema("economy_set_ai_enabled", EconomySetAiEnabledReducer)');
+    expect(index).toContain('__reducerSchema("economy_repair_region", EconomyRepairRegionReducer)');
     const params = read('types/reducers.ts');
     expect(params).toContain('export type EconomySetDialParams');
     expect(params).toContain('export type EconomyResetParams');
     expect(params).toContain('export type EconomySetAiEnabledParams');
+    expect(params).toContain('export type EconomyRepairRegionParams');
   });
 
   it('RecipeTemplate carries the 4th requirement fields', () => {

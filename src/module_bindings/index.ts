@@ -147,6 +147,7 @@ import LlmSmokeTestReducer from "./llm_smoke_test_reducer";
 import GrantTestPendingLevelReducer from "./grant_test_pending_level_reducer";
 import EconomySetDialReducer from "./economy_set_dial_reducer";
 import EconomyResetReducer from "./economy_reset_reducer";
+import EconomyRepairRegionReducer from "./economy_repair_region_reducer";
 import EconomySetAiEnabledReducer from "./economy_set_ai_enabled_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
 import StartCreationReducer from "./start_creation_reducer";
@@ -1911,6 +1912,7 @@ const reducersSchema = __reducers(
   __reducerSchema("grant_test_pending_level", GrantTestPendingLevelReducer),
   __reducerSchema("economy_set_dial", EconomySetDialReducer),
   __reducerSchema("economy_reset", EconomyResetReducer),
+  __reducerSchema("economy_repair_region", EconomyRepairRegionReducer),
   __reducerSchema("economy_set_ai_enabled", EconomySetAiEnabledReducer),
   __reducerSchema("submit_intent", SubmitIntentReducer),
   __reducerSchema("start_creation", StartCreationReducer),
