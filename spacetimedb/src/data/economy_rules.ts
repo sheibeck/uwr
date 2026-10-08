@@ -375,8 +375,9 @@ export function creatureProfile(type: unknown): CreatureProfile {
 /** Today's essence and modifier-reagent chances per kill, in percent (scaled by the drop rate). */
 export const ESSENCE_CHANCE_PCT = 6n;
 export const MODIFIER_CHANCE_PCT = 10n;
-/** The base chance in percent that a boss or named foe drops a recipe scroll, before the drop rate. */
-export const SCROLL_DROP_BASE_PCT = 25n;
+/** The base chance in percent that a boss or named foe drops a recipe scroll, before the drop rate.
+ * 10% (owner, 2026-10-08: "I don't want recipe scrolls to be too easy. 25% seems like they might drop too often."). */
+export const SCROLL_DROP_BASE_PCT = 10n;
 /** Which scroll rarity is picked, before the tier weights: rare 6, epic 3, legendary 1. */
 export const SCROLL_TIER_WEIGHTS = Object.freeze({ rare: 6n, epic: 3n, legendary: 1n });
 

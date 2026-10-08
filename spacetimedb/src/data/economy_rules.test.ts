@@ -707,7 +707,7 @@ describe('scaledChancePct and zoneTierOf and constants', () => {
   it('holds today chances and the scroll weights', () => {
     expect(ESSENCE_CHANCE_PCT).toBe(6n);
     expect(MODIFIER_CHANCE_PCT).toBe(10n);
-    expect(SCROLL_DROP_BASE_PCT).toBe(25n);
+    expect(SCROLL_DROP_BASE_PCT).toBe(10n); // owner, 2026-10-08
     expect(SCROLL_TIER_WEIGHTS).toEqual({ rare: 6n, epic: 3n, legendary: 1n });
   });
 });
