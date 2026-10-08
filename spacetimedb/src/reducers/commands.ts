@@ -4,6 +4,7 @@ import { generateAffixData, buildDisplayName } from '../helpers/items';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { findRaceDefinition, levelUpBaseStats } from '../data/race_bonuses';
 import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
+import { handleEconomyAdminCommand } from '../helpers/economy_admin_commands';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { turnInQuestsAtNpc, questObjectiveText } from './quests';
 
@@ -215,6 +216,7 @@ export const registerCommandReducers = (deps: any) => {
     }
 
     if (handleLlmAdminCommand(ctx, character, trimmed)) return;
+    if (handleEconomyAdminCommand(ctx, character, trimmed)) return;
 
     ctx.db.command.insert({
       id: 0n,
