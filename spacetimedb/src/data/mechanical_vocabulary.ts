@@ -321,6 +321,35 @@ export type CombatOutcome = (typeof COMBAT_OUTCOMES)[number];
 export const ENEMY_ROLES = ['tank', 'damage', 'healer', 'caster'] as const;
 export type EnemyRole = (typeof ENEMY_ROLES)[number];
 
+// Family temperament: how readily a creature family attacks (D-10, UI-SPEC B2)
+export const FAMILY_TEMPERAMENTS = ['aggressive', 'wary', 'skittish'] as const;
+export type FamilyTemperament = (typeof FAMILY_TEMPERAMENTS)[number];
+
+// How one family stands to another in a region (D-20)
+export const FAMILY_RELATIONS = ['rival', 'prey', 'predator'] as const;
+export type FamilyRelation = (typeof FAMILY_RELATIONS)[number];
+
+// Family icon keys, one Phosphor icon each (D-32, UI-SPEC icon table)
+export const FAMILY_ICON_KEYS = ['humanoid', 'beast', 'insect', 'spirit', 'undead', 'avian', 'aquatic', 'elemental'] as const;
+export type FamilyIconKey = (typeof FAMILY_ICON_KEYS)[number];
+
+// The role words the generation prompt uses (D-02); 'support' is the server role 'healer'
+export const FAMILY_PROMPT_ROLES = ['tank', 'damage', 'support', 'caster'] as const;
+export type FamilyPromptRole = (typeof FAMILY_PROMPT_ROLES)[number];
+
+// What a density pool counts at a place (D-01, D-26)
+export const POOL_KINDS = ['creature', 'resource'] as const;
+export type PoolKind = (typeof POOL_KINDS)[number];
+
+// Resource icon keys, one Phosphor icon each (UI-SPEC resource icons)
+export const RESOURCE_ICON_KEYS = ['mineral', 'herb', 'gem', 'wood', 'fibre', 'fluid'] as const;
+export type ResourceIconKey = (typeof RESOURCE_ICON_KEYS)[number];
+
+// Where a fight came from, for the encounter source line (D-32); '' = no recorded origin
+// (fights from before Phase 51.3.1.1 and event fights)
+export const COMBAT_ORIGINS = ['', 'pull', 'ambush_enter', 'ambush_leave', 'ambush_gather', 'ambush_other', 'named'] as const;
+export type CombatOrigin = (typeof COMBAT_ORIGINS)[number];
+
 // Threat multipliers by role
 export const THREAT_CONFIG = {
   tankMultiplier: 1.5,      // Tanks generate 150% threat
