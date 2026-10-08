@@ -2378,6 +2378,13 @@ Plans:
 - **North arrow:** a small "N" compass in a map corner, desktop and mobile, tokens only, Phosphor icon if one fits (for example `PhCompass` or `PhNavigationArrow`); `<svg>` is already allowed under `src/map/`.
 - **Text that names a direction** (exit chips, NPC directions in 999.10, "lies to the east") reads the same positions, so words and map agree.
 
+**Design source (owner, 2026-10-08):** `UWR Map.dc.html` (updated mock), imported into `.planning/phases/999.28-compass-true-map/design/`; differences in `999.28-MAP-MOCK-DIFF.md` (MM-01 to MM-17). Owner decisions on it:
+- **Region switcher with this item, not before:** the region chips become one region button with "Next door" neighbours and a "+N · All N regions" link opening a searchable popover (desktop) or a Regions bottom sheet (mobile), sections You are here / Next door / Visited / Heard of. Regions lock only by the travel timer, never by level (reject the mock's level locks).
+- **North arrow top-right,** as in the mock (supersedes the earlier "left corner").
+- **A "YOU" pill above your current node,** and your place highlighted so it stands out more (owner: "It also highlights the place you are so it sticks out more.").
+- Unplaced strip, dashed unplaced nodes, the glide to a learned spot, and the "Ways to place it" panel follow the mock (MM-03 to MM-07, MM-17), showing only placing methods the server supports. Rejected: the other-region placeholder overlay, level locks and the mock's mobile layout; dungeon levels belong to 999.26.
+- The todo `2026-10-08-updated-map-mock-unplaced-places-and-region-overflow.md` was folded into this item and deleted.
+
 **Ties:** 999.10 (NPC directions with bearings), Phase 51.5.1 Motion and Polish (map transitions after travel animate between true positions, which should make them calmer), 999.26 (world structure and typed sub-regions).
 
 **Requirements:** TBD (unit tests required: positions deterministic and stable; bearings consistent both ways; two players who know the same relations see the same relative direction; a place with no learned relation is unplaced and moves to its true spot once one is learned; true positions never reach a client that has not learned them; backfill covers every existing place and region; the north arrow renders on desktop and mobile; layout still keeps node spacing and label rules)
@@ -2464,4 +2471,4 @@ Plans:
 
 
 ---
-*Last updated: 2026-10-08 after importing the Living Places mock for 51.3.1.1 and moving its admin tools to the Phase 53 admin screens (owner)*
+*Last updated: 2026-10-08 after adding the updated Map mock and owner decisions to backlog 999.28*
