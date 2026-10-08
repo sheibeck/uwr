@@ -856,3 +856,32 @@ describe('declining an expired invite (code review IN-01)', () => {
     expect(tableRows(ctx, 'group')).toHaveLength(0);
   });
 });
+
+describe("party actions need the caller's online character (code review IN-06)", () => {
+  it('an offline inviter is refused and nothing is created', () => {
+    const ctx = newCtx({ chars: { 1: { online: false } } });
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    expect(lines(ctx, 1n)).toEqual(['Ann is offline.']);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(lines(ctx, 2n)).toEqual([]);
+  });
+
+  it('an offline invitee cannot accept or join; the invite stays', () => {
+    const ctx = newCtx({ ...withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]), chars: { 1: { groupId: 5n }, 2: { online: false } } });
+    call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' });
+    call(ctx, 'join_group', 2n, { groupId: 5n });
+    expect(lines(ctx, 2n)).toEqual(['Bram is offline.', 'Bram is offline.']);
+    expect(char(ctx, 2n).groupId).toBeUndefined();
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+  });
+
+  it('an offline leader cannot cancel; declining from an offline character still works', () => {
+    const ctx = newCtx({ ...withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]), chars: { 1: { groupId: 5n, online: false }, 2: { online: false } } });
+    call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
+    expect(lines(ctx, 1n)).toEqual(['Ann is offline.']);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+    call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' });
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+  });
+});

@@ -29,6 +29,16 @@ export const registerGroupReducers = (deps: any) => {
   } = deps;
   const failGroup = (ctx: any, character: any, message: string) =>
     fail(ctx, character, message, 'group');
+  /**
+   * Code review IN-06: inviting, accepting, joining and cancelling act for the caller's online
+   * (active) character, never for an offline alt the caller also owns. Refuses with the usual
+   * '{name} is offline.' line and returns false.
+   */
+  const actorOnline = (ctx: any, character: any): boolean => {
+    if (character.online === true) return true;
+    failGroup(ctx, character, `${character.name} is offline.`);
+    return false;
+  };
 
   /** Of the matching invites, a live one when there is one, else an expired one (or null). */
   const pickInvite = (ctx: any, invites: any[]): any | null => {
@@ -98,6 +108,7 @@ export const registerGroupReducers = (deps: any) => {
 
   spacetimedb.reducer('join_group', { characterId: t.u64(), groupId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (!actorOnline(ctx, character)) return;
     if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
     const group = ctx.db.group.id.find(args.groupId);
     if (!group) return failGroup(ctx, character, 'Group not found');
@@ -250,6 +261,7 @@ export const registerGroupReducers = (deps: any) => {
       // Every check runs before anything is created, so a refused invite leaves no group,
       // member or invite row behind.
       let inviter = requireCharacterOwnedBy(ctx, args.characterId);
+      if (!actorOnline(ctx, inviter)) return;
       const targetName = args.targetName.trim();
       if (!targetName) return failGroup(ctx, inviter, 'Target required');
       const target = findCharacterByName(ctx, targetName);
@@ -339,6 +351,7 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), fromName: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (!actorOnline(ctx, character)) return;
       if (character.groupId) return failGroup(ctx, character, 'Character already in a group');
       const from = findCharacterByName(ctx, args.fromName.trim());
       if (!from) return failGroup(ctx, character, 'Inviter not found');
@@ -384,6 +397,7 @@ export const registerGroupReducers = (deps: any) => {
     { characterId: t.u64(), targetName: t.string() },
     (ctx, args) => {
       let caller = requireCharacterOwnedBy(ctx, args.characterId);
+      if (!actorOnline(ctx, caller)) return;
       const targetName = args.targetName.trim();
       if (!targetName) return failGroup(ctx, caller, 'Target required');
       const target = findCharacterByName(ctx, targetName);
