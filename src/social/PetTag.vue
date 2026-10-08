@@ -46,6 +46,7 @@ const sentence = computed(() => {
 .pet-tag {
   flex: none;
   gap: 4px;
+  padding: 0 8px;
   margin-left: auto;
   max-width: 50%;
   min-width: 0;

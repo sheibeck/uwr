@@ -127,3 +127,30 @@ describe('labelled icons have role="img"', () => {
     });
   }
 });
+
+// Review client-social IN-08: radii come from the tokens (circles excepted), the disabled state is
+// 45% opacity everywhere, the pet tag sets its own on-scale padding over the global .tag recipe
+// (3px 10px), and the Party invite kicker is Micro 10 / 400.
+describe('design contract details', () => {
+  for (const file of FILES.filter((path) => path.endsWith('.vue'))) {
+    const source = readFileSync(file, 'utf8');
+    const name = relativeName(file);
+    it(`${name}: radii are tokens or 50%, opacities of disabled states are 0.45`, () => {
+      for (const match of source.matchAll(/border-radius:\s*([^;]+);/g)) {
+        for (const part of match[1].trim().split(/\s+/)) {
+          expect(part, `${name}: ${match[0]}`).toMatch(/^(var\(--radius-(sm|md|lg)\)|50%|0)$/);
+        }
+      }
+      for (const match of source.matchAll(/opacity:\s*([^;]+);/g)) {
+        expect(match[1].trim(), name).toBe('0.45');
+      }
+    });
+  }
+
+  it('PetTag pads 0 8px and the invite kicker is weight 400', () => {
+    const tag = readFileSync(join(SOCIAL_DIR, 'PetTag.vue'), 'utf8');
+    expect(tag).toMatch(/\.pet-tag \{[^}]*padding: 0 8px;/);
+    const card = readFileSync(join(SOCIAL_DIR, 'InviteCard.vue'), 'utf8');
+    expect(card).toMatch(/\.kicker-label \{[^}]*font-weight: 400;/);
+  });
+});

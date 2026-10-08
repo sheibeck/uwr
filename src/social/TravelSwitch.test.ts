@@ -197,6 +197,19 @@ describe('TravelSwitch clicks', () => {
   });
 });
 
+describe('TravelSwitch name (review IN-05)', () => {
+  it('is named by the title only and described by the sub-line', () => {
+    const w = mountSwitch(setup().game);
+    const button = w.get('button');
+    const labelledBy = button.attributes('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    expect(labelledBy).toBe(w.get('.title').attributes('id'));
+    expect(w.get('.title').text()).toBe('Travel with leader');
+    expect(button.attributes('aria-describedby')).toBe(w.get('.sub').attributes('id'));
+    expect(button.attributes('aria-labelledby')).not.toBe(button.attributes('aria-describedby'));
+  });
+});
+
 describe('TravelSwitch source', () => {
   const text = readFileSync(resolve(process.cwd(), 'src/social/TravelSwitch.vue'), 'utf8');
 

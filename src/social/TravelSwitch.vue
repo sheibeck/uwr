@@ -19,6 +19,9 @@ const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const { runner, actions } = usePartyActions(game, consoleApi);
 
 const subId = useId();
+// The switch is named by its title alone and described by the sub-line (51.1 review client-social
+// IN-05): named by its content it read the sub-line twice, once in the name and once as description.
+const titleId = `${subId}-title`;
 
 const myRow = computed(() => {
   const id = game.characterId.value;
@@ -65,6 +68,7 @@ function toggle(): void {
     class="travel-switch"
     :class="{ on, sheet: props.variant === 'sheet' }"
     :aria-checked="on ? 'true' : 'false'"
+    :aria-labelledby="titleId"
     :aria-describedby="subId"
     :aria-disabled="inert ? 'true' : undefined"
     title="Travel with leader"
@@ -72,7 +76,7 @@ function toggle(): void {
   >
     <PhFootprints :size="16" aria-hidden="true" class="icon" />
     <span class="text">
-      <span class="title">Travel with leader</span>
+      <span :id="titleId" class="title">Travel with leader</span>
       <span :id="subId" class="sub">{{ subLine }}</span>
     </span>
     <span class="track" aria-hidden="true"><span class="knob" /></span>
@@ -107,7 +111,7 @@ function toggle(): void {
 
 .travel-switch[aria-disabled='true'] {
   cursor: default;
-  opacity: 0.6;
+  opacity: 0.45;
 }
 
 .travel-switch[aria-disabled='true']:hover {
@@ -150,7 +154,7 @@ function toggle(): void {
   flex: none;
   width: 32px;
   height: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-neutral-900);
   box-shadow: inset 0 0 0 1px var(--color-neutral-700);
 }
