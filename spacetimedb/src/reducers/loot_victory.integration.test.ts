@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { T0, MODULE, fightSeed, fightCtx, rows, openTickArg } from '../helpers/combat_fight_fixture';
 import { DEFAULT_DIALS, creatureProfile, goldReward, lootSeed } from '../data/economy_rules';
+import { parseLootLine } from '../data/loot_line';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -225,13 +226,20 @@ describe('legendary needs a fight-exact named foe', () => {
 });
 
 describe('the announcement and combat_result', () => {
-  it('"Loot dropped:" lists the rows and the combat_result row stays', () => {
+  it('"Loot dropped:" is one line of loot links matched by id, and the combat_result row stays', () => {
     const ctx = victory();
     const dropped = lootRows(ctx);
     expect(dropped.length).toBeGreaterThan(0);
     const announce = lines(ctx, /^Loot dropped:/);
     expect(announce).toHaveLength(1);
-    expect(announce[0].message.split('\n')).toHaveLength(dropped.length + 1);
+    expect(announce[0].kind).toBe('reward');
+    expect(announce[0].message).not.toContain('\n');
+    expect(announce[0].message).not.toContain('#');
+    // Quick 261008-f3m: each item token carries its combat_loot id, in table order.
+    const pieces = parseLootLine(announce[0].message)!;
+    expect(pieces).not.toBeNull();
+    expect(pieces.filter((p) => p.kind === 'item').map((p: any) => p.lootId)).toEqual(dropped.map((r: any) => r.id));
+    expect(pieces[pieces.length - 1].kind).toBe('takeAll');
     expect(lines(ctx, /^No loot dropped/)).toHaveLength(0);
     const results = rows(ctx, 'combat_result').filter((r: any) => r.characterId === 1n);
     expect(results).toHaveLength(1);
