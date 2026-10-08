@@ -1,21 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
-import { PhCrownSimple, PhFootprints, PhUserPlus, PhWarningCircle } from '@phosphor-icons/vue';
+import { PhFootprints, PhUserPlus, PhWarningCircle } from '@phosphor-icons/vue';
 import { MAX_GROUP_SIZE } from '@game-data/group_config';
-import {
-  COMBAT_KEY,
-  CONSOLE_KEY,
-  GAME_KEY,
-  createInertCombat,
-  createInertConsole,
-  createInertGame,
-} from '../game/context';
-import { barFraction } from '../frame/vitals';
-import { isPartyLeader, partyMembers, partySize, selfCardView } from './party';
+import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import { isPartyLeader, partyMembers, partySize } from './party';
 import type { PartyMemberView } from './party';
 import { partyTravelView } from '../social/follow';
 import type { FollowState } from '../social/follow';
 import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
+import CombatMemberCard from '../social/CombatMemberCard.vue';
 import InviteCard from '../social/InviteCard.vue';
 import MemberCard from '../social/MemberCard.vue';
 import OutgoingInvites from '../social/OutgoingInvites.vue';
@@ -24,16 +17,18 @@ import PetRow from '../social/PetRow.vue';
 // Party header, Invite and member cards (47-UI-SPEC "Party block", CON-03), the vitals rail's party
 // area. Names and classes come from server rows and are rendered as text nodes only.
 //
-// Out of a party fight this is the 51.1 recipe (51.1-UI-SPEC "Vitals Rail Party Block", out of
+// Out of a fight this is the 51.1 recipe (51.1-UI-SPEC "Vitals Rail Party Block", out of
 // combat, items 3-11): the header with the gated Invite, the follow summary, the stamina warning,
 // one MemberCard per other member each followed by its pet row, 'Not in a party.' when solo,
 // 'Loot: personal', Invited · waiting and the incoming invite card.
 //
-// In a fight (game.combat.active) and in a party the cards become ally-target buttons and a 'You'
-// card comes first (48-UI-SPEC "Ally targeting", CMB-05). Plan 51.1-14 replaces that branch.
+// In a fight (game.combat.active) it is the COMBAT3 recipe (51.1-UI-SPEC "Vitals Rail Party Block",
+// In combat): no visible header (an .sr-only 'Party · {n}' heading in a party), one CombatMemberCard
+// per other member (the ally target button with the ⋯ beside it) each followed by its pet row, and the
+// incoming invite card. Invite, the follow summary, the stamina warning, 'Loot: personal' and
+// Invited · waiting only matter for travel and hide. Your own target is the vitals rail self block.
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
-const controller = inject(COMBAT_KEY, createInertCombat());
 const social = inject(SOCIAL_KEY, createInertSocial());
 
 const headingEl = ref<HTMLElement | null>(null);
@@ -81,7 +76,8 @@ const travel = computed(() => {
   });
 });
 
-const outOfCombat = computed(() => !game.combat.active.value);
+const inCombat = computed(() => game.combat.active.value);
+const outOfCombat = computed(() => !inCombat.value);
 const summary = computed(() => (outOfCombat.value ? (travel.value?.summary ?? null) : null));
 const warning = computed(() => (outOfCombat.value ? (travel.value?.warning ?? null) : null));
 
@@ -122,37 +118,6 @@ function menuFallback(): HTMLElement | null {
   return headingEl.value;
 }
 
-const combatParty = computed(() => game.combat.active.value && inParty.value);
-const cards = computed(() => {
-  if (!combatParty.value) return members.value;
-  const self = game.character.value;
-  if (self === null) return members.value;
-  return [selfCardView(self, isPartyLeader(game.group.value, self.id)), ...members.value];
-});
-
-function interactive(member: { known: boolean }): boolean {
-  return combatParty.value && member.known;
-}
-
-function selected(member: { id: bigint }): boolean {
-  return controller.allyTargetId.value === member.id;
-}
-
-// Stamina text for a known member out of combat (51-UI-SPEC "Party Stamina in the Vitals Rail").
-// The low mark means the member cannot afford even a within-region trip; the rule lives in
-// @game-data/travel_config and party.ts applies it.
-function staminaText(member: { stamina: bigint; maxStamina: bigint }): string {
-  return `Stamina ${member.stamina} of ${member.maxStamina}`;
-}
-
-function staminaScreenText(member: { stamina: bigint; maxStamina: bigint; lowStamina: boolean }): string {
-  return member.lowStamina ? `${staminaText(member)}, too low to travel` : staminaText(member);
-}
-
-function pct(value: bigint, max: bigint): string {
-  return `${barFraction(value, max) * 100}%`;
-}
-
 function memberLabel(member: { known: boolean; name: string }): string {
   return member.known ? member.name : 'Member';
 }
@@ -165,11 +130,9 @@ function invite(): void {
 
 <template>
   <section class="party" aria-label="Party">
-    <div class="party-head">
+    <div v-if="outOfCombat" class="party-head">
       <h6 ref="headingEl" tabindex="-1">{{ heading }}</h6>
-      <span v-if="combatParty" class="hint">Click to target</span>
       <button
-        v-else
         type="button"
         class="btn btn-ghost invite"
         :aria-disabled="inviteReason !== null ? 'true' : undefined"
@@ -181,8 +144,9 @@ function invite(): void {
         }}</span>
       </button>
     </div>
+    <h6 v-else-if="inParty" ref="headingEl" class="sr-only" tabindex="-1">{{ heading }}</h6>
 
-    <template v-if="!combatParty">
+    <template v-if="outOfCombat">
       <p v-if="summary !== null" class="summary">
         <PhFootprints class="line-icon summary-icon" :size="12" aria-hidden="true" /><span>{{ summary }}</span>
       </p>
@@ -208,61 +172,21 @@ function invite(): void {
       </p>
 
       <OutgoingInvites variant="rail" @focus-heading="focusHeading" />
-      <InviteCard variant="rail" @answered="focusHeading" />
     </template>
 
-    <div v-else class="cards">
-      <component
-        :is="interactive(member) ? 'button' : 'div'"
-        v-for="member in cards"
-        :key="String(member.id)"
-        class="member"
-        :class="{ unknown: !member.known, ally: interactive(member), selected: interactive(member) && selected(member) }"
-        :type="interactive(member) ? 'button' : undefined"
-        :aria-pressed="interactive(member) ? (selected(member) ? 'true' : 'false') : undefined"
-        :aria-label="interactive(member) ? `Target ${member.name} with your next ability` : undefined"
-        @click="interactive(member) ? controller.selectAlly(member.id) : undefined"
-      >
-        <div class="member-row">
-          <span class="member-name" :title="memberLabel(member)">{{ memberLabel(member) }}</span>
-          <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
-          <span class="member-class">{{ member.className }}</span>
-          <span v-if="interactive(member)" class="member-hp">{{ member.hp }}/{{ member.maxHp }}</span>
-          <span v-else-if="member.known" class="member-level" :title="staminaText(member)"
-            >Lv {{ member.level }}<span class="member-stamina" :class="{ low: member.lowStamina }" aria-hidden="true"
-              >{{ ' · ' }}<PhWarningCircle v-if="member.lowStamina" class="low-icon" :size="12" />{{
-                `${member.stamina} st`
-              }}</span
-            ></span
-          >
-          <span v-if="!interactive(member) && member.known" class="sr-only">{{ staminaScreenText(member) }}</span>
-        </div>
-        <div
-          class="track health-track"
-          role="progressbar"
-          :aria-label="`${memberLabel(member)} health ${member.hp} of ${member.maxHp}`"
-          aria-valuemin="0"
-          :aria-valuenow="Number(member.hp)"
-          :aria-valuemax="Number(member.maxHp)"
-        >
-          <div class="fill fill-health" :style="{ width: pct(member.hp, member.maxHp) }"></div>
-        </div>
-        <div
-          class="track resource-track"
-          role="progressbar"
-          :aria-label="`${memberLabel(member)} ${member.resourceKind} ${member.resource} of ${member.maxResource}`"
-          aria-valuemin="0"
-          :aria-valuenow="Number(member.resource)"
-          :aria-valuemax="Number(member.maxResource)"
-        >
-          <div
-            class="fill"
-            :class="member.resourceKind === 'mana' ? 'fill-mana' : 'fill-stamina'"
-            :style="{ width: pct(member.resource, member.maxResource) }"
-          ></div>
-        </div>
-      </component>
+    <div v-else-if="inParty" ref="cardsEl" class="cards">
+      <div v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
+        <CombatMemberCard :member="entry.member" :state="followOf(entry.member)" :fallback-focus="menuFallback" />
+        <PetRow
+          v-if="entry.pet !== null"
+          :pet="entry.pet"
+          :owner-name="memberLabel(entry.member)"
+          :seconds-left="social.petSecondsLeft(entry.pet)"
+        />
+      </div>
     </div>
+
+    <InviteCard variant="rail" @answered="focusHeading" />
   </section>
 </template>
 
@@ -284,12 +208,6 @@ function invite(): void {
 .party h6 {
   margin: 0;
   color: var(--color-neutral-400);
-}
-
-.hint {
-  font-size: 10px;
-  color: var(--color-neutral-500);
-  white-space: nowrap;
 }
 
 .invite {
@@ -354,98 +272,6 @@ function invite(): void {
   color: var(--color-neutral-500);
 }
 
-.member {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  min-width: 0;
-}
-
-.member.ally {
-  width: 100%;
-  box-sizing: border-box;
-  border: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.member.ally:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
-}
-
-.member.ally:active {
-  background: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
-}
-
-.member.ally:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-}
-
-.member.ally.selected {
-  box-shadow:
-    inset 0 0 0 1px var(--color-accent),
-    0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
-}
-
-.member.unknown {
-  opacity: 0.6;
-}
-
-.member-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.member-name {
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.crown {
-  flex-shrink: 0;
-  color: var(--color-accent);
-}
-
-.member-class {
-  flex-shrink: 0;
-  font-size: 10px;
-  color: var(--color-neutral-500);
-  white-space: nowrap;
-}
-
-.member-level {
-  flex-shrink: 0;
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--color-neutral-400);
-  white-space: nowrap;
-}
-
-.member-stamina {
-  font-variant-numeric: tabular-nums;
-}
-
-.member-stamina.low {
-  color: var(--color-con-red);
-}
-
-.low-icon {
-  margin-right: 4px;
-  vertical-align: text-bottom;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -453,44 +279,5 @@ function invite(): void {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-.member-hp {
-  flex-shrink: 0;
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--color-neutral-400);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.track {
-  border-radius: var(--radius-sm);
-  background: var(--color-neutral-900);
-  overflow: hidden;
-}
-
-.health-track {
-  height: 4px;
-}
-
-.resource-track {
-  height: 3px;
-}
-
-.fill {
-  height: 100%;
-}
-
-.fill-health {
-  background: var(--color-health);
-}
-
-.fill-mana {
-  background: var(--color-mana);
-}
-
-.fill-stamina {
-  background: var(--color-stamina);
 }
 </style>
