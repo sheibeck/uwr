@@ -394,6 +394,24 @@ describe('craft_recipe with regional recipes', () => {
     const made = rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 1n && i.templateId === ID.cutlassOut);
     expect(made.craftQuality).toBe('standard');
   });
+
+  // Review A WR-03: decorateCrafted stamped every crafted piece 'common', so a legendary recipe made a
+  // "Common" item (the client reads instance.qualityTier before template.rarity).
+  it('a legendary regional output keeps its legendary rarity on the crafted instance', () => {
+    const ctx = newCtx({ bag: LEGENDARY_BAG, known: [R.legendary] });
+    craft(ctx, { characterId: 1n, recipeTemplateId: R.legendary });
+    const made = rows(ctx, 'item_instance').find((i) => i.ownerCharacterId === 1n && i.templateId === ID.glaiveOut);
+    expect(made.qualityTier).toBe('legendary');
+  });
+
+  it('an uncommon regional accessory keeps uncommon; a common output stays common', () => {
+    const charm = newCtx({ bag: [[ID.tidepearl, 3n], [ID.kelpweave, 2n]], known: [R.uncommon] });
+    craft(charm, { characterId: 1n, recipeTemplateId: R.uncommon });
+    expect(rows(charm, 'item_instance').find((i) => i.templateId === ID.charmOut).qualityTier).toBe('uncommon');
+    const cutlass = newCtx({ bag: [[ID.saltglass, 3n], [ID.kelpweave, 1n]], known: [R.common] });
+    craft(cutlass, { characterId: 1n, recipeTemplateId: R.common });
+    expect(rows(cutlass, 'item_instance').find((i) => i.templateId === ID.cutlassOut).qualityTier).toBe('common');
+  });
 });
 
 describe('learn_recipe_scroll with regional recipes', () => {

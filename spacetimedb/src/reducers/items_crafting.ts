@@ -6,6 +6,7 @@ import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCO
 import type { BagMaterial, MaterialKind } from '../data/recipe_rules';
 import { isQuestItemTemplate } from '../data/item_rules';
 import { craftBatchFits } from '../data/inventory_rules';
+import { QUALITY_TIERS } from '../data/mechanical_vocabulary';
 
 export const registerItemCraftingReducers = (deps: any) => {
   const {
@@ -199,9 +200,12 @@ export const registerItemCraftingReducers = (deps: any) => {
   // The decoration a crafted gear instance gets, in one place so craft_recipe and craft_recipe_count
   // share it: suffix affixes from the reagents (when an Essence is used), the implicit craft quality
   // affixes, then the instance update. Returns the display name.
+  // The instance keeps the output template's own rarity (review A WR-03): a legendary regional recipe
+  // makes a legendary item. Rule recipe outputs are stored 'common', so nothing changes for them; an
+  // unknown rarity string reads as 'common'.
   const decorateCrafted = (ctx: any, instance: any, output: any, plan: any): string => {
     const craftQuality = plan.quality ?? 'standard';
-    const qualityTier = 'common';
+    const qualityTier: string = (QUALITY_TIERS as readonly string[]).indexOf(output?.rarity) !== -1 ? output.rarity : 'common';
     let craftedDisplayName: string = output.name;
     const appliedAffixes: { affixType: string; affixKey: string; affixName: string; statKey: string; magnitude: bigint }[] = [];
 
