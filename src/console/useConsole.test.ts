@@ -26,6 +26,8 @@ const REDUCER_NAMES: (keyof GameReducers)[] = [
   'moveCharacter',
   'startGatherResource',
   'startPull',
+  'takeLoot',
+  'takeAllLoot',
 ];
 
 type Deferred = { promise: Promise<void>; resolve: () => void; reject: (e: unknown) => void };
@@ -963,6 +965,44 @@ describe('keyword and rail actions', () => {
     expect(s.feed.entries.value).toHaveLength(0);
     expect(s.api.draft.value).toBe('');
     expect(s.api.conversation.value).toBeNull();
+  });
+
+  it('loot keyword: takes that loot row by id, with no echo, no screen close and no conversation change (quick 261008-f3m)', () => {
+    const s = setup();
+    s.api.hail({ id: 3n, name: 'Ferryman' });
+    s.settle('submitIntent');
+    s.feed.clear();
+    s.closeScreen.mockClear();
+    const tick = s.api.sendTick.value;
+    s.api.actOnKeyword({ kind: 'loot', id: 41n, name: 'Rusty Dagger' });
+    expect(s.reducers.takeLoot).toHaveBeenCalledTimes(1);
+    expect(s.reducers.takeLoot).toHaveBeenCalledWith({ characterId: 1n, lootId: 41n });
+    expect(s.feed.entries.value).toHaveLength(0);
+    expect(s.closeScreen).not.toHaveBeenCalled();
+    expect(s.api.conversation.value).toEqual({ npcId: 3n, name: 'Ferryman' });
+    expect(s.api.sendTick.value).toBe(tick + 1);
+  });
+
+  it('lootAll keyword: takes all loot of the character, with no echo', () => {
+    const s = setup();
+    s.api.actOnKeyword({ kind: 'lootAll', id: 0n, name: 'all loot' });
+    expect(s.reducers.takeAllLoot).toHaveBeenCalledTimes(1);
+    expect(s.reducers.takeAllLoot).toHaveBeenCalledWith({ characterId: 1n });
+    expect(s.feed.entries.value).toHaveLength(0);
+    expect(s.closeScreen).not.toHaveBeenCalled();
+  });
+
+  it('the loot keywords call nothing while offline or with no character', () => {
+    const s = setup();
+    s.connected.value = false;
+    s.api.actOnKeyword({ kind: 'loot', id: 41n, name: 'Rusty Dagger' });
+    s.api.actOnKeyword({ kind: 'lootAll', id: 0n, name: 'all loot' });
+    s.connected.value = true;
+    s.characterId.value = null;
+    s.api.actOnKeyword({ kind: 'loot', id: 41n, name: 'Rusty Dagger' });
+    s.api.actOnKeyword({ kind: 'lootAll', id: 0n, name: 'all loot' });
+    expect(s.reducers.takeLoot).not.toHaveBeenCalled();
+    expect(s.reducers.takeAllLoot).not.toHaveBeenCalled();
   });
 
   it('prefill replaces the draft and focuses (the Invite button)', () => {

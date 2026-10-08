@@ -172,6 +172,11 @@ describe('gameQueries: combat', () => {
     expect(q.myCombatAggro).not.toContain('WHERE');
   });
 
+  it('selects the loot view whole, with no WHERE (quick 261008-f3m)', () => {
+    expect(q.myCombatLoot).toContain('SELECT * FROM "my_combat_loot"');
+    expect(q.myCombatLoot).not.toContain('WHERE');
+  });
+
   it('puts a WHERE on every keyed combat query', () => {
     for (const sql of [
       q.combatParticipantsOf(1n),

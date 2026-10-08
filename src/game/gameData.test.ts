@@ -43,6 +43,7 @@ const queries: GameQueries = {
   eventWorld: 'Q_EVENT_WORLD',
   activeWorldEvents: 'Q_ACTIVE_EVENTS',
   myCombatAggro: 'Q_COMBAT_AGGRO',
+  myCombatLoot: 'Q_COMBAT_LOOT',
   eventPrivate: (id) => `Q_EVENT_PRIVATE_${id}`,
   eventLocation: (id) => `Q_EVENT_LOCATION_${id}`,
   eventGroup: (id) => `Q_EVENT_GROUP_${id}`,
@@ -208,6 +209,7 @@ const STATIC_SQL = [
   'Q_ACTIVE_EVENTS',
   'Q_EVENT_WORLD',
   'Q_COMBAT_AGGRO',
+  'Q_COMBAT_LOOT',
 ];
 
 describe('createGameData: static bindings', () => {
@@ -220,15 +222,28 @@ describe('createGameData: static bindings', () => {
     expect(h.bindings.every((b) => b.conn === null)).toBe(true);
   });
 
-  it('attaches the 8 static bindings and event_world to a connection, and re-attaches a new one', () => {
+  it('attaches the 9 static bindings and event_world to a connection, and re-attaches a new one', () => {
     const h = harness();
     const first = h.connect();
     for (const sql of STATIC_SQL) expect(h.find(sql).conn).toBe(first);
-    expect(STATIC_SQL).toHaveLength(9);
+    expect(STATIC_SQL).toHaveLength(10);
 
     const second = makeConn();
     h.conn.value = second;
     for (const sql of STATIC_SQL) expect(h.find(sql).conn).toBe(second);
+  });
+
+  it('exposes the my_combat_loot rows as game.loot (quick 261008-f3m)', () => {
+    const h = harness();
+    h.connect();
+    expect(h.game.loot.value).toEqual([]);
+    const row = { id: 41n, combatId: 9n, ownerUserId: 7n, characterId: 1n, itemTemplateId: 7n };
+    h.find('Q_COMBAT_LOOT').rows.value = [row];
+    expect(h.game.loot.value).toEqual([row]);
+  });
+
+  it('createInertGame has no loot', () => {
+    expect(createInertGame().loot.value).toEqual([]);
   });
 
   it('filters active world events by status', () => {
