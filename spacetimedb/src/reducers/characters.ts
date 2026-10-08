@@ -2,14 +2,13 @@ import { scheduledReducers } from '../schema/tables';
 import { markLocationVisited } from '../helpers/visited';
 import { collapsePassageAfterLeaving } from '../helpers/passages';
 import { syncCharacterOnline } from '../helpers/online';
-import { handOnLeadership } from '../helpers/group_invites';
+import { endInvite, settleGroupAfterLeave } from '../helpers/group_invites';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
     SenderError,
-    GroupMember,
     CombatParticipant,
     requirePlayerUserId,
     requireCharacterOwnedBy,
@@ -163,10 +162,26 @@ export const registerCharacterReducers = (deps: any) => {
       }
     }
 
-    if (character.groupId) {
-      const groupId = character.groupId;
-      const group = ctx.db.group.id.find(groupId);
+    // Every invite to or from the deleted character ends as withdrawn, so its other side is told
+    // and a solo inviter's lone group dissolves (WR-05). Runs first (before the group is settled,
+    // the character row and its private lines are deleted), so the names still resolve and a group
+    // left with one member is settled once, below.
+    const invites = [...ctx.db.group_invite.iter()]
+      .filter((invite: any) => invite.fromCharacterId === characterId || invite.toCharacterId === characterId)
+      .sort((x: any, y: any) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+    for (const invite of invites) {
+      if (ctx.db.group_invite.id.find(invite.id)) endInvite(ctx, invite, 'withdrawn');
+    }
+    for (const row of [...ctx.db.group_invite_cooldown.iter()]) {
+      if (row.fromCharacterId === characterId || row.toCharacterId === characterId) {
+        ctx.db.group_invite_cooldown.id.delete(row.id);
+      }
+    }
 
+    // An invite end above may have dissolved the character's own lone group.
+    const current = ctx.db.character.id.find(characterId) ?? character;
+    if (current.groupId) {
+      const groupId = current.groupId;
       for (const member of ctx.db.group_member.by_group.filter(groupId)) {
         if (member.characterId === characterId) {
           ctx.db.group_member.id.delete(member.id);
@@ -174,35 +189,12 @@ export const registerCharacterReducers = (deps: any) => {
         }
       }
 
-      appendGroupEvent(
-        ctx,
-        groupId,
-        characterId,
-        'group',
-        `${character.name} was removed from the group.`
-      );
+      const departure = `${character.name} was removed from the group.`;
+      appendGroupEvent(ctx, groupId, characterId, 'group', departure);
 
-      let newLeaderMember: typeof GroupMember.rowType | null = null;
-      for (const member of ctx.db.group_member.by_group.filter(groupId)) {
-        if (!newLeaderMember) newLeaderMember = member;
-      }
-
-      if (!newLeaderMember) {
-        for (const invite of ctx.db.group_invite.by_group.filter(groupId)) {
-          ctx.db.group_invite.id.delete(invite.id);
-        }
-        ctx.db.group.id.delete(groupId);
-      } else if (group) {
-        // The shared successor rule with leave_group and camp (WR-04); it also hands on the
-        // puller role, which this path used to leave pointing at the deleted character.
-        handOnLeadership(ctx, groupId, characterId);
-      }
-    }
-
-    for (const invite of ctx.db.group_invite.iter()) {
-      if (invite.fromCharacterId === characterId || invite.toCharacterId === characterId) {
-        ctx.db.group_invite.id.delete(invite.id);
-      }
+      // The shared rule with leave_group, kick and camp: successor (online first), withdrawn
+      // invites, or the lone-group dissolve (WR-04, WR-05). It also hands on the puller role.
+      settleGroupAfterLeave(ctx, groupId, characterId, departure);
     }
 
     for (const row of ctx.db.event_group.by_character.filter(characterId)) {

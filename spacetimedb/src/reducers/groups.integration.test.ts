@@ -722,3 +722,125 @@ describe('one successor rule for leave, camp and delete; online members first (c
     });
   }
 });
+
+describe('a group left with one member dissolves; invites end with a line (code review WR-05, client review WR-02)', () => {
+  /** Ann (1) leads group 5 with Bram (2); optional invites of group 5. */
+  const pair = (invites: Seed['invites'] = []): Seed => ({
+    chars: { 1: { groupId: 5n }, 2: { groupId: 5n } },
+    groups: [{ id: 5n, leader: 1n }],
+    members: [
+      { id: 1n, groupId: 5n, characterId: 1n, role: 'leader', joinedAt: T0 - 5n },
+      { id: 2n, groupId: 5n, characterId: 2n, joinedAt: T0 - 4n },
+    ],
+    invites,
+  });
+  const solo = (ctx: any, id: bigint) => {
+    expect(char(ctx, id).groupId).toBeUndefined();
+    expect(tableRows(ctx, 'group_member').filter((m) => m.characterId === id)).toHaveLength(0);
+  };
+
+  const DEPARTURES = [
+    ['leave_group (member leaves)', (ctx: any) => call(ctx, 'leave_group', 2n, {}), 1n, 'Bram left the group.'],
+    ['leave_group (leader leaves)', (ctx: any) => call(ctx, 'leave_group', 1n, {}), 2n, 'Ann left the group.'],
+    ['kick_group_member', (ctx: any) => call(ctx, 'kick_group_member', 1n, { targetName: 'Bram' }), 1n, 'Bram was removed from the group.'],
+    ['camp (clear_active_character)', (ctx: any) => call(ctx, 'clear_active_character', 2n, {}), 1n, 'Bram headed to camp.'],
+    ['delete_character', (ctx: any) => call(ctx, 'delete_character', 2n, {}), 1n, 'Bram was removed from the group.'],
+  ] as const;
+
+  for (const [label, depart, stayer, departure] of DEPARTURES) {
+    it(`${label}: the one member left becomes solo and is told`, () => {
+      const ctx = newCtx(pair());
+      depart(ctx);
+      expect(tableRows(ctx, 'group')).toHaveLength(0);
+      expect(tableRows(ctx, 'group_member')).toHaveLength(0);
+      solo(ctx, stayer);
+      expect(lines(ctx, stayer).slice(-1)).toEqual([`${departure} The group has disbanded.`]);
+      expect(tableRows(ctx, 'event_group').map((e) => e.message)).not.toContain(
+        `${NAMES[Number(stayer) - 1]} is now the group leader.`,
+      );
+    });
+
+    it(`${label}: a group with a live invite stays; its last member leads it`, () => {
+      const ctx = newCtx(pair([{ id: 1n, groupId: 5n, from: 1n, to: 3n }]));
+      depart(ctx);
+      const group = tableRows(ctx, 'group')[0];
+      expect(group.leaderCharacterId).toBe(stayer);
+      expect(membersOf(ctx, 5n).map((m) => m.characterId)).toEqual([stayer]);
+      expect(char(ctx, stayer).groupId).toBe(5n);
+      expect(tableRows(ctx, 'group_invite').map((i) => i.toCharacterId)).toEqual([3n]);
+    });
+  }
+
+  it('an expired invite does not keep the group: it ends with its lines, then the group dissolves', () => {
+    const ctx = newCtx(pair([{ id: 1n, groupId: 5n, from: 1n, to: 3n, createdAt: T0 - TTL }]));
+    call(ctx, 'leave_group', 2n, {});
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(lines(ctx, 3n)).toEqual(['The invite from Ann expired.']);
+    expect(lines(ctx, 1n)).toEqual(['Your invite to Cole expired.', 'Bram left the group. The group has disbanded.']);
+    solo(ctx, 1n);
+  });
+
+  it('dissolving during a group fight leaves the fight alone', () => {
+    const seed = pair();
+    const ctx = newCtx(seed);
+    ctx.db._tables.combat_encounter = [
+      { id: 9n, locationId: 10n, groupId: 5n, leaderCharacterId: 1n, state: 'active', addCount: 0n, pendingAddCount: 0n, createdAt: at(T0) },
+    ];
+    ctx.db._tables.combat_participant = [
+      { id: 1n, combatId: 9n, characterId: 1n, status: 'active', nextAutoAttackAt: 0n },
+      { id: 2n, combatId: 9n, characterId: 2n, status: 'active', nextAutoAttackAt: 0n },
+    ];
+    call(ctx, 'leave_group', 2n, {});
+    solo(ctx, 1n);
+    expect(tableRows(ctx, 'combat_encounter')[0]).toMatchObject({ id: 9n, state: 'active' });
+    expect(tableRows(ctx, 'combat_participant')).toHaveLength(2);
+  });
+
+  it('the last member leaving withdraws every invite and tells each target', () => {
+    const ctx = newCtx(withInvites(annAlone, [
+      { id: 1n, groupId: 5n, from: 1n, to: 2n },
+      { id: 2n, groupId: 5n, from: 1n, to: 3n },
+    ]));
+    call(ctx, 'leave_group', 1n, {});
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+    expect(lines(ctx, 2n)).toEqual(['The invite from Ann is no longer open.']);
+    expect(lines(ctx, 3n)).toEqual(['The invite from Ann is no longer open.']);
+  });
+
+  it('camping as the last member withdraws the invites the same way', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'clear_active_character', 1n, {});
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(lines(ctx, 2n)).toEqual(['The invite from Ann is no longer open.']);
+  });
+
+  it('deleting an invited character tells the solo inviter and dissolves the inviter\'s lone group', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'delete_character', 2n, {});
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+    expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Your invite to Bram is no longer open.']);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    solo(ctx, 1n);
+  });
+
+  it('deleting an inviter tells the target; the group left with one member dissolves once', () => {
+    const ctx = newCtx({
+      chars: { 1: { groupId: 5n }, 3: { groupId: 5n } },
+      groups: [{ id: 5n, leader: 1n }],
+      members: [
+        { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+        { id: 2n, groupId: 5n, characterId: 3n },
+      ],
+      invites: [{ id: 1n, groupId: 5n, from: 1n, to: 2n }],
+    });
+    call(ctx, 'delete_character', 1n, {});
+    expect(lines(ctx, 2n)).toEqual(['The invite from Ann is no longer open.']);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    solo(ctx, 3n);
+    expect(lines(ctx, 3n)).toEqual(['Ann was removed from the group. The group has disbanded.']);
+  });
+});

@@ -4,7 +4,7 @@ import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './eve
 import { markLocationVisited } from './visited';
 import { collapsePassageAfterLeaving } from './passages';
 import { syncCharacterOnline } from './online';
-import { handOnLeadership } from './group_invites';
+import { settleGroupAfterLeave } from './group_invites';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -170,19 +170,12 @@ export function campCharacter(ctx: any, player: any, character: any, afk = false
       if (member.characterId === character.id) { ctx.db.group_member.id.delete(member.id); break; }
     }
     ctx.db.character.id.update({ ...character, groupId: undefined });
-    appendGroupEvent(ctx, groupId, character.id, 'group',
-      afk ? `${character.name} headed to camp (AFK).` : `${character.name} headed to camp.`);
+    const departure = afk ? `${character.name} headed to camp (AFK).` : `${character.name} headed to camp.`;
+    appendGroupEvent(ctx, groupId, character.id, 'group', departure);
 
-    const remaining = [...ctx.db.group_member.by_group.filter(groupId)];
-    if (remaining.length === 0) {
-      for (const invite of ctx.db.group_invite.by_group.filter(groupId)) {
-        ctx.db.group_invite.id.delete(invite.id);
-      }
-      ctx.db.group.id.delete(groupId);
-    } else {
-      // The shared successor rule with leave_group and delete_character (WR-04).
-      handOnLeadership(ctx, groupId, character.id);
-    }
+    // The shared rule with leave_group, kick and delete_character: successor (online first),
+    // withdrawn invites, or the lone-group dissolve (WR-04, WR-05).
+    settleGroupAfterLeave(ctx, groupId, character.id, departure);
   }
 
   ctx.db.player.id.update({ ...player, activeCharacterId: undefined, lastActivityAt: undefined });

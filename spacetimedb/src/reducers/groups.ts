@@ -6,20 +6,18 @@ import {
   endExpiredInvitesOfGroup,
   endExpiredInvitesTo,
   endInvite,
-  handOnLeadership,
   inviteIsLive,
   liveInvitesOfGroup,
   liveInvitesTo,
-  nextLeaderAfter,
   reinviteWaitActive,
   scheduleInviteExpiry,
+  settleGroupAfterLeave,
 } from '../helpers/group_invites';
 
 export const registerGroupReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
-    GroupMember,
     GroupInviteExpiryTick,
     requireCharacterOwnedBy,
     requirePlayerUserId,
@@ -122,7 +120,6 @@ export const registerGroupReducers = (deps: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     if (!character.groupId) return failGroup(ctx, character, 'Character not in a group');
     const groupId = character.groupId;
-    const group = ctx.db.group.id.find(groupId);
 
     for (const member of ctx.db.group_member.by_group.filter(groupId)) {
       if (member.characterId === character.id) {
@@ -132,24 +129,11 @@ export const registerGroupReducers = (deps: any) => {
     }
 
     ctx.db.character.id.update({ ...character, groupId: undefined });
-    appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} left the group.`);
+    const departure = `${character.name} left the group.`;
+    appendGroupEvent(ctx, groupId, character.id, 'group', departure);
 
-    const newLeaderMember: typeof GroupMember.rowType | null = nextLeaderAfter(
-      ctx,
-      groupId,
-      character.id
-    );
-
-    if (!newLeaderMember) {
-      for (const invite of ctx.db.group_invite.by_group.filter(groupId)) {
-        ctx.db.group_invite.id.delete(invite.id);
-      }
-      ctx.db.group.id.delete(groupId);
-      return;
-    }
-
-    // The shared successor rule (online first, then earliest joinedAt, then lowest member id).
-    if (group) handOnLeadership(ctx, groupId, character.id);
+    // Successor (online first), withdrawn invites, or the lone-group dissolve (WR-04, WR-05).
+    settleGroupAfterLeave(ctx, groupId, character.id, departure);
   });
 
   spacetimedb.reducer(
@@ -243,7 +227,8 @@ export const registerGroupReducers = (deps: any) => {
       }
 
       ctx.db.character.id.update({ ...target, groupId: undefined });
-      appendGroupEvent(ctx, group.id, target.id, 'group', `${target.name} was removed from the group.`);
+      const departure = `${target.name} was removed from the group.`;
+      appendGroupEvent(ctx, group.id, target.id, 'group', departure);
       appendPrivateEvent(
         ctx,
         target.id,
@@ -252,21 +237,8 @@ export const registerGroupReducers = (deps: any) => {
         `You were removed from ${group.name}.`
       );
 
-      if (group.pullerCharacterId === target.id) {
-        ctx.db.group.id.update({ ...group, pullerCharacterId: group.leaderCharacterId });
-      }
-
-      let remaining = 0;
-      for (const _row of ctx.db.group_member.by_group.filter(group.id)) {
-        remaining += 1;
-        break;
-      }
-      if (remaining === 0) {
-        for (const invite of ctx.db.group_invite.by_group.filter(group.id)) {
-          ctx.db.group_invite.id.delete(invite.id);
-        }
-        ctx.db.group.id.delete(group.id);
-      }
+      // The puller role, withdrawn invites, or the lone-group dissolve (WR-05).
+      settleGroupAfterLeave(ctx, group.id, target.id, departure);
     }
   );
 

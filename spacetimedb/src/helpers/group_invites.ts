@@ -1,7 +1,9 @@
 // Party invite rules (plan 51.1-03). An invite is live until exactly createdAt +
 // GROUP_INVITE_TTL_MICROS (data/group_config). Expired invites are ended lazily by the reducers
 // that meet them and by the one-shot group_invite_expiry_tick. When an invite ends by expiry,
-// cancel or decline, a group left with one member and no other invite dissolves.
+// cancel or decline, a group left with one member and no other invite dissolves. Since the code
+// review (WR-05), a leave, kick, camp or delete that leaves one member and no live invite dissolves
+// the group too (settleGroupAfterLeave), so the client never shows a one-member party.
 import { ScheduleAt } from 'spacetimedb';
 import {
   GROUP_REINVITE_COOLDOWN_MICROS,
@@ -13,7 +15,8 @@ import {
 } from '../data/group_config';
 import { appendGroupEvent, appendPrivateEvent } from './events';
 
-export type InviteEnd = 'expired' | 'cancelled' | 'declined';
+/** withdrawn: the invite's group emptied, or its inviter or target was deleted (WR-05). */
+export type InviteEnd = 'expired' | 'cancelled' | 'declined' | 'withdrawn';
 
 const byId = (a: { id: bigint }, b: { id: bigint }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
@@ -91,6 +94,9 @@ export function endInvite(
     const canceller = actor ?? from;
     if (canceller) tell(ctx, to, `${canceller.name} cancelled the invite.`);
     if (to) tell(ctx, canceller, `You cancelled the invite to ${to.name}.`);
+  } else if (reason === 'withdrawn') {
+    if (from) tell(ctx, to, `The invite from ${from.name} is no longer open.`);
+    if (to) tell(ctx, from, `Your invite to ${to.name} is no longer open.`);
   } else {
     const decliner = actor ?? to;
     if (decliner) tell(ctx, from, `${decliner.name} declined your group invite.`);
@@ -164,6 +170,46 @@ export function handOnLeadership(ctx: any, groupId: bigint, leavingCharacterId: 
     ctx.db.group.id.update({ ...group, pullerCharacterId: group.leaderCharacterId });
   }
   return null;
+}
+
+/**
+ * Settles a group after a member left it (leave, kick, camp, delete), run once that member's
+ * group_member row is gone and the departure line is written (WR-05 and the client review's WR-02):
+ * - nobody left: every invite of the group is ended as 'withdrawn' (its target is told) and the
+ *   group row is deleted;
+ * - one member left: the group's expired invites are ended; if no live invite remains the group
+ *   dissolves (dissolveLoneGroup) and that member, now solo, gets the private line
+ *   '{departureLine} The group has disbanded.' (the group line itself is gone with the group). A
+ *   group with a live invite stays, because its leader is waiting for an answer;
+ * - otherwise (or with that live invite) the successor rule runs (handOnLeadership).
+ * Dissolving during a fight is safe: combat never needs the group row (the fight's group lines go
+ * to a group nobody reads any more, and they repeat private lines), the same as when every member
+ * leaves mid-fight.
+ */
+export function settleGroupAfterLeave(
+  ctx: any,
+  groupId: bigint,
+  leavingCharacterId: bigint,
+  departureLine: string
+): void {
+  const remaining = [...ctx.db.group_member.by_group.filter(groupId)];
+  if (remaining.length === 0) {
+    for (const invite of [...ctx.db.group_invite.by_group.filter(groupId)].sort(byId)) {
+      endInvite(ctx, invite, 'withdrawn');
+    }
+    if (ctx.db.group.id.find(groupId)) ctx.db.group.id.delete(groupId);
+    return;
+  }
+  if (remaining.length === 1) {
+    const lone = ctx.db.character.id.find(remaining[0].characterId);
+    endExpiredInvitesOfGroup(ctx, groupId);
+    const dissolved = !ctx.db.group.id.find(groupId) || dissolveLoneGroup(ctx, groupId);
+    if (dissolved) {
+      tell(ctx, lone, `${departureLine} The group has disbanded.`);
+      return;
+    }
+  }
+  handOnLeadership(ctx, groupId, leavingCharacterId);
 }
 
 /** Schedules the one-shot expiry tick for a new invite, due at createdAt + TTL. */
