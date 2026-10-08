@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.2, 51.4 and 51.5 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -89,6 +89,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
+- [ ] **Phase 51.5.1: Motion and Polish** (INSERTED) - Typed text reveal, login cross-fade, and map transitions after travel
 - [ ] **Phase 52.1: Hotbar Manager** (INSERTED) - The designed Hotbar Manager: assign abilities to slots and manage hotbars
 - [ ] **Phase 52.1.1: Bank** (INSERTED) - The designed bank and vault screen
 - [ ] **Phase 52.1.2: Trade** (INSERTED) - Player trade from the player and party menus, with the server as the authority
@@ -873,6 +874,28 @@ Plans:
   - Owner calls: first-person Keeper quotes in the mock (voice rule), 40px and 30px level numerals and other off-scale sizes, the positive-green token.
   - Related todos: `2026-10-06-renown-passive-perks-no-effect.md`, `2026-10-06-race-ability-source-as-chip.md`, `2026-10-06-hotbar-hover-shows-ability-description.md`.
 
+### Phase 51.5.1: Motion and Polish (INSERTED)
+
+**Goal**: The game feels smooth rather than sharp: story text types out as it arrives, signing in cross-fades into the game, and the map eases into its new shape after travel.
+**Depends on**: Phase 51.5 (run order)
+**Requirements**: TBD (owner requests 2026-10-06 and 2026-10-08)
+**Success Criteria** (what must be TRUE):
+
+  1. Live feed lines (Keeper narration, NPC dialogue, system lines) type out fast, with a cap on long blocks; your own echo, reloaded history and backlog render at once; any key, click on the feed or new command finishes the reveal; keyword buttons survive; the creation interview feed does the same.
+  2. Moving from sign-in to the picker or creation and into the game cross-fades, and focus lands on the new screen's main input.
+  3. After travel, the map transitions instead of jumping: existing nodes glide to their new positions, the arrival node turns from heard of to visited, new heard-of nodes and paths fade in, and the view follows you. Opening the map, switching region or resizing stays instant.
+  4. With `prefers-reduced-motion` every one of these is instant; screen readers get the full text and final map labels at once; auto-scroll, pinning and the New lines pill still work.
+  5. Tests cover the reveal speed cap, finishing on a key, instant history, keyword buttons, reduced motion, the cross-fade focus, and the map tween (old to new positions, new items hidden then shown, no animation on open).
+
+**Plans**: TBD
+**UI hint**: yes
+**Notes**:
+
+  - Owner, 2026-10-06: "When we write text to the screen, it's instantly rendered. That's a kind of jarring experience." and "Don't go too slow. It can be fairly fast, but we want a nice typed-out effect as the text renders." The goal: "smooth and relaxing versus jarring and sharp".
+  - Owner, 2026-10-08: "When you travel to a location you have heard of, the map can drastically change as you see new pathways. This is fine, but it would be good to transition the map visually instead of just a stark change that happens instantly. It's so jarring." Placed after 51.5 (owner, 2026-10-08).
+  - The full design and test list is in the todo `2026-10-06-typed-text-reveal-and-login-crossfade.md` (pulled into this phase).
+  - Client only; no server change expected. Combat round lines stay short or near-instant (owner confirms at UAT).
+
 ### Phase 52.1: Hotbar Manager (INSERTED)
 
 **Goal**: Players arrange their hotbars in the designed Hotbar Manager.
@@ -1049,6 +1072,7 @@ Plans:
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
+| 51.5.1. Motion and Polish | v3.0 | 0/TBD | Not started | - |
 | 52.1. Hotbar Manager | v3.0 | 0/TBD | Not started | - |
 | 52.1.1. Bank | v3.0 | 0/TBD | Not started | - |
 | 52.1.2. Trade | v3.0 | 0/TBD | Not started | - |
@@ -2255,4 +2279,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after removing backlog 999.1, 999.2 and 999.5, merging the utility-abilities todo into 999.4, and promoting 999.17 to Phase 51.3.2 (owner)*
+*Last updated: 2026-10-08 after adding Phase 51.5.1 Motion and Polish (typed text, login cross-fade, map transitions) after 51.5 (owner)*
