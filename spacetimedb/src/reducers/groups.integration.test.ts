@@ -659,7 +659,8 @@ describe('invite spam guard (code review WR-02)', () => {
     ]);
   });
 
-  it('a withdrawal the inviter did not cause starts no wait', () => {
+  // Review 3 WR-01: a withdrawal starts the wait whoever caused it, except a character deletion.
+  it('a withdrawal another member caused starts the wait for the original inviter', () => {
     // Ann invited Cole, then left; Bram leads alone. Bram leaving withdraws Ann's invite.
     const ctx = newCtx({
       chars: { 1: { groupId: 5n }, 2: { groupId: 5n } },
@@ -673,7 +674,43 @@ describe('invite spam guard (code review WR-02)', () => {
     call(ctx, 'leave_group', 1n, {}, T0 + 1n);
     call(ctx, 'leave_group', 2n, {}, T0 + 2n);
     expect(lines(ctx, 3n).slice(-1)).toEqual(['The invite from Ann is no longer open.']);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toMatchObject([
+      { fromCharacterId: 1n, toCharacterId: 3n, untilMicros: T0 + 2n + WAIT },
+    ]);
+  });
+
+  it('deleting the invited character starts no wait', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'delete_character', 2n, {}, T0 + 1n);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
     expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
+  });
+
+  it('deleting the inviter starts no wait', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'delete_character', 1n, {}, T0 + 1n);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
+  });
+
+  // Review 3 WR-01: A and her second character M loop invite C with no throttle.
+  it('a two-character leave loop sends Cole one invite line over ten rounds', () => {
+    const ctx = newCtx();
+    for (let i = 0n; i < 10n; i++) {
+      const t = T0 + i * 10n;
+      // Round start: Ann and Bram form {Ann, Bram}, Ann leading.
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, t);
+      call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' }, t + 1n);
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Cole' }, t + 2n);
+      // Ann leaves (the group stays for the live invite), then Bram leaves (the group empties).
+      call(ctx, 'leave_group', 1n, {}, t + 3n);
+      call(ctx, 'leave_group', 2n, {}, t + 4n);
+    }
+    expect(lines(ctx, 3n).filter((l) => l.startsWith('Ann invited you'))).toHaveLength(1);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
   });
 
   // Review 2 IN-05: finished waits for someone nobody invites again are pruned by the sweep.

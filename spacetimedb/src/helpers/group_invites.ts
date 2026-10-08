@@ -68,15 +68,19 @@ function tell(ctx: any, character: any, message: string) {
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'group', message);
 }
 
+/** Options of endInvite. deletion: the end is caused by a character deletion (delete_character). */
+export type EndInviteOptions = { deletion?: boolean };
+
 /**
- * Whether an early end starts the re-invite wait (WR-02; review 2 WR-01): a decline, a cancel, or a
- * withdrawal the inviter caused himself (he left or camped out of the invite's group), so
- * invite → leave → invite cannot skip the wait. An expiry starts none, and neither does a withdrawal
- * someone else caused (a deletion, another member leaving last).
+ * Whether an early end starts the re-invite wait (WR-02; review 3 WR-01): a decline, a cancel, or a
+ * withdrawal from any cause but a character deletion, so invite → leave → invite cannot skip the
+ * wait, not even when a second member's leave is what empties the group. An expiry starts none. A
+ * deletion starts none either: the deleted character's waits are removed anyway, and a deleted
+ * target cannot be invited again.
  */
-function startsReinviteWait(invite: any, reason: InviteEnd, actor?: any): boolean {
+function startsReinviteWait(reason: InviteEnd, opts: EndInviteOptions = {}): boolean {
   if (reason === 'cancelled' || reason === 'declined') return true;
-  return reason === 'withdrawn' && actor != null && actor.id === invite.fromCharacterId;
+  return reason === 'withdrawn' && opts.deletion !== true;
 }
 
 const DISBANDED = 'The group has disbanded.';
@@ -100,9 +104,10 @@ export function endInvite(
   invite: any,
   reason: InviteEnd,
   actor?: any,
-  runningTickId?: bigint
+  runningTickId?: bigint,
+  opts: EndInviteOptions = {}
 ): void {
-  finishInvite(ctx, invite, reason, actor, runningTickId, true);
+  finishInvite(ctx, invite, reason, actor, runningTickId, true, opts);
 }
 
 /** endInvite; with announceDisband false the dissolve is left for the caller to announce. */
@@ -112,11 +117,12 @@ function finishInvite(
   reason: InviteEnd,
   actor: any,
   runningTickId: bigint | undefined,
-  announceDisband: boolean
+  announceDisband: boolean,
+  opts: EndInviteOptions = {}
 ): void {
   if (ctx.db.group_invite.id.find(invite.id)) ctx.db.group_invite.id.delete(invite.id);
   cancelInviteExpiry(ctx, invite.id, runningTickId);
-  if (startsReinviteWait(invite, reason, actor)) {
+  if (startsReinviteWait(reason, opts)) {
     startReinviteWait(ctx, invite.fromCharacterId, invite.toCharacterId);
   }
   const from = ctx.db.character.id.find(invite.fromCharacterId);
@@ -265,10 +271,9 @@ export function settleGroupAfterLeave(
     liveInvites: liveInvitesOfGroup(ctx, groupId).length,
   });
   if (outcome === 'empty') {
-    // The leaver is the actor, so his own invites start the re-invite wait (review 2 WR-01).
-    const leaving = ctx.db.character.id.find(leavingCharacterId) ?? null;
+    // Every withdrawal starts the inviter's re-invite wait (review 3 WR-01), whoever left last.
     for (const invite of [...ctx.db.group_invite.by_group.filter(groupId)].sort(byId)) {
-      endInvite(ctx, invite, 'withdrawn', leaving);
+      endInvite(ctx, invite, 'withdrawn');
     }
     if (ctx.db.group.id.find(groupId)) ctx.db.group.id.delete(groupId);
     return;

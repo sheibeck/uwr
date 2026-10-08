@@ -170,7 +170,7 @@ export const registerCharacterReducers = (deps: any) => {
       .filter((invite: any) => invite.fromCharacterId === characterId || invite.toCharacterId === characterId)
       .sort((x: any, y: any) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
     for (const invite of invites) {
-      if (ctx.db.group_invite.id.find(invite.id)) endInvite(ctx, invite, 'withdrawn');
+      if (ctx.db.group_invite.id.find(invite.id)) endInvite(ctx, invite, 'withdrawn', undefined, undefined, { deletion: true });
     }
     for (const row of [...ctx.db.group_invite_cooldown.iter()]) {
       if (row.fromCharacterId === characterId || row.toCharacterId === characterId) {
