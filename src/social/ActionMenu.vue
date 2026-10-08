@@ -15,7 +15,7 @@ import {
 import InlineConfirm from '../ledger/InlineConfirm.vue';
 import CharacterName from './CharacterName.vue';
 import { trapTabKey } from '../frame/focusTrap';
-import { menuPosition } from './menuPosition';
+import { MENU_WIDTH, menuPosition } from './menuPosition';
 import type { MenuAnchor } from './menuPosition';
 import type { MenuAction, MenuEntry, MenuGroup, MenuIcon } from './playerMenu';
 
@@ -120,8 +120,12 @@ function place(): void {
   placement.value = placementFor(panel.value?.offsetHeight ?? 0);
 }
 
+// The width comes from MENU_WIDTH, the same constant the placement clamps with, so the two cannot
+// drift apart (51.1 review client-social IN-09).
 const panelStyle = computed(() =>
-  props.mobile ? undefined : { top: `${placement.value.top}px`, left: `${placement.value.left}px` },
+  props.mobile
+    ? undefined
+    : { top: `${placement.value.top}px`, left: `${placement.value.left}px`, width: `${MENU_WIDTH}px` },
 );
 
 watch([shown, confirmingAction], () => {
@@ -301,7 +305,6 @@ function onKeydown(event: KeyboardEvent): void {
   position: fixed;
   z-index: 40;
   box-sizing: border-box;
-  width: 224px;
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   padding: 4px;

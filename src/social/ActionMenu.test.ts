@@ -518,3 +518,16 @@ describe('ActionMenu mobile sheet', () => {
     expect((w.get('section[role="dialog"]').element as HTMLElement).style.top).toBe('');
   });
 });
+
+// Review client-social IN-09: the panel width and the placement clamp share MENU_WIDTH.
+describe('ActionMenu width', () => {
+  it('the desktop panel takes its width from MENU_WIDTH, and the CSS hard-codes none', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const { MENU_WIDTH } = await import('./menuPosition');
+    const source = readFileSync(resolve(process.cwd(), 'src/social/ActionMenu.vue'), 'utf8');
+    expect(source).not.toMatch(/width:\s*224px/);
+    expect(source).toContain('width: `${MENU_WIDTH}px`');
+    expect(MENU_WIDTH).toBe(224);
+  });
+});

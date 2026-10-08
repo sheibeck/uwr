@@ -4,10 +4,14 @@ import type { ConsoleApi, GameReducers } from '../game/context';
 import type { MenuAction } from './playerMenu';
 
 // One action layer for the rail, the player menus, the invite card and the mobile Party sheet.
-// Every party reducer goes through one action runner: a second click on the same action and name
-// while it is pending sends nothing, offline sends nothing, and a rejected promise only counts in
-// runner.rejection. Nothing is optimistic (rows drive state) and no feed line is written here:
-// results and refusals arrive as server lines. The only way into a party is accepting an invite.
+// Every party reducer goes through the action runner it is given: a second click on the same action
+// and name while it is pending sends nothing, offline sends nothing, and a rejected promise only
+// counts in runner.rejection (usePartyActions turns that into the shared send error line). Each
+// surface builds its own runner, so pending and dedupe hold per surface, not across them: the same
+// action from two surfaces (the Nearby ⋯ and an Invited · waiting row) can both send, and the server
+// refuses the second (51.1 review client-social IN-01). Nothing is optimistic (rows drive state) and
+// no feed line is written here: results and refusals arrive as server lines. The only way into a
+// party is accepting an invite.
 // Names are sent exactly as the target's server row has them; a blank name is never sent.
 
 export interface PartyActionDeps {
