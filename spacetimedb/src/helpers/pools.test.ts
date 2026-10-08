@@ -330,7 +330,8 @@ describe('settlePool: lazy settling from elapsed time', () => {
     ctx.db.place_pool.id.delete(goblinsOrchard.id);
     const result = settlePool(ctx, { ...goblinsOrchard, count: 10n }, T0 + HOUR);
     expect(result.fromLevel).toBe(result.toLevel);
-    expect(rows(ctx, 'place_pool')).toHaveLength(0);
+    expect(poolRow(ctx, goblinsOrchard.id)).toBeUndefined();
+    expect(rows(ctx, 'place_pool')).toHaveLength(3);
   });
 });
 
@@ -387,37 +388,36 @@ function placePoolUpdateArgs(text: string): string[] {
   return out;
 }
 
+// Every place_pool update carries the count (an update writes the whole row, and a row variable can
+// hide a `count:` field), so the pin is stricter than "an update that names count": no file but
+// helpers/pools.ts may call `place_pool.id.update(` at all, and pools.ts calls it once, in setPoolCount.
+// Other modules delete place_pool rows (helpers/passages.ts) or create them through createPool.
 describe('source pin: one writer of place_pool.count', () => {
-  it('the scanner finds a count write', () => {
-    expect(placePoolUpdateArgs('ctx.db.place_pool.id.update({ ...p, count: f(1) });')).toEqual(['{ ...p, count: f(1) }']);
+  it('the scanner finds each update call and its argument', () => {
+    expect(placePoolUpdateArgs('ctx.db.place_pool.id.update({ ...p, count: f(1) }); tx.db.place_pool.id.update(row);')).toEqual([
+      '{ ...p, count: f(1) }',
+      'row',
+    ]);
   });
 
-  it('only helpers/pools.ts updates place_pool with a count', () => {
+  it('no file but helpers/pools.ts updates place_pool', () => {
     const offenders: string[] = [];
-    let poolsHasWriter = false;
     for (const file of sourceFiles(SRC)) {
       const rel = relative(SRC, file).split(sep).join('/');
+      if (rel === 'helpers/pools.ts') continue;
       const text = readFileSync(file, 'utf8');
-      const writes = placePoolUpdateArgs(text).filter((arg) => /\bcount\b/.test(arg));
-      if (rel === 'helpers/pools.ts') {
-        poolsHasWriter = writes.length > 0;
-        continue;
-      }
-      if (writes.length > 0) offenders.push(rel);
+      if (placePoolUpdateArgs(text).length > 0) offenders.push(rel);
     }
-    expect(poolsHasWriter).toBe(true);
     expect(offenders).toEqual([]);
   });
 
-  it('inside helpers/pools.ts the count write is in setPoolCount alone', () => {
+  it('inside helpers/pools.ts the one update is in setPoolCount', () => {
     const text: string = readFileSync(join(SRC, 'helpers', 'pools.ts'), 'utf8');
     const start = text.indexOf('export function setPoolCount');
     expect(start).toBeGreaterThanOrEqual(0);
     const next = text.indexOf('\nexport function', start + 1);
     const body = text.slice(start, next < 0 ? text.length : next);
-    const inside = placePoolUpdateArgs(body).filter((arg) => /\bcount\b/.test(arg)).length;
-    const total = placePoolUpdateArgs(text).filter((arg) => /\bcount\b/.test(arg)).length;
-    expect(inside).toBe(1);
-    expect(total).toBe(1);
+    expect(placePoolUpdateArgs(body)).toHaveLength(1);
+    expect(placePoolUpdateArgs(text)).toHaveLength(1);
   });
 });
