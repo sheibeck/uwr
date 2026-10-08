@@ -831,7 +831,7 @@ Plans:
   7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, the dial clamps, and the migration of existing enemies and nodes.
 
 **Plans**: TBD
-**UI hint**: yes (design source: an updated mock from `51.3.1.1-MOCK-BRIEF.md`)
+**UI hint**: yes (design source: `.planning/phases/51.3.1.1-density-pools/design/UWR Living Places.dc.html`, imported 2026-10-08; differences resolved in `51.3.1.1-MOCK-DIFF.md` and CONTEXT D-29 to D-45; the combat timer and lock-in parts of the mock are ignored)
 **Notes**:
 
   - Promoted from backlog 999.29 (owner, 2026-10-08: "Promote 999.29 after 51.3.1"). Discussed 2026-10-08: decisions D-00 to D-26 and the owner's "Dynamic Density Pool" brief are in `.planning/phases/51.3.1.1-density-pools/51.3.1.1-CONTEXT.md`; the design-tool brief is `51.3.1.1-MOCK-BRIEF.md` in the same folder. The pre-travel warning system stays in backlog 999.30.
@@ -1082,6 +1082,7 @@ Plans:
       - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
       - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
       - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
+  - **Populations panel (owner, 2026-10-08):** the admin screens also get a Populations panel for Phase 51.3.1.1 Density Pools: its balance dials plus the testing tools the Living Places mock drew as a "Simulator" (set a family's density level, always ambush when travelling, force the background hunters, advance time). Owner: "Admin tools should go into the phase for building this tools. The mock called it simulator, but it's really balance dials in admin."
   - **Already in this phase from the backlog:** the admin screens (`UWR Admin Screens`). The admin screens include a panel for the Phase 51.3 economy dials (rarity, drop, gold and gather rates, global and per region). The loot rails (999.23) moved to Phase 51.4.
   - **Split (owner, 2026-10-07, then 2026-10-08):** the Hotbar Manager (999.18) is Phase 52.1, the bank (999.25) Phase 52.1.1 and player trade Phase 52.1.2.
   - **Renumbered from 52 to 53 and moved last (owner, 2026-10-08):** "move log, world events, and parity and production to the very end, in that order so parity and production is last." Older documents call it Phase 52. Earlier phases still append the parity rows they cover.
@@ -2462,4 +2463,4 @@ Plans:
 
 
 ---
-*Last updated: 2026-10-08 after promoting 999.29 to Phase 51.3.1.1 Density Pools, after 51.3.1 Combat Dials (owner)*
+*Last updated: 2026-10-08 after importing the Living Places mock for 51.3.1.1 and moving its admin tools to the Phase 53 admin screens (owner)*
