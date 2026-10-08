@@ -1,5 +1,6 @@
 import { scheduledReducers } from '../schema/tables';
 import { syncCharacterOnline } from '../helpers/online';
+import { announcePartyPresence, releaseKind } from '../helpers/party_presence';
 import { ADMIN_IDENTITIES } from '../data/admin';
 import { TOKEN_EMAIL_CHECK, readTokenEmail, resolveLoginEmail } from '../helpers/login_identity';
 
@@ -72,7 +73,9 @@ export const registerAuthReducers = (deps: any) => {
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player) return;
     scheduleLogout(ctx, player.id);
-    ctx.db.player.id.update({ ...player, lastSeenAt: ctx.timestamp });
+    // Logout ends the signed-in session at once. The character still lingers for the 30 s window,
+    // and disconnect_logout reads the missing session as "has logged out" (a drop keeps it: link-dead).
+    ctx.db.player.id.update({ ...player, sessionStartedAt: undefined, lastSeenAt: ctx.timestamp });
   });
 
   scheduledReducers['disconnect_logout'] = spacetimedb.reducer(
@@ -108,6 +111,8 @@ export const registerAuthReducers = (deps: any) => {
         }
       }
       const releasedCharacterId = player.activeCharacterId;
+      // Read before the update below clears the session.
+      const kind = releaseKind(player);
       ctx.db.player.id.update({
         ...player,
         userId: undefined,
@@ -117,7 +122,10 @@ export const registerAuthReducers = (deps: any) => {
       });
       // Online status (51.1): the flag flips here, 30 s after the disconnect, never in
       // clientDisconnected, so a page refresh does not flap (research A7).
-      syncCharacterOnline(ctx, releasedCharacterId);
+      // The party hears it once, only when the flag really flipped (not while another session holds it).
+      if (syncCharacterOnline(ctx, releasedCharacterId)) {
+        announcePartyPresence(ctx, releasedCharacterId, kind);
+      }
     }
   );
 };

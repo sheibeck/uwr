@@ -33,6 +33,7 @@ import spacetimedb, {
 } from './schema/tables';
 import { PASSAGE_SWEEP_INTERVAL_MICROS, sweepPassages } from './helpers/passages';
 import { reconcileOnline, syncCharacterOnline } from './helpers/online';
+import { announcePartyPresence, sessionOnReconnect } from './helpers/party_presence';
 import { pruneFinishedReinviteWaits } from './helpers/group_invites';
 import {
   VENDOR_RESTOCK_BATCH,
@@ -708,11 +709,19 @@ spacetimedb.clientConnected((ctx) => {
       sessionStartedAt: undefined,
     });
   } else {
-    ctx.db.player.id.update({ ...existing, lastSeenAt: ctx.timestamp });
+    // A signed-in account that comes back inside the logout window gets its session back, so a later
+    // drop reads as link-dead.
+    ctx.db.player.id.update({
+      ...existing,
+      sessionStartedAt: sessionOnReconnect(existing, ctx.timestamp),
+      lastSeenAt: ctx.timestamp,
+    });
   }
   // Online status (51.1): re-sync the reconnecting player's active character (a new player row has
   // none). With the sweep's reconcile, this backfills the flags after the publish.
-  syncCharacterOnline(ctx, existing?.activeCharacterId);
+  if (syncCharacterOnline(ctx, existing?.activeCharacterId)) {
+    announcePartyPresence(ctx, existing?.activeCharacterId, 'back');
+  }
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);
