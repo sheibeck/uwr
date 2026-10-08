@@ -708,6 +708,14 @@ export const GroupInvite = __t.object("GroupInvite", {
 });
 export type GroupInvite = __Infer<typeof GroupInvite>;
 
+export const GroupInviteCooldown = __t.object("GroupInviteCooldown", {
+  id: __t.u64(),
+  fromCharacterId: __t.u64(),
+  toCharacterId: __t.u64(),
+  untilMicros: __t.u64(),
+});
+export type GroupInviteCooldown = __Infer<typeof GroupInviteCooldown>;
+
 export const GroupInviteExpiryTick = __t.object("GroupInviteExpiryTick", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
