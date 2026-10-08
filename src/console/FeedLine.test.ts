@@ -8,6 +8,8 @@ import { keywordActionLabel } from './keywordLabel';
 import { classifyEntry, type FeedLineView, type LineSource } from './lines';
 import { buildVocabulary, findKeywords, type KeywordEntry } from './keywords';
 import { cleanServerText } from './cleanServerText';
+import { formatLootLine, LOOT_DROPPED_LEAD, parseLootLine } from '@game-data/loot_line';
+import { lootParts, lootPlainText } from './lootLine';
 
 let wrapper: VueWrapper | null = null;
 
@@ -525,5 +527,92 @@ describe('FeedLine continued segments (quick 261006-h5w)', () => {
     const w = render(makeLine({ kind: 'keeper', label: 'The Keeper', text: '<img src=x onerror=alert(1)>', continued: true }));
     expect(w.find('img').exists()).toBe(false);
     expect(w.text()).toBe('<img src=x onerror=alert(1)>');
+  });
+});
+
+describe('FeedLine loot links (quick 261008-f3m)', () => {
+  const TEMPLATES = new Map<bigint, { name: string; rarity: string }>([
+    [7n, { name: 'Rusty Dagger', rarity: 'common' }],
+    [8n, { name: 'Wolf Pelt', rarity: 'common' }],
+  ]);
+  const lootLine = (available: bigint[], names?: Map<bigint, { name: string; rarity: string }>): FeedLineView => {
+    const raw = formatLootLine(
+      LOOT_DROPPED_LEAD,
+      [
+        { id: 41n, itemTemplateId: 7n, qualityTier: 'uncommon' },
+        { id: 42n, itemTemplateId: 8n },
+      ],
+      (id) => (names ?? TEMPLATES).get(id),
+    )!;
+    const pieces = parseLootLine(raw)!;
+    return makeLine({
+      kind: 'quest',
+      label: 'Reward',
+      text: lootPlainText(pieces),
+      parts: lootParts(pieces, new Set(available)),
+    });
+  };
+
+  it('an available item is a Take button in its rarity token color; a taken one is a colored span', () => {
+    const w = render(lootLine([41n]));
+    const take = w.get('button.keyword-take');
+    expect(take.text()).toBe('[Rusty Dagger]');
+    expect(take.attributes('aria-label')).toBe('Take Rusty Dagger');
+    expect(take.attributes('title')).toBe('Take Rusty Dagger');
+    expect(take.attributes('style')).toContain('var(--color-rarity-uncommon)');
+    const taken = w.get('span.loot-name');
+    expect(taken.text()).toBe('[Wolf Pelt]');
+    expect(taken.attributes('style')).toContain('var(--color-rarity-common)');
+    expect(w.get('.body').text()).toBe('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+  });
+
+  it('[Take all] is a button named Take all loot with no rarity color', async () => {
+    const w = render(lootLine([42n]));
+    const all = w.findAll('button.keyword-take').find((b) => b.text() === '[Take all]')!;
+    expect(all.attributes('aria-label')).toBe('Take all loot');
+    expect(all.attributes('style') ?? '').not.toContain('--color-rarity');
+    await all.trigger('click');
+    expect(w.emitted('keyword')![0][0]).toEqual({ kind: 'lootAll', id: 0n, name: 'all loot' });
+  });
+
+  it('clicking an item emits its loot entry', async () => {
+    const w = render(lootLine([41n]));
+    await w.get('button.keyword-take').trigger('click');
+    expect(w.emitted('keyword')![0][0]).toEqual({ kind: 'loot', id: 41n, name: 'Rusty Dagger' });
+  });
+
+  it('is aria-disabled and emits nothing while disabled', async () => {
+    const w = render(lootLine([41n, 42n]), true);
+    for (const button of w.findAll('button.keyword-take')) {
+      expect(button.attributes('aria-disabled')).toBe('true');
+      await button.trigger('click');
+    }
+    expect(w.emitted('keyword')).toBeUndefined();
+  });
+
+  it('nests no button and renders a hostile name as literal text', () => {
+    const PAYLOAD = '<img src=x onerror=alert(1)>';
+    const hostile = new Map([
+      [7n, { name: PAYLOAD, rarity: 'common' }],
+      [8n, { name: 'Wolf Pelt', rarity: 'common' }],
+    ]);
+    const w = render(lootLine([41n], hostile));
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.find('button button').exists()).toBe(false);
+    expect(w.get('button.keyword-take').text()).toBe(`[${PAYLOAD}]`);
+  });
+
+  it('nothing available: no buttons, the bracketed text stays', () => {
+    const w = render(lootLine([]));
+    expect(w.find('button').exists()).toBe(false);
+    expect(w.get('.body').text()).toBe('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+  });
+
+  it('gives .keyword-take a touch hit area of at least 44px on coarse pointers', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/console/FeedLine.vue'), 'utf8');
+    const coarse = source.match(/@media \(pointer: coarse\) \{([\s\S]*?)\n\}/);
+    expect(coarse).not.toBeNull();
+    expect(coarse![1]).toContain('.keyword-take::after');
+    expect(coarse![1]).toMatch(/inset: -12px 0;/);
   });
 });

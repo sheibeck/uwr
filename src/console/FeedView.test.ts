@@ -590,6 +590,65 @@ describe('FeedView round headers', () => {
   });
 });
 
+describe('FeedView loot links (quick 261008-f3m)', () => {
+  const LOOT =
+    'Loot dropped: {{loot:41:common}}Rusty Dagger{{/loot}}, {{loot:42:uncommon}}Wolf Pelt{{/loot}} {{lootall}}Take all{{/lootall}}';
+  const lootRow = (id: bigint, characterId = 1n) => ({
+    id,
+    combatId: 9n,
+    ownerUserId: 7n,
+    characterId,
+    itemTemplateId: 7n,
+    createdAt: { microsSinceUnixEpoch: 1n },
+  });
+  function withLoot(rows: unknown[]) {
+    const loot = ref<readonly unknown[]>(rows);
+    const h = harness({ loot });
+    h.feed.ingest('private', {
+      id: 77n,
+      kind: 'reward',
+      message: LOOT,
+      createdAt: { microsSinceUnixEpoch: 50n },
+      characterId: 1n,
+      ownerUserId: 7n,
+    } as never);
+    h.feed.flush();
+    return { h, loot };
+  }
+  const takeButtons = (w: VueWrapper) => w.findAll('button.keyword');
+
+  it('an item still in my_combat_loot is a Take button; the others are plain bracketed text', async () => {
+    const { h } = withLoot([lootRow(41n)]);
+    const w = mountView(h);
+    const buttons = takeButtons(w);
+    expect(buttons.map((b) => b.text())).toEqual(['[Rusty Dagger]', '[Take all]']);
+    expect(buttons[0].attributes('aria-label')).toBe('Take Rusty Dagger');
+    expect(buttons[0].attributes('title')).toBe('Take Rusty Dagger');
+    expect(buttons[1].attributes('aria-label')).toBe('Take all loot');
+    expect(w.text()).toContain('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+    await buttons[0].trigger('click');
+    expect(h.actOnKeyword).toHaveBeenLastCalledWith({ kind: 'loot', id: 41n, name: 'Rusty Dagger' });
+    await buttons[1].trigger('click');
+    expect(h.actOnKeyword).toHaveBeenLastCalledWith({ kind: 'lootAll', id: 0n, name: 'all loot' });
+  });
+
+  it('once the rows are gone there are no loot buttons and the bracketed text stays', async () => {
+    const { h, loot } = withLoot([lootRow(41n), lootRow(42n)]);
+    const w = mountView(h);
+    expect(takeButtons(w)).toHaveLength(3);
+    loot.value = [];
+    await settle();
+    expect(takeButtons(w)).toHaveLength(0);
+    expect(w.text()).toContain('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+  });
+
+  it('a loot row of another character enables nothing', () => {
+    const { h } = withLoot([lootRow(41n, 2n)]);
+    const w = mountView(h);
+    expect(takeButtons(w)).toHaveLength(0);
+  });
+});
+
 describe('FeedView source', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/console/FeedView.vue'), 'utf8');
 

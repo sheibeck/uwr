@@ -83,6 +83,19 @@ describe('NoticeLine', () => {
     expect(w.findComponent(PhInfo).exists()).toBe(false);
   });
 
+  it('shows a loot line as plain names with no token text (quick 261008-f3m)', async () => {
+    const { send, mountLine } = setup();
+    const w = mountLine();
+    send(
+      'private',
+      'reward',
+      'Loot dropped: {{loot:41:common}}Rusty Dagger{{/loot}}, {{loot:42:uncommon}}Wolf Pelt{{/loot}} {{lootall}}Take all{{/lootall}}',
+    );
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe('Loot dropped: Rusty Dagger, Wolf Pelt');
+    expect(w.get('.notice-line').text()).not.toMatch(/[{}]/);
+  });
+
   it('shows a system line with the info icon', async () => {
     const { send, mountLine } = setup();
     const w = mountLine();

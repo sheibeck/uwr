@@ -38,3 +38,11 @@ describe('cleanServerText', () => {
     expect(cleanServerText('<b>x</b>')).toBe('<b>x</b>');
   });
 });
+
+describe('cleanServerText and loot tokens (quick 261008-f3m)', () => {
+  it('shows a loot line as plain names, with no token text and no take-all', () => {
+    const line =
+      'Loot dropped: {{loot:41:common}}Rusty Dagger{{/loot}}, {{loot:42:uncommon}}Wolf Pelt{{/loot}} {{lootall}}Take all{{/lootall}}';
+    expect(cleanServerText(line)).toBe('Loot dropped: Rusty Dagger, Wolf Pelt');
+  });
+});

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildVocabulary } from './keywords';
+import { formatLootLine, LOOT_DROPPED_LEAD } from '@game-data/loot_line';
 import { DIALOGUE_SEGMENT_KIND, KEEPER_LABEL, buildFeedLines, classifyEntry } from './lines';
 import type { FeedSourceName, LineSource, SegmentLike } from './lines';
 
@@ -530,5 +531,102 @@ describe('one label per run of segments from the same speaker (quick 261006-h5w)
       { vocabulary, partyNames: [], npcsHere: [] },
     );
     expect(lines.map((l) => (l.parts ?? []).filter((p) => p.entry !== null).length)).toEqual([1, 1]);
+  });
+});
+
+describe('loot lines (quick 261008-f3m)', () => {
+  const TEMPLATES = new Map<bigint, { name: string; rarity: string }>([
+    [7n, { name: 'Rusty Dagger', rarity: 'common' }],
+    [8n, { name: 'Wolf Pelt', rarity: 'common' }],
+    [9n, { name: 'Ferryman', rarity: 'rare' }],
+  ]);
+  const LOOT = formatLootLine(
+    LOOT_DROPPED_LEAD,
+    [
+      { id: 41n, itemTemplateId: 7n },
+      { id: 42n, itemTemplateId: 8n, qualityTier: 'uncommon' },
+    ],
+    (id) => TEMPLATES.get(id),
+  )!;
+  const vocabulary = buildVocabulary({
+    npcs: [{ id: 9n, name: 'Ferryman' }],
+    places: [],
+    nodes: [],
+    players: [],
+  });
+  const options = (available: bigint[] = []) => ({
+    vocabulary,
+    partyNames: [],
+    npcsHere: [],
+    availableLoot: new Set(available),
+  });
+  const lootEntries = (lines: readonly { parts: { entry: { kind: string } | null }[] | null }[]) =>
+    lines.flatMap((l) => (l.parts ?? []).filter((p) => p.entry && (p.entry.kind === 'loot' || p.entry.kind === 'lootAll')));
+
+  it('a private reward loot row is ONE Reward line with bracketed text and loot pieces', () => {
+    const lines = classify(row('reward', LOOT));
+    expect(lines).toHaveLength(1);
+    expect(lines[0].kind).toBe('quest');
+    expect(lines[0].label).toBe('Reward');
+    expect(lines[0].text).toBe('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+    expect(lines[0].keywordEligible).toBe(false);
+    expect(lines[0].loot?.filter((p) => p.kind === 'item')).toHaveLength(2);
+  });
+
+  it('buildFeedLines makes the parts from availableLoot', () => {
+    const [line] = buildFeedLines([row('reward', LOOT)], options([41n]));
+    const parts = line.parts!;
+    expect(parts.map((p) => p.text).join('')).toBe('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+    expect(parts.find((p) => p.text === '[Rusty Dagger]')!.entry).toEqual({ kind: 'loot', id: 41n, name: 'Rusty Dagger' });
+    expect(parts.find((p) => p.text === '[Wolf Pelt]')!.entry).toBeNull();
+    expect(parts.find((p) => p.text === '[Take all]')!.entry?.kind).toBe('lootAll');
+  });
+
+  it('without the availableLoot option every loot entry is null', () => {
+    const [line] = buildFeedLines([row('reward', LOOT)], { vocabulary, partyNames: [], npcsHere: [] });
+    expect(line.parts!.every((p) => p.entry === null)).toBe(true);
+    expect(line.parts!.map((p) => p.text).join('')).toBe('Loot dropped: [Rusty Dagger], [Wolf Pelt] [Take all]');
+  });
+
+  it('an item named like an NPC here is never an npc keyword inside a loot line', () => {
+    const named = formatLootLine(LOOT_DROPPED_LEAD, [{ id: 50n, itemTemplateId: 9n }], (id) => TEMPLATES.get(id))!;
+    const [line] = buildFeedLines([row('reward', named)], options([50n]));
+    expect(line.parts!.some((p) => p.entry?.kind === 'npc')).toBe(false);
+    expect(line.parts!.find((p) => p.text === '[Ferryman]')!.entry).toEqual({ kind: 'loot', id: 50n, name: 'Ferryman' });
+  });
+
+  it('the same token text in any other row never becomes a loot link', () => {
+    const segments: SegmentLike[] = [
+      { kind: 'dialogue', speaker: 'Ferryman', text: LOOT, speakerNpcId: 9n },
+      { kind: 'narration', speaker: 'The Keeper', text: LOOT },
+    ];
+    const lines = buildFeedLines(
+      [
+        row('say', LOOT, { key: 'a', source: 'location' }),
+        row('whisper', `Mara whispers: "${LOOT}"`, { key: 'b' }),
+        row('group', `Mara: ${LOOT}`, { key: 'c', source: 'group' }),
+        row('command', LOOT, { key: 'd' }),
+        row('npc', LOOT, { key: 'e' }),
+        row('reward', '', { key: 'f', segments }),
+        row('echo', LOOT, { key: 'g', source: 'local' }),
+        row('look', LOOT, { key: 'h' }),
+        row('system', LOOT, { key: 'i' }),
+        row('quest', LOOT, { key: 'j' }),
+        row('reward', LOOT, { key: 'k', source: 'group' }),
+        row('reward', LOOT, { key: 'l', source: 'location' }),
+      ],
+      options([41n, 42n]),
+    );
+    expect(lootEntries(lines)).toEqual([]);
+    expect(lines.every((l) => l.loot === undefined)).toBe(true);
+  });
+
+  it('a reward row without tokens keeps its classification and keywords', () => {
+    const [line] = buildFeedLines([row('reward', 'The Ferryman pays you 5 gold.')], options());
+    expect(line.kind).toBe('quest');
+    expect(line.label).toBe('Reward');
+    expect(line.keywordEligible).toBe(true);
+    expect(line.loot).toBeUndefined();
+    expect(line.parts!.some((p) => p.entry?.kind === 'npc')).toBe(true);
   });
 });
