@@ -31,3 +31,15 @@ export function comesAlongWithLeader(input: {
 }): boolean {
   return input.followLeader && input.online && input.atLeaderPlace;
 }
+
+/**
+ * Invite spam guard (code review WR-02): after a character's invite to someone is declined or
+ * cancelled, that character cannot invite the same person again for 30 seconds (microseconds).
+ * An accepted or expired invite starts no wait.
+ */
+export const GROUP_REINVITE_COOLDOWN_MICROS = 30_000_000n;
+
+/** True while a re-invite wait that ends at untilMicros is still running at nowMicros. */
+export function reinviteWaitRunning(untilMicros: bigint, nowMicros: bigint): boolean {
+  return nowMicros < untilMicros;
+}

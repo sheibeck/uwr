@@ -1323,6 +1323,22 @@ export const GroupInviteExpiryTick = table(
   }
 );
 
+// Re-invite wait (code review WR-02): after an invite from one character to another is declined or
+// cancelled, that inviter waits GROUP_REINVITE_COOLDOWN_MICROS before inviting the same person again.
+// Private, server-only (no view). One row per pair, pruned when the target is next invited.
+export const GroupInviteCooldown = table(
+  {
+    name: 'group_invite_cooldown',
+    indexes: [{ accessor: 'by_to_character', algorithm: 'btree', columns: ['toCharacterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    fromCharacterId: t.u64(),
+    toCharacterId: t.u64(),
+    untilMicros: t.u64(),
+  }
+);
+
 export const CharacterLogoutTick = table(
   {
     name: 'character_logout_tick',
@@ -2499,6 +2515,7 @@ const spacetimedb = schema({
   visited_location: VisitedLocation,
   passage_sweep_tick: PassageSweepTick,
   group_invite_expiry_tick: GroupInviteExpiryTick,
+  group_invite_cooldown: GroupInviteCooldown,
 });
 export default spacetimedb;
 export { spacetimedb };

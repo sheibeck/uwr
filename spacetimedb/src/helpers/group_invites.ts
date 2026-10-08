@@ -3,7 +3,12 @@
 // that meet them and by the one-shot group_invite_expiry_tick. When an invite ends by expiry,
 // cancel or decline, a group left with one member and no other invite dissolves.
 import { ScheduleAt } from 'spacetimedb';
-import { inviteExpiresAtMicros, isInviteExpired } from '../data/group_config';
+import {
+  GROUP_REINVITE_COOLDOWN_MICROS,
+  inviteExpiresAtMicros,
+  isInviteExpired,
+  reinviteWaitRunning,
+} from '../data/group_config';
 import { appendPrivateEvent } from './events';
 
 export type InviteEnd = 'expired' | 'cancelled' | 'declined';
@@ -57,12 +62,24 @@ function tell(ctx: any, character: any, message: string) {
 }
 
 /**
- * Ends an invite: deletes the row (when still there), writes the reason's lines, then dissolves
+ * Ends an invite: deletes the row (when still there) and its expiry tick, starts the re-invite wait
+ * after a decline or cancel (WR-02), writes the reason's lines, then dissolves
  * the invite's group if it is left with one member and no other invite. `actor` is the
- * character who cancelled (cancelled) or declined (declined).
+ * character who cancelled (cancelled) or declined (declined). `runningTickId` is the expiry tick
+ * that is running this end (the platform deletes a one-shot tick itself), left alone here.
  */
-export function endInvite(ctx: any, invite: any, reason: InviteEnd, actor?: any): void {
+export function endInvite(
+  ctx: any,
+  invite: any,
+  reason: InviteEnd,
+  actor?: any,
+  runningTickId?: bigint
+): void {
   if (ctx.db.group_invite.id.find(invite.id)) ctx.db.group_invite.id.delete(invite.id);
+  cancelInviteExpiry(ctx, invite.id, runningTickId);
+  if (reason === 'cancelled' || reason === 'declined') {
+    startReinviteWait(ctx, invite.fromCharacterId, invite.toCharacterId);
+  }
   const from = ctx.db.character.id.find(invite.fromCharacterId);
   const to = ctx.db.character.id.find(invite.toCharacterId);
   if (reason === 'expired') {
@@ -124,4 +141,40 @@ export function scheduleInviteExpiry(ctx: any, invite: any): void {
     scheduledAt: ScheduleAt.time(inviteExpiresAtMicros(invite.createdAt.microsSinceUnixEpoch)),
     inviteId: invite.id,
   });
+}
+
+/**
+ * Deletes the expiry tick(s) of an invite that ended early (accept, decline, cancel, lazy expiry),
+ * so no scheduled row outlives its invite (code review WR-02). The table is private and holds one
+ * row per open invite, so a scan is cheap; no index (and no schema change) is needed.
+ */
+export function cancelInviteExpiry(ctx: any, inviteId: bigint, runningTickId?: bigint): void {
+  const ticks = [...ctx.db.group_invite_expiry_tick.iter()].filter(
+    (tick: any) => tick.inviteId === inviteId && tick.scheduledId !== runningTickId
+  );
+  for (const tick of ticks) ctx.db.group_invite_expiry_tick.scheduledId.delete(tick.scheduledId);
+}
+
+/** Starts (or restarts) the wait before fromCharacterId may invite toCharacterId again. */
+export function startReinviteWait(ctx: any, fromCharacterId: bigint, toCharacterId: bigint): void {
+  const untilMicros = ctx.timestamp.microsSinceUnixEpoch + GROUP_REINVITE_COOLDOWN_MICROS;
+  const existing = [...ctx.db.group_invite_cooldown.by_to_character.filter(toCharacterId)].find(
+    (row: any) => row.fromCharacterId === fromCharacterId
+  );
+  if (existing) ctx.db.group_invite_cooldown.id.update({ ...existing, untilMicros });
+  else ctx.db.group_invite_cooldown.insert({ id: 0n, fromCharacterId, toCharacterId, untilMicros });
+}
+
+/**
+ * Whether fromCharacterId must still wait before inviting toCharacterId again. Finished waits
+ * addressed to toCharacterId are deleted on the way, so the table stays small.
+ */
+export function reinviteWaitActive(ctx: any, fromCharacterId: bigint, toCharacterId: bigint): boolean {
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  let active = false;
+  for (const row of [...ctx.db.group_invite_cooldown.by_to_character.filter(toCharacterId)]) {
+    if (!reinviteWaitRunning(row.untilMicros, now)) ctx.db.group_invite_cooldown.id.delete(row.id);
+    else if (row.fromCharacterId === fromCharacterId) active = true;
+  }
+  return active;
 }

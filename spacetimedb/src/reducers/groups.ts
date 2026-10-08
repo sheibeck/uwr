@@ -2,6 +2,7 @@ import { scheduledReducers } from '../schema/tables';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { MAX_GROUP_SIZE } from '../data/group_config';
 import {
+  cancelInviteExpiry,
   endExpiredInvitesOfGroup,
   endExpiredInvitesTo,
   endInvite,
@@ -9,6 +10,7 @@ import {
   liveInvitesOfGroup,
   liveInvitesTo,
   nextLeaderAfter,
+  reinviteWaitActive,
   scheduleInviteExpiry,
 } from '../helpers/group_invites';
 
@@ -43,6 +45,7 @@ export const registerGroupReducers = (deps: any) => {
     const group = ctx.db.group.id.find(invite.groupId);
     if (!group) {
       ctx.db.group_invite.id.delete(invite.id);
+      cancelInviteExpiry(ctx, invite.id);
       return failGroup(ctx, character, 'Group not found');
     }
 
@@ -50,6 +53,7 @@ export const registerGroupReducers = (deps: any) => {
     if (currentSize >= MAX_GROUP_SIZE) return failGroup(ctx, character, 'Group is full.');
 
     ctx.db.group_invite.id.delete(invite.id);
+    cancelInviteExpiry(ctx, invite.id);
     ctx.db.group_member.insert({
       id: 0n,
       groupId: group.id,
@@ -346,6 +350,11 @@ export const registerGroupReducers = (deps: any) => {
         return;
       }
 
+      // Invite spam guard (WR-02): after a decline or cancel, wait before inviting the same person.
+      if (reinviteWaitActive(ctx, inviter.id, target.id)) {
+        return failGroup(ctx, inviter, `Wait a moment before inviting ${target.name} again.`);
+      }
+
       // The cap counts live invites too: members plus pending invites stay below MAX_GROUP_SIZE.
       if (inviter.groupId) {
         const members = [...ctx.db.group_member.by_group.filter(inviter.groupId)].length;
@@ -478,7 +487,7 @@ export const registerGroupReducers = (deps: any) => {
       const invite = ctx.db.group_invite.id.find(arg.inviteId);
       if (!invite) return;
       if (inviteIsLive(invite, ctx.timestamp.microsSinceUnixEpoch)) return;
-      endInvite(ctx, invite, 'expired');
+      endInvite(ctx, invite, 'expired', undefined, arg.scheduledId);
     }
   );
 };

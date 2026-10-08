@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
-import { GROUP_INVITE_TTL_MICROS } from '../data/group_config';
+import { GROUP_INVITE_TTL_MICROS, GROUP_REINVITE_COOLDOWN_MICROS } from '../data/group_config';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -586,5 +586,86 @@ describe('cancel_group_invite', () => {
     call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' });
     expect(tableRows(ctx, 'group')).toHaveLength(1);
     expect(tableRows(ctx, 'group_invite').map((i) => i.toCharacterId)).toEqual([3n]);
+  });
+});
+
+describe('invite spam guard (code review WR-02)', () => {
+  const WAIT = GROUP_REINVITE_COOLDOWN_MICROS;
+  const WAIT_LINE = 'Wait a moment before inviting Bram again.';
+
+  /** Ann (solo) invites Bram at T0; then `end` ends the invite at T0 + 1. */
+  function invitedThen(end: 'decline' | 'cancel' | 'accept' | 'expire') {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    const tick = tableRows(ctx, 'group_invite_expiry_tick')[0];
+    if (end === 'decline') call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + 1n);
+    if (end === 'cancel') call(ctx, 'cancel_group_invite', 1n, { targetName: 'Bram' }, T0 + 1n);
+    if (end === 'accept') call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' }, T0 + 1n);
+    if (end === 'expire') expire(ctx, tick, T0 + TTL);
+    return { ctx, tick };
+  }
+
+  for (const end of ['decline', 'cancel'] as const) {
+    it(`after a ${end}, Ann cannot invite Bram again until the wait is over`, () => {
+      const { ctx } = invitedThen(end);
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + 1n + WAIT - 1n);
+      expect(lines(ctx, 1n).slice(-1)).toEqual([WAIT_LINE]);
+      expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+      expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+      expect(tableRows(ctx, 'group')).toHaveLength(0);
+      expect(lines(ctx, 2n).filter((l) => l.startsWith('Ann invited you'))).toHaveLength(1);
+
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + 1n + WAIT);
+      expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
+      expect(lines(ctx, 1n).slice(-1)).toEqual(['You invited Bram.']);
+      // The finished wait was pruned when Bram was invited again.
+      expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
+    });
+  }
+
+  it('the wait is per inviter: someone else may invite Bram straight away', () => {
+    const { ctx } = invitedThen('decline');
+    call(ctx, 'invite_to_group', 3n, { targetName: 'Bram' }, T0 + 2n);
+    expect(lines(ctx, 3n)).toEqual(['You invited Bram.']);
+    expect(tableRows(ctx, 'group_invite').map((i) => i.fromCharacterId)).toEqual([3n]);
+  });
+
+  it('an expired invite starts no wait', () => {
+    const { ctx } = invitedThen('expire');
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + TTL + 1n);
+    expect(lines(ctx, 1n).slice(-1)).toEqual(['You invited Bram.']);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
+  });
+
+  for (const end of ['decline', 'cancel', 'accept'] as const) {
+    it(`an invite ended by ${end} leaves no expiry tick behind`, () => {
+      const { ctx } = invitedThen(end);
+      expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+      expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+    });
+  }
+
+  it('an invite ended lazily as expired by another reducer deletes its tick', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' }, T0 + TTL);
+    expect(lines(ctx, 2n)).toContain('That invite has expired.');
+    expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+  });
+
+  it('the running expiry tick is left for the platform to delete', () => {
+    const { ctx, tick } = invitedThen('expire');
+    expect(tableRows(ctx, 'group_invite_expiry_tick').map((t) => t.scheduledId)).toEqual([tick.scheduledId]);
+  });
+
+  it('a decline/re-invite loop of ten rounds sends Bram one invite line and leaves no ticks', () => {
+    const ctx = newCtx();
+    for (let i = 0n; i < 10n; i++) {
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + i * 10n);
+      call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + i * 10n + 1n);
+    }
+    expect(lines(ctx, 2n).filter((l) => l.startsWith('Ann invited you'))).toHaveLength(1);
+    expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(1);
   });
 });
