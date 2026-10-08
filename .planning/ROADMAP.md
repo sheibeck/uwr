@@ -1114,7 +1114,7 @@ Plans:
 
 Promote with /gsd-review-backlog when ready.
 
-### Phase 999.4: Ability Expansion (BACKLOG)
+### Phase 999.4: Ability Expansion, Pets and Threat (BACKLOG)
 
 **Parked:** 2026-09-29 from v2.1 Phase 36 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.4-*/` (files retain their original `36-` prefixes).
 **State when parked:** all 5 plans executed and summarized; never verified (stopped at the 36-05 human-verify checkpoint); renown-perk flow depends on working LLM calls
@@ -1164,6 +1164,20 @@ TBD. Start with an audit:
 3. Then add new kinds (invisibility or stealth, lull) through the mechanical vocabulary with budgets, server rules and tests.
 
 This ties into 51.3.1 Combat Dials (lull and invisibility interact with pull size and aggro), Phase 51.3 (gather and craft rates read the economy dials) and Phase 51.5 (new skill flow). Any new or changed generation prompt wording needs the owner's approval.
+
+**Merged in 2026-10-08 (owner): pets, and threat.** Owner, 2026-10-08: "We'll want a phase for combat to talk about threat and threat generation. Those threat numbers were based on the old system when we had set classes instead of the unique class generation system we have now. Let's revisit that when we revisit combat and pets. Pets should be added into the phase where we look at our class ability selection". This item is where class ability selection is revisited, so pets (backlog 999.27, folded in below) and the threat rework both live here.
+
+#### Pets (was 999.27)
+
+Pets read as real companions: a kind and an icon (for example `Summoned` with `PhSparkle`, `Wolf companion` with `PhPawPrint`), their ability and cooldown (`Siphon 2s`, `Maul ready`), and players can click a pet to target it with heals and buffs. Today `active_pet` has no kind column, the only insert path sets `abilityKey: undefined` (live pets have no ability), and `use_ability` has no `targetPetId`. The full scout is in the 999.27 entry. Pets come from the generated class abilities (the `summon` kind), so how a generated class gets a pet, which pet kinds exist, and their budgets are decided with class ability selection.
+
+#### Threat rework
+
+The threat numbers date from the fixed classes: tank x1.5, healer x0.5, summoner x0.75 (`TANK_THREAT_MULTIPLIER`, `HEALER_THREAT_MULTIPLIER`, `SUMMONER_THREAT_MULTIPLIER` in `data/combat_scaling.ts`, mirrored in `THREAT_CONFIG` in `mechanical_vocabulary.ts`), healing at 50% of the amount healed, pets starting at 200 (`SUMMONER_PET_INITIAL_AGGRO`), and taunt forcing the target. Generated classes have no fixed role, so revisit:
+- where threat comes from (by ability kind and the class's generated role or archetype, not a fixed class name);
+- taunt and threat-reduction kinds, and how pets hold threat;
+- how threat ties to 51.3.1 Combat Dials (pull size, enemy difficulty) and the enemy target shown on its panel (51.3.2);
+- tests on the threat table and target choice, with the shared target rule from 51.3.2 kept as the one source.
 
 Promote with /gsd-review-backlog when ready.
 
@@ -2261,7 +2275,9 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.27: Pet kinds, pet abilities and pet targeting (BACKLOG)
+### Phase 999.27: Pet kinds, pet abilities and pet targeting (MERGED INTO 999.4)
+
+**Status (owner, 2026-10-08):** folded into 999.4 Ability Expansion, Pets and Threat, where class ability selection is revisited. This entry stays as the scout record.
 
 **Source:** owner decision at the Phase 51.1 resume (2026-10-07). The updated `UWR Combat.dc.html` and `UWR Party.dc.html` draw these; 51.1 shows pets with name, level, HP and expiry only, and the "keep dropped" decision was recorded in `51.1-CONTEXT.md`.
 
@@ -2283,4 +2299,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after adding the enemy's target on its combat panel to Phase 51.3.2 (owner)*
+*Last updated: 2026-10-08 after folding pets (999.27) and the threat rework into 999.4 (owner)*
