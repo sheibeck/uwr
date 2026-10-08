@@ -20,6 +20,17 @@ The owner, 2026-10-08, verbatim: "I have a question. when we travel into a locat
 
 So travel is safe everywhere, whatever the level gap.
 
+## Owner direction (simplest form)
+
+Owner, 2026-10-08 (verbatim): "this could be as simple as MobDensity is a property of a location. The more dense the mobs, the more chance you have to A. get attacked when you enter or leave B. pull a group of enemies instead of a single enemy when fighting"
+
+So the core is one number per location, **mob density**:
+- **A. Ambush on travel:** entering or leaving a place rolls an attack chance that rises with its mob density (scaled by the level gap and tuned by dials).
+- **B. Pull size:** a pull brings a group instead of one enemy more often the denser the place is.
+Everything else below (Near and Far, counterplay, sub-areas) is optional on top of this.
+
+Placed in Phase 51.3.1 Combat Dials (coordinator, 2026-10-08), which already covers pull size and difficulty dials.
+
 ## Ideas to explore (owner's thinking, plus options)
 
 - **Near and Far enemies.** Each spawn at a place is either Near (in your aggro range) or Far. Near enemies can notice you; Far ones cannot until they drift closer or you approach. Nearby could group them under "Near" and "Far" headings.

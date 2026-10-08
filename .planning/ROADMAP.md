@@ -786,6 +786,7 @@ Plans:
   3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
   4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 53 admin screens get a panel beside the economy panel.
   5. Pull size: how many enemies a pull brings is settled in discuss and, if the owner wants, tied to difficulty through the dials.
+  5a. Mob density: each location has a mob density. The denser it is, the more likely (A) entering or leaving it provokes an attack, and (B) a pull brings a group instead of a single enemy. The chance also weighs the level gap, and dials tune it by difficulty, region and enemy type. Safe places never roll. Rolls are deterministic and tested.
   6. Ability power: whether player abilities get per-kind power dials (and per-ability overrides) is settled in discuss; if built, cast-time results and tooltips read the same rule.
   7. Tests cover the clamps, each override level and how they combine, and determinism.
 
@@ -803,6 +804,7 @@ Plans:
     - The difficulty dials remain the main tool for overall balance.
   - Owner, 2026-10-08: enemies in higher-level places spawned at level 1 (todo `2026-10-08-nearby-enemies-ignore-the-location-level.md`). A quick task scales a spawn to its place's level when no enemy type fits; this phase also makes world generation create enemy types for each place's level range (base plus each `levelOffset`). That is a prompt change, so the owner approves the wording.
   - Owner, 2026-10-08: "Quest bosses should be harder!" Quick task 261008-ag8 already scales quest and named spawns to the place's level band. For discuss: the default bosses-and-named dial should put quest bosses above ordinary enemies at the same place (a level bump, extra health and damage, or both), not just equal to them.
+  - Owner, 2026-10-08 (verbatim): "this could be as simple as MobDensity is a property of a location. The more dense the mobs, the more chance you have to A. get attacked when you enter or leave B. pull a group of enemies instead of a single enemy when fighting" Today travel never starts a fight (scout 2026-10-08: fights start only from a pull, the gather ambush, quest aggro and named pulls). Full notes and optional extras (Near and Far enemies, counterplay through 999.4 sneak or lull, sub-areas) are in the todo `2026-10-08-dangerous-travel-and-enemy-proximity.md`.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
@@ -2340,4 +2342,4 @@ Plans:
 
 
 ---
-*Last updated: 2026-10-08 after refining backlog 999.28 into a cartographer map (owner)*
+*Last updated: 2026-10-08 after adding mob density (travel ambush and pull size) to Phase 51.3.1 (owner)*
