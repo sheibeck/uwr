@@ -35,6 +35,7 @@ import {
 } from '../data/combat_constants';
 import { applyArmorMitigation, applyVariance, scaleByPercent } from './combat_enemies';
 import { secondsToRounds } from './combat_rounds';
+import { effectiveEnemyLevel } from '../data/enemy_rules';
 
 const GLOBAL_COOLDOWN_MICROS = 1_500_000n;
 
@@ -1187,7 +1188,7 @@ export function executeEnemyAbility(
   if (!enemy) return;
   const enemyTemplate = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
   const enemyName = enemy.displayName ?? enemyTemplate?.name ?? 'Enemy';
-  const enemyLevel = enemyTemplate?.level ?? 1n;
+  const enemyLevel = effectiveEnemyLevel(enemy.level, enemyTemplate?.level ?? 1n);
 
   // Look up the enemy ability from the DB table by abilityKey match
   const enemyAbilities = [...ctx.db.enemy_ability.by_template.filter(enemy.enemyTemplateId)];

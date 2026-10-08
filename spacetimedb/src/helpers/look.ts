@@ -1,5 +1,6 @@
 import { getWorldState } from './location';
 import { isNodeVisibleTo } from './examine';
+import { effectiveEnemyLevel } from '../data/enemy_rules';
 
 /**
  * Build the full LOOK output for a character at their current location.
@@ -69,7 +70,8 @@ export function buildLookOutput(ctx: any, character: any): string[] {
     for (const spawn of aliveSpawns) {
       const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
       if (!template) continue;
-      const diff = Number(template.level) - Number(character.level);
+      const level = effectiveEnemyLevel(spawn.level, template.level);
+      const diff = Number(level) - Number(character.level);
       let color: string;
       if (diff <= -5) color = '#6b7280';
       else if (diff <= -3) color = '#b6f7c4';
@@ -80,7 +82,7 @@ export function buildLookOutput(ctx: any, character: any): string[] {
       else color = '#f87171';
 
       const countSuffix = spawn.groupCount > 1n ? ` x${spawn.groupCount}` : '';
-      enemyParts.push(`{{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${template.level}){{/color}}`);
+      enemyParts.push(`{{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${level}){{/color}}`);
     }
     if (enemyParts.length > 0) {
       parts.push(`\nEnemies nearby: ${enemyParts.join(', ')}.`);

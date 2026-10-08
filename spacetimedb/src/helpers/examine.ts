@@ -3,6 +3,7 @@
 // this one and the bind stone. No spacetimedb/server or schema imports, so it stays unit-testable.
 import { sumItemStats } from '../data/item_stats';
 import type { ItemStatKey } from '../data/item_stats';
+import { effectiveEnemyLevel } from '../data/enemy_rules';
 
 const LOOK_REGEX = /^(?:look|l)(?:\s+(.+))?$/i;
 
@@ -248,7 +249,7 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
     if (matches(spawn.name)) {
       const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
       if (!template) continue;
-      let desc = `You study ${spawn.name}. Level ${template.level}. ${template.role} ${template.creatureType}.`;
+      let desc = `You study ${spawn.name}. Level ${effectiveEnemyLevel(spawn.level, template.level)}. ${template.role} ${template.creatureType}.`;
       if (template.isBoss) desc += ' This creature carries the weight of something ancient and terrible.';
       return desc;
     }

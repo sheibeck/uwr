@@ -8,6 +8,7 @@ import {
   BLOCK_MITIGATION_BASE, BLOCK_MITIGATION_STR_PER_POINT, WIS_PULL_BONUS_PER_POINT,
   DOT_LIFE_DRAIN_PERCENT,
 } from '../data/combat_scaling';
+import { templateAtLevel } from '../data/enemy_rules';
 import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
 import {
@@ -96,8 +97,11 @@ const addEnemyToCombat = (
   roleTemplateId?: bigint
 ) => {
   const { SenderError, computeEnemyStats } = deps;
-  const template = ctx.db.enemy_template.id.find(spawnToUse.enemyTemplateId);
-  if (!template) throw new SenderError('Enemy template missing');
+  const storedTemplate = ctx.db.enemy_template.id.find(spawnToUse.enemyTemplateId);
+  if (!storedTemplate) throw new SenderError('Enemy template missing');
+  // The spawn level (quick 261008-ag8): a spawn scaled to its place fights with the world-gen
+  // stats at that level. A spawn from before the level column (0) fights as its type.
+  const template = templateAtLevel(storedTemplate, spawnToUse.level);
 
   let roleTemplate = roleTemplateId
     ? ctx.db.enemy_role_template.id.find(roleTemplateId)
@@ -135,6 +139,7 @@ const addEnemyToCombat = (
     armorClass,
     aggroTargetCharacterId: undefined,
     nextAutoAttackAt: 0n, // legacy column: the round engine acts once per round, no per-enemy timer
+    level: template.level,
   });
 
   for (const p of participants) {
@@ -1993,8 +1998,13 @@ export const registerCombatReducers = (deps: any) => {
         markParticipantDead(ctx, currentParticipant, character, enemyName);
       }
     }
+    // Each enemy is read at the level it fought at (quick 261008-ag8), so XP, gold, loot gates and
+    // renown below follow the scaled level. Rows from before the level column read as their type.
     const enemyTemplates = enemies
-      .map((row) => ctx.db.enemy_template.id.find(row.enemyTemplateId))
+      .map((row) => {
+        const found = ctx.db.enemy_template.id.find(row.enemyTemplateId);
+        return found ? templateAtLevel(found, row.level) : found;
+      })
       .filter((row): row is typeof deps.EnemyTemplate.rowType => Boolean(row));
     const totalBaseXp = enemyTemplates.reduce((sum, template) => {
       const base = template.xpReward && template.xpReward > 0n ? template.xpReward : template.level * 20n;
@@ -2218,7 +2228,8 @@ export const registerCombatReducers = (deps: any) => {
       }
       const primaryEnemy = enemies[0];
       if (primaryEnemy) {
-        const template = ctx.db.enemy_template.id.find(primaryEnemy.enemyTemplateId);
+        const foundTemplate = ctx.db.enemy_template.id.find(primaryEnemy.enemyTemplateId);
+        const template = foundTemplate ? templateAtLevel(foundTemplate, primaryEnemy.level) : foundTemplate;
         if (template) {
           if (template.isBoss) {
             const bossKey = `boss_${template.name.toLowerCase().replace(/\s+/g, '_')}`;

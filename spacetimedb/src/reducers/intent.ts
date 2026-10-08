@@ -18,6 +18,7 @@ import {
 } from '../helpers/world_gen';
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
+import { effectiveEnemyLevel } from '../data/enemy_rules';
 import { findRaceDefinition } from '../data/race_bonuses';
 import { turnInCompletedQuest, turnInQuestsAtNpc, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
@@ -685,7 +686,8 @@ export const registerIntentReducers = (deps: any) => {
       for (const spawn of aliveSpawns) {
         const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
         if (!template) continue;
-        const diff = Number(template.level) - Number(character.level);
+        const level = effectiveEnemyLevel(spawn.level, template.level);
+        const diff = Number(level) - Number(character.level);
         let color: string;
         if (diff <= -5) color = '#6b7280';
         else if (diff <= -3) color = '#b6f7c4';
@@ -695,7 +697,7 @@ export const registerIntentReducers = (deps: any) => {
         else if (diff <= 4) color = '#f59e0b';
         else color = '#f87171';
         const countSuffix = spawn.groupCount > 1n ? ` x${spawn.groupCount}` : '';
-        let line = `  {{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${template.level}) - ${template.role} ${template.creatureType}`;
+        let line = `  {{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${level}) - ${template.role} ${template.creatureType}`;
         if (template.isBoss) line += ' [BOSS]';
         if (spawn.state === 'engaged') line += ' [In Combat]';
         if (spawn.state === 'pulling') line += ' [Pulling]';
@@ -1567,7 +1569,7 @@ export const registerIntentReducers = (deps: any) => {
         if (spawn.name.toLowerCase().includes(targetName)) {
           const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
           if (!template) continue;
-          const levelDiff = Number(template.level) - Number(character.level);
+          const levelDiff = Number(effectiveEnemyLevel(spawn.level, template.level)) - Number(character.level);
           let threat: string;
           if (levelDiff <= -10) threat = `${spawn.name} would be trivial prey. Hardly worth the effort.`;
           else if (levelDiff <= -5) threat = `${spawn.name} poses little threat. You could handle this in your sleep.`;
@@ -1620,7 +1622,7 @@ export const registerIntentReducers = (deps: any) => {
 
       const template = ctx.db.enemy_template.id.find(targetSpawn.enemyTemplateId);
       const enemyName = targetSpawn.name;
-      const levelStr = template ? ` (L${template.level})` : '';
+      const levelStr = template ? ` (L${effectiveEnemyLevel(targetSpawn.level, template.level)})` : '';
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat_prompt',
         `You prepare to engage ${enemyName}${levelStr}. Approach carefully or charge in?\n\n  [Careful Pull] — Measured approach, longer pull time\n  [Charge In] — Rush in immediately`);
