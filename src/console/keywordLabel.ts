@@ -8,6 +8,8 @@ const VERBS: Readonly<Record<KeywordKind, string>> = {
   place: 'Travel to',
   node: 'Examine',
   player: 'Whisper',
+  loot: 'Take',
+  lootAll: 'Take',
 };
 
 export function keywordActionLabel(entry: KeywordEntry): string {

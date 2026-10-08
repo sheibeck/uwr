@@ -11,6 +11,7 @@ import type {
   CombatEnemy,
   CombatEnemyCast,
   CombatEnemyEffect,
+  CombatLoot,
   CombatNarrative,
   CombatParticipant,
   CombatRound,
@@ -60,7 +61,8 @@ import { createServerClock } from './serverClock';
 // The game data hub: every Phase 47 subscription lives here (research "Subscription plan").
 //
 // Scope of each subscription:
-//   once per connection  the five views, faction, active world events, event_world
+//   once per connection  the five views, faction, active world events, event_world,
+//                        my_combat_aggro and my_combat_loot (the loot links, quick 261008-f3m)
 //   by user              event_private
 //   by location          event_location, npc, enemy_spawn, resource_node, character,
 //                        location_connection
@@ -130,6 +132,7 @@ export interface GameConn extends ConnLike {
     combatNarrative: Row<CombatNarrative>;
     activePet: Row<ActivePet>;
     myCombatAggro: Row<MyCombatAggroEntry>;
+    myCombatLoot: Row<CombatLoot>;
   };
   reducers: GameReducers;
 }
@@ -191,6 +194,10 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     table: (c) => c.db.myCombatAggro,
     sql: [queries.myCombatAggro],
   });
+  const combatLoot = deps.bind<CombatLoot>({
+    table: (c) => c.db.myCombatLoot,
+    sql: [queries.myCombatLoot],
+  });
   const staticBindings: AttachableBinding<C>[] = [
     effects,
     quests,
@@ -200,6 +207,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     factions,
     worldEvents,
     combatAggro,
+    combatLoot,
   ];
   const eventWorld = deps.bindEvent<EventWorld>({
     table: (c) => c.db.eventWorld,
@@ -741,6 +749,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     renownPerks: keyedRows(renownPerks),
     gathers: gatherRows,
     characterCasts: castRows,
+    loot: combatLoot.rows,
     actionFirstSeen: actionSeen.firstSeen,
     privateEventsApplied,
     combat,

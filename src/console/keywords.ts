@@ -9,8 +9,10 @@
 //     or underscore (so "St." and "C++" work); neighbors are tested with Unicode property classes
 //   - the vocabulary is capped at KEYWORD_LIMIT, higher-priority kinds first
 // findKeywords is total: it never throws and the joined part texts always equal the input.
+// The loot kinds (loot, lootAll) come only from lootLine.ts (parsed server reward lines, quick
+// 261008-f3m), never from the vocabulary.
 
-export type KeywordKind = 'npc' | 'enemy' | 'place' | 'node' | 'player';
+export type KeywordKind = 'npc' | 'enemy' | 'place' | 'node' | 'player' | 'loot' | 'lootAll';
 export interface KeywordEntry {
   kind: KeywordKind;
   id: bigint;
@@ -19,7 +21,8 @@ export interface KeywordEntry {
 export interface KeywordVocabulary {
   readonly size: number;
 }
-export type KeywordPart = { text: string; entry: KeywordEntry | null };
+/** rarity is set only on loot parts (a QUALITY_TIERS key, drawn through rarityColor). */
+export type KeywordPart = { text: string; entry: KeywordEntry | null; rarity?: string };
 
 export const KEYWORD_LIMIT = 200;
 

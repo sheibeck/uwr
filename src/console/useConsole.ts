@@ -9,7 +9,8 @@
 //
 // Echo rules: the player's own line is echoed for intents, reducer commands, info commands and
 // rail or keyword actions. No local echo for the automatic look, talk_to_npc, whisper,
-// group_message, say or submit_command: the server writes those lines itself.
+// group_message, say, submit_command, take_loot or take_all_loot: the server writes those lines
+// itself.
 //
 // Must be called inside a component setup or an effect scope: the watchers stop with that scope.
 
@@ -450,6 +451,22 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     frame.openScreen('vendor');
   }
 
+  // Loot links (quick 261008-f3m): no echo, no screen close and no conversation change. The server
+  // writes "You receive ..." and every refusal ("Backpack is full", "Loot not found") itself.
+  function takeLoot(lootId: bigint): void {
+    const characterId = game.characterId.value;
+    if (!ready() || characterId === null) return;
+    void fire('takeLoot', (r) => r.takeLoot({ characterId, lootId }));
+    bump();
+  }
+
+  function takeAllLoot(): void {
+    const characterId = game.characterId.value;
+    if (!ready() || characterId === null) return;
+    void fire('takeAllLoot', (r) => r.takeAllLoot({ characterId }));
+    bump();
+  }
+
   function actOnKeyword(entry: KeywordEntry): void {
     switch (entry.kind) {
       case 'npc':
@@ -467,6 +484,12 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
         break;
       case 'player':
         whisperTo(entry.name);
+        break;
+      case 'loot':
+        takeLoot(entry.id);
+        break;
+      case 'lootAll':
+        takeAllLoot();
         break;
     }
   }

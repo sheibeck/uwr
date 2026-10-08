@@ -8,7 +8,8 @@ import { tables } from '../module_bindings';
 // event_world are small or already scoped server-side, so they stay unfiltered.
 // The combat tables are keyed by character id (own participant and own choice rows) or by
 // combat id (everything of the one fight); enemy templates and abilities are id-list OR
-// chains. The threat view my_combat_aggro is static: it is scoped server-side.
+// chains. The threat view my_combat_aggro is static: it is scoped server-side. So is the loot
+// view my_combat_loot (the active character's untaken drops, quick 261008-f3m).
 
 export interface GameQueries {
   myCharacterEffects: string;
@@ -20,6 +21,7 @@ export interface GameQueries {
   eventWorld: string;
   activeWorldEvents: string;
   myCombatAggro: string;
+  myCombatLoot: string;
   eventPrivate(userId: bigint): string;
   eventLocation(locationId: bigint): string;
   eventGroup(groupId: bigint): string;
@@ -75,6 +77,7 @@ export function gameQueries(): GameQueries {
     eventWorld: toSql(tables.eventWorld),
     activeWorldEvents: toSql(tables.worldEvent.where((r) => r.status.eq('active'))),
     myCombatAggro: toSql(tables.myCombatAggro),
+    myCombatLoot: toSql(tables.myCombatLoot),
     eventPrivate: (userId) => toSql(tables.eventPrivate.where((r) => r.ownerUserId.eq(userId))),
     eventLocation: (locationId) =>
       toSql(tables.eventLocation.where((r) => r.locationId.eq(locationId))),

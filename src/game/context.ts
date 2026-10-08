@@ -11,6 +11,7 @@ import type {
   CombatEnemy,
   CombatEnemyCast,
   CombatEnemyEffect,
+  CombatLoot,
   CombatNarrative,
   CombatParticipant,
   CombatRound,
@@ -90,6 +91,8 @@ export interface GameReducers {
   bindLocation(a: { characterId: bigint }): Promise<void>;
   setFollowLeader(a: { characterId: bigint; follow: boolean }): Promise<void>;
   cancelGroupInvite(a: { characterId: bigint; targetName: string }): Promise<void>;
+  takeLoot(a: { characterId: bigint; lootId: bigint }): Promise<void>;
+  takeAllLoot(a: { characterId: bigint }): Promise<void>;
 }
 
 type List<T> = Readonly<Ref<readonly T[]>>;
@@ -188,6 +191,8 @@ export interface GameData {
   readonly gathers: List<ResourceGather>;
   /** The active character's out-of-combat character_cast rows (distinct from combat.casts, the enemy wind-ups). */
   readonly characterCasts: List<CharacterCast>;
+  /** my_combat_loot: the active character's untaken drops (feed loot links, quick 261008-f3m; Phase 51.4 loot rails reuse it). */
+  readonly loot: List<CombatLoot>;
   /**
    * Action row (a13): 'gather:{id}' / 'cast:{id}' -> client microseconds at which the row first
    * appeared. Kept here, not in a component, so a remount never restarts a bar; entries drop with
@@ -370,6 +375,7 @@ export function createInertGame(): GameData {
     renownPerks: empty<RenownPerk>(),
     gathers: empty<ResourceGather>(),
     characterCasts: empty<CharacterCast>(),
+    loot: empty<CombatLoot>(),
     actionFirstSeen: constant<ReadonlyMap<string, number>>(new Map()),
     privateEventsApplied: constant(false),
     combat: createInertCombatData(),
