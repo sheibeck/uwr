@@ -824,6 +824,52 @@ describe('a group left with one member dissolves; invites end with a line (code 
     });
   }
 
+  // Review 2 WR-05: a group kept alive by a live invite later dissolves; its last member is told.
+  describe('a group kept alive by an invite: its last member is told when it dissolves', () => {
+    /** Ann (leader) invited Cole, then left; Bram leads group 5 alone with that live invite. */
+    function keptAlive() {
+      const ctx = newCtx(pair([{ id: 1n, groupId: 5n, from: 1n, to: 3n }]));
+      call(ctx, 'leave_group', 1n, {});
+      expect(tableRows(ctx, 'group')).toHaveLength(1);
+      return ctx;
+    }
+
+    it('Cole declines: Bram is told and becomes solo; Ann gets the usual declined line', () => {
+      const ctx = keptAlive();
+      call(ctx, 'reject_group_invite', 3n, { fromName: 'Ann' }, T0 + 1n);
+      expect(tableRows(ctx, 'group')).toHaveLength(0);
+      solo(ctx, 2n);
+      expect(lines(ctx, 2n).slice(-1)).toEqual(['Cole declined the invite. The group has disbanded.']);
+      expect(lines(ctx, 1n).slice(-1)).toEqual(['Cole declined your group invite.']);
+    });
+
+    it('the invite expires: Bram is told', () => {
+      const ctx = keptAlive();
+      // The seeded invite has no tick row; the module runs one for it.
+      expire(ctx, { scheduledId: 99n, inviteId: 1n }, T0 + TTL);
+      expect(tableRows(ctx, 'group')).toHaveLength(0);
+      solo(ctx, 2n);
+      expect(lines(ctx, 2n).slice(-1)).toEqual(['The invite to Cole expired. The group has disbanded.']);
+      expect(lines(ctx, 1n).slice(-1)).toEqual(['Your invite to Cole expired.']);
+    });
+
+    it('Bram cancels: his own cancel line says the group disbanded', () => {
+      const ctx = keptAlive();
+      call(ctx, 'cancel_group_invite', 2n, { targetName: 'Cole' }, T0 + 1n);
+      expect(tableRows(ctx, 'group')).toHaveLength(0);
+      solo(ctx, 2n);
+      expect(lines(ctx, 2n).slice(-1)).toEqual(['You cancelled the invite to Cole. The group has disbanded.']);
+      expect(lines(ctx, 3n).slice(-1)).toEqual(['Bram cancelled the invite.']);
+    });
+
+    it('a solo inviter\'s own lone group still dissolves without the extra line', () => {
+      const ctx = newCtx();
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+      call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + 1n);
+      expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Bram declined your group invite.']);
+    });
+  });
+
   it('an expired invite does not keep the group: it ends with its lines, then the group dissolves', () => {
     const ctx = newCtx(pair([{ id: 1n, groupId: 5n, from: 1n, to: 3n, createdAt: T0 - TTL }]));
     call(ctx, 'leave_group', 2n, {});

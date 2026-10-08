@@ -45,10 +45,10 @@ export function liveInvitesOfGroup(ctx: any, groupId: bigint): any[] {
     .sort(byId);
 }
 
-function endExpired(ctx: any, invites: any[]): number {
+function endExpired(ctx: any, invites: any[], announceDisband = true): number {
   const now = ctx.timestamp.microsSinceUnixEpoch;
   const expired = invites.filter((invite) => !inviteIsLive(invite, now)).sort(byId);
-  for (const invite of expired) endInvite(ctx, invite, 'expired');
+  for (const invite of expired) finishInvite(ctx, invite, 'expired', undefined, undefined, announceDisband);
   return expired.length;
 }
 
@@ -78,13 +78,21 @@ function startsReinviteWait(invite: any, reason: InviteEnd, actor?: any): boolea
   return reason === 'withdrawn' && actor != null && actor.id === invite.fromCharacterId;
 }
 
+const DISBANDED = 'The group has disbanded.';
+
 /**
  * Ends an invite: deletes the row (when still there) and its expiry tick, starts the re-invite wait
- * (startsReinviteWait), writes the reason's lines, then dissolves
- * the invite's group if it is left with one member and no other invite. `actor` is the
+ * (startsReinviteWait), dissolves the invite's group if it is left with one member and no other
+ * invite, then writes the reason's lines. `actor` is the
  * character who cancelled (cancelled), declined (declined) or, for withdrawn, whose departure
  * withdrew it. `runningTickId` is the expiry tick that is running this end (the platform deletes a
  * one-shot tick itself), left alone here.
+ *
+ * Review 2 WR-05: when the dissolve leaves a member solo who is not the inviter (a group kept alive
+ * by this invite after its other members left), he is told, with the same
+ * '{line} The group has disbanded.' pattern settleGroupAfterLeave uses: his own reason line gets
+ * the suffix (a canceller), otherwise he gets an onlooker line (e.g. 'Cole declined the invite.
+ * The group has disbanded.'). A solo inviter's own lone group dissolves silently, as before.
  */
 export function endInvite(
   ctx: any,
@@ -93,6 +101,18 @@ export function endInvite(
   actor?: any,
   runningTickId?: bigint
 ): void {
+  finishInvite(ctx, invite, reason, actor, runningTickId, true);
+}
+
+/** endInvite; with announceDisband false the dissolve is left for the caller to announce. */
+function finishInvite(
+  ctx: any,
+  invite: any,
+  reason: InviteEnd,
+  actor: any,
+  runningTickId: bigint | undefined,
+  announceDisband: boolean
+): void {
   if (ctx.db.group_invite.id.find(invite.id)) ctx.db.group_invite.id.delete(invite.id);
   cancelInviteExpiry(ctx, invite.id, runningTickId);
   if (startsReinviteWait(invite, reason, actor)) {
@@ -100,21 +120,43 @@ export function endInvite(
   }
   const from = ctx.db.character.id.find(invite.fromCharacterId);
   const to = ctx.db.character.id.find(invite.toCharacterId);
+
+  const membersBefore = [...ctx.db.group_member.by_group.filter(invite.groupId)];
+  const dissolved = dissolveLoneGroup(ctx, invite.groupId);
+  const loneId = membersBefore[0]?.characterId;
+  const lone =
+    announceDisband && dissolved && loneId !== undefined && loneId !== invite.fromCharacterId
+      ? ctx.db.character.id.find(loneId) ?? null
+      : null;
+  const told = new Set<bigint>();
+  const say = (character: any, message: string) => {
+    if (!character) return;
+    told.add(character.id);
+    tell(ctx, character, lone !== null && character.id === lone.id ? `${message} ${DISBANDED}` : message);
+  };
+
+  let onlooker = '';
   if (reason === 'expired') {
-    if (to) tell(ctx, from, `Your invite to ${to.name} expired.`);
-    if (from) tell(ctx, to, `The invite from ${from.name} expired.`);
+    if (to) say(from, `Your invite to ${to.name} expired.`);
+    if (from) say(to, `The invite from ${from.name} expired.`);
+    if (to) onlooker = `The invite to ${to.name} expired.`;
   } else if (reason === 'cancelled') {
     const canceller = actor ?? from;
-    if (canceller) tell(ctx, to, `${canceller.name} cancelled the invite.`);
-    if (to) tell(ctx, canceller, `You cancelled the invite to ${to.name}.`);
+    if (canceller) say(to, `${canceller.name} cancelled the invite.`);
+    if (to) say(canceller, `You cancelled the invite to ${to.name}.`);
+    if (canceller && to) onlooker = `${canceller.name} cancelled the invite to ${to.name}.`;
   } else if (reason === 'withdrawn') {
-    if (from) tell(ctx, to, `The invite from ${from.name} is no longer open.`);
-    if (to) tell(ctx, from, `Your invite to ${to.name} is no longer open.`);
+    if (from) say(to, `The invite from ${from.name} is no longer open.`);
+    if (to) say(from, `Your invite to ${to.name} is no longer open.`);
+    if (to) onlooker = `The invite to ${to.name} is no longer open.`;
   } else {
     const decliner = actor ?? to;
-    if (decliner) tell(ctx, from, `${decliner.name} declined your group invite.`);
+    if (decliner) say(from, `${decliner.name} declined your group invite.`);
+    if (decliner) onlooker = `${decliner.name} declined the invite.`;
   }
-  dissolveLoneGroup(ctx, invite.groupId);
+  if (lone !== null && !told.has(lone.id)) {
+    tell(ctx, lone, onlooker ? `${onlooker} ${DISBANDED}` : DISBANDED);
+  }
 }
 
 /**
@@ -221,10 +263,11 @@ export function settleGroupAfterLeave(
   }
   if (remaining.length === 1) {
     const lone = ctx.db.character.id.find(remaining[0].characterId);
-    endExpiredInvitesOfGroup(ctx, groupId);
+    // Quiet: an expired invite that dissolves the group here leaves the one line below to say so.
+    endExpired(ctx, [...ctx.db.group_invite.by_group.filter(groupId)], false);
     const dissolved = !ctx.db.group.id.find(groupId) || dissolveLoneGroup(ctx, groupId);
     if (dissolved) {
-      tell(ctx, lone, `${departureLine} The group has disbanded.`);
+      tell(ctx, lone, `${departureLine} ${DISBANDED}`);
       return;
     }
   }
