@@ -6,8 +6,9 @@ import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 import { placeLevelBand, placeSpawnLevel, effectiveEnemyLevel } from '../data/enemy_rules';
 import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS, CRAFTING_MODIFIER_WEIGHT_MULTIPLIER } from '../data/crafting_rules';
 
-export const DAY_DURATION_MICROS = 1_200_000_000n;
-export const NIGHT_DURATION_MICROS = 600_000_000n;
+// One full day is an hour: 40 minutes of day, then 20 of night (owner, 2026-10-08).
+export const DAY_DURATION_MICROS = 2_400_000_000n;
+export const NIGHT_DURATION_MICROS = 1_200_000_000n;
 export const DEFAULT_LOCATION_SPAWNS = 3;
 export const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
 
