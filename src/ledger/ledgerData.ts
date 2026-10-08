@@ -14,6 +14,7 @@ import type {
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, ConnLike, TableBinding, TableLike } from '../net/bindTable';
 import { decodeResultLines } from '@game-data/action_result';
+import { recipeRequirements } from '@game-data/crafting_rules';
 import { createKeyed, idListKey, keyedRows, parseIdListKey } from '../game/keyedBinding';
 import type { LedgerData, LedgerReducers, VendorTarget } from './ledgerContext';
 import type { LedgerQueries } from './queries';
@@ -248,16 +249,11 @@ export function createLedgerData<C extends LedgerConn>(
       for (const row of itemRows.value) ids.push(row.templateId);
       for (const row of vendorStock.value) ids.push(row.itemTemplateId);
       for (const recipe of recipeRows.value) {
-        ids.push(recipe.outputTemplateId, recipe.req1TemplateId, recipe.req2TemplateId);
-        if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) {
-          ids.push(recipe.req3TemplateId);
-        }
+        ids.push(recipe.outputTemplateId);
+        for (const req of recipeRequirements(recipe)) ids.push(req.templateId);
       }
       for (const recipe of outputRecipeRows.value) {
-        ids.push(recipe.req1TemplateId, recipe.req2TemplateId);
-        if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) {
-          ids.push(recipe.req3TemplateId);
-        }
+        for (const req of recipeRequirements(recipe)) ids.push(req.templateId);
       }
       const sale = lastSale.value;
       if (sale !== null) ids.push(sale.templateId);

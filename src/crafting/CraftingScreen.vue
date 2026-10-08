@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { PhBookOpen, PhCaretLeft, PhHammer, PhRecycle, PhTShirt } from '@phosphor-icons/vue';
+import { recipeRequirements } from '@game-data/crafting_rules';
 import { canEquipItem } from '@game-data/item_usability';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import { LEDGER_KEY, createInertLedger } from '../ledger/ledgerContext';
@@ -60,9 +61,7 @@ const usedTemplateIds = computed<bigint[]>(() => {
   const id = selectedId.value;
   const recipe = id === null ? undefined : ledger.recipes.value.get(id);
   if (!recipe) return [];
-  const ids = [recipe.req1TemplateId, recipe.req2TemplateId];
-  if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) ids.push(recipe.req3TemplateId);
-  return ids;
+  return recipeRequirements(recipe).map((req) => req.templateId);
 });
 const view = ref<'list' | 'detail'>('list');
 const list = useTemplateRef<InstanceType<typeof RecipeList>>('list');

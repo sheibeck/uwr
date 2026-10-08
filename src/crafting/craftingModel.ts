@@ -12,6 +12,7 @@ import {
   maxCraftCount,
   planCraft,
   primaryMaterialTier,
+  recipeRequirements,
   type CraftPlan,
   type CraftRoom,
 } from '@game-data/crafting_rules';
@@ -156,13 +157,8 @@ function requirementsOf(
   templates: ReadonlyMap<bigint, ItemTemplate>,
   items: readonly ItemInstance[],
 ): RequirementEntry[] {
-  const parts: Array<{ templateId: bigint; need: bigint }> = [
-    { templateId: recipe.req1TemplateId, need: recipe.req1Count },
-    { templateId: recipe.req2TemplateId, need: recipe.req2Count },
-  ];
-  if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) {
-    parts.push({ templateId: recipe.req3TemplateId, need: recipe.req3Count ?? 0n });
-  }
+  // The shared slot rule (req1, req2, then req3 and req4 when set), the same one planCraft reads.
+  const parts = recipeRequirements(recipe).map((req) => ({ templateId: req.templateId, need: req.count }));
   return parts.map((part) => {
     const have = bagCount(items, part.templateId);
     const template = templates.get(part.templateId);
@@ -541,7 +537,7 @@ export function recipeDetail(
   let qualityLine: string | null = null;
   if (gear) {
     const primary = input.templates.get(recipe.req1TemplateId);
-    qualityKey = craftQualityForMaterialName(primary ? primary.name : null);
+    qualityKey = craftQualityForMaterialName(primary ? primary.name : null, primary ? primary.rarity : null);
     quality = capitalize(qualityKey);
     // The server adds getCraftQualityStatBonus to armor class (an armor output) or to damage and DPS
     // (a weapon output), so the line names the bonus the same way.
@@ -551,7 +547,7 @@ export function recipeDetail(
       if (output.armorClassBonus > 0n) bonusText = ` (+${bonus} armor)`;
       else if (output.weaponBaseDamage > 0n) bonusText = ` (+${bonus} damage)`;
     }
-    const tierNumber = primaryMaterialTier(primary ? primary.name : null);
+    const tierNumber = primaryMaterialTier(primary ? primary.name : null, primary ? primary.rarity : null);
     qualityLine = `Quality: ${quality}${bonusText}, set by Tier ${tierNumber} ${primary ? primary.name : UNKNOWN_MATERIAL}`;
     const upgrade = craftQualityUpgrade(qualityKey);
     if (upgrade) {
@@ -708,6 +704,7 @@ function planInputOf(input: CraftAvailabilityInput) {
   return {
     recipe,
     primaryMaterialName: primary ? primary.name : null,
+    primaryMaterialRarity: primary ? primary.rarity : null,
     catalyst:
       essence === null
         ? null
@@ -761,7 +758,7 @@ export function craftAvailability(input: CraftAvailabilityInput): CraftAvailabil
         reason = 'Add a reagent to use the essence, or remove it.';
         break;
       case 'essence_tier':
-        reason = `Too weak for ${capitalize(craftQualityForMaterialName(planInput.primaryMaterialName))} quality`;
+        reason = `Too weak for ${capitalize(craftQualityForMaterialName(planInput.primaryMaterialName, planInput.primaryMaterialRarity))} quality`;
         break;
       case 'catalyst_missing':
         reason = `Missing 1 ${planInput.catalyst && planInput.catalyst.name !== '' ? planInput.catalyst.name : 'essence'}.`;

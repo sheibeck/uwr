@@ -264,6 +264,7 @@ describe('createLedgerData: affixes, templates and recipes', () => {
         req1TemplateId: 22n,
         req2TemplateId: 23n,
         req3TemplateId: 24n,
+        req3Count: 1n,
       },
     ];
     h.find('Q_RECIPES_40').applied.value = true;
@@ -283,6 +284,31 @@ describe('createLedgerData: affixes, templates and recipes', () => {
     expect(h.hub.templates.value.get(30n)?.name).toBe('Bread');
     expect(h.hub.templates.value.size).toBe(2);
     expect(h.hub.recipes.value.get(40n)?.id).toBe(40n);
+  });
+
+  it('includes the 4th requirement template id in the template key (51.3)', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    h.find('Q_ITEMS_7').rows.value = [item(1n, 20n)];
+    h.find('Q_KNOWN_7').rows.value = [{ characterId: 7n, recipeTemplateId: 40n }];
+    h.find('Q_KNOWN_7').applied.value = true;
+    h.find('Q_ITEMS_7').applied.value = true;
+    h.find('Q_RECIPES_40').rows.value = [
+      {
+        id: 40n,
+        outputTemplateId: 21n,
+        req1TemplateId: 22n,
+        req2TemplateId: 23n,
+        req3TemplateId: 24n,
+        req3Count: 1n,
+        req4TemplateId: 25n,
+        req4Count: 2n,
+      },
+    ];
+    h.find('Q_RECIPES_40').applied.value = true;
+    const sql = h.liveSql().filter((s) => s.indexOf('Q_TPL') === 0);
+    expect(sql[sql.length - 1]).toBe('Q_TPL_20,21,22,23,24,25');
   });
 
   it('keys recipe templates by the discovered ids', () => {
@@ -495,6 +521,28 @@ describe('createLedgerData: last result and output recipes', () => {
     expect(h.hub.outputRecipesApplied.value).toBe(true);
   });
 
+  it('includes the 4th requirement of an output recipe in the template key (51.3)', () => {
+    const h = make();
+    h.connect();
+    h.activeCharacterId.value = 7n;
+    h.find('Q_ITEMS_7').rows.value = [item(1n, 20n)];
+    h.find('Q_ITEMS_7').applied.value = true;
+    h.find('Q_OUTPUT_20').rows.value = [
+      {
+        id: 50n,
+        outputTemplateId: 20n,
+        req1TemplateId: 41n,
+        req2TemplateId: 42n,
+        req3TemplateId: 43n,
+        req3Count: 1n,
+        req4TemplateId: 44n,
+        req4Count: 1n,
+      },
+    ];
+    const sql = h.liveSql().filter((s) => s.indexOf('Q_TPL') === 0);
+    expect(sql[sql.length - 1]).toBe('Q_TPL_20,41,42,43,44');
+  });
+
   it('loads the templates the last result and output recipes name', () => {
     const h = make();
     h.connect();
@@ -508,6 +556,7 @@ describe('createLedgerData: last result and output recipes', () => {
         req1TemplateId: 41n,
         req2TemplateId: 42n,
         req3TemplateId: 43n,
+        req3Count: 1n,
       },
     ];
     h.find('Q_RESULT').rows.value = [

@@ -171,6 +171,29 @@ describe('salvagePreview: a chance at a smaller return', () => {
     );
   });
 
+  it('lists the 4th requirement of a 4-requirement recipe as a possible component (51.3)', () => {
+    const templates = new Map<bigint, ItemTemplate>([
+      [70n, tpl(70n, { name: 'Peat Moss', slot: 'material', vendorValue: 1n })],
+      [71n, tpl(71n, { name: 'Rough Hide', slot: 'material', vendorValue: 1n })],
+      [72n, tpl(72n, { name: 'Bog Iron', slot: 'material', vendorValue: 1n })],
+      [73n, tpl(73n, { name: 'Tide Pearl', slot: 'material', vendorValue: 1n })],
+    ]);
+    const result = preview({
+      ...base,
+      template: tpl(1n),
+      templates,
+      outputRecipe: recipe({
+        req1Count: 3n,
+        req2Count: 3n,
+        req3TemplateId: 72n,
+        req3Count: 3n,
+        req4TemplateId: 73n,
+        req4Count: 3n,
+      }),
+    });
+    expect(result.components.map((c) => c.name)).toEqual(['Peat Moss', 'Rough Hide', 'Bog Iron', 'Tide Pearl']);
+  });
+
   it('nothing usable: an item worth less than one material says so', () => {
     const result = preview({ ...base, template: tpl(1n, { vendorValue: 1n }), outputRecipe: null });
     expect(result.components).toEqual([]);

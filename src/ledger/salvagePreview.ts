@@ -5,6 +5,7 @@ import {
   SALVAGE_REAGENT_CHANCE_PCT,
   getMaterialForSalvage,
   itemKeyFromName,
+  recipeRequirements,
   salvageComponents,
   salvageReagentDefs,
 } from '@game-data/crafting_rules';
@@ -68,14 +69,7 @@ export interface SalvagePreview {
 const LIKELY_PCT = SALVAGE_COMPONENT_CHANCE_PCT[2];
 
 function requirementsOf(recipe: RecipeTemplate): { templateId: bigint; count: bigint }[] {
-  const parts = [
-    { templateId: recipe.req1TemplateId, count: recipe.req1Count },
-    { templateId: recipe.req2TemplateId, count: recipe.req2Count },
-  ];
-  if (recipe.req3TemplateId !== undefined && recipe.req3TemplateId !== null) {
-    parts.push({ templateId: recipe.req3TemplateId, count: recipe.req3Count ?? 0n });
-  }
-  return parts;
+  return recipeRequirements(recipe).map((req) => ({ templateId: req.templateId, count: req.count }));
 }
 
 /** 'A', 'A and B', 'A, B and C'. */

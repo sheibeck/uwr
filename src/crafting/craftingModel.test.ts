@@ -3,6 +3,7 @@ import {
   AFFIX_SLOTS_BY_QUALITY,
   ESSENCE_MAGNITUDE,
   getModifierMagnitude,
+  maxCraftCount,
   planCraft,
 } from '@game-data/crafting_rules';
 import { MAX_INVENTORY_SLOTS } from '@game-data/inventory_rules';
@@ -923,5 +924,132 @@ describe('materialRows', () => {
     const evil = new Map(templates);
     evil.set(1n, tpl(1n, PAYLOAD));
     expect(materialRows([inst(1n, 1n)], evil, new Set())[0].name).toBe(PAYLOAD);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3: the 4th requirement and the regional primary's rarity
+// ---------------------------------------------------------------------------
+
+describe('four requirements and a regional primary (51.3)', () => {
+  const PEAT = tpl(30n, 'Peat Moss', { rarity: 'uncommon' });
+  const SALTBLOOM = tpl(31n, 'Saltbloom', { rarity: 'rare' });
+  const BOG_IRON = tpl(32n, 'Bog Iron');
+  const PEARL = tpl(33n, 'Tide Pearl', { rarity: 'rare' });
+  const REGION_TEMPLATES = [...TEMPLATES, PEAT, SALTBLOOM, BOG_IRON, PEARL];
+  const templates = new Map(REGION_TEMPLATES.map((t) => [t.id, t]));
+
+  // Primary Peat x2, Rough Hide x1, Iron Ore x1, and the 4th: Tide Pearl x2 (a legendary-style recipe).
+  const R_FOUR = recipe(20n, 'Tidecaller Blade', {
+    outputTemplateId: 100n,
+    req1TemplateId: 30n,
+    req1Count: 2n,
+    req2TemplateId: 4n,
+    req2Count: 1n,
+    req3TemplateId: 2n,
+    req3Count: 1n,
+    req4TemplateId: 33n,
+    req4Count: 2n,
+  });
+  const fourInput = (items: ItemInstance[]): CraftingInput => ({
+    known: known(20n),
+    recipes: new Map([[20n, R_FOUR]]),
+    templates,
+    items,
+  });
+  const ALL_FOUR = [inst(1n, 30n, 4n), inst(2n, 4n, 3n), inst(3n, 2n, 3n), inst(4n, 33n, 5n)];
+
+  it('shows four requirement entries in slot order with true bag counts', () => {
+    const row = recipeRows(fourInput(ALL_FOUR), { filter: 'all', onlyCraftable: false })[0];
+    expect(row.requirements.map((r) => r.text)).toEqual(['Peat Moss 4/2', 'Rough Hide 3/1', 'Iron Ore 3/1', 'Tide Pearl 5/2']);
+    expect(row.craftable).toBe(true);
+    expect(row.canMake).toBe(2n);
+    expect(row.statusText).toBe('Can make 2');
+  });
+
+  it('is not craftable when only the 4th requirement is short, and names it', () => {
+    const items = [inst(1n, 30n, 4n), inst(2n, 4n, 1n), inst(3n, 2n, 1n), inst(4n, 33n, 1n)];
+    const row = recipeRows(fourInput(items), { filter: 'all', onlyCraftable: false })[0];
+    expect(row.requirements.map((r) => r.met)).toEqual([true, true, true, false]);
+    expect(row.craftable).toBe(false);
+    expect(row.canMake).toBe(0n);
+    expect(row.statusText).toBe('Missing Tide Pearl');
+    expect(recipeRows(fourInput(items), { filter: 'all', onlyCraftable: true })).toEqual([]);
+  });
+
+  it('Can make N equals the shared maxCraftCount on all four requirements', () => {
+    // Peat and pearls limit it to 2 crafts (4 peat at 2 each; 5 pearls at 2 each).
+    const row = recipeRows(fourInput(ALL_FOUR), { filter: 'all', onlyCraftable: false })[0];
+    const plan = {
+      recipe: R_FOUR,
+      primaryMaterialName: 'Peat Moss',
+      primaryMaterialRarity: 'uncommon',
+      catalyst: null,
+      modifiers: [],
+      countOf: (id: bigint) => bagCount(ALL_FOUR, id),
+    };
+    expect(row.canMake).toBe(maxCraftCount(plan) * R_FOUR.outputCount);
+  });
+
+  it('craftAvailability names the short 4th requirement through planCraft, and passes with all four', () => {
+    const short = craftAvailability({
+      recipe: R_FOUR,
+      station: true,
+      templates,
+      items: [inst(1n, 30n, 4n), inst(2n, 4n, 1n), inst(3n, 2n, 1n), inst(4n, 33n, 1n)],
+      choice: { essenceId: null, reagentIds: [] },
+    });
+    expect(short.available).toBe(false);
+    expect(short.reason).toBe('Missing 1 Tide Pearl.');
+    const ok = craftAvailability({
+      recipe: R_FOUR,
+      station: true,
+      templates,
+      items: ALL_FOUR,
+      choice: { essenceId: null, reagentIds: [] },
+    });
+    expect(ok.available).toBe(true);
+  });
+
+  it('usesRows lists the 4th requirement scaled by the quantity', () => {
+    const rows = usesRows(R_FOUR, templates, ALL_FOUR, 2n);
+    expect(rows.map((r) => [r.name, r.need])).toEqual([
+      ['Peat Moss', 4n],
+      ['Rough Hide', 2n],
+      ['Iron Ore', 2n],
+      ['Tide Pearl', 4n],
+    ]);
+  });
+
+  it('previews the quality from a regional primary by its rarity, and a MATERIAL_DEFS name by its tier', () => {
+    const parts = (over: Partial<ReturnType<typeof input>> = {}) => {
+      const { known: _known, ...rest } = input(ALL_FOUR);
+      return { ...rest, templates, ...over };
+    };
+    const quality = (primaryId: bigint) => {
+      const gear = recipe(21n, 'Regional Blade', { outputTemplateId: 100n, req1TemplateId: primaryId, req1Count: 1n });
+      return recipeDetail({ ...parts(), recipes: new Map([[21n, gear]]) }, 21n, 5n)!;
+    };
+    expect(quality(30n).qualityLine).toContain('Quality: Reinforced');
+    expect(quality(30n).qualityLine).toContain('set by Tier 2 Peat Moss');
+    expect(quality(31n).qualityLine).toContain('Quality: Exquisite');
+    expect(quality(31n).qualityLine).toContain('set by Tier 3 Saltbloom');
+    // A common regional name (not in MATERIAL_DEFS) stays standard; a MATERIAL_DEFS name keeps its tier.
+    expect(quality(32n).qualityLine).toContain('Quality: Standard');
+    expect(quality(2n).qualityLine).toContain('Quality: Reinforced');
+  });
+
+  it('the essence tier gate follows the regional primary rarity too', () => {
+    const rare = recipe(22n, 'Saltbloom Blade', { outputTemplateId: 100n, req1TemplateId: 31n, req1Count: 1n, req2TemplateId: 4n, req2Count: 1n });
+    const items = [inst(1n, 31n, 1n), inst(2n, 4n, 1n), inst(3n, 10n, 1n), inst(4n, 20n, 1n)];
+    const result = craftAvailability({
+      recipe: rare,
+      station: true,
+      templates,
+      items,
+      choice: { essenceId: 10n, reagentIds: [20n] },
+    });
+    // Lesser Essence is too weak for an Exquisite recipe (the regional rare primary).
+    expect(result.reason).toBe('Too weak for Exquisite quality');
   });
 });

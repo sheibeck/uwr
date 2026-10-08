@@ -893,6 +893,34 @@ describe('CraftingScreen desktop', () => {
     expect(lit()).toEqual(['Iron Ore', 'Rough Hide']);
   });
 
+  it('highlights all four materials of a 4-requirement recipe (51.3)', async () => {
+    const peat = tpl(30n, 'Peat Moss', { rarity: 'uncommon' });
+    const pearl = tpl(33n, 'Tide Pearl', { rarity: 'rare' });
+    const four = recipe(20n, 'Tidecaller Blade', {
+      outputTemplateId: 100n,
+      req1TemplateId: 30n,
+      req1Count: 1n,
+      req2TemplateId: 4n,
+      req2Count: 1n,
+      req3TemplateId: 2n,
+      req3Count: 1n,
+      req4TemplateId: 33n,
+      req4Count: 2n,
+    });
+    const { w } = mountScreen({
+      recipes: [four],
+      knownIds: [20n],
+      templates: [...TEMPLATES, peat, pearl],
+      items: [...ITEMS, inst(30n, 30n, 2n), inst(31n, 33n, 1n)],
+    });
+    await nextTick();
+    const lit = () => w.findAll('.materials-col .m-row.highlighted').map((r) => r.get('.m-name').text());
+    expect(lit()).toEqual(['Iron Ore', 'Peat Moss', 'Rough Hide', 'Tide Pearl']);
+    // The detail names all four requirements and flags the short pearl.
+    expect(w.get('.detail-col').text()).toContain('Tide Pearl');
+    expect(w.get('.detail-col').text()).toContain('1 / 2');
+  });
+
   it('keeps the list and materials as the two columns, list first, with no recipes known', () => {
     const { w } = mountScreen({ knownIds: [] });
     expect(w.findAll('.desk-grid > .col').map((c) => c.classes().filter((k) => k !== 'col')[0])).toEqual([
