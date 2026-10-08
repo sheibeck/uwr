@@ -19,23 +19,6 @@ import { effectiveGroupId } from './group';
 import { statOffset, CHA_VENDOR_SCALE, CHA_VENDOR_SELL_SCALE } from '../data/combat_scaling.js';
 import { RACE_DATA } from '../data/races';
 
-export function getGroupParticipants(ctx: any, character: any, sameLocation: boolean = true) {
-  const groupId = effectiveGroupId(character);
-  if (!groupId) return [character];
-  const participants: any[] = [];
-  const seen = new Set<string>();
-  for (const member of ctx.db.group_member.by_group.filter(groupId)) {
-    const memberChar = ctx.db.character.id.find(member.characterId);
-    if (!memberChar) continue;
-    if (sameLocation && memberChar.locationId !== character.locationId) continue;
-    const key = memberChar.id.toString();
-    if (seen.has(key)) continue;
-    participants.push(memberChar);
-    seen.add(key);
-  }
-  return participants.length > 0 ? participants : [character];
-}
-
 export function isGroupLeaderOrSolo(ctx: any, character: any) {
   const groupId = effectiveGroupId(character);
   if (!groupId) return true;

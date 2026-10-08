@@ -166,7 +166,6 @@ import {
 } from './helpers/combat_rewards';
 
 import {
-  getGroupParticipants,
   isGroupLeaderOrSolo,
   partyMembersInLocation,
   recomputeCharacterDerived,
@@ -831,7 +830,6 @@ const reducerDeps = {
   rollAttackOutcome,
   hasShieldEquipped,
   calculateFleeChance,
-  getGroupParticipants,
   isGroupLeaderOrSolo,
   effectiveGroupId,
   effectiveGroupKey,
