@@ -465,7 +465,8 @@ export function handleEconomyAdminCommand(ctx: any, character: any, text: string
       const name = plainText(region.name);
       if (result === 'off') refuse('The AI economy is off. Turn it on with /economy ai on first.');
       else if (result === 'exists') refuse(`${name} already has an economy (${regionStatusWord(ctx, region.id)}).`);
-      else if (result === 'no_region' || result === 'not_ready') refuse('No region by that name.');
+      // The region exists (found above), so 'no_region' here means it has no locations (review B IN-06).
+      else if (result === 'no_region' || result === 'not_ready') refuse(`${name} has no places yet.`);
       else if (result === 'enqueued' || result === 'duplicate') {
         say(`Economy design queued for ${name}. It runs in the background; see /economy region ${name} for the status.`);
       } else if (result === 'refused:halted' || result === 'refused:ceiling') refuse(LLM_RESTING_LINE);

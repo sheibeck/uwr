@@ -658,10 +658,11 @@ describe('handleEconomyAdminCommand: design', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
   });
 
-  it('a region with no locations: No region by that name.', () => {
+  // Review B IN-06: an existing region with no locations is told apart from an unknown name.
+  it('a region with no locations says so, not "No region by that name."', () => {
     const ctx = ctxFor(admin, designSeed({ economy_dials: ON() }));
     run(ctx, '/economy design Ashfall');
-    expect(systemLines(ctx)).toEqual(['No region by that name.']);
+    expect(systemLines(ctx)).toEqual(['Ashfall has no places yet.']);
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
   });
 
