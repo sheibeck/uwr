@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 // This tsconfig has no @types/node; vitest runs the file in Node, so the built-ins resolve at runtime.
 // @ts-ignore
 import { readFileSync } from 'node:fs';
@@ -17,7 +17,19 @@ import {
   rollBelow,
   lootSeed,
   regionTableSeed,
+  baseMix,
+  shiftMix,
+  rarityMix,
+  rollRarity,
+  jewelryFloor,
 } from './economy_rules';
+import { QUALITY_TIERS } from './mechanical_vocabulary';
+import { rollQualityTier, TIER_RARITY_WEIGHTS, getWorldTier } from '../helpers/items';
+
+// helpers/items imports spacetimedb/server (SenderError only); the real package does not load under plain vitest.
+vi.mock('spacetimedb/server', () => ({
+  SenderError: class extends Error {},
+}));
 
 const T = 1_700_000_000_000_000n;
 
@@ -252,6 +264,260 @@ describe('lootSeed', () => {
   it('regionTableSeed differs per region and per enemy', () => {
     expect(regionTableSeed(1n, 1n)).not.toBe(regionTableSeed(2n, 1n));
     expect(regionTableSeed(1n, 1n)).not.toBe(regionTableSeed(1n, 2n));
+  });
+});
+
+describe('baseMix', () => {
+  it('matches the known T1 rows', () => {
+    expect(baseMix(1n, 100n)).toEqual([95n, 5n, 0n, 0n, 0n]);
+    expect(baseMix(6n, 100n)).toEqual([70n, 30n, 0n, 0n, 0n]);
+    expect(baseMix(1n, 200n)).toEqual([87n, 13n, 0n, 0n, 0n]);
+  });
+
+  it('matches the known T2+ rows', () => {
+    expect(baseMix(11n, 100n)).toEqual([60n, 30n, 9n, 1n, 0n]);
+    expect(baseMix(45n, 300n)).toEqual([0n, 20n, 40n, 40n, 0n]);
+  });
+
+  it('always sums to 100', () => {
+    for (let level = 1n; level <= 50n; level += 1n) {
+      for (let danger = 100n; danger <= 1000n; danger += 50n) {
+        const sum = baseMix(level, danger).reduce((a, b) => a + b, 0n);
+        expect(sum).toBe(100n);
+      }
+    }
+  });
+
+  it('parity: equals the rollQualityTier distribution for levels 1..50 and dangers 100..1000', () => {
+    const names = QUALITY_TIERS as readonly string[];
+    for (let level = 1; level <= 50; level += 1) {
+      for (let danger = 100; danger <= 1000; danger += 10) {
+        const counts = [0, 0, 0, 0, 0];
+        for (let seed = 0; seed < 100; seed += 1) {
+          const tier = rollQualityTier(BigInt(level), BigInt(seed), BigInt(danger));
+          counts[names.indexOf(tier)] += 1;
+        }
+        const mix = baseMix(BigInt(level), BigInt(danger)).map(Number);
+        expect(mix, `level ${level} danger ${danger}`).toEqual(counts);
+      }
+    }
+  });
+
+  it('parity holds at the T1/T2 seam and the danger bonus seams', () => {
+    const names = QUALITY_TIERS as readonly string[];
+    for (const level of [10, 11]) {
+      for (const danger of [100, 120, 121, 135, 136, 150, 151]) {
+        const counts = [0, 0, 0, 0, 0];
+        for (let seed = 0; seed < 100; seed += 1) {
+          counts[names.indexOf(rollQualityTier(BigInt(level), BigInt(seed), BigInt(danger)))] += 1;
+        }
+        expect(baseMix(BigInt(level), BigInt(danger)).map(Number), `level ${level} danger ${danger}`).toEqual(counts);
+      }
+    }
+    expect(getWorldTier(10n)).toBe(1);
+    expect(getWorldTier(11n)).toBe(2);
+    expect(baseMix(10n, 100n)).toEqual([70n, 30n, 0n, 0n, 0n]);
+    expect(baseMix(11n, 100n)).toEqual([60n, 30n, 9n, 1n, 0n]);
+  });
+
+  it('copies the TIER_RARITY_WEIGHTS rows at the neutral danger', () => {
+    const levels: [bigint, number][] = [[11n, 2], [21n, 3], [31n, 4], [41n, 5]];
+    for (const [level, tier] of levels) {
+      const row = TIER_RARITY_WEIGHTS[tier]!;
+      expect(baseMix(level, 100n)).toEqual([BigInt(row[0]), BigInt(row[1]), BigInt(row[2]), BigInt(row[3]), 0n]);
+    }
+  });
+
+  it('never has legendary weight', () => {
+    for (let level = 1n; level <= 50n; level += 7n) expect(baseMix(level, 500n)[4]).toBe(0n);
+  });
+});
+
+describe('shiftMix', () => {
+  it('moves every tier up by k, piling overflow on the cap', () => {
+    expect(shiftMix([95n, 5n, 0n, 0n, 0n], 1n, 3)).toEqual([0n, 95n, 5n, 0n, 0n]);
+    expect(shiftMix([10n, 20n, 40n, 30n, 0n], 5n, 3)).toEqual([0n, 0n, 0n, 100n, 0n]);
+    expect(shiftMix([10n, 20n, 40n, 30n, 0n], 1n, 4)).toEqual([0n, 10n, 20n, 40n, 30n]);
+    expect(shiftMix([10n, 20n, 40n, 30n, 0n], 2n, 4)).toEqual([0n, 0n, 10n, 20n, 70n]);
+  });
+
+  it('moves down and piles on common', () => {
+    expect(shiftMix([60n, 30n, 9n, 1n, 0n], -1n, 3)).toEqual([90n, 9n, 1n, 0n, 0n]);
+    expect(shiftMix([60n, 30n, 9n, 1n, 0n], -9n, 3)).toEqual([100n, 0n, 0n, 0n, 0n]);
+  });
+
+  it('returns a new array and keeps the total', () => {
+    const mix = [10n, 20n, 40n, 30n, 0n];
+    const out = shiftMix(mix, 0n, 3);
+    expect(out).not.toBe(mix);
+    expect(out).toEqual(mix);
+    expect(shiftMix(mix, 2n, 3).reduce((a, b) => a + b, 0n)).toBe(100n);
+  });
+});
+
+describe('rarityMix', () => {
+  const sum = (m: bigint[]) => m.reduce((a, b) => a + b, 0n);
+
+  it('at default dials a normal foe equals the base mix', () => {
+    for (const [level, danger] of [[1n, 100n], [11n, 150n], [30n, 300n], [45n, 500n]] as [bigint, bigint][]) {
+      expect(rarityMix(level, danger, false, effectiveDials(DEFAULT_DIALS))).toEqual(baseMix(level, danger));
+    }
+  });
+
+  it('a normal foe has legendary 0 under every dial setting', () => {
+    for (let shift = -2n; shift <= 2n; shift += 1n) {
+      for (let bonus = 0n; bonus <= 2n; bonus += 1n) {
+        for (const pct of [0n, 100n, 300n]) {
+          const dials = effectiveDials({
+            ...DEFAULT_DIALS,
+            rarityShift: shift,
+            bossRarityBonus: bonus,
+            tierCommonPct: pct,
+            tierUncommonPct: pct,
+            tierRarePct: pct,
+            tierEpicPct: pct,
+            tierLegendaryPct: 300n,
+          });
+          for (const level of [1n, 11n, 25n, 45n, 50n]) {
+            expect(rarityMix(level, 1000n, false, dials)[4]).toBe(0n);
+          }
+        }
+      }
+    }
+  });
+
+  it('a normal foe has legendary 0 at shift +2 with every tier weight 300', () => {
+    const dials = effectiveDials({
+      ...DEFAULT_DIALS,
+      rarityShift: 2n,
+      tierCommonPct: 300n,
+      tierUncommonPct: 300n,
+      tierRarePct: 300n,
+      tierEpicPct: 300n,
+      tierLegendaryPct: 300n,
+    });
+    const mix = rarityMix(45n, 300n, false, dials);
+    expect(mix[4]).toBe(0n);
+    expect(mix[3] > 0n).toBe(true);
+  });
+
+  it('a boss at level 45 with bonus 2 has legendary above 0', () => {
+    const dials = effectiveDials({ ...DEFAULT_DIALS, bossRarityBonus: 2n });
+    expect(rarityMix(45n, 300n, true, dials)[4] > 0n).toBe(true);
+  });
+
+  it('a boss gets a built-in +1 shift at default dials', () => {
+    const dials = effectiveDials(DEFAULT_DIALS);
+    const boss = rarityMix(45n, 100n, true, dials);
+    expect(boss).toEqual(shiftMix(baseMix(45n, 100n), 1n, 4));
+    expect(boss[4] > 0n).toBe(true);
+    const normal = rarityMix(45n, 100n, false, dials);
+    expect(boss[0] <= normal[0]).toBe(true);
+  });
+
+  it('a negative shift lowers a boss too, but the built-in step still applies', () => {
+    const dials = effectiveDials({ ...DEFAULT_DIALS, rarityShift: -1n });
+    expect(rarityMix(11n, 100n, true, dials)).toEqual(shiftMix(baseMix(11n, 100n), 0n, 4));
+  });
+
+  it('tier pct 0 for epic removes epic', () => {
+    const dials = effectiveDials({ ...DEFAULT_DIALS, tierEpicPct: 0n });
+    expect(rarityMix(45n, 300n, false, dials)[3]).toBe(0n);
+    expect(rarityMix(45n, 300n, true, dials)[3]).toBe(0n);
+  });
+
+  it('multiplies by the tier weights (floor)', () => {
+    const dials = effectiveDials({ ...DEFAULT_DIALS, tierRarePct: 50n, tierCommonPct: 300n });
+    const base = baseMix(25n, 100n);
+    const mix = rarityMix(25n, 100n, false, dials);
+    expect(mix[0]).toBe(base[0] * 3n);
+    expect(mix[2]).toBe((base[2] * 50n) / 100n);
+    expect(mix[1]).toBe(base[1]);
+  });
+
+  it('keeps a total of 100 at default dials', () => {
+    for (let level = 1n; level <= 50n; level += 1n) {
+      expect(sum(rarityMix(level, 100n, false, effectiveDials(DEFAULT_DIALS)))).toBe(100n);
+      expect(sum(rarityMix(level, 100n, true, effectiveDials(DEFAULT_DIALS)))).toBe(100n);
+    }
+  });
+});
+
+describe('rollRarity', () => {
+  it('returns common when every tier weight is 0', () => {
+    const dials = effectiveDials({
+      ...DEFAULT_DIALS,
+      tierCommonPct: 0n,
+      tierUncommonPct: 0n,
+      tierRarePct: 0n,
+      tierEpicPct: 0n,
+      tierLegendaryPct: 0n,
+    });
+    const mix = rarityMix(30n, 300n, true, dials);
+    expect(mix.every((w) => w === 0n)).toBe(true);
+    for (let s = 0n; s < 20n; s += 1n) expect(rollRarity(mix, s)).toBe('common');
+  });
+
+  it('is deterministic', () => {
+    const mix = baseMix(25n, 100n);
+    expect(rollRarity(mix, 12345n)).toBe(rollRarity(mix, 12345n));
+  });
+
+  it('frequencies over 10,000 loot seeds are within 2 points of the mix', () => {
+    const mix = baseMix(25n, 100n);
+    const counts: Record<string, number> = {};
+    const N = 10000;
+    for (let i = 0; i < N; i += 1) {
+      const tier = rollRarity(mix, lootSeed(T + BigInt(i), 3n, BigInt(i % 7) + 1n));
+      counts[tier] = (counts[tier] ?? 0) + 1;
+    }
+    QUALITY_TIERS.forEach((tier, idx) => {
+      const expected = Number(mix[idx]);
+      const actual = ((counts[tier] ?? 0) / N) * 100;
+      expect(Math.abs(actual - expected), tier).toBeLessThan(2);
+    });
+    expect(counts['legendary'] ?? 0).toBe(0);
+  });
+
+  it('a boss mix reaches legendary at roughly its weight', () => {
+    const mix = rarityMix(45n, 100n, true, effectiveDials(DEFAULT_DIALS));
+    let legendary = 0;
+    const N = 5000;
+    for (let i = 0; i < N; i += 1) {
+      if (rollRarity(mix, lootSeed(T + BigInt(i), 9n, 1n)) === 'legendary') legendary += 1;
+    }
+    expect(Math.abs((legendary / N) * 100 - Number(mix[4]))).toBeLessThan(3);
+  });
+
+  it('the gear-chance roll and the rarity roll do not decide each other', () => {
+    // Among seeds where the gear roll passes a 17% chance, T1 uncommon (5%) must still be near 5%
+    // rather than pinned (the old code made the two rolls the same number shifted by a constant).
+    const mix = baseMix(1n, 100n);
+    let gear = 0;
+    let uncommon = 0;
+    for (let i = 0; i < 20000; i += 1) {
+      const seed = lootSeed(T + BigInt(i), 1n, 1n);
+      if (rollBelow(seed, ROLL_INDEX.GEAR_CHANCE, 100n) < 17n) {
+        gear += 1;
+        if (rollRarity(mix, seed) === 'uncommon') uncommon += 1;
+      }
+    }
+    expect(gear).toBeGreaterThan(2500);
+    expect(Math.abs((uncommon / gear) * 100 - 5)).toBeLessThan(2);
+  });
+});
+
+describe('jewelryFloor', () => {
+  it('lifts common neck and earrings without armor to uncommon', () => {
+    expect(jewelryFloor('neck', 0n, 'common')).toBe('uncommon');
+    expect(jewelryFloor('earrings', 0n, 'common')).toBe('uncommon');
+  });
+
+  it('leaves everything else alone', () => {
+    expect(jewelryFloor('neck', 1n, 'common')).toBe('common');
+    expect(jewelryFloor('neck', 0n, 'rare')).toBe('rare');
+    expect(jewelryFloor('chest', 0n, 'common')).toBe('common');
+    expect(jewelryFloor('mainHand', 0n, 'common')).toBe('common');
   });
 });
 

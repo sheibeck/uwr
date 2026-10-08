@@ -201,3 +201,115 @@ export function lootSeed(tsMicros: bigint, characterId: bigint, combatEnemyId: b
 export function regionTableSeed(regionId: bigint, enemyTemplateId: bigint): bigint {
   return BigInt.asUintN(64, regionId * 1000003n + enemyTemplateId * 7919n);
 }
+
+// ---------------------------------------------------------------------------
+// Rarity mix
+// ---------------------------------------------------------------------------
+
+const EPIC_INDEX = 3;
+const LEGENDARY_INDEX = 4;
+
+/**
+ * The rarity rows of helpers/items.ts TIER_RARITY_WEIGHTS ([common, uncommon, rare, epic] per world
+ * tier), copied as bigints so this module stays pure. The parity test pins the copy to the original.
+ */
+const TIER_ROWS: Readonly<Record<number, readonly [bigint, bigint, bigint, bigint]>> = Object.freeze({
+  1: [95n, 5n, 0n, 0n],
+  2: [60n, 30n, 9n, 1n],
+  3: [35n, 35n, 25n, 5n],
+  4: [20n, 35n, 35n, 10n],
+  5: [10n, 20n, 40n, 30n],
+});
+
+/** The world tier of an enemy level: L1-10 is 1, then 2 up to 20, 3 up to 30, 4 up to 40, else 5. */
+function worldTierOf(level: bigint): number {
+  if (level <= 10n) return 1;
+  if (level <= 20n) return 2;
+  if (level <= 30n) return 3;
+  if (level <= 40n) return 4;
+  return 5;
+}
+
+/**
+ * The rarity mix of today's rules, as five weights summing to 100 in QUALITY_TIERS order (common,
+ * uncommon, rare, epic, legendary). At default dials this IS the old rollQualityTier distribution:
+ *   T1 (level 1-10): [100 - u, u, 0, 0, 0], u = min(35, min(30, 5 * level) + db),
+ *     db = floor((danger - 120) / 10) when danger > 120, else 0.
+ *   T2+ : [wC - b, wU, wR, wE + b, 0], b = min(10, max(0, floor((danger - 120) / 15))).
+ * Legendary is always 0 here; only a boss or named shift reaches it (rarityMix).
+ */
+export function baseMix(level: bigint, dangerMultiplier: bigint): bigint[] {
+  const tier = worldTierOf(level);
+  if (tier === 1) {
+    const levelPct = level * 5n < 30n ? level * 5n : 30n;
+    const db = dangerMultiplier > 120n ? (dangerMultiplier - 120n) / 10n : 0n;
+    let u = (levelPct < 0n ? 0n : levelPct) + db;
+    if (u > 35n) u = 35n;
+    return [100n - u, u, 0n, 0n, 0n];
+  }
+  const row = TIER_ROWS[tier] ?? TIER_ROWS[1]!;
+  let b = dangerMultiplier > 120n ? (dangerMultiplier - 120n) / 15n : 0n;
+  if (b > 10n) b = 10n;
+  return [row[0] - b, row[1], row[2], row[3] + b, 0n];
+}
+
+/**
+ * A copy of the mix with every tier's weight moved k tiers up (k below zero moves down). A weight
+ * that would pass the cap piles on tier `capIndex`; one that would go below common piles on common.
+ */
+export function shiftMix(mix: readonly bigint[], k: bigint, capIndex: number): bigint[] {
+  const out: bigint[] = [0n, 0n, 0n, 0n, 0n];
+  const cap = BigInt(capIndex);
+  for (let i = 0; i < mix.length && i < out.length; i += 1) {
+    let target = BigInt(i) + k;
+    if (target > cap) target = cap;
+    if (target < 0n) target = 0n;
+    out[Number(target)] += mix[i]!;
+  }
+  return out;
+}
+
+/**
+ * The mix one kill rolls its gear rarity from, after the dials.
+ *  - A normal foe shifts by the rarity dial, capped at epic.
+ *  - A boss or named foe shifts by the rarity dial plus a built-in +1 ("better for bosses and named
+ *    foes", SC2) plus the boss bonus, capped at legendary.
+ * Each tier is then multiplied by its tier weight (floor). A normal foe's legendary weight is forced to
+ * 0 as the very last step, whatever the inputs: legendary is a boss and named-foe reward only.
+ */
+export function rarityMix(
+  level: bigint,
+  dangerMultiplier: bigint,
+  bossOrNamed: boolean,
+  dials: EffectiveDials,
+): bigint[] {
+  const k = bossOrNamed ? dials.rarityShift + 1n + dials.bossRarityBonus : dials.rarityShift;
+  const shifted = shiftMix(baseMix(level, dangerMultiplier), k, bossOrNamed ? LEGENDARY_INDEX : EPIC_INDEX);
+  const out = shifted.map((w, i) => (w * dials.tierPct[QUALITY_TIERS[i]!]) / 100n);
+  if (!bossOrNamed) out[LEGENDARY_INDEX] = 0n;
+  return out;
+}
+
+/** The rarity for one roll: walks the cumulative weights. An all-zero mix gives 'common'. */
+export function rollRarity(mix: readonly bigint[], seed: bigint): QualityTier {
+  let total = 0n;
+  for (const w of mix) total += w > 0n ? w : 0n;
+  if (total <= 0n) return 'common';
+  const r = rollBelow(seed, ROLL_INDEX.RARITY, total);
+  let cumulative = 0n;
+  for (let i = 0; i < QUALITY_TIERS.length; i += 1) {
+    const w = mix[i] ?? 0n;
+    cumulative += w > 0n ? w : 0n;
+    if (r < cumulative) return QUALITY_TIERS[i]!;
+  }
+  return 'common';
+}
+
+/**
+ * Neck and earrings that carry no armor never drop plain common: they lift to uncommon (the rule of
+ * today's loot generator, moved here so the loot plan uses it). Everything else keeps its rarity.
+ */
+export function jewelryFloor(slot: string, armorClassBonus: bigint, rarity: string): string {
+  if ((slot === 'neck' || slot === 'earrings') && armorClassBonus === 0n && rarity === 'common') return 'uncommon';
+  return rarity;
+}

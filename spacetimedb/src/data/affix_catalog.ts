@@ -244,12 +244,12 @@ export const SUFFIXES: AffixDef[] = [
 // QUALITY TIER CONSTANTS
 // ---------------------------------------------------------------------------
 
-// Number of affixes rolled per quality tier (legendaries use fixed affixes, not rolled)
+// Number of affixes rolled per quality tier. Legendary uses the top magnitudes and drops only from bosses and named foes (Phase 51.3).
 export const AFFIX_COUNT_BY_QUALITY: Record<string, number> = {
   common: 0,
   uncommon: 1,
   rare: 2,
   epic: 3,
-  legendary: 0,
+  legendary: 3,
 };
 
