@@ -103,6 +103,10 @@ export const SOURCE_KEYS = Object.freeze({
   combatNarration: (combatId: bigint, roundNumber: bigint | number, narrativeType: string): string =>
     join(combatId, roundNumber, narrativeType),
   smokeTest: (): string => 'smoke',
+  /** One region's economy design (Phase 51.3): `region:<regionId>`. */
+  regionEconomy: (regionId: bigint): string => join('region', regionId),
+  /** One late creature's loot design (Phase 51.3): `enemy:<enemyTemplateId>`. */
+  enemyLoot: (enemyTemplateId: bigint): string => join('enemy', enemyTemplateId),
 });
 
 /**
@@ -153,13 +157,15 @@ export type EnqueueResult =
  * that request twice (review WR-B01). Narration is also not counted; a held
  * renown job or fill job is counted (it is a real active job), it just is never
  * the one refused. The kill switch, the ceiling and the player's daily budget
- * still apply to every route.
+ * still apply to every route. region_economy is a background world job,
+ * cap-exempt like world_gen (Phase 51.3).
  */
 export const LLM_CAP_EXEMPT_ROUTES: readonly LlmRoute[] = Object.freeze([
   'combat_narration',
   'renown_perk_gen',
   'world_gen',
   'creation_class',
+  'region_economy',
 ] as LlmRoute[]);
 
 /**

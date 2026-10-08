@@ -139,6 +139,26 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       recentQuestNames: [`${world} recent`],
     },
     combat_narration: combatRound(world, player),
+    region_economy: {
+      mode: 'region',
+      regionId: 7n,
+      regionName: `${world} region`,
+      biome: `${world} biome`,
+      areaLevel: 4,
+      dominantFaction: `${world} faction`,
+      landmarks: [`${world} landmark`],
+      threats: [`${world} threat`],
+      terrains: ['swamp', 'woods'],
+      enemies: [{ ref: 'E1', templateId: 3n, name: `${world} enemy`, creatureType: 'beast', level: 4 }],
+      recipeSlots: [
+        { tier: 'common', foreignRegionIndexes: [] },
+        { tier: 'uncommon', foreignRegionIndexes: [] },
+        { tier: 'rare', foreignRegionIndexes: [0] },
+      ],
+      foreignRegions: [{ regionId: 11n, name: `${world} far region` }],
+      foreign: [{ ref: 'F1', templateId: 21n, regionIndex: 0, name: `${world} material`, kind: 'metal' }],
+      existingMaterials: [],
+    },
     smoke_test: {},
   };
 }
@@ -162,9 +182,10 @@ const TEXT_ROUTES = LLM_ROUTE_NAMES.filter((r) => LLM_ROUTES[r].output.kind === 
 // ---------------------------------------------------------------------------
 
 describe('buildClaudeRequest', () => {
-  it('covers eight json routes and two text routes', () => {
-    // Phase 43 adds the stage-1 routes; Phase 46 flips combat_narration to a json segments route
-    expect(JSON_ROUTES).toHaveLength(8);
+  it('covers nine json routes and two text routes', () => {
+    // Phase 43 adds the stage-1 routes; Phase 46 flips combat_narration to a json segments route;
+    // Phase 51.3 adds region_economy (json)
+    expect(JSON_ROUTES).toHaveLength(9);
     expect(TEXT_ROUTES).toHaveLength(2);
   });
 

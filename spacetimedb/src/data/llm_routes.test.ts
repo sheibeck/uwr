@@ -11,6 +11,7 @@ import {
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   COMBAT_NARRATION_SCHEMA,
+  REGION_ECONOMY_SCHEMA,
 } from './llm_schemas';
 import { lintSchema } from '../helpers/schema_lint';
 
@@ -26,6 +27,7 @@ const BASELINE_MAX_TOKENS: Record<LlmRoute, number> = {
   renown_perk_gen: 2048,
   npc_conversation: 1024,
   combat_narration: 1024,
+  region_economy: 4096,
   smoke_test: 256,
 };
 
@@ -38,6 +40,7 @@ const JSON_SCHEMAS: Partial<Record<LlmRoute, object>> = {
   skill_gen: SKILL_GENERATION_SCHEMA,
   renown_perk_gen: RENOWN_PERK_SCHEMA,
   combat_narration: COMBAT_NARRATION_SCHEMA,
+  region_economy: REGION_ECONOMY_SCHEMA,
 };
 
 /** Mutable deep clone of the real table (the real one is frozen). */
@@ -57,7 +60,7 @@ describe('llm_models', () => {
 });
 
 describe('LLM_ROUTES', () => {
-  it('has ten unique route names in the fixed order matching the table keys', () => {
+  it('has eleven unique route names in the fixed order matching the table keys', () => {
     expect([...LLM_ROUTE_NAMES]).toEqual([
       'creation_race',
       'creation_class_reveal',
@@ -68,10 +71,11 @@ describe('LLM_ROUTES', () => {
       'npc_conversation',
       'combat_narration',
       'renown_perk_gen',
+      'region_economy',
       'smoke_test',
     ]);
-    expect(LLM_ROUTE_NAMES).toHaveLength(10);
-    expect(new Set(LLM_ROUTE_NAMES).size).toBe(10);
+    expect(LLM_ROUTE_NAMES).toHaveLength(11);
+    expect(new Set(LLM_ROUTE_NAMES).size).toBe(11);
     expect(Object.keys(LLM_ROUTES).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
@@ -153,7 +157,7 @@ describe('validateRoutes', () => {
 
   it('reports every route missing on an empty table', () => {
     const problems = validateRoutes({});
-    expect(problems).toHaveLength(10);
+    expect(problems).toHaveLength(11);
     for (const name of LLM_ROUTE_NAMES) expect(problems).toContain(`${name}: missing route`);
   });
 

@@ -174,6 +174,7 @@ export const LLM_ROUTE_BASELINES: Readonly<Record<LlmRoute, RouteBaseline>> = Ob
   npc_conversation: baseline(1024, 30_000),
   combat_narration: baseline(1024, 20_000),
   renown_perk_gen: baseline(2048, 60_000),
+  region_economy: baseline(4096, 90_000),
   smoke_test: baseline(256, 30_000),
 });
 
@@ -370,5 +371,6 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   npc_conversation: entry('low', 512, 30_000, 'tuned', 379, 10, true),
   combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),
   renown_perk_gen: entry('low', 1024, 60_000, 'tuned', 756, 10, false),
+  region_economy: entry('low', 4096, 90_000, 'insufficient_data'),
   smoke_test: entry('low', 256, 30_000, 'not_swept'),
 });

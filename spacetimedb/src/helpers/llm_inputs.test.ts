@@ -12,6 +12,7 @@ import {
   archetypeForCharacter,
   ROUTE_BIGINT_PATHS,
 } from './llm_inputs';
+import { REGION_ECONOMY_BIGINT_PATHS } from '../data/economy_design_rules';
 
 // Records the real column definitions so the strict mock knows the accessors.
 vi.mock('spacetimedb/server', async () =>
@@ -131,6 +132,26 @@ const INPUTS: { [R in LlmRoute]: RouteInputMap[R] } = {
     enemyNames: ['Ash Wraith'],
     playerNames: [EMOJI_NAME, '12'],
   },
+  region_economy: {
+    mode: 'region',
+    regionId: 9007199254740995n,
+    regionName: 'Varrow Teeth',
+    biome: 'mountains',
+    areaLevel: 6,
+    dominantFaction: 'unknown',
+    landmarks: [],
+    threats: ['Rockfalls on the north face'],
+    terrains: ['mountains', 'woods'],
+    enemies: [{ ref: 'E1', templateId: 9007199254740997n, name: '12', creatureType: 'beast', level: 6 }],
+    recipeSlots: [
+      { tier: 'common', foreignRegionIndexes: [] },
+      { tier: 'uncommon', foreignRegionIndexes: [] },
+      { tier: 'rare', foreignRegionIndexes: [0] },
+    ],
+    foreignRegions: [{ regionId: 9007199254740999n, name: 'Kesterlane Basin' }],
+    foreign: [{ ref: 'F1', templateId: 9007199254741001n, regionIndex: 0, name: '345', kind: 'trinket' }],
+    existingMaterials: [],
+  },
   smoke_test: {},
 };
 
@@ -142,8 +163,8 @@ function roundTrip<R extends LlmRoute>(route: R, input: RouteInputMap[R]): Route
 }
 
 describe('golden round trip', () => {
-  it('has a fixture for every one of the ten routes', () => {
-    expect(LLM_ROUTE_NAMES).toHaveLength(10);
+  it('has a fixture for every one of the eleven routes', () => {
+    expect(LLM_ROUTE_NAMES).toHaveLength(11);
     expect(Object.keys(INPUTS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
@@ -207,6 +228,18 @@ describe('decodeRouteInput', () => {
     ]);
   });
 
+  it('returns every region_economy bigint path as a bigint and keeps numeric-looking names as strings', () => {
+    const out = roundTrip('region_economy', INPUTS.region_economy);
+    expect(out.regionId).toBe(9007199254740995n);
+    expect(out.enemies[0].templateId).toBe(9007199254740997n);
+    expect(out.foreignRegions[0].regionId).toBe(9007199254740999n);
+    expect(out.foreign[0].templateId).toBe(9007199254741001n);
+    expect(out.enemies[0].name).toBe('12');
+    expect(out.foreign[0].name).toBe('345');
+    expect(out.enemies[0].level).toBe(6);
+    expect(out.foreign[0].regionIndex).toBe(0);
+  });
+
   it('leaves a bigint field that was never set undefined', () => {
     const out = roundTrip('combat_narration', INPUTS.combat_narration);
     expect(out.playerActions[1].healingDone).toBeUndefined();
@@ -267,9 +300,22 @@ describe('ROUTE_BIGINT_PATHS', () => {
       'participantHpSummary[].maxHp',
     ]);
     for (const route of LLM_ROUTE_NAMES) {
-      if (route !== 'skill_gen' && route !== 'combat_narration') expect(ROUTE_BIGINT_PATHS[route]).toEqual([]);
+      if (route !== 'skill_gen' && route !== 'combat_narration' && route !== 'region_economy') {
+        expect(ROUTE_BIGINT_PATHS[route]).toEqual([]);
+      }
     }
     expect(Object.isFrozen(ROUTE_BIGINT_PATHS)).toBe(true);
+  });
+
+  it('region_economy uses the four REGION_ECONOMY_BIGINT_PATHS (Phase 51.3)', () => {
+    expect(ROUTE_BIGINT_PATHS.region_economy).toEqual([...REGION_ECONOMY_BIGINT_PATHS]);
+    expect(ROUTE_BIGINT_PATHS.region_economy).toEqual([
+      'regionId',
+      'enemies[].templateId',
+      'foreignRegions[].regionId',
+      'foreign[].templateId',
+    ]);
+    expect(Object.isFrozen(ROUTE_BIGINT_PATHS.region_economy)).toBe(true);
   });
 
   it('has an entry for each new stage-1 route', () => {
@@ -280,6 +326,15 @@ describe('ROUTE_BIGINT_PATHS', () => {
 });
 
 describe('smokeInputFor', () => {
+  it('the region_economy entry is a fixed small region-mode input (typed map only, never smoked)', () => {
+    const input = smokeInputFor('region_economy');
+    expect(input.mode).toBe('region');
+    expect(input.enemies).toHaveLength(1);
+    expect(input.foreignRegions).toEqual([]);
+    expect(input.foreign).toEqual([]);
+    expect(input.recipeSlots.map((s) => s.tier)).toEqual(['common', 'common', 'uncommon']);
+  });
+
   it('the npc_conversation smoke input carries a male gender', () => {
     expect((smokeInputFor('npc_conversation') as any).npc.gender).toBe('male');
   });

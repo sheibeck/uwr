@@ -28,6 +28,7 @@ import {
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   COMBAT_NARRATION_SCHEMA,
+  REGION_ECONOMY_SCHEMA,
   deepFreeze,
 } from './llm_schemas';
 
@@ -41,6 +42,7 @@ export const LLM_ROUTE_NAMES = [
   'npc_conversation',
   'combat_narration',
   'renown_perk_gen',
+  'region_economy',
   'smoke_test',
 ] as const;
 export type LlmRoute = (typeof LLM_ROUTE_NAMES)[number];
@@ -81,6 +83,7 @@ export const LLM_ROUTES: Readonly<Record<LlmRoute, RouteConfig>> = deepFreeze({
   npc_conversation: route('npc_conversation', { kind: 'text' }),
   combat_narration: route('combat_narration', { kind: 'json', schema: COMBAT_NARRATION_SCHEMA }),
   renown_perk_gen: route('renown_perk_gen', { kind: 'json', schema: RENOWN_PERK_SCHEMA }),
+  region_economy: route('region_economy', { kind: 'json', schema: REGION_ECONOMY_SCHEMA }),
   smoke_test: route('smoke_test', { kind: 'text' }),
 });
 

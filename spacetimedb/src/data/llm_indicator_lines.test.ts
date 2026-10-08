@@ -48,6 +48,7 @@ const EXPECTED_LINES: Record<string, string | null> = {
   renown_perk_gen: 'The Keeper is tallying what your name is worth...',
   npc_conversation: 'The Keeper leans in to listen...',
   combat_narration: null,
+  region_economy: null,
   smoke_test: null,
 };
 
@@ -102,8 +103,8 @@ describe('LLM_INDICATOR_PRIORITY and LLM_INDICATOR_SILENT_ROUTES', () => {
     expect([...LLM_INDICATOR_PRIORITY].sort()).toEqual(nonNullLines.map(([route]) => route).sort());
   });
 
-  it('silent routes are combat_narration and smoke_test and map to null', () => {
-    expect([...LLM_INDICATOR_SILENT_ROUTES]).toEqual(['combat_narration', 'smoke_test']);
+  it('silent routes are combat_narration, smoke_test and region_economy and map to null', () => {
+    expect([...LLM_INDICATOR_SILENT_ROUTES]).toEqual(['combat_narration', 'smoke_test', 'region_economy']);
     for (const route of LLM_INDICATOR_SILENT_ROUTES) expect(LLM_INDICATOR_LINES[route]).toBeNull();
   });
 

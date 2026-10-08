@@ -16,6 +16,7 @@
 
 import type { LlmRoute } from '../data/llm_routes';
 import type { RouteInputMap } from '../data/llm_layers';
+import { REGION_ECONOMY_BIGINT_PATHS } from '../data/economy_design_rules';
 
 type Json = unknown;
 
@@ -60,6 +61,7 @@ export const ROUTE_BIGINT_PATHS: Readonly<Record<LlmRoute, readonly string[]>> =
     'participantHpSummary[].hp',
     'participantHpSummary[].maxHp',
   ]),
+  region_economy: Object.freeze([...REGION_ECONOMY_BIGINT_PATHS]),
   smoke_test: Object.freeze([]),
 } as Record<LlmRoute, readonly string[]>);
 
@@ -184,6 +186,27 @@ export function smokeInputFor<R extends LlmRoute>(route: R): RouteInputMap[R] {
       hasKill: false,
       hasNearDeath: false,
       participantHpSummary: [],
+    },
+    // Typed-map entry only: region_economy is never smoked (not in LLM_SMOKE_ROUTES).
+    region_economy: {
+      mode: 'region',
+      regionId: 1n,
+      regionName: 'The Threshold',
+      biome: 'plains',
+      areaLevel: 1,
+      dominantFaction: 'unknown',
+      landmarks: [],
+      threats: [],
+      terrains: ['plains'],
+      enemies: [{ ref: 'E1', templateId: 1n, name: 'Field Rat', creatureType: 'beast', level: 1 }],
+      recipeSlots: [
+        { tier: 'common', foreignRegionIndexes: [] },
+        { tier: 'common', foreignRegionIndexes: [] },
+        { tier: 'uncommon', foreignRegionIndexes: [] },
+      ],
+      foreignRegions: [],
+      foreign: [],
+      existingMaterials: [],
     },
     smoke_test: {},
   };

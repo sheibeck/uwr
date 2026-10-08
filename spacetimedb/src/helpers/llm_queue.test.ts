@@ -242,6 +242,8 @@ describe('buildDedupeKey and SOURCE_KEYS', () => {
     expect(SOURCE_KEYS.npcConversation(3n, 9n, 1000n)).toBe('3:9:1000');
     expect(SOURCE_KEYS.combatNarration(11n, 2n, 'round')).toBe('11:2:round');
     expect(SOURCE_KEYS.smokeTest()).toBe('smoke');
+    expect(SOURCE_KEYS.regionEconomy(4097n)).toBe('region:4097');
+    expect(SOURCE_KEYS.enemyLoot(12n)).toBe('enemy:12');
     expect(Object.isFrozen(SOURCE_KEYS)).toBe(true);
   });
 
@@ -619,7 +621,14 @@ describe('per-player active-job cap', () => {
   it('the limit is three and the exempt routes are narration, renown and the two stage-2 fills', () => {
     expect(LLM_PLAYER_MAX_ACTIVE_JOBS).toBe(3);
     // Review WR-B01: world_gen and creation_class continue a request the cap admitted at stage 1.
-    expect([...LLM_CAP_EXEMPT_ROUTES].sort()).toEqual(['combat_narration', 'creation_class', 'renown_perk_gen', 'world_gen']);
+    // Phase 51.3: region_economy is a background world job, cap-exempt like world_gen.
+    expect([...LLM_CAP_EXEMPT_ROUTES].sort()).toEqual([
+      'combat_narration',
+      'creation_class',
+      'region_economy',
+      'renown_perk_gen',
+      'world_gen',
+    ]);
   });
 
   it('review WR-B01: a stage-2 fill is never refused busy, whatever else the player holds', () => {

@@ -204,6 +204,7 @@ const EXPECTED_TAG_MATCHES: Record<LlmRoute, number> = {
   renown_perk_gen: 2, // one pair: the character name
   npc_conversation: 2, // one pair: the player message
   combat_narration: 6, // the player name occurs 3 times in the round fixture: 3 pairs
+  region_economy: 0, // stored world text only, no player text
   smoke_test: 0,
 };
 
@@ -307,6 +308,32 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       recentQuestNames: [`${world} recent`],
     },
     combat_narration: combatRound(world, player),
+    region_economy: {
+      mode: 'region',
+      regionId: 7n,
+      regionName: `${world} region`,
+      biome: `${world} biome`,
+      areaLevel: 4,
+      dominantFaction: `${world} faction`,
+      landmarks: [`${world} landmark`, `${world} second landmark`],
+      threats: [`${world} threat`],
+      terrains: ['swamp', `${world} terrain`],
+      enemies: [{ ref: 'E1', templateId: 3n, name: `${world} enemy`, creatureType: `${world} type`, level: 4 }],
+      recipeSlots: [
+        { tier: 'uncommon', foreignRegionIndexes: [] },
+        { tier: 'rare', foreignRegionIndexes: [0] },
+        { tier: 'epic', foreignRegionIndexes: [0, 1] },
+      ],
+      foreignRegions: [
+        { regionId: 11n, name: `${world} far region` },
+        { regionId: 12n, name: `${world} other region` },
+      ],
+      foreign: [
+        { ref: 'F1', templateId: 21n, regionIndex: 0, name: `${world} material`, kind: 'metal' },
+        { ref: 'F2', templateId: 22n, regionIndex: 1, name: `${world} other material`, kind: `${world} kind` },
+      ],
+      existingMaterials: [],
+    },
     smoke_test: {},
   };
 }
@@ -321,7 +348,7 @@ function stripRealTags(text: string): string {
 
 describe('route blocks and volatile builders', () => {
   describe('ROUTE_BLOCKS', () => {
-    it('is frozen and has a non-empty string for each of the ten routes', () => {
+    it('is frozen and has a non-empty string for each of the eleven routes', () => {
       expect(Object.isFrozen(ROUTE_BLOCKS)).toBe(true);
       expect(Object.keys(ROUTE_BLOCKS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
       for (const route of LLM_ROUTE_NAMES) {
@@ -330,8 +357,8 @@ describe('route blocks and volatile builders', () => {
       }
     });
 
-    it('the four stage blocks start with TASK: and end with the JSON-only line', () => {
-      for (const route of ['creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen'] as const) {
+    it('the four stage blocks and region_economy start with TASK: and end with the JSON-only line', () => {
+      for (const route of ['creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen', 'region_economy'] as const) {
         expect(ROUTE_BLOCKS[route], route).toMatch(/^TASK: /);
         expect(ROUTE_BLOCKS[route].endsWith('Reply with the JSON object only.'), route).toBe(true);
       }

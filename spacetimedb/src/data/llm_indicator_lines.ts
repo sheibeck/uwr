@@ -39,6 +39,7 @@ export const LLM_INDICATOR_LINES: Readonly<Record<string, string | null>> = Obje
   renown_perk_gen: 'The Keeper is tallying what your name is worth...',
   npc_conversation: 'The Keeper leans in to listen...',
   combat_narration: null,
+  region_economy: null,
   smoke_test: null,
 });
 
@@ -58,6 +59,7 @@ export const LLM_INDICATOR_PRIORITY: readonly string[] = Object.freeze([
 export const LLM_INDICATOR_SILENT_ROUTES: readonly string[] = Object.freeze([
   'combat_narration',
   'smoke_test',
+  'region_economy',
 ]);
 
 /**
@@ -127,6 +129,7 @@ export const LLM_INDICATOR_POOLS: Readonly<Record<string, readonly string[]>> = 
   renown_perk_gen: Object.freeze(['The Keeper is tallying what your name is worth...']),
   npc_conversation: Object.freeze(['The Keeper leans in to listen...']),
   combat_narration: Object.freeze([] as string[]),
+  region_economy: Object.freeze([] as string[]),
   smoke_test: Object.freeze([] as string[]),
 });
 

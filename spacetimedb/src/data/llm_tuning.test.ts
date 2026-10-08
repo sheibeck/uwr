@@ -102,6 +102,7 @@ describe('constants', () => {
       npc_conversation: [1024, 30_000],
       combat_narration: [1024, 20_000],
       renown_perk_gen: [2048, 60_000],
+      region_economy: [4096, 90_000],
       smoke_test: [256, 30_000],
     };
     for (const name of LLM_ROUTE_NAMES) {
