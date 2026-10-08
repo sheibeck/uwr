@@ -1,20 +1,33 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import ActionRow from '../action/ActionRow.vue';
 import RoundRow from '../combat/RoundRow.vue';
 import FeedView from '../console/FeedView.vue';
 import HotbarRow from '../hotbar/HotbarRow.vue';
 import Composer from '../input/Composer.vue';
+import InviteCard from '../social/InviteCard.vue';
 
 // safeBottom: in combat on mobile the tab bar that normally covers the bottom inset is hidden, so
 // the composer keeps clear of it itself. ActionRow (gather and cast progress) never shows together
 // with RoundRow: gathering and casting are out of combat and it hides while combat.active.
+//
+// On mobile (compact) a pending party invite sits at the top of the composer section, in and out of
+// combat (51.1-UI-SPEC "Incoming Invite Card"). After the player answers there, focus goes to the
+// composer input: the main mobile screen has no Party heading to land on.
 const props = defineProps<{ compact?: boolean; safeBottom?: boolean }>();
+
+const composerEl = ref<HTMLElement | null>(null);
+
+function focusInput(): void {
+  composerEl.value?.querySelector<HTMLInputElement>('input.composer-input')?.focus();
+}
 </script>
 
 <template>
   <main class="feed" :class="{ compact: props.compact, 'safe-bottom': props.safeBottom }">
     <FeedView :compact="props.compact" />
-    <section class="composer">
+    <section ref="composerEl" class="composer">
+      <InviteCard v-if="props.compact" variant="mobile" @answered="focusInput" />
       <RoundRow />
       <ActionRow />
       <HotbarRow />
