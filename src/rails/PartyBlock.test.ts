@@ -208,12 +208,23 @@ describe('PartyBlock in a party', () => {
     expect(w.text()).not.toContain('Me');
   });
 
-  it('cards are not targets: a div whose content holds no button', () => {
-    const { w } = mountBlock(PARTY);
-    for (const card of w.findAll('.member-card')) {
+  // Was: 'cards are not targets: a div whose content holds no button'. Owner 2026-10-08: tap a party
+  // member to target them, everywhere.
+  it('out of combat each known member card is a target button beside its ⋯', () => {
+    const { w } = mountBlock({ ...PARTY, self: character(1n, 'Me', { online: true, locationId: 10n }) });
+    const cards = w.findAll('.member-card');
+    expect(cards).toHaveLength(2);
+    for (const card of cards) {
       expect(card.element.tagName).toBe('DIV');
-      expect(card.get('.content').find('button').exists()).toBe(false);
+      const first = card.element.firstElementChild as HTMLElement;
+      expect(first.tagName).toBe('BUTTON');
+      expect(first.classList.contains('member-target')).toBe(true);
+      expect(first.getAttribute('aria-label')).toMatch(/^Target .+ with your next ability\. /);
+      const last = card.element.lastElementChild as HTMLElement;
+      expect(last.classList.contains('player-menu')).toBe(true);
+      expect(card.find('.member-target .player-menu').exists()).toBe(false);
     }
+    expect(w.findAll('button button')).toHaveLength(0);
   });
 
   it('renders member names and classes as text, not markup', () => {
@@ -558,11 +569,14 @@ describe('PartyBlock in combat (ally targeting)', () => {
   it('is exactly the out-of-combat block out of a fight, even with a combat controller provided', () => {
     const { w } = mountCombat({ ...PARTY, active: false });
     const cards = w.findAll('.member-card');
-    expect(w.find('.member-target').exists()).toBe(false);
+    // Owner 2026-10-08: the out-of-combat card is a target too, but the out-of-combat recipe
+    // (MemberCard: no combat .bars group, the 51 stamina text below).
+    expect(w.findAll('.member-target')).toHaveLength(2);
     expect(cards).toHaveLength(2);
     for (const card of cards) {
       expect(card.element.tagName).toBe('DIV');
-      expect(card.find('[aria-pressed]').exists()).toBe(false);
+      expect(card.findAll('[aria-pressed]')).toHaveLength(1);
+      expect(card.find('.bars').exists()).toBe(false);
     }
     expect(w.get('.party-head h6').text()).toBe('Party · 3');
     expect(w.get('.party-head h6').classes()).not.toContain('sr-only');
@@ -1013,8 +1027,10 @@ describe('PartyBlock out of combat (51.1)', () => {
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Actions for Mara');
   });
 
-  // Review client-rest WR-03: the combat and out-of-combat card lists are separate recipes.
-  it('a fight ending while a member target has focus moves focus to that member ⋯', async () => {
+  // Review client-rest WR-03: the combat and out-of-combat card lists are separate recipes. Was:
+  // '... moves focus to that member ⋯'. Owner 2026-10-08: the out-of-combat card is a target too, so
+  // focus follows to that member's out-of-combat target button.
+  it('a fight ending while a member target has focus keeps focus on that member out-of-combat target', async () => {
     const active = ref(true);
     const { w } = mountBlock(leading({ fight: active }));
     const targets = w.findAll('.member-target');
@@ -1023,8 +1039,12 @@ describe('PartyBlock out of combat (51.1)', () => {
     active.value = false;
     await nextTick();
     await nextTick();
-    expect(w.find('.member-target').exists()).toBe(false);
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Actions for Mara');
+    const focused = document.activeElement as HTMLElement;
+    expect(focused.classList.contains('member-target')).toBe(true);
+    expect(focused.closest('.member-card')?.querySelector('.menu-opener')?.getAttribute('aria-label')).toBe(
+      'Actions for Mara',
+    );
+    expect(focused.getAttribute('aria-label')).toMatch(/^Target Mara with your next ability\. /);
   });
 
   it('a fight starting while a member ⋯ has focus moves focus to the same member ⋯ in the combat card', async () => {

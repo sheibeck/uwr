@@ -609,7 +609,8 @@ describe('VitalsRail self block (51.1)', () => {
     expect(opener.attributes('aria-haspopup')).toBe('menu');
     expect(w.get('.identity').classes()).toContain('reserve');
     expect(w.findAll('button button')).toHaveLength(0);
-    expect(childClasses(block.element)).toEqual(['identity', 'bars', 'player-menu', 'pet-row']);
+    // Owner 2026-10-08: in a party the self block is the self target out of combat too.
+    expect(childClasses(block.element)).toEqual(['self-target', 'player-menu', 'pet-row']);
     expect(block.get('.player-menu').classes()).toContain('self-menu');
     const rail = childClasses(w.get('aside.vitals-rail').element);
     // The left rail is for the party view: the self block, the rule, then the party block.
@@ -695,15 +696,16 @@ describe('VitalsRail self block (51.1)', () => {
     expect(source).toMatch(/\.self-target \{[^}]*gap: 16px;/);
   });
 
-  // Review client-rest WR-03: the self target button goes when the fight ends.
-  it('the fight ending while the self target has focus moves focus to the self menu opener in a party', async () => {
+  // Review client-rest WR-03. Was: '... moves focus to the self menu opener in a party'. Owner
+  // 2026-10-08: in a party the self target stays out of combat, so focus stays on it.
+  it('the fight ending while the self target has focus keeps focus on the self target in a party', async () => {
     const w = mountSelf({ party: 'member', combat: true });
     (w.get('button.self-target').element as HTMLElement).focus();
     combatActive.value = false;
     await nextTick();
     await nextTick();
-    expect(w.find('button.self-target').exists()).toBe(false);
-    expect(document.activeElement).toBe(w.get('.self-block .menu-opener').element);
+    expect(w.find('button.self-target').exists()).toBe(true);
+    expect(document.activeElement).toBe(w.get('button.self-target').element);
   });
 
   it('solo, the fight ending while the self target has focus moves focus to the Party heading', async () => {
@@ -719,11 +721,43 @@ describe('VitalsRail self block (51.1)', () => {
   // that lived in PartyBlock.test.ts (UI-SPEC Supersedes): the self block is the self target, solo or
   // in a party, pressed by default; not a button out of combat or before your row exists.
   describe('self target in combat', () => {
-    it('out of combat the self block is not a button and the XP line shows', () => {
-      const w = mountSelf({ party: 'member' });
+    // Was 'out of combat the self block is not a button' in a party; owner 2026-10-08 keeps that solo only.
+    it('solo out of combat the self block is not a button and the XP line shows', () => {
+      const w = mountSelf();
       expect(w.find('button.self-target').exists()).toBe(false);
-      expect(w.find('.self-block .xp-row').exists()).toBe(true);
+      expect(w.get('.self-block .xp-row').element.tagName).toBe('DIV');
       expect(w.find('.self-marker').exists()).toBe(false);
+    });
+
+    // Owner 2026-10-08: tap a party member to target them, everywhere. In a party out of combat the
+    // self block is the self target, as in a fight, with the XP line inside it as spans.
+    it('in a party out of combat: the self target, pressed by default, with the XP line inside as spans', () => {
+      const w = mountSelf({ party: 'member' });
+      const target = w.get('.self-block > button.self-target');
+      expect(target.attributes('aria-pressed')).toBe('true');
+      expect(w.get('.self-block').classes()).toContain('selected');
+      const xpRow = target.get('.xp-row');
+      expect(xpRow.element.tagName).toBe('SPAN');
+      expect(xpRow.get('.xp-label').text()).toBe('XP');
+      expect(target.get('.xp-track').element.tagName).toBe('SPAN');
+      expect(target.get('.xp-track').attributes('aria-label')).toBe('Experience');
+      expect(target.find('div').exists()).toBe(false);
+      const next = target.element.nextElementSibling as HTMLElement;
+      expect(next.classList.contains('player-menu')).toBe(true);
+      expect(w.findAll('button button')).toHaveLength(0);
+    });
+
+    it('in a party out of combat: clicking the self block selects you; right-click opens the self menu', async () => {
+      const w = mountSelf({ party: 'member' });
+      await w.get('button.self-target').trigger('click');
+      expect(selectAlly).toHaveBeenCalledWith(ME);
+      selectAlly.mockClear();
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      w.get('button.self-target .bars').element.dispatchEvent(event);
+      await nextTick();
+      expect(event.defaultPrevented).toBe(true);
+      expect(w.get('.self-menu .menu-opener').attributes('aria-expanded')).toBe('true');
+      expect(selectAlly).not.toHaveBeenCalled();
     });
 
     it('solo: one button with the title, pressed by default, the label, the crosshair and the ring', () => {
@@ -822,14 +856,24 @@ describe('VitalsRail self block (51.1)', () => {
       expect(w.get('.self-block').classes()).not.toContain('selected');
     });
 
-    it('brings the XP line back and drops the button when the fight ends', async () => {
-      const w = mountSelf({ party: 'member', combat: true });
+    it('solo: brings the XP line back and drops the button when the fight ends', async () => {
+      const w = mountSelf({ combat: true });
       expect(w.find('.xp-row').exists()).toBe(false);
       combatActive.value = false;
       await nextTick();
       expect(w.find('button.self-target').exists()).toBe(false);
       expect(w.get('.self-block .xp-row .xp-label').text()).toBe('XP');
-      expect(childClasses(w.get('.self-block').element)).toEqual(['identity', 'bars', 'player-menu']);
+      expect(childClasses(w.get('.self-block').element)).toEqual(['identity', 'bars']);
+    });
+
+    // Was 'brings the XP line back and drops the button' in a party; owner 2026-10-08 keeps the button.
+    it('in a party: brings the XP line back inside the button when the fight ends', async () => {
+      const w = mountSelf({ party: 'member', combat: true });
+      expect(w.find('.xp-row').exists()).toBe(false);
+      combatActive.value = false;
+      await nextTick();
+      expect(w.get('button.self-target .xp-row .xp-label').text()).toBe('XP');
+      expect(childClasses(w.get('.self-block').element)).toEqual(['self-target', 'player-menu']);
     });
 
     it('keeps the damage flash on the Health bar inside the button', async () => {
@@ -903,13 +947,19 @@ describe('VitalsRail self block (51.1)', () => {
       return found;
     }
 
-    it('a following member at the leader place sees the comes icon, with title and a screen-reader twin', () => {
+    // Owner 2026-10-08 (tap a party member to target them, everywhere): in a party out of combat the
+    // self block is the self target, so the icon is decorative inside it and the button's label
+    // carries the phrase (these cases used to read a screen-reader twin on a plain block).
+    it('a following member at the leader place sees the comes icon, with title; the target label carries the phrase', () => {
       const w = mountSelf({ party: 'member' });
       const icon = w.get('.name-row .follow-icon');
       expect(icon.classes()).toContain('comes');
       expect(icon.attributes('title')).toBe('Travels with the leader');
-      expect(icon.attributes('aria-hidden')).toBeUndefined();
-      expect(icon.get('.sr-only').text()).toBe('Travels with the leader');
+      expect(icon.attributes('aria-hidden')).toBe('true');
+      expect(icon.find('.sr-only').exists()).toBe(false);
+      expect(w.get('button.self-target').attributes('aria-label')).toBe(
+        'Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40, travels with the leader.',
+      );
     });
 
     it('a member who is not following sees the none icon: Stays behind when the leader travels', () => {
@@ -917,7 +967,9 @@ describe('VitalsRail self block (51.1)', () => {
       const icon = w.get('.name-row .follow-icon');
       expect(icon.classes()).toContain('none');
       expect(icon.attributes('title')).toBe('Stays behind when the leader travels');
-      expect(icon.get('.sr-only').text()).toBe('Stays behind when the leader travels');
+      expect(w.get('button.self-target').attributes('aria-label')).toBe(
+        'Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40, stays behind when the leader travels.',
+      );
     });
 
     it('a following member whose leader is elsewhere sees the elsewhere icon', () => {
@@ -925,7 +977,9 @@ describe('VitalsRail self block (51.1)', () => {
       const icon = w.get('.name-row .follow-icon');
       expect(icon.classes()).toContain('elsewhere');
       expect(icon.attributes('title')).toBe("Follows the leader, but isn't with them");
-      expect(icon.get('.sr-only').text()).toBe("Follows the leader, but isn't with them");
+      expect(w.get('button.self-target').attributes('aria-label')).toBe(
+        `Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40, follows the leader, but isn't with them.`,
+      );
     });
 
     it('the leader, a solo player and an unknown leader row see no icon', () => {

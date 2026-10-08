@@ -85,10 +85,12 @@ const myPet = computed(() => (selfId.value === null ? null : social.petOf(selfId
 // Health, Mana and Stamina bars and your chips sit inside one button, built from spans only (phrasing
 // content, as HostileCard does). Clicking it makes you the ally target (client state; the ally target
 // defaults to you, so it starts pressed). The ⋯ and your pet row stay its siblings, never inside it.
-// Out of combat, and before the row exists, the block is plain markup with no wrapper.
+// In a party out of combat the block is the same self target (owner 2026-10-08: tap a party member to
+// target them, everywhere), with the XP line inside it as spans. Solo out of combat, and before the
+// row exists, the block is plain markup with no wrapper.
 const controller = inject(COMBAT_KEY, createInertCombat());
 const inFight = computed(() => game.combat.active.value);
-const selfTarget = computed(() => inFight.value && game.character.value !== null);
+const selfTarget = computed(() => (inFight.value || game.group.value !== null) && game.character.value !== null);
 const selfSelected = computed(() => {
   const own = game.character.value;
   return selfTarget.value && own !== null && controller.allyTargetId.value === own.id;
@@ -135,8 +137,9 @@ function partyHeading(): HTMLElement | null {
   return railEl.value?.querySelector<HTMLElement>('.party h6') ?? null;
 }
 
-// The self target button goes when the fight ends (51.1 review client-rest WR-03, the shared
-// keepFocus rule): focus held there moves to the self ⋯ when shown, else the Party heading.
+// The self target button goes when the fight ends solo, or when you leave the party out of combat
+// (51.1 review client-rest WR-03, the shared keepFocus rule): focus held there moves to the self ⋯
+// when shown, else the Party heading. In a party it stays across a fight's end (owner 2026-10-08).
 const blockEl = ref<HTMLElement | null>(null);
 keepFocus({
   source: selfTarget,
@@ -234,12 +237,13 @@ const bars = computed(() => [
             </component>
           </component>
 
-          <div v-if="!inFight" class="xp-row">
-            <div class="bar-row">
+          <component :is="tag" v-if="!inFight" class="xp-row">
+            <component :is="tag" class="bar-row">
               <span class="xp-label">XP</span>
               <span class="xp-value">{{ xp.text }}</span>
-            </div>
-            <div
+            </component>
+            <component
+              :is="tag"
               class="xp-track"
               role="progressbar"
               aria-label="Experience"
@@ -247,9 +251,9 @@ const bars = computed(() => [
               :aria-valuenow="xp.value"
               :aria-valuemax="xp.need"
             >
-              <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
-            </div>
-          </div>
+              <component :is="tag" class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></component>
+            </component>
+          </component>
 
           <EffectChips :effects="effects" :inline="selfTarget" />
         </component>
@@ -571,6 +575,7 @@ const bars = computed(() => [
 }
 
 .xp-track {
+  display: block;
   height: 2px;
   border-radius: var(--radius-sm);
   background: var(--color-neutral-900);
@@ -578,6 +583,7 @@ const bars = computed(() => [
 }
 
 .xp-fill {
+  display: block;
   height: 100%;
   background: var(--color-accent);
 }

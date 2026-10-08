@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -7,14 +7,16 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import MemberCard from './MemberCard.vue';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
 import {
+  COMBAT_KEY,
   CONSOLE_KEY,
   FRAME_KEY,
   GAME_KEY,
+  createInertCombat,
   createInertConsole,
   createInertFrame,
   createInertGame,
 } from '../game/context';
-import type { FrameControls, GameData } from '../game/context';
+import type { CombatController, FrameControls, GameData } from '../game/context';
 import type { PartyMemberView } from '../rails/party';
 import type { FollowState } from './follow';
 
@@ -90,7 +92,7 @@ function gameFor(): GameData {
 
 function mountCard(
   props: { member?: PartyMemberView; state?: FollowState | null; variant?: 'rail' | 'sheet' } = {},
-  options: { desktop?: boolean } = {},
+  options: { desktop?: boolean; controller?: CombatController } = {},
 ): VueWrapper {
   const frame = { ...createInertFrame(), isDesktop: ref(options.desktop ?? true) } as unknown as FrameControls;
   wrapper = mount(MemberCard, {
@@ -106,10 +108,23 @@ function mountCard(
         [SOCIAL_KEY as symbol]: createInertSocial(),
         [CONSOLE_KEY as symbol]: createInertConsole(),
         [FRAME_KEY as symbol]: frame,
+        [COMBAT_KEY as symbol]: options.controller ?? createInertCombat(),
       },
     },
   });
   return wrapper;
+}
+
+function fakeController(over: { allyTargetId?: bigint | null; canSelectAlly?: (id: bigint) => boolean } = {}) {
+  const selectAlly = vi.fn();
+  const allyTargetId = ref<bigint | null>(over.allyTargetId === undefined ? ME : over.allyTargetId);
+  const controller = {
+    ...createInertCombat(),
+    allyTargetId,
+    selectAlly,
+    canSelectAlly: over.canSelectAlly ?? (() => true),
+  } as unknown as CombatController;
+  return { controller, selectAlly, allyTargetId };
 }
 
 describe('MemberCard online member', () => {
@@ -190,6 +205,96 @@ describe('MemberCard online member', () => {
     expect(last.querySelector('button.menu-opener')?.getAttribute('aria-label')).toBe('Actions for Bo');
     expect(w.findAll('button button')).toHaveLength(0);
     expect(w.get('.content').find('button').exists()).toBe(false);
+  });
+
+  // Owner 2026-10-08: tap a party member to target them, everywhere. The rail card's content is the
+  // target button; the ⋯ stays its sibling.
+  it('makes the content a target button, first child, with the ⋯ as its sibling and the last child', () => {
+    const w = mountCard();
+    const card = w.get('.member-card').element;
+    const first = card.firstElementChild as HTMLElement;
+    expect(first.tagName).toBe('BUTTON');
+    expect(first.classList.contains('member-target')).toBe(true);
+    expect(first.classList.contains('content')).toBe(true);
+    expect(first.getAttribute('type')).toBe('button');
+    expect((card.lastElementChild as HTMLElement).classList.contains('player-menu')).toBe(true);
+    expect(card.children).toHaveLength(2);
+    expect(w.findAll('button button')).toHaveLength(0);
+  });
+
+  it('labels the target with the class, level, bars, follow phrase and the offline / not here endings', () => {
+    const w = mountCard();
+    expect(w.get('button.member-target').attributes('aria-label')).toBe(
+      'Target Bo with your next ability. Warrior, level 6, health 50 of 100, mana 30 of 40, stamina 12 of 40, travels with the leader.',
+    );
+    w.unmount();
+    const low = mountCard({ member: view({ isLeader: true, stamina: 3n, lowStamina: true, resourceKind: 'stamina' }), state: null });
+    expect(low.get('button.member-target').attributes('aria-label')).toBe(
+      'Target Bo with your next ability. Warrior, party leader, level 6, health 50 of 100, stamina 3 of 40, too low to travel.',
+    );
+    low.unmount();
+    const off = mountCard({ member: view({ online: false }), state: null });
+    expect(off.get('button.member-target').attributes('aria-label')).toMatch(/, stamina 12 of 40, offline\.$/);
+    off.unmount();
+    const away = mountCard({ member: view({ locationId: 11n }), state: null });
+    expect(away.get('button.member-target').attributes('aria-label')).toMatch(/, stamina 12 of 40, not here\.$/);
+  });
+
+  it('a click selects the member; aria-pressed follows allyTargetId', async () => {
+    const { controller, selectAlly, allyTargetId } = fakeController();
+    const w = mountCard({}, { controller });
+    const target = () => w.get('button.member-target');
+    expect(target().attributes('aria-pressed')).toBe('false');
+    await target().trigger('click');
+    expect(selectAlly).toHaveBeenCalledWith(BO);
+    allyTargetId.value = BO;
+    await nextTick();
+    expect(target().attributes('aria-pressed')).toBe('true');
+  });
+
+  it('the selected card carries the ring class and the 12px crosshair first in the name row', () => {
+    const { controller } = fakeController({ allyTargetId: BO });
+    const w = mountCard({}, { controller });
+    expect(w.get('.member-card').classes()).toContain('selected');
+    const marker = w.get('.member-row .marker');
+    expect(w.get('.member-row').element.firstElementChild).toBe(marker.element);
+    expect(marker.attributes('aria-hidden')).toBe('true');
+  });
+
+  it('an unselected card has no ring and no crosshair', () => {
+    const { controller } = fakeController();
+    const w = mountCard({}, { controller });
+    expect(w.get('.member-card').classes()).not.toContain('selected');
+    expect(w.find('.marker').exists()).toBe(false);
+  });
+
+  it('right-click opens the menu and never changes the target', async () => {
+    const { controller, selectAlly } = fakeController();
+    const w = mountCard({}, { controller });
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    w.get('button.member-target').element.dispatchEvent(event);
+    await nextTick();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    expect(selectAlly).not.toHaveBeenCalled();
+  });
+
+  it('a member who cannot be selected is aria-disabled and muted', () => {
+    const { controller } = fakeController({ canSelectAlly: () => false });
+    const w = mountCard({}, { controller });
+    expect(w.get('button.member-target').attributes('aria-disabled')).toBe('true');
+    expect(w.get('.member-card').classes()).toContain('muted');
+  });
+
+  it('a selectable member carries no aria-disabled', () => {
+    const w = mountCard({}, { controller: fakeController().controller });
+    expect(w.get('button.member-target').attributes('aria-disabled')).toBeUndefined();
+  });
+
+  it('inside the button the crown is aria-hidden and the follow icon decorative', () => {
+    const w = mountCard({ member: view({ isLeader: true }), state: 'leader' });
+    expect(w.get('button.member-target .crown').attributes('aria-hidden')).toBe('true');
+    expect(w.get('button.member-target .follow-icon').attributes('aria-hidden')).toBe('true');
   });
 
   it('right-click on the card opens the same menu and prevents the browser menu', async () => {
@@ -294,6 +399,16 @@ describe('MemberCard source', () => {
     expect(source).toContain('margin: 4px 4px 0 0');
     expect(source).toContain('opacity: 0.45');
     expect(source).not.toContain('v-html');
+  });
+
+  it('copies the CombatMemberCard target ring, tints and focus, and the ring wins over an open menu', () => {
+    expect(source).toContain('member-target');
+    expect(source).toContain('canSelectAlly');
+    expect(source).toContain('PhCrosshairSimple');
+    expect(source).toContain('inset 0 0 0 1px var(--color-accent)');
+    expect(source).toContain(":has(> .member-target:hover)");
+    expect(source).toContain(".member-card:not(.selected):has(.menu-opener[aria-expanded='true'])");
+    expect(source).not.toMatch(/margin:[^;]*-\d/);
   });
 });
 
@@ -438,6 +553,12 @@ describe('MemberCard sheet variant', () => {
     expect(w.find('.member-place').exists()).toBe(false);
     expect(w.find('.track').exists()).toBe(false);
     expect(w.findAll('[role="progressbar"]')).toHaveLength(0);
+  });
+
+  it('sheet member cards are not targets: no member-target button', () => {
+    const w = mountSheet();
+    expect(w.find('button.member-target').exists()).toBe(false);
+    expect(w.get('.content').element.tagName).toBe('DIV');
   });
 
   it('the self card ⋯ is "Actions for yourself", 44px', () => {

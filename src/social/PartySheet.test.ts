@@ -4,14 +4,16 @@ import { nextTick, ref } from 'vue';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import SocialScreen from '../screens/SocialScreen.vue';
 import {
+  COMBAT_KEY,
   CONSOLE_KEY,
   FRAME_KEY,
   GAME_KEY,
+  createInertCombat,
   createInertConsole,
   createInertFrame,
   createInertGame,
 } from '../game/context';
-import type { ConsoleApi, FrameControls, GameData, GameReducers } from '../game/context';
+import type { CombatController, ConsoleApi, FrameControls, GameData, GameReducers } from '../game/context';
 import { createFeedStore } from '../console/feedStore';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
 import type { SocialData } from './socialContext';
@@ -79,6 +81,8 @@ interface Options {
   stamina?: bigint;
   /** The group rows are applied but the characters of the others are not. */
   unknownOthers?: boolean;
+  /** The combat controller (the ally target); inert by default. */
+  controller?: CombatController;
 }
 
 function setup(options: Options = {}) {
@@ -164,6 +168,7 @@ function setup(options: Options = {}) {
         [CONSOLE_KEY as symbol]: consoleApi,
         [FRAME_KEY as symbol]: frame,
         [SOCIAL_KEY as symbol]: social,
+        [COMBAT_KEY as symbol]: options.controller ?? createInertCombat(),
       },
     },
   });
@@ -289,6 +294,23 @@ describe('mobile Party sheet populated (Q5)', () => {
       ]);
       expect(card.get('button.menu-opener').classes()).toContain('sheet');
     }
+  });
+
+  // Owner 2026-10-08 (tap a party member to target them, everywhere) named the strip chips and the
+  // desktop cards; the sheet cards stay plain cards.
+  it('sheet member cards are not targets: no button.member-target, and tapping a card leaves the ally target alone', async () => {
+    const selectAlly = vi.fn();
+    const controller = { ...createInertCombat(), allyTargetId: ref<bigint | null>(ME), selectAlly } as unknown as CombatController;
+    const { w } = setup({ controller });
+    expect(w.find('button.member-target').exists()).toBe(false);
+    const cards = w.findAll('ul.cards .member-card');
+    expect(cards).toHaveLength(2);
+    for (const card of cards) {
+      await card.trigger('click');
+      await card.get('.content').trigger('click');
+      expect(card.find('[aria-pressed]').exists()).toBe(false);
+    }
+    expect(selectAlly).not.toHaveBeenCalled();
   });
 
   it('shows the summary, no Loot line and no desktop empty state', () => {
