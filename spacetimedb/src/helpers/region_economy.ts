@@ -9,20 +9,33 @@
  * CUT-01); the validator (region_economy_validate.ts) decides names, kinds and requirement refs.
  */
 import {
+  GATHER_SLOTS,
   REGION_ECONOMY_BIGINT_PATHS,
   REGION_ECONOMY_COUNTS,
   enemyRef,
   foreignOffer,
   foreignRef,
+  gearTemplate,
+  materialTemplate,
+  nameKey,
   orderForeignRegions,
   recipeTierSlots,
+  regionalOutputTemplate,
+  scrollTemplate,
   slotForeignIndexes,
+  trophyTemplate,
   type ForeignMaterial,
   type RegionEconomyEnemy,
   type RegionEconomyForeign,
   type RegionEconomyInput,
 } from '../data/economy_design_rules';
-import { areaLevel } from '../data/recipe_rules';
+import { aiLootTable, SCROLL_TIER_WEIGHTS } from '../data/economy_rules';
+import { areaLevel, materialKey, type GeneratedItemTemplate } from '../data/recipe_rules';
+import {
+  validateLateCreature,
+  validateRegionEconomyReply,
+  type ValidatedCreature,
+} from './region_economy_validate';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -275,5 +288,403 @@ export function readEconomyJobContext(contextJson: string | undefined): EconomyJ
   const input = parsed.input;
   if (!isPlainObject(input)) return null;
   for (const path of REGION_ECONOMY_BIGINT_PATHS) reviveAt(input, path.split('.'));
+  if (input.regionId !== regionId) return null;
   return { regionId, mode, enemyTemplateId, input: input as unknown as RegionEconomyInput };
+}
+
+// ---------------------------------------------------------------------------
+// Apply
+// ---------------------------------------------------------------------------
+
+/** The job the apply receives: helpers/llm_apply.ts ApplyJob, restated here to avoid the import cycle. */
+export interface EconomyApplyJob {
+  domain?: string;
+  playerId?: any;
+  /** The stored requestJson: `{ regionId, mode, enemyTemplateId, input }`. */
+  contextJson?: string;
+  errorCode?: string;
+}
+
+/** The reply as JSON: the whole text, else the part from the first { to the last }, else null (unusable). */
+function parseReplyText(raw: unknown): unknown {
+  if (typeof raw !== 'string') return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // Fall through to the braced part.
+  }
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start === -1 || end <= start) return null;
+  try {
+    return JSON.parse(raw.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+/** A stored level (number or bigint) as a bigint of at least 1. */
+function levelOf(value: unknown): bigint {
+  const n = typeof value === 'bigint' ? Number(value) : typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : 1;
+  return BigInt(n < 1 ? 1 : n);
+}
+
+/** The level of an input enemy by template id (1n when it is not listed). */
+function enemyLevelOf(input: RegionEconomyInput, enemyTemplateId: bigint): bigint {
+  const enemy = (Array.isArray(input.enemies) ? input.enemies : []).find((e) => e.templateId === enemyTemplateId);
+  return levelOf(enemy ? enemy.level : 1);
+}
+
+/**
+ * The write state of one apply: the region, the names a new item or recipe may not take (lowercase
+ * keys) and the region's economy_item rows by slotKey (the idempotency keys).
+ */
+interface ApplyBook {
+  tx: any;
+  regionId: bigint;
+  regionName: string;
+  areaLevel: bigint;
+  names: Set<string>;
+  slots: Map<string, any>;
+}
+
+/**
+ * Opens an apply. Names are snapshotted into a Set before any insert (the strict mock returns live
+ * arrays). Rows this apply owns (its own slotKeys and recipe keys, written by an earlier run of the
+ * same transaction body) are left out of the name set, so a re-run validates to the same names and
+ * reuses those rows instead of renaming around them.
+ */
+function openBook(
+  tx: any,
+  input: RegionEconomyInput,
+  regionId: bigint,
+  ownSlot: (slotKey: string) => boolean,
+  ownRecipe: (key: string) => boolean,
+): ApplyBook {
+  const slots = new Map<string, any>();
+  const own = new Set<bigint>();
+  for (const row of tx.db.economy_item.by_region.filter(regionId)) {
+    slots.set(row.slotKey, row);
+    if (ownSlot(row.slotKey)) own.add(row.itemTemplateId);
+  }
+  const names = new Set<string>();
+  const items = [...tx.db.item_template.iter()];
+  for (const item of items) if (!own.has(item.id)) names.add(nameKey(text(item.name)));
+  const recipes = [...tx.db.recipe_template.iter()];
+  for (const recipe of recipes) if (!ownRecipe(text(recipe.key))) names.add(nameKey(text(recipe.name)));
+  return { tx, regionId, regionName: text(input.regionName), areaLevel: levelOf(input.areaLevel), names, slots };
+}
+
+function isTakenIn(book: ApplyBook): (name: string) => boolean {
+  return (name: string) => book.names.has(nameKey(name));
+}
+
+/**
+ * The item_template of a slot: the existing one when the region already has an economy_item row for
+ * slotKey, else a new item_template plus its economy_item origin tag. Rarity is the built template's.
+ */
+function ensureItem(
+  book: ApplyBook,
+  slotKey: string,
+  role: string,
+  fields: GeneratedItemTemplate,
+  tag: { kind: string; terrain?: string; timeOfDay?: string; enemyTemplateId?: bigint },
+): any {
+  const tx = book.tx;
+  const found = book.slots.get(slotKey);
+  if (found) {
+    const existing = tx.db.item_template.id.find(found.itemTemplateId);
+    if (existing) return existing;
+    // An origin tag whose template is gone: drop it and write the slot again.
+    tx.db.economy_item.itemTemplateId.delete(found.itemTemplateId);
+  }
+  const template = tx.db.item_template.insert({ id: 0n, ...fields });
+  const row = {
+    itemTemplateId: template.id,
+    regionId: book.regionId,
+    role,
+    slotKey,
+    kind: tag.kind,
+    rarity: fields.rarity,
+    terrain: tag.terrain ?? '',
+    timeOfDay: tag.timeOfDay ?? 'any',
+    enemyTemplateId: tag.enemyTemplateId ?? 0n,
+  };
+  tx.db.economy_item.insert(row);
+  book.slots.set(slotKey, row);
+  book.names.add(nameKey(text(template.name)));
+  return template;
+}
+
+/**
+ * One creature's drop, trophy and gear (slotKeys drop:<id>, trophy:<id>, gear:<id>) and, when the
+ * enemy has no enemy_loot_entry rows yet, its AI loot table from aiLootTable. The one writer for
+ * both region mode and late-creature mode. Returns the drop template.
+ */
+function writeCreature(book: ApplyBook, creature: ValidatedCreature, enemyLevel: bigint, gatherableIds: readonly bigint[]): any {
+  const tx = book.tx;
+  const enemyId = creature.enemyTemplateId;
+  const drop = ensureItem(
+    book,
+    `drop:${enemyId}`,
+    'drop',
+    materialTemplate({
+      name: creature.drop.name,
+      description: creature.drop.description,
+      rarity: 'common',
+      areaLevel: book.areaLevel,
+      kind: creature.drop.kind,
+    }),
+    { kind: creature.drop.kind, enemyTemplateId: enemyId },
+  );
+  const trophy = ensureItem(
+    book,
+    `trophy:${enemyId}`,
+    'trophy',
+    trophyTemplate({ name: creature.trophy.name, description: creature.trophy.description, level: enemyLevel }),
+    { kind: 'trophy', enemyTemplateId: enemyId },
+  );
+  const gear = ensureItem(
+    book,
+    `gear:${enemyId}`,
+    'gear',
+    gearTemplate({
+      name: creature.gear.name,
+      description: creature.gear.description,
+      slot: creature.gear.slot,
+      weaponType: creature.gear.weaponType,
+      armorType: creature.gear.armorType,
+      level: enemyLevel,
+      regionName: book.regionName,
+    }),
+    { kind: creature.gear.slot, enemyTemplateId: enemyId },
+  );
+  const present = [...tx.db.enemy_loot_entry.by_enemy.filter(enemyId)];
+  if (present.length === 0) {
+    const entries = aiLootTable(book.regionId, enemyId, { dropId: drop.id, trophyId: trophy.id, gearId: gear.id, gatherableIds });
+    for (const entry of entries) {
+      tx.db.enemy_loot_entry.insert({
+        id: 0n,
+        enemyTemplateId: enemyId,
+        regionId: book.regionId,
+        itemTemplateId: entry.itemTemplateId,
+        role: entry.role,
+        weight: entry.weight,
+      });
+    }
+  }
+  return drop;
+}
+
+interface ResolvedRequirement {
+  id: bigint;
+  kind: string;
+  name: string;
+  count: bigint;
+  local: boolean;
+  foreignRegionId: bigint | null;
+}
+
+/** A recipe's requirement refs as template ids: G/D: from this apply, F from input.foreign. Null when any is unusable. */
+function resolveRequirements(
+  book: ApplyBook,
+  input: RegionEconomyInput,
+  requirements: readonly { ref: string; count: bigint }[],
+  locals: Map<string, { id: bigint; kind: string; name: string }>,
+): ResolvedRequirement[] | null {
+  const foreign = Array.isArray(input.foreign) ? input.foreign : [];
+  const regions = Array.isArray(input.foreignRegions) ? input.foreignRegions : [];
+  const out: ResolvedRequirement[] = [];
+  for (const q of requirements) {
+    const local = locals.get(q.ref);
+    if (local) {
+      out.push({ ...local, count: q.count, local: true, foreignRegionId: null });
+      continue;
+    }
+    const f = foreign.find((x) => x.ref === q.ref);
+    if (!f || typeof f.templateId !== 'bigint' || !book.tx.db.item_template.id.find(f.templateId)) return null;
+    const region = regions[f.regionIndex];
+    out.push({
+      id: f.templateId,
+      kind: text(f.kind),
+      name: text(f.name),
+      count: q.count,
+      local: false,
+      foreignRegionId: region && typeof region.regionId === 'bigint' ? region.regionId : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * The applied form of a region economy reply. Region mode, in this order: the status guard (pending
+ * only), parse, name snapshot, validation (null sets status failed and writes no item rows), then the
+ * gatherables, each creature (drop, trophy, gear, loot table), the recipes (output, recipe_template
+ * keyed region:<regionId>:r<n> with req4, scroll for rare and above, region_recipe), and status
+ * complete last. Every write is looked up first, so a re-run after success, a rollback or a partial
+ * write leaves exactly one set of rows. Silent: no player line is written on any path. Enemy mode
+ * goes to the late-creature apply.
+ */
+export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultText: string): void {
+  const c = readEconomyJobContext(job ? job.contextJson : undefined);
+  if (c === null) return;
+  if (c.mode === 'enemy') {
+    applyLateCreatureResult(ctx, c, resultText);
+    return;
+  }
+  const regionId = c.regionId;
+  const statusRow = ctx.db.region_economy.regionId.find(regionId);
+  if (!statusRow || statusRow.status !== 'pending') return;
+  const input = c.input;
+  const recipePrefix = `region:${regionId}:r`;
+  const book = openBook(ctx, input, regionId, () => true, (key) => key.startsWith(recipePrefix));
+  const plan = validateRegionEconomyReply(input, parseReplyText(resultText), isTakenIn(book));
+  if (plan === null) {
+    ctx.db.region_economy.regionId.update({ ...statusRow, status: 'failed', updatedAt: ctx.timestamp });
+    return;
+  }
+
+  // Gatherables (G1..G3).
+  const locals = new Map<string, { id: bigint; kind: string; name: string }>();
+  const gatherableIds: bigint[] = [];
+  for (const g of plan.gatherables) {
+    const template = ensureItem(
+      book,
+      `gather:${g.slot}`,
+      'gather',
+      materialTemplate({ name: g.name, description: g.description, rarity: g.slot, areaLevel: book.areaLevel, kind: g.kind }),
+      { kind: g.kind, terrain: text(g.terrain, 'plains').toLowerCase(), timeOfDay: 'any' },
+    );
+    locals.set(g.ref, { id: template.id, kind: g.kind, name: text(template.name) });
+    gatherableIds.push(template.id);
+  }
+
+  // Creatures (D:E<n>).
+  for (const creature of plan.creatures) {
+    const drop = writeCreature(book, creature, enemyLevelOf(input, creature.enemyTemplateId), gatherableIds);
+    locals.set(`D:${creature.enemyRef}`, { id: drop.id, kind: creature.drop.kind, name: text(drop.name) });
+  }
+
+  // Recipes.
+  const recipeRows = new Map<string, any>();
+  const existingRecipes = [...ctx.db.recipe_template.iter()];
+  for (const row of existingRecipes) if (text(row.key).startsWith(recipePrefix)) recipeRows.set(row.key, row);
+  for (const recipe of plan.recipes) {
+    const reqs = resolveRequirements(book, input, recipe.requirements, locals);
+    if (reqs === null || reqs.length < 2 || !reqs[0].local) continue;
+    const [primary, second, third, fourth] = reqs;
+    const output = ensureItem(
+      book,
+      `recipe:${recipe.index}`,
+      'recipe_output',
+      regionalOutputTemplate({
+        name: recipe.name,
+        description: recipe.description,
+        category: recipe.category,
+        tier: recipe.tier,
+        primaryKind: primary.kind,
+        secondaryKind: second.local ? second.kind : '',
+        level: book.areaLevel,
+        index: recipe.index,
+        regionId,
+      }),
+      { kind: recipe.category },
+    );
+    const key = `${recipePrefix}${recipe.index}`;
+    let row = recipeRows.get(key);
+    if (!row) {
+      row = ctx.db.recipe_template.insert({
+        id: 0n,
+        key,
+        name: recipe.name,
+        outputTemplateId: output.id,
+        outputCount: 1n,
+        req1TemplateId: primary.id,
+        req1Count: primary.count,
+        req2TemplateId: second.id,
+        req2Count: second.count,
+        req3TemplateId: third ? third.id : undefined,
+        req3Count: third ? third.count : undefined,
+        recipeType: recipe.category,
+        materialType: recipe.category === 'consumable' ? undefined : materialKey(primary.name),
+        req4TemplateId: fourth ? fourth.id : 0n,
+        req4Count: fourth ? fourth.count : 0n,
+      });
+      recipeRows.set(key, row);
+      book.names.add(nameKey(recipe.name));
+    }
+    const byScroll = Object.prototype.hasOwnProperty.call(SCROLL_TIER_WEIGHTS, recipe.tier);
+    const scrollTemplateId = byScroll
+      ? ensureItem(book, `scroll:${recipe.index}`, 'scroll', scrollTemplate(text(row.name), recipe.tier), { kind: 'scroll' }).id
+      : 0n;
+    if (!ctx.db.region_recipe.recipeTemplateId.find(row.id)) {
+      const foreignIds: string[] = [];
+      for (const r of reqs) {
+        if (r.foreignRegionId === null) continue;
+        const id = r.foreignRegionId.toString();
+        if (foreignIds.indexOf(id) === -1) foreignIds.push(id);
+      }
+      ctx.db.region_recipe.insert({
+        recipeTemplateId: row.id,
+        regionId,
+        tier: recipe.tier,
+        learnBy: byScroll ? 'scroll' : 'research',
+        scrollTemplateId,
+        foreignRegionIds: JSON.stringify(foreignIds),
+      });
+    }
+  }
+
+  // Last: the region is complete only once every row above exists.
+  const latest = ctx.db.region_economy.regionId.find(regionId) ?? statusRow;
+  ctx.db.region_economy.regionId.update({ ...latest, status: 'complete', updatedAt: ctx.timestamp });
+}
+
+/** Late-creature mode (Task 3). */
+function applyLateCreatureResult(_ctx: any, _c: EconomyJobContext, _resultText: string): void {
+  // Implemented with the late-creature tests.
+}
+
+/**
+ * The failure path of a region economy job: a pending region-mode row becomes 'failed' (fallbacks keep
+ * serving; /economy shows it). Enemy mode, a missing row and any non-pending row change nothing. Silent.
+ */
+export function failRegionEconomy(ctx: any, job: EconomyApplyJob): void {
+  const c = readEconomyJobContext(job ? job.contextJson : undefined);
+  if (c === null || c.mode !== 'region') return;
+  const row = ctx.db.region_economy.regionId.find(c.regionId);
+  if (!row || row.status !== 'pending') return;
+  ctx.db.region_economy.regionId.update({ ...row, status: 'failed', updatedAt: ctx.timestamp });
+}
+
+/**
+ * The once-only lock before a region job is enqueued (Plan 12): inserts a pending row, or turns a
+ * failed row back to pending with the new jobId. Returns false (and writes nothing) when a pending or
+ * complete row exists. otherRegionIds is stored as a JSON array of decimal strings.
+ */
+export function markRegionEconomyPending(
+  ctx: any,
+  regionId: bigint,
+  jobId: bigint,
+  otherRegionIds: readonly bigint[] | string,
+): boolean {
+  const others =
+    typeof otherRegionIds === 'string'
+      ? otherRegionIds
+      : JSON.stringify((Array.isArray(otherRegionIds) ? otherRegionIds : []).map((id) => id.toString()));
+  const row = ctx.db.region_economy.regionId.find(regionId);
+  if (!row) {
+    ctx.db.region_economy.insert({
+      regionId,
+      status: 'pending',
+      jobId,
+      otherRegionIds: others,
+      createdAt: ctx.timestamp,
+      updatedAt: ctx.timestamp,
+    });
+    return true;
+  }
+  if (row.status !== 'failed') return false;
+  ctx.db.region_economy.regionId.update({ ...row, status: 'pending', jobId, otherRegionIds: others, updatedAt: ctx.timestamp });
+  return true;
 }

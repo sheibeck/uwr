@@ -479,11 +479,13 @@ const slotItem = (ctx: any, slotKey: string) => {
 };
 const recipeByKey = (ctx: any, key: string) => rows(ctx, 'recipe_template').find((r: any) => r.key === key);
 
-/** Every row the apply writes has every column (seeded item templates without an origin tag are skipped). */
-function expectWellFormed(ctx: any): void {
+/** Every row the apply writes has every column (only item templates tagged to `regionId` are checked; seeds are minimal). */
+function expectWellFormed(ctx: any, regionId?: bigint): void {
+  const applied = (id: bigint) =>
+    rows(ctx, 'economy_item').some((e: any) => e.itemTemplateId === id && (regionId === undefined || e.regionId === regionId));
   for (const table of APPLY_TABLES) {
     for (const row of rows(ctx, table)) {
-      if (table === 'item_template' && !rows(ctx, 'economy_item').some((e: any) => e.itemTemplateId === row.id)) continue;
+      if (table === 'item_template' && !applied(row.id)) continue;
       expect([table, recorder.rowColumnProblems(table, row)]).toEqual([table, []]);
     }
   }
@@ -643,7 +645,7 @@ describe('applyRegionEconomyResult: region_k3 (legendary req4, scrolls)', () => 
     const uncommon = recipeByKey(ctx, 'region:14:r0');
     expect([metaOf(uncommon).learnBy, metaOf(uncommon).scrollTemplateId, uncommon.req4TemplateId]).toEqual(['research', 0n, 0n]);
     expect(slotItem(ctx, 'scroll:0')).toBeUndefined();
-    expectWellFormed(ctx);
+    expectWellFormed(ctx, 14n);
     expectNoDuplicates(ctx);
   });
 });
