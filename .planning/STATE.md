@@ -222,7 +222,6 @@ See MILESTONES.md for full delivery summaries.
 
 
 
-- `todos/pending/2026-10-08-party-cards-show-health-mana-and-stamina.md`: every party card (rail in and out of combat, mobile sheet, mobile combat grid) shows health, mana if any, and stamina bars (owner, after 51.1).
 
 ### Blockers/Concerns
 
@@ -271,6 +270,7 @@ See MILESTONES.md for full delivery summaries.
 | 261008-a97 | Travel with leader moves to the self menu: the desktop rail switch is gone, a follow icon sits beside your name (non-leader members), the self ⋯/right-click entries are proven end to end, the mobile Party sheet switch stays. set_follow_leader writes one party line on a real change: "{name} is now following the leader." / "{name} is no longer following the leader." (owner wording). Local publish, key 108 kept, no bindings change. Full suite green apart from the baseline. | 2026-10-08 | ef4c029d, e6475fe1, 9020c255, 0aa38c9e | [261008-a97-travel-with-leader-moves-to-the-self-men](./quick/261008-a97-travel-with-leader-moves-to-the-self-men/) |
 | 261008-ag8 | Enemy spawns scale to their place's level: `enemy_spawn.level` and `combat_enemy.level` (defaulted columns); pure `data/enemy_rules.ts` (`enemyStatsForLevel`, `placeLevelBand`, `placeSpawnLevel`, `effectiveEnemyLevel`, `templateAtLevel`). A type that fits the place keeps its level, otherwise the spawn takes the place target (Mother Pan Undercroft now level 5). Quest and named spawns follow the band (owner: "Quest bosses should be harder!"; extra boss bump is 51.3.1). Old level-0 spawns re-level on arrival. Combat stats, XP, gold, loot gates, renown, server text and the Nearby/Encounter client read the spawn level. Local publish (2 columns, no clear, key 108 kept), bindings regenerated. Full suite green apart from the baseline. | 2026-10-08 | ec27831e, 15d71387, dc29e192, 5c405790 | [261008-ag8-enemy-spawns-scale-to-the-place-level-wh](./quick/261008-ag8-enemy-spawns-scale-to-the-place-level-wh/) |
 | (direct) | Owner UI asks: the desktop rail drops the follow summary, `Loot: personal` is gone everywhere (cd94769b); the map arrival banner clears itself after 8 s and has a Dismiss button (aa8e1462). | 2026-10-08 | cd94769b, aa8e1462 | - |
+| 261008-c4p | Every party card shows health, mana (only for mana users) and stamina bars: the desktop rail card, the mobile Party sheet card and the mobile combat grid (desktop combat card already did). One rule, `memberBars()` in `src/rails/party.ts`. Each bar is a labelled progressbar with a tooltip; card names carry all three values. Your own sheet card stays bar-less (header strip). Client only. Full suite green apart from the baseline. | 2026-10-08 | b54e4552, 4f59206b, d90ebd6e, b62b1c55, 46e9ae77 | [261008-c4p-every-party-card-shows-health-mana-and-st](./quick/261008-c4p-every-party-card-shows-health-mana-and-st/) |
 
 ## Deferred Items
 
@@ -374,7 +374,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
     - DONE 2026-10-08 (ec27831e..5c405790); recorded in Quick Tasks Completed. The todo stays open for fix (b), world-gen enemy level ranges, in Phase 51.3.1. Owner: "Quest bosses should be harder!" (quest and named spawns stay in the place band; the extra boss bump is 51.3.1).
   - **Queued quick tasks** run after ag8, one at a time, because each publishes locally:
     - **Day/night 40/20:** DONE 2026-10-08 (338df1ed), local publish, key 108 kept. The calendar stays in 999.14.
-    - **Party card bars:** every party card shows health, mana (if any) and stamina bars. Todo: `2026-10-08-party-cards-show-health-mana-and-stamina.md`. It touches the same components as a97, so it runs after a97.
+    - **Party card bars:** DONE 2026-10-08 (quick 261008-c4p).
 - **51.3.1 Combat Dials discuss must cover:**
   - difficulty by level, region and enemy type;
   - pull size: multiple enemies per pull, tied to difficulty;
