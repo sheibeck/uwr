@@ -21,6 +21,7 @@ import {
   maxCraftCount,
   planCraft,
   primaryMaterialTier,
+  recipeRequirements,
   rollSalvage,
   salvageComponentChance,
   salvageComponents,
@@ -939,5 +940,138 @@ describe('salvage material coverage', () => {
 describe('import pin', () => {
   it('crafting_rules.ts has no import specifier at all', () => {
     expect(importSpecifiers('crafting_rules.ts')).toEqual([]);
+  });
+});
+
+// Phase 51.3 Plan 06: legendary regional recipes need materials from three other regions, so a
+// recipe can carry a 4th requirement (req4TemplateId / req4Count; 0n means none).
+describe('recipeRequirements (Plan 51.3-06)', () => {
+  const A = 11n;
+  const B = 12n;
+  const C = 13n;
+  const D = 14n;
+  const base = { req1TemplateId: A, req1Count: 3n, req2TemplateId: B, req2Count: 1n };
+
+  it('lists req1 and req2 when req3 is unset and req4 is 0n', () => {
+    expect(recipeRequirements({ ...base, req3TemplateId: undefined, req4TemplateId: 0n, req4Count: 0n })).toEqual([
+      { templateId: A, count: 3n },
+      { templateId: B, count: 1n },
+    ]);
+  });
+
+  it('adds req3 when it has a template and a count', () => {
+    expect(recipeRequirements({ ...base, req3TemplateId: C, req3Count: 2n })).toEqual([
+      { templateId: A, count: 3n },
+      { templateId: B, count: 1n },
+      { templateId: C, count: 2n },
+    ]);
+  });
+
+  it('adds req4 last when its id and count are above 0n', () => {
+    expect(
+      recipeRequirements({ ...base, req3TemplateId: C, req3Count: 2n, req4TemplateId: D, req4Count: 2n }),
+    ).toEqual([
+      { templateId: A, count: 3n },
+      { templateId: B, count: 1n },
+      { templateId: C, count: 2n },
+      { templateId: D, count: 2n },
+    ]);
+  });
+
+  it('ignores req4 when its count is 0n, its id is 0n, or the fields are missing', () => {
+    expect(recipeRequirements({ ...base, req4TemplateId: D, req4Count: 0n })).toHaveLength(2);
+    expect(recipeRequirements({ ...base, req4TemplateId: 0n, req4Count: 2n })).toHaveLength(2);
+    expect(recipeRequirements({ ...base, req4TemplateId: null, req4Count: null })).toHaveLength(2);
+    expect(recipeRequirements(base)).toHaveLength(2);
+  });
+
+  it('keeps req3 skipped by position when it has a template but no count', () => {
+    expect(recipeRequirements({ ...base, req3TemplateId: C, req3Count: null, req4TemplateId: D, req4Count: 1n })).toEqual([
+      { templateId: A, count: 3n },
+      { templateId: B, count: 1n },
+      { templateId: D, count: 1n },
+    ]);
+  });
+});
+
+describe('planCraft: the 4th requirement (Plan 51.3-06)', () => {
+  const REQ4 = 4n;
+  const legendary = { ...gearRecipe, req3TemplateId: REQ3, req3Count: 2n, req4TemplateId: REQ4, req4Count: 2n };
+
+  it('refuses with the materials message when only the 4th is short', () => {
+    const plan = planCraft(input({ recipe: legendary, have: { '1': 5n, '2': 5n, '3': 5n, '4': 1n } }));
+    expect(plan).toEqual({
+      ok: false,
+      reason: 'materials',
+      message: 'Missing materials to craft this recipe.',
+      templateId: REQ4,
+      have: 1n,
+      need: 2n,
+    });
+  });
+
+  it('consumes all four when all four are held', () => {
+    const plan = planCraft(input({ recipe: legendary, have: { '1': 5n, '2': 5n, '3': 5n, '4': 2n } }));
+    expect(plan.ok).toBe(true);
+    if (plan.ok) {
+      expect(plan.consumes).toEqual([
+        { templateId: REQ1, count: 2n },
+        { templateId: REQ2, count: 1n },
+        { templateId: REQ3, count: 2n },
+        { templateId: REQ4, count: 2n },
+      ]);
+    }
+  });
+
+  it('a 4th requirement that repeats req1 merges into one need', () => {
+    const recipe = { ...gearRecipe, req4TemplateId: REQ1, req4Count: 2n };
+    expect(planCraft(input({ recipe, have: { '1': 3n, '2': 5n } })).ok).toBe(false);
+    const ok = planCraft(input({ recipe, have: { '1': 4n, '2': 5n } }));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(ok.consumes).toEqual([
+        { templateId: REQ1, count: 4n },
+        { templateId: REQ2, count: 1n },
+      ]);
+    }
+  });
+
+  it('a batch multiplies the 4th requirement too', () => {
+    const plan = planCraft(input({ recipe: legendary, count: 2n, have: { '1': 9n, '2': 9n, '3': 9n, '4': 3n } }));
+    expect(plan.ok).toBe(false);
+    if (!plan.ok) expect(plan.templateId).toBe(REQ4);
+  });
+});
+
+describe('primaryMaterialTier and quality from a regional rarity (Plan 51.3-06)', () => {
+  it('a known MATERIAL_DEFS name keeps its tier whatever the rarity', () => {
+    expect(primaryMaterialTier('Copper Ore', 'rare')).toBe(1n);
+    expect(primaryMaterialTier(T2, 'common')).toBe(2n);
+    expect(craftQualityForMaterialName('Iron Ore')).toBe('reinforced');
+  });
+
+  it('an unknown name follows its rarity: uncommon 2n, rare and above 3n, else 1n', () => {
+    expect(primaryMaterialTier('Brinewort Crystal', 'uncommon')).toBe(2n);
+    expect(primaryMaterialTier('Brinewort Crystal', 'rare')).toBe(3n);
+    expect(primaryMaterialTier('Brinewort Crystal', 'epic')).toBe(3n);
+    expect(primaryMaterialTier('Brinewort Crystal', 'legendary')).toBe(3n);
+    expect(primaryMaterialTier('Brinewort Crystal', 'common')).toBe(1n);
+    expect(primaryMaterialTier('Brinewort Crystal', 'bogus')).toBe(1n);
+    expect(primaryMaterialTier('Brinewort Crystal', undefined)).toBe(1n);
+    expect(primaryMaterialTier('Brinewort Crystal', null)).toBe(1n);
+  });
+
+  it('craftQualityForMaterialName passes the rarity through', () => {
+    expect(craftQualityForMaterialName('Brinewort Crystal', 'rare')).toBe('exquisite');
+    expect(craftQualityForMaterialName('Brinewort Crystal', 'uncommon')).toBe('reinforced');
+    expect(craftQualityForMaterialName('Brinewort Crystal')).toBe('standard');
+  });
+
+  it('planCraft reports the quality from primaryMaterialRarity for a regional primary', () => {
+    const plan = planCraft(input({ primaryMaterialName: 'Brinewort Crystal', primaryMaterialRarity: 'uncommon' }));
+    expect(plan.ok).toBe(true);
+    if (plan.ok) expect(plan.quality).toBe('reinforced');
+    const none = planCraft(input({ primaryMaterialName: 'Brinewort Crystal' }));
+    if (none.ok) expect(none.quality).toBe('standard');
   });
 });

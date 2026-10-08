@@ -156,7 +156,7 @@ describe('no existing table changed (additive only)', () => {
     ]);
   });
 
-  // Plan 06 updates this pin when it adds its two defaulted columns (req4TemplateId, req4Count).
+  // Plan 06 added the two defaulted 4th-requirement columns last (legendary regional recipes).
   it('pins recipe_template columns to today', () => {
     expect(Object.keys(recordedTable('recipe_template')!.cols)).toEqual([
       'id',
@@ -172,7 +172,15 @@ describe('no existing table changed (additive only)', () => {
       'req3Count',
       'recipeType',
       'materialType',
+      'req4TemplateId',
+      'req4Count',
     ]);
+  });
+
+  it('recipe_template req4 columns are defaulted, required u64 (publishes without a clear)', () => {
+    const cols = recordedTable('recipe_template')!.cols;
+    expect(cols.req4TemplateId).toMatchObject({ kind: 'u64', defaulted: true, optional: false });
+    expect(cols.req4Count).toMatchObject({ kind: 'u64', defaulted: true, optional: false });
   });
 
   it('keeps the old loot tables', () => {
