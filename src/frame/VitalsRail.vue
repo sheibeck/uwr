@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, ref, shallowRef, watch } from 'vue';
-import { PhCrownSimple } from '@phosphor-icons/vue';
+import type { FunctionalComponent } from 'vue';
+import { PhCrosshairSimple, PhCrownSimple } from '@phosphor-icons/vue';
 import { useDamageFlash } from '../combat/useDamageFlash';
-import { GAME_KEY, createInertGame } from '../game/context';
+import { COMBAT_KEY, GAME_KEY, createInertCombat, createInertGame } from '../game/context';
 import EffectChips from '../rails/EffectChips.vue';
 import PartyBlock from '../rails/PartyBlock.vue';
 import { effectViews } from '../rails/effects';
@@ -54,9 +55,50 @@ const selfMenuShown = computed(() => {
 // Your pet (one per character), inside the self block after your chips, solo too.
 const myPet = computed(() => (selfId.value === null ? null : social.petOf(selfId.value)));
 
-// Right-click on the identity row opens the self menu (the rail is desktop only).
+// The self target (51.1-UI-SPEC "Vitals Rail Self Block", in combat; it replaces the Phase 48 'You'
+// card). In a fight (game.combat.active) and once your character row exists, the identity row, the
+// Health, Mana and Stamina bars and your chips sit inside one button, built from spans only (phrasing
+// content, as HostileCard does). Clicking it makes you the ally target (client state; the ally target
+// defaults to you, so it starts pressed). The ⋯ and your pet row stay its siblings, never inside it.
+// Out of combat, and before the row exists, the block is plain markup with no wrapper.
+const controller = inject(COMBAT_KEY, createInertCombat());
+const inFight = computed(() => game.combat.active.value);
+const selfTarget = computed(() => inFight.value && game.character.value !== null);
+const selfSelected = computed(() => {
+  const own = game.character.value;
+  return selfTarget.value && own !== null && controller.allyTargetId.value === own.id;
+});
+const tag = computed(() => (selfTarget.value ? 'span' : 'div'));
+
+function selectSelf(): void {
+  const own = game.character.value;
+  if (own !== null) controller.selectAlly(own.id);
+}
+
+// Renders its children with no element of its own, so out of combat the identity row and the bars
+// stay direct children of the self block.
+const Unwrapped: FunctionalComponent = (_props, { slots }) => slots.default?.();
+const targetWrapper = computed(() => (selfTarget.value ? 'button' : Unwrapped));
+const targetAttrs = computed(() => {
+  if (!selfTarget.value) return {};
+  return {
+    type: 'button',
+    class: 'self-target',
+    title: 'Click to target yourself',
+    'aria-pressed': selfSelected.value ? 'true' : 'false',
+    'aria-label':
+      `Target yourself with your next ability. Health ${props.hp} of ${props.maxHp}, ` +
+      `mana ${props.mana} of ${props.maxMana}, stamina ${props.stamina} of ${props.maxStamina}.`,
+    onClick: selectSelf,
+  };
+});
+
+// Right-click opens the self menu (the rail is desktop only): on the identity row out of combat, on
+// the whole block in a fight. Left click targets; right-click never changes the target.
 function onSelfContextMenu(event: MouseEvent): void {
   if (!selfMenuShown.value || selfMenu.value === null) return;
+  const onIdentity = event.target instanceof Element && event.target.closest('.identity') !== null;
+  if (!selfTarget.value && !onIdentity) return;
   event.preventDefault();
   selfMenu.value.open('first');
 }
@@ -92,64 +134,84 @@ const bars = computed(() => [
 
 <template>
   <aside ref="railEl" class="vitals-rail" aria-label="Vitals">
-    <div class="self-block">
-      <div class="identity" :class="{ reserve: selfMenuShown }" @contextmenu="onSelfContextMenu">
-        <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
-        <div class="identity-text">
-          <div class="name-row">
-            <div class="name" :title="props.name">{{ props.name }}</div>
-            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
-          </div>
-          <div class="class-line">{{ props.classLine }}</div>
-        </div>
-      </div>
+    <div
+      class="self-block"
+      :class="{ targetable: selfTarget, selected: selfSelected }"
+      @contextmenu="onSelfContextMenu"
+    >
+      <component :is="targetWrapper" v-bind="targetAttrs">
+        <component :is="tag" class="identity" :class="{ reserve: selfMenuShown }">
+          <component :is="tag" class="avatar" aria-hidden="true">{{ props.avatarInitial }}</component>
+          <component :is="tag" class="identity-text">
+            <component :is="tag" class="name-row">
+              <component :is="tag" class="name" :title="props.name">{{ props.name }}</component>
+              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+            </component>
+            <component :is="tag" class="class-line">{{ props.classLine }}</component>
+          </component>
+          <PhCrosshairSimple v-if="selfSelected" class="self-marker" weight="fill" :size="16" aria-hidden="true" />
+        </component>
 
-      <div class="bars">
-        <div v-for="bar in bars" :key="bar.key" class="bar" :class="bar.key === 'health' ? flashClass : null">
-          <div class="bar-row">
-            <span class="label">{{ bar.label }}</span>
-            <span class="readout">
-              <span class="value">{{ vitalText(bar.value, bar.max) }}</span>
-              <span v-if="bar.key === 'health' && flashDelta !== null" class="delta" aria-hidden="true">−{{ flashDelta }}</span>
-            </span>
-          </div>
-          <div
-            class="track"
-            role="progressbar"
-            :aria-label="bar.label"
-            aria-valuemin="0"
-            :aria-valuenow="Number(bar.value)"
-            :aria-valuemax="Number(bar.max)"
+        <component :is="tag" class="bars">
+          <component
+            :is="tag"
+            v-for="bar in bars"
+            :key="bar.key"
+            class="bar"
+            :class="bar.key === 'health' ? flashClass : null"
           >
-            <div class="fill" :class="`fill-${bar.key}`" :style="{ width: `${barFraction(bar.value, bar.max) * 100}%` }"></div>
+            <component :is="tag" class="bar-row">
+              <span class="label">{{ bar.label }}</span>
+              <span class="readout">
+                <span class="value">{{ vitalText(bar.value, bar.max) }}</span>
+                <span v-if="bar.key === 'health' && flashDelta !== null" class="delta" aria-hidden="true">−{{ flashDelta }}</span>
+              </span>
+            </component>
+            <component
+              :is="tag"
+              class="track"
+              role="progressbar"
+              :aria-label="bar.label"
+              aria-valuemin="0"
+              :aria-valuenow="Number(bar.value)"
+              :aria-valuemax="Number(bar.max)"
+            >
+              <component
+                :is="tag"
+                class="fill"
+                :class="`fill-${bar.key}`"
+                :style="{ width: `${barFraction(bar.value, bar.max) * 100}%` }"
+              ></component>
+              <component
+                :is="tag"
+                v-if="bar.key === 'health' && flashGhost"
+                class="ghost"
+                aria-hidden="true"
+                :style="{ left: flashGhost.left, width: flashGhost.width }"
+              ></component>
+            </component>
+          </component>
+
+          <div v-if="!inFight" class="xp-row">
+            <div class="bar-row">
+              <span class="xp-label">XP</span>
+              <span class="xp-value">{{ xp.text }}</span>
+            </div>
             <div
-              v-if="bar.key === 'health' && flashGhost"
-              class="ghost"
-              aria-hidden="true"
-              :style="{ left: flashGhost.left, width: flashGhost.width }"
-            ></div>
+              class="xp-track"
+              role="progressbar"
+              aria-label="Experience"
+              aria-valuemin="0"
+              :aria-valuenow="xp.value"
+              :aria-valuemax="xp.need"
+            >
+              <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
+            </div>
           </div>
-        </div>
 
-        <div class="xp-row">
-          <div class="bar-row">
-            <span class="xp-label">XP</span>
-            <span class="xp-value">{{ xp.text }}</span>
-          </div>
-          <div
-            class="xp-track"
-            role="progressbar"
-            aria-label="Experience"
-            aria-valuemin="0"
-            :aria-valuenow="xp.value"
-            :aria-valuemax="xp.need"
-          >
-            <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
-          </div>
-        </div>
-
-        <EffectChips :effects="effects" />
-      </div>
+          <EffectChips :effects="effects" :inline="selfTarget" />
+        </component>
+      </component>
 
       <PlayerMenu
         v-if="selfMenuShown && selfId !== null"
@@ -203,6 +265,51 @@ const bars = computed(() => [
   pointer-events: none;
 }
 
+/* In a fight (UI-SPEC Color): the target ring and the hover and pressed tints on the block's outset. */
+.self-block.targetable:has(> .self-target:hover)::before {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.self-block.targetable:has(> .self-target:active)::before {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+.self-block.selected::before {
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* The self target: the block's column of identity and bars. Positioned so it paints above the
+   pseudo-element's tint (the ⋯ and the pet row already are). */
+.self-target {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.self-target:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* The crosshair keeps its size at the right end of the identity row, left of the ⋯ reserve. */
+.self-marker {
+  flex: none;
+  color: var(--color-accent);
+}
+
 /* Self ⋯ (UI-SPEC Exceptions): the top right of the block, a sibling of the identity row. */
 .self-menu {
   position: absolute;
@@ -236,6 +343,7 @@ const bars = computed(() => [
 }
 
 .identity-text {
+  display: block;
   min-width: 0;
   flex: 1;
 }
@@ -253,6 +361,7 @@ const bars = computed(() => [
 }
 
 .name {
+  display: block;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
@@ -262,6 +371,7 @@ const bars = computed(() => [
 }
 
 .class-line {
+  display: block;
   font-size: 12px;
   color: var(--color-neutral-400);
   white-space: nowrap;
@@ -297,6 +407,7 @@ const bars = computed(() => [
 }
 
 .track {
+  display: block;
   position: relative;
   height: 6px;
   border-radius: var(--radius-sm);
@@ -305,6 +416,7 @@ const bars = computed(() => [
 }
 
 .fill {
+  display: block;
   height: 100%;
 }
 
