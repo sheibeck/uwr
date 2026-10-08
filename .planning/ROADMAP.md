@@ -766,6 +766,7 @@ Plans:
     - A changed signature ability should tell its owner why.
     - The difficulty dials remain the main tool for overall balance.
   - Owner, 2026-10-08: enemies in higher-level places spawned at level 1 (todo `2026-10-08-nearby-enemies-ignore-the-location-level.md`). A quick task scales a spawn to its place's level when no enemy type fits; this phase also makes world generation create enemy types for each place's level range (base plus each `levelOffset`). That is a prompt change, so the owner approves the wording.
+  - Owner, 2026-10-08: "Quest bosses should be harder!" Quick task 261008-ag8 already scales quest and named spawns to the place's level band. For discuss: the default bosses-and-named dial should put quest bosses above ordinary enemies at the same place (a level bump, extra health and damage, or both), not just equal to them.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
