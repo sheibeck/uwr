@@ -218,6 +218,9 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-07-level-up-and-new-skill-tags-do-nothing.md`: **blocks progression.** The Level up and New skill tags are display-only; no client calls `apply_level_up` or `choose_skill` (the old button was deleted in 45-01 and every UI-SPEC deferred the flow).
 - `todos/pending/2026-10-07-combat-mock-effect-chips-update.md`: updated `UWR Combat.dc.html` changes the effect chips for players and enemies. Fold into Phase 51.4 (same design file as the loot rails).
 
+- `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
+- `todos/pending/2026-10-08-non-combat-utility-abilities.md`: audit and wire the non-combat ability kinds (travel, craft and gather boosts, utility) and add invisibility and lull (owner idea; ties to 51.3.1, 51.3, 51.5).
+
 ### Blockers/Concerns
 
 - **[Milestone end, user action] Maincloud migration.** On 2026-09-30 the user deferred it "until we're all done". Run section E of 42-USER-CHECKLIST.md: publish 1 from 5968d54f, deploy the client and `/setappversion`, `purge_legacy_llm` with COUNT 0 checks, then publish 2. Publish 1 also covers 41-MAINCLOUD-CHECKLIST.md. Phase 43 adds only additive, defaulted schema, so publish 2 from the final HEAD still needs no clear.
