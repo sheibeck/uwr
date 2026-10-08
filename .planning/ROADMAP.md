@@ -762,6 +762,7 @@ Plans:
     - Tooltips and cost text must read the same rule, so the shown numbers match what happens.
     - A changed signature ability should tell its owner why.
     - The difficulty dials remain the main tool for overall balance.
+  - Owner, 2026-10-08: enemies in higher-level places spawned at level 1 (todo `2026-10-08-nearby-enemies-ignore-the-location-level.md`). A quick task scales a spawn to its place's level when no enemy type fits; this phase also makes world generation create enemy types for each place's level range (base plus each `levelOffset`). That is a prompt change, so the owner approves the wording.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
