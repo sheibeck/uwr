@@ -671,9 +671,9 @@ export function maxCraftCount(input: Omit<CraftPlanInput, 'count'>, room?: Craft
 // keeps the sum of all amounts under the total any such recipe consumes and the value of the
 // components under the item's own vendor value. So even when every roll hits, salvaging returns
 // strictly fewer units than the craft took, and a craft then salvage then craft loop can never repeat
-// without new materials. The bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and the INT scroll are
-// separate rolls on the same seed at their own indexes (SALVAGE_REAGENT_ROLL_INDEX and
-// SALVAGE_SCROLL_ROLL_INDEX). Deterministic: the seed comes from the server timestamp and ids.
+// without new materials. The bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) is a separate roll on the same
+// seed at its own index (SALVAGE_REAGENT_ROLL_INDEX). Salvage never returns a recipe scroll (owner,
+// Phase 51.3 review A WR-02). Deterministic: the seed comes from the server timestamp and ids.
 // salvage_item calls these, and the client preview values the slot material from MATERIAL_DEFS, the
 // same vendor value helpers/items.ts upserts into the material's item template.
 // ---------------------------------------------------------------------------
@@ -875,17 +875,19 @@ export function salvageSeed(timestampMicros: bigint, instanceId: bigint, charact
 }
 
 /**
- * The roll index of the bonus reagent (SALVAGE_REAGENT_CHANCE_PCT) and of the INT recipe scroll. The
- * components use 0, 1, 2 (one per recipe input, or the one slot material), so these fixed indexes
- * never meet a component's, and the three kinds of roll are independent of each other (review IN-02).
+ * The roll index of the bonus reagent (SALVAGE_REAGENT_CHANCE_PCT), and the retired index of the old
+ * INT recipe-scroll roll (salvage no longer returns scrolls: owner, Phase 51.3 review A WR-02; the
+ * index stays reserved so no new roll reuses it). The components use 0 to 3 (one per recipe input, a
+ * legendary regional recipe has four, or the one slot material), so these fixed indexes never meet a
+ * component's and the rolls are independent of each other (review IN-02).
  */
 export const SALVAGE_REAGENT_ROLL_INDEX = 100n;
 export const SALVAGE_SCROLL_ROLL_INDEX = 101n;
 
 /**
  * One roll from 0 to 99 for roll number `index` of a salvage: a splitmix64 step over BigInt.
- * Components roll at their own position; the reagent and the scroll roll at
- * SALVAGE_REAGENT_ROLL_INDEX and SALVAGE_SCROLL_ROLL_INDEX on the same seed.
+ * Components roll at their own position; the reagent rolls at SALVAGE_REAGENT_ROLL_INDEX on the
+ * same seed.
  */
 export function salvageRoll(seed: bigint, index: bigint): bigint {
   let z = BigInt.asUintN(64, seed + (index + 1n) * 0x9e3779b97f4a7c15n);

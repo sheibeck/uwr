@@ -1,8 +1,7 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, recipeRequirements, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageRoll, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT, SALVAGE_REAGENT_ROLL_INDEX, SALVAGE_SCROLL_ROLL_INDEX } from '../data/crafting_rules';
+import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, recipeRequirements, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageRoll, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT, SALVAGE_REAGENT_ROLL_INDEX } from '../data/crafting_rules';
 import { writeActionResult } from '../helpers/action_result';
 import type { ResultLine } from '../data/action_result';
-import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCOVER } from '../data/recipe_rules';
 import type { BagMaterial, MaterialKind } from '../data/recipe_rules';
 import { isQuestItemTemplate } from '../data/item_rules';
@@ -508,12 +507,11 @@ export const registerItemCraftingReducers = (deps: any) => {
     const itemName = instance.displayName ?? template.name;
     const tier = template.tier ?? 1n;
 
-    // Every recipe that makes this item, lowest id first. The first is the one the components and
-    // the recipe scroll come from; all of them cap the amounts.
+    // Every recipe that makes this item, lowest id first. The first is the one the components come
+    // from; all of them cap the amounts.
     const makingRecipes = [...ctx.db.recipe_template.iter()]
       .filter((r: any) => r.outputTemplateId === instance.templateId)
       .sort((x: any, y: any) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
-    const matchingRecipe = makingRecipes[0];
 
     // --- Components: a chance at a smaller return, never a guaranteed one ---
     // Owner, 2026-10-07: "Salvaging should always return less materials. A salvage should never return
@@ -552,8 +550,8 @@ export const registerItemCraftingReducers = (deps: any) => {
         ? { templateId: materialTemplate.id, name: materialTemplate.name, vendorValue: materialTemplate.vendorValue ?? 0n }
         : null,
     });
-    // One seed for every roll of this salvage: the components at their positions, the reagent and the
-    // scroll at their own fixed indexes, so no roll decides another.
+    // One seed for every roll of this salvage: the components at their positions and the reagent at
+    // its own fixed index, so no roll decides another.
     const seed = salvageSeed(ctx.timestamp.microsSinceUnixEpoch, instance.id, character.id);
     const returned = rollSalvage(components, seed);
     const receivedNames: string[] = [];
@@ -570,7 +568,7 @@ export const registerItemCraftingReducers = (deps: any) => {
         instanceId: null,
       });
     }
-    // The feed's main line is written once the bonus and the scroll are known (below).
+    // The feed's main line is written once the bonus is known (below).
     const feedLines: string[] = [];
 
     // --- Bonus modifier reagent yield (SALVAGE_REAGENT_CHANCE_PCT, affix-constrained) ---
@@ -600,35 +598,11 @@ export const registerItemCraftingReducers = (deps: any) => {
       }
     }
 
-    // --- INT-boosted recipe scroll drop (replaces auto-learn) ---
-    // matchingRecipe (the recipe that outputs this item type) was found above
-    if (matchingRecipe) {
-      // Compute INT-boosted chance (on 100n scale)
-      const intOffset = statOffset(character.int, INT_SALVAGE_BONUS_PER_POINT);
-      const rawChance = SALVAGE_SCROLL_CHANCE_BASE + intOffset;
-      // Clamp to [5n, 95n]
-      const scrollChance = rawChance < 5n ? 5n : rawChance > 95n ? 95n : rawChance;
-      const roll = salvageRoll(seed, SALVAGE_SCROLL_ROLL_INDEX);
-      if (roll < scrollChance) {
-        // A generated recipe has no scroll item (it is learned through Discover), so a missing
-        // scroll template is normal and stays silent.
-        const scrollTemplate = findItemTemplateByName(ctx, `Scroll: ${matchingRecipe.name}`);
-        if (scrollTemplate) {
-          const scrollRow = addItemToInventory(ctx, character.id, scrollTemplate.id, 1n);
-          feedLines.push(`You found a recipe: ${matchingRecipe.name}.`);
-          resultLines.push({
-            kind: 'scroll',
-            templateId: scrollTemplate.id,
-            name: scrollTemplate.name,
-            quantity: 1n,
-            total: 0n,
-            instanceId: scrollRow?.id ?? null,
-          });
-        }
-      }
-    }
+    // Salvage never returns a recipe scroll (owner decision, Phase 51.3 review A WR-02): scrolls come only
+    // from bosses and named foes in their region, at the 10% drop chance. A salvage roll here was a
+    // faucet (craft, salvage, repeat) that bypassed that rule for every recipe with a scroll item.
 
-    // The feed, main line first: what came back, "You salvaged {item}." when only a bonus or a scroll did,
+    // The feed, main line first: what came back, "You salvaged {item}." when only a bonus did,
     // or the nothing usable sentence when nothing at all did.
     const listOf = (names: string[]): string =>
       names.length <= 1 ? names.join('') : `${names.slice(0, names.length - 1).join(', ')} and ${names[names.length - 1]}`;

@@ -456,6 +456,8 @@ export const BLOCK_MITIGATION_BASE = 30n;
 export const WIS_PULL_BONUS_PER_POINT = 2n;
 
 // ===== INT salvage scroll constant =====
+// Retired: salvage no longer returns recipe scrolls (owner, Phase 51.3 review A WR-02). Kept only so
+// older tests and notes still resolve; no reducer reads these.
 
 /** INT offset per point for scroll drop chance, on 100n (percent) scale.
  *  3n = ±3% per point. At INT=10: base 25%. At INT=14: 37%. At INT=6: 13%. */

@@ -3,14 +3,15 @@
  * research_recipes are captured from index.ts and run on the strict mock db. Checks:
  *   - an equipped item is refused with 'Unequip item first' before any write (T-50-127);
  *   - a salvage writes the character's action_result row from what the server actually granted:
- *     'received' for each component that came back, 'bonus' for a reagent, 'scroll' for a recipe
- *     scroll, and the bonus and scroll lines exist only when the server granted them (T-50-128);
+ *     'received' for each component that came back and 'bonus' for a reagent; the bonus line exists only
+ *     when the server granted one (T-50-128). Salvage never returns a recipe scroll (owner, Phase 51.3
+ *     review A WR-02): scrolls come only from bosses and named foes;
  *   - salvage_item is a chance at a smaller return, never a guaranteed one (Plan 50-40, owner
  *     2026-10-07): it grants exactly what rollSalvage says for salvageComponents and the seed from the
  *     timestamp, the instance and the character (T-50-126);
- *   - the 12% reagent and the INT scroll roll on that same seed at their own fixed indexes
- *     (SALVAGE_REAGENT_ROLL_INDEX, SALVAGE_SCROLL_ROLL_INDEX), independent of each other and of the
- *     component rolls (review IN-02);
+ *   - the 12% reagent rolls on that same seed at its own fixed index (SALVAGE_REAGENT_ROLL_INDEX),
+ *     independent of the component rolls (review IN-02); the tests still filter clocks by the old
+ *     scroll roll (SALVAGE_SCROLL_ROLL_INDEX) to prove a "hit" there grants nothing;
  *   - Discover recipes writes kind 'discover' with one 'recipe' line per find, none when nothing is
  *     new, and no row without a station.
  */
@@ -477,17 +478,14 @@ describe('salvage_item result row: the components that came back', () => {
       ],
     });
     expect(componentsOf(ctx).map((c) => [c.name, c.amount])).toEqual([['Rough Hide', 1n]]);
-    // The scroll is the lowest recipe's, never the other one.
+    // Salvage never returns a scroll (owner, review A WR-02), whichever recipe makes the item.
     setTs(ctx, tsWhere(ctx, { comps: hit, scroll: 'hit' }));
     salvageIt(ctx);
     expect(bag(ctx, HIDE)).toBe(1n);
     expect(bag(ctx, COPPER)).toBe(0n);
-    expect(bag(ctx, SCROLL)).toBe(1n);
+    expect(bag(ctx, SCROLL)).toBe(0n);
     expect(bag(ctx, 301n)).toBe(0n);
-    expect(messages(ctx)).toEqual([
-      'You salvaged Frayed Robe and received 1x Rough Hide.',
-      'You found a recipe: Frayed Robe Pattern.',
-    ]);
+    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
   });
 
   it('nothing usable: no received line, the old feed line, and still a row', () => {
@@ -612,10 +610,13 @@ describe('salvage_item result row: the reagent bonus', () => {
   });
 });
 
-describe('salvage_item result row: the recipe scroll', () => {
+// Owner decision (Phase 51.3 review A WR-02): salvage NEVER returns a recipe scroll. Scrolls come only
+// from bosses and named foes, at the 10% drop chance. A salvage-scroll faucet (craft, salvage, repeat)
+// would bypass that rule for every recipe that has a scroll item.
+describe('salvage_item never returns a recipe scroll', () => {
   const scrollTemplate = () => tpl(SCROLL, 'Scroll: Frayed Robe Pattern', { slot: 'consumable', stackable: true });
 
-  it('a hit under the INT chance adds a scroll line with the scroll bag row', () => {
+  it('a roll under the old INT chance, with the scroll item present, adds no scroll and no scroll line', () => {
     const ctx = newCtx({
       templates: [...baseTemplates(), scrollTemplate()],
       recipes: [chestRecipe()],
@@ -625,50 +626,31 @@ describe('salvage_item result row: the recipe scroll', () => {
     expect(scrollRollAt(ts)).toBeLessThan(SCROLL_CHANCE);
     setTs(ctx, ts);
     salvageIt(ctx);
-    // The recipe consumed 3 Rough Hide, so a hit returns 1.
-    expect(messages(ctx)).toEqual([
-      'You salvaged Frayed Robe and received 1x Rough Hide.',
-      'You found a recipe: Frayed Robe Pattern.',
-    ]);
-    const scrollRow = rows(ctx, 'item_instance').find((i) => i.templateId === SCROLL)!;
-    expect(scrollRow.quantity).toBe(2n);
-    const { lines } = resultOf(ctx);
-    expect(lines.map((l) => l.kind)).toEqual(['received', 'scroll']);
-    expect(lines[1]).toEqual({
-      kind: 'scroll',
-      templateId: SCROLL,
-      name: 'Scroll: Frayed Robe Pattern',
-      quantity: 1n,
-      total: 2n,
-      instanceId: scrollRow.id,
-    });
-  });
-
-  it('a hit without a scroll template writes no scroll line and no extra feed line', () => {
-    const ctx = newCtx({ recipes: [chestRecipe()] });
-    setTs(ctx, tsWhere(ctx, { comps: hit, scroll: 0n }));
-    salvageIt(ctx);
     expect(messages(ctx)).toEqual(['You salvaged Frayed Robe and received 1x Rough Hide.']);
+    expect(rows(ctx, 'item_instance').find((i) => i.templateId === SCROLL)!.quantity).toBe(1n);
     expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['received']);
   });
 
-  it('a roll at or above the chance writes no scroll line', () => {
-    const ctx = newCtx({ templates: [...baseTemplates(), scrollTemplate()], recipes: [chestRecipe()] });
-    const ts = tsWhere(ctx, { comps: hit, scroll: SCROLL_CHANCE });
-    setTs(ctx, ts);
-    salvageIt(ctx);
-    expect(bag(ctx, SCROLL)).toBe(0n);
-    expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['received']);
+  it('a very high INT still never yields a scroll, over many salvages', () => {
+    for (let k = 0n; k < 60n; k += 1n) {
+      const ctx = newCtx({ templates: [...baseTemplates(), scrollTemplate()], recipes: [chestRecipe()] });
+      const character = rows(ctx, 'character')[0];
+      character.int = 400n;
+      setTs(ctx, T0 + 9_000_000n + k * 7n);
+      salvageIt(ctx);
+      expect(bag(ctx, SCROLL)).toBe(0n);
+      expect(resultOf(ctx).lines.some((l) => l.kind === 'scroll')).toBe(false);
+    }
   });
 
-  it('a scroll can drop even when no component comes back', () => {
+  it('no component back and a scroll-roll hit: only the plain salvage line', () => {
     const ctx = newCtx({ templates: [...baseTemplates(), scrollTemplate()], recipes: [chestRecipe()] });
     setTs(ctx, tsWhere(ctx, { comps: none, scroll: 'hit' }));
     salvageIt(ctx);
     expect(bag(ctx, HIDE)).toBe(0n);
-    expect(bag(ctx, SCROLL)).toBe(1n);
-    expect(messages(ctx)).toEqual(['You salvaged Frayed Robe.', 'You found a recipe: Frayed Robe Pattern.']);
-    expect(resultOf(ctx).lines.map((l) => l.kind)).toEqual(['scroll']);
+    expect(bag(ctx, SCROLL)).toBe(0n);
+    expect(messages(ctx).some((m) => m.indexOf('recipe') !== -1)).toBe(false);
+    expect(resultOf(ctx).lines.some((l) => l.kind === 'scroll')).toBe(false);
   });
 });
 
