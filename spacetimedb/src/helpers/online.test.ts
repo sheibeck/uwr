@@ -173,6 +173,29 @@ describe('single writer (source guard)', () => {
     expect(offenders).toEqual([]);
   });
 
+  // Code review IN-03: `{ ...row, online }` (shorthand) inside a character update or insert is a
+  // write the `key:` pattern above cannot see.
+  const SHORTHAND_WRITE =
+    /character\.(?:id\.update|insert)\(\s*\{[^)]*?(?:[{,]\s*)(?:online|lastOnlineAtMicros)\s*[,}]/s;
+
+  it('the shorthand pattern catches a shorthand write and ignores reads', () => {
+    expect(SHORTHAND_WRITE.test('ctx.db.character.id.update({ ...row, online });')).toBe(true);
+    expect(SHORTHAND_WRITE.test('ctx.db.character.insert({\n  id: 0n,\n  lastOnlineAtMicros,\n  name });')).toBe(true);
+    expect(SHORTHAND_WRITE.test('ctx.db.character.id.update({ ...row, groupId: undefined });')).toBe(false);
+    expect(SHORTHAND_WRITE.test('const online = row.online === true; ctx.db.character.id.update({ ...row, hp });')).toBe(false);
+    expect(SHORTHAND_WRITE.test('ctx.db.character.id.update({ ...row, onlineSince });')).toBe(false);
+  });
+
+  it('only the allowed files write the online columns in shorthand', () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const rel = file.slice(SRC.length);
+      if (ALLOWED.has(rel)) continue;
+      if (SHORTHAND_WRITE.test(readFileSync(file, 'utf8'))) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('scans the whole server tree (the allowed writers are found)', () => {
     const rels = sourceFiles(SRC).map((f) => f.slice(SRC.length));
     for (const allowed of ALLOWED) expect(rels).toContain(allowed);

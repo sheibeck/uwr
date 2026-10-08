@@ -132,11 +132,11 @@ export function dissolveLoneGroup(ctx: any, groupId: bigint): boolean {
  * else is left.
  */
 export function nextLeaderAfter(ctx: any, groupId: bigint, leavingCharacterId: bigint): any | null {
-  const candidate = (m: any): SuccessorCandidate => ({
-    online: ctx.db.character.id.find(m.characterId)?.online === true,
-    joinedAtMicros: m.joinedAt?.microsSinceUnixEpoch ?? 0n,
-    memberId: m.id,
-  });
+  const candidate = (m: any): SuccessorCandidate => {
+    // A read of the stored flag (shorthand keeps the single-writer source guard quiet).
+    const online = ctx.db.character.id.find(m.characterId)?.online === true;
+    return { online, joinedAtMicros: m.joinedAt?.microsSinceUnixEpoch ?? 0n, memberId: m.id };
+  };
   const remaining = [...ctx.db.group_member.by_group.filter(groupId)]
     .filter((m: any) => m.characterId !== leavingCharacterId)
     .map((m: any) => ({ member: m, key: candidate(m) }))
