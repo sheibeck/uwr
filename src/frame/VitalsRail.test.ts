@@ -8,14 +8,16 @@ import { MAX_LEVEL } from '@game-data/xp';
 import { barFraction, vitalText } from './vitals';
 import VitalsRail from './VitalsRail.vue';
 import {
+  COMBAT_KEY,
   CONSOLE_KEY,
   FRAME_KEY,
   GAME_KEY,
+  createInertCombat,
   createInertConsole,
   createInertFrame,
   createInertGame,
 } from '../game/context';
-import type { GameData } from '../game/context';
+import type { CombatController, GameData } from '../game/context';
 import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
 import type { SocialData } from '../social/socialContext';
 
@@ -490,20 +492,33 @@ describe('VitalsRail self block (51.1)', () => {
     expiresAtMicros: null,
   };
 
-  function mountSelf(options: { party?: 'lead' | 'member' | null; pet?: boolean; combat?: boolean } = {}) {
+  // The ally target as useCombatController keeps it: client state, your own id by default.
+  let ally = ref<bigint | null>(ME);
+  let selectAlly = vi.fn();
+  let combatActive = ref(false);
+
+  function mountSelf(
+    options: { party?: 'lead' | 'member' | null; pet?: boolean; combat?: boolean; noRow?: boolean } = {},
+  ) {
     const party = options.party ?? null;
     const inert = createInertGame();
+    ally = ref<bigint | null>(ME);
+    selectAlly = vi.fn((id: bigint) => {
+      ally.value = id;
+    });
+    combatActive = ref(options.combat ?? false);
     const game = {
       ...inert,
       connected: ref(true),
       characterId: ref<bigint | null>(ME),
-      character: ref(row(ME, 'Ann', { groupId: party === null ? undefined : 7n })),
+      character: ref(options.noRow ? null : row(ME, 'Ann', { groupId: party === null ? undefined : 7n })),
       group: ref(party === null ? null : { id: 7n, leaderCharacterId: party === 'lead' ? ME : MARA }),
       groupMembers: ref(party === null ? [] : [memberRow(11n, ME, 1n), memberRow(12n, MARA, 2n)]),
       knownCharacters: ref(party === null ? [] : [row(MARA, 'Mara')]),
       effects: ref([fx(1n, ME)]),
-      combat: { ...inert.combat, active: ref(options.combat ?? false) },
+      combat: { ...inert.combat, active: combatActive },
     } as unknown as GameData;
+    const controller = { ...createInertCombat(), allyTargetId: ally, selectAlly } as unknown as CombatController;
     const social = {
       ...createInertSocial(),
       petOf: (id: bigint) => (options.pet && id === ME ? myPet : null),
@@ -528,6 +543,7 @@ describe('VitalsRail self block (51.1)', () => {
           [SOCIAL_KEY as symbol]: social,
           [CONSOLE_KEY as symbol]: createInertConsole(),
           [FRAME_KEY as symbol]: createInertFrame(),
+          [COMBAT_KEY as symbol]: controller,
         },
       },
     });
@@ -605,12 +621,168 @@ describe('VitalsRail self block (51.1)', () => {
     expect(w.get('.self-block .xp-row .xp-label').text()).toBe('XP');
   });
 
-  it('in a fight the self block stays a plain div with the ⋯ and your pet, and the switch hides', () => {
+  it('in a fight the self block holds the target button, then the ⋯ and your pet, and the switch hides', () => {
     const w = mountSelf({ party: 'member', pet: true, combat: true });
-    expect(w.get('.self-block').element.tagName).toBe('DIV');
-    expect(w.find('.self-block .menu-opener').exists()).toBe(true);
-    expect(w.find('.self-block .pet-row').exists()).toBe(true);
+    const block = w.get('.self-block');
+    expect(block.element.tagName).toBe('DIV');
+    expect(childClasses(block.element)).toEqual(['self-target', 'player-menu', 'pet-row']);
+    expect(block.find('.self-target .menu-opener').exists()).toBe(false);
+    expect(block.find('.self-target .pet-row').exists()).toBe(false);
     expect(w.find('.travel-switch').exists()).toBe(false);
+  });
+
+  // 51.1-UI-SPEC "Vitals Rail Self Block", in combat. These replace the Phase 48 'You' card cases
+  // that lived in PartyBlock.test.ts (UI-SPEC Supersedes): the self block is the self target, solo or
+  // in a party, pressed by default; not a button out of combat or before your row exists.
+  describe('self target in combat', () => {
+    it('out of combat the self block is not a button and the XP line shows', () => {
+      const w = mountSelf({ party: 'member' });
+      expect(w.find('button.self-target').exists()).toBe(false);
+      expect(w.find('.self-block .xp-row').exists()).toBe(true);
+      expect(w.find('.self-marker').exists()).toBe(false);
+    });
+
+    it('solo: one button with the title, pressed by default, the label, the crosshair and the ring', () => {
+      const w = mountSelf({ combat: true });
+      const target = w.get('.self-block > button.self-target');
+      expect(target.attributes('type')).toBe('button');
+      expect(target.attributes('title')).toBe('Click to target yourself');
+      expect(target.attributes('aria-pressed')).toBe('true');
+      expect(target.attributes('aria-label')).toBe(
+        'Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40.',
+      );
+      expect(w.get('.self-block').classes()).toContain('selected');
+      const marker = target.get('.identity .self-marker');
+      expect(marker.attributes('aria-hidden')).toBe('true');
+      expect(target.get('.identity').element.lastElementChild).toBe(marker.element);
+    });
+
+    it('holds the identity, the three bars and your chips (inline) inside the button, with no XP line', () => {
+      const w = mountSelf({ combat: true });
+      const target = w.get('button.self-target');
+      expect(target.find('.identity .name').text()).toBe('Ann');
+      expect(target.findAll('.bar').map((bar) => bar.get('.label').text())).toEqual(['Health', 'Mana', 'Stamina']);
+      const chips = target.get('.effect-chips');
+      expect(chips.element.tagName).toBe('SPAN');
+      expect(chips.get('.tag').text()).toBe('Bless');
+      expect(w.find('.xp-row').exists()).toBe(false);
+      expect(w.find('[aria-label="Experience"]').exists()).toBe(false);
+      expect(target.find('div').exists()).toBe(false);
+    });
+
+    it('solo: your pet row follows the button inside the self block, outside it', () => {
+      const w = mountSelf({ combat: true, pet: true });
+      const block = w.get('.self-block');
+      expect(childClasses(block.element)).toEqual(['self-target', 'pet-row']);
+      expect(w.get('.pet-row').element.closest('button')).toBeNull();
+      expect(w.find('.menu-opener').exists()).toBe(false);
+    });
+
+    it('clicking the self block selects you through the controller', async () => {
+      const w = mountSelf({ combat: true });
+      await w.get('button.self-target').trigger('click');
+      expect(selectAlly).toHaveBeenCalledWith(ME);
+    });
+
+    it('in a party: the ⋯ is the next sibling of the button and no button holds a button anywhere', () => {
+      const w = mountSelf({ party: 'member', combat: true, pet: true });
+      const target = w.get('button.self-target');
+      const next = target.element.nextElementSibling as HTMLElement;
+      expect(next.classList.contains('player-menu')).toBe(true);
+      expect(next.querySelector('.menu-opener')?.getAttribute('aria-label')).toBe('Actions for yourself');
+      expect(w.get('.identity').classes()).toContain('reserve');
+      expect(w.findAll('.member-card .member-target')).toHaveLength(1);
+      expect(w.findAll('button button')).toHaveLength(0);
+      expect(document.querySelectorAll('aside.vitals-rail button button')).toHaveLength(0);
+    });
+
+    it('clicking a member card moves the ring there, and clicking the self block moves it back', async () => {
+      const w = mountSelf({ party: 'member', combat: true });
+      const self = () => w.get('button.self-target');
+      const mara = () => w.get('.member-card .member-target');
+      await mara().trigger('click');
+      expect(selectAlly).toHaveBeenLastCalledWith(MARA);
+      expect(mara().attributes('aria-pressed')).toBe('true');
+      expect(self().attributes('aria-pressed')).toBe('false');
+      expect(w.get('.self-block').classes()).not.toContain('selected');
+      expect(w.find('.self-marker').exists()).toBe(false);
+      await self().trigger('click');
+      expect(selectAlly).toHaveBeenLastCalledWith(ME);
+      expect(self().attributes('aria-pressed')).toBe('true');
+      expect(mara().attributes('aria-pressed')).toBe('false');
+      expect(w.find('.self-marker').exists()).toBe(true);
+    });
+
+    it('right-click on the self block opens the self menu and leaves the target alone', async () => {
+      const w = mountSelf({ party: 'member', combat: true });
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      w.get('button.self-target .bars').element.dispatchEvent(event);
+      await nextTick();
+      expect(event.defaultPrevented).toBe(true);
+      expect(w.get('.self-menu .menu-opener').attributes('aria-expanded')).toBe('true');
+      expect(selectAlly).not.toHaveBeenCalled();
+      expect(w.get('button.self-target').attributes('aria-pressed')).toBe('true');
+    });
+
+    it('solo right-click on the self block is left to the browser', async () => {
+      const w = mountSelf({ combat: true });
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      w.get('button.self-target').element.dispatchEvent(event);
+      await nextTick();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('is not a button before your character row exists', () => {
+      const w = mountSelf({ combat: true, noRow: true });
+      expect(w.find('button.self-target').exists()).toBe(false);
+      expect(w.get('.self-block').classes()).not.toContain('selected');
+    });
+
+    it('brings the XP line back and drops the button when the fight ends', async () => {
+      const w = mountSelf({ party: 'member', combat: true });
+      expect(w.find('.xp-row').exists()).toBe(false);
+      combatActive.value = false;
+      await nextTick();
+      expect(w.find('button.self-target').exists()).toBe(false);
+      expect(w.get('.self-block .xp-row .xp-label').text()).toBe('XP');
+      expect(childClasses(w.get('.self-block').element)).toEqual(['identity', 'bars', 'player-menu']);
+    });
+
+    it('keeps the damage flash on the Health bar inside the button', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+      try {
+        const w = mountSelf({ combat: true });
+        await w.setProps({ hp: 40n });
+        const health = w.findAll('button.self-target .bar')[0];
+        expect(health.classes()).toContain('flash-motion');
+        expect(health.get('.delta').text()).toBe('−10');
+        expect(health.find('.ghost').exists()).toBe(true);
+        expect(w.get('button.self-target').attributes('aria-label')).toContain('Health 40 of 100');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('renders your name as text inside the button, not markup', () => {
+      const w = mountSelf({ combat: true });
+      expect(w.find('img').exists()).toBe(false);
+      expect(w.get('button.self-target .name').text()).toBe('Ann');
+    });
+
+    it('carries the ring, the hover and pressed tints on the block pseudo-element in source', () => {
+      const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsRail.vue'), 'utf8');
+      const style = source.slice(source.indexOf('<style'));
+      expect(source).toContain('Click to target yourself');
+      expect(source).toContain('Target yourself with your next ability.');
+      expect(source).toContain('selectAlly(');
+      const ring = style.slice(style.indexOf('.self-block.selected::before'));
+      expect(ring.slice(0, ring.indexOf('}'))).toContain(
+        '0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent)',
+      );
+      expect(style).toContain('color-mix(in srgb, var(--color-text) 7%, transparent)');
+      expect(style).toContain('color-mix(in srgb, var(--color-text) 14%, transparent)');
+      expect(style).not.toMatch(/(?:margin|padding)[a-z-]*\s*:[^;]*-\d/);
+    });
   });
 
   it('draws the 8px outset with a pseudo-element, never a negative margin', () => {

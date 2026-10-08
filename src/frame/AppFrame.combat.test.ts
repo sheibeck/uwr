@@ -127,6 +127,10 @@ function combatGame(names: Names): { game: GameData; reducers: Reducers } {
   const mara = {
     id: MARA_ID,
     name: names.member,
+    // The in-combat member card (51.1-14) mounts Mara's ⋯, whose header reads race; online keeps
+    // the card out of the muted offline state.
+    race: 'Elf',
+    online: true,
     className: 'Ranger',
     level: 4n,
     hp: 95n,
@@ -408,19 +412,46 @@ describe('combat frame, desktop (1280)', () => {
     expect(slots[1].find('.slot-rounds').exists()).toBe(false);
   });
 
-  it('shows the self and member cards as ally buttons in the vitals rail', async () => {
+  // Was the Phase 48 'cards[0] is You, pressed' case: the self block is now the self target (51.1-14).
+  it('shows the self block and the member card as ally targets in the vitals rail', async () => {
     const { game } = combatGame(PLAIN);
     const w = mountFrame(true, game);
     await settle();
 
     const rail = w.get('.vitals-rail');
-    expect(rail.get('.party-head .hint').text()).toBe('Click to target');
-    const cards = rail.findAll('button.member');
-    expect(cards).toHaveLength(2);
-    expect(cards[0].text()).toContain('You');
-    expect(cards[0].attributes('aria-pressed')).toBe('true');
-    expect(cards[1].text()).toContain('Mara');
-    expect(cards[1].attributes('aria-pressed')).toBe('false');
+    expect(rail.find('.party-head').exists()).toBe(false);
+    expect(rail.text()).not.toContain('Click to target ');
+    const self = rail.get('.self-block > button.self-target');
+    expect(self.attributes('aria-pressed')).toBe('true');
+    expect(self.attributes('title')).toBe('Click to target yourself');
+    expect(self.attributes('aria-label')).toBe(
+      'Target yourself with your next ability. Health 212 of 260, mana 80 of 120, stamina 50 of 90.',
+    );
+    expect(rail.find('.xp-row').exists()).toBe(false);
+    const cards = rail.findAll('.member-card');
+    expect(cards).toHaveLength(1);
+    expect(cards[0].get('.member-name').text()).toBe('Mara');
+    const mara = cards[0].get('button.member-target');
+    expect(mara.attributes('aria-pressed')).toBe('false');
+    expect(rail.text()).not.toContain('You');
+    expect(rail.findAll('button button')).toHaveLength(0);
+  });
+
+  it('moves the ally ring between the self block and a member card with the real controller', async () => {
+    const { game, reducers } = combatGame(PLAIN);
+    const w = mountFrame(true, game);
+    await settle();
+
+    const self = () => w.get('.vitals-rail button.self-target');
+    const mara = () => w.get('.vitals-rail .member-card button.member-target');
+    await mara().trigger('click');
+    expect(mara().attributes('aria-pressed')).toBe('true');
+    expect(self().attributes('aria-pressed')).toBe('false');
+    await self().trigger('click');
+    expect(self().attributes('aria-pressed')).toBe('true');
+    expect(mara().attributes('aria-pressed')).toBe('false');
+    // Ally selection is client state: no reducer is called.
+    for (const reducer of Object.values(reducers)) expect(reducer).not.toHaveBeenCalled();
   });
 
   it('shows the round header (accent for the open round) and the wind-up block in the feed', async () => {
@@ -460,7 +491,8 @@ describe('combat frame, desktop (1280)', () => {
     expect(w.get('.encounter-panel .windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
     expect(w.get('.hotbar-row button.slot .slot-name').text()).toBe(XSS);
     expect(w.get('.encounter-panel .threat-row:not(.self) .threat-name').text()).toBe(XSS);
-    expect(w.get('.vitals-rail button.member:not(:first-child)').text()).toContain(XSS);
+    expect(w.get('.vitals-rail .member-card .member-name').text()).toBe(XSS);
+    expect(w.get('.vitals-rail .member-card .member-target').attributes('aria-label')).toContain(`Target ${XSS} with`);
     expect(w.get('.line-windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
     expect(w.get('[role="log"]').text()).toContain(XSS);
     expect(errorSpy).not.toHaveBeenCalled();
