@@ -12,7 +12,9 @@ import { xpProgress } from '../rails/xp';
 import CharacterName from '../social/CharacterName.vue';
 import PetRow from '../social/PetRow.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
-import TravelSwitch from '../social/TravelSwitch.vue';
+import FollowIcon from '../social/FollowIcon.vue';
+import { followPhrase, followState } from '../social/follow';
+import type { FollowState } from '../social/follow';
 import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
 import { keepFocus } from '../ledger/keepFocus';
 import { barFraction, vitalText } from './vitals';
@@ -54,6 +56,27 @@ const selfMenuShown = computed(() => {
   return game.groupMembers.value.filter((row) => row.groupId === group.id).length > 1;
 });
 
+// The follow icon beside your name (owner 2026-10-08: the toggle moved into the self menu and the icon
+// is the hint). Only a non-leader member sees it, and only once the same inputs the old rail switch
+// waited for have applied: your group member row and the leader's character row. The state comes from
+// the shared followState rule; an absent flag reads as following, the server default (as playerMenu.ts).
+const selfFollow = computed<FollowState | null>(() => {
+  const group = game.group.value;
+  const own = game.character.value;
+  if (group === null || own === null) return null;
+  if (group.leaderCharacterId === own.id) return null;
+  const row = game.groupMembers.value.find((m) => m.groupId === group.id && m.characterId === own.id);
+  if (row === undefined) return null;
+  const leaderRow = game.knownCharacters.value.find((c) => c.id === group.leaderCharacterId);
+  if (leaderRow === undefined) return null;
+  return followState({
+    isLeader: false,
+    followLeader: row.followLeader !== false,
+    online: own.online === true,
+    atLeaderPlace: leaderRow.locationId === own.locationId,
+  });
+});
+
 // Your pet (one per character), inside the self block after your chips, solo too.
 const myPet = computed(() => (selfId.value === null ? null : social.petOf(selfId.value)));
 
@@ -83,6 +106,8 @@ const Unwrapped: FunctionalComponent = (_props, { slots }) => slots.default?.();
 const targetWrapper = computed(() => (selfTarget.value ? 'button' : Unwrapped));
 const targetAttrs = computed(() => {
   if (!selfTarget.value) return {};
+  // A non-leader member's name ends with the follow phrase (the icon inside is decorative).
+  const follow = selfFollow.value === null ? '' : `, ${followPhrase(selfFollow.value)}`;
   return {
     type: 'button',
     class: 'self-target',
@@ -90,7 +115,7 @@ const targetAttrs = computed(() => {
     'aria-pressed': selfSelected.value ? 'true' : 'false',
     'aria-label':
       `Target yourself with your next ability. Health ${props.hp} of ${props.maxHp}, ` +
-      `mana ${props.mana} of ${props.maxMana}, stamina ${props.stamina} of ${props.maxStamina}.`,
+      `mana ${props.mana} of ${props.maxMana}, stamina ${props.stamina} of ${props.maxStamina}${follow}.`,
     onClick: selectSelf,
   };
 });
@@ -161,6 +186,7 @@ const bars = computed(() => [
           <component :is="tag" class="identity-text">
             <component :is="tag" class="name-row">
               <CharacterName class="name" :name="props.name" />
+              <FollowIcon v-if="selfFollow !== null" class="self-follow" :state="selfFollow" :decorative="selfTarget" />
               <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
             </component>
             <component :is="tag" class="class-line">{{ props.classLine }}</component>
@@ -241,8 +267,7 @@ const bars = computed(() => [
       <PetRow v-if="myPet !== null" :pet="myPet" :owner-name="null" :seconds-left="social.petSecondsLeft(myPet)" />
     </div>
 
-    <TravelSwitch variant="rail" />
-
+    <!-- The left rail is saved for the party view (owner 2026-10-08): the travel toggle is the self menu entry. -->
     <div class="hr" role="separator"></div>
 
     <PartyBlock />

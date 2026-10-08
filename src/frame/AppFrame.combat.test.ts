@@ -112,6 +112,8 @@ function combatGame(names: Names): { game: GameData; reducers: Reducers } {
     name: 'Brannoch',
     // The self block menu (51.1-13) reads your race.
     race: 'Human',
+    // The self follow icon (quick 261008-a97) reads your online flag; your active character is online.
+    online: true,
     className: 'Wizard',
     level: 3n,
     xp: 318n,
@@ -424,8 +426,9 @@ describe('combat frame, desktop (1280)', () => {
     const self = rail.get('.self-block > button.self-target');
     expect(self.attributes('aria-pressed')).toBe('true');
     expect(self.attributes('title')).toBe('Click to target yourself');
+    // Brannoch is a following member of Mara's party at her place, so the name ends with the follow phrase.
     expect(self.attributes('aria-label')).toBe(
-      'Target yourself with your next ability. Health 212 of 260, mana 80 of 120, stamina 50 of 90.',
+      'Target yourself with your next ability. Health 212 of 260, mana 80 of 120, stamina 50 of 90, travels with the leader.',
     );
     expect(rail.find('.xp-row').exists()).toBe(false);
     const cards = rail.findAll('.member-card');

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { MAX_LEVEL } from '@game-data/xp';
 import { barFraction, vitalText } from './vitals';
 import VitalsRail from './VitalsRail.vue';
@@ -451,8 +451,9 @@ describe('VitalsRail damage flash', () => {
 
 // 51.1-UI-SPEC "Vitals Rail Self Block (desktop)", out of combat: the self block wraps your identity,
 // bars, XP and chips; your pet row follows inside it; in a party a ⋯ 'Actions for yourself' sits at
-// its top right (the identity row reserves 32px) and right-click on the identity row opens it; the
-// Travel with leader switch sits after the block and before the rule (members only).
+// its top right (the identity row reserves 32px) and right-click on the identity row opens it. The
+// Travel with leader switch is no longer on the rail (owner 2026-10-08): the toggle is the self menu
+// entry and the state is the follow icon beside your name.
 describe('VitalsRail self block (51.1)', () => {
   const ME = 1n;
   const MARA = 2n;
@@ -478,8 +479,8 @@ describe('VitalsRail self block (51.1)', () => {
     };
   }
 
-  function memberRow(id: bigint, characterId: bigint, joined: bigint) {
-    return { id, groupId: 7n, characterId, followLeader: true, joinedAt: { microsSinceUnixEpoch: joined } };
+  function memberRow(id: bigint, characterId: bigint, joined: bigint, follow = true) {
+    return { id, groupId: 7n, characterId, followLeader: follow, joinedAt: { microsSinceUnixEpoch: joined } };
   }
 
   const myPet = {
@@ -497,11 +498,26 @@ describe('VitalsRail self block (51.1)', () => {
   let selectAlly = vi.fn();
   let combatActive = ref(false);
   let lastGame: GameData | null = null;
+  let setFollowLeader = vi.fn();
+  let leaveGroup = vi.fn();
 
   function mountSelf(
-    options: { party?: 'lead' | 'member' | null; pet?: boolean; combat?: boolean; noRow?: boolean } = {},
+    options: {
+      party?: 'lead' | 'member' | null;
+      pet?: boolean;
+      combat?: boolean;
+      noRow?: boolean;
+      /** Your member row's followLeader (default true). */
+      follow?: boolean;
+      /** false leaves game.knownCharacters empty, so the leader's row is unknown (default true). */
+      leaderKnown?: boolean;
+      /** Mara's locationId (default 10n, your place). */
+      leaderPlace?: bigint;
+    } = {},
   ) {
     const party = options.party ?? null;
+    setFollowLeader = vi.fn(() => Promise.resolve());
+    leaveGroup = vi.fn(() => Promise.resolve());
     const inert = createInertGame();
     ally = ref<bigint | null>(ME);
     selectAlly = vi.fn((id: bigint) => {
@@ -514,8 +530,15 @@ describe('VitalsRail self block (51.1)', () => {
       characterId: ref<bigint | null>(ME),
       character: ref(options.noRow ? null : row(ME, 'Ann', { groupId: party === null ? undefined : 7n })),
       group: ref(party === null ? null : { id: 7n, leaderCharacterId: party === 'lead' ? ME : MARA }),
-      groupMembers: ref(party === null ? [] : [memberRow(11n, ME, 1n), memberRow(12n, MARA, 2n)]),
-      knownCharacters: ref(party === null ? [] : [row(MARA, 'Mara')]),
+      groupMembers: ref(
+        party === null ? [] : [memberRow(11n, ME, 1n, options.follow ?? true), memberRow(12n, MARA, 2n)],
+      ),
+      knownCharacters: ref(
+        party === null || options.leaderKnown === false
+          ? []
+          : [row(MARA, 'Mara', { locationId: options.leaderPlace ?? 10n })],
+      ),
+      reducers: ref({ setFollowLeader, leaveGroup }),
       effects: ref([fx(1n, ME)]),
       combat: { ...inert.combat, active: combatActive },
     } as unknown as GameData;
@@ -578,7 +601,7 @@ describe('VitalsRail self block (51.1)', () => {
     expect(w.find('.self-block .pet-row').exists()).toBe(false);
   });
 
-  it('as a member: the ⋯ Actions for yourself, the 32px reserve and the switch before the rule', () => {
+  it('as a member: the ⋯ Actions for yourself, the 32px reserve and no switch before the rule (owner 2026-10-08)', () => {
     const w = mountSelf({ party: 'member', pet: true });
     const block = w.get('.self-block');
     const opener = block.get('.self-menu .menu-opener');
@@ -589,11 +612,13 @@ describe('VitalsRail self block (51.1)', () => {
     expect(childClasses(block.element)).toEqual(['identity', 'bars', 'player-menu', 'pet-row']);
     expect(block.get('.player-menu').classes()).toContain('self-menu');
     const rail = childClasses(w.get('aside.vitals-rail').element);
-    expect(rail.slice(0, 3)).toEqual(['self-block', 'travel-switch', 'hr']);
-    expect(w.get('.travel-switch').attributes('role')).toBe('switch');
+    // The left rail is for the party view: the self block, the rule, then the party block.
+    expect(rail.slice(0, 2)).toEqual(['self-block', 'hr']);
+    expect(w.find('.travel-switch').exists()).toBe(false);
+    expect(w.find('[role="switch"]').exists()).toBe(false);
   });
 
-  it('as the leader: the ⋯ is there and there is no switch', () => {
+  it('as the leader: the ⋯ is there, the rail reads self block, rule, and there is no switch', () => {
     const w = mountSelf({ party: 'lead' });
     expect(w.get('.self-block .menu-opener').attributes('aria-label')).toBe('Actions for yourself');
     expect(w.find('.travel-switch').exists()).toBe(false);
@@ -623,7 +648,7 @@ describe('VitalsRail self block (51.1)', () => {
     expect(w.get('.self-block .xp-row .xp-label').text()).toBe('XP');
   });
 
-  it('in a fight the self block holds the target button, then the ⋯ and your pet, and the switch hides', () => {
+  it('in a fight the self block holds the target button, then the ⋯ and your pet, and there is no switch', () => {
     const w = mountSelf({ party: 'member', pet: true, combat: true });
     const block = w.get('.self-block');
     expect(block.element.tagName).toBe('DIV');
@@ -853,6 +878,142 @@ describe('VitalsRail self block (51.1)', () => {
     expect(body).toContain('inset: -8px');
     expect(body).toContain('pointer-events: none');
     expect(body).toContain('border-radius: var(--radius-md)');
-    expect(source).toContain('<TravelSwitch variant="rail"');
+  });
+
+  // Owner 2026-10-08: the left rail is saved for the party view. The switch left the rail; the
+  // toggle is the self menu entry and the state is the icon beside your name. Asserted on the element
+  // tag text so a comment cannot satisfy or break it.
+  it('the source holds no TravelSwitch element', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsRail.vue'), 'utf8');
+    expect(source).not.toMatch(/<TravelSwitch\b/);
+    expect(source).not.toMatch(/<travel-switch\b/i);
+  });
+
+  // The follow icon beside your own name (owner 2026-10-08) and the self menu travel entry.
+  describe('Travel with leader: the self follow icon and the self menu entry (owner 2026-10-08)', () => {
+    function menuItems(): HTMLElement[] {
+      return Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    }
+    function menuLabels(): string[] {
+      return menuItems().map((el) => (el.textContent ?? '').trim());
+    }
+    function menuItem(label: string): HTMLElement {
+      const found = menuItems().find((el) => (el.textContent ?? '').includes(label));
+      if (!found) throw new Error(`no menu item ${label}`);
+      return found;
+    }
+
+    it('a following member at the leader place sees the comes icon, with title and a screen-reader twin', () => {
+      const w = mountSelf({ party: 'member' });
+      const icon = w.get('.name-row .follow-icon');
+      expect(icon.classes()).toContain('comes');
+      expect(icon.attributes('title')).toBe('Travels with the leader');
+      expect(icon.attributes('aria-hidden')).toBeUndefined();
+      expect(icon.get('.sr-only').text()).toBe('Travels with the leader');
+    });
+
+    it('a member who is not following sees the none icon: Stays behind when the leader travels', () => {
+      const w = mountSelf({ party: 'member', follow: false });
+      const icon = w.get('.name-row .follow-icon');
+      expect(icon.classes()).toContain('none');
+      expect(icon.attributes('title')).toBe('Stays behind when the leader travels');
+      expect(icon.get('.sr-only').text()).toBe('Stays behind when the leader travels');
+    });
+
+    it('a following member whose leader is elsewhere sees the elsewhere icon', () => {
+      const w = mountSelf({ party: 'member', leaderPlace: 11n });
+      const icon = w.get('.name-row .follow-icon');
+      expect(icon.classes()).toContain('elsewhere');
+      expect(icon.attributes('title')).toBe("Follows the leader, but isn't with them");
+      expect(icon.get('.sr-only').text()).toBe("Follows the leader, but isn't with them");
+    });
+
+    it('the leader, a solo player and an unknown leader row see no icon', () => {
+      expect(mountSelf({ party: 'lead' }).find('.self-block .follow-icon').exists()).toBe(false);
+      wrapper?.unmount();
+      expect(mountSelf().find('.self-block .follow-icon').exists()).toBe(false);
+      wrapper?.unmount();
+      expect(mountSelf({ party: 'member', leaderKnown: false }).find('.self-block .follow-icon').exists()).toBe(false);
+      // The leader still shows the crown, not an icon.
+      wrapper?.unmount();
+      expect(mountSelf({ party: 'lead' }).find('.name-row .crown').exists()).toBe(true);
+    });
+
+    it('in a fight the icon is decorative inside the target button and the label carries the phrase', () => {
+      const w = mountSelf({ party: 'member', combat: true });
+      const target = w.get('button.self-target');
+      const icon = target.get('.follow-icon');
+      expect(icon.attributes('aria-hidden')).toBe('true');
+      expect(icon.find('.sr-only').exists()).toBe(false);
+      expect(target.attributes('aria-label')).toBe(
+        'Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40, travels with the leader.',
+      );
+    });
+
+    it('in a fight the label phrase follows the state: not following', () => {
+      const w = mountSelf({ party: 'member', combat: true, follow: false });
+      expect(w.get('button.self-target').attributes('aria-label')).toBe(
+        'Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40, stays behind when the leader travels.',
+      );
+    });
+
+    it('in a fight the solo and leader labels are unchanged', () => {
+      const plain =
+        'Target yourself with your next ability. Health 50 of 100, mana 10 of 20, stamina 30 of 40.';
+      expect(mountSelf({ combat: true }).get('button.self-target').attributes('aria-label')).toBe(plain);
+      wrapper?.unmount();
+      const w = mountSelf({ party: 'lead', combat: true });
+      expect(w.get('button.self-target').attributes('aria-label')).toBe(plain);
+      expect(w.find('.self-block .follow-icon').exists()).toBe(false);
+    });
+
+    it('the self menu of a following member lists Stop travelling with leader, then Leave party', async () => {
+      const w = mountSelf({ party: 'member' });
+      await w.get('.self-menu .menu-opener').trigger('click');
+      await nextTick();
+      expect(menuLabels()).toEqual(['Stop travelling with leader', 'Leave party']);
+      menuItem('Stop travelling with leader').click();
+      await flushPromises();
+      await nextTick();
+      expect(setFollowLeader).toHaveBeenCalledTimes(1);
+      expect(setFollowLeader).toHaveBeenCalledWith({ characterId: ME, follow: false });
+    });
+
+    it('with follow off the entry reads Travel with leader and sends follow true', async () => {
+      const w = mountSelf({ party: 'member', follow: false });
+      await w.get('.self-menu .menu-opener').trigger('click');
+      await nextTick();
+      expect(menuLabels()[0]).toBe('Travel with leader');
+      menuItem('Travel with leader').click();
+      await flushPromises();
+      await nextTick();
+      expect(setFollowLeader).toHaveBeenCalledTimes(1);
+      expect(setFollowLeader).toHaveBeenCalledWith({ characterId: ME, follow: true });
+    });
+
+    it('right-click on the identity row opens the same menu with the travel entry', async () => {
+      const w = mountSelf({ party: 'member' });
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      w.get('.identity').element.dispatchEvent(event);
+      await nextTick();
+      expect(event.defaultPrevented).toBe(true);
+      expect(menuLabels()).toEqual(['Stop travelling with leader', 'Leave party']);
+    });
+
+    it("the leader's self menu has no travel entry, only Leave party", async () => {
+      const w = mountSelf({ party: 'lead' });
+      await w.get('.self-menu .menu-opener').trigger('click');
+      await nextTick();
+      expect(menuLabels()).toEqual(['Leave party']);
+    });
+
+    it('no button sits inside a button anywhere in the rail, in or out of combat', async () => {
+      const w = mountSelf({ party: 'member', pet: true });
+      expect(document.querySelectorAll('aside.vitals-rail button button')).toHaveLength(0);
+      combatActive.value = true;
+      await nextTick();
+      expect(document.querySelectorAll('aside.vitals-rail button button')).toHaveLength(0);
+      expect(w.findAll('button button')).toHaveLength(0);
+    });
   });
 });
