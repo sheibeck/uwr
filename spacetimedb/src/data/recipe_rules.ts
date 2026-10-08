@@ -253,6 +253,11 @@ export interface BagMaterial {
   tier: bigint;
   vendorValue: bigint;
   count: bigint;
+  /**
+   * Phase 51.3: the economy_item kind of a regional material. Used when it is one of
+   * MATERIAL_KIND_VALUES; otherwise (or when absent) the kind comes from the name (materialKind).
+   */
+  kind?: MaterialKind;
 }
 
 export interface CandidatePart {
@@ -299,8 +304,16 @@ function isBagMaterial(value: unknown): value is BagMaterial {
     typeof m.name === 'string' &&
     typeof m.count === 'bigint' &&
     typeof m.tier === 'bigint' &&
-    typeof m.vendorValue === 'bigint'
+    typeof m.vendorValue === 'bigint' &&
+    (m.kind === undefined || m.kind === null || typeof m.kind === 'string')
   );
+}
+
+/** The kind of a bag entry: its own kind when it is a known MaterialKind, else the name's kind. */
+function bagKind(entry: BagMaterial): MaterialKind | null {
+  const own = entry.kind;
+  if (typeof own === 'string' && MATERIAL_KIND_VALUES.indexOf(own) !== -1) return own;
+  return materialKind(entry.name);
 }
 
 /** The held materials of a mapped kind: merged by template, then one template per key (the lowest id). */
@@ -321,7 +334,7 @@ function heldParts(materials: readonly BagMaterial[]): KindedPart[] {
       last.count += entry.count;
       continue;
     }
-    const kind = materialKind(entry.name);
+    const kind = bagKind(entry);
     if (kind === null) continue;
     merged.push({
       templateId: entry.templateId,

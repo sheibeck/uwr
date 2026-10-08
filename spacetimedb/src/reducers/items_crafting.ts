@@ -1,10 +1,10 @@
 import { buildDisplayName, findItemTemplateByName } from '../helpers/items';
-import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageRoll, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT, SALVAGE_REAGENT_ROLL_INDEX, SALVAGE_SCROLL_ROLL_INDEX } from '../data/crafting_rules';
+import { getMaterialForSalvage, getCraftQualityStatBonus, planCraft, recipeRequirements, MAX_CRAFT_COUNT, rollSalvage, salvageComponents, salvageReagentDefs, salvageRoll, salvageSeed, SALVAGE_REAGENT_CHANCE_PCT, SALVAGE_REAGENT_ROLL_INDEX, SALVAGE_SCROLL_ROLL_INDEX } from '../data/crafting_rules';
 import { writeActionResult } from '../helpers/action_result';
 import type { ResultLine } from '../data/action_result';
 import { statOffset, INT_SALVAGE_BONUS_PER_POINT, SALVAGE_SCROLL_CHANCE_BASE } from '../data/combat_scaling.js';
 import { areaLevel, recipeCandidates, generatedOutput, MAX_NEW_RECIPES_PER_DISCOVER } from '../data/recipe_rules';
-import type { BagMaterial } from '../data/recipe_rules';
+import type { BagMaterial, MaterialKind } from '../data/recipe_rules';
 import { isQuestItemTemplate } from '../data/item_rules';
 import { craftBatchFits } from '../data/inventory_rules';
 
@@ -56,13 +56,18 @@ export const registerItemCraftingReducers = (deps: any) => {
       // (materials are matched by name). Otherwise craft_recipe would consume it, and the first
       // holder's template id would be stored in a recipe every later discoverer shares.
       if (template.slot !== 'material' || isQuestItemTemplate(template)) continue;
-      bag.push({
+      const entry: BagMaterial = {
         templateId,
         name: template.name,
         tier: template.tier,
         vendorValue: template.vendorValue,
         count,
-      });
+      };
+      // Phase 51.3: a regional material carries its economy_item kind, so a name outside
+      // MATERIAL_KINDS still joins the rule recipes (recipe_rules checks the kind is a real one).
+      const economyKind = ctx.db.economy_item.itemTemplateId.find(templateId)?.kind;
+      if (typeof economyKind === 'string' && economyKind !== '') entry.kind = economyKind as MaterialKind;
+      bag.push(entry);
     }
     const candidates = recipeCandidates(bag, level);
 
@@ -82,25 +87,8 @@ export const registerItemCraftingReducers = (deps: any) => {
 
     let found = 0;
     const foundLines: ResultLine[] = [];
-    for (const candidate of candidates) {
-      if (found >= MAX_NEW_RECIPES_PER_DISCOVER) break;
-      let recipe = recipesByKey.get(candidate.key);
-      if (recipe && discovered.has(recipe.id.toString())) continue;
-      if (!recipe) {
-        // Stored once per key: the recipe and its output are shared by every later discoverer.
-        const made = generatedOutput(candidate, (name: string) => takenNames.has(name.toLowerCase()));
-        const outputTemplate = ctx.db.item_template.insert({ id: 0n, ...made.itemTemplate });
-        takenNames.add(outputTemplate.name.toLowerCase());
-        recipe = ctx.db.recipe_template.insert({
-          id: 0n,
-          ...made.recipe,
-          outputTemplateId: outputTemplate.id,
-          // Rule recipes have two or three requirements; 0n means no 4th (Phase 51.3 column).
-          req4TemplateId: 0n,
-          req4Count: 0n,
-        });
-        recipesByKey.set(candidate.key, recipe);
-      }
+    // One discovery: the recipe_discovered row, the result line and the feed line.
+    const discoverRecipe = (recipe: any, primaryName: string, secondaryName: string) => {
       ctx.db.recipe_discovered.insert({
         id: 0n,
         characterId: character.id,
@@ -121,9 +109,57 @@ export const registerItemCraftingReducers = (deps: any) => {
         character.id,
         character.ownerUserId,
         'system',
-        `You discover ${recipe.name} because you have ${candidate.primary.name} and ${candidate.secondary.name}.`
+        `You discover ${recipe.name} because you have ${primaryName} and ${secondaryName}.`
       );
       found += 1;
+    };
+
+    // Phase 51.3: regional recipes first. Only the research tiers (common, uncommon: region_recipe
+    // learnBy 'research'); rare and better are learned from scrolls. A recipe is discovered only when
+    // the bag holds every requirement in full (merged per template, as craft_recipe checks), in
+    // recipe id order, inside the shared limit.
+    const regionalRecipes = [...ctx.db.region_recipe.iter()]
+      .filter((row: any) => row.learnBy === 'research')
+      .sort((a: any, b: any) => (a.recipeTemplateId < b.recipeTemplateId ? -1 : a.recipeTemplateId > b.recipeTemplateId ? 1 : 0));
+    for (const regional of regionalRecipes) {
+      if (found >= MAX_NEW_RECIPES_PER_DISCOVER) break;
+      if (discovered.has(regional.recipeTemplateId.toString())) continue;
+      const recipe = ctx.db.recipe_template.id.find(regional.recipeTemplateId);
+      if (!recipe) continue;
+      const needs = new Map<bigint, bigint>();
+      for (const req of recipeRequirements(recipe)) {
+        needs.set(req.templateId, (needs.get(req.templateId) ?? 0n) + req.count);
+      }
+      let covered = true;
+      for (const [templateId, count] of needs) {
+        if ((held.get(templateId) ?? 0n) < count) covered = false;
+      }
+      if (!covered) continue;
+      const primaryName = ctx.db.item_template.id.find(recipe.req1TemplateId)?.name ?? 'Unknown material';
+      const secondaryName = ctx.db.item_template.id.find(recipe.req2TemplateId)?.name ?? 'Unknown material';
+      discoverRecipe(recipe, primaryName, secondaryName);
+    }
+
+    for (const candidate of candidates) {
+      if (found >= MAX_NEW_RECIPES_PER_DISCOVER) break;
+      let recipe = recipesByKey.get(candidate.key);
+      if (recipe && discovered.has(recipe.id.toString())) continue;
+      if (!recipe) {
+        // Stored once per key: the recipe and its output are shared by every later discoverer.
+        const made = generatedOutput(candidate, (name: string) => takenNames.has(name.toLowerCase()));
+        const outputTemplate = ctx.db.item_template.insert({ id: 0n, ...made.itemTemplate });
+        takenNames.add(outputTemplate.name.toLowerCase());
+        recipe = ctx.db.recipe_template.insert({
+          id: 0n,
+          ...made.recipe,
+          outputTemplateId: outputTemplate.id,
+          // Rule recipes have two or three requirements; 0n means no 4th (Phase 51.3 column).
+          req4TemplateId: 0n,
+          req4Count: 0n,
+        });
+        recipesByKey.set(candidate.key, recipe);
+      }
+      discoverRecipe(recipe, candidate.primary.name, candidate.secondary.name);
     }
     if (found === 0) {
       appendPrivateEvent(
@@ -288,6 +324,8 @@ export const registerItemCraftingReducers = (deps: any) => {
     const plan = planCraft({
       recipe,
       primaryMaterialName: req1Template?.name ?? null,
+      // A regional primary (not in MATERIAL_DEFS) sets the quality by its rarity (Phase 51.3).
+      primaryMaterialRarity: req1Template?.rarity ?? null,
       catalyst: args.catalystTemplateId
         ? { templateId: args.catalystTemplateId, name: catalystTemplate?.name ?? '' }
         : null,
@@ -489,19 +527,14 @@ export const registerItemCraftingReducers = (deps: any) => {
     const resultLines: ResultLine[] = [];
     const recipeParts = makingRecipes.map((r: any) => {
       const parts: { templateId: bigint; name: string; count: bigint; vendorValue: bigint }[] = [];
-      const reqs: Array<[bigint | undefined | null, bigint | undefined | null]> = [
-        [r.req1TemplateId, r.req1Count],
-        [r.req2TemplateId, r.req2Count],
-        [r.req3TemplateId, r.req3Count],
-      ];
-      for (const [partId, count] of reqs) {
-        if (partId === undefined || partId === null) continue;
-        const partTemplate = ctx.db.item_template.id.find(partId);
+      // Every requirement in slot order (the shared rule; a legendary regional recipe has a 4th).
+      for (const req of recipeRequirements(r)) {
+        const partTemplate = ctx.db.item_template.id.find(req.templateId);
         if (!partTemplate) continue;
         parts.push({
           templateId: partTemplate.id,
           name: partTemplate.name,
-          count: count ?? 0n,
+          count: req.count,
           vendorValue: partTemplate.vendorValue ?? 0n,
         });
       }

@@ -6,6 +6,7 @@ import { flattenLineBreaks } from '../helpers/chat_text';
 import { sellInstanceToVendor } from '../helpers/vendor_sale';
 import { appliedSellBonusPercent, listingBuyPrice, sellPayout } from '../data/vendor_pricing';
 import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
+import { recipeRequirements } from '../data/crafting_rules';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
 import {
@@ -584,30 +585,18 @@ export const registerIntentReducers = (deps: any) => {
           const recipe = ctx.db.recipe_template.id.find(disc.recipeTemplateId);
           if (!recipe) continue;
 
-          // Check materials
+          // Check materials: every requirement in slot order (recipeRequirements, the shared rule;
+          // a legendary regional recipe has a 4th).
           const reqParts: string[] = [];
           let hasMats = true;
-          const req1 = ctx.db.item_template.id.find(recipe.req1TemplateId);
-          const req1Count = [...ctx.db.item_instance.by_owner.filter(character.id)]
-            .filter((i: any) => i.templateId === recipe.req1TemplateId && !i.equippedSlot)
-            .reduce((sum: bigint, i: any) => sum + (i.quantity ?? 1n), 0n);
-          if (req1) reqParts.push(`${req1.name} x${recipe.req1Count}`);
-          if (req1Count < recipe.req1Count) hasMats = false;
-
-          const req2 = ctx.db.item_template.id.find(recipe.req2TemplateId);
-          const req2Count = [...ctx.db.item_instance.by_owner.filter(character.id)]
-            .filter((i: any) => i.templateId === recipe.req2TemplateId && !i.equippedSlot)
-            .reduce((sum: bigint, i: any) => sum + (i.quantity ?? 1n), 0n);
-          if (req2) reqParts.push(`${req2.name} x${recipe.req2Count}`);
-          if (req2Count < recipe.req2Count) hasMats = false;
-
-          if (recipe.req3TemplateId != null) {
-            const req3 = ctx.db.item_template.id.find(recipe.req3TemplateId);
-            const req3Count = [...ctx.db.item_instance.by_owner.filter(character.id)]
-              .filter((i: any) => i.templateId === recipe.req3TemplateId && !i.equippedSlot)
+          const bagRows = [...ctx.db.item_instance.by_owner.filter(character.id)];
+          for (const req of recipeRequirements(recipe)) {
+            const reqTemplate = ctx.db.item_template.id.find(req.templateId);
+            const heldCount = bagRows
+              .filter((i: any) => i.templateId === req.templateId && !i.equippedSlot)
               .reduce((sum: bigint, i: any) => sum + (i.quantity ?? 1n), 0n);
-            if (req3) reqParts.push(`${req3.name} x${recipe.req3Count ?? 0n}`);
-            if (req3Count < (recipe.req3Count ?? 0n)) hasMats = false;
+            if (reqTemplate) reqParts.push(`${reqTemplate.name} x${req.count}`);
+            if (heldCount < req.count) hasMats = false;
           }
 
           const status = hasMats ? '(ready)' : '(missing materials)';
