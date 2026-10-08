@@ -5,6 +5,7 @@
  */
 
 import { GLOBAL_DAMAGE_MULTIPLIER } from '../data/combat_scaling';
+import { normalizeEnemyRole } from '../data/family_rules';
 
 export const ENEMY_ROLE_CONFIG: Record<
   string,
@@ -34,6 +35,18 @@ export const ENEMY_ROLE_CONFIG: Record<
     baseArmor: 6n,
     armorPerLevel: 3n,
   },
+  // Caster (D-53): frail and hard-hitting. Values are starting numbers; only the ordering is pinned
+  // (armour tank > damage > caster, damage per level caster > damage).
+  caster: {
+    hpBonusPerLevel: 4n,
+    damagePerLevel: 4n,
+    baseHpBonus: 3n,
+    baseDamage: 5n,
+    baseArmor: 2n,
+    armorPerLevel: 1n,
+  },
+  // Legacy keys: getEnemyRole normalizes 'support' to healer and 'dps' to damage, so these are no
+  // longer looked up; kept so the config still names every role word older rows may carry.
   support: {
     hpBonusPerLevel: 5n,
     damagePerLevel: 2n,
@@ -52,9 +65,12 @@ export const ENEMY_ROLE_CONFIG: Record<
   },
 };
 
+/**
+ * The stat profile for any role word (D-53): melee, ranged and dps read damage, support reads healer,
+ * caster has its own profile, and anything unknown is damage.
+ */
 export function getEnemyRole(role: string) {
-  const key = role.trim().toLowerCase();
-  return ENEMY_ROLE_CONFIG[key] ?? ENEMY_ROLE_CONFIG.damage;
+  return ENEMY_ROLE_CONFIG[normalizeEnemyRole(role)] ?? ENEMY_ROLE_CONFIG.damage;
 }
 
 export function scaleByPercent(value: bigint, percent: bigint) {
