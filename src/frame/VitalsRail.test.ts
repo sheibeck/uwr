@@ -496,6 +496,7 @@ describe('VitalsRail self block (51.1)', () => {
   let ally = ref<bigint | null>(ME);
   let selectAlly = vi.fn();
   let combatActive = ref(false);
+  let lastGame: GameData | null = null;
 
   function mountSelf(
     options: { party?: 'lead' | 'member' | null; pet?: boolean; combat?: boolean; noRow?: boolean } = {},
@@ -518,6 +519,7 @@ describe('VitalsRail self block (51.1)', () => {
       effects: ref([fx(1n, ME)]),
       combat: { ...inert.combat, active: combatActive },
     } as unknown as GameData;
+    lastGame = game;
     const controller = { ...createInertCombat(), allyTargetId: ally, selectAlly } as unknown as CombatController;
     const social = {
       ...createInertSocial(),
@@ -629,6 +631,22 @@ describe('VitalsRail self block (51.1)', () => {
     expect(block.find('.self-target .menu-opener').exists()).toBe(false);
     expect(block.find('.self-target .pet-row').exists()).toBe(false);
     expect(w.find('.travel-switch').exists()).toBe(false);
+  });
+
+  // Review client-rest WR-02: leaving (or being removed) in a fight drops the self ⋯ while it holds
+  // focus; the in-combat .sr-only Party heading is always rendered, so focus lands there, not on body.
+  it('leaving the party in a fight moves focus from the self ⋯ to the .sr-only Party heading', async () => {
+    const w = mountSelf({ party: 'member', combat: true });
+    (w.get('.self-block .menu-opener').element as HTMLElement).focus();
+    const game = lastGame as unknown as { group: { value: unknown }; groupMembers: { value: unknown[] }; character: { value: Record<string, unknown> } };
+    game.group.value = null;
+    game.groupMembers.value = [];
+    await nextTick();
+    await nextTick();
+    expect(w.find('.self-block .menu-opener').exists()).toBe(false);
+    const heading = w.get('.party h6').element;
+    expect(heading.classList.contains('sr-only')).toBe(true);
+    expect(document.activeElement).toBe(heading);
   });
 
   // 51.1-UI-SPEC "Vitals Rail Self Block", in combat. These replace the Phase 48 'You' card cases

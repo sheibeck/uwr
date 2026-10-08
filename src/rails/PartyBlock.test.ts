@@ -474,13 +474,43 @@ describe('PartyBlock in combat (ally targeting)', () => {
   });
 
   // Was: 'reads Not in a party. with no You card when solo' (48). Solo in a fight the block shows
-  // nothing but the incoming invite card.
-  it('solo in a fight shows no member card, no heading and no Not in a party. line', () => {
+  // nothing but the incoming invite card; the invisible .sr-only heading stays as the focus target
+  // (review client-rest WR-02).
+  it('solo in a fight shows no member card, no visible heading and no Not in a party. line', () => {
     const { w } = mountCombat({ self: online(1n, 'Me', { groupId: undefined }) });
     expect(w.find('.member-card').exists()).toBe(false);
-    expect(w.find('h6').exists()).toBe(false);
-    expect(w.text()).toBe('');
+    const heading = w.get('h6');
+    expect(heading.classes()).toContain('sr-only');
+    expect(heading.text()).toBe('Party');
+    expect(heading.attributes('tabindex')).toBe('-1');
+    expect(w.text()).toBe('Party');
     expect(w.find('button').exists()).toBe(false);
+  });
+
+  it('declining an invite solo in a fight moves focus to the .sr-only heading, not body (review WR-02)', async () => {
+    const inviter = online(9n, 'Cy', { groupId: 4n });
+    const incomingInvite = ref<unknown>({
+      id: 40n,
+      groupId: 4n,
+      fromCharacterId: 9n,
+      toCharacterId: 1n,
+      createdAt: { microsSinceUnixEpoch: 0n },
+    });
+    const { w } = mountCombat({
+      self: online(1n, 'Me', { groupId: undefined }),
+      social: {
+        incomingInvite: incomingInvite as never,
+        inviteSecondsLeft: () => 200,
+        characterById: (id: bigint) => (id === 9n ? inviter : null) as never,
+      },
+    });
+    const decline = w.findAll('.invite-card button').find((b) => b.text() === 'Decline')!;
+    (decline.element as HTMLElement).focus();
+    incomingInvite.value = null;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.invite-card').exists()).toBe(false);
+    expect(document.activeElement).toBe(w.get('h6.sr-only').element);
   });
 
   it('solo in a fight still shows the incoming invite card', () => {

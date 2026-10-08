@@ -29,6 +29,8 @@ import EmptyState from '../screens/EmptyState.vue';
 // per other member (the ally target button with the ⋯ beside it) each followed by its pet row, and the
 // incoming invite card. Invite, the follow summary, the stamina warning, 'Loot: personal' and
 // Invited · waiting only matter for travel and hide. Your own target is the vitals rail self block.
+// The .sr-only heading renders in every fight, solo too ('Party'): it is invisible, and it is where
+// focus goes after Leave party, a removal or an answered invite (51.1 review client-rest WR-02).
 //
 // The sheet variant (51.1-UI-SPEC "Mobile Party Sheet", Plan 16) is the mobile Party tab's body: the
 // incoming invite card first, then the header with a 44px Invite, the summary and warning, the
@@ -173,7 +175,7 @@ function invite(): void {
         }}</span>
       </button>
     </div>
-    <h6 v-else-if="inParty" ref="headingEl" class="sr-only" tabindex="-1">{{ heading }}</h6>
+    <h6 v-else ref="headingEl" class="sr-only" tabindex="-1">{{ heading }}</h6>
 
     <template v-if="outOfCombat">
       <p v-if="summary !== null" class="summary">
