@@ -464,6 +464,53 @@ describe('PlayerMenu actions', () => {
   });
 });
 
+// Review client-rest WR-04: disconnected, the ⋯ is aria-disabled with the reason and opens nothing;
+// a menu open when the connection drops keeps its entries readable but disabled, sending nothing.
+describe('PlayerMenu while not connected', () => {
+  it('the opener is aria-disabled with the reason and opens no menu by click, key or right-click', async () => {
+    const s = setup();
+    (s.game.connected as unknown as { value: boolean }).value = false;
+    const w = mountMenu(s);
+    const button = opener(w);
+    expect(button.attributes('aria-disabled')).toBe('true');
+    expect(button.attributes('title')).toBe('Actions for Bram · Reconnecting…');
+    const reason = document.getElementById(button.attributes('aria-describedby')!);
+    expect(reason?.textContent).toBe('Reconnecting…');
+    await button.trigger('click');
+    await button.trigger('keydown', { key: 'ArrowDown' });
+    (w.vm as unknown as { open: () => void }).open();
+    await nextTick();
+    expect(items()).toHaveLength(0);
+    expect(button.attributes('aria-expanded')).toBe('false');
+  });
+
+  it('connected, the opener has no aria-disabled and no reason', () => {
+    const w = mountMenu(setup());
+    expect(opener(w).attributes('aria-disabled')).toBeUndefined();
+    expect(opener(w).attributes('aria-describedby')).toBeUndefined();
+    expect(opener(w).attributes('title')).toBe('Actions for Bram');
+  });
+
+  it('a menu open when the connection drops shows every entry disabled with the reason and sends nothing', async () => {
+    const s = setup();
+    const w = mountMenu(s);
+    await opener(w).trigger('click');
+    await nextTick();
+    expect(items().length).toBeGreaterThan(0);
+    (s.game.connected as unknown as { value: boolean }).value = false;
+    await nextTick();
+    for (const el of items()) {
+      expect(el.getAttribute('aria-disabled')).toBe('true');
+      expect(el.getAttribute('aria-label')).toContain(', Reconnecting…');
+    }
+    item('Invite to party').click();
+    item('Whisper').click();
+    await settle();
+    expect(s.reducers.inviteToGroup).not.toHaveBeenCalled();
+    expect(s.consoleApi.whisperTo).not.toHaveBeenCalled();
+  });
+});
+
 describe('PlayerMenu rows and focus fallback', () => {
   it('rows changing while open re-derive the entries', async () => {
     const s = setup();

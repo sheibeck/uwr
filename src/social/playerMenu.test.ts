@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  NOT_CONNECTED_HINT,
   nextLeaderName,
   playerMenuEntries,
   playerMenuHeader,
@@ -410,6 +411,41 @@ describe('playerMenuHeader', () => {
 
   it('an unknown target gives an empty header', () => {
     expect(playerMenuHeader({ ...inParty(true), target: null })).toEqual({ name: '', you: false, line: '' });
+  });
+});
+
+// Review client-rest WR-04: while the client is not connected nothing can be sent, so every entry
+// is disabled with the reason; the entries stay readable.
+describe('playerMenuEntries while not connected', () => {
+  it('disables every entry with the Reconnecting… hint, in every group, the pending Cancel invite too', () => {
+    const cases: PlayerMenuInput[] = [
+      input({ connected: false }),
+      inParty(true, { connected: false }),
+      inParty(false, { connected: false, target: person(ME, 'Ann', { groupId: 7n }), selfFollowLeader: true }),
+      input({ connected: false, liveOutgoing: [{ toCharacterId: BRAM, fromCharacterId: ME }] }),
+    ];
+    for (const value of cases) {
+      const groups = playerMenuEntries(value);
+      expect(groups.length).toBeGreaterThan(0);
+      for (const entry of groups.flatMap((group) => group.entries)) {
+        expect(entry.disabled, entry.action).toBe(true);
+        expect(entry.hint, entry.action).toBe(NOT_CONNECTED_HINT);
+      }
+    }
+    expect(NOT_CONNECTED_HINT).toBe('Reconnecting…');
+  });
+
+  it('keeps the same groups and entries as when connected', () => {
+    const online = playerMenuEntries(inParty(true));
+    const offline = playerMenuEntries(inParty(true, { connected: false }));
+    expect(keys(offline)).toEqual(keys(online));
+    expect(offline.flatMap((g) => g.entries.map((e) => e.action))).toEqual(
+      online.flatMap((g) => g.entries.map((e) => e.action)),
+    );
+  });
+
+  it('connected true or absent changes nothing', () => {
+    expect(playerMenuEntries(input({ connected: true }))).toEqual(playerMenuEntries(input()));
   });
 });
 

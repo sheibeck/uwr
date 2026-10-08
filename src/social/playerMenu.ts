@@ -80,7 +80,16 @@ export interface PlayerMenuInput {
   /** Who leads after you leave (see nextLeaderName); null when unknown or nobody remains. */
   nextLeaderName: string | null;
   maxGroupSize?: number;
+  /**
+   * The client's connection (game.connected). False disables every entry with the hint
+   * NOT_CONNECTED_HINT: nothing can be sent, while the entries stay readable (51.1 review
+   * client-rest WR-04). Absent reads as connected.
+   */
+  connected?: boolean;
 }
+
+/** The reason on a disabled ⋯ and on every menu entry while the client is not connected. */
+export const NOT_CONNECTED_HINT = 'Reconnecting…';
 
 const HINT_OFFLINE = 'Offline';
 
@@ -159,6 +168,15 @@ function socialEntries(input: PlayerMenuInput, target: MenuPerson): MenuEntry[] 
 }
 
 export function playerMenuEntries(input: PlayerMenuInput): MenuGroup[] {
+  const groups = entriesByRole(input);
+  if (input.connected !== false) return groups;
+  return groups.map((group) => ({
+    key: group.key,
+    entries: group.entries.map((item) => ({ ...item, ...disabled(NOT_CONNECTED_HINT) })),
+  }));
+}
+
+function entriesByRole(input: PlayerMenuInput): MenuGroup[] {
   const { target, self, group } = input;
   if (target === null) return [];
   if (target.id === self.id) return selfEntries(input);

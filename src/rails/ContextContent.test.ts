@@ -563,17 +563,18 @@ describe('offline', () => {
       },
     });
     // A row button only expands its row, so it stays operable offline; the inner Travel button and
-    // every other button are aria-disabled. The menu opener is not an action: it only opens the
-    // menu, whose entries go through the offline-aware action layer (51.1-10).
+    // every other button, the player's ⋯ menu opener included, are aria-disabled (review client-rest
+    // WR-04), and clicking the ⋯ opens no menu.
     await w.get('button.exit-row').trigger('click');
-    const buttons = w
-      .findAll('button')
-      .filter((b) => !b.classes().includes('exit-row') && !b.classes().includes('menu-opener'));
-    expect(buttons.length).toBeGreaterThanOrEqual(6);
+    const buttons = w.findAll('button').filter((b) => !b.classes().includes('exit-row'));
+    expect(buttons.length).toBeGreaterThanOrEqual(7);
+    expect(buttons.some((b) => b.classes().includes('menu-opener'))).toBe(true);
     for (const button of buttons) {
       expect(button.attributes('aria-disabled')).toBe('true');
       await button.trigger('click');
     }
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(w.get('button.menu-opener').attributes('aria-expanded')).toBe('false');
     for (const fn of Object.values(calls)) expect(fn).not.toHaveBeenCalled();
     expect(frameCalls.closeScreen).not.toHaveBeenCalled();
     expect(frameCalls.openScreen).not.toHaveBeenCalled();

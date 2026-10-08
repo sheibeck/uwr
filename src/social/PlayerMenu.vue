@@ -14,7 +14,7 @@ import { focusLost } from '../ledger/keepFocus';
 import ActionMenu from './ActionMenu.vue';
 import type { MenuAnchor } from './menuPosition';
 import { claimMenu, newMenuId, releaseMenu } from './menuRegistry';
-import { nextLeaderName, playerMenuEntries, playerMenuHeader } from './playerMenu';
+import { NOT_CONNECTED_HINT, nextLeaderName, playerMenuEntries, playerMenuHeader } from './playerMenu';
 import type { MenuAction, MenuEntry, MenuGroup, MenuPerson, PlayerMenuInput } from './playerMenu';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
 import { usePartyActions } from './usePartyActions';
@@ -92,6 +92,7 @@ const input = computed<PlayerMenuInput | null>(() => {
     memberCount: Math.max(1, members.length),
     liveOutgoing,
     selfFollowLeader: mine === null ? null : mine.followLeader,
+    connected: game.connected.value,
     nextLeaderName:
       group === null
         ? null
@@ -112,6 +113,13 @@ const targetName = computed(() => input.value?.target?.name ?? '');
 const visible = computed(() => groups.value.length > 0);
 const label = computed(() => (header.value.you ? 'Actions for yourself' : `Actions for ${targetName.value}`));
 const mobile = computed(() => !frame.isDesktop.value);
+
+// Offline (51.1 review client-rest WR-04): the ⋯ is aria-disabled with the reason and does not open;
+// a menu already open when the connection drops keeps its entries readable, all disabled with the
+// same reason (playerMenuEntries with connected false).
+const offline = computed(() => !game.connected.value);
+const reasonId = `${menuId}-offline`;
+const openerTitle = computed(() => (offline.value ? `${label.value} · ${NOT_CONNECTED_HINT}` : label.value));
 
 // The entry whose call is in flight (from the runner), so the menu shows it inert.
 const pendingAction = computed<MenuAction | null>(() => {
@@ -141,7 +149,7 @@ function stopListening(): void {
 }
 
 function openMenu(focus: 'first' | 'last' = 'first'): void {
-  if (!visible.value || open.value) return;
+  if (!visible.value || open.value || offline.value) return;
   const rect = opener.value?.getBoundingClientRect();
   anchor.value = rect ? { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right } : null;
   initialFocus.value = focus;
@@ -244,7 +252,9 @@ defineExpose({
       class="btn btn-ghost btn-icon menu-opener"
       :class="{ sheet: props.size === 'sheet' }"
       :aria-label="label"
-      :title="label"
+      :title="openerTitle"
+      :aria-disabled="offline ? 'true' : undefined"
+      :aria-describedby="offline ? reasonId : undefined"
       aria-haspopup="menu"
       :aria-expanded="open ? 'true' : 'false'"
       :aria-controls="open ? menuId : undefined"
@@ -253,6 +263,7 @@ defineExpose({
     >
       <PhDotsThree :size="16" aria-hidden="true" />
     </button>
+    <span v-if="offline" :id="reasonId" class="sr-only">{{ NOT_CONNECTED_HINT }}</span>
     <ActionMenu
       v-if="open"
       :groups="groups"
@@ -284,6 +295,20 @@ defineExpose({
 .menu-opener.sheet {
   width: 44px;
   height: 44px;
+}
+
+.menu-opener[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* An open menu keeps the opener's hover fill. */
