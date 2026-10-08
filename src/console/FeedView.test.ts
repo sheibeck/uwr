@@ -170,9 +170,22 @@ describe('FeedView keywords', () => {
       ]),
       connections: ref([{ id: 1n, fromLocationId: 10n, toLocationId: 20n }]),
       nodesHere: ref([{ id: 7n, name: 'Old Well', state: 'available', characterId: null }]),
-      playersHere: ref([{ id: 9n, name: 'Marisol', level: 2n }]),
+      playersHere: ref([
+        { id: 9n, name: 'Marisol', level: 2n, online: true },
+        { id: 11n, name: 'Tamsin', level: 2n, online: false },
+        { id: 12n, name: 'Woodrow', level: 2n },
+      ]),
     });
   }
+
+  it('makes no keyword of an offline player, or one whose online flag is missing (review IN-03)', async () => {
+    const h = keywordHarness();
+    const w = mountView(h);
+    ingest(h, { segments: [{ kind: 'narration', speaker: 'The Keeper', text: 'Tamsin and Woodrow sleep; Marisol waves.' }] });
+    await settle();
+    const labels = w.findAll('button.keyword').map((b) => b.attributes('aria-label'));
+    expect(labels).toEqual(['Whisper Marisol']);
+  });
 
   it('builds keywords from npcs, connected places, nodes and players, never the own name', async () => {
     const h = keywordHarness();

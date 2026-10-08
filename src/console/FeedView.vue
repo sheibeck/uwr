@@ -35,7 +35,9 @@ const vocabulary = computed(() => {
     enemies: game.combat.active.value ? [] : pullableSpawns(game.enemiesHere.value),
     places,
     nodes: visibleNodes(game.nodesHere.value, game.characterId.value),
-    players: game.playersHere.value,
+    // Online players only, as Nearby, the Map count, look and who (51.1; review client-rest IN-03):
+    // an offline name would offer a Whisper the server refuses.
+    players: game.playersHere.value.filter((player) => player.online === true),
     selfName: here ? here.name : null,
   });
 });
