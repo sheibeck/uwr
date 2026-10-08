@@ -270,15 +270,44 @@ function buildRegionText(ctx: any, region: any): string {
       if (stored !== undefined && stored !== null) overridden.add(word);
     }
   }
-  const items = [...ctx.db.economy_item.by_region.filter(region.id)].length;
   let entries = 0;
   for (const row of ctx.db.enemy_loot_entry.iter()) if (row.regionId === region.id) entries += 1;
-  const recipes = [...ctx.db.region_recipe.by_region.filter(region.id)].length;
   return [
     `${plainText(region.name)}: ${regionStatusWord(ctx, region.id)}`,
     ...dialLines(eff, overridden),
-    `Economy: ${plural(items, 'item', 'items')}, ${plural(entries, 'loot entry', 'loot entries')}, ${plural(recipes, 'recipe', 'recipes')}`,
+    economyBreakdownLine(
+      [...ctx.db.economy_item.by_region.filter(region.id)],
+      entries,
+      [...ctx.db.region_recipe.by_region.filter(region.id)],
+    ),
   ].join('\n');
+}
+
+/**
+ * The owner's breakdown of a region's economy (2026-10-08), e.g. "Economy: 15 items (3 gatherables,
+ * 9 creature items: 3 drops, 3 trophies, 3 gear; 3 crafted outputs), 13 loot entries, 3 recipes
+ * (2 common, 1 uncommon)". Recipe scrolls are named only when the region has some; recipe tiers are
+ * listed in rarity order, only those present.
+ */
+export function economyBreakdownLine(items: readonly any[], lootEntries: number, recipes: readonly any[]): string {
+  const count = (role: string) => items.filter((row) => row.role === role).length;
+  const gather = count('gather');
+  const drops = count('drop');
+  const trophies = count('trophy');
+  const gear = count('gear');
+  const outputs = count('recipe_output');
+  const scrolls = count('scroll');
+  const creature = drops + trophies + gear;
+  let detail =
+    `${plural(gather, 'gatherable', 'gatherables')}, ${plural(creature, 'creature item', 'creature items')}: ` +
+    `${plural(drops, 'drop', 'drops')}, ${plural(trophies, 'trophy', 'trophies')}, ${gear} gear; ` +
+    `${plural(outputs, 'crafted output', 'crafted outputs')}`;
+  if (scrolls > 0) detail += `; ${plural(scrolls, 'recipe scroll', 'recipe scrolls')}`;
+  const tiers = QUALITY_TIERS.map((tier) => ({ tier, n: recipes.filter((row) => row.tier === tier).length }))
+    .filter((t) => t.n > 0)
+    .map((t) => `${t.n} ${t.tier}`);
+  const recipePart = plural(recipes.length, 'recipe', 'recipes') + (tiers.length > 0 ? ` (${tiers.join(', ')})` : '');
+  return `Economy: ${plural(items.length, 'item', 'items')} (${detail}), ${plural(lootEntries, 'loot entry', 'loot entries')}, ${recipePart}`;
 }
 
 /**

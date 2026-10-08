@@ -395,6 +395,58 @@ describe('handleEconomyAdminCommand: regions', () => {
     expect(snapshot(ctx)).toBe(before);
   });
 
+  // Owner request: the region line breaks the economy down by role and the recipes by tier.
+  it('breaks the economy down: gatherables, creature items by role, crafted outputs, loot entries, recipes by tier', () => {
+    const tag = (id: bigint, role: string) => ({ itemTemplateId: id, regionId: 7n, role });
+    const economy_item = [
+      tag(1n, 'gather'), tag(2n, 'gather'), tag(3n, 'gather'),
+      tag(4n, 'drop'), tag(5n, 'drop'), tag(6n, 'drop'),
+      tag(7n, 'trophy'), tag(8n, 'trophy'), tag(9n, 'trophy'),
+      tag(10n, 'gear'), tag(11n, 'gear'), tag(12n, 'gear'),
+      tag(13n, 'recipe_output'), tag(14n, 'recipe_output'), tag(15n, 'recipe_output'),
+      { itemTemplateId: 99n, regionId: 8n, role: 'gather' },
+    ];
+    const enemy_loot_entry = Array.from({ length: 13 }, (_, i) => ({
+      id: BigInt(i + 1), enemyTemplateId: 5n, regionId: 7n, itemTemplateId: 1n, role: 'drop', weight: 1n,
+    }));
+    const region_recipe = [
+      { recipeTemplateId: 1n, regionId: 7n, tier: 'common', learnBy: 'research', scrollTemplateId: 0n },
+      { recipeTemplateId: 2n, regionId: 7n, tier: 'common', learnBy: 'research', scrollTemplateId: 0n },
+      { recipeTemplateId: 3n, regionId: 7n, tier: 'uncommon', learnBy: 'research', scrollTemplateId: 0n },
+    ];
+    const ctx = ctxFor(admin, {
+      ...seeded(),
+      region_economy: [{ regionId: 7n, status: 'complete', jobId: 1n, otherRegionIds: '[]' }],
+      economy_item,
+      enemy_loot_entry,
+      region_recipe,
+    });
+    run(ctx, '/economy region Kesterlane Basin');
+    const text = systemLines(ctx)[0];
+    expect(text.split('\n')).toContain(
+      'Economy: 15 items (3 gatherables, 9 creature items: 3 drops, 3 trophies, 3 gear; 3 crafted outputs), 13 loot entries, 3 recipes (2 common, 1 uncommon)',
+    );
+  });
+
+  it('the breakdown names recipe scrolls when the region has some, and counts singular forms', () => {
+    const ctx = ctxFor(admin, {
+      ...seeded(),
+      region_economy: [{ regionId: 7n, status: 'complete', jobId: 1n, otherRegionIds: '[]' }],
+      economy_item: [
+        { itemTemplateId: 1n, regionId: 7n, role: 'gather' },
+        { itemTemplateId: 2n, regionId: 7n, role: 'drop' },
+        { itemTemplateId: 3n, regionId: 7n, role: 'recipe_output' },
+        { itemTemplateId: 4n, regionId: 7n, role: 'scroll' },
+      ],
+      enemy_loot_entry: [{ id: 1n, enemyTemplateId: 5n, regionId: 7n, itemTemplateId: 1n, role: 'drop', weight: 1n }],
+      region_recipe: [{ recipeTemplateId: 1n, regionId: 7n, tier: 'rare', learnBy: 'scroll', scrollTemplateId: 4n }],
+    });
+    run(ctx, '/economy region Kesterlane Basin');
+    expect(systemLines(ctx)[0].split('\n')).toContain(
+      'Economy: 4 items (1 gatherable, 1 creature item: 1 drop, 0 trophies, 0 gear; 1 crafted output; 1 recipe scroll), 1 loot entry, 1 recipe (1 rare)',
+    );
+  });
+
   it('a region with no row is on fallbacks', () => {
     const ctx = ctxFor(admin, seeded());
     run(ctx, '/economy region Tidemarch');
