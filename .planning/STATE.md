@@ -347,6 +347,16 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
 
+### Resume note (2026-10-08, fourth compact)
+
+- **Done since the third compact:**
+  - Phase 51.3 Regional Economy: code-complete, 13/13 plans, reviews A+B fixed, VERIFICATION human_needed 17/17, UAT deferred (51.3-UAT.md). Owner ran a live /economy design on Kesterlane Basin ($0.03); AI economy switch is ON locally (owner).
+  - Quick tasks: a97, ag8, c4p, d2k, e7t (ally targeting + out-of-combat heal hole closed), f3m (feed loot links, stopgap until 51.4), day/night 40/20, direct UI asks. All 7 quick checks approved by the owner.
+  - Roadmap: 51.3.1.1 Density Pools promoted (CONTEXT D-00..D-50, MOCK-BRIEF, Living Places mock imported + MOCK-DIFF resolved); 51.3.1 narrowed to difficulty dials only; 51.5.1 Motion and Polish added; 999.28 cartographer map (+ updated Map mock, switcher, north arrow top-right, YOU pill); 999.29 -> 51.3.1.1; 999.30 warning system; 999.4 now Ability Expansion, Pets and Threat; Phase 53 admin Populations panel (balance dials only, no simulation).
+- **Next:** Phase 51.3.1 Combat Dials (difficulty dials only: health, damage, ability frequency by difficulty/region/enemy type; per-kind ability power dials + per-ability escape hatch; quest bosses harder via the bosses-and-named dial; world-gen enemy level ranges move to 51.3.1.1 families). Start with smart discuss (questions for the owner), then plan with research, execute plan by plan, review, verify, UAT deferred. Then 51.3.1.1 Density Pools (prompt rewrite needs owner approval; economy size setting D-50).
+- **Executor practice:** one executor per publish; parallel only when files are disjoint and neither publishes. Rules: scratchpad p513/rules.md (51.3.x) and p511/rules.md (quick tasks); hand-off logs beside them. Small owner finds go to todos (owner, memory small-issues-stay-todos).
+- **Open owner items:** CR-01 sign-in re-test (51.1-UAT 1); maincloud blockers WR-04/IN-01; paid golden-run items.
+
 ### Resume note (2026-10-08, third compact)
 
 - **Run:** `/gsd-autonomous` for v3.0. Resume with `/gsd-autonomous --from 51.3`, after checking the in-flight items below.
