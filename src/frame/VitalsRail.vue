@@ -264,12 +264,19 @@ const bars = computed(() => [
 /* The self block: identity, bars, XP, chips and your pet. The 51.1 contract draws it 8px outside its
    content (padding 8 with margin -8); the design contract bans negative spacing, so the outset is
    this positioned pseudo-element (the StepBar pattern) and carries the block's background states. */
+/* No gap on the block itself (51.1 review client-rest IN-02): the 16px sits only between the
+   identity row and the bars (here out of combat, the button's own gap in a fight), so your pet row's
+   4px margin and elbow meet the block as they meet a member card. */
 .self-block {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   border-radius: var(--radius-md);
+}
+
+.self-block > .bars {
+  margin-top: 16px;
 }
 
 .self-block::before {

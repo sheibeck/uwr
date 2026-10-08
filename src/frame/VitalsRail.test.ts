@@ -649,6 +649,14 @@ describe('VitalsRail self block (51.1)', () => {
     expect(document.activeElement).toBe(heading);
   });
 
+  // Review client-rest IN-02: the pet row's elbow reaches the block, as under a member card.
+  it('keeps the 16px only between identity and bars, so the pet row sits 4px under the block', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsRail.vue'), 'utf8').replace(/\r\n/g, '\n');
+    expect(source).toMatch(/\.self-block \{[^}]*gap: 0;/);
+    expect(source).toMatch(/\.self-block > \.bars \{\s*margin-top: 16px;/);
+    expect(source).toMatch(/\.self-target \{[^}]*gap: 16px;/);
+  });
+
   // Review client-rest WR-03: the self target button goes when the fight ends.
   it('the fight ending while the self target has focus moves focus to the self menu opener in a party', async () => {
     const w = mountSelf({ party: 'member', combat: true });
