@@ -15,9 +15,11 @@ import {
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   COMBAT_NARRATION_SCHEMA,
+  REGION_ECONOMY_SCHEMA,
   LLM_JSON_SCHEMAS,
   deepFreeze,
 } from './llm_schemas';
+import { MATERIAL_KIND_VALUES } from './recipe_rules';
 import { SEGMENT_KINDS } from '../helpers/segments';
 import { lintSchema, countOptionalParams, countUnionParams } from '../helpers/schema_lint';
 import {
@@ -40,6 +42,7 @@ const ALL: Array<[string, any]> = [
   ['SKILL_GENERATION_SCHEMA', SKILL_GENERATION_SCHEMA],
   ['RENOWN_PERK_SCHEMA', RENOWN_PERK_SCHEMA],
   ['COMBAT_NARRATION_SCHEMA', COMBAT_NARRATION_SCHEMA],
+  ['REGION_ECONOMY_SCHEMA', REGION_ECONOMY_SCHEMA],
 ];
 
 const sorted = (xs: readonly string[]) => [...xs].sort();
@@ -63,6 +66,7 @@ describe('lint and determinism', () => {
     expect(countUnionParams(WORLD_START_SCHEMA)).toBe(0);
     expect(countUnionParams(REGION_FILL_SCHEMA)).toBe(0);
     expect(countUnionParams(COMBAT_NARRATION_SCHEMA)).toBe(0);
+    expect(countUnionParams(REGION_ECONOMY_SCHEMA)).toBe(2);
     for (const [, schema] of ALL) expect(countOptionalParams(schema)).toBe(0);
   });
 
@@ -116,6 +120,7 @@ describe('lint and determinism', () => {
       'classReveal',
       'combatNarration',
       'race',
+      'regionEconomy',
       'regionFill',
       'renown',
       'skill',
@@ -124,6 +129,7 @@ describe('lint and determinism', () => {
     expect(LLM_JSON_SCHEMAS.skill).toBe(SKILL_GENERATION_SCHEMA);
     expect(LLM_JSON_SCHEMAS.renown).toBe(RENOWN_PERK_SCHEMA);
     expect(LLM_JSON_SCHEMAS.combatNarration).toBe(COMBAT_NARRATION_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.regionEconomy).toBe(REGION_ECONOMY_SCHEMA);
     expect(Object.isFrozen(LLM_JSON_SCHEMAS)).toBe(true);
   });
 
@@ -370,5 +376,83 @@ describe('region npc gender (Plan 41-18, PR-02)', () => {
     const d: string = (RACE_SCHEMA as any).properties.raceName.description;
     expect(d).toContain('If the player said');
     expect(d).not.toContain('If they said');
+  });
+});
+
+describe('region economy reply schema (Phase 51.3 plan 04)', () => {
+  const schema = REGION_ECONOMY_SCHEMA as any;
+  const region = schema.properties.region.anyOf[0];
+  const creature = region.properties.creatures.items;
+  const recipe = region.properties.recipes.properties.first;
+  const gatherable = region.properties.gatherables.properties.common;
+
+  it('is frozen and passes lintSchema with zero problems', () => {
+    expect(Object.isFrozen(schema)).toBe(true);
+    expect(Object.isFrozen(region.properties.recipes.properties.third.properties.materials)).toBe(true);
+    expect(lintSchema(schema)).toEqual([]);
+  });
+
+  it('requires exactly region and lateCreature, each an anyOf of an object and null', () => {
+    expect(schema.required).toEqual(['region', 'lateCreature']);
+    expect(schema.additionalProperties).toBe(false);
+    for (const key of ['region', 'lateCreature']) {
+      const node = schema.properties[key];
+      expect(node.anyOf).toHaveLength(2);
+      expect(node.anyOf[0].type).toBe('object');
+      expect(node.anyOf[1]).toEqual({ type: 'null' });
+    }
+  });
+
+  it('fixes the Small counts by grammar: three gatherables, three recipes, a creatures array', () => {
+    expect(region.required).toEqual(['gatherables', 'creatures', 'recipes']);
+    expect(region.properties.gatherables.required).toEqual(['common', 'uncommon', 'rare']);
+    expect(region.properties.recipes.required).toEqual(['first', 'second', 'third']);
+    expect(region.properties.creatures.type).toBe('array');
+    expect(region.properties.creatures.items.type).toBe('object');
+  });
+
+  it('the creature object has enemy, drop, trophy and gear with the gear enums', () => {
+    expect(creature.required).toEqual(['enemy', 'drop', 'trophy', 'gear']);
+    expect(creature.properties.drop.required).toEqual(['name', 'kind', 'description']);
+    expect(creature.properties.trophy.required).toEqual(['name', 'description']);
+    const gear = creature.properties.gear;
+    expect(gear.required).toEqual(['name', 'slot', 'weaponType', 'armorType', 'description']);
+    expect(gear.properties.slot.enum).toEqual(['weapon', 'chest', 'legs', 'boots']);
+    expect(gear.properties.weaponType.enum).toEqual([...WEAPON_TYPES, 'none']);
+    expect(gear.properties.armorType.enum).toEqual(['cloth', 'leather', 'chain', 'plate', 'none']);
+    expect(schema.properties.lateCreature.anyOf[0]).toEqual(creature);
+  });
+
+  it('material kinds equal MATERIAL_KIND_VALUES, terrain is the location terrain enum, categories are the four', () => {
+    expect(gatherable.required).toEqual(['name', 'kind', 'terrain', 'description']);
+    expect(gatherable.properties.kind.enum).toEqual([...MATERIAL_KIND_VALUES]);
+    expect(creature.properties.drop.properties.kind.enum).toEqual([...MATERIAL_KIND_VALUES]);
+    expect(gatherable.properties.terrain.enum).toEqual(
+      (WORLD_START_SCHEMA as any).properties.startLocation.properties.terrainType.enum,
+    );
+    expect(recipe.required).toEqual(['name', 'category', 'description', 'materials']);
+    expect(recipe.properties.category.enum).toEqual(['weapon', 'armor', 'accessory', 'consumable']);
+    expect(recipe.properties.materials).toEqual({ type: 'array', items: { type: 'string' } });
+  });
+
+  it('carries no description text and no bounds (all wording lives in the approved route block)', () => {
+    const json = JSON.stringify(schema);
+    expect(json).not.toContain('"description":"');
+    expect(json).not.toMatch(/maxItems|minItems|maxLength|minLength|minimum|maximum/);
+    // "description" appears only as a property name, never as a schema keyword carrying text.
+    const keywordDescriptions: string[] = [];
+    const walk = (n: any) => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (n && typeof n === 'object') {
+        if (typeof n.description === 'string') keywordDescriptions.push(n.description);
+        for (const v of Object.values(n)) walk(v);
+      }
+    };
+    walk(schema);
+    expect(keywordDescriptions).toEqual([]);
+  });
+
+  it('LLM_JSON_SCHEMAS.regionEconomy is the same object', () => {
+    expect(LLM_JSON_SCHEMAS.regionEconomy).toBe(REGION_ECONOMY_SCHEMA);
   });
 });
