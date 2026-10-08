@@ -181,3 +181,17 @@ describe('economy_set_ai_enabled', () => {
     expect(rows(ctx, 'economy_dials')[0].aiEnabled).toBe(false);
   });
 });
+
+describe('economy_repair_region (review B WR-01 / WR-02)', () => {
+  it('throws for a stranger before any read', () => {
+    const ctx = createMockCtx({ sender: stranger, seed: seeded() } as any);
+    expect(() => reducer('economy_repair_region')(ctx, { regionId: 7n })).toThrow('Admin only');
+  });
+
+  it('refuses an unknown region and a region with no economy, writing nothing', () => {
+    const ctx = createMockCtx({ sender: admin, seed: seeded() } as any);
+    expect(() => reducer('economy_repair_region')(ctx, { regionId: 99n })).toThrow('unknown_region');
+    expect(() => reducer('economy_repair_region')(ctx, { regionId: 7n })).toThrow('no_economy');
+    expect(rows(ctx, 'region_economy')).toHaveLength(0);
+  });
+});

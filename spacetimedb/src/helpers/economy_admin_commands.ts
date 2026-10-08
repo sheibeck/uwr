@@ -20,7 +20,7 @@ import { effectiveDials, type DialName } from '../data/economy_rules';
 import { QUALITY_TIERS } from '../data/mechanical_vocabulary';
 import { fail, appendPrivateEvent } from './events';
 import { applyDialChange, getDials, resetEconomy, setAiEnabled } from './economy_state';
-import { startRegionEconomy } from './region_economy';
+import { repairRegionEconomyOutputs, startRegionEconomy, type RegionRepairResult } from './region_economy';
 import { LLM_RESTING_LINE } from './llm_queue';
 
 /**
@@ -38,7 +38,8 @@ export const ECONOMY_COMMAND_USAGE =
   'Usage: /economy, /economy rarity -2..2, /economy drop|gold|gather|boss NUMBER, ' +
   '/economy tier common|uncommon|rare|epic|legendary 0-300, ' +
   '/economy region NAME, /economy region NAME drop|gold|gather|rarity|boss NUMBER, /economy region NAME reset, ' +
-  '/economy item NAME drop 0-300, /economy item NAME reset, /economy ai on|off, /economy design NAME, /economy reset. ' +
+  '/economy item NAME drop 0-300, /economy item NAME reset, /economy ai on|off, /economy design NAME, /economy repair NAME, ' +
+  '/economy reset. ' +
   'A drop or gold dial at 0 can leave a kill empty on purpose.';
 
 const SCALAR_WORDS = ['rarity', 'drop', 'gold', 'gather', 'boss'] as const;
@@ -55,6 +56,7 @@ export type EconomyCommand =
   | { verb: 'item_reset'; itemName: string }
   | { verb: 'ai'; enabled: boolean }
   | { verb: 'design'; regionName: string }
+  | { verb: 'repair'; regionName: string }
   | { verb: 'reset' }
   | { verb: 'help' };
 
@@ -93,6 +95,10 @@ export function parseEconomyCommand(text: string): EconomyCommand | null {
 
   if (verb === 'design') {
     return rest.length > 0 ? { verb: 'design', regionName: rest.join(' ') } : HELP;
+  }
+
+  if (verb === 'repair') {
+    return rest.length > 0 ? { verb: 'repair', regionName: rest.join(' ') } : HELP;
   }
 
   if (isScalarWord(verb)) {
@@ -275,6 +281,30 @@ function buildRegionText(ctx: any, region: any): string {
   ].join('\n');
 }
 
+/**
+ * The plain-text report of /economy repair (and the console line of the economy_repair_region
+ * reducer). One line when nothing changed, else a heading and one line per changed recipe output.
+ */
+export function repairReportLines(regionName: string, result: RegionRepairResult): string[] {
+  const name = plainText(regionName);
+  if (!result.ok) {
+    if (result.reason === 'no_economy') return [`${name} has no designed economy yet.`];
+    if (result.reason === 'not_complete') return [`${name} has no finished economy to repair yet.`];
+    return [`${name} has no stored design to repair from.`];
+  }
+  if (result.changed.length === 0) {
+    return [`${name}: every crafted output already follows the rules (${plural(result.checked, 'recipe', 'recipes')} checked).`];
+  }
+  const lines = [`Repaired ${name}: ${result.changed.length} of ${plural(result.checked, 'crafted output', 'crafted outputs')} corrected.`];
+  for (const c of result.changed) {
+    const label = `Recipe ${c.index + 1}`;
+    const renamed = c.oldName !== c.newName ? `${plainText(c.oldName)} is now ${plainText(c.newName)}` : plainText(c.newName);
+    const slot = c.oldSlot !== c.newSlot ? `, slot ${plainText(c.oldSlot)} is now ${plainText(c.newSlot)}` : `, slot ${plainText(c.newSlot)}`;
+    lines.push(`${label}: ${renamed}${slot}.`);
+  }
+  return lines;
+}
+
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
@@ -411,6 +441,21 @@ export function handleEconomyAdminCommand(ctx: any, character: any, text: string
         say(`Economy design queued for ${name}. It runs in the background; see /economy region ${name} for the status.`);
       } else if (result === 'refused:halted' || result === 'refused:ceiling') refuse(LLM_RESTING_LINE);
       else refuse(`Economy design refused: ${plainText(result.slice('refused:'.length))}.`);
+      return true;
+    }
+
+    case 'repair': {
+      // Re-derives the region's crafted outputs from its stored design with the current rules, in
+      // place (review B WR-01 / WR-02). Idempotent, no LLM call, ids never change.
+      const region = findRegionByName(ctx, cmd.regionName);
+      if (!region) {
+        refuse('No region by that name.');
+        return true;
+      }
+      const result = repairRegionEconomyOutputs(ctx, region.id);
+      const lines = repairReportLines(region.name, result);
+      if (!result.ok) refuse(lines[0]);
+      else say(lines.join('\n'));
       return true;
     }
 

@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { applyDialChange, resetEconomy, setAiEnabled } from '../helpers/economy_state';
+import { repairRegionEconomyOutputs } from '../helpers/region_economy';
 
 export const registerEconomyReducers = (deps: any) => {
   const { spacetimedb, t, SenderError, requireAdmin } = deps;
@@ -43,6 +44,22 @@ export const registerEconomyReducers = (deps: any) => {
       }
       const removed = resetEconomy(ctx, scope, scopeId);
       console.info(`economy reset, scope=${scope}, regions=${removed.regions}, items=${removed.items}`);
+    },
+  );
+
+  // Admin-only: repair a complete region's crafted outputs in place from its stored design with the
+  // current rules (review B WR-01 / WR-02; the /economy repair NAME console form calls the same helper).
+  // No character context and no LLM call; idempotent; ids never change. The result goes to the log.
+  spacetimedb.reducer(
+    'economy_repair_region',
+    { regionId: t.u64() },
+    (ctx: any, { regionId }: { regionId: bigint }) => {
+      requireAdmin(ctx);
+      if (!ctx.db.region.id.find(regionId)) throw new SenderError('Economy repair refused: unknown_region');
+      const result = repairRegionEconomyOutputs(ctx, regionId);
+      if (!result.ok) throw new SenderError('Economy repair refused: ' + result.reason);
+      const changed = result.changed.map((c) => `recipe:${c.index} ${c.oldSlot}->${c.newSlot}`).join(', ');
+      console.info(`economy repair, region=${regionId}, checked=${result.checked}, changed=${result.changed.length}${changed ? ` (${changed})` : ''}`);
     },
   );
 

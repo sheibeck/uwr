@@ -7,6 +7,7 @@ import {
   handleEconomyAdminCommand,
   parseDialValue,
   parseEconomyCommand,
+  repairReportLines,
 } from './economy_admin_commands';
 import { DEFAULT_DIALS } from '../data/economy_rules';
 import { LLM_RESTING_LINE } from './llm_queue';
@@ -140,6 +141,12 @@ describe('parseEconomyCommand', () => {
     expect(parseEconomyCommand('/economy item Ember Moss reset')).toEqual({ verb: 'item_reset', itemName: 'Ember Moss' });
   });
 
+  it('parses repair: the region name is every token after the verb; no name is help', () => {
+    expect(parseEconomyCommand('/economy repair Kesterlane Basin')).toEqual({ verb: 'repair', regionName: 'Kesterlane Basin' });
+    expect(parseEconomyCommand('/economy REPAIR   Ashfall')).toEqual({ verb: 'repair', regionName: 'Ashfall' });
+    expect(parseEconomyCommand('/economy repair')).toEqual({ verb: 'help' });
+  });
+
   it('parses design: the region name is every token after the verb; no name is help', () => {
     expect(parseEconomyCommand('/economy design Kesterlane Basin')).toEqual({ verb: 'design', regionName: 'Kesterlane Basin' });
     expect(parseEconomyCommand('/economy DESIGN   Ashfall')).toEqual({ verb: 'design', regionName: 'Ashfall' });
@@ -201,6 +208,7 @@ describe('handleEconomyAdminCommand: a stranger', () => {
     '/economy reset',
     '/economy huh',
     '/economy design Kesterlane Basin',
+    '/economy repair Kesterlane Basin',
   ])('%s gets the refusal and changes no economy table', (text) => {
     const ctx = ctxFor(stranger, {
       ...seeded(),
@@ -616,6 +624,55 @@ describe('handleEconomyAdminCommand: design', () => {
   });
 });
 
+describe('handleEconomyAdminCommand: repair (review B WR-01 / WR-02)', () => {
+  const econRow = (status: string) => ({
+    regionId: 7n,
+    status,
+    jobId: 55n,
+    otherRegionIds: '[]',
+    createdAt: { microsSinceUnixEpoch: 1n },
+    updatedAt: { microsSinceUnixEpoch: 1n },
+  });
+
+  it('an unknown region: No region by that name.', () => {
+    const ctx = ctxFor(admin, seeded());
+    run(ctx, '/economy repair Nowhere');
+    expect(systemLines(ctx)).toEqual(['No region by that name.']);
+  });
+
+  it.each([
+    [[], 'Kesterlane Basin has no designed economy yet.'],
+    [[econRow('pending')], 'Kesterlane Basin has no finished economy to repair yet.'],
+    [[econRow('complete')], 'Kesterlane Basin has no stored design to repair from.'],
+  ])('refuses plainly and writes nothing (%#)', (econ, line) => {
+    const ctx = ctxFor(admin, { ...seeded(), region_economy: econ });
+    const before = snapshot(ctx);
+    run(ctx, '/economy repair kesterlane basin');
+    expect(systemLines(ctx)).toEqual([line]);
+    expect(snapshot(ctx)).toBe(before);
+  });
+
+  it('the report lines name each corrected output and are plain text', () => {
+    expect(
+      repairReportLines('Kesterlane Basin', {
+        ok: true,
+        checked: 3,
+        changed: [
+          { index: 0, oldName: 'Salted Wayfarer Jerky', newName: 'Kesterlane Basin Jerkin', oldSlot: 'chest', newSlot: 'chest' },
+          { index: 1, oldName: 'Wickthread Sash', newName: 'Wickthread Sash', oldSlot: 'legs', newSlot: 'chest' },
+        ],
+      }),
+    ).toEqual([
+      'Repaired Kesterlane Basin: 2 of 3 crafted outputs corrected.',
+      'Recipe 1: Salted Wayfarer Jerky is now Kesterlane Basin Jerkin, slot chest.',
+      'Recipe 2: Wickthread Sash, slot legs is now chest.',
+    ]);
+    expect(repairReportLines('Kesterlane Basin', { ok: true, checked: 3, changed: [] })).toEqual([
+      'Kesterlane Basin: every crafted output already follows the rules (3 recipes checked).',
+    ]);
+  });
+});
+
 describe('plain text', () => {
   it('no system line written anywhere in this suite contains [, < or {', () => {
     expect(allLines.length).toBeGreaterThan(20);
@@ -630,6 +687,7 @@ describe('plain text', () => {
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy item NAME');
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy ai on|off');
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy design NAME');
+    expect(ECONOMY_COMMAND_USAGE).toContain('/economy repair NAME');
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy reset');
     expect(ECONOMY_COMMAND_USAGE).toContain('A drop or gold dial at 0 can leave a kill empty on purpose.');
   });

@@ -648,6 +648,131 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
   startLateEnemies(ctx, regionId, job);
 }
 
+// ---------------------------------------------------------------------------
+// Repair (Phase 51.3 review B WR-01 / WR-02, owner decision: repair in place)
+// ---------------------------------------------------------------------------
+
+/** One crafted output the repair changed: the name before and after, and the slot after. */
+export interface RepairedOutput {
+  index: number;
+  oldName: string;
+  newName: string;
+  oldSlot: string;
+  newSlot: string;
+}
+
+export type RegionRepairResult =
+  | { ok: true; checked: number; changed: RepairedOutput[] }
+  | { ok: false; reason: 'no_economy' | 'not_complete' | 'no_design' };
+
+function sameValue(a: unknown, b: unknown): boolean {
+  return a === b || ((a === undefined || a === null) && (b === undefined || b === null));
+}
+
+/**
+ * Re-derives a complete region's crafted outputs (its `recipe:<n>` items, their recipe_template rows and
+ * their scrolls) from the region's stored design (the region_economy row's job: request and reply) with
+ * the current rules, and corrects them in place. The ids never change, so recipes, loot, scrolls and
+ * items already in bags keep pointing at the same templates. Idempotent: a second run changes nothing.
+ * Written for job 8206 (local uwr, Kesterlane Basin), whose outputs predate the WR-01 category repair
+ * and the WR-02 slot-from-name rule. Silent: the caller reports the result.
+ */
+export function repairRegionEconomyOutputs(ctx: any, regionId: bigint): RegionRepairResult {
+  const statusRow = ctx.db.region_economy.regionId.find(regionId);
+  if (!statusRow) return { ok: false, reason: 'no_economy' };
+  if (statusRow.status !== 'complete') return { ok: false, reason: 'not_complete' };
+  const job = typeof statusRow.jobId === 'bigint' ? ctx.db.llm_job.id.find(statusRow.jobId) : undefined;
+  const c = readEconomyJobContext(job ? job.requestJson : undefined);
+  if (!job || typeof job.resultText !== 'string' || c === null || c.mode !== 'region' || c.regionId !== regionId) {
+    return { ok: false, reason: 'no_design' };
+  }
+  const input = c.input;
+  const recipePrefix = `region:${regionId}:r`;
+  // The same name book as the apply: the region's own rows are left out, so unchanged names validate
+  // to themselves.
+  const book = openBook(ctx, input, regionId, () => true, (key) => key.startsWith(recipePrefix));
+  const plan = validateRegionEconomyReply(input, parseReplyText(job.resultText), isTakenIn(book));
+  if (plan === null) return { ok: false, reason: 'no_design' };
+
+  // The local handles as the apply resolved them, from the rows it wrote.
+  const locals = new Map<string, { id: bigint; kind: string; name: string }>();
+  const localOf = (ref: string, slotKey: string, kind: string): void => {
+    const tag = book.slots.get(slotKey);
+    const template = tag ? ctx.db.item_template.id.find(tag.itemTemplateId) : undefined;
+    if (template) locals.set(ref, { id: template.id, kind: text(tag.kind, kind), name: text(template.name) });
+  };
+  for (const g of plan.gatherables) localOf(g.ref, `gather:${g.slot}`, g.kind);
+  for (const creature of plan.creatures) localOf(`D:${creature.enemyRef}`, `drop:${creature.enemyTemplateId}`, creature.drop.kind);
+
+  const changed: RepairedOutput[] = [];
+  let checked = 0;
+  for (const recipe of plan.recipes) {
+    const tag = book.slots.get(`recipe:${recipe.index}`);
+    const output = tag ? ctx.db.item_template.id.find(tag.itemTemplateId) : undefined;
+    const key = `${recipePrefix}${recipe.index}`;
+    const recipeRow = [...ctx.db.recipe_template.iter()].find((r: any) => text(r.key) === key);
+    if (!tag || !output || !recipeRow) continue;
+    const reqs = resolveRequirements(book, input, recipe.requirements, locals);
+    if (reqs === null || reqs.length < 2 || !reqs[0].local) continue;
+    checked += 1;
+    const [primary, second, third, fourth] = reqs;
+    const fields = regionalOutputTemplate({
+      name: recipe.name,
+      description: recipe.description,
+      category: recipe.category,
+      tier: recipe.tier,
+      primaryKind: primary.kind,
+      secondaryKind: second.local ? second.kind : '',
+      level: book.areaLevel,
+      index: recipe.index,
+      regionId,
+    });
+    const before = { name: text(output.name), slot: text(output.slot) };
+    let touched = false;
+
+    if (Object.keys(fields).some((k) => !sameValue((output as any)[k], (fields as any)[k]))) {
+      ctx.db.item_template.id.update({ ...output, ...fields, id: output.id });
+      touched = true;
+    }
+    if (tag.kind !== recipe.category || tag.rarity !== fields.rarity) {
+      ctx.db.economy_item.itemTemplateId.update({ ...tag, kind: recipe.category, rarity: fields.rarity });
+      touched = true;
+    }
+    const nextRecipe = {
+      ...recipeRow,
+      name: recipe.name,
+      req1TemplateId: primary.id,
+      req1Count: primary.count,
+      req2TemplateId: second.id,
+      req2Count: second.count,
+      req3TemplateId: third ? third.id : undefined,
+      req3Count: third ? third.count : undefined,
+      recipeType: recipe.category,
+      materialType: recipe.category === 'consumable' ? undefined : materialKey(primary.name),
+      req4TemplateId: fourth ? fourth.id : 0n,
+      req4Count: fourth ? fourth.count : 0n,
+    };
+    if (Object.keys(nextRecipe).some((k) => !sameValue((recipeRow as any)[k], (nextRecipe as any)[k]))) {
+      ctx.db.recipe_template.id.update(nextRecipe);
+      touched = true;
+    }
+    // learn_recipe_scroll finds the recipe by the scroll's name, so the scroll follows the recipe name.
+    const scrollTag = book.slots.get(`scroll:${recipe.index}`);
+    const scroll = scrollTag ? ctx.db.item_template.id.find(scrollTag.itemTemplateId) : undefined;
+    if (scroll) {
+      const scrollFields = scrollTemplate(recipe.name, recipe.tier);
+      if (scroll.name !== scrollFields.name || !sameValue(scroll.description, scrollFields.description)) {
+        ctx.db.item_template.id.update({ ...scroll, name: scrollFields.name, description: scrollFields.description });
+        touched = true;
+      }
+    }
+    if (touched) {
+      changed.push({ index: recipe.index, oldName: before.name, newName: recipe.name, oldSlot: before.slot, newSlot: fields.slot });
+    }
+  }
+  return { ok: true, checked, changed };
+}
+
 /** The characterId stored in a region economy request (decimal string); 0n when missing or malformed. */
 function storedCharacterId(contextJson: string | undefined): bigint {
   if (typeof contextJson !== 'string') return 0n;
