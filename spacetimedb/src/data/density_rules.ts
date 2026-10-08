@@ -240,3 +240,440 @@ export function homeCount(kind: 'creature' | 'resource', homeLevel: number | big
   if (kind === 'creature') return DENSITY_RULES.CREATURE_HOME_COUNT[Math.min(Math.floor(level), 2)] ?? 0n;
   return DENSITY_RULES.RESOURCE_HOME_COUNT[Math.min(Math.floor(level), 3)] ?? 0n;
 }
+
+/** A density level as a table key: 0..3. */
+function levelKey(level: number | bigint): DensityLevel {
+  const n = Math.floor(Number(level));
+  if (!(n >= 1)) return 0;
+  return n >= 3 ? 3 : (n as DensityLevel);
+}
+
+// ---------------------------------------------------------------------------
+// Weighted picks over economy_rules.pickWeighted
+// ---------------------------------------------------------------------------
+
+/**
+ * One weighted pick of a value. Entries carry their input position as the pickWeighted id, so the
+ * result depends only on the seed, the index and the input order. Null when every weight is 0.
+ */
+function pickValue<V>(items: readonly { value: V; weight: bigint }[], seed: bigint, index: bigint): V | null {
+  const entries = items.map((item, i) => ({ itemTemplateId: BigInt(i), weight: item.weight, value: item.value }));
+  const pick = pickWeighted(entries, seed, index);
+  return pick ? pick.value : null;
+}
+
+// ---------------------------------------------------------------------------
+// Encounter chance (D-10)
+// ---------------------------------------------------------------------------
+
+/** The level-gap factor in percent (gap = family top level minus party level). */
+export function gapPct(gap: number): number {
+  for (const band of DENSITY_RULES.GAP_PCT) {
+    if (gap <= band.maxGap) return band.pct;
+  }
+  return DENSITY_RULES.GAP_PCT_ABOVE;
+}
+
+export interface EncounterPoolInput {
+  level: number;
+  temperament: string;
+  lvHi: bigint;
+}
+
+/**
+ * One pool's encounter chance in basis points: base by density x temperament x level gap. 0 for a
+ * wiped-out family; an unknown temperament reads as wary.
+ */
+function poolChanceBp(pool: EncounterPoolInput, partyLevel: bigint): bigint {
+  const level = levelKey(pool.level);
+  if (level === 0) return 0n;
+  const base = BigInt(DENSITY_RULES.ENCOUNTER_BASE_PCT[level] ?? 0);
+  const temper = BigInt(DENSITY_RULES.TEMPERAMENT_PCT[pool.temperament] ?? DENSITY_RULES.TEMPERAMENT_PCT['wary'] ?? 100);
+  const gap = BigInt(gapPct(Number(pool.lvHi - partyLevel)));
+  const bp = (base * temper * gap) / 100n; // percent x percent x percent / 100 = basis points
+  return bp > 10000n ? 10000n : bp;
+}
+
+/**
+ * The chance of an encounter at a place in basis points (D-10): 0 at a safe place; per-pool chances
+ * combine as 1 - prod(1 - p); factorPct (default 100, e.g. GATHER_AMBUSH_FACTOR_PCT) applies after
+ * combining; capped at ENCOUNTER_MAX_PCT.
+ */
+export function encounterChanceBp(input: {
+  isSafe: boolean;
+  pools: readonly EncounterPoolInput[];
+  partyLevel: bigint;
+  factorPct?: number;
+}): number {
+  if (input.isSafe) return 0;
+  let miss = 10000n;
+  for (const pool of input.pools) {
+    miss = (miss * (10000n - poolChanceBp(pool, input.partyLevel))) / 10000n;
+  }
+  let hit = 10000n - miss;
+  const factor = BigInt(Math.max(0, Math.floor(input.factorPct ?? 100)));
+  hit = (hit * factor) / 100n;
+  const cap = BigInt(DENSITY_RULES.ENCOUNTER_MAX_PCT * 100);
+  return Number(hit > cap ? cap : hit);
+}
+
+/** Whether an encounter roll hits a chance in basis points (POOL_ROLL.ENCOUNTER). */
+export function encounterHit(seed: bigint, bp: number): boolean {
+  return rollBelow(seed, POOL_ROLL.ENCOUNTER, 10000n) < BigInt(Math.floor(bp));
+}
+
+/**
+ * Which pool an encounter draws from: weighted by each pool's own chance (POOL_ROLL.ENCOUNTER_POOL).
+ * Pools that add nothing (wiped out, far below the party) are never picked; null when none adds.
+ */
+export function pickEncounterPool<T extends EncounterPoolInput>(seed: bigint, pools: readonly T[], partyLevel: bigint): T | null {
+  return pickValue(
+    pools.map((pool) => ({ value: pool, weight: poolChanceBp(pool, partyLevel) })),
+    seed,
+    POOL_ROLL.ENCOUNTER_POOL,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Groups (D-11) and party level (D-56)
+// ---------------------------------------------------------------------------
+
+/**
+ * How many members an encounter draws: Scarce 1, Stable 1-2, Overrun 2-4 (POOL_ROLL.GROUP_SIZE), one
+ * fewer (never below 1) when the family top level is GROUP_TRIM_GAP or more above the party. 0 at level 0.
+ */
+export function groupSizeFor(level: number, gap: number, seed: bigint): number {
+  const key = levelKey(level);
+  if (key === 0) return 0;
+  const range = DENSITY_RULES.GROUP_SIZE_BY_LEVEL[key];
+  if (!range) return 0;
+  const lo = range[0] ?? 1;
+  const hi = Math.max(lo, range[1] ?? lo);
+  let size = lo + Number(rollBelow(seed, POOL_ROLL.GROUP_SIZE, BigInt(hi - lo + 1)));
+  if (gap >= DENSITY_RULES.GROUP_TRIM_GAP) size -= 1;
+  return Math.max(1, size);
+}
+
+/**
+ * The roles of a drawn group (D-11). Slot 0 is a tank or damage member when the family has one (else
+ * its first non-support role); extras lean to casters and support by EXTRA_ROLE_WEIGHTS; support is
+ * capped at HEALER_CAP_UP_TO_THREE (HEALER_CAP_FOUR in a group of 4); a group is never only support,
+ * so a support-only family sends one. Only available roles are used; a family of one yields copies.
+ * The input order never matters (roles are read in ENEMY_ROLES order, unknown roles after).
+ */
+export function composeGroupRoles(size: number, available: readonly string[], seed: bigint): string[] {
+  if (size <= 0) return [];
+  const known = ENEMY_ROLES.filter((role) => available.includes(role)) as string[];
+  const unknown = [...new Set(available.filter((role) => !(ENEMY_ROLES as readonly string[]).includes(role)))].sort();
+  const roles = [...known, ...unknown];
+  if (roles.length === 0) return [];
+
+  const front = roles.filter((role) => role === 'tank' || role === 'damage');
+  let first: string;
+  if (front.length > 0) {
+    first = front[Number(rollBelow(seed, POOL_ROLL.ROLE_BASE, BigInt(front.length)))]!;
+  } else {
+    const nonSupport = roles.find((role) => role !== 'healer');
+    if (nonSupport === undefined) return ['healer'];
+    first = nonSupport;
+  }
+
+  const cap = size >= 4 ? DENSITY_RULES.HEALER_CAP_FOUR : DENSITY_RULES.HEALER_CAP_UP_TO_THREE;
+  const result = [first];
+  let healers = 0;
+  for (let slot = 1; slot < size; slot += 1) {
+    const choices = roles
+      .filter((role) => role !== 'healer' || healers < cap)
+      .map((role) => ({ value: role, weight: BigInt(Math.max(1, DENSITY_RULES.EXTRA_ROLE_WEIGHTS[role] ?? 1)) }));
+    const pick = pickValue(choices, seed, POOL_ROLL.ROLE_BASE + BigInt(slot)) ?? first;
+    if (pick === 'healer') healers += 1;
+    result.push(pick);
+  }
+  return result;
+}
+
+/** The party level every roll uses: the LOWEST member (PARTY_LEVEL_RULE 'lowest', D-56); 1 when empty. */
+export function partyLevel(levels: readonly bigint[]): bigint {
+  if (levels.length === 0) return 1n;
+  let low = levels[0]!;
+  for (const level of levels) if (level < low) low = level;
+  return low;
+}
+
+// ---------------------------------------------------------------------------
+// Settling (D-19, D-28, D-32, D-37, MD-13)
+// ---------------------------------------------------------------------------
+
+export interface SettleInput {
+  kind: 'creature' | 'resource';
+  count: bigint;
+  homeLevel: number | bigint;
+  lastSettledMicros: bigint;
+  wipedAtMicros: bigint;
+}
+
+export interface SettleResult {
+  count: bigint;
+  lastSettledMicros: bigint;
+  wipedAtMicros: bigint;
+}
+
+/**
+ * Settle a pool lazily up to `now`. Below home it regrows one point per regrow step (creature or
+ * resource rate) and never passes home; above home it settles back one point per
+ * OVERRUN_SETTLE_MICROS_PER_POINT and never drops below home. lastSettledMicros advances only by the
+ * time the points used, so leftover time carries forward and one lazy settle equals many small ones;
+ * at home it is `now`. A wiped-out creature family (count 0, wipedAtMicros > 0) stays at 0 until
+ * WIPED_RESET_MICROS has passed, then returns at WIPED_RETURN_COUNT and regrows from the reset time.
+ * Resources have no long reset. A `now` before lastSettledMicros changes nothing.
+ */
+export function settleCount(p: SettleInput, now: bigint): SettleResult {
+  let count = p.count;
+  let last = p.lastSettledMicros;
+  let wiped = p.kind === 'creature' ? p.wipedAtMicros : 0n;
+  if (now < last) return { count, lastSettledMicros: last, wipedAtMicros: wiped };
+
+  if (p.kind === 'creature' && count <= 0n && wiped > 0n) {
+    const resetAt = wiped + DENSITY_RULES.WIPED_RESET_MICROS;
+    if (now < resetAt) return { count: 0n, lastSettledMicros: now, wipedAtMicros: wiped };
+    count = DENSITY_RULES.WIPED_RETURN_COUNT;
+    wiped = 0n;
+    last = resetAt > last ? resetAt : last;
+  }
+
+  const home = homeCount(p.kind, p.homeLevel);
+  if (count < home) {
+    const rate = p.kind === 'creature'
+      ? DENSITY_RULES.CREATURE_REGROW_MICROS_PER_POINT
+      : DENSITY_RULES.RESOURCE_REGROW_MICROS_PER_POINT;
+    const points = (now - last) / rate;
+    if (count + points >= home) return { count: home, lastSettledMicros: now, wipedAtMicros: wiped };
+    return { count: count + points, lastSettledMicros: last + points * rate, wipedAtMicros: wiped };
+  }
+  if (count > home) {
+    const rate = DENSITY_RULES.OVERRUN_SETTLE_MICROS_PER_POINT;
+    const points = (now - last) / rate;
+    if (count - points <= home) return { count: home, lastSettledMicros: now, wipedAtMicros: wiped };
+    return { count: count - points, lastSettledMicros: last + points * rate, wipedAtMicros: wiped };
+  }
+  return { count, lastSettledMicros: now, wipedAtMicros: wiped };
+}
+
+// ---------------------------------------------------------------------------
+// Gather yield and the harvest window (D-27, D-28, D-38)
+// ---------------------------------------------------------------------------
+
+/** Items one gather yields at a resource pool's density level (D-38). */
+export function yieldForLevel(level: number): bigint {
+  return DENSITY_RULES.YIELD_BY_LEVEL[levelKey(level)] ?? 0n;
+}
+
+export interface HarvestState {
+  windowStartMicros: bigint;
+  gathers: bigint;
+  cappedUntilMicros: bigint;
+}
+
+/**
+ * A player's harvest state after one more gather at a place: a gather after the window (or the first)
+ * starts a new window; the HARVEST_CAP_GATHERS-th gather in a window caps the player until the window
+ * ends. Callers check isHarvestCapped before gathering.
+ */
+export function nextHarvest(state: HarvestState | null, now: bigint): HarvestState {
+  const capAt = (start: bigint, gathers: bigint): bigint =>
+    gathers >= DENSITY_RULES.HARVEST_CAP_GATHERS ? start + DENSITY_RULES.HARVEST_WINDOW_MICROS : 0n;
+  if (!state || now >= state.windowStartMicros + DENSITY_RULES.HARVEST_WINDOW_MICROS || now < state.windowStartMicros) {
+    return { windowStartMicros: now, gathers: 1n, cappedUntilMicros: capAt(now, 1n) };
+  }
+  const gathers = state.gathers + 1n;
+  return { windowStartMicros: state.windowStartMicros, gathers, cappedUntilMicros: capAt(state.windowStartMicros, gathers) };
+}
+
+/** Whether a player is at the harvest cap at `now`. */
+export function isHarvestCapped(state: HarvestState | null, now: bigint): boolean {
+  return state !== null && now < state.cappedUntilMicros;
+}
+
+// ---------------------------------------------------------------------------
+// Hunters and the vacuum (D-21, D-36)
+// ---------------------------------------------------------------------------
+
+/** Whether hunters act on this check (POOL_ROLL.HUNTER_ACTIVE against HUNTER_ACTIVITY_PCT). */
+export function hunterActive(seed: bigint): boolean {
+  return rollBelow(seed, POOL_ROLL.HUNTER_ACTIVE, 100n) < BigInt(DENSITY_RULES.HUNTER_ACTIVITY_PCT);
+}
+
+/**
+ * Up to n pools hunters thin, without replacement, weighted by HUNTER_LEVEL_WEIGHTS (Overrun more
+ * often); a wiped-out pool is never picked. Pick i rolls at HUNTER_PICK + i.
+ */
+export function pickHunterTargets<T extends { level: number }>(seed: bigint, pools: readonly T[], n: number): T[] {
+  const entries = pools
+    .map((pool, i) => {
+      const key = levelKey(pool.level);
+      const weight = key === 0 ? 0 : DENSITY_RULES.HUNTER_LEVEL_WEIGHTS[key] ?? 0;
+      return { itemTemplateId: BigInt(i), weight: BigInt(weight), pool };
+    })
+    .filter((entry) => entry.weight > 0n);
+  const count = Math.max(0, Math.min(Math.floor(n), entries.length));
+  return pickWithoutReplacement(entries, count, seed, POOL_ROLL.HUNTER_PICK).map((entry) => entry.pool);
+}
+
+/** The rival or predator that surges into a vacuum (D-36, POOL_ROLL.SURGE_PICK); null when none. */
+export function pickSurgeTarget<T>(seed: bigint, candidates: readonly T[]): T | null {
+  if (candidates.length === 0) return null;
+  return candidates[Number(rollBelow(seed, POOL_ROLL.SURGE_PICK, BigInt(candidates.length)))] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Region trend (D-23)
+// ---------------------------------------------------------------------------
+
+/** 'wilder' or 'quieter' when a region's summed creature levels moved TREND_DELTA_LEVELS or more. */
+export function regionTrend(sumThen: number, sumNow: number): 'wilder' | 'quieter' | null {
+  const delta = sumNow - sumThen;
+  if (delta >= DENSITY_RULES.TREND_DELTA_LEVELS) return 'wilder';
+  if (delta <= -DENSITY_RULES.TREND_DELTA_LEVELS) return 'quieter';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Home levels (D-18, D-38, D-46)
+// ---------------------------------------------------------------------------
+
+/**
+ * Home levels of a place's families, by family position: the first STABLE_HOME_FAMILIES_PER_PLACE of a
+ * seeded permutation (one HOME_ORDER roll seeds the shuffle) are Stable (2), the rest Scarce (1).
+ * Never Overrun (D-18). One family gives [2].
+ */
+export function creatureHomeLevels(familyCount: number, seed: bigint): number[] {
+  const n = Math.max(0, Math.floor(familyCount));
+  const order = Array.from({ length: n }, (_, i) => i);
+  const shuffleSeed = economyRoll(seed, POOL_ROLL.HOME_ORDER);
+  for (let i = n - 1; i > 0; i -= 1) {
+    const j = Number(rollBelow(shuffleSeed, BigInt(i), BigInt(i + 1)));
+    const tmp = order[i]!;
+    order[i] = order[j]!;
+    order[j] = tmp;
+  }
+  const levels = new Array<number>(n).fill(1);
+  order.forEach((familyIndex, rank) => {
+    if (rank < DENSITY_RULES.STABLE_HOME_FAMILIES_PER_PLACE) levels[familyIndex] = 2;
+  });
+  return levels;
+}
+
+/** A resource pool's home level by rarity (D-38); an unknown rarity reads as common. */
+export function resourceHomeLevel(rarity: string): number {
+  const table = DENSITY_RULES.RESOURCE_HOME_BY_RARITY;
+  return table[rarity] ?? table['common'] ?? 3;
+}
+
+// ---------------------------------------------------------------------------
+// Hubs and crafting stations (D-59 to D-63)
+// ---------------------------------------------------------------------------
+
+/** The pct of the first band whose maxDanger is at least `danger`, else `above`. */
+export function bandPct(
+  bands: readonly { readonly maxDanger: number; readonly pct: number }[],
+  above: number,
+  danger: bigint | number,
+): number {
+  const d = Number(danger);
+  for (const band of bands) {
+    if (d <= band.maxDanger) return band.pct;
+  }
+  return above;
+}
+
+/**
+ * How many hubs a region gets (D-62, superseding D-60's single hub): the starter region gets
+ * STARTER_HUB_COUNT (D-61); otherwise a HUB_COUNT roll below the danger band's chance gives a hub, and a
+ * HUB_SECOND roll below SECOND_HUB_PCT gives a second; never above HUB_MAX_PER_REGION. Seed with
+ * hubSeed(regionId) so the fill request and the reply write agree.
+ */
+export function hubCountFor(dangerMultiplier: bigint | number, isStarter: boolean, seed: bigint): 0 | 1 | 2 {
+  const max = DENSITY_RULES.HUB_MAX_PER_REGION;
+  const clamp = (n: number): 0 | 1 | 2 => Math.max(0, Math.min(n, max, 2)) as 0 | 1 | 2;
+  if (isStarter) return clamp(DENSITY_RULES.STARTER_HUB_COUNT);
+  const pct = bandPct(DENSITY_RULES.HUB_CHANCE_BY_DANGER, DENSITY_RULES.HUB_CHANCE_ABOVE, dangerMultiplier);
+  if (rollBelow(seed, POOL_ROLL.HUB_COUNT, 100n) >= BigInt(pct)) return 0;
+  const second = rollBelow(seed, POOL_ROLL.HUB_SECOND, 100n) < BigInt(DENSITY_RULES.SECOND_HUB_PCT);
+  return clamp(second ? 2 : 1);
+}
+
+/**
+ * Whether a hub has a crafting station (D-63): always in the starter region; otherwise a
+ * CRAFTING_STATION roll below the danger band's chance. Seed with stationSeed(regionId, locationId).
+ */
+export function hubHasStation(dangerMultiplier: bigint | number, isStarter: boolean, seed: bigint): boolean {
+  if (isStarter) return true;
+  const pct = bandPct(
+    DENSITY_RULES.CRAFTING_STATION_CHANCE_BY_DANGER,
+    DENSITY_RULES.CRAFTING_STATION_CHANCE_ABOVE,
+    dangerMultiplier,
+  );
+  return rollBelow(seed, POOL_ROLL.CRAFTING_STATION, 100n) < BigInt(pct);
+}
+
+export interface HubPlace {
+  id: bigint;
+  isSafe: boolean;
+  terrainType: string;
+}
+
+/**
+ * The region's hubs, correcting the AI's marks to the server's count (D-60, D-61, D-62):
+ * 1. only listed places whose terrain is not 'uncharted' qualify;
+ * 2. the starter region's hub is its arrival point (D-61);
+ * 3. qualifying existing hubs stay (a retried fill never moves the services);
+ * 4. qualifying marks are added in order while fewer than `count` (extras are dropped);
+ * 5. while still short, the best remaining place is added by tier: a safe place, then a HUB_TERRAINS
+ *    place, then the arrival point; within a tier the arrival point first, then the lowest id. When no
+ *    tier has a place left the region gets fewer hubs.
+ * Returns the ids in the order chosen.
+ */
+export function chooseHubs(input: {
+  places: readonly HubPlace[];
+  arrivalId: bigint;
+  count: number;
+  isStarter: boolean;
+  existingHubIds: readonly bigint[];
+  markedIds: readonly bigint[];
+}): bigint[] {
+  if (input.isStarter) return [input.arrivalId];
+  const qualifying = input.places.filter((place) => place.terrainType !== 'uncharted');
+  const byId = new Map<bigint, HubPlace>();
+  for (const place of qualifying) if (!byId.has(place.id)) byId.set(place.id, place);
+
+  const chosen: bigint[] = [];
+  const take = (id: bigint): void => {
+    if (byId.has(id) && !chosen.includes(id)) chosen.push(id);
+  };
+  for (const id of input.existingHubIds) take(id);
+  for (const id of input.markedIds) {
+    if (chosen.length >= input.count) break;
+    take(id);
+  }
+
+  const tiers: ((place: HubPlace) => boolean)[] = [
+    (place) => place.isSafe,
+    (place) => DENSITY_RULES.HUB_TERRAINS.includes(place.terrainType),
+    (place) => place.id === input.arrivalId,
+  ];
+  const rank = (a: HubPlace, b: HubPlace): number => {
+    if (a.id === input.arrivalId) return -1;
+    if (b.id === input.arrivalId) return 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
+  while (chosen.length < input.count) {
+    let next: HubPlace | undefined;
+    for (const inTier of tiers) {
+      next = [...byId.values()].filter((place) => inTier(place) && !chosen.includes(place.id)).sort(rank)[0];
+      if (next) break;
+    }
+    if (!next) break;
+    chosen.push(next.id);
+  }
+  return chosen;
+}
