@@ -223,6 +223,8 @@ See MILESTONES.md for full delivery summaries.
 
 - `todos/pending/2026-10-08-travel-with-leader-moves-to-the-self-menu.md`: the desktop Travel with leader switch moves into the self ⋯/right-click menu, with a follow icon beside your name (owner, after 51.1).
 
+- `todos/pending/2026-10-08-nearby-enemies-ignore-the-location-level.md`: **bug** - enemies in a +4 place (Mother Pan Undercroft, target level 5) spawn at level 1 because the region only has level-1 enemy types and `spawnEnemy` falls back to any template without scaling it.
+
 ### Blockers/Concerns
 
 - **[Milestone end, user action] Maincloud migration.** On 2026-09-30 the user deferred it "until we're all done". Run section E of 42-USER-CHECKLIST.md: publish 1 from 5968d54f, deploy the client and `/setappversion`, `purge_legacy_llm` with COUNT 0 checks, then publish 2. Publish 1 also covers 41-MAINCLOUD-CHECKLIST.md. Phase 43 adds only additive, defaulted schema, so publish 2 from the final HEAD still needs no clear.
