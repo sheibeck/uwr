@@ -836,6 +836,7 @@ Plans:
 
   - Promoted from backlog 999.29 (owner, 2026-10-08: "Promote 999.29 after 51.3.1"). Discussed 2026-10-08: decisions D-00 to D-26 and the owner's "Dynamic Density Pool" brief are in `.planning/phases/51.3.1.1-density-pools/51.3.1.1-CONTEXT.md`; the design-tool brief is `51.3.1.1-MOCK-BRIEF.md` in the same folder. The pre-travel warning system stays in backlog 999.30.
   - Owner wants an updated mock from the brief before UI work; plan the UI against that mock.
+  - **AI generation (owner, 2026-10-08, D-46 to D-49):** region generation produces families, their fit to places and relations, and naming words; the server sets every number. The economy moves to per family with gear by role, and one late job per family. Both prompts (region generation and the 51.3 region_economy block) are rewritten here and approved once by the owner; the 51.3 wording pin is updated with that approval and existing economy rows migrate to families.
   - Schema: additive tables and defaulted columns only; existing `enemy_spawn` rows for ordinary creatures and resource nodes are migrated or retired without `--clear-database`.
   - Its folder was `999.29-dangerous-travel-mob-density`; it is now `51.3.1.1-density-pools`.
 
