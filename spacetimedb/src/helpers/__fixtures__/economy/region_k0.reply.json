@@ -1,0 +1,85 @@
+{
+  "region": {
+    "gatherables": {
+      "common": {
+        "name": "Panlight Salt",
+        "kind": "base",
+        "terrain": "swamp",
+        "description": "Coarse grey salt scraped from the drying pans. It crusts on your fingers and does not wash off."
+      },
+      "uncommon": {
+        "name": "Brinewort",
+        "kind": "edible",
+        "terrain": "swamp",
+        "description": "A fleshy, bitter weed that grows where the tide leaves the pans. Boiled long enough, it is almost food."
+      },
+      "rare": {
+        "name": "Tidemark Crystal",
+        "kind": "trinket",
+        "terrain": "dungeon",
+        "description": "A pale crystal grown in the flooded undercroft. It holds a faint light long after the lamp is gone."
+      }
+    },
+    "creatures": [
+      {
+        "enemy": "E1",
+        "drop": {
+          "name": "Skitter Chitin",
+          "kind": "hide",
+          "description": "Plates of salt-hardened shell pried from a skitterer's back. They flex without cracking."
+        },
+        "trophy": {
+          "name": "Skitterer Eyestalk",
+          "description": "A dried eyestalk on a crust of salt. Pan workers pay a little for them, and do not say why."
+        },
+        "gear": {
+          "name": "Crustshell Greaves",
+          "slot": "legs",
+          "weaponType": "none",
+          "armorType": "leather",
+          "description": "Leggings of cured hide sewn with shell plates. They creak when you kneel."
+        }
+      },
+      {
+        "enemy": "E2",
+        "drop": {
+          "name": "Sentinel Rivet",
+          "kind": "metal",
+          "description": "A thumb-thick rivet of tide-black iron, still warm from whatever moved the sentinel."
+        },
+        "trophy": {
+          "name": "Tide Bell Clapper",
+          "description": "The small bronze clapper that rang inside a sentinel's chest. It rings once more if you shake it."
+        },
+        "gear": {
+          "name": "Sentinel Maul",
+          "slot": "weapon",
+          "weaponType": "mace",
+          "armorType": "none",
+          "description": "A heavy head of riveted iron on a salt-pale haft. It was built to stop the tide, and it nearly does."
+        }
+      }
+    ],
+    "recipes": {
+      "first": {
+        "name": "Rivetbound Mace",
+        "category": "weapon",
+        "description": "A mace headed with sentinel rivets and wrapped in chitin. It lands with a dull, final sound.",
+        "materials": ["D:E2", "D:E1"]
+      },
+      "second": {
+        "name": "Chitin Jerkin",
+        "category": "armor",
+        "description": "A jerkin of overlapping skitter shell, salted until it no longer smells. Mostly.",
+        "materials": ["D:E1", "G1"]
+      },
+      "third": {
+        "name": "Brinewort Broth",
+        "category": "consumable",
+        "description": "A grey broth of brinewort and pan salt. It warms you, which is the kindest thing it does.",
+        "materials": ["G2", "G1"]
+      }
+    }
+  },
+  "lateCreature": null
+}

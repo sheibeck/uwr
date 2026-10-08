@@ -1,0 +1,66 @@
+{
+  "region": {
+    "gatherables": {
+      "common": {
+        "name": "Teethstone Ore",
+        "kind": "metal",
+        "terrain": "mountains",
+        "description": "Dark ore broken from the jagged ridges. It rings like a struck pot when you drop it."
+      },
+      "uncommon": {
+        "name": "Climber Moss",
+        "kind": "edible",
+        "terrain": "woods",
+        "description": "A thick, peppery moss that grows on the shaded side of the pines. Climbers chew it for the cold."
+      },
+      "rare": {
+        "name": "Frostvein Quartz",
+        "kind": "trinket",
+        "terrain": "mountains",
+        "description": "Clear quartz threaded with white veins that look like frost and never melt."
+      }
+    },
+    "creatures": [
+      {
+        "enemy": "E1",
+        "drop": {
+          "name": "Gritmaw Hide",
+          "kind": "hide",
+          "description": "A coarse hide studded with grit the climber rolled in for armor. It wears through a knife."
+        },
+        "trophy": {
+          "name": "Gritmaw Molar",
+          "description": "A flat, cracked molar the size of your palm. Hunters in the valley keep them on strings."
+        },
+        "gear": {
+          "name": "Cliffhide Boots",
+          "slot": "boots",
+          "weaponType": "none",
+          "armorType": "leather",
+          "description": "Soft boots with gritted soles, taken from a climber's last meal. They grip wet stone."
+        }
+      }
+    ],
+    "recipes": {
+      "first": {
+        "name": "Gritmaw Jerkin",
+        "category": "armor",
+        "description": "A heavy jerkin of gritted hide, lined with ore-dark thread.",
+        "materials": ["D:E1", "G1"]
+      },
+      "second": {
+        "name": "Ashglass Cleaver",
+        "category": "weapon",
+        "description": "A cleaver of teethstone edged with ashglass. It cuts and then it keeps cutting.",
+        "materials": ["G1", "F3", "F1"]
+      },
+      "third": {
+        "name": "Varrow Crown",
+        "category": "accessory",
+        "description": "A circlet of frostvein quartz set in rivet iron, bound with ashen moss and reedsilk.",
+        "materials": ["G3", "F2", "F4", "F5"]
+      }
+    }
+  },
+  "lateCreature": null
+}
