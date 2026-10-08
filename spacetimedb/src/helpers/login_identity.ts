@@ -6,9 +6,10 @@
  * (ctx.senderAuth.jwt.fullPayload). SpacetimeDB checks the token's signature against whatever issuer
  * the token names, so this module also checks WHO issued it: the `iss` claim must be the pinned
  * SpacetimeAuth issuer and the `aud` claim must contain one of our client ids (data/auth_config.ts).
- * A token from any other issuer or client carries no usable email. The email is trimmed and
- * lower-cased like the argument always was. The reducer keeps its `email` argument (no binding
- * change) and refuses an argument that differs from the token's email.
+ * A token from any other issuer or client carries no usable email. Only the `email` claim counts,
+ * and only while `email_verified` (when present) is true. The email is trimmed and lower-cased like
+ * the argument always was. The reducer keeps its `email` argument (no binding change) and refuses
+ * an argument that differs from the token's email.
  *
  * Admin identities (data/admin.ts, which includes the CLI identity) may still supply the email,
  * so the live-proof scripts (scripts/llm/drills.live.ts, prove-live.live.ts) keep signing in.
@@ -36,7 +37,7 @@ const claimString = (value: unknown): string | null => {
 };
 
 /** Why a sign-in token gave no email (logged by login_email, never shown with the email). */
-export type TokenEmailRefusal = 'no_token' | 'issuer' | 'audience' | 'no_email';
+export type TokenEmailRefusal = 'no_token' | 'issuer' | 'audience' | 'unverified' | 'no_email';
 
 export type TokenEmail = { email: string; refusal: null } | { email: null; refusal: TokenEmailRefusal };
 
@@ -53,10 +54,15 @@ export function trustedAudience(aud: unknown): boolean {
   return list.some((entry) => typeof entry === 'string' && SPACETIMEAUTH_CLIENT_IDS.includes(entry));
 }
 
+/** email_verified as providers send it: true, or the string 'true'. */
+const emailVerified = (value: unknown): boolean => value === true || value === 'true';
+
 /**
  * The email in the caller's sign-in token, or the reason there is none. The token must come from
- * the pinned issuer for one of our clients. Reads `email`, else `preferred_username`, trimmed and
- * lower-cased. Never throws.
+ * the pinned issuer for one of our clients. Reads only the `email` claim, trimmed and lower-cased.
+ * When the token says whether the provider verified that email (`email_verified`), it must say
+ * yes. `preferred_username` is never used: providers let the user choose it, so it proves nothing
+ * (WR-01). Never throws.
  */
 export function readTokenEmail(senderAuth: unknown): TokenEmail {
   if (!senderAuth || typeof senderAuth !== 'object') return { email: null, refusal: 'no_token' };
@@ -72,8 +78,12 @@ export function readTokenEmail(senderAuth: unknown): TokenEmail {
     const claims = payload as Record<string, unknown>;
     if (!trustedIssuer(claims.iss)) return { email: null, refusal: 'issuer' };
     if (!trustedAudience(claims.aud)) return { email: null, refusal: 'audience' };
-    const email = claimString(claims.email ?? claims.preferred_username ?? null);
-    return email ? { email, refusal: null } : { email: null, refusal: 'no_email' };
+    const email = claimString(claims.email);
+    if (!email) return { email: null, refusal: 'no_email' };
+    if ('email_verified' in claims && !emailVerified(claims.email_verified)) {
+      return { email: null, refusal: 'unverified' };
+    }
+    return { email, refusal: null };
   } catch {
     return { email: null, refusal: 'no_token' };
   }

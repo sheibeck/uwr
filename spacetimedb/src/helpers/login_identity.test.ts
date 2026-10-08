@@ -1,8 +1,8 @@
 /**
  * CR-01 (plan 51.1-05): the sign-in email comes from the verified token, not from the client.
- * verifiedEmailFromAuth mirrors the client's parseJwtEmail claim order (email, else
- * preferred_username); resolveLoginEmail decides what login_email links. TOKEN_EMAIL_CHECK is
- * the owner's one-line rollback switch, pinned here.
+ * verifiedEmailFromAuth reads only the `email` claim of a SpacetimeAuth token for our client, and
+ * refuses it when `email_verified` says no (code review CR-01, WR-01); resolveLoginEmail decides
+ * what login_email links. TOKEN_EMAIL_CHECK is the owner's one-line rollback switch, pinned here.
  */
 import { describe, it, expect } from 'vitest';
 // @ts-ignore node builtins are not in the server tsconfig types
@@ -25,14 +25,30 @@ describe('verifiedEmailFromAuth', () => {
     expect(verifiedEmailFromAuth(auth({ email: '  Ann@Example.COM ' }))).toBe('ann@example.com');
   });
 
-  it('falls back to preferred_username when there is no email claim', () => {
-    expect(verifiedEmailFromAuth(auth({ preferred_username: 'Cara@Example.com' }))).toBe('cara@example.com');
+  it('never falls back to preferred_username, which the user chooses (WR-01)', () => {
+    expect(verifiedEmailFromAuth(auth({ preferred_username: 'Cara@Example.com' }))).toBeNull();
+    expect(readTokenEmail(auth({ preferred_username: 'cara@example.com' })).refusal).toBe('no_email');
   });
 
-  it('prefers email over preferred_username', () => {
+  it('uses email even when preferred_username differs', () => {
     expect(
       verifiedEmailFromAuth(auth({ email: 'ann@example.com', preferred_username: 'other@example.com' })),
     ).toBe('ann@example.com');
+  });
+
+  it('refuses an email the provider says is not verified (WR-01)', () => {
+    expect(readTokenEmail(auth({ email: 'ann@example.com', email_verified: false }))).toEqual({
+      email: null,
+      refusal: 'unverified',
+    });
+    expect(verifiedEmailFromAuth(auth({ email: 'ann@example.com', email_verified: 'false' }))).toBeNull();
+    expect(verifiedEmailFromAuth(auth({ email: 'ann@example.com', email_verified: null }))).toBeNull();
+  });
+
+  it('accepts a verified email, and an email when the token does not say', () => {
+    expect(verifiedEmailFromAuth(auth({ email: 'ann@example.com', email_verified: true }))).toBe('ann@example.com');
+    expect(verifiedEmailFromAuth(auth({ email: 'ann@example.com', email_verified: 'true' }))).toBe('ann@example.com');
+    expect(verifiedEmailFromAuth(auth({ email: 'ann@example.com' }))).toBe('ann@example.com');
   });
 
   it('returns null without a usable claim', () => {

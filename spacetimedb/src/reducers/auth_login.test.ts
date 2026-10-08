@@ -1,8 +1,9 @@
 /**
  * CR-01 through the real login_email handler (plan 51.1-05), on the strict mock db.
  * The email linked to the caller's player row comes from the verified sign-in token
- * (ctx.senderAuth.jwt.fullPayload: email, else preferred_username). A different argument or a
- * token without an email is refused with a SenderError and writes nothing. Admin identities
+ * (ctx.senderAuth.jwt.fullPayload: the `email` claim of a SpacetimeAuth token for our client, not
+ * marked unverified). A different argument or a token without a trusted email is refused with a
+ * SenderError and writes nothing. Admin identities
  * (the CLI identity the live-proof scripts use) may still supply the email.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
@@ -132,12 +133,25 @@ describe('login_email takes the email from the sign-in token (CR-01)', () => {
     expect(users(ctx)).toHaveLength(0);
   });
 
-  it('falls back to preferred_username when the token has no email', () => {
-    const ctx = newCtx(withJwt({ preferred_username: 'cara@example.com' }));
-    loginEmail(ctx, { email: 'cara@example.com' });
+  it('refuses a token that carries only preferred_username (WR-01) and writes nothing', () => {
+    const ctx = newCtx(withJwt({ preferred_username: 'cara@example.com' }), player, {
+      user: [{ id: 9n, email: 'cara@example.com', createdAt: at(T0) }],
+    });
+    expect(() => loginEmail(ctx, { email: 'cara@example.com' })).toThrow('Sign-in token carries no email.');
     expect(users(ctx)).toHaveLength(1);
-    expect(users(ctx)[0].email).toBe('cara@example.com');
-    expect(playerOf(ctx, player).userId).toBe(users(ctx)[0].id);
+    expect(playerOf(ctx, player)).toEqual(playerRow(player));
+  });
+
+  it('refuses an email the provider marks unverified (WR-01)', () => {
+    const ctx = newCtx(withJwt({ email: 'ann@example.com', email_verified: false }));
+    expect(() => loginEmail(ctx, { email: 'ann@example.com' })).toThrow('Sign-in token carries no email.');
+    expect(users(ctx)).toHaveLength(0);
+  });
+
+  it('links a verified email', () => {
+    const ctx = newCtx(withJwt({ email: 'ann@example.com', email_verified: true }));
+    loginEmail(ctx, { email: 'ann@example.com' });
+    expect(users(ctx).map((u: any) => u.email)).toEqual(['ann@example.com']);
   });
 
   it('keeps the old "Invalid email" refusal for an argument without @', () => {
