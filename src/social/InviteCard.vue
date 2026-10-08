@@ -279,7 +279,7 @@ watch(
 
 .follow-icon {
   flex: none;
-  margin-top: 2px;
+  margin-top: 4px;
   color: var(--color-accent-300);
 }
 
