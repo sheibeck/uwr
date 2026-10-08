@@ -640,9 +640,35 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
   ctx.db.region_economy.regionId.update({ ...latest, status: 'complete', updatedAt: ctx.timestamp });
 }
 
-/** Late-creature mode (Task 3). */
-function applyLateCreatureResult(_ctx: any, _c: EconomyJobContext, _resultText: string): void {
-  // Implemented with the late-creature tests.
+/** Rank of a gather slot rarity (common, uncommon, rare); anything else sorts last. */
+function gatherRank(rarity: unknown): number {
+  const i = GATHER_SLOTS.indexOf(text(rarity));
+  return i === -1 ? GATHER_SLOTS.length : i;
+}
+
+/**
+ * Late-creature mode: an enemy type that joined an already designed region gets its drop, trophy,
+ * gear and loot table, built from the region's existing gatherables (common, uncommon, rare, then by
+ * id). Writes only when the region's economy is complete and the enemy has no enemy_loot_entry rows;
+ * an unusable reply writes nothing and changes no status. Uses the same writeCreature as region mode.
+ */
+function applyLateCreatureResult(ctx: any, c: EconomyJobContext, resultText: string): void {
+  const regionId = c.regionId;
+  const enemyId = c.enemyTemplateId;
+  if (enemyId === 0n) return;
+  const statusRow = ctx.db.region_economy.regionId.find(regionId);
+  if (!statusRow || statusRow.status !== 'complete') return;
+  const present = [...ctx.db.enemy_loot_entry.by_enemy.filter(enemyId)];
+  if (present.length > 0) return;
+  const own = new Set<string>([`drop:${enemyId}`, `trophy:${enemyId}`, `gear:${enemyId}`]);
+  const book = openBook(ctx, c.input, regionId, (slotKey) => own.has(slotKey), () => false);
+  const creature = validateLateCreature(c.input, parseReplyText(resultText), isTakenIn(book));
+  if (creature === null || creature.enemyTemplateId !== enemyId) return;
+  const gatherableIds = [...book.slots.values()]
+    .filter((row) => row.role === 'gather' && ctx.db.item_template.id.find(row.itemTemplateId))
+    .sort((a, b) => gatherRank(a.rarity) - gatherRank(b.rarity) || compareBig(a.itemTemplateId, b.itemTemplateId))
+    .map((row) => row.itemTemplateId as bigint);
+  writeCreature(book, creature, enemyLevelOf(c.input, enemyId), gatherableIds);
 }
 
 /**
