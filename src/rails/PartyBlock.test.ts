@@ -360,7 +360,7 @@ describe('PartyBlock in combat (ally targeting)', () => {
     }
     expect(w.find('.hint').exists()).toBe(false);
     // You are a member here, so 51.1 adds the reason after the visible label.
-    expect(w.get('button.invite').text()).toBe('InviteOnly the leader can invite.');
+    expect(w.get('button.invite').text()).toBe('Invite Only the leader can invite.');
     expect(w.find('.member-hp').exists()).toBe(false);
     expect(w.findAll('.member-level').map((l) => l.text())).toEqual(['Lv 4 · 10 st', 'Lv 4 · 10 st']);
   });

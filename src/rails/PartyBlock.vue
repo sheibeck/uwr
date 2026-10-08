@@ -177,7 +177,7 @@ function invite(): void {
         @click="invite"
       >
         <PhUserPlus :size="14" aria-hidden="true" />Invite<span v-if="inviteReason !== null" class="sr-only">{{
-          inviteReason
+          ` ${inviteReason}`
         }}</span>
       </button>
     </div>
