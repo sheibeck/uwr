@@ -14,8 +14,14 @@ const props = defineProps<{
 }>();
 
 const pct = computed(() => healthPercent(props.pet.currentHp, props.pet.maxHp));
+// At 0 the pet has faded and the server is about to delete the row (51.1 review client-social IN-04):
+// no 0:00 clock and no "fades in about 1 minute" sentence for it.
 const timed = computed(
-  () => props.secondsLeft !== null && props.pet.expiresAtMicros !== null && props.pet.expiresAtMicros !== undefined,
+  () =>
+    props.secondsLeft !== null &&
+    props.secondsLeft > 0 &&
+    props.pet.expiresAtMicros !== null &&
+    props.pet.expiresAtMicros !== undefined,
 );
 const clock = computed(() => formatClock(props.secondsLeft ?? 0));
 const sentence = computed(() => {

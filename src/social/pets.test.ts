@@ -89,6 +89,14 @@ describe('PetRow', () => {
     expect(w.text()).not.toContain('fades');
   });
 
+  it('at 0 seconds (faded, row not yet deleted) shows no clock, hourglass or fades-in text (review IN-04)', () => {
+    const w = mountRow({ pet: TIMED, ownerName: null, secondsLeft: 0 });
+    expect(w.findComponent(PhHourglassMedium).exists()).toBe(false);
+    expect(w.find('.pet-timer').exists()).toBe(false);
+    expect(w.text()).not.toContain('0:00');
+    expect(w.text()).not.toContain('fades');
+  });
+
   it('reads "Your pet" for the owner and "<owner>\'s pet" for a member', () => {
     const mine = mountRow({ pet: WOLF, ownerName: null, secondsLeft: null });
     expect(mine.find('.sr-only').text()).toBe('Your pet');
@@ -165,6 +173,12 @@ describe('PetTag', () => {
     const w = mountTag({ pet: WOLF, secondsLeft: 30 });
     expect(w.find('.pet-timer').exists()).toBe(false);
     expect(w.find('.sr-only').text()).not.toContain('fades');
+  });
+
+  it('at 0 seconds shows no clock and drops the fades part from the sentence (review IN-04)', () => {
+    const w = mountTag({ pet: TIMED, secondsLeft: 0 });
+    expect(w.find('.pet-timer').exists()).toBe(false);
+    expect(w.find('.sr-only').text()).toBe('Your pet Wolf, health 45 percent');
   });
 
   it('renders markup in the name as text', () => {

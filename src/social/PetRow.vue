@@ -29,8 +29,14 @@ const hpText = computed(() => `${props.pet.currentHp}/${props.pet.maxHp}`);
 const fill = computed(() => `${Math.round(barFraction(props.pet.currentHp, props.pet.maxHp) * 100)}%`);
 const label = computed(() => `${props.pet.name} health ${props.pet.currentHp} of ${props.pet.maxHp}`);
 // A timer only for a pet that has an expiry on the server.
+// At 0 the pet has faded and the server is about to delete the row (51.1 review client-social IN-04):
+// no 0:00 clock and no "fades in about 1 minute" sentence for it.
 const timed = computed(
-  () => props.secondsLeft !== null && props.pet.expiresAtMicros !== null && props.pet.expiresAtMicros !== undefined,
+  () =>
+    props.secondsLeft !== null &&
+    props.secondsLeft > 0 &&
+    props.pet.expiresAtMicros !== null &&
+    props.pet.expiresAtMicros !== undefined,
 );
 const clock = computed(() => formatClock(props.secondsLeft ?? 0));
 const fades = computed(() => `fades in ${aboutMinutes(props.secondsLeft ?? 0)}`);
