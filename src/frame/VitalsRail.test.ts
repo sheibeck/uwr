@@ -649,6 +649,19 @@ describe('VitalsRail self block (51.1)', () => {
     expect(document.activeElement).toBe(heading);
   });
 
+  // Review client-rest IN-01: your name renders through the shared CharacterName in both modes.
+  it('renders your name through CharacterName out of combat and inside the self target', async () => {
+    const w = mountSelf({ party: 'member' });
+    const name = w.get('.identity .name');
+    expect(name.classes()).toContain('character-name');
+    expect(name.attributes('title')).toBe('Ann');
+    expect(name.element.tagName).toBe('SPAN');
+    combatActive.value = true;
+    await nextTick();
+    expect(w.get('button.self-target .name').classes()).toContain('character-name');
+    expect(w.findAll('button.self-target div')).toHaveLength(0);
+  });
+
   // Review client-rest IN-02: the pet row's elbow reaches the block, as under a member card.
   it('keeps the 16px only between identity and bars, so the pet row sits 4px under the block', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsRail.vue'), 'utf8').replace(/\r\n/g, '\n');

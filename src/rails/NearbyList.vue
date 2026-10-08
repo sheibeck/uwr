@@ -29,6 +29,7 @@ import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
 import type { NearbyKind, NearbyRow } from './nearby';
+import CharacterName from '../social/CharacterName.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
 
 // Nearby rows with one-click actions (47-UI-SPEC "Nearby", CON-04, CON-02; 51-UI-SPEC "Rail Row
@@ -335,7 +336,9 @@ async function bind(): Promise<void> {
         </button>
         <div v-else class="row-main static">
           <component :is="ICONS[row.kind]" class="row-icon" :size="14" aria-hidden="true" />
-          <span class="row-name" :title="row.name">{{ row.name }}</span>
+          <!-- Player names go through the shared CharacterName (51.1 review client-rest IN-01). -->
+          <CharacterName v-if="row.kind === 'player'" class="row-name" :name="row.name" />
+          <span v-else class="row-name" :title="row.name">{{ row.name }}</span>
           <span class="row-hint">{{ row.hint }}</span>
         </div>
 

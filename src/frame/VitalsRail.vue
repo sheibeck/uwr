@@ -9,6 +9,7 @@ import PartyBlock from '../rails/PartyBlock.vue';
 import { effectViews } from '../rails/effects';
 import { isPartyLeader } from '../rails/party';
 import { xpProgress } from '../rails/xp';
+import CharacterName from '../social/CharacterName.vue';
 import PetRow from '../social/PetRow.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
 import TravelSwitch from '../social/TravelSwitch.vue';
@@ -159,7 +160,7 @@ const bars = computed(() => [
           <component :is="tag" class="avatar" aria-hidden="true">{{ props.avatarInitial }}</component>
           <component :is="tag" class="identity-text">
             <component :is="tag" class="name-row">
-              <component :is="tag" class="name" :title="props.name">{{ props.name }}</component>
+              <CharacterName class="name" :name="props.name" />
               <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
             </component>
             <component :is="tag" class="class-line">{{ props.classLine }}</component>
@@ -382,8 +383,14 @@ const bars = computed(() => [
   color: var(--color-accent);
 }
 
+/* Your name renders through the shared CharacterName (51.1 review client-rest IN-01; 52.2 adds the
+   guild tag in its slot). Its root is a span in both modes, so it stays phrasing content inside the
+   self target button. The child selector outranks the component's own inline-flex root rule. */
+.name-row > .name {
+  display: flex;
+}
+
 .name {
-  display: block;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;

@@ -339,6 +339,18 @@ describe('player rows (51.1-12)', () => {
 
 // Review client-rest WR-03: players drop out of Nearby when they log out or walk away. Focus on a
 // removed row's control moves to the next row's first button, else the Nearby heading.
+describe('player names (review client-rest IN-01)', () => {
+  it('render through CharacterName with the title, as text', () => {
+    const playersHere = ref([{ ...PERSON, id: 4n, name: PAYLOAD, level: 3n }]);
+    const { w } = mountList({ playersHere });
+    const name = w.get('.kind-player .row-name');
+    expect(name.classes()).toContain('character-name');
+    expect(name.attributes('title')).toBe(PAYLOAD);
+    expect(name.text()).toBe(PAYLOAD);
+    expect(w.find('img').exists()).toBe(false);
+  });
+});
+
 describe('focus when a row goes', () => {
   it("a player leaving while his Whisper has focus moves focus to the next row's first button", async () => {
     const playersHere = ref([
