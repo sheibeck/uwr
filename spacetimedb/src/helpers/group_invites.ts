@@ -18,7 +18,8 @@ import { appendGroupEvent, appendPrivateEvent } from './events';
 /** withdrawn: the invite's group emptied, or its inviter or target was deleted (WR-05). */
 export type InviteEnd = 'expired' | 'cancelled' | 'declined' | 'withdrawn';
 
-const byId = (a: { id: bigint }, b: { id: bigint }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+/** Orders rows by id (ascending). */
+export const byId = (a: { id: bigint }, b: { id: bigint }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /** True while now is before createdAt + TTL. */
 export function inviteIsLive(

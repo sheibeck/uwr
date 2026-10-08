@@ -2,6 +2,7 @@ import { scheduledReducers } from '../schema/tables';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { MAX_GROUP_SIZE } from '../data/group_config';
 import {
+  byId,
   cancelInviteExpiry,
   endExpiredInvitesOfGroup,
   endExpiredInvitesTo,
@@ -32,7 +33,7 @@ export const registerGroupReducers = (deps: any) => {
   /** Of the matching invites, a live one when there is one, else an expired one (or null). */
   const pickInvite = (ctx: any, invites: any[]): any | null => {
     const now = ctx.timestamp.microsSinceUnixEpoch;
-    const sorted = [...invites].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const sorted = [...invites].sort(byId);
     return sorted.find((invite) => inviteIsLive(invite, now)) ?? sorted[0] ?? null;
   };
 
@@ -265,39 +266,16 @@ export const registerGroupReducers = (deps: any) => {
         const group = ctx.db.group.id.find(inviter.groupId);
         if (!group) return failGroup(ctx, inviter, 'Group not found');
         if (group.leaderCharacterId !== inviter.id) {
-          appendPrivateEvent(
-            ctx,
-            inviter.id,
-            inviter.ownerUserId,
-            'group',
-            'Only the group leader can invite new members.'
-          );
-          return;
+          return failGroup(ctx, inviter, 'Only the group leader can invite new members.');
         }
       }
 
-      if (target.groupId) {
-        appendPrivateEvent(
-          ctx,
-          inviter.id,
-          inviter.ownerUserId,
-          'group',
-          `${target.name} is already in a group.`
-        );
-        return;
-      }
+      if (target.groupId) return failGroup(ctx, inviter, `${target.name} is already in a group.`);
 
       if (target.online !== true) return failGroup(ctx, inviter, `${target.name} is offline.`);
 
       if (liveInvitesTo(ctx, target.id).length > 0) {
-        appendPrivateEvent(
-          ctx,
-          inviter.id,
-          inviter.ownerUserId,
-          'group',
-          `${target.name} already has a pending invite.`
-        );
-        return;
+        return failGroup(ctx, inviter, `${target.name} already has a pending invite.`);
       }
 
       // Invite spam guard (WR-02): after a decline or cancel, wait before inviting the same person.
@@ -309,8 +287,7 @@ export const registerGroupReducers = (deps: any) => {
       if (inviter.groupId) {
         const members = [...ctx.db.group_member.by_group.filter(inviter.groupId)].length;
         if (members + liveInvitesOfGroup(ctx, inviter.groupId).length >= MAX_GROUP_SIZE) {
-          appendPrivateEvent(ctx, inviter.id, inviter.ownerUserId, 'group', 'Your group is full.');
-          return;
+          return failGroup(ctx, inviter, 'Your group is full.');
         }
       }
 
