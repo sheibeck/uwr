@@ -1,0 +1,203 @@
+// Economy rules: the one pure module that holds every runtime economy number of Phase 51.3.
+//
+// Owns (CONTEXT Area 1 and Area 4): the dial ranges, defaults and clamps; how the dial levels combine
+// (global, then region, then item pin; tier weights as a separate axis); the rarity mix by enemy level;
+// the independent splitmix64 rolls and their fixed indexes; pick counts, gear chance, gold and gather
+// yield; the creature profiles; and the composition of the fallback and AI loot tables. The server owns
+// every number (SC2, SC5): the stored dials only ever pass through effectiveDials, and every roll reads
+// the result.
+//
+// Callers (later Phase 51.3 plans): the loot plan (helpers/loot.ts), gathering, the /economy admin
+// command and reducers, and the region economy apply. None of them re-derives a number.
+//
+// Purity rule: this module imports only ./mechanical_vocabulary and ./crafting_rules, never a helper,
+// the schema or the server package. ES2020 only, never throws, no clock, no source of chance. Every roll
+// is a splitmix64 step over a seed built from ctx values, so a re-run transaction replays identically.
+// All math is bigint with floor division; no seed is ever converted to Number.
+import { QUALITY_TIERS, type QualityTier } from './mechanical_vocabulary';
+
+// ---------------------------------------------------------------------------
+// Dial ranges, defaults and clamps
+// ---------------------------------------------------------------------------
+
+export interface DialRange {
+  readonly min: bigint;
+  readonly max: bigint;
+  readonly def: bigint;
+}
+
+/** The safe range and the default of every dial. The defaults are today's tuning. */
+export const DIAL_RANGES = Object.freeze({
+  rarityShift: Object.freeze({ min: -2n, max: 2n, def: 0n }),
+  dropRatePct: Object.freeze({ min: 0n, max: 300n, def: 100n }),
+  goldPct: Object.freeze({ min: 0n, max: 300n, def: 100n }),
+  gatherRatePct: Object.freeze({ min: 50n, max: 300n, def: 100n }),
+  bossRarityBonus: Object.freeze({ min: 0n, max: 2n, def: 0n }),
+  tierPct: Object.freeze({ min: 0n, max: 300n, def: 100n }),
+  itemDropPct: Object.freeze({ min: 0n, max: 300n, def: 100n }),
+});
+
+export type DialName = keyof typeof DIAL_RANGES;
+
+/** The global dial row as stored: scalar dials, the five tier weights and the AI route switch. */
+export interface GlobalDials {
+  rarityShift: bigint;
+  dropRatePct: bigint;
+  goldPct: bigint;
+  gatherRatePct: bigint;
+  bossRarityBonus: bigint;
+  tierCommonPct: bigint;
+  tierUncommonPct: bigint;
+  tierRarePct: bigint;
+  tierEpicPct: bigint;
+  tierLegendaryPct: bigint;
+  aiEnabled: boolean;
+}
+
+/** A region override: each field is absent (undefined or null) to inherit the global value. */
+export interface RegionDials {
+  rarityShift?: bigint | null;
+  dropRatePct?: bigint | null;
+  goldPct?: bigint | null;
+  gatherRatePct?: bigint | null;
+  bossRarityBonus?: bigint | null;
+}
+
+/** The dials after combination and clamping; what every roll reads. */
+export interface EffectiveDials {
+  rarityShift: bigint;
+  dropRatePct: bigint;
+  goldPct: bigint;
+  gatherRatePct: bigint;
+  bossRarityBonus: bigint;
+  tierPct: Record<QualityTier, bigint>;
+}
+
+/** The singleton defaults. A missing dial row means these (a fresh install behaves as today). */
+export const DEFAULT_DIALS: Readonly<GlobalDials> = Object.freeze({
+  rarityShift: DIAL_RANGES.rarityShift.def,
+  dropRatePct: DIAL_RANGES.dropRatePct.def,
+  goldPct: DIAL_RANGES.goldPct.def,
+  gatherRatePct: DIAL_RANGES.gatherRatePct.def,
+  bossRarityBonus: DIAL_RANGES.bossRarityBonus.def,
+  tierCommonPct: DIAL_RANGES.tierPct.def,
+  tierUncommonPct: DIAL_RANGES.tierPct.def,
+  tierRarePct: DIAL_RANGES.tierPct.def,
+  tierEpicPct: DIAL_RANGES.tierPct.def,
+  tierLegendaryPct: DIAL_RANGES.tierPct.def,
+  aiEnabled: false,
+});
+
+/**
+ * Clamps one dial value to its safe range. Never throws: a value that is not a bigint gives the
+ * dial's default with clamped true. `clamped` is true whenever the returned value differs from the input.
+ */
+export function clampDial(name: DialName, value: unknown): { value: bigint; clamped: boolean } {
+  const range = DIAL_RANGES[name];
+  if (typeof value !== 'bigint') return { value: range.def, clamped: true };
+  if (value < range.min) return { value: range.min, clamped: true };
+  if (value > range.max) return { value: range.max, clamped: true };
+  return { value, clamped: false };
+}
+
+/**
+ * The dials one roll reads: per scalar dial, the region value when present, else the global value,
+ * then clamped. A region value REPLACES the global one, it never multiplies it. The tier weights come
+ * from the five global tier columns, clamped; they are a separate axis that multiplies the rarity mix.
+ * A missing or partial global falls back to the defaults.
+ */
+export function effectiveDials(
+  global: Partial<GlobalDials> | null | undefined,
+  region?: RegionDials | null,
+): EffectiveDials {
+  const g = global ?? {};
+  const r = region ?? {};
+  const pick = (name: 'rarityShift' | 'dropRatePct' | 'goldPct' | 'gatherRatePct' | 'bossRarityBonus'): bigint => {
+    const regional = r[name];
+    const raw = regional !== undefined && regional !== null ? regional : g[name] !== undefined ? g[name] : DEFAULT_DIALS[name];
+    return clampDial(name, raw).value;
+  };
+  const tier = (v: bigint | undefined): bigint => clampDial('tierPct', v === undefined ? DIAL_RANGES.tierPct.def : v).value;
+  return {
+    rarityShift: pick('rarityShift'),
+    dropRatePct: pick('dropRatePct'),
+    goldPct: pick('goldPct'),
+    gatherRatePct: pick('gatherRatePct'),
+    bossRarityBonus: pick('bossRarityBonus'),
+    tierPct: {
+      common: tier(g.tierCommonPct),
+      uncommon: tier(g.tierUncommonPct),
+      rare: tier(g.tierRarePct),
+      epic: tier(g.tierEpicPct),
+      legendary: tier(g.tierLegendaryPct),
+    },
+  };
+}
+
+/**
+ * The weight of one candidate item after its admin pin: base * pin / 100, the pin clamped to 0..300.
+ * The pin replaces the drop rate for that item's weight only. No pin means 100.
+ */
+export function itemWeight(baseWeight: bigint, itemPct?: bigint | null): bigint {
+  const pct = clampDial('itemDropPct', itemPct === undefined || itemPct === null ? DIAL_RANGES.itemDropPct.def : itemPct).value;
+  return (baseWeight * pct) / 100n;
+}
+
+// ---------------------------------------------------------------------------
+// Rolls and seeds
+// ---------------------------------------------------------------------------
+
+/**
+ * The fixed roll index of every independent roll. One seed, many indexes: a gear drop's rarity never
+ * follows its gear roll (the old code rolled both from the same number shifted by a constant). Never
+ * add an offset to a raw timestamp; add an index here. PICK_BASE uses 2..9 and AI_TABLE_PICK_BASE 41..43.
+ */
+export const ROLL_INDEX = Object.freeze({
+  PICK_COUNT: 1n,
+  PICK_BASE: 2n,
+  GEAR_CHANCE: 10n,
+  GEAR_PICK: 11n,
+  RARITY: 12n,
+  CRAFT_QUALITY: 13n,
+  AFFIX: 14n,
+  GOLD: 20n,
+  ESSENCE: 21n,
+  MODIFIER: 22n,
+  SCROLL: 23n,
+  SCROLL_PICK: 24n,
+  MODIFIER_PICK: 25n,
+  GATHER_QTY: 30n,
+  AI_TABLE_COUNT: 40n,
+  AI_TABLE_PICK_BASE: 41n,
+});
+
+/**
+ * Roll number `index` of a seed: the splitmix64 step of salvageRoll (data/crafting_rules.ts, reviewed
+ * as IN-02), returning the full 64-bit value instead of a percent.
+ */
+export function economyRoll(seed: bigint, index: bigint): bigint {
+  let z = BigInt.asUintN(64, seed + (index + 1n) * 0x9e3779b97f4a7c15n);
+  z = BigInt.asUintN(64, (z ^ (z >> 30n)) * 0xbf58476d1ce4e5b9n);
+  z = BigInt.asUintN(64, (z ^ (z >> 27n)) * 0x94d049bb133111ebn);
+  return z ^ (z >> 31n);
+}
+
+/** economyRoll below n (0 up to n - 1); 0n when n is not positive. */
+export function rollBelow(seed: bigint, index: bigint, n: bigint): bigint {
+  if (n <= 0n) return 0n;
+  return economyRoll(seed, index) % n;
+}
+
+/**
+ * The roll seed of one enemy's loot for one character: the server timestamp, the character id and the
+ * combat_enemy row id. Two enemies of one template in the same fight have different row ids, so they
+ * roll differently (the old seed was timestamp plus character id for all of them).
+ */
+export function lootSeed(tsMicros: bigint, characterId: bigint, combatEnemyId: bigint): bigint {
+  return BigInt.asUintN(64, tsMicros * 1000003n + characterId * 7919n + combatEnemyId * 104729n);
+}
+
+/** The seed of a region's table composition for one enemy template (AI loot tables). */
+export function regionTableSeed(regionId: bigint, enemyTemplateId: bigint): bigint {
+  return BigInt.asUintN(64, regionId * 1000003n + enemyTemplateId * 7919n);
+}
