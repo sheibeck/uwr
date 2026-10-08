@@ -146,11 +146,17 @@ function onPointerDown(event: Event): void {
 
 // The desktop popover is placed once from the opener's rectangle (position: fixed), so a scrolled
 // rail or a resized window would leave it beside the wrong row (51.1 review client-social WR-04).
-// Any scroll outside the menu (capture phase, so the rails count) or a resize closes it; focus held
-// in the menu goes back to the opener without scrolling it into view.
+// A resize, or a scroll that moves the opener (the document, or a scroller that contains the
+// opener: its rail), closes it. The capture listener sees every scroll in the page, so any other
+// scroller (the feed's own auto-scroll on each new line, the menu panel itself) is ignored
+// (51.1 review 2 CR-01). Focus held in the menu goes back to the opener without scrolling it into view.
+function movesOpener(target: EventTarget | null): boolean {
+  if (target === document || target === window) return true;
+  return target instanceof Node && opener.value !== null && target.contains(opener.value);
+}
+
 function onScrollOrResize(event: Event): void {
-  const target = event.target;
-  if (target instanceof Node && root.value !== null && root.value.contains(target)) return;
+  if (event.type === 'scroll' && !movesOpener(event.target)) return;
   const inside = focusInside();
   closeMenu(false);
   if (inside) opener.value?.focus({ preventScroll: true });

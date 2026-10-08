@@ -136,9 +136,9 @@ function setup(options: Options = {}) {
 
 type Setup = ReturnType<typeof setup>;
 
-function mountMenu(s: Setup, props: Record<string, unknown> = {}): VueWrapper {
+function mountMenu(s: Setup, props: Record<string, unknown> = {}, host: HTMLElement = document.body): VueWrapper {
   const w = mount(PlayerMenu, {
-    attachTo: document.body,
+    attachTo: host,
     props: { targetId: BRAM, ...props } as never,
     global: {
       provide: {
@@ -467,13 +467,14 @@ describe('PlayerMenu actions', () => {
 // Review client-rest WR-04: disconnected, the ⋯ is aria-disabled with the reason and opens nothing;
 // a menu open when the connection drops keeps its entries readable but disabled, sending nothing.
 // Review client-social WR-04: the desktop popover is fixed from the opener's rectangle, so it closes
-// on any scroll outside it (a rail scrolling) or a window resize instead of staying beside the wrong row.
+// when the rail holding its opener scrolls or the window resizes, instead of staying beside the wrong
+// row. Review 2 CR-01: any other scroller (the feed's auto-scroll on each new line) leaves it open.
 describe('PlayerMenu closes on scroll and resize (desktop)', () => {
   it('a rail scrolling closes the menu and returns focus to the opener', async () => {
     const s = setup();
     const rail = document.createElement('div');
     document.body.appendChild(rail);
-    const w = mountMenu(s);
+    const w = mountMenu(s, {}, rail);
     await opener(w).trigger('click');
     await nextTick();
     expect(items().length).toBeGreaterThan(0);
@@ -482,6 +483,32 @@ describe('PlayerMenu closes on scroll and resize (desktop)', () => {
     expect(items()).toHaveLength(0);
     expect(opener(w).attributes('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(opener(w).element);
+  });
+
+  it('the feed scrolling (its auto-scroll on a new line) leaves the menu open', async () => {
+    const s = setup();
+    const rail = document.createElement('div');
+    const feed = document.createElement('div');
+    feed.className = 'feed-scroll';
+    document.body.append(rail, feed);
+    const w = mountMenu(s, {}, rail);
+    await opener(w).trigger('click');
+    await nextTick();
+    const before = items().length;
+    expect(before).toBeGreaterThan(0);
+    feed.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(items()).toHaveLength(before);
+    expect(opener(w).attributes('aria-expanded')).toBe('true');
+  });
+
+  it('the document scrolling closes the menu', async () => {
+    const w = mountMenu(setup());
+    await opener(w).trigger('click');
+    await nextTick();
+    document.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(items()).toHaveLength(0);
   });
 
   it('a window resize closes the menu', async () => {
