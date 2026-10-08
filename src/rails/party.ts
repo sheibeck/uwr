@@ -35,6 +35,49 @@ export function healthPercent(hp: bigint, maxHp: bigint): number {
   return Math.round(barFraction(hp, maxHp) * 100);
 }
 
+export type MemberBarKind = 'health' | 'mana' | 'stamina';
+
+export interface MemberBar {
+  kind: MemberBarKind;
+  value: bigint;
+  max: bigint;
+  /** CSS width of the fill, '0%' to '100%'. */
+  width: string;
+  /** Tooltip, e.g. 'Health 50/100'. */
+  title: string;
+  /** Lower-case phrase for an accessible name, e.g. 'health 50 of 100'. */
+  phrase: string;
+}
+
+function memberBar(kind: MemberBarKind, value: bigint, max: bigint): MemberBar {
+  const label = kind.charAt(0).toUpperCase() + kind.slice(1);
+  return {
+    kind,
+    value,
+    max,
+    width: `${barFraction(value, max) * 100}%`,
+    title: `${label} ${value}/${max}`,
+    phrase: `${kind} ${value} of ${max}`,
+  };
+}
+
+/**
+ * The one rule for a party card's bars (owner 2026-10-08: every group member sees every other
+ * member's health, mana and stamina, unless the member has no mana at all). Order is the COMBAT3
+ * order: health, mana (only when partyMembers set resourceKind 'mana', i.e. maxMana > 0), stamina.
+ */
+export function memberBars(
+  member: Pick<
+    PartyMemberView,
+    'hp' | 'maxHp' | 'resource' | 'maxResource' | 'resourceKind' | 'stamina' | 'maxStamina'
+  >,
+): MemberBar[] {
+  const bars: MemberBar[] = [memberBar('health', member.hp, member.maxHp)];
+  if (member.resourceKind === 'mana') bars.push(memberBar('mana', member.resource, member.maxResource));
+  bars.push(memberBar('stamina', member.stamina, member.maxStamina));
+  return bars;
+}
+
 /** Member rows including the player. */
 export function partySize(members: readonly { characterId: bigint }[]): number {
   return members.length;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as party from './party';
-import { healthPercent, isPartyLeader, lowStaminaFor, partyMembers, partySize } from './party';
+import { healthPercent, isPartyLeader, lowStaminaFor, memberBars, partyMembers, partySize } from './party';
 
 const at = (n: number) => ({ microsSinceUnixEpoch: BigInt(n) });
 
@@ -125,7 +125,89 @@ describe('partyMembers', () => {
 // the vitals rail self block is the self target in combat, so party.ts exports only these.
 describe('party module', () => {
   it('exports the member views and helpers only', () => {
-    expect(Object.keys(party).sort()).toEqual(['healthPercent', 'isPartyLeader', 'lowStaminaFor', 'partyMembers', 'partySize']);
+    expect(Object.keys(party).sort()).toEqual([
+      'healthPercent',
+      'isPartyLeader',
+      'lowStaminaFor',
+      'memberBars',
+      'partyMembers',
+      'partySize',
+    ]);
+  });
+});
+
+describe('memberBars (owner 2026-10-08: every party card shows health, mana if any, stamina)', () => {
+  const caster = {
+    hp: 50n,
+    maxHp: 100n,
+    resource: 30n,
+    maxResource: 40n,
+    resourceKind: 'mana' as const,
+    stamina: 12n,
+    maxStamina: 40n,
+  };
+
+  it('gives a mana user health, mana and stamina in that order', () => {
+    const bars = memberBars(caster);
+    expect(bars.map((bar) => bar.kind)).toEqual(['health', 'mana', 'stamina']);
+    expect(bars.map((bar) => [bar.value, bar.max])).toEqual([
+      [50n, 100n],
+      [30n, 40n],
+      [12n, 40n],
+    ]);
+  });
+
+  it('carries width, title and phrase for each bar', () => {
+    const [health, mana, stamina] = memberBars(caster);
+    expect(health).toMatchObject({ width: '50%', title: 'Health 50/100', phrase: 'health 50 of 100' });
+    expect(mana).toMatchObject({ width: '75%', title: 'Mana 30/40', phrase: 'mana 30 of 40' });
+    expect(stamina).toMatchObject({ width: '30%', title: 'Stamina 12/40', phrase: 'stamina 12 of 40' });
+  });
+
+  it('gives a member without mana health then stamina only', () => {
+    const bars = memberBars({ ...caster, resource: 12n, maxResource: 40n, resourceKind: 'stamina' });
+    expect(bars.map((bar) => bar.kind)).toEqual(['health', 'stamina']);
+  });
+
+  it('gives an unknown member empty health and stamina bars', () => {
+    const [unknown] = partyMembers({
+      group: null,
+      members: [{ id: 10n, characterId: 9n, joinedAt: at(1) }],
+      characters: [],
+      selfId: 1n,
+    });
+    const bars = memberBars(unknown);
+    expect(bars.map((bar) => bar.kind)).toEqual(['health', 'stamina']);
+    for (const bar of bars) expect(bar).toMatchObject({ value: 0n, max: 0n, width: '0%' });
+  });
+
+  it('clamps an over-max value to 100% and a zero max to 0%', () => {
+    const [over] = memberBars({ ...caster, hp: 300n, maxHp: 260n });
+    expect(over.width).toBe('100%');
+    const [zero] = memberBars({ ...caster, hp: 5n, maxHp: 0n });
+    expect(zero.width).toBe('0%');
+  });
+
+  it('adds a mana bar through partyMembers only for a character with maxMana above 0', () => {
+    const members = [
+      { id: 10n, characterId: 2n, joinedAt: at(1) },
+      { id: 11n, characterId: 3n, joinedAt: at(2) },
+    ];
+    const [mage, fighter] = partyMembers({
+      group: null,
+      members,
+      characters: [
+        character(2n, { mana: 20n, maxMana: 50n, stamina: 10n, maxStamina: 20n }),
+        character(3n, { mana: 0n, maxMana: 0n, stamina: 15n, maxStamina: 30n }),
+      ],
+      selfId: 1n,
+    });
+    const mageBars = memberBars(mage);
+    expect(mageBars.map((bar) => bar.kind)).toEqual(['health', 'mana', 'stamina']);
+    expect(mageBars[1]).toMatchObject({ value: 20n, max: 50n });
+    const fighterBars = memberBars(fighter);
+    expect(fighterBars.map((bar) => bar.kind)).toEqual(['health', 'stamina']);
+    expect(fighterBars[1]).toMatchObject({ value: 15n, max: 30n });
   });
 });
 
