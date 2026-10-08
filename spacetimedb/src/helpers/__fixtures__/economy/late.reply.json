@@ -1,0 +1,22 @@
+{
+  "region": null,
+  "lateCreature": {
+    "enemy": "E1",
+    "drop": {
+      "name": "Tollman Brine",
+      "kind": "base",
+      "description": "A jar of black water wrung from a drowned tollman's coat. It is saltier than the sea that took him."
+    },
+    "trophy": {
+      "name": "Rusted Toll Token",
+      "description": "A green-crusted token stamped with a gate that no longer stands. He still clutched it when he fell."
+    },
+    "gear": {
+      "name": "Tollkeeper Hook",
+      "slot": "weapon",
+      "weaponType": "dagger",
+      "armorType": "none",
+      "description": "A short iron hook once used to drag fares from the water. You find it is still sharp."
+    }
+  }
+}

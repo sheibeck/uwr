@@ -6,8 +6,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 // @ts-ignore
 import { fileURLToPath } from 'node:url';
-import { validateRegionEconomyReply, type ValidatedRecipe, type ValidatedRegionEconomy } from './region_economy_validate';
-import { regionalRequirementPlan, type RegionEconomyInput } from '../data/economy_design_rules';
+import {
+  validateLateCreature,
+  validateRegionEconomyReply,
+  type ValidatedCreature,
+  type ValidatedRecipe,
+  type ValidatedRegionEconomy,
+} from './region_economy_validate';
+import { RESERVED_ITEM_NAMES, nameKey, regionalRequirementPlan, type RegionEconomyInput } from '../data/economy_design_rules';
 
 const FIXTURE_DIR = fileURLToPath(new URL('./__fixtures__/economy/', import.meta.url));
 
@@ -347,5 +353,266 @@ describe('validateRegionEconomyReply: creatures, terrain and names', () => {
     const plan = mustPlan(validateRegionEconomyReply(inputK0(), reply, never));
     expect(plan.gatherables[0].description.length).toBeGreaterThan(0);
     expect(plan.gatherables[0].description).not.toMatch(/[[\]{}<>]/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Late creature mode, hostile replies and the no-number guarantee (Task 3)
+// ---------------------------------------------------------------------------
+
+/** Late-creature mode: the region is designed, one enemy type arrived later. */
+function inputLate(over: Partial<RegionEconomyInput> = {}): RegionEconomyInput {
+  return inputK0({
+    mode: 'enemy',
+    enemies: [{ ref: 'E1', templateId: 401n, name: 'Drowned Tollman', creatureType: 'undead', level: 2 }],
+    recipeSlots: [],
+    existingMaterials: [
+      { name: 'Panlight Salt', kind: 'base' },
+      { name: 'Skitter Chitin', kind: 'hide' },
+    ],
+    ...over,
+  });
+}
+
+function mustCreature(creature: ValidatedCreature | null): ValidatedCreature {
+  if (creature === null) throw new Error('expected a creature, got null');
+  return creature;
+}
+
+/** Adds numeric (and one nested) extra keys to every object of a reply. */
+function withExtraNumbers(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withExtraNumbers);
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = withExtraNumbers(v);
+    return { ...out, price: 9999, level: 99, weight: 500, count: 7, stats: { str: 40, armorClass: 12, chance: 100 } };
+  }
+  return value;
+}
+
+function creatureNames(c: ValidatedCreature): string[] {
+  return [c.drop.name, c.trophy.name, c.gear.name];
+}
+
+function creatureDescriptions(c: ValidatedCreature): string[] {
+  return [c.drop.description, c.trophy.description, c.gear.description];
+}
+
+function allNames(plan: ValidatedRegionEconomy): string[] {
+  return [...plan.gatherables.map((g) => g.name), ...plan.creatures.flatMap(creatureNames), ...plan.recipes.map((r) => r.name)];
+}
+
+function allDescriptions(plan: ValidatedRegionEconomy): string[] {
+  return [
+    ...plan.gatherables.map((g) => g.description),
+    ...plan.creatures.flatMap(creatureDescriptions),
+    ...plan.recipes.map((r) => r.description),
+  ];
+}
+
+function expectSafeName(name: string): void {
+  expect(name).not.toMatch(/[[\]{}<>:]/);
+  // No digit except a trailing uniqueness numeral (' 2', ' 3', ...).
+  expect(name).toMatch(/^[^0-9]*( [2-9]| [1-9][0-9]+)?$/);
+  expect(name).not.toMatch(/^scroll/i);
+  expect(RESERVED_ITEM_NAMES.has(nameKey(name))).toBe(false);
+  expect(name.length).toBeGreaterThan(1);
+}
+
+function expectSafeDescription(description: string): void {
+  expect(description).not.toMatch(/[[\]{}<>]/);
+  expect(description.length).toBeLessThanOrEqual(240);
+}
+
+/** The path of every number or bigint in a value. */
+function numericPaths(value: unknown, path = ''): string[] {
+  if (typeof value === 'number' || typeof value === 'bigint') return [path];
+  if (Array.isArray(value)) return value.flatMap((v, i) => numericPaths(v, `${path}[${i}]`));
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>).flatMap(([k, v]) =>
+      numericPaths(v, path === '' ? k : `${path}.${k}`),
+    );
+  }
+  return [];
+}
+
+/**
+ * The only numeric values in a plan are ones the server chose: a recipe's slot index (the input
+ * slot position), the requirement counts (regionalRequirementPlan for the tier) and the enemy
+ * template id (from the input). Nothing numeric comes from the reply.
+ */
+function expectOnlyServerNumbers(plan: ValidatedRegionEconomy, input: RegionEconomyInput): void {
+  const allowed = /^(recipes\[\d+\]\.index|recipes\[\d+\]\.requirements\[\d+\]\.count|creatures\[\d+\]\.enemyTemplateId)$/;
+  for (const path of numericPaths(plan)) expect(path).toMatch(allowed);
+  for (const recipe of plan.recipes) {
+    expect([0, 1, 2]).toContain(recipe.index);
+    expect(recipe.tier).toBe(input.recipeSlots[recipe.index].tier);
+    for (const req of recipe.requirements) expect(typeof req.count).toBe('bigint');
+    expectCounts(recipe);
+  }
+  for (const c of plan.creatures) {
+    expect(c.enemyTemplateId).toBe(input.enemies.find((e) => e.ref === c.enemyRef)?.templateId);
+  }
+}
+
+describe('validateLateCreature', () => {
+  it('late.reply.json in enemy mode validates to one creature for E1', () => {
+    const creature = mustCreature(validateLateCreature(inputLate(), loadReply('late'), never));
+    expect(creature.enemyRef).toBe('E1');
+    expect(creature.enemyTemplateId).toBe(401n);
+    expect(creature.drop).toMatchObject({ name: 'Tollman Brine', kind: 'base' });
+    expect(creature.trophy.name).toBe('Rusted Toll Token');
+    expect(creature.gear).toMatchObject({ name: 'Tollkeeper Hook', slot: 'weapon', weaponType: 'dagger', armorType: 'none' });
+  });
+
+  it('returns null when lateCreature is null, missing or not an object', () => {
+    for (const reply of [{ region: null, lateCreature: null }, { region: null }, { lateCreature: 'E1' }, { lateCreature: [] }]) {
+      expect(validateLateCreature(inputLate(), reply, never)).toBeNull();
+    }
+  });
+
+  it('a missing or wrong enemy field is repaired to the single listed enemy', () => {
+    for (const enemy of [undefined, 'E2', 'E9', '', 7]) {
+      const reply = loadReply('late');
+      if (enemy === undefined) delete reply.lateCreature.enemy;
+      else reply.lateCreature.enemy = enemy;
+      expect(mustCreature(validateLateCreature(inputLate(), reply, never)).enemyRef).toBe('E1');
+    }
+  });
+
+  it('with more than one listed enemy an unknown enemy returns null and a known one is kept', () => {
+    const input = inputLate({ enemies: inputK0().enemies });
+    const reply = loadReply('late');
+    reply.lateCreature.enemy = 'E9';
+    expect(validateLateCreature(input, reply, never)).toBeNull();
+    reply.lateCreature.enemy = 'e2';
+    expect(mustCreature(validateLateCreature(input, reply, never)).enemyTemplateId).toBe(102n);
+    expect(validateLateCreature(inputLate({ enemies: [] }), loadReply('late'), never)).toBeNull();
+  });
+
+  it('names are unique within the creature and against isTaken', () => {
+    const reply = loadReply('late');
+    reply.lateCreature.trophy.name = 'tollman  BRINE';
+    const creature = mustCreature(
+      validateLateCreature(inputLate(), reply, (name) => name.toLowerCase() === 'tollkeeper hook'),
+    );
+    expect(creature.trophy.name).toBe('Kesterlane Basin tollman BRINE');
+    expect(creature.gear.name).toBe('Kesterlane Basin Tollkeeper Hook');
+  });
+});
+
+describe('hostile reply', () => {
+  it('the hostile reply is handled without throwing and yields only safe names and descriptions (region mode)', () => {
+    const input = inputK0();
+    const plan = mustPlan(validateRegionEconomyReply(input, loadReply('hostile'), never));
+    for (const name of allNames(plan)) expectSafeName(name);
+    for (const description of allDescriptions(plan)) expectSafeDescription(description);
+    expect(plan.creatures.map((c) => c.enemyRef)).toEqual(['E1', 'E2']);
+    expect(plan.gatherables[0]).toMatchObject({ kind: 'base', terrain: 'swamp', name: 'Kesterlane Basin Iron Ore' });
+    expect(plan.creatures[0].drop).toMatchObject({ name: 'Fire', kind: 'hide' });
+    expect(plan.creatures[0].trophy.name).toBe('Kesterlane Basin Rat Tail');
+    expect(plan.creatures[0].gear).toMatchObject({ slot: 'weapon', weaponType: 'sword', armorType: 'none' });
+    expect(plan.creatures[1].gear).toMatchObject({ slot: 'weapon', weaponType: 'sword', armorType: 'none' });
+    expect(plan.creatures[1].trophy.name).toBe('Of Kings');
+    expect(recipeAt(plan, 0).category).not.toBe('ring');
+    for (const recipe of plan.recipes) {
+      for (const ref of refs(recipe)) expect(ref).toMatch(/^(G[1-3]|D:E[12])$/);
+    }
+    expectOnlyServerNumbers(plan, input);
+  });
+
+  it('the hostile reply is handled without throwing and yields only safe names and descriptions (late mode)', () => {
+    const creature = mustCreature(validateLateCreature(inputLate(), loadReply('hostile'), never));
+    expect(creature.enemyRef).toBe('E1');
+    for (const name of creatureNames(creature)) expectSafeName(name);
+    for (const description of creatureDescriptions(creature)) expectSafeDescription(description);
+    expect(creature.drop.kind).toBe('hide');
+    expect(creature.gear).toMatchObject({ slot: 'weapon', weaponType: 'sword', armorType: 'none' });
+  });
+
+  it('a 2,000-character description is capped at 240 characters', () => {
+    const raw: string = loadReply('hostile').region.gatherables.common.description;
+    expect(raw.length).toBe(2000);
+    const plan = mustPlan(validateRegionEconomyReply(inputK0(), loadReply('hostile'), never));
+    expect(plan.gatherables[0].description.length).toBeLessThanOrEqual(240);
+    expect(plan.gatherables[0].description.length).toBeGreaterThan(100);
+  });
+});
+
+describe('extra numeric keys change nothing', () => {
+  for (const fixture of ['region_k0', 'region_k3', 'hostile']) {
+    it(`${fixture}: extra numeric keys anywhere leave validateRegionEconomyReply output deep-equal`, () => {
+      const input = fixture === 'region_k3' ? inputK3() : inputK0();
+      const plain = validateRegionEconomyReply(input, loadReply(fixture), never);
+      const padded = validateRegionEconomyReply(input, withExtraNumbers(loadReply(fixture)), never);
+      expect(plain).not.toBeNull();
+      expect(padded).toEqual(plain);
+    });
+  }
+
+  for (const fixture of ['late', 'hostile']) {
+    it(`${fixture}: extra numeric keys anywhere leave validateLateCreature output deep-equal`, () => {
+      const plain = validateLateCreature(inputLate(), loadReply(fixture), never);
+      const padded = validateLateCreature(inputLate(), withExtraNumbers(loadReply(fixture)), never);
+      expect(plain).not.toBeNull();
+      expect(padded).toEqual(plain);
+    });
+  }
+
+  it('every requirement count equals regionalRequirementPlan for its tier, whatever the reply contains', () => {
+    const cases: Array<[RegionEconomyInput, string]> = [
+      [inputK0(), 'region_k0'],
+      [inputK3(), 'region_k3'],
+      [inputK0(), 'hostile'],
+      [inputK3(), 'hostile'],
+    ];
+    for (const [input, fixture] of cases) {
+      const plan = mustPlan(validateRegionEconomyReply(input, withExtraNumbers(loadReply(fixture)), never));
+      expect(plan.recipes.length).toBeGreaterThan(0);
+      expectOnlyServerNumbers(plan, input);
+    }
+  });
+
+  it('the late creature output holds no number except the enemy template id', () => {
+    const creature = mustCreature(validateLateCreature(inputLate(), withExtraNumbers(loadReply('hostile')), never));
+    expect(numericPaths(creature)).toEqual(['enemyTemplateId']);
+  });
+});
+
+describe('null cases', () => {
+  const unusable: unknown[] = [null, undefined, 42, 'text', [], {}, { region: null, lateCreature: null }];
+
+  it('non-object replies, {} and { region: null, lateCreature: null } return null in region mode', () => {
+    for (const reply of unusable) expect(validateRegionEconomyReply(inputK0(), reply, never)).toBeNull();
+  });
+
+  it('non-object replies, {} and { region: null, lateCreature: null } return null in late mode', () => {
+    for (const reply of unusable) expect(validateLateCreature(inputLate(), reply, never)).toBeNull();
+  });
+
+  it('a region with every list empty returns null', () => {
+    for (const region of [
+      { gatherables: {}, creatures: [], recipes: {} },
+      { gatherables: null, creatures: null, recipes: null },
+      {},
+      { creatures: [{ enemy: 'E9' }] },
+    ]) {
+      expect(validateRegionEconomyReply(inputK0(), { region, lateCreature: null }, never)).toBeNull();
+    }
+  });
+
+  it('region mode ignores lateCreature and late mode ignores region', () => {
+    expect(validateRegionEconomyReply(inputK0(), loadReply('late'), never)).toBeNull();
+    expect(validateLateCreature(inputLate(), loadReply('region_k0'), never)).toBeNull();
+  });
+
+  it('an empty creatures list with valid gatherables and recipes still returns a plan', () => {
+    const reply = loadReply('region_k0');
+    reply.region.creatures = [];
+    const plan = mustPlan(validateRegionEconomyReply(inputK0(), reply, never));
+    expect(plan.creatures).toEqual([]);
+    expect(plan.gatherables).toHaveLength(3);
+    expect(plan.recipes).toHaveLength(3);
+    for (const recipe of plan.recipes) for (const ref of refs(recipe)) expect(ref).toMatch(/^G[1-3]$/);
   });
 });
