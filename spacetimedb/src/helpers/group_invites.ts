@@ -9,6 +9,7 @@ import {
   GROUP_REINVITE_COOLDOWN_MICROS,
   inviteExpiresAtMicros,
   isInviteExpired,
+  leaveOutcome,
   reinviteWaitRunning,
   successorOrder,
   type SuccessorCandidate,
@@ -255,7 +256,15 @@ export function settleGroupAfterLeave(
   departureLine: string
 ): void {
   const remaining = [...ctx.db.group_member.by_group.filter(groupId)];
-  if (remaining.length === 0) {
+  // An expired invite never keeps a one-member group. Quiet: if ending it dissolves the group, the
+  // one line below says so.
+  if (remaining.length === 1) endExpired(ctx, [...ctx.db.group_invite.by_group.filter(groupId)], false);
+  // The shared rule the client's Leave prompt reads too (leaveOutcome, review 2 WR-02).
+  const outcome = leaveOutcome({
+    remaining: remaining.length,
+    liveInvites: liveInvitesOfGroup(ctx, groupId).length,
+  });
+  if (outcome === 'empty') {
     // The leaver is the actor, so his own invites start the re-invite wait (review 2 WR-01).
     const leaving = ctx.db.character.id.find(leavingCharacterId) ?? null;
     for (const invite of [...ctx.db.group_invite.by_group.filter(groupId)].sort(byId)) {
@@ -264,10 +273,8 @@ export function settleGroupAfterLeave(
     if (ctx.db.group.id.find(groupId)) ctx.db.group.id.delete(groupId);
     return;
   }
-  if (remaining.length === 1) {
+  if (outcome === 'disbands') {
     const lone = ctx.db.character.id.find(remaining[0].characterId);
-    // Quiet: an expired invite that dissolves the group here leaves the one line below to say so.
-    endExpired(ctx, [...ctx.db.group_invite.by_group.filter(groupId)], false);
     const dissolved = !ctx.db.group.id.find(groupId) || dissolveLoneGroup(ctx, groupId);
     if (dissolved) {
       tell(ctx, lone, `${departureLine} ${DISBANDED}`);

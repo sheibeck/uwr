@@ -96,9 +96,35 @@ describe('yourself', () => {
   it('as the leader with no known successor: the confirm has no leadership sentence', () => {
     const me = person(ME, 'Ann', { groupId: 7n });
     const groups = playerMenuEntries(
-      input({ self: me, target: me, group: { id: 7n, leaderCharacterId: ME }, memberCount: 2 }),
+      input({ self: me, target: me, group: { id: 7n, leaderCharacterId: ME }, memberCount: 3 }),
     );
     expect(entry(groups, 'leave').confirm?.prompt).toBe('Leave the party?');
+  });
+
+  // Review 2 WR-02: the server dissolves a group left with one member and no live invite
+  // (leaveOutcome), so a 2-member prompt must not name a successor.
+  describe('in a 2-member party (the server rule leaveOutcome)', () => {
+    const me = person(ME, 'Ann', { groupId: 7n });
+    const pair = (leader: bigint, over: Partial<PlayerMenuInput> = {}) =>
+      input({ self: me, target: me, group: { id: 7n, leaderCharacterId: leader }, memberCount: 2, nextLeaderName: 'Bram', ...over });
+
+    it('the leader leaving with no live invite: the party disbands, no successor', () => {
+      expect(entry(playerMenuEntries(pair(ME)), 'leave').confirm?.prompt).toBe('Leave the party? The party disbands.');
+    });
+
+    it('the leader leaving with a live invite out: the group stays, so the successor is named', () => {
+      const groups = playerMenuEntries(pair(ME, { liveOutgoing: [{ toCharacterId: 3n, fromCharacterId: ME }] }));
+      expect(entry(groups, 'leave').confirm?.prompt).toBe('Leave the party? Leadership passes to Bram.');
+    });
+
+    it('the member leaving with no live invite: the party disbands too', () => {
+      expect(entry(playerMenuEntries(pair(99n)), 'leave').confirm?.prompt).toBe('Leave the party? The party disbands.');
+    });
+
+    it('the member leaving with a live invite out: the plain prompt', () => {
+      const groups = playerMenuEntries(pair(99n, { liveOutgoing: [{ toCharacterId: 3n, fromCharacterId: 99n }] }));
+      expect(entry(groups, 'leave').confirm?.prompt).toBe('Leave the party?');
+    });
   });
 
   it('as a member: Travel with leader (or Stop) and Leave party, no leadership sentence', () => {

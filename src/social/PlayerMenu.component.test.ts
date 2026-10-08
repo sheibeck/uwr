@@ -402,6 +402,18 @@ describe('PlayerMenu actions', () => {
     expect(document.body.textContent).toContain('Leave the party? Leadership passes to Bram.');
   });
 
+  it('Leave party as the leader of a 2-member party says the party disbands (review 2 WR-02)', async () => {
+    const s = setup({ party: 'lead' });
+    s.groupMembers.value = s.groupMembers.value.filter((row) => row.characterId !== CY);
+    const w = mountMenu(s, { targetId: ME });
+    await opener(w).trigger('click');
+    await nextTick();
+    item('Leave party').click();
+    await nextTick();
+    expect(document.body.textContent).toContain('Leave the party? The party disbands.');
+    expect(document.body.textContent).not.toContain('Leadership passes to');
+  });
+
   it('Leave party as the leader names the successor and sends leaveGroup on Leave', async () => {
     const s = setup({ party: 'lead' });
     const w = mountMenu(s, { targetId: ME });

@@ -44,6 +44,24 @@ export function reinviteWaitRunning(untilMicros: bigint, nowMicros: bigint): boo
   return nowMicros < untilMicros;
 }
 
+/**
+ * What happens to a group once a member leaves, camps, is removed or is deleted (code review WR-05;
+ * review 2 WR-02). `remaining` counts the members left after that member goes, `liveInvites` the
+ * group's live (not expired) invites:
+ * - 'empty': nobody is left; the group and its invites end;
+ * - 'disbands': one member is left and no live invite keeps the group, so it dissolves;
+ * - 'stays': the group goes on (a new leader takes over if the leaver led).
+ * The server settles the group with it and the client's Leave prompt reads it, so the prompt never
+ * names a successor for a group that is about to dissolve.
+ */
+export type LeaveOutcome = 'empty' | 'disbands' | 'stays';
+
+export function leaveOutcome(input: { remaining: number; liveInvites: number }): LeaveOutcome {
+  if (input.remaining <= 0) return 'empty';
+  if (input.remaining === 1 && input.liveInvites === 0) return 'disbands';
+  return 'stays';
+}
+
 /** One remaining member as the successor rule sees it. */
 export type SuccessorCandidate = { online: boolean; joinedAtMicros: bigint; memberId: bigint };
 

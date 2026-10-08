@@ -9,6 +9,7 @@ import {
   comesAlongWithLeader,
   inviteExpiresAtMicros,
   isInviteExpired,
+  leaveOutcome,
   successorOrder,
   GROUP_REINVITE_COOLDOWN_MICROS,
   reinviteWaitRunning,
@@ -90,5 +91,15 @@ describe('re-invite wait (code review WR-02)', () => {
     expect(GROUP_REINVITE_COOLDOWN_MICROS).toBe(30_000_000n);
     expect(reinviteWaitRunning(100n, 99n)).toBe(true);
     expect(reinviteWaitRunning(100n, 100n)).toBe(false);
+  });
+});
+
+describe('leaveOutcome (review 2 WR-02)', () => {
+  it('nobody left: empty; one left with no live invite: disbands; otherwise the group stays', () => {
+    expect(leaveOutcome({ remaining: 0, liveInvites: 0 })).toBe('empty');
+    expect(leaveOutcome({ remaining: 0, liveInvites: 2 })).toBe('empty');
+    expect(leaveOutcome({ remaining: 1, liveInvites: 0 })).toBe('disbands');
+    expect(leaveOutcome({ remaining: 1, liveInvites: 1 })).toBe('stays');
+    expect(leaveOutcome({ remaining: 2, liveInvites: 0 })).toBe('stays');
   });
 });

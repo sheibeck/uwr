@@ -5,7 +5,7 @@
 // Phosphor components. The renderer draws a separator only between non-empty groups, so a fourth
 // group (Phase 52.2 may append a 'guild' group) needs no change here or in the renderer.
 // Disabled entries are a convenience only: the server re-validates every action.
-import { MAX_GROUP_SIZE, successorOrder } from '@game-data/group_config';
+import { MAX_GROUP_SIZE, leaveOutcome, successorOrder } from '@game-data/group_config';
 
 export type MenuAction =
   | 'invite'
@@ -93,6 +93,9 @@ export const NOT_CONNECTED_HINT = 'Reconnecting…';
 
 const HINT_OFFLINE = 'Offline';
 
+/** The Leave prompt's ending when your leave dissolves the party (leaveOutcome 'disbands'). */
+export const LEAVE_DISBANDS = 'The party disbands.';
+
 function entry(
   action: MenuAction,
   label: string,
@@ -123,11 +126,19 @@ function selfEntries(input: PlayerMenuInput): MenuGroup[] {
       entries.push(entry('stopTravelWithLeader', 'Stop travelling with leader', 'footprints'));
     }
   }
-  const successor = isLeader && input.nextLeaderName ? ` Leadership passes to ${input.nextLeaderName}.` : '';
+  // The server's own rule (leaveOutcome): with one member left and no live invite the group
+  // dissolves, so nobody takes over and the prompt says so (51.1 review 2 WR-02).
+  const outcome = leaveOutcome({ remaining: input.memberCount - 1, liveInvites: input.liveOutgoing.length });
+  const consequence =
+    outcome === 'disbands'
+      ? ` ${LEAVE_DISBANDS}`
+      : isLeader && input.nextLeaderName
+        ? ` Leadership passes to ${input.nextLeaderName}.`
+        : '';
   entries.push(
     entry('leave', 'Leave party', 'signOut', {
       tone: 'danger',
-      confirm: { prompt: `Leave the party?${successor}`, confirmLabel: 'Leave', keepLabel: 'Stay' },
+      confirm: { prompt: `Leave the party?${consequence}`, confirmLabel: 'Leave', keepLabel: 'Stay' },
     }),
   );
   return nonEmpty([{ key: 'party', entries }]);
