@@ -101,7 +101,7 @@ describe('CharacterName', () => {
 });
 
 describe('FollowIcon', () => {
-  const CASES: Array<[FollowState, unknown, string]> = [
+  const CASES: Array<[FollowState, typeof PhFootprints, string]> = [
     ['leader', PhFlagBanner, 'leader'],
     ['comes_along', PhFootprints, 'comes'],
     ['following_elsewhere', PhFootprints, 'elsewhere'],
@@ -114,7 +114,7 @@ describe('FollowIcon', () => {
       expect(wrapper.attributes('title')).toBe(FOLLOW_TEXT[state]);
       expect(wrapper.classes()).toContain(cls);
       expect(wrapper.attributes('aria-hidden')).toBeUndefined();
-      const glyph = wrapper.findComponent(icon as never);
+      const glyph = wrapper.findComponent(icon);
       expect(glyph.exists()).toBe(true);
       expect(glyph.props('size')).toBe(12);
       expect(wrapper.find('.sr-only').text()).toBe(FOLLOW_TEXT[state]);
