@@ -849,6 +849,7 @@ Plans:
 **Design source**: `UWR Combat.dc.html` (loot rails, and the effect chips for players and enemies updated by the owner on 2026-10-07; todo `2026-10-07-combat-mock-effect-chips-update.md`), re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) with the Nocturne `_ds` files and `support.js`.
 **Notes**:
 
+  - Owner, 2026-10-08: the feed loot links from quick task 261008-f3m ("Loot dropped: [Item], [Item] [Take all]", calling take_loot and take_all_loot) are the stopgap for looting: "We'll keep these until the loot ui is done so we have a way to loot for now". Keep them working until this phase's loot rails ship; then decide with the owner whether the links stay as a shortcut or retire.
   - Moved out of Phase 52 (owner, 2026-10-07). Design record: backlog 999.23.
   - Reuse: bindings for `combat_loot`, `my_combat_loot`, `take_loot`, `take_all_loot`, `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs.
   - Tests: rails content per drop, take and take-all, refusals, and mobile.
