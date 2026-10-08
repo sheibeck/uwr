@@ -1290,10 +1290,10 @@ export const registerCombatReducers = (deps: any) => {
         combatIds.add(row.combatId);
         ctx.db.combat_result.id.delete(row.id);
       }
-      for (const combatId of combatIds) {
-        for (const loot of ctx.db.combat_loot.by_combat.filter(combatId)) {
-          ctx.db.combat_loot.id.delete(loot.id);
-        }
+      // Only the caller's own loot (51.1 review 2 WR-03): a group that dissolved mid-fight leaves
+      // its former members solo, and their loot rows share the combat id.
+      for (const loot of [...ctx.db.combat_loot.by_owner.filter(character.ownerUserId)]) {
+        if (combatIds.has(loot.combatId)) ctx.db.combat_loot.id.delete(loot.id);
       }
     }
   );

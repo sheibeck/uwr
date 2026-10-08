@@ -165,7 +165,9 @@ function finishInvite(
  *
  * It may run during a fight (code review IN-05, accepted): no combat rule reads the group row, so
  * the fight goes on unchanged; only its remaining group lines go to a group nobody reads, and they
- * repeat private lines. The admin end_combat no longer needs the dissolved group either.
+ * repeat private lines. The admin end_combat no longer needs the dissolved group either. The former
+ * members are solo when the fight ends, so dismiss_combat_results takes its solo path, which
+ * deletes only the caller's own results and loot (review 2 WR-03).
  */
 export function dissolveLoneGroup(ctx: any, groupId: bigint): boolean {
   const group = ctx.db.group.id.find(groupId);
@@ -241,9 +243,10 @@ export function handOnLeadership(ctx: any, groupId: bigint, leavingCharacterId: 
  *   '{departureLine} The group has disbanded.' (the group line itself is gone with the group). A
  *   group with a live invite stays, because its leader is waiting for an answer;
  * - otherwise (or with that live invite) the successor rule runs (handOnLeadership).
- * Dissolving during a fight is safe: combat never needs the group row (the fight's group lines go
- * to a group nobody reads any more, and they repeat private lines), the same as when every member
- * leaves mid-fight.
+ * Dissolving during a fight: combat never needs the group row (the fight's group lines go to a
+ * group nobody reads any more, and they repeat private lines), the same as when every member leaves
+ * mid-fight. Every former member is then solo, and the solo dismiss_combat_results deletes only the
+ * caller's own loot (review 2 WR-03), so nobody's unclaimed loot is lost.
  */
 export function settleGroupAfterLeave(
   ctx: any,
