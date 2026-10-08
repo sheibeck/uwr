@@ -5,6 +5,7 @@ import {
   livingHostileIds,
   type HostileViewsInput,
 } from './hostiles';
+import { conFor } from './difficulty';
 
 const XSS = '<img src=x onerror=alert(1)>';
 
@@ -111,6 +112,23 @@ describe('hostileViews boss flag and level', () => {
     expect(view.levelText).toBe('Lv 4');
     expect(view.con.className).toBe('con-yellow');
     expect(view.con.meaning).toBe('Tough');
+  });
+
+  it('shows the enemy level, not the template level, when the fight scaled it', () => {
+    const [view] = hostileViews(
+      input({ enemies: [enemy(1n, { level: 5n })], templates: [{ id: 100n, level: 1n }], playerLevel: 5n }),
+    );
+    expect(view.levelText).toBe('Lv 5');
+    expect(view.con).toEqual(conFor(5n, 5n));
+    expect(view.ariaLabel).toContain(', level 5,');
+  });
+
+  it('reads the template level for an enemy with level 0 or no level', () => {
+    for (const over of [{ level: 0n }, {}]) {
+      const [view] = hostileViews(input({ enemies: [enemy(1n, over)], templates: [{ id: 100n, level: 4n }] }));
+      expect(view.levelText).toBe('Lv 4');
+      expect(view.ariaLabel).toContain(', level 4,');
+    }
   });
 
   it('still renders a row with no level text and an even match when the template is missing', () => {

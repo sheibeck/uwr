@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { conFor } from '../combat/difficulty';
 import { enemyRows, enemyStatus, pullableSpawns } from './enemies';
 
 // quick-261006-a0i: pure derivation of the enemy rows and pull keywords.
@@ -7,7 +8,12 @@ function spawn(
   id: bigint,
   name: string,
   state: string,
-  extra: { lockedCombatId?: bigint; enemyTemplateId?: bigint; groupCount?: bigint } = {},
+  extra: {
+    lockedCombatId?: bigint;
+    enemyTemplateId?: bigint;
+    groupCount?: bigint;
+    level?: bigint;
+  } = {},
 ) {
   return { id, name, state, enemyTemplateId: 1n, groupCount: 1n, ...extra };
 }
@@ -63,6 +69,52 @@ describe('enemyRows', () => {
     );
     expect(hint(spawn(1n, 'A', 'available'), [])).toBe('');
     expect(hint(spawn(1n, 'A', 'available', { groupCount: 0n }))).toBe('Lv 8');
+  });
+
+  it('shows the spawn level, not the template level, when the spawn was scaled to its place', () => {
+    const [row] = enemyRows({
+      spawns: [spawn(1n, 'Rotfang', 'available', { level: 5n })],
+      templates: [{ id: 1n, level: 1n }],
+      playerLevel: 5n,
+    });
+    expect(row.levelText).toBe('Lv 5');
+    expect(row.con).toEqual(conFor(5n, 5n));
+    expect(row.hint.startsWith('Lv 5')).toBe(true);
+    expect(row.pullLabel).toContain('Lv 5');
+    expect(row.levelKnown).toBe(true);
+  });
+
+  it('reads the template level for a spawn with level 0 or no level field', () => {
+    for (const extra of [{ level: 0n }, {}]) {
+      const [row] = enemyRows({
+        spawns: [spawn(1n, 'Rotfang', 'available', extra)],
+        templates: [{ id: 1n, level: 8n }],
+        playerLevel: 6n,
+      });
+      expect(row.levelText).toBe('Lv 8');
+      expect(row.con).toEqual(conFor(8n, 6n));
+    }
+  });
+
+  it('shows the spawn level before its template is loaded', () => {
+    const [row] = enemyRows({
+      spawns: [spawn(1n, 'Rotfang', 'available', { level: 5n })],
+      templates: [],
+      playerLevel: 5n,
+    });
+    expect(row.levelText).toBe('Lv 5');
+    expect(row.levelKnown).toBe(true);
+  });
+
+  it('keeps the neutral row for a level 0 spawn with no template', () => {
+    const [row] = enemyRows({
+      spawns: [spawn(1n, 'Rotfang', 'available', { level: 0n })],
+      templates: [],
+      playerLevel: 5n,
+    });
+    expect(row.levelText).toBeNull();
+    expect(row.levelKnown).toBe(false);
+    expect(row.con).toBeNull();
   });
 
   it('has no difficulty, no level and a bare label while the template is unknown', () => {

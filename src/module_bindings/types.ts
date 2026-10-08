@@ -315,6 +315,7 @@ export const CombatEnemy = __t.object("CombatEnemy", {
   aggroTargetCharacterId: __t.option(__t.u64()),
   aggroTargetPetId: __t.option(__t.u64()),
   nextAutoAttackAt: __t.u64(),
+  level: __t.u64(),
 });
 export type CombatEnemy = __Infer<typeof CombatEnemy>;
 
@@ -519,6 +520,7 @@ export const EnemySpawn = __t.object("EnemySpawn", {
   state: __t.string(),
   lockedCombatId: __t.option(__t.u64()),
   groupCount: __t.u64(),
+  level: __t.u64(),
 });
 export type EnemySpawn = __Infer<typeof EnemySpawn>;
 

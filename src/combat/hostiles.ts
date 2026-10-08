@@ -4,6 +4,7 @@
 // resolution order). Everything a component needs is derived here so the components only
 // render text nodes and apply classes. Names are server or model text and pass through
 // concatenation only, never markup.
+import { effectiveEnemyLevel } from '@game-data/enemy_rules';
 import { barFraction } from '../frame/vitals';
 import { effectIcon, effectName, effectPolarity, effectTimeText, type EffectView } from '../rails/effects';
 import { enemyEffectKind, kindLabel } from './kindLabel';
@@ -23,6 +24,8 @@ export interface HostileEnemyRow {
   displayName: string;
   currentHp: bigint;
   maxHp: bigint;
+  /** combat_enemy.level; 0 (or absent) means a row from before the column. */
+  level?: bigint;
 }
 
 export interface HostileTemplateRow {
@@ -66,7 +69,7 @@ export interface HostileEffectRow {
 export interface HostileView {
   id: bigint;
   name: string;
-  /** 'Lv 4', or null when the enemy template is missing. */
+  /** 'Lv 4' from the enemy's fight level (or its template's); null when neither is known. */
   levelText: string | null;
   con: ConView;
   isBoss: boolean;
@@ -158,8 +161,9 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
     .sort((a, b) => compareIds(a.id, b.id))
     .map((enemy): HostileView => {
       const template = templateById.get(enemy.enemyTemplateId);
-      const con = conFor(template ? template.level : null, input.playerLevel);
-      const levelText = template ? `Lv ${template.level}` : null;
+      const level = effectiveEnemyLevel(enemy.level, template?.level);
+      const con = conFor(level === undefined ? null : level, input.playerLevel);
+      const levelText = level === undefined ? null : `Lv ${level}`;
       const isBoss = template !== undefined && template.isBoss === true;
       const fraction = barFraction(enemy.currentHp, enemy.maxHp);
       const percent = Math.round(fraction * 100);
@@ -191,7 +195,7 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
       const effects = defeated ? [] : enemyEffectViews(effectsByEnemy.get(enemy.id) ?? [], enemy.displayName);
 
       let ariaLabel = enemy.displayName;
-      if (template) ariaLabel += `, level ${template.level}`;
+      if (level !== undefined) ariaLabel += `, level ${level}`;
       ariaLabel += `, ${con.meaning}, ${percent}% health`;
       if (isBoss) ariaLabel += ', boss';
       if (abilityNames.length > 0) ariaLabel += `, winding up ${abilityNames[0]}`;

@@ -24,4 +24,5 @@ export default __t.row({
   aggroTargetCharacterId: __t.option(__t.u64()).name("aggro_target_character_id"),
   aggroTargetPetId: __t.option(__t.u64()).name("aggro_target_pet_id"),
   nextAutoAttackAt: __t.u64().name("next_auto_attack_at"),
+  level: __t.u64(),
 });

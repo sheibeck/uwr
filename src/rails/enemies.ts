@@ -2,6 +2,9 @@
 // Server spawn-state vocabulary (enemy_spawn.state): 'available' can be pulled, 'pulling' has a
 // pull in progress, 'engaged' is in a fight (lockedCombatId holds the fight id). Any other
 // state is not shown. Difficulty colors come from combat/difficulty (conFor), never from here.
+// The level comes from the spawn (enemy_spawn.level, scaled to its place), falling back to the
+// template's level for a spawn from before that column (level 0).
+import { effectiveEnemyLevel } from '@game-data/enemy_rules';
 import { conFor } from '../combat/difficulty';
 import type { ConView } from '../combat/difficulty';
 
@@ -12,11 +15,11 @@ export interface EnemyRow {
   name: string;
   status: EnemyStatus;
   groupCount: bigint;
-  /** 'Lv n' when the template is known, else null. */
+  /** 'Lv n' from the spawn level (or the template's, for an old spawn); null while neither is known. */
   levelText: string | null;
-  /** Difficulty view; null while the template level or the player level is unknown (neutral row). */
+  /** Difficulty view; null while the level or the player level is unknown (neutral row). */
   con: ConView | null;
-  /** True once the template level is known. The Pull button stays aria-disabled until then. */
+  /** True once the level is known. The Pull button stays aria-disabled until then. */
   levelKnown: boolean;
   /** Level, group count and state, joined with ' · '. */
   hint: string;
@@ -33,6 +36,8 @@ interface SpawnLike {
   lockedCombatId?: bigint | null;
   enemyTemplateId: bigint;
   groupCount: bigint;
+  /** enemy_spawn.level; 0 (or absent) means a spawn from before the column. */
+  level?: bigint;
 }
 
 export function enemyStatus(spawn: {
@@ -70,9 +75,9 @@ export function enemyRows(input: {
   for (const spawn of input.spawns) {
     const status = enemyStatus(spawn);
     if (status === null) continue;
-    const level = levels.get(spawn.enemyTemplateId);
+    const level = effectiveEnemyLevel(spawn.level, levels.get(spawn.enemyTemplateId));
     const levelText = level === undefined ? null : `Lv ${level}`;
-    // No difficulty while the template (chained subscription) or the player level is unknown:
+    // No difficulty while the level (template via chained subscription) or the player level is unknown:
     // a missing template must not read as "Even match" (review WR-02).
     const con =
       input.playerLevel === null || level === undefined ? null : conFor(level, input.playerLevel);
