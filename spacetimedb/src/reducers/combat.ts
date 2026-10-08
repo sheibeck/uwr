@@ -24,6 +24,7 @@ import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByFiel
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
+import { fightRoster } from '../helpers/group';
 import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
@@ -170,10 +171,13 @@ export const startCombatForSpawn = (
   ctx: any,
   leader: any,
   spawnToUse: any,
-  participants: any[],
+  candidates: any[],
   groupId: bigint | null
 ) => {
   const { appendPrivateEvent } = deps;
+  // The one fight rule (helpers/group.ts fightRoster): the initiator, plus members who are online
+  // and at the initiator's place. Applied here as well, so no caller can pull an offline member in.
+  const participants = fightRoster(leader, candidates);
   const combat = ctx.db.combat_encounter.insert({
     id: 0n,
     locationId: leader.locationId,

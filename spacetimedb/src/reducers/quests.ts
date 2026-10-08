@@ -4,6 +4,7 @@ import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
 import { findItemTemplateByName, getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
 import { awardXp } from '../helpers/combat_rewards';
 import { appendNpcDialog } from '../helpers/events';
+import { getGroupOrSoloParticipants } from '../helpers/group';
 import { MAX_LEVEL } from '../data/xp';
 import { npcGender, npcPronouns } from '../data/npc_gender';
 
@@ -443,11 +444,8 @@ export function pickUpQuestItem(
       }
       if (availableSpawn) {
         const groupId = aggro.effectiveGroupId(character);
-        const participants = groupId
-          ? [...ctx.db.group_member.by_group.filter(groupId)]
-              .map((m: any) => ctx.db.character.id.find(m.characterId))
-              .filter(Boolean)
-          : [character];
+        // Same fight rule as start_combat: only online members at this place come in (CR-02).
+        const participants = getGroupOrSoloParticipants(ctx, character);
         aggro.startCombatForSpawn(ctx, character, availableSpawn, participants, groupId ?? null);
       }
     } catch (_e) {
@@ -520,11 +518,8 @@ export const registerQuestReducers = (deps: any) => {
 
       // Start combat for the character's group
       const groupId = effectiveGroupId(character);
-      const participants = groupId
-        ? [...ctx.db.group_member.by_group.filter(groupId)]
-            .map((m: any) => ctx.db.character.id.find(m.characterId))
-            .filter(Boolean)
-        : [character];
+      // Same fight rule as start_combat: only online members at this place come in (CR-02).
+      const participants = getGroupOrSoloParticipants(ctx, character);
       startCombatForSpawn(ctx, character, spawn, participants, groupId ?? null);
 
       appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat',

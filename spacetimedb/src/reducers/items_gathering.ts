@@ -1,5 +1,6 @@
 import { scheduledReducers } from '../schema/tables';
 import { getPerkBonusByField } from '../helpers/renown';
+import { getGroupOrSoloParticipants } from '../helpers/group';
 import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 
 export const registerItemGatheringReducers = (deps: any) => {
@@ -14,7 +15,6 @@ export const registerItemGatheringReducers = (deps: any) => {
     logPrivateAndGroup,
     startCombatForSpawn,
     effectiveGroupId,
-    getGroupParticipants,
     ResourceGatherTick,
     fail,
   } = deps;
@@ -79,7 +79,8 @@ export const registerItemGatheringReducers = (deps: any) => {
               BigInt(availableSpawns.length)
             );
             const spawnToUse = availableSpawns[spawnIndex] ?? availableSpawns[0];
-            const participants = getGroupParticipants(ctx, character, true);
+            // Same fight rule as start_combat: offline members are never pulled in (CR-02).
+            const participants = getGroupOrSoloParticipants(ctx, character);
             appendPrivateEvent(
               ctx,
               character.id,

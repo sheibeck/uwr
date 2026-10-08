@@ -3,7 +3,11 @@
  * Only online members at the initiator's place join; the initiator always fights.
  */
 import { describe, it, expect } from 'vitest';
-import { getGroupOrSoloParticipants } from './group';
+// @ts-ignore node builtins are not in the server tsconfig types
+import { readFileSync } from 'node:fs';
+// @ts-ignore node builtins are not in the server tsconfig types
+import { fileURLToPath } from 'node:url';
+import { fightRoster, getGroupOrSoloParticipants } from './group';
 import { createMockDb } from './test-utils';
 
 const ch = (id: bigint, over: Record<string, unknown> = {}) => ({
@@ -70,5 +74,33 @@ describe('getGroupOrSoloParticipants', () => {
     const rows = [ch(1n), ch(2n), ch(3n)];
     const out = getGroupOrSoloParticipants(ctxWith(rows, [1n, 2n, 3n]), rows[2]);
     expect(out.map((r: any) => r.id)).toEqual([3n, 1n, 2n]);
+  });
+});
+
+describe('fightRoster: the one fight rule every fight start uses (code review CR-02)', () => {
+  it('keeps the initiator first and only online candidates at its place, without duplicates', () => {
+    const me = ch(1n);
+    const out = fightRoster(me, [
+      ch(2n),
+      ch(3n, { online: false }),
+      ch(4n, { locationId: 11n }),
+      ch(2n),
+      me,
+      null,
+      ch(5n),
+    ]);
+    expect(out.map((r: any) => r.id)).toEqual([1n, 2n, 5n]);
+    expect(out[0]).toBe(me);
+  });
+
+  it('includes the initiator even when it is missing from the candidates', () => {
+    expect(fightRoster(ch(1n), [ch(2n)]).map((r: any) => r.id)).toEqual([1n, 2n]);
+  });
+
+  it('is applied inside startCombatForSpawn, so no caller can pull an offline member in', () => {
+    const src = readFileSync(fileURLToPath(new URL('../reducers/combat.ts', import.meta.url)), 'utf8');
+    const start = src.indexOf('export const startCombatForSpawn');
+    const body = src.slice(start, src.indexOf('combat_encounter.insert', start));
+    expect(body).toContain('const participants = fightRoster(leader, candidates);');
   });
 });
