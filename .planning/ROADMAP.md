@@ -820,7 +820,8 @@ Plans:
   2. A player wind-up lasts its cast rounds, shows "You begin casting X." / "You continue casting X." (or "You focus on X.") / "You use X on Y.", counts as the round's choice, and lands with a wind-up bonus; cost and cooldown start only when it goes off.
   3. The hotbar slot shows a winding-up state with a rounds badge and toggles cancel during the decision window (a second press resumes with no progress lost); the round row chip is the fallback when the ability is not on the active hotbar; enemies never cancel.
   4. Effects end after their final tick in their final round, and cooldowns and effects running at fight start and end convert exactly both ways.
-  5. Tests cover the bucket table, landing rounds, feed lines, the wind-up bonus with a balance check at several levels, cancel and resume, stun interrupts, retarget or fizzle, cooldown start, enemy parity, conversions, and the slot state and label.
+  5. Each enemy's panel in a fight shows who it is targeting (a party member, you, or a pet), using the same rule the server uses to pick the target, and it updates when the target changes (taunt, threat overtaken, target falls or flees). A wind-up shows who it is aimed at.
+  6. Tests cover the bucket table, landing rounds, feed lines, the wind-up bonus with a balance check at several levels, cancel and resume, stun interrupts, retarget or fizzle, cooldown start, enemy parity, conversions, the slot state and label, and the enemy target shown matching the server's choice.
 
 **Plans**: TBD
 **UI hint**: yes (hotbar slot state; no new screen)
@@ -829,6 +830,7 @@ Plans:
   - Promoted from backlog 999.17 on 2026-10-08 (owner): "Promote 999.17 to the roadmap an put it just after 51.3.1 Combat Dials." The full agreed design, the owner decisions (cooldowns and durations follow the cast rule, seconds stay the source of truth, "The 10s is NOT how long a round lasts") and the required test list are in the 999.17 entry.
   - Schema: the 999.17 note about a local `--clear-database` publish is superseded by the current rule. Additive tables or defaulted columns only, never a clear (it wipes the stored Anthropic key).
   - Coordinate with 51.3.1: the combat dials and the wind-up bonus both change ability output, so they share one place in the combat math.
+  - Owner, 2026-10-08: "How do enemies decide who they are targetting? Could we put the enemies target in their panel during combat so we can see who is being targetted?" Then: "Let's add that request to the phase where we will handle combat wind up and such." How it works today: each enemy keeps a threat table (`aggro_entry`, one row per enemy per character or pet). Damage adds threat (tanks x1.5, summoners x0.75, healers x0.5), healing adds 50% of the healing as threat, pets start at 200 and taunt adds a bonus, and a taunt forces the target. Each round an enemy attacks whoever has the most threat on it among the fighters still in the fight, falling back to the first fighter (`reducers/combat.ts`, the aggro branch near line 870; `getTopAggroId` in `helpers/combat.ts`). Plan: move that choice into one shared pure rule (server and client import it through `@game-data`, the server stays the authority) or store the chosen target on `combat_enemy`; the client already reads the threat rows through the `my_*` aggro view. Pets count as targets. Follow the Combat mock's enemy card for placement, and keep the design guards.
   - Its folder was `999.17-combat-round-wind-up-for-cast-times-with-hotbar-slot-cancel`; it is now `51.3.2-combat-wind-up-cooldowns-and-durations`.
 
 ### Phase 51.4: Loot Rails (INSERTED)
@@ -2281,4 +2283,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after adding Phase 51.5.1 Motion and Polish (typed text, login cross-fade, map transitions) after 51.5 (owner)*
+*Last updated: 2026-10-08 after adding the enemy's target on its combat panel to Phase 51.3.2 (owner)*
