@@ -33,6 +33,7 @@ import spacetimedb, {
 } from './schema/tables';
 import { PASSAGE_SWEEP_INTERVAL_MICROS, sweepPassages } from './helpers/passages';
 import { reconcileOnline, syncCharacterOnline } from './helpers/online';
+import { pruneFinishedReinviteWaits } from './helpers/group_invites';
 import {
   VENDOR_RESTOCK_BATCH,
   VENDOR_RESTOCK_CONTINUE_MICROS,
@@ -338,6 +339,9 @@ scheduledReducers['sweep_inactivity'] = spacetimedb.reducer('sweep_inactivity', 
   // Online status (51.1): repair every drifted flag. This is also the backfill after the 51.1
   // publish (every row starts offline); no client-callable reducer does this.
   reconcileOnline(ctx);
+
+  // Finished re-invite waits for people nobody invites again (51.1 review 2 IN-05).
+  pruneFinishedReinviteWaits(ctx);
 });
 
 // Vendor base stock: a private scheduled tick refills each vendor's base listings about every 15

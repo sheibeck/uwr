@@ -676,6 +676,19 @@ describe('invite spam guard (code review WR-02)', () => {
     expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
   });
 
+  // Review 2 IN-05: finished waits for someone nobody invites again are pruned by the sweep.
+  it('the inactivity sweep deletes finished waits and keeps running ones', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + 1n);
+    call(ctx, 'invite_to_group', 3n, { targetName: 'Dena' }, T0 + 10n);
+    call(ctx, 'reject_group_invite', 4n, { fromName: 'Cole' }, T0 + WAIT);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(2);
+    const sweep = handler('sweep_inactivity');
+    sweep({ ...ctx, sender: MODULE, timestamp: at(T0 + 1n + WAIT) }, { arg: { scheduledId: 1n } });
+    expect(tableRows(ctx, 'group_invite_cooldown').map((r) => [r.fromCharacterId, r.toCharacterId])).toEqual([[3n, 4n]]);
+  });
+
   it('the wait is per inviter: someone else may invite Bram straight away', () => {
     const { ctx } = invitedThen('decline');
     call(ctx, 'invite_to_group', 3n, { targetName: 'Bram' }, T0 + 2n);

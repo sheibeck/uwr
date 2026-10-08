@@ -316,6 +316,20 @@ export function startReinviteWait(ctx: any, fromCharacterId: bigint, toCharacter
 }
 
 /**
+ * Deletes every finished re-invite wait (51.1 review 2 IN-05). reinviteWaitActive prunes only the
+ * waits of the target being invited, so the inactivity sweep calls this to keep the private table
+ * from growing with waits for people nobody invites again. Returns how many rows went.
+ */
+export function pruneFinishedReinviteWaits(ctx: any): number {
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const finished = [...ctx.db.group_invite_cooldown.iter()].filter(
+    (row: any) => !reinviteWaitRunning(row.untilMicros, now)
+  );
+  for (const row of finished) ctx.db.group_invite_cooldown.id.delete(row.id);
+  return finished.length;
+}
+
+/**
  * Whether fromCharacterId must still wait before inviting toCharacterId again. Finished waits
  * addressed to toCharacterId are deleted on the way, so the table stays small.
  */
