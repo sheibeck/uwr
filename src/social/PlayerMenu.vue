@@ -144,8 +144,22 @@ function onPointerDown(event: Event): void {
   if (target && root.value && !root.value.contains(target)) closeMenu(true);
 }
 
+// The desktop popover is placed once from the opener's rectangle (position: fixed), so a scrolled
+// rail or a resized window would leave it beside the wrong row (51.1 review client-social WR-04).
+// Any scroll outside the menu (capture phase, so the rails count) or a resize closes it; focus held
+// in the menu goes back to the opener without scrolling it into view.
+function onScrollOrResize(event: Event): void {
+  const target = event.target;
+  if (target instanceof Node && root.value !== null && root.value.contains(target)) return;
+  const inside = focusInside();
+  closeMenu(false);
+  if (inside) opener.value?.focus({ preventScroll: true });
+}
+
 function stopListening(): void {
   document.removeEventListener('pointerdown', onPointerDown);
+  window.removeEventListener('scroll', onScrollOrResize, true);
+  window.removeEventListener('resize', onScrollOrResize);
 }
 
 function openMenu(focus: 'first' | 'last' = 'first'): void {
@@ -157,6 +171,10 @@ function openMenu(focus: 'first' | 'last' = 'first'): void {
   session += 1;
   open.value = true;
   document.addEventListener('pointerdown', onPointerDown);
+  if (!mobile.value) {
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+  }
 }
 
 function closeMenu(returnFocus: boolean): void {

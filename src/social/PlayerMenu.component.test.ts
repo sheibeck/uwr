@@ -466,6 +466,69 @@ describe('PlayerMenu actions', () => {
 
 // Review client-rest WR-04: disconnected, the ⋯ is aria-disabled with the reason and opens nothing;
 // a menu open when the connection drops keeps its entries readable but disabled, sending nothing.
+// Review client-social WR-04: the desktop popover is fixed from the opener's rectangle, so it closes
+// on any scroll outside it (a rail scrolling) or a window resize instead of staying beside the wrong row.
+describe('PlayerMenu closes on scroll and resize (desktop)', () => {
+  it('a rail scrolling closes the menu and returns focus to the opener', async () => {
+    const s = setup();
+    const rail = document.createElement('div');
+    document.body.appendChild(rail);
+    const w = mountMenu(s);
+    await opener(w).trigger('click');
+    await nextTick();
+    expect(items().length).toBeGreaterThan(0);
+    rail.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(items()).toHaveLength(0);
+    expect(opener(w).attributes('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(opener(w).element);
+  });
+
+  it('a window resize closes the menu', async () => {
+    const w = mountMenu(setup());
+    await opener(w).trigger('click');
+    await nextTick();
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(items()).toHaveLength(0);
+  });
+
+  it('a scroll inside the menu panel keeps it open', async () => {
+    const w = mountMenu(setup());
+    await opener(w).trigger('click');
+    await nextTick();
+    items()[0].closest('.menu-panel')!.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(items().length).toBeGreaterThan(0);
+  });
+
+  it('after closing, a scroll does nothing (the listeners are gone)', async () => {
+    const w = mountMenu(setup());
+    await opener(w).trigger('click');
+    await nextTick();
+    await opener(w).trigger('click');
+    await nextTick();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    window.dispatchEvent(new Event('resize'));
+    document.body.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('the mobile sheet ignores scrolls (it is not placed from the opener)', async () => {
+    const s = setup({ desktop: false });
+    const w = mountMenu(s, { size: 'sheet' });
+    await opener(w).trigger('click');
+    await nextTick();
+    document.body.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(items().length).toBeGreaterThan(0);
+  });
+});
+
 describe('PlayerMenu while not connected', () => {
   it('the opener is aria-disabled with the reason and opens no menu by click, key or right-click', async () => {
     const s = setup();
