@@ -24,6 +24,7 @@ import {
   createInertGame,
 } from '../game/context';
 import { createActionRunner, reportRejections } from '../ledger/actionRunner';
+import { keepFocus } from '../ledger/keepFocus';
 import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
@@ -184,6 +185,28 @@ function onContextMenu(event: MouseEvent, row: NearbyRow): void {
 const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
 
 const list = ref<HTMLElement | null>(null);
+
+// Focus after a row goes (51.1 review client-rest WR-03, the shared keepFocus rule): players drop
+// out when they log out or walk away, enemies when they die or leave, and a row's controls change
+// with its state. Focus held on a removed control moves to the first button of the row now at that
+// index (the next row, or the same row when only a control went), else the Nearby heading.
+keepFocus<number>({
+  source: () =>
+    [
+      ...enemies.value.map((enemy) => `enemy-${enemy.id}-${enemy.status}`),
+      ...rows.value.map((row) => `${rowKey(row)}-${row.nodeStatus ?? ''}-${row.bound ? 1 : 0}`),
+    ].join(','),
+  area: () => list.value,
+  capture: (active, area) => {
+    const item = active.closest('li');
+    return item === null ? -1 : Array.from(area.children).indexOf(item);
+  },
+  restore: (index) => {
+    const items = list.value === null ? [] : Array.from(list.value.children).slice(Math.max(index, 0));
+    const next = items.map((item) => item.querySelector<HTMLElement>('button')).find((b) => b !== null);
+    return next ?? heading.value;
+  },
+});
 
 // The place a Bind was sent for (bind_location binds wherever the character stands when it runs).
 // Focus moves to the bind stone's eye only when the character row says bound to that place while the

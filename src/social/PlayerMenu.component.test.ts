@@ -517,6 +517,8 @@ describe('PlayerMenu rows and focus fallback', () => {
     expect(document.activeElement).toBe(item('Invite to party'));
     show.value = false;
     await nextTick();
+    // The fallback runs after the DOM settles (a host's keepFocus rule goes first).
+    await nextTick();
     expect(items()).toHaveLength(0);
     expect(document.activeElement).toBe(heading.value);
   });

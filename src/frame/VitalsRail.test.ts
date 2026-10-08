@@ -649,6 +649,26 @@ describe('VitalsRail self block (51.1)', () => {
     expect(document.activeElement).toBe(heading);
   });
 
+  // Review client-rest WR-03: the self target button goes when the fight ends.
+  it('the fight ending while the self target has focus moves focus to the self menu opener in a party', async () => {
+    const w = mountSelf({ party: 'member', combat: true });
+    (w.get('button.self-target').element as HTMLElement).focus();
+    combatActive.value = false;
+    await nextTick();
+    await nextTick();
+    expect(w.find('button.self-target').exists()).toBe(false);
+    expect(document.activeElement).toBe(w.get('.self-block .menu-opener').element);
+  });
+
+  it('solo, the fight ending while the self target has focus moves focus to the Party heading', async () => {
+    const w = mountSelf({ combat: true });
+    (w.get('button.self-target').element as HTMLElement).focus();
+    combatActive.value = false;
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('.party h6').element);
+  });
+
   // 51.1-UI-SPEC "Vitals Rail Self Block", in combat. These replace the Phase 48 'You' card cases
   // that lived in PartyBlock.test.ts (UI-SPEC Supersedes): the self block is the self target, solo or
   // in a party, pressed by default; not a button out of combat or before your row exists.

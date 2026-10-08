@@ -337,6 +337,46 @@ describe('player rows (51.1-12)', () => {
   });
 });
 
+// Review client-rest WR-03: players drop out of Nearby when they log out or walk away. Focus on a
+// removed row's control moves to the next row's first button, else the Nearby heading.
+describe('focus when a row goes', () => {
+  it("a player leaving while his Whisper has focus moves focus to the next row's first button", async () => {
+    const playersHere = ref([
+      { ...PERSON, id: 4n, name: 'Bo', level: 3n },
+      { ...PERSON, id: 5n, name: 'Cy', level: 3n },
+    ]);
+    const { w } = mountList({ playersHere });
+    (w.get('[aria-label="Whisper Bo"]').element as HTMLElement).focus();
+    playersHere.value = [{ ...PERSON, id: 5n, name: 'Cy', level: 3n }];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('[aria-label="Whisper Cy"]').element);
+  });
+
+  it('the last row leaving while its Examine has focus moves focus to the Nearby heading', async () => {
+    const playersHere = ref([{ ...PERSON, id: 4n, name: 'Bo', level: 3n }]);
+    const { w } = mountList({ playersHere });
+    (w.get('[aria-label="Examine Bo"]').element as HTMLElement).focus();
+    playersHere.value = [];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('h6').element);
+  });
+
+  it('a player menu opener removed with its row hands focus to the next row too (the menu fallback waits)', async () => {
+    const playersHere = ref([
+      { ...PERSON, id: 4n, name: 'Bo', level: 3n },
+      { ...PERSON, id: 5n, name: 'Cy', level: 3n },
+    ]);
+    const { w } = mountList({ playersHere });
+    (w.get('[aria-label="Actions for Bo"]').element as HTMLElement).focus();
+    playersHere.value = [{ ...PERSON, id: 5n, name: 'Cy', level: 3n }];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('[aria-label="Whisper Cy"]').element);
+  });
+});
+
 describe('bind stone row', () => {
   it('is absent where the place has no bind stone', () => {
     const { w } = mountList({ ...FULL, character: ref(character({ locationId: 11n })) });

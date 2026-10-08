@@ -13,6 +13,7 @@ import PetRow from '../social/PetRow.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
 import TravelSwitch from '../social/TravelSwitch.vue';
 import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
+import { keepFocus } from '../ledger/keepFocus';
 import { barFraction, vitalText } from './vitals';
 
 const props = defineProps<{
@@ -108,6 +109,19 @@ function partyHeading(): HTMLElement | null {
   return railEl.value?.querySelector<HTMLElement>('.party h6') ?? null;
 }
 
+// The self target button goes when the fight ends (51.1 review client-rest WR-03, the shared
+// keepFocus rule): focus held there moves to the self ⋯ when shown, else the Party heading.
+const blockEl = ref<HTMLElement | null>(null);
+keepFocus({
+  source: selfTarget,
+  area: () => blockEl.value,
+  capture: () => true,
+  restore: () =>
+    blockEl.value?.querySelector<HTMLElement>('.self-menu .menu-opener') ??
+    blockEl.value?.querySelector<HTMLElement>('.self-target') ??
+    partyHeading(),
+});
+
 // HP damage flash (48-UI-SPEC "Damage flash", CMB-05, A19): the active character's own HP bar only,
 // in or out of combat. The flash key is the character id, latched so it only moves together with the
 // hp prop (this component is fed through props, which lag the game refs by a render): a character
@@ -135,6 +149,7 @@ const bars = computed(() => [
 <template>
   <aside ref="railEl" class="vitals-rail" aria-label="Vitals">
     <div
+      ref="blockEl"
       class="self-block"
       :class="{ targetable: selfTarget, selected: selfSelected }"
       @contextmenu="onSelfContextMenu"

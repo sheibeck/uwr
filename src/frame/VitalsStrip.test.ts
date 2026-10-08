@@ -353,6 +353,7 @@ function mountCombat(
     allyTargetId?: bigint | null;
     props?: Record<string, unknown>;
     social?: Partial<SocialData>;
+    attach?: boolean;
   } = {},
 ): {
   w: VueWrapper;
@@ -365,6 +366,7 @@ function mountCombat(
   const controller = { ...createInertCombat(), allyTargetId, selectAlly } as unknown as CombatController;
   const openScreen = vi.fn();
   wrapper = mount(VitalsStrip, {
+    attachTo: opts.attach ? document.body : undefined,
     global: {
       provide: {
         [GAME_KEY as symbol]: {
@@ -393,6 +395,63 @@ function mountCombat(
   });
   return { w: wrapper, selectAlly, allyTargetId, openScreen };
 }
+
+// Review client-rest WR-03: the self target and the grid cards exist only in a fight; focus held on
+// one that goes moves to the next card, the self target, the Party chip or the strip, never body.
+describe('VitalsStrip focus across the fight boundary', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  function provided(w: VueWrapper): { combat: { active: { value: boolean } }; groupMembers: { value: unknown[] } } {
+    return (w.vm.$ as unknown as { provides: Record<symbol, unknown> }).provides[GAME_KEY as symbol] as never;
+  }
+
+  it('solo: the fight ending while the self target has focus moves focus to the strip', async () => {
+    const { w } = mountCombat({ characterId: ref(1n), character: ref(ch(1n, 'Brannoch')) }, { attach: true });
+    (w.get('button.self-target').element as HTMLElement).focus();
+    provided(w).combat.active.value = false;
+    await nextTick();
+    await nextTick();
+    expect(w.find('button.self-target').exists()).toBe(false);
+    expect(document.activeElement).toBe(w.get('section.vitals-strip').element);
+    expect(w.get('section.vitals-strip').attributes('tabindex')).toBe('-1');
+  });
+
+  it('in a party: the fight ending while the self target has focus moves focus to the Party chip', async () => {
+    const { w } = mountCombat(partyGame({ character: ref(ch(1n, 'Brannoch')) }), { attach: true });
+    (w.get('button.self-target').element as HTMLElement).focus();
+    provided(w).combat.active.value = false;
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('button.party-chip').element);
+  });
+
+  it('a member leaving mid-fight while his card has focus moves focus to the next card, else the self target', async () => {
+    const { w } = mountCombat(partyGame({ character: ref(ch(1n, 'Brannoch')) }), { attach: true });
+    const cards = w.findAll('button.ally-card');
+    expect(cards).toHaveLength(2);
+    (cards[0].element as HTMLElement).focus();
+    const members = provided(w).groupMembers;
+    members.value = [gm(1n, 1n, 1n), gm(3n, 3n, 3n)];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('button.ally-card').element);
+    members.value = [gm(1n, 1n, 1n)];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('button.self-target').element);
+  });
+
+  it('the fight ending while a grid card has focus moves focus to that member chip', async () => {
+    const { w } = mountCombat(partyGame({ character: ref(ch(1n, 'Brannoch')) }), { attach: true });
+    (w.findAll('button.ally-card')[1].element as HTMLElement).focus();
+    provided(w).combat.active.value = false;
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.findAll('button.member-chip')[1].element);
+  });
+});
 
 describe('VitalsStrip In combat tag', () => {
   it('shows the tag first in the tags container, before Level up and New skill', () => {

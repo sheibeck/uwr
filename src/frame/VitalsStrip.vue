@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, shallowRef, watch } from 'vue';
+import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { PhArrowFatUp, PhCrosshairSimple, PhCrownSimple, PhPawPrint } from '@phosphor-icons/vue';
 import { STRIP_EFFECT_LIMIT } from '../combat/hostiles';
 import InCombatTag from '../combat/InCombatTag.vue';
@@ -19,6 +19,7 @@ import { xpProgress } from '../rails/xp';
 import CharacterName from '../social/CharacterName.vue';
 import PetTag from '../social/PetTag.vue';
 import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
+import { keepFocus } from '../ledger/keepFocus';
 import { barFraction } from './vitals';
 
 const props = defineProps<{
@@ -133,6 +134,41 @@ const flashClass = computed(() => {
   return flashReduced.value ? 'flash-reduced' : 'flash-motion';
 });
 
+// Focus after the strip re-renders (51.1 review client-rest WR-03, the shared keepFocus rule): the
+// self target and the grid cards exist only in a fight, and a member can leave mid-fight. A grid card
+// that held focus hands it to the card now at its index, else (out of combat) that member's chip;
+// otherwise the self target, the Party chip, or the strip itself (tabindex -1, never body).
+const stripEl = ref<HTMLElement | null>(null);
+keepFocus<number>({
+  source: () =>
+    [
+      combatActive.value ? 'fight' : 'out',
+      selfTarget.value ? 'self' : '',
+      ...cards.value.map((card) => `${card.member.id}:${card.member.known ? 1 : 0}`),
+    ].join(','),
+  area: () => stripEl.value,
+  capture: (active) => {
+    const item = active.closest('.party-grid > li');
+    return item === null || item.parentElement === null ? -1 : Array.from(item.parentElement.children).indexOf(item);
+  },
+  restore: (index) => {
+    const strip = stripEl.value;
+    if (strip === null) return null;
+    if (index >= 0) {
+      const items = Array.from(strip.querySelectorAll<HTMLElement>('.party-grid > li')).slice(index);
+      const next = items.map((item) => item.querySelector<HTMLElement>('button.ally-card')).find((b) => b !== null);
+      if (next) return next;
+      const chip = strip.querySelectorAll<HTMLElement>('button.member-chip')[index];
+      if (chip) return chip;
+    }
+    return (
+      strip.querySelector<HTMLElement>('button.self-target') ??
+      strip.querySelector<HTMLElement>('button.party-chip') ??
+      strip
+    );
+  },
+});
+
 function memberChipText(member: { known: boolean; name: string; healthPercent: number }): string {
   return member.known ? `${member.name} ${member.healthPercent}%` : 'Member';
 }
@@ -143,7 +179,7 @@ function openSocial(): void {
 </script>
 
 <template>
-  <section class="vitals-strip" aria-label="Vitals">
+  <section ref="stripEl" class="vitals-strip" aria-label="Vitals" tabindex="-1">
     <template v-if="props.compact">
       <div class="compact-row">
         <div class="name" :title="props.name">{{ props.name }}</div>

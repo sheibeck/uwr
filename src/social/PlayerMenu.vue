@@ -10,6 +10,7 @@ import {
   createInertGame,
 } from '../game/context';
 import type { Character } from '../module_bindings/types';
+import { focusLost } from '../ledger/keepFocus';
 import ActionMenu from './ActionMenu.vue';
 import type { MenuAnchor } from './menuPosition';
 import { claimMenu, newMenuId, releaseMenu } from './menuRegistry';
@@ -196,8 +197,12 @@ async function onSelect(entry: MenuEntry): Promise<void> {
   if (open.value && session === started) closeMenu(true);
 }
 
+// Deferred until the DOM settles, so a host's own rule (keepFocus: the next row's control) goes
+// first; the fallback (a heading) applies only when focus is still lost.
 function moveToFallback(): void {
-  props.fallbackFocus?.()?.focus();
+  void nextTick(() => {
+    if (focusLost()) props.fallbackFocus?.()?.focus();
+  });
 }
 
 // The opener disappears (the member left, the row is gone): close, and move focus if it was here.
@@ -205,7 +210,7 @@ watch(visible, (isVisible) => {
   if (isVisible) return;
   const hadFocus = focusInside();
   closeMenu(false);
-  if (hadFocus) void nextTick(moveToFallback);
+  if (hadFocus) moveToFallback();
 });
 
 onBeforeUnmount(() => {
