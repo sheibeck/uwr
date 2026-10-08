@@ -10,6 +10,7 @@ import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import { MODULE } from '../helpers/combat_fight_fixture';
 import { ADMIN_IDENTITIES } from '../data/admin';
+import { SPACETIMEAUTH_CLIENT_IDS, SPACETIMEAUTH_ISSUER } from '../data/auth_config';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -46,10 +47,11 @@ const playerRow = (id: any) => ({
   lastActivityAt: at(T0),
 });
 
-const withJwt = (fullPayload: Record<string, unknown>) => ({
+/** A SpacetimeAuth id token for our client (pinned issuer and audience) with these claims on top. */
+const withJwt = (claims: Record<string, unknown>) => ({
   isInternal: false,
   hasJWT: true,
-  jwt: { fullPayload },
+  jwt: { fullPayload: { iss: SPACETIMEAUTH_ISSUER, aud: SPACETIMEAUTH_CLIENT_IDS[0], ...claims } },
 });
 const noJwt = { isInternal: false, hasJWT: false, jwt: null };
 
@@ -108,8 +110,25 @@ describe('login_email takes the email from the sign-in token (CR-01)', () => {
   });
 
   it('refuses a token that carries no email claim', () => {
-    const ctx = newCtx(withJwt({ sub: 'abc', iss: 'https://auth.example' }));
+    const ctx = newCtx(withJwt({ sub: 'abc' }));
     expect(() => loginEmail(ctx, { email: 'ann@example.com' })).toThrow('Sign-in token carries no email.');
+    expect(users(ctx)).toHaveLength(0);
+  });
+
+  it("refuses a foreign issuer's token carrying the victim's email and writes nothing (code review CR-01)", () => {
+    const ctx = newCtx(
+      withJwt({ iss: 'https://attacker.example/oidc', email: 'victim@example.com' }),
+      player,
+      { user: [{ id: 9n, email: 'victim@example.com', createdAt: at(T0) }] },
+    );
+    expect(() => loginEmail(ctx, { email: 'victim@example.com' })).toThrow('Sign-in token carries no email.');
+    expect(users(ctx)).toHaveLength(1);
+    expect(playerOf(ctx, player)).toEqual(playerRow(player));
+  });
+
+  it('refuses a SpacetimeAuth token minted for another client (wrong audience)', () => {
+    const ctx = newCtx(withJwt({ aud: 'client_someone_else', email: 'victim@example.com' }));
+    expect(() => loginEmail(ctx, { email: 'victim@example.com' })).toThrow('Sign-in token carries no email.');
     expect(users(ctx)).toHaveLength(0);
   });
 

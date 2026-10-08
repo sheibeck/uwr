@@ -1,7 +1,7 @@
 import { scheduledReducers } from '../schema/tables';
 import { syncCharacterOnline } from '../helpers/online';
 import { ADMIN_IDENTITIES } from '../data/admin';
-import { TOKEN_EMAIL_CHECK, resolveLoginEmail, verifiedEmailFromAuth } from '../helpers/login_identity';
+import { TOKEN_EMAIL_CHECK, readTokenEmail, resolveLoginEmail } from '../helpers/login_identity';
 
 export const registerAuthReducers = (deps: any) => {
   const {
@@ -31,15 +31,21 @@ export const registerAuthReducers = (deps: any) => {
     const player = ctx.db.player.id.find(ctx.sender);
     if (!player) throw new SenderError('Player not found');
     // CR-01 (51.1-05): the email comes from the verified sign-in token, not the argument.
+    // The token must come from the pinned SpacetimeAuth issuer for our client (data/auth_config.ts).
     // Rollback: TOKEN_EMAIL_CHECK in helpers/login_identity.ts.
+    const token = readTokenEmail(ctx.senderAuth);
     const result = resolveLoginEmail({
       argument: email,
-      claimed: verifiedEmailFromAuth(ctx.senderAuth),
+      claimed: token.email,
       isAdmin: ADMIN_IDENTITIES.has(ctx.sender.toHexString()),
       enforce: TOKEN_EMAIL_CHECK,
     });
     if (!result.ok) {
-      if (result.reason === 'no_claim') throw new SenderError('Sign-in token carries no email.');
+      if (result.reason === 'no_claim') {
+        // Server log only (spacetime logs): why the token gave no email. Never logs an email.
+        console.warn(`login_email refused: the sign-in token gave no email (${token.refusal ?? 'unknown'}).`);
+        throw new SenderError('Sign-in token carries no email.');
+      }
       if (result.reason === 'mismatch') throw new SenderError('Email does not match the sign-in token.');
       throw new SenderError('Invalid email');
     }

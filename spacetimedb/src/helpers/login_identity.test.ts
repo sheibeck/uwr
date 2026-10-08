@@ -9,9 +9,16 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 // @ts-ignore node builtins are not in the server tsconfig types
 import { fileURLToPath } from 'node:url';
-import { verifiedEmailFromAuth, resolveLoginEmail } from './login_identity';
+import { verifiedEmailFromAuth, readTokenEmail, resolveLoginEmail } from './login_identity';
+import { SPACETIMEAUTH_CLIENT_IDS, SPACETIMEAUTH_ISSUER } from '../data/auth_config';
 
-const auth = (fullPayload: unknown) => ({ isInternal: false, hasJWT: true, jwt: { fullPayload } });
+/** A SpacetimeAuth id token for our client: the pinned issuer and audience. */
+const TRUSTED = { iss: SPACETIMEAUTH_ISSUER, aud: SPACETIMEAUTH_CLIENT_IDS[0] };
+const auth = (claims: unknown, base: Record<string, unknown> = TRUSTED) => ({
+  isInternal: false,
+  hasJWT: true,
+  jwt: { fullPayload: claims && typeof claims === 'object' && !Array.isArray(claims) ? { ...base, ...claims } : claims },
+});
 
 describe('verifiedEmailFromAuth', () => {
   it('reads the email claim, trimmed and lower-cased', () => {
@@ -47,6 +54,45 @@ describe('verifiedEmailFromAuth', () => {
       get jwt(): unknown { throw new Error('Expected a JSON object at the top level'); },
     };
     expect(verifiedEmailFromAuth(broken)).toBeNull();
+  });
+});
+
+describe('only a SpacetimeAuth token for our client is trusted (CR-01, code review)', () => {
+  const email = { email: 'victim@example.com' };
+
+  it('refuses a token from a foreign issuer that carries any email', () => {
+    const foreign = auth(email, { iss: 'https://attacker.example/realms/x', aud: SPACETIMEAUTH_CLIENT_IDS[0] });
+    expect(verifiedEmailFromAuth(foreign)).toBeNull();
+    expect(readTokenEmail(foreign)).toEqual({ email: null, refusal: 'issuer' });
+  });
+
+  it('refuses a token without an issuer, or with a near-miss issuer', () => {
+    expect(readTokenEmail(auth(email, { aud: SPACETIMEAUTH_CLIENT_IDS[0] })).refusal).toBe('issuer');
+    expect(readTokenEmail(auth(email, { iss: 'https://auth.spacetimedb.com', aud: SPACETIMEAUTH_CLIENT_IDS[0] })).refusal).toBe('issuer');
+    expect(readTokenEmail(auth(email, { iss: 'https://auth.spacetimedb.com/oidc.evil', aud: SPACETIMEAUTH_CLIENT_IDS[0] })).refusal).toBe('issuer');
+  });
+
+  it('ignores a trailing slash on the issuer', () => {
+    expect(verifiedEmailFromAuth(auth(email, { ...TRUSTED, iss: SPACETIMEAUTH_ISSUER + '/' }))).toBe('victim@example.com');
+  });
+
+  it('refuses a token for another client (wrong or missing audience)', () => {
+    expect(readTokenEmail(auth(email, { iss: SPACETIMEAUTH_ISSUER, aud: 'client_someone_else' }))).toEqual({
+      email: null,
+      refusal: 'audience',
+    });
+    expect(readTokenEmail(auth(email, { iss: SPACETIMEAUTH_ISSUER })).refusal).toBe('audience');
+    expect(readTokenEmail(auth(email, { iss: SPACETIMEAUTH_ISSUER, aud: [] })).refusal).toBe('audience');
+  });
+
+  it('accepts an audience list that contains our client id', () => {
+    const list = auth(email, { iss: SPACETIMEAUTH_ISSUER, aud: ['other', SPACETIMEAUTH_CLIENT_IDS[0]] });
+    expect(readTokenEmail(list)).toEqual({ email: 'victim@example.com', refusal: null });
+  });
+
+  it('pins the issuer to the SpacetimeAuth OpenID issuer the client signs in with', () => {
+    expect(SPACETIMEAUTH_ISSUER).toBe('https://auth.spacetimedb.com/oidc');
+    expect(SPACETIMEAUTH_CLIENT_IDS.length).toBeGreaterThan(0);
   });
 });
 
