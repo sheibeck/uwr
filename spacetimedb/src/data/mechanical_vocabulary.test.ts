@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { ABILITY_KINDS } from './mechanical_vocabulary';
+import {
+  ABILITY_KINDS,
+  FAMILY_TEMPERAMENTS,
+  FAMILY_RELATIONS,
+  FAMILY_ICON_KEYS,
+  FAMILY_PROMPT_ROLES,
+  POOL_KINDS,
+  RESOURCE_ICON_KEYS,
+  COMBAT_ORIGINS,
+} from './mechanical_vocabulary';
 import { BASE_BUDGET } from '../helpers/skill_budget';
 
 // ============================================================================
@@ -71,5 +80,36 @@ describe('BASE_BUDGET', () => {
         expect(budget.maxMult).toBeGreaterThanOrEqual(budget.minMult);
       }
     }
+  });
+});
+
+// ============================================================================
+// Phase 51.3.1.1 density pools: closed vocabularies for families, pools and combat origins
+// ============================================================================
+
+describe('density pool vocabularies', () => {
+  const cases: [string, readonly string[], string[]][] = [
+    ['FAMILY_TEMPERAMENTS', FAMILY_TEMPERAMENTS, ['aggressive', 'wary', 'skittish']],
+    ['FAMILY_RELATIONS', FAMILY_RELATIONS, ['rival', 'prey', 'predator']],
+    ['FAMILY_ICON_KEYS', FAMILY_ICON_KEYS, ['humanoid', 'beast', 'insect', 'spirit', 'undead', 'avian', 'aquatic', 'elemental']],
+    ['FAMILY_PROMPT_ROLES', FAMILY_PROMPT_ROLES, ['tank', 'damage', 'support', 'caster']],
+    ['POOL_KINDS', POOL_KINDS, ['creature', 'resource']],
+    ['RESOURCE_ICON_KEYS', RESOURCE_ICON_KEYS, ['mineral', 'herb', 'gem', 'wood', 'fibre', 'fluid']],
+    ['COMBAT_ORIGINS', COMBAT_ORIGINS, ['', 'pull', 'ambush_enter', 'ambush_leave', 'ambush_gather', 'ambush_other', 'named']],
+  ];
+
+  for (const [name, actual, expected] of cases) {
+    it(name + ' equals the closed list', () => {
+      expect([...actual]).toEqual(expected);
+    });
+
+    it(name + ' has no duplicates', () => {
+      expect(new Set(actual).size).toBe(actual.length);
+    });
+  }
+
+  it('FAMILY_PROMPT_ROLES differs from ENEMY_ROLES only by support (the server healer)', () => {
+    expect(FAMILY_PROMPT_ROLES.includes('support')).toBe(true);
+    expect((FAMILY_PROMPT_ROLES as readonly string[]).includes('healer')).toBe(false);
   });
 });
