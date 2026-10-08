@@ -76,6 +76,7 @@ import { QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { segmentsFromReply, keeperSegments, keeperFallback, flattenSegments } from './segments';
+import { applyRegionEconomyResult, failRegionEconomy, startRegionEconomy, startEnemyLoot } from './region_economy';
 import type { Segment, PresentSpeaker } from './segments';
 
 /**
@@ -262,6 +263,9 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
       writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative',
         keeperFallback('The cosmos shrugs and offers some... standard options for your consideration.'));
     }
+  } else if (job.domain === 'region_economy') {
+    // Silent: the region keeps its fallbacks and /economy shows it as failed.
+    failRegionEconomy(ctx, job);
   }
 }
 
@@ -618,6 +622,16 @@ export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string
     updatedAt: ctx.timestamp,
   });
 
+  // Phase 51.3: chain the region economy job (only when the AI economy switch is on). The region_economy
+  // row is the once-only lock; an economy bug never fails the fill. The region is read again: the fill
+  // just wrote its faction, landmarks and threats.
+  try {
+    const filledRegion = ctx.db.region.id.find(region.id) ?? region;
+    startRegionEconomy(ctx, filledRegion, { playerId: currentGenState.playerId, characterId: currentGenState.characterId });
+  } catch (err) {
+    console.error('Region economy start failed for region ' + region.id + ': ' + errName(err));
+  }
+
   const character = ctx.db.character.id.find(currentGenState.characterId);
   if (character) {
     appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
@@ -901,6 +915,13 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
               enemyTemplateId: newEt.id,
             });
             resolvedEnemyTemplateId = newEt.id;
+            // Phase 51.3: a late enemy type in a designed region gets its own loot job (switch on only).
+            try {
+              const location = ctx.db.location.id.find(character.locationId);
+              if (location) startEnemyLoot(ctx, newEt, location.regionId, { playerId: job.playerId, characterId: character.id });
+            } catch (err) {
+              console.error('Enemy loot start failed for enemy ' + newEt.id + ': ' + errName(err));
+            }
           }
         }
 
@@ -1082,5 +1103,8 @@ export function applyLlmResult(ctx: any, job: ApplyJob, resultText: string): voi
     applyCombatNarrationResult(ctx, job, resultText);
   } else if (job.domain === 'renown_perk_gen') {
     applyRenownPerkResult(ctx, job, resultText);
+  } else if (job.domain === 'region_economy') {
+    // Silent background work: no player line on success.
+    applyRegionEconomyResult(ctx, job, resultText);
   }
 }

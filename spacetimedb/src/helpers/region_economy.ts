@@ -1,7 +1,8 @@
 /**
  * The Phase 51.3 region economy job, server side: this file builds the route input from a region's
- * stored rows and applies a validated reply (items, loot tables, recipes and scrolls). The enqueue
- * lives in Plan 12 and the route registration in Plan 11; nothing here calls the model.
+ * stored rows, starts the job (startRegionEconomy, startEnemyLoot: gated on economy_dials.aiEnabled,
+ * budget phase_only) and applies a validated reply (items, loot tables, recipes and scrolls). The
+ * route registration lives in llm_routes/llm_layers; nothing here calls the model directly.
  *
  * Every function takes a duck-typed `tx: any` (a reducer ctx or a withTx tx). This module must not
  * import helpers/llm_apply.ts: llm_apply imports this module (Plan 12), so the reply text is parsed
@@ -36,6 +37,9 @@ import {
   validateRegionEconomyReply,
   type ValidatedCreature,
 } from './region_economy_validate';
+import { enqueueLlmJob, SOURCE_KEYS } from './llm_queue';
+import { encodeRouteInput } from './llm_inputs';
+import { getDials } from './economy_state';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -638,6 +642,141 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
   // Last: the region is complete only once every row above exists.
   const latest = ctx.db.region_economy.regionId.find(regionId) ?? statusRow;
   ctx.db.region_economy.regionId.update({ ...latest, status: 'complete', updatedAt: ctx.timestamp });
+
+  // Follow-up (SC1 late enemies): enemy types that joined while the job was pending, or that the reply
+  // left out, get their own enemy-mode job. Never fails the apply.
+  startLateEnemies(ctx, regionId, job);
+}
+
+/** The characterId stored in a region economy request (decimal string); 0n when missing or malformed. */
+function storedCharacterId(contextJson: string | undefined): bigint {
+  if (typeof contextJson !== 'string') return 0n;
+  try {
+    const parsed = JSON.parse(contextJson);
+    return isPlainObject(parsed) ? toBig(parsed.characterId) ?? 0n : 0n;
+  } catch {
+    return 0n;
+  }
+}
+
+/**
+ * After a region apply: every enemy template of the region with no enemy_loot_entry rows gets one
+ * enemy-mode job (startEnemyLoot), for the same player as the region job. Each start is in try/catch.
+ */
+function startLateEnemies(ctx: any, regionId: bigint, job: EconomyApplyJob): void {
+  try {
+    if (getDials(ctx).aiEnabled !== true) return;
+    const who = { playerId: job ? job.playerId : undefined, characterId: storedCharacterId(job ? job.contextJson : undefined) };
+    for (const template of regionEnemyTemplates(ctx, regionId)) {
+      try {
+        startEnemyLoot(ctx, template, regionId, who);
+      } catch (err) {
+        console.error(`Enemy loot start failed for enemy ${String(template.id)}: ${err instanceof Error ? err.name : typeof err}`);
+      }
+    }
+  } catch (err) {
+    console.error(`Enemy loot follow-up failed for region ${String(regionId)}: ${err instanceof Error ? err.name : typeof err}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Job start (Plan 12): gated on the AI economy switch, charged to the phase ledger only
+// ---------------------------------------------------------------------------
+
+/** Who a job is enqueued for: the player identity and the character it is tied to. */
+export interface EconomyJobOwner {
+  playerId: any;
+  characterId: bigint;
+}
+
+/** 'not_ready' (enemy mode only): the region's economy is not complete yet. */
+export type EconomyStartResult =
+  | 'off'
+  | 'exists'
+  | 'no_region'
+  | 'not_ready'
+  | 'enqueued'
+  | 'duplicate'
+  | `refused:${string}`;
+
+/**
+ * Starts a region's economy job. Gates, in order: the AI economy switch (economy_dials.aiEnabled; a
+ * missing row reads off), the once-only region_economy row (a failed row is re-queued only with
+ * retryFailed), a region with locations. The job is enqueued with budget 'phase_only' (never the
+ * player's day; the kill switch, the global ceiling and the ledger still apply) and sourceKey
+ * region:<id>; then the row is marked pending with the job id. A refusal writes nothing.
+ */
+export function startRegionEconomy(
+  tx: any,
+  region: any,
+  who: EconomyJobOwner,
+  opts: { retryFailed?: boolean } = {},
+): EconomyStartResult {
+  if (getDials(tx).aiEnabled !== true) return 'off';
+  if (!region) return 'no_region';
+  const regionId: bigint = region.id;
+  const existing = tx.db.region_economy.regionId.find(regionId);
+  if (existing && !(opts.retryFailed === true && existing.status === 'failed')) return 'exists';
+  if (regionLocations(tx, regionId).length === 0) return 'no_region';
+
+  const input = buildRegionEconomyInput(tx, region, 'region');
+  const result = enqueueLlmJob(tx, {
+    route: 'region_economy',
+    playerId: who.playerId,
+    characterId: who.characterId,
+    sourceKey: SOURCE_KEYS.regionEconomy(regionId),
+    request: {
+      regionId: regionId.toString(),
+      mode: 'region',
+      enemyTemplateId: '0',
+      characterId: who.characterId.toString(),
+      input: encodeRouteInput(input),
+    },
+    budget: 'phase_only',
+  });
+  if (result.refused) {
+    console.info(`region_economy enqueue refused for region ${String(regionId)}: ${result.refused}`);
+    return `refused:${result.refused}`;
+  }
+  markRegionEconomyPending(tx, regionId, result.job.id, JSON.stringify(input.foreignRegions.map((r) => r.regionId.toString())));
+  return result.created ? 'enqueued' : 'duplicate';
+}
+
+/**
+ * Starts the small enemy-mode job for an enemy type that joined an already designed region. Gates:
+ * the AI economy switch, the region's economy complete, the enemy with no enemy_loot_entry rows.
+ * Budget 'phase_only', sourceKey enemy:<id>. A refusal writes nothing.
+ */
+export function startEnemyLoot(tx: any, enemyTemplate: any, regionId: bigint, who: EconomyJobOwner): EconomyStartResult {
+  if (getDials(tx).aiEnabled !== true) return 'off';
+  if (!enemyTemplate || typeof regionId !== 'bigint') return 'no_region';
+  const row = tx.db.region_economy.regionId.find(regionId);
+  if (!row || row.status !== 'complete') return 'not_ready';
+  const enemyId: bigint = enemyTemplate.id;
+  if ([...tx.db.enemy_loot_entry.by_enemy.filter(enemyId)].length > 0) return 'exists';
+  const region = tx.db.region.id.find(regionId);
+  if (!region) return 'no_region';
+
+  const input = buildRegionEconomyInput(tx, region, 'enemy', enemyTemplate);
+  const result = enqueueLlmJob(tx, {
+    route: 'region_economy',
+    playerId: who.playerId,
+    characterId: who.characterId,
+    sourceKey: SOURCE_KEYS.enemyLoot(enemyId),
+    request: {
+      regionId: regionId.toString(),
+      mode: 'enemy',
+      enemyTemplateId: enemyId.toString(),
+      characterId: who.characterId.toString(),
+      input: encodeRouteInput(input),
+    },
+    budget: 'phase_only',
+  });
+  if (result.refused) {
+    console.info(`region_economy enqueue refused for enemy ${String(enemyId)} in region ${String(regionId)}: ${result.refused}`);
+    return `refused:${result.refused}`;
+  }
+  return result.created ? 'enqueued' : 'duplicate';
 }
 
 /** Rank of a gather slot rarity (common, uncommon, rare); anything else sorts last. */

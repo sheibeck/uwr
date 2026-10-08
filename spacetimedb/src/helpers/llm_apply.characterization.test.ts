@@ -137,6 +137,10 @@ function dump(ctx: any): string {
   // newCtx seeds llm_admin_state empty (see there); an empty table is left out so the stored snapshots
   // stay as they were, while any row the apply path wrote to it would still show up.
   if (Array.isArray(all.llm_admin_state) && all.llm_admin_state.length === 0) delete all.llm_admin_state;
+  // Plan 51.3-12: the fill and late-enemy hooks read the AI economy switch (economy_dials). The lenient mock
+  // creates an empty table on that read; with no row the switch is off and nothing is written, so the empty
+  // table is left out like llm_admin_state above. Any row written to it would still show up.
+  if (Array.isArray(all.economy_dials) && all.economy_dials.length === 0) delete all.economy_dials;
   // Plan 51-01: a first spawn also marks the start location visited; helpers/visited_arrivals.test.ts pins that row.
   delete all.visited_location;
   return JSON.stringify(all, null, 2);
