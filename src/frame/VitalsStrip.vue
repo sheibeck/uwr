@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, shallowRef, watch } from 'vue';
-import { PhArrowFatUp, PhCrosshairSimple, PhCrownSimple } from '@phosphor-icons/vue';
+import { PhArrowFatUp, PhCrosshairSimple, PhCrownSimple, PhPawPrint } from '@phosphor-icons/vue';
+import { STRIP_EFFECT_LIMIT } from '../combat/hostiles';
 import InCombatTag from '../combat/InCombatTag.vue';
 import { useDamageFlash } from '../combat/useDamageFlash';
 import {
@@ -89,6 +90,32 @@ const myPet = computed(() => {
   return id === null ? null : social.petOf(id);
 });
 const showRow3 = computed(() => effects.value.length > 0 || myPet.value !== null);
+
+// The party grid (51.1-UI-SPEC "Mobile Party in Combat", "Party grid"): one card per other member, in
+// partyMembers order. A known member is a button that targets them; an offline member is muted and
+// still a target; a member whose character row has not applied is a plain 'Member' card. The label
+// carries what the card shows in words: the health percent, the pet (the paw), offline and the chips.
+// Names, pet names and effect texts are server text: text nodes and attribute bindings only.
+const cards = computed(() =>
+  members.value.map((member) => {
+    const pet = member.known ? social.petOf(member.id) : null;
+    const memberEffects = member.known ? effectViews(game.effects.value, member.id, true) : [];
+    const offline = member.known && !member.online;
+    let sentence = `Health ${member.healthPercent} percent`;
+    if (pet !== null) sentence += `, pet ${pet.name} health ${pet.currentHp} of ${pet.maxHp}`;
+    if (offline) sentence += ', offline';
+    if (memberEffects.length > 0) sentence += `. Effects: ${memberEffects.map((view) => view.text).join(', ')}`;
+    return {
+      member,
+      pet,
+      effects: memberEffects,
+      muted: !member.known || offline,
+      selected: member.known && controller.allyTargetId.value === member.id,
+      width: `${barFraction(member.hp, member.maxHp) * 100}%`,
+      label: `Target ${member.name} with your next ability. ${sentence}.`,
+    };
+  }),
+);
 
 // HP damage flash (48-UI-SPEC "Damage flash", CMB-05): the active character's HP only. The key is
 // latched so it only moves together with the hp prop (props lag the game refs by a render); a
@@ -230,6 +257,47 @@ function openSocial(): void {
         </button>
         <EffectChips :effects="effects" nowrap />
       </div>
+      <ul v-if="combatActive && cards.length > 0" class="party-grid" aria-label="Party">
+        <li v-for="card in cards" :key="String(card.member.id)">
+          <button
+            v-if="card.member.known"
+            type="button"
+            class="ally-card"
+            :class="{ selected: card.selected, muted: card.muted }"
+            :aria-pressed="card.selected ? 'true' : 'false'"
+            :aria-label="card.label"
+            @click="controller.selectAlly(card.member.id)"
+          >
+            <span class="card-top">
+              <span class="card-name">
+                <CharacterName class="card-name-text" :name="card.member.name" />
+                <PhPawPrint
+                  v-if="card.pet !== null"
+                  class="paw"
+                  :size="10"
+                  :title="`${card.pet.name} ${card.pet.currentHp}/${card.pet.maxHp}`"
+                  aria-hidden="true"
+                />
+              </span>
+              <span class="pct">{{ card.member.healthPercent }}%</span>
+            </span>
+            <span class="track" aria-hidden="true">
+              <span class="fill fill-health" :style="{ width: card.width }"></span>
+            </span>
+            <EffectChips
+              v-if="card.effects.length > 0"
+              :effects="card.effects"
+              compact
+              nowrap
+              inline
+              :limit="STRIP_EFFECT_LIMIT"
+            />
+          </button>
+          <div v-else class="ally-card unknown muted">
+            <CharacterName class="card-name-text" name="Member" />
+          </div>
+        </li>
+      </ul>
     </template>
   </section>
 </template>
@@ -584,6 +652,113 @@ function openSocial(): void {
 
 .row3-chips > :deep(.effect-chips) {
   width: max-content;
+}
+
+/* The party grid (mobile, in a fight): three columns of 44px target cards that wrap. */
+.party-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.party-grid > li {
+  display: flex;
+  min-width: 0;
+}
+
+.ally-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.ally-card {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  button.ally-card:hover {
+    background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
+  }
+}
+
+button.ally-card:active {
+  background: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
+}
+
+button.ally-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.ally-card.selected {
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+}
+
+.card-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.card-name-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ally-card.muted .card-name-text {
+  color: var(--color-neutral-500);
+}
+
+.paw {
+  flex: none;
+  color: var(--color-accent-300);
+}
+
+.pct {
+  flex: none;
+  font-size: 10px;
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.ally-card .track {
+  display: block;
+  height: 3px;
+}
+
+.ally-card .fill {
+  display: block;
+}
+
+.ally-card.muted .track {
+  opacity: 0.45;
 }
 
 .compact-row {

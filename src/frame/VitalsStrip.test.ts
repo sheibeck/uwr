@@ -581,7 +581,7 @@ describe('VitalsStrip row 3 in combat (51.1-15)', () => {
     });
     const row = w.get('.row3');
     expect(row.find('.effect-chips').exists()).toBe(false);
-    expect(row.get('.pet-tag').exists()).toBe(true);
+    expect(row.find('.pet-tag').exists()).toBe(true);
   });
 
   it('shows the effect chips alone when you have effects and no pet', () => {
