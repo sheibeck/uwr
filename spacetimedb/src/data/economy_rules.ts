@@ -134,13 +134,64 @@ export function effectiveDials(
   };
 }
 
+/** The clamped percent of one item pin; no pin (undefined or null) is 100. */
+export function pinPct(itemPct?: bigint | null): bigint {
+  return clampDial('itemDropPct', itemPct === undefined || itemPct === null ? DIAL_RANGES.itemDropPct.def : itemPct).value;
+}
+
 /**
- * The weight of one candidate item after its admin pin: base * pin / 100, the pin clamped to 0..300.
- * The pin replaces the drop rate for that item's weight only. No pin means 100.
+ * The weight of one candidate item after its admin pin: base * pin, the pin clamped to 0..300. There is
+ * no division (review CR-01: base * pin / 100 floored a weight of 1 to 0 at 50% and left it unchanged
+ * at 150%), so the result is on a x100 scale: compare it only with other weights that also passed
+ * through itemWeight. pinWeights does the same for a whole pool and keeps unpinned weights as they are.
  */
 export function itemWeight(baseWeight: bigint, itemPct?: bigint | null): bigint {
-  const pct = clampDial('itemDropPct', itemPct === undefined || itemPct === null ? DIAL_RANGES.itemDropPct.def : itemPct).value;
-  return (baseWeight * pct) / 100n;
+  return baseWeight * pinPct(itemPct);
+}
+
+function gcd(a: bigint, b: bigint): bigint {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y !== 0n) {
+    const r = x % y;
+    x = y;
+    y = r;
+  }
+  return x;
+}
+
+/**
+ * Each weight times its percent, exactly. The percents of the weights that count (both above 0) are
+ * first divided by their greatest common divisor, so the ratios are kept with no rounding and equal
+ * percents leave the weights as they are (the default dials change no roll). A weight or percent of 0
+ * (or below) gives 0. Review CR-01: the picks normalize by the total, so no division is needed.
+ */
+export function scaleWeights(weights: readonly bigint[], pcts: readonly bigint[]): bigint[] {
+  let g = 0n;
+  weights.forEach((w, i) => {
+    const p = pcts[i] ?? 0n;
+    if (w > 0n && p > 0n) g = gcd(g, p);
+  });
+  return weights.map((w, i) => {
+    const p = pcts[i] ?? 0n;
+    return w > 0n && p > 0n && g > 0n ? w * (p / g) : 0n;
+  });
+}
+
+/**
+ * A pool with the admin item pins applied to every entry at once (scaleWeights over the clamped pins),
+ * other fields kept. With no pin in the pool the weights are unchanged; a pin at 50 halves its entry
+ * against the rest, even when that entry's weight is 1.
+ */
+export function pinWeights<T extends { itemTemplateId: bigint; weight: bigint }>(
+  entries: readonly T[],
+  pins: ReadonlyMap<bigint, bigint>,
+): T[] {
+  const scaled = scaleWeights(
+    entries.map((e) => e.weight),
+    entries.map((e) => pinPct(pins.get(e.itemTemplateId))),
+  );
+  return entries.map((e, i) => ({ ...e, weight: scaled[i]! }));
 }
 
 // ---------------------------------------------------------------------------
@@ -274,8 +325,10 @@ export function shiftMix(mix: readonly bigint[], k: bigint, capIndex: number): b
  *  - A normal foe shifts by the rarity dial, capped at epic.
  *  - A boss or named foe shifts by the rarity dial plus a built-in +1 ("better for bosses and named
  *    foes", SC2) plus the boss bonus, capped at legendary.
- * Each tier is then multiplied by its tier weight (floor). A normal foe's legendary weight is forced to
- * 0 as the very last step, whatever the inputs: legendary is a boss and named-foe reward only.
+ * Each tier is then multiplied by its tier weight with exact ratios (scaleWeights, review CR-01: epic at
+ * 50% halves epic instead of removing it). The total is no longer always 100; rollRarity normalizes.
+ * A normal foe's legendary weight is forced to 0 as the very last step, whatever the inputs: legendary
+ * is a boss and named-foe reward only.
  */
 export function rarityMix(
   level: bigint,
@@ -285,7 +338,7 @@ export function rarityMix(
 ): bigint[] {
   const k = bossOrNamed ? dials.rarityShift + 1n + dials.bossRarityBonus : dials.rarityShift;
   const shifted = shiftMix(baseMix(level, dangerMultiplier), k, bossOrNamed ? LEGENDARY_INDEX : EPIC_INDEX);
-  const out = shifted.map((w, i) => (w * dials.tierPct[QUALITY_TIERS[i]!]) / 100n);
+  const out = scaleWeights(shifted, QUALITY_TIERS.map((tier) => dials.tierPct[tier]));
   if (!bossOrNamed) out[LEGENDARY_INDEX] = 0n;
   return out;
 }

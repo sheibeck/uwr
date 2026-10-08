@@ -259,6 +259,19 @@ describe('rollEnemyLoot: the drop-rate dial and pins', () => {
     }
   });
 
+  // Review CR-01: a pin is exact, so a small weight pinned at 50 still drops (it was floored to 0).
+  it('a junk entry pinned at 50 still drops, and less often than unpinned', () => {
+    const count = (pins: any[]) => {
+      const ctx = ctxFor(world({ economy_item_dial: pins }));
+      const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
+      return rollsOver(ctx, lc, { id: 1n }, BEAST, 1500).flatMap(commons).filter((i) => i.itemTemplateId === 100n).length;
+    };
+    const plain = count([]);
+    const halved = count([{ itemTemplateId: 100n, dropRatePct: 50n }]);
+    expect(halved).toBeGreaterThan(0);
+    expect(halved).toBeLessThan(plain);
+  });
+
   it('an item pinned at 0 is never picked', () => {
     const ctx = ctxFor(
       world({
@@ -447,6 +460,25 @@ describe('rollEnemyLoot: recipe scrolls from bosses and named foes', () => {
     const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
     const all = rollsOver(ctx, lc, { id: 1n }, BEAST, 1000).flat();
     expect(all.some((i) => i.kind === 'scroll')).toBe(false);
+  });
+
+  // Review CR-01: (1 * 50) / 100 floored the legendary scroll weight to 0 at any tier dial below 100.
+  it('a legendary scroll tier at 50% still drops, at about half its share', () => {
+    const base = scrollWorld({ economy_dials: [dialsRow({ tierLegendaryPct: 50n })] });
+    base.item_template = [...base.item_template, item(403n, 'Scroll: Star Forge')];
+    base.region_recipe = [
+      ...base.region_recipe,
+      { recipeTemplateId: 504n, regionId: 1n, tier: 'legendary', learnBy: 'scroll', scrollTemplateId: 403n, foreignRegionIds: '[]' },
+    ];
+    const ctx = ctxFor(base);
+    const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
+    const boss = { ...BEAST, isBoss: true };
+    const scrolls = rollsOver(ctx, lc, { id: 1n }, boss, 4000).flat().filter((i) => i.kind === 'scroll');
+    const legendary = scrolls.filter((i) => i.itemTemplateId === 403n).length;
+    expect(scrolls.length).toBeGreaterThan(200);
+    expect(legendary).toBeGreaterThan(0);
+    // rare 6, epic 3, legendary 1 at 50%: legendary is 1 part in 19 (about 5%).
+    expect(legendary / scrolls.length).toBeLessThan(0.12);
   });
 
   it('a tier weight of 0 removes that scroll tier', () => {

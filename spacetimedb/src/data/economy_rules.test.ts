@@ -12,6 +12,8 @@ import {
   clampDial,
   effectiveDials,
   itemWeight,
+  pinWeights,
+  scaleWeights,
   ROLL_INDEX,
   economyRoll,
   rollBelow,
@@ -174,17 +176,56 @@ describe('effectiveDials', () => {
 });
 
 describe('itemWeight', () => {
-  it('scales by the item pin, defaulting to 100', () => {
-    expect(itemWeight(10n, undefined)).toBe(10n);
+  it('multiplies by the clamped item pin (default 100), on a x100 scale with no division', () => {
+    expect(itemWeight(10n, undefined)).toBe(1000n);
     expect(itemWeight(10n, 0n)).toBe(0n);
-    expect(itemWeight(10n, 100n)).toBe(10n);
-    expect(itemWeight(10n, 300n)).toBe(30n);
-    expect(itemWeight(10n, 999n)).toBe(30n);
+    expect(itemWeight(10n, 100n)).toBe(1000n);
+    expect(itemWeight(10n, 300n)).toBe(3000n);
+    expect(itemWeight(10n, 999n)).toBe(3000n);
     expect(itemWeight(10n, -5n)).toBe(0n);
   });
 
-  it('floors', () => {
-    expect(itemWeight(3n, 50n)).toBe(1n);
+  // Review CR-01: floor division zeroed a weight of 1 at 50% and left it unchanged at 150%.
+  it('never rounds a small weight away: 1 at 50% stays half of 1 at 100%', () => {
+    expect(itemWeight(1n, 50n)).toBe(50n);
+    expect(itemWeight(1n, 150n)).toBe(150n);
+    expect(itemWeight(3n, 50n) * 2n).toBe(itemWeight(3n, 100n));
+  });
+});
+
+describe('scaleWeights (review CR-01: exact percent dials)', () => {
+  it('equal percents leave the weights unchanged', () => {
+    expect(scaleWeights([60n, 30n, 9n, 1n, 0n], [100n, 100n, 100n, 100n, 100n])).toEqual([60n, 30n, 9n, 1n, 0n]);
+    expect(scaleWeights([6n, 3n, 1n], [300n, 300n, 300n])).toEqual([6n, 3n, 1n]);
+  });
+
+  it('keeps exact ratios: a weight of 1 at 50% is half of its neighbours, not 0', () => {
+    expect(scaleWeights([60n, 30n, 9n, 1n], [100n, 100n, 100n, 50n])).toEqual([120n, 60n, 18n, 1n]);
+    expect(scaleWeights([60n, 30n, 9n, 1n], [100n, 100n, 100n, 150n])).toEqual([120n, 60n, 18n, 3n]);
+  });
+
+  it('a percent of 0 removes only that weight; all zero gives all zero', () => {
+    expect(scaleWeights([5n, 5n], [0n, 100n])).toEqual([0n, 5n]);
+    expect(scaleWeights([5n, 5n], [0n, 0n])).toEqual([0n, 0n]);
+  });
+});
+
+describe('pinWeights (item pins over one pool)', () => {
+  it('no pins leaves every weight as it is', () => {
+    const pool = [{ itemTemplateId: 1n, weight: 10n }, { itemTemplateId: 2n, weight: 6n }];
+    expect(pinWeights(pool, new Map()).map((e) => e.weight)).toEqual([10n, 6n]);
+  });
+
+  it('a pin at 50 halves one entry against the rest without zeroing a weight of 1', () => {
+    const pool = [{ itemTemplateId: 1n, weight: 1n }, { itemTemplateId: 2n, weight: 6n }];
+    expect(pinWeights(pool, new Map([[1n, 50n]])).map((e) => e.weight)).toEqual([1n, 12n]);
+    expect(pinWeights(pool, new Map([[1n, 150n]])).map((e) => e.weight)).toEqual([3n, 12n]);
+    expect(pinWeights(pool, new Map([[1n, 0n]])).map((e) => e.weight)).toEqual([0n, 6n]);
+  });
+
+  it('keeps the other fields of an entry', () => {
+    const out = pinWeights([{ itemTemplateId: 1n, weight: 2n, role: 'junk' }], new Map());
+    expect(out[0]).toEqual({ itemTemplateId: 1n, weight: 2n, role: 'junk' });
   });
 });
 
@@ -448,13 +489,27 @@ describe('rarityMix', () => {
     expect(rarityMix(45n, 300n, true, dials)[3]).toBe(0n);
   });
 
-  it('multiplies by the tier weights (floor)', () => {
+  it('multiplies by the tier weights with exact ratios (no division)', () => {
     const dials = effectiveDials({ ...DEFAULT_DIALS, tierRarePct: 50n, tierCommonPct: 300n });
     const base = baseMix(25n, 100n);
     const mix = rarityMix(25n, 100n, false, dials);
-    expect(mix[0]).toBe(base[0] * 3n);
-    expect(mix[2]).toBe((base[2] * 50n) / 100n);
-    expect(mix[1]).toBe(base[1]);
+    // Percents 300/100/50/100/100 over their common divisor 50: x6, x2, x1, x2, x2.
+    expect(mix).toEqual([base[0] * 6n, base[1] * 2n, base[2], base[3] * 2n, 0n]);
+  });
+
+  // Review CR-01: the owner's own example (epic x0.5) removed epic entirely at world tier 2.
+  it('T2 epic at 50% halves epic instead of removing it; at 150% it rises', () => {
+    const half = rarityMix(15n, 100n, false, effectiveDials({ ...DEFAULT_DIALS, tierEpicPct: 50n }));
+    expect(half).toEqual([120n, 60n, 18n, 1n, 0n]);
+    const more = rarityMix(15n, 100n, false, effectiveDials({ ...DEFAULT_DIALS, tierEpicPct: 150n }));
+    expect(more).toEqual([120n, 60n, 18n, 3n, 0n]);
+  });
+
+  it('T2 boss legendary at 50% keeps legendary at half; at 150% it rises', () => {
+    const half = rarityMix(15n, 100n, true, effectiveDials({ ...DEFAULT_DIALS, tierLegendaryPct: 50n }));
+    expect(half).toEqual([0n, 120n, 60n, 18n, 1n]);
+    const more = rarityMix(15n, 100n, true, effectiveDials({ ...DEFAULT_DIALS, tierLegendaryPct: 150n }));
+    expect(more).toEqual([0n, 120n, 60n, 18n, 3n]);
   });
 
   it('keeps a total of 100 at default dials', () => {

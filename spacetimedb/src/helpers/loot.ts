@@ -33,15 +33,17 @@ import {
   gearChancePct,
   gearPoolWeight,
   goldReward,
-  itemWeight,
   jewelryFloor,
   lootSeed,
   pickCount,
   pickWeighted,
   pickWithoutReplacement,
+  pinPct,
+  pinWeights,
   rarityMix,
   rollBelow,
   rollRarity,
+  scaleWeights,
   scaledChancePct,
   zoneTierOf,
   type EffectiveDials,
@@ -239,10 +241,8 @@ export function buildVictoryLootContext(ctx: any, combat: any, participants: rea
 const seedOf = (ctx: any, enemyRow: any, characterId: bigint): bigint =>
   lootSeed(ctx.timestamp.microsSinceUnixEpoch, characterId, enemyRow?.id ?? 0n);
 
-const pinned = <T extends WeightedEntry>(lc: VictoryLootContext, entry: T): T => ({
-  ...entry,
-  weight: itemWeight(entry.weight, lc.pins.get(entry.itemTemplateId)),
-});
+/** A whole pool with the admin item pins applied exactly (pinWeights: no pin leaves it unchanged). */
+const pinned = <T extends WeightedEntry>(lc: VictoryLootContext, entries: readonly T[]): T[] => pinWeights(entries, lc.pins);
 
 /** The gear drop of one kill (null when the gear roll misses or the pool is empty). */
 function rollGear(
@@ -261,14 +261,14 @@ function rollGear(
   for (const entry of aiGear) {
     const template = ctx.db.item_template.id.find(entry.itemTemplateId);
     if (!template) continue;
-    pool.push(pinned(lc, { itemTemplateId: entry.itemTemplateId, weight: entry.weight, template }));
+    pool.push({ itemTemplateId: entry.itemTemplateId, weight: entry.weight, template });
   }
   for (const template of lc.gearTemplates) {
     const req: bigint = typeof template.requiredLevel === 'bigint' ? template.requiredLevel : 1n;
     if (req < band.minLevel || req > maxLevel) continue;
-    pool.push(pinned(lc, { itemTemplateId: template.id, weight: gearPoolWeight({ slot: template.slot, rarity: template.rarity }), template }));
+    pool.push({ itemTemplateId: template.id, weight: gearPoolWeight({ slot: template.slot, rarity: template.rarity }), template });
   }
-  const pick = pickWeighted(pool, seed, ROLL_INDEX.GEAR_PICK);
+  const pick = pickWeighted(pinned(lc, pool), seed, ROLL_INDEX.GEAR_PICK);
   if (!pick) return null;
   const template = pick.template;
   const armorClassBonus: bigint = typeof template.armorClassBonus === 'bigint' ? template.armorClassBonus : 0n;
@@ -311,7 +311,7 @@ export function rollEnemyLoot(ctx: any, lc: VictoryLootContext, enemyRow: any, t
           creatureType: template.creatureType,
           zoneTier: lc.zoneTier,
         });
-  const commonPool = commonBase.map((e) => pinned(lc, { itemTemplateId: e.itemTemplateId, weight: e.weight }));
+  const commonPool = pinned(lc, commonBase.map((e) => ({ itemTemplateId: e.itemTemplateId, weight: e.weight })));
   const picks = pickWithoutReplacement(commonPool, Number(pickCount(seed, dropPct)), seed, ROLL_INDEX.PICK_BASE);
   for (const p of picks) {
     if (!ctx.db.item_template.id.find(p.itemTemplateId)) continue;
@@ -345,13 +345,17 @@ export function rollEnemyLoot(ctx: any, lc: VictoryLootContext, enemyRow: any, t
     lc.scrollRecipes.length > 0 &&
     rollBelow(seed, ROLL_INDEX.SCROLL, 100n) < scaledChancePct(SCROLL_DROP_BASE_PCT, dropPct)
   ) {
-    const entries = lc.scrollRecipes.map((r) => {
-      const base = (SCROLL_TIER_WEIGHTS as Record<string, bigint>)[r.tier] ?? 0n;
+    // Weight = tier base x tier dial x item pin, scaled exactly (review CR-01: a legendary scroll's
+    // weight of 1 was floored to 0 at any tier dial below 100).
+    const bases = lc.scrollRecipes.map((r) => (SCROLL_TIER_WEIGHTS as Record<string, bigint>)[r.tier] ?? 0n);
+    const pcts = lc.scrollRecipes.map((r) => {
       const tierPct = (QUALITY_TIERS as readonly string[]).includes(r.tier)
         ? (lc.dials.tierPct as Record<string, bigint>)[r.tier] ?? 100n
         : 0n;
-      return pinned(lc, { itemTemplateId: r.scrollTemplateId, weight: (base * tierPct) / 100n });
+      return tierPct * pinPct(lc.pins.get(r.scrollTemplateId));
     });
+    const weights = scaleWeights(bases, pcts);
+    const entries = lc.scrollRecipes.map((r, i) => ({ itemTemplateId: r.scrollTemplateId, weight: weights[i]! }));
     const pick = pickWeighted(entries, seed, ROLL_INDEX.SCROLL_PICK);
     if (pick) out.push({ itemTemplateId: pick.itemTemplateId, kind: 'scroll' });
   }
