@@ -2298,5 +2298,36 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.28: Compass-true map: places and regions sit in their real direction, with a north arrow (BACKLOG)
+
+**Source:** owner, 2026-10-08 (verbatim): "i'm in a party travelling, and I am in Kesterlane Basin. Elfansworth has only ever heard of Tamarisk Cut. So that nod shows on the far left of his map. Armond, you has traveled to Tamarisk Cut before shows it to the East his map -> east of Orrin Sill and north of the Glass shard. Is there any way for us to know which of the 8 directions a specific map node lies in relation to others, so even if we haven't discovered the path or visited a heard of location it's at least in the general area of where it really is in relation to other locations in the region? Same things with regions, they should be relational by compass direction so even if it's never been visited, if it's been heard of, the map is generally correct with regard to each location and regions compass direction. Mabye even add a small compass in the left corner showing N ... like standar map north symbol"
+
+**Goal:** Every player's map puts each place, and each region, in its true compass direction relative to the others, whether it is visited or only heard of, so two players who know different parts of a region see the same rough geography. A small north arrow ("N") sits in a corner of the map.
+
+**Why it happens today:**
+
+- The world stores no direction. `location_connection` has only `fromLocationId` and `toLocationId` (no bearing), and locations and regions have no coordinates.
+- The map layout (`src/map/graphLayout.ts`) is a force-style layout of only the places this character knows (visited plus heard of, `knownPlaces.ts`), then rotated so the longer axis fits the canvas and the start sits top-left. So the same place lands in different spots for different players, and a heard-of place with one known edge can sit anywhere around its neighbour. Direction on screen means nothing.
+
+**Approach (to settle in discuss):**
+
+- **Server is the source of truth for geography.** Give each location a stable position in its region (grid or x/y coordinates), and each region a position in the world, set once at world generation and when the world grows. Bearings between places follow from positions, so they are always consistent (A east of B means B west of A).
+  - Alternative: an 8-point `bearing` on each `location_connection` (as backlog 999.10 already plans for NPC directions), with the reverse edge getting the opposite bearing. Positions are stronger, because places with no known path between them still keep their true relative direction.
+- **Generation:** new places and regions get positions that fit their connections (a new neighbour lands in a free cell on the right side). Placement is deterministic. Any change to world-generation prompt wording needs the owner's approval of the exact text; positions can be assigned by rule after the LLM output, without prompt changes.
+- **Existing worlds:** backfill positions for current locations and regions from their connections (additive columns or a new table, never `--clear-database`).
+- **Client layout:** `graphLayout.ts` seeds and anchors every node at its true position (north up), then only nudges for spacing and labels. The "orient" step that rotates the graph is removed or replaced, and heard-of places sit in their real direction even with no known path. Regions on the region picker or overview follow the same rule.
+- **North arrow:** a small "N" compass in a map corner, desktop and mobile, tokens only, Phosphor icon if one fits (for example `PhCompass` or `PhNavigationArrow`); `<svg>` is already allowed under `src/map/`.
+- **Text that names a direction** (exit chips, NPC directions in 999.10, "lies to the east") reads the same positions, so words and map agree.
+
+**Ties:** 999.10 (NPC directions with bearings), Phase 51.5.1 Motion and Polish (map transitions after travel animate between true positions, which should make them calmer), 999.26 (world structure and typed sub-regions).
+
+**Requirements:** TBD (unit tests required: positions deterministic and stable; bearings consistent both ways; every player sees the same relative direction for the same two places; heard-of places placed by true position; backfill covers every existing place and region; the north arrow renders on desktop and mobile; layout still keeps node spacing and label rules)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+
 ---
-*Last updated: 2026-10-08 after folding pets (999.27) and the threat rework into 999.4 (owner)*
+*Last updated: 2026-10-08 after adding backlog 999.28 Compass-true map (owner)*
