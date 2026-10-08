@@ -538,7 +538,7 @@ describe('handleEconomyAdminCommand: design', () => {
     updatedAt: { microsSinceUnixEpoch: 1n },
   });
   const econJobs = (ctx: any) => rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
-  const QUEUED = 'Economy design queued for Kesterlane Basin. It runs in the background; see /economy region Kesterlane Basin for its status.';
+  const QUEUED = 'Economy design queued for Kesterlane Basin. It runs in the background; see /economy region Kesterlane Basin for the status.';
 
   it('with the switch off: says how to turn it on and writes no job or row', () => {
     const ctx = ctxFor(admin, designSeed());

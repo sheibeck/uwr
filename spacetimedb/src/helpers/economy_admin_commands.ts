@@ -20,6 +20,8 @@ import { effectiveDials, type DialName } from '../data/economy_rules';
 import { QUALITY_TIERS } from '../data/mechanical_vocabulary';
 import { fail, appendPrivateEvent } from './events';
 import { applyDialChange, getDials, resetEconomy, setAiEnabled } from './economy_state';
+import { startRegionEconomy } from './region_economy';
+import { LLM_RESTING_LINE } from './llm_queue';
 
 /** What a non-admin hears. The Keeper is he/his. */
 export const ECONOMY_ADMIN_REFUSAL_LINE = 'The Keeper does not open his ledgers to you.';
@@ -28,7 +30,7 @@ export const ECONOMY_COMMAND_USAGE =
   'Usage: /economy, /economy rarity -2..2, /economy drop|gold|gather|boss NUMBER, ' +
   '/economy tier common|uncommon|rare|epic|legendary 0-300, ' +
   '/economy region NAME, /economy region NAME drop|gold|gather|rarity|boss NUMBER, /economy region NAME reset, ' +
-  '/economy item NAME drop 0-300, /economy item NAME reset, /economy ai on|off, /economy reset. ' +
+  '/economy item NAME drop 0-300, /economy item NAME reset, /economy ai on|off, /economy design NAME, /economy reset. ' +
   'A drop or gold dial at 0 can leave a kill empty on purpose.';
 
 const SCALAR_WORDS = ['rarity', 'drop', 'gold', 'gather', 'boss'] as const;
@@ -44,6 +46,7 @@ export type EconomyCommand =
   | { verb: 'item_set'; itemName: string; value: bigint }
   | { verb: 'item_reset'; itemName: string }
   | { verb: 'ai'; enabled: boolean }
+  | { verb: 'design'; regionName: string }
   | { verb: 'reset' }
   | { verb: 'help' };
 
@@ -78,6 +81,10 @@ export function parseEconomyCommand(text: string): EconomyCommand | null {
     const arg = rest[0]?.toLowerCase();
     if (rest.length === 1 && (arg === 'on' || arg === 'off')) return { verb: 'ai', enabled: arg === 'on' };
     return HELP;
+  }
+
+  if (verb === 'design') {
+    return rest.length > 0 ? { verb: 'design', regionName: rest.join(' ') } : HELP;
   }
 
   if (isScalarWord(verb)) {
@@ -378,6 +385,26 @@ export function handleEconomyAdminCommand(ctx: any, character: any, text: string
           : 'AI economy: off. Regions use the rule-based economy.',
       );
       return true;
+
+    case 'design': {
+      // The only on-demand path to the paid economy job (owner decision 2026-10-08). startRegionEconomy
+      // re-checks the AI switch and the once-only row; only a failed region is re-queued.
+      const region = findRegionByName(ctx, cmd.regionName);
+      if (!region) {
+        refuse('No region by that name.');
+        return true;
+      }
+      const result = startRegionEconomy(ctx, region, { playerId: ctx.sender, characterId: character.id }, { retryFailed: true });
+      const name = plainText(region.name);
+      if (result === 'off') refuse('The AI economy is off. Turn it on with /economy ai on first.');
+      else if (result === 'exists') refuse(`${name} already has an economy (${regionStatusWord(ctx, region.id)}).`);
+      else if (result === 'no_region' || result === 'not_ready') refuse('No region by that name.');
+      else if (result === 'enqueued' || result === 'duplicate') {
+        say(`Economy design queued for ${name}. It runs in the background; see /economy region ${name} for the status.`);
+      } else if (result === 'refused:halted' || result === 'refused:ceiling') refuse(LLM_RESTING_LINE);
+      else refuse(`Economy design refused: ${plainText(result.slice('refused:'.length))}.`);
+      return true;
+    }
 
     case 'reset': {
       resetEconomy(ctx, 'global');

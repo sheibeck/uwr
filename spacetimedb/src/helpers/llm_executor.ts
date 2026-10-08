@@ -246,7 +246,9 @@ export function claimLlmJob(ctx: any, arg: DispatchArg, deps: ExecutorDeps): Cla
 
     // The count is derived from the by_status index inside this transaction (never a table-level count).
     const inFlight = [...tx.db.llm_job.by_status.filter('in_flight')].length;
-    const limit = job.route === 'combat_narration' ? LLM_NARRATION_MAX_IN_FLIGHT : LLM_MAX_IN_FLIGHT;
+    // Background work (narration, the region economy) never takes the last slot from gameplay calls.
+    const background = job.route === 'combat_narration' || job.route === 'region_economy';
+    const limit = background ? LLM_NARRATION_MAX_IN_FLIGHT : LLM_MAX_IN_FLIGHT;
     if (inFlight >= limit) {
       insertLlmDispatch(tx, job.id, now + msToMicros(deferDelayMs(job.id, arg.scheduledId)));
       return { kind: 'deferred' };
