@@ -747,7 +747,8 @@ Plans:
   3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
   4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 52 admin screens get a panel beside the economy panel.
   5. Pull size: how many enemies a pull brings is settled in discuss and, if the owner wants, tied to difficulty through the dials.
-  6. Tests cover the clamps, each override level and how they combine, and determinism.
+  6. Ability power: whether player abilities get per-kind power dials (and per-ability overrides) is settled in discuss; if built, cast-time results and tooltips read the same rule.
+  7. Tests cover the clamps, each override level and how they combine, and determinism.
 
 **Plans:** 0 plans
 **Notes**:
@@ -755,6 +756,12 @@ Plans:
   - Owner, 2026-10-08: "Could we also have a phase for combat dials? We'll want to be able to tune combat to make it harder/easier by difficulty level, redfin type". The owner then picked difficulty level, region type and enemy type, placed right after 51.3.
   - Which combat numbers to expose (health, damage, armor, ability frequency, XP, flee) and how the levels combine (multiply or most-specific-wins) are for this phase's discuss.
   - Owner, 2026-10-08: "We'll also want to talk about pulling enemies and whether you get multiple enemies per pull. That's can be tied to difficult". For discuss: how many enemies a pull brings (adds per pull), how that scales with difficulty, and whether it is a dial. Today careful pull (an owner decision, quick task 261006-a0i) pulls one Nearby enemy; check what the pull and add rules do now before proposing.
+  - Owner, 2026-10-08: "Do we also need ability dials? Some way to balance ai generated abilities? Let's consider the complexity of that when you consider you might need to tweak an exciting ability. Or maybe, tuning difficulty is the answer". Coordinator view, to settle in discuss:
+    - Generated abilities are already clamped at creation to a per-kind power budget (`BASE_BUDGET` in `helpers/skill_budget.ts`), and the clamped numbers are stored on `ability_template`.
+    - Proposal: per-kind ability power dials applied at cast time (for example heal ×0.85), which retune existing and future abilities with no row rewrites. Add per-ability overrides only as a sparse escape hatch for a single outlier.
+    - Tooltips and cost text must read the same rule, so the shown numbers match what happens.
+    - A changed signature ability should tell its owner why.
+    - The difficulty dials remain the main tool for overall balance.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
