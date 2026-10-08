@@ -8,6 +8,22 @@ import {
   RESERVED_ITEM_NAMES,
   uniqueItemName,
   fallbackItemName,
+  REGION_ECONOMY_COUNTS,
+  REGION_ECONOMY_BIGINT_PATHS,
+  GATHER_SLOTS,
+  GATHER_WEIGHTS,
+  MAX_RECIPE_REQUIREMENTS,
+  gatherRef,
+  enemyRef,
+  dropRef,
+  foreignRef,
+  recipeTierSlots,
+  FOREIGN_REGIONS_BY_TIER,
+  regionalRequirementPlan,
+  slotForeignIndexes,
+  orderForeignRegions,
+  foreignOffer,
+  categoryForKind,
 } from './economy_design_rules';
 import { MATERIAL_KIND_VALUES, weaponGrowth, armorGrowth } from './recipe_rules';
 import { BASIC_RESOURCE_DEFS, JUNK_DEFS } from './equipment_rules';
@@ -214,5 +230,264 @@ describe('BASIC_RESOURCE_DEFS', () => {
     expect(BASIC_RESOURCE_DEFS[0].name).toBe('Stone');
     expect(BASIC_RESOURCE_DEFS[18].name).toBe('Lamp Oil');
     expect(new Set(BASIC_RESOURCE_DEFS.map((d) => d.name)).size).toBe(19);
+  });
+});
+
+// A fixed-seed shuffle, so the order tests are reproducible.
+function shuffled<T>(list: readonly T[], seed: number): T[] {
+  const out = [...list];
+  let x = seed;
+  for (let i = out.length - 1; i > 0; i--) {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    const j = x % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+describe('REGION_ECONOMY_COUNTS and handles', () => {
+  it('holds the Small counts', () => {
+    expect(REGION_ECONOMY_COUNTS).toEqual({
+      gatherables: 3,
+      recipes: 3,
+      lootEntriesMin: 4,
+      lootEntriesMax: 6,
+      maxForeignRegions: 3,
+      maxOfferPerRegion: 4,
+    });
+  });
+
+  it('gathers common, uncommon and rare at weights 15, 8 and 3', () => {
+    expect([...GATHER_SLOTS]).toEqual(['common', 'uncommon', 'rare']);
+    expect(GATHER_WEIGHTS.common).toBe(15n);
+    expect(GATHER_WEIGHTS.uncommon).toBe(8n);
+    expect(GATHER_WEIGHTS.rare).toBe(3n);
+  });
+
+  it('names the bigint paths of the input the model route must keep exact', () => {
+    expect([...REGION_ECONOMY_BIGINT_PATHS]).toEqual([
+      'regionId',
+      'enemies[].templateId',
+      'foreignRegions[].regionId',
+      'foreign[].templateId',
+    ]);
+  });
+
+  it('makes handles from zero-based positions', () => {
+    expect(gatherRef(0)).toBe('G1');
+    expect(gatherRef(2)).toBe('G3');
+    expect(enemyRef(0)).toBe('E1');
+    expect(enemyRef(7)).toBe('E8');
+    expect(dropRef('E1')).toBe('D:E1');
+    expect(foreignRef(0)).toBe('F1');
+    expect(foreignRef(3)).toBe('F4');
+  });
+});
+
+describe('recipeTierSlots', () => {
+  it('gives the tier mix by number of other regions', () => {
+    expect(recipeTierSlots(0n)).toEqual(['common', 'common', 'uncommon']);
+    expect(recipeTierSlots(1n)).toEqual(['common', 'uncommon', 'rare']);
+    expect(recipeTierSlots(2n)).toEqual(['uncommon', 'rare', 'epic']);
+    expect(recipeTierSlots(3n)).toEqual(['uncommon', 'epic', 'legendary']);
+    expect(recipeTierSlots(7n)).toEqual(['uncommon', 'epic', 'legendary']);
+  });
+
+  it('always has three slots and at least one research-learnable tier', () => {
+    for (let k = 0n; k <= 6n; k++) {
+      const slots = recipeTierSlots(k);
+      expect(slots).toHaveLength(REGION_ECONOMY_COUNTS.recipes);
+      expect(slots.some((t) => t === 'common' || t === 'uncommon')).toBe(true);
+    }
+  });
+
+  it('never throws on a negative or odd count', () => {
+    expect(recipeTierSlots(-1n)).toEqual(['common', 'common', 'uncommon']);
+    expect(recipeTierSlots(undefined as unknown as bigint)).toEqual(['common', 'common', 'uncommon']);
+  });
+});
+
+describe('regionalRequirementPlan', () => {
+  it('has no foreign slot for common and uncommon', () => {
+    expect(regionalRequirementPlan('common')).toEqual({
+      primaryCount: 3n,
+      localSecondaryCount: 1n,
+      foreignCount: 0,
+      foreignEach: 0n,
+    });
+    expect(regionalRequirementPlan('uncommon')).toEqual({
+      primaryCount: 3n,
+      localSecondaryCount: 2n,
+      foreignCount: 0,
+      foreignEach: 0n,
+    });
+    expect(FOREIGN_REGIONS_BY_TIER.common).toBe(0);
+    expect(FOREIGN_REGIONS_BY_TIER.uncommon).toBe(0);
+  });
+
+  it('rare needs 1 other region, epic 2, legendary 3 (SC3)', () => {
+    expect(FOREIGN_REGIONS_BY_TIER.rare).toBe(1);
+    expect(FOREIGN_REGIONS_BY_TIER.epic).toBe(2);
+    expect(FOREIGN_REGIONS_BY_TIER.legendary).toBe(3);
+    expect(regionalRequirementPlan('rare')).toEqual({
+      primaryCount: 3n,
+      localSecondaryCount: 1n,
+      foreignCount: 1,
+      foreignEach: 1n,
+    });
+    expect(regionalRequirementPlan('epic')).toEqual({
+      primaryCount: 3n,
+      localSecondaryCount: null,
+      foreignCount: 2,
+      foreignEach: 2n,
+    });
+    expect(regionalRequirementPlan('legendary')).toEqual({
+      primaryCount: 4n,
+      localSecondaryCount: null,
+      foreignCount: 3,
+      foreignEach: 2n,
+    });
+  });
+
+  it('legendary has exactly 4 requirements and 3 distinct foreign region slots', () => {
+    const count = (tier: string) => {
+      const p = regionalRequirementPlan(tier);
+      return 1 + (p.localSecondaryCount === null ? 0 : 1) + p.foreignCount;
+    };
+    expect(count('common')).toBe(2);
+    expect(count('uncommon')).toBe(2);
+    expect(count('rare')).toBe(3);
+    expect(count('epic')).toBe(3);
+    expect(count('legendary')).toBe(4);
+    expect(count('legendary')).toBe(MAX_RECIPE_REQUIREMENTS);
+    expect(MAX_RECIPE_REQUIREMENTS).toBe(4);
+    const legendarySlots = slotForeignIndexes(['legendary']);
+    expect(new Set(legendarySlots[0]).size).toBe(3);
+  });
+
+  it('treats an unknown tier as common', () => {
+    expect(regionalRequirementPlan('mythic')).toEqual(regionalRequirementPlan('common'));
+    expect(regionalRequirementPlan('constructor')).toEqual(regionalRequirementPlan('common'));
+  });
+});
+
+describe('slotForeignIndexes', () => {
+  it('gives each slot the foreign region positions it needs', () => {
+    expect(slotForeignIndexes(['uncommon', 'epic', 'legendary'])).toEqual([[], [0, 1], [0, 1, 2]]);
+    expect(slotForeignIndexes(['common', 'uncommon', 'rare'])).toEqual([[], [], [0]]);
+    expect(slotForeignIndexes(['common', 'common', 'uncommon'])).toEqual([[], [], []]);
+    expect(slotForeignIndexes(['uncommon', 'rare', 'epic'])).toEqual([[], [0], [0, 1]]);
+  });
+
+  it('matches the plan foreign count for every tier of every mix', () => {
+    for (let k = 0n; k <= 4n; k++) {
+      const tiers = recipeTierSlots(k);
+      const idx = slotForeignIndexes(tiers);
+      tiers.forEach((tier, i) => expect(idx[i]).toHaveLength(regionalRequirementPlan(tier).foreignCount));
+    }
+  });
+
+  it('never needs more foreign regions than the mix has other regions', () => {
+    for (let k = 0n; k <= 5n; k++) {
+      const need = Math.max(0, ...slotForeignIndexes(recipeTierSlots(k)).map((l) => l.length));
+      expect(BigInt(need)).toBeLessThanOrEqual(k);
+    }
+  });
+});
+
+describe('orderForeignRegions', () => {
+  const candidates = [
+    { regionId: 9n, neighbor: false },
+    { regionId: 2n, neighbor: false },
+    { regionId: 7n, neighbor: true },
+    { regionId: 5n, neighbor: true },
+    { regionId: 3n, neighbor: false },
+    { regionId: 11n, neighbor: false },
+  ];
+
+  it('puts neighbors first ascending, then the rest rotated by the region id', () => {
+    // Region 4: neighbors 5, 7; rest ascending 2, 3, 9, 11 (4 entries); 4 mod 4 is 0, so no rotation.
+    expect(orderForeignRegions(4n, candidates)).toEqual([5n, 7n, 2n, 3n, 9n, 11n]);
+    // Region 6: 6 mod 4 is 2, so the rest starts at 9.
+    expect(orderForeignRegions(6n, candidates)).toEqual([5n, 7n, 9n, 11n, 2n, 3n]);
+  });
+
+  it('excludes the region itself and rotates over the remaining list', () => {
+    // Region 5 is a candidate: neighbors left are 7; rest 2, 3, 9, 11; 5 mod 4 is 1, so it starts at 3.
+    expect(orderForeignRegions(5n, candidates)).toEqual([7n, 3n, 9n, 11n, 2n]);
+    expect(orderForeignRegions(7n, candidates)).not.toContain(7n);
+  });
+
+  it('is the same for any input order', () => {
+    const expected = orderForeignRegions(5n, candidates);
+    for (let seed = 1; seed <= 12; seed++) {
+      expect(orderForeignRegions(5n, shuffled(candidates, seed))).toEqual(expected);
+    }
+  });
+
+  it('drops duplicate candidates and treats a repeated neighbor flag as neighbor', () => {
+    const out = orderForeignRegions(1n, [
+      { regionId: 4n, neighbor: false },
+      { regionId: 4n, neighbor: true },
+      { regionId: 6n, neighbor: false },
+    ]);
+    expect(out).toEqual([4n, 6n]);
+  });
+
+  it('gives an empty list for no candidates and never throws on odd input', () => {
+    expect(orderForeignRegions(1n, [])).toEqual([]);
+    expect(orderForeignRegions(1n, undefined as unknown as [])).toEqual([]);
+  });
+});
+
+describe('foreignOffer', () => {
+  const mats = [
+    { templateId: 30n, regionId: 2n, rarity: 'common', name: 'Salt Reed', kind: 'edible' },
+    { templateId: 31n, regionId: 2n, rarity: 'uncommon', name: 'Glass Sand', kind: 'trinket' },
+    { templateId: 32n, regionId: 2n, rarity: 'rare', name: 'Sun Pearl', kind: 'trinket' },
+    { templateId: 33n, regionId: 2n, rarity: 'common', name: 'Brine Cloth', kind: 'cloth' },
+    { templateId: 34n, regionId: 2n, rarity: 'common', name: 'Dune Hide', kind: 'hide' },
+    { templateId: 35n, regionId: 2n, rarity: 'uncommon', name: 'Reed Wood', kind: 'wood' },
+    { templateId: 40n, regionId: 1n, rarity: 'common', name: 'Frost Ore', kind: 'metal' },
+  ];
+
+  it('keeps at most 4 per region, rarest first then ascending template id', () => {
+    const out = foreignOffer(mats);
+    expect(out.filter((m) => m.regionId === 2n).map((m) => m.templateId)).toEqual([32n, 31n, 35n, 30n]);
+    expect(out.filter((m) => m.regionId === 1n).map((m) => m.templateId)).toEqual([40n]);
+  });
+
+  it('lists regions in ascending id order', () => {
+    expect(foreignOffer(mats).map((m) => m.regionId)).toEqual([1n, 2n, 2n, 2n, 2n]);
+  });
+
+  it('ignores input order', () => {
+    const expected = foreignOffer(mats);
+    for (let seed = 1; seed <= 12; seed++) {
+      expect(foreignOffer(shuffled(mats, seed))).toEqual(expected);
+    }
+  });
+
+  it('drops a repeated template id and returns an empty list for odd input', () => {
+    expect(foreignOffer([mats[0], mats[0]])).toHaveLength(1);
+    expect(foreignOffer([])).toEqual([]);
+    expect(foreignOffer(undefined as unknown as [])).toEqual([]);
+  });
+});
+
+describe('categoryForKind', () => {
+  it('maps a primary kind to its recipe category', () => {
+    expect(categoryForKind('metal')).toBe('weapon');
+    expect(categoryForKind('hide')).toBe('armor');
+    expect(categoryForKind('cloth')).toBe('armor');
+    expect(categoryForKind('trinket')).toBe('accessory');
+    expect(categoryForKind('edible')).toBe('consumable');
+  });
+
+  it('gives null for secondary-only kinds and unknown kinds', () => {
+    expect(categoryForKind('wood')).toBeNull();
+    expect(categoryForKind('base')).toBeNull();
+    expect(categoryForKind('nonsense')).toBeNull();
+    expect(categoryForKind('constructor')).toBeNull();
   });
 });
