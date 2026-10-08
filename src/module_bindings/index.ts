@@ -225,6 +225,7 @@ import MyFriendsRow from "./my_friends_table";
 import MyGroupEventsRow from "./my_group_events_table";
 import MyGroupInvitesRow from "./my_group_invites_table";
 import MyGroupMembersRow from "./my_group_members_table";
+import MyHarvestCapsRow from "./my_harvest_caps_table";
 import MyLlmJobsRow from "./my_llm_jobs_table";
 import MyNpcDialogRow from "./my_npc_dialog_table";
 import MyPanelLayoutRow from "./my_panel_layout_table";
@@ -243,6 +244,7 @@ import PendingRenownPerkRow from "./pending_renown_perk_table";
 import PendingSkillRow from "./pending_skill_table";
 import PendingSpellCastRow from "./pending_spell_cast_table";
 import PlayerRow from "./player_table";
+import PoolLevelRow from "./pool_level_table";
 import PullStateRow from "./pull_state_table";
 import PullTickRow from "./pull_tick_table";
 import QuestInstanceRow from "./quest_instance_table";
@@ -1281,6 +1283,23 @@ const tablesSchema = __schema({
       { name: 'player_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PlayerRow),
+  poolLevel: __table({
+    name: 'pool_level',
+    indexes: [
+      { accessor: 'id', name: 'pool_level_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_location', name: 'pool_level_location_id_idx_btree', algorithm: 'btree', columns: [
+        'locationId',
+      ] },
+      { accessor: 'by_region', name: 'pool_level_region_id_idx_btree', algorithm: 'btree', columns: [
+        'regionId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pool_level_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PoolLevelRow),
   pullState: __table({
     name: 'pull_state',
     indexes: [
@@ -1746,6 +1765,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, MyGroupMembersRow),
+  myHarvestCaps: __table({
+    name: 'my_harvest_caps',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyHarvestCapsRow),
   myLlmJobs: __table({
     name: 'my_llm_jobs',
     indexes: [
@@ -2037,6 +2063,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "pending_skill": Omit<typeof tablesSchema.schemaType.tables["pendingSkill"], "accessorName"> & { readonly accessorName: "pending_skill" };
     /** @deprecated Use `pendingSpellCast` instead. This alias will be removed in the next major version. */
     readonly "pending_spell_cast": Omit<typeof tablesSchema.schemaType.tables["pendingSpellCast"], "accessorName"> & { readonly accessorName: "pending_spell_cast" };
+    /** @deprecated Use `poolLevel` instead. This alias will be removed in the next major version. */
+    readonly "pool_level": Omit<typeof tablesSchema.schemaType.tables["poolLevel"], "accessorName"> & { readonly accessorName: "pool_level" };
     /** @deprecated Use `pullState` instead. This alias will be removed in the next major version. */
     readonly "pull_state": Omit<typeof tablesSchema.schemaType.tables["pullState"], "accessorName"> & { readonly accessorName: "pull_state" };
     /** @deprecated Use `pullTick` instead. This alias will be removed in the next major version. */
@@ -2107,6 +2135,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "my_group_invites": Omit<typeof tablesSchema.schemaType.tables["myGroupInvites"], "accessorName"> & { readonly accessorName: "my_group_invites" };
     /** @deprecated Use `myGroupMembers` instead. This alias will be removed in the next major version. */
     readonly "my_group_members": Omit<typeof tablesSchema.schemaType.tables["myGroupMembers"], "accessorName"> & { readonly accessorName: "my_group_members" };
+    /** @deprecated Use `myHarvestCaps` instead. This alias will be removed in the next major version. */
+    readonly "my_harvest_caps": Omit<typeof tablesSchema.schemaType.tables["myHarvestCaps"], "accessorName"> & { readonly accessorName: "my_harvest_caps" };
     /** @deprecated Use `myLlmJobs` instead. This alias will be removed in the next major version. */
     readonly "my_llm_jobs": Omit<typeof tablesSchema.schemaType.tables["myLlmJobs"], "accessorName"> & { readonly accessorName: "my_llm_jobs" };
     /** @deprecated Use `myNpcDialog` instead. This alias will be removed in the next major version. */
@@ -2195,6 +2225,7 @@ const tableAccessorAliases = {
   "pending_renown_perk": "pendingRenownPerk",
   "pending_skill": "pendingSkill",
   "pending_spell_cast": "pendingSpellCast",
+  "pool_level": "poolLevel",
   "pull_state": "pullState",
   "pull_tick": "pullTick",
   "quest_instance": "questInstance",
@@ -2230,6 +2261,7 @@ const tableAccessorAliases = {
   "my_group_events": "myGroupEvents",
   "my_group_invites": "myGroupInvites",
   "my_group_members": "myGroupMembers",
+  "my_harvest_caps": "myHarvestCaps",
   "my_llm_jobs": "myLlmJobs",
   "my_npc_dialog": "myNpcDialog",
   "my_panel_layout": "myPanelLayout",
@@ -2369,6 +2401,8 @@ export type DbView = __DbViewBase & {
   readonly "pending_skill": __DbViewBase["pendingSkill"];
   /** @deprecated Use `pendingSpellCast` instead. This alias will be removed in the next major version. */
   readonly "pending_spell_cast": __DbViewBase["pendingSpellCast"];
+  /** @deprecated Use `poolLevel` instead. This alias will be removed in the next major version. */
+  readonly "pool_level": __DbViewBase["poolLevel"];
   /** @deprecated Use `pullState` instead. This alias will be removed in the next major version. */
   readonly "pull_state": __DbViewBase["pullState"];
   /** @deprecated Use `pullTick` instead. This alias will be removed in the next major version. */
@@ -2439,6 +2473,8 @@ export type DbView = __DbViewBase & {
   readonly "my_group_invites": __DbViewBase["myGroupInvites"];
   /** @deprecated Use `myGroupMembers` instead. This alias will be removed in the next major version. */
   readonly "my_group_members": __DbViewBase["myGroupMembers"];
+  /** @deprecated Use `myHarvestCaps` instead. This alias will be removed in the next major version. */
+  readonly "my_harvest_caps": __DbViewBase["myHarvestCaps"];
   /** @deprecated Use `myLlmJobs` instead. This alias will be removed in the next major version. */
   readonly "my_llm_jobs": __DbViewBase["myLlmJobs"];
   /** @deprecated Use `myNpcDialog` instead. This alias will be removed in the next major version. */
@@ -2569,6 +2605,8 @@ export type Tables = __TablesBase & {
   readonly "pending_skill": __TablesBase["pendingSkill"];
   /** @deprecated Use `pendingSpellCast` instead. This alias will be removed in the next major version. */
   readonly "pending_spell_cast": __TablesBase["pendingSpellCast"];
+  /** @deprecated Use `poolLevel` instead. This alias will be removed in the next major version. */
+  readonly "pool_level": __TablesBase["poolLevel"];
   /** @deprecated Use `pullState` instead. This alias will be removed in the next major version. */
   readonly "pull_state": __TablesBase["pullState"];
   /** @deprecated Use `pullTick` instead. This alias will be removed in the next major version. */
@@ -2639,6 +2677,8 @@ export type Tables = __TablesBase & {
   readonly "my_group_invites": __TablesBase["myGroupInvites"];
   /** @deprecated Use `myGroupMembers` instead. This alias will be removed in the next major version. */
   readonly "my_group_members": __TablesBase["myGroupMembers"];
+  /** @deprecated Use `myHarvestCaps` instead. This alias will be removed in the next major version. */
+  readonly "my_harvest_caps": __TablesBase["myHarvestCaps"];
   /** @deprecated Use `myLlmJobs` instead. This alias will be removed in the next major version. */
   readonly "my_llm_jobs": __TablesBase["myLlmJobs"];
   /** @deprecated Use `myNpcDialog` instead. This alias will be removed in the next major version. */

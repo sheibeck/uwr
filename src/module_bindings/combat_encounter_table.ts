@@ -20,4 +20,9 @@ export default __t.row({
   pendingAddCount: __t.u64().name("pending_add_count"),
   pendingAddAtMicros: __t.option(__t.u64()).name("pending_add_at_micros"),
   createdAt: __t.timestamp().name("created_at"),
+  origin: __t.string(),
+  originFamilyId: __t.u64().name("origin_family_id"),
+  originLevel: __t.u64().name("origin_level"),
+  originName: __t.string().name("origin_name"),
+  originPlural: __t.string().name("origin_plural"),
 });

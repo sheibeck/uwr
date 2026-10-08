@@ -25,4 +25,6 @@ export default __t.row({
   aggroTargetPetId: __t.option(__t.u64()).name("aggro_target_pet_id"),
   nextAutoAttackAt: __t.u64().name("next_auto_attack_at"),
   level: __t.u64(),
+  poolId: __t.u64().name("pool_id"),
+  healTargetEnemyId: __t.u64().name("heal_target_enemy_id"),
 });

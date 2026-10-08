@@ -298,6 +298,11 @@ export const CombatEncounter = __t.object("CombatEncounter", {
   pendingAddCount: __t.u64(),
   pendingAddAtMicros: __t.option(__t.u64()),
   createdAt: __t.timestamp(),
+  origin: __t.string(),
+  originFamilyId: __t.u64(),
+  originLevel: __t.u64(),
+  originName: __t.string(),
+  originPlural: __t.string(),
 });
 export type CombatEncounter = __Infer<typeof CombatEncounter>;
 
@@ -316,6 +321,8 @@ export const CombatEnemy = __t.object("CombatEnemy", {
   aggroTargetPetId: __t.option(__t.u64()),
   nextAutoAttackAt: __t.u64(),
   level: __t.u64(),
+  poolId: __t.u64(),
+  healTargetEnemyId: __t.u64(),
 });
 export type CombatEnemy = __Infer<typeof CombatEnemy>;
 
@@ -329,6 +336,7 @@ export const CombatEnemyCast = __t.object("CombatEnemyCast", {
   targetPetId: __t.option(__t.u64()),
   announcedRound: __t.u64(),
   landsAtRound: __t.u64(),
+  targetEnemyId: __t.u64(),
 });
 export type CombatEnemyCast = __Infer<typeof CombatEnemyCast>;
 
@@ -462,6 +470,22 @@ export const CorpseItem = __t.object("CorpseItem", {
 });
 export type CorpseItem = __Infer<typeof CorpseItem>;
 
+export const CreatureFamily = __t.object("CreatureFamily", {
+  id: __t.u64(),
+  regionId: __t.u64(),
+  key: __t.string(),
+  name: __t.string(),
+  singularNoun: __t.string(),
+  pluralNoun: __t.string(),
+  temperament: __t.string(),
+  iconKey: __t.string(),
+  creatureType: __t.string(),
+  ambushVerb: __t.string(),
+  ambushRest: __t.string(),
+  fitTerrains: __t.string(),
+});
+export type CreatureFamily = __Infer<typeof CreatureFamily>;
+
 export const DayNightTick = __t.object("DayNightTick", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
@@ -502,6 +526,7 @@ export const EconomyItem = __t.object("EconomyItem", {
   terrain: __t.string(),
   timeOfDay: __t.string(),
   enemyTemplateId: __t.u64(),
+  familyId: __t.u64(),
 });
 export type EconomyItem = __Infer<typeof EconomyItem>;
 
@@ -730,6 +755,23 @@ export const FactionStanding = __t.object("FactionStanding", {
   standing: __t.i64(),
 });
 export type FactionStanding = __Infer<typeof FactionStanding>;
+
+export const FamilyMember = __t.object("FamilyMember", {
+  id: __t.u64(),
+  familyId: __t.u64(),
+  enemyTemplateId: __t.u64(),
+  role: __t.string(),
+  filler: __t.bool(),
+});
+export type FamilyMember = __Infer<typeof FamilyMember>;
+
+export const FamilyRelation = __t.object("FamilyRelation", {
+  id: __t.u64(),
+  familyId: __t.u64(),
+  otherFamilyId: __t.u64(),
+  kind: __t.string(),
+});
+export type FamilyRelation = __Infer<typeof FamilyRelation>;
 
 export const Friend = __t.object("Friend", {
   id: __t.u64(),
@@ -1020,6 +1062,9 @@ export const Location = __t.object("Location", {
   terrainType: __t.string(),
   bindStone: __t.bool(),
   craftingAvailable: __t.bool(),
+  shortName: __t.string(),
+  placeNoun: __t.string(),
+  isHub: __t.bool(),
 });
 export type Location = __Infer<typeof Location>;
 
@@ -1101,6 +1146,16 @@ export type MyGroupInvites = __Infer<typeof MyGroupInvites>;
 
 export const MyGroupMembers = __t.object("MyGroupMembers", {});
 export type MyGroupMembers = __Infer<typeof MyGroupMembers>;
+
+export const MyHarvestCap = __t.object("MyHarvestCap", {
+  id: __t.u64(),
+  locationId: __t.u64(),
+  cappedUntilMicros: __t.u64(),
+});
+export type MyHarvestCap = __Infer<typeof MyHarvestCap>;
+
+export const MyHarvestCaps = __t.object("MyHarvestCaps", {});
+export type MyHarvestCaps = __Infer<typeof MyHarvestCaps>;
 
 export const MyLlmJob = __t.object("MyLlmJob", {
   id: __t.u64(),
@@ -1281,6 +1336,21 @@ export const PendingSpellCast = __t.object("PendingSpellCast", {
 });
 export type PendingSpellCast = __Infer<typeof PendingSpellCast>;
 
+export const PlacePool = __t.object("PlacePool", {
+  id: __t.u64(),
+  regionId: __t.u64(),
+  locationId: __t.u64(),
+  kind: __t.string(),
+  refId: __t.u64(),
+  count: __t.u64(),
+  homeLevel: __t.u64(),
+  wipedAtMicros: __t.u64(),
+  lastSettledMicros: __t.u64(),
+  dirty: __t.bool(),
+  timeOfDay: __t.string(),
+});
+export type PlacePool = __Infer<typeof PlacePool>;
+
 export const Player = __t.object("Player", {
   id: __t.identity(),
   createdAt: __t.timestamp(),
@@ -1292,6 +1362,66 @@ export const Player = __t.object("Player", {
   lastActivityAt: __t.option(__t.timestamp()),
 });
 export type Player = __Infer<typeof Player>;
+
+export const PoolHarvest = __t.object("PoolHarvest", {
+  id: __t.u64(),
+  characterId: __t.u64(),
+  locationId: __t.u64(),
+  windowStartMicros: __t.u64(),
+  gathers: __t.u64(),
+  cappedUntilMicros: __t.u64(),
+});
+export type PoolHarvest = __Infer<typeof PoolHarvest>;
+
+export const PoolLevel = __t.object("PoolLevel", {
+  id: __t.u64(),
+  regionId: __t.u64(),
+  locationId: __t.u64(),
+  kind: __t.string(),
+  refId: __t.u64(),
+  level: __t.u64(),
+  lvLo: __t.u64(),
+  lvHi: __t.u64(),
+  name: __t.string(),
+  iconKey: __t.string(),
+  temperament: __t.string(),
+  singularNoun: __t.string(),
+  pluralNoun: __t.string(),
+  timeOfDay: __t.string(),
+});
+export type PoolLevel = __Infer<typeof PoolLevel>;
+
+export const PoolRegion = __t.object("PoolRegion", {
+  regionId: __t.u64(),
+  trendSum: __t.u64(),
+});
+export type PoolRegion = __Infer<typeof PoolRegion>;
+
+export const PoolRumor = __t.object("PoolRumor", {
+  id: __t.u64(),
+  regionId: __t.u64(),
+  locationId: __t.u64(),
+  kind: __t.string(),
+  familyId: __t.u64(),
+  otherFamilyId: __t.u64(),
+  atMicros: __t.u64(),
+});
+export type PoolRumor = __Infer<typeof PoolRumor>;
+
+export const PoolState = __t.object("PoolState", {
+  id: __t.u64(),
+  version: __t.u64(),
+  lastHunterMicros: __t.u64(),
+  lastTrendMicros: __t.u64(),
+});
+export type PoolState = __Infer<typeof PoolState>;
+
+export const PoolTick = __t.object("PoolTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  afterRegionId: __t.u64(),
+});
+export type PoolTick = __Infer<typeof PoolTick>;
 
 export const PullState = __t.object("PullState", {
   id: __t.u64(),
@@ -1484,6 +1614,7 @@ export const ResourceGather = __t.object("ResourceGather", {
   characterId: __t.u64(),
   nodeId: __t.u64(),
   endsAtMicros: __t.u64(),
+  poolId: __t.u64(),
 });
 export type ResourceGather = __Infer<typeof ResourceGather>;
 
