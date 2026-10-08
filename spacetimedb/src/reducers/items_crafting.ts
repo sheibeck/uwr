@@ -95,6 +95,9 @@ export const registerItemCraftingReducers = (deps: any) => {
           id: 0n,
           ...made.recipe,
           outputTemplateId: outputTemplate.id,
+          // Rule recipes have two or three requirements; 0n means no 4th (Phase 51.3 column).
+          req4TemplateId: 0n,
+          req4Count: 0n,
         });
         recipesByKey.set(candidate.key, recipe);
       }

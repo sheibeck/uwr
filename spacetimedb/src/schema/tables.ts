@@ -440,6 +440,11 @@ export const RecipeTemplate = table(
     req3Count: t.u64().optional(),
     recipeType: t.string().optional(),      // 'weapon' | 'armor' | 'accessory' | 'consumable'
     materialType: t.string().optional(),    // e.g. 'darksteel_ore'; undefined for consumables
+    // Phase 51.3: legendary regional recipes need materials from three other regions, so a recipe
+    // can carry a 4th requirement. 0n means no 4th requirement. Defaulted (and last) so the publish
+    // needs no clear; read it through recipeRequirements (data/crafting_rules.ts).
+    req4TemplateId: t.u64().default(0n),
+    req4Count: t.u64().default(0n),
   }
 );
 

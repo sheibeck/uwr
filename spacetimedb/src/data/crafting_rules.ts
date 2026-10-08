@@ -400,16 +400,57 @@ export function itemKeyFromName(name: string): string {
   return (typeof name === 'string' ? name : '').toLowerCase().replace(/\s+/g, '_');
 }
 
-/** The MATERIAL_DEFS tier of a material name (case and spacing as itemKeyFromName), 1n when unknown. */
-export function primaryMaterialTier(name: string | null | undefined): bigint {
+/**
+ * The MATERIAL_DEFS tier of a material name (case and spacing as itemKeyFromName). A name that is
+ * not in MATERIAL_DEFS (a regional material, Phase 51.3) follows its item rarity: uncommon 2n;
+ * rare, epic or legendary 3n; anything else (and no rarity) 1n. A known name ignores the rarity.
+ */
+export function primaryMaterialTier(name: string | null | undefined, rarity?: string | null): bigint {
   const key = itemKeyFromName(name ?? '');
   const def = key === '' ? undefined : MATERIAL_DEFS.find((m) => m.key === key);
-  return def ? def.tier : 1n;
+  if (def) return def.tier;
+  if (rarity === 'uncommon') return 2n;
+  if (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary') return 3n;
+  return 1n;
 }
 
-/** Craft quality from the recipe's first material: its MATERIAL_DEFS tier (default T1). */
-export function craftQualityForMaterialName(name: string | null | undefined): string {
-  return materialTierToCraftQuality(primaryMaterialTier(name));
+/** Craft quality from the recipe's first material: its MATERIAL_DEFS tier, else its rarity (default T1). */
+export function craftQualityForMaterialName(name: string | null | undefined, rarity?: string | null): string {
+  return materialTierToCraftQuality(primaryMaterialTier(name, rarity));
+}
+
+/** The requirement slots of a recipe row (req4 is optional so older rows and fixtures still fit). */
+export interface RecipeRequirementSlots {
+  req1TemplateId: bigint;
+  req1Count: bigint;
+  req2TemplateId: bigint;
+  req2Count: bigint;
+  req3TemplateId?: bigint | null;
+  req3Count?: bigint | null;
+  req4TemplateId?: bigint | null;
+  req4Count?: bigint | null;
+}
+
+/**
+ * A recipe's requirements in slot order, the one rule every reader shares (planCraft, salvage, the
+ * recipes listing and the client). req1 and req2 are always present; req3 when it has both a
+ * template and a count; req4 (Phase 51.3, legendary regional recipes) when its template id and
+ * count are both above 0n. Slots are decided by position, never by template id.
+ */
+export function recipeRequirements(recipe: RecipeRequirementSlots): { templateId: bigint; count: bigint }[] {
+  const out: { templateId: bigint; count: bigint }[] = [
+    { templateId: recipe.req1TemplateId, count: recipe.req1Count },
+    { templateId: recipe.req2TemplateId, count: recipe.req2Count },
+  ];
+  if (recipe.req3TemplateId != null && recipe.req3Count != null) {
+    out.push({ templateId: recipe.req3TemplateId, count: recipe.req3Count });
+  }
+  const id4 = recipe.req4TemplateId;
+  const count4 = recipe.req4Count;
+  if (typeof id4 === 'bigint' && id4 > 0n && typeof count4 === 'bigint' && count4 > 0n) {
+    out.push({ templateId: id4, count: count4 });
+  }
+  return out;
 }
 
 /**
@@ -440,12 +481,17 @@ export interface CraftPlanInput {
     req2Count: bigint;
     req3TemplateId?: bigint | null;
     req3Count?: bigint | null;
+    /** Phase 51.3: the 4th requirement; 0n, null or missing means none. */
+    req4TemplateId?: bigint | null;
+    req4Count?: bigint | null;
     recipeType?: string | null;
   };
   /** The batch size: 1n when omitted; a value below 1n counts as 1n. */
   count?: bigint;
   /** Name of the first requirement's item template (sets the quality). */
   primaryMaterialName: string | null;
+  /** Rarity of the first requirement's item template; sets the quality when the name is not in MATERIAL_DEFS. */
+  primaryMaterialRarity?: string | null;
   /** The chosen Essence, or null. A missing template is passed with name ''. */
   catalyst: { templateId: bigint; name: string } | null;
   /** The chosen reagents in slot order, null slots already dropped. name null = no template. */
@@ -503,14 +549,11 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
     return hit ? hit.count : 0n;
   };
 
-  // Materials: the reducer removes requirement 1, requirement 2 and (only when it has both a
-  // template and a count) requirement 3. Requirements are decided by position, never by template
-  // id, so a requirement that shares a template with a skipped third slot is still consumed.
-  need(recipe.req1TemplateId, recipe.req1Count);
-  need(recipe.req2TemplateId, recipe.req2Count);
-  if (recipe.req3TemplateId != null && recipe.req3Count != null) {
-    need(recipe.req3TemplateId, recipe.req3Count);
-  }
+  // Materials: the reducer removes requirement 1, requirement 2, requirement 3 (only when it has
+  // both a template and a count) and requirement 4 (only when both are above 0n). Requirements are
+  // decided by position, never by template id, so a requirement that shares a template with a
+  // skipped slot is still consumed.
+  for (const req of recipeRequirements(recipe)) need(req.templateId, req.count);
   // Requirements that share a template are merged by need(), so the check is on the merged total:
   // req1 == req2 with counts 2 and 3 needs 5 on hand, not 3.
   for (const req of consumes) {
@@ -531,7 +574,7 @@ export function planCraft(input: CraftPlanInput): CraftPlan {
   if (!gear) {
     return { ok: true, ...batch, gear: false, quality: null, consumes, usesCatalyst: false, reagents: [] };
   }
-  const quality = craftQualityForMaterialName(input.primaryMaterialName);
+  const quality = craftQualityForMaterialName(input.primaryMaterialName, input.primaryMaterialRarity);
   const catalyst = input.catalyst;
   if (!catalyst) {
     return { ok: true, ...batch, gear: true, quality, consumes, usesCatalyst: false, reagents: [] };
