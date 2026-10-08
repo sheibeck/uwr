@@ -794,7 +794,77 @@ Plans:
   6. Every tunable number (encounter chance, group size, depletion, creature and resource regrowth, gather yield by density, the per-player harvest cap, hunter activity) lives as a named constant in one shared rules file, so Phase 52.5 Balance Dials can put dials on them later. No admin dial or command ships here (owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place.").
   7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, and the migration of existing enemies and nodes.
 
-**Plans**: TBD
+**Plans**: 27 plans (run one at a time in number order; Plans 23-26 wait for the owner's approval of `51.3.1.1-PROMPT-DRAFT.md`)
+
+Plans:
+**Wave 1**
+
+- [ ] 51.3.1.1-01-PLAN.md — The one density rules file (`data/density_rules.ts`): every tunable number as a named constant, seeded rolls, chance, group size and roles, lowest-member party level, settling, yield, harvest window, hunters, vacuum pick, trends; family and pool vocabularies
+
+**Wave 2**
+
+- [ ] 51.3.1.1-02-PLAN.md — Shared pure rating rule, all PROPOSED density, feed, encounter, event and rumour copy, and family rules (role mapping, rule abilities, filler names, nouns)
+- [ ] 51.3.1.1-03-PLAN.md — Additive schema (ten tables, public level mirror, harvest-cap view, defaulted columns, tick_pools registration) and local publish A with the key check
+
+**Wave 3**
+
+- [ ] 51.3.1.1-04-PLAN.md — Enemy roles on real stat profiles (caster), enemy-side heal, shield, drain and execute, taunt and cc no-ops, enemy shield absorb
+- [ ] 51.3.1.1-06-PLAN.md — Pool engine: single count writer, level mirror, lazy settling, depletion, vacuum surge, density feed lines, onPoolShift seam (World event lines, rumours)
+
+**Wave 4**
+
+- [ ] 51.3.1.1-05-PLAN.md — Round-engine ally targeting, wind-up targets, heal and aggro target columns, absorb at every damage site, named and boss fights spawn one
+- [ ] 51.3.1.1-07-PLAN.md — Families (create, rule grouping, relations), creature and resource pool seeding by rule (time of day kept), family of one for quest targets, AI family validator
+
+**Wave 5**
+
+- [ ] 51.3.1.1-08-PLAN.md — Retire ordinary spawns: ensurePoolsForLocation at every call site, no day/night respawn, respawn_enemy drains
+
+**Wave 6**
+
+- [ ] 51.3.1.1-09-PLAN.md — Region fill builds families and pools by rule, quest kill targets get pools, economy job ignores fillers, applied gatherables join pools
+- [ ] 51.3.1.1-10-PLAN.md — Generalised startCombat with drawn enemies and recorded origin; kills settle once per fight end
+
+**Wave 7**
+
+- [ ] 51.3.1.1-11-PLAN.md — Encounter layer (seeded roll and draw), pull_family, quest-item ambush from pools, careful pull retired, bindings
+- [ ] 51.3.1.1-14-PLAN.md — tick_pools: dirty settle, light background hunters, region trends, self-arming
+
+**Wave 8**
+
+- [ ] 51.3.1.1-12-PLAN.md — Shared resource pools: gather_pool, yield by density, harvest cap, time of day, gather ambush from pools, no personal nodes
+- [ ] 51.3.1.1-13-PLAN.md — Travel leave and enter rolls, one per party, lowest member, quiet travel and ambush lines
+- [ ] 51.3.1.1-15-PLAN.md — Cursor-batched migration of existing worlds to families and pools, retiring standing spawns and nodes
+
+**Wave 9**
+
+- [ ] 51.3.1.1-16-PLAN.md — Look, examine and typed commands read the pools; typed pull shares the Pull path
+
+**Wave 10**
+
+- [ ] 51.3.1.1-17-PLAN.md — Local publish B and live migration verification (read-only SQL), bindings
+
+**Wave 11**
+
+- [ ] 51.3.1.1-18-PLAN.md — Client data layer: keyed pool levels, own named enemies, harvest caps, new reducer calls, keywords, privacy tests
+- [ ] 51.3.1.1-23-PLAN.md — Owner-approval checkpoint, then the approved family world-gen prompt, schema, 4096-token budget, pins, AI families in region fill
+
+**Wave 12**
+
+- [ ] 51.3.1.1-19-PLAN.md — Nearby: family, named and resource cards, density badges, lines, hints, Pull, Fight, Gather
+- [ ] 51.3.1.1-20-PLAN.md — Safety rating on header, Here card, exits, mobile chips (short names, 44px) and location line
+- [ ] 51.3.1.1-24-PLAN.md — Approved per-family economy wording, size constant, family job input, schema and validator
+
+**Wave 13**
+
+- [ ] 51.3.1.1-21-PLAN.md — Map rating ring, caption, detail, legend; feed kinds ambush, density_down, density_gone, travel_quiet
+- [ ] 51.3.1.1-22-PLAN.md — Encounter role chips, target lines, Down, heading, source and foot; threat block removed
+- [ ] 51.3.1.1-25-PLAN.md — Family economy apply, one late job per family, quest families, migration of 51.3 per-type rows
+- [ ] 51.3.1.1-26-PLAN.md — Approved NPC rumour line fed from pool shifts
+
+**Wave 14**
+
+- [ ] 51.3.1.1-27-PLAN.md — Cleanup of retired paths, phase guards, the owner copy review (51.3.1.1-COPY-REVIEW.md), local publish C, validation map
 **UI hint**: yes (design source: `.planning/phases/51.3.1.1-density-pools/design/UWR Living Places.dc.html`, imported 2026-10-08; differences resolved in `51.3.1.1-MOCK-DIFF.md` and CONTEXT D-29 to D-45; the combat timer and lock-in parts of the mock are ignored)
 **Notes**:
 
