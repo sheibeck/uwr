@@ -307,13 +307,15 @@ function openSocial(): void {
             <span class="card-top">
               <span class="card-name">
                 <CharacterName class="card-name-text" :name="card.member.name" />
-                <PhPawPrint
+                <!-- The title sits on a span: browsers show no tooltip for a title attribute on an svg
+                     (51.1 review client-rest IN-04). The card's aria-label carries the pet. -->
+                <span
                   v-if="card.pet !== null"
                   class="paw"
-                  :size="10"
                   :title="`${card.pet.name} ${card.pet.currentHp}/${card.pet.maxHp}`"
                   aria-hidden="true"
-                />
+                  ><PhPawPrint :size="10"
+                /></span>
               </span>
               <span class="pct">{{ card.member.healthPercent }}%</span>
             </span>
@@ -773,6 +775,7 @@ button.ally-card:focus-visible {
 }
 
 .paw {
+  display: inline-flex;
   flex: none;
   color: var(--color-accent-300);
 }

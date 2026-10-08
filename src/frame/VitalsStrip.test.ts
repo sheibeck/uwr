@@ -771,6 +771,10 @@ describe('VitalsStrip party grid in combat (51.1-15)', () => {
     const paw = bo.get('.paw');
     expect(paw.attributes('title')).toBe('Wolf 18/40');
     expect(paw.attributes('aria-hidden')).toBe('true');
+    // Review IN-04: the title is on an element that shows a tooltip (a span), not on the svg.
+    expect(paw.element.tagName).toBe('SPAN');
+    expect(paw.find('svg').exists()).toBe(true);
+    expect(paw.get('svg').attributes('title')).toBeUndefined();
     expect(bo.get('.pct').text()).toBe('50%');
     expect((bo.get('.fill-health').element as HTMLElement).style.width).toBe('50%');
     expect(bo.get('.track').attributes('aria-hidden')).toBe('true');
