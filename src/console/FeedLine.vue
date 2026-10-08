@@ -12,10 +12,12 @@ import type { FeedLineView } from './lines';
 import type { KeywordEntry, KeywordPart } from './keywords';
 import { keywordActionLabel } from './keywordLabel';
 import { splitLastInteger } from '../combat/emphasis';
+import { rarityColor } from '../ledger/itemModel';
 
 // One labelled feed line (47-UI-SPEC "Line kinds", "Keywords"). Every string is a text node,
 // with no raw HTML, no markup interpretation and no color tokens (T-47-01). Keyword buttons come only from
-// `parts` that lines.ts builds for eligible kinds (T-47-06).
+// `parts` that lines.ts builds for eligible kinds (T-47-06). Loot links (quick 261008-f3m) are keyword
+// buttons too, text only, colored by the rarity tokens through rarityColor (the Inventory helper).
 const props = defineProps<{ line: FeedLineView; disabled: boolean; currentRound?: boolean }>();
 const emit = defineEmits<{ keyword: [entry: KeywordEntry] }>();
 
@@ -53,6 +55,15 @@ function press(entry: KeywordEntry): void {
 
 function disabledAttr(): 'true' | undefined {
   return props.disabled ? 'true' : undefined;
+}
+
+// Loot links (quick 261008-f3m): a take keyword, and an item name in its rarity token color.
+function isTake(entry: KeywordEntry): boolean {
+  return entry.kind === 'loot' || entry.kind === 'lootAll';
+}
+
+function lootStyle(part: KeywordPart): { color: string } | undefined {
+  return part.rarity ? { color: rarityColor(part.rarity) } : undefined;
 }
 </script>
 
@@ -131,11 +142,13 @@ function disabledAttr(): 'true' | undefined {
           v-if="part.entry"
           type="button"
           class="keyword"
+          :class="{ 'keyword-take': isTake(part.entry) }"
+          :style="lootStyle(part)"
           :title="keywordActionLabel(part.entry)"
           :aria-label="keywordActionLabel(part.entry)"
           :aria-disabled="disabledAttr()"
           @click="press(part.entry)"
-        >{{ part.text }}</button><template v-else>{{ part.text }}</template></template><template v-if="quoted"><span>{{ '”' }}</span></template>
+        >{{ part.text }}</button><span v-else-if="part.rarity" class="loot-name" :style="lootStyle(part)">{{ part.text }}</span><template v-else>{{ part.text }}</template></template><template v-if="quoted"><span>{{ '”' }}</span></template>
     </span>
 
     <span v-if="line.kind === 'echo' && line.queued" class="queued">
@@ -447,6 +460,20 @@ function disabledAttr(): 'true' | undefined {
 
 .keyword[aria-disabled='true'] {
   cursor: default;
+}
+
+/* Loot links on touch: the 14px body at line-height 1.6 is about 22px tall; the hit area adds
+   12px above and below for about 46px. No margins are used. */
+@media (pointer: coarse) {
+  .keyword-take {
+    position: relative;
+  }
+
+  .keyword-take::after {
+    content: '';
+    position: absolute;
+    inset: -12px 0;
+  }
 }
 
 /* An NPC speaker keyword keeps the NPC hue and underlines on hover and focus only. */

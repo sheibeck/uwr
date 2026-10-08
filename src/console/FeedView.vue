@@ -49,11 +49,23 @@ const partyNames = computed(() => {
   return names;
 });
 
+// my_combat_loot drives which loot links are live (quick 261008-f3m): only the active character's rows.
+const availableLoot = computed<ReadonlySet<bigint>>(() => {
+  const ids = new Set<bigint>();
+  const characterId = game.characterId.value;
+  if (characterId === null) return ids;
+  for (const row of game.loot.value) {
+    if (row.characterId === characterId) ids.add(row.id);
+  }
+  return ids;
+});
+
 const lines = computed(() =>
   buildFeedLines(game.feed.entries.value, {
     vocabulary: vocabulary.value,
     partyNames: partyNames.value,
     npcsHere: game.npcsHere.value,
+    availableLoot: availableLoot.value,
   }),
 );
 

@@ -3,6 +3,8 @@
 // shows plain text, so those are removed here. Applies ONLY to rows without segments and of
 // server-authored kinds; segment text and player-authored kinds are never passed through this.
 
+import { stripLootTokens } from '@game-data/loot_line';
+
 // An opening or closing color token: double braces, optional slash, the word color, an optional
 // word boundary plus any value with no brace. Written without a function-call look (the word
 // followed by an open paren) and without hex literals, because the colors guard scans source text.
@@ -18,5 +20,7 @@ const BRACKET_WORD = /\[([^[\]\n]+)\]/g;
  */
 export function cleanServerText(message: string): string {
   if (typeof message !== 'string' || message === '') return '';
-  return message.replace(COLOR_TOKEN, '').replace(BRACKET_WORD, '$1').trim();
+  // Loot tokens first (quick 261008-f3m): surfaces that show cleaned text (the ledger notice line)
+  // read a loot line as plain item names, never token text.
+  return stripLootTokens(message).replace(COLOR_TOKEN, '').replace(BRACKET_WORD, '$1').trim();
 }

@@ -22,11 +22,18 @@
 //     (late narration, 48-UI-SPEC A22).
 //   - The Error line for failed jobs is not produced here (research S1: the server already writes
 //     its own in-voice failure line).
-// Pure: no Vue, no server imports.
+//   - Loot tokens (quick 261008-f3m) are parsed only on server-authored private rows of kind
+//     'reward' without segments, before cleanServerText. Such a row is one Reward line, never
+//     keyword-eligible; its parts come from lootParts and are clickable only by loot id, for ids
+//     still in my_combat_loot (options.availableLoot).
+// Pure: no Vue, no server imports (the @game-data loot grammar is pure data shared with the server).
 
+import { parseLootLine } from '@game-data/loot_line';
+import type { LootLinePiece } from '@game-data/loot_line';
 import { cleanServerText } from './cleanServerText';
 import { findKeywords } from './keywords';
 import type { KeywordEntry, KeywordPart, KeywordVocabulary } from './keywords';
+import { lootParts, lootPlainText } from './lootLine';
 import { parseNpcSays, parsePartyChat, parseWhisper } from './whisper';
 
 export const KEEPER_LABEL = 'The Keeper';
@@ -117,6 +124,8 @@ export interface FeedLineView {
    * of the run. Set only when true.
    */
   continued?: boolean;
+  /** A server loot line (quick 261008-f3m): its parsed pieces. Set only when present. */
+  loot?: readonly LootLinePiece[];
 }
 
 const KEEPER_KINDS = new Set(['narrative', 'llm', 'creation', 'combat_narration', 'class', 'character_created']);
@@ -151,7 +160,10 @@ interface LineFields {
   windup?: { lead: string; ability: string; tail: string } | null;
   playerAuthored?: boolean;
   continued?: boolean;
+  loot?: readonly LootLinePiece[];
 }
+
+const EMPTY_LOOT: ReadonlySet<bigint> = new Set<bigint>();
 
 function makeLine(key: string, fields: LineFields): FeedLineView {
   return {
@@ -174,6 +186,7 @@ function makeLine(key: string, fields: LineFields): FeedLineView {
     windup: fields.windup ?? null,
     ...(fields.playerAuthored === true ? { playerAuthored: true } : {}),
     ...(fields.continued === true ? { continued: true } : {}),
+    ...(fields.loot !== undefined ? { loot: fields.loot } : {}),
   };
 }
 
@@ -269,6 +282,16 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
 
   if (RENDER_NOTHING_KINDS.has(kind)) return [];
 
+  // Loot links: only the server's own private reward rows (quick 261008-f3m).
+  if (kind === 'reward' && entry.source === 'private') {
+    const loot = parseLootLine(raw);
+    if (loot !== null) {
+      return [
+        makeLine(key, { kind: 'quest', label: QUEST_LABELS.reward, text: lootPlainText(loot), keywordEligible: false, loot }),
+      ];
+    }
+  }
+
   // Server-authored kinds: old markup removed.
   const text = cleanServerText(raw);
   if (isBlank(text)) return [];
@@ -355,6 +378,8 @@ export function buildFeedLines(
     vocabulary: KeywordVocabulary;
     partyNames: readonly string[];
     npcsHere: readonly { id: bigint; name: string }[];
+    /** Loot ids still in my_combat_loot for the active character; absent means none. */
+    availableLoot?: ReadonlySet<bigint>;
   },
 ): FeedLineView[] {
   const out: FeedLineView[] = [];
@@ -364,6 +389,10 @@ export function buildFeedLines(
     for (const line of classifyEntry(entry, { partyNames: options.partyNames })) {
       if (line.kind === 'round' && line.roundNumber !== null && line.roundNumber !== undefined) {
         currentRound = line.roundNumber;
+      }
+      if (line.loot !== undefined) {
+        built.push({ ...line, parts: lootParts(line.loot, options.availableLoot ?? EMPTY_LOOT) });
+        continue;
       }
       if (!line.keywordEligible) {
         built.push(line);
