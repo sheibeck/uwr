@@ -75,6 +75,8 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 
 **Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.1.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
+**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.2 Wind-Up, Cooldowns and Durations → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
+
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
 - [ ] **Phase 46.1: Round-Based Combat Engine** (INSERTED) - 10-second rounds that end early once every player has chosen, auto-attack when no action is chosen, Keeper narration at big moments and the end of the fight
@@ -96,7 +98,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 52.2: Social and Guilds** (INSERTED) - The Social screen, party chat, friends, who is online, and guilds
 - [ ] **Phase 52.3: Log** (INSERTED) - A stored, searchable log of what happened to the character
 - [ ] **Phase 52.4: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
-- [ ] **Phase 52.5: Balance Dials** (INSERTED) - Every admin balance dial in one phase, once the systems exist: combat difficulty (health, damage, armour, ability chance), population and resource pools, quest bosses and named foes, and ability power
+- [ ] **Phase 52.5: Admin and Balance Dials** (INSERTED) - The admin screens and every admin balance dial, after all systems and UX exist: combat difficulty (health, damage, armour, ability chance), population and resource pools, quest bosses and named foes, and ability power
 - [ ] **Phase 53: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client (runs last)
 
 ## Phase Details
@@ -831,7 +833,7 @@ Plans:
 ### Phase 51.4: Loot Rails (INSERTED)
 
 **Goal**: After a kill, players see what dropped and take it through the designed loot rails.
-**Depends on**: Phase 51.3 (loot exists), Phase 48 (combat encounter rail)
+**Depends on**: Phase 51.3 (loot exists), Phase 48 (combat encounter rail), Phase 52.4 (run order: the first UX phase, after every system phase)
 **Requirements**: CUT-01 (the loot row of the parity checklist)
 **Success Criteria** (what must be TRUE):
 
@@ -877,7 +879,7 @@ Plans:
 ### Phase 51.5.1: Motion and Polish (INSERTED)
 
 **Goal**: The game feels smooth rather than sharp: story text types out as it arrives, signing in cross-fades into the game, and the map eases into its new shape after travel.
-**Depends on**: Phase 51.5 (run order)
+**Depends on**: Phase 52.1 (run order: the last UX phase)
 **Requirements**: TBD (owner requests 2026-10-06 and 2026-10-08)
 **Success Criteria** (what must be TRUE):
 
@@ -920,7 +922,7 @@ Plans:
 ### Phase 52.1.1: Bank (INSERTED)
 
 **Goal**: Players store items in the bank and vault, built from the owner's design.
-**Depends on**: Phase 52.1 (run order)
+**Depends on**: Phase 51.3.2 (run order: systems first)
 **Requirements**: CUT-01 (the bank rows of the parity checklist)
 **Success Criteria** (what must be TRUE):
 
@@ -977,7 +979,7 @@ Plans:
 ### Phase 52.3: Log (INSERTED)
 
 **Goal**: Players read a stored, searchable log of what happened to their character, by category and day.
-**Depends on**: Phase 52.2 (run order), Phase 51.5
+**Depends on**: Phase 52.2 (run order). Phase 51.5 now runs after this phase (systems first, owner 2026-10-08), so 51.5 adds its level-up and new-skill lines to the Log
 **Requirements**: CUT-01 (the log row of the parity checklist)
 **Success Criteria** (what must be TRUE):
 
@@ -1024,10 +1026,10 @@ Plans:
 
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** 999.29 feeds World events: a family wiped out at a place, an Overrun surge (a natural "cull the swarm" event with contribution and rewards), a vacuum takeover, and region-wide trends. Owner: "this system would then lend itself very nicely into the world event system!" If 52.4 runs before 999.29, leave a hook for these event kinds.
 
-### Phase 52.5: Balance Dials (INSERTED)
+### Phase 52.5: Admin and Balance Dials (INSERTED)
 
-**Goal**: An admin can tune the game's balance without code changes, once every system it tunes exists: combat difficulty, populations and resources, bosses and named foes, and ability power, all through one dial pattern (the 51.3 `/economy` dials).
-**Depends on**: Phase 51.3.1.1 (families, roles and pools), Phase 51.3.2 (wind-up and rounds), and every system phase before it through 52.4 (owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place.")
+**Goal**: Admins get the designed admin screens and can tune the game's balance without code changes, once every system and screen it touches exists: combat difficulty, populations and resources, bosses and named foes, and ability power, all through one dial pattern (the 51.3 `/economy` dials).
+**Depends on**: every system and UX phase of v3.0 (run order: after 51.5.1 Motion and Polish, before 53). Owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place." and "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"
 **Requirements**: TBD (owner requests 2026-10-08)
 **Success Criteria** (what must be TRUE):
 
@@ -1035,10 +1037,11 @@ Plans:
   2. Population dials replace the fixed numbers 51.3.1.1 ships with: encounter chance, group size, depletion, creature regrowth, resource regrowth, gather yield by density, the per-player harvest cap and hunter activity, globally, per region, by difficulty and by family.
   3. Quest bosses, named foes and boss templates are harder than ordinary enemies at the same place by default, through the bosses-and-named layer (owner: "Quest bosses should be harder!"; on 2026-10-08 the owner chose to wait for this phase rather than add a fixed bonus earlier). Today they get no stat bonus at all.
   4. Every other dial defaults to the shipped numbers, so nothing changes until an admin moves one; each value is clamped; combat and the pools read the dials in one shared place, and a change applies to the next fight, spawn, roll or tick only.
-  5. Admin commands (for example `/combat` and a populations command) show and set the dials, following `/economy`; the Phase 53 admin screens get Combat and Populations panels beside the Economy panel. Balance dials only, no simulation tools (owner).
-  6. Ability power: whether player abilities get per-kind power dials (and sparse per-ability overrides) is settled in discuss; if built, cast-time results and any shown numbers read the same rule.
-  7. Discuss reviews the systems built in 51.3.1.1 to 52.4 for anything else that needs a dial (for example the 51.3.2 wind-up bonus or World event rates).
-  8. Tests cover the clamps, each override layer and how they combine, the boss default, and determinism.
+  5. Admin commands (for example `/combat` and a populations command) show and set the dials, following `/economy`. Balance dials only, no simulation tools (owner).
+  6. The admin screens from the owner's `UWR Admin Screens` mock are built here (moved from Phase 53, owner 2026-10-08): the `/llm` admin surface and the Economy (51.3), Combat and Populations panels, admin-gated, at desktop and 390×844.
+  7. Ability power: whether player abilities get per-kind power dials (and sparse per-ability overrides) is settled in discuss; if built, cast-time results and any shown numbers read the same rule.
+  8. Discuss reviews the systems built in 51.3.1.1 to 52.4 for anything else that needs a dial (for example the 51.3.2 wind-up bonus or World event rates).
+  9. Tests cover the clamps, each override layer and how they combine, the boss default, determinism, and admin gating for every admin screen and `/llm` command.
 
 **Plans:** 0 plans
 **Notes**:
@@ -1061,6 +1064,10 @@ Plans:
     - "Could we also have a phase for combat dials? We'll want to be able to tune combat to make it harder/easier by difficulty level, redfin type". The owner picked difficulty level, region type and enemy type.
     - "Do we also need ability dials? Some way to balance ai generated abilities? Let's consider the complexity of that when you consider you might need to tweak an exciting ability. Or maybe, tuning difficulty is the answer". Coordinator proposal: per-kind power dials applied at cast time (for example heal x0.85) that retune existing and future abilities with no row rewrites, plus sparse per-ability overrides for a single outlier; a changed signature ability tells its owner why; difficulty dials stay the main tool.
     - "Quest bosses should be harder!" Quick task 261008-ag8 scales quest and named spawns to the place's level band; the boss default here should put them above ordinary enemies at the same place (a level bump, extra health and damage, or both).
+  - **Moved from Phase 53 (owner, 2026-10-08):**
+    - Design source: **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 53 planning lists them and asks the owner which are in scope. Player trade moved to Phase 52.1.2 (owner, 2026-10-07 and 2026-10-08); the party and player menus from the same file are built in Phase 51.1. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
+    - **Populations panel (owner, 2026-10-08):** the admin screens also get a Populations panel for the Phase 52.5 population dials (Density Pools numbers), and a Combat panel for the 52.5 combat dials, with balance dials only: encounter chance, group size by density level, depletion speed, creature regrowth, resource regrowth, the per-player harvest cap and hunter activity. No simulation tools: the Living Places mock's "Simulator" (advance time, set a family's level, always ambush, force hunters) is not built. Owner: "We only want admin knobs, not simulation."
+    - **Already in this phase from the backlog:** the admin screens (`UWR Admin Screens`). The admin screens include a panel for the Phase 51.3 economy dials (rarity, drop, gold and gather rates, global and per region). The loot rails (999.23) moved to Phase 51.4.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
@@ -1070,17 +1077,17 @@ Plans:
 ### Phase 53: Parity and Production
 
 **Goal**: The new client does everything the old client did and is what production serves.
-**Depends on**: every earlier v3.0 phase (it runs last: owner, 2026-10-08)
+**Depends on**: every earlier v3.0 phase, including 52.5 Admin and Balance Dials (it runs last: owner, 2026-10-08)
 **Requirements**: CUT-01, CUT-02
 **Success Criteria** (what must be TRUE):
 
-  1. A written parity checklist lists every action the old client (tag `v2.2-client`) offered, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: help, bug report and the /llm admin commands, built from Nocturne components. The Hotbar Manager, bank and player trade are checked off by Phases 52.1, 52.1.1 and 52.1.2.
+  1. A written parity checklist lists every action the old client (tag `v2.2-client`) offered, and every row is done in the new client at desktop and 390×844, including the surfaces not in the design: help and bug report, built from Nocturne components. The admin screens and `/llm` admin commands are checked off by Phase 52.5. The Hotbar Manager, bank and player trade are checked off by Phases 52.1, 52.1.1 and 52.1.2.
   2. The production build and the GitHub Pages deploy configuration serve the new client; this is verified locally by building and previewing the production output (the push to master stays an owner action).
   3. Nothing in the repo references the old UI, and the build and the full test suite pass.
 
 **Plans**: TBD
 **UI hint**: yes
-**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. The designed loot rails moved to Phase 51.4 (owner, 2026-10-07). The bank moved to Phase 52.1.1 (owner, 2026-10-07 and 2026-10-08). **Admin screens now have a mock:** the owner sent `UWR Admin Screens.dc.html` on 2026-10-06 ("admin screen mocks"). The `/llm` admin surface, and any other admin screens the file draws, follow it, re-imported fresh from the claude_design MCP (project id `1a7a975f-7b14-488b-9a38-188bc56294cf`) together with the Nocturne `_ds` files and `support.js`. Admin screens stay gated to admins, and the server stays the only authority (`requireAdmin`). If the file draws admin surfaces beyond today's `/llm` admin, Phase 53 planning lists them and asks the owner which are in scope. Player trade moved to Phase 52.1.2 (owner, 2026-10-07 and 2026-10-08); the party and player menus from the same file are built in Phase 51.1. The remaining undesigned surfaces (help, bug report) have no mock, so the UI-SPEC composes them from Nocturne components and the patterns set in Phases 45-51.
+**Design source**: The Nocturne bundle is re-imported fresh via `/gsd-ui-phase`. The designed loot rails moved to Phase 51.4 (owner, 2026-10-07). The bank moved to Phase 52.1.1 (owner, 2026-10-07 and 2026-10-08). The admin screens and their mock moved to Phase 52.5 (owner, 2026-10-08).
 **Notes**:
 
   - **Pulled in from the backlog (owner decision 2026-10-06).** These cover parity with the old client and are built from the owner's designs, each re-imported fresh:
@@ -1088,8 +1095,7 @@ Plans:
       - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
       - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
       - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
-  - **Populations panel (owner, 2026-10-08):** the admin screens also get a Populations panel for the Phase 52.5 population dials (Density Pools numbers), and a Combat panel for the 52.5 combat dials, with balance dials only: encounter chance, group size by density level, depletion speed, creature regrowth, resource regrowth, the per-player harvest cap and hunter activity. No simulation tools: the Living Places mock's "Simulator" (advance time, set a family's level, always ambush, force hunters) is not built. Owner: "We only want admin knobs, not simulation."
-  - **Already in this phase from the backlog:** the admin screens (`UWR Admin Screens`). The admin screens include a panel for the Phase 51.3 economy dials (rarity, drop, gold and gather rates, global and per region). The loot rails (999.23) moved to Phase 51.4.
+  - **The admin screens moved to Phase 52.5 Admin and Balance Dials (owner, 2026-10-08):** "admin and dials should be last." That covers the `UWR Admin Screens` mock, the `/llm` admin surface and the Economy, Combat and Populations panels. The loot rails (999.23) moved to Phase 51.4.
   - **Split (owner, 2026-10-07, then 2026-10-08):** the Hotbar Manager (999.18) is Phase 52.1, the bank (999.25) Phase 52.1.1 and player trade Phase 52.1.2.
   - **Renumbered from 52 to 53 and moved last (owner, 2026-10-08):** "move log, world events, and parity and production to the very end, in that order so parity and production is last." Older documents call it Phase 52. Earlier phases still append the parity rows they cover.
 
@@ -1097,7 +1103,7 @@ Plans:
   - Deploy: `.github/workflows` holds only `claude.yml` and `claude-code-review.yml`, so find how master builds and publishes to GitHub Pages before changing it. The root build scripts already belong to the new client (Phase 45). The SpacetimeAuth redirect URI for the production origin must be registered (owner action).
   - No push to master and no maincloud publish without the owner. The maincloud run, live end-to-end verification and Console reconciliation stay owner manual items (QUAL-02).
   - If this phase proves too heavy at plan time, split it with `/gsd-phase --insert` (undesigned surfaces versus production deploy) rather than trimming the parity checklist.
-  - Tests: parity checklist completeness check, admin gating for /llm commands, Journal flows, and a repo guard that fails if anything references the removed old UI.
+  - Tests: parity checklist completeness check, Journal flows, and a repo guard that fails if anything references the removed old UI.
 
 ## Progress
 
@@ -1128,7 +1134,7 @@ Plans:
 | 52.2. Social and Guilds | v3.0 | 0/TBD | Not started | - |
 | 52.3. Log | v3.0 | 0/TBD | Not started | - |
 | 52.4. World Events | v3.0 | 0/TBD | Not started | - |
-| 52.5. Balance Dials | v3.0 | 0/TBD | Not started | - |
+| 52.5. Admin and Balance Dials | v3.0 | 0/TBD | Not started | - |
 | 53. Parity and Production | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -2493,4 +2499,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after moving all balance dials to the new Phase 52.5 Balance Dials (was 51.3.1 Combat Dials; Density Pools dial and boss bonus included; owner)*
+*Last updated: 2026-10-08 after setting the v3.0 run order to systems, then UX, then admin and tuning, then release (owner); admin screens moved from 53 to 52.5 Admin and Balance Dials*
