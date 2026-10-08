@@ -709,7 +709,42 @@ Plans:
   5. Economy dials let an admin raise or lower loot rarity and rates without code changes. The global dials are a rarity shift, drop rate, gold, gather rate and a boss or named-foe rarity bonus, and each one can be overridden per region. They live in a private server config table whose defaults equal today's tuning. An admin-only action changes them, each value is clamped to a safe range, and every roll reads them. An admin command (for example `/economy rarity +1`) shows and sets them; the Phase 53 admin screens get a panel for them.
   6. The new prompt's exact wording is approved by the owner before it ships. No paid calls in tests.
 
-**Plans**: TBD
+**Plans**: 13 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 51.3-01-PLAN.md — Pure runtime economy rules (`data/economy_rules.ts`): dials, clamps and combination, rarity mix with today's parity, splitmix rolls and per-enemy seeds, picks, gold, gather yield, creature profiles, fallback and AI loot tables; legendary affixes
+- [ ] 51.3-02-PLAN.md — Pure design rules (`data/economy_design_rules.ts`): Small counts, recipe tiers by number of other regions, cross-region requirements (rare 1, epic 2, legendary 3 via a 4th slot), safe unique names, every generated item's stats
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 51.3-03-PLAN.md — Seven private economy tables and `helpers/economy_state.ts` (missing row = today's tuning, AI off; one clamped write path); init ensure; privacy test
+- [ ] 51.3-04-PLAN.md — `REGION_ECONOMY_SCHEMA` and the pure reply validator and repairer (handles, enums, names, cross-region rule, no model numbers)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 51.3-05-PLAN.md — Loot rewrite: per-enemy seeds, AI table or fallback, dials, gold summed once, fight-exact named foes for legendary, scroll drops (fixes the three loot bugs)
+- [ ] 51.3-06-PLAN.md — Crafting: `recipe_template` req4 (defaulted), shared `recipeRequirements`, regional research, rarity-based craft quality, 4-requirement craft and salvage
+- [ ] 51.3-07-PLAN.md — Regional gatherables by terrain, gather-rate dial in `finish_gather`, vendor origin rule (own region, common and uncommon materials only)
+- [ ] 51.3-08-PLAN.md — `/economy` admin command and admin-only `economy_*` reducers
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 51.3-09-PLAN.md — Local publish A (key 108 before and after, no clear), bindings regeneration, crafting screen shows and crafts 4-requirement recipes
+- [ ] 51.3-10-PLAN.md — Region economy input builder and idempotent apply (items, loot tables, recipes, scrolls; late-creature mode; failure path)
+
+**Wave 5** *(blocked on Wave 4 and owner approval of 51.3-PROMPT-DRAFT.md)*
+
+- [ ] 51.3-11-PLAN.md — Owner-approval checkpoint, then `region_economy` route registration with the approved wording (silent, phase-only, outside sweep, smoke and proof lists)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 51.3-12-PLAN.md — Chain after region fill and late enemies (gated by `aiEnabled`, default off), dispatch, background in-flight limit, `/economy design <region>`, end-to-end scripted run
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 51.3-13-PLAN.md — Local publish B with the read-only no-paid-call proof, spend-safety contract test, validation map
 **Notes**:
 
   - Owner decisions (2026-10-07):
