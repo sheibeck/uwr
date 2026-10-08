@@ -34,6 +34,7 @@ import {
   repairGear,
   gearTemplate,
   regionalOutputTemplate,
+  armorSlotFromName,
   scrollTemplate,
 } from './economy_design_rules';
 import {
@@ -784,6 +785,47 @@ describe('regionalOutputTemplate', () => {
     expect(t.armorClassBonus).toBe(((ARMOR_FORMS[1].baseAc.leather + armorGrowth(6n)) * 145n) / 100n);
     const cloth = regionalOutputTemplate({ ...base, category: 'armor', primaryKind: 'cloth', tier: 'common', level: 1n, index: 5 });
     expect(cloth).toMatchObject({ slot: 'boots', armorType: 'cloth', armorClassBonus: ARMOR_FORMS[2].baseAc.cloth });
+  });
+
+  // Review B WR-02: job 8206's "Wickthread Sash" (recipe index 1) shipped as legs; the slot now
+  // follows the cleaned name's last armor word, and the index only decides when no word matches.
+  it('takes the armor slot from the name: the live "Wickthread Sash" at index 1 is chest', () => {
+    const sash = regionalOutputTemplate({ ...base, name: 'Wickthread Sash', category: 'armor', primaryKind: 'cloth', tier: 'common', level: 1n, index: 1 });
+    expect(sash).toMatchObject({ slot: 'chest', armorType: 'cloth', armorClassBonus: ARMOR_FORMS[0].baseAc.cloth });
+    const jerkin = regionalOutputTemplate({ ...base, name: 'Kesterlane Basin Jerkin', category: 'armor', primaryKind: 'hide', tier: 'common', level: 1n, index: 2 });
+    expect(jerkin.slot).toBe('chest');
+    const greaves = regionalOutputTemplate({ ...base, name: 'Saltcrust Greaves', category: 'armor', primaryKind: 'hide', tier: 'common', level: 1n, index: 0 });
+    expect(greaves.slot).toBe('legs');
+    const sandals = regionalOutputTemplate({ ...base, name: 'Dune Sandals', category: 'armor', primaryKind: 'hide', tier: 'common', level: 1n, index: 0 });
+    expect(sandals.slot).toBe('boots');
+  });
+
+  it('armorSlotFromName reads the last armor word, singular or plural, any case; null when none', () => {
+    for (const [name, slot] of [
+      ['Wickthread Sash', 'chest'],
+      ['Reed Robe', 'chest'],
+      ['Glass Vest', 'chest'],
+      ['Drowned Watch Cuirass', 'chest'],
+      ['Wayfarer Coat', 'chest'],
+      ['Brine GREAVES', 'legs'],
+      ['Kelp Leggings', 'legs'],
+      ['Dune Trousers', 'legs'],
+      ['Salt Kilt', 'legs'],
+      ['Ash Boots', 'boots'],
+      ['Ash Boot', 'boots'],
+      ['Reed Sandals', 'boots'],
+      ['Sash of Boots', 'boots'],
+    ] as const) {
+      expect(armorSlotFromName(name), name).toBe(slot);
+    }
+    expect(armorSlotFromName('Saltglass Blade')).toBeNull();
+    expect(armorSlotFromName('')).toBeNull();
+    expect(armorSlotFromName(undefined as unknown as string)).toBeNull();
+  });
+
+  it('falls back to the index when the name has no armor word', () => {
+    const cloak = regionalOutputTemplate({ ...base, name: 'Reed Wrap', category: 'armor', primaryKind: 'cloth', tier: 'common', level: 1n, index: 2 });
+    expect(cloak.slot).toBe('boots');
   });
 
   it('builds an accessory whose stat is picked by region id plus index', () => {

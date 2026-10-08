@@ -680,10 +680,60 @@ const OUTPUT_ACCESSORY_STATS: readonly { stat: 'hpBonus' | 'wisBonus' | 'intBonu
 ];
 
 /**
+ * The armor slot an item name implies, by word (review B WR-02): chest, legs or boots (the feet slot of
+ * this codebase). Only the slots of ARMOR_FORMS appear.
+ */
+const ARMOR_SLOT_WORDS: Readonly<Record<string, string>> = Object.freeze({
+  robe: 'chest',
+  vest: 'chest',
+  jerkin: 'chest',
+  tunic: 'chest',
+  cuirass: 'chest',
+  coat: 'chest',
+  mantle: 'chest',
+  sash: 'chest',
+  shirt: 'chest',
+  hauberk: 'chest',
+  breastplate: 'chest',
+  doublet: 'chest',
+  trousers: 'legs',
+  pants: 'legs',
+  leggings: 'legs',
+  greaves: 'legs',
+  breeches: 'legs',
+  kilt: 'legs',
+  boots: 'boots',
+  boot: 'boots',
+  shoes: 'boots',
+  shoe: 'boots',
+  sandals: 'boots',
+  sandal: 'boots',
+  slippers: 'boots',
+  slipper: 'boots',
+  treads: 'boots',
+});
+
+/**
+ * The armor slot of a cleaned item name: the last word that names a piece of armor wins (so "Sash of
+ * Boots" is boots), case-insensitive, with a plural or singular form; null when no word does. The
+ * recipe output then takes that slot instead of the index rule, so the name cannot contradict it.
+ */
+export function armorSlotFromName(name: string): string | null {
+  const words = asText(name).toLowerCase().split(/[^a-z]+/).filter((w) => w !== '');
+  for (let i = words.length - 1; i >= 0; i--) {
+    const word = words[i];
+    for (const form of [word, word.replace(/s$/, ''), `${word}s`]) {
+      if (Object.prototype.hasOwnProperty.call(ARMOR_SLOT_WORDS, form)) return ARMOR_SLOT_WORDS[form];
+    }
+  }
+  return null;
+}
+
+/**
  * The item a regional recipe makes. tier is the recipe's rarity. The form comes from the secondary
- * kind (weapon), the primary kind and index (armor), the secondary kind and a region-and-index pick
- * (accessory) or the index (food); the numbers are the shared forms and growth times the rarity
- * factor. An unknown category is treated as a weapon.
+ * kind (weapon), the primary kind and the slot the name implies, else the index (armor, review B
+ * WR-02), the secondary kind and a region-and-index pick (accessory) or the index (food); the numbers
+ * are the shared forms and growth times the rarity factor. An unknown category is treated as a weapon.
  */
 export function regionalOutputTemplate(input: {
   name: string;
@@ -711,7 +761,8 @@ export function regionalOutputTemplate(input: {
 
   if (input.category === 'armor') {
     const type: 'cloth' | 'leather' = asText(input.primaryKind) === 'hide' ? 'leather' : 'cloth';
-    const form = ARMOR_FORMS[index % ARMOR_FORMS.length];
+    const named = armorSlotFromName(input.name);
+    const form = (named !== null ? ARMOR_FORMS.find((f) => f.slot === named) : undefined) ?? ARMOR_FORMS[index % ARMOR_FORMS.length];
     return blankTemplate(input.name, textOrRule(input.description, made(withArticle(form.words[type]))), {
       ...common,
       slot: form.slot,
