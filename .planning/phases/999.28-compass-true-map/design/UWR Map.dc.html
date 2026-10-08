@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css">
+<script src="_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js"></script>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<style>
+html,body{background:#0f1019;min-height:100%}
+body{margin:0;font-family:var(--font-body)}
+a{color:var(--color-accent-400);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--color-accent) 45%,transparent);text-underline-offset:3px;font-weight:500}
+a:hover{color:var(--color-accent-300);text-decoration-color:var(--color-accent-300)}
+.dv-turn{padding:40px 44px 32px;scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:var(--color-accent-700);color:var(--color-accent-100);border-radius:4px;text-decoration:none}
+.dv-tname{font:500 15px/1.2 var(--font-body);color:var(--color-text)}
+.dv-note{max-width:900px;font:13px/1.55 var(--font-body);color:var(--color-neutral-400);margin:0 0 28px}
+.dv-opts{display:flex;flex-direction:column;gap:56px}
+.dv-opt{display:flex;flex-direction:column;gap:12px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:var(--color-neutral-800);color:var(--color-neutral-100);border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 13px/1.3 var(--font-body);color:var(--color-neutral-300)}
+.dv-opt:target .dv-oid{background:var(--color-accent);color:var(--color-bg)}
+</style>
+</helmet>
+<section class="dv-turn" id="t12">
+<div class="dv-thd"><a class="dv-tid" href="#t12">12</a><span class="dv-tname">Cartographer map: 11a plus an Unplaced strip, and dungeon levels</span></div>
+<p class="dv-note">Same screen as <a href="#11a">11a</a>: regions, entrances, travel checks and cooldown all work the same way. The party bar is a placeholder here. What changes: the server holds every true position, but only sends a position once this character learns how the place relates to somewhere already on their map. Until then the place sits in the <b style="color:var(--color-neutral-200);font-weight:500">Unplaced</b> strip at the left of the map, grouped by region, so it never hints at a direction. A place you've heard of without knowing its region goes under <b style="color:var(--color-neutral-200);font-weight:500">Region unknown</b>, which shows on every region's map until you learn either its region (it moves to that region's list) or a bearing (it goes on the map). Travelling a road to it, an NPC's bearing, a map item or a survey fixes it, and it glides to its true spot and its roads fade in. If a bearing is measured from a place you haven't placed yet, it's held until that place is fixed. <b style="color:var(--color-neutral-200);font-weight:500">Levels</b>: a dungeon can have a level beneath it, mapped separately and measured from its entrance stair. The dungeon gets a stack badge, its panel links to the level below, and the underground view shows a breadcrumb and a level list. Places on different levels never share bearings. <b style="color:var(--color-neutral-200);font-weight:500">Server</b>: <code>character_map_places</code> (character, location, source, from_location, learned_at) and <code>character_map_bearings</code> for held bearings. The map payload only includes x/y for rows in the first table.</p>
+<div class="dv-opts">
+<div class="dv-opt" id="12a">
+<div class="dv-olabel"><a class="dv-oid" href="#12a">12a</a>Live. Click the region button (or "All 16 regions") to search and switch regions. Travel to Saltmarsh Docks, then take the road to the Drowned Chapel, and Lorelle's bearing places the Eel Market too. The strip only lists places in the region you're in, plus Region unknown. Select the Sunken Crypt and view the level below, then read the sexton's rubbing. Tweaks: slow transition, cooldown, low stamina.</div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+<div style="width:1280px;height:800px;flex:none;position:relative;overflow:hidden;border-radius:10px;background:var(--color-bg);color:var(--color-text);font-size:13px;line-height:1.5;display:flex;flex-direction:column;box-shadow:var(--shadow-sm)">
+  <header style="height:46px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:color-mix(in srgb,var(--color-surface) 55%,transparent)">
+    <div style="font-size:14px;font-weight:500">Unwritten Realms</div>
+    <div style="width:1px;height:18px;background:var(--color-divider)"></div>
+    <div style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-300)"><i class="ph ph-map-pin" style="font-size:14px;color:var(--color-accent)"></i>{{ c.hereRegion }} · {{ c.hereName }}</div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:2px">
+      <button class="btn btn-ghost" style="color:var(--color-accent);padding:5px 8px;background:var(--color-accent-900)"><i class="ph ph-map-trifold" style="font-size:16px"></i>Map</button>
+      <a href="UWR Inventory.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-backpack" style="font-size:16px"></i>Bag</a>
+      <a href="UWR Character.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-user-circle" style="font-size:16px"></i>Character</a>
+      <a href="UWR Journal.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-book-open-text" style="font-size:16px"></i>Journal</a>
+      <a href="UWR Crafting.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-hammer" style="font-size:16px"></i>Craft</a>
+      <a href="UWR Social.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-users-three" style="font-size:16px"></i>Social</a>
+      <button class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px"><i class="ph ph-globe-hemisphere-west" style="font-size:16px"></i>Events</button>
+    </div>
+  </header>
+  <sc-if value="{{ c.rsw.open }}">
+    <div onClick="{{ c.rsw.close }}" style="position:absolute;inset:0;z-index:20"></div>
+    <div style="position:absolute;left:326px;top:92px;width:340px;max-height:480px;z-index:21;display:flex;flex-direction:column;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-neutral-700),var(--shadow-lg);overflow:hidden">
+      <div style="padding:10px"><div style="display:flex;align-items:center;gap:8px;padding:0 10px;height:36px;border-radius:var(--radius-md);background:var(--color-bg);box-shadow:inset 0 0 0 1px var(--color-neutral-700)"><i class="ph ph-magnifying-glass" style="color:var(--color-neutral-400)"></i><input value="{{ c.rsw.q }}" onChange="{{ c.rsw.onQ }}" placeholder="{{ c.rsw.searchPh }}" style="all:unset;flex:1;font-size:12.5px;color:var(--color-text)"></input></div></div>
+      <div style="flex:1;min-height:0;overflow:auto;padding:0 6px 8px">
+          <sc-for list="{{ c.rsw.sections }}" as="sec" hint-placeholder-count="3">
+            <div style="padding:8px 8px 4px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">{{ sec.label }}</div>
+            <sc-for list="{{ sec.rows }}" as="r" hint-placeholder-count="2">
+              <button onClick="{{ r.pick }}" style="all:unset;cursor:pointer;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;background:{{ r.bg }}" style-hover="background:var(--color-neutral-900)"><i class="{{ r.icon }}" style="font-size:14px;color:{{ r.iconColor }}"></i><span style="flex:1;min-width:0;font-size:12.5px;color:{{ r.color }}">{{ r.name }}</span><span style="font-size:11px;color:var(--color-neutral-400);display:flex;gap:4px;align-items:center"><sc-if value="{{ r.locked }}"><i class="ph ph-lock-simple"></i></sc-if>{{ r.lv }}</span></button>
+            </sc-for>
+          </sc-for>
+          <sc-if value="{{ c.rsw.empty }}"><div style="padding:16px 10px;font-size:12px;color:var(--color-neutral-500)">No region you know of matches.</div></sc-if>
+      </div>
+      <div style="padding:8px 14px;font-size:11px;color:var(--color-neutral-500);box-shadow:0 -1px 0 var(--color-neutral-800)">Only regions you've visited or heard of are listed.</div>
+    </div>
+  </sc-if>
+  <div style="flex:1;min-height:0;display:flex">
+    <aside style="width:252px;flex:none;padding:18px 16px;box-sizing:border-box;display:flex;background:color-mix(in srgb,var(--color-surface) 30%,transparent)"><div style="flex:1;border-radius:var(--radius-md);border:1px dashed var(--color-neutral-700);display:grid;place-items:center;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500)">Party bar</div></aside>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--color-surface);box-shadow:-1px 0 0 var(--color-neutral-800),-24px 0 48px rgba(0,0,0,0.35)">
+      <div style="flex:none;display:flex;align-items:center;gap:12px;padding:16px 22px 10px">
+        <h4 style="margin:0">Map</h4>
+        <div style="display:flex;align-items:center;gap:6px;min-width:0">
+          <button onClick="{{ c.rsw.toggle }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700);font-size:12px;color:var(--color-accent-100);white-space:nowrap" style-hover="box-shadow:inset 0 0 0 1px var(--color-accent)"><i class="ph ph-map-trifold" style="font-size:13px"></i><span>{{ c.rsw.viewName }}</span><span style="opacity:0.7">{{ c.rsw.viewLv }}</span><i class="ph ph-caret-down" style="font-size:11px"></i></button>
+          <span style="font-size:11px;color:var(--color-neutral-500);white-space:nowrap;margin-left:4px">Next door</span>
+          <sc-for list="{{ c.rsw.next }}" as="r" hint-placeholder-count="3"><button onClick="{{ r.pick }}" class="tag tag-neutral" style="cursor:pointer;border:none;padding:2px 9px;gap:4px;font-size:11.5px;white-space:nowrap;opacity:{{ r.op }}"><sc-if value="{{ r.locked }}"><i class="ph ph-lock-simple"></i></sc-if>{{ r.name }}</button></sc-for>
+          <button onClick="{{ c.rsw.toggle }}" style="all:unset;cursor:pointer;font-size:11.5px;color:var(--color-accent-300);padding:2px 6px;border-radius:4px;white-space:nowrap" style-hover="background:var(--color-neutral-900)">{{ c.rsw.more }}</button>
+        </div>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:999px;font-size:12px;box-shadow:inset 0 0 0 1px {{ c.cd.ring }};color:{{ c.cd.color }}"><i class="{{ c.cd.icon }}" style="font-size:14px"></i>Region travel: {{ c.cd.label }}</div>
+        <button class="btn btn-ghost btn-icon" style="color:var(--color-neutral-300)"><i class="ph ph-x" style="font-size:17px"></i></button>
+      </div>
+      <div style="flex:none;display:flex;flex-wrap:wrap;column-gap:14px;row-gap:5px;padding:0 22px 10px;font-size:11px;color:var(--color-neutral-400)">
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-house-line" style="font-size:13px;color:var(--color-neutral-200)"></i>Town</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-buildings" style="font-size:13px;color:var(--color-neutral-200)"></i>City</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-skull" style="font-size:13px;color:var(--color-neutral-200)"></i>Dungeon</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-tree-evergreen" style="font-size:13px;color:var(--color-neutral-200)"></i>Woods</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-plant" style="font-size:13px;color:var(--color-neutral-200)"></i>Plains</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-mountains" style="font-size:13px;color:var(--color-neutral-200)"></i>Mountains</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-question" style="font-size:13px;color:var(--color-neutral-200)"></i>Uncharted</span>
+        <span style="width:1px;background:var(--color-divider)"></span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-shield-check" style="font-size:13px;color:oklch(0.78 0.12 150)"></i>Safe</span>
+        <span style="display:flex;align-items:center;gap:6px">Danger vs Lv 6:<span style="color:oklch(0.78 0.12 150)">easy</span><span style="color:#4dabf7">even</span><span style="color:#ffd43b">tough</span><span style="color:#ff6b6b">deadly</span></span>
+        <span style="width:1px;background:var(--color-divider)"></span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-door-open" style="font-size:13px;color:var(--color-accent)"></i>Region entrance</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-bed" style="font-size:13px;color:var(--color-accent-300)"></i>Bind</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-anvil" style="font-size:13px;color:var(--color-accent-300)"></i>Crafting</span><span style="display:flex;align-items:center;gap:5px"><i class="ph ph-stack" style="font-size:13px;color:var(--color-accent-300)"></i>Level below</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;box-sizing:border-box;border-radius:50%;border:1px dashed var(--color-neutral-400)"></span>Unplaced</span>
+      </div>
+      <div style="flex:1;min-height:0;display:flex;align-items:flex-start">
+        <div style="width:696px;height:600px;flex:none;position:relative;margin:0 0 0 22px;border-radius:var(--radius-md);overflow:hidden;background:var(--color-bg)">
+          <div style="position:absolute;left:156px;top:0;right:0;bottom:0;background:radial-gradient(460px 380px at 45% 50%,color-mix(in srgb,var(--color-accent-900) 60%,transparent),transparent 70%)">
+            <div style="position:absolute;inset:0;background:color-mix(in srgb,var(--color-neutral-900) 70%,var(--color-bg));opacity:{{ c.underOp }};transition:opacity 450ms ease"></div>
+            <sc-if value="{{ c.isSurface }}">
+              <svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0"><path d="M60 92 C220 72 440 78 602 96 C618 250 614 420 600 582 C420 596 220 594 66 584 C44 420 48 250 60 92 Z" fill="color-mix(in srgb,var(--color-accent-900) 35%,transparent)" stroke="#6b6f80" stroke-width="1.2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"></path></svg>
+              <div style="position:absolute;left:11%;top:15%;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-500)">Hollowmere</div>
+              <div style="position:absolute;left:3%;top:2%;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600)">Gloamwood</div>
+              <div style="position:absolute;right:2%;bottom:2%;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600)">Saltmarsh</div>
+            </sc-if>
+            <sc-if value="{{ c.isUnder }}">
+              <svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0"><path d="M110 470 C120 300 230 130 400 50 C520 10 640 110 630 300 C622 470 540 610 360 612 C220 612 104 580 110 470 Z" fill="color-mix(in srgb,var(--color-neutral-800) 40%,transparent)" stroke="#6b6f80" stroke-width="1.2" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"></path></svg>
+            </sc-if>
+            <svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0">
+              <path d="{{ c.edgeA }}" stroke="#595d6c" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ c.edgeN }}" stroke="#595d6c" stroke-width="1.6" fill="none" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ c.edgeG }}" stroke="#7a6fc0" stroke-width="1.6" fill="none" stroke-dasharray="7 4" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ c.routeD }}" stroke="#9184d9" stroke-width="2.4" fill="none" vector-effect="non-scaling-stroke"></path>
+            </svg>
+            <sc-if value="{{ c.isSurface }}">
+              <sc-for list="{{ c.gates }}" as="g" hint-placeholder-count="3">
+                <button onClick="{{ g.pick }}" style="all:unset;cursor:pointer;position:absolute;left:{{ g.x }};top:{{ g.y }};transform:translate(-50%,-50%);display:flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;background:var(--color-surface);box-shadow:{{ g.ring }};font-size:11px;color:{{ g.color }};white-space:nowrap;z-index:2" style-hover="background:var(--color-accent-900)"><i class="{{ g.icon }}" style="font-size:13px"></i>{{ g.label }}</button>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ c.isUnder }}">
+              <div style="position:absolute;left:12px;top:10px;display:flex;align-items:center;gap:2px;font-size:12px;z-index:4">
+                <sc-for list="{{ c.crumbs }}" as="b" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:2px"><sc-if value="{{ b.sep }}"><i class="ph ph-caret-right" style="font-size:10px;color:var(--color-neutral-500)"></i></sc-if><sc-if value="{{ b.cur }}"><span style="padding:2px 4px;color:var(--color-text);font-weight:500">{{ b.label }}</span></sc-if><sc-if value="{{ b.link }}"><button onClick="{{ b.pick }}" style="all:unset;cursor:pointer;color:var(--color-accent-300);padding:2px 4px;border-radius:4px" style-hover="background:var(--color-neutral-900)">{{ b.label }}</button></sc-if></span></sc-for>
+              </div>
+              <div style="position:absolute;right:12px;bottom:12px;width:196px;padding:8px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:2px;z-index:4">
+                <h6 style="margin:0 0 4px 6px;font-size:10px;color:var(--color-neutral-400)">Levels</h6>
+                <sc-for list="{{ c.levels }}" as="lv" hint-placeholder-count="3"><button onClick="{{ lv.pick }}" disabled="{{ lv.locked }}" style="all:unset;cursor:{{ lv.cursor }};display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:{{ lv.bg }};box-shadow:{{ lv.ring }}"><span style="width:{{ lv.indent }};flex:none"></span><i class="{{ lv.icon }}" style="font-size:14px;color:{{ lv.iconColor }}"></i><span style="display:flex;flex-direction:column;line-height:1.25;min-width:0"><span style="font-size:12px;color:{{ lv.color }}">{{ lv.name }}</span><span style="font-size:10.5px;color:var(--color-neutral-500)">{{ lv.sub }}</span></span></button></sc-for>
+              </div>
+            </sc-if>
+            <div style="position:absolute;right:10px;top:8px;display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--color-neutral-300);pointer-events:none;z-index:3"><span style="font-size:10.5px;font-weight:500;letter-spacing:0.08em">N</span><div style="width:30px;height:30px;border-radius:50%;background:var(--color-bg);box-shadow:inset 0 0 0 1px var(--color-neutral-700);display:grid;place-items:center"><i class="ph ph-arrow-up" style="font-size:15px;color:var(--color-accent)"></i></div></div>
+          </div>
+          <div style="position:absolute;left:0;top:0;bottom:0;width:156px;background:var(--color-surface);box-shadow:1px 0 0 var(--color-neutral-800)">
+            <div style="padding:12px 12px 0;display:flex;flex-direction:column;gap:3px"><h6 style="margin:0;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-300)">{{ c.stripCount }}</h6><div style="font-size:10.5px;line-height:1.4;color:var(--color-neutral-500)">Heard of, but you don't know where yet.</div></div>
+            <sc-for list="{{ c.stripHeads }}" as="h" hint-placeholder-count="0"><div style="position:absolute;left:12px;top:{{ h.y }};font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-500)">{{ h.label }}</div></sc-for>
+            <sc-if value="{{ c.stripEmpty }}"><div style="position:absolute;left:12px;right:12px;top:72px;font-size:11px;line-height:1.45;color:var(--color-neutral-500)">Everything you've heard of here is on your map.</div></sc-if>
+          </div>
+          <sc-for list="{{ c.nodes }}" as="n" hint-placeholder-count="0">
+            <div style="position:absolute;left:{{ n.x }};top:{{ n.y }};width:0;height:0;z-index:{{ n.z }};opacity:{{ n.vis }};pointer-events:{{ n.pe }};transition:left {{ c.ms }} cubic-bezier(.65,0,.25,1),top {{ c.ms }} cubic-bezier(.65,0,.25,1),opacity 350ms ease">
+              <sc-if value="{{ n.isHere }}"><span style="position:absolute;left:0;top:-36px;transform:translateX(-50%);padding:0 8px;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-size:10px;font-weight:600;letter-spacing:0.1em;line-height:17px;pointer-events:none;z-index:4;box-shadow:0 0 0 2px var(--color-bg),0 0 14px color-mix(in srgb,var(--color-accent) 70%,transparent)">YOU</span></sc-if>
+              <sc-if value="{{ n.hasSub }}"><span style="position:absolute;left:5px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--color-accent-800);box-shadow:0 0 0 2px var(--color-bg);display:grid;place-items:center;pointer-events:none;z-index:1"><i class="ph ph-stack" style="font-size:10px;color:var(--color-accent-100)"></i></span></sc-if>
+              <button onClick="{{ n.pick }}" title="{{ n.name }}" style="all:unset;cursor:pointer;position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:{{ n.size }};height:{{ n.size }};box-sizing:border-box;border-radius:50%;background:{{ n.bg }};border:{{ n.border }};box-shadow:{{ n.ring }};display:grid;place-items:center;transition:box-shadow 1200ms ease"><i class="{{ n.icon }}" style="font-size:{{ n.iconSize }};color:{{ n.iconColor }}"></i></button>
+              <div onClick="{{ n.pick }}" style="position:absolute;white-space:nowrap;display:flex;flex-direction:column;cursor:pointer;line-height:1.3;{{ n.labelPos }}">
+                <span style="font-size:12px;font-weight:{{ n.weight }};color:{{ n.color }};display:flex;gap:5px;align-items:center">{{ n.name }}<sc-if value="{{ n.bind }}"><i class="ph ph-bed" style="color:var(--color-accent-300)"></i></sc-if><sc-if value="{{ n.craft }}"><i class="ph ph-anvil" style="color:var(--color-accent-300)"></i></sc-if></span>
+                <span style="font-size:10.5px;color:{{ n.subColor }};display:flex;gap:4px;align-items:center">{{ n.sub }}<sc-if value="{{ n.safe }}"><i class="ph ph-shield-check" style="color:oklch(0.78 0.12 150)"></i></sc-if><span style="color:{{ n.lvColor }}">{{ n.lv }}</span></span>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ c.rsw.other }}"><div style="position:absolute;inset:0;z-index:8;background:var(--color-bg);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;padding:0 64px"><span style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Region map</span><h3 style="margin:0">{{ c.rsw.viewName }}</h3><div style="font-size:12.5px;color:var(--color-neutral-400)">{{ c.rsw.viewLine }}</div><div style="max-width:420px;font-size:12.5px;line-height:1.55;color:var(--color-neutral-300)">{{ c.rsw.otherNote }}</div><button class="btn btn-secondary" onClick="{{ c.rsw.home }}" style="margin-top:6px"><i class="ph ph-arrow-left"></i>{{ c.rsw.homeLabel }}</button></div></sc-if>
+          <sc-if value="{{ c.banner }}"><div style="position:absolute;left:426px;bottom:14px;transform:translateX(-50%);width:max-content;max-width:500px;padding:9px 14px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-accent-700),var(--shadow-md);display:flex;align-items:center;gap:8px;font-size:12.5px;z-index:6"><i class="ph ph-compass" style="color:var(--color-accent);flex:none"></i>{{ c.banner }}</div></sc-if>
+        </div>
+        <div style="width:310px;align-self:stretch;flex:none;padding:0 22px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto">
+          <span style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">{{ c.d.kicker }}</span>
+          <div><h4 style="margin:0">{{ c.d.name }}</h4><div style="font-size:12px;color:var(--color-neutral-400)">{{ c.d.regionLine }}</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            <sc-for list="{{ c.d.tags }}" as="t" hint-placeholder-count="3"><span class="tag tag-neutral" style="padding:2px 8px;gap:5px;font-size:11px;color:{{ t.color }}"><i class="{{ t.icon }}"></i>{{ t.label }}</span></sc-for>
+          </div>
+          <sc-if value="{{ c.d.isCross }}">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)">
+              <i class="ph ph-door-open" style="font-size:20px;color:var(--color-accent-200)"></i>
+              <div style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="font-size:12.5px;font-weight:500;color:var(--color-accent-100)">Region crossing</span><span style="font-size:11.5px;color:var(--color-accent-200)">{{ c.d.fromRegion }} <i class="ph ph-arrow-right" style="font-size:10px"></i> {{ c.d.toRegion }} · {{ c.d.toLv }}</span></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.desc }}"><div style="font-size:12.5px;line-height:1.55;color:var(--color-neutral-300)">{{ c.d.desc }}</div></sc-if>
+          <sc-if value="{{ c.d.hasProv }}"><div style="display:flex;gap:8px;align-items:flex-start;font-size:11.5px;line-height:1.45;color:var(--color-neutral-400)"><i class="{{ c.d.provIcon }}" style="font-size:13px;margin-top:2px;color:var(--color-accent-300)"></i><span>{{ c.d.prov }}</span></div></sc-if>
+          <sc-if value="{{ c.d.hasLvl }}"><div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)"><div style="display:flex;gap:10px;align-items:flex-start"><i class="{{ c.d.lvl.icon }}" style="font-size:18px;color:var(--color-accent-200);margin-top:1px"></i><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:12.5px;font-weight:500;color:var(--color-accent-100)">{{ c.d.lvl.title }}</span><span style="font-size:11.5px;line-height:1.45;color:var(--color-accent-200)">{{ c.d.lvl.line }}</span></div></div><sc-if value="{{ c.d.lvlBtn }}"><button class="btn btn-secondary" onClick="{{ c.d.lvl.run }}" style="padding:5px 11px;font-size:12px;align-self:flex-start"><i class="{{ c.d.lvl.btnIcon }}"></i>{{ c.d.lvl.btn }}</button></sc-if></div></sc-if>
+          <sc-if value="{{ c.d.isUnplaced }}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">What you know</h6>
+              <div style="font-size:12.5px;line-height:1.55;font-style:italic;color:var(--color-accent-200)">{{ c.d.heard }}</div>
+              <div style="font-size:11px;color:var(--color-neutral-500)">{{ c.d.src }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.unknownReg }}">
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Heard about it from</h6>
+              <sc-for list="{{ c.d.sources }}" as="so" hint-placeholder-count="1"><div style="display:flex;gap:9px;align-items:center;padding:7px 9px;border-radius:var(--radius-md);background:var(--color-bg)"><i class="{{ so.icon }}" style="font-size:15px;color:var(--color-neutral-300)"></i><div style="display:flex;flex-direction:column;min-width:0;line-height:1.35"><span style="font-size:12.5px">{{ so.name }}</span><span style="font-size:11px;color:var(--color-neutral-400)">{{ so.kind }}</span></div></div></sc-for>
+              <div style="font-size:11px;line-height:1.45;color:var(--color-neutral-500)">Region unknown. It's listed on every region's map until you learn more.</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.pending }}">
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)"><i class="ph ph-link" style="font-size:18px;color:var(--color-accent-200);margin-top:1px"></i><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:12.5px;font-weight:500;color:var(--color-accent-100)">Bearing on hold</span><span style="font-size:11.5px;line-height:1.45;color:var(--color-accent-200)">{{ c.d.pendText }}</span></div></div>
+          </sc-if>
+          <sc-if value="{{ c.d.hasTrip }}">
+            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:6px;font-size:12.5px">
+              <span style="color:var(--color-neutral-400)">Stamina</span><span>{{ c.d.cost }}</span>
+              <span style="color:var(--color-neutral-400)">Cooldown</span><span style="color:{{ c.d.cdColor }}">{{ c.d.cdText }}</span>
+              <span style="color:var(--color-neutral-400)">Players</span><span>{{ c.d.players }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.hasRoute }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Not directly connected · route</h6>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px">
+                <sc-for list="{{ c.d.route }}" as="s" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:4px;color:{{ s.color }}"><sc-if value="{{ s.arrow }}"><i class="{{ s.arrowIcon }}" style="font-size:11px;color:{{ s.arrowColor }}"></i></sc-if>{{ s.name }}</span></sc-for>
+              </div>
+              <div style="font-size:11.5px;color:var(--color-neutral-500)">{{ c.d.routeNote }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.hasChecks }}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Can you go?</h6>
+              <sc-for list="{{ c.d.checks }}" as="ck" hint-placeholder-count="3">
+                <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 9px;border-radius:var(--radius-md);background:var(--color-bg)"><i class="{{ ck.icon }}" style="font-size:15px;margin-top:2px;color:{{ ck.color }}"></i><div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:12.5px">{{ ck.label }}</span><sc-if value="{{ ck.detail }}"><span style="font-size:11px;color:var(--color-neutral-400)">{{ ck.detail }}</span></sc-if></div></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.hasMethods }}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Ways to place it</h6>
+              <sc-for list="{{ c.d.methods }}" as="m" hint-placeholder-count="1">
+                <div style="display:flex;gap:9px;align-items:center;padding:7px 9px;border-radius:var(--radius-md);background:var(--color-bg);opacity:{{ m.op }}"><i class="{{ m.icon }}" style="font-size:15px;color:{{ m.iconColor }};flex:none"></i><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:12.5px">{{ m.label }}</span><span style="font-size:11px;color:var(--color-neutral-400)">{{ m.detail }}</span></div><sc-if value="{{ m.avail }}"><button class="btn btn-primary" onClick="{{ m.run }}" style="padding:4px 11px;font-size:12px;flex:none">{{ m.btn }}</button></sc-if></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.d.cdBar }}"><div style="height:4px;border-radius:2px;background:var(--color-neutral-900)"><div style="width:{{ c.d.cdPct }};height:100%;border-radius:2px;background:oklch(0.8 0.13 75)"></div></div></sc-if>
+          <div style="flex:1"></div>
+          <sc-if value="{{ c.d.hasAction }}"><button class="btn btn-primary" onClick="{{ c.go }}" disabled="{{ c.d.blocked }}" style="height:40px"><i class="{{ c.d.actionIcon }}"></i>{{ c.d.action }}</button></sc-if>
+          <sc-if value="{{ c.d.actionNote }}"><div style="font-size:11px;color:var(--color-neutral-500)">{{ c.d.actionNote }}</div></sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<sc-if value="{{ showMobile }}" hint-placeholder-val="{{ true }}">
+<div style="width:390px;height:844px;flex:none;position:relative;overflow:hidden;border-radius:28px;background:var(--color-bg);color:var(--color-text);font-size:13px;line-height:1.5;display:flex;flex-direction:column;box-shadow:var(--shadow-sm)">
+  <div style="flex:none;padding:16px 16px 8px;display:flex;align-items:center;gap:8px"><i class="ph ph-caret-left" style="font-size:20px;color:var(--color-neutral-300)"></i><button onClick="{{ c.rsw.toggle }}" style="all:unset;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;font-weight:500"><span>{{ c.rsw.viewName }}</span><i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-400)"></i></button><div style="margin-left:auto;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11.5px;box-shadow:inset 0 0 0 1px {{ c.cd.ring }};color:{{ c.cd.color }}"><i class="{{ c.cd.icon }}"></i>{{ c.cd.short }}</div></div>
+  <div style="flex:none;height:40px;margin:0 10px 8px;box-sizing:border-box;border-radius:var(--radius-md);border:1px dashed var(--color-neutral-700);display:grid;place-items:center;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500)">Party bar</div>
+  <div style="position:relative;width:370px;height:470px;flex:none;margin:0 10px;border-radius:var(--radius-md);overflow:hidden">
+    <div style="position:absolute;left:92px;top:0;right:0;bottom:0;background:radial-gradient(260px 300px at 50% 45%,color-mix(in srgb,var(--color-accent-900) 70%,transparent),transparent 70%)">
+      <div style="position:absolute;inset:0;background:color-mix(in srgb,var(--color-neutral-900) 70%,var(--color-bg));opacity:{{ c.underOp }};transition:opacity 450ms ease"></div>
+      <sc-if value="{{ c.isSurface }}"><svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0"><path d="M60 92 C220 72 440 78 602 96 C618 250 614 420 600 582 C420 596 220 594 66 584 C44 420 48 250 60 92 Z" fill="color-mix(in srgb,var(--color-accent-900) 35%,transparent)" stroke="#6b6f80" stroke-width="1.2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"></path></svg></sc-if>
+      <sc-if value="{{ c.isUnder }}"><svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0"><path d="M110 470 C120 300 230 130 400 50 C520 10 640 110 630 300 C622 470 540 610 360 612 C220 612 104 580 110 470 Z" fill="color-mix(in srgb,var(--color-neutral-800) 40%,transparent)" stroke="#6b6f80" stroke-width="1.2" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"></path></svg></sc-if>
+      <svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0">
+        <path d="{{ c.edgeA }}" stroke="#595d6c" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ c.edgeN }}" stroke="#595d6c" stroke-width="1.6" fill="none" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ c.edgeG }}" stroke="#7a6fc0" stroke-width="1.6" fill="none" stroke-dasharray="7 4" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ c.routeD }}" stroke="#9184d9" stroke-width="2.4" fill="none" vector-effect="non-scaling-stroke"></path>
+      </svg>
+      <sc-if value="{{ c.isSurface }}">
+        <sc-for list="{{ c.gates }}" as="g" hint-placeholder-count="3">
+          <button onClick="{{ g.pick }}" style="all:unset;cursor:pointer;position:absolute;left:{{ g.x }};top:{{ g.y }};transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;padding:5px 9px;min-height:26px;box-sizing:border-box;border-radius:999px;background:var(--color-surface);box-shadow:{{ g.ring }};font-size:10.5px;color:{{ g.color }};white-space:nowrap;z-index:2"><i class="{{ g.icon }}"></i>{{ g.short }}</button>
+        </sc-for>
+      </sc-if>
+      <sc-if value="{{ c.isUnder }}"><button onClick="{{ c.up }}" style="all:unset;cursor:pointer;position:absolute;left:8px;top:8px;min-height:32px;display:flex;align-items:center;gap:5px;padding:0 10px;border-radius:999px;background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-accent-700);font-size:11px;color:var(--color-accent-200);z-index:4"><i class="ph ph-arrow-up"></i>Crypt Depths · 1 below</button></sc-if>
+      <div style="position:absolute;right:8px;top:8px;display:flex;flex-direction:column;align-items:center;color:var(--color-neutral-300);pointer-events:none;z-index:3"><span style="font-size:9.5px;font-weight:500">N</span><div style="width:24px;height:24px;border-radius:50%;background:var(--color-bg);box-shadow:inset 0 0 0 1px var(--color-neutral-700);display:grid;place-items:center"><i class="ph ph-arrow-up" style="font-size:12px;color:var(--color-accent)"></i></div></div>
+    </div>
+    <div style="position:absolute;left:0;top:0;bottom:0;width:92px;background:var(--color-surface);box-shadow:1px 0 0 var(--color-neutral-800);padding:10px 8px 0 10px;box-sizing:border-box"><h6 style="margin:0;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-300)">{{ c.stripCount }}</h6></div>
+    <sc-for list="{{ c.nodes }}" as="n" hint-placeholder-count="0">
+      <div style="position:absolute;left:{{ n.xm }};top:{{ n.ym }};width:0;height:0;z-index:{{ n.z }};opacity:{{ n.vis }};pointer-events:{{ n.pe }};transition:left {{ c.ms }} cubic-bezier(.65,0,.25,1),top {{ c.ms }} cubic-bezier(.65,0,.25,1),opacity 350ms ease">
+        <sc-if value="{{ n.isHere }}"><span style="position:absolute;left:0;top:-32px;transform:translateX(-50%);padding:0 6px;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-size:9px;font-weight:600;letter-spacing:0.1em;line-height:15px;pointer-events:none;z-index:4;box-shadow:0 0 0 2px var(--color-bg)">YOU</span></sc-if>
+        <sc-if value="{{ n.hasSub }}"><span style="position:absolute;left:4px;top:2px;width:13px;height:13px;border-radius:50%;background:var(--color-accent-800);box-shadow:0 0 0 2px var(--color-bg);display:grid;place-items:center;pointer-events:none;z-index:1"><i class="ph ph-stack" style="font-size:8px;color:var(--color-accent-100)"></i></span></sc-if>
+        <button onClick="{{ n.pick }}" style="all:unset;cursor:pointer;position:absolute;left:-22px;top:-22px;width:44px;height:44px;display:grid;place-items:center"><span style="width:{{ n.sizeM }};height:{{ n.sizeM }};box-sizing:border-box;border-radius:50%;background:{{ n.bg }};border:{{ n.border }};box-shadow:{{ n.ring }};display:grid;place-items:center;transition:box-shadow 1200ms ease"><i class="{{ n.icon }}" style="font-size:11px;color:{{ n.iconColor }}"></i></span></button>
+        <span style="position:absolute;white-space:nowrap;font-size:10px;color:{{ n.color }};pointer-events:none;line-height:1.25;display:flex;flex-direction:column;{{ n.labelPosM }}">{{ n.short }}<span style="color:{{ n.lvColor }}">{{ n.lvShort }}</span></span>
+      </div>
+    </sc-for>
+    <sc-if value="{{ c.rsw.other }}"><div style="position:absolute;inset:0;z-index:8;background:var(--color-bg);display:flex;flex-direction:column;justify-content:center;gap:8px;padding:0 24px"><span style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Region map</span><span style="font-size:18px;font-weight:500">{{ c.rsw.viewName }}</span><div style="font-size:12px;color:var(--color-neutral-400)">{{ c.rsw.viewLine }}</div><div style="font-size:12px;line-height:1.5;color:var(--color-neutral-300)">{{ c.rsw.otherNote }}</div><button class="btn btn-secondary" onClick="{{ c.rsw.home }}" style="height:44px;margin-top:4px"><i class="ph ph-arrow-left"></i>{{ c.rsw.homeLabel }}</button></div></sc-if>
+    <sc-if value="{{ c.banner }}"><div style="position:absolute;left:100px;right:8px;bottom:8px;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-accent-700),var(--shadow-md);font-size:11.5px;line-height:1.4;z-index:6">{{ c.banner }}</div></sc-if>
+  </div>
+  <div style="flex:1;min-height:0;margin:10px 10px 16px;padding:14px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:7px;overflow:hidden">
+    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:16px;font-weight:500">{{ c.d.name }}</span><span style="font-size:11px;color:var(--color-neutral-400)">{{ c.d.regionLine }}</span></div>
+    <sc-if value="{{ c.d.isUnplaced }}"><div style="font-size:12px;line-height:1.45;font-style:italic;color:var(--color-accent-200)">{{ c.d.heard }}</div></sc-if>
+    <sc-if value="{{ c.d.unknownReg }}"><div style="display:flex;flex-wrap:wrap;gap:5px"><sc-for list="{{ c.d.sources }}" as="so" hint-placeholder-count="1"><span class="tag tag-neutral" style="padding:2px 8px;gap:5px;font-size:11px"><i class="{{ so.icon }}"></i>{{ so.name }}</span></sc-for></div></sc-if>
+    <sc-if value="{{ c.d.pending }}"><div style="display:flex;gap:6px;font-size:11.5px;color:var(--color-accent-200)"><i class="ph ph-link" style="margin-top:2px"></i>{{ c.d.pendText }}</div></sc-if>
+    <sc-if value="{{ c.d.isCross }}"><div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-accent-900);font-size:12px;color:var(--color-accent-100)"><i class="ph ph-door-open" style="font-size:16px"></i>Crossing into {{ c.d.toRegion }} · {{ c.d.toLv }}</div></sc-if>
+    <sc-if value="{{ c.d.hasTrip }}"><div style="font-size:12px;color:var(--color-neutral-300)">{{ c.d.cost }} · <span style="color:{{ c.d.cdColor }}">{{ c.d.cdText }}</span></div></sc-if>
+    <sc-if value="{{ c.d.hasRoute }}"><div style="font-size:12px;color:var(--color-neutral-400)">{{ c.d.routeNote }}</div></sc-if>
+    <sc-if value="{{ c.d.failMsg }}"><div style="display:flex;gap:6px;font-size:12px;color:oklch(0.8 0.13 75)"><i class="ph ph-warning-circle" style="margin-top:2px"></i>{{ c.d.failMsg }}</div></sc-if>
+    <sc-if value="{{ c.d.mNote }}"><div style="font-size:11.5px;color:var(--color-neutral-500)">{{ c.d.mNote }}</div></sc-if>
+    <div style="flex:1"></div>
+    <sc-if value="{{ c.d.lvlBtn }}"><button class="btn btn-secondary" onClick="{{ c.d.lvl.run }}" style="height:44px"><i class="{{ c.d.lvl.btnIcon }}"></i>{{ c.d.lvl.btn }}</button></sc-if>
+    <sc-if value="{{ c.d.firstBtn }}"><button class="btn btn-primary" onClick="{{ c.d.firstRun }}" style="height:46px"><i class="{{ c.d.firstIcon }}"></i>{{ c.d.firstLabel }}</button></sc-if>
+    <sc-if value="{{ c.d.hasAction }}"><button class="btn btn-primary" onClick="{{ c.go }}" disabled="{{ c.d.blocked }}" style="height:46px"><i class="{{ c.d.actionIcon }}"></i>{{ c.d.action }}</button></sc-if>
+  </div>
+  <sc-if value="{{ c.rsw.open }}">
+    <div onClick="{{ c.rsw.close }}" style="position:absolute;inset:0;z-index:20;background:color-mix(in srgb,var(--color-bg) 70%,transparent)"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;top:110px;z-index:21;border-radius:20px 20px 0 0;background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;padding:10px 8px 4px 16px"><span style="flex:1;font-size:15px;font-weight:500">Regions</span><button onClick="{{ c.rsw.close }}" class="btn btn-ghost btn-icon" style="width:44px;height:44px;color:var(--color-neutral-300)"><i class="ph ph-x" style="font-size:18px"></i></button></div>
+      <div style="padding:0 12px 6px"><div style="display:flex;align-items:center;gap:8px;padding:0 10px;height:36px;border-radius:var(--radius-md);background:var(--color-bg);box-shadow:inset 0 0 0 1px var(--color-neutral-700)"><i class="ph ph-magnifying-glass" style="color:var(--color-neutral-400)"></i><input value="{{ c.rsw.q }}" onChange="{{ c.rsw.onQ }}" placeholder="{{ c.rsw.searchPh }}" style="all:unset;flex:1;font-size:12.5px;color:var(--color-text)"></input></div></div>
+      <div style="flex:1;min-height:0;overflow:auto;padding:0 6px 8px">
+          <sc-for list="{{ c.rsw.sections }}" as="sec" hint-placeholder-count="3">
+            <div style="padding:8px 8px 4px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">{{ sec.label }}</div>
+            <sc-for list="{{ sec.rows }}" as="r" hint-placeholder-count="2">
+              <button onClick="{{ r.pick }}" style="all:unset;cursor:pointer;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:9px;padding:0 10px;min-height:44px;border-radius:6px;background:{{ r.bg }}" style-hover="background:var(--color-neutral-900)"><i class="{{ r.icon }}" style="font-size:14px;color:{{ r.iconColor }}"></i><span style="flex:1;min-width:0;font-size:12.5px;color:{{ r.color }}">{{ r.name }}</span><span style="font-size:11px;color:var(--color-neutral-400);display:flex;gap:4px;align-items:center"><sc-if value="{{ r.locked }}"><i class="ph ph-lock-simple"></i></sc-if>{{ r.lv }}</span></button>
+            </sc-for>
+          </sc-for>
+          <sc-if value="{{ c.rsw.empty }}"><div style="padding:16px 10px;font-size:12px;color:var(--color-neutral-500)">No region you know of matches.</div></sc-if>
+      </div>
+      <div style="padding:8px 14px;font-size:11px;color:var(--color-neutral-500);box-shadow:0 -1px 0 var(--color-neutral-800)">Only regions you've visited or heard of are listed.</div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+</div>
+</div>
+</div>
+</section>
+<section class="dv-turn" id="t11">
+<div class="dv-thd"><a class="dv-tid" href="#t11">11</a><span class="dv-tname">Map &amp; travel: region entrances you can see, and a clear answer to "can I go?"</span></div>
+<p class="dv-note">Moved out of Ledger <a href="UWR Ledger Screens.dc.html#2d">2d</a>. Your character and party stay on the left. The map, regions and destination panel live in the rail. <b style="color:var(--color-neutral-200);font-weight:500">Server rules</b> (<code>helpers/travel.ts</code>, <code>travel_config.ts</code>): moving within a region costs 5 stamina per person. Crossing into another region costs 10 stamina and starts a <b style="color:var(--color-neutral-200);font-weight:500">5-minute region-travel cooldown</b>, which the Wayfarer renown perk shortens by up to 80%. The trip itself is instant. Party travel is all-or-nothing: if one follower is short on stamina, nobody moves. Combat and gathering also block travel. Region entrances sit where a route crosses the dashed border, and each one names the region beyond. Every location shows its <code>terrainType</code> as an icon (town, city, dungeon, woods, plains, mountains, swamp, uncharted). Its ring and label show danger against your level, from the region's <code>dangerMultiplier</code> plus the location's <code>levelOffset</code>. <code>isSafe</code>, <code>bindStone</code> and <code>craftingAvailable</code> show as badges.</p>
+<div class="dv-opts">
+<div class="dv-opt" id="11a">
+<div class="dv-olabel"><a class="dv-oid" href="#11a">11a</a>Map (live). Click a node or a region entrance. Crossing starts the cooldown, shown in the rail header and the destination panel. Use the Tweaks to try an active cooldown or a party member low on stamina.</div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+<div style="width:1280px;height:800px;flex:none;position:relative;overflow:hidden;border-radius:10px;background:var(--color-bg);color:var(--color-text);font-size:13px;line-height:1.5;display:flex;flex-direction:column;box-shadow:var(--shadow-sm)">
+  <header style="height:46px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:color-mix(in srgb,var(--color-surface) 55%,transparent)">
+    <div style="font-size:14px;font-weight:500">Unwritten Realms</div>
+    <div style="width:1px;height:18px;background:var(--color-divider)"></div>
+    <div style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-300)"><i class="ph ph-map-pin" style="font-size:14px;color:var(--color-accent)"></i>{{ hereRegion }} · {{ hereName }}</div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:2px">
+      <button class="btn btn-ghost" style="color:var(--color-accent);padding:5px 8px;background:var(--color-accent-900)"><i class="ph ph-map-trifold" style="font-size:16px"></i>Map</button>
+      <a href="UWR Inventory.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-backpack" style="font-size:16px"></i>Bag</a>
+      <a href="UWR Character.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-user-circle" style="font-size:16px"></i>Character</a>
+      <a href="UWR Journal.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-book-open-text" style="font-size:16px"></i>Journal</a>
+      <a href="UWR Crafting.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-hammer" style="font-size:16px"></i>Craft</a>
+      <a href="UWR Party.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px;text-decoration:none;font-weight:400"><i class="ph ph-users-three" style="font-size:16px"></i>Social</a>
+      <button class="btn btn-ghost" style="color:var(--color-neutral-300);padding:5px 8px"><i class="ph ph-globe-hemisphere-west" style="font-size:16px"></i>Events</button>
+    </div>
+  </header>
+  <div style="flex:1;min-height:0;display:flex">
+    <aside style="width:252px;flex:none;padding:18px 16px;display:flex;flex-direction:column;gap:10px;background:color-mix(in srgb,var(--color-surface) 30%,transparent)">
+      <div style="display:flex;gap:10px;align-items:center"><div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700);display:grid;place-items:center;font-size:17px;color:var(--color-accent-300)">Y</div><div><div style="font-size:15px;font-weight:500">Ysolde</div><div style="font-size:11.5px;color:var(--color-neutral-400)">Lv 6 · Eldrin Hexblade · Leader</div></div></div>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:10.5px;color:var(--color-neutral-400);font-variant-numeric:tabular-nums">
+        <div style="display:flex;justify-content:space-between"><span>Health</span><span style="color:var(--color-neutral-200)">212 / 260</span></div><div style="height:6px;border-radius:3px;background:var(--color-neutral-900)"><div style="width:82%;height:100%;border-radius:3px;background:oklch(0.62 0.16 24)"></div></div>
+        <div style="display:flex;justify-content:space-between"><span>Mana</span><span style="color:var(--color-neutral-200)">140 / 180</span></div><div style="height:6px;border-radius:3px;background:var(--color-neutral-900)"><div style="width:78%;height:100%;border-radius:3px;background:oklch(0.62 0.12 258)"></div></div>
+        <div style="display:flex;justify-content:space-between"><span>Stamina</span><span style="color:var(--color-neutral-200)">{{ me.st }} / {{ me.max }}</span></div><div style="height:6px;border-radius:3px;background:var(--color-neutral-900)"><div style="width:{{ me.pct }};height:100%;border-radius:3px;background:oklch(0.74 0.12 70)"></div></div>
+      </div>
+      <div style="height:1px;margin:8px 0;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+      <div style="display:flex;align-items:center;gap:8px"><h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Party</h6><span style="font-size:11px;color:var(--color-neutral-500)">following you</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ others }}" as="p" hint-placeholder-count="2">
+          <div style="display:flex;gap:9px;align-items:center"><div style="width:30px;height:30px;flex:none;border-radius:7px;background:var(--color-surface);display:grid;place-items:center;font-size:12px;color:{{ p.tint }}">{{ p.initial }}</div><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span>{{ p.name }}</span><span style="font-size:10.5px;color:{{ p.stColor }};font-variant-numeric:tabular-nums">{{ p.st }} st</span></div><div style="height:4px;border-radius:2px;background:var(--color-neutral-900)"><div style="width:{{ p.pct }};height:100%;border-radius:2px;background:oklch(0.74 0.12 70)"></div></div></div></div>
+        </sc-for>
+      </div>
+      <div style="flex:1"></div>
+      <div style="font-size:12.5px;font-style:italic;color:var(--color-accent-200);line-height:1.55">The Keeper: “Every road out of the Crossroads leads somewhere worse. Pick one.”</div>
+    </aside>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--color-surface);box-shadow:-1px 0 0 var(--color-neutral-800),-24px 0 48px rgba(0,0,0,0.35)">
+      <div style="flex:none;display:flex;align-items:center;gap:12px;padding:16px 22px 10px">
+        <h4 style="margin:0">Map</h4>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <sc-for list="{{ regions }}" as="r" hint-placeholder-count="4"><span class="{{ r.cls }}" style="padding:2px 10px;gap:4px;opacity:{{ r.opacity }}"><sc-if value="{{ r.locked }}"><i class="ph ph-lock-simple"></i></sc-if>{{ r.name }} <span style="opacity:0.7;margin-left:3px">{{ r.lv }}</span></span></sc-for>
+        </div>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:999px;font-size:12px;box-shadow:inset 0 0 0 1px {{ cd.ring }};color:{{ cd.color }}"><i class="{{ cd.icon }}" style="font-size:14px"></i>Region travel: {{ cd.label }}</div>
+        <button class="btn btn-ghost btn-icon" style="color:var(--color-neutral-300)"><i class="ph ph-x" style="font-size:17px"></i></button>
+      </div>
+      <div style="flex:none;display:flex;flex-wrap:wrap;column-gap:14px;row-gap:5px;padding:0 22px 10px;font-size:11px;color:var(--color-neutral-400)">
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-house-line" style="font-size:13px;color:var(--color-neutral-200)"></i>Town</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-buildings" style="font-size:13px;color:var(--color-neutral-200)"></i>City</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-skull" style="font-size:13px;color:var(--color-neutral-200)"></i>Dungeon</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-tree-evergreen" style="font-size:13px;color:var(--color-neutral-200)"></i>Woods</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-plant" style="font-size:13px;color:var(--color-neutral-200)"></i>Plains</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-mountains" style="font-size:13px;color:var(--color-neutral-200)"></i>Mountains</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-question" style="font-size:13px;color:var(--color-neutral-200)"></i>Uncharted</span>
+        <span style="width:1px;background:var(--color-divider)"></span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-shield-check" style="font-size:13px;color:oklch(0.78 0.12 150)"></i>Safe</span>
+        <span style="display:flex;align-items:center;gap:6px">Danger vs Lv 6:<span style="color:oklch(0.78 0.12 150)">easy</span><span style="color:#4dabf7">even</span><span style="color:#ffd43b">tough</span><span style="color:#ff6b6b">deadly</span></span>
+        <span style="width:1px;background:var(--color-divider)"></span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-door-open" style="font-size:13px;color:var(--color-accent)"></i>Region entrance</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-bed" style="font-size:13px;color:var(--color-accent-300)"></i>Bind</span>
+        <span style="display:flex;align-items:center;gap:5px"><i class="ph ph-anvil" style="font-size:13px;color:var(--color-accent-300)"></i>Crafting</span>
+      </div>
+      <div style="flex:1;min-height:0;display:flex">
+        <div style="flex:1;min-width:0;position:relative;background:radial-gradient(600px 400px at 45% 50%,color-mix(in srgb,var(--color-accent-900) 60%,transparent),transparent 70%),var(--color-bg);margin:0 0 22px 22px;border-radius:var(--radius-md);overflow:hidden">
+          <svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0">
+            <path d="M60 92 C220 72 440 78 602 96 C618 250 614 420 600 582 C420 596 220 594 66 584 C44 420 48 250 60 92 Z" fill="color-mix(in srgb,var(--color-accent-900) 35%,transparent)" stroke="#6b6f80" stroke-width="1.2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"></path>
+            <g stroke="#595d6c" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke">
+              <path d="M330 330 L300 500" vector-effect="non-scaling-stroke"></path><path d="M300 500 L150 440" vector-effect="non-scaling-stroke"></path><path d="M300 500 L470 470" vector-effect="non-scaling-stroke"></path><path d="M150 440 L100 300" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"></path>
+              <path d="M330 330 L190 170" vector-effect="non-scaling-stroke"></path><path d="M300 40 L470 34" vector-effect="non-scaling-stroke"></path><path d="M650 410 L655 215" vector-effect="non-scaling-stroke"></path><path d="M650 410 L660 560" vector-effect="non-scaling-stroke"></path>
+            </g>
+            <g stroke="#7a6fc0" stroke-width="1.6" fill="none" stroke-dasharray="7 4">
+              <path d="M330 330 L300 40" vector-effect="non-scaling-stroke"></path><path d="M330 330 L650 410" vector-effect="non-scaling-stroke"></path><path d="M150 440 L130 618" vector-effect="non-scaling-stroke" stroke="#595d6c"></path>
+            </g>
+            <path d="{{ routeD }}" stroke="#9184d9" stroke-width="2.4" fill="none" vector-effect="non-scaling-stroke"></path>
+          </svg>
+          <div style="position:absolute;left:11%;top:15%;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-500)">Hollowmere</div>
+          <div style="position:absolute;left:3%;top:2%;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600)">Gloamwood</div>
+          <div style="position:absolute;right:2%;bottom:2%;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600)">Saltmarsh</div>
+                    <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="11">
+            <div style="position:absolute;left:{{ n.x }};top:{{ n.y }};width:0;height:0;opacity:{{ n.opacity }}">
+              <button onClick="{{ n.pick }}" title="{{ n.name }}" style="all:unset;cursor:pointer;position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:{{ n.size }};height:{{ n.size }};border-radius:50%;background:{{ n.bg }};box-shadow:{{ n.ring }};display:grid;place-items:center"><i class="{{ n.icon }}" style="font-size:{{ n.iconSize }};color:{{ n.iconColor }}"></i></button>
+              <div onClick="{{ n.pick }}" style="position:absolute;{{ n.labelPos }};white-space:nowrap;display:flex;flex-direction:column;cursor:pointer;line-height:1.3">
+                <span style="font-size:12px;font-weight:{{ n.weight }};color:{{ n.color }};display:flex;gap:5px;align-items:center">{{ n.name }}<sc-if value="{{ n.bind }}"><i class="ph ph-bed" style="color:var(--color-accent-300)"></i></sc-if><sc-if value="{{ n.craft }}"><i class="ph ph-anvil" style="color:var(--color-accent-300)"></i></sc-if></span>
+                <span style="font-size:10.5px;color:var(--color-neutral-500);display:flex;gap:4px;align-items:center">{{ n.sub }}<sc-if value="{{ n.safe }}"><i class="ph ph-shield-check" style="color:oklch(0.78 0.12 150)"></i></sc-if><span style="color:{{ n.lvColor }}">{{ n.lv }}</span></span>
+              </div>
+            </div>
+          </sc-for>
+          <sc-for list="{{ gates }}" as="g" hint-placeholder-count="3">
+            <button onClick="{{ g.pick }}" style="all:unset;cursor:pointer;position:absolute;left:{{ g.x }};top:{{ g.y }};transform:translate(-50%,-50%);display:flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;background:var(--color-surface);box-shadow:{{ g.ring }};font-size:11px;color:{{ g.color }};white-space:nowrap" style-hover="background:var(--color-accent-900)"><i class="{{ g.icon }}" style="font-size:13px"></i>{{ g.label }}</button>
+          </sc-for>
+          <sc-if value="{{ banner }}"><div style="position:absolute;left:50%;top:14px;transform:translateX(-50%);padding:9px 14px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-accent-700),var(--shadow-md);display:flex;align-items:center;gap:8px;font-size:12.5px;white-space:nowrap"><i class="ph ph-footprints" style="color:var(--color-accent)"></i>{{ banner }}</div></sc-if>
+        </div>
+        <div style="width:310px;flex:none;padding:0 22px 22px;display:flex;flex-direction:column;gap:12px;min-height:0">
+          <span style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">{{ d.kicker }}</span>
+          <div><h4 style="margin:0">{{ d.name }}</h4><div style="font-size:12px;color:var(--color-neutral-400)">{{ d.regionLine }}</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            <sc-for list="{{ d.tags }}" as="t" hint-placeholder-count="3"><span class="tag tag-neutral" style="padding:2px 8px;gap:5px;font-size:11px;color:{{ t.color }}"><i class="{{ t.icon }}"></i>{{ t.label }}</span></sc-for>
+          </div>
+          <sc-if value="{{ d.isCross }}">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)">
+              <i class="ph ph-door-open" style="font-size:20px;color:var(--color-accent-200)"></i>
+              <div style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="font-size:12.5px;font-weight:500;color:var(--color-accent-100)">Region crossing</span><span style="font-size:11.5px;color:var(--color-accent-200)">{{ d.fromRegion }} <i class="ph ph-arrow-right" style="font-size:10px"></i> {{ d.toRegion }} · {{ d.toLv }}</span></div>
+            </div>
+          </sc-if>
+          <div style="font-size:12.5px;line-height:1.55;color:var(--color-neutral-300)">{{ d.desc }}</div>
+          <sc-if value="{{ d.hasTrip }}">
+            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:6px;font-size:12.5px">
+              <span style="color:var(--color-neutral-400)">Stamina</span><span>{{ d.cost }}</span>
+              <span style="color:var(--color-neutral-400)">Cooldown</span><span style="color:{{ d.cdColor }}">{{ d.cdText }}</span>
+              <span style="color:var(--color-neutral-400)">Players</span><span>{{ d.players }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ d.hasRoute }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Not directly connected · route</h6>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px">
+                <sc-for list="{{ d.route }}" as="s" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:4px;color:{{ s.color }}"><sc-if value="{{ s.arrow }}"><i class="{{ s.arrowIcon }}" style="font-size:11px;color:{{ s.arrowColor }}"></i></sc-if>{{ s.name }}</span></sc-for>
+              </div>
+              <div style="font-size:11.5px;color:var(--color-neutral-500)">{{ d.routeNote }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ d.hasChecks }}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Can you go?</h6>
+              <sc-for list="{{ d.checks }}" as="c" hint-placeholder-count="3">
+                <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 9px;border-radius:var(--radius-md);background:var(--color-bg)"><i class="{{ c.icon }}" style="font-size:15px;margin-top:2px;color:{{ c.color }}"></i><div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:12.5px">{{ c.label }}</span><sc-if value="{{ c.detail }}"><span style="font-size:11px;color:var(--color-neutral-400)">{{ c.detail }}</span></sc-if></div></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ d.cdBar }}"><div style="height:4px;border-radius:2px;background:var(--color-neutral-900)"><div style="width:{{ d.cdPct }};height:100%;border-radius:2px;background:oklch(0.8 0.13 75)"></div></div></sc-if>
+          <div style="flex:1"></div>
+          <sc-if value="{{ d.hasAction }}"><button class="btn btn-primary" onClick="{{ go }}" disabled="{{ d.blocked }}" style="height:40px"><i class="{{ d.actionIcon }}"></i>{{ d.action }}</button></sc-if>
+          <sc-if value="{{ d.actionNote }}"><div style="font-size:11px;color:var(--color-neutral-500)">{{ d.actionNote }}</div></sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<sc-if value="{{ showMobile }}" hint-placeholder-val="{{ true }}">
+<div style="width:390px;height:844px;flex:none;position:relative;overflow:hidden;border-radius:28px;background:var(--color-bg);color:var(--color-text);font-size:13px;line-height:1.5;display:flex;flex-direction:column;box-shadow:var(--shadow-sm)">
+  <div style="flex:none;padding:16px 16px 8px;display:flex;align-items:center;gap:8px"><i class="ph ph-caret-left" style="font-size:20px;color:var(--color-neutral-300)"></i><span style="font-weight:500">{{ hereRegion }}</span><div style="margin-left:auto;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11.5px;box-shadow:inset 0 0 0 1px {{ cd.ring }};color:{{ cd.color }}"><i class="{{ cd.icon }}"></i>{{ cd.short }}</div></div>
+  <div style="flex:1;min-height:0;position:relative;margin:0 10px;border-radius:var(--radius-md);overflow:hidden;background:radial-gradient(360px 340px at 50% 45%,color-mix(in srgb,var(--color-accent-900) 70%,transparent),transparent 70%)">
+    <svg width="100%" height="100%" viewBox="0 0 680 640" preserveAspectRatio="none" style="position:absolute;inset:0">
+      <path d="M60 92 C220 72 440 78 602 96 C618 250 614 420 600 582 C420 596 220 594 66 584 C44 420 48 250 60 92 Z" fill="color-mix(in srgb,var(--color-accent-900) 35%,transparent)" stroke="#6b6f80" stroke-width="1.2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"></path>
+      <g stroke="#595d6c" stroke-width="1.2" fill="none"><path d="M330 330 L300 500" vector-effect="non-scaling-stroke"></path><path d="M300 500 L150 440" vector-effect="non-scaling-stroke"></path><path d="M300 500 L470 470" vector-effect="non-scaling-stroke"></path><path d="M150 440 L100 300" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"></path><path d="M330 330 L190 170" vector-effect="non-scaling-stroke"></path><path d="M300 40 L470 34" vector-effect="non-scaling-stroke"></path><path d="M650 410 L655 215" vector-effect="non-scaling-stroke"></path><path d="M650 410 L660 560" vector-effect="non-scaling-stroke"></path></g>
+      <g stroke="#7a6fc0" stroke-width="1.6" fill="none" stroke-dasharray="7 4"><path d="M330 330 L300 40" vector-effect="non-scaling-stroke"></path><path d="M330 330 L650 410" vector-effect="non-scaling-stroke"></path><path d="M150 440 L130 618" vector-effect="non-scaling-stroke" stroke="#595d6c"></path></g>
+      <path d="{{ routeD }}" stroke="#9184d9" stroke-width="2.4" fill="none" vector-effect="non-scaling-stroke"></path>
+    </svg>
+    <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="11">
+      <div style="position:absolute;left:{{ n.x }};top:{{ n.y }};width:0;height:0;opacity:{{ n.opacity }}">
+        <button onClick="{{ n.pick }}" style="all:unset;cursor:pointer;position:absolute;left:-22px;top:-22px;width:44px;height:44px;display:grid;place-items:center"><span style="width:{{ n.sizeM }};height:{{ n.sizeM }};border-radius:50%;background:{{ n.bg }};box-shadow:{{ n.ring }};display:grid;place-items:center"><i class="{{ n.icon }}" style="font-size:12px;color:{{ n.iconColor }}"></i></span></button>
+        <span style="position:absolute;{{ n.labelPosM }};white-space:nowrap;font-size:10px;color:{{ n.color }};pointer-events:none;line-height:1.25;display:flex;flex-direction:column">{{ n.short }}<span style="color:{{ n.lvColor }}">{{ n.lvShort }}</span></span>
+      </div>
+    </sc-for>
+    <sc-for list="{{ gates }}" as="g" hint-placeholder-count="3">
+      <button onClick="{{ g.pick }}" style="all:unset;cursor:pointer;position:absolute;left:{{ g.x }};top:{{ g.y }};transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;padding:5px 9px;min-height:26px;box-sizing:border-box;border-radius:999px;background:var(--color-surface);box-shadow:{{ g.ring }};font-size:10.5px;color:{{ g.color }};white-space:nowrap"><i class="{{ g.icon }}"></i>{{ g.short }}</button>
+    </sc-for>
+  </div>
+  <div style="flex:none;margin:10px 10px 16px;padding:14px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:16px;font-weight:500">{{ d.name }}</span><span style="font-size:11px;color:var(--color-neutral-400)">{{ d.regionLine }}</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px"><sc-for list="{{ d.tags }}" as="t" hint-placeholder-count="3"><span class="tag tag-neutral" style="padding:2px 8px;gap:5px;font-size:11px;color:{{ t.color }}"><i class="{{ t.icon }}"></i>{{ t.label }}</span></sc-for></div>
+    <sc-if value="{{ d.isCross }}"><div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-accent-900);font-size:12px;color:var(--color-accent-100)"><i class="ph ph-door-open" style="font-size:16px"></i>Crossing into {{ d.toRegion }} · {{ d.toLv }}</div></sc-if>
+    <sc-if value="{{ d.hasTrip }}"><div style="font-size:12px;color:var(--color-neutral-300)">{{ d.cost }} · <span style="color:{{ d.cdColor }}">{{ d.cdText }}</span></div></sc-if>
+    <sc-if value="{{ d.hasRoute }}"><div style="font-size:12px;color:var(--color-neutral-400)">{{ d.routeNote }}</div></sc-if>
+    <sc-if value="{{ d.failMsg }}"><div style="display:flex;gap:6px;font-size:12px;color:oklch(0.8 0.13 75)"><i class="ph ph-warning-circle" style="margin-top:2px"></i>{{ d.failMsg }}</div></sc-if>
+    <sc-if value="{{ d.hasAction }}"><button class="btn btn-primary" onClick="{{ go }}" disabled="{{ d.blocked }}" style="height:48px"><i class="{{ d.actionIcon }}"></i>{{ d.action }}</button></sc-if>
+  </div>
+  <sc-if value="{{ banner }}"><div style="position:absolute;left:16px;right:16px;top:56px;padding:9px 12px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-accent-700),var(--shadow-md);font-size:12px">{{ banner }}</div></sc-if>
+</div>
+</sc-if>
+</div>
+</div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;scenario&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ready&quot;,&quot;cooldown&quot;,&quot;lowStamina&quot;],&quot;default&quot;:&quot;ready&quot;,&quot;tsType&quot;:&quot;'ready' | 'cooldown' | 'lowStamina'&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;showMobile&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;transitionSpeed&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;slow&quot;],&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;'normal' | 'slow'&quot;,&quot;section&quot;:&quot;Cartographer&quot;}}">
+const REG = {
+  hollow: { name: 'Hollowmere', lv: 'Lv 1–6' }, gloam: { name: 'Gloamwood', lv: 'Lv 6–9' },
+  salt: { name: 'Saltmarsh', lv: 'Lv 4–7' }, bell: { name: 'Bellspire Reach', lv: 'Lv 10+', minLv: 10 },
+};
+const N = {
+  cross: { name: 'The Crossroads', short: 'Crossroads', x: 330, y: 330, r: 'hollow', k: 'visited', t: 'plains', lo: 2, hi: 3, players: '4', desc: 'Four roads, one signpost, no agreement between them.' },
+  village: { name: 'Hollowmere Village', short: 'Village', x: 300, y: 500, r: 'hollow', k: 'visited', t: 'town', safe: true, bind: true, craft: true, players: '11', desc: 'Your bind point. A bank, a forge and a well that may be haunted.' },
+  crypt: { name: 'Sunken Crypt', short: 'Crypt', x: 470, y: 470, r: 'hollow', k: 'visited', t: 'dungeon', lo: 6, hi: 7, players: '2', desc: 'Stairs down, water rising. The dead here are tidy about it.' },
+  millers: { name: "Miller's Rest", short: "Miller's", x: 150, y: 440, r: 'hollow', k: 'visited', t: 'plains', lo: 3, hi: 4, players: '2', desc: 'A mill that grinds slower every year. Nobody asks why.' },
+  rumour: { name: 'Uncharted', short: '?', x: 100, y: 300, r: 'hollow', k: 'heard', t: 'uncharted', players: '—', desc: 'Nobody has been. Going there makes the world write it.' },
+  witch: { name: 'Witchlight Hollow', short: 'Witchlight', x: 190, y: 170, r: 'hollow', k: 'heard', t: 'woods', lo: 4, hi: 5, players: '—', desc: 'Lights in the trees that are not lanterns.' },
+  gloamEdge: { name: 'Gloamwood Edge', short: 'Gloam Edge', x: 300, y: 40, r: 'gloam', k: 'visited', t: 'woods', lo: 6, hi: 7, players: '3', desc: 'Where the trees stop pretending to be friendly.' },
+  thorn: { name: 'Thornwatch', short: 'Thornwatch', x: 470, y: 34, r: 'gloam', k: 'heard', t: 'town', safe: true, players: '—', desc: 'A ranger post. Possibly still manned.' },
+  docks: { name: 'Saltmarsh Docks', short: 'Docks', x: 650, y: 410, r: 'salt', k: 'visited', t: 'city', safe: true, craft: true, players: '7', quest: 'Leeches for Lorelle · 4/6', desc: 'Rotting piers, honest fishmongers, dishonest everything else.' },
+  chapel: { name: 'Drowned Chapel', short: 'Chapel', x: 655, y: 215, r: 'salt', k: 'visited', t: 'dungeon', lo: 6, hi: 8, players: '1', desc: 'The bell still rings at high tide.' },
+  eel: { name: 'Eel Market', short: 'Eel Market', x: 660, y: 560, r: 'salt', k: 'heard', t: 'swamp', lo: 4, hi: 5, players: '—', desc: 'Everything is for sale. Most of it is eels.' },
+  bellpass: { name: 'Bellspire Pass', short: 'Bellspire', x: 130, y: 618, r: 'bell', k: 'heard', t: 'mountains', lo: 10, hi: 12, players: '—', desc: 'A switchback road into the mountains, watched by bells.' },
+  stair: { name: 'Stair to the Crypt', short: 'Stair up', x: 340, y: 520, r: 'hollow', lvl: 'd', k: 'visited', t: 'stairs', lo: 6, hi: 7, players: '2', desc: 'Wet steps down from the Sunken Crypt. Colder with every one.' },
+  ossuary: { name: 'The Ossuary', short: 'Ossuary', x: 220, y: 380, r: 'hollow', lvl: 'd', k: 'visited', t: 'dungeon', lo: 7, hi: 7, players: '1', desc: 'Bones stacked by size, then by someone with opinions.' },
+  bellch: { name: 'Bell Chamber', short: 'Bell', x: 380, y: 220, r: 'hollow', lvl: 'd', k: 'heard', t: 'dungeon', lo: 7, hi: 8, players: '—', desc: 'A drowned bell that still rings.' },
+  vault: { name: 'Drowned Vault', short: 'Vault', x: 420, y: 80, r: 'hollow', lvl: 'd', k: 'heard', t: 'dungeon', lo: 8, hi: 8, players: '—', desc: 'Locked from the inside.' },
+  cistern: { name: 'The Black Cistern', short: 'Cistern', x: 560, y: 380, r: 'hollow', lvl: 'd', k: 'heard', t: 'descent', lo: 9, hi: 10, players: '—', sub: 'x', desc: 'Another level down.' },
+};
+N.pale = { name: 'The Pale Orchard', short: 'Orchard', x: 520, y: 200, r: 'hollow', k: 'heard', t: 'plains', lo: 3, hi: 4, players: '—', cartoOnly: true, desc: 'Apples that never rot. Nobody eats them.' };
+N.sunder = { name: 'Sunderwell', short: 'Sunderwell', x: 0, y: 0, r: 'kingsroad', k: 'heard', t: 'town', safe: true, players: '—', cartoOnly: true, offmap: true, desc: '' };
+N.crypt.sub = 'd';
+REG.kingsroad = { name: 'Old Kingsroad', lv: 'Lv 6–9', far: true };
+const TT = { town: ['Town', 'ph ph-house-line'], city: ['City', 'ph ph-buildings'], dungeon: ['Dungeon', 'ph ph-skull'], woods: ['Woods', 'ph ph-tree-evergreen'], plains: ['Plains', 'ph ph-plant'], mountains: ['Mountains', 'ph ph-mountains'], swamp: ['Swamp', 'ph ph-waves'], uncharted: ['Uncharted', 'ph ph-question'], stairs: ['Stair up', 'ph ph-ladder'], descent: ['Way down', 'ph ph-stack'] };
+const con = (n) => { if (n.safe) return { label: 'Safe', short: 'Safe', color: 'oklch(0.78 0.12 150)' }; if (n.lo == null) return { label: 'Danger unknown', short: '', color: 'var(--color-neutral-500)' }; const dd = n.hi - 6; const color = dd <= -2 ? 'oklch(0.78 0.12 150)' : dd <= 0 ? '#4dabf7' : dd <= 2 ? '#ffd43b' : '#ff6b6b'; const word = dd <= -2 ? 'easy' : dd <= 0 ? 'even' : dd <= 2 ? 'tough' : 'deadly'; return { label: 'Lv ' + n.lo + '–' + n.hi + ' · ' + word, short: 'Lv ' + n.lo + '–' + n.hi, color }; };
+const E = [['cross', 'gloamEdge'], ['cross', 'docks'], ['cross', 'village'], ['village', 'crypt'], ['village', 'millers'], ['millers', 'rumour'], ['cross', 'witch'], ['gloamEdge', 'thorn'], ['docks', 'chapel'], ['docks', 'eel'], ['millers', 'bellpass'], ['crypt', 'stair'], ['stair', 'ossuary'], ['ossuary', 'bellch'], ['bellch', 'vault'], ['vault', 'cistern'], ['witch', 'pale']];
+const GATES = [{ a: 'cross', b: 'gloamEdge', x: 305, y: 82 }, { a: 'cross', b: 'docks', x: 600, y: 374 }, { a: 'millers', b: 'bellpass', x: 142, y: 556 }];
+const COOLDOWN = 300, LV = 6;
+const lvOf = id => N[id].lvl || 's';
+const adjOf = id => E.filter(e => e.includes(id)).map(e => e[0] === id ? e[1] : e[0]);
+const pathOver = (from, to, ok) => { const prev = { [from]: null }, q = [from]; while (q.length) { const c = q.shift(); if (c === to) break; adjOf(c).forEach(n => { if (!(n in prev) && ok(n)) { prev[n] = c; q.push(n); } }); } if (!(to in prev)) return null; const p = []; for (let c = to; c; c = prev[c]) p.unshift(c); return p; };
+const PLACES = ['right', 'upRight', 'downRight', 'left', 'upLeft', 'downLeft'];
+function placeLabels(w, hgt, info, R, lineH, obst, ids) {
+  const sx = w / 680, sy = hgt / 640, out = {}, placed = [];
+  const S = E.filter(([a, b]) => ids.includes(a) && ids.includes(b)).map(([a, b]) => [N[a].x * sx, N[a].y * sy, N[b].x * sx, N[b].y * sy]);
+  const pts = ids.map(id => [N[id].x * sx, N[id].y * sy]);
+  const hit = (r, x, y) => x > r[0] && x < r[2] && y > r[1] && y < r[3];
+  const ov = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+  ids.forEach(id => {
+    const n = N[id], px = n.x * sx, py = n.y * sy, r = R(id), W = info[id].w, H = lineH;
+    let best = null;
+    PLACES.forEach((p, pi) => {
+      let rect, css;
+      if (p === 'right') { rect = [px + r + 5, py - H / 2, px + r + 5 + W, py + H / 2]; css = 'top:' + (-H / 2) + 'px;left:' + (r + 5) + 'px'; }
+      if (p === 'left') { rect = [px - r - 5 - W, py - H / 2, px - r - 5, py + H / 2]; css = 'top:' + (-H / 2) + 'px;right:' + (r + 5) + 'px;align-items:flex-end;text-align:right'; }
+      if (p === 'upRight') { rect = [px + 4, py - r - H, px + 4 + W, py - r]; css = 'bottom:' + r + 'px;left:4px'; }
+      if (p === 'upLeft') { rect = [px - 4 - W, py - r - H, px - 4, py - r]; css = 'bottom:' + r + 'px;right:4px;align-items:flex-end;text-align:right'; }
+      if (p === 'downRight') { rect = [px + 4, py + r, px + 4 + W, py + r + H]; css = 'top:' + r + 'px;left:4px'; }
+      if (p === 'downLeft') { rect = [px - 4 - W, py + r, px - 4, py + r + H]; css = 'top:' + r + 'px;right:4px;align-items:flex-end;text-align:right'; }
+      let score = pi * 0.5;
+      if (rect[0] < 2 || rect[2] > w - 2 || rect[1] < 2 || rect[3] > hgt - 2) score += 1000;
+      S.forEach(([x1, y1, x2, y2]) => { for (let t = 0; t <= 1; t += 0.04) if (hit(rect, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)) score += 40; });
+      pts.forEach(([x, y]) => { if ((x !== px || y !== py) && hit([rect[0] - 12, rect[1] - 12, rect[2] + 12, rect[3] + 12], x, y)) score += 300; });
+      obst.forEach(g => { if (ov(rect, g)) score += 500; });
+      placed.forEach(g => { if (ov(rect, g)) score += 600; });
+      if (!best || score < best.score) best = { score, rect, css };
+    });
+    placed.push(best.rect); out[id] = best.css;
+  });
+  return out;
+}
+const fmt = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+const OK = 'oklch(0.78 0.12 150)', BAD = 'oklch(0.72 0.14 25)', WAIT = 'oklch(0.8 0.13 75)';
+
+const HEARD = {
+  witch: { heard: 'A Hollowmere child: “The lights are in the woods. Somewhere.”', src: 'Hearsay · no bearing given', methods: [{ k: 'survey', from: 'cross', at: 'cross', label: 'Survey from The Crossroads', detail: 'Survey 1 · 30 s · 5 stamina' }] },
+  rumour: { heard: 'The road west out of Miller’s Rest isn’t on anyone’s map. Nobody who took it has said where it goes.', src: 'Signpost · Miller’s Rest', methods: [{ k: 'travel', from: 'millers', label: 'Take the road from Miller’s Rest' }] },
+  thorn: { heard: 'Rangers send word from “a post called Thornwatch.”', src: 'Notice · Hollowmere Village', methods: [{ k: 'travel', from: 'gloamEdge', label: 'Take the road from Gloamwood Edge' }] },
+  chapel: { heard: 'Lorelle: “The chapel bell still rings at high tide. Out past the Docks.”', src: 'Lorelle · Saltmarsh Docks', methods: [{ k: 'travel', from: 'docks', label: 'Take the road from Saltmarsh Docks' }] },
+  eel: { heard: 'Lorelle: “Eel Market? South of the Drowned Chapel. Follow the smell.”', src: 'Lorelle · Saltmarsh Docks', pending: { anchor: 'chapel', k: 'rumour', who: 'Lorelle' }, methods: [{ k: 'link', never: true, label: 'Place the Drowned Chapel first', detail: 'Lorelle’s bearing applies as soon as it’s fixed.' }] },
+  bellch: { heard: 'A bell tolls somewhere past the Ossuary. Underwater, by the sound.', src: 'Heard while exploring', methods: [{ k: 'item', from: 'ossuary', always: true, who: 'The sexton’s rubbing', label: 'Read the sexton’s rubbing', detail: 'In your bag. Traces the way from the Ossuary.' }, { k: 'travel', from: 'ossuary', label: 'Take the passage from the Ossuary' }] },
+  vault: { heard: 'Scratched on the Ossuary wall: “The vault lies north of the bell.”', src: 'Wall scratching · The Ossuary', pending: { anchor: 'bellch', k: 'rumour', who: 'The wall scratching' }, methods: [{ k: 'link', never: true, label: 'Place the Bell Chamber first', detail: 'The bearing applies once the chamber is fixed.' }] },
+  cistern: { heard: 'The sexton’s notes mention a cistern “further down still.”', src: 'Sexton’s notes', methods: [{ k: 'travel', from: 'vault', label: 'Find the way down from the Drowned Vault' }] },
+};
+HEARD.pale = { noRegion: true, heard: 'A traveller at the Crossroads: “apples that never rot, out at the Pale Orchard.”', src: 'Traveller · The Crossroads', sources: [{ name: 'A traveller', kind: 'NPC · met at The Crossroads', icon: 'ph ph-user' }], methods: [] };
+HEARD.sunder = { noRegion: true, heard: 'Mirelle grew up “near Sunderwell.” She won’t say which way.', src: 'Mirelle · your party', sources: [{ name: 'Mirelle', kind: 'Party member · told you in Hollowmere Village', icon: 'ph ph-user' }, { name: 'Faded letter', kind: 'Item · in your bag, unsigned', icon: 'ph ph-envelope-simple' }], methods: [] };
+const KI = { region: 'ph ph-signpost', origin: 'ph ph-flag-banner', travel: 'ph ph-footprints', rumour: 'ph ph-chat-circle-dots', item: 'ph ph-scroll', survey: 'ph ph-binoculars', link: 'ph ph-link', entry: 'ph ph-ladder' };
+const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const ang = (a, b) => (Math.atan2(N[b].x - N[a].x, N[a].y - N[b].y) * 180 / Math.PI + 360) % 360;
+const bear = (a, b) => DIRS[Math.round(ang(a, b) / 45) % 8];
+const initPlaced = () => ({ cross: { k: 'origin' }, village: { k: 'travel', from: 'cross' }, millers: { k: 'travel', from: 'village' }, crypt: { k: 'travel', from: 'village' }, gloamEdge: { k: 'travel', from: 'cross' }, docks: { k: 'travel', from: 'cross' }, bellpass: { k: 'rumour', from: 'millers', who: 'Brannoc' }, stair: { k: 'entry', from: 'crypt' }, ossuary: { k: 'travel', from: 'stair' } });
+const RL = [
+  { k: 'hollow', name: 'Hollowmere', lv: 'Lv 1–6', b: 'visited' }, { k: 'gloam', name: 'Gloamwood', lv: 'Lv 6–9', b: 'visited' }, { k: 'salt', name: 'Saltmarsh', lv: 'Lv 4–7', b: 'visited' }, { k: 'bell', name: 'Bellspire Reach', lv: 'Lv 10+', b: 'heard', locked: true },
+  { k: 'thornmere', name: 'Thornmere', lv: 'Lv 3–5', b: 'visited' }, { k: 'greywater', name: 'Greywater Coast', lv: 'Lv 5–8', b: 'visited' }, { k: 'kingsroad', name: 'Old Kingsroad', lv: 'Lv 6–9', b: 'visited' }, { k: 'ashen', name: 'Ashen Fields', lv: 'Lv 8–11', b: 'visited' },
+  { k: 'lantern', name: 'Lanternfall', lv: 'Lv 8–10', b: 'heard' }, { k: 'mirefen', name: 'Mirefen', lv: 'Lv 7–10', b: 'heard' }, { k: 'ostmark', name: 'Ostmark', lv: 'Lv 9–12', b: 'heard' }, { k: 'saltglass', name: 'Saltglass Flats', lv: 'Lv 10–13', b: 'heard', locked: true },
+  { k: 'drowned', name: 'The Drowned Coast', lv: 'Lv 12–15', b: 'heard', locked: true }, { k: 'cinder', name: 'Cinderhold', lv: 'Lv 14+', b: 'heard', locked: true }, { k: 'frost', name: 'Frostmarch', lv: 'Lv 16+', b: 'heard', locked: true }, { k: 'veil', name: 'Veilspire', lv: 'Lv 18+', b: 'heard', locked: true },
+];
+const regNb = rk => { const o = []; GATES.forEach(g => { const ra = N[g.a].r, rb = N[g.b].r; if (ra === rk && !o.includes(rb)) o.push(rb); if (rb === rk && !o.includes(ra)) o.push(ra); }); return o; };
+const SW = 156, MW = 696, MH = 600, SWm = 92, MWm = 370, MHm = 470;
+
+class Component extends DCLogic {
+  state = { m11: null, m12: null };
+  partyFor(sc) { return [{ name: 'Ysolde', st: 42, max: 60 }, { name: 'Brannoc', st: 35, max: 60, tint: 'oklch(0.8 0.1 150)' }, { name: 'Mirelle', st: sc === 'lowStamina' ? 8 : 24, max: 50, tint: 'oklch(0.8 0.1 60)' }]; }
+  initFor(key, sc) {
+    const carto = key === 'm12', placed = carto ? initPlaced() : null, visited = {};
+    Object.keys(N).forEach(id => { if (N[id].k === 'visited' && (!carto || placed[id])) visited[id] = true; });
+    return { here: 'cross', sel: 'docks', cd: sc === 'cooldown' ? 192 : 0, party: this.partyFor(sc), banner: '', placed, visited, fresh: {}, regKnown: {}, view: 's', rOpen: false, rq: '', vr: 'hollow' };
+  }
+  reset() { const sc = this.props.scenario ?? 'ready'; (this._t || []).forEach(clearTimeout); this._t = []; this.setState({ m11: this.initFor('m11', sc), m12: this.initFor('m12', sc) }); }
+  componentDidMount() {
+    this._t = []; this.reset();
+    this._iv = setInterval(() => { const a = this.state.m11, b = this.state.m12; if ((a && a.cd > 0) || (b && b.cd > 0)) this.setState(st => ({ m11: st.m11 && st.m11.cd > 0 ? { ...st.m11, cd: st.m11.cd - 1 } : st.m11, m12: st.m12 && st.m12.cd > 0 ? { ...st.m12, cd: st.m12.cd - 1 } : st.m12 })); }, 1000);
+  }
+  componentDidUpdate(pp) { if (pp.scenario !== this.props.scenario) this.reset(); }
+  componentWillUnmount() { clearInterval(this._iv); (this._t || []).forEach(clearTimeout); clearTimeout(this._bm11); clearTimeout(this._bm12); }
+  msN() { return this.props.transitionSpeed === 'slow' ? 2600 : 1000; }
+  upd(key, fn) { this.setState(st => { const cur = st[key] || this.initFor(key, this.props.scenario ?? 'ready'); const patch = typeof fn === 'function' ? fn(cur) : fn; return patch ? { [key]: { ...cur, ...patch } } : null; }); }
+  flash(key, ms) { clearTimeout(this['_b' + key]); this['_b' + key] = setTimeout(() => this.upd(key, { banner: '' }), ms || 4500); }
+  learn(key, id, src, msg) {
+    const msN = this.msN();
+    this.upd(key, s => s.placed[id] ? null : { placed: { ...s.placed, [id]: src }, fresh: { ...s.fresh, [id]: true }, sel: id, banner: msg });
+    this.flash(key, msN + 4000);
+    this._t.push(setTimeout(() => this.upd(key, s => { const f = { ...s.fresh }; delete f[id]; return { fresh: f }; }), msN + 200));
+    Object.keys(HEARD).forEach(pid => { const pd = HEARD[pid].pending; if (pd && pd.anchor === id) this._t.push(setTimeout(() => { const cur = this.state[key]; if (cur && cur.placed[pid]) return; this.learn(key, pid, { k: pd.k, from: id, who: pd.who }, N[pid].name + ' placed too. ' + pd.who + '’s bearing now has an anchor.'); }, msN + 350)); });
+  }
+  learnRegion(key, id, msg) { this.upd(key, s => ({ regKnown: { ...(s.regKnown || {}), [id]: true }, sel: s.here, banner: msg })); this.flash(key, 5500); }
+  mapVals(key) {
+    const carto = key === 'm12', sc = this.props.scenario ?? 'ready';
+    const s = this.state[key] || this.initFor(key, sc), party = s.party, set = p => this.upd(key, p);
+    const regK = id => !(HEARD[id] && HEARD[id].noRegion) || !!(s.regKnown || {})[id] || (carto && !!s.placed[id]);
+    const V = carto ? s.view : 's', isPl = id => !carto || !!s.placed[id], onV = id => lvOf(id) === V && !(N[id].offmap && regK(id));
+    const allIds = Object.keys(N).filter(id => carto || (lvOf(id) === 's' && !N[id].cartoOnly));
+    const here = N[s.here], hereR = here.r, sel = s.sel ? N[s.sel] : null;
+    const nAdj = adjOf(s.here).filter(id => allIds.includes(id));
+    const settled = id => isPl(id) && !(carto && s.fresh[id]);
+    const placedV = allIds.filter(id => onV(id) && isPl(id));
+    const unpl = carto ? allIds.filter(id => onV(id) && !isPl(id) && (!regK(id) || N[id].r === hereR || V === 'd')) : [];
+    const cw = carto ? MW - SW : 696, ch = carto ? MH : 622, cwm = carto ? MWm - SWm : 370, chm = carto ? MHm : 564;
+    const X = (v) => (v / 6.8) + '%', Y = (v) => (v / 6.4) + '%';
+    // strip layout
+    const stripPos = {}, stripPosM = {}, stripHeads = []; let yc = 66;
+    const ord = [];
+    Object.keys(REG).map(rk => [V === 'd' ? 'Crypt Depths' : REG[rk].name, unpl.filter(id => regK(id) && N[id].r === rk)]).concat([['Region unknown', unpl.filter(id => !regK(id))]]).forEach(([label, g]) => { if (!g.length) return; stripHeads.push({ label, y: yc + 'px' }); yc += 18; g.forEach(id => { stripPos[id] = yc + 16; yc += 42; ord.push(id); }); yc += 6; });
+    ord.forEach((id, i) => { stripPosM[id] = 52 + i * 46; });
+    const isHereF = id => id === s.here;
+    const subOf = (id) => { const n = N[id], c = con(n), isHere = isHereF(id), heard = !s.visited[id] && !isHere; return (n.r !== hereR ? REG[n.r].name + ' · ' : '') + TT[n.t][0] + (isHere ? ' · you' : heard ? ' · heard of' : '') + (n.safe || !c.short ? '' : ' ' + c.short); };
+    const info = {}, infoM = {};
+    allIds.forEach(id => { const n = N[id]; info[id] = { w: Math.max(n.name.length * 6.7 + (n.bind ? 16 : 0) + (n.craft ? 16 : 0), subOf(id).length * 5.6 + (n.safe ? 14 : 0)) + 6 }; infoM[id] = { w: Math.max(n.short.length * 5.6, con(n).short.length * 5.4) + 4 }; });
+    const gateFar = (g) => N[g.a].r === hereR ? g.b : g.a;
+    const gR = (w, hg, short) => GATES.map(g => { const R = REG[N[gateFar(g)].r], txt = short ? R.name : ((R.minLv && LV < R.minLv) ? '' : 'To ') + R.name + ' · ' + R.lv; const gw = txt.length * (short ? 5.8 : 6.2) + 34, cx = g.x * w / 680, cy = g.y * hg / 640; return [cx - gw / 2, cy - 13, cx + gw / 2, cy + 13]; });
+    const capFor = (w, h) => V === 's' ? [[0.03 * w, 0.02 * h, 0.03 * w + 90, 0.02 * h + 16], [0.11 * w, 0.15 * h, 0.11 * w + 92, 0.15 * h + 16], [w - 0.02 * w - 82, h - 0.02 * h - 16, w - 0.02 * w, h - 0.02 * h]] : [[0, 0, 280, 34], [w - 210, h - 140, w, h]];
+    const arrow = (w, sz) => carto ? [[w - sz, 0, w, sz + 14]] : [];
+    const youR = (w, h, a, b) => carto && onV(s.here) ? [[N[s.here].x * w / 680 - 22, N[s.here].y * h / 640 - a, N[s.here].x * w / 680 + 22, N[s.here].y * h / 640 - b]] : [];
+    const posD = placeLabels(cw, ch, info, id => id === s.here ? 15 : 12, 30, capFor(cw, ch).concat(youR(cw, ch, 38, 14), arrow(cw, 46), V === 's' ? gR(cw, ch, false) : []), placedV);
+    const posM = placeLabels(cwm, chm, infoM, id => id === s.here ? 13 : 11, 26, (carto ? arrow(cwm, 36) : []).concat(youR(cwm, chm, 34, 12), V === 's' ? gR(cwm, chm, true) : [], carto && V === 'd' ? [[0, 0, 150, 44]] : []), placedV);
+    const nodes = allIds.map(id => {
+      const n = N[id], pl = isPl(id), on = onV(id) && (pl || unpl.includes(id)), isHere = isHereF(id), isSel = id === s.sel, heard = !s.visited[id] && !isHere;
+      const c = con(n), tt = TT[n.t], H = HEARD[id], pend = carto && !pl && H && H.pending;
+      const selRing = isSel && !isHere ? ',0 0 0 4px color-mix(in srgb,var(--color-accent) 35%,transparent)' : '';
+      let ring = isHere ? 'inset 0 0 0 2px var(--color-accent),0 0 16px color-mix(in srgb,var(--color-accent) 60%,transparent)' : heard ? 'inset 0 0 0 1px color-mix(in srgb,' + c.color + ' 45%,transparent)' + selRing : 'inset 0 0 0 1.5px ' + c.color + selRing;
+      if (carto && !pl) ring = 'inset 0 0 0 0 transparent' + selRing;
+      if (carto && isHere) ring = 'inset 0 0 0 2.5px var(--color-accent),0 0 0 3px var(--color-bg),0 0 0 5.5px var(--color-accent),0 0 26px 6px color-mix(in srgb,var(--color-accent) 55%,transparent)' + (isSel ? ',0 0 0 9px color-mix(in srgb,var(--color-accent) 25%,transparent)' : '');
+      if (carto && s.fresh[id]) ring = 'inset 0 0 0 1.5px var(--color-accent),0 0 0 8px color-mix(in srgb,var(--color-accent) 28%,transparent),0 0 28px var(--color-accent)';
+      const sub = !pl ? (pend ? 'waits on ' + N[H.pending.anchor].short : !regK(id) ? 'region unknown' : nAdj.includes(id) ? 'road from here' : 'heard of') : (n.r !== hereR ? REG[n.r].name + ' · ' : '') + tt[0] + (n.sub === 'd' && carto ? ' · level below' : '') + (isHere ? (carto ? '' : ' · you') : heard ? ' · heard of' : '');
+      return { name: n.name, short: n.short, size: isHere ? '30px' : '24px', sizeM: isHere ? '26px' : '22px', ring, bg: carto && isHere ? 'var(--color-accent-800)' : 'var(--color-surface)',
+        x: carto ? (pl ? SW + n.x * cw / 680 : 22) + 'px' : X(n.x), y: carto ? (pl ? n.y * ch / 640 : (stripPos[id] ?? -40)) + 'px' : Y(n.y),
+        xm: (pl ? SWm + n.x * cwm / 680 : 18) + 'px', ym: (pl ? n.y * chm / 640 : (stripPosM[id] ?? -40)) + 'px',
+        border: carto && !pl ? '1px dashed var(--color-neutral-500)' : 'none', z: isSel ? 3 : pl ? 2 : 1,
+        vis: on ? (pl && n.r !== hereR ? 0.75 : 1) : 0, pe: on ? 'auto' : 'none', hasSub: carto && !!n.sub, isHere: carto && isHere,
+        icon: tt[1], iconSize: isHere ? '15px' : '13px', iconColor: isHere ? 'var(--color-accent-200)' : (heard || !pl) ? 'var(--color-neutral-400)' : 'var(--color-neutral-100)',
+        lv: pl && !n.safe ? c.short : '', lvShort: pl ? c.short : '', lvColor: c.color, safe: pl && !!n.safe, craft: pl && !!n.craft, bind: pl && !!n.bind,
+        opacity: n.r === hereR ? 1 : 0.75, sub, subColor: pend ? 'var(--color-accent-300)' : 'var(--color-neutral-500)', weight: isHere || isSel ? 500 : 400,
+        color: isSel ? 'var(--color-accent-200)' : isHere ? (carto ? 'var(--color-accent-100)' : 'var(--color-text)') : !pl ? 'var(--color-neutral-300)' : heard ? 'var(--color-neutral-500)' : 'var(--color-neutral-300)',
+        labelPos: pl ? posD[id] : 'top:-15px;left:17px;white-space:normal;width:112px', labelPosM: pl ? posM[id] : 'top:-6px;left:13px',
+        pick: () => set({ sel: id }) };
+    });
+    const gates = GATES.map(g => {
+      const far = gateFar(g), R = REG[N[far].r], locked = R.minLv && LV < R.minLv, on = s.sel === far;
+      return { x: X(g.x), y: Y(g.y), label: (locked ? '' : 'To ') + R.name + ' · ' + R.lv, short: R.name, icon: locked ? 'ph ph-lock-simple' : 'ph ph-door-open',
+        color: locked ? 'var(--color-neutral-400)' : 'var(--color-accent-200)',
+        ring: on ? 'inset 0 0 0 1px var(--color-accent),0 0 14px color-mix(in srgb,var(--color-accent) 40%,transparent)' : locked ? 'inset 0 0 0 1px var(--color-neutral-700)' : 'inset 0 0 0 1px var(--color-accent-700)',
+        pick: () => set({ sel: far }) };
+    });
+    // edges (cartographer)
+    let edgeA = '', edgeN = '', edgeG = '';
+    E.forEach(([a, b]) => {
+      if (!allIds.includes(a) || !allIds.includes(b) || !onV(a) || !onV(b) || !settled(a) || !settled(b)) return;
+      const seg = 'M' + N[a].x + ' ' + N[a].y + ' L' + N[b].x + ' ' + N[b].y + ' ';
+      const cross = N[a].r !== N[b].r, locked = cross && (REG[N[a].r].minLv || REG[N[b].r].minLv);
+      if (a === 'rumour' || b === 'rumour' || locked) edgeN += seg; else if (cross) edgeG += seg; else edgeA += seg;
+    });
+    // route
+    let routeD = '';
+    const p = sel && isPl(s.sel) ? pathOver(s.here, s.sel, isPl) : null;
+    if (p && p.length > 1) { const pts = p.filter(id => onV(id)); if (pts.length > 1) routeD = pts.map((id, i) => (i ? 'L' : 'M') + N[id].x + ' ' + N[id].y).join(' '); }
+    const cdOn = s.cd > 0;
+    const cd = cdOn ? { label: fmt(s.cd) + ' left', short: fmt(s.cd), icon: 'ph ph-hourglass-medium', color: WAIT, ring: 'color-mix(in srgb,' + WAIT + ' 50%,transparent)' }
+      : { label: 'Ready', short: 'Ready', icon: 'ph ph-check-circle', color: OK, ring: 'color-mix(in srgb,' + OK + ' 45%,transparent)' };
+    // detail
+    let d = { kicker: 'Destination', name: '', regionLine: '', desc: '' };
+    let canGo = false, next = null, cross = false;
+    const prov = id => { const q = s.placed[id], fn = q.from && N[q.from].name, b = q.from ? bear(q.from, id) : ''; return { origin: 'Where you began. Every bearing on your map is measured from here.', entry: 'The way down from ' + fn + '. The Crypt Depths are measured from this point.', travel: 'On your map since you took the road from ' + fn + '. It lies ' + b + ' of it.', rumour: s.placed[id].who + ' told you it lies ' + b + ' of ' + fn + '.', item: q.who + ' shows it ' + b + ' of ' + fn + '.', survey: 'Surveyed from ' + fn + ': it lies ' + b + '.' }[q.k]; };
+    if (sel) {
+      const R = REG[sel.r], selPl = isPl(s.sel), c = con(sel), tt = TT[sel.t], H = HEARD[s.sel] || {};
+      const tags = [{ icon: tt[1], label: tt[0] + (sel.t === 'dungeon' && selPl ? ' · instanced danger' : ''), color: 'var(--color-neutral-100)' }];
+      if (selPl) tags.push(sel.safe ? { icon: 'ph ph-shield-check', label: 'Safe · no combat', color: c.color } : { icon: 'ph ph-sword', label: c.label, color: c.color });
+      if (selPl && sel.bind) tags.push({ icon: 'ph ph-bed', label: 'Bind stone', color: 'var(--color-accent-200)' });
+      if (selPl && sel.craft) tags.push({ icon: 'ph ph-anvil', label: 'Crafting', color: 'var(--color-accent-200)' });
+      const lvlName = lvOf(s.sel) === 'd' ? ' · Crypt Depths' : '';
+      d = { kicker: s.sel === s.here ? 'You are here' : selPl ? 'Destination' : 'Unplaced', name: sel.name, tags,
+        regionLine: (regK(s.sel) ? R.name : 'Region unknown') + lvlName + ' · ' + (selPl ? R.lv + ' · ' + (s.visited[s.sel] ? 'visited' : 'heard of') : 'not on your map yet'),
+        desc: selPl ? sel.desc + (sel.quest ? ' Quest here: ' + sel.quest + '.' : '') : '' };
+      if (carto) {
+        if (selPl) Object.assign(d, { hasProv: true, prov: prov(s.sel), provIcon: KI[s.placed[s.sel].k] });
+        else Object.assign(d, { isUnplaced: true, heard: H.heard || '', src: H.src || '', unknownReg: !regK(s.sel), sources: H.sources || [] });
+        if (!selPl && H.pending) Object.assign(d, { pending: true, pendText: 'Lies ' + bear(H.pending.anchor, s.sel) + ' of ' + N[H.pending.anchor].name + '. It goes on your map as soon as ' + N[H.pending.anchor].name + ' does.' });
+        const inD = Object.keys(N).filter(id => lvOf(id) === 'd'), placedD = inD.filter(isPl).length;
+        const lvl = s.sel === 'crypt' && selPl ? { icon: 'ph ph-stack', title: 'Level below · Crypt Depths', line: 'Lv 7–8 · ' + placedD + ' of ' + inD.length + ' places on your map. Mapped on its own, measured from the stair.', btn: V === 'd' ? '' : 'View level below', btnIcon: 'ph ph-arrow-down', run: () => set({ view: 'd', sel: 'stair' }) }
+          : s.sel === 'stair' ? { icon: 'ph ph-ladder', title: 'Level above · Sunken Crypt', line: 'Hollowmere, on the surface.', btn: 'View surface', btnIcon: 'ph ph-arrow-up', run: () => set({ view: 's', sel: 'crypt' }) }
+          : s.sel === 'cistern' ? { icon: 'ph ph-stack', title: 'Level below · The Black Cistern', line: 'Its map starts once you find the way down.', btn: '', btnIcon: '', run: null } : null;
+        if (lvl) Object.assign(d, { hasLvl: true, lvl, lvlBtn: !!lvl.btn });
+      }
+      if (s.sel === s.here) {
+        d.hasTrip = false;
+      } else if (nAdj.includes(s.sel)) {
+        cross = sel.r !== hereR; next = s.sel;
+        const cost = cross ? 10 : 5, locked = cross && R.minLv && LV < R.minLv;
+        const short = party.filter(m => m.st < cost);
+        const checks = [];
+        if (cross) {
+          if (locked) checks.push({ icon: 'ph ph-lock-simple', color: BAD, label: 'Requires level ' + R.minLv, detail: 'You are level ' + LV + '.' });
+          checks.push(cdOn ? { icon: 'ph ph-hourglass-medium', color: WAIT, label: 'Region travel cooling down', detail: 'Ready in ' + fmt(s.cd) + '. Moving within ' + REG[hereR].name + ' is still fine.' }
+            : { icon: 'ph ph-check-circle', color: OK, label: 'Region travel ready', detail: 'Crossing starts a 5:00 cooldown for everyone who travels.' });
+        }
+        checks.push(short.length ? { icon: 'ph ph-x-circle', color: BAD, label: short.map(m => m.name).join(', ') + ' short on stamina', detail: 'Needs ' + cost + ', has ' + short.map(m => m.st).join(', ') + '. Party travel is all or nothing.' }
+          : { icon: 'ph ph-check-circle', color: OK, label: 'Party has the stamina', detail: party.length + ' travelling · ' + cost + ' each' });
+        checks.push({ icon: 'ph ph-check-circle', color: OK, label: 'Not in combat or gathering', detail: '' });
+        canGo = !locked && !short.length && !(cross && cdOn);
+        const unk = carto && !isPl(s.sel);
+        Object.assign(d, {
+          isCross: cross, fromRegion: REG[hereR].name, toRegion: R.name, toLv: R.lv,
+          hasTrip: true, cost: cost + ' per person', players: sel.players,
+          cdText: cross ? (cdOn ? 'Blocked · ' + fmt(s.cd) + ' left' : 'Starts 5:00 region cooldown') : 'None within a region', cdColor: cross ? (cdOn ? WAIT : 'var(--color-text)') : 'var(--color-neutral-400)',
+          hasChecks: true, checks, cdBar: cross && cdOn, cdPct: Math.round((1 - s.cd / COOLDOWN) * 100) + '%',
+          hasAction: true, blocked: !canGo, actionIcon: cross ? 'ph ph-door-open' : 'ph ph-signpost',
+          action: canGo ? (cross ? 'Cross into ' + R.name : 'Travel to ' + sel.name) : locked ? 'Locked until level ' + R.minLv : (cross && cdOn) ? 'Region travel in ' + fmt(s.cd) : 'Not enough stamina',
+          actionNote: canGo ? (unk ? 'Arriving puts it on your map · party follows' : 'Arrive instantly · party follows') : '',
+          failMsg: canGo ? '' : checks.filter(c => c.color !== OK).map(c => c.label).join(' · '),
+        });
+      } else if (p) {
+        const crossings = p.slice(1).filter((id, i) => N[id].r !== N[p[i]].r).length;
+        const route = p.map((id, i) => { const c = i && N[id].r !== N[p[i - 1]].r; return { name: N[id].short, color: i === 0 ? 'var(--color-neutral-400)' : id === s.sel ? 'var(--color-accent-200)' : 'var(--color-neutral-200)', arrow: i > 0, arrowIcon: c ? 'ph ph-door-open' : 'ph ph-caret-right', arrowColor: c ? 'var(--color-accent)' : 'var(--color-neutral-500)' }; });
+        next = p[1];
+        Object.assign(d, { hasRoute: true, route, routeNote: (p.length - 1) + ' stops' + (crossings ? ' · ' + crossings + ' region crossing' + (crossings > 1 ? 's' : '') + ' (5:00 cooldown each)' : ' · all within ' + REG[hereR].name),
+          hasAction: true, blocked: false, actionIcon: 'ph ph-arrow-bend-up-right', action: 'Select first stop: ' + N[next].name, actionNote: 'You travel one connected stop at a time.' });
+      } else if (carto && !isPl(s.sel) && regK(s.sel) && H.methods && H.methods.length) {
+        const methods = H.methods.map(m => {
+          const where = m.k === 'travel' ? m.from : m.at, ok = !m.never && (m.always || s.here === where) && (m.k === 'region' || isPl(m.from));
+          const b = m.from ? bear(m.from, s.sel) : '', fn = m.from ? N[m.from].name : '';
+          const msg = m.k === 'region' ? m.who + ' names ' + sel.name + ' as part of ' + REG[sel.r].name + '. It’s on that region’s Unplaced list now.' : m.k === 'rumour' ? m.who + ': “' + sel.name + ' lies ' + b + ' of ' + fn + '.” It’s on your map now.' : m.k === 'item' ? m.who + ' shows ' + sel.name + ' ' + b + ' of ' + fn + '. It’s on your map now.' : 'Survey done. ' + sel.name + ' lies ' + b + ' of ' + fn + '.';
+          return { icon: KI[m.k], iconColor: ok ? 'var(--color-accent)' : 'var(--color-neutral-500)', label: m.label, detail: m.never || ok ? (m.detail || 'Walking it shows the direction.') : 'You need to be at ' + N[where].name + '.',
+            avail: ok, op: ok || m.k === 'link' ? 1 : 0.7, btn: { rumour: 'Ask', survey: 'Survey', item: 'Read', region: 'Read' }[m.k], run: m.k === 'region' ? () => this.learnRegion(key, s.sel, msg) : () => this.learn(key, s.sel, { k: m.k, from: m.from, who: m.who }, msg) };
+        });
+        const first = methods.find(m => m.avail);
+        Object.assign(d, { hasMethods: true, methods, firstBtn: !!first, firstLabel: first ? first.label : '', firstIcon: first ? first.icon : '', firstRun: first ? first.run : null, mNote: first || d.pending ? '' : methods[0].detail });
+      }
+    }
+    const go = () => {
+      if (!sel || !next) return;
+      if (!nAdj.includes(s.sel)) return set({ sel: next });
+      if (!canGo) return;
+      const dest = s.sel, from = s.here, cost = cross ? 10 : 5, unk = carto && !isPl(dest);
+      const msg = cross ? 'Crossed into ' + REG[sel.r].name + ' · −' + cost + ' stamina each · region travel cooling down 5:00' : 'Arrived at ' + sel.name + ' · −' + cost + ' stamina each';
+      set({ here: dest, sel: unk ? dest : null, cd: cross ? COOLDOWN : s.cd, party: party.map(m => ({ ...m, st: m.st - cost })), banner: msg, visited: { ...s.visited, [dest]: true }, view: carto ? lvOf(dest) : s.view });
+      if (unk) this.learn(key, dest, { k: 'travel', from }, 'Arrived at ' + sel.name + '. It lies ' + bear(from, dest) + ' of ' + N[from].name + ' and is on your map now.');
+      else this.flash(key);
+    };
+    const me = party[0];
+    const under = V === 'd', toS = (id) => () => set({ view: 's', sel: id });
+    const lvRow = (name, sub, icon, indent, cur, locked, run) => ({ name, sub, icon, indent, locked, pick: run, cursor: locked || cur ? 'default' : 'pointer', bg: cur ? 'var(--color-accent-900)' : 'transparent', ring: cur ? 'inset 0 0 0 1px var(--color-accent-700)' : 'none', color: locked ? 'var(--color-neutral-500)' : cur ? 'var(--color-accent-100)' : 'var(--color-neutral-200)', iconColor: locked ? 'var(--color-neutral-600)' : cur ? 'var(--color-accent-200)' : 'var(--color-neutral-400)' });
+    const nb = regNb(hereR), rq = (s.rq || '').trim().toLowerCase(), vr = s.vr || 'hollow', vR = RL.find(r => r.k === vr);
+    const stOf = r => r.k === hereR ? 'here' : nb.includes(r.k) ? 'next' : r.b;
+    const pickR = k => () => set({ vr: k, rOpen: false, rq: '' });
+    const SEC = [['here', 'You are here', 'ph ph-map-pin'], ['next', 'Next door', 'ph ph-door-open'], ['visited', 'Visited', 'ph ph-check-circle'], ['heard', 'Heard of', 'ph ph-ear']];
+    const sections = SEC.map(([st, title, icon]) => { const rows = RL.filter(r => stOf(r) === st && (!rq || r.name.toLowerCase().includes(rq))).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ name: r.name, lv: r.lv, locked: !!r.locked, icon, iconColor: r.k === vr ? 'var(--color-accent)' : 'var(--color-neutral-400)', color: r.k === vr ? 'var(--color-accent-200)' : r.locked ? 'var(--color-neutral-400)' : 'var(--color-text)', bg: r.k === vr ? 'var(--color-accent-900)' : 'transparent', pick: pickR(r.k) })); return { label: title + ' · ' + rows.length, rows }; }).filter(x => x.rows.length);
+    const ST = { here: 'you are here', next: 'next door', visited: 'visited', heard: 'heard of' };
+    const rsw = { open: !!s.rOpen, toggle: () => set({ rOpen: !s.rOpen }), close: () => set({ rOpen: false }), q: s.rq || '', onQ: e => set({ rq: e.target.value }), searchPh: 'Search ' + RL.length + ' regions', sections, empty: !sections.length,
+      next: nb.slice(0, 3).map(k => RL.find(r => r.k === k)).map(r => ({ name: r.name, locked: !!r.locked, op: r.locked ? 0.6 : 1, pick: pickR(r.k) })), more: (nb.length > 3 ? '+' + (nb.length - 3) + ' · ' : '') + 'All ' + RL.length + ' regions',
+      viewName: vR.name, viewLv: vR.lv, other: vr !== 'hollow', viewLine: vR.lv + ' · ' + ST[stOf(vR)], otherNote: 'This opens ' + vR.name + '’s own map, with its own Unplaced strip. Only Hollowmere is built in this prototype.', home: () => set({ vr: 'hollow' }), homeLabel: 'Back to Hollowmere' };
+    return {
+      rsw,
+      hereName: here.name, hereRegion: REG[hereR].name + (lvOf(s.here) === 'd' ? ' · Crypt Depths' : ''),
+      me: { st: me.st, max: me.max, pct: Math.round(me.st / me.max * 100) + '%' },
+      others: party.slice(1).map(m => ({ name: m.name, initial: m.name[0], tint: m.tint, st: m.st, pct: Math.round(m.st / m.max * 100) + '%', stColor: m.st < 10 ? BAD : 'var(--color-neutral-400)' })),
+      regions: Object.entries(REG).filter(([k, r]) => !r.far).map(([k, r]) => ({ name: r.name, lv: r.lv, locked: !!(r.minLv && LV < r.minLv), opacity: r.minLv && LV < r.minLv ? 0.55 : 1, cls: 'tag ' + (k === hereR ? 'tag-accent' : 'tag-neutral') })),
+      cd, nodes, gates, routeD, go, banner: s.banner,
+      d: Object.assign({ tags: [], hasTrip: false, hasRoute: false, hasChecks: false, hasAction: false, isCross: false, cdBar: false, actionNote: '', failMsg: '', hasProv: false, hasLvl: false, lvl: {}, lvlBtn: false, isUnplaced: false, unknownReg: false, sources: [], pending: false, hasMethods: false, methods: [], firstBtn: false, mNote: '' }, d),
+      ms: this.msN() + 'ms', edgeA, edgeN, edgeG, isSurface: !under, isUnder: under, underOp: under ? 1 : 0,
+      stripHeads, stripCount: 'Unplaced · ' + unpl.length, stripEmpty: carto && !unpl.length, up: toS('crypt'),
+      crumbs: under ? [{ label: 'Hollowmere', sep: false, cur: false, link: true, pick: toS('cross') }, { label: 'Sunken Crypt', sep: true, cur: false, link: true, pick: toS('crypt') }, { label: 'Crypt Depths', sep: true, cur: true, link: false, pick: null }] : [],
+      levels: under ? [lvRow('Hollowmere', 'Surface', 'ph ph-sun-horizon', '0px', false, false, toS('crypt')), lvRow('Crypt Depths', '1 below · Lv 7–8', 'ph ph-stack', '10px', true, false, null), lvRow('The Black Cistern', 'Way down not found', 'ph ph-lock-simple', '20px', false, true, null)] : [],
+    };
+  }
+  renderVals() {
+    return { ...this.mapVals('m11'), showMobile: this.props.showMobile ?? true, c: this.mapVals('m12') };
+  }
+}
+
+</script>
+</body>
+</html>
