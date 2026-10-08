@@ -104,6 +104,7 @@ const TARGETS: Target[] = [
   { file: 'src/map/MapSheet.vue', selector: '.regions-button', properties: ['min-height'], min: 44 },
   { file: 'src/map/MapSheet.vue', selector: '.legend-toggle', properties: ['min-height'], min: 44 },
   { file: 'src/map/MapSheet.vue', selector: '.center-button', properties: ['width', 'height', 'min-height'], min: 44 },
+  { file: 'src/map/MapSheet.vue', selector: '.banner-close', properties: ['width', 'height', 'min-height'], min: 44 },
   { file: 'src/map/RegionsListbox.vue', selector: '.region-option', properties: ['min-height'], min: 44 },
   { file: 'src/map/MapDock.vue', selector: '.travel-button', properties: ['min-height'], min: 48 },
   { file: 'src/map/MapDock.vue', selector: '.details-toggle', properties: ['min-height'], min: 44 },
@@ -169,11 +170,11 @@ describe('mobile touch targets in src/map', () => {
     'MapDock.vue': ['travel-button', 'details-toggle'],
     // Desktop branch only (frame.isDesktop): the phone chooses regions in the RegionsListbox.
     'MapMeta.vue': ['region-chip'],
-    'MapSheet.vue': ['regions-button', 'legend-toggle', 'center-button'],
+    'MapSheet.vue': ['regions-button', 'legend-toggle', 'center-button', 'banner-close'],
     'DetailPanel.vue': ['travel-button'],
     // Desktop branch only: the Map screen's own Center on you (32px) never renders on mobile, where
     // MapSheet draws its 44px one.
-    'MapScreen.vue': ['center-button'],
+    'MapScreen.vue': ['center-button', 'banner-close'],
   };
 
   it('every <button> in src/map components is covered', () => {

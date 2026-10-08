@@ -56,6 +56,7 @@ export interface MapData {
    * focus into the graph even when the region (or the selection in it) does not change.
    */
   chooseRegion(id: bigint): void;
+  /** Show the arrival banner (it clears itself after BANNER_MS), or clear it with null. */
   setBanner(text: string | null): void;
   /** NPCs at the selected place; empty while nothing is selected. */
   readonly npcsAtSelected: List<Npc>;

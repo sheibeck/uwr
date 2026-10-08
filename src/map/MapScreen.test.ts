@@ -465,6 +465,22 @@ describe('MapScreen: the arrival banner box', () => {
     expect(SOURCE).toMatch(/\.arrival-banner\s*\{[^}]*var\(--shadow-md\)/);
     expect(SOURCE).toContain('PhFootprints');
   });
+
+  it('has a Dismiss button that clears the banner; only the button takes clicks', async () => {
+    const h = harness();
+    const w = await mountScreen(h);
+    h.map.setBanner('Arrived at Ember Gate.');
+    await nextTick();
+    const close = w.get('.arrival-banner button.banner-close');
+    expect(close.attributes('aria-label')).toBe('Dismiss');
+    expect(close.attributes('type')).toBe('button');
+    await close.trigger('click');
+    expect(h.banner.value).toBeNull();
+    await nextTick();
+    expect(w.find('.arrival-banner').exists()).toBe(false);
+    expect(SOURCE).toMatch(/\.arrival-banner\s*\{[^}]*pointer-events:\s*none/);
+    expect(SOURCE).toMatch(/\.banner-close\s*\{[^}]*pointer-events:\s*auto/);
+  });
 });
 
 describe('MapScreen: region chips choose the selection', () => {

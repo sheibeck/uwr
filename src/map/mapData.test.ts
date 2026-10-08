@@ -3,7 +3,7 @@ import { effectScope, nextTick, ref, shallowRef } from 'vue';
 import type { Ref, ShallowRef } from 'vue';
 import type { ConnectionStatus } from '../net/connection';
 import type { BindTableOptions } from '../net/bindTable';
-import { createMapData } from './mapData';
+import { BANNER_MS, createMapData } from './mapData';
 import type { MapConn, MapDeps, MapInput } from './mapData';
 import type { MapQueries } from './queries';
 
@@ -375,6 +375,41 @@ describe('timers', () => {
     await nextTick();
     expect(vi.getTimerCount()).toBe(0);
     expect(h.hub.selfTimer.value.running).toBe(false);
+  });
+});
+
+describe('the arrival banner clears itself (owner, 2026-10-08)', () => {
+  it('clears after BANNER_MS, and not before', () => {
+    const h = make();
+    h.hub.setBanner('Arrived at Ember Gate.');
+    vi.advanceTimersByTime(BANNER_MS - 1);
+    expect(h.hub.banner.value).toBe('Arrived at Ember Gate.');
+    vi.advanceTimersByTime(1);
+    expect(h.hub.banner.value).toBeNull();
+  });
+
+  it('a new banner restarts the clock', () => {
+    const h = make();
+    h.hub.setBanner('Arrived at Ember Gate.');
+    vi.advanceTimersByTime(BANNER_MS - 100);
+    h.hub.setBanner('Crossed into Varrow Teeth.');
+    vi.advanceTimersByTime(BANNER_MS - 1);
+    expect(h.hub.banner.value).toBe('Crossed into Varrow Teeth.');
+    vi.advanceTimersByTime(1);
+    expect(h.hub.banner.value).toBeNull();
+  });
+
+  it('clearing the banner (Dismiss, a new trip, reset) stops its timer', () => {
+    const h = make();
+    const before = vi.getTimerCount();
+    h.hub.setBanner('Arrived at Ember Gate.');
+    expect(vi.getTimerCount()).toBe(before + 1);
+    h.hub.setBanner(null);
+    expect(vi.getTimerCount()).toBe(before);
+    expect(h.hub.banner.value).toBeNull();
+    h.hub.setBanner('Arrived at Ember Gate.');
+    h.hub.reset();
+    expect(vi.getTimerCount()).toBe(before);
   });
 });
 

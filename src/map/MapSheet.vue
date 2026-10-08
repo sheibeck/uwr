@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, useTemplateRef } from 'vue';
-import { PhCaretDown, PhCrosshair, PhFootprints } from '@phosphor-icons/vue';
+import { PhCaretDown, PhCrosshair, PhFootprints, PhX } from '@phosphor-icons/vue';
 import { BAND_COLOR } from './danger';
 import GraphPlane from './GraphPlane.vue';
 import MapDock from './MapDock.vue';
@@ -142,7 +142,16 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
       </div>
       <div v-if="map.banner.value" class="arrival-banner" role="status">
         <PhFootprints class="banner-icon" :size="14" aria-hidden="true" />
-        <span>{{ map.banner.value }}</span>
+        <span class="banner-text">{{ map.banner.value }}</span>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon banner-close"
+          aria-label="Dismiss"
+          title="Dismiss"
+          @click="map.setBanner(null)"
+        >
+          <PhX :size="14" aria-hidden="true" />
+        </button>
       </div>
       <button
         type="button"
@@ -253,6 +262,15 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
   line-height: 1.5;
   color: var(--color-text);
   pointer-events: none;
+}
+
+/* The banner lets clicks through to the graph; only its Dismiss button takes them. */
+.banner-close {
+  flex: none;
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
 }
 
 .banner-icon {

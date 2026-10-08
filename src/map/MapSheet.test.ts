@@ -242,6 +242,18 @@ function build(over: Options = {}) {
 const regionsButton = (w: VueWrapper) => w.get('button.regions-button');
 const legendButton = (w: VueWrapper) => w.get('button.legend-toggle');
 
+describe('MapSheet: the arrival banner', () => {
+  it('has a 44px Dismiss button that clears the banner', async () => {
+    const h = build();
+    h.map.setBanner('Arrived at Ember Gate.');
+    await nextTick();
+    const close = h.w.get('.arrival-banner button.banner-close');
+    expect(close.attributes('aria-label')).toBe('Dismiss');
+    await close.trigger('click');
+    expect(h.banner.value).toBeNull();
+  });
+});
+
 describe('MapSheet: the region row', () => {
   it('shows the region name, its level in the band colour, a Regions button and the compact pill', () => {
     const { w } = build({ selected: 11n });

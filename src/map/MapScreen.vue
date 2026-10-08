@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
-import { PhCrosshair, PhFootprints, PhMapTrifold } from '@phosphor-icons/vue';
+import { PhCrosshair, PhFootprints, PhMapTrifold, PhX } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
 import type { ScreenArgs } from '../game/context';
 import SegTabs from '../ledger/SegTabs.vue';
@@ -293,7 +293,16 @@ function centerOnYou(): void {
           </div>
           <div v-if="map.banner.value" class="arrival-banner" role="status">
             <PhFootprints class="banner-icon" :size="14" aria-hidden="true" />
-            <span>{{ map.banner.value }}</span>
+            <span class="banner-text">{{ map.banner.value }}</span>
+            <button
+              type="button"
+              class="btn btn-ghost btn-icon banner-close"
+              aria-label="Dismiss"
+              title="Dismiss"
+              @click="map.setBanner(null)"
+            >
+              <PhX :size="14" aria-hidden="true" />
+            </button>
           </div>
           <button
             type="button"
@@ -422,6 +431,15 @@ function centerOnYou(): void {
   line-height: 1.5;
   color: var(--color-text);
   pointer-events: none;
+}
+
+/* The banner lets clicks through to the graph; only its Dismiss button takes them. */
+.banner-close {
+  flex: none;
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
 }
 
 .banner-icon {

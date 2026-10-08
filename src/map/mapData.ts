@@ -70,6 +70,9 @@ export interface MapDeps<C> {
 
 const ALL_KEY = 'all';
 
+/** How long the arrival banner stays before it clears itself (owner, 2026-10-08: it stayed forever). */
+export const BANNER_MS = 8000;
+
 export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInput<C>): MapData {
   const { queries } = deps;
   // Every watcher and keyed binding lives in one child scope, so dispose() can stop them all
@@ -79,6 +82,18 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
   const selectedId = shallowRef<bigint | null>(null);
   const shownRegionId = shallowRef<bigint | null>(null);
   const banner = shallowRef<string | null>(null);
+  // The banner's own clear timer: each new banner restarts it, and clearing the banner stops it.
+  let bannerTimer: ReturnType<typeof setTimeout> | null = null;
+  function setBannerText(text: string | null): void {
+    if (bannerTimer !== null) clearTimeout(bannerTimer);
+    bannerTimer = null;
+    banner.value = text;
+    if (text === null) return;
+    bannerTimer = setTimeout(() => {
+      bannerTimer = null;
+      banner.value = null;
+    }, BANNER_MS);
+  }
   const regionChosen = shallowRef(0);
   // The one travel guard of the session (rail rows, exit chips and the Map all ask it).
   const trip = createTripGuard();
@@ -275,7 +290,7 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
   function reset(): void {
     selectedId.value = null;
     shownRegionId.value = null;
-    banner.value = null;
+    setBannerText(null);
     trip.end();
   }
 
@@ -314,7 +329,7 @@ export function createMapData<C extends MapConn>(deps: MapDeps<C>, input: MapInp
       regionChosen.value += 1;
     },
     setBanner(text) {
-      banner.value = text;
+      setBannerText(text);
     },
     npcsAtSelected: run.npcsAtSelected,
     charactersAtSelected: run.charactersAtSelected,
