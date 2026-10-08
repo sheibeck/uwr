@@ -786,7 +786,6 @@ Plans:
   3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
   4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 53 admin screens get a panel beside the economy panel.
   5. Pull size: how many enemies a pull brings is settled in discuss and, if the owner wants, tied to difficulty through the dials.
-  5a. Mob density: each location has a mob density. The denser it is, the more likely (A) entering or leaving it provokes an attack, and (B) a pull brings a group instead of a single enemy. The chance also weighs the level gap, and dials tune it by difficulty, region and enemy type. Safe places never roll. Rolls are deterministic and tested.
   6. Ability power: whether player abilities get per-kind power dials (and per-ability overrides) is settled in discuss; if built, cast-time results and tooltips read the same rule.
   7. Tests cover the clamps, each override level and how they combine, and determinism.
 
@@ -804,7 +803,7 @@ Plans:
     - The difficulty dials remain the main tool for overall balance.
   - Owner, 2026-10-08: enemies in higher-level places spawned at level 1 (todo `2026-10-08-nearby-enemies-ignore-the-location-level.md`). A quick task scales a spawn to its place's level when no enemy type fits; this phase also makes world generation create enemy types for each place's level range (base plus each `levelOffset`). That is a prompt change, so the owner approves the wording.
   - Owner, 2026-10-08: "Quest bosses should be harder!" Quick task 261008-ag8 already scales quest and named spawns to the place's level band. For discuss: the default bosses-and-named dial should put quest bosses above ordinary enemies at the same place (a level bump, extra health and damage, or both), not just equal to them.
-  - Owner, 2026-10-08 (verbatim): "this could be as simple as MobDensity is a property of a location. The more dense the mobs, the more chance you have to A. get attacked when you enter or leave B. pull a group of enemies instead of a single enemy when fighting" Today travel never starts a fight (scout 2026-10-08: fights start only from a pull, the gather ambush, quest aggro and named pulls). Full notes and optional extras (Near and Far enemies, counterplay through 999.4 sneak or lull, sub-areas) are in the todo `2026-10-08-dangerous-travel-and-enemy-proximity.md`.
+  - Mob density, travel ambushes and density-driven pull size moved to backlog 999.29 (owner, 2026-10-08: "I want to talk more about this and make it a backlog item that we can promote. Let's let the dial be part of the backlog for this, too."). The pull-size discussion here should stay consistent with 999.29.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
@@ -2341,5 +2340,60 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 
+### Phase 999.29: Dangerous travel: mob density, ambush on entering or leaving, and pull size (BACKLOG)
+
+**Source:** owner, 2026-10-08 (captured as a todo, then moved here: "I want to talk more about this and make it a backlog item that we can promote. Let's let the dial be part of the backlog for this, too."). The todo `2026-10-08-dangerous-travel-and-enemy-proximity.md` was folded into this item and deleted.
+
+**Goal:** Travel feels dangerous, especially above your level. Each location has a mob density; the denser it is, the more likely entering or leaving provokes an attack and the more likely a pull brings a group instead of one enemy. A mob-density dial (by difficulty, region and enemy type, following the 51.3 and 51.3.1 dial pattern and the `/economy`-style admin command) tunes it.
+
+#### Problem
+
+The owner, 2026-10-08, verbatim: "I have a question. when we travel into a location, is there any sort of an aggro check that might cause combat by entering a location? We want travel, particularly when you travel above your level to feel dangerous. So, just being able to travel freely without fear of getting jumped by enemies is boring. With a narrative game, proximity is something that we don't really have since we aren't in a 3d space. Could we devise some sort of proximity system. this is just an idea, but maybe you can have creatures that are Near and Far. Near creatures are in your aggro proximity.  I don't know, I'm still thinking about how we would interact with enemies in a zone to represent the idea of how close or far they are, groups of mobs verses just single. Something that makes travel through a location \"dangerous\" without it turning into just a bunch of sub-locations within a location. Although, that's also an idea, that you sort of have sub-locations or instances you move through. And the more dense with mobs a location is, the harder it is to travel into or out of without provoking an attack."
+
+**Answer to the question (2026-10-08 scout): no.** Arriving at or leaving a place never starts a fight. Fights start only from:
+- a pull (`start_combat`; careful pull of one Nearby enemy, quick task 261006-a0i), which may bring the spawn's group (`enemy_spawn.groupCount`, scaled by region danger);
+- the gather ambush ("As you reach for {node}, {enemy} notices you and attacks!", `finish_gather`);
+- quest aggro (quest item pickups, `reducers/quests.ts`) and named-enemy pulls.
+
+So travel is safe everywhere, whatever the level gap.
+
+#### Owner direction (simplest form)
+
+Owner, 2026-10-08 (verbatim): "this could be as simple as MobDensity is a property of a location. The more dense the mobs, the more chance you have to A. get attacked when you enter or leave B. pull a group of enemies instead of a single enemy when fighting"
+
+So the core is one number per location, **mob density**:
+- **A. Ambush on travel:** entering or leaving a place rolls an attack chance that rises with its mob density (scaled by the level gap and tuned by dials).
+- **B. Pull size:** a pull brings a group instead of one enemy more often the denser the place is.
+Everything else below (Near and Far, counterplay, sub-areas) is optional on top of this.
+
+Moved out of Phase 51.3.1 into this backlog item (owner, 2026-10-08), dial included.
+
+#### Ideas to explore (owner's thinking, plus options)
+
+- **Near and Far enemies.** Each spawn at a place is either Near (in your aggro range) or Far. Near enemies can notice you; Far ones cannot until they drift closer or you approach. Nearby could group them under "Near" and "Far" headings.
+- **Aggro checks on arrival and departure.** Entering or leaving a place rolls against the Near enemies: the chance rises with how many there are (density), how much higher their level is than yours (con), and their kind (aggressive creatures vs passive). Leaving through a crowded place is as dangerous as entering it.
+- **Groups vs singles.** A Near group is more likely to notice you, and a noticed group attacks together (ties to the pull-size discussion in Phase 51.3.1).
+- **Counterplay.** Sneak, invisibility and lull utility abilities (backlog 999.4), moving carefully (slower travel, lower chance), travelling with a party, or clearing the Near enemies first.
+- **Sub-locations or instances.** The owner's alternative: a place has a few areas you move through, and density per area decides the risk. Keep it optional; the owner prefers danger "without it turning into just a bunch of sub-locations within a location".
+- **Narration.** "A Salt-Crust Skitterer spots you as you cross the flats." Server text only (no client-made lines); any prompt wording change needs the owner's approval.
+
+#### Ties
+
+- Phase 51.3.1 Combat Dials: its dial pattern and pull-size rule; this item adds its own mob-density dial (owner) and must agree with 51.3.1 on pull size.
+- Backlog 999.4: sneak, invisibility, lull abilities; threat.
+- 261008-ag8 spawn levels: the con gap is now real (spawns take the place's level), so above-level travel can be scored.
+
+
+
+**Still to discuss with the owner:** how density is set (by world generation, by rule from spawn count and region danger, or both), whether it changes as enemies are killed and respawn, the exact roll (density, level gap, enemy kind), how a party travelling together rolls, counterplay, and how much of Near and Far or sub-areas to build.
+
+**Requirements:** TBD (unit tests required: deterministic seeded rolls; chance by density, level gap and kind; safe places never roll; group pull odds by density; dial clamps and overrides; party behaviour with offline members never pulled in, as CR-02)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+
 ---
-*Last updated: 2026-10-08 after adding mob density (travel ambush and pull size) to Phase 51.3.1 (owner)*
+*Last updated: 2026-10-08 after moving mob density and dangerous travel into backlog 999.29 (owner)*
