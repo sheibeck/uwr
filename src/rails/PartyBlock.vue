@@ -88,9 +88,12 @@ const travel = computed(() => {
 });
 
 const inCombat = computed(() => game.combat.active.value);
-const outOfCombat = computed(() => !inCombat.value);
-const summary = computed(() => (outOfCombat.value ? (travel.value?.summary ?? null) : null));
-const warning = computed(() => (outOfCombat.value ? (travel.value?.warning ?? null) : null));
+// The COMBAT3 recipe is the desktop rail's. The mobile sheet is not reachable in a fight (combat
+// locks the screens, 48-UI-SPEC A5) and has no ally targets, so it keeps its own recipe; the
+// summary, the warning, the switch and Invited · waiting still hide in a fight.
+const outOfCombat = computed(() => !inCombat.value || isSheet.value);
+const summary = computed(() => (inCombat.value ? null : (travel.value?.summary ?? null)));
+const warning = computed(() => (inCombat.value ? null : (travel.value?.warning ?? null)));
 
 // Each member with their pet (one per character), in card order.
 const entries = computed(() => members.value.map((member) => ({ member, pet: social.petOf(member.id) })));
@@ -241,7 +244,7 @@ function invite(): void {
         <p v-else class="empty">Not in a party.</p>
       </template>
 
-      <p v-if="inParty" class="loot" title="Each fighter rolls their own loot.">
+      <p v-if="inParty && !inCombat" class="loot" title="Each fighter rolls their own loot.">
         Loot: personal<span class="sr-only">{{ ' ' }}Each fighter rolls their own loot.</span>
       </p>
 

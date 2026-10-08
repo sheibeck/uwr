@@ -988,9 +988,11 @@ describe('PartyBlock out of combat (51.1)', () => {
 // The sheet variant (51.1 Plan 16, 51.1-UI-SPEC "Mobile Party Sheet"). The behaviours of the whole
 // sheet are in src/social/PartySheet.test.ts; these pin that the variant prop leaves the rail alone.
 describe('PartyBlock variants (51.1 Plan 16)', () => {
-  function mountVariant(variant: 'rail' | 'sheet' | undefined, group: boolean): VueWrapper {
+  function mountVariant(variant: 'rail' | 'sheet' | undefined, group: boolean, fighting = false): VueWrapper {
+    const base = createInertGame();
     const game = {
-      ...createInertGame(),
+      ...base,
+      combat: { ...base.combat, active: ref(fighting) },
       group: ref(group ? { id: 1n, leaderCharacterId: 1n } : null),
       groupMembers: ref(group ? [member(11n, 1n, 100n), member(12n, 3n, 200n)] : []),
       knownCharacters: ref(group ? [character(3n, 'Bo', { online: true, locationId: 10n })] : []),
@@ -1031,6 +1033,17 @@ describe('PartyBlock variants (51.1 Plan 16)', () => {
     const solo = mountVariant('sheet', false);
     expect(solo.text()).toContain("You're travelling alone.");
     expect(solo.text()).not.toContain('Not in a party.');
+  });
+
+  it('the sheet variant keeps its own recipe if a fight starts under it (no ally cards, no summary)', () => {
+    const w = mountVariant('sheet', true, true);
+    expect(w.find('.member-card.sheet').exists()).toBe(true);
+    expect(w.find('.member-target').exists()).toBe(false);
+    expect(w.find('.summary').exists()).toBe(false);
+    expect(w.find('.warning').exists()).toBe(false);
+    expect(w.find('.loot').exists()).toBe(false);
+    const rail = mountVariant('rail', true, true);
+    expect(rail.find('.member-target').exists()).toBe(true);
   });
 
   it('the source carries the solo copy', () => {
