@@ -1,6 +1,6 @@
 ---
 created: 2026-10-06T19:00:00Z
-title: Type out story text and cross-fade from login into the game
+title: Type out story text, cross-fade from login into the game, and animate map changes
 area: ui
 files:
   - src/console/FeedView.vue
@@ -9,6 +9,9 @@ files:
   - src/creation/CreationFeed.vue
   - src/App.vue
   - src/session/deriveScreen.ts
+  - src/map/GraphPlane.vue
+  - src/map/useMapGraph.ts
+  - src/map/knownPlaces.ts
 ---
 
 ## Problem
@@ -55,3 +58,26 @@ The goal, in the owner's words: gameplay should feel "smooth and relaxing versus
   - Screen-reader text is complete from the start.
   - The speed cap is enforced.
 - Design guards apply: no new tokens, and timings stay within the reduced-motion rules.
+
+## Added 2026-10-08: animate map changes after travel
+
+The owner, 2026-10-08: "When you travel to a location you have heard of, the map can drastically change as you see new pathways. This is fine, but it would be good to transition the map visually instead of just a stark change that happens instantly. It's so jarring." Same goal as above: smooth, not sharp.
+
+**What changes today.** Arriving at a heard-of place makes it visited (`knownPlaces.ts`). Its neighbours become heard of and its edges are revealed, and the graph re-lays out, so nodes jump to new positions in one frame (`GraphPlane.vue`, `useMapGraph.ts`).
+
+**Transition.**
+- Nodes that already existed glide from their old positions to their new ones (about 400–600 ms, ease-out). The view pans and zooms to keep you in frame over the same time.
+- The node you arrived at changes from the heard-of to the visited circle with a short cross-fade.
+- New heard-of nodes fade and scale in, and new edges draw in (stroke reveal or fade) just after the glide starts. Short stagger at most.
+- Nodes and edges that drop out (if any) fade out.
+- Only for a change caused by travel or a new reveal while the map is open. Opening the map, switching region or resizing renders instantly.
+- `prefers-reduced-motion`: no animation; the change is instant.
+- Selection, focus, keyboard navigation and screen-reader labels work during and after the transition. Labels describe the final state at once.
+- Guards: SVG only under `src/map/` (already the rule), tokens only, no new tokens.
+
+**Tests:**
+- Old positions are interpolated to new ones (pure tween helper, deterministic with a fake clock).
+- New nodes and edges start hidden and end visible.
+- Reduced motion jumps straight to the final layout.
+- Opening the map renders without animation.
+- Labels and focus are correct at the end.
