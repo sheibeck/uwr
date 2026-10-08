@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { healthPercent, isPartyLeader, partyMembers, partySize, selfCardView } from './party';
+import { healthPercent, isPartyLeader, lowStaminaFor, partyMembers, partySize, selfCardView } from './party';
 
 const at = (n: number) => ({ microsSinceUnixEpoch: BigInt(n) });
 
@@ -154,6 +154,72 @@ describe('selfCardView', () => {
 
   it('reads 0 percent for a max of 0', () => {
     expect(selfCardView(character(1n, { hp: 5n, maxHp: 0n }), false).healthPercent).toBe(0);
+  });
+});
+
+describe('partyMembers follow fields', () => {
+  const run = (
+    members: { id: bigint; characterId: bigint; joinedAt: { microsSinceUnixEpoch: bigint }; followLeader?: boolean }[],
+    characters: ReturnType<typeof character>[],
+  ) => partyMembers({ group: null, members, characters, selfId: 1n });
+
+  it('fills online and locationId from the character row and followLeader from the member row', () => {
+    const [a, b] = run(
+      [
+        { id: 10n, characterId: 2n, joinedAt: at(1), followLeader: false },
+        { id: 11n, characterId: 3n, joinedAt: at(2), followLeader: true },
+      ],
+      [character(2n, { online: true, locationId: 10n }), character(3n, { online: false, locationId: 11n })],
+    );
+    expect(a).toMatchObject({ online: true, followLeader: false, locationId: 10n });
+    expect(b).toMatchObject({ online: false, followLeader: true, locationId: 11n });
+  });
+
+  it('reads an online field that is not exactly true as offline', () => {
+    const [a, b, c] = run(
+      [
+        { id: 10n, characterId: 2n, joinedAt: at(1) },
+        { id: 11n, characterId: 3n, joinedAt: at(2) },
+        { id: 12n, characterId: 4n, joinedAt: at(3) },
+      ],
+      [character(2n), character(3n, { online: undefined }), character(4n, { online: null })],
+    );
+    expect([a.online, b.online, c.online]).toEqual([false, false, false]);
+  });
+
+  it('defaults followLeader to true when the member row has no such field, and locationId to null', () => {
+    const [a] = run([{ id: 10n, characterId: 2n, joinedAt: at(1) }], [character(2n)]);
+    expect(a).toMatchObject({ followLeader: true, locationId: null });
+  });
+
+  it('keeps an unknown member as offline, elsewhere and following by default', () => {
+    const [a] = run([{ id: 10n, characterId: 99n, joinedAt: at(1), followLeader: false }], []);
+    expect(a).toMatchObject({ known: false, online: false, locationId: null, followLeader: false });
+  });
+});
+
+describe('lowStaminaFor', () => {
+  const effect = (characterId: bigint, over: Record<string, unknown> = {}) => ({
+    characterId,
+    effectType: 'travel_discount',
+    roundsRemaining: 4n,
+    magnitude: 2n,
+    ...over,
+  });
+
+  it('is true below the within-region cost and false at it', () => {
+    expect(lowStaminaFor(character(1n, { stamina: 4n }), [])).toBe(true);
+    expect(lowStaminaFor(character(1n, { stamina: 5n }), [])).toBe(false);
+  });
+
+  it('honours only the own travel_discount effects', () => {
+    expect(lowStaminaFor(character(1n, { stamina: 3n }), [effect(1n)])).toBe(false);
+    expect(lowStaminaFor(character(1n, { stamina: 3n }), [effect(2n)])).toBe(true);
+  });
+
+  it('applies the racial increase and discount', () => {
+    expect(lowStaminaFor(character(1n, { stamina: 6n, racialTravelCostIncrease: 2n }), [])).toBe(true);
+    expect(lowStaminaFor(character(1n, { stamina: 2n, racialTravelCostDiscount: 3n }), [])).toBe(false);
   });
 });
 

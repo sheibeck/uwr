@@ -22,6 +22,12 @@ export interface PartyMemberView {
   /** False when the member has no readable character row (unknown or offline vitals). */
   known: boolean;
   healthPercent: number;
+  /** The character row's online flag; anything but a literal true (missing, unknown row) is false. */
+  online: boolean;
+  /** The member row's "Travel with leader" setting (true when the row does not carry it). */
+  followLeader: boolean;
+  /** Where the member stands; null when their character row is unknown. */
+  locationId: bigint | null;
 }
 
 /** Whole-number health percent, clamped 0 to 100; 0 when max is not positive. */
@@ -68,10 +74,35 @@ function withinRegionCost(
   });
 }
 
+type EffectRow = {
+  characterId: bigint;
+  effectType: string;
+  roundsRemaining: bigint;
+  magnitude: bigint | number;
+};
+
+/** Stamina below the character's own within-region travel cost (their own travel_discount effects only). */
+export function lowStaminaFor(
+  character: {
+    id: bigint;
+    stamina: bigint;
+    racialTravelCostIncrease?: bigint | null;
+    racialTravelCostDiscount?: bigint | null;
+  },
+  effects: readonly EffectRow[],
+): boolean {
+  return character.stamina < withinRegionCost(character, effects);
+}
+
 /** Every member except the player: leader first, then by join order, ties by member id. */
 export function partyMembers(input: {
   group: { leaderCharacterId: bigint } | null;
-  members: readonly { id: bigint; characterId: bigint; joinedAt: { microsSinceUnixEpoch: bigint } }[];
+  members: readonly {
+    id: bigint;
+    characterId: bigint;
+    joinedAt: { microsSinceUnixEpoch: bigint };
+    followLeader?: boolean;
+  }[];
   characters: readonly {
     id: bigint;
     name: string;
@@ -85,6 +116,8 @@ export function partyMembers(input: {
     maxStamina: bigint;
     racialTravelCostIncrease?: bigint | null;
     racialTravelCostDiscount?: bigint | null;
+    online?: boolean | null;
+    locationId?: bigint | null;
   }[];
   selfId: bigint | null;
   /** The party's active effect rows (game.effects); only a member's own rows lower that member's cost. */
@@ -131,6 +164,9 @@ export function partyMembers(input: {
         isLeader,
         known: false,
         healthPercent: 0,
+        online: false,
+        followLeader: member.followLeader ?? true,
+        locationId: null,
       };
     }
     const usesMana = c.maxMana > 0n;
@@ -146,10 +182,13 @@ export function partyMembers(input: {
       resourceKind: usesMana ? 'mana' : 'stamina',
       stamina: c.stamina,
       maxStamina: c.maxStamina,
-      lowStamina: c.stamina < withinRegionCost(c, effects),
+      lowStamina: lowStaminaFor(c, effects),
       isLeader,
       known: true,
       healthPercent: healthPercent(c.hp, c.maxHp),
+      online: c.online === true,
+      followLeader: member.followLeader ?? true,
+      locationId: c.locationId ?? null,
     };
   });
 }
@@ -169,6 +208,8 @@ export function selfCardView(
     maxMana: bigint;
     stamina: bigint;
     maxStamina: bigint;
+    online?: boolean | null;
+    locationId?: bigint | null;
   },
   isLeader: boolean,
 ): PartyMemberView {
@@ -189,5 +230,8 @@ export function selfCardView(
     isLeader,
     known: true,
     healthPercent: healthPercent(character.hp, character.maxHp),
+    online: character.online === true,
+    followLeader: true,
+    locationId: character.locationId ?? null,
   };
 }
