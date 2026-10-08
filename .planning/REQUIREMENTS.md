@@ -101,8 +101,8 @@ Deferred. Tracked, not in this roadmap.
 
 - **ADM-01**: Admin "Keeper's Desk" screens (live events, event catalog, GM tools, Keeper monitor, server health), from `UWR Admin Screens.dc.html`
 - **LDG-F1**: The Keeper's-assessment flavor text on the Stats screen (an LLM call per view)
-- **COMB-05**: Enemy DoT/HoT/debuff indicators (backlog 999.1)
-- **UX-01–03, COMB-08**: Global font scale and group readability (backlog 999.5)
+- ~~**COMB-05**: Enemy DoT/HoT/debuff indicators (backlog 999.1)~~ Dropped 2026-10-08 (owner removed 999.1; effect chips on enemies are Phase 51.4).
+- ~~**UX-01–03, COMB-08**: Global font scale and group readability (backlog 999.5)~~ Dropped 2026-10-08 (owner removed 999.5).
 - Enemy cast bar and cast times in ability descriptions (pending todos 2026-03-09)
 - **QUAL-02**: Live end-to-end verification, Console reconciliation and the maincloud run (owner manual items)
 

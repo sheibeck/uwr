@@ -219,7 +219,6 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-07-combat-mock-effect-chips-update.md`: updated `UWR Combat.dc.html` changes the effect chips for players and enemies. Fold into Phase 51.4 (same design file as the loot rails).
 
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
-- `todos/pending/2026-10-08-non-combat-utility-abilities.md`: audit and wire the non-combat ability kinds (travel, craft and gather boosts, utility) and add invisibility and lull (owner idea; ties to 51.3.1, 51.3, 51.5).
 
 - `todos/pending/2026-10-08-travel-with-leader-moves-to-the-self-menu.md`: the desktop Travel with leader switch moves into the self ⋯/right-click menu, with a follow icon beside your name (owner, after 51.1).
 
@@ -278,8 +277,8 @@ Items acknowledged and deferred at milestone close on 2026-09-29:
 
 | Category | Item | Status |
 |----------|------|--------|
-| verification | Phase 999.1 (was 33): 33-VERIFICATION.md | human_needed (parked phase) |
-| uat | Phase 999.2 (was 34): 34-UAT.md | testing, 12 pending scenarios (parked phase) |
+| verification | Phase 999.1 (was 33): 33-VERIFICATION.md | dropped 2026-10-08 (owner removed 999.1) |
+| uat | Phase 999.2 (was 34): 34-UAT.md | dropped 2026-10-08 (owner removed 999.2) |
 | debug | slam-cooldown-delay-new-warrior | resolved-archived |
 | quick_task | Historical quick tasks 1-405 (404 flagged) | legacy format with no status field, not actually open |
 | todo | 5 pending todos (2 are LLM milestone seeds) | carried forward |
@@ -344,7 +343,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 
 - **Run:** `/gsd-autonomous` for v3.0, owner awake and active. Resume with `/gsd-autonomous --from 51.1`.
   - Done in code (human_needed, UAT deferred to one end-of-milestone pass): 45, 46, 47, 46.1, 48, 49, 50 (incl. the 50-28..50-40 follow-up), **51** (13 plans incl. 51-12 two-dimensional map layout and 51-13 no List view; 51-VERIFICATION 13/14).
-  - **v3.0 order now (owner, 2026-10-08, supersedes the line below):** 51.3 Regional Economy → 51.3.1 Combat Dials → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events (was 51.6) → 53 Parity and Production (was 52, now last).
+  - **v3.0 order now (owner, 2026-10-08, supersedes the line below):** 51.3 Regional Economy → 51.3.1 Combat Dials → 51.3.2 Combat Wind-Up, Cooldowns and Durations (was backlog 999.17) → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events (was 51.6) → 53 Parity and Production (was 52, now last).
   - **Earlier order (owner, 2026-10-07):** 51.1 Party → 51.3 Regional Economy → 51.4 Loot Rails (+ new effect chips) → 51.5 Character, Level Up and New Skill → 51.6 World Events (was 51.2) → 51.7 Log → 52 Parity and Production → 52.1 Bank, Trade and Hotbar Manager → 52.2 Social and Guilds. Then the end-of-milestone UAT and golden run, audit, complete, cleanup. 51.2 is unused.
   - Backlog 999.26 (world structure) is the next milestone.
 - **Next step: Phase 51.1 Party** (slimmed: online status with offline members left behind in travel and fights, pets and travel-with-leader in the party block, invite expiry and cancel, role-aware ⋯ and right-click menus, private `user`, CR-01 login fix as its own last plan with an owner sign-in check after the local publish).

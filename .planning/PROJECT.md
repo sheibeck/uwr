@@ -81,10 +81,10 @@ A world that writes itself around its players — every character is unique, eve
 
 ### Parked (Backlog 999.1-999.5, on hold while core concepts are re-imagined)
 
-- [ ] Enemy HUD DoT/HoT/debuff indicators (COMB-05) — 999.1
-- [ ] Hotbar inline in narrative combat HUD (NARR-03) — 999.2
+- [x] ~~Enemy HUD DoT/HoT/debuff indicators (COMB-05) — 999.1~~ Dropped 2026-10-08 (owner)
+- [x] ~~Hotbar inline in narrative combat HUD (NARR-03) — 999.2~~ Dropped 2026-10-08 (owner)
 - [ ] Dynamic equipment generation (EQUIP-01–05) — 999.3
-- [ ] Global font scale and group info readability (UX-01–03, COMB-08) — 999.5
+- [x] ~~Global font scale and group info readability (UX-01–03, COMB-08) — 999.5~~ Dropped 2026-10-08 (owner)
 
 ### Out of Scope
 

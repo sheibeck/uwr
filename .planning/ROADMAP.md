@@ -41,7 +41,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full details.
 - [x] Phase 32: Dead Code Removal (3/3 plans) -- completed 2026-03-09
 - [x] Phase 38: Platform Upgrade (8/8 plans) -- completed 2026-09-29
 
-Phases 33-37 parked in the Backlog as 999.1-999.5. See `.planning/milestones/v2.1-ROADMAP.md` for full details.
+Phases 33-37 parked in the Backlog as 999.1-999.5 (999.1, 999.2 and 999.5 removed by the owner on 2026-10-08; 999.3 folded into 999.12). See `.planning/milestones/v2.1-ROADMAP.md` for full details.
 
 </details>
 
@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.4 and 51.5 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.2, 51.4 and 51.5 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -86,6 +86,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
 - [ ] **Phase 51.3.1: Combat Dials** (INSERTED) - Admin dials that make combat harder or easier by difficulty level, region and enemy type, beside the economy dials
+- [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
 - [ ] **Phase 52.1: Hotbar Manager** (INSERTED) - The designed Hotbar Manager: assign abilities to slots and manage hotbars
@@ -771,6 +772,28 @@ Plans:
 
 - [ ] TBD (run /gsd-plan-phase 51.3.1 to break down)
 
+### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
+
+**Goal**: An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, and cooldowns and effect durations use the same seconds-to-rounds rule. A player can cancel a wind-up from the ability's hotbar slot.
+**Depends on**: Phase 51.3.1 (Combat Dials), Phase 46.1 (round engine), Phase 48 (hotbar and round row)
+**Requirements**: TBD (owner promotion of backlog 999.17, 2026-10-08)
+**Success Criteria** (what must be TRUE):
+
+  1. One shared seconds-to-rounds rule (`ceil(seconds / 2)`, per the agreed design) decides cast rounds, cooldown rounds and effect durations for players and enemies; seconds stay the stored and authored values, and rounds are only derived at combat time.
+  2. A player wind-up lasts its cast rounds, shows "You begin casting X." / "You continue casting X." (or "You focus on X.") / "You use X on Y.", counts as the round's choice, and lands with a wind-up bonus; cost and cooldown start only when it goes off.
+  3. The hotbar slot shows a winding-up state with a rounds badge and toggles cancel during the decision window (a second press resumes with no progress lost); the round row chip is the fallback when the ability is not on the active hotbar; enemies never cancel.
+  4. Effects end after their final tick in their final round, and cooldowns and effects running at fight start and end convert exactly both ways.
+  5. Tests cover the bucket table, landing rounds, feed lines, the wind-up bonus with a balance check at several levels, cancel and resume, stun interrupts, retarget or fizzle, cooldown start, enemy parity, conversions, and the slot state and label.
+
+**Plans**: TBD
+**UI hint**: yes (hotbar slot state; no new screen)
+**Notes**:
+
+  - Promoted from backlog 999.17 on 2026-10-08 (owner): "Promote 999.17 to the roadmap an put it just after 51.3.1 Combat Dials." The full agreed design, the owner decisions (cooldowns and durations follow the cast rule, seconds stay the source of truth, "The 10s is NOT how long a round lasts") and the required test list are in the 999.17 entry.
+  - Schema: the 999.17 note about a local `--clear-database` publish is superseded by the current rule. Additive tables or defaulted columns only, never a clear (it wipes the stored Anthropic key).
+  - Coordinate with 51.3.1: the combat dials and the wind-up bonus both change ability output, so they share one place in the combat math.
+  - Its folder was `999.17-combat-round-wind-up-for-cast-times-with-hotbar-slot-cancel`; it is now `51.3.2-combat-wind-up-cooldowns-and-durations`.
+
 ### Phase 51.4: Loot Rails (INSERTED)
 
 **Goal**: After a kill, players see what dropped and take it through the designed loot rails.
@@ -987,6 +1010,7 @@ Plans:
 | 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.1. Party | v3.0 | 0/TBD | Not started | - |
 | 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
+| 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
 | 52.1. Hotbar Manager | v3.0 | 0/TBD | Not started | - |
@@ -998,60 +1022,6 @@ Plans:
 | 53. Parity and Production | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
-
-### Phase 999.1: Combat Improvements (BACKLOG)
-
-**Parked:** 2026-09-29 from v2.1 Phase 33 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.1-*/` (files retain their original `33-` prefixes).
-**State when parked:** all 5 plans' code landed; 33-03 (enemy HUD effect tags, commit 4dacfd1b) has no SUMMARY; 33-VERIFICATION.md is `human_needed` and predates gap plans 33-04/33-05 — needs 33-03 reconcile + re-verification
-
-**Goal**: Players see complete, informative combat feedback and encounter balanced difficulty
-**Originally depended on**: Phase 31 (combat tests enable safe rebalancing), Phase 32 (clean codebase) (backlog items are unsequenced)
-**Requirements**: COMB-01, COMB-02, COMB-03, COMB-04, COMB-05, COMB-06, COMB-07
-**Success Criteria** (what must be TRUE):
-
-  1. Player sees per-tick damage/healing entries in the combat log with effect name and amount for every DoT and HoT
-  2. Player sees buff/debuff application and expiration entries in the combat log with stat, magnitude, and duration
-  3. Enemy HUD shows active DoT, HoT, and debuff icons with remaining duration countdown
-  4. Player can engage multiple enemy groups simultaneously without combat state corruption
-  5. Damage and healing constants are tuned and validated by passing test assertions
-
-**Plans**: 5 plans
-
-Plans:
-
-- [ ] 33-01-PLAN.md -- Combat log narrative messages, buff/debuff lifecycle events, balance tuning
-- [ ] 33-02-PLAN.md -- Multi-enemy pull fixes, remove puller role restriction
-- [ ] 33-03-PLAN.md -- Enemy HUD effect indicators with color coding and duration countdown
-- [ ] 33-04-PLAN.md -- Gap closure: fix CREATION_ABILITY_SCHEMA field mismatch (effect -> kind)
-- [ ] 33-05-PLAN.md -- Gap closure: enable mid-combat pull via narrative enemy clicks
-
-Promote with /gsd-review-backlog when ready.
-
-### Phase 999.2: Narrative UI Integration (BACKLOG)
-
-**Parked:** 2026-09-29 from v2.1 Phase 34 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.2-*/` (files retain their original `34-` prefixes).
-**State when parked:** 34-01 and 34-02 summarized; 34-03 code landed (commits 0e809ea4, dcbaad24, e041231a, d29430ba, eb05ef49) without a SUMMARY; no CONTEXT.md; 34-UAT.md never run — needs 34-03 reconcile + verification
-
-**Goal**: Players can sell items, manage multiple named hotbars, and use abilities outside combat entirely through the narrative console with styled event feedback
-**Originally depended on**: Phase 32 (dead code removed, shared helpers exist) (backlog items are unsequenced)
-**Requirements**: NARR-01, NARR-02, NARR-03, NARR-04, NARR-05
-**Success Criteria** (what must be TRUE):
-
-  1. Player can type `sell <item>` and the item is sold with correct gold calculation including perk bonuses
-  2. Player can type `sell all junk` or `sell 3 <item>` for bulk sales with a summary of what was sold
-  3. Hotbar is visible at all times (not just combat) showing ability slots with cooldown timers
-  4. Player can create multiple named hotbars, switch between them with arrows, and manage slots via commands
-  5. Event feed entries are color-coded by kind (combat=red, reward=gold, system=gray, social=blue)
-
-**Plans**: 3 plans
-
-Plans:
-
-- [ ] 34-01-PLAN.md -- Fix sell perk bonus, add sell all junk and sell N commands, complete event colors
-- [ ] 34-02-PLAN.md -- Hotbar schema (Hotbar parent table), server reducers, intent commands
-- [ ] 34-03-PLAN.md -- Persistent hotbar UI, multi-hotbar navigation, remove bottom action bar
-
-Promote with /gsd-review-backlog when ready.
 
 ### Phase 999.3: Dynamic Equipment Generation (BACKLOG)
 
@@ -1111,27 +1081,27 @@ Plans:
 - [ ] 36-04-PLAN.md -- Renown perks as dynamic abilities, PendingRenownPerk table, LLM perk generation flow
 - [ ] 36-05-PLAN.md -- Client-side renown perk choice UI (header notification, perk selection in console)
 
-Promote with /gsd-review-backlog when ready.
+**Merged in 2026-10-08 (owner): non-combat utility abilities.** The todo `2026-10-08-non-combat-utility-abilities.md` was folded into this item and deleted.
 
-### Phase 999.5: UX Polish (BACKLOG)
+#### Problem
 
-**Parked:** 2026-09-29 from v2.1 Phase 37 — on hold while core project concepts are re-imagined. Artifacts kept in `.planning/phases/999.5-*/` (files retain their original `37-` prefixes).
-**State when parked:** not started (no context, research or plans)
+The owner wants abilities that are not just for combat (2026-10-08): "abilities that improve crafting, travel or travel speed, invisibility, lull, gathering, etc. Utility spells that aren't just for combat."
 
-**Goal**: Players can customize text size for comfortable reading across all UI elements
-**Originally depended on**: Nothing (independent of other phases) (backlog items are unsequenced)
-**Requirements**: UX-01, UX-02, UX-03, COMB-08
-**Success Criteria** (what must be TRUE):
+The mechanical vocabulary already lists the kinds `utility` (out-of-combat only), `travel` (movement speed boost or location reveal), `craft_boost` (next crafting quality), `gather_boost` (next gathering yield), plus travel cost effects (`travel_cost_increase`, `travel_cost_discount`). Each has a power budget in `skill_budget.ts`. It is not known whether skill generation offers them, whether casting them out of combat works end to end, or whether any system reads their effects:
+- travel speed against the cross-region travel timer
+- crafting quality
+- gathering yield
 
-  1. Player can increase and decrease the global font size of the entire application
-  2. Font size preference persists across browser sessions via localStorage
-  3. Group info panel text is sized for readability at all font scale settings
+There are no kinds for invisibility or stealth (avoid aggro or pulls) or lull (calm an enemy or reduce the chance of adds).
 
-**Plans**: TBD
+#### Approach
 
-Plans:
+TBD. Start with an audit:
+1. For each existing non-combat kind, check whether it is generated, castable out of combat, and wired to the system it should affect.
+2. Fix the gaps.
+3. Then add new kinds (invisibility or stealth, lull) through the mechanical vocabulary with budgets, server rules and tests.
 
-- [ ] 37-01: TBD
+This ties into 51.3.1 Combat Dials (lull and invisibility interact with pull size and aggro), Phase 51.3 (gather and craft rates read the economy dials) and Phase 51.5 (new skill flow). Any new or changed generation prompt wording needs the owner's approval.
 
 Promote with /gsd-review-backlog when ready.
 
@@ -1781,7 +1751,9 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.17: Combat round wind-up for cast times, with cancel on the hotbar slot (BACKLOG)
+### Phase 999.17: Combat round wind-up for cast times, with cancel on the hotbar slot (PULLED INTO PHASE 51.3.2)
+
+**Status (owner, 2026-10-08):** promoted to Phase 51.3.2, right after 51.3.1 Combat Dials. Plan and build it there; this entry stays as the design record.
 
 **Goal:** An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, under one rule. Between rounds the feed shows the cast in progress ("You continue casting X." / "You focus on X."). A player can cancel a wind-up from the ability's own hotbar slot during any round's decision window, then pick a new action for that round. Captured 2026-10-06 (owner decision, design agreed in conversation).
 
@@ -1890,7 +1862,6 @@ Decide and test all of the following:
   - the slot state and accessible label
   - the chip fallback when the casting ability is not on the active hotbar
 - **Related:**
-  - 999.1 (combat balance tuning)
   - 999.4 (ability expansion; longer casts would use the 5–6s+ rows)
 
 **Requirements:** TBD
@@ -2248,4 +2219,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after splitting Hotbar Manager, Bank and Trade into 52.1, 52.1.1 and 52.1.2, and moving Log (52.3), World Events (52.4) and Parity and Production (53) to the end (owner)*
+*Last updated: 2026-10-08 after removing backlog 999.1, 999.2 and 999.5, merging the utility-abilities todo into 999.4, and promoting 999.17 to Phase 51.3.2 (owner)*
