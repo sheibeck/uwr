@@ -110,6 +110,8 @@ function combatGame(names: Names): { game: GameData; reducers: Reducers } {
   const character = {
     id: CHARACTER_ID,
     name: 'Brannoch',
+    // The self block menu (51.1-13) reads your race.
+    race: 'Human',
     className: 'Wizard',
     level: 3n,
     xp: 318n,

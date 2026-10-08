@@ -79,7 +79,8 @@ function fakeGame(over: Record<string, unknown> = {}): { game: GameData; moveCha
   const game = {
     ...createInertGame(),
     connected: ref(true),
-    character: ref({ id: 1n, name: 'Brannoch', locationId: 10n, level: 6n }),
+    // The self block menu (51.1-13) reads your race and class in a party.
+    character: ref({ id: 1n, name: 'Brannoch', race: 'Human', className: 'Wizard', locationId: 10n, level: 6n }),
     characterId: ref(1n),
     locations: ref([
       { id: 10n, name: 'Ember Gate', description: '', regionId: 1n, isSafe: false, levelOffset: 0n, terrainType: 'town', bindStone: false, craftingAvailable: false },

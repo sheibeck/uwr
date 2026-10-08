@@ -568,7 +568,8 @@ describe('VitalsRail self block (51.1)', () => {
     expect(opener.attributes('aria-haspopup')).toBe('menu');
     expect(w.get('.identity').classes()).toContain('reserve');
     expect(w.findAll('button button')).toHaveLength(0);
-    expect(childClasses(block.element)).toEqual(['identity', 'bars', 'self-menu', 'pet-row']);
+    expect(childClasses(block.element)).toEqual(['identity', 'bars', 'player-menu', 'pet-row']);
+    expect(block.get('.player-menu').classes()).toContain('self-menu');
     const rail = childClasses(w.get('aside.vitals-rail').element);
     expect(rail.slice(0, 3)).toEqual(['self-block', 'travel-switch', 'hr']);
     expect(w.get('.travel-switch').attributes('role')).toBe('switch');

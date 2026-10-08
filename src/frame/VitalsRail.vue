@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, shallowRef, watch } from 'vue';
+import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { PhCrownSimple } from '@phosphor-icons/vue';
 import { useDamageFlash } from '../combat/useDamageFlash';
 import { GAME_KEY, createInertGame } from '../game/context';
@@ -8,6 +8,10 @@ import PartyBlock from '../rails/PartyBlock.vue';
 import { effectViews } from '../rails/effects';
 import { isPartyLeader } from '../rails/party';
 import { xpProgress } from '../rails/xp';
+import PetRow from '../social/PetRow.vue';
+import PlayerMenu from '../social/PlayerMenu.vue';
+import TravelSwitch from '../social/TravelSwitch.vue';
+import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
 import { barFraction, vitalText } from './vitals';
 
 const props = defineProps<{
@@ -32,6 +36,35 @@ const xp = computed(() => {
 });
 const effects = computed(() => effectViews(game.effects.value, game.characterId.value, game.inCombat.value));
 const leader = computed(() => isPartyLeader(game.group.value, game.characterId.value));
+
+const social = inject(SOCIAL_KEY, createInertSocial());
+const railEl = ref<HTMLElement | null>(null);
+const selfMenu = ref<InstanceType<typeof PlayerMenu> | null>(null);
+
+// The self block (51.1-UI-SPEC "Vitals Rail Self Block", out of combat): in a party with at least one
+// other member a ⋯ 'Actions for yourself' sits at the block's top right and the identity row reserves
+// 32px for it. Solo (or alone in a group waiting on its invites) your menu is empty, so there is none.
+const selfId = computed(() => game.characterId.value);
+const selfMenuShown = computed(() => {
+  const group = game.group.value;
+  if (group === null || selfId.value === null) return false;
+  return game.groupMembers.value.filter((row) => row.groupId === group.id).length > 1;
+});
+
+// Your pet (one per character), inside the self block after your chips, solo too.
+const myPet = computed(() => (selfId.value === null ? null : social.petOf(selfId.value)));
+
+// Right-click on the identity row opens the self menu (the rail is desktop only).
+function onSelfContextMenu(event: MouseEvent): void {
+  if (!selfMenuShown.value || selfMenu.value === null) return;
+  event.preventDefault();
+  selfMenu.value.open('first');
+}
+
+// After Leave party (or being removed) the self ⋯ goes away: focus moves to the Party heading.
+function partyHeading(): HTMLElement | null {
+  return railEl.value?.querySelector<HTMLElement>('.party h6') ?? null;
+}
 
 // HP damage flash (48-UI-SPEC "Damage flash", CMB-05, A19): the active character's own HP bar only,
 // in or out of combat. The flash key is the character id, latched so it only moves together with the
@@ -58,64 +91,79 @@ const bars = computed(() => [
 </script>
 
 <template>
-  <aside class="vitals-rail" aria-label="Vitals">
-    <div class="identity">
-      <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
-      <div class="identity-text">
-        <div class="name-row">
-          <div class="name" :title="props.name">{{ props.name }}</div>
-          <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+  <aside ref="railEl" class="vitals-rail" aria-label="Vitals">
+    <div class="self-block">
+      <div class="identity" :class="{ reserve: selfMenuShown }" @contextmenu="onSelfContextMenu">
+        <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
+        <div class="identity-text">
+          <div class="name-row">
+            <div class="name" :title="props.name">{{ props.name }}</div>
+            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+          </div>
+          <div class="class-line">{{ props.classLine }}</div>
         </div>
-        <div class="class-line">{{ props.classLine }}</div>
       </div>
-    </div>
 
-    <div class="bars">
-      <div v-for="bar in bars" :key="bar.key" class="bar" :class="bar.key === 'health' ? flashClass : null">
-        <div class="bar-row">
-          <span class="label">{{ bar.label }}</span>
-          <span class="readout">
-            <span class="value">{{ vitalText(bar.value, bar.max) }}</span>
-            <span v-if="bar.key === 'health' && flashDelta !== null" class="delta" aria-hidden="true">−{{ flashDelta }}</span>
-          </span>
-        </div>
-        <div
-          class="track"
-          role="progressbar"
-          :aria-label="bar.label"
-          aria-valuemin="0"
-          :aria-valuenow="Number(bar.value)"
-          :aria-valuemax="Number(bar.max)"
-        >
-          <div class="fill" :class="`fill-${bar.key}`" :style="{ width: `${barFraction(bar.value, bar.max) * 100}%` }"></div>
+      <div class="bars">
+        <div v-for="bar in bars" :key="bar.key" class="bar" :class="bar.key === 'health' ? flashClass : null">
+          <div class="bar-row">
+            <span class="label">{{ bar.label }}</span>
+            <span class="readout">
+              <span class="value">{{ vitalText(bar.value, bar.max) }}</span>
+              <span v-if="bar.key === 'health' && flashDelta !== null" class="delta" aria-hidden="true">−{{ flashDelta }}</span>
+            </span>
+          </div>
           <div
-            v-if="bar.key === 'health' && flashGhost"
-            class="ghost"
-            aria-hidden="true"
-            :style="{ left: flashGhost.left, width: flashGhost.width }"
-          ></div>
+            class="track"
+            role="progressbar"
+            :aria-label="bar.label"
+            aria-valuemin="0"
+            :aria-valuenow="Number(bar.value)"
+            :aria-valuemax="Number(bar.max)"
+          >
+            <div class="fill" :class="`fill-${bar.key}`" :style="{ width: `${barFraction(bar.value, bar.max) * 100}%` }"></div>
+            <div
+              v-if="bar.key === 'health' && flashGhost"
+              class="ghost"
+              aria-hidden="true"
+              :style="{ left: flashGhost.left, width: flashGhost.width }"
+            ></div>
+          </div>
         </div>
+
+        <div class="xp-row">
+          <div class="bar-row">
+            <span class="xp-label">XP</span>
+            <span class="xp-value">{{ xp.text }}</span>
+          </div>
+          <div
+            class="xp-track"
+            role="progressbar"
+            aria-label="Experience"
+            aria-valuemin="0"
+            :aria-valuenow="xp.value"
+            :aria-valuemax="xp.need"
+          >
+            <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
+          </div>
+        </div>
+
+        <EffectChips :effects="effects" />
       </div>
 
-      <div class="xp-row">
-        <div class="bar-row">
-          <span class="xp-label">XP</span>
-          <span class="xp-value">{{ xp.text }}</span>
-        </div>
-        <div
-          class="xp-track"
-          role="progressbar"
-          aria-label="Experience"
-          aria-valuemin="0"
-          :aria-valuenow="xp.value"
-          :aria-valuemax="xp.need"
-        >
-          <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
-        </div>
-      </div>
-
-      <EffectChips :effects="effects" />
+      <PlayerMenu
+        v-if="selfMenuShown && selfId !== null"
+        ref="selfMenu"
+        class="self-menu"
+        :target-id="selfId"
+        side="right"
+        size="rail"
+        :fallback-focus="partyHeading"
+      />
+      <PetRow v-if="myPet !== null" :pet="myPet" :owner-name="null" :seconds-left="social.petSecondsLeft(myPet)" />
     </div>
+
+    <TravelSwitch variant="rail" />
 
     <div class="hr" role="separator"></div>
 
@@ -136,10 +184,40 @@ const bars = computed(() => [
   background: color-mix(in srgb, var(--color-surface) 30%, transparent);
 }
 
+/* The self block: identity, bars, XP, chips and your pet. The 51.1 contract draws it 8px outside its
+   content (padding 8 with margin -8); the design contract bans negative spacing, so the outset is
+   this positioned pseudo-element (the StepBar pattern) and carries the block's background states. */
+.self-block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: var(--radius-md);
+}
+
+.self-block::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: var(--radius-md);
+  pointer-events: none;
+}
+
+/* Self ⋯ (UI-SPEC Exceptions): the top right of the block, a sibling of the identity row. */
+.self-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
 .identity {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.identity.reserve {
+  padding-right: 32px;
 }
 
 .avatar {
