@@ -94,7 +94,7 @@ describe('creature lines', () => {
         const line = creatureLine({ plural: 'skitterers', singular: 'skitterer', temperament, level, place: 'the pans' });
         expect(line.length).toBeGreaterThan(0);
         expect(line[0]).toBe(line[0]!.toUpperCase());
-        expect(line.includes('skitterer')).toBe(true);
+        expect(line.toLowerCase().includes('skitterer')).toBe(true);
         expect(line.includes('the pans')).toBe(true);
         expect(line).not.toMatch(/[{}]/);
       }
