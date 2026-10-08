@@ -9,6 +9,9 @@ import {
   comesAlongWithLeader,
   inviteExpiresAtMicros,
   isInviteExpired,
+  successorOrder,
+  GROUP_REINVITE_COOLDOWN_MICROS,
+  reinviteWaitRunning,
 } from './group_config';
 
 describe('group_config constants', () => {
@@ -60,5 +63,32 @@ describe('group_config module shape', () => {
   it('imports nothing (the browser imports it through @game-data)', () => {
     const source = readFileSync(fileURLToPath(new URL('./group_config.ts', import.meta.url)), 'utf8');
     expect(source).not.toMatch(/^\s*import\s/m);
+  });
+});
+
+describe('successorOrder (code review WR-04)', () => {
+  const c = (memberId: bigint, joinedAtMicros: bigint, online: boolean) => ({ memberId, joinedAtMicros, online });
+  const first = (list: ReturnType<typeof c>[]) => [...list].sort(successorOrder)[0].memberId;
+
+  it('puts an online member before an earlier offline one', () => {
+    expect(first([c(2n, 1n, false), c(3n, 2n, true)])).toBe(3n);
+  });
+
+  it('then the earliest joinedAt, then the lowest member id', () => {
+    expect(first([c(3n, 2n, true), c(2n, 5n, true)])).toBe(3n);
+    expect(first([c(3n, 2n, true), c(2n, 2n, true)])).toBe(2n);
+    expect(first([c(3n, 2n, false), c(2n, 4n, false)])).toBe(3n);
+  });
+
+  it('is zero only for the same candidate', () => {
+    expect(successorOrder(c(1n, 1n, true), c(1n, 1n, true))).toBe(0);
+  });
+});
+
+describe('re-invite wait (code review WR-02)', () => {
+  it('is 30 seconds and runs until exactly its end', () => {
+    expect(GROUP_REINVITE_COOLDOWN_MICROS).toBe(30_000_000n);
+    expect(reinviteWaitRunning(100n, 99n)).toBe(true);
+    expect(reinviteWaitRunning(100n, 100n)).toBe(false);
   });
 });

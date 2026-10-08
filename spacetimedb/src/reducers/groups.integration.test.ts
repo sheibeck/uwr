@@ -669,3 +669,56 @@ describe('invite spam guard (code review WR-02)', () => {
     expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(1);
   });
 });
+
+describe('one successor rule for leave, camp and delete; online members first (code review WR-04)', () => {
+  /**
+   * Ann (1) leads and pulls group 5. Bram (2) joined first, Cole (3) second, Dena (4) third.
+   * `offline` lists who is offline.
+   */
+  const four = (offline: bigint[]): Seed => ({
+    chars: {
+      1: { groupId: 5n },
+      2: { groupId: 5n, online: !offline.includes(2n) },
+      3: { groupId: 5n, online: !offline.includes(3n) },
+      4: { groupId: 5n, online: !offline.includes(4n) },
+    },
+    groups: [{ id: 5n, leader: 1n }],
+    members: [
+      { id: 1n, groupId: 5n, characterId: 1n, role: 'leader', joinedAt: T0 },
+      { id: 2n, groupId: 5n, characterId: 2n, joinedAt: T0 + 1n },
+      { id: 3n, groupId: 5n, characterId: 3n, joinedAt: T0 + 2n },
+      { id: 4n, groupId: 5n, characterId: 4n, joinedAt: T0 + 3n },
+    ],
+  });
+  const leader = (ctx: any) => tableRows(ctx, 'group')[0];
+
+  const PATHS = [
+    ['leave_group', (ctx: any) => call(ctx, 'leave_group', 1n, {})],
+    ['camp (clear_active_character)', (ctx: any) => call(ctx, 'clear_active_character', 1n, {})],
+    ['delete_character', (ctx: any) => call(ctx, 'delete_character', 1n, {})],
+  ] as const;
+
+  for (const [label, leave] of PATHS) {
+    it(`${label}: an offline earliest joiner is passed over for the next online member`, () => {
+      const ctx = newCtx(four([2n]));
+      leave(ctx);
+      expect(leader(ctx).leaderCharacterId).toBe(3n);
+      expect(leader(ctx).pullerCharacterId).toBe(3n);
+      expect(membersOf(ctx, 5n).find((m) => m.characterId === 3n).role).toBe('leader');
+      expect(tableRows(ctx, 'event_group').map((e) => e.message)).toContain('Cole is now the group leader.');
+    });
+
+    it(`${label}: with everyone online the earliest joiner leads`, () => {
+      const ctx = newCtx(four([]));
+      leave(ctx);
+      expect(leader(ctx).leaderCharacterId).toBe(2n);
+      expect(leader(ctx).pullerCharacterId).toBe(2n);
+    });
+
+    it(`${label}: with everyone else offline the earliest joiner still leads`, () => {
+      const ctx = newCtx(four([2n, 3n, 4n]));
+      leave(ctx);
+      expect(leader(ctx).leaderCharacterId).toBe(2n);
+    });
+  }
+});

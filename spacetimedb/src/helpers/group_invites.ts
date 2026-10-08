@@ -8,8 +8,10 @@ import {
   inviteExpiresAtMicros,
   isInviteExpired,
   reinviteWaitRunning,
+  successorOrder,
+  type SuccessorCandidate,
 } from '../data/group_config';
-import { appendPrivateEvent } from './events';
+import { appendGroupEvent, appendPrivateEvent } from './events';
 
 export type InviteEnd = 'expired' | 'cancelled' | 'declined';
 
@@ -118,20 +120,50 @@ export function dissolveLoneGroup(ctx: any, groupId: bigint): boolean {
 }
 
 /**
- * Who leads after `leavingCharacterId` goes: the remaining member with the earliest joinedAt,
- * then the lowest member row id. Null when nobody else is left.
+ * Who leads after `leavingCharacterId` goes (successorOrder in data/group_config.ts, WR-04): an
+ * online member first, then the earliest joinedAt, then the lowest member row id. Null when nobody
+ * else is left.
  */
 export function nextLeaderAfter(ctx: any, groupId: bigint, leavingCharacterId: bigint): any | null {
-  const joined = (m: any): bigint => m.joinedAt?.microsSinceUnixEpoch ?? 0n;
+  const candidate = (m: any): SuccessorCandidate => ({
+    online: ctx.db.character.id.find(m.characterId)?.online === true,
+    joinedAtMicros: m.joinedAt?.microsSinceUnixEpoch ?? 0n,
+    memberId: m.id,
+  });
   const remaining = [...ctx.db.group_member.by_group.filter(groupId)]
     .filter((m: any) => m.characterId !== leavingCharacterId)
-    .sort((a: any, b: any) => {
-      const ja = joined(a);
-      const jb = joined(b);
-      if (ja !== jb) return ja < jb ? -1 : 1;
-      return byId(a, b);
+    .map((m: any) => ({ member: m, key: candidate(m) }))
+    .sort((a, b) => successorOrder(a.key, b.key));
+  return remaining[0]?.member ?? null;
+}
+
+/**
+ * The one successor step for leave, camp and delete (WR-04), run after the leaving member's row is
+ * gone. If they led, leadership (and the puller role, if they held it) passes to nextLeaderAfter
+ * with the group line '{name} is now the group leader.'. If they were only the puller, the leader
+ * pulls again. Returns the new leader's character row, or null.
+ */
+export function handOnLeadership(ctx: any, groupId: bigint, leavingCharacterId: bigint): any | null {
+  const group = ctx.db.group.id.find(groupId);
+  if (!group) return null;
+  if (group.leaderCharacterId === leavingCharacterId) {
+    const next = nextLeaderAfter(ctx, groupId, leavingCharacterId);
+    const nextCharacter = next ? ctx.db.character.id.find(next.characterId) : null;
+    if (!next || !nextCharacter) return null;
+    ctx.db.group.id.update({
+      ...group,
+      leaderCharacterId: nextCharacter.id,
+      pullerCharacterId:
+        group.pullerCharacterId === leavingCharacterId ? nextCharacter.id : group.pullerCharacterId,
     });
-  return remaining[0] ?? null;
+    ctx.db.group_member.id.update({ ...next, role: 'leader' });
+    appendGroupEvent(ctx, groupId, nextCharacter.id, 'group', `${nextCharacter.name} is now the group leader.`);
+    return nextCharacter;
+  }
+  if (group.pullerCharacterId === leavingCharacterId) {
+    ctx.db.group.id.update({ ...group, pullerCharacterId: group.leaderCharacterId });
+  }
+  return null;
 }
 
 /** Schedules the one-shot expiry tick for a new invite, due at createdAt + TTL. */

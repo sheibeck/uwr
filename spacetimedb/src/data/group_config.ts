@@ -43,3 +43,19 @@ export const GROUP_REINVITE_COOLDOWN_MICROS = 30_000_000n;
 export function reinviteWaitRunning(untilMicros: bigint, nowMicros: bigint): boolean {
   return nowMicros < untilMicros;
 }
+
+/** One remaining member as the successor rule sees it. */
+export type SuccessorCandidate = { online: boolean; joinedAtMicros: bigint; memberId: bigint };
+
+/**
+ * Who leads after the leader leaves, camps or is deleted (code review WR-04): an online member
+ * before an offline one, then the earliest joinedAt, then the lowest group_member id. Sort the
+ * remaining members with it and take the first. The client's "Leadership passes to {name}." prompt
+ * should use the same order.
+ */
+export function successorOrder(a: SuccessorCandidate, b: SuccessorCandidate): number {
+  if (a.online !== b.online) return a.online ? -1 : 1;
+  if (a.joinedAtMicros !== b.joinedAtMicros) return a.joinedAtMicros < b.joinedAtMicros ? -1 : 1;
+  if (a.memberId !== b.memberId) return a.memberId < b.memberId ? -1 : 1;
+  return 0;
+}

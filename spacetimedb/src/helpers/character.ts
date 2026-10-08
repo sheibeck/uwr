@@ -4,6 +4,7 @@ import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './eve
 import { markLocationVisited } from './visited';
 import { collapsePassageAfterLeaving } from './passages';
 import { syncCharacterOnline } from './online';
+import { handOnLeadership } from './group_invites';
 import {
   BASE_HP,
   HP_STR_MULTIPLIER,
@@ -179,19 +180,8 @@ export function campCharacter(ctx: any, player: any, character: any, afk = false
       }
       ctx.db.group.id.delete(groupId);
     } else {
-      const group = ctx.db.group.id.find(groupId);
-      if (group && group.leaderCharacterId === character.id) {
-        const newLeader = ctx.db.character.id.find(remaining[0].characterId);
-        if (newLeader) {
-          ctx.db.group.id.update({
-            ...group,
-            leaderCharacterId: newLeader.id,
-            pullerCharacterId: group.pullerCharacterId === character.id ? newLeader.id : group.pullerCharacterId,
-          });
-          ctx.db.group_member.id.update({ ...remaining[0], role: 'leader' });
-          appendGroupEvent(ctx, groupId, newLeader.id, 'group', `${newLeader.name} is now the group leader.`);
-        }
-      }
+      // The shared successor rule with leave_group and delete_character (WR-04).
+      handOnLeadership(ctx, groupId, character.id);
     }
   }
 

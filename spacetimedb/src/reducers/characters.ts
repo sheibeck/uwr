@@ -2,6 +2,7 @@ import { scheduledReducers } from '../schema/tables';
 import { markLocationVisited } from '../helpers/visited';
 import { collapsePassageAfterLeaving } from '../helpers/passages';
 import { syncCharacterOnline } from '../helpers/online';
+import { handOnLeadership } from '../helpers/group_invites';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
@@ -165,7 +166,6 @@ export const registerCharacterReducers = (deps: any) => {
     if (character.groupId) {
       const groupId = character.groupId;
       const group = ctx.db.group.id.find(groupId);
-      const wasLeader = group?.leaderCharacterId === characterId;
 
       for (const member of ctx.db.group_member.by_group.filter(groupId)) {
         if (member.characterId === characterId) {
@@ -192,19 +192,10 @@ export const registerCharacterReducers = (deps: any) => {
           ctx.db.group_invite.id.delete(invite.id);
         }
         ctx.db.group.id.delete(groupId);
-      } else if (group && wasLeader) {
-        const newLeaderCharacter = ctx.db.character.id.find(newLeaderMember.characterId);
-        if (newLeaderCharacter) {
-          ctx.db.group.id.update({ ...group, leaderCharacterId: newLeaderCharacter.id });
-          ctx.db.group_member.id.update({ ...newLeaderMember, role: 'leader' });
-          appendGroupEvent(
-            ctx,
-            groupId,
-            newLeaderCharacter.id,
-            'group',
-            `${newLeaderCharacter.name} is now the group leader.`
-          );
-        }
+      } else if (group) {
+        // The shared successor rule with leave_group and camp (WR-04); it also hands on the
+        // puller role, which this path used to leave pointing at the deleted character.
+        handOnLeadership(ctx, groupId, characterId);
       }
     }
 

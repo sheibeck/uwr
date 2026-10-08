@@ -6,6 +6,7 @@ import {
   endExpiredInvitesOfGroup,
   endExpiredInvitesTo,
   endInvite,
+  handOnLeadership,
   inviteIsLive,
   liveInvitesOfGroup,
   liveInvitesTo,
@@ -133,7 +134,6 @@ export const registerGroupReducers = (deps: any) => {
     ctx.db.character.id.update({ ...character, groupId: undefined });
     appendGroupEvent(ctx, groupId, character.id, 'group', `${character.name} left the group.`);
 
-    // Earliest joinedAt, then lowest member id: the order the client's Leave prompt names.
     const newLeaderMember: typeof GroupMember.rowType | null = nextLeaderAfter(
       ctx,
       groupId,
@@ -148,30 +148,8 @@ export const registerGroupReducers = (deps: any) => {
       return;
     }
 
-    if (group && group.leaderCharacterId === character.id) {
-      const newLeaderCharacter = ctx.db.character.id.find(newLeaderMember.characterId);
-      if (newLeaderCharacter) {
-        ctx.db.group.id.update({
-          ...group,
-          leaderCharacterId: newLeaderCharacter.id,
-          pullerCharacterId:
-            group.pullerCharacterId === character.id ? newLeaderCharacter.id : group.pullerCharacterId,
-        });
-        ctx.db.group_member.id.update({ ...newLeaderMember, role: 'leader' });
-        appendGroupEvent(
-          ctx,
-          groupId,
-          newLeaderCharacter.id,
-          'group',
-          `${newLeaderCharacter.name} is now the group leader.`
-        );
-      }
-    } else if (group && group.pullerCharacterId === character.id) {
-      const leaderCharacter = ctx.db.character.id.find(group.leaderCharacterId);
-      if (leaderCharacter) {
-        ctx.db.group.id.update({ ...group, pullerCharacterId: leaderCharacter.id });
-      }
-    }
+    // The shared successor rule (online first, then earliest joinedAt, then lowest member id).
+    if (group) handOnLeadership(ctx, groupId, character.id);
   });
 
   spacetimedb.reducer(
