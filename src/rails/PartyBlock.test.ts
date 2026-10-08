@@ -154,7 +154,7 @@ describe('PartyBlock in a party', () => {
       'mana-track',
       'stamina-track',
     ]);
-    expect(mara.get('.mana-track .fill-mana').exists()).toBe(true);
+    expect(mara.find('.mana-track .fill-mana').exists()).toBe(true);
     expect((mara.get('.mana-track .fill').element as HTMLElement).style.width).toBe('50%');
     expect((mara.get('.stamina-track .fill').element as HTMLElement).style.width).toBe('100%');
     expect(bo.find('.mana-track').exists()).toBe(false);
@@ -162,7 +162,7 @@ describe('PartyBlock in a party', () => {
       'health-track',
       'stamina-track',
     ]);
-    expect(bo.get('.stamina-track .fill-stamina').exists()).toBe(true);
+    expect(bo.find('.stamina-track .fill-stamina').exists()).toBe(true);
     expect((bo.get('.stamina-track .fill').element as HTMLElement).style.width).toBe('100%');
   });
 
@@ -365,8 +365,8 @@ describe('PartyBlock in combat (ally targeting)', () => {
   it('labels each target with the member, class, level, health and follow phrase', () => {
     const { w } = mountCombat(FIGHT);
     expect(targets(w).map((t) => t.attributes('aria-label'))).toEqual([
-      'Target Mara with your next ability. Ranger, level 4, health 95 of 100, leader · others travel with them.',
-      'Target Bo with your next ability. Warrior, level 4, health 40 of 80, travels with the leader.',
+      'Target Mara with your next ability. Ranger, level 4, health 95 of 100, mana 20 of 40, stamina 10 of 10, leader · others travel with them.',
+      'Target Bo with your next ability. Warrior, level 4, health 40 of 80, stamina 6 of 12, travels with the leader.',
     ]);
   });
 
@@ -576,7 +576,7 @@ describe('PartyBlock in combat (ally targeting)', () => {
     expect(w.find('img').exists()).toBe(false);
     expect(w.findAll('.member-name')[0].text()).toBe(PAYLOAD);
     expect(targets(w)[0].attributes('aria-label')).toBe(
-      `Target ${PAYLOAD} with your next ability. Ranger, level 4, health 95 of 100, leader · others travel with them.`,
+      `Target ${PAYLOAD} with your next ability. Ranger, level 4, health 95 of 100, mana 20 of 40, stamina 10 of 10, leader · others travel with them.`,
     );
   });
 });

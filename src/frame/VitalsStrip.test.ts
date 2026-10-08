@@ -762,7 +762,7 @@ describe('VitalsStrip party grid in combat (51.1-15)', () => {
     expect(items.map((li) => li.get('.character-name').text())).toEqual(['Mara', 'Bo', 'Cy', 'Member']);
   });
 
-  it('draws a known member as a button.ally-card with name, paw, percent, a 3px bar and one chip', () => {
+  it('draws a known member as a button.ally-card with name, paw, percent, health, mana and stamina bars and one chip', () => {
     const { w } = mountCombat(gridGame(), { social: BO_PET });
     const bo = w.findAll('li')[1].get('button.ally-card');
     expect(bo.attributes('type')).toBe('button');
@@ -776,12 +776,21 @@ describe('VitalsStrip party grid in combat (51.1-15)', () => {
     expect(paw.find('svg').exists()).toBe(true);
     expect(paw.get('svg').attributes('title')).toBeUndefined();
     expect(bo.get('.pct').text()).toBe('50%');
-    expect((bo.get('.fill-health').element as HTMLElement).style.width).toBe('50%');
-    expect(bo.get('.track').attributes('aria-hidden')).toBe('true');
+    // Owner 2026-10-08: health, mana (when any) and stamina, in that order, each a hidden 3px track.
+    const tracks = bo.findAll('.track');
+    expect(tracks.map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'mana-track',
+      'stamina-track',
+    ]);
+    expect(tracks.map((t) => t.attributes('aria-hidden'))).toEqual(['true', 'true', 'true']);
+    expect(tracks.map((t) => t.attributes('title'))).toEqual(['Health 50/100', 'Mana 20/40', 'Stamina 10/10']);
+    expect(tracks.map((t) => t.get('.fill').classes()[1])).toEqual(['fill-health', 'fill-mana', 'fill-stamina']);
+    expect(tracks.map((t) => (t.get('.fill').element as HTMLElement).style.width)).toEqual(['50%', '50%', '100%']);
     expect(bo.findAll('.effect-chips .tag')).toHaveLength(1);
     expect(bo.get('.effect-chips').classes()).toEqual(expect.arrayContaining(['compact', 'nowrap']));
     expect(bo.attributes('aria-label')).toBe(
-      'Target Bo with your next ability. Health 50 percent, pet Wolf health 18 of 40. Effects: Bless · 3 rounds.',
+      'Target Bo with your next ability. Health 50 percent, mana 20 of 40, stamina 10 of 10, pet Wolf health 18 of 40. Effects: Bless · 3 rounds.',
     );
     // name, then the paw, then the percent
     const top = bo.get('.card-top').element;
@@ -794,14 +803,41 @@ describe('VitalsStrip party grid in combat (51.1-15)', () => {
     const mara = w.findAll('li')[0].get('button.ally-card');
     expect(mara.find('.paw').exists()).toBe(false);
     expect(mara.find('.effect-chips').exists()).toBe(false);
-    expect(mara.attributes('aria-label')).toBe('Target Mara with your next ability. Health 95 percent.');
+    expect(mara.attributes('aria-label')).toBe(
+      'Target Mara with your next ability. Health 95 percent, mana 20 of 40, stamina 10 of 10.',
+    );
+  });
+
+  it('draws health then stamina, and no mana, for a member without mana', () => {
+    const { w } = mountCombat(
+      gridGame({
+        knownCharacters: ref([
+          online(2n, 'Mara', { mana: 0n, maxMana: 0n }),
+          online(3n, 'Bo', { hp: 50n }),
+          ch(4n, 'Cy', { online: false }),
+        ]),
+      }),
+      { social: BO_PET },
+    );
+    const mara = w.findAll('li')[0].get('button.ally-card');
+    expect(mara.findAll('.track').map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'stamina-track',
+    ]);
+    expect(mara.find('.mana-track').exists()).toBe(false);
+    expect(mara.attributes('aria-label')).toBe(
+      'Target Mara with your next ability. Health 95 percent, stamina 10 of 10.',
+    );
+    expect(mara.attributes('aria-label')).not.toContain('mana');
   });
 
   it('mutes an offline member and keeps it a target, with ", offline" in its label', async () => {
     const { w, selectAlly } = mountCombat(gridGame(), { social: BO_PET });
     const cy = w.findAll('li')[2].get('button.ally-card');
     expect(cy.classes()).toContain('muted');
-    expect(cy.attributes('aria-label')).toBe('Target Cy with your next ability. Health 95 percent, offline.');
+    expect(cy.attributes('aria-label')).toBe(
+      'Target Cy with your next ability. Health 95 percent, mana 20 of 40, stamina 10 of 10, offline.',
+    );
     await cy.trigger('click');
     expect(selectAlly).toHaveBeenCalledWith(4n);
   });
@@ -815,6 +851,7 @@ describe('VitalsStrip party grid in combat (51.1-15)', () => {
     expect(di.classes()).toContain('unknown');
     expect(di.attributes('aria-pressed')).toBeUndefined();
     expect(di.find('button').exists()).toBe(false);
+    expect(di.find('.track').exists()).toBe(false);
     await di.trigger('click');
     expect(selectAlly).not.toHaveBeenCalled();
   });

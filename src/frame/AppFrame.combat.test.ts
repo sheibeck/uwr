@@ -551,7 +551,9 @@ describe('combat frame, mobile (390)', () => {
     expect(cards).toHaveLength(1);
     expect(cards[0].get('.character-name').text()).toBe('Mara');
     expect(cards[0].attributes('aria-pressed')).toBe('false');
-    expect(cards[0].attributes('aria-label')).toBe('Target Mara with your next ability. Health 95 percent.');
+    expect(cards[0].attributes('aria-label')).toBe(
+      'Target Mara with your next ability. Health 95 percent, mana 20 of 40, stamina 10 of 10.',
+    );
     expect(precedes(strip.get('button.self-target').element, grid.element)).toBe(true);
     expect(strip.find('.menu-opener').exists()).toBe(false);
 

@@ -213,14 +213,21 @@ describe('CombatMemberCard populated', () => {
   it('labels the target with level, class, health, follow phrase and effects', () => {
     const { w } = mountCard();
     expect(w.get('.member-target').attributes('aria-label')).toBe(
-      'Target Bo with your next ability. Shade Rogue, level 5, health 201 of 410, travels with the leader. Effects: Poisoned.',
+      'Target Bo with your next ability. Shade Rogue, level 5, health 201 of 410, stamina 20 of 40, travels with the leader. Effects: Poisoned.',
+    );
+  });
+
+  it('a caster label carries mana between health and stamina (owner 2026-10-08)', () => {
+    const { w } = mountCard({ member: caster() });
+    expect(w.get('.member-target').attributes('aria-label')).toBe(
+      'Target Bo with your next ability. Hedge-Priest, level 5, health 201 of 410, mana 30 of 120, stamina 20 of 40, travels with the leader. Effects: Poisoned.',
     );
   });
 
   it('leaves out the effects part when the member has none, and the follow phrase with no state', () => {
     const { w } = mountCard({ effects: [], state: null });
     expect(w.get('.member-target').attributes('aria-label')).toBe(
-      'Target Bo with your next ability. Shade Rogue, level 5, health 201 of 410.',
+      'Target Bo with your next ability. Shade Rogue, level 5, health 201 of 410, stamina 20 of 40.',
     );
   });
 
@@ -308,7 +315,7 @@ describe('CombatMemberCard partial and unknown', () => {
     const target = w.get('.member-target');
     expect(target.element.tagName).toBe('BUTTON');
     expect(target.attributes('aria-label')).toBe(
-      "Target Bo with your next ability. Shade Rogue, level 5, health 201 of 410, follows the leader, but isn't with them, offline. Effects: Poisoned.",
+      "Target Bo with your next ability. Shade Rogue, level 5, health 201 of 410, stamina 20 of 40, follows the leader, but isn't with them, offline. Effects: Poisoned.",
     );
     await target.trigger('click');
     expect(selectAlly).toHaveBeenCalledWith(BO);
@@ -344,7 +351,7 @@ describe('CombatMemberCard partial and unknown', () => {
     expect(w.get('.member-class').text()).toBe(PAYLOAD);
     expect(w.get('.effect-chips .tag').text()).toBe(PAYLOAD);
     expect(w.get('.member-target').attributes('aria-label')).toBe(
-      `Target ${PAYLOAD} with your next ability. ${PAYLOAD}, level 5, health 201 of 410, travels with the leader. Effects: ${PAYLOAD}.`,
+      `Target ${PAYLOAD} with your next ability. ${PAYLOAD}, level 5, health 201 of 410, stamina 20 of 40, travels with the leader. Effects: ${PAYLOAD}.`,
     );
   });
 });

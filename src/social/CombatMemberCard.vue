@@ -5,6 +5,7 @@ import { COMBAT_KEY, GAME_KEY, createInertCombat, createInertGame } from '../gam
 import { barFraction } from '../frame/vitals';
 import EffectChips from '../rails/EffectChips.vue';
 import { effectViews } from '../rails/effects';
+import { memberBars } from '../rails/party';
 import type { PartyMemberView } from '../rails/party';
 import CharacterName from './CharacterName.vue';
 import FollowIcon from './FollowIcon.vue';
@@ -49,13 +50,14 @@ const healthTitle = computed(() => `Health ${props.member.hp}/${props.member.max
 const manaTitle = computed(() => `Mana ${props.member.resource}/${props.member.maxResource}`);
 const staminaTitle = computed(() => `Stamina ${props.member.stamina}/${props.member.maxStamina}`);
 
-// 'Target {name} with your next ability. {class}, level {n}, health {hp} of {max}, {follow phrase}
-// {, offline}{. Effects: {texts}}.' (UI-SPEC Accessibility Contract: HP numbers in the name).
+// 'Target {name} with your next ability. {class}, level {n}, health {hp} of {max}{, mana {m} of {max}},
+// stamina {s} of {max}, {follow phrase}{, offline}{. Effects: {texts}}.' (UI-SPEC Accessibility
+// Contract: the vitals in the name; the bar phrases come from memberBars, owner 2026-10-08).
 const label = computed(() => {
   const m = props.member;
   const parts: string[] = [];
   if (m.className.length > 0) parts.push(m.className);
-  parts.push(`level ${m.level}`, `health ${m.hp} of ${m.maxHp}`);
+  parts.push(`level ${m.level}`, ...memberBars(m).map((bar) => bar.phrase));
   if (props.state !== null) parts.push(followPhrase(props.state));
   if (offline.value) parts.push('offline');
   const effectText = effects.value.length > 0 ? `. Effects: ${effects.value.map((view) => view.text).join(', ')}` : '';

@@ -14,7 +14,7 @@ import {
 } from '../game/context';
 import EffectChips from '../rails/EffectChips.vue';
 import { effectViews } from '../rails/effects';
-import { isPartyLeader, partyMembers, partySize } from '../rails/party';
+import { isPartyLeader, memberBars, partyMembers, partySize } from '../rails/party';
 import { xpProgress } from '../rails/xp';
 import CharacterName from '../social/CharacterName.vue';
 import PetTag from '../social/PetTag.vue';
@@ -95,14 +95,17 @@ const showRow3 = computed(() => effects.value.length > 0 || myPet.value !== null
 // The party grid (51.1-UI-SPEC "Mobile Party in Combat", "Party grid"): one card per other member, in
 // partyMembers order. A known member is a button that targets them; an offline member is muted and
 // still a target; a member whose character row has not applied is a plain 'Member' card. The label
-// carries what the card shows in words: the health percent, the pet (the paw), offline and the chips.
+// carries what the card shows in words: the health percent, then mana (when the member has mana) and
+// stamina (the three 3px bars from memberBars, owner 2026-10-08), the pet (the paw), offline and the chips.
 // Names, pet names and effect texts are server text: text nodes and attribute bindings only.
 const cards = computed(() =>
   members.value.map((member) => {
     const pet = member.known ? social.petOf(member.id) : null;
     const memberEffects = member.known ? effectViews(game.effects.value, member.id, true) : [];
     const offline = member.known && !member.online;
+    const bars = memberBars(member);
     let sentence = `Health ${member.healthPercent} percent`;
+    for (const bar of bars) if (bar.kind !== 'health') sentence += `, ${bar.phrase}`;
     if (pet !== null) sentence += `, pet ${pet.name} health ${pet.currentHp} of ${pet.maxHp}`;
     if (offline) sentence += ', offline';
     if (memberEffects.length > 0) sentence += `. Effects: ${memberEffects.map((view) => view.text).join(', ')}`;
@@ -112,7 +115,7 @@ const cards = computed(() =>
       effects: memberEffects,
       muted: !member.known || offline,
       selected: member.known && controller.allyTargetId.value === member.id,
-      width: `${barFraction(member.hp, member.maxHp) * 100}%`,
+      bars,
       label: `Target ${member.name} with your next ability. ${sentence}.`,
     };
   }),
@@ -319,8 +322,15 @@ function openSocial(): void {
               </span>
               <span class="pct">{{ card.member.healthPercent }}%</span>
             </span>
-            <span class="track" aria-hidden="true">
-              <span class="fill fill-health" :style="{ width: card.width }"></span>
+            <span
+              v-for="bar in card.bars"
+              :key="bar.kind"
+              class="track"
+              :class="`${bar.kind}-track`"
+              :title="bar.title"
+              aria-hidden="true"
+            >
+              <span class="fill" :class="`fill-${bar.kind}`" :style="{ width: bar.width }"></span>
             </span>
             <EffectChips
               v-if="card.effects.length > 0"
