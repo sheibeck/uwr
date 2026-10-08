@@ -2298,11 +2298,13 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.28: Compass-true map: places and regions sit in their real direction, with a north arrow (BACKLOG)
+### Phase 999.28: Cartographer map: places sit in their true direction once you know it, with a north arrow (BACKLOG)
 
 **Source:** owner, 2026-10-08 (verbatim): "i'm in a party travelling, and I am in Kesterlane Basin. Elfansworth has only ever heard of Tamarisk Cut. So that nod shows on the far left of his map. Armond, you has traveled to Tamarisk Cut before shows it to the East his map -> east of Orrin Sill and north of the Glass shard. Is there any way for us to know which of the 8 directions a specific map node lies in relation to others, so even if we haven't discovered the path or visited a heard of location it's at least in the general area of where it really is in relation to other locations in the region? Same things with regions, they should be relational by compass direction so even if it's never been visited, if it's been heard of, the map is generally correct with regard to each location and regions compass direction. Mabye even add a small compass in the left corner showing N ... like standar map north symbol"
 
-**Goal:** Every player's map puts each place, and each region, in its true compass direction relative to the others, whether it is visited or only heard of, so two players who know different parts of a region see the same rough geography. A small north arrow ("N") sits in a corner of the map.
+**Goal:** A mini cartographer system. Each player's map places a place or region in its true compass direction once that player knows how it relates to something already on their map, so two players who know the same relations see the same rough geography. A place whose direction the player has not learned yet sits apart, unplaced, until they learn it. A small north arrow ("N") sits in a corner of the map.
+
+**Owner refinement, 2026-10-08 (verbatim):** "for 999.28 should support locations with no known direction. Until you discover a direction or a location that relates to the thing, it would sit by itself off to the left of the map, or some randome place on the map. Until you discover something about a location in regards to compass direction from a known location you wouldn't necessary know where that map node fits on your map. This is like a mini cartographer system."
 
 **Why it happens today:**
 
@@ -2315,13 +2317,20 @@ Plans:
   - Alternative: an 8-point `bearing` on each `location_connection` (as backlog 999.10 already plans for NPC directions), with the reverse edge getting the opposite bearing. Positions are stronger, because places with no known path between them still keep their true relative direction.
 - **Generation:** new places and regions get positions that fit their connections (a new neighbour lands in a free cell on the right side). Placement is deterministic. Any change to world-generation prompt wording needs the owner's approval of the exact text; positions can be assigned by rule after the LLM output, without prompt changes.
 - **Existing worlds:** backfill positions for current locations and regions from their connections (additive columns or a new table, never `--clear-database`).
-- **Client layout:** `graphLayout.ts` seeds and anchors every node at its true position (north up), then only nudges for spacing and labels. The "orient" step that rotates the graph is removed or replaced, and heard-of places sit in their real direction even with no known path. Regions on the region picker or overview follow the same rule.
+- **Per-character direction knowledge (the cartographer part).** True positions live on the server, but a character only "knows where a place fits" once they learn a direction relation to a place already fixed on their map. Ways to learn one, to settle in discuss:
+  - travelling a connection (you learn the bearing between the two ends);
+  - visiting a place (fixes it relative to where you came from);
+  - being told a direction (an NPC's directions in 999.10, a quest giver, a rumour that says "north of the Glass Shard");
+  - possibly an ability or item (a map, a survey skill from 999.4's utility abilities).
+  The server stores what each character knows (a private table of learned relations, or fixed places per character), so the client never sees true positions it has not earned.
+- **Unplaced places.** A heard-of place (or region) with no learned relation is drawn apart from the fixed map, for example in an "Unplaced" strip at the left edge, labelled as such, so it never implies a false direction. Once a relation is learned it moves to its true spot (with the 51.5.1 map transition).
+- **Client layout:** `graphLayout.ts` anchors every fixed node at its true position (north up), then only nudges for spacing and labels. The "orient" step that rotates the graph is removed or replaced. Regions on the region picker or overview follow the same rule.
 - **North arrow:** a small "N" compass in a map corner, desktop and mobile, tokens only, Phosphor icon if one fits (for example `PhCompass` or `PhNavigationArrow`); `<svg>` is already allowed under `src/map/`.
 - **Text that names a direction** (exit chips, NPC directions in 999.10, "lies to the east") reads the same positions, so words and map agree.
 
 **Ties:** 999.10 (NPC directions with bearings), Phase 51.5.1 Motion and Polish (map transitions after travel animate between true positions, which should make them calmer), 999.26 (world structure and typed sub-regions).
 
-**Requirements:** TBD (unit tests required: positions deterministic and stable; bearings consistent both ways; every player sees the same relative direction for the same two places; heard-of places placed by true position; backfill covers every existing place and region; the north arrow renders on desktop and mobile; layout still keeps node spacing and label rules)
+**Requirements:** TBD (unit tests required: positions deterministic and stable; bearings consistent both ways; two players who know the same relations see the same relative direction; a place with no learned relation is unplaced and moves to its true spot once one is learned; true positions never reach a client that has not learned them; backfill covers every existing place and region; the north arrow renders on desktop and mobile; layout still keeps node spacing and label rules)
 **Plans:** 0 plans
 
 Plans:
@@ -2330,4 +2339,4 @@ Plans:
 
 
 ---
-*Last updated: 2026-10-08 after adding backlog 999.28 Compass-true map (owner)*
+*Last updated: 2026-10-08 after refining backlog 999.28 into a cartographer map (owner)*
