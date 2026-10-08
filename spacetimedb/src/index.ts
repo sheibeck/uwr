@@ -231,6 +231,7 @@ import {
 } from './helpers/scheduling';
 import { ensureLlmSweepScheduled } from './helpers/llm_schedule';
 import { ensureLlmAdminState } from './helpers/llm_admin_state';
+import { ensureEconomyDials } from './helpers/economy_state';
 
 import { myBankSlotsView } from './schema/tables';
 
@@ -691,6 +692,8 @@ spacetimedb.init((ctx) => {
   ensureStarterItemTemplates(ctx);
   // A fresh database starts with the kill switch on (calls run) and the default daily ceiling.
   ensureLlmAdminState(ctx);
+  // A fresh database starts with today's tuning and the AI economy off.
+  ensureEconomyDials(ctx);
   initScheduledTables(ctx);
   ensureVendorRestockScheduled(ctx);
   ensurePassageSweepScheduled(ctx);
