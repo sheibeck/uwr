@@ -373,7 +373,7 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
     - Scope: enemy spawns scale to the place's level when no enemy type fits.
     - DONE 2026-10-08 (ec27831e..5c405790); recorded in Quick Tasks Completed. The todo stays open for fix (b), world-gen enemy level ranges, in Phase 51.3.1. Owner: "Quest bosses should be harder!" (quest and named spawns stay in the place band; the extra boss bump is 51.3.1).
   - **Queued quick tasks** run after ag8, one at a time, because each publishes locally:
-    - **Day/night 40/20:** a one-hour cycle, set through `DAY_DURATION_MICROS` / `NIGHT_DURATION_MICROS` in `helpers/location.ts`. The calendar stays in 999.14.
+    - **Day/night 40/20:** DONE 2026-10-08 (338df1ed), local publish, key 108 kept. The calendar stays in 999.14.
     - **Party card bars:** every party card shows health, mana (if any) and stamina bars. Todo: `2026-10-08-party-cards-show-health-mana-and-stamina.md`. It touches the same components as a97, so it runs after a97.
 - **51.3.1 Combat Dials discuss must cover:**
   - difficulty by level, region and enemy type;

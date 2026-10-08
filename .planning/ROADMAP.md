@@ -1689,6 +1689,8 @@ Plans:
 
 **Goal:** The world has a calendar (days, and years for aging in 999.13), and the day/night cycle matches it: **one real hour is one in-game 24-hour day, with 40 minutes of daytime and 20 minutes of night** (owner decisions, 2026-10-06). The owner's order: add the calendar first, then change the day/night timing.
 
+**Update 2026-10-08 (owner):** the 40/20 timing shipped ahead of the calendar (commit 338df1ed, `DAY_DURATION_MICROS` and `NIGHT_DURATION_MICROS` in `helpers/location.ts`). What remains here is the calendar itself.
+
 **Today:**
 
 - Day/night is a scheduled tick (`day_night_tick`) that flips `world_state.isNight` and sets `nextTransitionAtMicros` (`spacetimedb/src/index.ts`, around the day/night tick reducer; `spacetimedb/src/helpers/scheduling.ts`).
