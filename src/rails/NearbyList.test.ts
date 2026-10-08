@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { PhChatCircle, PhChatCircleDots, PhEye, PhUserPlus } from '@phosphor-icons/vue';
 import NearbyList from './NearbyList.vue';
 import {
   CONSOLE_KEY,
@@ -32,7 +33,11 @@ function character(over: Record<string, unknown> = {}) {
   return { id: 1n, name: 'Hero', locationId: 10n, boundLocationId: 99n, level: 6n, ...over };
 }
 
-function mountList(game: Record<string, unknown> = {}, bindLocation = vi.fn(() => Promise.resolve())) {
+function mountList(
+  game: Record<string, unknown> = {},
+  bindLocation = vi.fn(() => Promise.resolve()),
+  options: { desktop?: boolean } = {},
+) {
   const calls = {
     hail: vi.fn(),
     examine: vi.fn(),
@@ -53,7 +58,11 @@ function mountList(game: Record<string, unknown> = {}, bindLocation = vi.fn(() =
   } as unknown as GameData;
   const consoleApi = { ...createInertConsole(), ...calls } as unknown as ConsoleApi;
   const openScreen = vi.fn();
-  const frame = { ...createInertFrame(), openScreen } as unknown as FrameControls;
+  const frame = {
+    ...createInertFrame(),
+    openScreen,
+    isDesktop: ref(options.desktop ?? true),
+  } as unknown as FrameControls;
   wrapper = mount(NearbyList, {
     attachTo: document.body,
     global: {
@@ -70,6 +79,9 @@ function mountList(game: Record<string, unknown> = {}, bindLocation = vi.fn(() =
 const labels = (row: { findAll: (s: string) => { attributes: (n: string) => string | undefined }[] }) =>
   row.findAll('button').map((b) => b.attributes('aria-label'));
 
+// A character row as the generated bindings give it: the menu header reads race and class.
+const PERSON = { race: 'Orc', className: 'Shaman', locationId: 10n, online: true, groupId: undefined };
+
 const FULL = {
   npcsHere: ref([
     { id: 2n, name: 'Marta', npcType: 'vendor' },
@@ -80,8 +92,8 @@ const FULL = {
     { id: 21n, name: 'Empty Vein', state: 'depleted' },
   ]),
   playersHere: ref([
-    { id: 1n, name: 'Hero', level: 6n },
-    { id: 4n, name: 'Bo', level: 3n },
+    { ...PERSON, id: 1n, name: 'Hero', level: 6n },
+    { ...PERSON, id: 4n, name: 'Bo', level: 3n },
   ]),
   enemiesHere: ref([
     { id: 7n, name: 'Goblin Scout', state: 'available', locationId: 10n, enemyTemplateId: 1n, groupCount: 1n },
@@ -104,12 +116,14 @@ describe('Examine eye on every row', () => {
       'Bo',
     ]);
     for (const row of rows) {
+      // The player cluster ends with the menu opener, so the eye is the one before it.
       const buttons = row.findAll('button');
-      const last = buttons[buttons.length - 1];
-      expect(last.attributes('aria-label')).toMatch(/^Examine /);
-      expect(last.attributes('title')).toBe(last.attributes('aria-label'));
-      expect(last.element.closest('.row-main')).toBeNull();
-      expect(last.element.parentElement!.classList.contains('row-actions')).toBe(true);
+      const isPlayer = row.classes().includes('kind-player');
+      const eye = buttons[buttons.length - (isPlayer ? 2 : 1)];
+      expect(eye.attributes('aria-label')).toMatch(/^Examine /);
+      expect(eye.attributes('title')).toBe(eye.attributes('aria-label'));
+      expect(eye.element.closest('.row-main')).toBeNull();
+      expect(eye.element.parentElement!.classList.contains('row-actions')).toBe(true);
     }
     const examineNames: Record<string, string> = {
       'Goblin Scout': 'Goblin Scout',
@@ -169,10 +183,11 @@ describe('row shapes', () => {
     expect(calls.hail).toHaveBeenCalledWith({ id: 3n, name: 'Aldric' });
   });
 
-  it('players show Whisper, Invite and Examine; enemies show Pull and Examine', () => {
+  it('players show Whisper, Examine and the menu; enemies show Pull and Examine', () => {
     const { w } = mountList(FULL);
     const rows = w.findAll('.nearby-row');
-    expect(labels(rows[6])).toEqual(['Whisper Bo', 'Invite Bo', 'Examine Bo']);
+    expect(labels(rows[6])).toEqual(['Whisper Bo', 'Examine Bo', 'Actions for Bo']);
+    expect(w.find('[aria-label="Invite Bo"]').exists()).toBe(false);
     expect(labels(rows[0]).length).toBe(2);
     expect(labels(rows[0])[0]).toMatch(/^Pull Goblin Scout/);
     expect(labels(rows[0])[1]).toBe('Examine Goblin Scout');
@@ -195,6 +210,130 @@ describe('row shapes', () => {
     expect(w.find('img').exists()).toBe(false);
     expect(w.get('.row-name').text()).toBe(PAYLOAD);
     expect(w.find(`[aria-label="Talk to ${PAYLOAD}"]`).exists()).toBe(true);
+  });
+});
+
+describe('player rows (51.1-12)', () => {
+  const playerRow = (w: VueWrapper) => w.findAll('.nearby-row').find((r) => r.classes().includes('kind-player'))!;
+  const contextMenu = (el: Element) => {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    el.dispatchEvent(event);
+    return event;
+  };
+
+  it('uses the chat-circle-dots icon for Whisper and the plain chat circle for Talk to', () => {
+    const { w } = mountList(FULL);
+    const whisper = w.get('[aria-label="Whisper Bo"]');
+    expect(whisper.findComponent(PhChatCircleDots).exists()).toBe(true);
+    expect(whisper.findComponent(PhChatCircle).exists()).toBe(false);
+    const talk = w.get('[aria-label="Talk to Aldric"]');
+    expect(talk.findComponent(PhChatCircle).exists()).toBe(true);
+    expect(talk.findComponent(PhChatCircleDots).exists()).toBe(false);
+    expect(w.get('[aria-label="Examine Bo"]').findComponent(PhEye).exists()).toBe(true);
+    expect(w.findComponent(PhUserPlus).exists()).toBe(false);
+  });
+
+  it('Whisper pre-fills through the console', async () => {
+    const { w, calls } = mountList(FULL);
+    await w.get('[aria-label="Whisper Bo"]').trigger('click');
+    expect(calls.whisperTo).toHaveBeenCalledWith('Bo');
+  });
+
+  it('the Actions button opens the menu, with Invite to party inside', async () => {
+    const { w } = mountList(FULL);
+    expect(w.find('[role="menu"]').exists()).toBe(false);
+    await w.get('[aria-label="Actions for Bo"]').trigger('click');
+    await flushPromises();
+    const items = w.findAll('[role="menuitem"]').map((i) => i.text());
+    expect(items.some((t) => t.startsWith('Invite to party'))).toBe(true);
+    expect(w.get('[aria-label="Actions for Bo"]').attributes('aria-expanded')).toBe('true');
+  });
+
+  it('right-click on a player row opens the same menu, prevents the default and focuses the first item', async () => {
+    const { w } = mountList(FULL);
+    const event = contextMenu(playerRow(w).element);
+    expect(event.defaultPrevented).toBe(true);
+    await flushPromises();
+    const items = w.findAll('[role="menuitem"]');
+    expect(items.length).toBeGreaterThan(0);
+    expect(document.activeElement).toBe(items[0].element);
+  });
+
+  it('a left click on the row name does nothing new', async () => {
+    const { w } = mountList(FULL);
+    await playerRow(w).get('.row-name').trigger('click');
+    await flushPromises();
+    expect(w.find('[role="menu"]').exists()).toBe(false);
+  });
+
+  it('right-click on an NPC row does nothing new', async () => {
+    const { w } = mountList(FULL);
+    const aldric = w.findAll('.nearby-row').find((r) => r.get('.row-name').text() === 'Aldric')!;
+    const event = contextMenu(aldric.element);
+    expect(event.defaultPrevented).toBe(false);
+    await flushPromises();
+    expect(w.find('[role="menu"]').exists()).toBe(false);
+  });
+
+  it('on mobile the right-click is left alone and the opener is the 44px size', async () => {
+    const { w } = mountList(FULL, undefined, { desktop: false });
+    const event = contextMenu(playerRow(w).element);
+    expect(event.defaultPrevented).toBe(false);
+    await flushPromises();
+    expect(w.find('[role="menu"]').exists()).toBe(false);
+    expect(w.get('[aria-label="Actions for Bo"]').classes()).toContain('sheet');
+  });
+
+  it('lists no offline player, and none whose online is missing', () => {
+    const { w } = mountList({
+      playersHere: ref([
+        { ...PERSON, id: 4n, name: 'Bo', level: 3n },
+        { ...PERSON, id: 5n, name: 'Cy', level: 3n, online: false },
+        { id: 6n, name: 'Di', level: 3n, race: 'Orc', className: 'Shaman', locationId: 10n },
+      ]),
+    });
+    const names = w.findAll('.nearby-row .row-name').map((n) => n.text());
+    expect(names).toContain('Bo');
+    expect(names).not.toContain('Cy');
+    expect(names).not.toContain('Di');
+    expect(w.find('[aria-label="Whisper Cy"]').exists()).toBe(false);
+  });
+
+  it('says In your party for a member of your party and Lv n for anyone else', () => {
+    const { w } = mountList({
+      playersHere: ref([
+        { ...PERSON, id: 4n, name: 'Bo', level: 3n },
+        { ...PERSON, id: 5n, name: 'Cy', level: 9n },
+      ]),
+      groupMembers: ref([
+        { id: 11n, groupId: 1n, characterId: 1n },
+        { id: 12n, groupId: 1n, characterId: 4n },
+      ]),
+    });
+    const hint = (name: string) =>
+      w.findAll('.nearby-row').find((r) => r.get('.row-name').text() === name)!.get('.row-hint').text();
+    expect(hint('Bo')).toBe('In your party');
+    expect(hint('Cy')).toBe('Lv 9');
+  });
+
+  it('renders markup in a player name as text', () => {
+    const { w } = mountList({
+      playersHere: ref([{ ...PERSON, id: 4n, name: PAYLOAD, level: 3n }]),
+    });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.kind-player .row-name').text()).toBe(PAYLOAD);
+    expect(w.find(`[aria-label="Whisper ${PAYLOAD}"]`).exists()).toBe(true);
+  });
+
+  it('moves focus to the Nearby heading when the menu opener disappears while focused', async () => {
+    const { w, data } = mountList(FULL);
+    const opener = w.get('[aria-label="Actions for Bo"]');
+    (opener.element as HTMLElement).focus();
+    (data.playersHere as unknown as { value: unknown[] }).value = [];
+    await flushPromises();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('h6').element);
+    expect(w.get('h6').attributes('tabindex')).toBe('-1');
   });
 });
 
@@ -397,6 +536,17 @@ describe('source', () => {
     const media = source.slice(source.indexOf('@media (max-width: 899px)'));
     expect(media).toMatch(/\.btn-icon\s*\{[^}]*height: 44px/);
     expect(media).toMatch(/\.btn-bind\s*\{[^}]*min-height: 44px/);
+  });
+
+  it('wires the PlayerMenu and the right-click, and keeps no Invite button', () => {
+    expect(source).toContain('PlayerMenu');
+    expect(source).toContain('contextmenu');
+    const code = source
+      .split('\n')
+      .filter((line) => !/^\s*(\/\/|\*)/.test(line))
+      .join('\n');
+    expect(code).not.toContain('Invite ${row.name}');
+    expect(code).not.toContain('PhUserPlus');
   });
 
   it('never nests a button inside a row main part', () => {

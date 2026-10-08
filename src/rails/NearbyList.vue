@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import {
   PhCastleTurret,
   PhChatCircle,
@@ -12,7 +13,6 @@ import {
   PhSword,
   PhUser,
   PhUserCircle,
-  PhUserPlus,
 } from '@phosphor-icons/vue';
 import type { Component } from 'vue';
 import {
@@ -28,6 +28,7 @@ import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
 import type { NearbyKind, NearbyRow } from './nearby';
+import PlayerMenu from '../social/PlayerMenu.vue';
 
 // Nearby rows with one-click actions (47-UI-SPEC "Nearby", CON-04, CON-02; 51-UI-SPEC "Rail Row
 // Additions"). Names are server or player text, rendered as text nodes only. No table lists
@@ -37,6 +38,9 @@ import type { NearbyKind, NearbyRow } from './nearby';
 // level is known. Every row ends its action cluster with an Examine eye that sits beside the
 // row's main part, never inside it. NPC rows talk through a chat bubble button; a bind stone row
 // offers Bind (bind_location) and turns to 'Bound here' only when the character row says so.
+// A player row (51.1) lists only online characters and ends Whisper, Examine and the role-aware
+// menu (PlayerMenu, opening to the left in the rail); right-click opens that menu on desktop.
+// Invite lives in the menu now. Talk to uses the plain chat circle so Whisper keeps its own icon.
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const frame = inject(FRAME_KEY, createInertFrame());
@@ -67,11 +71,15 @@ const boundHere = computed(() => {
   return character !== null && character.boundLocationId === character.locationId;
 });
 
+// Everyone in your group (the server's member rows), for the 'In your party' hint.
+const partyIds = computed(() => new Set(game.groupMembers.value.map((member) => member.characterId)));
+
 const rows = computed(() =>
   nearbyRows({
     npcs: game.npcsHere.value,
     nodes: game.nodesHere.value,
     players: game.playersHere.value,
+    partyIds: partyIds.value,
     objects: [],
     selfId: game.characterId.value,
     bindStone: place.value?.bindStone
@@ -157,9 +165,25 @@ function whisper(row: NearbyRow): void {
   consoleApi.whisperTo(row.name);
 }
 
-function invite(row: NearbyRow): void {
-  if (!connected.value) return;
-  consoleApi.invite(row.name);
+// One PlayerMenu per player row: the row's right-click opens it, and when its opener goes away
+// while focused (the player leaves) focus returns to the Nearby heading.
+const heading = ref<HTMLElement | null>(null);
+const menus = new Map<bigint, { open: (focus?: 'first' | 'last') => void }>();
+
+function setMenu(id: bigint, instance: Element | ComponentPublicInstance | null): void {
+  if (instance === null) menus.delete(id);
+  else menus.set(id, instance as unknown as { open: (focus?: 'first' | 'last') => void });
+}
+
+function headingFocus(): HTMLElement | null {
+  return heading.value;
+}
+
+// Desktop only: on mobile the browser's own long-press menu is left alone and the ⋯ is the way in.
+function onContextMenu(event: MouseEvent, row: NearbyRow): void {
+  if (row.kind !== 'player' || !frame.isDesktop.value) return;
+  event.preventDefault();
+  menus.get(row.id)?.open('first');
 }
 
 const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
@@ -235,7 +259,7 @@ async function bind(): Promise<void> {
 
 <template>
   <section>
-    <h6>Nearby</h6>
+    <h6 ref="heading" tabindex="-1">Nearby</h6>
     <p v-if="rows.length === 0 && enemies.length === 0" class="empty">No one is nearby.</p>
     <ul v-else ref="list" class="rows">
       <li
@@ -249,7 +273,7 @@ async function bind(): Promise<void> {
           <span class="row-name" :class="enemy.con?.className" :title="enemy.title">{{ enemy.name }}</span>
           <span class="row-hint">{{ enemy.hint }}</span>
         </div>
-        <span class="row-actions">
+        <div class="row-actions">
           <button
             v-if="enemy.status === 'available'"
             type="button"
@@ -271,13 +295,14 @@ async function bind(): Promise<void> {
           >
             <PhEye :size="16" aria-hidden="true" />
           </button>
-        </span>
+        </div>
       </li>
       <li
         v-for="row in rows"
         :key="rowKey(row)"
         class="nearby-row"
         :class="[`kind-${row.kind}`, { depleted: row.nodeStatus === 'depleted', bound: row.bound }]"
+        @contextmenu="onContextMenu($event, row)"
       >
         <button
           v-if="hasAction(row)"
@@ -296,7 +321,7 @@ async function bind(): Promise<void> {
           <span class="row-hint">{{ row.hint }}</span>
         </div>
 
-        <span class="row-actions">
+        <div class="row-actions">
           <button
             v-if="row.kind === 'npc'"
             type="button"
@@ -306,7 +331,7 @@ async function bind(): Promise<void> {
             :aria-disabled="disabledAttr"
             @click="talk(row)"
           >
-            <PhChatCircleDots :size="16" aria-hidden="true" />
+            <PhChatCircle :size="16" aria-hidden="true" />
           </button>
           <button
             v-if="row.kind === 'npc' && row.vendor"
@@ -334,28 +359,17 @@ async function bind(): Promise<void> {
           <span v-if="row.kind === 'bindStone' && !row.bound && inFight" :id="bindReasonId" class="sr-only">{{
             BIND_IN_COMBAT
           }}</span>
-          <template v-if="row.kind === 'player'">
-            <button
-              type="button"
-              class="btn btn-ghost btn-icon"
-              :aria-label="`Whisper ${row.name}`"
-              :title="`Whisper ${row.name}`"
-              :aria-disabled="disabledAttr"
-              @click="whisper(row)"
-            >
-              <PhChatCircle :size="16" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="btn btn-ghost btn-icon"
-              :aria-label="`Invite ${row.name}`"
-              :title="`Invite ${row.name}`"
-              :aria-disabled="disabledAttr"
-              @click="invite(row)"
-            >
-              <PhUserPlus :size="16" aria-hidden="true" />
-            </button>
-          </template>
+          <button
+            v-if="row.kind === 'player'"
+            type="button"
+            class="btn btn-ghost btn-icon"
+            :aria-label="`Whisper ${row.name}`"
+            :title="`Whisper ${row.name}`"
+            :aria-disabled="disabledAttr"
+            @click="whisper(row)"
+          >
+            <PhChatCircleDots :size="16" aria-hidden="true" />
+          </button>
           <button
             type="button"
             class="btn btn-ghost btn-icon btn-eye"
@@ -366,7 +380,15 @@ async function bind(): Promise<void> {
           >
             <PhEye :size="16" aria-hidden="true" />
           </button>
-        </span>
+          <PlayerMenu
+            v-if="row.kind === 'player'"
+            :ref="(instance) => setMenu(row.id, instance)"
+            :target-id="row.id"
+            side="left"
+            :size="frame.isDesktop.value ? 'rail' : 'sheet'"
+            :fallback-focus="headingFocus"
+          />
+        </div>
       </li>
     </ul>
   </section>
@@ -530,7 +552,7 @@ button.row-main[aria-disabled='true'] {
 }
 
 
-/* One flex group of one to three icon buttons: the row's own actions, then the eye. */
+/* One flex group of one to three icon buttons: the row's own actions, then the eye (a player row ends with the menu). */
 .row-actions {
   display: flex;
   flex-shrink: 0;

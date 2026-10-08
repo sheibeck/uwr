@@ -100,6 +100,16 @@ function populatedGame(): { game: GameData; reducers: Reducers } {
     locationId: 10n,
   };
   const serrin = { ...mara, id: 5n, name: 'Serrin', className: 'Cleric' };
+  // Nearby lists only online characters (51.1-12); the menu header reads race and class.
+  const marisol = {
+    id: 4n,
+    name: 'Marisol',
+    level: 3n,
+    race: 'Elf',
+    className: 'Druid',
+    locationId: 10n,
+    online: true,
+  };
 
   const abilities = [
     { id: 11n, characterId: CHARACTER_ID, name: 'Firebolt', kind: 'damage', resourceType: 'mana', resourceCost: 10n, cooldownSeconds: 6n },
@@ -119,7 +129,7 @@ function populatedGame(): { game: GameData; reducers: Reducers } {
     connections: ref([{ id: 1n, fromLocationId: 10n, toLocationId: 11n }]),
     npcsHere: ref([{ id: 2n, name: 'The Ferryman', npcType: 'vendor' }]),
     nodesHere: ref([{ id: 20n, name: 'Iron Vein', state: 'available', characterId: null }]),
-    playersHere: ref([character, { id: 4n, name: 'Marisol', level: 3n }]),
+    playersHere: ref([character, marisol]),
     effects: ref([
       { id: 1n, characterId: CHARACTER_ID, effectType: 'armor_up', magnitude: 2n, roundsRemaining: 3n, sourceAbility: 'Bless' },
     ]),
@@ -331,8 +341,10 @@ describe('populated frame, desktop', () => {
     await settle();
     const context = w.get('.context-rail');
     for (const row of context.findAll('.nearby-row')) {
+      // A player row ends Whisper, Examine, Actions: the eye is the one before the menu opener.
       const buttons = row.findAll('button');
-      expect(buttons[buttons.length - 1].attributes('aria-label')).toMatch(/^Examine /);
+      const isPlayer = row.classes().includes('kind-player');
+      expect(buttons[buttons.length - (isPlayer ? 2 : 1)].attributes('aria-label')).toMatch(/^Examine /);
     }
     expect(context.find('.nearby-row button.row-main').exists()).toBe(true);
     await context.get('[aria-label="Talk to The Ferryman"]').trigger('click');
@@ -423,8 +435,10 @@ describe('populated frame, mobile', () => {
     expect(w.find('[role="dialog"]').exists()).toBe(false);
   });
 
-  it('the Social sheet shows the party and a Nearby invite closes the sheet before sending', async () => {
+  it('the Party sheet shows the party and the Map sheet player menu invites through inviteToGroup', async () => {
     const { game, reducers } = populatedGame();
+    // You lead the party here, so Invite to party is enabled for Marisol.
+    (game.group as unknown as { value: unknown }).value = { id: 1n, leaderCharacterId: CHARACTER_ID };
     const w = mountFrame(false, game);
     await w.get('button[data-tab="party"]').trigger('click');
     await settle();
@@ -434,9 +448,13 @@ describe('populated frame, mobile', () => {
     await w.get('button[data-tab="map"]').trigger('click');
     await settle();
     await openHereTab(w);
-    await w.get('[role="dialog"] [aria-label="Invite Marisol"]').trigger('click');
+    expect(w.find('[aria-label="Invite Marisol"]').exists()).toBe(false);
+    await w.get('[role="dialog"] [aria-label="Actions for Marisol"]').trigger('click');
     await settle();
-    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    const invite = w.findAll('[role="menuitem"]').find((item) => item.text().startsWith('Invite to party'));
+    await invite!.trigger('click');
+    await settle();
+    expect(w.find('[role="menu"]').exists()).toBe(false);
     expect(reducers.inviteToGroup).toHaveBeenCalledWith({ characterId: CHARACTER_ID, targetName: 'Marisol' });
   });
 

@@ -194,6 +194,10 @@ describe('Here card', () => {
   });
 });
 
+// A player as the generated Character row gives it: Nearby lists only online characters (51.1-12)
+// and the player menu header reads race and class.
+const PERSON = { race: 'Orc', className: 'Shaman', locationId: 10n, online: true };
+
 describe('Nearby list', () => {
   const NEARBY = lists({
     npcsHere: [
@@ -206,9 +210,10 @@ describe('Nearby list', () => {
       { id: 22n, name: 'Busy Vein', state: 'harvesting', lockedByCharacterId: 5n },
     ],
     playersHere: [
-      { id: 1n, name: 'Hero', level: 6n },
-      { id: 5n, name: 'Zed', level: 7n },
-      { id: 4n, name: 'Bo', level: 3n },
+      { ...PERSON, id: 1n, name: 'Hero', level: 6n },
+      { ...PERSON, id: 5n, name: 'Zed', level: 7n },
+      { ...PERSON, id: 4n, name: 'Bo', level: 3n },
+      { ...PERSON, id: 6n, name: 'Away', level: 2n, online: false },
     ],
   });
 
@@ -229,6 +234,8 @@ describe('Nearby list', () => {
     expect(rows[3].get('.row-hint').text()).toBe('Depleted');
     expect(rows[4].get('.row-hint').text()).toBe('Gather');
     expect(rows[5].get('.row-hint').text()).toBe('Lv 3');
+    // 'Away' is offline, so Nearby does not list it (51.1 CONTEXT Area 2).
+    expect(w.text()).not.toContain('Away');
     expect(w.text()).not.toContain('No one is nearby.');
   });
 
@@ -277,15 +284,20 @@ describe('Nearby list', () => {
     expect(rows[2].classes()).not.toContain('depleted');
   });
 
-  it('gives players always-visible Whisper and Invite buttons and no row action', async () => {
+  it('gives players always-visible Whisper, Examine and menu buttons and no row action', async () => {
     const { w, calls } = mountContent(NEARBY);
     const bo = w.findAll('.nearby-row')[5];
     expect(bo.find('button.row-main').exists()).toBe(false);
-    expect(bo.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Whisper Bo', 'Invite Bo', 'Examine Bo']);
+    expect(bo.findAll('button').map((b) => b.attributes('aria-label'))).toEqual([
+      'Whisper Bo',
+      'Examine Bo',
+      'Actions for Bo',
+    ]);
     await bo.get('[aria-label="Whisper Bo"]').trigger('click');
-    await bo.get('[aria-label="Invite Bo"]').trigger('click');
     expect(calls.whisperTo).toHaveBeenCalledWith('Bo');
-    expect(calls.invite).toHaveBeenCalledWith('Bo');
+    // Invite moved into the menu; the row has no Invite button of its own.
+    expect(bo.find('[aria-label="Invite Bo"]').exists()).toBe(false);
+    expect(calls.invite).not.toHaveBeenCalled();
   });
 
   it('never lists an object row (no source table, research Q3)', () => {
@@ -547,13 +559,16 @@ describe('offline', () => {
         connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
         npcsHere: ref([{ id: 2n, name: 'Marta', npcType: 'vendor' }]),
         nodesHere: ref([{ id: 20n, name: 'Iron Vein', state: 'available' }]),
-        playersHere: ref([{ id: 4n, name: 'Bo', level: 3n }]),
+        playersHere: ref([{ ...PERSON, id: 4n, name: 'Bo', level: 3n }]),
       },
     });
     // A row button only expands its row, so it stays operable offline; the inner Travel button and
-    // every other button are aria-disabled.
+    // every other button are aria-disabled. The menu opener is not an action: it only opens the
+    // menu, whose entries go through the offline-aware action layer (51.1-10).
     await w.get('button.exit-row').trigger('click');
-    const buttons = w.findAll('button').filter((b) => !b.classes().includes('exit-row'));
+    const buttons = w
+      .findAll('button')
+      .filter((b) => !b.classes().includes('exit-row') && !b.classes().includes('menu-opener'));
     expect(buttons.length).toBeGreaterThanOrEqual(6);
     for (const button of buttons) {
       expect(button.attributes('aria-disabled')).toBe('true');
@@ -581,7 +596,7 @@ describe('text rendering', () => {
         connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
         npcsHere: ref([{ id: 2n, name: PAYLOAD, npcType: 'vendor' }]),
         nodesHere: ref([{ id: 20n, name: PAYLOAD, state: 'available' }]),
-        playersHere: ref([{ id: 4n, name: PAYLOAD, level: 3n }]),
+        playersHere: ref([{ ...PERSON, id: 4n, name: PAYLOAD, level: 3n }]),
         quests: ref([
           { id: 1n, characterId: 1n, questTemplateId: 100n, progress: 1n, completed: false, acceptedAt: { microsSinceUnixEpoch: 1n } },
         ]),
@@ -642,7 +657,7 @@ describe('mobile sizing and sources', () => {
     expect(read('useExits.ts')).toContain('routesFrom');
     expect(read('NearbyList.vue')).toContain('Trade with');
     expect(read('NearbyList.vue')).toContain('Whisper ');
-    expect(read('NearbyList.vue')).toContain('Invite ');
+    expect(read('NearbyList.vue')).toContain('PlayerMenu');
     expect(read('NearbyList.vue')).toContain('Pull ');
   });
 });
