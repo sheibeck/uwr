@@ -364,7 +364,7 @@ export function handleEconomyAdminCommand(ctx: any, character: any, text: string
       const removed = resetEconomy(ctx, 'item', item.id);
       say(
         removed.items > 0
-          ? `${plainText(item.name)} drops at its normal rate again.`
+          ? `The drop rate for ${plainText(item.name)} is back to normal.`
           : `${plainText(item.name)} has no pin.`,
       );
       return true;

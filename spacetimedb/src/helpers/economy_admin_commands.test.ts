@@ -388,7 +388,7 @@ describe('handleEconomyAdminCommand: item pins', () => {
     const ctx = ctxFor(admin, { ...seeded(), economy_item_dial: [{ itemTemplateId: 40n, dropRatePct: 0n }] });
     run(ctx, '/economy item Ember Moss reset');
     expect(rows(ctx, 'economy_item_dial')).toHaveLength(0);
-    expect(systemLines(ctx)).toEqual(['Ember Moss drops at its normal rate again.']);
+    expect(systemLines(ctx)).toEqual(['The drop rate for Ember Moss is back to normal.']);
     const before = snapshot(ctx);
     run(ctx, '/economy item Ember Moss reset');
     expect(snapshot(ctx)).toBe(before);
