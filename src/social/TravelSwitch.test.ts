@@ -7,6 +7,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import TravelSwitch from './TravelSwitch.vue';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
 import type { GameData, GameReducers } from '../game/context';
+import { SEND_ERROR_TEXT } from '../ledger/actionRunner';
 
 // The Travel with leader switch (51.1-UI-SPEC "Travel with leader switch"): members only, out of
 // combat, once the group rows and the leader's character row apply. aria-checked follows the
@@ -178,6 +179,17 @@ describe('TravelSwitch clicks', () => {
     expect(w.get('button').attributes('aria-disabled')).toBe('true');
     await w.get('button').trigger('click');
     expect(s.setFollowLeader).not.toHaveBeenCalled();
+  });
+
+  it('a rejected call writes the shared send error line to the feed once (review WR-01)', async () => {
+    const s = setup();
+    s.setFollowLeader.mockImplementationOnce(() => Promise.reject(new Error('refused')));
+    const append = vi.spyOn(s.game.feed, 'appendLocal');
+    const w = mountSwitch(s.game);
+    await w.get('button').trigger('click');
+    await flushPromises();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledWith('system', SEND_ERROR_TEXT);
   });
 
   it('an online switch is not aria-disabled', () => {

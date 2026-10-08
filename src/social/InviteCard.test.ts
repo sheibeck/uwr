@@ -10,6 +10,7 @@ import { SOCIAL_KEY, createInertSocial } from './socialContext';
 import type { SocialData } from './socialContext';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
 import type { GameData, GameReducers } from '../game/context';
+import { SEND_ERROR_TEXT } from '../ledger/actionRunner';
 
 // The incoming invite card (51.1-UI-SPEC "Incoming Invite Card"): who invited you, who is in the
 // party, how long the invite lasts, Accept and Decline. Display only: the timer reads the social
@@ -295,6 +296,22 @@ describe('InviteCard actions', () => {
     await accept(w).trigger('click');
     await flushPromises();
     expect(w.emitted('answered')).toBeUndefined();
+  });
+
+  it('a rejected Accept or Decline writes the shared send error line to the feed once each (review WR-01)', async () => {
+    const s = setup();
+    s.acceptGroupInvite.mockImplementationOnce(() => Promise.reject(new Error('refused')));
+    s.rejectGroupInvite.mockImplementationOnce(() => Promise.reject(new Error('refused')));
+    const append = vi.spyOn(s.game.feed, 'appendLocal');
+    const w = mountCard(s);
+    await accept(w).trigger('click');
+    await flushPromises();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledWith('system', SEND_ERROR_TEXT);
+    await decline(w).trigger('click');
+    await flushPromises();
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(append).toHaveBeenLastCalledWith('system', SEND_ERROR_TEXT);
   });
 
   it('at 0 seconds shows Expired, disables both buttons and sends nothing', async () => {

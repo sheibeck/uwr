@@ -2,8 +2,7 @@
 import { computed, inject, useId } from 'vue';
 import { PhFootprints } from '@phosphor-icons/vue';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
-import { createActionRunner } from '../ledger/actionRunner';
-import { createPartyActions } from './partyActions';
+import { usePartyActions } from './usePartyActions';
 
 // The "Travel with leader" switch (51.1-UI-SPEC "Travel with Leader"). Members only (not the
 // leader, not solo), out of combat, and only once your group member row and the leader's character
@@ -17,8 +16,7 @@ const props = withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { vari
 
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
-const runner = createActionRunner({ online: game.connected });
-const actions = createPartyActions({ game, consoleApi, runner });
+const { runner, actions } = usePartyActions(game, consoleApi);
 
 const subId = useId();
 

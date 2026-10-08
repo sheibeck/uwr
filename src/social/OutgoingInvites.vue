@@ -2,11 +2,10 @@
 import { computed, inject, ref, watch } from 'vue';
 import { PhHourglassMedium } from '@phosphor-icons/vue';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
-import { createActionRunner } from '../ledger/actionRunner';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
 import CharacterName from './CharacterName.vue';
-import { createPartyActions } from './partyActions';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
+import { usePartyActions } from './usePartyActions';
 
 // The outgoing invite list (51.1-UI-SPEC "Outgoing Invites"). The group's leader sees every pending invite
 // of the group; an inviter who is not the leader sees only the invites they sent. Hidden in combat
@@ -23,8 +22,7 @@ const emit = defineEmits<{ focusHeading: [] }>();
 const game = inject(GAME_KEY, createInertGame());
 const social = inject(SOCIAL_KEY, createInertSocial());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
-const runner = createActionRunner({ online: game.connected });
-const actions = createPartyActions({ game, consoleApi, runner });
+const { runner, actions } = usePartyActions(game, consoleApi);
 
 const sectionEl = ref<HTMLElement | null>(null);
 

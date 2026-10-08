@@ -10,7 +10,9 @@ import EmptyState from './EmptyState.vue';
 // already shows the party). On mobile the Party tab opens this sheet, which is the party's mobile
 // home (51.1-UI-SPEC "Mobile Party Sheet"): the Party block in its sheet variant, and at the foot a
 // NoticeLine that mirrors system and group lines, so party refusals (written by failGroup as private
-// kind 'group') are visible while the sheet covers the feed. 52.2 adds the friend kind.
+// kind 'group') are visible while the sheet covers the feed. 52.2 adds the friend kind. With
+// send-errors it also shows the shared send error line that every party control in the sheet (and
+// its menus) writes for a rejected call (51.1 review WR-01).
 const SHEET_KINDS: ReadonlySet<string> = new Set(['system', 'group']);
 
 const frame = inject(FRAME_KEY, createInertFrame());
@@ -20,7 +22,7 @@ const frame = inject(FRAME_KEY, createInertFrame());
   <EmptyState v-if="frame.isDesktop.value" :icon="PhUsersThree" title="No friends or party yet." body="This screen is still being built." />
   <div v-else class="social-sheet">
     <PartyBlock variant="sheet" />
-    <NoticeLine :kinds="SHEET_KINDS" />
+    <NoticeLine :kinds="SHEET_KINDS" send-errors />
   </div>
 </template>
 

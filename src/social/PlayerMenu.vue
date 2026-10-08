@@ -10,14 +10,13 @@ import {
   createInertGame,
 } from '../game/context';
 import type { Character } from '../module_bindings/types';
-import { SEND_ERROR_TEXT, createActionRunner } from '../ledger/actionRunner';
 import ActionMenu from './ActionMenu.vue';
 import type { MenuAnchor } from './menuPosition';
 import { claimMenu, newMenuId, releaseMenu } from './menuRegistry';
 import { nextLeaderName, playerMenuEntries, playerMenuHeader } from './playerMenu';
 import type { MenuAction, MenuEntry, MenuGroup, MenuPerson, PlayerMenuInput } from './playerMenu';
-import { createPartyActions } from './partyActions';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
+import { usePartyActions } from './usePartyActions';
 
 // The ⋯ opener and its menu for one character (51.1-UI-SPEC "Party and Player Menus"). Hosts
 // mount it as a sibling of their target element (never inside another button) and may call the
@@ -41,20 +40,12 @@ const social = inject(SOCIAL_KEY, createInertSocial());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const frame = inject(FRAME_KEY, createInertFrame());
 
-const runner = createActionRunner({ online: game.connected });
-const actions = createPartyActions({ game, consoleApi, runner });
+// A rejected reducer promise prints the shared send error line in the feed (usePartyActions).
+const { runner, actions } = usePartyActions(game, consoleApi);
 
 const menuId = newMenuId();
 const root = ref<HTMLElement | null>(null);
 const opener = ref<HTMLButtonElement | null>(null);
-
-// A rejected reducer promise prints the client rejection line in the feed (the NearbyList pattern).
-watch(
-  () => runner.rejection.value,
-  (next, previous) => {
-    if (next > previous) game.feed.appendLocal('system', SEND_ERROR_TEXT);
-  },
-);
 
 // Your own row, then the players here, the party's known characters and the social hub's rows.
 function characterRow(id: bigint): Character | null {

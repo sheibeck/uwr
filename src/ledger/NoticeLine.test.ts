@@ -224,6 +224,40 @@ describe('NoticeLine kinds', () => {
     expect(w.find('.notice-line').exists()).toBe(false);
   });
 
+  it('with sendErrors the shared send error line written to the feed shows as the rejection', async () => {
+    const { feed, mountLine } = setup();
+    const w = mountLine(0, { kinds: SHEET, sendErrors: true });
+    feed.appendLocal('system', SEND_ERROR_TEXT);
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+    expect(w.findComponent(PhWarningCircle).exists()).toBe(true);
+    expect(w.findComponent(PhInfo).exists()).toBe(false);
+  });
+
+  it('without sendErrors (every other screen) a local send error line does not show', async () => {
+    const { feed, mountLine } = setup();
+    const w = mountLine(0, { kinds: SHEET });
+    feed.appendLocal('system', SEND_ERROR_TEXT);
+    await nextTick();
+    expect(w.find('.notice-line').exists()).toBe(false);
+  });
+
+  it('with sendErrors no other local line shows, and one present at mount never does', async () => {
+    const { feed, send, mountLine } = setup();
+    feed.appendLocal('system', SEND_ERROR_TEXT);
+    const w = mountLine(0, { kinds: SHEET, sendErrors: true });
+    feed.appendLocal('system', 'Queue full.');
+    feed.appendLocal('echo', SEND_ERROR_TEXT);
+    await nextTick();
+    expect(w.find('.notice-line').exists()).toBe(false);
+    send('private', 'group', 'You invited Bo.');
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe('You invited Bo.');
+    feed.appendLocal('system', SEND_ERROR_TEXT);
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+  });
+
   it('keeps the default set pinned in the source and reads props.kinds in the filter', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/ledger/NoticeLine.vue'), 'utf8');
     expect(source).toContain('kinds?: ReadonlySet<string>');

@@ -27,10 +27,19 @@ import { SEND_ERROR_TEXT } from './actionRunner';
 // Icon deviation (RESEARCH Open Question 7, resolved): the warning icon marks only a client
 // rejection, because the server writes refusals and info lines with the same kind, so a refusal
 // cannot be told apart from information. Reward and heal lines use the check, system and group the info icon.
-const props = withDefaults(defineProps<{ rejection?: number; kinds?: ReadonlySet<string> }>(), {
-  rejection: 0,
-  kinds: () => MIRRORED_KINDS,
-});
+//
+// The sendErrors prop (51.1 review WR-01): party controls report a rejected call with the shared
+// send error line in the feed (reportRejections in actionRunner.ts), a local system line. A screen
+// that covers the feed and hosts such controls (the mobile Party sheet) opts in, so that line shows
+// here as the rejection. No other local line is ever mirrored.
+const props = withDefaults(
+  defineProps<{ rejection?: number; kinds?: ReadonlySet<string>; sendErrors?: boolean }>(),
+  {
+    rejection: 0,
+    kinds: () => MIRRORED_KINDS,
+    sendErrors: false,
+  },
+);
 
 const game = inject(GAME_KEY, createInertGame());
 
@@ -47,12 +56,16 @@ watch(
   (entries) => {
     for (let i = entries.length - 1; i >= 0; i -= 1) {
       const entry = entries[i];
-      if (entry.source !== 'private' || !props.kinds.has(entry.kind) || atOpen.has(entry.key)) {
-        continue;
-      }
+      if (atOpen.has(entry.key)) continue;
+      const sendError =
+        props.sendErrors &&
+        entry.source === 'local' &&
+        entry.kind === 'system' &&
+        entry.message === SEND_ERROR_TEXT;
+      if (!sendError && (entry.source !== 'private' || !props.kinds.has(entry.kind))) continue;
       if (entry.key === shownKey) return;
       shownKey = entry.key;
-      current.value = { kind: 'server', entry };
+      current.value = sendError ? { kind: 'rejection' } : { kind: 'server', entry };
       return;
     }
   },

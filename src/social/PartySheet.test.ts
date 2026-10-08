@@ -15,6 +15,7 @@ import type { ConsoleApi, FrameControls, GameData, GameReducers } from '../game/
 import { createFeedStore } from '../console/feedStore';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
 import type { SocialData } from './socialContext';
+import { SEND_ERROR_TEXT } from '../ledger/actionRunner';
 
 // The mobile Party sheet (51.1-UI-SPEC "Mobile Party Sheet", ROADMAP 51.1 criterion 6): the Social
 // sheet's body on a phone is PartyBlock variant="sheet" plus a NoticeLine for party refusals. These
@@ -537,6 +538,68 @@ describe('mobile Party sheet reaches every party action (criterion 6)', () => {
     await w.get('.outgoing button.cancel').trigger('click');
     await settle();
     expect(reducers.cancelGroupInvite).toHaveBeenCalledWith({ characterId: ME, targetName: 'Cy' });
+  });
+});
+
+// Client rejections (51.1 review client-social WR-01, client-rest WR-01): every party control in the
+// sheet reports a rejected call with the one shared send error line, and the sheet's NoticeLine shows
+// it while the sheet covers the feed. Server refusals stay the server's own lines.
+describe('mobile Party sheet client rejections', () => {
+  const refused = () => Promise.reject(new Error('transport dropped'));
+
+  it('a rejected Accept on the invite card shows the send error at the foot', async () => {
+    const { w, reducers } = setup({ party: null, incoming: { fromId: DEE } });
+    reducers.acceptGroupInvite.mockImplementationOnce(refused);
+    await w.get('.invite-card .answer.btn-primary').trigger('click');
+    await settle();
+    expect(w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+    const sheet = w.get('.social-sheet').element;
+    expect(sheet.lastElementChild).toBe(w.get('.notice-line').element);
+  });
+
+  it('then a rejected menu action shows it again after a server line replaced it', async () => {
+    const { w, feed, reducers } = setup({ party: null, incoming: { fromId: DEE } });
+    reducers.acceptGroupInvite.mockImplementationOnce(refused);
+    await w.get('.invite-card .answer.btn-primary').trigger('click');
+    await settle();
+    expect(w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+    send(feed, 'group', 'Dee cancelled the invite.');
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe('Dee cancelled the invite.');
+
+    const lead = setup();
+    lead.reducers.sendFriendRequestToCharacter.mockImplementationOnce(refused);
+    await lead.w.findAll('ul.cards button.menu-opener')[0].trigger('click');
+    await nextTick();
+    item('Add friend').click();
+    await settle();
+    expect(lead.w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+  });
+
+  it('a rejected Travel with leader switch and a rejected Cancel invite show it too', async () => {
+    const member = setup({ party: 'member' });
+    member.reducers.setFollowLeader.mockImplementationOnce(refused);
+    await member.w.get('button.travel-switch').trigger('click');
+    await settle();
+    expect(member.w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+
+    const lead = setup({
+      outgoing: [outgoingTo(31n, CY)],
+      known: [character(MARA, 'Mara'), character(BO, 'Bo'), character(CY, 'Cy')],
+    });
+    lead.reducers.cancelGroupInvite.mockImplementationOnce(refused);
+    await lead.w.get('.outgoing button.cancel').trigger('click');
+    await settle();
+    expect(lead.w.get('.notice-line').text()).toBe(SEND_ERROR_TEXT);
+  });
+
+  it('writes the line once per rejection, into the feed as the one local system line', async () => {
+    const { w, feed, reducers } = setup({ party: 'member' });
+    reducers.setFollowLeader.mockImplementationOnce(refused);
+    await w.get('button.travel-switch').trigger('click');
+    await settle();
+    const local = feed.entries.value.filter((entry) => entry.source === 'local');
+    expect(local.map((entry) => [entry.kind, entry.message])).toEqual([['system', SEND_ERROR_TEXT]]);
   });
 });
 

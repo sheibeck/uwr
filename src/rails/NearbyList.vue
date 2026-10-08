@@ -23,7 +23,7 @@ import {
   createInertFrame,
   createInertGame,
 } from '../game/context';
-import { SEND_ERROR_TEXT, createActionRunner } from '../ledger/actionRunner';
+import { createActionRunner, reportRejections } from '../ledger/actionRunner';
 import { enemyRows } from './enemies';
 import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
@@ -52,12 +52,7 @@ const runner = createActionRunner({ online: connected });
 // A rejected Bind (the transport failed, or the reducer threw a SenderError) prints the client
 // rejection line in the feed, where the rail's other results go (UI-SPEC copy: "Couldn't send that.
 // Try again."). Server refusals made with fail() arrive as their own feed lines.
-watch(
-  () => runner.rejection.value,
-  (next, previous) => {
-    if (next > previous) game.feed.appendLocal('system', SEND_ERROR_TEXT);
-  },
-);
+reportRejections(runner, game.feed);
 
 // The current place: the bind stone row shows only where the place has one.
 const place = computed(() => {

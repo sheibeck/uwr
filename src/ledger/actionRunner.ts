@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
 
 // The shared reducer-call rules of the ledger screens (UI-SPEC "Pending" and "Notice line"): a call
@@ -53,4 +53,25 @@ export function createActionRunner(options: { online: Readonly<Ref<boolean>> }):
     rejection: computed(() => rejection.value),
     run,
   };
+}
+
+/** Where reportRejections writes: the game feed's local append. */
+export interface RejectionFeed {
+  appendLocal(kind: 'system', message: string): unknown;
+}
+
+/**
+ * The one client-rejection report for controls that have no notice line of their own (the rail
+ * Nearby actions and every party control; 51.1 review WR-01). Each rejected call of this runner
+ * appends SEND_ERROR_TEXT to the feed once, as a local system line. Server refusals stay the
+ * server's own lines; these controls write no other line. A screen that covers the feed shows
+ * the line through its NoticeLine with sendErrors. Call it from a component's setup.
+ */
+export function reportRejections(runner: ActionRunner, feed: RejectionFeed): void {
+  watch(
+    () => runner.rejection.value,
+    (next, previous) => {
+      if (next > previous) feed.appendLocal('system', SEND_ERROR_TEXT);
+    },
+  );
 }

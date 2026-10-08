@@ -9,6 +9,7 @@ import { SOCIAL_KEY, createInertSocial } from './socialContext';
 import type { SocialData } from './socialContext';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
 import type { GameData, GameReducers } from '../game/context';
+import { SEND_ERROR_TEXT } from '../ledger/actionRunner';
 
 // Invited · waiting (51.1-UI-SPEC "Outgoing Invites"): the leader sees every pending invite of the
 // group, an inviter who is not the leader sees only their own, out of combat. The countdown is
@@ -208,6 +209,17 @@ describe('OutgoingInvites cancel', () => {
     await flushPromises();
     expect(w.findAll('li')).toHaveLength(2);
     expect(cancelButtons(w)[0].attributes('aria-disabled')).toBeUndefined();
+  });
+
+  it('a rejected cancel writes the shared send error line to the feed once (review WR-01)', async () => {
+    const s = setup();
+    s.cancelGroupInvite.mockImplementationOnce(() => Promise.reject(new Error('refused')));
+    const append = vi.spyOn(s.game.feed, 'appendLocal');
+    const w = mountList(s);
+    await cancelButtons(w)[0].trigger('click');
+    await flushPromises();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledWith('system', SEND_ERROR_TEXT);
   });
 
   it("offline: aria-disabled and a click sends nothing", async () => {
