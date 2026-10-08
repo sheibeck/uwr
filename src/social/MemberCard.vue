@@ -2,8 +2,8 @@
 import { computed, inject, ref } from 'vue';
 import { PhCrownSimple, PhWarningCircle } from '@phosphor-icons/vue';
 import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
-import { barFraction } from '../frame/vitals';
-import type { PartyMemberView } from '../rails/party';
+import { memberBars } from '../rails/party';
+import type { MemberBar, PartyMemberView } from '../rails/party';
 import CharacterName from './CharacterName.vue';
 import FollowIcon from './FollowIcon.vue';
 import PlayerMenu from './PlayerMenu.vue';
@@ -13,14 +13,15 @@ import type { FollowState } from './follow';
 // One party member out of combat (51.1-UI-SPEC "Vitals Rail Party Block", out of combat item 6):
 // a div laid out as [content][⋯]. The content holds the status dot, the name, the crown for the
 // leader, the class (it ellipsizes first), then the follow icon and the 51 'Lv {n} · {s} st' with
-// its low mark, and the 4px health and 3px resource bars. The ⋯ (PlayerMenu) is the card's last
+// its low mark, and the 4px health bar, the 3px mana bar for a member with mana and the 3px stamina
+// bar (memberBars, owner 2026-10-08). The ⋯ (PlayerMenu) is the card's last
 // child, never inside a button; right-click on the card opens the same menu (desktop only).
 // An offline member is muted; a member whose character row has not applied is the unknown card
 // ('Member', muted, no dot, follow icon or ⋯). Names and classes are server text, text nodes only.
 //
 // The sheet variant is the mobile Party sheet card (51.1-UI-SPEC "Mobile Party Sheet" items 5 and 6):
 // [dot][name][crown][follow icon], then 'Lv {n} · {Here | place | Offline} · {s} st' (the place
-// ellipsizes first), the 4px health bar only, and the 44px ⋯. With `self` it is your own card: your
+// ellipsizes first), the same three bars for a known member (owner 2026-10-08), and the 44px ⋯. With `self` it is your own card: your
 // name with ' (you)', your follow state, 'Lv {n} · {s} st' and no bars (your bars are in the header
 // strip). The rail variant is the desktop rail.
 const props = withDefaults(
@@ -70,20 +71,23 @@ const staminaScreenText = computed(() =>
 // A bar's progressbar semantics. An unknown member (no character row yet) has no real values (all
 // 0, max 0), so its empty tracks stay as the 47 dimmed look but are hidden from assistive technology
 // instead of reading "Member health 0 of 0" (51.1 review client-social IN-07).
-function barAttrs(kind: string, value: bigint, max: bigint): Record<string, string | number> {
+function barAttrs(bar: MemberBar): Record<string, string | number> {
   if (!known.value) return { 'aria-hidden': 'true' };
   return {
     role: 'progressbar',
-    'aria-label': `${label.value} ${kind} ${value} of ${max}`,
+    'aria-label': `${label.value} ${bar.phrase}`,
     'aria-valuemin': 0,
-    'aria-valuenow': Number(value),
-    'aria-valuemax': Number(max),
+    'aria-valuenow': Number(bar.value),
+    'aria-valuemax': Number(bar.max),
+    title: bar.title,
   };
 }
 
-function pct(value: bigint, max: bigint): string {
-  return `${barFraction(value, max) * 100}%`;
-}
+// The card's bars (owner 2026-10-08): health, mana only for a member with mana, then stamina. The
+// rail keeps the dimmed empty tracks of an unknown member; the sheet shows bars for a known member who
+// is not you (your own bars are in the header strip).
+const bars = computed(() => memberBars(props.member));
+const showBars = computed(() => !isSheet.value || (known.value && !props.self));
 
 // Right-click opens the card's menu: always in the desktop rail, on desktop only for the sheet
 // (no long-press on touch). Nothing is prevented when the card has no menu.
@@ -129,24 +133,11 @@ function onContextMenu(event: MouseEvent): void {
           ><PhWarningCircle v-if="member.lowStamina" class="low-icon" :size="12" />{{ `${member.stamina} st` }}</span
         >
       </span>
-      <div
-        v-if="!isSheet || (known && !props.self)"
-        class="track health-track"
-        v-bind="barAttrs('health', member.hp, member.maxHp)"
-      >
-        <div class="fill fill-health" :style="{ width: pct(member.hp, member.maxHp) }"></div>
-      </div>
-      <div
-        v-if="!isSheet"
-        class="track resource-track"
-        v-bind="barAttrs(member.resourceKind, member.resource, member.maxResource)"
-      >
-        <div
-          class="fill"
-          :class="member.resourceKind === 'mana' ? 'fill-mana' : 'fill-stamina'"
-          :style="{ width: pct(member.resource, member.maxResource) }"
-        ></div>
-      </div>
+      <template v-if="showBars">
+        <div v-for="bar in bars" :key="bar.kind" class="track" :class="`${bar.kind}-track`" v-bind="barAttrs(bar)">
+          <div class="fill" :class="`fill-${bar.kind}`" :style="{ width: bar.width }"></div>
+        </div>
+      </template>
     </div>
     <PlayerMenu
       v-if="known"
@@ -254,7 +245,8 @@ function onContextMenu(event: MouseEvent): void {
   height: 4px;
 }
 
-.resource-track {
+.mana-track,
+.stamina-track {
   height: 3px;
 }
 

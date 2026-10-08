@@ -266,7 +266,7 @@ describe('mobile Party sheet populated (Q5)', () => {
     expect(member.prefill).not.toHaveBeenCalled();
   });
 
-  it('the self card reads your name with (you), Lv 4 · 30 st and no bars; members have the place line and one bar each', () => {
+  it('the self card reads your name with (you), Lv 4 · 30 st and no bars; members have the place line and the health, mana and stamina bars', () => {
     const { w } = setup();
     const self = w.get('.self-entry .member-card');
     expect(self.get('.character-name').text()).toBe('Ann (you)');
@@ -279,7 +279,14 @@ describe('mobile Party sheet populated (Q5)', () => {
     expect(cards[0].get('.member-line').text()).toBe('Lv 4 · Saltmarsh Gate · 30 st');
     expect(cards[1].get('.member-line').text()).toBe('Lv 4 · Here · 30 st');
     for (const card of cards) {
-      expect(card.findAll('[role="progressbar"]')).toHaveLength(1);
+      const bars = card.findAll('[role="progressbar"]');
+      expect(bars).toHaveLength(3);
+      const name = card.get('.member-name').text();
+      expect(bars.map((b) => b.attributes('aria-label')?.split(' ').slice(0, 2).join(' '))).toEqual([
+        `${name} health`,
+        `${name} mana`,
+        `${name} stamina`,
+      ]);
       expect(card.get('button.menu-opener').classes()).toContain('sheet');
     }
   });

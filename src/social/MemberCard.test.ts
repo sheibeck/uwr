@@ -113,7 +113,7 @@ function mountCard(
 }
 
 describe('MemberCard online member', () => {
-  it('reads [dot][name][class][follow icon][Lv · st] with both bars', () => {
+  it('reads [dot][name][class][follow icon][Lv · st] with the health, mana and stamina bars', () => {
     const w = mountCard();
     const card = w.get('.member-card');
     expect(card.element.tagName).toBe('DIV');
@@ -129,9 +129,21 @@ describe('MemberCard online member', () => {
     expect(w.get('.right .follow-icon').attributes('title')).toBe('Travels with the leader');
     expect(w.get('.member-level').text()).toBe('Lv 6 · 12 st');
     expect(w.get('.member-level').attributes('title')).toBe('Stamina 12 of 40');
-    expect(w.get('.health-track').attributes('aria-label')).toBe('Bo health 50 of 100');
-    expect(w.find('.resource-track .fill-mana').exists()).toBe(true);
-    expect((w.get('.resource-track .fill').element as HTMLElement).style.width).toBe('75%');
+    const tracks = w.findAll('.content > .track');
+    expect(tracks.map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'mana-track',
+      'stamina-track',
+    ]);
+    expect(tracks.map((t) => t.attributes('role'))).toEqual(['progressbar', 'progressbar', 'progressbar']);
+    expect(tracks.map((t) => t.attributes('aria-label'))).toEqual([
+      'Bo health 50 of 100',
+      'Bo mana 30 of 40',
+      'Bo stamina 12 of 40',
+    ]);
+    expect(tracks.map((t) => t.attributes('title'))).toEqual(['Health 50/100', 'Mana 30/40', 'Stamina 12/40']);
+    expect(tracks.map((t) => (t.get('.fill').element as HTMLElement).style.width)).toEqual(['50%', '75%', '30%']);
+    expect(tracks.map((t) => t.get('.fill').classes()[1])).toEqual(['fill-health', 'fill-mana', 'fill-stamina']);
   });
 
   it('carries the status word and the stamina text for screen readers', () => {
@@ -156,9 +168,13 @@ describe('MemberCard online member', () => {
     expect(w.get('.stamina-sr').text()).toBe('Stamina 3 of 40, too low to travel');
   });
 
-  it('uses the stamina resource bar for a member without mana', () => {
+  it('draws no mana bar for a member without mana: health then stamina', () => {
     const w = mountCard({ member: view({ resourceKind: 'stamina', resource: 12n, maxResource: 40n }) });
-    expect(w.find('.resource-track .fill-stamina').exists()).toBe(true);
+    expect(w.find('.mana-track').exists()).toBe(false);
+    expect(w.findAll('.content > .track').map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'stamina-track',
+    ]);
   });
 
   it('shows no follow icon when no state is given', () => {
@@ -230,6 +246,9 @@ describe('MemberCard unknown member', () => {
     maxHp: 0n,
     resource: 0n,
     maxResource: 0n,
+    resourceKind: 'stamina',
+    stamina: 0n,
+    maxStamina: 0n,
   });
 
   it('reads Member, muted, with no dot, follow icon, stamina or ⋯', async () => {
@@ -248,8 +267,14 @@ describe('MemberCard unknown member', () => {
     // Review IN-07: no progressbar with a 0 maximum; the empty tracks are decorative.
     expect(w.find('[role="progressbar"]').exists()).toBe(false);
     expect(w.get('.health-track').attributes('aria-hidden')).toBe('true');
-    expect(w.get('.resource-track').attributes('aria-hidden')).toBe('true');
+    expect(w.get('.stamina-track').attributes('aria-hidden')).toBe('true');
+    expect((w.get('.stamina-track .fill').element as HTMLElement).style.width).toBe('0%');
     expect(w.get('.health-track').attributes('aria-valuemax')).toBeUndefined();
+    expect(w.find('.mana-track').exists()).toBe(false);
+    for (const track of w.findAll('.track')) {
+      expect(track.attributes('title')).toBeUndefined();
+      expect(track.attributes('role')).toBeUndefined();
+    }
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     card.element.dispatchEvent(event);
     await nextTick();
@@ -262,6 +287,7 @@ describe('MemberCard source', () => {
 
   it('mounts PlayerMenu as a sibling and carries the 51 stamina copy and tokens', () => {
     expect(source).toContain('<PlayerMenu');
+    expect(source).toContain('memberBars(');
     expect(source).toContain('too low to travel');
     expect(source).toContain('PhWarningCircle');
     expect(source).toContain('var(--color-con-red)');
@@ -272,8 +298,9 @@ describe('MemberCard source', () => {
 });
 
 // The mobile Party sheet recipe (51.1-UI-SPEC "Mobile Party Sheet" items 5 and 6): the sheet card has
-// the place line 'Lv {n} · {Here | place | Offline} · {s} st', only the 4px health bar, the 44px ⋯;
-// the self card (you) reads your name with ' (you)', your follow icon, 'Lv {n} · {s} st', no bars.
+// the place line 'Lv {n} · {Here | place | Offline} · {s} st', the health, mana (if any) and stamina bars
+// (owner 2026-10-08), the 44px ⋯; the self card (you) reads your name with ' (you)', your follow icon,
+// 'Lv {n} · {s} st', no bars.
 describe('MemberCard sheet variant', () => {
   const SALTMARSH = 20n;
 
@@ -340,12 +367,30 @@ describe('MemberCard sheet variant', () => {
     expect(source).toMatch(/.line-fixed {[^}]*flex: none/);
   });
 
-  it('shows the 4px health bar and no resource bar and no class text', () => {
+  it('shows the health, mana and stamina bars and no class text', () => {
     const w = mountSheet();
-    expect(w.find('.health-track').exists()).toBe(true);
-    expect(w.find('.resource-track').exists()).toBe(false);
     expect(w.find('.member-class').exists()).toBe(false);
-    expect(w.get('.health-track').attributes('aria-label')).toBe('Bo health 50 of 100');
+    expect(w.findAll('[role="progressbar"]').map((t) => t.attributes('aria-label'))).toEqual([
+      'Bo health 50 of 100',
+      'Bo mana 30 of 40',
+      'Bo stamina 12 of 40',
+    ]);
+    expect(w.findAll('.content > .track').map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'mana-track',
+      'stamina-track',
+    ]);
+    const line = w.get('.member-line').element;
+    expect(line.nextElementSibling).toBe(w.get('.health-track').element);
+  });
+
+  it('shows health then stamina for a sheet member without mana', () => {
+    const w = mountSheet({ member: view({ resourceKind: 'stamina', resource: 12n, maxResource: 40n }) });
+    expect(w.find('.mana-track').exists()).toBe(false);
+    expect(w.findAll('[role="progressbar"]').map((t) => t.attributes('aria-label'))).toEqual([
+      'Bo health 50 of 100',
+      'Bo stamina 12 of 40',
+    ]);
   });
 
   it('carries the status word, the follow icon, the crown and the low mark', () => {
@@ -375,7 +420,7 @@ describe('MemberCard sheet variant', () => {
     expect(w.get('.member-card').classes()).toContain('unknown');
     expect(w.find('.player-menu').exists()).toBe(false);
     expect(w.find('.member-line').exists()).toBe(false);
-    expect(w.find('.health-track').exists()).toBe(false);
+    expect(w.find('.track').exists()).toBe(false);
     expect(w.find('button').exists()).toBe(false);
   });
 
@@ -391,8 +436,7 @@ describe('MemberCard sheet variant', () => {
     expect(w.get('.follow-icon').attributes('title')).toBe('Leader · others travel with them');
     expect(w.get('.member-line').text()).toBe('Lv 4 · 30 st');
     expect(w.find('.member-place').exists()).toBe(false);
-    expect(w.find('.health-track').exists()).toBe(false);
-    expect(w.find('.resource-track').exists()).toBe(false);
+    expect(w.find('.track').exists()).toBe(false);
     expect(w.findAll('[role="progressbar"]')).toHaveLength(0);
   });
 

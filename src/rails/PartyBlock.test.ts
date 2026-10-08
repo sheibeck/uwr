@@ -142,17 +142,28 @@ describe('PartyBlock in a party', () => {
     expect(mara.get('.member-name').element.nextElementSibling?.classList.contains('crown')).toBe(true);
   });
 
-  it('labels the health bar and picks the mana or stamina resource bar', () => {
+  it('draws health, mana (mana users only) and stamina bars on each card', () => {
     const { w } = mountBlock(PARTY);
     const [mara, bo] = w.findAll('.member-card');
     const health = mara.get('.health-track');
     expect(health.attributes('role')).toBe('progressbar');
     expect(health.attributes('aria-label')).toBe('Mara health 95 of 100');
     expect((mara.get('.health-track .fill').element as HTMLElement).style.width).toBe('95%');
-    expect(mara.find('.resource-track .fill-mana').exists()).toBe(true);
-    expect((mara.get('.resource-track .fill').element as HTMLElement).style.width).toBe('50%');
-    expect(bo.find('.resource-track .fill-stamina').exists()).toBe(true);
-    expect((bo.get('.resource-track .fill').element as HTMLElement).style.width).toBe('100%');
+    expect(mara.findAll('.content > .track').map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'mana-track',
+      'stamina-track',
+    ]);
+    expect(mara.get('.mana-track .fill-mana').exists()).toBe(true);
+    expect((mara.get('.mana-track .fill').element as HTMLElement).style.width).toBe('50%');
+    expect((mara.get('.stamina-track .fill').element as HTMLElement).style.width).toBe('100%');
+    expect(bo.find('.mana-track').exists()).toBe(false);
+    expect(bo.findAll('.content > .track').map((t) => t.classes().filter((c) => c.endsWith('-track'))[0])).toEqual([
+      'health-track',
+      'stamina-track',
+    ]);
+    expect(bo.get('.stamina-track .fill-stamina').exists()).toBe(true);
+    expect((bo.get('.stamina-track .fill').element as HTMLElement).style.width).toBe('100%');
   });
 
   it('shows empty tracks for max 0 vitals', () => {
@@ -169,7 +180,7 @@ describe('PartyBlock in a party', () => {
     const [unknown] = w.findAll('.member-card');
     expect(unknown.classes()).toContain('unknown');
     expect((unknown.get('.health-track .fill').element as HTMLElement).style.width).toBe('0%');
-    expect((unknown.get('.resource-track .fill').element as HTMLElement).style.width).toBe('0%');
+    expect((unknown.get('.stamina-track .fill').element as HTMLElement).style.width).toBe('0%');
     expect(unknown.find('.member-level').exists()).toBe(false);
   });
 
@@ -1132,7 +1143,7 @@ describe('PartyBlock variants (51.1 Plan 16)', () => {
     expect(w.find('button.invite.sheet').exists()).toBe(false);
     expect(w.find('.self-entry').exists()).toBe(false);
     expect(w.find('.member-card.sheet').exists()).toBe(false);
-    expect(w.find('.resource-track').exists()).toBe(true);
+    expect(w.find('.stamina-track').exists()).toBe(true);
     const solo = mountVariant('rail', false);
     expect(solo.text()).toContain('Not in a party.');
     expect(solo.find('.empty-state').exists()).toBe(false);
@@ -1142,7 +1153,8 @@ describe('PartyBlock variants (51.1 Plan 16)', () => {
     const w = mountVariant('sheet', true);
     expect(w.get('button.invite').classes()).toContain('sheet');
     expect(w.find('.self-entry .member-card.self').exists()).toBe(true);
-    expect(w.find('.member-card.sheet .resource-track').exists()).toBe(false);
+    expect(w.find('ul.cards .member-card.sheet .stamina-track').exists()).toBe(true);
+    expect(w.find('.self-entry .track').exists()).toBe(false);
     const solo = mountVariant('sheet', false);
     expect(solo.text()).toContain("You're travelling alone.");
     expect(solo.text()).not.toContain('Not in a party.');
