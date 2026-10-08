@@ -5,15 +5,15 @@ milestone_name: UX Overhaul
 current_phase: 48
 current_phase_name: Combat Encounter
 status: executing
-stopped_at: Completed 48-14-PLAN.md
-last_updated: "2026-10-07T04:34:04.916Z"
+stopped_at: Phase 51.3.1.1 UI-SPEC approved
+last_updated: "2026-10-08T21:04:54.056Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 48 execution started
 progress:
-  total_phases: 14
-  completed_phases: 6
-  total_plans: 104
-  completed_plans: 97
+  total_phases: 23
+  completed_phases: 10
+  total_plans: 147
+  completed_plans: 147
   percent: 43
 ---
 
@@ -219,9 +219,6 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-07-combat-mock-effect-chips-update.md`: updated `UWR Combat.dc.html` changes the effect chips for players and enemies. Fold into Phase 51.4 (same design file as the loot rails).
 
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
-
-
-
 
 ### Blockers/Concerns
 
@@ -445,10 +442,10 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
 - **Executor practice:** one plan at a time with gsd-executor (sonnet; opus for heavy plans), each prompt pointing at a rules file and a hand-off log; code review per phase (server and client reviewers in parallel), fixers, then gsd-verifier.
 - **Open todos (pending):** level up and new skill unwired (51.5), combat outro story, combat mock effect chips (51.4), CR-01 login (51.1), event tables public, renown perks with no effect, typed text reveal, race ability chip, hotbar hover description, combat victory three Keeper lines.
 
-**Resume file:** None
+**Resume file:** .planning/phases/51.3.1.1-density-pools/51.3.1.1-UI-SPEC.md
 
-Last session: 2026-10-07T20:00:00.000Z
-Stopped at: Completed 48-14-PLAN.md
+Last session: 2026-10-08T21:04:54.000Z
+Stopped at: Phase 51.3.1.1 UI-SPEC approved
 
 ## Performance Metrics
 
