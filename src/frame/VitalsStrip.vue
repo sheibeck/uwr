@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, shallowRef, watch } from 'vue';
-import { PhArrowFatUp, PhCrownSimple } from '@phosphor-icons/vue';
+import { PhArrowFatUp, PhCrosshairSimple, PhCrownSimple } from '@phosphor-icons/vue';
 import InCombatTag from '../combat/InCombatTag.vue';
 import { useDamageFlash } from '../combat/useDamageFlash';
 import {
@@ -15,6 +15,9 @@ import EffectChips from '../rails/EffectChips.vue';
 import { effectViews } from '../rails/effects';
 import { isPartyLeader, partyMembers, partySize } from '../rails/party';
 import { xpProgress } from '../rails/xp';
+import CharacterName from '../social/CharacterName.vue';
+import PetTag from '../social/PetTag.vue';
+import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
 import { barFraction } from './vitals';
 
 const props = defineProps<{
@@ -35,6 +38,7 @@ const props = defineProps<{
 const game = inject(GAME_KEY, createInertGame());
 const frame = inject(FRAME_KEY, createInertFrame());
 const controller = inject(COMBAT_KEY, createInertCombat());
+const social = inject(SOCIAL_KEY, createInertSocial());
 
 // Combat is gated on game.combat.active, never on game.inCombat (Phase 47 pins the inCombat case).
 const combatActive = computed(() => game.combat.active.value);
@@ -59,18 +63,32 @@ const members = computed(() =>
 );
 const showChipRow = computed(() => inParty.value || effects.value.length > 0);
 
-// In a fight and in a party the chips become ally targets (48-UI-SPEC "Strip chip row"). Not in a
-// party the ally is the player, so there is no You chip and no targeting.
-const allyMode = computed(() => combatActive.value && inParty.value);
-const selfId = computed(() => game.characterId.value);
+// The self row (51.1-UI-SPEC "Mobile Party in Combat"): in a fight, once your character row exists, the
+// avatar, name, crown and class line are one button that targets yourself (client state; the ally
+// target defaults to you, so it starts pressed). Out of combat, and before the row exists, it is the
+// plain Phase 45 markup. Party members are targeted from the grid cards below the bars.
+const selfTarget = computed(() => combatActive.value && game.character.value !== null);
+const selfSelected = computed(() => {
+  const own = game.character.value;
+  return selfTarget.value && own !== null && controller.allyTargetId.value === own.id;
+});
+const selfLabel = computed(
+  () =>
+    `Target yourself with your next ability. Health ${props.hp} of ${props.maxHp}, ` +
+    `mana ${props.mana} of ${props.maxMana}, stamina ${props.stamina} of ${props.maxStamina}.`,
+);
 
-function isSelected(id: bigint): boolean {
-  return controller.allyTargetId.value === id;
+function selectSelf(): void {
+  const own = game.character.value;
+  if (own !== null) controller.selectAlly(own.id);
 }
 
-function allyLabel(name: string): string {
-  return `Target ${name} with your next ability`;
-}
+// Your pet (one per character) rides row 3 in a fight as a tag. It is not a target (owner decision).
+const myPet = computed(() => {
+  const id = game.characterId.value;
+  return id === null ? null : social.petOf(id);
+});
+const showRow3 = computed(() => effects.value.length > 0 || myPet.value !== null);
 
 // HP damage flash (48-UI-SPEC "Damage flash", CMB-05): the active character's HP only. The key is
 // latched so it only moves together with the hp prop (props lag the game refs by a render); a
@@ -117,14 +135,35 @@ function openSocial(): void {
     </template>
     <template v-else>
       <div class="identity-row">
-        <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
-        <div class="identity-text">
-          <div class="name-row">
-            <div class="name" :title="props.name">{{ props.name }}</div>
-            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+        <button
+          v-if="selfTarget"
+          type="button"
+          class="self-target"
+          :class="{ selected: selfSelected }"
+          :aria-pressed="selfSelected ? 'true' : 'false'"
+          :aria-label="selfLabel"
+          @click="selectSelf"
+        >
+          <span class="avatar" aria-hidden="true">{{ props.avatarInitial }}</span>
+          <span class="identity-text">
+            <span class="name-row">
+              <CharacterName class="self-name" :name="props.name" />
+              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />
+            </span>
+            <span class="class-line">{{ props.classLine }}</span>
+          </span>
+          <PhCrosshairSimple v-if="selfSelected" class="self-marker" weight="fill" :size="16" aria-hidden="true" />
+        </button>
+        <template v-else>
+          <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
+          <div class="identity-text">
+            <div class="name-row">
+              <div class="name" :title="props.name">{{ props.name }}</div>
+              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+            </div>
+            <div class="class-line">{{ props.classLine }}</div>
           </div>
-          <div class="class-line">{{ props.classLine }}</div>
-        </div>
+        </template>
         <div class="tags">
           <InCombatTag v-if="combatActive" :round-number="game.combat.roundNumber.value" />
           <span v-if="props.levelUp" class="tag tag-outline"><PhArrowFatUp :size="12" aria-hidden="true" />Level up</span>
@@ -157,6 +196,7 @@ function openSocial(): void {
           </div>
         </div>
         <div
+          v-if="!combatActive"
           class="xp-line"
           role="progressbar"
           aria-label="Experience"
@@ -168,55 +208,26 @@ function openSocial(): void {
           <div class="xp-fill" :style="{ width: `${xp.fraction * 100}%` }"></div>
         </div>
       </div>
-      <div v-if="showChipRow" class="chip-row" :class="{ 'ally-row': allyMode }">
-        <template v-if="allyMode">
-          <span class="tag tag-neutral party-chip party-count">
-            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
-          </span>
-          <button
-            v-if="selfId !== null"
-            type="button"
-            class="tag tag-neutral ally-chip"
-            :class="{ selected: isSelected(selfId) }"
-            :aria-pressed="isSelected(selfId) ? 'true' : 'false'"
-            :aria-label="allyLabel('You')"
-            @click="controller.selectAlly(selfId)"
-          >
-            <span class="chip-label">You</span>
-          </button>
-          <template v-for="member in members" :key="String(member.id)">
-            <button
-              v-if="member.known"
-              type="button"
-              class="tag tag-neutral ally-chip"
-              :class="{ selected: isSelected(member.id) }"
-              :title="member.name"
-              :aria-pressed="isSelected(member.id) ? 'true' : 'false'"
-              :aria-label="allyLabel(member.name)"
-              @click="controller.selectAlly(member.id)"
-            >
-              <span class="chip-label">{{ memberChipText(member) }}</span>
-            </button>
-            <span v-else class="tag tag-neutral member-chip unknown">
-              <span class="chip-label">{{ memberChipText(member) }}</span>
-            </span>
-          </template>
-        </template>
-        <template v-else>
-          <button v-if="inParty" type="button" class="tag tag-neutral party-chip" @click="openSocial">
-            <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
-          </button>
-          <button
-            v-for="member in members"
-            :key="String(member.id)"
-            type="button"
-            class="tag tag-neutral member-chip"
-            :title="member.name"
-            @click="openSocial"
-          >
-            <span class="chip-label">{{ memberChipText(member) }}</span>
-          </button>
-        </template>
+      <div v-if="combatActive && showRow3" class="row3">
+        <div v-if="effects.length > 0" class="row3-chips">
+          <EffectChips :effects="effects" nowrap compact />
+        </div>
+        <PetTag v-if="myPet !== null" :pet="myPet" :seconds-left="social.petSecondsLeft(myPet)" />
+      </div>
+      <div v-else-if="!combatActive && showChipRow" class="chip-row">
+        <button v-if="inParty" type="button" class="tag tag-neutral party-chip" @click="openSocial">
+          <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
+        </button>
+        <button
+          v-for="member in members"
+          :key="String(member.id)"
+          type="button"
+          class="tag tag-neutral member-chip"
+          :title="member.name"
+          @click="openSocial"
+        >
+          <span class="chip-label">{{ memberChipText(member) }}</span>
+        </button>
         <EffectChips :effects="effects" nowrap />
       </div>
     </template>
@@ -463,17 +474,8 @@ function openSocial(): void {
   flex-shrink: 0;
 }
 
-/* Ally targeting: the chips need a 44px tall hit area without moving layout. The scroller clips, so
-   the row gets equal padding and negative margin to hold the slop; it never scrolls vertically. */
-.chip-row.ally-row {
-  padding: 8px 0;
-  margin: calc(-1 * 8px) 0;
-  overflow-y: hidden;
-}
-
 .party-chip,
-.member-chip,
-.ally-chip {
+.member-chip {
   gap: 4px;
   border: 0;
   font-family: inherit;
@@ -481,42 +483,107 @@ function openSocial(): void {
   cursor: pointer;
 }
 
-/* Plain text in combat: the Social sheet is unreachable and an unknown member is not a target. */
-.party-count,
-.member-chip.unknown {
-  cursor: default;
-}
-
 @media (hover: hover) {
-  .party-chip:not(.party-count):hover,
-  .member-chip:not(.unknown):hover,
-  .ally-chip:hover {
+  .party-chip:hover,
+  .member-chip:hover {
     background: color-mix(in srgb, var(--color-text) 7%, var(--color-neutral-800));
   }
 }
 
-.party-chip:not(.party-count):active,
-.member-chip:not(.unknown):active,
-.ally-chip:active {
+.party-chip:active,
+.member-chip:active {
   background: color-mix(in srgb, var(--color-text) 14%, var(--color-neutral-800));
 }
 
-.ally-chip {
+/* The self row (mobile, in a fight): the avatar, name and class line are one 44px target (36px
+   avatar + 4 + 4). The ring and the tints sit on a pseudo-element 4px wider each side, so the
+   avatar keeps its left edge and no negative margin is needed. */
+.self-target {
   position: relative;
+  isolation: isolate;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 4px 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.ally-chip::after {
+.self-target::before {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 44px;
-  transform: translateY(-50%);
+  inset: 0 -4px;
+  z-index: -1;
+  border-radius: var(--radius-md);
+  pointer-events: none;
 }
 
-.ally-chip.selected {
-  box-shadow: inset 0 0 0 1px var(--color-accent);
+@media (hover: hover) {
+  .self-target:hover::before {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  }
+}
+
+.self-target:active::before {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+.self-target.selected::before {
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.self-target:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.self-target .class-line {
+  display: block;
+}
+
+.self-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.self-marker {
+  flex: none;
+  color: var(--color-accent);
+}
+
+/* Row 3 (mobile, in a fight): your effect chips on the left, scrolling sideways, and your pet tag
+   on the right. The pet tag is a span, never a button (owner). */
+.row3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.row3-chips {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.row3-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.row3-chips > :deep(.effect-chips) {
+  width: max-content;
 }
 
 .compact-row {

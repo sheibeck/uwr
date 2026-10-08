@@ -515,18 +515,24 @@ describe('combat frame, mobile (390)', () => {
     expect(w.find('.context-rail').exists()).toBe(false);
   });
 
-  it('shows the In combat tag and the ally chips in the vitals strip', async () => {
+  // Was the Phase 48 'chips[0] is You, pressed' case: the self row is now the self target (51.1-15).
+  it('shows the In combat tag and the self row target in the vitals strip', async () => {
     const { game } = combatGame(PLAIN);
     const w = mountFrame(false, game);
     await settle();
 
     const strip = w.get('.vitals-strip');
     expect(strip.get('.in-combat-tag').text()).toBe('In combat · Round 3');
-    const chips = strip.findAll('button.ally-chip');
-    expect(chips).toHaveLength(2);
-    expect(chips[0].text()).toBe('You');
-    expect(chips[0].attributes('aria-pressed')).toBe('true');
-    expect(chips[1].text()).toContain('Mara');
+    expect(strip.find('button.ally-chip').exists()).toBe(false);
+    expect(strip.text()).not.toContain('Party 2');
+    const self = strip.get('button.self-target');
+    expect(self.attributes('aria-pressed')).toBe('true');
+    expect(self.attributes('aria-label')).toBe(
+      'Target yourself with your next ability. Health 212 of 260, mana 80 of 120, stamina 50 of 90.',
+    );
+    expect(strip.find('.in-combat-tag').element.closest('button')).toBeNull();
+    expect(strip.find('.xp-line').exists()).toBe(false);
+    expect(strip.findAll('button button')).toHaveLength(0);
   });
 
   it('shows the round row in its stacked form above the hotbar, with the cooldown in rounds', async () => {
@@ -583,7 +589,6 @@ describe('combat frame, mobile (390)', () => {
 
     expect(w.findAll('img')).toHaveLength(0);
     expect(w.get('section.encounter-strip button.hostile-chip[aria-pressed="true"]').text()).toContain(XSS);
-    expect(w.get('.vitals-strip button.ally-chip:not(:first-of-type)').text()).toContain(XSS);
     expect(w.get('.hotbar-row button.slot .slot-name').text()).toBe(XSS);
     expect(w.get('.line-windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
     expect(w.get('[role="log"]').text()).toContain(XSS);
