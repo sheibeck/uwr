@@ -156,7 +156,7 @@ describe('endInvite', () => {
     const ctx = ctxWith(soloLeaderSeed([invite(1n, 5n, 1n, 2n)]));
     endInvite(ctx, tableRows(ctx, 'group_invite')[0], 'expired');
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
-    expect(linesFor(ctx, 1n)).toEqual(['Your invite to Bram expired.']);
+    expect(linesFor(ctx, 1n)).toEqual(['Your invite to Bram expired. The group has disbanded.']);
     expect(linesFor(ctx, 2n)).toEqual(['The invite from Ann expired.']);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
     expect(tableRows(ctx, 'character').find((c) => c.id === 1n).groupId).toBeUndefined();
@@ -167,7 +167,7 @@ describe('endInvite', () => {
     const ann = tableRows(ctx, 'character')[0];
     endInvite(ctx, tableRows(ctx, 'group_invite')[0], 'cancelled', ann);
     expect(linesFor(ctx, 2n)).toEqual(['Ann cancelled the invite.']);
-    expect(linesFor(ctx, 1n)).toEqual(['You cancelled the invite to Bram.']);
+    expect(linesFor(ctx, 1n)).toEqual(['You cancelled the invite to Bram. The group has disbanded.']);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
   });
 
