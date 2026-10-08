@@ -1965,7 +1965,8 @@ export const registerCombatReducers = (deps: any) => {
     const fallenSuffix = buildFallenNamesSuffix(ctx, participants, (p, _char) => p.status === 'dead');
     const summaryName = enemies.length > 1 ? `${primaryName} and allies` : primaryName;
     // Phase 51.3: loot reads the dials, the AI loot tables and the fallbacks once per victory.
-    const lc = buildVictoryLootContext(ctx, combat, participants);
+    // The fight's enemy rows let one named_enemy row mark exactly one combat_enemy row (review WR-01).
+    const lc = buildVictoryLootContext(ctx, combat, participants, enemies);
     const enemiesById = [...enemies].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);

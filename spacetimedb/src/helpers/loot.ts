@@ -16,7 +16,8 @@
 //   - An enemy with enemy_loot_entry rows (its AI loot table) picks its commons from those rows; one
 //     without picks from the rule-based fallback pool (junk, matching drop materials, own-region
 //     materials). Its gear draws from its AI gear entry plus the level-fit fallback gear pool.
-//   - Legendary only from a boss or a fight-exact named foe (fightNamedTemplateIds).
+//   - Legendary only from a boss or a fight-exact named foe. The named boost marks ONE combat_enemy row
+//     per named_enemy row (fightNamedEnemyRowIds), never every enemy of the named template (review WR-01).
 //   - Duck-typed `ctx: any` (a reducer ctx). Never throws on missing rows: handleVictory runs inside
 //     isolateRoundStep, and a throw there closes the fight without rewards.
 // ============================================================================
@@ -50,7 +51,6 @@ import {
   type WeightedEntry,
 } from '../data/economy_rules';
 import { loadEffectiveDials, loadItemPins } from './economy_state';
-import { isBossOrNamed } from './combat_moments';
 import { generateAffixData, rollQualityForDrop } from './items';
 import { JUNK_DEFS } from '../data/equipment_rules';
 import {
@@ -91,7 +91,8 @@ export interface VictoryLootContext {
   zoneTier: bigint;
   dials: EffectiveDials;
   pins: Map<bigint, bigint>;
-  namedIds: Set<bigint>;
+  /** combat_enemy row ids that are a fight-exact named foe (one row per named_enemy row). */
+  namedEnemyRowIds: Set<bigint>;
   junk: { itemTemplateId: bigint }[];
   materials: { itemTemplateId: bigint; tier: bigint; sources: readonly string[]; dropCreatureTypes?: readonly string[] }[];
   regionMaterials: { itemTemplateId: bigint; role: string; rarity: string }[];
@@ -113,10 +114,10 @@ const micros = (ts: any): bigint | undefined =>
  * was killed at or after the encounter began (pull_named_enemy sets lastKilledAt in the transaction that
  * creates the encounter). A missing createdAt or lastKilledAt does not count.
  */
-export function fightNamedTemplateIds(ctx: any, combat: any, participants: readonly any[]): Set<bigint> {
-  const ids = new Set<bigint>();
+function fightNamedRows(ctx: any, combat: any, participants: readonly any[]): any[] {
+  const out: any[] = [];
   const startedAt = micros(combat?.createdAt);
-  if (startedAt === undefined) return ids;
+  if (startedAt === undefined) return out;
   const seenCharacters = new Set<bigint>();
   for (const p of participants ?? []) {
     const characterId = p?.characterId;
@@ -127,10 +128,42 @@ export function fightNamedTemplateIds(ctx: any, combat: any, participants: reado
       if (row.locationId !== combat.locationId) continue;
       const killedAt = micros(row.lastKilledAt);
       if (killedAt === undefined || killedAt < startedAt) continue;
-      ids.add(row.enemyTemplateId);
+      out.push(row);
     }
   }
-  return ids;
+  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+export function fightNamedTemplateIds(ctx: any, combat: any, participants: readonly any[]): Set<bigint> {
+  return new Set(fightNamedRows(ctx, combat, participants).map((row) => row.enemyTemplateId as bigint));
+}
+
+/**
+ * The combat_enemy rows of this fight that ARE a named foe (review WR-01). pull_named_enemy spawns a
+ * whole group of the named template (groupMin..groupMax copies), and adds can join mid-fight, so a
+ * template set would give every copy the +1 rarity step, legendary eligibility and its own scroll roll.
+ * Each fight-exact named_enemy row (fightNamedTemplateIds' rule, in named id order) claims the
+ * lowest-id combat_enemy row of its template that no other named row has claimed. `enemies` defaults
+ * to the fight's combat_enemy rows.
+ */
+export function fightNamedEnemyRowIds(
+  ctx: any,
+  combat: any,
+  participants: readonly any[],
+  enemies?: readonly any[],
+): Set<bigint> {
+  const claimed = new Set<bigint>();
+  const named = fightNamedRows(ctx, combat, participants);
+  if (named.length === 0) return claimed;
+  const fightEnemies = enemies ?? (combat?.id !== undefined ? [...ctx.db.combat_enemy.by_combat.filter(combat.id)] : []);
+  const rowsById = fightEnemies
+    .filter((e: any) => typeof e?.id === 'bigint')
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const row of named) {
+    const match = rowsById.find((e: any) => e.enemyTemplateId === row.enemyTemplateId && !claimed.has(e.id));
+    if (match) claimed.add(match.id);
+  }
+  return claimed;
 }
 
 /**
@@ -154,8 +187,16 @@ function templatesByName(templates: readonly any[]): Map<string, any> {
   return byName;
 }
 
-/** Everything one victory's loot reads, once: place, dials, pins, named set, pools and recipe scrolls. */
-export function buildVictoryLootContext(ctx: any, combat: any, participants: readonly any[]): VictoryLootContext {
+/**
+ * Everything one victory's loot reads, once: place, dials, pins, named rows, pools and recipe scrolls.
+ * `enemies` is the fight's combat_enemy rows (read from the table when not given).
+ */
+export function buildVictoryLootContext(
+  ctx: any,
+  combat: any,
+  participants: readonly any[],
+  enemies?: readonly any[],
+): VictoryLootContext {
   const location = combat?.locationId !== undefined ? ctx.db.location.id.find(combat.locationId) : undefined;
   const regionId: bigint | undefined = typeof location?.regionId === 'bigint' ? location.regionId : undefined;
   const region = regionId !== undefined ? ctx.db.region.id.find(regionId) : undefined;
@@ -227,7 +268,7 @@ export function buildVictoryLootContext(ctx: any, combat: any, participants: rea
     zoneTier: zoneTierOf(danger),
     dials: loadEffectiveDials(ctx, regionId),
     pins: loadItemPins(ctx),
-    namedIds: fightNamedTemplateIds(ctx, combat, participants),
+    namedEnemyRowIds: fightNamedEnemyRowIds(ctx, combat, participants, enemies),
     junk,
     materials,
     regionMaterials,
@@ -294,7 +335,8 @@ export function rollEnemyLoot(ctx: any, lc: VictoryLootContext, enemyRow: any, t
   const profile = creatureProfile(template.creatureType);
   const level = lootLevelOf(ctx, enemyRow, template);
   const templateId: bigint = typeof template.id === 'bigint' ? template.id : enemyRow?.enemyTemplateId ?? 0n;
-  const bossOrNamed = isBossOrNamed(template, templateId, lc.namedIds);
+  // A boss template, or this very row as a named foe (not its companions of the same template).
+  const bossOrNamed = template.isBoss === true || (typeof enemyRow?.id === 'bigint' && lc.namedEnemyRowIds.has(enemyRow.id));
   const dropPct = lc.dials.dropRatePct;
   const out: LootItem[] = [];
 

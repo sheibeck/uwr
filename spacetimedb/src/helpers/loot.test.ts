@@ -326,10 +326,54 @@ describe('rollEnemyLoot: rarity follows the mix; legendary needs a boss or a nam
         ],
       }),
     );
-    const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
+    const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS, [{ id: 1n, combatId: 1n, enemyTemplateId: 2n }]);
     const drops = rollsOver(ctx, lc, { id: 1n }, HIGH, 2000).flatMap(gears);
     expect(drops.some((d) => d.qualityTier === 'legendary')).toBe(true);
     for (const d of drops) expect(d.itemTemplateId).toBe(BLADE_L45);
+  });
+
+  // Review WR-01: pull_named_enemy spawns a group of the named template; only one row is the named foe.
+  it('only one combat_enemy row per named_enemy row gets the named boost, not its companions', () => {
+    const ctx = ctxFor(
+      world({
+        named_enemy: [
+          { id: 1n, characterId: 1n, name: 'Old Ash', enemyTemplateId: 2n, locationId: 10n, isAlive: false, lastKilledAt: { microsSinceUnixEpoch: T0 } },
+        ],
+      }),
+    );
+    const fight = [
+      { id: 7n, combatId: 1n, enemyTemplateId: 2n },
+      { id: 5n, combatId: 1n, enemyTemplateId: 2n },
+      { id: 9n, combatId: 1n, enemyTemplateId: 2n },
+    ];
+    expect([...loot.fightNamedEnemyRowIds(ctx, COMBAT, PARTICIPANTS, fight)]).toEqual([5n]);
+    const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS, fight);
+    const named = rollsOver(ctx, lc, { id: 5n }, HIGH, 2000).flatMap(gears);
+    expect(named.some((d) => d.qualityTier === 'legendary')).toBe(true);
+    for (const companion of [7n, 9n]) {
+      const drops = rollsOver(ctx, lc, { id: companion }, HIGH, 2000).flatMap(gears);
+      expect(drops.length).toBeGreaterThan(100);
+      expect(drops.some((d) => d.qualityTier === 'legendary')).toBe(false);
+    }
+  });
+
+  it('two named rows of one template claim two different rows; the table is read when no rows are given', () => {
+    const killed = { isAlive: false, locationId: 10n, lastKilledAt: { microsSinceUnixEpoch: T0 } };
+    const ctx = ctxFor(
+      world({
+        named_enemy: [
+          { id: 1n, characterId: 1n, name: 'Old Ash', enemyTemplateId: 2n, ...killed },
+          { id: 2n, characterId: 1n, name: 'Young Ash', enemyTemplateId: 2n, ...killed },
+        ],
+        combat_enemy: [
+          { id: 3n, combatId: 1n, enemyTemplateId: 2n },
+          { id: 4n, combatId: 1n, enemyTemplateId: 2n },
+          { id: 6n, combatId: 1n, enemyTemplateId: 2n },
+          { id: 8n, combatId: 2n, enemyTemplateId: 2n },
+        ],
+      }),
+    );
+    expect([...loot.fightNamedEnemyRowIds(ctx, COMBAT, PARTICIPANTS)].sort()).toEqual([3n, 4n]);
   });
 
   it('gear drops carry craft quality, and affixes only above common', () => {
@@ -453,6 +497,20 @@ describe('rollEnemyLoot: recipe scrolls from bosses and named foes', () => {
     expect(got).toBeGreaterThan(100);
     expect(got).toBeLessThan(300);
     expect([...seen].sort()).toEqual([400n, 401n]);
+  });
+
+  it('the companions of a named foe (same template) never drop a scroll (review WR-01)', () => {
+    const ctx = ctxFor(
+      scrollWorld({
+        named_enemy: [
+          { id: 1n, characterId: 1n, name: 'Old Rat', enemyTemplateId: 1n, locationId: 10n, isAlive: false, lastKilledAt: { microsSinceUnixEpoch: T0 } },
+        ],
+      }),
+    );
+    const fight = [{ id: 1n, combatId: 1n, enemyTemplateId: 1n }, { id: 2n, combatId: 1n, enemyTemplateId: 1n }];
+    const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS, fight);
+    expect(rollsOver(ctx, lc, { id: 1n }, BEAST, 1000).flat().some((i) => i.kind === 'scroll')).toBe(true);
+    expect(rollsOver(ctx, lc, { id: 2n }, BEAST, 1000).flat().some((i) => i.kind === 'scroll')).toBe(false);
   });
 
   it('an ordinary kill never drops a scroll', () => {
