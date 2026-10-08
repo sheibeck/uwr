@@ -142,9 +142,14 @@ describe('recentRumors', () => {
   it('reads a region trend rumour and excludes rumours past the TTL without writing', () => {
     const ctx = poolCtx(poolWorld());
     onPoolShift(ctx, { kind: 'region_trend', regionId: REGION_ID, trend: 'quieter' }, T0);
-    onPoolShift(ctx, wiped, T0 + DENSITY_RULES.RUMOR_TTL_MICROS);
-    expect(recentRumors(ctx, REGION_ID, T0 + MIN)).toEqual(['Ashen Reach grows quieter']);
-    const late = T0 + DENSITY_RULES.RUMOR_TTL_MICROS + MIN;
+    onPoolShift(ctx, wiped, T0 + MIN);
+    expect(recentRumors(ctx, REGION_ID, T0 + 2n * MIN)).toEqual([
+      'the goblins are gone from Glass Orchard',
+      'Ashen Reach grows quieter',
+    ]);
+    // Exactly at the TTL a rumour still counts; past it, it is left out.
+    expect(recentRumors(ctx, REGION_ID, T0 + DENSITY_RULES.RUMOR_TTL_MICROS)).toHaveLength(2);
+    const late = T0 + DENSITY_RULES.RUMOR_TTL_MICROS + 30n * SEC;
     expect(recentRumors(ctx, REGION_ID, late)).toEqual(['the goblins are gone from Glass Orchard']);
     expect(rows(ctx, 'pool_rumor')).toHaveLength(2);
   });
