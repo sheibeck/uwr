@@ -102,6 +102,7 @@ export function createMockDb(rawSeed: Record<string, any[]> = {}, dbOpts: MockDb
     by_dedupe_key: 'dedupeKey',
     by_status: 'status',
     by_job: 'jobId',
+    by_dirty: 'dirty', // place_pool (Phase 51.3.1.1); the by_X -> XId guess would miss it
   };
 
   return new Proxy({} as any, {

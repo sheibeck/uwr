@@ -141,6 +141,8 @@ const addEnemyToCombat = (
     aggroTargetCharacterId: undefined,
     nextAutoAttackAt: 0n, // legacy column: the round engine acts once per round, no per-enemy timer
     level: template.level,
+    poolId: 0n,
+    healTargetEnemyId: 0n,
   });
 
   for (const p of participants) {
@@ -200,6 +202,11 @@ export const startCombatForSpawn = (
     pendingAddCount: 0n,
     pendingAddAtMicros: undefined,
     createdAt: ctx.timestamp,
+    origin: '',
+    originFamilyId: 0n,
+    originLevel: 0n,
+    originName: '',
+    originPlural: '',
   });
 
   addEnemyToCombat(deps, ctx, combat, spawnToUse, participants);
@@ -2314,6 +2321,7 @@ export const registerCombatReducers = (deps: any) => {
         targetPetId: chosen.target.petId,
         announcedRound: roundNumber,
         landsAtRound: roundNumber + windup,
+        targetEnemyId: 0n,
       });
       const eName = enemy.displayName ?? template?.name ?? 'enemy';
       postToActiveParticipants(ctx, activeParticipants, 'combat', `${eName} begins to cast ${chosen.ability.name}.`);

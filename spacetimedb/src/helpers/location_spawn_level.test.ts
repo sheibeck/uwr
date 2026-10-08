@@ -252,11 +252,12 @@ describe('ensureSpawnsForLocation re-levels legacy spawns on arrival', () => {
 });
 
 describe('schema: the level columns are additive', () => {
-  it('enemy_spawn and combat_enemy end with a defaulted, required u64 level and stay public', () => {
+  // Phase 51.3.1.1 appended combat_enemy.poolId and healTargetEnemyId after level (pool_privacy.test.ts).
+  it('enemy_spawn and combat_enemy have a defaulted, required u64 level after their old columns and stay public', () => {
     for (const name of ['enemy_spawn', 'combat_enemy']) {
       const rec = recordedTable(name)!;
       const keys = Object.keys(rec.cols);
-      expect(keys[keys.length - 1]).toBe('level');
+      expect(keys[name === 'enemy_spawn' ? 7 : 13]).toBe('level');
       expect(rec.cols.level.kind).toBe('u64');
       expect(rec.cols.level.defaulted).toBe(true);
       expect(rec.cols.level.optional).toBe(false);
@@ -271,7 +272,7 @@ describe('schema: the level columns are additive', () => {
     expect(Object.keys(recordedTable('combat_enemy')!.cols)).toEqual([
       'id', 'combatId', 'spawnId', 'enemyTemplateId', 'enemyRoleTemplateId', 'displayName', 'currentHp',
       'maxHp', 'attackDamage', 'armorClass', 'aggroTargetCharacterId', 'aggroTargetPetId',
-      'nextAutoAttackAt', 'level',
+      'nextAutoAttackAt', 'level', 'poolId', 'healTargetEnemyId',
     ]);
   });
 });

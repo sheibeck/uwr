@@ -99,7 +99,9 @@ function worldRows(): Record<string, any[]> {
         threats: '[]',
       },
     ],
-    location: [{ id: 10n, name: 'The Crossing', description: 'A crossroads.', zone: 'z', regionId: 1n }],
+    location: [
+      { id: 10n, name: 'The Crossing', description: 'A crossroads.', zone: 'z', regionId: 1n, shortName: '', placeNoun: '', isHub: false },
+    ],
     enemy_template: [
       {
         id: 1n,
@@ -164,6 +166,11 @@ export function fightSeed(opts: FightSeedOptions = {}): Record<string, any[]> {
         pendingAddCount: 0n,
         pendingAddAtMicros: undefined,
         createdAt: { microsSinceUnixEpoch: T0 },
+        origin: '',
+        originFamilyId: 0n,
+        originLevel: 0n,
+        originName: '',
+        originPlural: '',
       },
     ],
     combat_participant: participantIds.map((characterId, i) => ({
@@ -187,6 +194,8 @@ export function fightSeed(opts: FightSeedOptions = {}): Record<string, any[]> {
       aggroTargetCharacterId: undefined,
       aggroTargetPetId: undefined,
       nextAutoAttackAt: 0n,
+      poolId: 0n,
+      healTargetEnemyId: 0n,
     })),
     aggro_entry: [] as any[],
   };

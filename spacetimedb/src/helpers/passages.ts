@@ -78,11 +78,18 @@ export const PASSAGE_LOCATION_COLUMNS: {
     'enemy_respawn_tick.locationId',
     'pull_state.locationId',
     'visited_location.locationId',
+    // Phase 51.3.1.1 density pools: a place's populations, their public mirror and the harvest caps
+    // there describe that place only (like its resource nodes and spawns).
+    'place_pool.locationId',
+    'pool_level.locationId',
+    'pool_harvest.locationId',
   ],
   // History: a deleted id stays on rows at other places and matches no place later.
   keep: [
     'world_gen_state.sourceLocationId',
     'world_state.startingLocationId',
+    // A rumour of a past density shift (Phase 51.3.1.1); it ages out on its own.
+    'pool_rumor.locationId',
   ],
   // Handled by the collapse itself.
   collapse: [
@@ -222,6 +229,15 @@ export function rehomePassageDependents(ctx: any, passage: any, home: any): void
   }
   for (const row of rowsAt(ctx, 'visited_location', 'locationId', pid, true)) {
     ctx.db.visited_location.id.delete(row.id);
+  }
+  for (const row of rowsAt(ctx, 'place_pool', 'locationId', pid, true)) {
+    ctx.db.place_pool.id.delete(row.id);
+  }
+  for (const row of rowsAt(ctx, 'pool_level', 'locationId', pid, true)) {
+    ctx.db.pool_level.id.delete(row.id);
+  }
+  for (const row of rowsAt(ctx, 'pool_harvest', 'locationId', pid, false)) {
+    ctx.db.pool_harvest.id.delete(row.id);
   }
 }
 

@@ -114,6 +114,7 @@ export const registerItemGatheringReducers = (deps: any) => {
         characterId: character.id,
         nodeId: node.id,
         endsAtMicros: endsAt,
+        poolId: 0n,
       });
       ctx.db.resource_gather_tick.insert({
         scheduledId: 0n,

@@ -314,6 +314,10 @@ describe('removal: rows that only make sense at the passage are deleted', () => 
     ['resource_node', { id: 1n, itemTemplateId: 1n, name: 'Ore', timeOfDay: 'any', quantity: 1n, state: 'available' }],
     ['location_enemy_template', { id: 1n, enemyTemplateId: 1n }],
     ['pull_state', { id: 1n, characterId: 1n, enemySpawnId: 1n, pullType: 'careful', state: 'ended' }],
+    // Phase 51.3.1.1 density pools
+    ['place_pool', { id: 1n, regionId: 1n, kind: 'creature', refId: 1n, count: 60n, homeLevel: 2n, wipedAtMicros: 0n, lastSettledMicros: 0n, dirty: false, timeOfDay: 'any' }],
+    ['pool_level', { id: 1n, regionId: 1n, kind: 'creature', refId: 1n, level: 2n, lvLo: 1n, lvHi: 2n, name: 'Goblins', iconKey: '', temperament: '', singularNoun: 'goblin', pluralNoun: 'goblins', timeOfDay: 'any' }],
+    ['pool_harvest', { id: 1n, characterId: 1n, windowStartMicros: 0n, gathers: 1n, cappedUntilMicros: 0n }],
   ])('%s rows at the passage are deleted; rows elsewhere stay', (tableName, row) => {
     const ctx = collapse({
       [tableName as string]: [
@@ -322,6 +326,13 @@ describe('removal: rows that only make sense at the passage are deleted', () => 
       ],
     });
     expect(table(ctx, tableName as string).map((r) => [r.id, r.locationId])).toEqual([[2n, 5n]]);
+  });
+
+  it('pool_rumor rows keep the passage id (history)', () => {
+    const ctx = collapse({
+      pool_rumor: [{ id: 1n, regionId: 1n, locationId: 6n, kind: 'family_wiped', familyId: 1n, otherFamilyId: 0n, atMicros: 0n }],
+    });
+    expect(table(ctx, 'pool_rumor').map((r) => [r.id, r.locationId])).toEqual([[1n, 6n]]);
   });
 
   it('enemy_respawn_tick rows at the passage are deleted by scheduledId', () => {
@@ -440,9 +451,9 @@ describe('PASSAGE_LOCATION_COLUMNS covers every location-id column in the schema
     expect(unclassified, `new location-id column(s) not in PASSAGE_LOCATION_COLUMNS: ${unclassified.join(', ')}`).toEqual([]);
     const stale = classified.filter((c) => !found.includes(c));
     expect(stale, `stale PASSAGE_LOCATION_COLUMNS entries: ${stale.join(', ')}`).toEqual([]);
-    expect(found).toHaveLength(26);
+    expect(found).toHaveLength(30);
     expect([lists.rehome.length, lists.remove.length, lists.keep.length, lists.collapse.length, lists.ignore.length]).toEqual([
-      13, 7, 2, 3, 1,
+      13, 10, 3, 3, 1,
     ]);
   });
 });

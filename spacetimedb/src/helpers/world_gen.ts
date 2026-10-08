@@ -468,6 +468,9 @@ export function writeRegionStart(
     terrainType: terrain,
     bindStone: true,
     craftingAvailable: true,
+    shortName: '',
+    placeNoun: '',
+    isHub: false,
   });
 
   if (genState.sourceLocationId !== 0n) {
@@ -759,6 +762,9 @@ export function writeRegionFill(
       terrainType: loc.terrainType && loc.terrainType !== 'uncharted' ? loc.terrainType : 'plains',
       bindStone: false,
       craftingAvailable: false,
+      shortName: '',
+      placeNoun: '',
+      isHub: false,
     });
     newLocations.push(row);
     planned.push({ item: loc, row });
@@ -900,6 +906,9 @@ export function writeRegionFill(
     terrainType: 'uncharted',
     bindStone: false,
     craftingAvailable: false,
+    shortName: '',
+    placeNoun: '',
+    isHub: false,
   });
   connectLocations(tx, boundaryAnchor.id, boundary.id);
 

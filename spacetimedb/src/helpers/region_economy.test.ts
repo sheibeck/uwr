@@ -114,6 +114,7 @@ const econItem = (itemTemplateId: bigint, regionId: bigint, role: string, rarity
   terrain: role === 'gather' ? 'woods' : '',
   timeOfDay: 'any',
   enemyTemplateId: 0n,
+  familyId: 0n,
   ...extra,
 });
 

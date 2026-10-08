@@ -426,6 +426,7 @@ function ensureItem(
     terrain: tag.terrain ?? '',
     timeOfDay: tag.timeOfDay ?? 'any',
     enemyTemplateId: tag.enemyTemplateId ?? 0n,
+    familyId: 0n,
   };
   tx.db.economy_item.insert(row);
   book.slots.set(slotKey, row);
