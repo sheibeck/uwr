@@ -93,11 +93,11 @@ const DISBANDED = 'The group has disbanded.';
  * withdrew it. `runningTickId` is the expiry tick that is running this end (the platform deletes a
  * one-shot tick itself), left alone here.
  *
- * Review 2 WR-05: when the dissolve leaves a member solo who is not the inviter (a group kept alive
- * by this invite after its other members left), he is told, with the same
- * '{line} The group has disbanded.' pattern settleGroupAfterLeave uses: his own reason line gets
- * the suffix (a canceller), otherwise he gets an onlooker line (e.g. 'Cole declined the invite.
- * The group has disbanded.'). A solo inviter's own lone group dissolves silently, as before.
+ * Review 2 WR-05 and review 3 WR-02: when the dissolve leaves a member solo (a group kept alive by
+ * this invite after its other members left, a party that shrank around its leader, or a solo
+ * inviter's own auto-group), he is told, with the same '{line} The group has disbanded.' pattern
+ * settleGroupAfterLeave uses: his own reason line gets the suffix (the inviter, or a canceller),
+ * otherwise he gets an onlooker line (e.g. 'Cole declined the invite. The group has disbanded.').
  */
 export function endInvite(
   ctx: any,
@@ -132,9 +132,7 @@ function finishInvite(
   const dissolved = dissolveLoneGroup(ctx, invite.groupId);
   const loneId = membersBefore[0]?.characterId;
   const lone =
-    announceDisband && dissolved && loneId !== undefined && loneId !== invite.fromCharacterId
-      ? ctx.db.character.id.find(loneId) ?? null
-      : null;
+    announceDisband && dissolved && loneId !== undefined ? ctx.db.character.id.find(loneId) ?? null : null;
   const told = new Set<bigint>();
   const say = (character: any, message: string) => {
     if (!character) return;

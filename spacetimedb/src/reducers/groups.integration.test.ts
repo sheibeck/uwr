@@ -191,7 +191,7 @@ describe('accept_group_invite', () => {
     const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
     call(ctx, 'accept_group_invite', 2n, { fromName: 'Ann' }, T0 + TTL);
     expect(lines(ctx, 2n)).toEqual(['The invite from Ann expired.', 'That invite has expired.']);
-    expect(lines(ctx, 1n)).toEqual(['Your invite to Bram expired.']);
+    expect(lines(ctx, 1n)).toEqual(['Your invite to Bram expired. The group has disbanded.']);
     expect(char(ctx, 2n).groupId).toBeUndefined();
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
@@ -350,7 +350,7 @@ describe('invite_to_group: success and stale invites', () => {
     });
     call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
     expect(tableRows(ctx, 'group_invite').map((i) => i.fromCharacterId)).toEqual([1n]);
-    expect(lines(ctx, 3n)).toEqual(['Your invite to Bram expired.']);
+    expect(lines(ctx, 3n)).toEqual(['Your invite to Bram expired. The group has disbanded.']);
     expect(lines(ctx, 2n)[0]).toBe('The invite from Cole expired.');
     expect(tableRows(ctx, 'group').some((g) => g.id === 6n)).toBe(false);
     expect(char(ctx, 3n).groupId).toBeUndefined();
@@ -387,7 +387,7 @@ describe('reject_group_invite', () => {
     const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
     call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' });
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
-    expect(lines(ctx, 1n)).toEqual(['Bram declined your group invite.']);
+    expect(lines(ctx, 1n)).toEqual(['Bram declined your group invite. The group has disbanded.']);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
     expect(char(ctx, 1n).groupId).toBeUndefined();
 
@@ -467,7 +467,7 @@ describe('invite expiry tick (expire_group_invite)', () => {
     const { ctx, tick } = annInvitesBram();
     expire(ctx, tick, T0 + TTL);
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
-    expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Your invite to Bram expired.']);
+    expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Your invite to Bram expired. The group has disbanded.']);
     expect(lines(ctx, 2n).slice(-1)).toEqual(['The invite from Ann expired.']);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
     expect(tableRows(ctx, 'group_member')).toHaveLength(0);
@@ -912,11 +912,53 @@ describe('a group left with one member dissolves; invites end with a line (code 
       expect(lines(ctx, 3n).slice(-1)).toEqual(['Bram cancelled the invite.']);
     });
 
-    it('a solo inviter\'s own lone group still dissolves without the extra line', () => {
+    // Review 3 WR-02: the inviter's own line gets the suffix too, solo inviter or shrunken party.
+    it('a solo inviter\'s own lone group dissolves with the suffix on his declined line', () => {
       const ctx = newCtx();
       call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
       call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + 1n);
-      expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Bram declined your group invite.']);
+      expect(lines(ctx, 1n)).toEqual([
+        'You invited Bram.',
+        'Bram declined your group invite. The group has disbanded.',
+      ]);
+    });
+
+    /** Bram leads {Ann, Bram}, invites Cole; Ann leaves (the group stays for the live invite). */
+    function leaderShrinks() {
+      const ctx = newCtx({
+        chars: { 1: { groupId: 5n }, 2: { groupId: 5n } },
+        groups: [{ id: 5n, leader: 2n }],
+        members: [
+          { id: 1n, groupId: 5n, characterId: 1n, joinedAt: T0 - 5n },
+          { id: 2n, groupId: 5n, characterId: 2n, role: 'leader', joinedAt: T0 - 4n },
+        ],
+      });
+      call(ctx, 'invite_to_group', 2n, { targetName: 'Cole' }, T0);
+      call(ctx, 'leave_group', 1n, {}, T0 + 1n);
+      expect(tableRows(ctx, 'group')).toHaveLength(1);
+      return ctx;
+    }
+
+    it('a leader whose party shrank is told when his own invite is declined', () => {
+      const ctx = leaderShrinks();
+      call(ctx, 'reject_group_invite', 3n, { fromName: 'Bram' }, T0 + 2n);
+      expect(tableRows(ctx, 'group')).toHaveLength(0);
+      solo(ctx, 2n);
+      expect(lines(ctx, 2n).slice(-1)).toEqual(['Cole declined your group invite. The group has disbanded.']);
+    });
+
+    it('a leader whose party shrank is told when his own invite expires', () => {
+      const ctx = leaderShrinks();
+      expire(ctx, tableRows(ctx, 'group_invite_expiry_tick')[0], T0 + TTL);
+      solo(ctx, 2n);
+      expect(lines(ctx, 2n).slice(-1)).toEqual(['Your invite to Cole expired. The group has disbanded.']);
+    });
+
+    it('a leader whose party shrank is told when he cancels his own invite', () => {
+      const ctx = leaderShrinks();
+      call(ctx, 'cancel_group_invite', 2n, { targetName: 'Cole' }, T0 + 2n);
+      solo(ctx, 2n);
+      expect(lines(ctx, 2n).slice(-1)).toEqual(['You cancelled the invite to Cole. The group has disbanded.']);
     });
   });
 
@@ -971,7 +1013,10 @@ describe('a group left with one member dissolves; invites end with a line (code 
     call(ctx, 'delete_character', 2n, {});
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
     expect(tableRows(ctx, 'group_invite_expiry_tick')).toHaveLength(0);
-    expect(lines(ctx, 1n)).toEqual(['You invited Bram.', 'Your invite to Bram is no longer open.']);
+    expect(lines(ctx, 1n)).toEqual([
+      'You invited Bram.',
+      'Your invite to Bram is no longer open. The group has disbanded.',
+    ]);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
     solo(ctx, 1n);
   });
@@ -999,7 +1044,7 @@ describe('declining an expired invite (code review IN-01)', () => {
     const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
     call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + TTL);
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
-    expect(lines(ctx, 1n)).toEqual(['Your invite to Bram expired.']);
+    expect(lines(ctx, 1n)).toEqual(['Your invite to Bram expired. The group has disbanded.']);
     expect(lines(ctx, 2n)).toEqual(['The invite from Ann expired.']);
     expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
     expect(tableRows(ctx, 'group')).toHaveLength(0);
