@@ -16,6 +16,17 @@
 export type MaterialKind = 'metal' | 'hide' | 'cloth' | 'trinket' | 'wood' | 'edible' | 'base';
 export type RecipeCategory = 'weapon' | 'armor' | 'accessory' | 'consumable';
 
+/** Every material kind, in the MaterialKind order (the region economy design rules and the validator iterate it). */
+export const MATERIAL_KIND_VALUES: readonly MaterialKind[] = Object.freeze([
+  'metal',
+  'hide',
+  'cloth',
+  'trinket',
+  'wood',
+  'edible',
+  'base',
+] as MaterialKind[]);
+
 // ---------------------------------------------------------------------------
 // MATERIAL KINDS
 // ---------------------------------------------------------------------------
@@ -218,12 +229,12 @@ export function levelStep(level: bigint): bigint {
   return l / 5n + 1n;
 }
 
-function weaponGrowth(level: bigint): bigint {
+export function weaponGrowth(level: bigint): bigint {
   const l = level < 1n ? 1n : level;
   return (6n * (l - 1n)) / 5n;
 }
 
-function armorGrowth(level: bigint): bigint {
+export function armorGrowth(level: bigint): bigint {
   const l = level < 1n ? 1n : level;
   return (4n * (l - 1n)) / 5n;
 }

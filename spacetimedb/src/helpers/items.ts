@@ -9,6 +9,7 @@ import {
   STARTER_ARMOR_DESCS,
   STARTER_ACCESSORY_DEFS,
   JUNK_DEFS,
+  BASIC_RESOURCE_DEFS,
 } from '../data/equipment_rules';
 import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { backpackSlotCount, hasBackpackSpace } from '../data/inventory_rules';
@@ -655,28 +656,7 @@ export function ensureStarterItemTemplates(ctx: any) {
   }
 
   // --- Basic gatherable resources (referenced by getGatherableResourceTemplates hardcoded pools) ---
-  const BASIC_RESOURCES: { name: string; vendorValue: bigint; description: string }[] = [
-    { name: 'Stone', vendorValue: 1n, description: 'A rough chunk of stone. Common building material.' },
-    { name: 'Sand', vendorValue: 1n, description: 'Fine-grained sand from arid terrain.' },
-    { name: 'Clear Water', vendorValue: 1n, description: 'Fresh, clean water suitable for alchemy and cooking.' },
-    { name: 'Wood', vendorValue: 1n, description: 'A sturdy piece of timber. Useful in many crafts.' },
-    { name: 'Resin', vendorValue: 1n, description: 'Sticky tree resin collected at night. Used in adhesives.' },
-    { name: 'Dry Grass', vendorValue: 1n, description: 'Sun-dried grass blades. Used for tinder and weaving.' },
-    { name: 'Bitter Herbs', vendorValue: 1n, description: 'Pungent herbs with medicinal properties.' },
-    { name: 'Wild Berries', vendorValue: 1n, description: 'Foraged wild berries. Edible and mildly restorative.' },
-    { name: 'Flax', vendorValue: 1n, description: 'Fibrous plant stalks used in cloth-making.' },
-    { name: 'Herbs', vendorValue: 1n, description: 'Common herbs used in cooking and alchemy.' },
-    { name: 'Salt', vendorValue: 1n, description: 'Mineral salt. A preservative and cooking ingredient.' },
-    { name: 'Root Vegetable', vendorValue: 1n, description: 'A hardy root vegetable dug from the earth.' },
-    { name: 'Peat', vendorValue: 1n, description: 'Dense organic matter from boggy ground.' },
-    { name: 'Mushrooms', vendorValue: 1n, description: 'Wild mushrooms found in damp, dark places.' },
-    { name: 'Murky Water', vendorValue: 1n, description: 'Cloudy swamp water. Useful in certain recipes.' },
-    { name: 'Iron Shard', vendorValue: 2n, description: 'A jagged shard of iron scavenged from ruins.' },
-    { name: 'Ancient Dust', vendorValue: 2n, description: 'Fine dust from crumbling ancient stonework.' },
-    { name: 'Scrap Cloth', vendorValue: 1n, description: 'Salvaged fabric scraps from urban refuse.' },
-    { name: 'Lamp Oil', vendorValue: 1n, description: 'Refined oil used for lanterns and fire-starting.' },
-  ];
-  for (const res of BASIC_RESOURCES) {
+  for (const res of BASIC_RESOURCE_DEFS) {
     upsertItemTemplateByName({
       name: res.name,
       slot: 'material',
