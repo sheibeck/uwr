@@ -85,7 +85,6 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51: Ledger Screens: Map and Travel** - Map drawer and sheet, the rail travel panel, passage collapse, and the rail's Examine, Talk and bind stone actions
 - [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
-- [ ] **Phase 51.3.1: Combat Dials** (INSERTED) - Admin dials that make combat harder or easier by difficulty level, region and enemy type, beside the economy dials
 - [ ] **Phase 51.3.1.1: Density Pools** (INSERTED) - Places hold living populations of creature families and resources at density levels; dangerous travel, group pulls, depletion and regrowth (promoted backlog 999.29)
 - [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
@@ -97,6 +96,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 52.2: Social and Guilds** (INSERTED) - The Social screen, party chat, friends, who is online, and guilds
 - [ ] **Phase 52.3: Log** (INSERTED) - A stored, searchable log of what happened to the character
 - [ ] **Phase 52.4: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
+- [ ] **Phase 52.5: Balance Dials** (INSERTED) - Every admin balance dial in one phase, once the systems exist: combat difficulty (health, damage, armour, ability chance), population and resource pools, quest bosses and named foes, and ability power
 - [ ] **Phase 53: Parity and Production** - Parity checklist against the `v2.2-client` tag (including undesigned surfaces), and production serves the new client (runs last)
 
 ## Phase Details
@@ -777,48 +777,10 @@ Plans:
 
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** 51.3 ships as planned (it is mid-build). Its per-creature economy (one drop, trophy and gear per enemy type, loot tables per enemy type) still fits, because each family member in 999.29 is an enemy type. When 999.29 lands: decide whether a family shares one drop/trophy or each role member keeps its own (more economy rows per family, more late-creature jobs), and regional gatherables (Plan 07, today's resource nodes) move into resource pools (999.29 D-26).
 
-### Phase 51.3.1: Combat Dials (INSERTED)
-
-**Goal**: An admin can make combat harder or easier without code changes, tuned by difficulty level, region and enemy type, using the same dial pattern as the 51.3 economy dials.
-**Depends on**: Phase 51.3 (the dial storage and admin command pattern)
-**Requirements**: TBD (owner request 2026-10-08)
-**Success Criteria** (what must be TRUE):
-
-  1. Combat dials exist globally and can be overridden by difficulty level (the enemy's level or con band relative to the player), by region, and by enemy type (creature type, plus bosses and named foes).
-  2. The dials cover at least enemy health, enemy damage and how often enemies use their abilities, with ranges set in discuss. Every dial defaults to today's tuning, so nothing changes until an admin moves one, and each value is clamped to a safe range.
-  3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
-  4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 53 admin screens get a panel beside the economy panel.
-  5. Pull size and encounter odds are NOT built here: Phase 51.3.1.1 Density Pools owns them (owner, 2026-10-08: "Promote 999.29 after 51.3.1"). 51.3.1 keeps difficulty dials only, and does not change world generation for enemies.
-  6. Ability power: whether player abilities get per-kind power dials (and per-ability overrides) is settled in discuss; if built, cast-time results and tooltips read the same rule.
-  7. Tests cover the clamps, each override level and how they combine, and determinism.
-
-**Plans:** 0 plans
-**Notes**:
-
-  - Owner, 2026-10-08: "Could we also have a phase for combat dials? We'll want to be able to tune combat to make it harder/easier by difficulty level, redfin type". The owner then picked difficulty level, region type and enemy type, placed right after 51.3.
-  - Which combat numbers to expose (health, damage, armor, ability frequency, XP, flee) and how the levels combine (multiply or most-specific-wins) are for this phase's discuss.
-  - Owner, 2026-10-08: "We'll also want to talk about pulling enemies and whether you get multiple enemies per pull. That's can be tied to difficult". For discuss: how many enemies a pull brings (adds per pull), how that scales with difficulty, and whether it is a dial. Today careful pull (an owner decision, quick task 261006-a0i) pulls one Nearby enemy; check what the pull and add rules do now before proposing.
-  - Owner, 2026-10-08: "Do we also need ability dials? Some way to balance ai generated abilities? Let's consider the complexity of that when you consider you might need to tweak an exciting ability. Or maybe, tuning difficulty is the answer". Coordinator view, to settle in discuss:
-    - Generated abilities are already clamped at creation to a per-kind power budget (`BASE_BUDGET` in `helpers/skill_budget.ts`), and the clamped numbers are stored on `ability_template`.
-    - Proposal: per-kind ability power dials applied at cast time (for example heal ×0.85), which retune existing and future abilities with no row rewrites. Add per-ability overrides only as a sparse escape hatch for a single outlier.
-    - Tooltips and cost text must read the same rule, so the shown numbers match what happens.
-    - A changed signature ability should tell its owner why.
-    - The difficulty dials remain the main tool for overall balance.
-  - Owner, 2026-10-08: enemies in higher-level places spawned at level 1 (todo `2026-10-08-nearby-enemies-ignore-the-location-level.md`). A quick task scales a spawn to its place's level when no enemy type fits; this phase also makes world generation create enemy types for each place's level range (base plus each `levelOffset`). That is a prompt change, so the owner approves the wording.
-  - Owner, 2026-10-08: "Quest bosses should be harder!" Quick task 261008-ag8 already scales quest and named spawns to the place's level band. For discuss: the default bosses-and-named dial should put quest bosses above ordinary enemies at the same place (a level bump, extra health and damage, or both), not just equal to them.
-  - Mob density, travel ambushes and density-driven pull size moved to backlog 999.29 (owner, 2026-10-08: "I want to talk more about this and make it a backlog item that we can promote. Let's let the dial be part of the backlog for this, too."). The pull-size discussion here should stay consistent with 999.29.
-  - Server changes are additive, published locally only with the key check, never clearing the database.
-
-Plans:
-
-- [ ] TBD (run /gsd-plan-phase 51.3.1 to break down)
-
-  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** pull size and encounter odds are owned by 999.29 once it is promoted (group size by density: Scarce 1, Stable 1-2, Overrun 2-4; the careful single pull goes away). 51.3.1 should keep difficulty dials (health, damage, ability frequency by difficulty, region, enemy type) and not build its own pull-size rule; if 51.3.1 runs first, keep any pull-size dial simple and plan to replace it. Fix (b), world-gen enemy level ranges, should create families with role members (999.29 D-25), so that prompt change is made once. Order question for the owner: promote 999.29 to run right after 51.3.1 (or merge the two).
-
 ### Phase 51.3.1.1: Density Pools (INSERTED)
 
 **Goal**: Places hold living populations instead of standing enemies and nodes. Each place keeps pools of creature families (with role members) and resources at density levels (Overrun/Stable/Scarce/Wiped out; Abundant/Plentiful/Sparse/Exhausted). Travel into and out of a place can start a fight, pulls and ambushes draw groups sized by density, kills and gathering deplete pools for everyone, populations regrow to a home level, wiped-out families let rivals surge, a light background-hunter tick thins pools, and shifts reach players through density lines, a place safety rating and World events.
-**Depends on**: Phase 51.3.1 (Combat Dials, run order and the dial pattern), Phase 51.3 (economy: loot and regional gatherables per type)
+**Depends on**: Phase 51.3 (economy: loot and regional gatherables per type, and the dial pattern its fixed numbers will later plug into)
 **Requirements**: TBD (owner design 2026-10-08, promoted from backlog 999.29)
 **Success Criteria** (what must be TRUE):
 
@@ -827,14 +789,14 @@ Plans:
   3. Entering and leaving a place roll for an encounter (density x temperament x level gap; safe places never roll; one roll per travelling party, offline members never pulled in). Pulls, travel encounters and gathering ambushes draw a group sized by density (Scarce 1, Stable 1-2, Overrun 2-4) with roles by rule (a front-liner first, never all support). The careful single pull is retired.
   4. Kills deplete a family per kill, scaled by role, and every player's and the background hunters' kills share the same creature pools. Resource pools are shared too, with a per-player harvest cap per place (owner: "I want the enforce a shared world with competition."). Populations regrow to a home level (creatures in minutes, resources over hours by default) and never pass it on their own; Overrun only comes from a vacuum surge or an event. When a family is wiped out, a rival or predator family of the region surges in.
   5. A light background-hunter tick (scheduled, module-guarded, deterministic, off or low by default) thins pools. Shifts update density lines and ratings live, appear in rumours, and become World events (wiped out, Overrun surge, takeover, region trends; Phase 52.4 hooks).
-  6. An admin dial (the 51.3 `/economy` pattern) tunes encounter chance, group size by level, depletion speed, creature regrowth and resource regrowth separately, the per-player harvest cap (owner), and hunter activity, globally, per region, by difficulty and by family; values clamp and apply to the next roll.
-  7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, the dial clamps, and the migration of existing enemies and nodes.
+  6. Every tunable number (encounter chance, group size, depletion, creature and resource regrowth, gather yield by density, the per-player harvest cap, hunter activity) lives as a named constant in one shared rules file, so Phase 52.5 Balance Dials can put dials on them later. No admin dial or command ships here (owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place.").
+  7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, and the migration of existing enemies and nodes.
 
 **Plans**: TBD
 **UI hint**: yes (design source: `.planning/phases/51.3.1.1-density-pools/design/UWR Living Places.dc.html`, imported 2026-10-08; differences resolved in `51.3.1.1-MOCK-DIFF.md` and CONTEXT D-29 to D-45; the combat timer and lock-in parts of the mock are ignored)
 **Notes**:
 
-  - Promoted from backlog 999.29 (owner, 2026-10-08: "Promote 999.29 after 51.3.1"). Discussed 2026-10-08: decisions D-00 to D-26 and the owner's "Dynamic Density Pool" brief are in `.planning/phases/51.3.1.1-density-pools/51.3.1.1-CONTEXT.md`; the design-tool brief is `51.3.1.1-MOCK-BRIEF.md` in the same folder. The pre-travel warning system stays in backlog 999.30.
+  - Promoted from backlog 999.29 (owner, 2026-10-08: "Promote 999.29 after 51.3.1"; 51.3.1 Combat Dials later moved to Phase 52.5 Balance Dials, so this phase now runs right after 51.3). Discussed 2026-10-08: decisions D-00 to D-26 and the owner's "Dynamic Density Pool" brief are in `.planning/phases/51.3.1.1-density-pools/51.3.1.1-CONTEXT.md`; the design-tool brief is `51.3.1.1-MOCK-BRIEF.md` in the same folder. The pre-travel warning system stays in backlog 999.30.
   - Owner wants an updated mock from the brief before UI work; plan the UI against that mock.
   - **AI generation (owner, 2026-10-08, D-46 to D-49):** region generation produces families, their fit to places and relations, and naming words; the server sets every number. The economy moves to per family with gear by role, and one late job per family. Both prompts (region generation and the 51.3 region_economy block) are rewritten here and approved once by the owner; the 51.3 wording pin is updated with that approval and existing economy rows migrate to families.
   - Schema: additive tables and defaulted columns only; existing `enemy_spawn` rows for ordinary creatures and resource nodes are migrated or retired without `--clear-database`.
@@ -843,7 +805,7 @@ Plans:
 ### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
 
 **Goal**: An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, and cooldowns and effect durations use the same seconds-to-rounds rule. A player can cancel a wind-up from the ability's hotbar slot.
-**Depends on**: Phase 51.3.1 (Combat Dials), Phase 46.1 (round engine), Phase 48 (hotbar and round row)
+**Depends on**: Phase 51.3.1.1 (Density Pools, run order), Phase 46.1 (round engine), Phase 48 (hotbar and round row)
 **Requirements**: TBD (owner promotion of backlog 999.17, 2026-10-08)
 **Success Criteria** (what must be TRUE):
 
@@ -860,7 +822,7 @@ Plans:
 
   - Promoted from backlog 999.17 on 2026-10-08 (owner): "Promote 999.17 to the roadmap an put it just after 51.3.1 Combat Dials." The full agreed design, the owner decisions (cooldowns and durations follow the cast rule, seconds stay the source of truth, "The 10s is NOT how long a round lasts") and the required test list are in the 999.17 entry.
   - Schema: the 999.17 note about a local `--clear-database` publish is superseded by the current rule. Additive tables or defaulted columns only, never a clear (it wipes the stored Anthropic key).
-  - Coordinate with 51.3.1: the combat dials and the wind-up bonus both change ability output, so they share one place in the combat math.
+  - Coordinate with Phase 52.5 Balance Dials (was 51.3.1): keep the wind-up bonus in one place in the combat math, so the later dials can scale ability output there.
   - Owner, 2026-10-08: "How do enemies decide who they are targetting? Could we put the enemies target in their panel during combat so we can see who is being targetted?" Then: "Let's add that request to the phase where we will handle combat wind up and such." How it works today: each enemy keeps a threat table (`aggro_entry`, one row per enemy per character or pet). Damage adds threat (tanks x1.5, summoners x0.75, healers x0.5), healing adds 50% of the healing as threat, pets start at 200 and taunt adds a bonus, and a taunt forces the target. Each round an enemy attacks whoever has the most threat on it among the fighters still in the fight, falling back to the first fighter (`reducers/combat.ts`, the aggro branch near line 870; `getTopAggroId` in `helpers/combat.ts`). Plan: move that choice into one shared pure rule (server and client import it through `@game-data`, the server stays the authority) or store the chosen target on `combat_enemy`; the client already reads the threat rows through the `my_*` aggro view. Pets count as targets. Follow the Combat mock's enemy card for placement, and keep the design guards.
   - Its folder was `999.17-combat-round-wind-up-for-cast-times-with-hotbar-slot-cancel`; it is now `51.3.2-combat-wind-up-cooldowns-and-durations`.
 
@@ -1062,6 +1024,49 @@ Plans:
 
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** 999.29 feeds World events: a family wiped out at a place, an Overrun surge (a natural "cull the swarm" event with contribution and rewards), a vacuum takeover, and region-wide trends. Owner: "this system would then lend itself very nicely into the world event system!" If 52.4 runs before 999.29, leave a hook for these event kinds.
 
+### Phase 52.5: Balance Dials (INSERTED)
+
+**Goal**: An admin can tune the game's balance without code changes, once every system it tunes exists: combat difficulty, populations and resources, bosses and named foes, and ability power, all through one dial pattern (the 51.3 `/economy` dials).
+**Depends on**: Phase 51.3.1.1 (families, roles and pools), Phase 51.3.2 (wind-up and rounds), and every system phase before it through 52.4 (owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place.")
+**Requirements**: TBD (owner requests 2026-10-08)
+**Success Criteria** (what must be TRUE):
+
+  1. Combat dials (enemy health, damage, armour and ability chance) exist globally and can be overridden by difficulty (con band), by region and by enemy type: creature type, family, role (from 51.3.1.1), and bosses and named foes.
+  2. Population dials replace the fixed numbers 51.3.1.1 ships with: encounter chance, group size, depletion, creature regrowth, resource regrowth, gather yield by density, the per-player harvest cap and hunter activity, globally, per region, by difficulty and by family.
+  3. Quest bosses, named foes and boss templates are harder than ordinary enemies at the same place by default, through the bosses-and-named layer (owner: "Quest bosses should be harder!"; on 2026-10-08 the owner chose to wait for this phase rather than add a fixed bonus earlier). Today they get no stat bonus at all.
+  4. Every other dial defaults to the shipped numbers, so nothing changes until an admin moves one; each value is clamped; combat and the pools read the dials in one shared place, and a change applies to the next fight, spawn, roll or tick only.
+  5. Admin commands (for example `/combat` and a populations command) show and set the dials, following `/economy`; the Phase 53 admin screens get Combat and Populations panels beside the Economy panel. Balance dials only, no simulation tools (owner).
+  6. Ability power: whether player abilities get per-kind power dials (and sparse per-ability overrides) is settled in discuss; if built, cast-time results and any shown numbers read the same rule.
+  7. Discuss reviews the systems built in 51.3.1.1 to 52.4 for anything else that needs a dial (for example the 51.3.2 wind-up bonus or World event rates).
+  8. Tests cover the clamps, each override layer and how they combine, the boss default, and determinism.
+
+**Plans:** 0 plans
+**Notes**:
+
+  - **Moved from Phase 51.3.1 Combat Dials (owner, 2026-10-08):** "It really seems like we should put in families and roles and figure out how all that works before we put in balancing dials. We should move all of our balance dials to after we have all the systems in place." Then: "Move all balance dials for any phases to the end, after all relevant systems are in place." The Density Pools admin dial moved here too (owner: yes), and the boss bonus waits for this phase (owner). The 51.3 economy dials already shipped and stay as built.
+  - **Early answers from the 51.3.1 discuss (owner accepted, 2026-10-08; recorded in `52.5-DISCUSSION-LOG.md`; re-confirm in this phase's discuss once families and roles exist):**
+    - Dials for enemy health, damage (auto-attacks and abilities alike), armour and ability chance. XP and flee stay out (XP already scales with the level gap).
+    - Ranges: health, damage and armour 25-400%; ability chance 0-100% (today 50%). Defaults are today's numbers.
+    - Layers multiply (global x difficulty x region x enemy type), with the combined result capped at 10-500%. This differs from `/economy`, where the most specific layer replaces the others.
+    - Numbers lock when an enemy joins a fight, ability chance included; a running fight never changes partway.
+    - Tuning is by family and role, never per individual enemy: the type layer is keyed by creature type, family, role and boss/named.
+    - Difficulty band: the highest-level player in the fight when the enemy joins sets it. Bands are the 7 con colours players see (gray, light green, blue, white, yellow, orange, red), from one shared rule in `data/` used by the client colours, the dials, and the server's `look` and enemy-list text (today they cut the bands differently).
+    - Region layer keyed by region name, as `/economy region <name>`. Difficulty and region layers start at 100%.
+  - **Code facts from the 2026-10-08 scout** (re-check at planning):
+    - Every fight path ends in `addEnemyToCombat` (`reducers/combat.ts`), the only `combat_enemy` insert; stats are fixed on `combat_enemy` at join, while ability power and the 50% ability chance (`DEFAULT_AI_CHANCE`) are read live each round.
+    - `BOSS_HP/DAMAGE/ARMOR/XP_MULTIPLIER` (2.5 / 1.5 / 1.5 / 2.0, `data/enemy_rules.ts`) are unused; no live template sets `isBoss`; a quest boss spawns as a whole group of copies.
+    - World-gen roles (melee, ranged, caster) do not match `ENEMY_ROLE_CONFIG` keys, so every generated enemy uses the damage profile (51.3.1.1 rebuilds roles).
+    - Player ability results come from one dispatcher, `resolveAbility` (`helpers/combat.ts`), with songs, perk procs and pet abilities outside it; `clampToBudget` (`helpers/skill_budget.ts`, `BASE_BUDGET` per kind) runs only at generation. The client shows no ability numbers (cost, cooldown, cast time and description only).
+  - **Original 51.3.1 owner notes (kept for discuss):**
+    - "Could we also have a phase for combat dials? We'll want to be able to tune combat to make it harder/easier by difficulty level, redfin type". The owner picked difficulty level, region type and enemy type.
+    - "Do we also need ability dials? Some way to balance ai generated abilities? Let's consider the complexity of that when you consider you might need to tweak an exciting ability. Or maybe, tuning difficulty is the answer". Coordinator proposal: per-kind power dials applied at cast time (for example heal x0.85) that retune existing and future abilities with no row rewrites, plus sparse per-ability overrides for a single outlier; a changed signature ability tells its owner why; difficulty dials stay the main tool.
+    - "Quest bosses should be harder!" Quick task 261008-ag8 scales quest and named spawns to the place's level band; the boss default here should put them above ordinary enemies at the same place (a level bump, extra health and damage, or both).
+  - Server changes are additive, published locally only with the key check, never clearing the database.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 52.5 to break down)
+
 ### Phase 53: Parity and Production
 
 **Goal**: The new client does everything the old client did and is what production serves.
@@ -1083,7 +1088,7 @@ Plans:
       - The quest log, with track and untrack in the rail, abandon with confirmation and the reputation note, grouped by region.
       - The 30-active cap. This is a server change; it touches the `MAX_ACTIVE_QUESTS` offer path, and any prompt change needs owner approval.
       - The visible turn-in action (todo `2026-10-06-quest-turn-in-affordance-in-new-client.md`).
-  - **Populations panel (owner, 2026-10-08):** the admin screens also get a Populations panel for Phase 51.3.1.1 Density Pools, with its balance dials only: encounter chance, group size by density level, depletion speed, creature regrowth, resource regrowth, the per-player harvest cap and hunter activity. No simulation tools: the Living Places mock's "Simulator" (advance time, set a family's level, always ambush, force hunters) is not built. Owner: "We only want admin knobs, not simulation."
+  - **Populations panel (owner, 2026-10-08):** the admin screens also get a Populations panel for the Phase 52.5 population dials (Density Pools numbers), and a Combat panel for the 52.5 combat dials, with balance dials only: encounter chance, group size by density level, depletion speed, creature regrowth, resource regrowth, the per-player harvest cap and hunter activity. No simulation tools: the Living Places mock's "Simulator" (advance time, set a family's level, always ambush, force hunters) is not built. Owner: "We only want admin knobs, not simulation."
   - **Already in this phase from the backlog:** the admin screens (`UWR Admin Screens`). The admin screens include a panel for the Phase 51.3 economy dials (rarity, drop, gold and gather rates, global and per region). The loot rails (999.23) moved to Phase 51.4.
   - **Split (owner, 2026-10-07, then 2026-10-08):** the Hotbar Manager (999.18) is Phase 52.1, the bank (999.25) Phase 52.1.1 and player trade Phase 52.1.2.
   - **Renumbered from 52 to 53 and moved last (owner, 2026-10-08):** "move log, world events, and parity and production to the very end, in that order so parity and production is last." Older documents call it Phase 52. Earlier phases still append the parity rows they cover.
@@ -1123,6 +1128,7 @@ Plans:
 | 52.2. Social and Guilds | v3.0 | 0/TBD | Not started | - |
 | 52.3. Log | v3.0 | 0/TBD | Not started | - |
 | 52.4. World Events | v3.0 | 0/TBD | Not started | - |
+| 52.5. Balance Dials | v3.0 | 0/TBD | Not started | - |
 | 53. Parity and Production | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -1207,7 +1213,7 @@ TBD. Start with an audit:
 2. Fix the gaps.
 3. Then add new kinds (invisibility or stealth, lull) through the mechanical vocabulary with budgets, server rules and tests.
 
-This ties into 51.3.1 Combat Dials (lull and invisibility interact with pull size and aggro), Phase 51.3 (gather and craft rates read the economy dials) and Phase 51.5 (new skill flow). Any new or changed generation prompt wording needs the owner's approval.
+This ties into Phase 52.5 Balance Dials (was 51.3.1 Combat Dials) (lull and invisibility interact with pull size and aggro), Phase 51.3 (gather and craft rates read the economy dials) and Phase 51.5 (new skill flow). Any new or changed generation prompt wording needs the owner's approval.
 
 **Merged in 2026-10-08 (owner): pets, and threat.** Owner, 2026-10-08: "We'll want a phase for combat to talk about threat and threat generation. Those threat numbers were based on the old system when we had set classes instead of the unique class generation system we have now. Let's revisit that when we revisit combat and pets. Pets should be added into the phase where we look at our class ability selection". This item is where class ability selection is revisited, so pets (backlog 999.27, folded in below) and the threat rework both live here.
 
@@ -1220,7 +1226,7 @@ Pets read as real companions: a kind and an icon (for example `Summoned` with `P
 The threat numbers date from the fixed classes: tank x1.5, healer x0.5, summoner x0.75 (`TANK_THREAT_MULTIPLIER`, `HEALER_THREAT_MULTIPLIER`, `SUMMONER_THREAT_MULTIPLIER` in `data/combat_scaling.ts`, mirrored in `THREAT_CONFIG` in `mechanical_vocabulary.ts`), healing at 50% of the amount healed, pets starting at 200 (`SUMMONER_PET_INITIAL_AGGRO`), and taunt forcing the target. Generated classes have no fixed role, so revisit:
 - where threat comes from (by ability kind and the class's generated role or archetype, not a fixed class name);
 - taunt and threat-reduction kinds, and how pets hold threat;
-- how threat ties to 51.3.1 Combat Dials (pull size, enemy difficulty) and the enemy target shown on its panel (51.3.2);
+- how threat ties to Phase 52.5 Balance Dials (was 51.3.1 Combat Dials) (pull size, enemy difficulty) and the enemy target shown on its panel (51.3.2);
 - tests on the threat table and target choice, with the shared target rule from 51.3.2 kept as the one source.
 
 Promote with /gsd-review-backlog when ready.
@@ -2487,4 +2493,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after adding backlog 999.31 (verified email at sign-in, from WR-04; owner)*
+*Last updated: 2026-10-08 after moving all balance dials to the new Phase 52.5 Balance Dials (was 51.3.1 Combat Dials; Density Pools dial and boss bonus included; owner)*
