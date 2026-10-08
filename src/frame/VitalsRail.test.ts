@@ -7,8 +7,17 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { MAX_LEVEL } from '@game-data/xp';
 import { barFraction, vitalText } from './vitals';
 import VitalsRail from './VitalsRail.vue';
-import { GAME_KEY, createInertGame } from '../game/context';
+import {
+  CONSOLE_KEY,
+  FRAME_KEY,
+  GAME_KEY,
+  createInertConsole,
+  createInertFrame,
+  createInertGame,
+} from '../game/context';
 import type { GameData } from '../game/context';
+import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
+import type { SocialData } from '../social/socialContext';
 
 let wrapper: VueWrapper | null = null;
 
@@ -435,5 +444,183 @@ describe('VitalsRail damage flash', () => {
       expect(source).toContain('var(--color-con-red)');
       expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     });
+  });
+});
+
+// 51.1-UI-SPEC "Vitals Rail Self Block (desktop)", out of combat: the self block wraps your identity,
+// bars, XP and chips; your pet row follows inside it; in a party a ⋯ 'Actions for yourself' sits at
+// its top right (the identity row reserves 32px) and right-click on the identity row opens it; the
+// Travel with leader switch sits after the block and before the rule (members only).
+describe('VitalsRail self block (51.1)', () => {
+  const ME = 1n;
+  const MARA = 2n;
+
+  function row(id: bigint, name: string, over: Record<string, unknown> = {}) {
+    return {
+      id,
+      name,
+      level: 6n,
+      xp: 0n,
+      race: 'Human',
+      className: 'Ranger',
+      locationId: 10n,
+      online: true,
+      groupId: 7n,
+      hp: 50n,
+      maxHp: 100n,
+      mana: 10n,
+      maxMana: 20n,
+      stamina: 30n,
+      maxStamina: 40n,
+      ...over,
+    };
+  }
+
+  function memberRow(id: bigint, characterId: bigint, joined: bigint) {
+    return { id, groupId: 7n, characterId, followLeader: true, joinedAt: { microsSinceUnixEpoch: joined } };
+  }
+
+  const myPet = {
+    id: 90n,
+    characterId: ME,
+    name: 'Fang',
+    level: 2n,
+    currentHp: 8n,
+    maxHp: 10n,
+    expiresAtMicros: null,
+  };
+
+  function mountSelf(options: { party?: 'lead' | 'member' | null; pet?: boolean; combat?: boolean } = {}) {
+    const party = options.party ?? null;
+    const inert = createInertGame();
+    const game = {
+      ...inert,
+      connected: ref(true),
+      characterId: ref<bigint | null>(ME),
+      character: ref(row(ME, 'Ann', { groupId: party === null ? undefined : 7n })),
+      group: ref(party === null ? null : { id: 7n, leaderCharacterId: party === 'lead' ? ME : MARA }),
+      groupMembers: ref(party === null ? [] : [memberRow(11n, ME, 1n), memberRow(12n, MARA, 2n)]),
+      knownCharacters: ref(party === null ? [] : [row(MARA, 'Mara')]),
+      effects: ref([fx(1n, ME)]),
+      combat: { ...inert.combat, active: ref(options.combat ?? false) },
+    } as unknown as GameData;
+    const social = {
+      ...createInertSocial(),
+      petOf: (id: bigint) => (options.pet && id === ME ? myPet : null),
+      petSecondsLeft: () => null,
+    } as unknown as SocialData;
+    wrapper = mount(VitalsRail, {
+      attachTo: document.body,
+      props: {
+        name: 'Ann',
+        avatarInitial: 'A',
+        classLine: 'Lv 6 · Ranger',
+        hp: 50n,
+        maxHp: 100n,
+        mana: 10n,
+        maxMana: 20n,
+        stamina: 30n,
+        maxStamina: 40n,
+      },
+      global: {
+        provide: {
+          [GAME_KEY as symbol]: game,
+          [SOCIAL_KEY as symbol]: social,
+          [CONSOLE_KEY as symbol]: createInertConsole(),
+          [FRAME_KEY as symbol]: createInertFrame(),
+        },
+      },
+    });
+    return wrapper;
+  }
+
+  function childClasses(el: Element): string[] {
+    return Array.from(el.children).map((child) => child.className.split(' ')[0]);
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('solo: the self block holds identity, bars, XP and chips, then your pet row, with no ⋯ or switch', () => {
+    const w = mountSelf({ pet: true });
+    const block = w.get('.self-block');
+    expect(block.element.tagName).toBe('DIV');
+    expect(childClasses(block.element)).toEqual(['identity', 'bars', 'pet-row']);
+    expect(block.find('.xp-row').exists()).toBe(true);
+    expect(block.find('.effect-chips').exists()).toBe(true);
+    expect(block.get('.pet-row .sr-only').text()).toBe('Your pet');
+    expect(w.find('.menu-opener').exists()).toBe(false);
+    expect(w.get('.identity').classes()).not.toContain('reserve');
+    expect(w.find('.travel-switch').exists()).toBe(false);
+  });
+
+  it('solo with no pet: no pet row', () => {
+    const w = mountSelf();
+    expect(w.find('.self-block .pet-row').exists()).toBe(false);
+  });
+
+  it('as a member: the ⋯ Actions for yourself, the 32px reserve and the switch before the rule', () => {
+    const w = mountSelf({ party: 'member', pet: true });
+    const block = w.get('.self-block');
+    const opener = block.get('.self-menu .menu-opener');
+    expect(opener.attributes('aria-label')).toBe('Actions for yourself');
+    expect(opener.attributes('aria-haspopup')).toBe('menu');
+    expect(w.get('.identity').classes()).toContain('reserve');
+    expect(w.findAll('button button')).toHaveLength(0);
+    expect(childClasses(block.element)).toEqual(['identity', 'bars', 'self-menu', 'pet-row']);
+    const rail = childClasses(w.get('aside.vitals-rail').element);
+    expect(rail.slice(0, 3)).toEqual(['self-block', 'travel-switch', 'hr']);
+    expect(w.get('.travel-switch').attributes('role')).toBe('switch');
+  });
+
+  it('as the leader: the ⋯ is there and there is no switch', () => {
+    const w = mountSelf({ party: 'lead' });
+    expect(w.get('.self-block .menu-opener').attributes('aria-label')).toBe('Actions for yourself');
+    expect(w.find('.travel-switch').exists()).toBe(false);
+    expect(childClasses(w.get('aside.vitals-rail').element).slice(0, 2)).toEqual(['self-block', 'hr']);
+  });
+
+  it('right-click on the identity row opens the self menu and prevents the browser menu', async () => {
+    const w = mountSelf({ party: 'member' });
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    w.get('.identity').element.dispatchEvent(event);
+    await nextTick();
+    expect(event.defaultPrevented).toBe(true);
+    expect(w.get('.self-block .menu-opener').attributes('aria-expanded')).toBe('true');
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+  });
+
+  it('solo right-click on the identity row is left to the browser', async () => {
+    const w = mountSelf();
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    w.get('.identity').element.dispatchEvent(event);
+    await nextTick();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('keeps the XP line out of combat', () => {
+    const w = mountSelf({ party: 'member' });
+    expect(w.get('.self-block .xp-row .xp-label').text()).toBe('XP');
+  });
+
+  it('in a fight the self block stays a plain div with the ⋯ and your pet, and the switch hides', () => {
+    const w = mountSelf({ party: 'member', pet: true, combat: true });
+    expect(w.get('.self-block').element.tagName).toBe('DIV');
+    expect(w.find('.self-block .menu-opener').exists()).toBe(true);
+    expect(w.find('.self-block .pet-row').exists()).toBe(true);
+    expect(w.find('.travel-switch').exists()).toBe(false);
+  });
+
+  it('draws the 8px outset with a pseudo-element, never a negative margin', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsRail.vue'), 'utf8');
+    const style = source.slice(source.indexOf('<style'));
+    expect(style).not.toMatch(/(?:margin|padding)[a-z-]*\s*:[^;]*-\d/);
+    const before = style.slice(style.indexOf('.self-block::before'));
+    const body = before.slice(0, before.indexOf('}'));
+    expect(body).toContain('inset: -8px');
+    expect(body).toContain('pointer-events: none');
+    expect(body).toContain('border-radius: var(--radius-md)');
+    expect(source).toContain('<TravelSwitch variant="rail"');
   });
 });
