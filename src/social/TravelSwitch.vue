@@ -7,7 +7,11 @@ import { usePartyActions } from './usePartyActions';
 // The "Travel with leader" switch (51.1-UI-SPEC "Travel with Leader"). Members only (not the
 // leader, not solo), out of combat, and only once your group member row and the leader's character
 // row have applied. It is self-contained (it injects the hub and builds its own action runner and
-// party actions) because the rail and the mobile Party sheet host it with identical behaviour.
+// party actions) so any host gets identical behaviour.
+//
+// The only host now is the mobile Party sheet (PartyBlock's sheet variant). On the desktop the left
+// rail is saved for the party view (owner 2026-10-08): the self menu offers the same toggle and a
+// follow icon sits beside your name. The props, the 'rail' default style and the behaviour are kept.
 //
 // aria-checked follows the subscribed member row: there is no optimistic flip. The switch is inert
 // while its call is pending and aria-disabled while offline. The leader name is server text and is

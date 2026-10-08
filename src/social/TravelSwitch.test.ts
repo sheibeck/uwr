@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import TravelSwitch from './TravelSwitch.vue';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
@@ -242,5 +242,41 @@ describe('TravelSwitch source', () => {
     expect(text).toContain('var(--color-neutral-900)');
     expect(text).toContain('var(--color-neutral-700)');
     expect(text).toContain('var(--color-neutral-500)');
+  });
+});
+
+// Owner 2026-10-08: the left rail is saved for the party view. The desktop toggle is the self menu
+// entry plus the follow icon beside your name; the mobile Party sheet keeps this switch as built.
+describe('TravelSwitch hosts (owner 2026-10-08)', () => {
+  const root = process.cwd();
+
+  function vueFiles(dir: string): string[] {
+    const found: string[] = [];
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) found.push(...vueFiles(full));
+      else if (name.endsWith('.vue') && !name.includes('.test.')) found.push(full);
+    }
+    return found;
+  }
+
+  const rel = (full: string): string => full.slice(root.length + 1).split('\\').join('/');
+  const noComments = (source: string): string =>
+    source.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  it('only the mobile Party sheet (PartyBlock) renders the switch element, in the sheet variant', () => {
+    const hosts = vueFiles(resolve(root, 'src'))
+      .filter((file) => /<TravelSwitch\b/.test(noComments(readFileSync(file, 'utf8'))))
+      .map(rel)
+      .sort();
+    expect(hosts).toEqual(['src/rails/PartyBlock.vue']);
+    const block = noComments(readFileSync(resolve(root, 'src/rails/PartyBlock.vue'), 'utf8'));
+    expect(block).toMatch(/<TravelSwitch\b[^>]*variant="sheet"/);
+  });
+
+  it('VitalsRail.vue refers to the switch component nowhere outside comments', () => {
+    const rail = noComments(readFileSync(resolve(root, 'src/frame/VitalsRail.vue'), 'utf8'));
+    expect(rail).not.toContain('TravelSwitch');
+    expect(rail).not.toContain('travel-switch');
   });
 });
