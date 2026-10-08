@@ -16,7 +16,7 @@
 import { computed, effectScope, shallowRef, watch } from 'vue';
 import type { CombatController, FrameControls, GameData } from '../game/context';
 import { useCooldownTicker } from '../hotbar/useCooldownTicker';
-import { allyResetNeeded, allyTargetFor } from './ally';
+import { allyResetNeeded, allyTargetFor, peaceAllyResetNeeded, peaceAllyTargetFor } from './ally';
 import { nextTargetId } from './cycling';
 import { roundTimer } from './roundClock';
 
@@ -98,7 +98,22 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
 
   // ---- ally ----------------------------------------------------------------------------------
 
+  function knownRow(characterId: bigint) {
+    return game.knownCharacters.value.find((row) => row.id === characterId);
+  }
+
+  function canSelectAlly(characterId: bigint): boolean {
+    const selfId = game.characterId.value;
+    if (selfId === null) return false;
+    if (characterId === selfId) return true;
+    if (combat.active.value) return true;
+    // Out of combat (owner 2026-10-08): a member who is offline, not here or not in your party
+    // cannot be selected. A fallen member can (as in a fight); allyArgFor then sends no id.
+    return !peaceAllyResetNeeded({ selectedId: characterId, self: game.character.value, target: knownRow(characterId) });
+  }
+
   function selectAlly(characterId: bigint): void {
+    if (!canSelectAlly(characterId)) return;
     selectedAlly.value = characterId === game.characterId.value ? null : characterId;
   }
 
@@ -110,6 +125,17 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
   }
 
   function allyArgFor(ability: { targetRule: string }): bigint | undefined {
+    if (!combat.active.value) {
+      // Out of combat: the shared rule, on the explicit selection only. You selected sends no id,
+      // so the server's own default still reads 'on yourself'.
+      const selectedId = selectedAlly.value;
+      return peaceAllyTargetFor({
+        targetRule: ability.targetRule,
+        selectedId,
+        self: game.character.value,
+        target: selectedId === null ? undefined : knownRow(selectedId),
+      });
+    }
     return allyTargetFor({
       targetRule: ability.targetRule,
       selectedId: allyTargetId.value,
@@ -152,6 +178,28 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
       },
       { flush: 'sync' },
     );
+
+    // A new active character starts with itself selected.
+    watch(
+      game.characterId,
+      () => {
+        selectedAlly.value = null;
+      },
+      { flush: 'sync' },
+    );
+
+    // Out of combat the selection goes back to you when the ally leaves the party, goes offline or
+    // is not at your place (owner 2026-10-08). Your own row and the other rows are separate refs,
+    // and a party move lands in one task: a pre-flush watcher sees the final rows, where a sync
+    // one would drop an ally who moved with you.
+    watch([combat.active, game.character, game.knownCharacters, selectedAlly], () => {
+      if (combat.active.value) return;
+      const selectedId = selectedAlly.value;
+      if (selectedId === null) return;
+      if (peaceAllyResetNeeded({ selectedId, self: game.character.value, target: knownRow(selectedId) })) {
+        selectedAlly.value = null;
+      }
+    });
 
     // The countdown reads the server-clock estimate, which only feed events used to sample. A client
     // clock that runs ahead of the server would read the open round as expired and lock the round
@@ -254,6 +302,7 @@ export function createCombatController(input: { game: GameData; frame: FrameCont
     down,
     targetStatus,
     selectAlly,
+    canSelectAlly,
     requestTarget,
     cycle,
     allyArgFor,

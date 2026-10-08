@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allyResetNeeded, allyTargetFor } from './ally';
+import { allyResetNeeded, allyTargetFor, peaceAllyResetNeeded, peaceAllyTargetFor } from './ally';
 
 const hp = (map: Record<string, bigint>) => (id: bigint): bigint | null => map[String(id)] ?? null;
 
@@ -56,9 +56,10 @@ describe('allyResetNeeded', () => {
     partyIds: new Set<bigint>([1n, 8n]),
   };
 
-  it('resets when the fight is over', () => {
-    expect(allyResetNeeded({ ...base, active: false })).toBe(true);
-    expect(allyResetNeeded({ ...base, active: false, selectedId: null })).toBe(true);
+  it('out of combat it never resets: that case belongs to peaceAllyResetNeeded (owner 2026-10-08)', () => {
+    expect(allyResetNeeded({ ...base, active: false })).toBe(false);
+    expect(allyResetNeeded({ ...base, active: false, selectedId: null })).toBe(false);
+    expect(allyResetNeeded({ ...base, active: false, participants: [], partyIds: new Set() })).toBe(false);
   });
 
   it('does not reset when nothing or the player is selected', () => {
@@ -77,5 +78,76 @@ describe('allyResetNeeded', () => {
 
   it('keeps a dead ally selected while the row and party membership remain', () => {
     expect(allyResetNeeded(base)).toBe(false);
+  });
+});
+
+// Owner 2026-10-08: tap a party member to target them, everywhere. Out of combat the selection
+// follows the shared rule (@game-data/ally_target_rules): same party, online, here, standing.
+const self = { id: 1n, groupId: 5n as bigint | null | undefined, locationId: 10n };
+const bo = (over: Record<string, unknown> = {}) => ({
+  id: 8n,
+  name: 'Bo',
+  groupId: 5n as bigint | null | undefined,
+  locationId: 10n,
+  online: true,
+  hp: 30n,
+  ...over,
+});
+
+describe('peaceAllyResetNeeded', () => {
+  const base = { selectedId: 8n as bigint | null, self, target: bo() };
+
+  it('keeps an ally who is in the party, online and here', () => {
+    expect(peaceAllyResetNeeded(base)).toBe(false);
+  });
+
+  it('keeps nothing selected, you selected, and a missing self', () => {
+    expect(peaceAllyResetNeeded({ ...base, selectedId: null })).toBe(false);
+    expect(peaceAllyResetNeeded({ ...base, selectedId: 1n, target: undefined })).toBe(false);
+    expect(peaceAllyResetNeeded({ ...base, self: null })).toBe(false);
+  });
+
+  it('keeps a fallen ally selected, as in a fight', () => {
+    expect(peaceAllyResetNeeded({ ...base, target: bo({ hp: 0n }) })).toBe(false);
+  });
+
+  it('resets when the row is missing, or the ally is not in your party', () => {
+    expect(peaceAllyResetNeeded({ ...base, target: undefined })).toBe(true);
+    expect(peaceAllyResetNeeded({ ...base, target: null })).toBe(true);
+    expect(peaceAllyResetNeeded({ ...base, target: bo({ groupId: 6n }) })).toBe(true);
+    expect(peaceAllyResetNeeded({ ...base, self: { ...self, groupId: undefined } })).toBe(true);
+  });
+
+  it('resets when the ally is offline or elsewhere', () => {
+    expect(peaceAllyResetNeeded({ ...base, target: bo({ online: false }) })).toBe(true);
+    expect(peaceAllyResetNeeded({ ...base, target: bo({ locationId: 11n }) })).toBe(true);
+  });
+});
+
+describe('peaceAllyTargetFor', () => {
+  const base = { targetRule: 'single_ally', selectedId: 8n as bigint | null, self, target: bo() };
+
+  it('sends a selected ally who is ok for single_ally', () => {
+    expect(peaceAllyTargetFor(base)).toBe(8n);
+  });
+
+  it('omits the id for every other rule', () => {
+    for (const targetRule of ['single_enemy', 'self', 'all_allies', 'all_party', 'lowest_hp_ally', 'corpse', '']) {
+      expect(peaceAllyTargetFor({ ...base, targetRule })).toBeUndefined();
+    }
+  });
+
+  it('omits the id with nothing selected or you selected', () => {
+    expect(peaceAllyTargetFor({ ...base, selectedId: null })).toBeUndefined();
+    expect(peaceAllyTargetFor({ ...base, selectedId: 1n })).toBeUndefined();
+    expect(peaceAllyTargetFor({ ...base, self: null })).toBeUndefined();
+  });
+
+  it('omits the id for a fallen ally and for every reset reason', () => {
+    expect(peaceAllyTargetFor({ ...base, target: bo({ hp: 0n }) })).toBeUndefined();
+    expect(peaceAllyTargetFor({ ...base, target: undefined })).toBeUndefined();
+    expect(peaceAllyTargetFor({ ...base, target: bo({ groupId: 6n }) })).toBeUndefined();
+    expect(peaceAllyTargetFor({ ...base, target: bo({ online: false }) })).toBeUndefined();
+    expect(peaceAllyTargetFor({ ...base, target: bo({ locationId: 11n }) })).toBeUndefined();
   });
 });

@@ -229,7 +229,11 @@ export interface FrameControls {
  * round clock, shared by the rail, strip, round row, hotbar and party block.
  */
 export interface CombatController {
-  /** The selected ally; the player's own id by default, null while no character is active. */
+  /**
+   * The selected ally; the player's own id by default, null while no character is active. It
+   * persists out of combat too (owner 2026-10-08), until the ally leaves the party, goes
+   * offline or is not at your place.
+   */
   readonly allyTargetId: Readonly<Ref<bigint | null>>;
   readonly timer: Readonly<Ref<RoundTimerState>>;
   /** True at 0 and with no open round. */
@@ -239,6 +243,11 @@ export interface CombatController {
   /** Hidden status line: 'Target: {name}', empty when nothing was requested. */
   readonly targetStatus: Readonly<Ref<string>>;
   selectAlly(characterId: bigint): void;
+  /**
+   * Whether selectAlly would take this character: true for yourself; in a fight, true for any
+   * party card; out of combat, false for a member who is offline, not here or not in your party.
+   */
+  canSelectAlly(characterId: bigint): boolean;
   /** Targets a living hostile; a defeated or unknown hostile is never requested. */
   requestTarget(enemyId: bigint): void;
   /** Tab (1) and Shift+Tab (-1). True when the target changed (the key acted). */
@@ -390,6 +399,8 @@ export function createInertCombat(): CombatController {
     down: constant(false),
     targetStatus: constant(''),
     selectAlly() {},
+    // An isolated mount has no rules to apply, and selectAlly is a no-op here anyway.
+    canSelectAlly: () => true,
     requestTarget() {},
     cycle: () => false,
     allyArgFor: () => undefined,

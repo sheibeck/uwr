@@ -295,9 +295,11 @@ function useSlot(state: SlotState): void {
   if (offline.value || ability === null || state.cooling || state.inert) return;
   if (reducers === null || characterId === null) return;
   if (pendingId.value === ability.id) return;
-  // In combat a single-ally ability carries the selected ally, only when the server will accept it
-  // (allyArgFor omits dead or departed allies). Out of combat the call is unchanged.
-  const allyId = inCombat.value ? controller.allyArgFor(ability) : undefined;
+  // A single-ally ability carries the selected ally, in and out of fights (owner 2026-10-08), only
+  // when the server will accept it. The controller applies the in-fight rule in a fight (it omits
+  // dead or departed allies) and the out-of-combat rule out of it (same party, online, here,
+  // standing: @game-data/ally_target_rules), and the server enforces the same rule.
+  const allyId = controller.allyArgFor(ability);
   pendingId.value = ability.id;
   void (async () => {
     try {

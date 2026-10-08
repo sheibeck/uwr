@@ -740,11 +740,21 @@ describe('HotbarRow chosen slot and ally argument', () => {
     expect(s.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 12n, targetCharacterId: 8n });
   });
 
-  it('never consults allyArgFor out of combat', async () => {
+  // Owner 2026-10-08: tap a party member to target them, everywhere. The controller applies the
+  // out-of-combat rule, so the hotbar consults it in both modes.
+  it('out of combat, consults allyArgFor and sends targetCharacterId when it returns an id', async () => {
     const s = setup({ combat: { active: false, allyArg: 8n } });
     await slots(s.wrapper)[1].trigger('click');
-    expect(s.combat.allyArgFor).not.toHaveBeenCalled();
-    expect(s.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 12n });
+    expect(s.combat.allyArgFor).toHaveBeenCalledWith(expect.objectContaining({ id: 12n }));
+    expect(s.useAbility).toHaveBeenCalledWith({ characterId: CHARACTER_ID, abilityTemplateId: 12n, targetCharacterId: 8n });
+  });
+
+  it('out of combat, omits targetCharacterId when allyArgFor returns undefined', async () => {
+    const s = setup({ combat: { active: false } });
+    await slots(s.wrapper)[1].trigger('click');
+    expect(s.combat.allyArgFor).toHaveBeenCalled();
+    const args = s.useAbility.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.keys(args)).toEqual(['characterId', 'abilityTemplateId']);
   });
 
   it('renders hostile-looking ability names as text in combat', () => {

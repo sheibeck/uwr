@@ -24,6 +24,7 @@ interface Fake {
   participantApplied: Ref<boolean>;
   groupMembers: Ref<unknown[]>;
   knownCharacters: Ref<unknown[]>;
+  characterId: Ref<bigint | null>;
   setNow(micros: number): void;
 }
 
@@ -35,13 +36,22 @@ function enemy(id: bigint, name: string, currentHp = 10n): Record<string, unknow
   return { id, combatId: 1n, enemyTemplateId: 1n, displayName: name, currentHp, maxHp: 10n };
 }
 
+/** Bo (8): in your party (group 5), online, at your place (10), 30 HP. */
+function bo(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return { id: 8n, name: 'Bo', groupId: 5n, locationId: 10n, online: true, hp: 30n, ...over };
+}
+
 function build(over: { targetId?: bigint } = {}): Fake {
   const setCombatTarget = vi.fn().mockResolvedValue(undefined);
   const character = ref<Record<string, unknown> | null>({
     id: 5n,
-    hp: 40n,
+    hp: 100n,
+    groupId: 5n,
+    locationId: 10n,
+    online: true,
     combatTargetEnemyId: over.targetId ?? 3n,
   });
+  const characterId = ref<bigint | null>(5n);
   const connected = ref(true);
   const reducers = ref<unknown>({ setCombatTarget });
   const activeScreen = ref<ActiveScreen>(null);
@@ -55,12 +65,12 @@ function build(over: { targetId?: bigint } = {}): Fake {
   const roundsApplied = ref(false);
   const participantApplied = ref(false);
   const groupMembers = ref<unknown[]>([{ id: 1n, characterId: 5n }, { id: 2n, characterId: 8n }]);
-  const knownCharacters = ref<unknown[]>([{ id: 8n, hp: 30n }]);
+  const knownCharacters = ref<unknown[]>([bo()]);
   const game = {
     ...createInertGame(),
     connected,
     character,
-    characterId: ref(5n),
+    characterId,
     reducers,
     groupMembers,
     knownCharacters,
@@ -89,6 +99,7 @@ function build(over: { targetId?: bigint } = {}): Fake {
     participantApplied,
     groupMembers,
     knownCharacters,
+    characterId,
     setNow(micros) {
       now = micros;
     },
@@ -464,7 +475,7 @@ describe('ally selection', () => {
     expect(c.allyTargetId.value).toBe(5n);
   });
 
-  it('resets to the player when the fight ends and clears the target memory', () => {
+  it('keeps an ally who is still in the party, online and here when the fight ends, and clears the target memory', async () => {
     const fake = build();
     const c = start(fake);
     c.selectAlly(8n);
@@ -472,8 +483,20 @@ describe('ally selection', () => {
     confirmTarget(fake, 9n);
     expect(c.targetStatus.value).toBe('Target: Cinderhound');
     fake.active.value = false;
-    expect(c.allyTargetId.value).toBe(5n);
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(8n);
     expect(c.targetStatus.value).toBe('');
+  });
+
+  it('a fight ending drops an ally who is no longer here', async () => {
+    const fake = build();
+    const c = start(fake);
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [bo({ locationId: 11n })];
+    expect(c.allyTargetId.value).toBe(8n);
+    fake.active.value = false;
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(5n);
   });
 
   it('resets when the ally participant row is gone', () => {
@@ -501,6 +524,134 @@ describe('ally selection', () => {
       { id: 2n, combatId: 1n, characterId: 8n, status: 'dead' },
     ];
     expect(c.allyTargetId.value).toBe(8n);
+  });
+});
+
+// Owner 2026-10-08: tap a party member to target them, everywhere. Out of combat the selection
+// persists and follows @game-data/ally_target_rules (same party, online, here, standing).
+describe('ally selection out of combat', () => {
+  function peace(): { fake: Fake; c: CombatController } {
+    const fake = build();
+    fake.active.value = false;
+    fake.participants.value = [];
+    return { fake, c: start(fake) };
+  }
+
+  it('keeps a selected ally across ticks and unrelated row updates', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    expect(c.allyTargetId.value).toBe(8n);
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(8n);
+    fake.knownCharacters.value = [
+      bo({ hp: 25n }),
+      { id: 12n, name: 'Stranger', groupId: undefined, locationId: 40n, online: true, hp: 10n },
+    ];
+    fake.character.value = { ...fake.character.value, hp: 90n };
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(8n);
+  });
+
+  it('goes back to you when the ally goes offline', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [bo({ online: false })];
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('goes back to you when the ally moves away', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [bo({ locationId: 11n })];
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('goes back to you when the ally leaves the party', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [bo({ groupId: 6n })];
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('goes back to you when the ally row disappears', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [];
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('goes back to you when you move away and the ally stays', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.character.value = { ...fake.character.value, locationId: 11n };
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('keeps the ally when you both move in the same tick (your row first)', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.character.value = { ...fake.character.value, locationId: 11n };
+    fake.knownCharacters.value = [bo({ locationId: 11n })];
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(8n);
+  });
+
+  it('keeps a fallen ally selected, but sends no id for them', async () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.knownCharacters.value = [bo({ hp: 0n })];
+    await nextTick();
+    expect(c.allyTargetId.value).toBe(8n);
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBeUndefined();
+  });
+
+  it('canSelectAlly: you always, an ok member yes, an offline or elsewhere member no', () => {
+    const { fake, c } = peace();
+    expect(c.canSelectAlly(5n)).toBe(true);
+    expect(c.canSelectAlly(8n)).toBe(true);
+    fake.knownCharacters.value = [bo({ online: false })];
+    expect(c.canSelectAlly(8n)).toBe(false);
+    fake.knownCharacters.value = [bo({ locationId: 11n })];
+    expect(c.canSelectAlly(8n)).toBe(false);
+  });
+
+  it('canSelectAlly is true for anyone in a fight', () => {
+    const fake = build();
+    fake.knownCharacters.value = [bo({ online: false, locationId: 11n })];
+    const c = start(fake);
+    expect(c.canSelectAlly(8n)).toBe(true);
+  });
+
+  it('selectAlly of an offline or elsewhere member out of combat leaves the selection unchanged', () => {
+    const { fake, c } = peace();
+    fake.knownCharacters.value = [bo({ online: false })];
+    c.selectAlly(8n);
+    expect(c.allyTargetId.value).toBe(5n);
+    fake.knownCharacters.value = [bo({ locationId: 11n })];
+    c.selectAlly(8n);
+    expect(c.allyTargetId.value).toBe(5n);
+  });
+
+  it('allyArgFor sends the selected ok ally for single_ally only', () => {
+    const { c } = peace();
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBeUndefined();
+    c.selectAlly(8n);
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBe(8n);
+    expect(c.allyArgFor({ targetRule: 'single_enemy' })).toBeUndefined();
+    c.selectAlly(5n);
+    expect(c.allyArgFor({ targetRule: 'single_ally' })).toBeUndefined();
+  });
+
+  it('changing character resets the selection to the new character', () => {
+    const { fake, c } = peace();
+    c.selectAlly(8n);
+    fake.characterId.value = 6n;
+    expect(c.allyTargetId.value).toBe(6n);
   });
 });
 
