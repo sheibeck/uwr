@@ -22,7 +22,29 @@ import {
   rarityMix,
   rollRarity,
   jewelryFloor,
+  CREATURE_PROFILES,
+  canonicalCreature,
+  creatureProfile,
+  pickCount,
+  gearChancePct,
+  goldReward,
+  gatherYield,
+  scaledChancePct,
+  zoneTierOf,
+  pickWeighted,
+  pickWithoutReplacement,
+  FALLBACK_WEIGHTS,
+  fallbackCommonPool,
+  gearPoolWeight,
+  AI_LOOT_WEIGHTS,
+  aiLootTable,
+  ESSENCE_CHANCE_PCT,
+  MODIFIER_CHANCE_PCT,
+  SCROLL_DROP_BASE_PCT,
+  SCROLL_TIER_WEIGHTS,
 } from './economy_rules';
+import { JUNK_DEFS } from './equipment_rules';
+import { MATERIAL_DEFS } from './crafting_rules';
 import { QUALITY_TIERS } from './mechanical_vocabulary';
 import { rollQualityTier, TIER_RARITY_WEIGHTS, getWorldTier } from '../helpers/items';
 
@@ -518,6 +540,446 @@ describe('jewelryFloor', () => {
     expect(jewelryFloor('neck', 0n, 'rare')).toBe('rare');
     expect(jewelryFloor('chest', 0n, 'common')).toBe('common');
     expect(jewelryFloor('mainHand', 0n, 'common')).toBe('common');
+  });
+});
+
+describe('pickCount', () => {
+  it('is exactly 1 at 100%, 0 at 0% and 3 at 300% for every seed', () => {
+    for (let s = 0n; s < 200n; s += 1n) {
+      expect(pickCount(s, 100n)).toBe(1n);
+      expect(pickCount(s, 0n)).toBe(0n);
+      expect(pickCount(s, 300n)).toBe(3n);
+    }
+  });
+
+  it('clamps out-of-range rates', () => {
+    expect(pickCount(7n, 999n)).toBe(3n);
+    expect(pickCount(7n, -5n)).toBe(0n);
+  });
+
+  it('averages 1.5 at 150% over 10,000 seeds', () => {
+    let total = 0n;
+    const N = 10000n;
+    for (let i = 0n; i < N; i += 1n) total += pickCount(lootSeed(T + i, 2n, 3n), 150n);
+    const avg = Number(total) / Number(N);
+    expect(Math.abs(avg - 1.5)).toBeLessThan(0.03);
+  });
+
+  it('at 150% is always 1 or 2', () => {
+    for (let i = 0n; i < 300n; i += 1n) {
+      const n = pickCount(i, 150n);
+      expect(n === 1n || n === 2n).toBe(true);
+    }
+  });
+});
+
+describe('creature profiles', () => {
+  it('holds the pre-v2.0 numbers', () => {
+    expect(CREATURE_PROFILES.animal).toMatchObject({ gearChance: 10n, goldMin: 0n, goldMax: 2n });
+    expect(CREATURE_PROFILES.beast).toMatchObject({ gearChance: 15n, goldMin: 0n, goldMax: 3n });
+    expect(CREATURE_PROFILES.humanoid).toMatchObject({ gearChance: 25n, goldMin: 2n, goldMax: 6n });
+    expect(CREATURE_PROFILES.undead).toMatchObject({ gearChance: 20n, goldMin: 1n, goldMax: 4n });
+    expect(CREATURE_PROFILES.spirit).toMatchObject({ gearChance: 20n, goldMin: 1n, goldMax: 4n });
+    expect(CREATURE_PROFILES.construct).toMatchObject({ gearChance: 20n, goldMin: 1n, goldMax: 4n });
+    expect(CREATURE_PROFILES.animal.dropTypes).toEqual(['animal', 'beast']);
+    expect(CREATURE_PROFILES.beast.dropTypes).toEqual(['beast', 'animal']);
+    expect(CREATURE_PROFILES.spirit.dropTypes).toEqual(['spirit', 'construct']);
+  });
+
+  it('canonicalCreature maps aliases and falls back to beast', () => {
+    expect(canonicalCreature('beast')).toBe('beast');
+    expect(canonicalCreature('animal')).toBe('animal');
+    expect(canonicalCreature('undead')).toBe('undead');
+    expect(canonicalCreature('humanoid')).toBe('humanoid');
+    expect(canonicalCreature('construct')).toBe('construct');
+    expect(canonicalCreature('spirit')).toBe('spirit');
+    expect(canonicalCreature('elemental')).toBe('spirit');
+    expect(canonicalCreature('aberration')).toBe('spirit');
+    expect(canonicalCreature('')).toBe('beast');
+    expect(canonicalCreature('Dragon')).toBe('beast');
+    expect(canonicalCreature('  UNDEAD ')).toBe('undead');
+    expect(canonicalCreature('Elemental')).toBe('spirit');
+    expect(canonicalCreature(undefined)).toBe('beast');
+    expect(canonicalCreature(null)).toBe('beast');
+  });
+
+  it('creatureProfile returns the profile of the canonical type', () => {
+    expect(creatureProfile('elemental')).toBe(CREATURE_PROFILES.spirit);
+    expect(creatureProfile('')).toBe(CREATURE_PROFILES.beast);
+    expect(creatureProfile('humanoid')).toBe(CREATURE_PROFILES.humanoid);
+  });
+
+  it('does not let a prototype name pick a profile', () => {
+    expect(canonicalCreature('constructor')).toBe('beast');
+    expect(canonicalCreature('__proto__')).toBe('beast');
+    expect(canonicalCreature('toString')).toBe('beast');
+  });
+});
+
+describe('gearChancePct', () => {
+  it('uses the old formula: gearChance + min(25, 2 * level)', () => {
+    expect(gearChancePct(CREATURE_PROFILES.beast, 1n, 100n)).toBe(17n);
+    expect(gearChancePct(CREATURE_PROFILES.humanoid, 30n, 100n)).toBe(50n);
+    expect(gearChancePct(CREATURE_PROFILES.animal, 50n, 100n)).toBe(35n);
+  });
+
+  it('scales by the drop rate, caps at 100 and is 0 at 0', () => {
+    expect(gearChancePct(CREATURE_PROFILES.humanoid, 30n, 300n)).toBe(100n);
+    expect(gearChancePct(CREATURE_PROFILES.beast, 1n, 200n)).toBe(34n);
+    expect(gearChancePct(CREATURE_PROFILES.humanoid, 30n, 0n)).toBe(0n);
+  });
+});
+
+describe('goldReward', () => {
+  const profiles = Object.keys(CREATURE_PROFILES) as (keyof typeof CREATURE_PROFILES)[];
+
+  it('is at least 1 at default dials for every profile at level 1', () => {
+    for (const p of profiles) {
+      for (let s = 0n; s < 100n; s += 1n) {
+        expect(goldReward(CREATURE_PROFILES[p], 1n, s, 100n) >= 1n).toBe(true);
+      }
+    }
+  });
+
+  it('stays within goldMin + level .. goldMax + level at 100%', () => {
+    const p = CREATURE_PROFILES.humanoid;
+    for (let s = 0n; s < 100n; s += 1n) {
+      const g = goldReward(p, 12n, s, 100n);
+      expect(g >= p.goldMin + 12n && g <= p.goldMax + 12n).toBe(true);
+    }
+  });
+
+  it('is exactly 3 times at 300% and 0 at 0%', () => {
+    for (const p of profiles) {
+      for (let s = 0n; s < 30n; s += 1n) {
+        const base = goldReward(CREATURE_PROFILES[p], 9n, s, 100n);
+        expect(goldReward(CREATURE_PROFILES[p], 9n, s, 300n)).toBe(base * 3n);
+        expect(goldReward(CREATURE_PROFILES[p], 9n, s, 0n)).toBe(0n);
+      }
+    }
+  });
+
+  it('floors the scaled value', () => {
+    const p = CREATURE_PROFILES.animal;
+    for (let s = 0n; s < 30n; s += 1n) {
+      const base = goldReward(p, 1n, s, 100n);
+      expect(goldReward(p, 1n, s, 150n)).toBe((base * 150n) / 100n);
+    }
+  });
+
+  it('treats a level below 1 as 1', () => {
+    expect(goldReward(CREATURE_PROFILES.animal, 0n, 3n, 100n) >= 1n).toBe(true);
+  });
+});
+
+describe('gatherYield', () => {
+  it('scales and floors, never below 1', () => {
+    expect(gatherYield(5n, 50n)).toBe(2n);
+    expect(gatherYield(1n, 50n)).toBe(1n);
+    expect(gatherYield(4n, 300n)).toBe(12n);
+    expect(gatherYield(4n, 100n)).toBe(4n);
+  });
+
+  it('clamps the rate to 50..300', () => {
+    expect(gatherYield(4n, 1n)).toBe(2n);
+    expect(gatherYield(4n, 9999n)).toBe(12n);
+    expect(gatherYield(0n, 100n)).toBe(1n);
+  });
+});
+
+describe('scaledChancePct and zoneTierOf and constants', () => {
+  it('scales a chance and caps it at 100', () => {
+    expect(scaledChancePct(6n, 100n)).toBe(6n);
+    expect(scaledChancePct(6n, 300n)).toBe(18n);
+    expect(scaledChancePct(60n, 300n)).toBe(100n);
+    expect(scaledChancePct(6n, 0n)).toBe(0n);
+  });
+
+  it('zoneTierOf follows the node spawn rule', () => {
+    expect(zoneTierOf(100n)).toBe(1n);
+    expect(zoneTierOf(129n)).toBe(1n);
+    expect(zoneTierOf(130n)).toBe(2n);
+    expect(zoneTierOf(189n)).toBe(2n);
+    expect(zoneTierOf(190n)).toBe(3n);
+    expect(zoneTierOf(900n)).toBe(3n);
+  });
+
+  it('holds today chances and the scroll weights', () => {
+    expect(ESSENCE_CHANCE_PCT).toBe(6n);
+    expect(MODIFIER_CHANCE_PCT).toBe(10n);
+    expect(SCROLL_DROP_BASE_PCT).toBe(25n);
+    expect(SCROLL_TIER_WEIGHTS).toEqual({ rare: 6n, epic: 3n, legendary: 1n });
+  });
+});
+
+describe('weighted picks', () => {
+  const entries = [
+    { itemTemplateId: 5n, weight: 6n },
+    { itemTemplateId: 2n, weight: 10n },
+    { itemTemplateId: 9n, weight: 3n },
+    { itemTemplateId: 4n, weight: 0n },
+    { itemTemplateId: 7n, weight: 8n },
+    { itemTemplateId: 1n, weight: 1n },
+  ];
+
+  function shuffled<X>(list: X[], salt: number): X[] {
+    const out = list.slice();
+    let state = salt * 2654435761 + 1;
+    for (let i = out.length - 1; i > 0; i -= 1) {
+      state = (state * 1103515245 + 12345) % 2147483648;
+      const j = state % (i + 1);
+      [out[i], out[j]] = [out[j]!, out[i]!];
+    }
+    return out;
+  }
+
+  it('pickWeighted does not depend on the input order', () => {
+    for (let s = 0n; s < 40n; s += 1n) {
+      const expected = pickWeighted(entries, s, ROLL_INDEX.GEAR_PICK);
+      for (let salt = 1; salt <= 5; salt += 1) {
+        expect(pickWeighted(shuffled(entries, salt), s, ROLL_INDEX.GEAR_PICK)).toEqual(expected);
+      }
+    }
+  });
+
+  it('pickWeighted skips weight 0 and returns null when the total is 0', () => {
+    for (let s = 0n; s < 100n; s += 1n) {
+      expect(pickWeighted(entries, s, 3n)?.itemTemplateId).not.toBe(4n);
+    }
+    expect(pickWeighted([], 1n, 3n)).toBeNull();
+    expect(pickWeighted([{ itemTemplateId: 1n, weight: 0n }], 1n, 3n)).toBeNull();
+  });
+
+  it('pickWeighted follows the weights', () => {
+    const counts = new Map<bigint, number>();
+    const N = 6000;
+    for (let i = 0; i < N; i += 1) {
+      const pick = pickWeighted(entries, lootSeed(T + BigInt(i), 1n, 1n), ROLL_INDEX.GEAR_PICK)!;
+      counts.set(pick.itemTemplateId, (counts.get(pick.itemTemplateId) ?? 0) + 1);
+    }
+    const totalWeight = 28;
+    for (const e of entries) {
+      const expected = (Number(e.weight) / totalWeight) * 100;
+      const actual = ((counts.get(e.itemTemplateId) ?? 0) / N) * 100;
+      expect(Math.abs(actual - expected), String(e.itemTemplateId)).toBeLessThan(3);
+    }
+  });
+
+  it('pickWithoutReplacement gives the same picks for any input order', () => {
+    for (let s = 0n; s < 40n; s += 1n) {
+      const expected = pickWithoutReplacement(entries, 3, s, ROLL_INDEX.PICK_BASE).map((e) => e.itemTemplateId);
+      for (let salt = 1; salt <= 5; salt += 1) {
+        const got = pickWithoutReplacement(shuffled(entries, salt), 3, s, ROLL_INDEX.PICK_BASE).map((e) => e.itemTemplateId);
+        expect(got).toEqual(expected);
+      }
+    }
+  });
+
+  it('pickWithoutReplacement never returns one id twice, and stops when the pool runs out', () => {
+    for (let s = 0n; s < 60n; s += 1n) {
+      const picks = pickWithoutReplacement(entries, 5, s, ROLL_INDEX.PICK_BASE).map((e) => e.itemTemplateId);
+      expect(new Set(picks).size).toBe(picks.length);
+      expect(picks).toHaveLength(5);
+    }
+    const all = pickWithoutReplacement(entries, 20, 3n, ROLL_INDEX.PICK_BASE);
+    expect(all).toHaveLength(5);
+    expect(all.map((e) => e.itemTemplateId)).not.toContain(4n);
+    expect(pickWithoutReplacement(entries, 0, 3n, ROLL_INDEX.PICK_BASE)).toEqual([]);
+  });
+
+  it('pickWithoutReplacement treats a repeated id as one entry', () => {
+    const dup = [
+      { itemTemplateId: 1n, weight: 5n },
+      { itemTemplateId: 1n, weight: 5n },
+      { itemTemplateId: 2n, weight: 5n },
+    ];
+    for (let s = 0n; s < 30n; s += 1n) {
+      const ids = pickWithoutReplacement(dup, 3, s, ROLL_INDEX.PICK_BASE).map((e) => e.itemTemplateId);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+});
+
+describe('fallbackCommonPool', () => {
+  const junk = [{ itemTemplateId: 1n }, { itemTemplateId: 2n }, { itemTemplateId: 3n }, { itemTemplateId: 4n }];
+  const materials = MATERIAL_DEFS.map((m, i) => ({
+    itemTemplateId: BigInt(100 + i),
+    tier: m.tier,
+    sources: m.sources,
+    dropCreatureTypes: m.dropCreatureTypes ?? [],
+  }));
+  const regionMaterials = [
+    { itemTemplateId: 500n, role: 'gather', rarity: 'common' },
+    { itemTemplateId: 501n, role: 'drop', rarity: 'uncommon' },
+    { itemTemplateId: 502n, role: 'gather', rarity: 'rare' },
+    { itemTemplateId: 503n, role: 'trophy', rarity: 'common' },
+    { itemTemplateId: 504n, role: 'gear', rarity: 'common' },
+    { itemTemplateId: 505n, role: 'recipe_output', rarity: 'common' },
+  ];
+  const weightOf = (pool: { itemTemplateId: bigint; weight: bigint }[], id: bigint) =>
+    pool.find((e) => e.itemTemplateId === id)?.weight;
+
+  it('always contains every junk template at weight 10', () => {
+    for (const type of ['beast', 'humanoid', 'undead', 'spirit', 'construct', 'animal', 'elemental', '']) {
+      const pool = fallbackCommonPool({ junk, materials, regionMaterials: [], creatureType: type, zoneTier: 1n });
+      for (const j of junk) expect(weightOf(pool, j.itemTemplateId)).toBe(10n);
+    }
+  });
+
+  it('adds drop materials of the creature kind up to the zone tier at weight 6', () => {
+    const pool = fallbackCommonPool({ junk, materials, regionMaterials: [], creatureType: 'beast', zoneTier: 1n });
+    const expectedIds = materials
+      .filter((m) => m.sources.includes('drop') && m.tier <= 1n && m.dropCreatureTypes.some((t) => ['beast', 'animal'].includes(t)))
+      .map((m) => m.itemTemplateId);
+    expect(expectedIds.length).toBeGreaterThan(0);
+    for (const id of expectedIds) expect(weightOf(pool, id)).toBe(6n);
+    // no gather-only material, no material above the zone tier, no material of another creature type
+    for (const m of materials) {
+      if (!m.sources.includes('drop')) expect(weightOf(pool, m.itemTemplateId)).toBeUndefined();
+      if (m.tier > 1n) expect(weightOf(pool, m.itemTemplateId)).toBeUndefined();
+    }
+    const humanoidOnly = materials.find(
+      (m) => m.sources.includes('drop') && m.tier <= 1n && m.dropCreatureTypes.length > 0 && !m.dropCreatureTypes.some((t) => ['beast', 'animal'].includes(t)),
+    );
+    if (humanoidOnly) expect(weightOf(pool, humanoidOnly.itemTemplateId)).toBeUndefined();
+  });
+
+  it('a higher zone tier admits higher tier materials', () => {
+    const low = fallbackCommonPool({ junk, materials, regionMaterials: [], creatureType: 'undead', zoneTier: 1n });
+    const high = fallbackCommonPool({ junk, materials, regionMaterials: [], creatureType: 'undead', zoneTier: 3n });
+    expect(high.length).toBeGreaterThanOrEqual(low.length);
+  });
+
+  it('adds own-region gather and drop materials of common or uncommon rarity at weight 6', () => {
+    const pool = fallbackCommonPool({ junk, materials, regionMaterials, creatureType: 'beast', zoneTier: 1n });
+    expect(weightOf(pool, 500n)).toBe(6n);
+    expect(weightOf(pool, 501n)).toBe(6n);
+    expect(weightOf(pool, 502n)).toBeUndefined();
+    expect(weightOf(pool, 503n)).toBeUndefined();
+    expect(weightOf(pool, 504n)).toBeUndefined();
+    expect(weightOf(pool, 505n)).toBeUndefined();
+  });
+
+  it('lists nothing from another region when only the own region is passed', () => {
+    const own = fallbackCommonPool({ junk, materials, regionMaterials: [regionMaterials[0]!], creatureType: 'beast', zoneTier: 1n });
+    expect(weightOf(own, 501n)).toBeUndefined();
+  });
+
+  it('has no repeated ids', () => {
+    const pool = fallbackCommonPool({ junk, materials, regionMaterials, creatureType: 'spirit', zoneTier: 3n });
+    expect(new Set(pool.map((e) => e.itemTemplateId)).size).toBe(pool.length);
+  });
+
+  it('is the same for any input order', () => {
+    const a = fallbackCommonPool({ junk, materials, regionMaterials, creatureType: 'beast', zoneTier: 2n });
+    const b = fallbackCommonPool({
+      junk: junk.slice().reverse(),
+      materials: materials.slice().reverse(),
+      regionMaterials: regionMaterials.slice().reverse(),
+      creatureType: 'beast',
+      zoneTier: 2n,
+    });
+    const key = (p: { itemTemplateId: bigint; weight: bigint }[]) =>
+      p.map((e) => `${e.itemTemplateId}:${e.weight}`).sort().join(',');
+    expect(key(a)).toBe(key(b));
+  });
+
+  it('holds the fallback weights', () => {
+    expect(FALLBACK_WEIGHTS).toEqual({
+      junk: 10n,
+      material: 6n,
+      regionMaterial: 6n,
+      gearCommon: 6n,
+      gearUncommon: 3n,
+      gearJewelry: 1n,
+    });
+  });
+});
+
+describe('gearPoolWeight', () => {
+  it('weights jewelry 1, uncommon 3 and the rest 6', () => {
+    expect(gearPoolWeight({ slot: 'neck', rarity: 'common' })).toBe(1n);
+    expect(gearPoolWeight({ slot: 'earrings', rarity: 'uncommon' })).toBe(1n);
+    expect(gearPoolWeight({ slot: 'chest', rarity: 'uncommon' })).toBe(3n);
+    expect(gearPoolWeight({ slot: 'chest', rarity: 'common' })).toBe(6n);
+    expect(gearPoolWeight({ slot: 'mainHand', rarity: 'common' })).toBe(6n);
+  });
+});
+
+describe('aiLootTable', () => {
+  const ids = { dropId: 10n, trophyId: 11n, gearId: 12n, gatherableIds: [20n, 21n, 22n] };
+
+  it('returns 4 to 6 entries with one drop, one trophy and one gear', () => {
+    for (let region = 1n; region <= 12n; region += 1n) {
+      for (let enemy = 1n; enemy <= 12n; enemy += 1n) {
+        const table = aiLootTable(region, enemy, ids);
+        expect(table.length).toBeGreaterThanOrEqual(4);
+        expect(table.length).toBeLessThanOrEqual(6);
+        expect(table.filter((e) => e.role === 'drop')).toHaveLength(1);
+        expect(table.filter((e) => e.role === 'trophy')).toHaveLength(1);
+        expect(table.filter((e) => e.role === 'gear')).toHaveLength(1);
+        const gatherables = table.filter((e) => e.role === 'gatherable');
+        expect(gatherables.length).toBeGreaterThanOrEqual(1);
+        expect(gatherables.length).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it('uses the fixed weights', () => {
+    expect(AI_LOOT_WEIGHTS).toEqual({ drop: 40n, trophy: 25n, gear: 10n, gatherable: 15n });
+    const table = aiLootTable(3n, 4n, ids);
+    for (const e of table) {
+      expect(e.weight).toBe(AI_LOOT_WEIGHTS[e.role as keyof typeof AI_LOOT_WEIGHTS]);
+    }
+    expect(table.find((e) => e.role === 'drop')!.itemTemplateId).toBe(10n);
+    expect(table.find((e) => e.role === 'trophy')!.itemTemplateId).toBe(11n);
+    expect(table.find((e) => e.role === 'gear')!.itemTemplateId).toBe(12n);
+  });
+
+  it('is the same for the same ids', () => {
+    expect(aiLootTable(5n, 9n, ids)).toEqual(aiLootTable(5n, 9n, ids));
+  });
+
+  it('does not depend on the order of the gatherable ids', () => {
+    const reversed = { ...ids, gatherableIds: [22n, 21n, 20n] };
+    expect(aiLootTable(5n, 9n, reversed)).toEqual(aiLootTable(5n, 9n, ids));
+  });
+
+  it('picks distinct gatherables and varies the count across enemies', () => {
+    const counts = new Set<number>();
+    for (let enemy = 1n; enemy <= 40n; enemy += 1n) {
+      const table = aiLootTable(2n, enemy, ids);
+      const g = table.filter((e) => e.role === 'gatherable').map((e) => e.itemTemplateId);
+      expect(new Set(g).size).toBe(g.length);
+      for (const id of g) expect(ids.gatherableIds).toContain(id);
+      counts.add(g.length);
+    }
+    expect(counts.size).toBeGreaterThan(1);
+  });
+
+  it('caps the gatherable count at the ids it is given', () => {
+    const table = aiLootTable(2n, 3n, { ...ids, gatherableIds: [20n] });
+    expect(table.filter((e) => e.role === 'gatherable')).toHaveLength(1);
+  });
+});
+
+describe('never empty (CUT-01, SC4)', () => {
+  const junk = JUNK_DEFS.map((_, i) => ({ itemTemplateId: BigInt(i + 1) }));
+  const types = ['animal', 'beast', 'humanoid', 'undead', 'spirit', 'construct', 'elemental', 'aberration', ''];
+
+  it('has a pool, one pick and at least 1 gold for 9 creature types x 3 levels at default dials', () => {
+    expect(types).toHaveLength(9);
+    for (const type of types) {
+      for (const level of [1n, 10n, 30n]) {
+        const pool = fallbackCommonPool({ junk, materials: [], regionMaterials: [], creatureType: type, zoneTier: 1n });
+        expect(pool.length, `${type} L${level}`).toBeGreaterThan(0);
+        for (let s = 0n; s < 25n; s += 1n) {
+          expect(pickCount(s, 100n)).toBe(1n);
+          expect(pickWeighted(pool, s, ROLL_INDEX.PICK_BASE)).not.toBeNull();
+          expect(goldReward(creatureProfile(type), level, s, 100n) >= 1n).toBe(true);
+        }
+      }
+    }
   });
 });
 

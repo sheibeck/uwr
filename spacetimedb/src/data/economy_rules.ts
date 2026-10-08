@@ -313,3 +313,287 @@ export function jewelryFloor(slot: string, armorClassBonus: bigint, rarity: stri
   if ((slot === 'neck' || slot === 'earrings') && armorClassBonus === 0n && rarity === 'common') return 'uncommon';
   return rarity;
 }
+
+// ---------------------------------------------------------------------------
+// Creature profiles
+// ---------------------------------------------------------------------------
+
+export type CreatureKey = 'animal' | 'beast' | 'humanoid' | 'undead' | 'spirit' | 'construct';
+
+export interface CreatureProfile {
+  readonly key: CreatureKey;
+  /** The base gear chance in percent (plus min(25, 2 * level)). */
+  readonly gearChance: bigint;
+  readonly goldMin: bigint;
+  readonly goldMax: bigint;
+  /** The MATERIAL_DEFS dropCreatureTypes this creature can leave behind. */
+  readonly dropTypes: readonly string[];
+}
+
+/**
+ * The last seeded pre-v2.0 per-creature numbers (git 9ac55586^, seeding/ensure_enemies.ts), the
+ * fallback when an enemy has no AI loot table. Gear chance is the old gearChance column.
+ */
+export const CREATURE_PROFILES: Readonly<Record<CreatureKey, CreatureProfile>> = Object.freeze({
+  animal: Object.freeze({ key: 'animal', gearChance: 10n, goldMin: 0n, goldMax: 2n, dropTypes: Object.freeze(['animal', 'beast']) }),
+  beast: Object.freeze({ key: 'beast', gearChance: 15n, goldMin: 0n, goldMax: 3n, dropTypes: Object.freeze(['beast', 'animal']) }),
+  humanoid: Object.freeze({ key: 'humanoid', gearChance: 25n, goldMin: 2n, goldMax: 6n, dropTypes: Object.freeze(['humanoid']) }),
+  undead: Object.freeze({ key: 'undead', gearChance: 20n, goldMin: 1n, goldMax: 4n, dropTypes: Object.freeze(['undead']) }),
+  spirit: Object.freeze({ key: 'spirit', gearChance: 20n, goldMin: 1n, goldMax: 4n, dropTypes: Object.freeze(['spirit', 'construct']) }),
+  construct: Object.freeze({ key: 'construct', gearChance: 20n, goldMin: 1n, goldMax: 4n, dropTypes: Object.freeze(['construct']) }),
+});
+
+/**
+ * Reconciles the world-gen creatureType enum (beast, undead, humanoid, elemental, construct,
+ * aberration) with the material drop types (animal, spirit). elemental and aberration map to spirit;
+ * anything unknown, empty or not a string maps to beast. Case-insensitive.
+ */
+const CREATURE_ALIASES: Readonly<Record<string, CreatureKey>> = Object.freeze({
+  animal: 'animal',
+  beast: 'beast',
+  humanoid: 'humanoid',
+  undead: 'undead',
+  spirit: 'spirit',
+  construct: 'construct',
+  elemental: 'spirit',
+  aberration: 'spirit',
+});
+
+export function canonicalCreature(type: unknown): CreatureKey {
+  const key = typeof type === 'string' ? type.trim().toLowerCase() : '';
+  return Object.prototype.hasOwnProperty.call(CREATURE_ALIASES, key) ? CREATURE_ALIASES[key]! : 'beast';
+}
+
+export function creatureProfile(type: unknown): CreatureProfile {
+  return CREATURE_PROFILES[canonicalCreature(type)];
+}
+
+// ---------------------------------------------------------------------------
+// Counts, chances, gold and gather yield
+// ---------------------------------------------------------------------------
+
+/** Today's essence and modifier-reagent chances per kill, in percent (scaled by the drop rate). */
+export const ESSENCE_CHANCE_PCT = 6n;
+export const MODIFIER_CHANCE_PCT = 10n;
+/** The base chance in percent that a boss or named foe drops a recipe scroll, before the drop rate. */
+export const SCROLL_DROP_BASE_PCT = 25n;
+/** Which scroll rarity is picked, before the tier weights: rare 6, epic 3, legendary 1. */
+export const SCROLL_TIER_WEIGHTS = Object.freeze({ rare: 6n, epic: 3n, legendary: 1n });
+
+/**
+ * How many common picks one kill makes: dropPct / 100, plus one more when a roll below 100 is under
+ * the remainder. Exactly 1 at 100%, 0 at 0%, 3 at 300%.
+ */
+export function pickCount(seed: bigint, dropPct: bigint): bigint {
+  const pct = clampDial('dropRatePct', dropPct).value;
+  const whole = pct / 100n;
+  return rollBelow(seed, ROLL_INDEX.PICK_COUNT, 100n) < pct % 100n ? whole + 1n : whole;
+}
+
+/** The chance in percent that a kill also drops gear: (profile base + min(25, 2 * level)) scaled by the drop rate, at most 100. */
+export function gearChancePct(profile: CreatureProfile, level: bigint, dropPct: bigint): bigint {
+  const pct = clampDial('dropRatePct', dropPct).value;
+  const levelPart = 2n * level < 25n ? 2n * level : 25n;
+  const raw = ((profile.gearChance + (levelPart > 0n ? levelPart : 0n)) * pct) / 100n;
+  return raw > 100n ? 100n : raw;
+}
+
+/** The gold of one kill: (goldMin + a roll over the range + level) * goldPct / 100, floored. The level counts as at least 1. */
+export function goldReward(profile: CreatureProfile, level: bigint, seed: bigint, goldPct: bigint): bigint {
+  const pct = clampDial('goldPct', goldPct).value;
+  const span = profile.goldMax - profile.goldMin + 1n;
+  const lvl = level > 1n ? level : 1n;
+  return ((profile.goldMin + rollBelow(seed, ROLL_INDEX.GOLD, span) + lvl) * pct) / 100n;
+}
+
+/** The quantity of one gather after the gather dial: max(1, qty * rate / 100), the rate clamped to 50..300. */
+export function gatherYield(qty: bigint, gatherRatePct: bigint): bigint {
+  const pct = clampDial('gatherRatePct', gatherRatePct).value;
+  const scaled = (qty * pct) / 100n;
+  return scaled > 1n ? scaled : 1n;
+}
+
+/** A chance in percent scaled by the drop rate, at most 100. */
+export function scaledChancePct(basePct: bigint, dropPct: bigint): bigint {
+  const pct = clampDial('dropRatePct', dropPct).value;
+  const raw = (basePct * pct) / 100n;
+  return raw > 100n ? 100n : raw;
+}
+
+/** The material tier a zone supports, from its danger multiplier (the spawnResourceNode rule): below 130 is 1, below 190 is 2, else 3. */
+export function zoneTierOf(dangerMultiplier: bigint): bigint {
+  if (dangerMultiplier < 130n) return 1n;
+  if (dangerMultiplier < 190n) return 2n;
+  return 3n;
+}
+
+// ---------------------------------------------------------------------------
+// Weighted picks
+// ---------------------------------------------------------------------------
+
+export interface WeightedEntry {
+  itemTemplateId: bigint;
+  weight: bigint;
+}
+
+function byIdThenWeight(a: WeightedEntry, b: WeightedEntry): number {
+  if (a.itemTemplateId !== b.itemTemplateId) return a.itemTemplateId < b.itemTemplateId ? -1 : 1;
+  return a.weight === b.weight ? 0 : a.weight > b.weight ? -1 : 1;
+}
+
+/**
+ * One weighted pick. Candidates sort by template id first, so shuffling the input never changes the
+ * result; weight-0 entries are skipped; null when the total weight is 0.
+ */
+export function pickWeighted<T extends WeightedEntry>(entries: readonly T[], seed: bigint, index: bigint): T | null {
+  const pool = entries.filter((e) => e.weight > 0n).sort(byIdThenWeight);
+  let total = 0n;
+  for (const e of pool) total += e.weight;
+  if (total <= 0n) return null;
+  const r = rollBelow(seed, index, total);
+  let cumulative = 0n;
+  for (const e of pool) {
+    cumulative += e.weight;
+    if (r < cumulative) return e;
+  }
+  return pool[pool.length - 1] ?? null;
+}
+
+/**
+ * Up to `count` weighted picks without replacement; pick i rolls at index baseIndex + i, and a picked
+ * id leaves the pool. Sorted by template id first (the heaviest wins a repeated id), so the input
+ * order never matters. Fewer picks come back when the pool runs out.
+ */
+export function pickWithoutReplacement<T extends WeightedEntry>(
+  entries: readonly T[],
+  count: number,
+  seed: bigint,
+  baseIndex: bigint,
+): T[] {
+  const sorted = entries.filter((e) => e.weight > 0n).sort(byIdThenWeight);
+  const pool: T[] = [];
+  for (const e of sorted) {
+    if (pool.length === 0 || pool[pool.length - 1]!.itemTemplateId !== e.itemTemplateId) pool.push(e);
+  }
+  const picked: T[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const pick = pickWeighted(pool, seed, baseIndex + BigInt(i));
+    if (!pick) break;
+    picked.push(pick);
+    pool.splice(pool.indexOf(pick), 1);
+  }
+  return picked;
+}
+
+// ---------------------------------------------------------------------------
+// Fallback loot (no AI table yet): junk, drop materials, own-region materials, level-fit gear
+// ---------------------------------------------------------------------------
+
+/** The weights of the fallback pools: the old seed weights for gear, junk 10, materials 6. */
+export const FALLBACK_WEIGHTS = Object.freeze({
+  junk: 10n,
+  material: 6n,
+  regionMaterial: 6n,
+  gearCommon: 6n,
+  gearUncommon: 3n,
+  gearJewelry: 1n,
+});
+
+export interface FallbackPoolInput {
+  /** Every junk template (JUNK_DEFS); present in every world, so the pool is never empty. */
+  junk: ReadonlyArray<{ itemTemplateId: bigint }>;
+  /** The MATERIAL_DEFS templates, resolved to template ids. */
+  materials: ReadonlyArray<{
+    itemTemplateId: bigint;
+    tier: bigint;
+    sources: readonly string[];
+    dropCreatureTypes?: readonly string[];
+  }>;
+  /** The materials of the enemy's OWN region only (the caller filters; another region's are never passed). */
+  regionMaterials: ReadonlyArray<{ itemTemplateId: bigint; role: string; rarity: string }>;
+  creatureType: unknown;
+  zoneTier: bigint;
+}
+
+/**
+ * The fallback "common pick" pool of one creature: all junk at 10; the drop materials whose creature
+ * types meet the profile's drop types and whose tier is at most the zone tier at 6; and the own-region
+ * gather or drop materials of common or uncommon rarity at 6. One entry per template id.
+ */
+export function fallbackCommonPool(input: FallbackPoolInput): (WeightedEntry & { role: string })[] {
+  const profile = creatureProfile(input.creatureType);
+  const pool: (WeightedEntry & { role: string })[] = [];
+  const seen = new Set<bigint>();
+  const add = (itemTemplateId: bigint, weight: bigint, role: string): void => {
+    if (seen.has(itemTemplateId)) return;
+    seen.add(itemTemplateId);
+    pool.push({ itemTemplateId, weight, role });
+  };
+  for (const j of input.junk) add(j.itemTemplateId, FALLBACK_WEIGHTS.junk, 'junk');
+  for (const m of input.materials) {
+    if (!m.sources.includes('drop')) continue;
+    if (m.tier > input.zoneTier) continue;
+    const types = m.dropCreatureTypes ?? [];
+    if (!types.some((t) => profile.dropTypes.includes(t))) continue;
+    add(m.itemTemplateId, FALLBACK_WEIGHTS.material, 'material');
+  }
+  for (const m of input.regionMaterials) {
+    if (m.role !== 'gather' && m.role !== 'drop') continue;
+    if (m.rarity !== 'common' && m.rarity !== 'uncommon') continue;
+    add(m.itemTemplateId, FALLBACK_WEIGHTS.regionMaterial, 'regionMaterial');
+  }
+  return pool.sort(byIdThenWeight);
+}
+
+/** The weight of one gear template in the gear pool: jewelry (neck, earrings) 1, uncommon 3, otherwise 6. */
+export function gearPoolWeight(gear: { slot: string; rarity: string }): bigint {
+  if (gear.slot === 'neck' || gear.slot === 'earrings') return FALLBACK_WEIGHTS.gearJewelry;
+  if (gear.rarity === 'uncommon') return FALLBACK_WEIGHTS.gearUncommon;
+  return FALLBACK_WEIGHTS.gearCommon;
+}
+
+// ---------------------------------------------------------------------------
+// AI loot table composition (the server owns the count; the model supplies only the items)
+// ---------------------------------------------------------------------------
+
+export const AI_LOOT_WEIGHTS = Object.freeze({
+  drop: 40n,
+  trophy: 25n,
+  gear: 10n,
+  gatherable: 15n,
+});
+
+export interface AiLootEntry {
+  itemTemplateId: bigint;
+  role: 'drop' | 'trophy' | 'gear' | 'gatherable';
+  weight: bigint;
+}
+
+/**
+ * The 4 to 6 entries of one enemy's AI loot table: its drop (40), its trophy (25), its gear (10) and
+ * 1 to 3 of the region's gatherables (15 each). The gatherable count and which ones come from a seed of
+ * the region and the enemy template, so it is the same every time; it is capped at the gatherables given.
+ */
+export function aiLootTable(
+  regionId: bigint,
+  enemyTemplateId: bigint,
+  ids: { dropId: bigint; trophyId: bigint; gearId: bigint; gatherableIds: readonly bigint[] },
+): AiLootEntry[] {
+  const seed = regionTableSeed(regionId, enemyTemplateId);
+  const available = ids.gatherableIds.length;
+  const wanted = 1 + Number(rollBelow(seed, ROLL_INDEX.AI_TABLE_COUNT, 3n));
+  const count = wanted < available ? wanted : available;
+  const gatherables = pickWithoutReplacement(
+    ids.gatherableIds.map((id) => ({ itemTemplateId: id, weight: AI_LOOT_WEIGHTS.gatherable })),
+    count,
+    seed,
+    ROLL_INDEX.AI_TABLE_PICK_BASE,
+  );
+  const out: AiLootEntry[] = [
+    { itemTemplateId: ids.dropId, role: 'drop', weight: AI_LOOT_WEIGHTS.drop },
+    { itemTemplateId: ids.trophyId, role: 'trophy', weight: AI_LOOT_WEIGHTS.trophy },
+    { itemTemplateId: ids.gearId, role: 'gear', weight: AI_LOOT_WEIGHTS.gear },
+  ];
+  for (const g of gatherables) out.push({ itemTemplateId: g.itemTemplateId, role: 'gatherable', weight: g.weight });
+  return out;
+}
