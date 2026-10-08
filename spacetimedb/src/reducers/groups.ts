@@ -395,6 +395,8 @@ export const registerGroupReducers = (deps: any) => {
         )
       );
       if (!invite) return;
+      // An expired invite ends as expired, never as declined (IN-01), like join, accept and cancel.
+      if (!inviteIsLive(invite, ctx.timestamp.microsSinceUnixEpoch)) return endInvite(ctx, invite, 'expired');
       endInvite(ctx, invite, 'declined', character);
     }
   );

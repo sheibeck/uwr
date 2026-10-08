@@ -844,3 +844,15 @@ describe('a group left with one member dissolves; invites end with a line (code 
     expect(lines(ctx, 3n)).toEqual(['Ann was removed from the group. The group has disbanded.']);
   });
 });
+
+describe('declining an expired invite (code review IN-01)', () => {
+  it('ends it as expired: both get the expiry lines, no declined line, no re-invite wait', () => {
+    const ctx = newCtx(withInvites(annAlone, [{ id: 1n, groupId: 5n, from: 1n, to: 2n }]));
+    call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' }, T0 + TTL);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(lines(ctx, 1n)).toEqual(['Your invite to Bram expired.']);
+    expect(lines(ctx, 2n)).toEqual(['The invite from Ann expired.']);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+  });
+});
