@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/styles.css">
+<script src="_ds/nocturne-67cd9946-e94d-4ca6-a321-43b2d8edbd8f/_ds_bundle.js"></script>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<style>
+html,body{background:#0f1019;min-height:100%}
+body{margin:0;font-family:var(--font-body)}
+*::-webkit-scrollbar{width:0;height:0}
+a{color:var(--color-accent-400);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--color-accent) 45%,transparent);text-underline-offset:3px;font-weight:500}
+a:hover{color:var(--color-accent-300);text-decoration-color:var(--color-accent-300)}
+.dv-turn{padding:40px 44px 32px;scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:var(--color-accent-700);color:var(--color-accent-100);border-radius:4px;text-decoration:none}
+.dv-tname{font:500 15px/1.2 var(--font-body);color:var(--color-text)}
+.dv-note{max-width:900px;font:13px/1.55 var(--font-body);color:var(--color-neutral-400);margin:0 0 28px}
+.dv-opts{display:flex;flex-direction:column;gap:56px}
+.dv-opt{display:flex;flex-direction:column;gap:12px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:var(--color-neutral-800);color:var(--color-neutral-100);border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 13px/1.3 var(--font-body);color:var(--color-neutral-300)}
+.dv-opt:target .dv-oid{background:var(--color-accent);color:var(--color-bg)}
+</style>
+</helmet>
+<section class="dv-turn" id="t18">
+<div class="dv-thd"><a class="dv-tid" href="#t18">18</a><span class="dv-tname">Living places: populations, pulls and ambushes</span></div>
+<p class="dv-note">Places no longer hold individual enemies or gathering nodes. Each place has <b style="color:var(--color-neutral-200);font-weight:500">creature families</b> and <b style="color:var(--color-neutral-200);font-weight:500">resources</b>, and each has a density the player only sees as a word: Overrun, Stable, Scarce or Wiped out for creatures; Abundant, Plentiful, Sparse or Exhausted for resources. The Nearby rail describes each one in the Keeper's voice. <b style="color:var(--color-neutral-200);font-weight:500">Pull</b> draws a mixed-role group whose size depends on the density, and named enemies are still listed one by one. Every place and exit shows a safety rating (Safe, Quiet, Risky or Deadly). Arriving at or leaving a dangerous place can start an ambush. Once a fight starts, each round gives you a 10-second countdown to choose an action. Your choice resolves when the timer ends, and if you choose nothing you hesitate. In a fight, each enemy card ends with who it's targeting, which also shows taunt, so there's no threat list. The simulator on the right is the server view, so you can change densities, move time on and send rival hunters through. Players never see those numbers. The party bar and hotbar are placeholders.</p>
+<div class="dv-opts">
+<div class="dv-opt" id="18a">
+<div class="dv-olabel"><a class="dv-oid" href="#18a">18a</a>Live. Start on Mother Pan Flats. Pull the skitterers, or travel to the Glass Orchard (Deadly) to risk an ambush. Win fights to thin a family until it's wiped out, then move time on in the simulator to see a rival family move in.</div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+
+<div data-screen-label="Living places desktop" style="width:1280px;height:800px;flex:none;position:relative;overflow:hidden;border-radius:10px;background:var(--color-bg);color:var(--color-text);font-size:13px;line-height:1.5;display:flex;flex-direction:column;box-shadow:var(--shadow-sm)">
+  <header style="height:46px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;background:color-mix(in srgb,var(--color-surface) 55%,transparent)">
+    <div style="font-size:14px;font-weight:500;white-space:nowrap">Unwritten Realms</div>
+    <div style="width:1px;height:18px;background:var(--color-divider)"></div>
+    <div style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-300);white-space:nowrap"><i class="ph ph-map-pin" style="font-size:14px;color:var(--color-accent)"></i><span>{{ hdr.place }}</span></div>
+    <span style="display:flex;align-items:center;gap:5px;padding:1px 9px;border-radius:999px;font-size:11px;white-space:nowrap;box-shadow:inset 0 0 0 1px {{ hdr.ring }};color:{{ hdr.color }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ hdr.color }}"></span>{{ hdr.rating }}</span>
+    <sc-if value="{{ inCombat }}"><span class="tag" style="gap:6px;white-space:nowrap;background:oklch(0.3 0.06 24);color:oklch(0.86 0.06 24)"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.68 0.17 24)"></span>{{ hdr.roundLabel }}</span></sc-if>
+    <div style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-500);white-space:nowrap"><i class="ph ph-moon-stars" style="font-size:14px"></i><span>{{ hdr.clock }}</span></div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:2px;opacity:{{ hdr.navOp }}">
+      <a href="UWR Map.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:6px 8px;text-decoration:none;font-weight:400" title="Map"><i class="ph ph-map-trifold" style="font-size:18px"></i></a>
+      <a href="UWR Inventory.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:6px 8px;text-decoration:none;font-weight:400" title="Bag"><i class="ph ph-backpack" style="font-size:18px"></i></a>
+      <a href="UWR Character.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:6px 8px;text-decoration:none;font-weight:400" title="Character"><i class="ph ph-user-circle" style="font-size:18px"></i></a>
+      <a href="UWR Journal.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:6px 8px;text-decoration:none;font-weight:400" title="Journal"><i class="ph ph-book-open-text" style="font-size:18px"></i></a>
+      <a href="UWR Social.dc.html" class="btn btn-ghost" style="color:var(--color-neutral-300);padding:6px 8px;text-decoration:none;font-weight:400" title="Social"><i class="ph ph-users-three" style="font-size:18px"></i></a>
+    </div>
+  </header>
+  <div style="flex:1;min-height:0;display:flex">
+    <aside style="width:252px;flex:none;padding:18px 16px;box-sizing:border-box;display:flex;background:color-mix(in srgb,var(--color-surface) 30%,transparent)"><div style="flex:1;border-radius:var(--radius-md);border:1px dashed var(--color-neutral-700);display:grid;place-items:center;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500)">Party bar</div></aside>
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="flex:1;min-height:0;overflow:hidden;padding:20px 32px 12px;display:flex;flex-direction:column;justify-content:flex-end;gap:9px;font-size:14px;line-height:1.6">
+        <sc-for list="{{ feed }}" as="f" hint-placeholder-count="3">
+          <sc-if value="{{ f.isPlace }}"><div style="padding:10px 14px;border-radius:var(--radius-md);background:linear-gradient(90deg,color-mix(in srgb,var(--color-surface) 90%,transparent),transparent 85%);color:var(--color-neutral-200)"><div style="font-size:15px;font-weight:500;color:var(--color-text);margin-bottom:2px">{{ f.title }}</div>{{ f.text }}</div></sc-if>
+          <sc-if value="{{ f.isKeeper }}"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">The Keeper</div><div style="font-style:italic;color:var(--color-accent-200)">{{ f.text }}</div></div></sc-if>
+          <sc-if value="{{ f.isAmbush }}"><div style="padding:9px 14px;border-radius:var(--radius-md);background:linear-gradient(90deg,oklch(0.3 0.07 24 / 0.75),transparent 85%);color:oklch(0.9 0.06 30);display:flex;gap:10px;align-items:flex-start"><i class="ph ph-warning" style="font-size:16px;margin-top:4px;color:oklch(0.75 0.15 30)"></i><span style="font-weight:500">{{ f.text }}</span></div></sc-if>
+          <sc-if value="{{ f.isRound }}"><div style="display:flex;align-items:center;gap:12px;margin:6px 0 2px;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent)"><div style="flex:1;height:1px;background:linear-gradient(to left,var(--color-accent-700),transparent)"></div>{{ f.text }}<div style="flex:1;height:1px;background:linear-gradient(to right,var(--color-accent-700),transparent)"></div></div></sc-if>
+          <sc-if value="{{ f.isPlain }}"><div style="display:flex;gap:7px;align-items:baseline;font-size:{{ f.size }};color:{{ f.color }}"><sc-if value="{{ f.icon }}"><i class="{{ f.icon }}" style="font-size:13px;color:{{ f.iconColor }}"></i></sc-if><span>{{ f.text }}</span></div></sc-if>
+        </sc-for>
+      </div>
+      <div style="flex:none;padding:10px 32px 16px;display:flex;flex-direction:column;gap:10px">
+        <sc-if value="{{ inCombat }}">
+          <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--color-neutral-300)"><span>{{ act.prompt }}</span><div style="flex:1;height:3px;border-radius:2px;background:var(--color-neutral-900);overflow:hidden"><div style="width:{{ act.tPct }};height:100%;background:{{ act.tColor }};transition:width 1s linear"></div></div><span style="font-variant-numeric:tabular-nums;color:{{ act.tColor }}">{{ act.tText }}</span></div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary" onClick="{{ act.attack }}" style="height:40px;padding:0 16px"><i class="ph ph-sword"></i>{{ act.attackLabel }}</button>
+            <button class="btn btn-secondary" onClick="{{ act.flee }}" style="height:40px;padding:0 14px"><i class="ph ph-person-simple-run"></i>Flee</button>
+            <span style="font-size:12px;color:var(--color-neutral-500)">Click an enemy card to change your target.</span>
+          </div>
+        </sc-if>
+        <div style="height:52px;border-radius:var(--radius-md);border:1px dashed var(--color-neutral-700);display:grid;place-items:center;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500)">Hotbar</div>
+        <div style="display:flex;gap:8px"><div style="flex:1;position:relative"><i class="ph ph-caret-right" style="position:absolute;left:11px;top:11px;color:var(--color-accent)"></i><input class="input" placeholder="What do you do?" style="padding-left:30px;min-height:38px"></input></div><button class="btn btn-primary" style="padding:0 18px">Send</button></div>
+      </div>
+    </main>
+    <aside style="width:300px;flex:none;min-height:0;overflow-y:auto;padding:18px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;background:color-mix(in srgb,var(--color-surface) 30%,transparent)">
+      <sc-if value="{{ notCombat }}">
+        <div class="card" style="gap:8px;padding:10px 12px">
+          <span class="card-kicker" style="margin:0">Here · Kesterlane Basin</span>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <div class="card-title" style="margin:0">{{ here.name }}</div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--color-neutral-400)"><i class="{{ here.icon }}"></i><span>{{ here.kind }}</span><span style="display:flex;align-items:center;gap:4px;color:{{ here.color }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ here.color }}"></span>{{ here.rating }}</span></div>
+            <div style="font-size:11.5px;line-height:1.45;color:var(--color-neutral-400)">{{ here.ratingLine }}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;margin:0 -4px">
+            <h6 style="margin:2px 4px 2px;font-size:10px;color:var(--color-neutral-500)">Exits</h6>
+            <sc-for list="{{ exits }}" as="x" hint-placeholder-count="2">
+              <button onClick="{{ x.go }}" title="{{ x.tip }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:var(--radius-md);font-size:12px" style-hover="background:var(--color-neutral-800)">
+                <span style="width:20px;height:20px;flex:none;border-radius:50%;background:var(--color-bg);box-shadow:inset 0 0 0 1.5px {{ x.color }};display:grid;place-items:center"><i class="{{ x.icon }}" style="font-size:11px;color:var(--color-neutral-100)"></i></span>
+                <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ x.name }}</span>
+                <span style="flex:none;display:flex;align-items:center;gap:4px;font-size:10.5px;color:{{ x.color }}"><span style="width:5px;height:5px;border-radius:50%;background:{{ x.color }}"></span>{{ x.rating }}</span>
+                <i class="ph ph-caret-right" style="font-size:11px;color:var(--color-neutral-500)"></i>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Creatures</h6>
+          <sc-for list="{{ creatures }}" as="c" hint-placeholder-count="2">
+            <div style="display:flex;flex-direction:column;gap:5px;padding:9px 10px;border-radius:var(--radius-md);background:var(--color-surface)">
+              <div style="display:flex;align-items:center;gap:7px"><i class="{{ c.icon }}" style="font-size:14px;color:{{ c.con }}"></i><span style="font-size:12.5px;font-weight:500;color:{{ c.con }}">{{ c.name }}</span><span style="font-size:10.5px;color:var(--color-neutral-500)">{{ c.lv }}</span><span style="margin-left:auto;flex:none;padding:1px 8px;border-radius:999px;font-size:10px;letter-spacing:0.04em;background:{{ c.bBg }};color:{{ c.bColor }};box-shadow:{{ c.bRing }}">{{ c.word }}</span></div>
+              <div style="font-size:11.5px;line-height:1.45;font-style:italic;color:var(--color-neutral-300)">{{ c.line }}</div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--color-neutral-500)">{{ c.expect }}</span><button class="btn btn-secondary" onClick="{{ c.pull }}" style="margin-left:auto;padding:3px 10px;font-size:11.5px"><i class="ph ph-crosshair"></i>Pull</button></div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noCreatures }}"><div style="padding:9px 10px;border-radius:var(--radius-md);box-shadow:inset 0 0 0 1px var(--color-neutral-800);font-size:12px;font-style:italic;color:var(--color-neutral-400)">Nothing hunts here now.</div></sc-if>
+        </div>
+        <sc-if value="{{ hasNamed }}">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Named &amp; quest targets</h6>
+            <sc-for list="{{ named }}" as="n" hint-placeholder-count="1">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-surface);opacity:{{ n.op }}">
+                <i class="{{ n.icon }}" style="font-size:15px;color:{{ n.con }}"></i>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3"><span style="font-size:12.5px;font-weight:500;color:{{ n.con }}">{{ n.name }}</span><span style="font-size:10.5px;color:var(--color-neutral-400)">{{ n.sub }}</span></div>
+                <sc-if value="{{ n.alive }}"><button class="btn btn-secondary" onClick="{{ n.fight }}" style="padding:3px 10px;font-size:11.5px"><i class="ph ph-sword"></i>Fight</button></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasResSection }}">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:baseline;gap:6px"><h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Resources</h6><span style="font-size:10.5px;color:var(--color-neutral-500)">yours alone</span></div>
+            <sc-for list="{{ resources }}" as="r" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:5px;padding:9px 10px;border-radius:var(--radius-md);background:var(--color-surface)">
+                <div style="display:flex;align-items:center;gap:7px"><i class="{{ r.icon }}" style="font-size:14px;color:oklch(0.8 0.1 85)"></i><span style="font-size:12.5px;font-weight:500">{{ r.name }}</span><span style="margin-left:auto;flex:none;padding:1px 8px;border-radius:999px;font-size:10px;letter-spacing:0.04em;background:{{ r.bBg }};color:{{ r.bColor }};box-shadow:{{ r.bRing }}">{{ r.word }}</span></div>
+                <div style="font-size:11.5px;line-height:1.45;font-style:italic;color:var(--color-neutral-300)">{{ r.line }}</div>
+                <div style="display:flex"><button class="btn btn-secondary" onClick="{{ r.gather }}" style="margin-left:auto;padding:3px 10px;font-size:11.5px"><i class="ph ph-hand-grabbing"></i>Gather</button></div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ noResources }}"><div style="padding:9px 10px;border-radius:var(--radius-md);box-shadow:inset 0 0 0 1px var(--color-neutral-800);font-size:12px;font-style:italic;color:var(--color-neutral-400)">{{ here.emptyRes }}</div></sc-if>
+          </div>
+        </sc-if>
+      </sc-if>
+      <sc-if value="{{ inCombat }}">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">{{ enc.title }}</h6><span style="font-size:11px;color:var(--color-neutral-500)">Tab to cycle</span></div>
+          <div style="font-size:11.5px;color:{{ enc.srcColor }}">{{ enc.source }}</div>
+        </div>
+        <sc-for list="{{ enemies }}" as="e" hint-placeholder-count="3">
+          <div onClick="{{ e.pick }}" style="display:flex;flex-direction:column;gap:6px;padding:10px 11px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:{{ e.ring }};cursor:pointer;opacity:{{ e.op }}">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="display:flex;align-items:center;gap:4px;padding:0 6px;border-radius:4px;font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;line-height:17px;background:var(--color-bg);color:{{ e.roleColor }}"><i class="{{ e.roleIcon }}" style="font-size:10px"></i>{{ e.role }}</span>
+              <sc-if value="{{ e.isSel }}"><i class="ph-fill ph-crosshair-simple" style="margin-left:auto;color:var(--color-accent)"></i></sc-if>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;font-weight:500;color:{{ e.con }}">{{ e.name }}</span><span style="font-size:11px;color:var(--color-neutral-500)">{{ e.lvText }}</span></div>
+            <div style="position:relative;height:14px;border-radius:3px;background:var(--color-neutral-900);overflow:hidden"><div style="width:{{ e.hpPct }};height:100%;background:oklch(0.55 0.14 24);transition:width 300ms ease"></div><span style="position:absolute;inset:0;display:grid;place-items:center;font-size:9.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--color-neutral-100)">{{ e.hpText }}</span></div>
+            <div style="display:flex;align-items:center;gap:6px;padding-top:6px;box-shadow:0 -1px 0 var(--color-neutral-800);font-size:11.5px;color:var(--color-neutral-400)"><i class="{{ e.tgtIcon }}" style="font-size:12px;color:{{ e.tgtColor }}"></i><span>{{ e.tgtVerb }}</span><span style="font-weight:500;color:{{ e.tgtColor }}">{{ e.tgt }}</span></div>
+          </div>
+        </sc-for>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--color-neutral-500)"><span style="width:6px;height:6px;border-radius:50%;background:{{ here.color }}"></span><span>{{ enc.placeLine }}</span></div>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+
+<sc-if value="{{ showMobile }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Living places mobile" style="width:390px;height:844px;flex:none;position:relative;overflow:hidden;border-radius:28px;background:var(--color-bg);color:var(--color-text);font-size:13px;line-height:1.5;display:flex;flex-direction:column;box-shadow:var(--shadow-sm)">
+  <div style="flex:none;padding:14px 16px 8px;display:flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--color-surface) 55%,transparent)">
+    <i class="ph ph-map-pin" style="color:var(--color-accent)"></i>
+    <span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ here.name }}</span>
+    <span style="margin-left:auto;flex:none;display:flex;align-items:center;gap:5px;padding:1px 9px;border-radius:999px;font-size:11px;box-shadow:inset 0 0 0 1px {{ hdr.ring }};color:{{ hdr.color }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ hdr.color }}"></span>{{ hdr.rating }}</span>
+  </div>
+  <div style="flex:none;height:36px;margin:8px 10px 0;box-sizing:border-box;border-radius:var(--radius-md);border:1px dashed var(--color-neutral-700);display:grid;place-items:center;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500)">Party bar</div>
+  <sc-if value="{{ notCombat }}">
+    <div style="flex:none;display:flex;gap:6px;overflow-x:auto;padding:8px 12px 4px">
+      <sc-for list="{{ exits }}" as="x" hint-placeholder-count="2"><button onClick="{{ x.go }}" style="all:unset;flex:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0 10px 0 6px;min-height:40px;border-radius:999px;background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-neutral-800)"><span style="width:24px;height:24px;border-radius:50%;background:var(--color-bg);box-shadow:inset 0 0 0 1.5px {{ x.color }};display:grid;place-items:center"><i class="{{ x.icon }}" style="font-size:12px"></i></span><span style="display:flex;flex-direction:column;line-height:1.2"><span style="font-size:12px">{{ x.short }}</span><span style="font-size:10px;color:{{ x.color }}">{{ x.rating }}</span></span></button></sc-for>
+    </div>
+  </sc-if>
+  <div style="flex:none;height:190px;overflow:hidden;padding:8px 16px;display:flex;flex-direction:column;justify-content:flex-end;gap:7px;font-size:13px;line-height:1.5">
+    <sc-for list="{{ feedM }}" as="f" hint-placeholder-count="3">
+      <sc-if value="{{ f.isPlace }}"><div style="color:var(--color-neutral-200)"><span style="font-weight:500;color:var(--color-text)">{{ f.title }}</span> · {{ f.text }}</div></sc-if>
+      <sc-if value="{{ f.isKeeper }}"><div style="font-style:italic;color:var(--color-accent-200)">{{ f.text }}</div></sc-if>
+      <sc-if value="{{ f.isAmbush }}"><div style="padding:6px 10px;border-radius:var(--radius-md);background:oklch(0.3 0.07 24 / 0.75);color:oklch(0.9 0.06 30);font-weight:500">{{ f.text }}</div></sc-if>
+      <sc-if value="{{ f.isRound }}"><div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);text-align:center">{{ f.text }}</div></sc-if>
+      <sc-if value="{{ f.isPlain }}"><div style="font-size:12.5px;color:{{ f.color }}">{{ f.text }}</div></sc-if>
+    </sc-for>
+  </div>
+  <div style="flex:1;min-height:0;margin:0 10px 10px;padding:12px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+    <sc-if value="{{ notCombat }}">
+      <div style="display:flex;gap:4px"><span class="tag tag-accent" style="padding:2px 10px">Here</span><span class="tag tag-neutral" style="padding:2px 10px">Map</span></div>
+      <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Creatures</h6>
+      <sc-for list="{{ creatures }}" as="c" hint-placeholder-count="2">
+        <div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-bg)">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12.5px;font-weight:500;color:{{ c.con }}">{{ c.name }}</span><span style="flex:none;padding:0 7px;border-radius:999px;font-size:9.5px;background:{{ c.bBg }};color:{{ c.bColor }};box-shadow:{{ c.bRing }}">{{ c.word }}</span></div>
+            <div style="font-size:11.5px;line-height:1.4;font-style:italic;color:var(--color-neutral-300)">{{ c.line }}</div>
+          </div>
+          <button class="btn btn-secondary" onClick="{{ c.pull }}" style="flex:none;height:44px;padding:0 12px"><i class="ph ph-crosshair"></i>Pull</button>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noCreatures }}"><div style="font-size:12px;font-style:italic;color:var(--color-neutral-400)">Nothing hunts here now.</div></sc-if>
+      <sc-if value="{{ hasNamed }}"><sc-for list="{{ named }}" as="n" hint-placeholder-count="1"><div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-bg);opacity:{{ n.op }}"><i class="{{ n.icon }}" style="color:{{ n.con }}"></i><div style="flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3"><span style="font-size:12.5px;font-weight:500;color:{{ n.con }}">{{ n.name }}</span><span style="font-size:10.5px;color:var(--color-neutral-400)">{{ n.sub }}</span></div><sc-if value="{{ n.alive }}"><button class="btn btn-secondary" onClick="{{ n.fight }}" style="height:44px;padding:0 12px"><i class="ph ph-sword"></i>Fight</button></sc-if></div></sc-for></sc-if>
+      <sc-if value="{{ hasResSection }}">
+        <h6 style="margin:4px 0 0;font-size:10.5px;color:var(--color-neutral-400)">Resources</h6>
+        <sc-for list="{{ resources }}" as="r" hint-placeholder-count="2">
+          <div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:var(--radius-md);background:var(--color-bg)">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12.5px;font-weight:500">{{ r.name }}</span><span style="flex:none;padding:0 7px;border-radius:999px;font-size:9.5px;background:{{ r.bBg }};color:{{ r.bColor }};box-shadow:{{ r.bRing }}">{{ r.word }}</span></div>
+              <div style="font-size:11.5px;line-height:1.4;font-style:italic;color:var(--color-neutral-300)">{{ r.line }}</div>
+            </div>
+            <button class="btn btn-secondary" onClick="{{ r.gather }}" style="flex:none;height:44px;padding:0 12px"><i class="ph ph-hand-grabbing"></i>Gather</button>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noResources }}"><div style="font-size:12px;font-style:italic;color:var(--color-neutral-400)">{{ here.emptyRes }}</div></sc-if>
+      </sc-if>
+    </sc-if>
+    <sc-if value="{{ inCombat }}">
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">{{ enc.title }}</h6><span style="font-size:11px;color:{{ enc.srcColor }}">{{ enc.sourceShort }}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+        <sc-for list="{{ enemies }}" as="e" hint-placeholder-count="2">
+          <div onClick="{{ e.pick }}" style="display:flex;flex-direction:column;gap:5px;padding:9px 10px;border-radius:var(--radius-md);background:var(--color-bg);box-shadow:{{ e.ring }};cursor:pointer;opacity:{{ e.op }};min-height:44px">
+            <span style="align-self:flex-start;display:flex;align-items:center;gap:4px;padding:0 5px;border-radius:4px;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;line-height:16px;background:var(--color-surface);color:{{ e.roleColor }}"><i class="{{ e.roleIcon }}"></i>{{ e.role }}</span>
+            <span style="font-size:12px;font-weight:500;line-height:1.25;color:{{ e.con }}">{{ e.name }}</span>
+            <div style="height:6px;border-radius:3px;background:var(--color-neutral-900);overflow:hidden"><div style="width:{{ e.hpPct }};height:100%;background:oklch(0.55 0.14 24);transition:width 300ms ease"></div></div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--color-neutral-400)"><i class="{{ e.tgtIcon }}" style="color:{{ e.tgtColor }}"></i><span style="font-weight:500;color:{{ e.tgtColor }}">{{ e.tgt }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-neutral-300)"><span>{{ act.prompt }}</span><div style="flex:1;height:3px;border-radius:2px;background:var(--color-neutral-900);overflow:hidden"><div style="width:{{ act.tPct }};height:100%;background:{{ act.tColor }};transition:width 1s linear"></div></div><span style="font-variant-numeric:tabular-nums;color:{{ act.tColor }}">{{ act.tText }}</span></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-primary" onClick="{{ act.attack }}" style="flex:1;height:46px"><i class="ph ph-sword"></i>{{ act.attackLabel }}</button><button class="btn btn-secondary" onClick="{{ act.flee }}" style="height:46px;padding:0 14px"><i class="ph ph-person-simple-run"></i>Flee</button></div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showSim }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Simulator" style="width:340px;flex:none;border-radius:10px;background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-neutral-800);color:var(--color-text);font-size:12.5px;line-height:1.45;padding:16px;display:flex;flex-direction:column;gap:14px">
+  <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Simulator · server view</span><span style="font-size:15px;font-weight:500">Populations</span><span style="font-size:11.5px;color:var(--color-neutral-400)">Players never see these numbers. 3 Overrun · 2 Stable · 1 Scarce · 0 Wiped out.</span></div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px">
+    <button class="btn btn-secondary" onClick="{{ sim.tick }}" style="padding:4px 10px;font-size:12px"><i class="ph ph-clock-clockwise"></i>+10 min</button>
+    <button class="btn btn-secondary" onClick="{{ sim.long }}" style="padding:4px 10px;font-size:12px"><i class="ph ph-moon"></i>+3 hours</button>
+    <button class="btn btn-secondary" onClick="{{ sim.rivals }}" style="padding:4px 10px;font-size:12px"><i class="ph ph-users"></i>Rival hunters</button>
+    <button class="btn btn-secondary" onClick="{{ sim.win }}" disabled="{{ notCombat }}" style="padding:4px 10px;font-size:12px"><i class="ph ph-trophy"></i>Win fight</button>
+    <button class="btn btn-ghost" onClick="{{ sim.reset }}" style="padding:4px 10px;font-size:12px;color:var(--color-neutral-300)"><i class="ph ph-arrow-counter-clockwise"></i>Reset</button>
+  </div>
+  <button onClick="{{ sim.toggleForce }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:9px;font-size:12px;color:var(--color-neutral-200)"><span style="width:30px;height:18px;border-radius:999px;background:{{ sim.forceBg }};position:relative;flex:none;box-shadow:inset 0 0 0 1px var(--color-neutral-700)"><span style="position:absolute;top:3px;left:{{ sim.forceX }};width:12px;height:12px;border-radius:50%;background:var(--color-text);transition:left 150ms ease"></span></span>Always ambush when travelling</button>
+  <sc-for list="{{ sim.places }}" as="p" hint-placeholder-count="4">
+    <div style="display:flex;flex-direction:column;gap:5px;padding:10px;border-radius:var(--radius-md);background:var(--color-bg);box-shadow:{{ p.ring }}">
+      <div style="display:flex;align-items:center;gap:7px"><span style="font-weight:500">{{ p.name }}</span><sc-if value="{{ p.isHere }}"><span class="tag tag-accent" style="padding:0 6px;font-size:9.5px">you</span></sc-if><span style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px;color:{{ p.color }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ p.color }}"></span>{{ p.rating }}</span></div>
+      <sc-for list="{{ p.rows }}" as="r" hint-placeholder-count="1">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11.5px">
+          <i class="{{ r.icon }}" style="font-size:12px;color:var(--color-neutral-400)"></i>
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ r.color }}">{{ r.name }}</span>
+          <span style="font-size:10.5px;color:var(--color-neutral-500);white-space:nowrap">{{ r.meta }}</span>
+          <button onClick="{{ r.dec }}" style="all:unset;cursor:pointer;width:20px;height:20px;border-radius:5px;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--color-neutral-700)" style-hover="background:var(--color-neutral-800)"><i class="ph ph-minus" style="font-size:10px"></i></button>
+          <span style="width:14px;text-align:center;font-variant-numeric:tabular-nums;font-weight:500">{{ r.val }}</span>
+          <button onClick="{{ r.inc }}" style="all:unset;cursor:pointer;width:20px;height:20px;border-radius:5px;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--color-neutral-700)" style-hover="background:var(--color-neutral-800)"><i class="ph ph-plus" style="font-size:10px"></i></button>
+        </div>
+      </sc-for>
+      <sc-if value="{{ p.pending }}"><div style="font-size:11px;color:oklch(0.82 0.1 70)">{{ p.pending }}</div></sc-if>
+    </div>
+  </sc-for>
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <h6 style="margin:0;font-size:10.5px;color:var(--color-neutral-400)">Server log</h6>
+    <sc-for list="{{ sim.log }}" as="l" hint-placeholder-count="0"><div style="font-size:11px;line-height:1.4;color:var(--color-neutral-400);font-family:ui-monospace,Menlo,monospace">{{ l.text }}</div></sc-for>
+    <sc-if value="{{ sim.logEmpty }}"><div style="font-size:11px;color:var(--color-neutral-600)">Nothing yet.</div></sc-if>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSimulator&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;showMobile&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+const LV = 6;
+const OK = 'oklch(0.78 0.12 150)', BLUE = '#4dabf7', YEL = '#ffd43b', RED = '#ff6b6b';
+const ROLE = {
+  Tank: ['var(--color-neutral-200)', 'ph ph-shield'], Damage: ['oklch(0.8 0.11 35)', 'ph ph-sword'], Caster: ['oklch(0.8 0.09 300)', 'ph ph-magic-wand'],
+  Support: ['oklch(0.8 0.1 150)', 'ph ph-first-aid-kit'], Named: ['oklch(0.84 0.1 90)', 'ph ph-crown-simple'], Boss: ['oklch(0.86 0.08 24)', 'ph ph-skull'],
+};
+const FAM = {
+  goblins: { name: 'Goblins', one: 'goblin', many: 'goblins', lo: 6, hi: 7, icon: 'ph ph-sword', burst: 'break from the trees',
+    members: [['Goblin Shieldbearer', 'Tank', 150], ['Goblin Cutter', 'Damage', 95], ['Goblin Hexer', 'Caster', 80], ['Goblin Mender', 'Support', 85]],
+    lines: ['No goblins. Just their litter, and a smell that will outlast them.', 'A goblin or two still skulks between the rows, watching you nervously.', 'Goblins work the orchard rows, in no hurry, arguing about apples.', 'Goblins swarm the orchard. You can hear them deciding who gets your boots.'] },
+  skitter: { name: 'Salt-Crust Skitterers', one: 'skitterer', many: 'skitterers', lo: 4, hi: 5, icon: 'ph ph-bug', burst: 'burst up through the salt',
+    members: [['Crustback Skitterer', 'Tank', 120], ['Pincer Skitterer', 'Damage', 70], ['Brinespitter', 'Caster', 65]],
+    lines: ['The pans are quiet. Not one skitterer clicks anywhere.', 'A few skitterers still pick at the pans.', 'Skitterers pick at the salt crust, ignoring you for now.', 'Skitterers boil across the salt, clicking like dropped cutlery.'] },
+  wisps: { name: 'Glass Wisps', one: 'wisp', many: 'wisps', lo: 5, hi: 6, icon: 'ph ph-sparkle', burst: 'peel off the glass boughs',
+    members: [['Flicker Wisp', 'Damage', 60], ['Lamplighter Wisp', 'Caster', 55], ['Shimmer Wisp', 'Support', 50]],
+    lines: ['The boughs are dark. The wisps have gone out.', 'One wisp flickers alone, as if deciding whether to stay.', 'Wisps drift between the glass trees, humming.', 'Wisps crowd the boughs, bright enough to read by.'] },
+  rats: { name: 'Gloam-rats', one: 'gloam-rat', many: 'gloam-rats', lo: 5, hi: 7, icon: 'ph ph-paw-print', burst: 'spill out of the dark',
+    members: [['Gloam-rat Bruiser', 'Tank', 110], ['Gloam-rat Gnawer', 'Damage', 70], ['Plague Mother', 'Support', 90]],
+    lines: ['No rats. You check twice.', 'You hear a gloam-rat. Then you don’t.', 'Gloam-rats have made themselves at home.', 'Gloam-rats pour through every crack. The floor is mostly rat.'] },
+};
+const RES = {
+  salt: { name: 'Panlight Salt', icon: 'ph ph-cube', lines: ['', 'Thin salt, mostly in the corners.', 'Good salt, if you scrape for it.', 'Salt crusts thick along every pan.'] },
+  brine: { name: 'Brinewort', icon: 'ph ph-plant', lines: ['', 'A few stubborn brinewort stalks in the runoff.', 'Brinewort grows in the runoff channels.', 'Brinewort chokes every channel, green and salty.'] },
+  apple: { name: 'Glassapple', icon: 'ph ph-diamond', lines: ['', 'One or two glassapples left, high up.', 'Glassapples hang within reach.', 'The boughs sag with glassapples.'] },
+  stone: { name: 'Saltstone', icon: 'ph ph-cube-focus', lines: ['', 'Chips of saltstone, if you dig.', 'Saltstone seams run along the walls.', 'Saltstone glitters in every wall.'] },
+};
+const PL = {
+  way: { name: 'Kesterlane Waystation', short: 'Waystation', kind: 'Town', icon: 'ph ph-house-line', safe: true, desc: 'A roof, a fire, and a sign saying NO GOBLINS that the goblins cannot read.', fams: {}, res: {}, named: [], exits: ['pans'], emptyRes: '' },
+  pans: { name: 'Mother Pan Flats', short: 'Pan Flats', kind: 'Salt flats', icon: 'ph ph-waves', desc: 'White pans run to the horizon. The light comes up from the ground here, which feels rude.', fams: { skitter: 2 }, res: { salt: 3, brine: 2 }, named: [], exits: ['way', 'glass', 'under'], rival: { skitter: 'rats' }, emptyRes: 'The pans have been picked clean.' },
+  glass: { name: 'Glass Orchard', short: 'Orchard', kind: 'Orchard', icon: 'ph ph-tree', desc: 'Trees of green glass ring faintly whenever the wind moves. Something is eating the apples.', fams: { goblins: 3, wisps: 1 }, res: { apple: 2 }, named: [{ id: 'rattle', name: 'Old Rattlejaw', sub: 'Goblin warchief · Bounty', lv: 8, hp: 260, role: 'Named' }], exits: ['pans'], rival: { wisps: 'rats', goblins: 'rats' }, emptyRes: 'The orchard has been picked clean.' },
+  under: { name: 'Mother Pan Undercroft', short: 'Undercroft', kind: 'Dungeon', icon: 'ph ph-skull', desc: 'Salt caverns under the pans. Everything drips, including things that shouldn’t.', fams: { skitter: 1 }, res: { stone: 2 }, named: [{ id: 'matron', name: 'The Brine Matron', sub: 'Boss · Quest: Salt in the Wound', lv: 9, hp: 420, role: 'Boss' }], exits: ['pans'], rival: { skitter: 'rats' }, emptyRes: 'The walls have been picked clean.' },
+};
+const CW = ['Wiped out', 'Scarce', 'Stable', 'Overrun'], RW = ['Exhausted', 'Sparse', 'Plentiful', 'Abundant'];
+const EXPECT = ['', 'Expect one, alone', 'Expect one or two', 'Expect a crowd'];
+const NUM = ['no', 'one', 'two', 'three', 'four', 'five'];
+const RATE = { Safe: [OK, 'Nothing here will hurt you.', 0], Quiet: [BLUE, 'Something lives here, but it keeps to itself.', 0.12], Risky: [YEL, 'Watch the edges. Things here will come for you.', 0.35], Deadly: [RED, 'You should not be here alone. You are not alone.', 0.6] };
+const KILLS_PER_STEP = 3, GATHERS_PER_STEP = 2;
+const conOf = (hi) => { const dd = hi - LV; return dd <= -2 ? OK : dd <= 0 ? BLUE : dd <= 2 ? YEL : RED; };
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const pad = (n) => String(n).padStart(2, '0');
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const copyMap = (k) => { const o = {}; Object.keys(PL).forEach(p => { o[p] = { ...PL[p][k] }; }); return o; };
+const cBadge = (d) => d === 3 ? { bBg: 'oklch(0.32 0.08 24)', bColor: 'oklch(0.88 0.06 24)', bRing: 'none' } : d === 2 ? { bBg: 'var(--color-neutral-800)', bColor: 'var(--color-neutral-200)', bRing: 'none' } : d === 1 ? { bBg: 'var(--color-neutral-900)', bColor: 'var(--color-neutral-400)', bRing: 'none' } : { bBg: 'transparent', bColor: 'var(--color-neutral-500)', bRing: 'inset 0 0 0 1px var(--color-neutral-700)' };
+const rBadge = (d) => d === 3 ? { bBg: 'oklch(0.3 0.06 150)', bColor: 'oklch(0.88 0.06 150)', bRing: 'none' } : cBadge(d === 3 ? 2 : d);
+
+class Component extends DCLogic {
+  state = this.init();
+  init() {
+    return { here: 'pans', d: copyMap('fams'), base: copyMap('fams'), r: copyMap('res'), rb: copyMap('res'), kills: {}, gathers: {}, pend: {}, slain: {}, combat: null, force: false, clock: 19 * 60 + 40, log: [],
+      feed: [{ k: 'place', title: PL.pans.name, text: PL.pans.desc }, { k: 'keeper', text: 'The salt crunches underfoot. Somewhere to the north, glass trees ring like a dinner party you were not invited to.' }] };
+  }
+  push(s, ...e) { return [...s.feed, ...e].slice(-18); }
+  slog(s, t) { const c = s.clock; return [...s.log, { text: pad(Math.floor(c / 60) % 24) + ':' + pad(c % 60) + ' ' + t }].slice(-7); }
+  rating(s, p) {
+    const P = PL[p];
+    if (P.safe) return 'Safe';
+    let score = 0;
+    Object.entries(s.d[p]).forEach(([f, d]) => { const dd = FAM[f].hi - LV; score += d * (dd <= -2 ? 0.5 : dd <= 0 ? 1 : dd <= 2 ? 1.6 : 2.5); });
+    P.named.forEach(n => { if (!s.slain[n.id] && n.role === 'Boss') score += 2; });
+    return score <= 2.2 ? 'Quiet' : score <= 4.4 ? 'Risky' : 'Deadly';
+  }
+  group(fam, size, place) {
+    const F = FAM[fam], ms = F.members.slice();
+    const tank = ms.find(m => m[1] === 'Tank'), rest = ms.filter(m => m !== tank).sort(() => Math.random() - 0.5);
+    const order = size >= 2 && tank ? [tank, ...rest] : [...rest, tank].filter(Boolean).sort(() => Math.random() - 0.5);
+    const out = [], seen = {};
+    for (let i = 0; i < size; i++) { const m = order[i % order.length]; seen[m[0]] = (seen[m[0]] || 0) + 1; out.push({ id: fam + i, base: m[0], role: m[1], hp: m[2], max: m[2], lv: rnd(F.lo, F.hi), fam }); }
+    out.forEach(e => { if (seen[e.base] > 1) { seen[e.base + '#'] = (seen[e.base + '#'] || 0) + 1; e.name = e.base + ' ' + seen[e.base + '#']; } else e.name = e.base; });
+    const dmgT = ['You', 'Vex'];
+    let k = 0;
+    out.forEach(e => { e.tgt = e.role === 'Tank' ? 'Brannoc' : e.role === 'Caster' ? 'Tamsin' : e.role === 'Support' ? null : dmgT[k++ % 2]; });
+    out.forEach(e => { if (e.role === 'Support') { const a = out.find(o => o.role !== 'Support'); e.tgt = a ? 'ally:' + a.id : 'You'; } });
+    return out;
+  }
+  sizeFor(d) { return d === 1 ? 1 : d === 2 ? rnd(1, 2) : rnd(2, 4); }
+  startFight(s, place, fam, origin, extraFeed) {
+    const d = s.d[place][fam], size = this.sizeFor(d), en = this.group(fam, size, place), F = FAM[fam];
+    const lead = origin === 'pull' ? [{ k: 'plain', text: 'You make some noise. ' + cap(NUM[size]) + ' ' + (size > 1 ? F.many : F.one) + ' answer' + (size > 1 ? '' : 's') + '.', color: 'var(--color-neutral-200)' }] : [];
+    return { combat: { place, fam, enemies: en, sel: en[0].id, round: 1, origin, size }, feed: this.push(s, ...(extraFeed || []), ...lead, { k: 'round', text: 'Round 1' }) };
+  }
+  pull(fam) { if (this.state.combat) return; this.setState(s => this.startFight(s, s.here, fam, 'pull')); }
+  fightNamed(n) {
+    if (this.state.combat) return;
+    this.setState(s => ({ combat: { place: s.here, fam: null, named: n.id, enemies: [{ id: n.id, name: n.name, role: n.role, hp: n.hp, max: n.hp, lv: n.lv, tgt: 'Brannoc' }], sel: n.id, round: 1, origin: 'named', size: 1 },
+      feed: this.push(s, { k: 'keeper', text: n.role === 'Boss' ? n.name + ' rises from the brine, unhurried, like someone who has been expecting you for years.' : n.name + ' steps out and grins. Most of the grin is teeth that used to belong to other people.' }, { k: 'round', text: 'Round 1' }) }));
+  }
+  travel(to) {
+    const s = this.state; if (s.combat) return;
+    const from = s.here, rl = this.rating(s, from), re = this.rating(s, to);
+    const pl = s.force ? 1 : RATE[rl][2], pe = s.force ? 1 : RATE[re][2];
+    const famAt = (p) => { const fs = Object.entries(s.d[p]).filter(([, d]) => d > 0); if (!fs.length) return null; fs.sort((a, b) => b[1] - a[1]); return fs[0][0]; };
+    const rollE = Math.random() < pe && famAt(to), rollL = !rollE && Math.random() < pl && famAt(from);
+    if (rollL) {
+      const fam = famAt(from), sz = this.sizeFor(s.d[from][fam]);
+      this.setState(st => { const r = this.startFight(st, from, fam, 'leave'); const n = r.combat.size; return { ...r, feed: this.push(st, { k: 'ambush', text: 'As you try to leave ' + PL[from].name + ', ' + NUM[n] + ' ' + (n > 1 ? FAM[fam].many : FAM[fam].one) + ' ' + FAM[fam].burst + '!' }, { k: 'round', text: 'Round 1' }) }; });
+      return;
+    }
+    const arrive = [{ k: 'place', title: PL[to].name, text: PL[to].desc }];
+    if (rollE) {
+      const fam = famAt(to);
+      this.setState(st => { const st2 = { ...st, here: to, clock: st.clock + 4 }; const r = this.startFight(st2, to, fam, 'enter'); const n = r.combat.size; return { here: to, clock: st.clock + 4, ...r, feed: this.push(st, { k: 'ambush', text: 'As you cross into ' + PL[to].name + ', ' + NUM[n] + ' ' + (n > 1 ? FAM[fam].many : FAM[fam].one) + ' ' + FAM[fam].burst + '!' }, ...arrive, { k: 'round', text: 'Round 1' }) }; });
+      return;
+    }
+    this.setState(st => ({ here: to, clock: st.clock + 4, feed: this.push(st, { k: 'plain', icon: 'ph ph-footprints', text: 'You travel to ' + PL[to].name + '. Nothing follows you. This time.', color: 'var(--color-neutral-400)', size: '12.5px' }, ...arrive) }));
+  }
+  thin(s, place, fam, n, src) {
+    const kills = { ...s.kills }, key = place + '.' + fam; kills[key] = (kills[key] || 0) + n;
+    const d = { ...s.d, [place]: { ...s.d[place] } }; let feed = [], log = s.log, pend = s.pend;
+    while (kills[key] >= KILLS_PER_STEP && d[place][fam] > 0) {
+      kills[key] -= KILLS_PER_STEP; const was = d[place][fam]; d[place][fam] = was - 1;
+      log = this.slog({ ...s, log }, place + '.' + fam + ' ' + was + '→' + (was - 1) + ' (' + src + ')');
+      if (d[place][fam] === 0) {
+        feed.push({ k: 'plain', icon: 'ph ph-skull', iconColor: 'var(--color-neutral-400)', text: 'The ' + FAM[fam].many + ' are gone from ' + PL[place].name + '.', color: 'var(--color-neutral-300)', size: '13px' });
+        const rv = PL[place].rival && PL[place].rival[fam];
+        if (rv) { pend = { ...pend, [place]: { from: fam, to: rv } }; log = this.slog({ ...s, log }, place + ': ' + rv + ' will move in (gap left by ' + fam + ')'); }
+      } else feed.push({ k: 'plain', icon: 'ph ph-trend-down', iconColor: 'var(--color-neutral-500)', text: cap(FAM[fam].many) + ' thin out around ' + PL[place].name + '. They read ' + CW[d[place][fam]].toLowerCase() + ' now.', color: 'var(--color-neutral-400)', size: '12.5px' });
+    }
+    return { kills, d, log, pend, feedAdd: feed };
+  }
+  endFight(s, won) {
+    const c = s.combat; if (!c) return {};
+    if (!won) return { combat: null, feed: this.push(s, { k: 'plain', icon: 'ph ph-person-simple-run', text: 'You run. ' + (c.fam ? 'The ' + FAM[c.fam].many + ' jeer, then lose interest.' : 'It lets you go. For now.'), color: 'var(--color-neutral-300)', size: '13.5px' }) };
+    const out = { combat: null };
+    let feed = [{ k: 'plain', icon: 'ph ph-trophy', iconColor: 'oklch(0.84 0.1 90)', text: c.fam ? 'The last ' + FAM[c.fam].one + ' falls. ' + PL[c.place].name + ' goes quiet, briefly.' : c.enemies[0].name + ' falls. The air feels lighter.', color: 'var(--color-text)', size: '14px' },
+      { k: 'plain', text: '+' + (c.size * 18 + (c.named ? 120 : 0)) + ' XP · loot waiting for you', color: 'oklch(0.84 0.1 90)', size: '12.5px' }];
+    if (c.fam) { const t = this.thin(s, c.place, c.fam, c.size, 'kills'); Object.assign(out, { kills: t.kills, d: t.d, log: t.log, pend: t.pend }); feed = feed.concat(t.feedAdd); }
+    if (c.named) { out.slain = { ...s.slain, [c.named]: true }; out.log = this.slog(s, c.named + ' slain, respawns on long rest'); }
+    out.feed = this.push(s, ...feed);
+    return out;
+  }
+  attack() { this.setState(s => s.combat ? { combat: { ...s.combat, queued: s.combat.sel } } : null); }
+  componentDidMount() { this._iv = setInterval(() => { const c = this.state.combat; if (!c) return; if ((c.t ?? 10) > 1) this.setState(st => st.combat ? { combat: { ...st.combat, t: (st.combat.t ?? 10) - 1 } } : null); else this.resolve(); }, 1000); }
+  componentWillUnmount() { clearInterval(this._iv); }
+  resolve() {
+    this.setState(s => {
+      const c = s.combat; if (!c) return null;
+      const en = c.enemies.map(e => ({ ...e })), t = en.find(e => e.id === (c.queued || c.sel) && e.hp > 0) || en.find(e => e.hp > 0);
+      const lines = [];
+      if (c.queued) { const dmg = rnd(38, 64); t.hp = Math.max(0, t.hp - dmg); lines.push({ k: 'plain', text: 'You hit ' + t.name + ' for ' + dmg + '.' + (t.hp === 0 ? ' It drops.' : ''), color: 'var(--color-neutral-300)', size: '13.5px' }); }
+      else lines.push({ k: 'plain', text: 'You hesitate. The moment passes.', color: 'var(--color-neutral-500)', size: '13px' });
+      const alive = en.filter(e => e.hp > 0);
+      if (!alive.length) return this.endFight({ ...s, feed: this.push(s, ...lines) }, true);
+      alive.forEach(e => {
+        if (e.role === 'Support') { const hurt = alive.filter(a => a.hp < a.max).sort((a, b) => a.hp / a.max - b.hp / b.max)[0]; if (hurt) { const h = rnd(14, 24); hurt.hp = Math.min(hurt.max, hurt.hp + h); e.tgt = 'ally:' + hurt.id; lines.push({ k: 'plain', text: e.name + ' patches up ' + hurt.name + '. +' + h + '.', color: 'oklch(0.78 0.08 150)', size: '13.5px' }); } else e.tgt = 'You'; return; }
+        if (e.role === 'Damage' && Math.random() < 0.3) e.tgt = e.tgt === 'You' ? 'Vex' : 'You';
+        const v = { Tank: 'shield-bashes', Damage: 'cuts', Caster: 'hexes', Named: 'swings at', Boss: 'drowns' }[e.role] || 'hits';
+        lines.push({ k: 'plain', text: e.name + ' ' + v + ' ' + e.tgt + ' for ' + rnd(8, 22) + '.', color: 'var(--color-neutral-400)', size: '13.5px' });
+      });
+      const nc = { ...c, enemies: en, round: c.round + 1, sel: t.hp > 0 ? t.id : alive[0].id, t: 10, queued: null };
+      return { combat: nc, feed: this.push(s, ...lines, { k: 'round', text: 'Round ' + nc.round }) };
+    });
+  }
+  tick(mins, full) {
+    this.setState(s => {
+      const d = {}, r = {}; let log = s.log, feed = [], base = s.base, pend = { ...s.pend };
+      Object.keys(PL).forEach(p => {
+        d[p] = { ...s.d[p] };
+        Object.keys(d[p]).forEach(f => { const b = (base[p][f] ?? 0); if (d[p][f] < b && (full || d[p][f] > 0)) { const n = full ? b : d[p][f] + 1; log = this.slog({ ...s, log }, p + '.' + f + ' regrows ' + d[p][f] + '→' + n); d[p][f] = n; } else if (d[p][f] > b) { log = this.slog({ ...s, log }, p + '.' + f + ' settles ' + d[p][f] + '→' + (d[p][f] - 1)); d[p][f] -= 1; } });
+        r[p] = { ...s.r[p] }; if (full) Object.keys(r[p]).forEach(k => { r[p][k] = s.rb[p][k]; });
+        const pd = pend[p];
+        if (pd && d[p][pd.from] === 0) {
+          base = { ...base, [p]: { ...base[p], [pd.to]: 2, [pd.from]: 0 } }; d[p][pd.to] = 3; delete pend[p];
+          log = this.slog({ ...s, log }, p + ': ' + pd.to + ' surge in at 3 (base 2)');
+          feed.push({ k: 'keeper', text: 'With the ' + FAM[pd.from].many + ' gone, ' + FAM[pd.to].many + ' move into ' + PL[p].name + '. Fast.' });
+        }
+      });
+      const slain = full ? {} : s.slain;
+      return { d, r, base, pend, slain, log, clock: s.clock + mins, feed: feed.length ? this.push(s, ...feed) : s.feed };
+    });
+  }
+  rivals() {
+    this.setState(s => {
+      const opts = []; Object.keys(PL).forEach(p => Object.entries(s.d[p]).forEach(([f, v]) => { if (v > 0) opts.push([p, f]); }));
+      if (!opts.length) return { log: this.slog(s, 'rival hunters found nothing') };
+      const [p, f] = opts[Math.floor(Math.random() * opts.length)];
+      const t = this.thin(s, p, f, KILLS_PER_STEP, 'rival hunters');
+      return { kills: t.kills, d: t.d, pend: t.pend, log: t.log, feed: p === s.here && t.feedAdd.length ? this.push(s, ...t.feedAdd) : s.feed };
+    });
+  }
+  gather(k) {
+    this.setState(s => {
+      const p = s.here, cur = s.r[p][k]; if (!cur) return null;
+      const key = p + '.' + k, g = { ...s.gathers, [key]: (s.gathers[key] || 0) + 1 };
+      let nv = cur, extra = [];
+      if (g[key] >= GATHERS_PER_STEP) { g[key] = 0; nv = cur - 1; }
+      const r = { ...s.r, [p]: { ...s.r[p], [k]: nv } };
+      if (nv === 0) extra.push({ k: 'plain', text: 'That’s the last of the ' + RES[k].name.toLowerCase() + ' here for you, for a while.', color: 'var(--color-neutral-500)', size: '12.5px' });
+      return { r, gathers: g, feed: this.push(s, { k: 'plain', icon: RES[k].icon, iconColor: 'oklch(0.8 0.1 85)', text: 'You gather ' + RES[k].name + ' ×' + (nv >= 2 ? 3 : nv === 1 ? 2 : 1) + '.', color: 'var(--color-neutral-200)', size: '13.5px' }, ...extra) };
+    });
+  }
+  setD(p, f, v, isRes) { this.setState(s => { const key = isRes ? 'r' : 'd'; const val = Math.max(0, Math.min(3, v)); return { [key]: { ...s[key], [p]: { ...s[key][p], [f]: val } }, log: this.slog(s, p + '.' + f + ' set to ' + val + (isRes ? ' (yours)' : '')) }; }); }
+  renderVals() {
+    const s = this.state, here = PL[s.here], rt = this.rating(s, s.here), c = s.combat;
+    const feedMap = (f) => ({ ...f, isPlace: f.k === 'place', isKeeper: f.k === 'keeper', isAmbush: f.k === 'ambush', isRound: f.k === 'round', isPlain: f.k === 'plain', icon: f.icon || '', iconColor: f.iconColor || 'var(--color-accent)', color: f.color || 'var(--color-neutral-300)', size: f.size || '14px', title: f.title || '' });
+    const creatures = Object.entries(s.d[s.here]).filter(([, d]) => d > 0).map(([f, d]) => ({ name: FAM[f].name, icon: FAM[f].icon, con: conOf(FAM[f].hi), lv: 'Lv ' + FAM[f].lo + '–' + FAM[f].hi, word: CW[d], line: FAM[f].lines[d], expect: EXPECT[d], pull: () => this.pull(f), ...cBadge(d) }));
+    const resources = Object.entries(s.r[s.here]).filter(([, d]) => d > 0).map(([k, d]) => ({ name: RES[k].name, icon: RES[k].icon, word: RW[d], line: RES[k].lines[d], gather: () => this.gather(k), ...rBadge(d) }));
+    const named = here.named.map(n => { const alive = !s.slain[n.id]; return { name: n.name, sub: alive ? n.sub + ' · Lv ' + n.lv : 'Slain · back after a long rest', icon: ROLE[n.role][1], con: alive ? conOf(n.lv) : 'var(--color-neutral-500)', alive, op: alive ? 1 : 0.55, fight: () => this.fightNamed(n) }; });
+    const exits = here.exits.map(id => { const r = this.rating(s, id); return { name: PL[id].name, short: PL[id].short, icon: PL[id].icon, rating: r, color: RATE[r][0], tip: RATE[r][1], go: () => this.travel(id) }; });
+    let enemies = [], enc = {}, act = {};
+    if (c) {
+      const byId = {}; c.enemies.forEach(e => { byId[e.id] = e; });
+      enemies = c.enemies.map(e => {
+        const dead = e.hp <= 0, isSel = e.id === c.sel && !dead, ally = e.tgt && e.tgt.startsWith('ally:');
+        return { name: e.name, role: e.role, roleColor: ROLE[e.role][0], roleIcon: ROLE[e.role][1], con: dead ? 'var(--color-neutral-500)' : conOf(e.lv), lvText: 'Lv ' + e.lv,
+          hpPct: Math.round(e.hp / e.max * 100) + '%', hpText: dead ? 'Down' : e.hp + '/' + e.max, isSel, op: dead ? 0.45 : 1,
+          ring: isSel ? 'inset 0 0 0 1px var(--color-accent),0 0 14px color-mix(in srgb,var(--color-accent) 30%,transparent)' : 'none',
+          tgtVerb: dead ? '' : ally ? 'Healing' : 'Targeting', tgt: dead ? 'Out of the fight' : ally ? byId[e.tgt.slice(5)].name : e.tgt,
+          tgtIcon: dead ? 'ph ph-skull' : ally ? 'ph ph-first-aid' : 'ph ph-crosshair', tgtColor: dead ? 'var(--color-neutral-500)' : ally ? 'oklch(0.8 0.1 150)' : e.tgt === 'You' ? 'var(--color-accent-300)' : 'var(--color-neutral-100)',
+          pick: () => { if (!dead) this.setState(st => ({ combat: { ...st.combat, sel: e.id } })); } };
+      });
+      const alive = c.enemies.filter(e => e.hp > 0).length, F = c.fam ? FAM[c.fam] : null;
+      enc = { title: 'Encounter · ' + (F ? F.name : c.enemies[0].name) + ' · ' + alive + ' left', source: c.origin === 'pull' ? 'You pulled them from a population that reads ' + CW[s.d[c.place][c.fam]].toLowerCase() + '.' : c.origin === 'enter' ? 'Ambushed on the way in.' : c.origin === 'leave' ? 'Ambushed on the way out.' : 'A named fight. No one else comes.', sourceShort: { pull: 'Pulled', enter: 'Ambush', leave: 'Ambush', named: 'Named' }[c.origin],
+        srcColor: c.origin === 'enter' || c.origin === 'leave' ? 'oklch(0.8 0.12 35)' : 'var(--color-neutral-400)', placeLine: PL[c.place].name + ' · ' + rt };
+      const tsel = c.enemies.find(e => e.id === c.sel && e.hp > 0);
+      act = { attack: () => this.attack(), flee: () => this.setState(st => this.endFight(st, false)), attackLabel: c.queued ? 'Locked in: Attack ' + (c.enemies.find(e => e.id === c.queued) || {}).name : tsel ? 'Attack ' + tsel.name : 'Attack',
+        prompt: c.queued ? 'Action locked in · resolves when the timer ends' : 'Choose your action', tPct: ((c.t ?? 10) / 10 * 100) + '%', tText: (c.t ?? 10) + 's', tColor: (c.t ?? 10) <= 3 ? 'oklch(0.8 0.13 75)' : 'var(--color-accent)' };
+    }
+    const placesSim = Object.keys(PL).map(p => {
+      const r = this.rating(s, p), rows = [];
+      Object.entries(s.d[p]).forEach(([f, v]) => rows.push({ name: FAM[f].name, icon: FAM[f].icon, val: v, color: v ? 'var(--color-text)' : 'var(--color-neutral-500)', meta: 'base ' + (s.base[p][f] ?? 0) + ' · kills ' + (s.kills[p + '.' + f] || 0) + '/' + KILLS_PER_STEP, dec: () => this.setD(p, f, v - 1), inc: () => this.setD(p, f, v + 1) }));
+      Object.entries(s.r[p]).forEach(([k, v]) => rows.push({ name: RES[k].name + ' (yours)', icon: RES[k].icon, val: v, color: v ? 'var(--color-neutral-300)' : 'var(--color-neutral-500)', meta: 'gathers ' + (s.gathers[p + '.' + k] || 0) + '/' + GATHERS_PER_STEP, dec: () => this.setD(p, k, v - 1, true), inc: () => this.setD(p, k, v + 1, true) }));
+      const pd = s.pend[p];
+      return { name: PL[p].name, isHere: p === s.here, rating: r, color: RATE[r][0], rows, ring: p === s.here ? 'inset 0 0 0 1px var(--color-accent-700)' : 'none', pending: pd ? cap(FAM[pd.to].many) + ' move in on the next tick.' : '' };
+    });
+    return {
+      showMobile: this.props.showMobile ?? true, showSim: this.props.showSimulator ?? true,
+      inCombat: !!c, notCombat: !c,
+      hdr: { place: 'Kesterlane Basin · ' + here.name, rating: rt, color: RATE[rt][0], ring: 'color-mix(in srgb,' + RATE[rt][0] + ' 50%,transparent)', roundLabel: c ? 'In combat · Round ' + c.round : '', clock: pad(Math.floor(s.clock / 60) % 24) + ':' + pad(s.clock % 60), navOp: c ? 0.45 : 1 },
+      here: { name: here.name, kind: here.kind, icon: here.icon, rating: rt, color: RATE[rt][0], ratingLine: RATE[rt][1], emptyRes: here.emptyRes },
+      feed: s.feed.map(feedMap), feedM: s.feed.slice(-5).map(feedMap),
+      exits, creatures, noCreatures: !here.safe && !creatures.length, resources, hasResSection: Object.keys(PL[s.here].res).length > 0, noResources: !resources.length,
+      named, hasNamed: named.length > 0, enemies, enc, act,
+      sim: { tick: () => this.tick(10, false), long: () => this.tick(180, true), rivals: () => this.rivals(), win: () => this.setState(st => this.endFight(st, true)), reset: () => this.setState(this.init()),
+        toggleForce: () => this.setState(st => ({ force: !st.force })), forceBg: s.force ? 'var(--color-accent-700)' : 'var(--color-bg)', forceX: s.force ? '15px' : '3px',
+        places: placesSim, log: s.log.slice().reverse(), logEmpty: !s.log.length },
+    };
+  }
+}
+</script>
+</body>
+</html>
