@@ -290,7 +290,8 @@ export const registerGroupReducers = (deps: any) => {
         return failGroup(ctx, inviter, `${target.name} already has a pending invite.`);
       }
 
-      // Invite spam guard (WR-02): after a decline or cancel, wait before inviting the same person.
+      // Invite spam guard (WR-02): after a decline, a cancel or the inviter's own leave/camp
+      // (review 2 WR-01), wait before inviting the same person.
       if (reinviteWaitActive(ctx, inviter.id, target.id)) {
         return failGroup(ctx, inviter, `Wait a moment before inviting ${target.name} again.`);
       }

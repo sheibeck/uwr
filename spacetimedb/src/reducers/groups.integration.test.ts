@@ -623,6 +623,59 @@ describe('invite spam guard (code review WR-02)', () => {
     });
   }
 
+  // Review 2 WR-01: leaving (or camping out of) the lone group withdrew the invite with no wait, so
+  // invite → leave → invite repeated with no throttle.
+  it('invite → leave → invite: the leave starts the wait, so the re-invite is refused', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'leave_group', 1n, {}, T0 + 1n);
+    expect(lines(ctx, 2n).slice(-1)).toEqual(['The invite from Ann is no longer open.']);
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + 2n);
+    expect(lines(ctx, 1n).slice(-1)).toEqual([WAIT_LINE]);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group')).toHaveLength(0);
+    expect(lines(ctx, 2n).filter((l) => l.startsWith('Ann invited you'))).toHaveLength(1);
+
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + 1n + WAIT);
+    expect(lines(ctx, 1n).slice(-1)).toEqual(['You invited Bram.']);
+  });
+
+  it('a leave/re-invite loop of ten rounds sends Bram one invite line', () => {
+    const ctx = newCtx();
+    for (let i = 0n; i < 10n; i++) {
+      call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' }, T0 + i * 10n);
+      if (char(ctx, 1n).groupId) call(ctx, 'leave_group', 1n, {}, T0 + i * 10n + 1n);
+    }
+    expect(lines(ctx, 2n).filter((l) => l.startsWith('Ann invited you'))).toHaveLength(1);
+  });
+
+  it('camping out of the lone group starts the wait too', () => {
+    const ctx = newCtx();
+    call(ctx, 'invite_to_group', 1n, { targetName: 'Bram' });
+    call(ctx, 'clear_active_character', 1n, {}, T0 + 1n);
+    expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toMatchObject([
+      { fromCharacterId: 1n, toCharacterId: 2n, untilMicros: T0 + 1n + WAIT },
+    ]);
+  });
+
+  it('a withdrawal the inviter did not cause starts no wait', () => {
+    // Ann invited Cole, then left; Bram leads alone. Bram leaving withdraws Ann's invite.
+    const ctx = newCtx({
+      chars: { 1: { groupId: 5n }, 2: { groupId: 5n } },
+      groups: [{ id: 5n, leader: 1n }],
+      members: [
+        { id: 1n, groupId: 5n, characterId: 1n, role: 'leader', joinedAt: T0 - 5n },
+        { id: 2n, groupId: 5n, characterId: 2n, joinedAt: T0 - 4n },
+      ],
+      invites: [{ id: 1n, groupId: 5n, from: 1n, to: 3n }],
+    });
+    call(ctx, 'leave_group', 1n, {}, T0 + 1n);
+    call(ctx, 'leave_group', 2n, {}, T0 + 2n);
+    expect(lines(ctx, 3n).slice(-1)).toEqual(['The invite from Ann is no longer open.']);
+    expect(tableRows(ctx, 'group_invite_cooldown')).toHaveLength(0);
+  });
+
   it('the wait is per inviter: someone else may invite Bram straight away', () => {
     const { ctx } = invitedThen('decline');
     call(ctx, 'invite_to_group', 3n, { targetName: 'Bram' }, T0 + 2n);

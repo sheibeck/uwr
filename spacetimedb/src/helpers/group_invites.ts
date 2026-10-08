@@ -68,11 +68,23 @@ function tell(ctx: any, character: any, message: string) {
 }
 
 /**
+ * Whether an early end starts the re-invite wait (WR-02; review 2 WR-01): a decline, a cancel, or a
+ * withdrawal the inviter caused himself (he left or camped out of the invite's group), so
+ * invite → leave → invite cannot skip the wait. An expiry starts none, and neither does a withdrawal
+ * someone else caused (a deletion, another member leaving last).
+ */
+function startsReinviteWait(invite: any, reason: InviteEnd, actor?: any): boolean {
+  if (reason === 'cancelled' || reason === 'declined') return true;
+  return reason === 'withdrawn' && actor != null && actor.id === invite.fromCharacterId;
+}
+
+/**
  * Ends an invite: deletes the row (when still there) and its expiry tick, starts the re-invite wait
- * after a decline or cancel (WR-02), writes the reason's lines, then dissolves
+ * (startsReinviteWait), writes the reason's lines, then dissolves
  * the invite's group if it is left with one member and no other invite. `actor` is the
- * character who cancelled (cancelled) or declined (declined). `runningTickId` is the expiry tick
- * that is running this end (the platform deletes a one-shot tick itself), left alone here.
+ * character who cancelled (cancelled), declined (declined) or, for withdrawn, whose departure
+ * withdrew it. `runningTickId` is the expiry tick that is running this end (the platform deletes a
+ * one-shot tick itself), left alone here.
  */
 export function endInvite(
   ctx: any,
@@ -83,7 +95,7 @@ export function endInvite(
 ): void {
   if (ctx.db.group_invite.id.find(invite.id)) ctx.db.group_invite.id.delete(invite.id);
   cancelInviteExpiry(ctx, invite.id, runningTickId);
-  if (reason === 'cancelled' || reason === 'declined') {
+  if (startsReinviteWait(invite, reason, actor)) {
     startReinviteWait(ctx, invite.fromCharacterId, invite.toCharacterId);
   }
   const from = ctx.db.character.id.find(invite.fromCharacterId);
@@ -199,8 +211,10 @@ export function settleGroupAfterLeave(
 ): void {
   const remaining = [...ctx.db.group_member.by_group.filter(groupId)];
   if (remaining.length === 0) {
+    // The leaver is the actor, so his own invites start the re-invite wait (review 2 WR-01).
+    const leaving = ctx.db.character.id.find(leavingCharacterId) ?? null;
     for (const invite of [...ctx.db.group_invite.by_group.filter(groupId)].sort(byId)) {
-      endInvite(ctx, invite, 'withdrawn');
+      endInvite(ctx, invite, 'withdrawn', leaving);
     }
     if (ctx.db.group.id.find(groupId)) ctx.db.group.id.delete(groupId);
     return;
