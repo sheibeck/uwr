@@ -965,6 +965,8 @@ export const EnemySpawn = table(
     state: t.string(),
     lockedCombatId: t.u64().optional(),
     groupCount: t.u64(),
+    // The level this spawn fights at. 0 on rows from before this column means the template's level.
+    level: t.u64().default(0n),
   }
 );
 
@@ -1102,6 +1104,8 @@ export const CombatEnemy = table(
     aggroTargetCharacterId: t.u64().optional(),
     aggroTargetPetId: t.u64().optional(),
     nextAutoAttackAt: t.u64(),
+    // The level this enemy fights at. 0 on rows from before this column means the template's level.
+    level: t.u64().default(0n),
   }
 );
 

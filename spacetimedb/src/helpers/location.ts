@@ -3,6 +3,7 @@ import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
+import { placeLevelBand, placeSpawnLevel, effectiveEnemyLevel } from '../data/enemy_rules';
 import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS, CRAFTING_MODIFIER_WEIGHT_MULTIPLIER } from '../data/crafting_rules';
 
 export const DAY_DURATION_MICROS = 1_200_000_000n;
@@ -269,10 +270,11 @@ export function ensureAvailableSpawn(
     if (spawn.groupCount === 0n) continue;
     const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
     if (!template) continue;
+    const spawnLevel = effectiveEnemyLevel(spawn.level, template.level);
     const diff =
-      template.level > adjustedTarget
-        ? template.level - adjustedTarget
-        : adjustedTarget - template.level;
+      spawnLevel > adjustedTarget
+        ? spawnLevel - adjustedTarget
+        : adjustedTarget - spawnLevel;
     if (!best || bestDiff === null || diff < bestDiff) {
       best = spawn;
       bestDiff = diff;
@@ -285,9 +287,33 @@ export function ensureAvailableSpawn(
   return spawnEnemy(ctx, locationId, targetLevel);
 }
 
+/**
+ * Spawns from before the level column carry level 0 and read as their type's level. On arrival,
+ * give each available one the level its place calls for (quick 261008-ag8). Engaged spawns and
+ * event spawns are left alone; the next day/night turn replaces the rest.
+ */
+export function relevelLegacySpawns(ctx: any, locationId: bigint) {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location) return;
+  const target = computeLocationTargetLevel(ctx, locationId, 1n);
+  const offset = location.levelOffset ?? 0n;
+  for (const spawn of [...ctx.db.enemy_spawn.by_location.filter(locationId)]) {
+    if (spawn.state !== 'available') continue;
+    if (spawn.level !== undefined && spawn.level > 0n) continue;
+    if (isEventSpawn(ctx, spawn.id)) continue;
+    const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+    if (!template) continue;
+    ctx.db.enemy_spawn.id.update({
+      ...spawn,
+      level: placeSpawnLevel(template.level, target, offset),
+    });
+  }
+}
+
 export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
   const location = ctx.db.location.id.find(locationId);
   if (!location || location.isSafe) return;
+  relevelLegacySpawns(ctx, locationId);
 
   const activeGroupKeys = new Set<string>();
   for (const player of ctx.db.player.iter()) {
@@ -403,9 +429,7 @@ export function spawnEnemy(
 
   const adjustedTarget = computeLocationTargetLevel(ctx, locationId, targetLevel);
   const offset = locationRow?.levelOffset ?? 0n;
-  const exactMatch = offset === 0n;
-  const minLevel = exactMatch ? adjustedTarget : (adjustedTarget > 1n ? adjustedTarget - 1n : 1n);
-  const maxLevel = exactMatch ? adjustedTarget : adjustedTarget + 1n;
+  const { min: minLevel, max: maxLevel } = placeLevelBand(adjustedTarget, offset);
   const filteredByLevel = candidates.filter(
     (candidate) => candidate.level >= minLevel && candidate.level <= maxLevel
   );
@@ -474,6 +498,8 @@ export function spawnEnemy(
     }
   }
 
+  // A type that fits the place keeps its level; otherwise the spawn takes the place's target level.
+  const spawnLevel = placeSpawnLevel(chosen.level, adjustedTarget, offset);
   let firstSpawn: typeof EnemySpawn.rowType | null = null;
   const total = Number(groupCount);
   for (let i = 0; i < total; i += 1) {
@@ -485,6 +511,7 @@ export function spawnEnemy(
       state: 'available',
       lockedCombatId: undefined,
       groupCount: 1n,
+      level: spawnLevel,
     });
     const role = pickRoleTemplate(ctx, chosen.id, groupSeed + BigInt(i) * 7n);
     if (role) {
@@ -561,6 +588,12 @@ export function spawnEnemyWithTemplate(
       roll -= weight;
     }
   }
+  // A tracked or quest-named spawn obeys the same place band as any other spawn.
+  const spawnLevel = placeSpawnLevel(
+    template.level,
+    computeLocationTargetLevel(ctx, locationId, 1n),
+    locationRow?.levelOffset ?? 0n,
+  );
   let firstSpawn: typeof EnemySpawn.rowType | null = null;
   const total = Number(groupCount);
   for (let i = 0; i < total; i += 1) {
@@ -572,6 +605,7 @@ export function spawnEnemyWithTemplate(
       state: 'available',
       lockedCombatId: undefined,
       groupCount: 1n,
+      level: spawnLevel,
     });
     const role = pickRoleTemplate(ctx, template.id, groupSeed + BigInt(i) * 7n);
     if (role) {

@@ -146,6 +146,7 @@ export function spawnEventContent(ctx: any, eventId: bigint, eventDef: any, _dep
           state: 'available',
           lockedCombatId: undefined,
           groupCount: 1n,
+          level: enemyTemplate.level,
         });
 
         ctx.db.enemy_spawn_member.insert({

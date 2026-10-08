@@ -22,6 +22,7 @@ import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './l
 import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
+import { enemyStatsForLevel } from '../data/enemy_rules';
 
 // ---------------------------------------------------------------------------
 // Relocated from data/world_gen.ts -- these are active generation functions
@@ -799,9 +800,7 @@ export function writeRegionFill(
     let level = toBigIntSafe(enemy.level, { min: -1_000_000n, max: 1_000_000n, fallback: 1n });
     if (level < minLevel) level = minLevel;
     if (level > maxLevel) level = maxLevel;
-    const maxHp = level * 12n + 20n;
-    const baseDamage = level * 3n + 5n;
-    const xpReward = level * 15n + 10n;
+    const { maxHp, baseDamage, xpReward, armorClass } = enemyStatsForLevel(level);
     const role = enemy.role || 'melee';
     const groupMin = toBigIntSafe(enemy.groupMin, { min: 1n, max: 20n, fallback: 1n });
     let groupMax = toBigIntSafe(enemy.groupMax, { min: 1n, max: 20n, fallback: 3n });
@@ -821,7 +820,7 @@ export function writeRegionFill(
       awareness: 'normal',
       groupMin,
       groupMax,
-      armorClass: level * 2n + 2n,
+      armorClass,
       level,
       maxHp,
       baseDamage,
