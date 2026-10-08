@@ -2,6 +2,8 @@ import { SenderError } from 'spacetimedb/server';
 import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { regionalGatherEntries } from './regional_gather';
+import { loadItemPins } from './economy_state';
+import { pinPct, scaleWeights } from '../data/economy_rules';
 import { GROUP_SIZE_DANGER_BASE, GROUP_SIZE_BIAS_RANGE, GROUP_SIZE_BIAS_MAX } from '../data/combat_constants';
 import { EnemySpawn, EnemyTemplate } from '../schema/tables';
 import { placeLevelBand, placeSpawnLevel, effectiveEnemyLevel } from '../data/enemy_rules';
@@ -171,8 +173,17 @@ export function spawnResourceNode(ctx: any, locationId: bigint, characterId?: bi
   const region = ctx.db.region.id.find(location.regionId);
   const dm = region?.dangerMultiplier ?? 100n;
   const zoneTier = dm < 130n ? 1 : dm < 190n ? 2 : 3;
-  const pool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref, zoneTier, location.regionId);
-  if (pool.length === 0) throw new SenderError('No resource templates for location');
+  const rawPool = getGatherableResourceTemplates(ctx, location.terrainType ?? 'plains', timePref, zoneTier, location.regionId);
+  if (rawPool.length === 0) throw new SenderError('No resource templates for location');
+  // Admin item pins scale each entry's weight exactly (review A WR-04); with no pin the pool is unchanged.
+  const pins = loadItemPins(ctx);
+  const pinnedWeights = scaleWeights(
+    rawPool.map((entry) => entry.weight),
+    rawPool.map((entry) => pinPct(pins.get(entry.template.id))),
+  );
+  const pool = rawPool.map((entry, i) => ({ ...entry, weight: pinnedWeights[i]! })).filter((entry) => entry.weight > 0n);
+  // Every entry pinned to 0: no node (callers already accept undefined).
+  if (pool.length === 0) return undefined;
   const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0n);
   const offset = seedOffset ?? 0n;
   let roll = (ctx.timestamp.microsSinceUnixEpoch + locationId + offset) % totalWeight;

@@ -3,6 +3,7 @@ import { createMockCtx as createLenientMockCtx } from './test-utils';
 import {
   ECONOMY_ADMIN_REFUSAL_LINE,
   ECONOMY_COMMAND_USAGE,
+  ECONOMY_PIN_COVERAGE,
   handleEconomyAdminCommand,
   parseDialValue,
   parseEconomyCommand,
@@ -398,13 +399,20 @@ describe('handleEconomyAdminCommand: item pins', () => {
     const ctx = ctxFor(admin, seeded());
     run(ctx, '/economy item ember MOSS drop 0');
     expect(rows(ctx, 'economy_item_dial')).toEqual([{ itemTemplateId: 40n, dropRatePct: 0n }]);
-    expect(systemLines(ctx)).toEqual(['Drop rate for Ember Moss set to 0%.']);
+    expect(systemLines(ctx)).toEqual([`Drop rate for Ember Moss set to 0%. ${ECONOMY_PIN_COVERAGE}`]);
   });
 
   it('clamps a pin', () => {
     const ctx = ctxFor(admin, seeded());
     run(ctx, '/economy item Ember Moss drop 900');
-    expect(systemLines(ctx)).toEqual(['Drop rate for Ember Moss set to 300% (300% is the most).']);
+    expect(systemLines(ctx)).toEqual([`Drop rate for Ember Moss set to 300% (300% is the most). ${ECONOMY_PIN_COVERAGE}`]);
+  });
+
+  // Review A WR-04: the reply says plainly which rolls a pin scales.
+  it('the pin coverage line names every roll a pin scales', () => {
+    for (const word of ['kill drops', 'gear', 'essences', 'reagents', 'recipe scrolls', 'gathering nodes']) {
+      expect(ECONOMY_PIN_COVERAGE).toContain(word);
+    }
   });
 
   it('an unknown item is refused and nothing is written', () => {

@@ -286,6 +286,50 @@ describe('rollEnemyLoot: the drop-rate dial and pins', () => {
     expect(picked.size).toBeGreaterThan(0);
   });
 
+  // Review A WR-04: essences and modifier reagents read the item pins too (a pin was silently ignored).
+  describe('essence and modifier-reagent drops read the item pins', () => {
+    const ESSENCE = 120n;
+    const GLOW = 121n;
+    const extras = [
+      item(ESSENCE, 'Lesser Essence'),
+      item(GLOW, 'Glowing Stone'),
+      item(122n, 'Clear Crystal'),
+      item(123n, 'Life Stone'),
+    ];
+    const count = (pins: any[], kind: string, id: bigint) => {
+      const ctx = ctxFor(world({ item_template: extras, economy_item_dial: pins }));
+      const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
+      return rollsOver(ctx, lc, { id: 1n }, BEAST, 3000).flat().filter((i) => i.kind === kind && i.itemTemplateId === id).length;
+    };
+
+    it('an essence pinned at 0 never drops; at 300 it drops more often; at 50 less, but not never', () => {
+      const plain = count([], 'essence', ESSENCE);
+      expect(plain).toBeGreaterThan(50);
+      expect(count([{ itemTemplateId: ESSENCE, dropRatePct: 0n }], 'essence', ESSENCE)).toBe(0);
+      expect(count([{ itemTemplateId: ESSENCE, dropRatePct: 300n }], 'essence', ESSENCE)).toBeGreaterThan(plain);
+      const half = count([{ itemTemplateId: ESSENCE, dropRatePct: 50n }], 'essence', ESSENCE);
+      expect(half).toBeGreaterThan(0);
+      expect(half).toBeLessThan(plain);
+    });
+
+    it('a reagent pinned at 0 never drops while the other reagents still do', () => {
+      expect(count([], 'modifier', GLOW)).toBeGreaterThan(20);
+      expect(count([{ itemTemplateId: GLOW, dropRatePct: 0n }], 'modifier', GLOW)).toBe(0);
+      expect(count([{ itemTemplateId: GLOW, dropRatePct: 0n }], 'modifier', 122n)).toBeGreaterThan(20);
+    });
+
+    it('no pin leaves the essence roll exactly as before (roll below the scaled chance)', () => {
+      const ctx = ctxFor(world({ item_template: extras }));
+      const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
+      for (let k = 0n; k < 300n; k += 1n) {
+        const ts = T0 + k * 1_000_003n;
+        at(ctx, ts);
+        const want = rollBelow(lootSeed(ts, 1n, 1n), ROLL_INDEX.ESSENCE, 100n) < scaledChancePct(6n, 100n);
+        expect(loot.rollEnemyLoot(ctx, lc, { id: 1n }, BEAST, 1n).some((i: any) => i.kind === 'essence')).toBe(want);
+      }
+    });
+  });
+
   it('the region override of the fight region applies', () => {
     const ctx = ctxFor(world({ economy_region_dial: [{ regionId: 1n, dropRatePct: 0n }] }));
     const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);

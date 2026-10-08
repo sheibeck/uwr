@@ -13,6 +13,7 @@ import {
   effectiveDials,
   itemWeight,
   pinWeights,
+  pinnedChanceHit,
   scaleWeights,
   ROLL_INDEX,
   economyRoll,
@@ -207,6 +208,30 @@ describe('scaleWeights (review CR-01: exact percent dials)', () => {
   it('a percent of 0 removes only that weight; all zero gives all zero', () => {
     expect(scaleWeights([5n, 5n], [0n, 100n])).toEqual([0n, 5n]);
     expect(scaleWeights([5n, 5n], [0n, 0n])).toEqual([0n, 0n]);
+  });
+});
+
+describe('pinnedChanceHit (review A WR-04: pins on essence and reagent chances)', () => {
+  it('with no pin it is exactly the plain percent roll', () => {
+    for (let k = 0n; k < 500n; k += 1n) {
+      const seed = lootSeed(T + k, 1n, 1n);
+      expect(pinnedChanceHit(seed, ROLL_INDEX.ESSENCE, 6n)).toBe(rollBelow(seed, ROLL_INDEX.ESSENCE, 100n) < 6n);
+      expect(pinnedChanceHit(seed, ROLL_INDEX.ESSENCE, 6n, 100n)).toBe(rollBelow(seed, ROLL_INDEX.ESSENCE, 100n) < 6n);
+    }
+  });
+
+  it('a pin of 0 never hits; a 1% chance pinned at 50 is about 0.5%, not 0 or 1', () => {
+    let zero = 0;
+    let half = 0;
+    const N = 40000;
+    for (let i = 0; i < N; i += 1) {
+      const seed = lootSeed(T + BigInt(i), 2n, 3n);
+      if (pinnedChanceHit(seed, ROLL_INDEX.MODIFIER, 100n, 0n)) zero += 1;
+      if (pinnedChanceHit(seed, ROLL_INDEX.MODIFIER, 1n, 50n)) half += 1;
+    }
+    expect(zero).toBe(0);
+    expect(half / N).toBeGreaterThan(0.003);
+    expect(half / N).toBeLessThan(0.007);
   });
 });
 

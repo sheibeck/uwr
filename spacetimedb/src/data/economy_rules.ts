@@ -467,6 +467,19 @@ export function gatherYield(qty: bigint, gatherRatePct: bigint): bigint {
   return scaled > 1n ? scaled : 1n;
 }
 
+/**
+ * Whether a percent chance hits at roll `index` once an admin item pin is applied. With no pin (100)
+ * it is exactly the plain roll, rollBelow(seed, index, 100) < chancePct, so an unpinned drop rolls as
+ * before. A pin rolls in basis points instead, so the chance is chancePct x pin / 100 with no rounding
+ * to whole percents (a 6% drop pinned at 50 is 3%, at 150 it is 9%; a 1% drop pinned at 50 is 0.5%).
+ * A pin of 0 never hits. Review A WR-04: essences and modifier reagents read the pins too.
+ */
+export function pinnedChanceHit(seed: bigint, index: bigint, chancePct: bigint, itemPct?: bigint | null): boolean {
+  const pin = pinPct(itemPct);
+  if (pin === 100n) return rollBelow(seed, index, 100n) < chancePct;
+  return rollBelow(seed, index, 10000n) < chancePct * pin;
+}
+
 /** A chance in percent scaled by the drop rate, at most 100. */
 export function scaledChancePct(basePct: bigint, dropPct: bigint): bigint {
   const pct = clampDial('dropRatePct', dropPct).value;

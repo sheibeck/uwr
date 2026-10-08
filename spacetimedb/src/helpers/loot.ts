@@ -40,6 +40,7 @@ import {
   pickWeighted,
   pickWithoutReplacement,
   pinPct,
+  pinnedChanceHit,
   pinWeights,
   rarityMix,
   rollBelow,
@@ -363,21 +364,23 @@ export function rollEnemyLoot(ctx: any, lc: VictoryLootContext, enemyRow: any, t
   const gear = rollGear(ctx, lc, seed, level, profile, bossOrNamed, aiGear);
   if (gear) out.push(gear);
 
-  // Essence: the highest threshold the level reaches (thresholds are ordered highest first).
-  if (rollBelow(seed, ROLL_INDEX.ESSENCE, 100n) < scaledChancePct(ESSENCE_CHANCE_PCT, dropPct)) {
-    const threshold = ESSENCE_TIER_THRESHOLDS.find((t) => level >= t.minLevel);
-    const essence = threshold ? lc.essenceByName.get(threshold.essenceName) : undefined;
-    if (essence) out.push({ itemTemplateId: essence.id, kind: 'essence' });
+  // Essence: the highest threshold the level reaches (thresholds are ordered highest first). The
+  // template is decided before the chance roll so its item pin can scale the chance (review A WR-04);
+  // the rolls keep their own indexes, so the order changes no outcome.
+  const essenceThreshold = ESSENCE_TIER_THRESHOLDS.find((t) => level >= t.minLevel);
+  const essence = essenceThreshold ? lc.essenceByName.get(essenceThreshold.essenceName) : undefined;
+  if (essence && pinnedChanceHit(seed, ROLL_INDEX.ESSENCE, scaledChancePct(ESSENCE_CHANCE_PCT, dropPct), lc.pins.get(essence.id))) {
+    out.push({ itemTemplateId: essence.id, kind: 'essence' });
   }
 
-  // Modifier reagent: one of the names the level unlocks.
-  if (rollBelow(seed, ROLL_INDEX.MODIFIER, 100n) < scaledChancePct(MODIFIER_CHANCE_PCT, dropPct)) {
-    const threshold = MODIFIER_REAGENT_THRESHOLDS.find((t) => level >= t.minLevel);
-    const names = threshold?.reagentNames ?? [];
-    if (names.length > 0) {
-      const name = names[Number(rollBelow(seed, ROLL_INDEX.MODIFIER_PICK, BigInt(names.length)))];
-      const reagent = name !== undefined ? lc.modifierByName.get(name) : undefined;
-      if (reagent) out.push({ itemTemplateId: reagent.id, kind: 'modifier' });
+  // Modifier reagent: one of the names the level unlocks, picked first so its pin scales the chance.
+  const reagentThreshold = MODIFIER_REAGENT_THRESHOLDS.find((t) => level >= t.minLevel);
+  const reagentNames = reagentThreshold?.reagentNames ?? [];
+  if (reagentNames.length > 0) {
+    const name = reagentNames[Number(rollBelow(seed, ROLL_INDEX.MODIFIER_PICK, BigInt(reagentNames.length)))];
+    const reagent = name !== undefined ? lc.modifierByName.get(name) : undefined;
+    if (reagent && pinnedChanceHit(seed, ROLL_INDEX.MODIFIER, scaledChancePct(MODIFIER_CHANCE_PCT, dropPct), lc.pins.get(reagent.id))) {
+      out.push({ itemTemplateId: reagent.id, kind: 'modifier' });
     }
   }
 

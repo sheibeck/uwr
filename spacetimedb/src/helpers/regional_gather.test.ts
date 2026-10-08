@@ -142,6 +142,33 @@ describe('spawnResourceNode', () => {
     for (const never of [52n, 53n, 60n, 61n]) expect(made.has(never)).toBe(false);
   });
 
+  // Review A WR-04: an admin item pin scales a node's weight in the spawn pool (0 = never).
+  it('an item pinned at 0 never spawns as a node; the rest still do', () => {
+    const seed = world();
+    seed.economy_item_dial = [
+      { itemTemplateId: 50n, dropRatePct: 0n },
+      { itemTemplateId: 1n, dropRatePct: 0n },
+    ];
+    const ctx = ctxFor(seed);
+    const made = new Set<bigint>();
+    for (let offset = 0n; offset < 200n; offset += 1n) {
+      const node = location.spawnResourceNode(ctx, 10n, undefined, offset);
+      if (node) made.add(node.itemTemplateId);
+    }
+    expect(made.has(50n)).toBe(false);
+    expect(made.has(1n)).toBe(false);
+    expect(made.has(51n)).toBe(true);
+  });
+
+  it('a pool whose every entry is pinned at 0 spawns nothing and never throws', () => {
+    const seed = world();
+    const ctx0 = ctxFor(seed);
+    const ids = location.getGatherableResourceTemplates(ctx0, 'swamp', 'day', 1, 1n).map((e: any) => e.template.id as bigint);
+    seed.economy_item_dial = ids.map((id: bigint) => ({ itemTemplateId: id, dropRatePct: 0n }));
+    const ctx = ctxFor(seed);
+    expect(location.spawnResourceNode(ctx, 10n, undefined, 0n)).toBeUndefined();
+  });
+
   it('at a region-2 swamp location only region 2 gatherables join the pool', () => {
     const ctx = ctxFor();
     const made = new Set<bigint>();

@@ -23,6 +23,14 @@ import { applyDialChange, getDials, resetEconomy, setAiEnabled } from './economy
 import { startRegionEconomy } from './region_economy';
 import { LLM_RESTING_LINE } from './llm_queue';
 
+/**
+ * Said after an item pin is set (review A WR-04): which rolls a pin scales. A pin on an item that none
+ * of these rolls can produce (a crafted output, a quest reward, a starter item) changes nothing.
+ */
+export const ECONOMY_PIN_COVERAGE =
+  'A pin scales that item in kill drops, gear, essences, reagents, recipe scrolls and gathering nodes; ' +
+  'an item that never drops or grows is unaffected.';
+
 /** What a non-admin hears. The Keeper is he/his. */
 export const ECONOMY_ADMIN_REFUSAL_LINE = 'The Keeper does not open his ledgers to you.';
 
@@ -358,7 +366,7 @@ export function handleEconomyAdminCommand(ctx: any, character: any, text: string
         refuse(res.reason === 'unknown_item' ? 'No item by that name.' : ECONOMY_COMMAND_USAGE);
         return true;
       }
-      say(setReport(`Drop rate for ${plainText(item.name)}`, true, res));
+      say(`${setReport(`Drop rate for ${plainText(item.name)}`, true, res)} ${ECONOMY_PIN_COVERAGE}`);
       return true;
     }
 
