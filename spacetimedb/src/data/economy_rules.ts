@@ -10,10 +10,11 @@
 // Callers (later Phase 51.3 plans): the loot plan (helpers/loot.ts), gathering, the /economy admin
 // command and reducers, and the region economy apply. None of them re-derives a number.
 //
-// Purity rule: this module imports only ./mechanical_vocabulary and ./crafting_rules, never a helper,
+// Purity rule: this module imports only ./mechanical_vocabulary, never a helper,
 // the schema or the server package. ES2020 only, never throws, no clock, no source of chance. Every roll
 // is a splitmix64 step over a seed built from ctx values, so a re-run transaction replays identically.
-// All math is bigint with floor division; no seed is ever converted to Number.
+// All math is bigint; percent dials on weights scale exactly (scaleWeights), never by floor division to 0.
+// No seed is ever converted to Number.
 import { QUALITY_TIERS, type QualityTier } from './mechanical_vocabulary';
 
 // ---------------------------------------------------------------------------
@@ -201,7 +202,8 @@ export function pinWeights<T extends { itemTemplateId: bigint; weight: bigint }>
 /**
  * The fixed roll index of every independent roll. One seed, many indexes: a gear drop's rarity never
  * follows its gear roll (the old code rolled both from the same number shifted by a constant). Never
- * add an offset to a raw timestamp; add an index here. PICK_BASE uses 2..9 and AI_TABLE_PICK_BASE 41..43.
+ * add an offset to a raw timestamp; add an index here. PICK_BASE uses 2..4 (pickCount is at most 3)
+ * and AI_TABLE_PICK_BASE 41..43.
  */
 export const ROLL_INDEX = Object.freeze({
   PICK_COUNT: 1n,
