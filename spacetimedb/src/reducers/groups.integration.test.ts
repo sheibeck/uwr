@@ -29,6 +29,7 @@ const REDUCERS = [
   'reject_group_invite',
   'invite_to_group',
   'leave_group',
+  'set_follow_leader',
 ] as const;
 const handlers: Record<string, (...args: any[]) => any> = {};
 
@@ -49,7 +50,7 @@ type CharOver = { groupId?: bigint; online?: boolean };
 type Seed = {
   chars?: Record<number, CharOver>;
   groups?: Array<{ id: bigint; leader: bigint }>;
-  members?: Array<{ id: bigint; groupId: bigint; characterId: bigint; joinedAt?: bigint; role?: string }>;
+  members?: Array<{ id: bigint; groupId: bigint; characterId: bigint; joinedAt?: bigint; role?: string; followLeader?: boolean }>;
   invites?: Array<{ id: bigint; groupId: bigint; from: bigint; to: bigint; createdAt?: bigint }>;
 };
 
@@ -83,7 +84,7 @@ function newCtx(s: Seed = {}) {
         characterId: m.characterId,
         ownerUserId: USERS[Number(m.characterId) - 1].userId,
         role: m.role ?? 'member',
-        followLeader: true,
+        followLeader: m.followLeader ?? true,
         joinedAt: at(m.joinedAt ?? T0 - 10n),
       })),
       group_invite: (s.invites ?? []).map((i) => ({
@@ -1077,5 +1078,82 @@ describe("party actions need the caller's online character (code review IN-06)",
     expect(tableRows(ctx, 'group_invite')).toHaveLength(1);
     call(ctx, 'reject_group_invite', 2n, { fromName: 'Ann' });
     expect(tableRows(ctx, 'group_invite')).toHaveLength(0);
+  });
+});
+
+describe('set_follow_leader tells the party (owner 2026-10-08)', () => {
+  /** Ann (1) leads group 5 with Bram (2) and Cole (3); Bram follows unless `bramFollows` says otherwise. */
+  const party = (bramFollows = true): Seed => ({
+    chars: { 1: { groupId: 5n }, 2: { groupId: 5n }, 3: { groupId: 5n } },
+    groups: [{ id: 5n, leader: 1n }],
+    members: [
+      { id: 1n, groupId: 5n, characterId: 1n, role: 'leader' },
+      { id: 2n, groupId: 5n, characterId: 2n, followLeader: bramFollows },
+      { id: 3n, groupId: 5n, characterId: 3n },
+    ],
+  });
+  const bramFlag = (ctx: any) => membersOf(ctx, 5n).find((m) => m.characterId === 2n).followLeader;
+  const partyLines = (ctx: any) => tableRows(ctx, 'event_group');
+
+  it('turning follow off writes one party line in the owner wording', () => {
+    const ctx = newCtx(party(true));
+    call(ctx, 'set_follow_leader', 2n, { follow: false });
+    expect(bramFlag(ctx)).toBe(false);
+    expect(partyLines(ctx)).toHaveLength(1);
+    expect(partyLines(ctx)[0]).toMatchObject({
+      groupId: 5n,
+      characterId: 2n,
+      kind: 'group',
+      message: 'Bram is no longer following the leader.',
+    });
+  });
+
+  it('turning follow on writes one party line', () => {
+    const ctx = newCtx(party(false));
+    call(ctx, 'set_follow_leader', 2n, { follow: true });
+    expect(bramFlag(ctx)).toBe(true);
+    expect(partyLines(ctx)).toHaveLength(1);
+    expect(partyLines(ctx)[0]).toMatchObject({
+      groupId: 5n,
+      characterId: 2n,
+      kind: 'group',
+      message: 'Bram is now following the leader.',
+    });
+  });
+
+  it('an unchanged flag writes nothing: no party line, no private line, row unchanged', () => {
+    for (const flag of [true, false]) {
+      const ctx = newCtx(party(flag));
+      const before = JSON.stringify(membersOf(ctx, 5n), (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+      call(ctx, 'set_follow_leader', 2n, { follow: flag });
+      expect(partyLines(ctx)).toHaveLength(0);
+      expect(lines(ctx, 2n)).toEqual([]);
+      expect(bramFlag(ctx)).toBe(flag);
+      expect(JSON.stringify(membersOf(ctx, 5n), (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).toBe(before);
+    }
+  });
+
+  it('off then on writes two lines in order', () => {
+    const ctx = newCtx(party(true));
+    call(ctx, 'set_follow_leader', 2n, { follow: false });
+    call(ctx, 'set_follow_leader', 2n, { follow: true });
+    expect(partyLines(ctx).map((e) => e.message)).toEqual([
+      'Bram is no longer following the leader.',
+      'Bram is now following the leader.',
+    ]);
+  });
+
+  it('is one line for the whole group, never one per member', () => {
+    const ctx = newCtx(party(true));
+    call(ctx, 'set_follow_leader', 2n, { follow: false });
+    expect(membersOf(ctx, 5n)).toHaveLength(3);
+    expect(partyLines(ctx)).toHaveLength(1);
+  });
+
+  it('a solo character keeps the refusal and writes no party line', () => {
+    const ctx = newCtx();
+    call(ctx, 'set_follow_leader', 2n, { follow: false });
+    expect(lines(ctx, 2n)).toEqual(['Not in a group']);
+    expect(partyLines(ctx)).toHaveLength(0);
   });
 });

@@ -156,7 +156,21 @@ export const registerGroupReducers = (deps: any) => {
       if (!character.groupId) return failGroup(ctx, character, 'Not in a group');
       for (const member of ctx.db.group_member.by_group.filter(character.groupId)) {
         if (member.characterId === character.id) {
+          // Owner 2026-10-08: "When someone turns their follow on/off the party should get a
+          // message" saying that so-and-so stopped or started following the leader. One group
+          // line on a real change; an unchanged flag writes nothing. The actor reads it
+          // through my_group_events like everyone else.
+          if (member.followLeader === args.follow) return;
           ctx.db.group_member.id.update({ ...member, followLeader: args.follow });
+          appendGroupEvent(
+            ctx,
+            character.groupId,
+            character.id,
+            'group',
+            args.follow
+              ? `${character.name} is now following the leader.`
+              : `${character.name} is no longer following the leader.`
+          );
           return;
         }
       }
