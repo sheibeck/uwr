@@ -1110,8 +1110,8 @@ Plans:
 | 49. Character Creation Interview | v3.0 | 0/TBD | Not started | - |
 | 50. Ledger Screens: Character and Economy | v3.0 | 40/40 | Code complete, UAT deferred | - |
 | 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
-| 51.1. Party | v3.0 | 0/TBD | Not started | - |
-| 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
+| 51.1. Party | v3.0 | 16/16 | Code complete, UAT deferred | - |
+| 51.3. Regional Economy | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.3.1.1. Density Pools | v3.0 | 0/TBD | Not started | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |

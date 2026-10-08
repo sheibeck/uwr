@@ -314,6 +314,7 @@ Items acknowledged and deferred at the v2.2 close on 2026-10-05 (owner chose to 
 | 50 | verification_deferred_human | /gsd-verify-work 50 |
 | 51 | verification_deferred_human | /gsd-verify-work 51 |
 | 51.1 | verification_deferred_human | /gsd-verify-work 51.1 |
+| 51.3 | verification_deferred_human | /gsd-verify-work 51.3 |
 | quick 2026-10-08 | passed (owner, 2026-10-08: "all approved.") | `.planning/quick/2026-10-08-UAT.md` |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
@@ -333,6 +334,8 @@ Phase 46.1 (round-based combat) is code-complete and verified in code. 46.1-VERI
 Phase 48 (combat encounter UI) is code-complete and verified in code. 48-VERIFICATION.md is human_needed (6/6, 0 gaps, 3 behavior-unverified). Code review: WR-01..05 were fixed within the 3-iteration loop. WR-06 was fixed after the loop (d2d74a7b) and has not been re-reviewed. The only server change is the additive my_combat_aggro view, published locally with no clear; key length stays 108. Built overnight on 2026-10-06 under the auto-approve instruction. The deviations for owner review (A1, A4, A5, A8, A26) and the live checks are in 48-UAT.md.
 
 Phase 51.1 (Party) is code-complete and verified in code. 51.1-VERIFICATION.md is human_needed: SC1-SC4 verified, SC5 and SC6 present but behavior-unverified, 141 of 149 truths, 0 gaps. Three review iterations ran (server, client-social, client-rest), and the two review-3 warnings were fixed after the loop. Everything is published locally with no clear and the key stays at 108. The owner approved the first CR-01 sign-in on 2026-10-07. The re-test of the tightened token checks (issuer and audience pinned, email claim only) is deferred: on 2026-10-08 the owner said "Keep going. Im not at my computer, so I'll login test when I am back". It is item 1 in 51.1-UAT.md, with the one-line TOKEN_EMAIL_CHECK rollback. Maincloud blockers: WR-04 (require email_verified?) and IN-01 (production SpacetimeAuth client id in SPACETIMEAUTH_CLIENT_IDS).
+
+Phase 51.3 (Regional Economy) is code-complete and verified in code: 51.3-VERIFICATION.md is human_needed, 17/17 truths, 0 gaps. 13 plans in 7 waves; two review passes (A: 1 Critical, 6 Warning; B: 2 Warning, from the owner's live run) all fixed in 51.3-REVIEW-FIX.md, 9 Info items deferred. The owner approved the region_economy wording as written (pinned by sha256) and set recipe scrolls to 10%. Published locally several times with no clear; key length stays 108. The owner turned the AI economy on locally and ran one live /economy design on Kesterlane Basin (job 8206, about $0.03); its two mismatched crafted outputs were repaired in place (/economy repair). The 5 deferred checks are in 51.3-UAT.md.
 
 ## Session Continuity
 
