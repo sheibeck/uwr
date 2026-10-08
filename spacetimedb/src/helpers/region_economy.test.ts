@@ -833,3 +833,147 @@ describe('failRegionEconomy and markRegionEconomyPending', () => {
     expect(recorder.snapshotDb(ctx.db)).toBe(before);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 3: the late-creature apply and the end-to-end loot check
+// ---------------------------------------------------------------------------
+
+/** Region 1 designed by the region_k0 reply; the Drowned Tollman (103) then moves into the town. */
+function lateWorld(status: string | null = 'complete'): any {
+  const ctx = ctxFor(k0World());
+  econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, replyText('region_k0'));
+  ctx.db._tables.location_enemy_template.push({ id: 9n, locationId: 13n, enemyTemplateId: 103n });
+  const row = econRowOf(ctx, 1n);
+  if (status === null) ctx.db._tables.region_economy = [];
+  else row.status = status;
+  return ctx;
+}
+
+function lateJob(ctx: any, enemyId = 103n) {
+  const template = ctx.db.enemy_template.id.find(enemyId);
+  const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'enemy', template);
+  return { input, job: jobFor(input, 'enemy', enemyId) };
+}
+
+describe('late-creature apply', () => {
+  it('with the region complete and no entries, writes the drop, trophy, gear and a 4-6 entry loot table from the region gatherables', () => {
+    const ctx = lateWorld();
+    const { input, job } = lateJob(ctx);
+    expect(input.existingMaterials.map((m) => m.name)).toContain('Panlight Salt');
+    const itemsBefore = rows(ctx, 'item_template').length;
+    econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+
+    const d = slotItem(ctx, 'drop:103')!;
+    const t = slotItem(ctx, 'trophy:103')!;
+    const g = slotItem(ctx, 'gear:103')!;
+    expect([d.item.name, t.item.name, g.item.name]).toEqual(['Tollman Brine', 'Rusted Toll Token', 'Tollkeeper Hook']);
+    expect([d.tag.role, d.tag.kind, d.tag.enemyTemplateId, d.tag.regionId]).toEqual(['drop', 'base', 103n, 1n]);
+    expect([t.tag.role, g.tag.role, g.item.slot, g.item.weaponType, g.item.requiredLevel]).toEqual(['trophy', 'gear', 'mainHand', 'dagger', 2n]);
+    expect(rows(ctx, 'item_template').length).toBe(itemsBefore + 3);
+
+    const loot = rows(ctx, 'enemy_loot_entry').filter((e: any) => e.enemyTemplateId === 103n);
+    expect(loot.length).toBeGreaterThanOrEqual(4);
+    expect(loot.length).toBeLessThanOrEqual(6);
+    expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([d.item.id]);
+    const gatherIds = rows(ctx, 'economy_item').filter((r: any) => r.role === 'gather').map((r: any) => r.itemTemplateId);
+    const gatherables = loot.filter((e: any) => e.role === 'gatherable');
+    expect(gatherables.length).toBeGreaterThan(0);
+    for (const e of gatherables) expect(gatherIds).toContain(e.itemTemplateId);
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    expectWellFormed(ctx);
+    expectNoDuplicates(ctx);
+  });
+
+  for (const status of ['pending', 'failed', null]) {
+    it(`late-creature guard: with the region ${status ?? 'missing'} it writes nothing`, () => {
+      const ctx = lateWorld(status);
+      const { job } = lateJob(ctx);
+      const before = recorder.snapshotDb(ctx.db);
+      econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+      expect(recorder.snapshotDb(ctx.db)).toBe(before);
+    });
+  }
+
+  it('late-creature guard: an enemy that already has loot entries gets nothing', () => {
+    const ctx = lateWorld();
+    ctx.db._tables.enemy_loot_entry.push({ id: 900n, enemyTemplateId: 103n, regionId: 1n, itemTemplateId: 1n, role: 'drop', weight: 40n });
+    const { job } = lateJob(ctx);
+    const before = recorder.snapshotDb(ctx.db);
+    econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+    expect(recorder.snapshotDb(ctx.db)).toBe(before);
+  });
+
+  it('late-creature write-once: running it twice writes once', () => {
+    const ctx = lateWorld();
+    const { job } = lateJob(ctx);
+    econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+    const once = recorder.snapshotDb(ctx.db);
+    econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+    expect(recorder.snapshotDb(ctx.db)).toBe(once);
+  });
+
+  it('late-creature partial write then re-run leaves one set of rows', () => {
+    const ctx = lateWorld();
+    const { job } = lateJob(ctx);
+    expect(() => econ.applyRegionEconomyResult(throwOnce(ctx, 'enemy_loot_entry', 'insert'), job, replyText('late'))).toThrow(/forced/);
+    econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+    const fresh = lateWorld();
+    econ.applyRegionEconomyResult(fresh, lateJob(fresh).job, replyText('late'));
+    expect(recorder.snapshotDb(ctx.db)).toBe(recorder.snapshotDb(fresh.db));
+    expectNoDuplicates(ctx);
+  });
+
+  for (const [label, reply] of [
+    ['not json', 'not json'],
+    ['{}', '{}'],
+    ['lateCreature null', '{ "region": null, "lateCreature": null }'],
+  ]) {
+    it(`an unusable late reply (${label}) writes nothing and changes no status`, () => {
+      const ctx = lateWorld();
+      const { job } = lateJob(ctx);
+      const before = recorder.snapshotDb(ctx.db);
+      econ.applyRegionEconomyResult(ctx, job, reply);
+      expect(recorder.snapshotDb(ctx.db)).toBe(before);
+    });
+  }
+
+  it('failRegionEconomy on a late-creature job changes nothing', () => {
+    const ctx = lateWorld();
+    const { job } = lateJob(ctx);
+    const before = recorder.snapshotDb(ctx.db);
+    econ.failRegionEconomy(ctx, job);
+    expect(recorder.snapshotDb(ctx.db)).toBe(before);
+  });
+});
+
+describe('AI-table loot check: a designed enemy rolls from its written loot table', () => {
+  it('after a region apply, every common pick of E1 over 50 kills is one of its AI non-gear entries, never fallback junk', async () => {
+    const loot = await import('./loot');
+    const seed = k0World();
+    seed.item_template.push(itemRow(80n, 'Rat Tail', { slot: 'junk', isJunk: true }), itemRow(81n, 'Torn Pelt', { slot: 'junk', isJunk: true }));
+    seed.named_enemy = [];
+    const ctx = ctxFor(seed);
+    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, replyText('region_k0'));
+
+    const template = ctx.db.enemy_template.id.find(101n);
+    const ai = rows(ctx, 'enemy_loot_entry').filter((e: any) => e.enemyTemplateId === 101n);
+    const allowed = new Set(ai.filter((e: any) => e.role !== 'gear').map((e: any) => e.itemTemplateId));
+    expect(allowed.size).toBeGreaterThanOrEqual(3);
+
+    const combat = { id: 1n, locationId: 11n, createdAt: { microsSinceUnixEpoch: T0 } };
+    const participants = [{ id: 1n, combatId: 1n, characterId: 1n }];
+    const lc = loot.buildVictoryLootContext(ctx, combat, participants);
+    const enemy = { id: 7n, enemyTemplateId: 101n, level: 1n };
+    let commons = 0;
+    for (let k = 0; k < 50; k += 1) {
+      ctx.timestamp = { microsSinceUnixEpoch: T0 + BigInt(k) * 1_000_003n };
+      for (const item of loot.rollEnemyLoot(ctx, lc, enemy, template, 1n)) {
+        if (item.kind !== 'common') continue;
+        commons += 1;
+        expect(allowed.has(item.itemTemplateId)).toBe(true);
+        expect([80n, 81n]).not.toContain(item.itemTemplateId);
+      }
+    }
+    expect(commons).toBeGreaterThan(0);
+  });
+});
