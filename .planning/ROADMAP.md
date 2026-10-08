@@ -85,6 +85,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51: Ledger Screens: Map and Travel** - Map drawer and sheet, the rail travel panel, passage collapse, and the rail's Examine, Talk and bind stone actions
 - [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
+- [ ] **Phase 51.3.1: Combat Dials** (INSERTED) - Admin dials that make combat harder or easier by difficulty level, region and enemy type, beside the economy dials
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
 - [ ] **Phase 51.6: World Events** (INSERTED) - Rule-based world events per region, and the World events screen with contribution, rewards and tracking
@@ -733,6 +734,30 @@ Plans:
     - determinism
     - gather and drop rates
     - recipe craftability from regional materials
+
+### Phase 51.3.1: Combat Dials (INSERTED)
+
+**Goal**: An admin can make combat harder or easier without code changes, tuned by difficulty level, region and enemy type, using the same dial pattern as the 51.3 economy dials.
+**Depends on**: Phase 51.3 (the dial storage and admin command pattern)
+**Requirements**: TBD (owner request 2026-10-08)
+**Success Criteria** (what must be TRUE):
+
+  1. Combat dials exist globally and can be overridden by difficulty level (the enemy's level or con band relative to the player), by region, and by enemy type (creature type, plus bosses and named foes).
+  2. The dials cover at least enemy health, enemy damage and how often enemies use their abilities, with ranges set in discuss. Every dial defaults to today's tuning, so nothing changes until an admin moves one, and each value is clamped to a safe range.
+  3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
+  4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 52 admin screens get a panel beside the economy panel.
+  5. Tests cover the clamps, each override level and how they combine, and determinism.
+
+**Plans:** 0 plans
+**Notes**:
+
+  - Owner, 2026-10-08: "Could we also have a phase for combat dials? We'll want to be able to tune combat to make it harder/easier by difficulty level, redfin type". The owner then picked difficulty level, region type and enemy type, placed right after 51.3.
+  - Which combat numbers to expose (health, damage, armor, ability frequency, XP, flee) and how the levels combine (multiply or most-specific-wins) are for this phase's discuss.
+  - Server changes are additive, published locally only with the key check, never clearing the database.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 51.3.1 to break down)
 
 ### Phase 51.4: Loot Rails (INSERTED)
 
