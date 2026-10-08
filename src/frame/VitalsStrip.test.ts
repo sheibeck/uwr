@@ -15,6 +15,8 @@ import {
   createInertGame,
 } from '../game/context';
 import type { CombatController, FrameControls, GameData } from '../game/context';
+import { SOCIAL_KEY, createInertSocial } from '../social/socialContext';
+import type { SocialData } from '../social/socialContext';
 
 let wrapper: VueWrapper | null = null;
 
@@ -345,7 +347,13 @@ function combatGame(
 
 function mountCombat(
   game: Record<string, unknown>,
-  opts: { active?: boolean; roundNumber?: bigint | null; allyTargetId?: bigint | null; props?: Record<string, unknown> } = {},
+  opts: {
+    active?: boolean;
+    roundNumber?: bigint | null;
+    allyTargetId?: bigint | null;
+    props?: Record<string, unknown>;
+    social?: Partial<SocialData>;
+  } = {},
 ): {
   w: VueWrapper;
   selectAlly: ReturnType<typeof vi.fn>;
@@ -365,6 +373,7 @@ function mountCombat(
         } as unknown as GameData,
         [FRAME_KEY as symbol]: { ...createInertFrame(), openScreen } as FrameControls,
         [COMBAT_KEY as symbol]: controller,
+        [SOCIAL_KEY as symbol]: { ...createInertSocial(), ...opts.social } as SocialData,
       },
     },
     props: {
@@ -416,139 +425,231 @@ describe('VitalsStrip In combat tag', () => {
   });
 });
 
-describe('VitalsStrip ally chips', () => {
-  it('shows Party n as plain text, then You, then one button per member, then the effects', () => {
-    const { w } = mountCombat(partyGame({ effects: ref([fx(1n, 1n)]) }));
-    const row = w.get('.chip-row');
-    const party = row.get('.party-chip');
-    expect(party.element.tagName).toBe('SPAN');
-    expect(party.text()).toBe('Party 3');
-    const chips = row.findAll('.ally-chip');
-    expect(chips.map((c) => c.text())).toEqual(['You', 'Mara 95%', 'Bo 50%']);
-    for (const chip of chips) {
-      expect(chip.element.tagName).toBe('BUTTON');
-      expect(chip.classes()).toContain('tag-neutral');
-    }
-    expect(chips.map((c) => c.attributes('aria-label'))).toEqual([
-      'Target You with your next ability',
-      'Target Mara with your next ability',
-      'Target Bo with your next ability',
-    ]);
-    const kids = Array.from(row.element.children).map((e) => e.className);
-    expect(kids[0]).toContain('party-count');
-    expect(kids[1]).toContain('ally-chip');
-    expect(kids[3]).toContain('ally-chip');
-    expect(kids[4]).toContain('effect-chips');
-    expect(row.get('.effect-chips .tag').text()).toBe('Bless');
+// Phase 48 had a 'VitalsStrip ally chips' block here (Party n, You and Name % chips in combat). 51.1-15
+// replaces the combat chip row with the self row target, row 3 (your chips and pet tag) and the party
+// grid (UI-SPEC Supersedes). Each old case is rewritten below; the 'Was:' comments name it.
+const SELF = { id: 1n, level: 3n, xp: 318n };
+const SELF_LABEL =
+  'Target yourself with your next ability. Health 212 of 260, mana 140 of 280, stamina 60 of 0.';
+
+function myPet(over: Record<string, unknown> = {}) {
+  return {
+    id: 101n,
+    characterId: 1n,
+    combatId: 1n,
+    name: 'Ember',
+    level: 2n,
+    currentHp: 30n,
+    maxHp: 40n,
+    attackDamage: 4n,
+    expiresAtMicros: null,
+    ...over,
+  };
+}
+
+// A combat game where the active character row exists (the self row needs it).
+function selfGame(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return { characterId: ref(1n), character: ref(SELF), ...over };
+}
+
+describe('VitalsStrip self row in combat (51.1-15)', () => {
+  // Was: 'presses the You chip by default and marks it selected'.
+  it('makes the self row one pressed button with the three vitals in its label and the crosshair', () => {
+    const { w } = mountCombat(selfGame());
+    const self = w.get('button.self-target');
+    expect(self.attributes('type')).toBe('button');
+    expect(self.attributes('aria-pressed')).toBe('true');
+    expect(self.attributes('aria-label')).toBe(SELF_LABEL);
+    expect(self.find('.self-marker').exists()).toBe(true);
+    expect(self.classes()).toContain('selected');
+    // avatar, name through CharacterName, class line: all in the button
+    expect(self.get('.avatar').text()).toBe('B');
+    expect(self.get('.character-name').text()).toBe('Brannoch the Wanderer');
+    expect(self.get('.character-name').attributes('title')).toBe('Brannoch the Wanderer');
+    expect(self.get('.class-line').text()).toBe('Lv 6 · Ranger');
   });
 
-  it('presses the You chip by default and marks it selected', () => {
-    const { w } = mountCombat(partyGame());
-    const [you, mara, bo] = w.findAll('.ally-chip');
-    expect(you.attributes('aria-pressed')).toBe('true');
-    expect(you.classes()).toContain('selected');
-    expect(mara.attributes('aria-pressed')).toBe('false');
-    expect(bo.attributes('aria-pressed')).toBe('false');
-    expect(mara.classes()).not.toContain('selected');
+  it('puts the crown inside the button for the leader', () => {
+    const { w } = mountCombat(selfGame({ group: ref({ id: 1n, leaderCharacterId: 1n }) }));
+    expect(w.find('button.self-target .crown').exists()).toBe(true);
   });
 
-  it('calls selectAlly with the tapped chip id and follows allyTargetId', async () => {
-    const { w, selectAlly, allyTargetId } = mountCombat(partyGame());
-    const [you, mara] = w.findAll('.ally-chip');
-    await mara.trigger('click');
+  it('keeps the tags as siblings after the button on the same row, never inside it', () => {
+    const { w } = mountCombat(selfGame(), { props: { levelUp: true, newSkill: true } });
+    const row = w.get('.identity-row');
+    const kids = Array.from(row.element.children).map((el) => el.className);
+    expect(kids).toHaveLength(2);
+    expect(kids[0]).toContain('self-target');
+    expect(kids[1]).toContain('tags');
+    expect(w.find('button.self-target .in-combat-tag').exists()).toBe(false);
+    expect(w.get('.tags').element.children[0].classList.contains('in-combat-tag')).toBe(true);
+    expect(w.get('.tags').text()).toContain('Level up');
+    expect(w.get('.tags').text()).toContain('New skill');
+  });
+
+  it('hides the XP line in combat, with or without the character row', () => {
+    expect(mountCombat(selfGame()).w.find('.xp-line').exists()).toBe(false);
+    wrapper?.unmount();
+    expect(mountCombat({ characterId: ref(1n) }).w.find('.xp-line').exists()).toBe(false);
+  });
+
+  // Was: 'calls selectAlly with the tapped chip id' (the You chip half).
+  it('calls selectAlly with your id and follows allyTargetId', async () => {
+    const { w, selectAlly, allyTargetId } = mountCombat(selfGame(), { allyTargetId: 2n });
+    const self = () => w.get('button.self-target');
+    expect(self().attributes('aria-pressed')).toBe('false');
+    expect(self().classes()).not.toContain('selected');
+    expect(self().find('.self-marker').exists()).toBe(false);
+    await self().trigger('click');
     expect(selectAlly).toHaveBeenCalledTimes(1);
-    expect(selectAlly).toHaveBeenCalledWith(2n);
-    await you.trigger('click');
-    expect(selectAlly).toHaveBeenLastCalledWith(1n);
-    allyTargetId.value = 2n;
+    expect(selectAlly).toHaveBeenCalledWith(1n);
+    allyTargetId.value = 1n;
     await nextTick();
-    const chips = w.findAll('.ally-chip');
-    expect(chips[1].attributes('aria-pressed')).toBe('true');
-    expect(chips[1].classes()).toContain('selected');
-    expect(chips[0].attributes('aria-pressed')).toBe('false');
+    expect(self().attributes('aria-pressed')).toBe('true');
+    expect(self().find('.self-marker').exists()).toBe(true);
   });
 
-  it('never opens the Social sheet from a chip in combat', async () => {
-    const { w, openScreen } = mountCombat(partyGame());
-    await w.get('.party-chip').trigger('click');
-    await w.findAll('.ally-chip')[1].trigger('click');
-    expect(openScreen).not.toHaveBeenCalled();
+  it('is not a button out of combat or before the character row exists', () => {
+    expect(mountCombat(selfGame(), { active: false }).w.find('button.self-target').exists()).toBe(false);
+    wrapper?.unmount();
+    const { w } = mountCombat({ characterId: ref(1n) });
+    expect(w.find('button.self-target').exists()).toBe(false);
+    // the identity row is still there, as plain markup, with the tag
+    expect(w.get('.identity-row .avatar').text()).toBe('B');
+    expect(w.find('.in-combat-tag').exists()).toBe(true);
   });
 
-  it('has no You chip and no targeting when solo with effects', () => {
-    const { w } = mountCombat({ characterId: ref(1n), effects: ref([fx(1n, 1n)]) });
+  it('keeps the out-of-combat identity row as plain markup (no wrapper) with the XP line', () => {
+    const { w } = mountCombat(selfGame(), { active: false });
+    const kids = Array.from(w.get('.identity-row').element.children).map((el) => el.className);
+    expect(kids[0]).toContain('avatar');
+    expect(kids[2]).toContain('tags');
+    expect(w.find('.xp-line').exists()).toBe(true);
+    expect(w.get('.name').element.tagName).toBe('DIV');
+  });
+
+  it('is unchanged in the compact variant', () => {
+    const { w } = mountCombat(selfGame({ effects: ref([fx(1n, 1n)]) }), { props: { compact: true } });
+    expect(w.find('button').exists()).toBe(false);
+    expect(w.find('.self-target').exists()).toBe(false);
+    expect(w.find('.row3').exists()).toBe(false);
+    expect(w.findAll('[role="progressbar"]')).toHaveLength(2);
+  });
+
+  it('renders the name as text, not markup', () => {
+    const { w } = mountCombat(selfGame(), { props: { name: '<img src=x onerror=alert(1)>' } });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('button.self-target .character-name').text()).toBe('<img src=x onerror=alert(1)>');
+  });
+
+  it('holds no nested button', () => {
+    const { w } = mountCombat(selfGame({ effects: ref([fx(1n, 1n)]) }), { props: { levelUp: true } });
+    expect(w.findAll('button button')).toHaveLength(0);
+  });
+});
+
+describe('VitalsStrip row 3 in combat (51.1-15)', () => {
+  // Was: 'has no You chip and no targeting when solo with effects'.
+  it('solo with effects and a timed pet: chips on the left, a non-button pet tag on the right, no grid', () => {
+    const timed = myPet({ expiresAtMicros: 9_000_000n });
+    const { w } = mountCombat(
+      selfGame({ effects: ref([fx(1n, 1n), fx(2n, 1n, { effectType: 'stun', magnitude: 1n })]) }),
+      { social: { petOf: (id: bigint) => (id === 1n ? (timed as never) : null), petSecondsLeft: () => 125 } },
+    );
+    const row = w.get('.row3');
+    expect(w.findAll('.row3')).toHaveLength(1);
+    const kids = Array.from(row.element.children);
+    expect(kids[0].querySelector('.effect-chips')).not.toBeNull();
+    expect(row.findAll('.effect-chips .tag')).toHaveLength(2);
+    const tag = row.get('.pet-tag');
+    expect(tag.element.tagName).toBe('SPAN');
+    expect(tag.element.parentElement).toBe(row.element);
+    expect(row.element.lastElementChild).toBe(tag.element);
+    expect(tag.attributes('tabindex')).toBeUndefined();
+    expect(tag.get('.sr-only').text()).toContain('Your pet Ember, health 75 percent');
+    expect(row.find('button').exists()).toBe(false);
+    expect(w.find('.party-grid').exists()).toBe(false);
+    expect(w.find('.ally-card').exists()).toBe(false);
     expect(w.find('.ally-chip').exists()).toBe(false);
     expect(w.find('.party-chip').exists()).toBe(false);
-    expect(w.findAll('.effect-chips .tag')).toHaveLength(1);
-    expect(w.get('.chip-row').classes()).not.toContain('ally-row');
+    expect(w.text()).not.toMatch(/\bYou\b/);
   });
 
-  it('renders an unknown member as a non-interactive Member chip', async () => {
-    const { w, selectAlly } = mountCombat(partyGame({ knownCharacters: ref([ch(3n, 'Bo')]) }));
-    const unknown = w.get('.member-chip');
-    expect(unknown.element.tagName).toBe('SPAN');
-    expect(unknown.text()).toBe('Member');
-    expect(unknown.attributes('aria-pressed')).toBeUndefined();
-    await unknown.trigger('click');
-    expect(selectAlly).not.toHaveBeenCalled();
-    expect(w.findAll('.ally-chip').map((c) => c.text())).toEqual(['You', 'Bo 95%']);
+  it('shows the pet tag alone, pushed right, when you have a pet and no effects', () => {
+    const { w } = mountCombat(selfGame(), {
+      social: { petOf: (id: bigint) => (id === 1n ? (myPet() as never) : null), petSecondsLeft: () => null },
+    });
+    const row = w.get('.row3');
+    expect(row.find('.effect-chips').exists()).toBe(false);
+    expect(row.get('.pet-tag').exists()).toBe(true);
   });
 
-  it('keeps the Phase 47 strip when combat.active is false, with a combat controller provided', async () => {
-    const { w, selectAlly, openScreen } = mountCombat(partyGame({ inCombat: ref(true) }), { active: false });
+  it('shows the effect chips alone when you have effects and no pet', () => {
+    const { w } = mountCombat(selfGame({ effects: ref([fx(1n, 1n)]) }));
+    const row = w.get('.row3');
+    expect(row.findAll('.effect-chips .tag')).toHaveLength(1);
+    expect(row.find('.pet-tag').exists()).toBe(false);
+    expect(row.get('.effect-chips').classes()).toContain('nowrap');
+  });
+
+  it('has no row 3 with no effects and no pet', () => {
+    const { w } = mountCombat(selfGame());
+    expect(w.find('.row3').exists()).toBe(false);
+    expect(w.find('.chip-row').exists()).toBe(false);
+  });
+
+  it('keeps the Phase 47 chip row out of combat and shows no pet tag there', async () => {
+    const { w, selectAlly, openScreen } = mountCombat(
+      partyGame(selfGame({ inCombat: ref(true) })),
+      {
+        active: false,
+        social: { petOf: () => myPet() as never, petSecondsLeft: () => null },
+      },
+    );
     const party = w.get('.party-chip');
     expect(party.element.tagName).toBe('BUTTON');
     expect(party.text()).toBe('Party 3');
-    expect(w.find('.ally-chip').exists()).toBe(false);
     expect(w.findAll('.member-chip').map((c) => c.text())).toEqual(['Mara 95%', 'Bo 50%']);
-    expect(w.get('.chip-row').classes()).not.toContain('ally-row');
+    expect(w.find('.row3').exists()).toBe(false);
+    expect(w.find('.pet-tag').exists()).toBe(false);
+    expect(w.find('.ally-card').exists()).toBe(false);
     await w.get('.member-chip').trigger('click');
     expect(selectAlly).not.toHaveBeenCalled();
     expect(openScreen).toHaveBeenCalledWith('social');
   });
 
-  it('renders names as text, not markup', () => {
-    const payload = '<img src=x onerror=alert(1)>';
-    const { w } = mountCombat(partyGame({ knownCharacters: ref([ch(2n, payload), ch(3n, 'Bo')]) }));
-    expect(w.find('img').exists()).toBe(false);
-    const chip = w.findAll('.ally-chip')[1];
-    expect(chip.text()).toBe(`${payload} 95%`);
-    expect(chip.attributes('aria-label')).toBe(`Target ${payload} with your next ability`);
-  });
-
-  it('keeps the long row in one sideways-scrolling line (5 allies, 6 effects, the tag)', () => {
-    const ids = [2n, 3n, 4n, 5n, 6n];
-    const { w } = mountCombat(
-      partyGame({
-        groupMembers: ref([gm(1n, 1n, 1n), ...ids.map((id) => gm(id, id, id))]),
-        knownCharacters: ref(ids.map((id) => ch(id, `Member ${id}`))),
-        effects: ref([1n, 2n, 3n, 4n, 5n, 6n].map((id) => fx(id, 1n))),
-      }),
-      { props: { levelUp: true, newSkill: true } },
-    );
-    expect(w.findAll('.ally-chip')).toHaveLength(6);
-    expect(w.findAll('.effect-chips .tag')).toHaveLength(6);
-    expect(w.get('.tags').element.children[0].classList.contains('in-combat-tag')).toBe(true);
-    expect(w.get('.effect-chips').classes()).toContain('nowrap');
-  });
-
-  it('stays out of the compact variant', () => {
-    const { w } = mountCombat(partyGame(), { props: { compact: true } });
+  it('has no chip row, no Party n text and no You chip in combat in a party', () => {
+    const { w } = mountCombat(partyGame(selfGame({ effects: ref([fx(1n, 1n)]) })));
     expect(w.find('.chip-row').exists()).toBe(false);
+    expect(w.find('.party-chip').exists()).toBe(false);
     expect(w.find('.ally-chip').exists()).toBe(false);
+    expect(w.text()).not.toContain('Party 3');
+  });
+
+  it('is out of the compact variant', () => {
+    const { w } = mountCombat(partyGame(selfGame()), { props: { compact: true } });
+    expect(w.find('.chip-row').exists()).toBe(false);
+    expect(w.find('.row3').exists()).toBe(false);
+    expect(w.find('.ally-card').exists()).toBe(false);
   });
 
   describe('source', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsStrip.vue'), 'utf8');
 
-    it('wires the controller, the tag and the 44px hit slop', () => {
+    it('wires the controller, the tags, the pet tag and the self row 44px rules without negative margins', () => {
       expect(source).toContain('InCombatTag');
+      expect(source).toContain('PetTag');
       expect(source).toContain('selectAlly');
-      expect(source).toContain('ally-chip');
+      expect(source).toContain('self-target');
       expect(source).toContain('with your next ability');
-      expect(source).toContain('height: 44px');
-      expect(source).toContain('translateY(-50%)');
+      expect(source).toContain('PhCrosshairSimple');
+      expect(source).toContain('min-height: 44px');
+      expect(source).toContain('padding: 4px 0');
+      expect(source).toContain('inset: 0 -4px');
+      expect(source).toContain('min-height: 28px');
       expect(source).toContain('inset 0 0 0 1px var(--color-accent)');
+      expect(source).not.toMatch(/margin:[^;]*-\d/);
+      expect(source).not.toContain('calc(-1');
     });
 
     it('gates combat on combat.active and reads inCombat only for the effect chips', () => {
