@@ -574,7 +574,7 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     expect(bindLocation).toHaveBeenCalledWith({ characterId: 1n });
   });
 
-  it('the Party tab sheet shows the Party block and the empty state when not in a party', async () => {
+  it('the Party tab sheet shows the Party header, Invite and the solo empty state (51.1 Plan 16)', async () => {
     const w = mountFrame(false);
     await w.get('button[data-tab="party"]').trigger('click');
     await settle();
@@ -582,10 +582,14 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     expect(sheet.get('h4').text()).toBe('Social');
     expect(sheet.get('h6').text()).toBe('Party');
     expect(sheet.text()).toContain('Invite');
-    expect(sheet.text()).toContain('No friends or party yet.');
+    // Plan 16 replaces the Phase 45 placeholder on mobile with the solo state.
+    expect(sheet.text()).toContain("You're travelling alone.");
+    expect(sheet.text()).toContain('Invite someone by name, or use the menu on a player in Nearby.');
+    expect(sheet.text()).not.toContain('No friends or party yet.');
+    expect(sheet.text()).not.toContain('This screen is still being built.');
   });
 
-  it('in a party the sheet shows the member cards and no empty state', async () => {
+  it('in a party the sheet shows the Party sheet: the self card, the member cards and no empty state', async () => {
     const { game } = fakeGame(partyRows());
     const w = mountFrame(false, game);
     await w.get('button[data-tab="party"]').trigger('click');
@@ -593,7 +597,10 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     const sheet = w.get('[role="dialog"]');
     expect(sheet.get('h6').text()).toBe('Party · 2');
     expect(sheet.text()).toContain('Mara');
+    expect(sheet.text()).toContain('Brannoch (you)');
     expect(sheet.text()).not.toContain('No friends or party yet.');
+    expect(sheet.text()).not.toContain("You're travelling alone.");
+    expect(sheet.find('.notice-line').exists()).toBe(false);
   });
 
   it('Invite in the Social sheet closes the sheet and puts "invite " in the composer input', async () => {

@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { PhCheckCircle, PhInfo, PhWarningCircle } from '@phosphor-icons/vue';
 import NoticeLine, { MIRRORED_KINDS } from './NoticeLine.vue';
@@ -41,9 +43,9 @@ function setup() {
     feed.ingest(source, row(kind, message, extra));
     feed.flush();
   }
-  function mountLine(rejection = 0): VueWrapper {
+  function mountLine(rejection = 0, extra: Record<string, unknown> = {}): VueWrapper {
     wrapper = mount(NoticeLine, {
-      props: { rejection },
+      props: { rejection, ...extra },
       global: { provide: { [GAME_KEY as symbol]: game } },
     });
     return wrapper;
@@ -174,5 +176,58 @@ describe('NoticeLine', () => {
     wrapper = null;
     const second = mountLine();
     expect(second.find('.notice-line').exists()).toBe(false);
+  });
+});
+
+// The kinds prop (51.1 Plan 16, research Pitfall 4): the Party sheet mirrors system and group lines;
+// every other use keeps the default set.
+describe('NoticeLine kinds', () => {
+  const SHEET = new Set(['system', 'group']);
+
+  it('with no kinds prop a private group line does not show (default unchanged)', async () => {
+    const { send, mountLine } = setup();
+    const w = mountLine();
+    send('private', 'group', 'You invited Bo.');
+    await nextTick();
+    expect(w.find('.notice-line').exists()).toBe(false);
+  });
+
+  it('with kinds system and group a group line arriving after mount shows, with the info icon', async () => {
+    const { send, mountLine } = setup();
+    const w = mountLine(0, { kinds: SHEET });
+    send('private', 'group', 'Only the leader can invite.');
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe('Only the leader can invite.');
+    expect(w.findComponent(PhInfo).exists()).toBe(true);
+    expect(w.findComponent(PhCheckCircle).exists()).toBe(false);
+  });
+
+  it('still shows system lines, and never shows friend, reward, chat or other-source lines', async () => {
+    const { send, mountLine } = setup();
+    const w = mountLine(0, { kinds: SHEET });
+    send('private', 'friend', 'A friend line.');
+    send('private', 'reward', 'A reward line.');
+    send('private', 'chat', 'A chat line.');
+    send('group', 'group', 'Someone else', { characterId: 99n });
+    send('location', 'system', 'location system');
+    await nextTick();
+    expect(w.find('.notice-line').exists()).toBe(false);
+    send('private', 'system', 'A system line.');
+    await nextTick();
+    expect(w.get('.notice-line').text()).toBe('A system line.');
+  });
+
+  it('a group line present at mount is never shown', async () => {
+    const { send, mountLine } = setup();
+    send('private', 'group', 'Old refusal.');
+    const w = mountLine(0, { kinds: SHEET });
+    expect(w.find('.notice-line').exists()).toBe(false);
+  });
+
+  it('keeps the default set pinned in the source and reads props.kinds in the filter', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/ledger/NoticeLine.vue'), 'utf8');
+    expect(source).toContain('kinds?: ReadonlySet<string>');
+    expect(source).toContain('kinds: () => MIRRORED_KINDS');
+    expect(source).toContain('props.kinds.has(entry.kind)');
   });
 });

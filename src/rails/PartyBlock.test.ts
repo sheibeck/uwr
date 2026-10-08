@@ -984,3 +984,59 @@ describe('PartyBlock out of combat (51.1)', () => {
     expect(source).toContain('@game-data/group_config');
   });
 });
+
+// The sheet variant (51.1 Plan 16, 51.1-UI-SPEC "Mobile Party Sheet"). The behaviours of the whole
+// sheet are in src/social/PartySheet.test.ts; these pin that the variant prop leaves the rail alone.
+describe('PartyBlock variants (51.1 Plan 16)', () => {
+  function mountVariant(variant: 'rail' | 'sheet' | undefined, group: boolean): VueWrapper {
+    const game = {
+      ...createInertGame(),
+      group: ref(group ? { id: 1n, leaderCharacterId: 1n } : null),
+      groupMembers: ref(group ? [member(11n, 1n, 100n), member(12n, 3n, 200n)] : []),
+      knownCharacters: ref(group ? [character(3n, 'Bo', { online: true, locationId: 10n })] : []),
+      characterId: ref<bigint | null>(1n),
+      character: ref(character(1n, 'Ann', { online: true, locationId: 10n })),
+      connected: ref(true),
+    } as unknown as GameData;
+    wrapper = mount(PartyBlock, {
+      attachTo: document.body,
+      props: variant === undefined ? {} : { variant },
+      global: {
+        provide: {
+          [GAME_KEY as symbol]: game,
+          [CONSOLE_KEY as symbol]: createInertConsole(),
+          [SOCIAL_KEY as symbol]: createInertSocial(),
+        },
+      },
+    });
+    return wrapper;
+  }
+
+  it('defaults to the rail recipe: no sheet classes, no self card, the 28px member cards', () => {
+    const w = mountVariant(undefined, true);
+    expect(w.find('button.invite.sheet').exists()).toBe(false);
+    expect(w.find('.self-entry').exists()).toBe(false);
+    expect(w.find('.member-card.sheet').exists()).toBe(false);
+    expect(w.find('.resource-track').exists()).toBe(true);
+    const solo = mountVariant('rail', false);
+    expect(solo.text()).toContain('Not in a party.');
+    expect(solo.find('.empty-state').exists()).toBe(false);
+  });
+
+  it('the sheet variant draws the sheet recipe and the solo empty state', () => {
+    const w = mountVariant('sheet', true);
+    expect(w.get('button.invite').classes()).toContain('sheet');
+    expect(w.find('.self-entry .member-card.self').exists()).toBe(true);
+    expect(w.find('.member-card.sheet .resource-track').exists()).toBe(false);
+    const solo = mountVariant('sheet', false);
+    expect(solo.text()).toContain("You're travelling alone.");
+    expect(solo.text()).not.toContain('Not in a party.');
+  });
+
+  it('the source carries the solo copy', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/rails/PartyBlock.vue'), 'utf8');
+    expect(source).toContain("You're travelling alone.");
+    expect(source).toContain('Invite someone by name, or use the menu on a player in Nearby.');
+    expect(source).toContain('variant?:');
+  });
+});

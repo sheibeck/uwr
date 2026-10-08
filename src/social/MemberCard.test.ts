@@ -265,3 +265,142 @@ describe('MemberCard source', () => {
     expect(source).not.toContain('v-html');
   });
 });
+
+// The mobile Party sheet recipe (51.1-UI-SPEC "Mobile Party Sheet" items 5 and 6): the sheet card has
+// the place line 'Lv {n} · {Here | place | Offline} · {s} st', only the 4px health bar, the 44px ⋯;
+// the self card (you) reads your name with ' (you)', your follow icon, 'Lv {n} · {s} st', no bars.
+describe('MemberCard sheet variant', () => {
+  const SALTMARSH = 20n;
+
+  function mountSheet(
+    props: { member?: PartyMemberView; state?: FollowState | null; self?: boolean } = {},
+    options: { characterLocation?: bigint } = {},
+  ): VueWrapper {
+    const base = gameFor();
+    const game = {
+      ...base,
+      character: ref(row(ME, 'Ann', { locationId: options.characterLocation ?? 10n })),
+      locations: ref([
+        { id: 10n, name: 'Ember Gate' },
+        { id: SALTMARSH, name: 'Saltmarsh Gate' },
+      ]),
+    } as unknown as GameData;
+    const frame = { ...createInertFrame(), isDesktop: ref(false) } as unknown as FrameControls;
+    wrapper = mount(MemberCard, {
+      attachTo: document.body,
+      props: {
+        member: props.member ?? view(),
+        state: props.state === undefined ? 'comes_along' : props.state,
+        variant: 'sheet',
+        ...(props.self ? { self: true } : {}),
+      },
+      global: {
+        provide: {
+          [GAME_KEY as symbol]: game,
+          [SOCIAL_KEY as symbol]: createInertSocial(),
+          [CONSOLE_KEY as symbol]: createInertConsole(),
+          [FRAME_KEY as symbol]: frame,
+        },
+      },
+    });
+    return wrapper;
+  }
+
+  it('a member at your place reads Lv 6 · Here · 12 st', () => {
+    const w = mountSheet();
+    expect(w.get('.member-line').text()).toBe('Lv 6 · Here · 12 st');
+    expect(w.get('.member-place').text()).toBe('Here');
+  });
+
+  it('a member elsewhere reads the place name', () => {
+    const w = mountSheet({ member: view({ locationId: SALTMARSH }) });
+    expect(w.get('.member-line').text()).toBe('Lv 6 · Saltmarsh Gate · 12 st');
+    expect(w.get('.member-place').attributes('title')).toBe('Saltmarsh Gate');
+  });
+
+  it('an offline member reads Offline', () => {
+    const w = mountSheet({ member: view({ online: false, locationId: SALTMARSH }) });
+    expect(w.get('.member-line').text()).toBe('Lv 6 · Offline · 12 st');
+    expect(w.get('.member-card').classes()).toContain('muted');
+  });
+
+  it('a member whose place is not known yet reads no place text instead of a wrong one', () => {
+    const w = mountSheet({ member: view({ locationId: 99n }) });
+    expect(w.get('.member-line').text()).toBe('Lv 6 · 12 st');
+  });
+
+  it('the place is the one part that ellipsizes: the Lv and stamina parts do not shrink', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/social/MemberCard.vue'), 'utf8');
+    expect(source).toMatch(/.member-place {[^}]*text-overflow: ellipsis/);
+    expect(source).toMatch(/.line-fixed {[^}]*flex: none/);
+  });
+
+  it('shows the 4px health bar and no resource bar and no class text', () => {
+    const w = mountSheet();
+    expect(w.find('.health-track').exists()).toBe(true);
+    expect(w.find('.resource-track').exists()).toBe(false);
+    expect(w.find('.member-class').exists()).toBe(false);
+    expect(w.get('.health-track').attributes('aria-label')).toBe('Bo health 50 of 100');
+  });
+
+  it('carries the status word, the follow icon, the crown and the low mark', () => {
+    const w = mountSheet({ member: view({ isLeader: true, stamina: 3n, lowStamina: true }), state: 'leader' });
+    expect(w.get('.status-word').text()).toBe('online');
+    expect(w.get('.follow-icon').attributes('title')).toBe('Leader · others travel with them');
+    expect(w.find('.crown').exists()).toBe(true);
+    expect(w.get('.member-stamina').classes()).toContain('low');
+    expect(w.find('.low-icon').exists()).toBe(true);
+    expect(w.get('.stamina-sr').text()).toBe('Stamina 3 of 40, too low to travel');
+  });
+
+  it('its ⋯ is the 44px sheet size and the last child', () => {
+    const w = mountSheet();
+    const opener = w.get('button.menu-opener');
+    expect(opener.classes()).toContain('sheet');
+    expect(opener.attributes('aria-label')).toBe('Actions for Bo');
+    expect((w.get('.member-card').element.lastElementChild as HTMLElement).classList.contains('player-menu')).toBe(true);
+  });
+
+  it('the unknown card reads Member, muted, with no ⋯, bar or place line', () => {
+    const w = mountSheet({
+      member: view({ name: '', className: '', known: false, online: false, hp: 0n, maxHp: 0n }),
+      state: null,
+    });
+    expect(w.get('.member-name').text()).toBe('Member');
+    expect(w.get('.member-card').classes()).toContain('unknown');
+    expect(w.find('.player-menu').exists()).toBe(false);
+    expect(w.find('.member-line').exists()).toBe(false);
+    expect(w.find('.health-track').exists()).toBe(false);
+    expect(w.find('button').exists()).toBe(false);
+  });
+
+  it('the self card reads your name with (you), your follow icon, Lv 4 · 30 st and no bars', () => {
+    const w = mountSheet({
+      self: true,
+      member: view({ id: ME, name: 'Ann', level: 4n, stamina: 30n, isLeader: true }),
+      state: 'leader',
+    });
+    expect(w.get('.member-card').classes()).toContain('self');
+    expect(w.get('.character-name').text()).toBe('Ann (you)');
+    expect(w.find('.crown').exists()).toBe(true);
+    expect(w.get('.follow-icon').attributes('title')).toBe('Leader · others travel with them');
+    expect(w.get('.member-line').text()).toBe('Lv 4 · 30 st');
+    expect(w.find('.member-place').exists()).toBe(false);
+    expect(w.find('.health-track').exists()).toBe(false);
+    expect(w.find('.resource-track').exists()).toBe(false);
+    expect(w.findAll('[role="progressbar"]')).toHaveLength(0);
+  });
+
+  it('the self card ⋯ is "Actions for yourself", 44px', () => {
+    const w = mountSheet({ self: true, member: view({ id: ME, name: 'Ann', isLeader: true }), state: 'leader' });
+    const opener = w.get('button.menu-opener');
+    expect(opener.attributes('aria-label')).toBe('Actions for yourself');
+    expect(opener.classes()).toContain('sheet');
+  });
+
+  it('renders names as text, not markup', () => {
+    const w = mountSheet({ member: view({ name: PAYLOAD, locationId: SALTMARSH }) });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.member-name').text()).toBe(PAYLOAD);
+  });
+});
