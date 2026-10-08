@@ -21,14 +21,16 @@ import EmptyState from '../screens/EmptyState.vue';
 // area. Names and classes come from server rows and are rendered as text nodes only.
 //
 // Out of a fight this is the 51.1 recipe (51.1-UI-SPEC "Vitals Rail Party Block", out of
-// combat, items 3-11): the header with the gated Invite, the follow summary, the stamina warning,
+// combat, items 3-11): the header with the gated Invite, the stamina warning (no follow summary on
+// the rail since 2026-10-08),
 // one MemberCard per other member each followed by its pet row, 'Not in a party.' when solo,
-// 'Loot: personal', Invited · waiting and the incoming invite card.
+// Invited · waiting and the incoming invite card. There is no 'Loot: personal' line: loot is always
+// personal, so the owner removed it (2026-10-08).
 //
 // In a fight (game.combat.active) it is the COMBAT3 recipe (51.1-UI-SPEC "Vitals Rail Party Block",
 // In combat): no visible header (an .sr-only 'Party · {n}' heading in a party), one CombatMemberCard
 // per other member (the ally target button with the ⋯ beside it) each followed by its pet row, and the
-// incoming invite card. Invite, the follow summary, the stamina warning, 'Loot: personal' and
+// incoming invite card. Invite, the follow summary, the stamina warning and
 // Invited · waiting only matter for travel and hide. Your own target is the vitals rail self block.
 // The .sr-only heading renders in every fight, solo too ('Party'): it is invisible, and it is where
 // focus goes after Leave party, a removal or an answered invite (51.1 review client-rest WR-02).
@@ -36,7 +38,7 @@ import EmptyState from '../screens/EmptyState.vue';
 // The sheet variant (51.1-UI-SPEC "Mobile Party Sheet", Plan 16) is the mobile Party tab's body: the
 // incoming invite card first, then the header with a 44px Invite, the summary and warning, the
 // Travel with leader switch, your self card with your pet row, the member cards (each with its pet
-// row), Loot: personal and Invited · waiting. Solo it is the header, your pet row and an EmptyState.
+// row) and Invited · waiting. Solo it is the header, your pet row and an EmptyState.
 // The host adds the NoticeLine at the foot. The rail variant (the default) is unchanged.
 const props = withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { variant: 'rail' });
 
@@ -96,7 +98,11 @@ const inCombat = computed(() => game.combat.active.value);
 // locks the screens, 48-UI-SPEC A5) and has no ally targets, so it keeps its own recipe; the
 // summary, the warning, the switch and Invited · waiting still hide in a fight.
 const outOfCombat = computed(() => !inCombat.value || isSheet.value);
-const summary = computed(() => (inCombat.value ? null : (travel.value?.summary ?? null)));
+// The follow summary ('{n} of {m} travel with you · …') is the sheet's only: the owner removed it
+// from the desktop rail to save room (2026-10-08). The follow icons on the cards still show it.
+const summary = computed(() =>
+  inCombat.value || !isSheet.value ? null : (travel.value?.summary ?? null),
+);
 const warning = computed(() => (inCombat.value ? null : (travel.value?.warning ?? null)));
 
 // Each member with their pet (one per character), in card order.
@@ -301,10 +307,6 @@ function invite(): void {
         <p v-else class="empty">Not in a party.</p>
       </template>
 
-      <p v-if="inParty && !inCombat" class="loot" title="Each fighter rolls their own loot.">
-        Loot: personal<span class="sr-only">{{ ' ' }}Each fighter rolls their own loot.</span>
-      </p>
-
       <OutgoingInvites :variant="isSheet ? 'sheet' : 'rail'" @focus-heading="focusHeading" />
     </template>
 
@@ -415,12 +417,6 @@ ul.cards {
 .line-icon {
   flex: none;
   margin-top: 4px;
-}
-
-.loot {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-neutral-500);
 }
 
 .sr-only {

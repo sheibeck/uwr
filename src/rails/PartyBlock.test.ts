@@ -282,7 +282,7 @@ describe('PartyBlock in combat (ally targeting)', () => {
     expect(w.text()).not.toContain('Invite');
   });
 
-  it('hides the summary, the stamina warning, Loot: personal and Invited · waiting', () => {
+  it('hides the summary, the stamina warning and Invited · waiting', () => {
     const known = [...(FIGHT.knownCharacters as unknown[]), online(5n, 'Dee', { groupId: undefined })];
     const { w } = mountCombat({
       ...FIGHT,
@@ -680,7 +680,7 @@ describe('PartyBlock stamina (51-UI-SPEC "Party Stamina in the Vitals Rail")', (
 });
 
 // 51.1-UI-SPEC "Vitals Rail Party Block (desktop)", out of combat, order 3-11: the gated Invite, the
-// follow summary and stamina warning, member cards with their pets, Loot: personal, Invited · waiting
+// follow summary and stamina warning, member cards with their pets, Invited · waiting
 // and the incoming invite card.
 describe('PartyBlock out of combat (51.1)', () => {
   const ME = 1n;
@@ -749,42 +749,39 @@ describe('PartyBlock out of combat (51.1)', () => {
     expect(w.get('.party-head h6').attributes('tabindex')).toBe('-1');
   });
 
-  it('leader of 3: Party · 3, Invite enabled, the summary, cards in order and Loot: personal', () => {
+  it('leader of 3: Party · 3, Invite enabled, no follow summary, cards in order and no Loot line', () => {
     const { w } = mountBlock(leading());
     expect(w.get('h6').text()).toBe('Party · 3');
     expect(w.get('button.invite').attributes('aria-disabled')).toBeUndefined();
-    expect(w.get('.summary').text()).toBe('2 of 2 travel with you');
-    expect(w.find('.summary svg').exists()).toBe(true);
+    expect(w.find('.summary').exists()).toBe(false);
+    expect(w.text()).not.toContain('travel with');
     expect(w.findAll('.member-card').map((c) => c.get('.member-name').text())).toEqual(['Bo', 'Mara']);
-    const loot = w.get('.loot');
-    expect(loot.element.tagName).toBe('P');
-    expect(loot.attributes('title')).toBe('Each fighter rolls their own loot.');
-    expect(loot.get('.sr-only').text()).toBe('Each fighter rolls their own loot.');
-    expect(loot.text()).toContain('Loot: personal');
-    expect(loot.find('button').exists()).toBe(false);
+    // Loot is always personal, so there is no Loot line (owner, 2026-10-08).
+    expect(w.find('.loot').exists()).toBe(false);
+    expect(w.text()).not.toContain('Loot');
     expect(w.text()).not.toContain('Not in a party.');
   });
 
-  it('places the summary after the header and before the cards, Loot after the cards', () => {
+  it('places the header before the cards', () => {
     const { w } = mountBlock(leading());
     const kids = childClasses(w.get('section.party').element);
-    expect(kids.indexOf('party-head')).toBeLessThan(kids.indexOf('summary'));
-    expect(kids.indexOf('summary')).toBeLessThan(kids.indexOf('cards'));
-    expect(kids.indexOf('cards')).toBeLessThan(kids.indexOf('loot'));
+    expect(kids.indexOf('party-head')).toBeLessThan(kids.indexOf('cards'));
   });
 
-  it('a summary names who stays behind', () => {
+  it('the rail shows no follow summary, even with someone left behind (owner, 2026-10-08)', () => {
     const { w } = mountBlock(
       leading({
         groupMembers: [followMember(11n, ME, 100n), followMember(12n, BO, 200n, false), followMember(13n, MARA, 300n)],
       }),
     );
-    expect(w.get('.summary').text()).toBe('1 of 2 travel with you · Bo stays behind');
+    expect(w.find('.summary').exists()).toBe(false);
+    expect(w.text()).not.toContain('stays behind');
+    expect(w.text()).not.toContain('travel with you');
   });
 
-  it('a member reads the summary with the leader name and sees the follow icons', () => {
+  it('a member sees the follow icons and no follow summary', () => {
     const { w } = mountBlock(following());
-    expect(w.get('.summary').text()).toBe('2 of 2 travel with Mara');
+    expect(w.find('.summary').exists()).toBe(false);
     const [mara, bo] = w.findAll('.member-card');
     expect(mara.get('.follow-icon').attributes('title')).toBe('Leader · others travel with them');
     expect(bo.get('.follow-icon').attributes('title')).toBe('Travels with the leader');
@@ -798,7 +795,7 @@ describe('PartyBlock out of combat (51.1)', () => {
     expect(mara.classes()).toContain('muted');
     expect(mara.get('.status-word').text()).toBe('offline');
     expect(mara.get('.follow-icon').attributes('title')).toBe("Follows the leader, but isn't with them");
-    expect(w.get('.summary').text()).toBe('1 of 2 travel with you · Mara stays behind');
+    expect(w.find('.summary').exists()).toBe(false);
   });
 
   it('shows the stamina warning in con red when a traveller is short, and not otherwise', () => {
@@ -809,7 +806,7 @@ describe('PartyBlock out of combat (51.1)', () => {
     expect(warning.text()).toBe('Mara does not have enough stamina to travel.');
     expect(warning.find('svg').exists()).toBe(true);
     const kids = childClasses(short.get('section.party').element);
-    expect(kids.indexOf('summary')).toBeLessThan(kids.indexOf('warning'));
+    expect(kids.indexOf('party-head')).toBeLessThan(kids.indexOf('warning'));
     expect(kids.indexOf('warning')).toBeLessThan(kids.indexOf('cards'));
     wrapper?.unmount();
     const fine = mountBlock(leading()).w;
@@ -910,7 +907,7 @@ describe('PartyBlock out of combat (51.1)', () => {
       }),
     );
     const kids = childClasses(w.get('section.party').element);
-    expect(kids.indexOf('loot')).toBeLessThan(kids.indexOf('outgoing'));
+    expect(kids.indexOf('cards')).toBeLessThan(kids.indexOf('outgoing'));
     expect(w.get('section.outgoing h6').text()).toBe('Invited · waiting');
     expect(kids[kids.length - 1]).toBe('invite-root');
   });

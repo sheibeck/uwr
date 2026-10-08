@@ -243,7 +243,6 @@ describe('mobile Party sheet populated (Q5)', () => {
       '.self-entry .member-card',
       '.self-entry .pet-row',
       'ul.cards',
-      '.loot',
       '.outgoing',
       '.notice-line',
     ]);
@@ -285,9 +284,10 @@ describe('mobile Party sheet populated (Q5)', () => {
     }
   });
 
-  it('shows Loot: personal and the summary and no desktop empty state', () => {
+  it('shows the summary, no Loot line and no desktop empty state', () => {
     const { w } = setup();
-    expect(w.get('.loot').text()).toContain('Loot: personal');
+    expect(w.find('.loot').exists()).toBe(false);
+    expect(w.text()).not.toContain('Loot');
     expect(w.get('.summary').text()).toBe('1 of 2 travel with you · Bo stays behind');
     expect(w.text()).not.toContain('No friends or party yet.');
     expect(w.text()).not.toContain("You're travelling alone.");
