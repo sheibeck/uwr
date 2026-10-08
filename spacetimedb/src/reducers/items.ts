@@ -11,6 +11,7 @@ import {
   findBuybackListing,
   takeFromVendorListing,
 } from '../helpers/vendor_sale';
+import { peaceAllyReason, peaceAllyRefusal } from '../data/ally_target_rules';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -904,6 +905,18 @@ export const registerItemReducers = (deps: any) => {
           targetCharacterId: args.targetCharacterId,
         });
         return;
+      }
+
+      // Out of combat the ally must be in your party, online, here and standing (owner
+      // 2026-10-08, data/ally_target_rules.ts). Checked before any cooldown, cast or effect, so a
+      // refusal spends nothing. This closes the gap where any id anywhere could be healed or
+      // buffed, or raised from 0 HP without the corpse flow.
+      if (args.targetCharacterId !== undefined && args.targetCharacterId !== null) {
+        const allyTarget = ctx.db.character.id.find(args.targetCharacterId);
+        const allyReason = peaceAllyReason(character, allyTarget);
+        if (allyReason !== 'ok') {
+          return failItem(ctx, character, peaceAllyRefusal(allyReason, allyTarget?.name ?? '') ?? '');
+        }
       }
 
       const nowMicros = ctx.timestamp.microsSinceUnixEpoch;

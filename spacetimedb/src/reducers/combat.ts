@@ -44,6 +44,7 @@ import {
   applyDeathPenalties,
   resetSpawnAfterCombat,
 } from '../helpers/combat_rewards';
+import { peaceAllyReason, peaceAllyRefusal } from '../data/ally_target_rules';
 
 const PET_BASE_DAMAGE = 3n;
 const DEFAULT_AI_CHANCE = 50;
@@ -1662,6 +1663,19 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.character_cast.id.delete(cast.id);
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', 'Your casting is interrupted by combat.');
         continue;
+      }
+      // A cast whose target left, logged out or fell is refused when it completes: the same
+      // out-of-combat ally rule use_ability checked at the start (owner 2026-10-08,
+      // data/ally_target_rules.ts), on the live rows. No cooldown is applied.
+      if (cast.targetCharacterId !== undefined && cast.targetCharacterId !== null) {
+        const allyTarget = ctx.db.character.id.find(cast.targetCharacterId);
+        const allyReason = peaceAllyReason(character, allyTarget);
+        if (allyReason !== 'ok') {
+          ctx.db.character_cast.id.delete(cast.id);
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability',
+            peaceAllyRefusal(allyReason, allyTarget?.name ?? '') ?? '');
+          continue;
+        }
       }
       // Apply cooldown on use, not on success — prevents kill-shot abilities from losing
       // their cooldown when combat ends before the subscription row arrives.
