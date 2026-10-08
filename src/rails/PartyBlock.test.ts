@@ -58,12 +58,16 @@ interface Setup {
   /** Your own character row (game.character). */
   self?: unknown;
   social?: Partial<SocialData>;
+  /** A live combat flag (the fight starting or ending after mount). */
+  fight?: { value: boolean };
 }
 
-function mountBlock(setup: Setup = {}): { w: VueWrapper; prefill: ReturnType<typeof vi.fn> } {
+function mountBlock(setup: Setup = {}): { w: VueWrapper; prefill: ReturnType<typeof vi.fn>; game: GameData } {
   const prefill = vi.fn();
+  const inert = createInertGame();
   const game = {
-    ...createInertGame(),
+    ...inert,
+    combat: { ...inert.combat, active: setup.fight ?? inert.combat.active },
     group: ref(setup.group ?? null),
     groupMembers: ref(setup.groupMembers ?? []),
     knownCharacters: ref(setup.knownCharacters ?? []),
@@ -84,7 +88,7 @@ function mountBlock(setup: Setup = {}): { w: VueWrapper; prefill: ReturnType<typ
       },
     },
   });
-  return { w: wrapper, prefill };
+  return { w: wrapper, prefill, game };
 }
 
 const PARTY: Setup = {
@@ -975,6 +979,88 @@ describe('PartyBlock out of combat (51.1)', () => {
     await nextTick();
     await nextTick();
     expect(document.activeElement?.tagName).toBe('H6');
+  });
+
+  // Review client-rest WR-05: Remove is confirmed inside the leaving card's open menu, so focus sits
+  // on the confirm button, not on the ⋯, when the card goes.
+  it('removing a member with focus on the menu Remove confirm moves focus to the next card ⋯', async () => {
+    const { w, game } = mountBlock(leading());
+    const members = game.groupMembers as unknown as { value: unknown[] };
+    await w.findAll('.menu-opener')[0].trigger('click');
+    await nextTick();
+    const removeItem = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      (el) => (el.textContent ?? '').includes('Remove from party'),
+    )!;
+    removeItem.click();
+    await nextTick();
+    const confirm = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
+      (el) => (el.textContent ?? '').trim() === 'Remove',
+    )!;
+    confirm.focus();
+    expect(w.findAll('.member-entry')[0].element.contains(document.activeElement)).toBe(true);
+    // Bo's rows go while his menu is still open (the row callbacks run before the promise resolves).
+    members.value = [followMember(11n, ME, 100n), followMember(13n, MARA, 300n)];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Actions for Mara');
+  });
+
+  // Review client-rest WR-03: the combat and out-of-combat card lists are separate recipes.
+  it('a fight ending while a member target has focus moves focus to that member ⋯', async () => {
+    const active = ref(true);
+    const { w } = mountBlock(leading({ fight: active }));
+    const targets = w.findAll('.member-target');
+    expect(targets).toHaveLength(2);
+    (targets[1].element as HTMLElement).focus();
+    active.value = false;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.member-target').exists()).toBe(false);
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Actions for Mara');
+  });
+
+  it('a fight starting while a member ⋯ has focus moves focus to the same member ⋯ in the combat card', async () => {
+    const active = ref(false);
+    const { w } = mountBlock(leading({ fight: active }));
+    (w.findAll('.menu-opener')[1].element as HTMLElement).focus();
+    active.value = true;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.member-target').exists()).toBe(true);
+    const focused = document.activeElement as HTMLElement;
+    expect(focused.getAttribute('aria-label')).toBe('Actions for Mara');
+    expect(focused.closest('.member-card')?.querySelector('.member-target')).not.toBeNull();
+  });
+
+  it('a member leaving in a fight while his target has focus moves focus to the next target, else the heading', async () => {
+    const active = ref(true);
+    const { w, game } = mountBlock(leading({ fight: active }));
+    const members = game.groupMembers as unknown as { value: unknown[] };
+    (w.findAll('.member-target')[0].element as HTMLElement).focus();
+    members.value = [followMember(11n, ME, 100n), followMember(13n, MARA, 300n)];
+    await nextTick();
+    await nextTick();
+    const next = document.activeElement as HTMLElement;
+    expect(next.classList.contains('member-target')).toBe(true);
+    expect(next.getAttribute('aria-label')).toContain('Target Mara');
+    members.value = [followMember(11n, ME, 100n)];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('h6.sr-only').element);
+  });
+
+  it('a fight starting while the Party heading or Invite has focus moves focus to the .sr-only heading', async () => {
+    const active = ref(false);
+    const { w } = mountBlock(leading({ fight: active }));
+    (w.get('button.invite').element as HTMLElement).focus();
+    active.value = true;
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('h6.sr-only').element);
+    active.value = false;
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('.party-head h6').element);
   });
 
   it('hides the summary, warning and Loot line in a fight', () => {

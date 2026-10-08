@@ -3,6 +3,7 @@ import { computed, inject, ref } from 'vue';
 import { PhFootprints, PhUserPlus, PhUsersThree, PhWarningCircle } from '@phosphor-icons/vue';
 import { MAX_GROUP_SIZE } from '@game-data/group_config';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import { keepFocus } from '../ledger/keepFocus';
 import { isPartyLeader, partyMembers, partySize } from './party';
 import type { PartyMemberView } from './party';
 import { partyTravelView } from '../social/follow';
@@ -43,6 +44,7 @@ const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const social = inject(SOCIAL_KEY, createInertSocial());
 
+const sectionEl = ref<HTMLElement | null>(null);
 const headingEl = ref<HTMLElement | null>(null);
 const cardsEl = ref<HTMLElement | null>(null);
 
@@ -134,17 +136,65 @@ function focusHeading(): void {
   headingEl.value?.focus();
 }
 
-// Focus after a member's card goes (UI-SPEC Accessibility "Remove a member"): the next card's ⋯,
-// else the Party heading. Runs while the leaving card is still in the DOM and holds focus, so the
-// opener now at that index is the one after it.
-function menuFallback(): HTMLElement | null {
-  const openers = Array.from(cardsEl.value?.querySelectorAll<HTMLElement>('.menu-opener') ?? []);
-  const active = document.activeElement;
-  const index = openers.findIndex((opener) => opener === active);
-  const rest = openers.filter((opener) => opener !== active);
-  if (index >= 0 && index < rest.length) return rest[index];
-  return headingEl.value;
+// Focus after the block re-renders (UI-SPEC Accessibility "Remove a member", 51.1 reviews
+// client-rest WR-03 and WR-05), through the shared keepFocus rule. Before the update it notes the
+// member card that holds focus (wherever inside it: the ⋯, its open menu or inline confirm, the
+// combat target button) and whether that was the menu or the target. After the update, when that
+// control is gone: the same member's card in the other recipe (a fight starting or ending), else the
+// card now at that index (the next one), using the same kind of control (the ⋯, or the target
+// button) and the other one where a recipe has only one; else the Party heading (visible, or the
+// .sr-only one in a fight). Focus elsewhere in the block (the heading, Invite, Invited · waiting)
+// that the change removes also goes to the heading.
+interface CardFocus {
+  memberId: string | null;
+  index: number;
+  role: 'menu' | 'target' | null;
 }
+
+function memberEntries(): HTMLElement[] {
+  const list = cardsEl.value;
+  if (list === null) return [];
+  return Array.from(list.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains('member-entry'),
+  );
+}
+
+function cardControl(entry: HTMLElement, role: 'menu' | 'target'): HTMLElement | null {
+  const opener = entry.querySelector<HTMLElement>('.menu-opener');
+  const target = entry.querySelector<HTMLElement>('.member-target');
+  return role === 'target' ? (target ?? opener) : (opener ?? target);
+}
+
+keepFocus<CardFocus>({
+  source: () =>
+    [
+      outOfCombat.value ? 'out' : 'fight',
+      inParty.value ? 'party' : 'solo',
+      ...members.value.map((member) => `${member.id}:${member.known ? 1 : 0}`),
+    ].join(','),
+  area: () => sectionEl.value,
+  capture: (active) => {
+    const entry = active.closest<HTMLElement>('.member-entry');
+    const index = entry === null ? -1 : memberEntries().indexOf(entry);
+    if (entry === null || index < 0) return { memberId: null, index: -1, role: null };
+    return {
+      memberId: entry.dataset.member ?? null,
+      index,
+      role: active.closest('.player-menu') !== null ? 'menu' : 'target',
+    };
+  },
+  restore: (mark) => {
+    if (mark.role === null) return headingEl.value;
+    const entries = memberEntries();
+    const same = entries.find((entry) => entry.dataset.member === mark.memberId);
+    const candidates = same === undefined ? entries.slice(mark.index) : [same, ...entries.slice(mark.index)];
+    for (const entry of candidates) {
+      const control = cardControl(entry, mark.role);
+      if (control !== null) return control;
+    }
+    return headingEl.value;
+  },
+});
 
 function memberLabel(member: { known: boolean; name: string }): string {
   return member.known ? member.name : 'Member';
@@ -157,7 +207,7 @@ function invite(): void {
 </script>
 
 <template>
-  <section class="party" :class="{ sheet: isSheet }" aria-label="Party">
+  <section ref="sectionEl" class="party" :class="{ sheet: isSheet }" aria-label="Party">
     <InviteCard v-if="isSheet" variant="sheet" @answered="focusHeading" />
 
     <div v-if="outOfCombat" class="party-head">
@@ -204,13 +254,13 @@ function invite(): void {
             />
           </div>
           <ul v-if="entries.length > 0" ref="cardsEl" class="cards">
-            <li v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
-              <MemberCard
-                :member="entry.member"
-                :state="followOf(entry.member)"
-                variant="sheet"
-                :fallback-focus="menuFallback"
-              />
+            <li
+              v-for="entry in entries"
+              :key="String(entry.member.id)"
+              class="member-entry"
+              :data-member="String(entry.member.id)"
+            >
+              <MemberCard :member="entry.member" :state="followOf(entry.member)" variant="sheet" />
               <PetRow
                 v-if="entry.pet !== null"
                 :pet="entry.pet"
@@ -233,8 +283,13 @@ function invite(): void {
       </template>
       <template v-else>
         <div v-if="inParty" ref="cardsEl" class="cards">
-          <div v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
-            <MemberCard :member="entry.member" :state="followOf(entry.member)" :fallback-focus="menuFallback" />
+          <div
+            v-for="entry in entries"
+            :key="String(entry.member.id)"
+            class="member-entry"
+            :data-member="String(entry.member.id)"
+          >
+            <MemberCard :member="entry.member" :state="followOf(entry.member)" />
             <PetRow
               v-if="entry.pet !== null"
               :pet="entry.pet"
@@ -254,8 +309,13 @@ function invite(): void {
     </template>
 
     <div v-else-if="inParty" ref="cardsEl" class="cards">
-      <div v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
-        <CombatMemberCard :member="entry.member" :state="followOf(entry.member)" :fallback-focus="menuFallback" />
+      <div
+        v-for="entry in entries"
+        :key="String(entry.member.id)"
+        class="member-entry"
+        :data-member="String(entry.member.id)"
+      >
+        <CombatMemberCard :member="entry.member" :state="followOf(entry.member)" />
         <PetRow
           v-if="entry.pet !== null"
           :pet="entry.pet"
