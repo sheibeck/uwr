@@ -245,6 +245,11 @@ describe('MemberCard unknown member', () => {
     expect(w.find('.player-menu').exists()).toBe(false);
     expect(w.find('button').exists()).toBe(false);
     expect((w.get('.health-track .fill').element as HTMLElement).style.width).toBe('0%');
+    // Review IN-07: no progressbar with a 0 maximum; the empty tracks are decorative.
+    expect(w.find('[role="progressbar"]').exists()).toBe(false);
+    expect(w.get('.health-track').attributes('aria-hidden')).toBe('true');
+    expect(w.get('.resource-track').attributes('aria-hidden')).toBe('true');
+    expect(w.get('.health-track').attributes('aria-valuemax')).toBeUndefined();
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     card.element.dispatchEvent(event);
     await nextTick();

@@ -111,3 +111,19 @@ describe('src/social source guards', () => {
     }
   });
 });
+
+// Review client-social IN-06: an icon that carries a name (the leader crown) needs role="img", or
+// several screen-reader and browser pairs ignore aria-label on an svg. Decorative icons are aria-hidden.
+describe('labelled icons have role="img"', () => {
+  const HOSTS = ['src/frame/VitalsRail.vue', 'src/frame/VitalsStrip.vue'].map((path) => resolve(process.cwd(), path));
+  for (const file of [...FILES, ...HOSTS]) {
+    const source = readFileSync(file, 'utf8');
+    const name = relative(process.cwd(), file).split(sep).join('/');
+    it(`${name}: every <Ph… aria-label> also has role="img"`, () => {
+      for (const match of source.matchAll(/<Ph[A-Z][^>]*>/g)) {
+        if (!/\saria-label=/.test(match[0])) continue;
+        expect(match[0], name).toContain('role="img"');
+      }
+    });
+  }
+});

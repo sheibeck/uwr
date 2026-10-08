@@ -140,7 +140,7 @@ function onContextMenu(event: MouseEvent): void {
     <div v-else class="member-target-static">
       <span class="member-row">
         <CharacterName class="member-name" name="Member" />
-        <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+        <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
       </span>
     </div>
     <PlayerMenu

@@ -160,7 +160,7 @@ const bars = computed(() => [
           <component :is="tag" class="identity-text">
             <component :is="tag" class="name-row">
               <component :is="tag" class="name" :title="props.name">{{ props.name }}</component>
-              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
             </component>
             <component :is="tag" class="class-line">{{ props.classLine }}</component>
           </component>

@@ -67,6 +67,20 @@ const staminaScreenText = computed(() =>
   props.member.lowStamina ? `${staminaText.value}, too low to travel` : staminaText.value,
 );
 
+// A bar's progressbar semantics. An unknown member (no character row yet) has no real values (all
+// 0, max 0), so its empty tracks stay as the 47 dimmed look but are hidden from assistive technology
+// instead of reading "Member health 0 of 0" (51.1 review client-social IN-07).
+function barAttrs(kind: string, value: bigint, max: bigint): Record<string, string | number> {
+  if (!known.value) return { 'aria-hidden': 'true' };
+  return {
+    role: 'progressbar',
+    'aria-label': `${label.value} ${kind} ${value} of ${max}`,
+    'aria-valuemin': 0,
+    'aria-valuenow': Number(value),
+    'aria-valuemax': Number(max),
+  };
+}
+
 function pct(value: bigint, max: bigint): string {
   return `${barFraction(value, max) * 100}%`;
 }
@@ -91,7 +105,7 @@ function onContextMenu(event: MouseEvent): void {
       <div class="member-row">
         <StatusDot v-if="known" :status="member.online ? 'online' : 'offline'" />
         <CharacterName class="member-name" :name="label" :you="props.self" />
-        <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+        <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
         <span v-if="known" class="sr-only status-word">{{ statusWord }}</span>
         <FollowIcon v-if="isSheet && known && state !== null" :state="state" />
         <span v-if="!isSheet" class="member-class">{{ member.className }}</span>
@@ -118,22 +132,14 @@ function onContextMenu(event: MouseEvent): void {
       <div
         v-if="!isSheet || (known && !props.self)"
         class="track health-track"
-        role="progressbar"
-        :aria-label="`${label} health ${member.hp} of ${member.maxHp}`"
-        aria-valuemin="0"
-        :aria-valuenow="Number(member.hp)"
-        :aria-valuemax="Number(member.maxHp)"
+        v-bind="barAttrs('health', member.hp, member.maxHp)"
       >
         <div class="fill fill-health" :style="{ width: pct(member.hp, member.maxHp) }"></div>
       </div>
       <div
         v-if="!isSheet"
         class="track resource-track"
-        role="progressbar"
-        :aria-label="`${label} ${member.resourceKind} ${member.resource} of ${member.maxResource}`"
-        aria-valuemin="0"
-        :aria-valuenow="Number(member.resource)"
-        :aria-valuemax="Number(member.maxResource)"
+        v-bind="barAttrs(member.resourceKind, member.resource, member.maxResource)"
       >
         <div
           class="fill"

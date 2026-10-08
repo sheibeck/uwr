@@ -157,7 +157,7 @@ watch(
 
       <div v-if="chips.length > 0" class="chips">
         <span v-for="chip in chips" :key="chip.key" class="tag tag-neutral chip">
-          <PhCrownSimple v-if="chip.leader" class="crown" weight="fill" :size="10" aria-label="Party leader" />
+          <PhCrownSimple v-if="chip.leader" class="crown" weight="fill" :size="10" role="img" aria-label="Party leader" />
           <CharacterName :name="chip.name" />
         </span>
       </div>

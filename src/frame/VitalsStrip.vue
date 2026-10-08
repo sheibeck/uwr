@@ -222,7 +222,7 @@ function openSocial(): void {
           <div class="identity-text">
             <div class="name-row">
               <div class="name" :title="props.name">{{ props.name }}</div>
-              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-label="Party leader" />
+              <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
             </div>
             <div class="class-line">{{ props.classLine }}</div>
           </div>
