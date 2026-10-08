@@ -129,7 +129,7 @@ describe('fightNamedTemplateIds: only a named foe killed in this fight counts', 
       }),
     );
     const ids = loot.fightNamedTemplateIds(ctx, COMBAT, PARTICIPANTS);
-    expect([...ids].sort()).toEqual([5n, 12n]);
+    expect([...ids].sort((a, b) => (a < b ? -1 : 1))).toEqual([5n, 12n]);
   });
 
   it('a combat without createdAt counts nothing', () => {
