@@ -155,7 +155,7 @@ export const WEAPON_FORMS: readonly { weaponType: string; word: string; baseDama
 ];
 
 /** The start form of a weapon by secondary kind: a cloth wrap suits a dagger, a hide grip a sword, a haft a staff. */
-const WEAPON_START: Readonly<Record<string, string>> = {
+export const WEAPON_START: Readonly<Record<string, string>> = {
   cloth: 'dagger',
   hide: 'sword',
   wood: 'staff',

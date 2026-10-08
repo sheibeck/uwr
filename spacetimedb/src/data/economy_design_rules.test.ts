@@ -1,7 +1,9 @@
 // economy_design_rules.test.ts
 // Phase 51.3 plan 02. The pure design rules of a region economy: names, recipe tiers, cross-region
 // requirements and the numbers of every generated item (SC2, SC3).
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { recordedTable } from '../helpers/schema_recorder';
 import {
   cleanItemName,
   cleanDescription,
@@ -24,9 +26,32 @@ import {
   orderForeignRegions,
   foreignOffer,
   categoryForKind,
+  RARITY_STAT_PCT,
+  scaleStat,
+  materialItemTier,
+  materialTemplate,
+  trophyTemplate,
+  repairGear,
+  gearTemplate,
+  regionalOutputTemplate,
+  scrollTemplate,
 } from './economy_design_rules';
-import { MATERIAL_KIND_VALUES, weaponGrowth, armorGrowth } from './recipe_rules';
+import {
+  ARMOR_FORMS,
+  FOOD_DURATION_MICROS,
+  FOOD_FORMS,
+  MATERIAL_KIND_VALUES,
+  WEAPON_FORMS,
+  armorGrowth,
+  levelStep,
+  weaponGrowth,
+} from './recipe_rules';
 import { BASIC_RESOURCE_DEFS, JUNK_DEFS } from './equipment_rules';
+
+vi.mock('spacetimedb/server', async () =>
+  (await import('../helpers/schema_recorder')).createRecordingServerMock(),
+);
+
 
 describe('cleanItemName', () => {
   it('collapses whitespace and trims', () => {
@@ -489,5 +514,424 @@ describe('categoryForKind', () => {
     expect(categoryForKind('base')).toBeNull();
     expect(categoryForKind('nonsense')).toBeNull();
     expect(categoryForKind('constructor')).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3: item template builders
+// ---------------------------------------------------------------------------
+
+let itemTemplateColumns: string[] = [];
+
+beforeAll(async () => {
+  await import('../schema/tables');
+  itemTemplateColumns = Object.keys(recordedTable('item_template')!.cols).filter((c) => c !== 'id');
+});
+
+describe('RARITY_STAT_PCT and scaleStat', () => {
+  it('holds the stat factor of each rarity', () => {
+    expect(RARITY_STAT_PCT).toEqual({
+      common: 100n,
+      uncommon: 110n,
+      rare: 125n,
+      epic: 145n,
+      legendary: 170n,
+    });
+  });
+
+  it('floors the scaled value and treats an unknown rarity as common', () => {
+    expect(scaleStat(16n, 'legendary')).toBe(27n);
+    expect(scaleStat(16n, 'common')).toBe(16n);
+    expect(scaleStat(5n, 'uncommon')).toBe(5n);
+    expect(scaleStat(10n, 'uncommon')).toBe(11n);
+    expect(scaleStat(16n, 'mythic')).toBe(16n);
+    expect(scaleStat(16n, 'constructor')).toBe(16n);
+  });
+});
+
+describe('materialItemTier', () => {
+  it('is max(1, level / 3)', () => {
+    expect(materialItemTier(1n)).toBe(1n);
+    expect(materialItemTier(5n)).toBe(1n);
+    expect(materialItemTier(7n)).toBe(2n);
+    expect(materialItemTier(30n)).toBe(10n);
+    expect(materialItemTier(0n)).toBe(1n);
+  });
+});
+
+describe('materialTemplate', () => {
+  it('builds a stackable material from rarity and area level', () => {
+    const t = materialTemplate({ name: 'Ember Moss', description: 'A glowing moss.', rarity: 'uncommon', areaLevel: 7n });
+    expect(t).toMatchObject({
+      name: 'Ember Moss',
+      slot: 'material',
+      armorType: 'none',
+      rarity: 'uncommon',
+      tier: 2n,
+      isJunk: false,
+      vendorValue: 4n + 7n / 3n,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      weaponType: '',
+      stackable: true,
+      description: 'A glowing moss.',
+    });
+    for (const stat of [
+      'strBonus',
+      'dexBonus',
+      'chaBonus',
+      'wisBonus',
+      'intBonus',
+      'hpBonus',
+      'manaBonus',
+      'armorClassBonus',
+      'magicResistanceBonus',
+      'weaponBaseDamage',
+      'weaponDps',
+      'wellFedDurationMicros',
+      'wellFedBuffMagnitude',
+    ] as const) {
+      expect(t[stat]).toBe(0n);
+    }
+    expect(t.wellFedBuffType).toBe('');
+  });
+
+  it('values a rarer material higher', () => {
+    const v = (rarity: string) => materialTemplate({ name: 'X Y', description: '', rarity, areaLevel: 1n }).vendorValue;
+    expect(v('common')).toBe(2n);
+    expect(v('uncommon')).toBe(4n);
+    expect(v('rare')).toBe(8n);
+    expect(v('epic')).toBe(16n);
+    expect(v('legendary')).toBe(32n);
+  });
+
+  it('cleans the description and falls back to a rule description', () => {
+    expect(materialTemplate({ name: 'X Y', description: 'A [pale] <glow>.', rarity: 'common', areaLevel: 1n }).description).toBe(
+      'A pale glow.',
+    );
+    expect(materialTemplate({ name: 'X Y', description: '  ', rarity: 'common', areaLevel: 1n, kind: 'metal' }).description).toBe(
+      'A metal material found in this region.',
+    );
+    expect(materialTemplate({ name: 'X Y', description: '', rarity: 'common', areaLevel: 1n }).description).toBe(
+      'A material found in this region.',
+    );
+  });
+});
+
+describe('trophyTemplate', () => {
+  it('builds a stackable junk trophy', () => {
+    const t = trophyTemplate({ name: 'Wolf Fang', description: 'A fang.', level: 6n });
+    expect(t).toMatchObject({
+      slot: 'junk',
+      isJunk: true,
+      rarity: 'common',
+      tier: 1n,
+      stackable: true,
+      vendorValue: 2n + 3n,
+      requiredLevel: 1n,
+      description: 'A fang.',
+    });
+    expect(trophyTemplate({ name: 'Wolf Fang', description: '', level: 1n }).vendorValue).toBeGreaterThanOrEqual(2n);
+    expect(trophyTemplate({ name: 'Wolf Fang', description: '', level: 1n }).description).toBe(
+      'A keepsake taken from a fallen foe.',
+    );
+  });
+});
+
+describe('repairGear', () => {
+  it('gives a sword with no armor type for a weapon with a bad weapon type or armor', () => {
+    expect(repairGear({ slot: 'weapon', weaponType: 'none', armorType: 'plate' })).toEqual({
+      slot: 'weapon',
+      weaponType: 'sword',
+      armorType: 'none',
+    });
+    expect(repairGear({ slot: 'weapon', weaponType: 'axe', armorType: 'none' })).toMatchObject({ weaponType: 'axe' });
+  });
+
+  it('gives leather and no weapon for an armor slot with a bad armor type', () => {
+    expect(repairGear({ slot: 'legs', weaponType: 'axe', armorType: 'none' })).toEqual({
+      slot: 'legs',
+      weaponType: 'none',
+      armorType: 'leather',
+    });
+    expect(repairGear({ slot: 'boots', weaponType: '', armorType: 'plate' })).toEqual({
+      slot: 'boots',
+      weaponType: 'none',
+      armorType: 'plate',
+    });
+  });
+
+  it('gives a sword for an unknown slot', () => {
+    expect(repairGear({ slot: 'head', weaponType: 'bow', armorType: 'chain' })).toEqual({
+      slot: 'weapon',
+      weaponType: 'sword',
+      armorType: 'none',
+    });
+    expect(repairGear({ slot: 'constructor', weaponType: 'x', armorType: 'y' }).slot).toBe('weapon');
+    expect(repairGear(undefined as unknown as { slot: string; weaponType: string; armorType: string }).slot).toBe('weapon');
+  });
+});
+
+describe('gearTemplate', () => {
+  it('builds a level 6 sword from the weapon form and growth', () => {
+    const t = gearTemplate({
+      name: 'Dune Sword',
+      description: 'A pale blade.',
+      slot: 'weapon',
+      weaponType: 'sword',
+      armorType: 'none',
+      level: 6n,
+    });
+    expect(t).toMatchObject({
+      slot: 'mainHand',
+      weaponType: 'sword',
+      armorType: 'none',
+      rarity: 'common',
+      isJunk: false,
+      requiredLevel: 6n,
+      allowedClasses: 'any',
+      stackable: false,
+      tier: 2n,
+      vendorValue: 5n + 12n,
+      weaponBaseDamage: 6n + weaponGrowth(6n),
+      weaponDps: 6n + weaponGrowth(6n) + 1n,
+      armorClassBonus: 0n,
+    });
+  });
+
+  it('builds a level 6 plate chest one step over leather per slot', () => {
+    const chest = ARMOR_FORMS[0];
+    const t = gearTemplate({
+      name: 'Dune Cuirass',
+      description: '',
+      slot: 'chest',
+      weaponType: 'none',
+      armorType: 'plate',
+      level: 6n,
+    });
+    expect(t).toMatchObject({ slot: 'chest', armorType: 'plate', weaponType: '', weaponBaseDamage: 0n, weaponDps: 0n });
+    expect(t.armorClassBonus).toBe(chest.baseAc.leather + 2n + armorGrowth(6n));
+  });
+
+  it('steps cloth, leather, chain and plate in order', () => {
+    const ac = (armorType: string) =>
+      gearTemplate({ name: 'A B', description: '', slot: 'legs', weaponType: 'none', armorType, level: 1n }).armorClassBonus;
+    expect(ac('cloth')).toBe(ARMOR_FORMS[1].baseAc.cloth);
+    expect(ac('leather')).toBe(ARMOR_FORMS[1].baseAc.leather);
+    expect(ac('chain')).toBe(ARMOR_FORMS[1].baseAc.leather + 1n);
+    expect(ac('plate')).toBe(ARMOR_FORMS[1].baseAc.leather + 2n);
+  });
+
+  it('repairs a bad slot and uses a rule description when the text is empty', () => {
+    const t = gearTemplate({
+      name: 'Dune Axe',
+      description: '',
+      slot: 'helm',
+      weaponType: 'axe',
+      armorType: 'plate',
+      level: 1n,
+      regionName: 'Ashfen',
+    });
+    expect(t.slot).toBe('mainHand');
+    expect(t.weaponType).toBe('sword');
+    expect(t.description).toBe('A sword carried in Ashfen.');
+    expect(
+      gearTemplate({ name: 'A B', description: '', slot: 'weapon', weaponType: 'axe', armorType: 'none', level: 1n }).description,
+    ).toBe('An axe carried in this region.');
+  });
+
+  it('treats a level below 1 as level 1', () => {
+    const t = gearTemplate({ name: 'A B', description: '', slot: 'weapon', weaponType: 'sword', armorType: 'none', level: 0n });
+    expect(t.requiredLevel).toBe(1n);
+    expect(t.weaponBaseDamage).toBe(WEAPON_FORMS[2].baseDamage);
+  });
+});
+
+describe('regionalOutputTemplate', () => {
+  const base = {
+    name: 'Saltglass Blade',
+    description: 'A blade.',
+    primaryKind: 'metal',
+    secondaryKind: 'hide',
+    index: 0,
+    regionId: 1n,
+  };
+
+  it('scales a legendary weapon by 170 percent and leaves a common one unscaled', () => {
+    const sword = WEAPON_FORMS[2];
+    const raw = sword.baseDamage + weaponGrowth(10n);
+    const legendary = regionalOutputTemplate({ ...base, category: 'weapon', tier: 'legendary', level: 10n });
+    expect(legendary).toMatchObject({ slot: 'mainHand', weaponType: 'sword', rarity: 'legendary', requiredLevel: 10n });
+    expect(legendary.weaponBaseDamage).toBe((raw * 170n) / 100n);
+    expect(legendary.weaponDps).toBe(((sword.dps + weaponGrowth(10n)) * 170n) / 100n);
+    const common = regionalOutputTemplate({ ...base, category: 'weapon', tier: 'common', level: 10n });
+    expect(common.weaponBaseDamage).toBe(raw);
+    expect(common.rarity).toBe('common');
+  });
+
+  it('starts the weapon form by secondary kind', () => {
+    const type = (secondaryKind: string) =>
+      regionalOutputTemplate({ ...base, secondaryKind, category: 'weapon', tier: 'rare', level: 1n }).weaponType;
+    expect(type('cloth')).toBe('dagger');
+    expect(type('hide')).toBe('sword');
+    expect(type('wood')).toBe('staff');
+    expect(type('metal')).toBe('dagger');
+  });
+
+  it('builds armor by primary kind and index', () => {
+    const t = regionalOutputTemplate({ ...base, category: 'armor', primaryKind: 'hide', tier: 'epic', level: 6n, index: 1 });
+    expect(t).toMatchObject({ slot: 'legs', armorType: 'leather', weaponType: '' });
+    expect(t.armorClassBonus).toBe(((ARMOR_FORMS[1].baseAc.leather + armorGrowth(6n)) * 145n) / 100n);
+    const cloth = regionalOutputTemplate({ ...base, category: 'armor', primaryKind: 'cloth', tier: 'common', level: 1n, index: 5 });
+    expect(cloth).toMatchObject({ slot: 'boots', armorType: 'cloth', armorClassBonus: ARMOR_FORMS[2].baseAc.cloth });
+  });
+
+  it('builds an accessory whose stat is picked by region id plus index', () => {
+    const stats = ['hpBonus', 'wisBonus', 'intBonus', 'magicResistanceBonus'] as const;
+    const baseAmount: Record<string, bigint> = { hpBonus: 3n, wisBonus: 1n, intBonus: 1n, magicResistanceBonus: 1n };
+    for (let regionId = 0n; regionId < 4n; regionId++) {
+      const t = regionalOutputTemplate({
+        ...base,
+        category: 'accessory',
+        primaryKind: 'trinket',
+        secondaryKind: 'cloth',
+        tier: 'rare',
+        level: 10n,
+        index: 1,
+        regionId,
+      });
+      const picked = stats[Number((regionId + 1n) % 4n)];
+      expect(t.slot).toBe('neck');
+      expect(t[picked]).toBe((baseAmount[picked] * levelStep(10n) * 125n) / 100n);
+      for (const other of stats) if (other !== picked) expect(t[other]).toBe(0n);
+    }
+    expect(
+      regionalOutputTemplate({ ...base, category: 'accessory', secondaryKind: 'metal', tier: 'rare', level: 1n }).slot,
+    ).toBe('earrings');
+  });
+
+  it('builds food with a well fed buff', () => {
+    const t = regionalOutputTemplate({ ...base, category: 'consumable', tier: 'common', level: 5n, index: 7 });
+    expect(t).toMatchObject({
+      slot: 'food',
+      stackable: true,
+      wellFedBuffType: FOOD_FORMS[2].buffType,
+      wellFedDurationMicros: FOOD_DURATION_MICROS,
+      wellFedBuffMagnitude: levelStep(5n),
+      armorType: 'none',
+      weaponType: '',
+    });
+  });
+
+  it('values by rarity plus level and sets the tier from the level', () => {
+    const t = regionalOutputTemplate({ ...base, category: 'weapon', tier: 'epic', level: 9n });
+    expect(t.vendorValue).toBe(80n + 9n);
+    expect(t.tier).toBe(3n);
+    expect(regionalOutputTemplate({ ...base, category: 'weapon', tier: 'rare', level: 9n }).vendorValue).toBe(40n + 9n);
+    expect(regionalOutputTemplate({ ...base, category: 'weapon', tier: 'legendary', level: 9n }).vendorValue).toBe(160n + 9n);
+    expect(regionalOutputTemplate({ ...base, category: 'weapon', tier: 'uncommon', level: 9n }).vendorValue).toBe(20n + 9n);
+    expect(regionalOutputTemplate({ ...base, category: 'weapon', tier: 'common', level: 9n }).vendorValue).toBe(10n + 9n);
+  });
+
+  it('gives a rule description when the model text is empty and never throws on an odd category', () => {
+    expect(
+      regionalOutputTemplate({ ...base, description: '', category: 'weapon', tier: 'rare', level: 1n }).description,
+    ).not.toBe('');
+    const odd = regionalOutputTemplate({ ...base, category: 'nonsense' as never, tier: 'rare', level: 1n });
+    expect(odd.slot).toBe('mainHand');
+  });
+});
+
+describe('scrollTemplate', () => {
+  it('follows the old scroll convention', () => {
+    const t = scrollTemplate('Saltglass Blade', 'epic');
+    expect(t).toMatchObject({
+      name: 'Scroll: Saltglass Blade',
+      slot: 'resource',
+      armorType: 'none',
+      rarity: 'epic',
+      tier: 1n,
+      isJunk: false,
+      requiredLevel: 1n,
+      allowedClasses: 'any',
+      weaponType: '',
+      stackable: true,
+      vendorValue: 50n,
+      description: 'Teaches the Saltglass Blade crafting recipe when used.',
+    });
+  });
+
+  it('values a scroll by rarity', () => {
+    expect(scrollTemplate('X Y', 'rare').vendorValue).toBe(25n);
+    expect(scrollTemplate('X Y', 'epic').vendorValue).toBe(50n);
+    expect(scrollTemplate('X Y', 'legendary').vendorValue).toBe(100n);
+    expect(scrollTemplate('X Y', 'common').vendorValue).toBe(10n);
+  });
+});
+
+describe('every builder returns the item_template columns minus id', () => {
+  const output = (category: 'weapon' | 'armor' | 'accessory' | 'consumable', primaryKind: string, secondaryKind: string) =>
+    regionalOutputTemplate({
+      name: 'A B',
+      description: '',
+      category,
+      tier: 'rare',
+      primaryKind,
+      secondaryKind,
+      level: 3n,
+      index: 0,
+      regionId: 1n,
+    });
+  const builders: Record<string, () => object> = {
+    materialTemplate: () => materialTemplate({ name: 'A B', description: '', rarity: 'rare', areaLevel: 3n }),
+    trophyTemplate: () => trophyTemplate({ name: 'A B', description: '', level: 3n }),
+    gearWeapon: () =>
+      gearTemplate({ name: 'A B', description: '', slot: 'weapon', weaponType: 'axe', armorType: 'none', level: 3n }),
+    gearArmor: () =>
+      gearTemplate({ name: 'A B', description: '', slot: 'boots', weaponType: 'none', armorType: 'chain', level: 3n }),
+    outputWeapon: () => output('weapon', 'metal', 'wood'),
+    outputArmor: () => output('armor', 'cloth', 'wood'),
+    outputAccessory: () => output('accessory', 'trinket', 'wood'),
+    outputConsumable: () => output('consumable', 'edible', 'base'),
+    scrollTemplate: () => scrollTemplate('A B', 'rare'),
+  };
+
+  it('reads the column list from the recorded schema', () => {
+    expect(itemTemplateColumns).toContain('name');
+    expect(itemTemplateColumns).toContain('description');
+    expect(itemTemplateColumns).not.toContain('id');
+  });
+
+  for (const [label, build] of Object.entries(builders)) {
+    it(`${label} has exactly the columns of item_template`, () => {
+      expect(Object.keys(build()).sort()).toEqual([...itemTemplateColumns].sort());
+    });
+
+    it(`${label} has only bigint numbers, never negative`, () => {
+      for (const [key, value] of Object.entries(build())) {
+        if (typeof value === 'bigint') expect(value >= 0n, key).toBe(true);
+        expect(typeof value === 'number', key).toBe(false);
+      }
+    });
+  }
+});
+
+describe('purity', () => {
+  const source = readFileSync(new URL('./economy_design_rules.ts', import.meta.url), 'utf8');
+
+  it('has no clock and no source of chance in the code', () => {
+    const code = source
+      .split('\n')
+      .filter((line: string) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+      .join('\n');
+    expect(code).not.toMatch(/Math\.random|Date\.now|new Date|crypto/);
+  });
+
+  it('imports only data modules', () => {
+    const froms = [...source.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
+    expect(froms.length).toBeGreaterThan(0);
+    for (const f of froms) {
+      expect(f).toMatch(/^\.\/(recipe_rules|crafting_rules|equipment_rules|combat_constants|mechanical_vocabulary)$/);
+    }
   });
 });

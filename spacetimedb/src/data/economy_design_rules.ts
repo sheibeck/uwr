@@ -14,7 +14,21 @@ import { CRAFTING_MODIFIER_DEFS, ESSENCE_TIER_THRESHOLDS, MATERIAL_DEFS, MODIFIE
 import { STARTER_ITEM_NAMES } from './combat_constants';
 import { BASIC_RESOURCE_DEFS, JUNK_DEFS } from './equipment_rules';
 import { QUALITY_TIERS, type QualityTier } from './mechanical_vocabulary';
-import { PRIMARY_KINDS, RECIPE_CATEGORY_ORDER, type RecipeCategory } from './recipe_rules';
+import {
+  ACCESSORY_FORMS,
+  ARMOR_FORMS,
+  FOOD_DURATION_MICROS,
+  FOOD_FORMS,
+  PRIMARY_KINDS,
+  RECIPE_CATEGORY_ORDER,
+  WEAPON_FORMS,
+  WEAPON_START,
+  armorGrowth,
+  levelStep,
+  weaponGrowth,
+  type GeneratedItemTemplate,
+  type RecipeCategory,
+} from './recipe_rules';
 
 // ---------------------------------------------------------------------------
 // NAMES AND DESCRIPTIONS
@@ -420,4 +434,334 @@ export function categoryForKind(kind: string): RecipeCategory | null {
     if ((PRIMARY_KINDS[category] as readonly string[]).indexOf(asText(kind)) !== -1) return category;
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// ITEM NUMBERS (every number of a generated item comes from here and recipe_rules; none from model text)
+// ---------------------------------------------------------------------------
+
+/**
+ * The stat factor of each rarity, in percent (RESEARCH A4; ties to backlog 999.12). A generated
+ * recipe output's stats are the shared form-and-growth numbers times this factor, floored.
+ */
+export const RARITY_STAT_PCT: Readonly<Record<QualityTier, bigint>> = Object.freeze({
+  common: 100n,
+  uncommon: 110n,
+  rare: 125n,
+  epic: 145n,
+  legendary: 170n,
+});
+
+/** value * (the rarity's percent) / 100, floored. An unknown rarity is common. */
+export function scaleStat(value: bigint, rarity: string): bigint {
+  const pct = isQualityTier(rarity) ? RARITY_STAT_PCT[rarity] : 100n;
+  return (value * pct) / 100n;
+}
+
+function atLeastOne(level: bigint): bigint {
+  return typeof level === 'bigint' && level > 1n ? level : 1n;
+}
+
+/** The item tier of a generated template, max(1, level / 3). It keeps the vendor level bands working. */
+export function materialItemTier(level: bigint): bigint {
+  const tier = atLeastOne(level) / 3n;
+  return tier < 1n ? 1n : tier;
+}
+
+function rarityOf(rarity: string): QualityTier {
+  return isQualityTier(rarity) ? rarity : 'common';
+}
+
+const MATERIAL_VALUE_BY_RARITY: Readonly<Record<QualityTier, bigint>> = Object.freeze({
+  common: 2n,
+  uncommon: 4n,
+  rare: 8n,
+  epic: 16n,
+  legendary: 32n,
+});
+
+const OUTPUT_VALUE_BY_RARITY: Readonly<Record<QualityTier, bigint>> = Object.freeze({
+  common: 10n,
+  uncommon: 20n,
+  rare: 40n,
+  epic: 80n,
+  legendary: 160n,
+});
+
+const SCROLL_VALUE_BY_RARITY: Readonly<Record<QualityTier, bigint>> = Object.freeze({
+  common: 10n,
+  uncommon: 10n,
+  rare: 25n,
+  epic: 50n,
+  legendary: 100n,
+});
+
+/** The item_template columns except id, with the plain-material defaults. */
+function blankTemplate(name: string, description: string, over: Partial<GeneratedItemTemplate>): GeneratedItemTemplate {
+  return {
+    name: asText(name),
+    slot: 'material',
+    armorType: 'none',
+    rarity: 'common',
+    tier: 1n,
+    isJunk: false,
+    vendorValue: 1n,
+    requiredLevel: 1n,
+    allowedClasses: 'any',
+    strBonus: 0n,
+    dexBonus: 0n,
+    chaBonus: 0n,
+    wisBonus: 0n,
+    intBonus: 0n,
+    hpBonus: 0n,
+    manaBonus: 0n,
+    armorClassBonus: 0n,
+    magicResistanceBonus: 0n,
+    weaponBaseDamage: 0n,
+    weaponDps: 0n,
+    weaponType: '',
+    stackable: false,
+    wellFedDurationMicros: 0n,
+    wellFedBuffType: '',
+    wellFedBuffMagnitude: 0n,
+    description,
+    ...over,
+  };
+}
+
+/** The cleaned model text, or the rule text when nothing usable is left. */
+function textOrRule(raw: string, rule: string): string {
+  const cleaned = cleanDescription(raw);
+  return cleaned === '' ? rule : cleaned;
+}
+
+function withArticle(word: string): string {
+  const lower = word.toLowerCase();
+  if (/s$/.test(lower)) return `A pair of ${lower}`;
+  return `${/^[aeiou]/.test(lower) ? 'An' : 'A'} ${lower}`;
+}
+
+// ---------------------------------------------------------------------------
+// MATERIALS AND TROPHIES
+// ---------------------------------------------------------------------------
+
+/**
+ * A regional gatherable or drop material: slot material (so the research bag filter admits it),
+ * stackable, tier from the area level, value from the rarity plus a third of the area level.
+ */
+export function materialTemplate(input: {
+  name: string;
+  description: string;
+  rarity: string;
+  areaLevel: bigint;
+  kind?: string;
+}): GeneratedItemTemplate {
+  const rarity = rarityOf(input.rarity);
+  const level = atLeastOne(input.areaLevel);
+  const kind = asText(input.kind);
+  return blankTemplate(
+    input.name,
+    textOrRule(input.description, kind === '' ? 'A material found in this region.' : `A ${kind} material found in this region.`),
+    {
+      slot: 'material',
+      rarity,
+      tier: materialItemTier(level),
+      vendorValue: MATERIAL_VALUE_BY_RARITY[rarity] + level / 3n,
+      stackable: true,
+    },
+  );
+}
+
+/** A trophy a creature drops: a junk item that only a vendor wants. */
+export function trophyTemplate(input: { name: string; description: string; level: bigint }): GeneratedItemTemplate {
+  const level = atLeastOne(input.level);
+  return blankTemplate(input.name, textOrRule(input.description, 'A keepsake taken from a fallen foe.'), {
+    slot: 'junk',
+    isJunk: true,
+    vendorValue: 2n + level / 2n,
+    stackable: true,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// GEAR
+// ---------------------------------------------------------------------------
+
+const ARMOR_SLOTS: readonly string[] = ['chest', 'legs', 'boots'];
+const ARMOR_TYPES: readonly string[] = ['cloth', 'leather', 'chain', 'plate'];
+
+/**
+ * A model gear choice made valid. Slots are weapon, chest, legs and boots, armor types cloth,
+ * leather, chain and plate. A weapon keeps a known weapon type (else sword) and has armor type
+ * 'none'; armor keeps a valid armor type (else leather) and has weapon type 'none'; an unknown
+ * slot becomes a sword.
+ */
+export function repairGear(input: { slot: string; weaponType: string; armorType: string }): {
+  slot: string;
+  weaponType: string;
+  armorType: string;
+} {
+  const slot = input !== null && typeof input === 'object' ? asText(input.slot) : '';
+  if (ARMOR_SLOTS.indexOf(slot) !== -1) {
+    const armorType = asText(input.armorType);
+    return { slot, weaponType: 'none', armorType: ARMOR_TYPES.indexOf(armorType) !== -1 ? armorType : 'leather' };
+  }
+  const weaponType = slot === 'weapon' ? asText(input.weaponType) : '';
+  const known = WEAPON_FORMS.some((f) => f.weaponType === weaponType);
+  return { slot: 'weapon', weaponType: known ? weaponType : 'sword', armorType: 'none' };
+}
+
+/** The extra armor class of chain and plate over leather, per slot. */
+const ARMOR_TYPE_STEP: Readonly<Record<string, bigint>> = { cloth: 0n, leather: 0n, chain: 1n, plate: 2n };
+
+/**
+ * A creature's gear drop: the weapon or armor form numbers plus the shared growth, rarity common
+ * (the loot roll sets the dropped quality).
+ * [ASSUMED] chain and plate step by one over leather per slot, since only cloth and leather forms exist.
+ */
+export function gearTemplate(input: {
+  name: string;
+  description: string;
+  slot: string;
+  weaponType: string;
+  armorType: string;
+  level: bigint;
+  regionName?: string;
+}): GeneratedItemTemplate {
+  const level = atLeastOne(input.level);
+  const gear = repairGear(input);
+  const region = cleanItemName(asText(input.regionName));
+  const place = region === '' ? 'this region' : region;
+  const common = {
+    tier: materialItemTier(level),
+    requiredLevel: level,
+    vendorValue: 5n + 2n * level,
+  };
+  if (gear.slot === 'weapon') {
+    const form = WEAPON_FORMS.find((f) => f.weaponType === gear.weaponType) ?? WEAPON_FORMS[2];
+    const growth = weaponGrowth(level);
+    return blankTemplate(
+      input.name,
+      textOrRule(input.description, `${withArticle(form.word)} carried in ${place}.`),
+      {
+        ...common,
+        slot: 'mainHand',
+        weaponType: form.weaponType,
+        weaponBaseDamage: form.baseDamage + growth,
+        weaponDps: form.dps + growth,
+      },
+    );
+  }
+  const form = ARMOR_FORMS.find((f) => f.slot === gear.slot) ?? ARMOR_FORMS[0];
+  const cloth = gear.armorType === 'cloth';
+  const baseAc = (cloth ? form.baseAc.cloth : form.baseAc.leather) + ARMOR_TYPE_STEP[gear.armorType];
+  return blankTemplate(
+    input.name,
+    textOrRule(input.description, `${withArticle(cloth ? form.words.cloth : form.words.leather)} carried in ${place}.`),
+    {
+      ...common,
+      slot: form.slot,
+      armorType: gear.armorType,
+      armorClassBonus: baseAc + armorGrowth(level),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RECIPE OUTPUTS AND SCROLLS
+// ---------------------------------------------------------------------------
+
+/** The accessory stat a regional output picks by (regionId + index) mod 4, and its level 1 amount. */
+const OUTPUT_ACCESSORY_STATS: readonly { stat: 'hpBonus' | 'wisBonus' | 'intBonus' | 'magicResistanceBonus'; base: bigint }[] = [
+  { stat: 'hpBonus', base: 3n },
+  { stat: 'wisBonus', base: 1n },
+  { stat: 'intBonus', base: 1n },
+  { stat: 'magicResistanceBonus', base: 1n },
+];
+
+/**
+ * The item a regional recipe makes. tier is the recipe's rarity. The form comes from the secondary
+ * kind (weapon), the primary kind and index (armor), the secondary kind and a region-and-index pick
+ * (accessory) or the index (food); the numbers are the shared forms and growth times the rarity
+ * factor. An unknown category is treated as a weapon.
+ */
+export function regionalOutputTemplate(input: {
+  name: string;
+  description: string;
+  category: RecipeCategory;
+  tier: string;
+  primaryKind: string;
+  secondaryKind: string;
+  level: bigint;
+  index: number;
+  regionId: bigint;
+}): GeneratedItemTemplate {
+  const rarity = rarityOf(input.tier);
+  const level = atLeastOne(input.level);
+  const index = Number.isInteger(input.index) && input.index >= 0 ? input.index : 0;
+  const regionId = typeof input.regionId === 'bigint' ? input.regionId : 0n;
+  const secondaryKind = asText(input.secondaryKind);
+  const common = {
+    rarity,
+    tier: materialItemTier(level),
+    requiredLevel: level,
+    vendorValue: OUTPUT_VALUE_BY_RARITY[rarity] + level,
+  };
+  const made = (rule: string): string => `${rule} made from regional materials.`;
+
+  if (input.category === 'armor') {
+    const type: 'cloth' | 'leather' = asText(input.primaryKind) === 'hide' ? 'leather' : 'cloth';
+    const form = ARMOR_FORMS[index % ARMOR_FORMS.length];
+    return blankTemplate(input.name, textOrRule(input.description, made(withArticle(form.words[type]))), {
+      ...common,
+      slot: form.slot,
+      armorType: type,
+      armorClassBonus: scaleStat(form.baseAc[type] + armorGrowth(level), rarity),
+    });
+  }
+  if (input.category === 'accessory') {
+    const form = ACCESSORY_FORMS.find((f) => f.slot === (secondaryKind === 'metal' ? 'earrings' : 'neck')) ?? ACCESSORY_FORMS[0];
+    const pick = OUTPUT_ACCESSORY_STATS[Number((regionId + BigInt(index)) % BigInt(OUTPUT_ACCESSORY_STATS.length))];
+    return blankTemplate(input.name, textOrRule(input.description, made(withArticle(form.word))), {
+      ...common,
+      slot: form.slot,
+      [pick.stat]: scaleStat(pick.base * levelStep(level), rarity),
+    });
+  }
+  if (input.category === 'consumable') {
+    const form = FOOD_FORMS[index % FOOD_FORMS.length];
+    return blankTemplate(input.name, textOrRule(input.description, made(withArticle(form.word))), {
+      ...common,
+      slot: 'food',
+      stackable: true,
+      wellFedDurationMicros: FOOD_DURATION_MICROS,
+      wellFedBuffType: form.buffType,
+      wellFedBuffMagnitude: scaleStat(levelStep(level), rarity),
+    });
+  }
+  const startType = Object.prototype.hasOwnProperty.call(WEAPON_START, secondaryKind) ? WEAPON_START[secondaryKind] : 'dagger';
+  const form = WEAPON_FORMS.find((f) => f.weaponType === startType) ?? WEAPON_FORMS[0];
+  const growth = weaponGrowth(level);
+  return blankTemplate(input.name, textOrRule(input.description, made(withArticle(form.word))), {
+    ...common,
+    slot: 'mainHand',
+    weaponType: form.weaponType,
+    weaponBaseDamage: scaleStat(form.baseDamage + growth, rarity),
+    weaponDps: scaleStat(form.dps + growth, rarity),
+  });
+}
+
+/**
+ * The scroll that teaches a rare-or-better recipe, in the old convention: "Scroll: <recipe>", slot
+ * resource, rarity = the recipe tier, stackable.
+ */
+export function scrollTemplate(recipeName: string, tier: string): GeneratedItemTemplate {
+  const rarity = rarityOf(tier);
+  const recipe = asText(recipeName);
+  return blankTemplate(`Scroll: ${recipe}`, `Teaches the ${recipe} crafting recipe when used.`, {
+    slot: 'resource',
+    rarity,
+    vendorValue: SCROLL_VALUE_BY_RARITY[rarity],
+    stackable: true,
+  });
 }
