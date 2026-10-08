@@ -339,6 +339,64 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
 
+### Resume note (2026-10-08, third compact)
+
+- **Run:** `/gsd-autonomous` for v3.0. Resume with `/gsd-autonomous --from 51.3`, after checking the in-flight items below.
+- **Done since the last compact:** Phase 51.1 Party is complete in code: 16 plans, 3 review iterations plus fixes, verification human_needed, UAT deferred.
+- **Waiting on the owner:**
+  - The CR-01 sign-in **re-test** of the tightened token checks (51.1-UAT item 1).
+  - Two maincloud blockers: WR-04 (require `email_verified`?) and IN-01 (the production SpacetimeAuth client id).
+- **Run order now (owner, 2026-10-08):**
+  1. 51.3 Regional Economy
+  2. 51.3.1 Combat Dials
+  3. 51.3.2 Combat Wind-Up, Cooldowns and Durations (was 999.17)
+  4. 51.4 Loot Rails (+ effect icons and slide-out panel)
+  5. 51.5 Character, Level Up and New Skill
+  6. 52.1 Hotbar Manager
+  7. 52.1.1 Bank
+  8. 52.1.2 Trade
+  9. 52.2 Social and Guilds
+  10. 52.3 Log
+  11. 52.4 World Events
+  12. 53 Parity and Production (last)
+- **In flight at compact time.** Agents may have finished, so check git log and the files.
+  - **51.3 planning:**
+    - CONTEXT, RESEARCH, PATTERNS and VALIDATION are committed.
+    - The planner was writing the 51.3 PLANs plus `51.3-PROMPT-DRAFT.md`.
+    - Next: plan-checker → coverage gates → **show the owner the PROMPT-DRAFT for approval** → execute one plan at a time.
+    - The plan that writes the prompt is gated on that approval. The route stays off (`aiEnabled` false) until `/economy ai on`.
+  - **Quick task 261008-a97:**
+    - Scope: Travel with leader moves into the self ⋯/right-click menu, a follow icon goes beside your name, and the party gets a line on each follow toggle.
+    - Its executor was running. There are uncommitted edits in TravelSwitch, the 51.1 UI-SPEC and the VitalsRail tests.
+    - After it finishes: add its row to Quick Tasks Completed and move its todo to completed.
+  - **Quick task 261008-ag8:**
+    - Scope: enemy spawns scale to the place's level when no enemy type fits.
+    - Its planner was running. The plan goes in `.planning/quick/261008-ag8-enemy-spawns-scale-to-the-place-level-wh/`.
+    - Commit the plan, then execute it after a97.
+  - **Queued quick tasks** run after ag8, one at a time, because each publishes locally:
+    - **Day/night 40/20:** a one-hour cycle, set through `DAY_DURATION_MICROS` / `NIGHT_DURATION_MICROS` in `helpers/location.ts`. The calendar stays in 999.14.
+    - **Party card bars:** every party card shows health, mana (if any) and stamina bars. Todo: `2026-10-08-party-cards-show-health-mana-and-stamina.md`. It touches the same components as a97, so it runs after a97.
+- **51.3.1 Combat Dials discuss must cover:**
+  - difficulty by level, region and enemy type;
+  - pull size: multiple enemies per pull, tied to difficulty;
+  - ability power dials: per kind at cast time, with a per-ability escape hatch;
+  - world-gen enemy types per place level range. This is a prompt change, so the owner approves the wording.
+- **Owner decisions today:**
+  - 51.3 dials are global, per region, per tier and per item.
+  - The 51.3 job uses the "Small" counts.
+  - Legendary recipes need 3 foreign regions, which means a 4th recipe slot.
+  - Backfill uses `/economy design <region>`.
+  - Pets stay dropped (999.27). Mobile shows a pet tag with a paw.
+  - Menu icons: ChatCircleDots, Heart, UserPlus.
+  - 999.1, 999.2 and 999.5 are removed. 999.17 is promoted to 51.3.2.
+- **Servers:** the coordinator started the local SpacetimeDB (127.0.0.1:3000) and Vite (5173) as background tasks in this session. The key is still at length 108.
+- **Executor practice:**
+  - One plan at a time with gsd-executor, in the main tree. Not in worktrees: they have no node_modules.
+  - The rules and hand-off files are in the session scratchpad folder `p511` (`rules.md`, `handoff.md`). Make a new folder per phase, for example `p513`.
+  - Run vitest single-worker.
+  - Commits end with the Co-Authored-By and Claude-Session lines.
+  - The scratchpad is `C:/Users/Dell/AppData/Local/Temp/claude/C--projects-uwr/bc40b66c-7c2b-4e9c-9279-961553578aa3/scratchpad/`. The newest combat design extract is in `design-combat3/` there.
+
 ### Resume note (2026-10-07, second compact)
 
 - **Run:** `/gsd-autonomous` for v3.0, owner awake and active. Resume with `/gsd-autonomous --from 51.1`.
