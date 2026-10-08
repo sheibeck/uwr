@@ -12,12 +12,22 @@
 // the level range and display strings, and is rewritten only when one of them changes (D-05, Pitfall 5).
 // Deterministic: "now" is always passed in (ctx.timestamp); no Date, no Math.random.
 
-import { DENSITY_RULES, countToLevel, homeCount, settleCount } from '../data/density_rules';
+import { DENSITY_RULES, countToLevel, homeCount, settleCount, pickSurgeTarget, poolSeed } from '../data/density_rules';
 import type { DensityLevel } from '../data/density_rules';
+import {
+  CREATURE_DENSITY_WORDS,
+  densityDownLine,
+  densityGoneLine,
+  overrunSettleLine,
+  vacuumLine,
+} from '../data/density_lines';
 import { placeSpawnLevel } from '../data/enemy_rules';
 import { resourceIconKey } from '../data/family_rules';
 import { materialKind } from '../data/recipe_rules';
+import { appendPrivateEvent } from './events';
 import { computeLocationTargetLevel } from './location';
+import { onPoolShift } from './pool_events';
+import { flattenSegments, keeperSegments } from './segments';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +87,10 @@ function clampCount(next: bigint): bigint {
 /** The tick still has work: away from home, or empty (a wiped family waits out its long reset). */
 function isDirty(kind: PoolKindName, count: bigint, homeLevel: bigint): boolean {
   return count === 0n || count !== homeCount(kind, homeLevel);
+}
+
+function byId(a: { id: bigint }, b: { id: bigint }): number {
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 function sameLevelShift(pool: PlacePoolRow): PoolCountShift {
@@ -276,7 +290,10 @@ export function settlePool(ctx: any, pool: PlacePoolRow, now: bigint): PoolCount
     next.wipedAtMicros === (kind === 'creature' ? current.wipedAtMicros : 0n) &&
     isDirty(kind, next.count, current.homeLevel) === current.dirty;
   if (unchanged) return sameLevelShift(current);
-  return setPoolCount(ctx, current, next.count, now, next.lastSettledMicros);
+  const shift = setPoolCount(ctx, current, next.count, now, next.lastSettledMicros);
+  // Settling lowers a pool only from above home (Overrun back to Stable); rises are silent (B11).
+  announceFall(ctx, shift.pool, shift.fromLevel, shift.toLevel, now, 'settle');
+  return shift;
 }
 
 /** The pools of a place (optionally one kind), each settled first, in id order. */
@@ -288,6 +305,196 @@ export function poolsAt(
 ): PlacePoolRow[] {
   const found: PlacePoolRow[] = [...ctx.db.place_pool.by_location.filter(locationId)]
     .filter((row: PlacePoolRow) => !kind || row.kind === kind)
-    .sort((a: PlacePoolRow, b: PlacePoolRow) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    .sort(byId);
   return found.map((row) => settlePool(ctx, row, now).pool);
+}
+
+// ---------------------------------------------------------------------------
+// Depletion, density lines and the vacuum (D-16, D-17, D-20, D-22, D-36, D-37)
+// ---------------------------------------------------------------------------
+
+export type DepletionCause = 'kill' | 'hunter' | 'gather';
+export type FallCause = DepletionCause | 'settle';
+
+/** Online characters standing at a place, in id order. */
+function onlineAt(ctx: any, locationId: bigint): any[] {
+  return [...ctx.db.character.by_location.filter(locationId)].filter((c: any) => c.online === true).sort(byId);
+}
+
+/**
+ * Tells the people at a pool's place that a creature family fell a level (T-51.3.1.1-19: only on a
+ * fall, only to ONLINE characters standing at pool.locationId, one private line each):
+ *   - a fall to 0: `density_gone` (densityGoneLine), and onPoolShift family_wiped;
+ *   - an Overrun pool settling back (cause 'settle', from level 3): `density_down` (overrunSettleLine);
+ *   - any other fall: `density_down` (densityDownLine with the new level word).
+ * Rises and resource falls write nothing (the gather result carries resource news).
+ */
+export function announceFall(
+  ctx: any,
+  pool: PlacePoolRow,
+  fromLevel: DensityLevel,
+  toLevel: DensityLevel,
+  now: bigint,
+  cause: FallCause,
+): void {
+  if (toLevel >= fromLevel) return;
+  if (poolKind(pool) !== 'creature') return;
+  const family = ctx.db.creature_family.id.find(pool.refId);
+  const location = ctx.db.location.id.find(pool.locationId);
+  if (family && location) {
+    let kind = 'density_down';
+    let message: string;
+    if (toLevel === 0) {
+      kind = 'density_gone';
+      message = densityGoneLine(family.pluralNoun, location.name);
+    } else if (cause === 'settle' && fromLevel === 3) {
+      message = overrunSettleLine(family.pluralNoun, location.name);
+    } else {
+      message = densityDownLine(family.pluralNoun, location.name, CREATURE_DENSITY_WORDS[toLevel]);
+    }
+    for (const character of onlineAt(ctx, pool.locationId)) {
+      appendPrivateEvent(ctx, character.id, character.ownerUserId, kind, message);
+    }
+  }
+  if (toLevel === 0) {
+    onPoolShift(
+      ctx,
+      { kind: 'family_wiped', regionId: pool.regionId, locationId: pool.locationId, familyId: pool.refId },
+      now,
+    );
+  }
+}
+
+/**
+ * The one path for kills, hunters and gathers (D-16, D-17, D-21, D-38): settle the stored pool first,
+ * then take `points` through setPoolCount (clamped at 0; draws never reserve population, so two
+ * fights on one pool both apply). A level fall is announced; a creature pool that reaches 0 here
+ * runs the vacuum once (a pool already at 0 is not wiped again). Returns the shift.
+ */
+export function applyDepletion(
+  ctx: any,
+  pool: PlacePoolRow,
+  points: bigint,
+  now: bigint,
+  cause: DepletionCause,
+  seed?: bigint,
+): PoolCountShift {
+  const before = settlePool(ctx, pool, now).pool;
+  const shift = setPoolCount(ctx, before, before.count - points, now);
+  announceFall(ctx, shift.pool, shift.fromLevel, shift.toLevel, now, cause);
+  if (poolKind(shift.pool) === 'creature' && before.count > 0n && shift.pool.count === 0n) {
+    runVacuum(ctx, shift.pool, now, seed ?? poolSeed(now, shift.pool.id));
+  }
+  return shift;
+}
+
+function fitsTerrain(fitTerrains: string, terrainType: string): boolean {
+  const terrain = (terrainType ?? '').trim().toLowerCase();
+  if (!terrain) return false;
+  return (fitTerrains ?? '')
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .includes(terrain);
+}
+
+/**
+ * The rivals and predators of a family in its region, deduplicated, in id order: the families it
+ * names as rival or predator, and the families that name it as prey or as their rival (rivalry runs
+ * both ways). Never the family itself; never a family of another region.
+ */
+function vacuumCandidates(ctx: any, wipedFamilyId: bigint, regionId: bigint): any[] {
+  const ids = new Set<bigint>();
+  for (const rel of ctx.db.family_relation.by_family.filter(wipedFamilyId)) {
+    if (rel.kind === 'rival' || rel.kind === 'predator') ids.add(rel.otherFamilyId);
+  }
+  for (const family of ctx.db.creature_family.by_region.filter(regionId)) {
+    if (family.id === wipedFamilyId) continue;
+    for (const rel of ctx.db.family_relation.by_family.filter(family.id)) {
+      if (rel.otherFamilyId === wipedFamilyId && (rel.kind === 'prey' || rel.kind === 'rival')) ids.add(family.id);
+    }
+  }
+  ids.delete(wipedFamilyId);
+  return [...ids]
+    .map((id) => ctx.db.creature_family.id.find(id))
+    .filter((family: any) => family && family.regionId === regionId)
+    .sort(byId);
+}
+
+/**
+ * The vacuum after a creature family is wiped out at a place (D-20, D-36): a rival or predator
+ * family already pooled at the place surges to Overrun (OVERRUN_SURGE_COUNT, its home raised to at
+ * least VACUUM_RIVAL_HOME_LEVEL so it settles back to Stable); else a same-region rival or predator
+ * whose fitTerrains include the place's terrain gets a new pool there at Overrun with home Stable;
+ * else nothing. One deterministic pick (pickSurgeTarget). The online characters at the place get the
+ * Keeper takeover line, and onPoolShift records vacuum_takeover then overrun_surge. The wiped family
+ * keeps its own pool and home and returns on the long reset (D-37). Returns the surged pool or null.
+ */
+export function runVacuum(
+  ctx: any,
+  wipedPool: PlacePoolRow,
+  now: bigint,
+  seed: bigint = poolSeed(now, wipedPool.id),
+): PlacePoolRow | null {
+  const location = ctx.db.location.id.find(wipedPool.locationId);
+  const wipedFamily = ctx.db.creature_family.id.find(wipedPool.refId);
+  if (!location || !wipedFamily) return null;
+  const candidates = vacuumCandidates(ctx, wipedFamily.id, wipedPool.regionId);
+  if (candidates.length === 0) return null;
+
+  const pooledHere = new Map<bigint, PlacePoolRow>();
+  for (const row of ctx.db.place_pool.by_location.filter(wipedPool.locationId)) {
+    if (row.kind === 'creature' && row.refId !== wipedFamily.id) pooledHere.set(row.refId, row);
+  }
+  const here = candidates.filter((family: any) => pooledHere.has(family.id));
+  const choices = here.length > 0 ? here : candidates.filter((family: any) => fitsTerrain(family.fitTerrains, location.terrainType));
+  const target = pickSurgeTarget(seed, choices);
+  if (!target) return null;
+
+  const homeFloor = BigInt(DENSITY_RULES.VACUUM_RIVAL_HOME_LEVEL);
+  let surged: PlacePoolRow;
+  const existing = pooledHere.get(target.id);
+  if (existing) {
+    const rival = settlePool(ctx, existing, now).pool;
+    const homeLevel = rival.homeLevel > homeFloor ? rival.homeLevel : homeFloor;
+    const count = rival.count > DENSITY_RULES.OVERRUN_SURGE_COUNT ? rival.count : DENSITY_RULES.OVERRUN_SURGE_COUNT;
+    surged = setPoolCount(ctx, { ...rival, homeLevel }, count, now).pool;
+  } else {
+    surged = createPool(
+      ctx,
+      {
+        regionId: wipedPool.regionId,
+        locationId: wipedPool.locationId,
+        kind: 'creature',
+        refId: target.id,
+        homeLevel: DENSITY_RULES.VACUUM_RIVAL_HOME_LEVEL,
+        timeOfDay: 'any',
+        count: DENSITY_RULES.OVERRUN_SURGE_COUNT,
+      },
+      now,
+    );
+  }
+
+  const line = vacuumLine(wipedFamily.pluralNoun, target.pluralNoun, location.name);
+  const segments = keeperSegments(line);
+  const message = segments.length > 0 ? flattenSegments(segments) : line;
+  for (const character of onlineAt(ctx, wipedPool.locationId)) {
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', message, segments);
+  }
+  onPoolShift(
+    ctx,
+    {
+      kind: 'vacuum_takeover',
+      regionId: wipedPool.regionId,
+      locationId: wipedPool.locationId,
+      familyId: wipedFamily.id,
+      takeoverFamilyId: target.id,
+    },
+    now,
+  );
+  onPoolShift(
+    ctx,
+    { kind: 'overrun_surge', regionId: wipedPool.regionId, locationId: wipedPool.locationId, familyId: target.id },
+    now,
+  );
+  return surged;
 }

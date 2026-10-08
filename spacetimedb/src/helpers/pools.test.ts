@@ -550,6 +550,15 @@ describe('the vacuum (D-20, D-36)', () => {
     const ctxB = poolCtx(preyOfWiped);
     applyDepletion(ctxB, seedPools(ctxB).goblinsOrchard, 50n, T0, 'kill');
     expect(poolOf(ctxB, ORCHARD_ID, SKITTERERS_ID)).toBeUndefined();
+
+    // Rivalry runs both ways: a family that names the wiped one as its rival is a candidate too.
+    const rivalOfWiped = poolWorld({
+      noRelations: true,
+      extra: { family_relation: [{ id: 1n, familyId: SKITTERERS_ID, otherFamilyId: GOBLINS_ID, kind: 'rival' }] },
+    });
+    const ctxC = poolCtx(rivalOfWiped);
+    applyDepletion(ctxC, seedPools(ctxC).goblinsOrchard, 50n, T0, 'kill');
+    expect(poolOf(ctxC, ORCHARD_ID, SKITTERERS_ID)?.count).toBe(DENSITY_RULES.OVERRUN_SURGE_COUNT);
   });
 
   it('a candidate of another region never moves in', () => {
