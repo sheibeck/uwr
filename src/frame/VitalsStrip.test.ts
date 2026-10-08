@@ -659,6 +659,214 @@ describe('VitalsStrip row 3 in combat (51.1-15)', () => {
   });
 });
 
+// The party grid (51.1-15, task 2). Each Phase 48 chip case is rewritten here:
+//   'shows Party n as plain text, then You, then one button per member, then the effects'
+//        -> 'lists one 44px card per other member, in partyMembers order'
+//   'calls selectAlly with the tapped chip id and follows allyTargetId' -> 'selects the tapped card'
+//   'never opens the Social sheet from a chip in combat' -> same, on the cards
+//   'renders an unknown member as a non-interactive Member chip' -> the unknown div card
+//   'renders names as text, not markup' -> the grid cards
+//   'keeps the long row in one sideways-scrolling line' -> the four-member wrap and one chip plus +N
+//   'stays out of the compact variant' -> the Task 1 compact case
+function online(id: bigint, name: string, over: Record<string, unknown> = {}) {
+  return ch(id, name, { online: true, ...over });
+}
+
+function wolf(characterId: bigint, over: Record<string, unknown> = {}) {
+  return myPet({ id: 200n + characterId, characterId, name: 'Wolf', currentHp: 18n, maxHp: 40n, ...over });
+}
+
+// Self (1), Mara the leader (2), Bo (3, with a pet and a buff), Cy (4, offline), Di (5, no character row).
+function gridGame(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return selfGame({
+    group: ref({ id: 1n, leaderCharacterId: 2n }),
+    groupMembers: ref([gm(1n, 1n, 1n), gm(2n, 2n, 2n), gm(3n, 3n, 3n), gm(4n, 4n, 4n), gm(5n, 5n, 5n)]),
+    knownCharacters: ref([
+      online(2n, 'Mara'),
+      online(3n, 'Bo', { hp: 50n }),
+      ch(4n, 'Cy', { online: false }),
+    ]),
+    effects: ref([fx(1n, 3n)]),
+    ...over,
+  });
+}
+
+const BO_PET = { petOf: (id: bigint) => (id === 3n ? (wolf(3n) as never) : null), petSecondsLeft: () => null };
+
+describe('VitalsStrip party grid in combat (51.1-15)', () => {
+  it('lists one li per other member, in partyMembers order, under a Party label', () => {
+    const { w } = mountCombat(gridGame(), { social: BO_PET });
+    const grid = w.get('ul.party-grid');
+    expect(grid.attributes('aria-label')).toBe('Party');
+    const items = grid.findAll('li');
+    expect(items).toHaveLength(4);
+    expect(items.map((li) => li.get('.character-name').text())).toEqual(['Mara', 'Bo', 'Cy', 'Member']);
+  });
+
+  it('draws a known member as a button.ally-card with name, paw, percent, a 3px bar and one chip', () => {
+    const { w } = mountCombat(gridGame(), { social: BO_PET });
+    const bo = w.findAll('li')[1].get('button.ally-card');
+    expect(bo.attributes('type')).toBe('button');
+    expect(bo.attributes('aria-pressed')).toBe('false');
+    expect(bo.get('.character-name').text()).toBe('Bo');
+    const paw = bo.get('.paw');
+    expect(paw.attributes('title')).toBe('Wolf 18/40');
+    expect(paw.attributes('aria-hidden')).toBe('true');
+    expect(bo.get('.pct').text()).toBe('50%');
+    expect((bo.get('.fill-health').element as HTMLElement).style.width).toBe('50%');
+    expect(bo.get('.track').attributes('aria-hidden')).toBe('true');
+    expect(bo.findAll('.effect-chips .tag')).toHaveLength(1);
+    expect(bo.get('.effect-chips').classes()).toEqual(expect.arrayContaining(['compact', 'nowrap']));
+    expect(bo.attributes('aria-label')).toBe(
+      'Target Bo with your next ability. Health 50 percent, pet Wolf health 18 of 40. Effects: Bless · 3 rounds.',
+    );
+    // name, then the paw, then the percent
+    const top = bo.get('.card-top').element;
+    expect(top.firstElementChild?.querySelector('.paw')).not.toBeNull();
+    expect(top.lastElementChild?.classList.contains('pct')).toBe(true);
+  });
+
+  it('shows no paw for a member without a pet and no chip row when there are no effects', () => {
+    const { w } = mountCombat(gridGame(), { social: BO_PET });
+    const mara = w.findAll('li')[0].get('button.ally-card');
+    expect(mara.find('.paw').exists()).toBe(false);
+    expect(mara.find('.effect-chips').exists()).toBe(false);
+    expect(mara.attributes('aria-label')).toBe('Target Mara with your next ability. Health 95 percent.');
+  });
+
+  it('mutes an offline member and keeps it a target, with ", offline" in its label', async () => {
+    const { w, selectAlly } = mountCombat(gridGame(), { social: BO_PET });
+    const cy = w.findAll('li')[2].get('button.ally-card');
+    expect(cy.classes()).toContain('muted');
+    expect(cy.attributes('aria-label')).toBe('Target Cy with your next ability. Health 95 percent, offline.');
+    await cy.trigger('click');
+    expect(selectAlly).toHaveBeenCalledWith(4n);
+  });
+
+  // Was: 'renders an unknown member as a non-interactive Member chip'.
+  it('renders a member without a character row as a non-button Member card', async () => {
+    const { w, selectAlly } = mountCombat(gridGame(), { social: BO_PET });
+    const di = w.findAll('li')[3].get('.ally-card');
+    expect(di.element.tagName).toBe('DIV');
+    expect(di.text()).toBe('Member');
+    expect(di.classes()).toContain('unknown');
+    expect(di.attributes('aria-pressed')).toBeUndefined();
+    expect(di.find('button').exists()).toBe(false);
+    await di.trigger('click');
+    expect(selectAlly).not.toHaveBeenCalled();
+  });
+
+  // Was: 'presses the You chip by default' (the other half): no grid card is pressed by default.
+  it('presses the self row by default and no card', () => {
+    const { w } = mountCombat(gridGame(), { social: BO_PET });
+    expect(w.get('button.self-target').attributes('aria-pressed')).toBe('true');
+    for (const card of w.findAll('button.ally-card')) {
+      expect(card.attributes('aria-pressed')).toBe('false');
+      expect(card.classes()).not.toContain('selected');
+    }
+  });
+
+  // Was: 'calls selectAlly with the tapped chip id and follows allyTargetId'.
+  it('calls selectAlly with the card id, moves the ring with allyTargetId and never opens the Social sheet', async () => {
+    const { w, selectAlly, allyTargetId, openScreen } = mountCombat(gridGame(), { social: BO_PET });
+    const card = (index: number) => w.findAll('li')[index].get('button.ally-card');
+    await card(1).trigger('click');
+    expect(selectAlly).toHaveBeenCalledTimes(1);
+    expect(selectAlly).toHaveBeenCalledWith(3n);
+    allyTargetId.value = 3n;
+    await nextTick();
+    expect(card(1).attributes('aria-pressed')).toBe('true');
+    expect(card(1).classes()).toContain('selected');
+    expect(card(0).attributes('aria-pressed')).toBe('false');
+    expect(w.get('button.self-target').attributes('aria-pressed')).toBe('false');
+    // no crosshair inside a card; the ring and aria-pressed carry the selection
+    expect(card(1).find('svg.self-marker, .self-marker, .marker').exists()).toBe(false);
+    await w.get('button.self-target').trigger('click');
+    expect(selectAlly).toHaveBeenLastCalledWith(1n);
+    expect(openScreen).not.toHaveBeenCalled();
+  });
+
+  it('has no Party n text, no You chip, no chip row, no menu and no nested button in combat', () => {
+    const { w } = mountCombat(gridGame(), { social: BO_PET, props: { levelUp: true } });
+    expect(w.find('.party-chip').exists()).toBe(false);
+    expect(w.find('.ally-chip').exists()).toBe(false);
+    expect(w.find('.chip-row').exists()).toBe(false);
+    expect(w.text()).not.toContain('Party 5');
+    expect(w.find('.menu-opener').exists()).toBe(false);
+    expect(w.find('.player-menu').exists()).toBe(false);
+    expect(w.findAll('button button')).toHaveLength(0);
+    expect(w.find('.ally-card .pet-tag').exists()).toBe(false);
+  });
+
+  it('keeps your pet a span tag, never a button, with the grid shown', () => {
+    const mine = { petOf: (id: bigint) => (id === 1n ? (myPet() as never) : null), petSecondsLeft: () => null };
+    const { w } = mountCombat(gridGame(), { social: mine });
+    expect(w.get('.row3 .pet-tag').element.tagName).toBe('SPAN');
+    expect(w.find('.party-grid .pet-tag').exists()).toBe(false);
+    expect(w.find('.party-grid .paw').exists()).toBe(false);
+  });
+
+  // Was: 'keeps the long row in one sideways-scrolling line (5 allies, 6 effects, the tag)'.
+  it('wraps four members into the grid and shows one chip plus +N per card', () => {
+    const ids = [2n, 3n, 4n, 5n];
+    const { w } = mountCombat(
+      selfGame({
+        group: ref({ id: 1n, leaderCharacterId: 2n }),
+        groupMembers: ref([gm(1n, 1n, 1n), ...ids.map((id) => gm(id, id, id))]),
+        knownCharacters: ref(ids.map((id) => online(id, `A very long member name ${id}`))),
+        effects: ref([1n, 2n, 3n].map((id) => fx(id, 3n, { sourceAbility: `Buff ${id}` }))),
+      }),
+      { social: BO_PET },
+    );
+    expect(w.findAll('.party-grid > li')).toHaveLength(4);
+    const bo = w.findAll('.ally-card')[1];
+    expect(bo.findAll('.effect-chips .tag')).toHaveLength(2);
+    expect(bo.findAll('.effect-chips .tag')[1].text()).toBe('+2');
+    expect(w.findAll('.ally-card')[0].find('.effect-chips').exists()).toBe(false);
+  });
+
+  // Was: 'renders names as text, not markup'.
+  it('renders member, pet and effect text as text, not markup', () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    const { w } = mountCombat(
+      gridGame({
+        knownCharacters: ref([online(2n, payload), online(3n, 'Bo')]),
+        effects: ref([fx(1n, 3n, { sourceAbility: payload })]),
+      }),
+      { social: { petOf: (id: bigint) => (id === 3n ? (wolf(3n, { name: payload }) as never) : null), petSecondsLeft: () => null } },
+    );
+    expect(w.find('img').exists()).toBe(false);
+    const cards = w.findAll('button.ally-card');
+    expect(cards[0].get('.character-name').text()).toBe(payload);
+    expect(cards[0].attributes('aria-label')).toContain(`Target ${payload} with your next ability`);
+    expect(cards[1].get('.paw').attributes('title')).toBe(`${payload} 18/40`);
+    expect(cards[1].attributes('aria-label')).toContain(`pet ${payload} health 18 of 40`);
+    expect(cards[1].get('.effect-chips .tag').text()).toContain(payload);
+  });
+
+  describe('source', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/frame/VitalsStrip.vue'), 'utf8');
+
+    it('carries the grid, the 44px card rules and the one-chip limit', () => {
+      expect(source).toContain('repeat(3, minmax(0, 1fr))');
+      expect(source).toContain('ally-card');
+      expect(source).toContain('STRIP_EFFECT_LIMIT');
+      expect(source).toContain('PhPawPrint');
+      expect(source).toContain('padding: 4px 8px');
+      expect(source).toContain('with your next ability');
+      expect(source).toContain('var(--color-accent-300)');
+      expect(source).toContain('height: 3px');
+      expect(source).not.toMatch(/margin:[^;]*-\d/);
+    });
+
+    it('drops the Phase 48 chip row markup', () => {
+      expect(source).not.toContain('ally-chip');
+      expect(source).not.toContain('allyMode');
+      expect(source).not.toContain('ally-row');
+    });
+  });
+});
+
 describe('VitalsStrip damage flash', () => {
   beforeEach(() => {
     vi.useFakeTimers();

@@ -535,6 +535,33 @@ describe('combat frame, mobile (390)', () => {
     expect(strip.findAll('button button')).toHaveLength(0);
   });
 
+  // Was the Phase 48 'chips[1] is Mara' half of the strip case: the first grid card is the first member.
+  it('lists the party in a Party grid after the self row, the first card being the first member', async () => {
+    const { game, reducers } = combatGame(PLAIN);
+    const w = mountFrame(false, game);
+    await settle();
+
+    const strip = w.get('.vitals-strip');
+    const grid = strip.get('ul.party-grid');
+    expect(grid.attributes('aria-label')).toBe('Party');
+    const cards = grid.findAll('li > button.ally-card');
+    expect(cards).toHaveLength(1);
+    expect(cards[0].get('.character-name').text()).toBe('Mara');
+    expect(cards[0].attributes('aria-pressed')).toBe('false');
+    expect(cards[0].attributes('aria-label')).toBe('Target Mara with your next ability. Health 95 percent.');
+    expect(precedes(strip.get('button.self-target').element, grid.element)).toBe(true);
+    expect(strip.find('.menu-opener').exists()).toBe(false);
+
+    // the real controller: the ring moves at once, no reducer is called
+    await cards[0].trigger('click');
+    expect(strip.get('button.ally-card').attributes('aria-pressed')).toBe('true');
+    expect(strip.get('button.self-target').attributes('aria-pressed')).toBe('false');
+    await strip.get('button.self-target').trigger('click');
+    expect(strip.get('button.ally-card').attributes('aria-pressed')).toBe('false');
+    expect(strip.get('button.self-target').attributes('aria-pressed')).toBe('true');
+    for (const reducer of Object.values(reducers)) expect(reducer).not.toHaveBeenCalled();
+  });
+
   it('shows the round row in its stacked form above the hotbar, with the cooldown in rounds', async () => {
     const { game } = combatGame(PLAIN);
     const w = mountFrame(false, game);
@@ -589,6 +616,8 @@ describe('combat frame, mobile (390)', () => {
 
     expect(w.findAll('img')).toHaveLength(0);
     expect(w.get('section.encounter-strip button.hostile-chip[aria-pressed="true"]').text()).toContain(XSS);
+    expect(w.get('.vitals-strip button.ally-card .character-name').text()).toBe(XSS);
+    expect(w.get('.vitals-strip button.ally-card').attributes('aria-label')).toContain(`Target ${XSS} with`);
     expect(w.get('.hotbar-row button.slot .slot-name').text()).toBe(XSS);
     expect(w.get('.line-windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
     expect(w.get('[role="log"]').text()).toContain(XSS);
