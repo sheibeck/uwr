@@ -29,6 +29,7 @@ import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { buildVictoryLootContext, rollEnemyLoot, rollEnemyGold } from '../helpers/loot';
+import { formatLootLine, LOOT_DROPPED_LEAD } from '../data/loot_line';
 import { incrementWorldStat } from '../helpers/world_events';
 import { enqueueCombatOutroNarration, enqueueCombatMomentNarration } from '../helpers/combat_narration';
 import { redactSecrets } from '../helpers/measurement';
@@ -2017,21 +2018,11 @@ export const registerCombatReducers = (deps: any) => {
           logGroupEvent(ctx, combat.id, character.id, 'reward', `${character.name} gained ${goldReward} gold.`);
         }
       }
-      // Announce all loot as clickable links
+      // Announce the drops as one line of loot links (quick 261008-f3m)
       const charLoot = [...ctx.db.combat_loot.by_character.filter(character.id)].filter(row => row.combatId === combat.id);
-      if (charLoot.length > 0) {
-        const RARITY_COLORS: Record<string, string> = {
-          common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
-        };
-        const lootLines: string[] = ['Loot dropped:'];
-        for (const lootRow of charLoot) {
-          const tmpl = ctx.db.item_template.id.find(lootRow.itemTemplateId);
-          if (!tmpl) continue;
-          const rarity = (lootRow.qualityTier || tmpl.rarity || 'common').toLowerCase();
-          const color = RARITY_COLORS[rarity] || '#ffffff';
-          lootLines.push(`  {{color:${color}}}[Take ${tmpl.name}]{{/color}}`);
-        }
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', lootLines.join('\n'));
+      const lootLine = formatLootLine(LOOT_DROPPED_LEAD, charLoot, (id) => ctx.db.item_template.id.find(id));
+      if (lootLine !== null) {
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', lootLine);
       } else {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward',
           `No loot dropped from ${summaryName}.`);

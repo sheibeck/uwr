@@ -7,6 +7,7 @@ import { sellInstanceToVendor } from '../helpers/vendor_sale';
 import { appliedSellBonusPercent, listingBuyPrice, sellPayout } from '../data/vendor_pricing';
 import { isQuestItemTemplate, QUEST_ITEM_SALE_REFUSAL } from '../data/item_rules';
 import { recipeRequirements } from '../data/crafting_rules';
+import { formatLootLine, LOOT_AVAILABLE_LEAD } from '../data/loot_line';
 import { getPerkBonusByField } from '../helpers/renown';
 import { requestSkillOffer } from '../helpers/skill_offer';
 import {
@@ -610,9 +611,6 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- LOOT ---
     if (lower === 'loot') {
-      const RARITY_COLORS: Record<string, string> = {
-        common: '#ffffff', uncommon: '#22c55e', rare: '#3b82f6', epic: '#aa44ff', legendary: '#ff8800',
-      };
       const lootRows = [...ctx.db.combat_loot.by_character.filter(character.id)];
       if (lootRows.length === 0) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
@@ -620,20 +618,14 @@ export const registerIntentReducers = (deps: any) => {
         return;
       }
 
-      const parts: string[] = ['Loot available:'];
-      for (const lootRow of lootRows) {
-        const template = ctx.db.item_template.id.find(lootRow.itemTemplateId);
-        if (!template) continue;
-        const rarity = (lootRow.qualityTier || template.rarity || 'common').toLowerCase();
-        const color = RARITY_COLORS[rarity] || '#ffffff';
-        parts.push(`  {{color:${color}}}[Take ${template.name}]{{/color}}`);
-      }
-
-      if (parts.length === 1) {
+      // Quick 261008-f3m: the same loot links as the victory line, as kind 'reward' (the client
+      // parses loot tokens on reward rows only), so typing `loot` re-lists clickable drops.
+      const lootLine = formatLootLine(LOOT_AVAILABLE_LEAD, lootRows, (id) => ctx.db.item_template.id.find(id));
+      if (lootLine === null) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
           'There is nothing to loot here.');
       } else {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'look', parts.join('\n'));
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', lootLine);
       }
       return;
     }
