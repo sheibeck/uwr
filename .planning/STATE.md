@@ -220,7 +220,6 @@ See MILESTONES.md for full delivery summaries.
 
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
 
-- `todos/pending/2026-10-08-travel-with-leader-moves-to-the-self-menu.md`: the desktop Travel with leader switch moves into the self ⋯/right-click menu, with a follow icon beside your name (owner, after 51.1).
 
 - `todos/pending/2026-10-08-nearby-enemies-ignore-the-location-level.md`: **bug** - enemies in a +4 place (Mother Pan Undercroft, target level 5) spawn at level 1 because the region only has level-1 enemy types and `spawnEnemy` falls back to any template without scaling it.
 
@@ -270,6 +269,7 @@ See MILESTONES.md for full delivery summaries.
 | 261006-g12 | Quest item rewards are schema-valid and equippable: `turn_in_quest` insert used non-existent columns and missed required ones (serializer threw, turn-in rolled back), slots `feet`/`weapon` and armor `medium` replaced; reward typed from the character's proficiencies. "turn in <quest>" intent now grants the item too. 63 tests. No publish. | 2026-10-06 | de82b155, 1c7b41f8 | [261006-g12-fix-turn-in-quest-item-reward](./quick/261006-g12-fix-turn-in-quest-item-reward/) |
 | 261006-gy6 | Quest turn-in follow-ups: both paths share `turnInCompletedQuest`. Full bags refuse an item-reward turn-in in voice with nothing applied; quest xp goes through `awardXp` (promised amount kept, pending levels + [Level Up] prompt; max level still gets the xp); the intent path records NPC memory; a reward named like an existing template (e.g. a starter item) becomes "<Giver>'s <name>"; `turn_in_quest` now checks the giver's location. 30 tests. No publish. | 2026-10-06 | 9d263c50, a660736d, 963b6207, bfd908a4, 7b38a16f | [261006-gy6-quest-turn-in-followups-inventory-space-](./quick/261006-gy6-quest-turn-in-followups-inventory-space-/) |
 | 261006-hky | Hail turn-in uses the shared `turnInCompletedQuest`: hailing an NPC turns in completed quests for that NPC with the same xp (level-up prompt), gold, item, affinity and NPC memory as `turn_in_quest`, and deletes the instance (the old hail paid xp + affinity only and kept a still-`completed` row). Delivery quests with a recipient are turned in to the recipient (`questTurnInNpcId`) once the package is picked up; the old block paid without the pickup. Full bags on hail: in-voice refusal, nothing applied, greeting still runs. 15 tests. No publish. | 2026-10-06 | dc1be40a | [261006-hky-route-hail-auto-turn-in-and-delivery-com](./quick/261006-hky-route-hail-auto-turn-in-and-delivery-com/) |
+| 261008-a97 | Travel with leader moves to the self menu: the desktop rail switch is gone, a follow icon sits beside your name (non-leader members), the self ⋯/right-click entries are proven end to end, the mobile Party sheet switch stays. set_follow_leader writes one party line on a real change: "{name} is now following the leader." / "{name} is no longer following the leader." (owner wording). Local publish, key 108 kept, no bindings change. Full suite green apart from the baseline. | 2026-10-08 | ef4c029d, e6475fe1, 9020c255, 0aa38c9e | [261008-a97-travel-with-leader-moves-to-the-self-men](./quick/261008-a97-travel-with-leader-moves-to-the-self-men/) |
 
 ## Deferred Items
 
@@ -367,12 +367,10 @@ The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so 
     - The plan that writes the prompt is gated on that approval. The route stays off (`aiEnabled` false) until `/economy ai on`.
   - **Quick task 261008-a97:**
     - Scope: Travel with leader moves into the self ⋯/right-click menu, a follow icon goes beside your name, and the party gets a line on each follow toggle.
-    - Its executor was running. There are uncommitted edits in TravelSwitch, the 51.1 UI-SPEC and the VitalsRail tests.
-    - After it finishes: add its row to Quick Tasks Completed and move its todo to completed.
+    - DONE 2026-10-08 (ef4c029d..0aa38c9e); recorded in Quick Tasks Completed, todo moved to completed.
   - **Quick task 261008-ag8:**
     - Scope: enemy spawns scale to the place's level when no enemy type fits.
-    - Its planner was running. The plan goes in `.planning/quick/261008-ag8-enemy-spawns-scale-to-the-place-level-wh/`.
-    - Commit the plan, then execute it after a97.
+    - Plan committed (31c1ff53). Executor running in the main tree (started after a97). Owner: "Quest bosses should be harder!" (quest and named spawns stay in the place band; the extra boss bump is 51.3.1).
   - **Queued quick tasks** run after ag8, one at a time, because each publishes locally:
     - **Day/night 40/20:** a one-hour cycle, set through `DAY_DURATION_MICROS` / `NIGHT_DURATION_MICROS` in `helpers/location.ts`. The calendar stays in 999.14.
     - **Party card bars:** every party card shows health, mana (if any) and stamina bars. Todo: `2026-10-08-party-cards-show-health-mana-and-stamina.md`. It touches the same components as a97, so it runs after a97.
