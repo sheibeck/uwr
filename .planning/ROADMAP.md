@@ -73,7 +73,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - **Server is source of truth.** The new client never duplicates server data or constants; it imports from `spacetimedb/src/data/`. Server changes in this milestone are limited to what a requirement needs (Phase 46, the round-based combat engine in Phase 46.1, and the small additions flagged in Phases 48-51), additive, and tested.
 - **Local only.** Publish to the local SpacetimeDB only; no push to master and no maincloud publish without the owner. Avoid `--clear-database` (it wipes the stored Anthropic key).
 
-**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
+**Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.1.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -86,6 +86,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
 - [ ] **Phase 51.3.1: Combat Dials** (INSERTED) - Admin dials that make combat harder or easier by difficulty level, region and enemy type, beside the economy dials
+- [ ] **Phase 51.3.1.1: Density Pools** (INSERTED) - Places hold living populations of creature families and resources at density levels; dangerous travel, group pulls, depletion and regrowth (promoted backlog 999.29)
 - [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
@@ -774,7 +775,7 @@ Plans:
     - gather and drop rates
     - recipe craftability from regional materials
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** 51.3 ships as planned (it is mid-build). Its per-creature economy (one drop, trophy and gear per enemy type, loot tables per enemy type) still fits, because each family member in 999.29 is an enemy type. When 999.29 lands: decide whether a family shares one drop/trophy or each role member keeps its own (more economy rows per family, more late-creature jobs), and regional gatherables (Plan 07, today's resource nodes) move into resource pools (999.29 D-26).
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** 51.3 ships as planned (it is mid-build). Its per-creature economy (one drop, trophy and gear per enemy type, loot tables per enemy type) still fits, because each family member in 999.29 is an enemy type. When 999.29 lands: decide whether a family shares one drop/trophy or each role member keeps its own (more economy rows per family, more late-creature jobs), and regional gatherables (Plan 07, today's resource nodes) move into resource pools (999.29 D-26).
 
 ### Phase 51.3.1: Combat Dials (INSERTED)
 
@@ -787,7 +788,7 @@ Plans:
   2. The dials cover at least enemy health, enemy damage and how often enemies use their abilities, with ranges set in discuss. Every dial defaults to today's tuning, so nothing changes until an admin moves one, and each value is clamped to a safe range.
   3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
   4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 53 admin screens get a panel beside the economy panel.
-  5. Pull size: how many enemies a pull brings is settled in discuss and, if the owner wants, tied to difficulty through the dials.
+  5. Pull size and encounter odds are NOT built here: Phase 51.3.1.1 Density Pools owns them (owner, 2026-10-08: "Promote 999.29 after 51.3.1"). 51.3.1 keeps difficulty dials only, and does not change world generation for enemies.
   6. Ability power: whether player abilities get per-kind power dials (and per-ability overrides) is settled in discuss; if built, cast-time results and tooltips read the same rule.
   7. Tests cover the clamps, each override level and how they combine, and determinism.
 
@@ -812,7 +813,31 @@ Plans:
 
 - [ ] TBD (run /gsd-plan-phase 51.3.1 to break down)
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** pull size and encounter odds are owned by 999.29 once it is promoted (group size by density: Scarce 1, Stable 1-2, Overrun 2-4; the careful single pull goes away). 51.3.1 should keep difficulty dials (health, damage, ability frequency by difficulty, region, enemy type) and not build its own pull-size rule; if 51.3.1 runs first, keep any pull-size dial simple and plan to replace it. Fix (b), world-gen enemy level ranges, should create families with role members (999.29 D-25), so that prompt change is made once. Order question for the owner: promote 999.29 to run right after 51.3.1 (or merge the two).
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** pull size and encounter odds are owned by 999.29 once it is promoted (group size by density: Scarce 1, Stable 1-2, Overrun 2-4; the careful single pull goes away). 51.3.1 should keep difficulty dials (health, damage, ability frequency by difficulty, region, enemy type) and not build its own pull-size rule; if 51.3.1 runs first, keep any pull-size dial simple and plan to replace it. Fix (b), world-gen enemy level ranges, should create families with role members (999.29 D-25), so that prompt change is made once. Order question for the owner: promote 999.29 to run right after 51.3.1 (or merge the two).
+
+### Phase 51.3.1.1: Density Pools (INSERTED)
+
+**Goal**: Places hold living populations instead of standing enemies and nodes. Each place keeps pools of creature families (with role members) and resources at density levels (Overrun/Stable/Scarce/Wiped out; Abundant/Plentiful/Sparse/Exhausted). Travel into and out of a place can start a fight, pulls and ambushes draw groups sized by density, kills and gathering deplete pools for everyone, populations regrow to a home level, wiped-out families let rivals surge, a light background-hunter tick thins pools, and shifts reach players through density lines, a place safety rating and World events.
+**Depends on**: Phase 51.3.1 (Combat Dials, run order and the dial pattern), Phase 51.3 (economy: loot and regional gatherables per type)
+**Requirements**: TBD (owner design 2026-10-08, promoted from backlog 999.29)
+**Success Criteria** (what must be TRUE):
+
+  1. Ordinary creatures live only in per-place family pools with a hidden population and a 0-3 density level; named enemies, bosses and quest targets stay individuals. Families have 3-4 role members (tank, damage, support, caster) with narrative names; world generation creates them (server sets stats; prompt wording owner-approved) and existing enemy types are grouped into families.
+  2. Nearby lists families and resources with rule-based narrative density lines (owner-approved wording) and a density badge, with Pull and Gather actions; no individual enemies or nodes are listed. Each place shows a safety rating word and colour (Safe/Quiet/Risky/Deadly) from density and level gap, on the place, the exit chips and the map.
+  3. Entering and leaving a place roll for an encounter (density x temperament x level gap; safe places never roll; one roll per travelling party, offline members never pulled in). Pulls, travel encounters and gathering ambushes draw a group sized by density (Scarce 1, Stable 1-2, Overrun 2-4) with roles by rule (a front-liner first, never all support). The careful single pull is retired.
+  4. Kills deplete a family per kill, scaled by role; gathering depletes resources; every player's and the background hunters' actions share the same pools. Populations regrow (creatures in minutes) to a home level and never pass it on their own; Overrun only comes from a vacuum surge or an event. When a family is wiped out, a rival or predator family of the region surges in.
+  5. A light background-hunter tick (scheduled, module-guarded, deterministic, off or low by default) thins pools. Shifts update density lines and ratings live, appear in rumours, and become World events (wiped out, Overrun surge, takeover, region trends; Phase 52.4 hooks).
+  6. An admin dial (the 51.3 `/economy` pattern) tunes encounter chance, group size by level, depletion and regrowth speed, and hunter activity, globally, per region, by difficulty and by family; values clamp and apply to the next roll.
+  7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, the dial clamps, and the migration of existing enemies and nodes.
+
+**Plans**: TBD
+**UI hint**: yes (design source: an updated mock from `51.3.1.1-MOCK-BRIEF.md`)
+**Notes**:
+
+  - Promoted from backlog 999.29 (owner, 2026-10-08: "Promote 999.29 after 51.3.1"). Discussed 2026-10-08: decisions D-00 to D-26 and the owner's "Dynamic Density Pool" brief are in `.planning/phases/51.3.1.1-density-pools/51.3.1.1-CONTEXT.md`; the design-tool brief is `51.3.1.1-MOCK-BRIEF.md` in the same folder. The pre-travel warning system stays in backlog 999.30.
+  - Owner wants an updated mock from the brief before UI work; plan the UI against that mock.
+  - Schema: additive tables and defaulted columns only; existing `enemy_spawn` rows for ordinary creatures and resource nodes are migrated or retired without `--clear-database`.
+  - Its folder was `999.29-dangerous-travel-mob-density`; it is now `51.3.1.1-density-pools`.
 
 ### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
 
@@ -838,7 +863,7 @@ Plans:
   - Owner, 2026-10-08: "How do enemies decide who they are targetting? Could we put the enemies target in their panel during combat so we can see who is being targetted?" Then: "Let's add that request to the phase where we will handle combat wind up and such." How it works today: each enemy keeps a threat table (`aggro_entry`, one row per enemy per character or pet). Damage adds threat (tanks x1.5, summoners x0.75, healers x0.5), healing adds 50% of the healing as threat, pets start at 200 and taunt adds a bonus, and a taunt forces the target. Each round an enemy attacks whoever has the most threat on it among the fighters still in the fight, falling back to the first fighter (`reducers/combat.ts`, the aggro branch near line 870; `getTopAggroId` in `helpers/combat.ts`). Plan: move that choice into one shared pure rule (server and client import it through `@game-data`, the server stays the authority) or store the chosen target on `combat_enemy`; the client already reads the threat rows through the `my_*` aggro view. Pets count as targets. Follow the Combat mock's enemy card for placement, and keep the design guards.
   - Its folder was `999.17-combat-round-wind-up-for-cast-times-with-hotbar-slot-cancel`; it is now `51.3.2-combat-wind-up-cooldowns-and-durations`.
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** drawn groups mean more multi-enemy fights; the enemy-target display and enemy wind-ups must read well with 2-4 enemies at once. No change to scope.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** drawn groups mean more multi-enemy fights; the enemy-target display and enemy wind-ups must read well with 2-4 enemies at once. No change to scope.
 
 ### Phase 51.4: Loot Rails (INSERTED)
 
@@ -861,7 +886,7 @@ Plans:
   - Reuse: bindings for `combat_loot`, `my_combat_loot`, `take_loot`, `take_all_loot`, `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs.
   - Tests: rails content per drop, take and take-all, refusals, and mobile.
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** groups of 2-4 enemies per fight make the loot rail show more items per victory; design for several enemies' loot at once. No change to scope.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** groups of 2-4 enemies per fight make the loot rail show more items per victory; design for several enemies' loot at once. No change to scope.
 
 ### Phase 51.5: Character, Level Up and New Skill (INSERTED)
 
@@ -908,7 +933,7 @@ Plans:
   - The full design and test list is in the todo `2026-10-06-typed-text-reveal-and-login-crossfade.md` (pulled into this phase).
   - Client only; no server change expected. Combat round lines stay short or near-instant (owner confirms at UAT).
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** density lines and safety ratings that change live (and World event shifts) are good candidates for the same calm transitions.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** density lines and safety ratings that change live (and World event shifts) are good candidates for the same calm transitions.
 
 ### Phase 52.1: Hotbar Manager (INSERTED)
 
@@ -1034,7 +1059,7 @@ Plans:
   - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 53 Journal). All changes are additive and published locally only.
   - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** 999.29 feeds World events: a family wiped out at a place, an Overrun surge (a natural "cull the swarm" event with contribution and rewards), a vacuum takeover, and region-wide trends. Owner: "this system would then lend itself very nicely into the world event system!" If 52.4 runs before 999.29, leave a hook for these event kinds.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** 999.29 feeds World events: a family wiped out at a place, an Overrun surge (a natural "cull the swarm" event with contribution and rewards), a vacuum takeover, and region-wide trends. Owner: "this system would then lend itself very nicely into the world event system!" If 52.4 runs before 999.29, leave a hook for these event kinds.
 
 ### Phase 53: Parity and Production
 
@@ -1085,6 +1110,7 @@ Plans:
 | 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.1. Party | v3.0 | 0/TBD | Not started | - |
 | 51.3. Regional Economy | v3.0 | 0/TBD | Not started | - |
+| 51.3.1.1. Density Pools | v3.0 | 0/TBD | Not started | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
@@ -1099,7 +1125,7 @@ Plans:
 
 ## Backlog
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** the parity row for "Nearby enemies with a Pull button" (quick 261006-a0i) changes when 999.29 lands: Nearby lists families and resources with density lines instead of individual enemies and nodes.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** the parity row for "Nearby enemies with a Pull button" (quick 261006-a0i) changes when 999.29 lands: Nearby lists families and resources with density lines instead of individual enemies and nodes.
 
 ### Phase 999.3: Dynamic Equipment Generation (BACKLOG)
 
@@ -1197,7 +1223,7 @@ The threat numbers date from the fixed classes: tank x1.5, healer x0.5, summoner
 
 Promote with /gsd-review-backlog when ready.
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** utility abilities gain targets: sneak or invisibility lowers travel-encounter odds, lull calms a family, a careful single pull replaces the old always-one pull, and gathering boosts may read resource density. Threat must work for drawn groups of 2-4 with roles (tank, support, caster).
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** utility abilities gain targets: sneak or invisibility lowers travel-encounter odds, lull calms a family, a careful single pull replaces the old always-one pull, and gathering boosts may read resource density. Threat must work for drawn groups of 2-4 with roles (tank, support, caster).
 
 ### Phase 999.6: Complete UX Overhaul — UWR Ledger Screens design (BACKLOG)
 
@@ -1480,7 +1506,7 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** NPC rumours should mention density shifts ("the goblins have been thinned out on the north road"). Named rival adventuring parties that hunt pools are deferred here from 999.29 (999.29 uses a light, invisible hunter tick).
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** NPC rumours should mention density shifts ("the goblins have been thinned out on the north road"). Named rival adventuring parties that hunt pools are deferred here from 999.29 (999.29 uses a light, invisible hunter tick).
 
 ### Phase 999.11: Race discovery, similar-race matching and the Rite of Becoming (BACKLOG)
 
@@ -2295,7 +2321,7 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** world generation will create creature families with role members, their home density per place, and family relations (rival, prey, predator), plus resource pools; keep both designs consistent.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** world generation will create creature families with role members, their home density per place, and family relations (rival, prey, predator), plus resource pools; keep both designs consistent.
 
 ### Phase 999.27: Pet kinds, pet abilities and pet targeting (MERGED INTO 999.4)
 
@@ -2360,13 +2386,15 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 
-  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** the map can show each place's safety rating (word and colour) from 999.29.
+  - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** the map can show each place's safety rating (word and colour) from 999.29.
 
-### Phase 999.29: Dynamic density pools: creature families and resources wax and wane per place; dangerous travel (BACKLOG)
+### Phase 999.29: Dynamic density pools: creature families and resources wax and wane per place; dangerous travel (PULLED INTO PHASE 51.3.1.1)
+
+**Status (owner, 2026-10-08):** promoted to Phase 51.3.1.1 Density Pools, right after 51.3.1 Combat Dials. Its discussion files moved to `.planning/phases/51.3.1.1-density-pools/`. This entry stays as the record.
 
 **Source:** owner, 2026-10-08 (captured as a todo, then moved here: "I want to talk more about this and make it a backlog item that we can promote. Let's let the dial be part of the backlog for this, too."). The todo `2026-10-08-dangerous-travel-and-enemy-proximity.md` was folded into this item and deleted.
 
-**Discussed 2026-10-08:** see `.planning/phases/999.29-dangerous-travel-mob-density/999.29-CONTEXT.md` (decisions D-00 to D-26, the owner's "Dynamic Density Pool" brief) and `999.29-MOCK-BRIEF.md` (the summary for the design tool). The decisions there supersede the notes below where they differ: ordinary creatures live in per-place pools of families (with role members) at density levels 0-3, nothing ordinary stands at a place, travel rolls on entering and leaving, pulls and ambushes draw groups sized by density, kills deplete pools for everyone, families regrow in minutes to a home level, wiped-out families let rivals surge, a light background-hunter tick thins pools, and shifts become World events. Owner, 2026-10-08: "we should do this same kind of density pattern for gatherables. Instead of individual nodes." Resources get the same pools (D-26).
+**Discussed 2026-10-08:** see `.planning/phases/51.3.1.1-density-pools/51.3.1.1-CONTEXT.md` (decisions D-00 to D-26, the owner's "Dynamic Density Pool" brief) and `51.3.1.1-MOCK-BRIEF.md` (the summary for the design tool). The decisions there supersede the notes below where they differ: ordinary creatures live in per-place pools of families (with role members) at density levels 0-3, nothing ordinary stands at a place, travel rolls on entering and leaving, pulls and ambushes draw groups sized by density, kills deplete pools for everyone, families regrow in minutes to a home level, wiped-out families let rivals surge, a light background-hunter tick thins pools, and shifts become World events. Owner, 2026-10-08: "we should do this same kind of density pattern for gatherables. Instead of individual nodes." Resources get the same pools (D-26).
 
 **Original goal:** Travel feels dangerous, especially above your level. Each location has a mob density; the denser it is, the more likely entering or leaving provokes an attack and the more likely a pull brings a group instead of one enemy. A mob-density dial (by difficulty, region and enemy type, following the 51.3 and 51.3.1 dial pattern and the `/economy`-style admin command) tunes it.
 
@@ -2434,4 +2462,4 @@ Plans:
 
 
 ---
-*Last updated: 2026-10-08 after discussing 999.29 (density pools, gatherables included), adding 999.30, and noting the impact on 51.3, 51.3.1, 51.3.2, 51.4, 51.5.1, 52.4, 53, 999.4, 999.10, 999.26 and 999.28 (owner)*
+*Last updated: 2026-10-08 after promoting 999.29 to Phase 51.3.1.1 Density Pools, after 51.3.1 Combat Dials (owner)*
