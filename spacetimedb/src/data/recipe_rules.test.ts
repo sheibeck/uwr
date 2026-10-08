@@ -847,3 +847,32 @@ describe('import pin', () => {
     expect(source).not.toMatch(/replaceAll|Object\.hasOwn\(|\.at\(/);
   });
 });
+
+// Phase 51.3 Plan 06: a regional material that is not in MATERIAL_KINDS takes part in the rule
+// recipes through its economy_item kind (BagMaterial.kind); the key stays materialKey(name).
+describe('BagMaterial.kind (Plan 51.3-06)', () => {
+  const brine = (count: bigint, kind?: unknown): BagMaterial =>
+    ({ templateId: 301n, name: 'Brinewort Crystal', tier: 1n, vendorValue: 2n, count, ...(kind === undefined ? {} : { kind }) }) as BagMaterial;
+  const cloth: BagMaterial = { templateId: 48n, name: 'Scrap Cloth', tier: 1n, vendorValue: 1n, count: 5n };
+
+  it("an unmapped name with kind 'trinket' yields an accessory candidate that uses it", () => {
+    const candidates = recipeCandidates([brine(2n, 'trinket'), cloth], 1n);
+    const accessory = candidates.find((c) => c.category === 'accessory');
+    expect(accessory).toBeDefined();
+    expect(accessory!.primary.templateId).toBe(301n);
+    expect(accessory!.primary.key).toBe('brinewort_crystal');
+    expect(accessory!.key).toBe('gen:accessory:brinewort_crystal+scrap_cloth:L1');
+  });
+
+  it('without a kind, or with an unknown kind, the unmapped name is still dropped', () => {
+    for (const bag of [[brine(2n), cloth], [brine(2n, 'gem'), cloth], [brine(2n, 7), cloth]]) {
+      const used = recipeCandidates(bag, 1n).some((c) => c.primary.templateId === 301n || c.secondary.templateId === 301n);
+      expect(used).toBe(false);
+    }
+  });
+
+  it('a known name keeps its own kind when the entry carries none', () => {
+    const plain = recipeCandidates([cloth, { templateId: 31n, name: 'Stone', tier: 1n, vendorValue: 1n, count: 2n }], 1n);
+    expect(plain.map((c) => c.key)).toContain('gen:accessory:stone+scrap_cloth:L1');
+  });
+});
