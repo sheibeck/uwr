@@ -345,3 +345,25 @@ export function validateRegionEconomyReply(
   if (gather.supplied === 0 && creatures.length === 0 && recipes.length === 0) return null;
   return { gatherables: gather.list, creatures, recipes };
 }
+
+/**
+ * Late-creature mode (an enemy type added after the region was designed): the drop, trophy and gear
+ * of one creature, or null when reply.lateCreature is not an object. The enemy is resolved against
+ * input.enemies; in enemy mode the input lists exactly one enemy, so a missing or unknown enemy
+ * field is repaired to it (with several listed enemies an unknown handle returns null). The region
+ * field is ignored. Names share one set and are checked against isTaken like region mode.
+ */
+export function validateLateCreature(
+  input: RegionEconomyInput,
+  reply: unknown,
+  isTaken: (name: string) => boolean,
+): ValidatedCreature | null {
+  const entry = field(reply, 'lateCreature');
+  if (!isPlainObject(entry)) return null;
+  const enemies = Array.isArray(input.enemies) ? input.enemies : [];
+  const ref = normaliseHandle(field(entry, 'enemy'));
+  const enemy = enemies.find((e) => e.ref === ref) ?? (enemies.length === 1 ? enemies[0] : undefined);
+  if (!enemy) return null;
+  const names = new NameBook(asText(input.regionName), safeIsTaken(isTaken));
+  return validateCreatureBody(entry, enemy.ref, enemy.templateId, names);
+}
