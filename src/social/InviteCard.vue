@@ -2,6 +2,7 @@
 import { computed, inject, ref, watch } from 'vue';
 import { PhCrownSimple, PhFootprints, PhUsersThree } from '@phosphor-icons/vue';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import { keepFocus } from '../ledger/keepFocus';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
 import CharacterName from './CharacterName.vue';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
@@ -16,6 +17,11 @@ import { usePartyActions } from './usePartyActions';
 // The polite status region stays mounted (the root is always rendered) so the arrival is heard:
 // its text changes only when a new invite id arrives, and it never holds the countdown. Names are
 // server text and are rendered as text nodes only.
+//
+// answered (51.1 reviews client-social WR-03 and IN-02): emitted when the card goes away while focus
+// is inside it, whatever removed the row (your Accept or Decline, the expiry tick, the inviter's
+// cancel, the group dissolving), so the host moves focus to its Party heading or the composer and it
+// never falls to body. A refused answer leaves the card, and focus, where they are.
 const props = withDefaults(defineProps<{ variant?: 'rail' | 'mobile' | 'sheet' }>(), { variant: 'rail' });
 const emit = defineEmits<{ answered: [] }>();
 
@@ -79,6 +85,17 @@ const followLine = computed(
   () => `You'll travel with ${leaderName.value} by default. You can turn this off.`,
 );
 
+const cardEl = ref<HTMLElement | null>(null);
+keepFocus({
+  source: shown,
+  area: () => cardEl.value,
+  capture: () => true,
+  restore: () => {
+    emit('answered');
+    return null;
+  },
+});
+
 const offline = computed(() => !game.connected.value);
 const pending = computed(() => {
   const name = inviterName.value;
@@ -90,8 +107,8 @@ const inert = computed(() => expired.value || offline.value || pending.value);
 async function answer(kind: 'accept' | 'decline'): Promise<void> {
   const name = inviterName.value;
   if (name === null || inert.value) return;
-  const ok = await (kind === 'accept' ? actions.acceptInvite(name) : actions.declineInvite(name));
-  if (ok) emit('answered');
+  // No emit here: the card leaving (keepFocus above) is what answers, not the promise.
+  await (kind === 'accept' ? actions.acceptInvite(name) : actions.declineInvite(name));
 }
 
 // The announcement: set once per invite id (once the inviter is known), cleared when the invite goes.
@@ -118,6 +135,7 @@ watch(
     <span class="sr-only" role="status" aria-live="polite">{{ announcement }}</span>
     <section
       v-if="shown"
+      ref="cardEl"
       class="invite-card"
       :class="{ touch: props.variant !== 'rail' }"
       aria-label="Party invite"

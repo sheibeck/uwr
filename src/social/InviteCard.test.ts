@@ -260,9 +260,10 @@ describe('InviteCard announce', () => {
 });
 
 describe('InviteCard actions', () => {
-  it('Accept sends acceptGroupInvite once even when clicked twice quickly, then emits answered', async () => {
+  it('Accept sends acceptGroupInvite once even when clicked twice quickly; answered waits for the row to go', async () => {
     const s = setup({ hold: true });
-    const w = mountCard(s);
+    const w = mountCard(s, {}, true);
+    (accept(w).element as HTMLElement).focus();
     await accept(w).trigger('click');
     await accept(w).trigger('click');
     await decline(w).trigger('click');
@@ -274,19 +275,61 @@ describe('InviteCard actions', () => {
     expect(w.emitted('answered')).toBeUndefined();
     s.release();
     await flushPromises();
+    // The promise resolving is not the answer: the server deleting the row is (review IN-02).
+    expect(w.emitted('answered')).toBeUndefined();
+    s.incoming.value = null;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.invite-card').exists()).toBe(false);
     expect(w.emitted('answered')).toHaveLength(1);
   });
 
-  it('Decline sends rejectGroupInvite once and emits answered', async () => {
+  it('Decline sends rejectGroupInvite once and emits answered when the row goes', async () => {
     const s = setup();
-    const w = mountCard(s);
+    const w = mountCard(s, {}, true);
+    (decline(w).element as HTMLElement).focus();
     await decline(w).trigger('click');
     await decline(w).trigger('click');
     await flushPromises();
     expect(s.rejectGroupInvite.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(s.rejectGroupInvite).toHaveBeenCalledWith({ characterId: ME, fromName: 'Ann' });
     expect(s.acceptGroupInvite).not.toHaveBeenCalled();
-    expect(w.emitted('answered')).toBeTruthy();
+    s.incoming.value = null;
+    await nextTick();
+    await nextTick();
+    expect(w.emitted('answered')).toHaveLength(1);
+  });
+
+  it('a server refusal (the call resolves, the row stays) does not emit answered (review IN-02)', async () => {
+    const s = setup();
+    const w = mountCard(s, {}, true);
+    (accept(w).element as HTMLElement).focus();
+    await accept(w).trigger('click');
+    await flushPromises();
+    expect(s.acceptGroupInvite).toHaveBeenCalledTimes(1);
+    expect(w.find('.invite-card').exists()).toBe(true);
+    expect(w.emitted('answered')).toBeUndefined();
+    expect(document.activeElement).toBe(accept(w).element);
+  });
+
+  it('the server removing the row while Accept holds focus emits answered (expiry, cancel; review WR-03)', async () => {
+    const s = setup({ secondsLeft: 0 });
+    const w = mountCard(s, {}, true);
+    (accept(w).element as HTMLElement).focus();
+    s.incoming.value = null;
+    await nextTick();
+    await nextTick();
+    expect(w.find('.invite-card').exists()).toBe(false);
+    expect(w.emitted('answered')).toHaveLength(1);
+  });
+
+  it('the row going while focus is elsewhere does not emit answered', async () => {
+    const s = setup();
+    const w = mountCard(s, {}, true);
+    s.incoming.value = null;
+    await nextTick();
+    await nextTick();
+    expect(w.emitted('answered')).toBeUndefined();
   });
 
   it('does not emit answered when the call is rejected', async () => {
@@ -382,9 +425,13 @@ describe('InviteCard in FeedShell', () => {
     // The composer takes focus on mount (desktop frame default); move it away first.
     (w.get('input.composer-input').element as HTMLInputElement).blur();
     expect(document.activeElement).not.toBe(w.get('input.composer-input').element);
+    (accept(w).element as HTMLElement).focus();
     await accept(w).trigger('click');
     await flushPromises();
     expect(s.acceptGroupInvite).toHaveBeenCalledTimes(1);
+    s.incoming.value = null;
+    await nextTick();
+    await nextTick();
     expect(document.activeElement).toBe(w.get('input.composer-input').element);
   });
 });

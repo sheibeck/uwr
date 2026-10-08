@@ -279,6 +279,29 @@ describe('OutgoingInvites cancel', () => {
     expect(document.activeElement).not.toBe(cancelButtons(w)[0].element);
   });
 
+  it('the server removing a row whose Cancel invite holds focus moves focus to the next row (review WR-03)', async () => {
+    const s = setup();
+    const w = mountList(s);
+    (cancelButtons(w)[0].element as HTMLElement).focus();
+    // Bram accepted (or the invite expired): no cancel from here.
+    s.rows.value = s.rows.value.filter((row) => row.id !== 20n);
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(cancelButtons(w)[0].element);
+    expect(w.emitted('focusHeading')).toBeUndefined();
+  });
+
+  it('the server removing the last row while it holds focus emits focusHeading, never leaving focus on body', async () => {
+    const s = setup({ rows: [invite(20n, ME, BRAM)] });
+    const w = mountList(s);
+    (cancelButtons(w)[0].element as HTMLElement).focus();
+    s.rows.value = [];
+    await nextTick();
+    await nextTick();
+    expect(w.find('section').exists()).toBe(false);
+    expect(w.emitted('focusHeading')).toHaveLength(1);
+  });
+
   it('a rejected cancel forgets the remembered row', async () => {
     const s = setup({ rows: [invite(20n, ME, BRAM)] });
     s.cancelGroupInvite.mockImplementationOnce(() => Promise.reject(new Error('refused')));

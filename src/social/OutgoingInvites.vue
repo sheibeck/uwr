@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { PhHourglassMedium } from '@phosphor-icons/vue';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
+import { keepFocus } from '../ledger/keepFocus';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
 import CharacterName from './CharacterName.vue';
 import { SOCIAL_KEY, createInertSocial } from './socialContext';
@@ -13,9 +14,10 @@ import { usePartyActions } from './usePartyActions';
 // server clock) and has a visible Cancel invite button. A row leaves only when the server row does;
 // at 0:00 it reads Expired and its Cancel invite is aria-disabled.
 //
-// Focus after a cancel: the cancelled invite is remembered with its index; when the row is gone,
-// focus goes to the Cancel invite now at that index (the next row), else focusHeading is emitted
-// so the host focuses its Party heading. Names are server text, text nodes only.
+// Focus after a row goes (51.1 review client-social WR-03): whatever removed it (your cancel, the
+// target's answer, the expiry tick), when focus was on that row's Cancel invite it moves to the
+// Cancel invite now at that index (the next row), else focusHeading is emitted so the host focuses
+// its Party heading (keepFocus). Names are server text, text nodes only.
 const props = withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { variant: 'rail' });
 const emit = defineEmits<{ focusHeading: [] }>();
 
@@ -60,41 +62,33 @@ function inert(view: { name: string | null; expired: boolean }): boolean {
   return runner.isPending(actions.keyFor('cancelInvite', view.name));
 }
 
-let cancelled: { id: bigint; index: number } | null = null;
-
-async function cancel(view: { id: bigint; name: string | null; expired: boolean }, index: number): Promise<void> {
+async function cancel(view: { name: string | null; expired: boolean }): Promise<void> {
   if (view.name === null || inert(view)) return;
-  // Remembered before the call: the server row can go before the reducer promise settles.
-  cancelled = { id: view.id, index };
-  const ok = await actions.cancelInvite(view.name);
-  if (!ok && cancelled !== null && cancelled.id === view.id) cancelled = null;
+  await actions.cancelInvite(view.name);
 }
 
-watch(
-  rows,
-  (list) => {
-    const mark = cancelled;
-    if (mark === null || list.some((row) => row.id === mark.id)) return;
-    cancelled = null;
-    // Do not take focus from something else the player moved to meanwhile.
-    const active = document.activeElement;
-    const section = sectionEl.value;
-    const free = active === null || active === document.body || (section !== null && section.contains(active));
-    if (!free) return;
-    const buttons = section === null ? [] : section.querySelectorAll<HTMLElement>('button.cancel');
-    const next = buttons[mark.index];
-    if (next !== undefined) next.focus();
-    else emit('focusHeading');
+// The row index that held focus before the update; after it, the Cancel invite at that index.
+keepFocus({
+  source: () => views.value.map((view) => view.key).join(','),
+  area: () => sectionEl.value,
+  capture: (active, area) => {
+    const row = active.closest('li');
+    return row === null ? 0 : Array.from(area.querySelectorAll('li')).indexOf(row);
   },
-  { flush: 'post' },
-);
+  restore: (index) => {
+    const next = sectionEl.value?.querySelectorAll<HTMLElement>('button.cancel')[Math.max(index, 0)];
+    if (next !== undefined) return next;
+    emit('focusHeading');
+    return null;
+  },
+});
 </script>
 
 <template>
   <section v-if="visible" ref="sectionEl" class="outgoing">
     <h6>Invited · waiting</h6>
     <ul class="rows" :class="{ sheet: props.variant === 'sheet' }">
-      <li v-for="(view, index) in views" :key="view.key" class="row">
+      <li v-for="view in views" :key="view.key" class="row">
         <PhHourglassMedium :size="12" class="hourglass" aria-hidden="true" />
         <CharacterName :name="view.shown" class="who" />
         <span v-if="view.expired" class="timer expired">Expired</span>
@@ -107,7 +101,7 @@ watch(
           class="btn btn-ghost cancel"
           :aria-label="`Cancel invite to ${view.shown}`"
           :aria-disabled="inert(view) ? 'true' : undefined"
-          @click="cancel(view, index)"
+          @click="cancel(view)"
         >
           Cancel invite
         </button>
