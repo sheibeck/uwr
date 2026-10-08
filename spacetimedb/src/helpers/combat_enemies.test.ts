@@ -173,11 +173,47 @@ describe('computeEnemyStats', () => {
 // ============================================================================
 
 describe('getEnemyRole', () => {
-  it('returns correct config for each defined role', () => {
-    for (const roleName of Object.keys(ENEMY_ROLE_CONFIG)) {
+  it('returns its own config for each of the four server roles', () => {
+    for (const roleName of ['tank', 'damage', 'healer', 'caster']) {
       const config = getEnemyRole(roleName);
-      expect(config).toEqual(ENEMY_ROLE_CONFIG[roleName]);
+      expect(config).toBe(ENEMY_ROLE_CONFIG[roleName]);
     }
+  });
+
+  it('keeps the legacy support and dps keys so old stored rows still resolve', () => {
+    expect(ENEMY_ROLE_CONFIG.support).toBeDefined();
+    expect(ENEMY_ROLE_CONFIG.dps).toBeDefined();
+  });
+
+  it('normalizes world-gen and prompt roles through normalizeEnemyRole (D-53)', () => {
+    expect(getEnemyRole('caster')).toBe(ENEMY_ROLE_CONFIG.caster);
+    expect(getEnemyRole('melee')).toBe(ENEMY_ROLE_CONFIG.damage);
+    expect(getEnemyRole('ranged')).toBe(ENEMY_ROLE_CONFIG.damage);
+    expect(getEnemyRole('dps')).toBe(ENEMY_ROLE_CONFIG.damage);
+    expect(getEnemyRole('support')).toBe(ENEMY_ROLE_CONFIG.healer);
+    expect(getEnemyRole('tank')).toBe(ENEMY_ROLE_CONFIG.tank);
+    expect(getEnemyRole('unknown')).toBe(ENEMY_ROLE_CONFIG.damage);
+  });
+
+  it('holds the stat ordering: tank armour > damage armour > caster armour', () => {
+    const { tank, damage, caster } = ENEMY_ROLE_CONFIG;
+    expect(tank.baseArmor).toBeGreaterThan(damage.baseArmor);
+    expect(damage.baseArmor).toBeGreaterThan(caster.baseArmor);
+    expect(tank.armorPerLevel).toBeGreaterThan(damage.armorPerLevel);
+    expect(damage.armorPerLevel).toBeGreaterThan(caster.armorPerLevel);
+  });
+
+  it('gives the caster more damage per level than the damage profile', () => {
+    expect(ENEMY_ROLE_CONFIG.caster.damagePerLevel).toBeGreaterThan(ENEMY_ROLE_CONFIG.damage.damagePerLevel);
+  });
+
+  it('a level 5 caster has lower HP and armour and higher damage than the same template as damage', () => {
+    const base = { level: 5n, maxHp: 80n, armorClass: 12n };
+    const asCaster = computeEnemyStats({ ...base, role: 'caster' }, null, []);
+    const asDamage = computeEnemyStats({ ...base, role: 'damage' }, null, []);
+    expect(asCaster.maxHp).toBeLessThan(asDamage.maxHp);
+    expect(asCaster.armorClass).toBeLessThan(asDamage.armorClass);
+    expect(asCaster.attackDamage).toBeGreaterThan(asDamage.attackDamage);
   });
 
   it('falls back to damage role for unknown roles', () => {
