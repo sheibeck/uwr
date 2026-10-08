@@ -563,6 +563,7 @@ export const FALLBACK_WEIGHTS = Object.freeze({
   regionMaterial: 6n,
   gearCommon: 6n,
   gearUncommon: 3n,
+  gearRare: 1n,
   gearJewelry: 1n,
 });
 
@@ -612,11 +613,40 @@ export function fallbackCommonPool(input: FallbackPoolInput): (WeightedEntry & {
   return pool.sort(byIdThenWeight);
 }
 
-/** The weight of one gear template in the gear pool: jewelry (neck, earrings) 1, uncommon 3, otherwise 6. */
+/**
+ * The weight of one gear template in the fallback gear pool, by its real rarity (review A WR-05): common
+ * 6, uncommon 3, rare 1, epic and legendary 0 (never a free fallback drop; the dropped quality is
+ * rolled separately from the rarity mix). Jewelry (neck, earrings) is 1 up to rare. An unknown rarity
+ * string reads as common.
+ */
 export function gearPoolWeight(gear: { slot: string; rarity: string }): bigint {
+  if (gear.rarity === 'epic' || gear.rarity === 'legendary') return 0n;
   if (gear.slot === 'neck' || gear.slot === 'earrings') return FALLBACK_WEIGHTS.gearJewelry;
+  if (gear.rarity === 'rare') return FALLBACK_WEIGHTS.gearRare;
   if (gear.rarity === 'uncommon') return FALLBACK_WEIGHTS.gearUncommon;
   return FALLBACK_WEIGHTS.gearCommon;
+}
+
+/**
+ * Whether an item_template name is a quest reward's (review A WR-05). Quest reward templates carry no
+ * origin tag; reducers/quests.ts questRewardItemName names them the quest's rewardItemName, or, when
+ * that name is taken, "<NPC>'s <name>" or "Quest-won <name>", then numbered " 2", " 3" and so on.
+ * `bases` holds the lowercase rewardItemName of every quest template; `seeded` the lowercase names of
+ * seeded gear, which keep their place when a quest only borrowed the name (the reward then got a stem).
+ * Case-insensitive, as the name lookups are.
+ */
+export function isQuestRewardName(name: unknown, bases: ReadonlySet<string>, seeded: ReadonlySet<string>): boolean {
+  const n = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').toLowerCase() : '';
+  if (n === '' || bases.size === 0) return false;
+  if (bases.has(n)) return !seeded.has(n);
+  const core = n.replace(/ \d+$/, '');
+  if (core.startsWith('quest-won ') && bases.has(core.slice('quest-won '.length))) return true;
+  let at = core.indexOf("'s ");
+  while (at !== -1) {
+    if (bases.has(core.slice(at + 3))) return true;
+    at = core.indexOf("'s ", at + 1);
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------

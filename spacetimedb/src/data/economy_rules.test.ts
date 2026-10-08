@@ -39,6 +39,7 @@ import {
   FALLBACK_WEIGHTS,
   fallbackCommonPool,
   gearPoolWeight,
+  isQuestRewardName,
   AI_LOOT_WEIGHTS,
   aiLootTable,
   ESSENCE_CHANCE_PCT,
@@ -971,6 +972,7 @@ describe('fallbackCommonPool', () => {
       regionMaterial: 6n,
       gearCommon: 6n,
       gearUncommon: 3n,
+      gearRare: 1n,
       gearJewelry: 1n,
     });
   });
@@ -983,6 +985,38 @@ describe('gearPoolWeight', () => {
     expect(gearPoolWeight({ slot: 'chest', rarity: 'uncommon' })).toBe(3n);
     expect(gearPoolWeight({ slot: 'chest', rarity: 'common' })).toBe(6n);
     expect(gearPoolWeight({ slot: 'mainHand', rarity: 'common' })).toBe(6n);
+  });
+
+  // Review A WR-05: a rare or epic template weighed as much as a common one.
+  it('weights by the real rarity: rare 1, epic and legendary 0 (never a free fallback drop)', () => {
+    expect(gearPoolWeight({ slot: 'chest', rarity: 'rare' })).toBe(1n);
+    expect(gearPoolWeight({ slot: 'mainHand', rarity: 'epic' })).toBe(0n);
+    expect(gearPoolWeight({ slot: 'mainHand', rarity: 'legendary' })).toBe(0n);
+    expect(gearPoolWeight({ slot: 'neck', rarity: 'rare' })).toBe(1n);
+    expect(gearPoolWeight({ slot: 'neck', rarity: 'epic' })).toBe(0n);
+    expect(gearPoolWeight({ slot: 'legs', rarity: 'odd' })).toBe(6n);
+  });
+});
+
+describe('isQuestRewardName (review A WR-05: quest rewards stay out of the fallback gear pool)', () => {
+  const bases = new Set(["varek's blade", 'tide ring', 'traveler necklace']);
+  const seeded = new Set(['traveler necklace']);
+
+  it('matches the questRewardItemName forms: the base, NPC stem, Quest-won stem, numbered stems', () => {
+    expect(isQuestRewardName('Tide Ring', bases, seeded)).toBe(true);
+    expect(isQuestRewardName("Old Marla's Tide Ring", bases, seeded)).toBe(true);
+    expect(isQuestRewardName("Old Marla's Tide Ring 3", bases, seeded)).toBe(true);
+    expect(isQuestRewardName('Quest-won Tide Ring', bases, seeded)).toBe(true);
+    expect(isQuestRewardName('quest-won tide ring 2', bases, seeded)).toBe(true);
+    expect(isQuestRewardName("Varek's Blade", bases, seeded)).toBe(true);
+  });
+
+  it('a seeded template that only shares the base name is not a quest reward; others are not either', () => {
+    expect(isQuestRewardName('Traveler Necklace', bases, seeded)).toBe(false);
+    expect(isQuestRewardName("Hob's Traveler Necklace", bases, seeded)).toBe(true);
+    expect(isQuestRewardName('Iron Sword', bases, seeded)).toBe(false);
+    expect(isQuestRewardName('Tide Ring Mail', bases, seeded)).toBe(false);
+    expect(isQuestRewardName('', bases, seeded)).toBe(false);
   });
 });
 

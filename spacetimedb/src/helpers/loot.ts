@@ -34,6 +34,7 @@ import {
   gearChancePct,
   gearPoolWeight,
   goldReward,
+  isQuestRewardName,
   jewelryFloor,
   lootSeed,
   pickCount,
@@ -53,7 +54,7 @@ import {
 } from '../data/economy_rules';
 import { loadEffectiveDials, loadItemPins } from './economy_state';
 import { generateAffixData, rollQualityForDrop } from './items';
-import { JUNK_DEFS } from '../data/equipment_rules';
+import { JUNK_DEFS, STARTER_ACCESSORY_DEFS } from '../data/equipment_rules';
 import {
   CRAFTING_MODIFIER_DEFS,
   ESSENCE_TIER_THRESHOLDS,
@@ -104,6 +105,8 @@ export interface VictoryLootContext {
 }
 
 const EQUIPMENT_SLOT_SET: ReadonlySet<string> = new Set(EQUIPMENT_SLOTS);
+/** The seeded non-starter gear names (lowercase): a quest that borrowed one of them never hides it. */
+const SEEDED_GEAR_NAMES: ReadonlySet<string> = new Set(STARTER_ACCESSORY_DEFS.map((d) => d.name.toLowerCase()));
 
 const micros = (ts: any): bigint | undefined =>
   ts && typeof ts.microsSinceUnixEpoch === 'bigint' ? ts.microsSinceUnixEpoch : undefined;
@@ -231,6 +234,19 @@ export function buildVictoryLootContext(
 
   const economyIds = new Set<bigint>();
   for (const row of ctx.db.economy_item.iter()) economyIds.add(row.itemTemplateId);
+  // Review A WR-05: crafted gear (every recipe output: research-generated and regional) and quest
+  // rewards are not free kill drops. Quest rewards carry no origin tag, so they are known by the
+  // questRewardItemName forms of the quest templates' reward names.
+  const recipeOutputIds = new Set<bigint>();
+  for (const row of ctx.db.recipe_template.iter()) {
+    if (typeof row.outputTemplateId === 'bigint') recipeOutputIds.add(row.outputTemplateId);
+  }
+  const questRewardBases = new Set<string>();
+  for (const row of ctx.db.quest_template.iter()) {
+    if (typeof row.rewardItemName === 'string' && row.rewardItemName.trim() !== '') {
+      questRewardBases.add(row.rewardItemName.trim().replace(/\s+/g, ' ').toLowerCase());
+    }
+  }
   const gearTemplates = allTemplates.filter(
     (t: any) =>
       EQUIPMENT_SLOT_SET.has(t.slot) &&
@@ -238,7 +254,9 @@ export function buildVictoryLootContext(
       !STARTER_ITEM_NAMES.has(t.name) &&
       !isQuestItemTemplate(t) &&
       !isRecipeScrollName(t.name) &&
-      !economyIds.has(t.id),
+      !economyIds.has(t.id) &&
+      !recipeOutputIds.has(t.id) &&
+      !isQuestRewardName(t.name, questRewardBases, SEEDED_GEAR_NAMES),
   );
 
   const essenceByName = new Map<string, any>();

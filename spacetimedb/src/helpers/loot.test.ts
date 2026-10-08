@@ -449,6 +449,36 @@ describe('rollEnemyLoot: rarity follows the mix; legendary needs a boss or a nam
     }
   });
 
+  // Review A WR-05: quest rewards and crafted (recipe output) templates are not free kill drops, and
+  // an epic template never enters the fallback pool.
+  it('the gear pool skips quest rewards, recipe outputs and epic templates; a rare one is light', () => {
+    const extra = {
+      item_template: [
+        item(230n, "Varek's Blade", { slot: 'mainHand', requiredLevel: 1n, rarity: 'rare' }),
+        item(231n, 'Quest-won Tide Ring', { slot: 'earrings', requiredLevel: 1n }),
+        item(232n, 'Frayed Robe', { slot: 'chest', requiredLevel: 1n }),
+        item(233n, 'Gilded Axe', { slot: 'mainHand', requiredLevel: 1n, rarity: 'epic' }),
+        item(234n, 'Stormglass Helm', { slot: 'head', requiredLevel: 1n, rarity: 'rare' }),
+      ],
+      quest_template: [
+        { id: 1n, name: 'A Blade', rewardType: 'item', rewardItemName: "Varek's Blade" },
+        { id: 2n, name: 'A Ring', rewardType: 'item', rewardItemName: 'Tide Ring' },
+      ],
+      recipe_template: [{ id: 900n, key: 'rule:x', name: 'Frayed Robe', outputTemplateId: 232n }],
+    };
+    const ctx = ctxFor(world(extra));
+    const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
+    const poolIds = lc.gearTemplates.map((t: any) => t.id);
+    for (const never of [230n, 231n, 232n]) expect(poolIds).not.toContain(never);
+    const counts = new Map<bigint, number>();
+    for (const d of rollsOver(ctx, lc, { id: 1n }, BEAST, 1500).flatMap(gears)) {
+      counts.set(d.itemTemplateId, (counts.get(d.itemTemplateId) ?? 0) + 1);
+    }
+    expect(counts.get(233n) ?? 0).toBe(0);
+    expect(counts.get(234n) ?? 0).toBeGreaterThan(0);
+    expect(counts.get(234n) ?? 0).toBeLessThan(counts.get(SWORD_L1) ?? 0);
+  });
+
   it('the gear pool skips starter, junk and out-of-band templates', () => {
     const ctx = ctxFor(world());
     const lc = loot.buildVictoryLootContext(ctx, COMBAT, PARTICIPANTS);
