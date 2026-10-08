@@ -166,6 +166,16 @@ describe('handleSpacetimeAuthCallback token payload and storage', () => {
     await expect(auth.handleSpacetimeAuthCallback()).resolves.toEqual({ idToken, email: null });
   });
 
+  // 51.1 review 2 IN-02: the server accepts only the email claim, so the client does not fall back.
+  it('a token with preferred_username but no email reads as no email', async () => {
+    const auth = await loadAuth();
+    seedCallback();
+    const idToken = `h.${b64url(JSON.stringify({ preferred_username: 'player@example.com' }))}.sig`;
+    stubTokenFetch(true, { id_token: idToken });
+    await expect(auth.handleSpacetimeAuthCallback()).resolves.toEqual({ idToken, email: null });
+    expect(localStorage.getItem('spacetimeauth_email')).toBeNull();
+  });
+
   it('decodes non-ASCII claims as UTF-8', async () => {
     const auth = await loadAuth();
     seedCallback();

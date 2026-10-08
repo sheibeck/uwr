@@ -97,7 +97,9 @@ const parseJwtEmail = (idToken: string): string | null => {
     // atob yields Latin-1 characters: decode the bytes as UTF-8 so non-ASCII claims survive.
     const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
     const parsed = JSON.parse(new TextDecoder().decode(bytes));
-    const email = parsed?.email ?? parsed?.preferred_username ?? null;
+    // The email claim only: the server's login_email never accepts preferred_username, so a token
+    // without an email fails here, up front (51.1 review 2 IN-02).
+    const email = parsed?.email ?? null;
     return typeof email === 'string' && email ? email : null;
   } catch {
     // A malformed token payload is "no email", never a thrown error after storage.
