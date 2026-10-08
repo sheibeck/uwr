@@ -390,6 +390,18 @@ describe('PlayerMenu actions', () => {
     expect(document.activeElement).toBe(opener(w).element);
   });
 
+  it('Leave party as the leader names an online successor over an offline earlier joiner', async () => {
+    const s = setup({ party: 'lead' });
+    // Cy joined before Bram but is offline: the server's successorOrder passes leadership to Bram.
+    s.knownCharacters.value = s.knownCharacters.value.map((row) => (row.id === CY ? { ...row, online: false } : row));
+    const w = mountMenu(s, { targetId: ME });
+    await opener(w).trigger('click');
+    await nextTick();
+    item('Leave party').click();
+    await nextTick();
+    expect(document.body.textContent).toContain('Leave the party? Leadership passes to Bram.');
+  });
+
   it('Leave party as the leader names the successor and sends leaveGroup on Leave', async () => {
     const s = setup({ party: 'lead' });
     const w = mountMenu(s, { targetId: ME });

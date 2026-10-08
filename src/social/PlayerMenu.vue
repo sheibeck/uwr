@@ -93,7 +93,14 @@ const input = computed<PlayerMenuInput | null>(() => {
     liveOutgoing,
     selfFollowLeader: mine === null ? null : mine.followLeader,
     nextLeaderName:
-      group === null ? null : nextLeaderName(members, own.id, (id) => characterRow(id)?.name ?? null),
+      group === null
+        ? null
+        : nextLeaderName(
+            members,
+            own.id,
+            (id) => characterRow(id)?.name ?? null,
+            (id) => characterRow(id)?.online === true,
+          ),
   };
 });
 

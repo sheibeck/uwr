@@ -5,7 +5,7 @@
 // Phosphor components. The renderer draws a separator only between non-empty groups, so a fourth
 // group (Phase 52.2 may append a 'guild' group) needs no change here or in the renderer.
 // Disabled entries are a convenience only: the server re-validates every action.
-import { MAX_GROUP_SIZE } from '@game-data/group_config';
+import { MAX_GROUP_SIZE, successorOrder } from '@game-data/group_config';
 
 export type MenuAction =
   | 'invite'
@@ -202,22 +202,30 @@ export function playerMenuHeader(input: PlayerMenuInput): { name: string; you: b
 }
 
 /**
- * The name of the member who leads after `leavingId` leaves: earliest joinedAt, then the lowest
- * member row id (the server's nextLeaderAfter rule). Null when nobody remains or the name is unknown.
+ * The name of the member who leads after `leavingId` leaves, by the server's own successor rule
+ * (successorOrder from @game-data/group_config): an online member before an offline one, then the
+ * earliest joinedAt, then the lowest member row id. `onlineOf` reads the member's character row
+ * (online only when exactly true). Null when nobody remains or the name is unknown.
  */
 export function nextLeaderName(
   members: readonly { id: bigint; characterId: bigint; joinedAt: { microsSinceUnixEpoch: bigint } }[],
   leavingId: bigint,
   nameOf: (id: bigint) => string | null,
+  onlineOf: (id: bigint) => boolean,
 ): string | null {
-  const remaining = members.filter((member) => member.characterId !== leavingId);
+  const remaining = members
+    .filter((member) => member.characterId !== leavingId)
+    .map((member) => ({
+      characterId: member.characterId,
+      candidate: {
+        online: onlineOf(member.characterId),
+        joinedAtMicros: member.joinedAt.microsSinceUnixEpoch,
+        memberId: member.id,
+      },
+    }))
+    .sort((a, b) => successorOrder(a.candidate, b.candidate));
   if (remaining.length === 0) return null;
-  const first = remaining.reduce((best, member) => {
-    const a = member.joinedAt.microsSinceUnixEpoch;
-    const b = best.joinedAt.microsSinceUnixEpoch;
-    if (a !== b) return a < b ? member : best;
-    return member.id < best.id ? member : best;
-  });
+  const first = remaining[0];
   const name = nameOf(first.characterId);
   return name === null || name === '' ? null : name;
 }

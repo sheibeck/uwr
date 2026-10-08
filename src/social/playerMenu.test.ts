@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   nextLeaderName,
   playerMenuEntries,
@@ -415,6 +417,7 @@ describe('nextLeaderName', () => {
   const at = (n: number) => ({ microsSinceUnixEpoch: BigInt(n) });
   const names: Record<string, string> = { '1': 'Ann', '2': 'Bram', '3': 'Cyd' };
   const nameOf = (id: bigint) => names[String(id)] ?? null;
+  const allOnline = () => true;
 
   it('picks the earliest joinedAt, never the leaving character', () => {
     const members = [
@@ -422,8 +425,8 @@ describe('nextLeaderName', () => {
       { id: 11n, characterId: 3n, joinedAt: at(300) },
       { id: 12n, characterId: 2n, joinedAt: at(200) },
     ];
-    expect(nextLeaderName(members, 1n, nameOf)).toBe('Bram');
-    expect(nextLeaderName(members, 2n, nameOf)).toBe('Ann');
+    expect(nextLeaderName(members, 1n, nameOf, allOnline)).toBe('Bram');
+    expect(nextLeaderName(members, 2n, nameOf, allOnline)).toBe('Ann');
   });
 
   it('breaks a joinedAt tie by the lowest member row id', () => {
@@ -432,12 +435,12 @@ describe('nextLeaderName', () => {
       { id: 11n, characterId: 2n, joinedAt: at(200) },
       { id: 10n, characterId: 1n, joinedAt: at(100) },
     ];
-    expect(nextLeaderName(members, 1n, nameOf)).toBe('Bram');
+    expect(nextLeaderName(members, 1n, nameOf, allOnline)).toBe('Bram');
   });
 
   it('is null when nobody remains or the name is unknown', () => {
-    expect(nextLeaderName([{ id: 10n, characterId: 1n, joinedAt: at(1) }], 1n, nameOf)).toBeNull();
-    expect(nextLeaderName([], 1n, nameOf)).toBeNull();
+    expect(nextLeaderName([{ id: 10n, characterId: 1n, joinedAt: at(1) }], 1n, nameOf, allOnline)).toBeNull();
+    expect(nextLeaderName([], 1n, nameOf, allOnline)).toBeNull();
     expect(
       nextLeaderName(
         [
@@ -446,7 +449,34 @@ describe('nextLeaderName', () => {
         ],
         1n,
         nameOf,
+        allOnline,
       ),
     ).toBeNull();
+  });
+
+  // The server's successor rule (successorOrder, group_config): online members first.
+  it('passes over an offline earlier joiner for an online member', () => {
+    const members = [
+      { id: 10n, characterId: 1n, joinedAt: at(100) },
+      { id: 11n, characterId: 2n, joinedAt: at(200) },
+      { id: 12n, characterId: 3n, joinedAt: at(300) },
+    ];
+    const online = (id: bigint) => id !== 2n;
+    expect(nextLeaderName(members, 1n, nameOf, online)).toBe('Cyd');
+  });
+
+  it('falls back to the earliest joiner when every other member is offline', () => {
+    const members = [
+      { id: 10n, characterId: 1n, joinedAt: at(100) },
+      { id: 12n, characterId: 3n, joinedAt: at(300) },
+      { id: 11n, characterId: 2n, joinedAt: at(200) },
+    ];
+    expect(nextLeaderName(members, 1n, nameOf, () => false)).toBe('Bram');
+  });
+
+  it('uses successorOrder from @game-data, not a copy of the rule', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/social/playerMenu.ts'), 'utf8');
+    expect(source).toContain('successorOrder');
+    expect(source).toContain("successorOrder } from '@game-data/group_config'");
   });
 });
