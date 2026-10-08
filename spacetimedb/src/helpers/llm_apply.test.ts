@@ -262,7 +262,7 @@ describe('sender independence (effects land on job.playerId, not the caller)', (
 describe('toApplyJob', () => {
   it('maps an llm_job row (route, requestJson) to { domain, playerId, contextJson }', () => {
     const row = { id: 1n, playerId: alice, route: 'skill_gen', requestJson: '{"a":1}', status: 'pending' };
-    expect(toApplyJob(row)).toEqual({ domain: 'skill_gen', playerId: alice, contextJson: '{"a":1}' });
+    expect(toApplyJob(row)).toEqual({ domain: 'skill_gen', playerId: alice, contextJson: '{"a":1}', jobId: 1n });
   });
 
   it('carries the stored errorCode, and undefined when the row has none (Phase 43)', () => {

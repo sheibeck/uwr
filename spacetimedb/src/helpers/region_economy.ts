@@ -307,6 +307,19 @@ export interface EconomyApplyJob {
   /** The stored requestJson: `{ regionId, mode, enemyTemplateId, input }`. */
   contextJson?: string;
   errorCode?: string;
+  /** The llm_job id (toApplyJob). When both it and region_economy.jobId are set they must match. */
+  jobId?: bigint;
+}
+
+/**
+ * Review B IN-02: a region-mode result or failure acts only for the job the region_economy row is
+ * waiting on. A job id that differs from the stored jobId is an older job's late answer and changes
+ * nothing; a missing id on either side (rows and callers from before the check) is accepted.
+ */
+function isOtherJob(statusRow: any, job: EconomyApplyJob | undefined): boolean {
+  const stored = statusRow ? statusRow.jobId : undefined;
+  const incoming = job ? job.jobId : undefined;
+  return typeof stored === 'bigint' && typeof incoming === 'bigint' && stored !== incoming;
 }
 
 /** The reply as JSON: the whole text, else the part from the first { to the last }, else null (unusable). */
@@ -539,6 +552,7 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
   const regionId = c.regionId;
   const statusRow = ctx.db.region_economy.regionId.find(regionId);
   if (!statusRow || statusRow.status !== 'pending') return;
+  if (isOtherJob(statusRow, job)) return;
   const input = c.input;
   const recipePrefix = `region:${regionId}:r`;
   const book = openBook(ctx, input, regionId, () => true, (key) => key.startsWith(recipePrefix));
@@ -944,6 +958,7 @@ export function failRegionEconomy(ctx: any, job: EconomyApplyJob): void {
   if (c === null || c.mode !== 'region') return;
   const row = ctx.db.region_economy.regionId.find(c.regionId);
   if (!row || row.status !== 'pending') return;
+  if (isOtherJob(row, job)) return;
   ctx.db.region_economy.regionId.update({ ...row, status: 'failed', updatedAt: ctx.timestamp });
 }
 

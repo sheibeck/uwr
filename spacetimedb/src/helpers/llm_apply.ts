@@ -100,7 +100,7 @@ function errName(err: unknown): string {
  * The fields of a stored llm_job the apply step needs. errorCode is set on a failed job only; the
  * resting codes 'halted' and 'ceiling' (Phase 43) pick the one in-voice resting line over the generic copy.
  */
-export type ApplyJob = { domain: string; playerId: any; contextJson?: string; errorCode?: string };
+export type ApplyJob = { domain: string; playerId: any; contextJson?: string; errorCode?: string; jobId?: bigint };
 
 /** Map a stored llm_job row (route, requestJson, playerId, errorCode) to ApplyJob. */
 export function toApplyJob(row: any): ApplyJob {
@@ -109,6 +109,8 @@ export function toApplyJob(row: any): ApplyJob {
     playerId: row.playerId,
     contextJson: row.requestJson,
     errorCode: row.errorCode ?? undefined,
+    // The llm_job id: the region economy apply checks it against region_economy.jobId (review B IN-02).
+    jobId: typeof row.id === 'bigint' ? row.id : undefined,
   };
 }
 

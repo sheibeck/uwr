@@ -785,6 +785,31 @@ describe('applyRegionEconomyResult: names and edges', () => {
   });
 });
 
+// Review B IN-02: the stored region_economy.jobId (1n in k0World) is checked against the job's id.
+describe('the job id check (review B IN-02)', () => {
+  it("an older job's late result or failure changes nothing while the region waits on another job", () => {
+    const ctx = ctxFor(k0World());
+    const { job } = regionJob(ctx, 1n);
+    const before = recorder.snapshotDb(ctx.db);
+    econ.applyRegionEconomyResult(ctx, { ...job, jobId: 2n }, replyText('region_k0'));
+    econ.failRegionEconomy(ctx, { ...job, jobId: 2n });
+    expect(recorder.snapshotDb(ctx.db)).toBe(before);
+    expect(econRowOf(ctx, 1n).status).toBe('pending');
+  });
+
+  it('the matching job applies, and a job without an id is still accepted', () => {
+    const matching = ctxFor(k0World());
+    econ.applyRegionEconomyResult(matching, { ...regionJob(matching, 1n).job, jobId: 1n }, replyText('region_k0'));
+    expect(econRowOf(matching, 1n).status).toBe('complete');
+    const failed = ctxFor(k0World());
+    econ.failRegionEconomy(failed, { ...regionJob(failed, 1n).job, jobId: 1n });
+    expect(econRowOf(failed, 1n).status).toBe('failed');
+    const legacy = ctxFor(k0World());
+    econ.applyRegionEconomyResult(legacy, regionJob(legacy, 1n).job, replyText('region_k0'));
+    expect(econRowOf(legacy, 1n).status).toBe('complete');
+  });
+});
+
 describe('failRegionEconomy and markRegionEconomyPending', () => {
   it('failRegionEconomy turns a pending region job to failed and writes nothing else (no event rows)', () => {
     const ctx = ctxFor(k0World());
