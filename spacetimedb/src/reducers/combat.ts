@@ -9,7 +9,6 @@ import {
   DOT_LIFE_DRAIN_PERCENT,
 } from '../data/combat_scaling';
 import { templateAtLevel } from '../data/enemy_rules';
-import { STARTER_ITEM_NAMES } from '../data/combat_constants';
 import { ScheduleAt } from 'spacetimedb';
 import {
   startRound, currentRound, roundsForCombat, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
@@ -20,7 +19,6 @@ import {
   ROUND_STATE, isChoiceActionType, isStaleTick, sortById, sortByKey, autoAttackTargetId, roundSeed,
   windupRounds, cooldownRounds, enemyAbilityReady, petAbilityDue, roundsToEstimateMicros,
 } from '../helpers/combat_rounds';
-import { ESSENCE_TIER_THRESHOLDS, MODIFIER_REAGENT_THRESHOLDS, CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
@@ -29,7 +27,8 @@ import { fightRoster } from '../helpers/group';
 import { activeCombatIdForCharacter as activeFightOf } from '../helpers/events';
 import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
-import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
+import { buildDisplayName, getEquippedBonuses } from '../helpers/items';
+import { buildVictoryLootContext, rollEnemyLoot, rollEnemyGold } from '../helpers/loot';
 import { incrementWorldStat } from '../helpers/world_events';
 import { enqueueCombatOutroNarration, enqueueCombatMomentNarration } from '../helpers/combat_narration';
 import { redactSecrets } from '../helpers/measurement';
@@ -713,111 +712,6 @@ export const registerCombatReducers = (deps: any) => {
     if (templates.length === 0) return null;
     const index = Number(seed % BigInt(templates.length));
     return templates[index] ?? null;
-  };
-
-  const findLootTable = (ctx: any, enemyTemplate: any) => {
-    const terrain = enemyTemplate.terrainTypes?.split(',')[0]?.trim() ?? 'plains';
-    const creatureType = enemyTemplate.creatureType ?? 'beast';
-    // Boss/named enemies: try named-specific loot table first (tier 2)
-    if (enemyTemplate.isBoss) {
-      const namedKey = 'named_' + enemyTemplate.name.toLowerCase().replace(/\s+/g, '_');
-      for (const row of ctx.db.loot_table.iter()) {
-        if (row.tier !== 2n) continue;
-        if (row.terrainType !== namedKey) continue;
-        if (row.creatureType !== creatureType) continue;
-        return row;
-      }
-    }
-    // Normal fallback: tier 1
-    let best: any | null = null;
-    for (const row of ctx.db.loot_table.iter()) {
-      if (row.tier !== 1n) continue;
-      if (row.terrainType !== terrain) continue;
-      if (row.creatureType !== creatureType) continue;
-      best = row;
-      break;
-    }
-    if (best) return best;
-    for (const row of ctx.db.loot_table.iter()) {
-      if (row.tier !== 1n) continue;
-      if (row.terrainType !== 'plains') continue;
-      if (row.creatureType !== creatureType) continue;
-      return row;
-    }
-    return null;
-  };
-
-  const rollPercent = (seed: bigint) => Number(seed % 100n);
-
-  const pickWeightedEntry = (entries: any[], seed: bigint) => {
-    if (entries.length === 0) return null;
-    let total = 0n;
-    for (const entry of entries) total += entry.weight;
-    if (total <= 0n) return null;
-    let roll = seed % total;
-    for (const entry of entries) {
-      if (roll < entry.weight) return entry;
-      roll -= entry.weight;
-    }
-    return entries[0];
-  };
-
-  const generateLootTemplates = (ctx: any, enemyTemplate: any, seedBase: bigint, dangerMultiplier?: bigint) => {
-    const lootTable = findLootTable(ctx, enemyTemplate);
-    if (!lootTable) return [];
-    const entries = [...ctx.db.loot_table_entry.by_table.filter(lootTable.id)];
-    const junkEntries = entries.filter((entry) => {
-      const template = ctx.db.item_template.id.find(entry.itemTemplateId);
-      return template?.isJunk;
-    });
-    const gearEntries = entries.filter((entry) => {
-      const template = ctx.db.item_template.id.find(entry.itemTemplateId);
-      return template && !template.isJunk && !STARTER_ITEM_NAMES.has(template.name) && template.requiredLevel <= (enemyTemplate.level ?? 1n) + 1n;
-    });
-
-    const level = enemyTemplate.level ?? 1n;
-    const gearBoost = BigInt(Math.min(25, Number(level) * 2));
-    const gearChance = lootTable.gearChance + gearBoost;
-
-    const lootItems: { template: any; qualityTier?: string; affixDataJson?: string; isNamed?: boolean; craftQuality?: string }[] = [];
-    const pick = pickWeightedEntry(junkEntries, seedBase + 11n);
-    if (pick) {
-      const template = ctx.db.item_template.id.find(pick.itemTemplateId);
-      if (template) lootItems.push({ template });
-    }
-
-    const rollGear = rollPercent(seedBase + 19n);
-    if (rollGear < Number(gearChance)) {
-      const pick = pickWeightedEntry(gearEntries, seedBase + 23n);
-      if (pick) {
-        const template = ctx.db.item_template.id.find(pick.itemTemplateId);
-        if (template) {
-          const quality = rollQualityTier(enemyTemplate.level ?? 1n, seedBase, dangerMultiplier);
-          const craftQual = rollQualityForDrop(enemyTemplate.level ?? 1n, seedBase);
-          const JEWELRY_SLOTS_COMBAT = new Set(['earrings', 'neck']);
-          const effectiveQuality =
-            JEWELRY_SLOTS_COMBAT.has(template.slot) && template.armorClassBonus === 0n && quality === 'common'
-              ? 'uncommon'
-              : quality;
-          if (effectiveQuality !== 'common') {
-            const affixes = generateAffixData(template.slot, effectiveQuality, seedBase);
-            // Convert BigInt magnitude to Number before JSON serialization (BigInt is not JSON-serializable)
-            const affixDataJson = JSON.stringify(affixes.map((a) => ({ ...a, magnitude: Number(a.magnitude) })));
-            lootItems.push({ template, qualityTier: effectiveQuality, affixDataJson, isNamed: false, craftQuality: craftQual });
-          } else {
-            lootItems.push({ template, qualityTier: effectiveQuality, isNamed: false, craftQuality: craftQual });
-          }
-        }
-      }
-    }
-
-    return lootItems;
-  };
-
-  const rollGold = (seed: bigint, min: bigint, max: bigint) => {
-    if (max <= min) return min;
-    const range = max - min + 1n;
-    return min + (seed % range);
   };
 
   const hashString = (value: string) => {
@@ -2055,19 +1949,9 @@ export const registerCombatReducers = (deps: any) => {
     const adjustedBase = (totalBaseXp * bonusMultiplier) / 100n;
     const fallenSuffix = buildFallenNamesSuffix(ctx, participants, (p, _char) => p.status === 'dead');
     const summaryName = enemies.length > 1 ? `${primaryName} and allies` : primaryName;
-    const lootLocation = ctx.db.location.id.find(combat.locationId);
-    const lootRegion = lootLocation ? ctx.db.region.id.find(lootLocation.regionId) : null;
-    const lootDanger = lootRegion?.dangerMultiplier ?? 100n;
-    const essenceTemplateMap = new Map<string, any>();
-    for (const threshold of ESSENCE_TIER_THRESHOLDS) {
-      const tmpl = [...ctx.db.item_template.iter()].find((t: any) => t.name === threshold.essenceName);
-      if (tmpl) essenceTemplateMap.set(threshold.essenceName, tmpl);
-    }
-    const modifierTemplateMap = new Map<string, any>();
-    for (const def of CRAFTING_MODIFIER_DEFS) {
-      const tmpl = [...ctx.db.item_template.iter()].find((t: any) => t.name === def.name);
-      if (tmpl) modifierTemplateMap.set(def.name, tmpl);
-    }
+    // Phase 51.3: loot reads the dials, the AI loot tables and the fallbacks once per victory.
+    const lc = buildVictoryLootContext(ctx, combat, participants);
+    const enemiesById = [...enemies].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
       if (!character) continue;
@@ -2083,17 +1967,20 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
       }
-      for (const template of enemyTemplates) {
-        const lootTemplates = template
-          ? generateLootTemplates(ctx, template, ctx.timestamp.microsSinceUnixEpoch + character.id, lootDanger)
-          : [];
-        for (const lootItem of lootTemplates) {
+      // One roll per combat_enemy row (its own seed), in id order; the scaled template keeps the
+      // spawn level (quick 261008-ag8). Gold is summed and written once below.
+      let goldBase = 0n;
+      for (const enemyRow of enemiesById) {
+        const found = ctx.db.enemy_template.id.find(enemyRow.enemyTemplateId);
+        if (!found) continue;
+        const template = templateAtLevel(found, enemyRow.level);
+        for (const lootItem of rollEnemyLoot(ctx, lc, enemyRow, template, character.id)) {
           ctx.db.combat_loot.insert({
             id: 0n,
             combatId: combat.id,
             ownerUserId: character.ownerUserId,
             characterId: character.id,
-            itemTemplateId: lootItem.template.id,
+            itemTemplateId: lootItem.itemTemplateId,
             createdAt: ctx.timestamp,
             qualityTier: lootItem.qualityTier ?? undefined,
             affixDataJson: lootItem.affixDataJson ?? undefined,
@@ -2101,57 +1988,16 @@ export const registerCombatReducers = (deps: any) => {
             craftQuality: lootItem.craftQuality ?? undefined,
           });
         }
-        const essenceSeed = (character.id * 7n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 31n) % 100n;
-        if (essenceSeed < 6n) {
-          const enemyLevel = template.level ?? 1n;
-          let essenceToDrop: any = null;
-          for (const threshold of ESSENCE_TIER_THRESHOLDS) {
-            if (enemyLevel >= threshold.minLevel) {
-              essenceToDrop = essenceTemplateMap.get(threshold.essenceName);
-              break;
-            }
-          }
-          if (essenceToDrop) {
-            ctx.db.combat_loot.insert({
-              id: 0n, combatId: combat.id, ownerUserId: character.ownerUserId,
-              characterId: character.id, itemTemplateId: essenceToDrop.id,
-              createdAt: ctx.timestamp, qualityTier: undefined, affixDataJson: undefined, isNamed: undefined,
-            });
-          }
-        }
-        const modifierSeed = (character.id * 11n ^ ctx.timestamp.microsSinceUnixEpoch + template.id * 43n) % 100n;
-        if (modifierSeed < 10n) {
-          const enemyLevel = template.level ?? 1n;
-          let eligibleNames: string[] = [];
-          for (const threshold of MODIFIER_REAGENT_THRESHOLDS) {
-            if (enemyLevel >= threshold.minLevel) {
-              eligibleNames = threshold.reagentNames;
-              break;
-            }
-          }
-          if (eligibleNames.length > 0) {
-            const pickIndex = Number((character.id + template.id) % BigInt(eligibleNames.length));
-            const pickedName = eligibleNames[pickIndex];
-            const modifierTemplate = modifierTemplateMap.get(pickedName);
-            if (modifierTemplate) {
-              ctx.db.combat_loot.insert({
-                id: 0n, combatId: combat.id, ownerUserId: character.ownerUserId,
-                characterId: character.id, itemTemplateId: modifierTemplate.id,
-                createdAt: ctx.timestamp, qualityTier: undefined, affixDataJson: undefined, isNamed: undefined,
-              });
-            }
-          }
-        }
-        const lootTable = template ? findLootTable(ctx, template) : null;
-        const baseGoldReward = lootTable
-          ? rollGold(ctx.timestamp.microsSinceUnixEpoch + character.id * 3n + template.id, lootTable.goldMin, lootTable.goldMax) + template.level
-          : template.level;
-        const goldFindBonus = getPerkBonusByField(ctx, character.id, 'goldFindBonus', character.level);
-        const goldReward = goldFindBonus > 0 && baseGoldReward > 0n
-          ? (baseGoldReward * BigInt(100 + goldFindBonus)) / 100n
-          : baseGoldReward;
-        if (goldReward > 0n) {
-          ctx.db.character.id.update({ ...character, gold: (character.gold ?? 0n) + goldReward });
+        goldBase += rollEnemyGold(ctx, lc, enemyRow, template, character.id);
+      }
+      const goldFindBonus = getPerkBonusByField(ctx, character.id, 'goldFindBonus', character.level);
+      const goldReward = goldFindBonus > 0 && goldBase > 0n
+        ? (goldBase * BigInt(100 + goldFindBonus)) / 100n
+        : goldBase;
+      if (goldReward > 0n) {
+        const fresh = ctx.db.character.id.find(character.id);
+        if (fresh) {
+          ctx.db.character.id.update({ ...fresh, gold: (fresh.gold ?? 0n) + goldReward });
           const goldMsg = goldFindBonus > 0 ? `You gain ${goldReward} gold. (+${goldFindBonus}% gold find)` : `You gain ${goldReward} gold.`;
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'reward', goldMsg);
           logGroupEvent(ctx, combat.id, character.id, 'reward', `${character.name} gained ${goldReward} gold.`);
