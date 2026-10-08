@@ -3,6 +3,9 @@
 // Objects have no subscribed source today (research Q3, A7), so the list defaults to [].
 // Node state vocabulary (spacetimedb items_gathering.ts): 'available' can be gathered,
 // 'harvesting' is in use while lockedByCharacterId is set, any other state is depleted.
+// Offline characters drop out of Nearby (51.1 CONTEXT Area 2): a player is listed only when the
+// character row says online (exactly true), so presence here is shown by inclusion, with no dot
+// (UI-SPEC B16). A listed party member gets a party hint instead of the level.
 
 export type NearbyKind = 'npc' | 'bindStone' | 'object' | 'node' | 'player';
 export type NodeStatus = 'gather' | 'depleted' | 'inUse';
@@ -56,7 +59,9 @@ export function nearbyRows(input: {
     lockedByCharacterId?: bigint | null;
     characterId?: bigint | null;
   }[];
-  players: readonly { id: bigint; name: string; level: bigint }[];
+  players: readonly { id: bigint; name: string; level: bigint; online?: boolean | null }[];
+  /** Character ids of your party members: their hint marks the party. */
+  partyIds?: ReadonlySet<bigint>;
   objects?: readonly { id: bigint; name: string }[];
   /** The current place has a bind stone: the row and whether the character is bound here. */
   bindStone?: { placeName: string; bound: boolean } | null;
@@ -117,11 +122,12 @@ export function nearbyRows(input: {
   }
   for (const player of players) {
     if (selfId !== null && player.id === selfId) continue;
+    if (player.online !== true) continue;
     rows.push({
       kind: 'player',
       id: player.id,
       name: player.name,
-      hint: `Lv ${player.level}`,
+      hint: input.partyIds?.has(player.id) ? 'In your party' : `Lv ${player.level}`,
       vendor: false,
       nodeStatus: null,
       bound: false,

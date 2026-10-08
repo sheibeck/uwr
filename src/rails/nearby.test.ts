@@ -44,9 +44,9 @@ describe('nearbyRows', () => {
       { id: 12n, name: 'Bramble', state: 'available', lockedByCharacterId: 4n },
     ],
     players: [
-      { id: 5n, name: 'Zed', level: 4n },
-      { id: 6n, name: 'Amy', level: 7n },
-      { id: 9n, name: 'Me', level: 3n },
+      { id: 5n, name: 'Zed', level: 4n, online: true },
+      { id: 6n, name: 'Amy', level: 7n, online: true },
+      { id: 9n, name: 'Me', level: 3n, online: true },
     ],
     selfId: 9n,
   };
@@ -110,6 +110,60 @@ describe('nearbyRows', () => {
     expect(rows.map((r) => r.kind)).toEqual(['npc', 'node']);
   });
 
+  it('lists a player only when online is exactly true (CONTEXT Area 2)', () => {
+    const rows = nearbyRows({
+      npcs: [],
+      nodes: [],
+      players: [
+        { id: 1n, name: 'Here', level: 2n, online: true },
+        { id: 2n, name: 'Gone', level: 2n, online: false },
+        { id: 3n, name: 'Unset', level: 2n, online: null },
+        { id: 4n, name: 'Missing', level: 2n },
+      ],
+      selfId: null,
+    });
+    expect(rows.map((r) => r.name)).toEqual(['Here']);
+  });
+
+  it('keeps every other kind and the order when players are filtered', () => {
+    const rows = nearbyRows({
+      npcs: [{ id: 1n, name: 'Ferryman', npcType: 'quest' }],
+      nodes: [{ id: 10n, name: 'Copper Vein', state: 'available' }],
+      players: [
+        { id: 5n, name: 'Zed', level: 4n, online: false },
+        { id: 6n, name: 'Amy', level: 7n, online: true },
+      ],
+      bindStone: { placeName: 'The Crossing', bound: false },
+      selfId: null,
+    });
+    expect(rows.map((r) => `${r.kind}:${r.name}`)).toEqual([
+      'npc:Ferryman',
+      'bindStone:Bind stone',
+      'node:Copper Vein',
+      'player:Amy',
+    ]);
+  });
+
+  it('hints In your party for a party member and Lv n for anyone else', () => {
+    const rows = nearbyRows({
+      ...base,
+      partyIds: new Set([6n]),
+    });
+    const hint = (name: string) => rows.find((r) => r.name === name)!.hint;
+    expect(hint('Amy')).toBe('In your party');
+    expect(hint('Zed')).toBe('Lv 4');
+  });
+
+  it('hints Lv n for everyone without partyIds or with an empty set', () => {
+    expect(nearbyRows(base).find((r) => r.name === 'Amy')!.hint).toBe('Lv 7');
+    expect(nearbyRows({ ...base, partyIds: new Set() }).find((r) => r.name === 'Amy')!.hint).toBe('Lv 7');
+  });
+
+  it('keeps the level on a party member row', () => {
+    const rows = nearbyRows({ ...base, partyIds: new Set([6n]) });
+    expect(rows.find((r) => r.name === 'Amy')).toMatchObject({ level: 7n });
+  });
+
   it('breaks name ties by id', () => {
     const rows = nearbyRows({
       npcs: [
@@ -133,7 +187,7 @@ describe('nearbyRows bind stone', () => {
   const base = {
     npcs: [{ id: 1n, name: 'Ferryman', npcType: 'quest' }],
     nodes: [{ id: 10n, name: 'Copper Vein', state: 'available' }],
-    players: [{ id: 5n, name: 'Zed', level: 4n }],
+    players: [{ id: 5n, name: 'Zed', level: 4n, online: true }],
     objects: [{ id: 50n, name: 'Old Well' }],
     selfId: 9n,
   };
