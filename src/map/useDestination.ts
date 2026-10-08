@@ -84,6 +84,7 @@ export function useDestination(): Destination {
       stamina: row.stamina,
       racialTravelCostIncrease: row.racialTravelCostIncrease,
       racialTravelCostDiscount: row.racialTravelCostDiscount,
+      online: row.online,
     });
     const group = game.group.value;
     return travelChecks({

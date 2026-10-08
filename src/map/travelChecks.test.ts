@@ -17,6 +17,7 @@ const traveller = (id: bigint, name: string, extra: Partial<TravellerLike> = {})
   name,
   locationId: ORIGIN.id,
   stamina: 50n,
+  online: true,
   ...extra,
 });
 
@@ -153,6 +154,35 @@ describe('travelChecks, party', () => {
     const r = run(p);
     expect(r.followers).toEqual([]);
     expect(r.leading).toBe(true);
+    expect(row(r, 'stamina')?.label).toBe('You have the stamina');
+  });
+
+  it('an offline following member is not a follower: no cost, no stamina or timer block', () => {
+    const offline = traveller(2n, 'Mira', { online: false, stamina: 0n });
+    const r = run({
+      destination: OTHER,
+      ...partyOf(offline, tolan),
+      cooldowns: [{ characterId: 2n, readyAtMicros: secondsFromNow(300) }],
+    });
+    expect(r.followers.map((f) => f.id)).toEqual([3n]);
+    expect(r.costText).toBe('10 stamina each');
+    expect(row(r, 'region')?.status).toBe('ok');
+    expect(row(r, 'stamina')?.label).toBe('Party has the stamina');
+    expect(r.block).toBeNull();
+  });
+
+  it('a character row with online missing or null reads offline', () => {
+    const missing = { id: 2n, name: 'Mira', locationId: ORIGIN.id, stamina: 50n } as TravellerLike;
+    expect(run(partyOf(missing)).followers).toEqual([]);
+    expect(run(partyOf({ ...missing, online: null })).followers).toEqual([]);
+    expect(run(partyOf({ ...missing, online: undefined })).followers).toEqual([]);
+  });
+
+  it('all other members offline: you travel alone and the cost text is one number', () => {
+    const r = run(partyOf({ ...mira, online: false }, { ...tolan, online: false }));
+    expect(r.followers).toEqual([]);
+    expect(r.leading).toBe(true);
+    expect(r.costText).toBe('5 stamina');
     expect(row(r, 'stamina')?.label).toBe('You have the stamina');
   });
 

@@ -122,7 +122,7 @@ export interface BuildDetailInput {
   selfId: bigint | null;
   boundLocationId: bigint | null;
   npcsAtSelected: readonly { npcType: string; locationId: bigint }[];
-  charactersAtSelected: readonly { id: bigint; locationId: bigint }[];
+  charactersAtSelected: readonly { id: bigint; locationId: bigint; online?: boolean | null }[];
   /**
    * The selected place's NPC and character subscriptions have applied (the hub's selectedApplied).
    * Until then Services and Players are left out rather than read as None, and they count only for
@@ -311,8 +311,10 @@ function servicesFor(input: BuildDetailInput, placeId: bigint, unknown: boolean)
 
 function playersFor(input: BuildDetailInput, placeId: bigint): string | null {
   if (!peopleKnown(input, placeId)) return null;
-  // Offline characters count until the online status of Phase 51.1 exists.
-  const count = input.charactersAtSelected.filter((c) => c.locationId === placeId && c.id !== input.selfId).length;
+  // Only characters who are online count; a row whose online field is not exactly true reads offline.
+  const count = input.charactersAtSelected.filter(
+    (c) => c.locationId === placeId && c.id !== input.selfId && c.online === true,
+  ).length;
   return count === 0 ? 'None' : String(count);
 }
 

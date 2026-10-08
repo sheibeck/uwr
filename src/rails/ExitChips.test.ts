@@ -51,8 +51,8 @@ interface Options {
 function build(options: Options = {}) {
   const base = createInertGame();
   const character = ref({ id: 1n, name: 'Hero', level: 4n, stamina: 50n, locationId: 10n });
-  const mira = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n };
-  const jory = { id: 3n, name: 'Jory', locationId: 10n, stamina: 50n };
+  const mira = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n, online: true };
+  const jory = { id: 3n, name: 'Jory', locationId: 10n, stamina: 50n, online: true };
   const game = {
     ...base,
     connected: ref(options.connected ?? true),

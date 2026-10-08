@@ -6,9 +6,16 @@
 // function the server charges with; nothing is copied here and the cooldown length is never read
 // (the timers come from travel_cooldown rows through travelTimer).
 //
+// Who counts as a follower is the shared follow rule (comesAlongWithLeader from
+// @game-data/group_config, the same call the server and follow.ts make): following, online and at
+// your place. Offline members are left behind, so they add no cost and block nothing. A character
+// row whose online field is not exactly true (false, missing, null) reads offline. The parity test
+// (spacetimedb/src/reducers/follow_parity.integration.test.ts) pins the three against each other.
+//
 // The block order is the UI-SPEC one: gathering, your region timer, a follower's region timer, your
 // stamina, a follower's stamina. The first that applies sets the button label (detailModel.ts).
 
+import { comesAlongWithLeader } from '@game-data/group_config';
 import { travelEffectDiscount, travelStaminaCost } from '@game-data/travel_config';
 import { formatClock, travelTimer } from './travelTimer';
 
@@ -19,6 +26,8 @@ export interface TravellerLike {
   stamina: bigint;
   racialTravelCostIncrease?: bigint | null;
   racialTravelCostDiscount?: bigint | null;
+  /** The character row's online flag; anything but a literal true reads offline. */
+  online?: boolean | null;
 }
 
 export interface TravelCheck {
@@ -94,14 +103,20 @@ function costTextFor(costs: readonly bigint[], party: boolean): string {
   return lo === hi ? `${lo} stamina each` : `${lo}–${hi} stamina each`;
 }
 
-/** Followers: members with follow on, known, at your place, other than you (only when you lead). */
+/** Followers: members who come along (follow on, online, at your place), other than you (only when you lead). */
 function followersOf(input: TravelChecksInput, leading: boolean): TravellerLike[] {
   if (!leading || input.self === null || input.origin === null) return [];
   const followers: TravellerLike[] = [];
   for (const member of input.members) {
-    if (!member.followLeader || member.characterId === input.self.id) continue;
+    if (member.characterId === input.self.id) continue;
     const row = input.characters.find((c) => c.id === member.characterId);
-    if (!row || row.locationId !== input.origin.id) continue;
+    if (!row) continue;
+    const comes = comesAlongWithLeader({
+      followLeader: member.followLeader,
+      online: row.online === true,
+      atLeaderPlace: row.locationId === input.origin.id,
+    });
+    if (!comes) continue;
     if (input.destination !== null && row.locationId === input.destination.id) continue;
     if (!followers.some((f) => f.id === row.id)) followers.push(row);
   }

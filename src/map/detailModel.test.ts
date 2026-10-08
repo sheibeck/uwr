@@ -53,9 +53,9 @@ const EDGES = [
 const ADJ = adjacencyOf(EDGES);
 const regionName = (id: bigint): string => REGIONS.find((r) => r.id === id)?.name ?? 'Unknown region';
 
-const me: TravellerLike = { id: 1n, name: 'Aldric', locationId: 10n, stamina: 50n };
-const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n };
-const tolan: TravellerLike = { id: 3n, name: 'Tolan', locationId: 10n, stamina: 50n };
+const me: TravellerLike = { id: 1n, name: 'Aldric', locationId: 10n, stamina: 50n, online: true };
+const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n, online: true };
+const tolan: TravellerLike = { id: 3n, name: 'Tolan', locationId: 10n, stamina: 50n, online: true };
 
 interface ChecksOpts {
   self?: TravellerLike;
@@ -118,8 +118,8 @@ describe('buildDetail, your place', () => {
     const d = detail(10n, {
       npcsAtSelected: [{ npcType: 'vendor', locationId: 10n }],
       charactersAtSelected: [
-        { id: 1n, locationId: 10n },
-        { id: 2n, locationId: 10n },
+        { id: 1n, locationId: 10n, online: true },
+        { id: 2n, locationId: 10n, online: true },
       ],
     });
     expect(d.kind).toBe('here');
@@ -378,17 +378,40 @@ describe('buildDetail, services and players', () => {
     expect(lore.trip.services).toEqual({ items: [], text: 'None' });
   });
 
-  it('players excludes you and counts offline characters; none reads None', () => {
+  it('players excludes you and counts online characters at the place; none reads None', () => {
     const three = detail(11n, {
       charactersAtSelected: [
-        { id: 1n, locationId: 11n },
-        { id: 2n, locationId: 11n },
-        { id: 3n, locationId: 11n },
-        { id: 4n, locationId: 99n },
+        { id: 1n, locationId: 11n, online: true },
+        { id: 2n, locationId: 11n, online: true },
+        { id: 3n, locationId: 11n, online: true },
+        { id: 4n, locationId: 99n, online: true },
       ],
     });
     expect(three.trip.players).toBe('2');
     expect(detail(11n).trip.players).toBe('None');
+  });
+
+  it('players leaves out offline characters, and a row without the online field reads offline', () => {
+    const mixed = detail(11n, {
+      charactersAtSelected: [
+        { id: 1n, locationId: 11n, online: true },
+        { id: 2n, locationId: 11n, online: true },
+        { id: 3n, locationId: 11n, online: false },
+        { id: 4n, locationId: 11n },
+        { id: 5n, locationId: 11n, online: null },
+      ],
+    });
+    expect(mixed.trip.players).toBe('1');
+  });
+
+  it('players reads None when only offline characters are at the place', () => {
+    const d = detail(11n, {
+      charactersAtSelected: [
+        { id: 2n, locationId: 11n, online: false },
+        { id: 3n, locationId: 11n, online: false },
+      ],
+    });
+    expect(d.trip.players).toBe('None');
   });
 });
 
@@ -408,7 +431,7 @@ describe('buildDetail, the selected place still loading (review WR-02)', () => {
   it('the fallback to your place (an unknown selection) never borrows the selected rows', () => {
     const d = detail(999n, {
       npcsAtSelected: [{ npcType: 'vendor', locationId: 10n }],
-      charactersAtSelected: [{ id: 2n, locationId: 10n }],
+      charactersAtSelected: [{ id: 2n, locationId: 10n, online: true }],
     });
     expect(d.title).toBe('Ember Camp');
     expect(d.trip.services).toBeNull();

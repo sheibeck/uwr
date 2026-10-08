@@ -31,7 +31,7 @@ const MARSH = place({ id: 12n, name: 'Brackwater', regionId: 2n, terrainType: 's
 const EDGE = place({ id: 13n, name: 'Beyond', terrainType: 'uncharted', isSafe: true });
 const HAVEN = place({ id: 14n, name: 'Haven', terrainType: 'town', isSafe: true, description: 'A quiet harbour.' });
 
-const SELF: TravellerLike = { id: 1n, name: 'Hero', locationId: 10n, stamina: 50n };
+const SELF: TravellerLike = { id: 1n, name: 'Hero', locationId: 10n, stamina: 50n, online: true };
 
 interface Setup {
   routes?: ExitLocation[];
@@ -171,7 +171,7 @@ describe('exitRows, crossings', () => {
   });
 
   it('a follower timer blocks the crossing with the longest follower time', () => {
-    const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n };
+    const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n, online: true };
     const rows = rowsFor({ followers: [mira], followerTimers: { '2': 75 } });
     const marsh = row(rows, 'Brackwater');
     // review IN-03: the note names who waits, never reading as your own timer
@@ -186,8 +186,18 @@ describe('exitRows, crossings', () => {
 });
 
 describe('exitRows, followers, blocks and offline', () => {
-  const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n };
-  const jory: TravellerLike = { id: 3n, name: 'Jory', locationId: 10n, stamina: 50n };
+  const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n, online: true };
+  const jory: TravellerLike = { id: 3n, name: 'Jory', locationId: 10n, stamina: 50n, online: true };
+
+  it('an offline follower is left behind: not counted, no cost, no block', () => {
+    const rows = rowsFor({
+      followers: [{ ...mira, online: false, stamina: 0n }, jory],
+      followerTimers: { '2': 600 },
+    });
+    expect(row(rows, 'Gloamwood').following).toBe(1);
+    expect(row(rows, 'Gloamwood').note.text).toBe('Woods · 5 stamina each · Bind stone · Crafting · 1 following');
+    expect(row(rows, 'Brackwater').button.disabled).toBe(false);
+  });
 
   it('leading with followers appends the count to the same-region and idle-crossing notes', () => {
     const rows = rowsFor({ followers: [mira, jory] });
