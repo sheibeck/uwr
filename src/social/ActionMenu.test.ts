@@ -385,3 +385,136 @@ describe('ActionMenu header', () => {
     for (const item of items(w)) expect(item.findAll('button, a, input, select, textarea')).toHaveLength(0);
   });
 });
+
+describe('ActionMenu mobile sheet', () => {
+  function mountSheet(props: Record<string, unknown> = {}): VueWrapper {
+    return mountMenu({ mobile: true, anchor: null, ...props });
+  }
+
+  it('renders a scrim and a modal dialog labelled by the header name, holding the menu', () => {
+    const w = mountSheet();
+    expect(w.find('.menu-scrim').exists()).toBe(true);
+    const dialog = w.get('section[role="dialog"]');
+    expect(dialog.attributes('aria-modal')).toBe('true');
+    const labelId = dialog.attributes('aria-labelledby') as string;
+    expect(document.getElementById(labelId)?.textContent).toContain('Bram');
+    expect(dialog.find('[role="menu"]').exists()).toBe(true);
+    expect(dialog.attributes('id')).toBe('menu-1');
+    expect(w.find('.menu-panel').exists()).toBe(false);
+  });
+
+  it('the header shows a 40px initial tile with the first letter, the name and the sub-line', () => {
+    const w = mountSheet();
+    const tile = w.get('.head-tile');
+    expect(tile.text()).toBe('B');
+    expect(tile.attributes('aria-hidden')).toBe('true');
+    expect(tile.classes()).not.toContain('you');
+    expect(w.get('.sheet-head').text()).toContain('Bram');
+    expect(w.get('.sheet-line').text()).toBe('Lv 5 Orc Shaman · in your party');
+  });
+
+  it('your own tile carries the you class', () => {
+    const w = mountSheet({ header: { name: 'ann', you: true, line: '' } });
+    expect(w.get('.head-tile').text()).toBe('A');
+    expect(w.get('.head-tile').classes()).toContain('you');
+  });
+
+  it('items carry the mobile class and the sheet has a Cancel button', () => {
+    const w = mountSheet();
+    for (const item of items(w)) expect(item.classes()).toContain('mobile');
+    const cancel = w.get('.menu-cancel');
+    expect(cancel.element.tagName).toBe('BUTTON');
+    expect(cancel.text()).toBe('Cancel');
+    expect(cancel.classes()).toEqual(expect.arrayContaining(['btn', 'btn-ghost']));
+  });
+
+  it('the style block sets the 48px rows and the 44px Cancel', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(resolve(process.cwd(), 'src/social/ActionMenu.vue'), 'utf8');
+    expect(source).toMatch(/\.menu-item\.mobile\s*\{[^}]*min-height: 48px/);
+    expect(source).toMatch(/\.menu-cancel\s*\{[^}]*min-height: 44px/);
+  });
+
+  it('focuses the first enabled item on open', async () => {
+    const w = mountSheet();
+    await nextTick();
+    expect(active()).toBe(itemEl(w, 'Invite to party'));
+  });
+
+  it('Tab from the last focusable wraps to the first, Shift+Tab from the first to the last', async () => {
+    const w = mountSheet();
+    await nextTick();
+    const cancel = w.get('.menu-cancel').element as HTMLElement;
+    cancel.focus();
+    const tab = key(cancel, 'Tab');
+    expect(tab.defaultPrevented).toBe(true);
+    expect(active()).toBe(itemEl(w, 'Invite to party'));
+    const back = key(itemEl(w, 'Invite to party'), 'Tab', { shiftKey: true });
+    expect(back.defaultPrevented).toBe(true);
+    expect(active()).toBe(cancel);
+    expect(w.emitted('close')).toBeUndefined();
+  });
+
+  it('arrows, Home and End work as on desktop', async () => {
+    const w = mountSheet();
+    await nextTick();
+    key(itemEl(w, 'Invite to party'), 'ArrowUp');
+    expect(active()).toBe(itemEl(w, 'Remove from party'));
+    key(itemEl(w, 'Remove from party'), 'Home');
+    expect(active()).toBe(itemEl(w, 'Invite to party'));
+    key(itemEl(w, 'Invite to party'), 'End');
+    expect(active()).toBe(itemEl(w, 'Remove from party'));
+  });
+
+  it('Escape closes with focus return, prevented and stopped', async () => {
+    const w = mountSheet();
+    await nextTick();
+    let reachedDocument = false;
+    const listener = () => {
+      reachedDocument = true;
+    };
+    document.addEventListener('keydown', listener);
+    const event = key(itemEl(w, 'Whisper'), 'Escape');
+    document.removeEventListener('keydown', listener);
+    expect(event.defaultPrevented).toBe(true);
+    expect(reachedDocument).toBe(false);
+    expect(w.emitted('close')).toEqual([[true]]);
+  });
+
+  it('Cancel closes with focus return', async () => {
+    const w = mountSheet();
+    await w.get('.menu-cancel').trigger('click');
+    expect(w.emitted('close')).toEqual([[true]]);
+  });
+
+  it('a tap on the scrim closes with focus return', async () => {
+    const w = mountSheet();
+    await w.get('.menu-scrim').trigger('click');
+    expect(w.emitted('close')).toEqual([[true]]);
+  });
+
+  it('an entry with a confirm shows InlineConfirm with mobile true', async () => {
+    const w = mountSheet();
+    await nextTick();
+    itemEl(w, 'Remove from party').click();
+    await nextTick();
+    const confirm = w.getComponent(InlineConfirm);
+    expect(confirm.props('mobile')).toBe(true);
+    expect(confirm.props('prompt')).toBe('Remove Bram from the party?');
+    expect(active()?.textContent?.trim()).toBe('Keep Bram');
+  });
+
+  it('names render as text', () => {
+    const w = mountSheet({ header: { name: '<img src=x onerror=alert(1)>', you: false, line: '<i>x</i>' } });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.find('i').exists()).toBe(false);
+    expect(w.get('.sheet-head').text()).toContain('<img src=x onerror=alert(1)>');
+    expect(w.get('.sheet-line').text()).toBe('<i>x</i>');
+  });
+
+  it('the sheet has no inline placement', () => {
+    const w = mountSheet();
+    expect((w.get('section[role="dialog"]').element as HTMLElement).style.top).toBe('');
+  });
+});

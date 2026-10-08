@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/vue';
 import InlineConfirm from '../ledger/InlineConfirm.vue';
 import CharacterName from './CharacterName.vue';
+import { trapTabKey } from '../frame/focusTrap';
 import { menuPosition } from './menuPosition';
 import type { MenuAnchor } from './menuPosition';
 import type { MenuAction, MenuEntry, MenuGroup, MenuIcon } from './playerMenu';
@@ -21,6 +22,7 @@ import type { MenuAction, MenuEntry, MenuGroup, MenuIcon } from './playerMenu';
 // The party and player menu renderer (51.1-UI-SPEC "Party and Player Menus"). It draws whatever
 // ordered entry groups it receives, with a separator only between non-empty groups, so a later
 // group (52.2's guild entries) needs no change here. Desktop: a fixed popover beside the opener.
+// Mobile: a bottom action sheet over a scrim, a modal dialog with Tab trapped and a Cancel button.
 // The keyboard rules live on the panel: arrows wrap (disabled items included, so their reasons
 // are reachable), Home and End jump, Escape closes without reaching a drawer or sheet behind, Tab
 // closes and lets focus move on. Entries with a confirm swap the items for an InlineConfirm.
@@ -52,6 +54,9 @@ const ICONS: Record<MenuIcon, Component> = {
 const nameId = useId();
 const panel = ref<HTMLElement | null>(null);
 const list = ref<HTMLElement | null>(null);
+
+// The sheet header tile: the name's first letter.
+const initial = computed(() => props.header.name.trim().slice(0, 1).toUpperCase());
 
 const shown = computed(() => props.groups.filter((group) => group.entries.length > 0));
 const entries = computed(() => shown.value.flatMap((group) => group.entries));
@@ -175,7 +180,12 @@ function onKeydown(event: KeyboardEvent): void {
     return;
   }
   if (event.key === 'Tab') {
-    emit('close', false);
+    // The sheet is modal: Tab stays inside it. The popover closes and lets focus move on.
+    if (props.mobile) {
+      if (panel.value) trapTabKey(event, panel.value);
+    } else {
+      emit('close', false);
+    }
     return;
   }
   if (confirming.value !== null) return;
@@ -184,13 +194,66 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div
-    :id="props.menuId"
-    ref="panel"
-    class="menu-panel"
-    :style="panelStyle"
-    @keydown="onKeydown"
-  >
+  <!-- Mobile: a bottom action sheet over a scrim, a modal dialog holding the menu. -->
+  <div v-if="props.mobile" class="menu-layer">
+    <div class="menu-scrim" aria-hidden="true" @click="emit('close', true)"></div>
+    <section
+      :id="props.menuId"
+      ref="panel"
+      class="menu-sheet"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="nameId"
+      @keydown="onKeydown"
+    >
+      <div class="grabber-wrap"><div class="grabber" aria-hidden="true"></div></div>
+      <div class="sheet-head">
+        <span class="head-tile" :class="{ you: props.header.you }" aria-hidden="true">{{ initial }}</span>
+        <span class="sheet-head-text">
+          <span :id="nameId" class="sheet-name">
+            <CharacterName :name="props.header.name" />
+            <span v-if="props.header.you" class="head-you">{{ ' you' }}</span>
+          </span>
+          <span v-if="props.header.line !== ''" class="sheet-line">{{ props.header.line }}</span>
+        </span>
+      </div>
+      <div v-if="confirming === null" ref="list" role="menu" :aria-labelledby="nameId" class="menu-list">
+        <template v-for="(group, index) in shown" :key="group.key">
+          <div v-if="index > 0" role="separator" class="menu-sep"></div>
+          <button
+            v-for="entry in group.entries"
+            :key="entry.action"
+            type="button"
+            role="menuitem"
+            class="menu-item mobile"
+            :class="[`tone-${entry.tone}`, { pending: isPending(entry) }]"
+            :data-action="entry.action"
+            :aria-disabled="inert(entry) ? 'true' : undefined"
+            :aria-label="accessibleName(entry)"
+            @click="choose(entry)"
+          >
+            <component :is="ICONS[entry.icon]" :size="20" class="item-icon" aria-hidden="true" />
+            <span class="item-label">{{ entry.label }}</span>
+            <span v-if="entry.hint !== null" class="item-hint" aria-hidden="true">{{ entry.hint }}</span>
+          </button>
+        </template>
+      </div>
+      <div v-else class="menu-confirm">
+        <InlineConfirm
+          :prompt="confirming.confirm?.prompt ?? ''"
+          :confirm-label="confirming.confirm?.confirmLabel ?? ''"
+          :keep-label="confirming.confirm?.keepLabel ?? ''"
+          :pending="isPending(confirming)"
+          mobile
+          @confirm="onConfirm"
+          @keep="onKeep"
+        />
+      </div>
+      <button type="button" class="btn btn-ghost menu-cancel" @click="emit('close', true)">Cancel</button>
+    </section>
+  </div>
+  <!-- Desktop: a fixed popover beside the opener. -->
+  <div v-else :id="props.menuId" ref="panel" class="menu-panel" :style="panelStyle" @keydown="onKeydown">
     <div class="menu-head">
       <span :id="nameId" class="head-name">
         <CharacterName :name="props.header.name" />
@@ -225,7 +288,7 @@ function onKeydown(event: KeyboardEvent): void {
         :confirm-label="confirming.confirm?.confirmLabel ?? ''"
         :keep-label="confirming.confirm?.keepLabel ?? ''"
         :pending="isPending(confirming)"
-        :mobile="props.mobile"
+        :mobile="false"
         @confirm="onConfirm"
         @keep="onKeep"
       />
@@ -362,5 +425,105 @@ function onKeydown(event: KeyboardEvent): void {
 
 .menu-confirm {
   padding: 8px;
+}
+
+/* Mobile action sheet: above the tab bar and above an open Party sheet. */
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--color-bg) 45%, transparent);
+}
+
+.menu-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 41;
+  box-sizing: border-box;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 0 8px 24px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.grabber-wrap {
+  padding: 8px 0 4px;
+}
+
+.grabber {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-700);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px 16px;
+}
+
+.head-tile {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-line-whisper);
+  font-size: 14px;
+}
+
+.head-tile.you {
+  color: var(--color-accent-300);
+}
+
+.sheet-head-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sheet-name {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.sheet-name :deep(.character-name),
+.sheet-name :deep(.name) {
+  white-space: normal;
+  overflow: visible;
+}
+
+.sheet-line {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
+}
+
+.menu-item.mobile {
+  min-height: 48px;
+  gap: 16px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.menu-cancel {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  min-height: 44px;
+  margin: 8px 16px 0;
+  background: var(--color-bg);
 }
 </style>
