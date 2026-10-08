@@ -333,6 +333,32 @@ export function sumCharacterEffect(ctx: any, characterId: bigint, effectType: st
   return total;
 }
 
+/**
+ * The enemy damage-shield choke point (D-53): an enemy's damage_shield effects of this fight absorb
+ * as much of `damage` as they hold, oldest first. A drained shield is deleted, a partly used one
+ * keeps the rest. Returns the damage left for the enemy's HP.
+ */
+export function absorbEnemyShield(ctx: any, combatId: bigint, enemy: any, damage: bigint): bigint {
+  if (!enemy || damage <= 0n) return damage;
+  const shields = [...ctx.db.combat_enemy_effect.by_enemy.filter(enemy.id)]
+    .filter((effect: any) => effect.combatId === combatId && effect.effectType === 'damage_shield')
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  let remaining = damage;
+  for (const shield of shields) {
+    if (remaining <= 0n) break;
+    const held = shield.magnitude > 0n ? shield.magnitude : 0n;
+    const absorbed = held >= remaining ? remaining : held;
+    remaining -= absorbed;
+    const left = held - absorbed;
+    if (left > 0n) {
+      ctx.db.combat_enemy_effect.id.update({ ...shield, magnitude: left });
+    } else {
+      ctx.db.combat_enemy_effect.id.delete(shield.id);
+    }
+  }
+  return remaining;
+}
+
 export function sumEnemyEffect(ctx: any, combatId: bigint, effectType: string, enemyId?: bigint) {
   let total = 0n;
   for (const effect of ctx.db.combat_enemy_effect.by_combat.filter(combatId)) {
@@ -382,7 +408,9 @@ export function resolveAbility(
   actor: AbilityActor,
   ability: AbilityRow,
   targetCharacterId?: bigint,
-  targetPetId?: bigint
+  targetPetId?: bigint,
+  /** Enemy actors only: the ally enemy the round engine chose for a heal or shield (Plan 05). */
+  targetEnemyId?: bigint
 ) {
   const combat = combatId ? ctx.db.combat_encounter.id.find(combatId) : null;
   const enemies = combatId ? [...ctx.db.combat_enemy.by_combat.filter(combatId)] : [];
@@ -427,7 +455,14 @@ export function resolveAbility(
     }
     finalDamage = applyVariance(finalDamage, nowMicros + actor.id + enemy.id);
     if (finalDamage < 1n) finalDamage = 1n;
-    const nextHp = enemy.currentHp > finalDamage ? enemy.currentHp - finalDamage : 0n;
+    // An enemy damage_shield takes its share first (one choke point); threat below still counts
+    // the whole hit, as a blow into a ward is no less provoking.
+    const toHp = absorbEnemyShield(ctx, combatId, enemy, finalDamage);
+    if (toHp < finalDamage && actor.type === 'character') {
+      const char = ctx.db.character.id.find(actor.id);
+      if (char) logPrivate(char.id, char.ownerUserId, 'ability', `A ward on ${getEnemyName(enemy)} absorbs ${finalDamage - toHp} damage.`);
+    }
+    const nextHp = enemy.currentHp > toHp ? enemy.currentHp - toHp : 0n;
     ctx.db.combat_enemy.id.update({ ...enemy, currentHp: nextHp });
 
     // Update aggro — derive threat multiplier from character data, not class name
@@ -442,7 +477,37 @@ export function resolveAbility(
         break;
       }
     }
-    return finalDamage;
+    return toHp;
+  };
+
+  // Enemy actors: the living enemies of this fight (the caster's own side), and the ally a heal or
+  // shield lands on: the round engine's targetEnemyId if alive, else the most hurt ally below full.
+  const livingAllies = (): any[] =>
+    actor.type === 'enemy'
+      ? enemies
+          .filter((row: any) => row.currentHp > 0n)
+          .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      : [];
+  const namedAlly = (): any | null => {
+    if (!targetEnemyId) return null;
+    return livingAllies().find((row: any) => row.id === targetEnemyId) ?? null;
+  };
+  const mostHurtAlly = (): any | null => {
+    let best: any | null = null;
+    for (const row of livingAllies()) {
+      if (row.maxHp <= 0n || row.currentHp >= row.maxHp) continue;
+      // Lowest currentHp / maxHp, compared by cross-multiplying; ties keep the lower id.
+      if (!best || row.currentHp * best.maxHp < best.currentHp * row.maxHp) best = row;
+    }
+    return best;
+  };
+  const logToParticipants = (kindLabel: string, msg: string) => {
+    if (!combatId) return;
+    for (const p of ctx.db.combat_participant.by_combat.filter(combatId)) {
+      if (p.status !== 'active') continue;
+      const pc = ctx.db.character.id.find(p.characterId);
+      if (pc) appendPrivateEvent(ctx, pc.id, pc.ownerUserId, kindLabel, msg);
+    }
   };
 
   // Helper to apply damage to a character (for enemy abilities targeting players)
@@ -510,6 +575,25 @@ export function resolveAbility(
   }
 
   if (kind === 'heal') {
+    if (actor.type === 'enemy') {
+      // Enemy heal (D-53): an ally enemy of this fight, never a player.
+      if (!combatId) return;
+      const ally = namedAlly() ?? mostHurtAlly();
+      if (!ally || ally.currentHp >= ally.maxHp) return;
+      const power = scaledPower();
+      const healAmount = calculateHealingPower(power, actor.stats);
+      const scaled = (healAmount * HEALING_POWER_SCALER) / 100n > 0n ? (healAmount * HEALING_POWER_SCALER) / 100n : 1n;
+      const varied = applyVariance(scaled, nowMicros + actor.id + ally.id);
+      const current = ctx.db.combat_enemy.id.find(ally.id) ?? ally;
+      const nextHp = current.currentHp + varied > current.maxHp ? current.maxHp : current.currentHp + varied;
+      ctx.db.combat_enemy.id.update({ ...current, currentHp: nextHp });
+      // PROPOSED copy (D-58): a combat line naming enemies, no pronoun.
+      const msg = ally.id === actor.id
+        ? `${actor.name} recovers.`
+        : `${actor.name} mends ${getEnemyName(ally)}.`;
+      logToParticipants('heal', msg);
+      return;
+    }
     // Heal a friendly target
     const target = targetCharacterId ? ctx.db.character.id.find(targetCharacterId) : null;
     const healTarget = target ?? (actor.type === 'character' ? ctx.db.character.id.find(actor.id) : null);
@@ -696,6 +780,18 @@ export function resolveAbility(
   }
 
   if (kind === 'shield') {
+    if (actor.type === 'enemy') {
+      // Enemy shield (D-53): a damage_shield on an ally enemy (the named one, else the caster),
+      // never a player. No ownerCharacterId: the caster is an enemy, not a character.
+      if (!combatId) return;
+      const ally = namedAlly() ?? livingAllies().find((row: any) => row.id === actor.id) ?? null;
+      if (!ally) return;
+      const shieldAmount = ability.value1 > 0n ? ability.value1 : scaledPower();
+      const duration = secondsToRounds(ability.effectDuration ?? 5n);
+      addEnemyEffect(ctx, combatId, ally.id, 'damage_shield', shieldAmount, duration, ability.name);
+      logToParticipants('ability', `${getEnemyName(ally)} is shielded by ${ability.name}.`);
+      return;
+    }
     // Apply damage_shield effect
     const target = targetCharacterId ? ctx.db.character.id.find(targetCharacterId) : null;
     const shieldTarget = target ?? (actor.type === 'character' ? ctx.db.character.id.find(actor.id) : null);
@@ -718,6 +814,11 @@ export function resolveAbility(
   }
 
   if (kind === 'taunt') {
+    if (actor.type === 'enemy') {
+      // Enemies do not taunt (RESEARCH A6): an aggro row is keyed by a character, never an enemy.
+      console.log(`[resolveAbility] enemy ${actor.id} ability kind taunt is not supported for enemies; skipped`);
+      return;
+    }
     // Generate massive threat
     if (!combatId) { throw new SenderError('Must be in combat'); }
     const enemy = findEnemyTarget();
@@ -835,6 +936,11 @@ export function resolveAbility(
   }
 
   if (kind === 'cc') {
+    if (actor.type === 'enemy') {
+      // Enemies do not cc (RESEARCH A6): the effect would land on the caster's own side.
+      console.log(`[resolveAbility] enemy ${actor.id} ability kind cc is not supported for enemies; skipped`);
+      return;
+    }
     // Crowd control (stun, root, silence)
     const enemy = findEnemyTarget();
     if (!enemy || !combatId) { throw new SenderError('No target'); }
@@ -845,14 +951,27 @@ export function resolveAbility(
       const char = ctx.db.character.id.find(actor.id);
       if (char) logPrivate(char.id, char.ownerUserId, 'ability', `Your ${ability.name} ${ccType}s ${getEnemyName(enemy)}.`);
       logGroup('ability', `${actor.name}'s ${ability.name} ${ccType}s ${getEnemyName(enemy)}.`);
-    } else if (actor.type === 'enemy' && targetCharacterId) {
-      const target = ctx.db.character.id.find(targetCharacterId);
-      if (target) logPrivate(target.id, target.ownerUserId, 'ability', `${actor.name}'s ${ability.name} stuns you!`);
     }
     return;
   }
 
   if (kind === 'drain') {
+    if (actor.type === 'enemy') {
+      // Enemy drain (D-53): damage the player target, heal the caster enemy for value2% (30%).
+      if (!combatId || !targetCharacterId) return;
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (!target || target.hp === 0n) return;
+      const dealt = applyDamageToCharacter(target, scaledPower(), dmgType);
+      const healPercent = ability.value2 ?? 30n;
+      const healAmount = (dealt * healPercent) / 100n;
+      const caster = ctx.db.combat_enemy.id.find(actor.id);
+      if (caster && caster.currentHp > 0n && healAmount > 0n) {
+        const nextHp = caster.currentHp + healAmount > caster.maxHp ? caster.maxHp : caster.currentHp + healAmount;
+        ctx.db.combat_enemy.id.update({ ...caster, currentHp: nextHp });
+      }
+      logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} drains you for ${dealt} damage.`);
+      return;
+    }
     // Deal damage and heal caster for a portion
     const enemy = findEnemyTarget();
     if (!enemy || !combatId) { throw new SenderError('No target'); }
@@ -869,14 +988,23 @@ export function resolveAbility(
         logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} drains ${getEnemyName(enemy)} for ${dealt} damage, healing you for ${healAmount}.`);
         logGroup('damage', `${actor.name}'s ${ability.name} drains ${getEnemyName(enemy)} for ${dealt} damage.`);
       }
-    } else if (actor.type === 'enemy' && targetCharacterId) {
-      const target = ctx.db.character.id.find(targetCharacterId);
-      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} drains you for ${dealt} damage.`);
     }
     return;
   }
 
   if (kind === 'execute') {
+    if (actor.type === 'enemy') {
+      // Enemy execute (D-53): the player target, 2x at or below 30% of that target's max HP.
+      if (!combatId || !targetCharacterId) return;
+      const target = ctx.db.character.id.find(targetCharacterId);
+      if (!target || target.hp === 0n) return;
+      const threshold = target.maxHp > 0n ? (target.maxHp * 30n) / 100n : 0n;
+      const multiplier = target.hp <= threshold ? 2n : 1n;
+      const dealt = applyDamageToCharacter(target, scaledPower() * multiplier, dmgType);
+      const bonusMsg = multiplier > 1n ? ' (EXECUTE!)' : '';
+      logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage${bonusMsg}.`);
+      return;
+    }
     // Bonus damage to low-HP targets
     const enemy = findEnemyTarget();
     if (!enemy || !combatId) { throw new SenderError('No target'); }
@@ -891,10 +1019,6 @@ export function resolveAbility(
       const bonusMsg = multiplier > 1n ? ' (EXECUTE!)' : '';
       if (char) logPrivate(char.id, char.ownerUserId, 'damage', `Your ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage${bonusMsg}.`);
       logGroup('damage', `${actor.name}'s ${ability.name} hits ${getEnemyName(enemy)} for ${dealt} damage${bonusMsg}.`);
-    } else if (actor.type === 'enemy' && targetCharacterId) {
-      const target = ctx.db.character.id.find(targetCharacterId);
-      const bonusMsg = multiplier > 1n ? ' (EXECUTE!)' : '';
-      if (target) logPrivate(target.id, target.ownerUserId, 'damage', `${actor.name}'s ${ability.name} hits you for ${dealt} damage${bonusMsg}.`);
     }
     return;
   }
