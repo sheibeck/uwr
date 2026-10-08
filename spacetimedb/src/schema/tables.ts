@@ -2337,6 +2337,119 @@ export const LlmAdminState = table(
   }
 );
 
+// ---------------------------------------------------------------------------
+// Phase 51.3 regional economy: seven private tables (additive; never read by clients)
+// ---------------------------------------------------------------------------
+
+// Phase 51.3: the global economy dials, the five tier weights and the AI route switch (singleton id 1).
+// Defaults equal today's tuning with the AI economy off; a missing row reads as these defaults.
+export const EconomyDials = table(
+  { name: 'economy_dials' },
+  {
+    id: t.u64().primaryKey(),
+    rarityShift: t.i64().default(0n),
+    dropRatePct: t.u64().default(100n),
+    goldPct: t.u64().default(100n),
+    gatherRatePct: t.u64().default(100n),
+    bossRarityBonus: t.u64().default(0n),
+    tierCommonPct: t.u64().default(100n),
+    tierUncommonPct: t.u64().default(100n),
+    tierRarePct: t.u64().default(100n),
+    tierEpicPct: t.u64().default(100n),
+    tierLegendaryPct: t.u64().default(100n),
+    aiEnabled: t.bool().default(false),
+  }
+);
+
+// Phase 51.3: per-region dial overrides; an undefined field inherits the global value.
+export const EconomyRegionDial = table(
+  { name: 'economy_region_dial' },
+  {
+    regionId: t.u64().primaryKey(),
+    rarityShift: t.i64().optional(),
+    dropRatePct: t.u64().optional(),
+    goldPct: t.u64().optional(),
+    gatherRatePct: t.u64().optional(),
+    bossRarityBonus: t.u64().optional(),
+  }
+);
+
+// Phase 51.3: a per-item drop pin (percent of the item's base weight).
+export const EconomyItemDial = table(
+  { name: 'economy_item_dial' },
+  {
+    itemTemplateId: t.u64().primaryKey(),
+    dropRatePct: t.u64(),
+  }
+);
+
+// Phase 51.3: the once-only lock and status per region (pending, complete or failed).
+export const RegionEconomy = table(
+  { name: 'region_economy' },
+  {
+    regionId: t.u64().primaryKey(),
+    status: t.string(),
+    jobId: t.u64(),
+    otherRegionIds: t.string(),            // JSON array of decimal strings
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  }
+);
+
+// Phase 51.3: the origin tag of a generated item_template row; slotKey is the idempotency key.
+export const EconomyItem = table(
+  {
+    name: 'economy_item',
+    indexes: [
+      { accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] },
+      { accessor: 'by_enemy', algorithm: 'btree', columns: ['enemyTemplateId'] },
+    ],
+  },
+  {
+    itemTemplateId: t.u64().primaryKey(),
+    regionId: t.u64(),
+    role: t.string(),
+    slotKey: t.string(),
+    kind: t.string(),
+    rarity: t.string(),
+    terrain: t.string(),
+    timeOfDay: t.string(),
+    enemyTemplateId: t.u64(),
+  }
+);
+
+// Phase 51.3: the AI loot table of an enemy type (4 to 6 rows); no rows means use the fallback.
+export const EnemyLootEntry = table(
+  {
+    name: 'enemy_loot_entry',
+    indexes: [{ accessor: 'by_enemy', algorithm: 'btree', columns: ['enemyTemplateId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    enemyTemplateId: t.u64(),
+    regionId: t.u64(),
+    itemTemplateId: t.u64(),
+    role: t.string(),
+    weight: t.u64(),
+  }
+);
+
+// Phase 51.3: regional recipe metadata (tier, how it is learned, the scroll template; 0n for none).
+export const RegionRecipe = table(
+  {
+    name: 'region_recipe',
+    indexes: [{ accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] }],
+  },
+  {
+    recipeTemplateId: t.u64().primaryKey(),
+    regionId: t.u64(),
+    tier: t.string(),
+    learnBy: t.string(),                   // 'research' | 'scroll'
+    scrollTemplateId: t.u64(),
+    foreignRegionIds: t.string(),
+  }
+);
+
 // One row per vendor_inventory row that is base stock, so restock can tell its own listings from
 // player-sold ones (both look identical in vendor_inventory). Private: clients never read it.
 export const VendorBaseStock = table(
@@ -2520,6 +2633,13 @@ const spacetimedb = schema({
   passage_sweep_tick: PassageSweepTick,
   group_invite_expiry_tick: GroupInviteExpiryTick,
   group_invite_cooldown: GroupInviteCooldown,
+  economy_dials: EconomyDials,
+  economy_region_dial: EconomyRegionDial,
+  economy_item_dial: EconomyItemDial,
+  region_economy: RegionEconomy,
+  economy_item: EconomyItem,
+  enemy_loot_entry: EnemyLootEntry,
+  region_recipe: RegionRecipe,
 });
 export default spacetimedb;
 export { spacetimedb };
