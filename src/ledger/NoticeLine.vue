@@ -1,7 +1,8 @@
 <script lang="ts">
 // The private feed kinds a ledger screen mirrors (RESEARCH Q8, pinned against the server's event
 // kinds): results and refusals the server writes with system, reward or heal. Never chat,
-// narration, combat, quest, faction or presence lines.
+// narration, combat, quest, faction or presence lines. This is the default set; a screen with
+// other private lines of its own passes a `kinds` prop (the Party sheet passes system and group).
 export const MIRRORED_KINDS: ReadonlySet<string> = new Set(['system', 'reward', 'heal']);
 </script>
 
@@ -18,10 +19,18 @@ import { SEND_ERROR_TEXT } from './actionRunner';
 // the client-rejection line. Entries present at mount are never shown, nothing renders until a
 // line arrives, and a remount starts empty. One line, as a text node, in a polite status region.
 //
+// The kinds prop (51.1 Plan 16, research Pitfall 4): the set of private line kinds this notice line
+// mirrors. The default is MIRRORED_KINDS, so every existing screen is unchanged. The mobile Party sheet
+// passes system and group, because failGroup writes party refusals as private kind 'group' and the
+// sheet covers the feed; Phase 52.2 adds 'friend'.
+//
 // Icon deviation (RESEARCH Open Question 7, resolved): the warning icon marks only a client
 // rejection, because the server writes refusals and info lines with the same kind, so a refusal
-// cannot be told apart from information. Reward and heal lines use the check, system the info icon.
-const props = withDefaults(defineProps<{ rejection?: number }>(), { rejection: 0 });
+// cannot be told apart from information. Reward and heal lines use the check, system and group the info icon.
+const props = withDefaults(defineProps<{ rejection?: number; kinds?: ReadonlySet<string> }>(), {
+  rejection: 0,
+  kinds: () => MIRRORED_KINDS,
+});
 
 const game = inject(GAME_KEY, createInertGame());
 
@@ -38,7 +47,7 @@ watch(
   (entries) => {
     for (let i = entries.length - 1; i >= 0; i -= 1) {
       const entry = entries[i];
-      if (entry.source !== 'private' || !MIRRORED_KINDS.has(entry.kind) || atOpen.has(entry.key)) {
+      if (entry.source !== 'private' || !props.kinds.has(entry.kind) || atOpen.has(entry.key)) {
         continue;
       }
       if (entry.key === shownKey) return;
@@ -66,7 +75,7 @@ watch(
       aria-hidden="true"
     />
     <PhInfo
-      v-else-if="current.entry.kind === 'system'"
+      v-else-if="current.entry.kind === 'system' || current.entry.kind === 'group'"
       class="notice-icon info"
       :size="14"
       aria-hidden="true"

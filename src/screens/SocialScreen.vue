@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { inject } from 'vue';
 import { PhUsersThree } from '@phosphor-icons/vue';
-import { FRAME_KEY, GAME_KEY, createInertFrame, createInertGame } from '../game/context';
+import { FRAME_KEY, createInertFrame } from '../game/context';
+import NoticeLine from '../ledger/NoticeLine.vue';
 import PartyBlock from '../rails/PartyBlock.vue';
 import EmptyState from './EmptyState.vue';
 
-// Desktop keeps the Phase 45 empty state (the vitals rail already shows the party). On mobile the
-// sheet opens with the Party block, and the empty state stays under it only outside a party (CON-03).
+// Desktop keeps the Phase 45 empty state until Phase 52.2 builds the Social screen (the vitals rail
+// already shows the party). On mobile the Party tab opens this sheet, which is the party's mobile
+// home (51.1-UI-SPEC "Mobile Party Sheet"): the Party block in its sheet variant, and at the foot a
+// NoticeLine that mirrors system and group lines, so party refusals (written by failGroup as private
+// kind 'group') are visible while the sheet covers the feed. 52.2 adds the friend kind.
+const SHEET_KINDS: ReadonlySet<string> = new Set(['system', 'group']);
+
 const frame = inject(FRAME_KEY, createInertFrame());
-const game = inject(GAME_KEY, createInertGame());
 </script>
 
 <template>
   <EmptyState v-if="frame.isDesktop.value" :icon="PhUsersThree" title="No friends or party yet." body="This screen is still being built." />
   <div v-else class="social-sheet">
-    <PartyBlock />
-    <EmptyState v-if="game.group.value === null" :icon="PhUsersThree" title="No friends or party yet." body="This screen is still being built." />
+    <PartyBlock variant="sheet" />
+    <NoticeLine :kinds="SHEET_KINDS" />
   </div>
 </template>
 

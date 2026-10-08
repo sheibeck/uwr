@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
-import { PhFootprints, PhUserPlus, PhWarningCircle } from '@phosphor-icons/vue';
+import { PhFootprints, PhUserPlus, PhUsersThree, PhWarningCircle } from '@phosphor-icons/vue';
 import { MAX_GROUP_SIZE } from '@game-data/group_config';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
 import { isPartyLeader, partyMembers, partySize } from './party';
@@ -13,6 +13,8 @@ import InviteCard from '../social/InviteCard.vue';
 import MemberCard from '../social/MemberCard.vue';
 import OutgoingInvites from '../social/OutgoingInvites.vue';
 import PetRow from '../social/PetRow.vue';
+import TravelSwitch from '../social/TravelSwitch.vue';
+import EmptyState from '../screens/EmptyState.vue';
 
 // Party header, Invite and member cards (47-UI-SPEC "Party block", CON-03), the vitals rail's party
 // area. Names and classes come from server rows and are rendered as text nodes only.
@@ -27,6 +29,14 @@ import PetRow from '../social/PetRow.vue';
 // per other member (the ally target button with the ⋯ beside it) each followed by its pet row, and the
 // incoming invite card. Invite, the follow summary, the stamina warning, 'Loot: personal' and
 // Invited · waiting only matter for travel and hide. Your own target is the vitals rail self block.
+//
+// The sheet variant (51.1-UI-SPEC "Mobile Party Sheet", Plan 16) is the mobile Party tab's body: the
+// incoming invite card first, then the header with a 44px Invite, the summary and warning, the
+// Travel with leader switch, your self card with your pet row, the member cards (each with its pet
+// row), Loot: personal and Invited · waiting. Solo it is the header, your pet row and an EmptyState.
+// The host adds the NoticeLine at the foot. The rail variant (the default) is unchanged.
+const props = withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { variant: 'rail' });
+
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const social = inject(SOCIAL_KEY, createInertSocial());
@@ -34,6 +44,7 @@ const social = inject(SOCIAL_KEY, createInertSocial());
 const headingEl = ref<HTMLElement | null>(null);
 const cardsEl = ref<HTMLElement | null>(null);
 
+const isSheet = computed(() => props.variant === 'sheet');
 const inParty = computed(() => game.group.value !== null);
 const size = computed(() => partySize(game.groupMembers.value));
 const heading = computed(() => (inParty.value ? `Party · ${size.value}` : 'Party'));
@@ -84,6 +95,18 @@ const warning = computed(() => (outOfCombat.value ? (travel.value?.warning ?? nu
 // Each member with their pet (one per character), in card order.
 const entries = computed(() => members.value.map((member) => ({ member, pet: social.petOf(member.id) })));
 
+// Your own card in the sheet (in a party): your row from everyone, once it is known, and your pet.
+const selfView = computed<PartyMemberView | null>(() => {
+  const id = game.characterId.value;
+  if (id === null || !inParty.value) return null;
+  const found = everyone.value.find((member) => member.id === id);
+  return found !== undefined && found.known ? found : null;
+});
+const ownPet = computed(() => {
+  const id = game.characterId.value;
+  return id === null ? null : social.petOf(id);
+});
+
 function followOf(member:{ id: bigint; known: boolean }): FollowState | null {
   if (!member.known) return null;
   return travel.value?.states.get(member.id) ?? null;
@@ -129,12 +152,15 @@ function invite(): void {
 </script>
 
 <template>
-  <section class="party" aria-label="Party">
+  <section class="party" :class="{ sheet: isSheet }" aria-label="Party">
+    <InviteCard v-if="isSheet" variant="sheet" @answered="focusHeading" />
+
     <div v-if="outOfCombat" class="party-head">
       <h6 ref="headingEl" tabindex="-1">{{ heading }}</h6>
       <button
         type="button"
         class="btn btn-ghost invite"
+        :class="{ sheet: isSheet }"
         :aria-disabled="inviteReason !== null ? 'true' : undefined"
         :title="inviteReason ?? undefined"
         @click="invite"
@@ -154,24 +180,72 @@ function invite(): void {
         <PhWarningCircle class="line-icon" :size="12" aria-hidden="true" /><span>{{ warning }}</span>
       </p>
 
-      <div v-if="inParty" ref="cardsEl" class="cards">
-        <div v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
-          <MemberCard :member="entry.member" :state="followOf(entry.member)" :fallback-focus="menuFallback" />
-          <PetRow
-            v-if="entry.pet !== null"
-            :pet="entry.pet"
-            :owner-name="memberLabel(entry.member)"
-            :seconds-left="social.petSecondsLeft(entry.pet)"
+      <template v-if="isSheet">
+        <TravelSwitch variant="sheet" />
+        <template v-if="inParty">
+          <div v-if="selfView !== null" class="self-entry member-entry">
+            <MemberCard
+              :member="selfView"
+              :state="followOf(selfView)"
+              variant="sheet"
+              self
+              :fallback-focus="() => headingEl"
+            />
+            <PetRow
+              v-if="ownPet !== null"
+              :pet="ownPet"
+              :owner-name="null"
+              :seconds-left="social.petSecondsLeft(ownPet)"
+            />
+          </div>
+          <ul v-if="entries.length > 0" ref="cardsEl" class="cards">
+            <li v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
+              <MemberCard
+                :member="entry.member"
+                :state="followOf(entry.member)"
+                variant="sheet"
+                :fallback-focus="menuFallback"
+              />
+              <PetRow
+                v-if="entry.pet !== null"
+                :pet="entry.pet"
+                :owner-name="memberLabel(entry.member)"
+                :seconds-left="social.petSecondsLeft(entry.pet)"
+              />
+            </li>
+          </ul>
+        </template>
+        <template v-else>
+          <div v-if="ownPet !== null" class="solo-pet member-entry">
+            <PetRow :pet="ownPet" :owner-name="null" :seconds-left="social.petSecondsLeft(ownPet)" />
+          </div>
+          <EmptyState
+            :icon="PhUsersThree"
+            title="You're travelling alone."
+            body="Invite someone by name, or use the menu on a player in Nearby."
           />
+        </template>
+      </template>
+      <template v-else>
+        <div v-if="inParty" ref="cardsEl" class="cards">
+          <div v-for="entry in entries" :key="String(entry.member.id)" class="member-entry">
+            <MemberCard :member="entry.member" :state="followOf(entry.member)" :fallback-focus="menuFallback" />
+            <PetRow
+              v-if="entry.pet !== null"
+              :pet="entry.pet"
+              :owner-name="memberLabel(entry.member)"
+              :seconds-left="social.petSecondsLeft(entry.pet)"
+            />
+          </div>
         </div>
-      </div>
-      <p v-else class="empty">Not in a party.</p>
+        <p v-else class="empty">Not in a party.</p>
+      </template>
 
       <p v-if="inParty" class="loot" title="Each fighter rolls their own loot.">
         Loot: personal<span class="sr-only">{{ ' ' }}Each fighter rolls their own loot.</span>
       </p>
 
-      <OutgoingInvites variant="rail" @focus-heading="focusHeading" />
+      <OutgoingInvites :variant="isSheet ? 'sheet' : 'rail'" @focus-heading="focusHeading" />
     </template>
 
     <div v-else-if="inParty" ref="cardsEl" class="cards">
@@ -186,7 +260,7 @@ function invite(): void {
       </div>
     </div>
 
-    <InviteCard variant="rail" @answered="focusHeading" />
+    <InviteCard v-if="!isSheet" variant="rail" @answered="focusHeading" />
   </section>
 </template>
 
@@ -218,6 +292,12 @@ function invite(): void {
   font-size: 12px;
 }
 
+/* The mobile Invite is a 44px target (UI-SPEC Mobile Party Sheet item 2). */
+.invite.sheet {
+  min-height: 44px;
+  padding: 8px 16px;
+}
+
 .empty {
   margin: 0;
   font-size: 12px;
@@ -228,6 +308,12 @@ function invite(): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+ul.cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* A card and its pet row: the pet row brings its own 4px top margin and elbow. */

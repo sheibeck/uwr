@@ -272,7 +272,7 @@ describe('mobile Party sheet populated (Q5)', () => {
     expect(self.get('.character-name').text()).toBe('Ann (you)');
     expect(self.get('.member-line').text()).toBe('Lv 4 · 30 st');
     expect(self.find('[role="progressbar"]').exists()).toBe(false);
-    expect(self.get('.crown').exists()).toBe(true);
+    expect(self.find('.crown').exists()).toBe(true);
     expect(self.get('button.menu-opener').attributes('aria-label')).toBe('Actions for yourself');
     const cards = w.findAll('ul.cards .member-card');
     expect(cards.map((c) => c.get('.member-name').text())).toEqual(['Bo', 'Mara']);
@@ -504,11 +504,12 @@ describe('mobile Party sheet reaches every party action (criterion 6)', () => {
     item('Whisper').click();
     await settle();
     expect(whisperTo).toHaveBeenCalledWith('Bo');
-    await opener.trigger('click');
+    // Bo is at another place (Examine reads "Not here"); Mara stands with you.
+    await w.findAll('ul.cards button.menu-opener')[1].trigger('click');
     await nextTick();
     item('Examine').click();
     await settle();
-    expect(examine).toHaveBeenCalledWith('Bo');
+    expect(examine).toHaveBeenCalledWith('Mara');
   });
 
   it('a member menu as a member has no leader entries', async () => {
