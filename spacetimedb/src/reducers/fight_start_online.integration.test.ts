@@ -128,3 +128,18 @@ describe('offline members are never pulled into a fight (code review CR-02)', ()
     expectOnlyMirelAndBran(ctx);
   });
 });
+
+describe('end_combat after the fight\'s group dissolved (code review IN-05)', () => {
+  it('the admin can still end the fight (no "Group not found")', async () => {
+    const { fightSeed, fightCtx } = await import('../helpers/combat_fight_fixture');
+    const admin = { toHexString: () => 'c200252497b98fff5aab75f8fbc675956b5a12a5b85042ab355d3a05c6ab7d6e' };
+    const seed = fightSeed();
+    seed.player = [{ ...seed.player[0], id: admin }];
+    seed.combat_encounter = [{ ...seed.combat_encounter[0], groupId: 5n, leaderCharacterId: 1n }];
+    const ctx = fightCtx(seed, admin);
+    capturedReducer('end_combat')(ctx, { characterId: 1n });
+    const said = rows(ctx, 'event_private').map((e) => e.message);
+    expect(said).not.toContain('Group not found');
+    expect(said).toContain('Combat was ended by the leader.');
+  });
+});

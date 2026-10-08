@@ -108,6 +108,10 @@ export function endInvite(
 /**
  * Dissolves a group with exactly one member and no invite rows: deletes the member row, clears
  * that character's groupId and deletes the group. Returns whether it dissolved.
+ *
+ * It may run during a fight (code review IN-05, accepted): no combat rule reads the group row, so
+ * the fight goes on unchanged; only its remaining group lines go to a group nobody reads, and they
+ * repeat private lines. The admin end_combat no longer needs the dissolved group either.
  */
 export function dissolveLoneGroup(ctx: any, groupId: bigint): boolean {
   const group = ctx.db.group.id.find(groupId);

@@ -1311,9 +1311,10 @@ export const registerCombatReducers = (deps: any) => {
     if (!combat) return failCombat(ctx, character, 'Combat not active');
 
     if (combat.groupId && combat.state === 'active') {
+      // A group that dissolved during the fight (a lone-group dissolve, IN-05) has no leader to
+      // ask, so the fight can still be ended.
       const group = ctx.db.group.id.find(combat.groupId);
-      if (!group) return failCombat(ctx, character, 'Group not found');
-      if (group.leaderCharacterId !== character.id) {
+      if (group && group.leaderCharacterId !== character.id) {
         return failCombat(ctx, character, 'Only the group leader can end combat');
       }
     }
