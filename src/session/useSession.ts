@@ -47,6 +47,11 @@ import type { MapData } from '../map/mapContext';
 import { createMapData } from '../map/mapData';
 import type { MapConn, MapInput } from '../map/mapData';
 import { mapQueries } from '../map/queries';
+import { createInertSocial } from '../social/socialContext';
+import type { SocialData } from '../social/socialContext';
+import { createSocialData } from '../social/socialData';
+import type { SocialConn, SocialInput } from '../social/socialData';
+import { socialQueries } from '../social/queries';
 
 export interface SessionAuth {
   getStoredIdToken(): string | null;
@@ -98,6 +103,8 @@ export interface SessionDeps<C extends SessionConn> {
   ledger?: (input: LedgerInput<C>) => LedgerData;
   /** Builds the map hub (visited places, connections, travel timers, selected place). Omitted: the session carries an inert hub. */
   map?: (input: MapInput<C>) => MapData;
+  /** Builds the social hub (pets, invites, the names behind them). Omitted: the session carries an inert hub. */
+  social?: (input: SocialInput<C>) => SocialData;
 }
 
 export const SELECT_TIMEOUT_MS = 8000;
@@ -123,6 +130,8 @@ export interface Session {
   readonly ledger: LedgerData;
   /** The map hub (known places, travel timers, the selected place); reset on logout. */
   readonly map: MapData;
+  /** The social hub (party pets, outgoing and incoming invites, names); reset on logout. */
+  readonly social: SocialData;
   start(): void;
   signIn(): void;
   selectCharacter(characterId: bigint): void;
@@ -151,7 +160,7 @@ export function defaultQueries(): SessionQueries {
  * the generated bindings and the stored-session helpers.
  */
 export function createDefaultSession(options: { callbackError: unknown }): Session {
-  return createSession<SessionConn & GameConn & CreationConn & LedgerConn & MapConn>(
+  return createSession<SessionConn & GameConn & CreationConn & LedgerConn & MapConn & SocialConn>(
     {
       controller: createConnectionController(defaultControllerDeps()),
       auth: { getStoredIdToken, getStoredEmail, clearAuthSession, beginSpacetimeAuthLogin },
@@ -173,6 +182,7 @@ export function createDefaultSession(options: { callbackError: unknown }): Sessi
       ledger: (input) =>
         createLedgerData({ bind: bindTable, queries: ledgerQueries() }, input),
       map: (input) => createMapData({ bind: bindTable, queries: mapQueries() }, input),
+      social: (input) => createSocialData({ bind: bindTable, queries: socialQueries() }, input),
     },
     options,
   );
@@ -467,6 +477,18 @@ function build<C extends SessionConn>(
       })
     : createInertMap();
 
+  const social: SocialData = deps.social
+    ? deps.social({
+        conn: controller.conn,
+        status: controller.status,
+        character: activeCharacter,
+        partyCharacterIds,
+        incomingInvites: game.groupInvites,
+        knownCharacters: game.knownCharacters,
+        clock: game.clock,
+      })
+    : createInertSocial();
+
   const pickerPendingId = ref<bigint | null>(null);
   const pickerFailed = ref(false);
   let selectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -565,6 +587,7 @@ function build<C extends SessionConn>(
     creation.reset();
     ledger.reset();
     map.reset();
+    social.reset();
     loginSentFor = null;
     authFailed.value = false;
     redirecting.value = false;
@@ -586,6 +609,7 @@ function build<C extends SessionConn>(
     creation,
     ledger,
     map,
+    social,
     start() {
       controller.connect();
     },
@@ -605,6 +629,7 @@ function build<C extends SessionConn>(
       creation.dispose();
       ledger.dispose();
       map.dispose();
+      social.dispose();
       controller.dispose();
     },
   };

@@ -6,7 +6,7 @@ import { InternalError, SenderError } from 'spacetimedb';
 import type { ConnectionController, ConnectionStatus } from '../net/connection';
 import type { BindTableOptions, TableBinding } from '../net/bindTable';
 import type { Character } from '../module_bindings/types';
-import type { GameData } from '../game/context';
+import type { GameData, GameReducers } from '../game/context';
 import type { GameInput } from '../game/gameData';
 import type { CreationData } from '../creation/creationContext';
 import type { CreationInput } from '../creation/creationData';
@@ -14,6 +14,8 @@ import type { LedgerData } from '../ledger/ledgerContext';
 import type { LedgerInput } from '../ledger/ledgerData';
 import type { MapData } from '../map/mapContext';
 import type { MapInput } from '../map/mapData';
+import type { SocialData } from '../social/socialContext';
+import type { SocialInput } from '../social/socialData';
 import { createSession, defaultQueries, SIGNIN_TIMEOUT_MS } from './useSession';
 import type { Session, SessionAuth, SessionConn, SessionDeps, SessionQueries } from './useSession';
 
@@ -112,6 +114,7 @@ interface HarnessOptions {
   creation?: SessionDeps<FakeConn>['creation'];
   ledger?: SessionDeps<FakeConn>['ledger'];
   map?: SessionDeps<FakeConn>['map'];
+  social?: SessionDeps<FakeConn>['social'];
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -171,6 +174,7 @@ function harness(options: HarnessOptions = {}): Harness {
     creation: options.creation,
     ledger: options.ledger,
     map: options.map,
+    social: options.social,
   };
   const session = createSession(deps, { callbackError: options.callbackError ?? null });
 
@@ -1155,6 +1159,116 @@ describe('map hub wiring', () => {
     h = harness({ map: factory, game: () => game });
     h.session.dispose();
     expect(map.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('social hub wiring', () => {
+  let h: Harness;
+  afterEach(() => {
+    h?.session.dispose();
+  });
+
+  function spySocial() {
+    const social = { reset: vi.fn(), dispose: vi.fn() } as unknown as SocialData;
+    const factory = vi.fn<(input: SocialInput<FakeConn>) => SocialData>(() => social);
+    return { social, factory };
+  }
+
+  function fakeGame() {
+    const groupMembers = ref<{ characterId: bigint }[]>([]);
+    const groupInvites = ref<any[]>([]);
+    const knownCharacters = ref<any[]>([]);
+    const questTemplates = ref<{ npcId: bigint }[]>([]);
+    const clock = { nowMicros: () => 42 };
+    const game = {
+      reset: vi.fn(),
+      dispose: vi.fn(),
+      groupMembers,
+      groupInvites,
+      knownCharacters,
+      questTemplates,
+      clock,
+    } as unknown as GameData;
+    return { game, groupMembers, groupInvites, knownCharacters, clock };
+  }
+
+  it('carries an inert social hub when no factory is given', () => {
+    h = harness();
+    expect(h.session.social.petsApplied.value).toBe(false);
+    expect(h.session.social.incomingInvite.value).toBeNull();
+    expect(h.session.social.petOf(1n)).toBeNull();
+    expect(() => h.session.social.reset()).not.toThrow();
+  });
+
+  it('builds the hub once with the session refs, the party ids, the invites, the known characters and the clock', async () => {
+    const { social, factory } = spySocial();
+    const { game, groupMembers, groupInvites, knownCharacters, clock } = fakeGame();
+    h = harness({ social: factory, game: () => game });
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(h.session.social).toBe(social);
+
+    const input = factory.mock.calls[0][0];
+    expect(input.conn).toBe(h.conn);
+    expect(input.status).toBe(h.status);
+    expect(input.character.value).toBeNull();
+    expect(input.clock).toBe(clock);
+    expect(input.incomingInvites).toBe(game.groupInvites);
+    expect(input.knownCharacters).toBe(game.knownCharacters);
+    expect(input.partyCharacterIds.value).toEqual([]);
+
+    h.connect();
+    h.setPlayer({ userId: 7n, activeCharacterId: 9n });
+    await flush();
+    const chars = h.binding(queries.characters(7n));
+    chars.rows.value = [makeCharacter(9n, 1n)];
+    chars.applied.value = true;
+    expect(input.character.value?.id).toBe(9n);
+
+    groupMembers.value = [{ characterId: 9n }, { characterId: 12n }, { characterId: 10n }];
+    expect(input.partyCharacterIds.value).toEqual([12n, 10n]);
+    groupInvites.value = [{ id: 1n }];
+    knownCharacters.value = [{ id: 12n }];
+    expect(input.incomingInvites.value).toHaveLength(1);
+    expect(input.knownCharacters.value).toHaveLength(1);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('logout resets the social hub once', async () => {
+    const { social, factory } = spySocial();
+    const { game } = fakeGame();
+    h = harness({ social: factory, game: () => game });
+    h.connect();
+    h.setPlayer({ userId: 7n });
+    await h.session.logout();
+    expect(social.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispose disposes the social hub once', () => {
+    const { social, factory } = spySocial();
+    const { game } = fakeGame();
+    h = harness({ social: factory, game: () => game });
+    h.session.dispose();
+    expect(social.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('GameReducers additions', () => {
+  it('carries setFollowLeader and cancelGroupInvite with object arguments', async () => {
+    const calls: unknown[] = [];
+    const reducers: Pick<GameReducers, 'setFollowLeader' | 'cancelGroupInvite'> = {
+      setFollowLeader: async (a) => {
+        calls.push(a);
+      },
+      cancelGroupInvite: async (a) => {
+        calls.push(a);
+      },
+    };
+    await reducers.setFollowLeader({ characterId: 1n, follow: false });
+    await reducers.cancelGroupInvite({ characterId: 1n, targetName: 'Ada' });
+    expect(calls).toEqual([
+      { characterId: 1n, follow: false },
+      { characterId: 1n, targetName: 'Ada' },
+    ]);
   });
 });
 

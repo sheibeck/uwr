@@ -88,6 +88,8 @@ export interface GameReducers {
   startGatherResource(a: { characterId: bigint; nodeId: bigint }): Promise<void>;
   startPull(a: { characterId: bigint; enemySpawnId: bigint; pullType: string }): Promise<void>;
   bindLocation(a: { characterId: bigint }): Promise<void>;
+  setFollowLeader(a: { characterId: bigint; follow: boolean }): Promise<void>;
+  cancelGroupInvite(a: { characterId: bigint; targetName: string }): Promise<void>;
 }
 
 type List<T> = Readonly<Ref<readonly T[]>>;
