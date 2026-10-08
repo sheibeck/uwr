@@ -41,9 +41,10 @@ describe('defaulted round columns are last (RND-03)', () => {
     });
   }
 
-  it('combat_enemy_cast ends with announcedRound then landsAtRound, both defaulted u64', async () => {
+  // Phase 51.3.1.1 appended targetEnemyId after them (defaulted, pinned in pool_privacy.test.ts).
+  it('combat_enemy_cast has announcedRound then landsAtRound after its old columns, both defaulted u64', async () => {
     const keys = await cols('combat_enemy_cast');
-    expect(keys.slice(-2)).toEqual(['announcedRound', 'landsAtRound']);
+    expect(keys.slice(7, 9)).toEqual(['announcedRound', 'landsAtRound']);
     for (const col of ['announcedRound', 'landsAtRound']) {
       const info = recordedTable('combat_enemy_cast')!.cols[col];
       expect(info.kind).toBe('u64');
@@ -65,7 +66,7 @@ describe('defaulted round columns are last (RND-03)', () => {
     ]);
     expect(await cols('combat_enemy_cast')).toEqual([
       'id', 'combatId', 'enemyId', 'abilityKey', 'endsAtMicros', 'targetCharacterId', 'targetPetId',
-      'announcedRound', 'landsAtRound',
+      'announcedRound', 'landsAtRound', 'targetEnemyId',
     ]);
     expect(await cols('combat_enemy_cooldown')).toEqual([
       'id', 'combatId', 'enemyId', 'abilityKey', 'readyAtMicros', 'readyAtRound',

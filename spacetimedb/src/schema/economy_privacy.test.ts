@@ -40,6 +40,7 @@ const ECONOMY_COLUMNS: Record<string, string[]> = {
     'terrain',
     'timeOfDay',
     'enemyTemplateId',
+    'familyId', // Phase 51.3.1.1 (D-47), defaulted 0n
   ],
   enemy_loot_entry: ['id', 'enemyTemplateId', 'regionId', 'itemTemplateId', 'role', 'weight'],
   region_recipe: ['recipeTemplateId', 'regionId', 'tier', 'learnBy', 'scrollTemplateId', 'foreignRegionIds'],

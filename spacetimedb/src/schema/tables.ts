@@ -103,6 +103,12 @@ export const Location = table(
     terrainType: t.string(),
     bindStone: t.bool(),
     craftingAvailable: t.bool(),
+    // Phase 51.3.1.1 (D-41, D-44): a short name for exit chips and the noun template lines use.
+    // '' means none.
+    shortName: t.string().default(''),
+    placeNoun: t.string().default(''),
+    // Phase 51.3.1.1 (D-59 to D-62): the region's hub, where its vendor and banker live.
+    isHub: t.bool().default(false),
   }
 );
 
@@ -510,6 +516,8 @@ export const ResourceGather = table(
     characterId: t.u64(),
     nodeId: t.u64(),
     endsAtMicros: t.u64(),
+    // Phase 51.3.1.1: the place_pool this gather draws from; 0n = an old node gather.
+    poolId: t.u64().default(0n),
   }
 );
 
@@ -1046,6 +1054,8 @@ export const CombatEnemyCast = table(
     targetPetId: t.u64().optional(),
     announcedRound: t.u64().default(0n), // round the wind-up was announced (rounds, not microseconds)
     landsAtRound: t.u64().default(0n),   // round the wind-up lands
+    // Phase 51.3.1.1 (D-53): the ally enemy a support cast lands on; 0n = none.
+    targetEnemyId: t.u64().default(0n),
   }
 );
 
@@ -1068,6 +1078,13 @@ export const CombatEncounter = table(
     pendingAddCount: t.u64(),
     pendingAddAtMicros: t.u64().optional(),
     createdAt: t.timestamp(),
+    // Phase 51.3.1.1 (D-32): how the fight began (a COMBAT_ORIGINS value; '' = no origin) and the
+    // family it was drawn from, for the encounter heading and source line. 0n / '' = none.
+    origin: t.string().default(''),
+    originFamilyId: t.u64().default(0n),
+    originLevel: t.u64().default(0n),
+    originName: t.string().default(''),
+    originPlural: t.string().default(''),
   }
 );
 
@@ -1111,6 +1128,10 @@ export const CombatEnemy = table(
     nextAutoAttackAt: t.u64(),
     // The level this enemy fights at. 0 on rows from before this column means the template's level.
     level: t.u64().default(0n),
+    // Phase 51.3.1.1: the place_pool this enemy was drawn from (0n = not a pool enemy), and the ally
+    // enemy it is healing or shielding (D-40; 0n = none).
+    poolId: t.u64().default(0n),
+    healTargetEnemyId: t.u64().default(0n),
   }
 );
 
@@ -2420,6 +2441,8 @@ export const EconomyItem = table(
     terrain: t.string(),
     timeOfDay: t.string(),
     enemyTemplateId: t.u64(),
+    // Phase 51.3.1.1 (D-47): the creature family a drop or trophy belongs to; 0n = none.
+    familyId: t.u64().default(0n),
   }
 );
 
@@ -2507,6 +2530,185 @@ export const PassageSweepTick = table(
   {
     scheduledId: t.u64().primaryKey().autoInc(),
     scheduledAt: t.scheduleAt(),
+  }
+);
+
+// ============================================================================
+// Phase 51.3.1.1 Density pools. Every table here is private except pool_level, the public mirror
+// of the density level (D-05): the hidden count, home level, wipe and settle times live only in
+// place_pool. Ids are u64; 0n means none.
+// ============================================================================
+
+// A creature family (e.g. Goblins) of one region; its role members are family_member rows.
+export const CreatureFamily = table(
+  {
+    name: 'creature_family',
+    indexes: [{ accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    regionId: t.u64(),
+    key: t.string().unique(),
+    name: t.string(),
+    singularNoun: t.string(),
+    pluralNoun: t.string(),
+    temperament: t.string(),
+    iconKey: t.string(),
+    creatureType: t.string(),
+    ambushVerb: t.string(),
+    ambushRest: t.string(),
+    fitTerrains: t.string(), // comma list of terrain types
+  }
+);
+
+// One enemy type of a family, by role (canonical server role: tank, damage, healer or caster).
+export const FamilyMember = table(
+  {
+    name: 'family_member',
+    indexes: [
+      { accessor: 'by_family', algorithm: 'btree', columns: ['familyId'] },
+      { accessor: 'by_template', algorithm: 'btree', columns: ['enemyTemplateId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    familyId: t.u64(),
+    enemyTemplateId: t.u64(),
+    role: t.string(),
+    filler: t.bool(), // true when the server filled a missing role by rule
+  }
+);
+
+// A relation between two families of a region (a FAMILY_RELATIONS value: rival, prey, predator).
+export const FamilyRelation = table(
+  {
+    name: 'family_relation',
+    indexes: [{ accessor: 'by_family', algorithm: 'btree', columns: ['familyId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    familyId: t.u64(),
+    otherFamilyId: t.u64(),
+    kind: t.string(),
+  }
+);
+
+// The hidden state of one pool at one place: a creature family (kind 'creature', refId = family id)
+// or a resource (kind 'resource', refId = item_template id). Never public.
+export const PlacePool = table(
+  {
+    name: 'place_pool',
+    indexes: [
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] },
+      { accessor: 'by_dirty', algorithm: 'btree', columns: ['dirty'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    regionId: t.u64(),
+    locationId: t.u64(),
+    kind: t.string(),
+    refId: t.u64(),
+    count: t.u64(),
+    homeLevel: t.u64(),
+    wipedAtMicros: t.u64(),
+    lastSettledMicros: t.u64(),
+    dirty: t.bool(),
+    timeOfDay: t.string(), // 'any' | 'day' | 'night'
+  }
+);
+
+// The public mirror of a pool: id equals place_pool.id. Only the level 0-3, the level range and the
+// strings the client draws; no count, home, wipe, settle, dirty or harvest data (D-05).
+export const PoolLevel = table(
+  {
+    name: 'pool_level',
+    public: true,
+    indexes: [
+      { accessor: 'by_location', algorithm: 'btree', columns: ['locationId'] },
+      { accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey(),
+    regionId: t.u64(),
+    locationId: t.u64(),
+    kind: t.string(),
+    refId: t.u64(),
+    level: t.u64(),
+    lvLo: t.u64(),
+    lvHi: t.u64(),
+    name: t.string(),
+    iconKey: t.string(),
+    temperament: t.string(),
+    singularNoun: t.string(),
+    pluralNoun: t.string(),
+    timeOfDay: t.string(),
+  }
+);
+
+// The per-player harvest cap at one place (D-27). Read by the client only through my_harvest_caps.
+export const PoolHarvest = table(
+  {
+    name: 'pool_harvest',
+    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    characterId: t.u64(),
+    locationId: t.u64(),
+    windowStartMicros: t.u64(),
+    gathers: t.u64(),
+    cappedUntilMicros: t.u64(), // 0n = not capped
+  }
+);
+
+// Singleton (id 1n): the migration version and the last hunter and trend runs.
+export const PoolState = table(
+  { name: 'pool_state' },
+  {
+    id: t.u64().primaryKey(),
+    version: t.u64(),
+    lastHunterMicros: t.u64(),
+    lastTrendMicros: t.u64(),
+  }
+);
+
+// The last summed creature density of a region, for region-wide trends.
+export const PoolRegion = table(
+  { name: 'pool_region' },
+  {
+    regionId: t.u64().primaryKey(),
+    trendSum: t.u64(),
+  }
+);
+
+// A recent big density shift, for NPC rumours.
+export const PoolRumor = table(
+  {
+    name: 'pool_rumor',
+    indexes: [{ accessor: 'by_region', algorithm: 'btree', columns: ['regionId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    regionId: t.u64(),
+    locationId: t.u64(),
+    kind: t.string(),
+    familyId: t.u64(),
+    otherFamilyId: t.u64(),
+    atMicros: t.u64(),
+  }
+);
+
+// Private scheduled tick of the pools (settle, hunters, trends, migration). afterRegionId is the
+// batch cursor (0n starts a pass). Plan 14 adds the work and the arming.
+export const PoolTick = table(
+  { name: 'pool_tick', scheduled: () => scheduledReducers['tick_pools'] },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    afterRegionId: t.u64(),
   }
 );
 
@@ -2645,6 +2847,16 @@ const spacetimedb = schema({
   economy_item: EconomyItem,
   enemy_loot_entry: EnemyLootEntry,
   region_recipe: RegionRecipe,
+  creature_family: CreatureFamily,
+  family_member: FamilyMember,
+  family_relation: FamilyRelation,
+  place_pool: PlacePool,
+  pool_level: PoolLevel,
+  pool_harvest: PoolHarvest,
+  pool_state: PoolState,
+  pool_region: PoolRegion,
+  pool_rumor: PoolRumor,
+  pool_tick: PoolTick,
 });
 export default spacetimedb;
 export { spacetimedb };

@@ -14,6 +14,7 @@ import { registerUiViews } from './ui';
 import { registerVendorBuybackViews } from './vendor_buyback';
 import { registerVisitedViews } from './visited';
 import { registerActionResultViews } from './action_result';
+import { registerHarvestViews } from './harvest';
 
 export const registerViews = (deps: ViewDeps) => {
   registerPlayerViews(deps);
@@ -29,4 +30,5 @@ export const registerViews = (deps: ViewDeps) => {
   registerActionResultViews(deps);
   registerUiViews(deps);
   registerLlmViews(deps);
+  registerHarvestViews(deps);
 };
