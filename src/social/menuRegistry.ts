@@ -7,6 +7,16 @@ interface Holder {
 }
 
 let holder: Holder | null = null;
+let count = 0;
+
+/**
+ * A page-unique menu id, used for the registry and as the panel's DOM id (aria-controls). Vue's
+ * useId() repeats across app instances, so it is not unique enough for a module-level registry.
+ */
+export function newMenuId(): string {
+  count += 1;
+  return `player-menu-${count}`;
+}
 
 /** Makes `id` the open menu; the previous holder (another id) is closed first. */
 export function claimMenu(id: string, close: () => void): void {

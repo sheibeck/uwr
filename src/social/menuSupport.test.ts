@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MENU_WIDTH, menuPosition } from './menuPosition';
-import { claimMenu, releaseMenu } from './menuRegistry';
+import { claimMenu, newMenuId, releaseMenu } from './menuRegistry';
 
 // The pure placement of the desktop menu panel and the one-open-menu registry (51.1-UI-SPEC
 // "Menu anatomy": 4px from the opener, right in the vitals rail, left in the context rail, a
@@ -89,6 +89,13 @@ describe('menuRegistry', () => {
     releaseMenu('b');
     claimMenu('b', vi.fn());
     expect(closeA).toHaveBeenCalledTimes(1);
+  });
+
+  it('newMenuId gives a new id on every call', () => {
+    const a = newMenuId();
+    const b = newMenuId();
+    expect(a).not.toBe(b);
+    expect(a.startsWith('player-menu-')).toBe(true);
   });
 
   it('claiming the same id twice does not close itself', () => {
