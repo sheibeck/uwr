@@ -774,6 +774,8 @@ Plans:
     - gather and drop rates
     - recipe craftability from regional materials
 
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** 51.3 ships as planned (it is mid-build). Its per-creature economy (one drop, trophy and gear per enemy type, loot tables per enemy type) still fits, because each family member in 999.29 is an enemy type. When 999.29 lands: decide whether a family shares one drop/trophy or each role member keeps its own (more economy rows per family, more late-creature jobs), and regional gatherables (Plan 07, today's resource nodes) move into resource pools (999.29 D-26).
+
 ### Phase 51.3.1: Combat Dials (INSERTED)
 
 **Goal**: An admin can make combat harder or easier without code changes, tuned by difficulty level, region and enemy type, using the same dial pattern as the 51.3 economy dials.
@@ -810,6 +812,8 @@ Plans:
 
 - [ ] TBD (run /gsd-plan-phase 51.3.1 to break down)
 
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** pull size and encounter odds are owned by 999.29 once it is promoted (group size by density: Scarce 1, Stable 1-2, Overrun 2-4; the careful single pull goes away). 51.3.1 should keep difficulty dials (health, damage, ability frequency by difficulty, region, enemy type) and not build its own pull-size rule; if 51.3.1 runs first, keep any pull-size dial simple and plan to replace it. Fix (b), world-gen enemy level ranges, should create families with role members (999.29 D-25), so that prompt change is made once. Order question for the owner: promote 999.29 to run right after 51.3.1 (or merge the two).
+
 ### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
 
 **Goal**: An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, and cooldowns and effect durations use the same seconds-to-rounds rule. A player can cancel a wind-up from the ability's hotbar slot.
@@ -834,6 +838,8 @@ Plans:
   - Owner, 2026-10-08: "How do enemies decide who they are targetting? Could we put the enemies target in their panel during combat so we can see who is being targetted?" Then: "Let's add that request to the phase where we will handle combat wind up and such." How it works today: each enemy keeps a threat table (`aggro_entry`, one row per enemy per character or pet). Damage adds threat (tanks x1.5, summoners x0.75, healers x0.5), healing adds 50% of the healing as threat, pets start at 200 and taunt adds a bonus, and a taunt forces the target. Each round an enemy attacks whoever has the most threat on it among the fighters still in the fight, falling back to the first fighter (`reducers/combat.ts`, the aggro branch near line 870; `getTopAggroId` in `helpers/combat.ts`). Plan: move that choice into one shared pure rule (server and client import it through `@game-data`, the server stays the authority) or store the chosen target on `combat_enemy`; the client already reads the threat rows through the `my_*` aggro view. Pets count as targets. Follow the Combat mock's enemy card for placement, and keep the design guards.
   - Its folder was `999.17-combat-round-wind-up-for-cast-times-with-hotbar-slot-cancel`; it is now `51.3.2-combat-wind-up-cooldowns-and-durations`.
 
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** drawn groups mean more multi-enemy fights; the enemy-target display and enemy wind-ups must read well with 2-4 enemies at once. No change to scope.
+
 ### Phase 51.4: Loot Rails (INSERTED)
 
 **Goal**: After a kill, players see what dropped and take it through the designed loot rails.
@@ -854,6 +860,8 @@ Plans:
   - Moved out of Phase 52 (owner, 2026-10-07). Design record: backlog 999.23.
   - Reuse: bindings for `combat_loot`, `my_combat_loot`, `take_loot`, `take_all_loot`, `loot_corpse_item` and `loot_all_corpse`. Research confirms which ones the design needs.
   - Tests: rails content per drop, take and take-all, refusals, and mobile.
+
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** groups of 2-4 enemies per fight make the loot rail show more items per victory; design for several enemies' loot at once. No change to scope.
 
 ### Phase 51.5: Character, Level Up and New Skill (INSERTED)
 
@@ -899,6 +907,8 @@ Plans:
   - Owner, 2026-10-08: "When you travel to a location you have heard of, the map can drastically change as you see new pathways. This is fine, but it would be good to transition the map visually instead of just a stark change that happens instantly. It's so jarring." Placed after 51.5 (owner, 2026-10-08).
   - The full design and test list is in the todo `2026-10-06-typed-text-reveal-and-login-crossfade.md` (pulled into this phase).
   - Client only; no server change expected. Combat round lines stay short or near-instant (owner confirms at UAT).
+
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** density lines and safety ratings that change live (and World event shifts) are good candidates for the same calm transitions.
 
 ### Phase 52.1: Hotbar Manager (INSERTED)
 
@@ -1024,6 +1034,8 @@ Plans:
   - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 53 Journal). All changes are additive and published locally only.
   - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
 
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** 999.29 feeds World events: a family wiped out at a place, an Overrun surge (a natural "cull the swarm" event with contribution and rewards), a vacuum takeover, and region-wide trends. Owner: "this system would then lend itself very nicely into the world event system!" If 52.4 runs before 999.29, leave a hook for these event kinds.
+
 ### Phase 53: Parity and Production
 
 **Goal**: The new client does everything the old client did and is what production serves.
@@ -1086,6 +1098,8 @@ Plans:
 | 53. Parity and Production | v3.0 | 0/TBD | Not started | - |
 
 ## Backlog
+
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** the parity row for "Nearby enemies with a Pull button" (quick 261006-a0i) changes when 999.29 lands: Nearby lists families and resources with density lines instead of individual enemies and nodes.
 
 ### Phase 999.3: Dynamic Equipment Generation (BACKLOG)
 
@@ -1182,6 +1196,8 @@ The threat numbers date from the fixed classes: tank x1.5, healer x0.5, summoner
 - tests on the threat table and target choice, with the shared target rule from 51.3.2 kept as the one source.
 
 Promote with /gsd-review-backlog when ready.
+
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** utility abilities gain targets: sneak or invisibility lowers travel-encounter odds, lull calms a family, a careful single pull replaces the old always-one pull, and gathering boosts may read resource density. Threat must work for drawn groups of 2-4 with roles (tank, support, caster).
 
 ### Phase 999.6: Complete UX Overhaul — UWR Ledger Screens design (BACKLOG)
 
@@ -1463,6 +1479,8 @@ rumor { id, keeperNpcId, kind, whereLocationId? /* real or rumored */, hint, rou
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** NPC rumours should mention density shifts ("the goblins have been thinned out on the north road"). Named rival adventuring parties that hunt pools are deferred here from 999.29 (999.29 uses a light, invisible hunter tick).
 
 ### Phase 999.11: Race discovery, similar-race matching and the Rite of Becoming (BACKLOG)
 
@@ -2277,6 +2295,8 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** world generation will create creature families with role members, their home density per place, and family relations (rival, prey, predator), plus resource pools; keep both designs consistent.
+
 ### Phase 999.27: Pet kinds, pet abilities and pet targeting (MERGED INTO 999.4)
 
 **Status (owner, 2026-10-08):** folded into 999.4 Ability Expansion, Pets and Threat, where class ability selection is revisited. This entry stays as the scout record.
@@ -2340,11 +2360,15 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 
-### Phase 999.29: Dangerous travel: mob density, ambush on entering or leaving, and pull size (BACKLOG)
+  - **Density pools impact (owner, 2026-10-08; backlog 999.29):** the map can show each place's safety rating (word and colour) from 999.29.
+
+### Phase 999.29: Dynamic density pools: creature families and resources wax and wane per place; dangerous travel (BACKLOG)
 
 **Source:** owner, 2026-10-08 (captured as a todo, then moved here: "I want to talk more about this and make it a backlog item that we can promote. Let's let the dial be part of the backlog for this, too."). The todo `2026-10-08-dangerous-travel-and-enemy-proximity.md` was folded into this item and deleted.
 
-**Goal:** Travel feels dangerous, especially above your level. Each location has a mob density; the denser it is, the more likely entering or leaving provokes an attack and the more likely a pull brings a group instead of one enemy. A mob-density dial (by difficulty, region and enemy type, following the 51.3 and 51.3.1 dial pattern and the `/economy`-style admin command) tunes it.
+**Discussed 2026-10-08:** see `.planning/phases/999.29-dangerous-travel-mob-density/999.29-CONTEXT.md` (decisions D-00 to D-26, the owner's "Dynamic Density Pool" brief) and `999.29-MOCK-BRIEF.md` (the summary for the design tool). The decisions there supersede the notes below where they differ: ordinary creatures live in per-place pools of families (with role members) at density levels 0-3, nothing ordinary stands at a place, travel rolls on entering and leaving, pulls and ambushes draw groups sized by density, kills deplete pools for everyone, families regrow in minutes to a home level, wiped-out families let rivals surge, a light background-hunter tick thins pools, and shifts become World events. Owner, 2026-10-08: "we should do this same kind of density pattern for gatherables. Instead of individual nodes." Resources get the same pools (D-26).
+
+**Original goal:** Travel feels dangerous, especially above your level. Each location has a mob density; the denser it is, the more likely entering or leaving provokes an attack and the more likely a pull brings a group instead of one enemy. A mob-density dial (by difficulty, region and enemy type, following the 51.3 and 51.3.1 dial pattern and the `/economy`-style admin command) tunes it.
 
 #### Problem
 
@@ -2395,5 +2419,19 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 
+### Phase 999.30: Pre-travel warning system (BACKLOG)
+
+**Source:** owner, 2026-10-08, deferred from 999.29: "We already show the danger level of the zone compared to the character. Let's mark a warning system as a new backlog item we can defer for now."
+
+**Goal:** Before or during travel into a dangerous place, the player gets a chance to react: options from the 999.29 discussion were a warning before travel, a short "they've spotted you" beat with a moment to flee, or a "travel carefully" choice (slower or more stamina, lower encounter chance). Builds on the 999.29 safety rating and encounter rolls.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+
 ---
-*Last updated: 2026-10-08 after moving mob density and dangerous travel into backlog 999.29 (owner)*
+*Last updated: 2026-10-08 after discussing 999.29 (density pools, gatherables included), adding 999.30, and noting the impact on 51.3, 51.3.1, 51.3.2, 51.4, 51.5.1, 52.4, 53, 999.4, 999.10, 999.26 and 999.28 (owner)*
