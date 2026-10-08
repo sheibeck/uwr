@@ -67,9 +67,11 @@ const showChipRow = computed(() => inParty.value || effects.value.length > 0);
 
 // The self row (51.1-UI-SPEC "Mobile Party in Combat"): in a fight, once your character row exists, the
 // avatar, name, crown and class line are one button that targets yourself (client state; the ally
-// target defaults to you, so it starts pressed). Out of combat, and before the row exists, it is the
-// plain Phase 45 markup. Party members are targeted from the grid cards below the bars.
-const selfTarget = computed(() => combatActive.value && game.character.value !== null);
+// target defaults to you, so it starts pressed). In a party out of combat you target yourself the same
+// way (owner 2026-10-08: tap a party member to target them, everywhere). Solo out of combat, and before
+// the row exists, it is the plain Phase 45 markup. Party members are targeted from the grid cards
+// below the bars in a fight, and from the member chips out of combat.
+const selfTarget = computed(() => (combatActive.value || inParty.value) && game.character.value !== null);
 const selfSelected = computed(() => {
   const own = game.character.value;
   return selfTarget.value && own !== null && controller.allyTargetId.value === own.id;
@@ -121,6 +123,36 @@ const cards = computed(() =>
   }),
 );
 
+// The member chips out of combat (owner 2026-10-08): each known member is a button that targets them,
+// '{name} {pct}%' over 3px health, mana (members with mana) and stamina bars from memberBars. A member
+// who cannot be selected out of combat (offline, not here) is muted and aria-disabled. The label
+// carries the values; the selected state is aria-pressed, as on every other target button.
+const chips = computed(() => {
+  const ownLocation = game.character.value?.locationId ?? null;
+  return members.value.map((member) => {
+    if (!member.known) {
+      return { member, known: false, bars: [], selectable: false, selected: false, muted: true, label: '' };
+    }
+    const bars = memberBars(member);
+    const selectable = controller.canSelectAlly(member.id);
+    let label = `Target ${member.name} with your next ability. Health ${member.healthPercent} percent`;
+    for (const bar of bars) if (bar.kind !== 'health') label += `, ${bar.phrase}`;
+    if (!member.online) label += ', offline';
+    else if (ownLocation !== null && member.locationId !== null && member.locationId !== ownLocation) {
+      label += ', not here';
+    }
+    return {
+      member,
+      known: true,
+      bars,
+      selectable,
+      selected: controller.allyTargetId.value === member.id,
+      muted: !selectable,
+      label: `${label}.`,
+    };
+  });
+});
+
 // HP damage flash (48-UI-SPEC "Damage flash", CMB-05): the active character's HP only. The key is
 // latched so it only moves together with the hp prop (props lag the game refs by a render); a
 // character switch then reads as a switch, never as a drop. Same pattern as VitalsRail.
@@ -161,8 +193,8 @@ keepFocus<number>({
       const items = Array.from(strip.querySelectorAll<HTMLElement>('.party-grid > li')).slice(index);
       const next = items.map((item) => item.querySelector<HTMLElement>('button.ally-card')).find((b) => b !== null);
       if (next) return next;
-      const chip = strip.querySelectorAll<HTMLElement>('button.member-chip')[index];
-      if (chip) return chip;
+      const chip = strip.querySelectorAll<HTMLElement>('.chip-row > .member-chip')[index];
+      if (chip && chip.tagName === 'BUTTON') return chip;
     }
     return (
       strip.querySelector<HTMLElement>('button.self-target') ??
@@ -284,16 +316,37 @@ function openSocial(): void {
         <button v-if="inParty" type="button" class="tag tag-neutral party-chip" @click="openSocial">
           <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" aria-hidden="true" />Party {{ size }}
         </button>
-        <button
-          v-for="member in members"
+        <template
+          v-for="{ member, known, bars, selectable, selected, muted, label } in chips"
           :key="String(member.id)"
-          type="button"
-          class="tag tag-neutral member-chip"
-          :title="member.name"
-          @click="openSocial"
         >
-          <span class="chip-label">{{ memberChipText(member) }}</span>
-        </button>
+          <button
+            v-if="known"
+            type="button"
+            class="tag tag-neutral member-chip"
+            :class="{ selected, muted }"
+            :aria-pressed="selected ? 'true' : 'false'"
+            :aria-label="label"
+            :aria-disabled="selectable ? undefined : 'true'"
+            :title="member.name"
+            @click="controller.selectAlly(member.id)"
+          >
+            <span class="chip-label">{{ memberChipText(member) }}</span>
+            <span
+              v-for="bar in bars"
+              :key="bar.kind"
+              class="track"
+              :class="`${bar.kind}-track`"
+              :title="bar.title"
+              aria-hidden="true"
+            >
+              <span class="fill" :class="`fill-${bar.kind}`" :style="{ width: bar.width }"></span>
+            </span>
+          </button>
+          <span v-else class="tag tag-neutral member-chip unknown muted">
+            <span class="chip-label">{{ memberChipText(member) }}</span>
+          </span>
+        </template>
         <EffectChips :effects="effects" nowrap />
       </div>
       <ul v-if="combatActive && cards.length > 0" class="party-grid" aria-label="Party">
@@ -592,6 +645,8 @@ function openSocial(): void {
 
 .party-chip,
 .member-chip {
+  min-height: 44px;
+  box-sizing: border-box;
   gap: 4px;
   border: 0;
   font-family: inherit;
@@ -601,14 +656,60 @@ function openSocial(): void {
 
 @media (hover: hover) {
   .party-chip:hover,
-  .member-chip:hover {
+  button.member-chip:hover {
     background: color-mix(in srgb, var(--color-text) 7%, var(--color-neutral-800));
   }
 }
 
 .party-chip:active,
-.member-chip:active {
+button.member-chip:active {
   background: color-mix(in srgb, var(--color-text) 14%, var(--color-neutral-800));
+}
+
+/* A member chip (out of combat, owner 2026-10-08): '{name} {pct}%' over 3px health, mana and stamina
+   bars, one 44px target. */
+.member-chip {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.member-chip.unknown {
+  cursor: default;
+}
+
+.member-chip .track {
+  display: block;
+  height: 3px;
+}
+
+.member-chip .fill {
+  display: block;
+}
+
+.member-chip.selected {
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.member-chip.muted .chip-label {
+  color: var(--color-neutral-500);
+}
+
+.member-chip.muted .track {
+  opacity: 0.45;
+}
+
+.member-chip[aria-disabled='true'] {
+  cursor: default;
+}
+
+.member-chip:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* The self row (mobile, in a fight): the avatar, name and class line are one 44px target (36px
