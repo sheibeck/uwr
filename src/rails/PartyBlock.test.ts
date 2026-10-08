@@ -212,182 +212,352 @@ describe('PartyBlock in a party', () => {
   });
 });
 
+// 51.1-UI-SPEC "Vitals Rail Party Block", In combat (COMBAT3 7a). The Phase 48 cases that pinned the
+// 'You' card are rewritten here (UI-SPEC Supersedes): order and pressed state on member cards only;
+// the self target cases live in src/frame/VitalsRail.test.ts ('VitalsRail self target in combat').
 describe('PartyBlock in combat (ally targeting)', () => {
+  const online = (id: bigint, name: string, over: Record<string, unknown> = {}) =>
+    character(id, name, { online: true, locationId: 10n, groupId: 1n, ...over });
+
+  const FIGHT: Setup = {
+    ...PARTY,
+    knownCharacters: [
+      online(2n, 'Mara'),
+      online(3n, 'Bo', { maxMana: 0n, mana: 0n, className: 'Warrior', hp: 40n, maxHp: 80n, stamina: 6n, maxStamina: 12n }),
+    ],
+  };
+
   function mountCombat(
-    setup: Setup & { active?: boolean; allyTargetId?: bigint | null; self?: unknown } = {},
+    setup: Setup & { active?: boolean; allyTargetId?: bigint | null } = {},
   ): { w: VueWrapper; selectAlly: ReturnType<typeof vi.fn>; allyTargetId: ReturnType<typeof ref<bigint | null>> } {
     const selectAlly = vi.fn();
     const allyTargetId = ref<bigint | null>(setup.allyTargetId === undefined ? 1n : setup.allyTargetId);
     const inert = createInertGame();
     const game = {
       ...inert,
+      connected: ref(true),
       group: ref(setup.group ?? null),
       groupMembers: ref(setup.groupMembers ?? []),
       knownCharacters: ref(setup.knownCharacters ?? []),
       characterId: ref(setup.characterId === undefined ? 1n : setup.characterId),
-      character: ref(setup.self === undefined ? character(1n, 'Me', { hp: 60n, maxHp: 120n }) : setup.self),
+      character: ref(setup.self === undefined ? online(1n, 'Me', { hp: 60n, maxHp: 120n }) : setup.self),
+      effects: ref(setup.effects ?? []),
       combat: { ...inert.combat, active: ref(setup.active ?? true) },
     } as unknown as GameData;
     const controller = { ...createInertCombat(), allyTargetId, selectAlly } as unknown as CombatController;
+    const social = { ...createInertSocial(), ...(setup.social ?? {}) } as SocialData;
     wrapper = mount(PartyBlock, {
+      attachTo: document.body,
       global: {
         provide: {
           [GAME_KEY as symbol]: game,
           [CONSOLE_KEY as symbol]: createInertConsole(),
           [COMBAT_KEY as symbol]: controller,
+          [SOCIAL_KEY as symbol]: social,
         },
       },
     });
     return { w: wrapper, selectAlly, allyTargetId };
   }
 
-  it('shows the Party heading, the hint and no Invite button', () => {
-    const { w } = mountCombat(PARTY);
-    expect(w.get('h6').text()).toBe('Party · 3');
-    expect(w.get('.hint').text()).toBe('Click to target');
+  const targets = (w: VueWrapper) => w.findAll('.member-card .member-target');
+
+  // Was: 'shows the Party heading, the hint and no Invite button' (48).
+  it('has no visible header: an sr-only Party · 3 heading, no Click to target hint and no Invite', () => {
+    const { w } = mountCombat(FIGHT);
+    const section = w.get('section.party');
+    expect(section.attributes('aria-label')).toBe('Party');
+    const heading = w.get('h6');
+    expect(heading.classes()).toContain('sr-only');
+    expect(heading.text()).toBe('Party · 3');
+    expect(heading.attributes('tabindex')).toBe('-1');
+    expect(w.find('.party-head').exists()).toBe(false);
+    expect(w.find('.hint').exists()).toBe(false);
     expect(w.find('button.invite').exists()).toBe(false);
+    expect(w.text()).not.toContain('Click to target');
     expect(w.text()).not.toContain('Invite');
   });
 
-  it('lists You first, then the leader and the other members, all as buttons', () => {
-    const { w } = mountCombat(PARTY);
-    const cards = w.findAll('.member');
-    expect(cards.map((c) => c.get('.member-name').text())).toEqual(['You', 'Mara', 'Bo']);
+  it('hides the summary, the stamina warning, Loot: personal and Invited · waiting', () => {
+    const known = [...(FIGHT.knownCharacters as unknown[]), online(5n, 'Dee', { groupId: undefined })];
+    const { w } = mountCombat({
+      ...FIGHT,
+      group: { id: 1n, leaderCharacterId: 1n },
+      knownCharacters: [online(2n, 'Mara', { stamina: 0n }), ...known.slice(1)],
+      social: {
+        outgoingInvites: ref([
+          { id: 30n, groupId: 1n, fromCharacterId: 1n, toCharacterId: 5n, createdAt: { microsSinceUnixEpoch: 0n } },
+        ]) as never,
+        outgoingApplied: ref(true),
+        inviteSecondsLeft: () => 120,
+        characterById: (id: bigint) => ((known as { id: bigint }[]).find((row) => row.id === id) ?? null) as never,
+      },
+    });
+    expect(w.find('.summary').exists()).toBe(false);
+    expect(w.find('.warning').exists()).toBe(false);
+    expect(w.find('.loot').exists()).toBe(false);
+    expect(w.find('section.outgoing').exists()).toBe(false);
+    expect(w.text()).not.toContain('travel with');
+    expect(w.text()).not.toContain('Loot');
+    expect(w.text()).not.toContain('Invited');
+  });
+
+  // Was: 'lists You first, then the leader and the other members, all as buttons' (48).
+  it('lists the leader then the other members as member cards, each with a target button, and no You card', () => {
+    const { w } = mountCombat(FIGHT);
+    const cards = w.findAll('.member-card');
+    expect(cards.map((c) => c.get('.member-name').text())).toEqual(['Mara', 'Bo']);
+    expect(w.text()).not.toContain('You');
     for (const card of cards) {
-      expect(card.element.tagName).toBe('BUTTON');
-      expect(card.attributes('type')).toBe('button');
-      expect(card.classes()).toContain('ally');
+      expect(card.element.tagName).toBe('DIV');
+      const target = card.get('.member-target');
+      expect(target.element.tagName).toBe('BUTTON');
+      expect(target.attributes('type')).toBe('button');
+      expect(card.element.firstElementChild).toBe(target.element);
+      expect(card.element.lastElementChild?.classList.contains('player-menu')).toBe(true);
     }
   });
 
-  it('marks the You card pressed by default and the others not', () => {
-    const { w } = mountCombat(PARTY);
-    const [you, mara, bo] = w.findAll('.member');
-    expect(you.attributes('aria-pressed')).toBe('true');
-    expect(you.classes()).toContain('selected');
-    expect(mara.attributes('aria-pressed')).toBe('false');
-    expect(mara.classes()).not.toContain('selected');
-    expect(bo.attributes('aria-pressed')).toBe('false');
+  // Was: 'marks the You card pressed by default and the others not' (48). The ally target defaults
+  // to you, so no member card is pressed; the self block's pressed state is in VitalsRail.test.ts.
+  it('presses no member card by default, because the ally target defaults to you', () => {
+    const { w } = mountCombat(FIGHT);
+    for (const target of targets(w)) expect(target.attributes('aria-pressed')).toBe('false');
+    expect(w.findAll('.member-card.selected')).toHaveLength(0);
+    expect(w.find('.marker').exists()).toBe(false);
   });
 
-  it('shows hp/max on the right instead of the level', () => {
-    const { w } = mountCombat(PARTY);
-    const [you, mara] = w.findAll('.member');
-    expect(you.get('.member-hp').text()).toBe('60/120');
-    expect(mara.get('.member-hp').text()).toBe('95/100');
-    expect(w.find('.member-level').exists()).toBe(false);
-    expect(w.find('.member-stamina').exists()).toBe(false);
-    expect(w.find('.sr-only').exists()).toBe(false);
+  // Was: 'shows hp/max on the right instead of the level' (48). COMBAT3 keeps Lv on the right and
+  // moves the HP numbers into the bar title and the accessible name.
+  it('shows class, follow icon and Lv on each card, with HP only in the bar title, no stamina text', () => {
+    const { w } = mountCombat(FIGHT);
+    const [mara, bo] = w.findAll('.member-card');
     expect(mara.get('.member-class').text()).toBe('Ranger');
     expect(mara.find('.crown').exists()).toBe(true);
+    expect(mara.get('.member-level').text()).toBe('Lv 4');
+    expect(mara.get('.follow-icon').attributes('title')).toBe('Leader · others travel with them');
+    expect(bo.get('.follow-icon').attributes('title')).toBe('Travels with the leader');
+    expect(mara.get('.member-target').text()).not.toContain('95');
+    expect(mara.get('.health-track').attributes('title')).toBe('Health 95/100');
+    expect(mara.get('.mana-track').attributes('title')).toBe('Mana 20/40');
+    expect(bo.find('.mana-track').exists()).toBe(false);
+    expect(bo.get('.stamina-track').attributes('title')).toBe('Stamina 6/12');
+    expect(w.find('.member-stamina').exists()).toBe(false);
+    expect(w.find('.member-hp').exists()).toBe(false);
   });
 
-  it('labels each card Target {name} with your next ability', () => {
-    const { w } = mountCombat(PARTY);
-    const labels = w.findAll('.member').map((c) => c.attributes('aria-label'));
-    expect(labels).toEqual([
-      'Target You with your next ability',
-      'Target Mara with your next ability',
-      'Target Bo with your next ability',
+  // Was: 'labels each card Target {name} with your next ability' (48).
+  it('labels each target with the member, class, level, health and follow phrase', () => {
+    const { w } = mountCombat(FIGHT);
+    expect(targets(w).map((t) => t.attributes('aria-label'))).toEqual([
+      'Target Mara with your next ability. Ranger, level 4, health 95 of 100, leader · others travel with them.',
+      'Target Bo with your next ability. Warrior, level 4, health 40 of 80, travels with the leader.',
     ]);
   });
 
-  it('clicking a card selects that ally through the controller', async () => {
-    const { w, selectAlly } = mountCombat(PARTY);
-    await w.findAll('.member')[1].trigger('click');
+  it('puts each member effects on that member card only', () => {
+    const effect = (id: bigint, characterId: bigint, name: string) => ({
+      id,
+      characterId,
+      effectType: 'armor_up',
+      magnitude: 2n,
+      roundsRemaining: 2n,
+      sourceAbility: name,
+    });
+    const { w } = mountCombat({
+      ...FIGHT,
+      effects: [effect(1n, 2n, 'Bless'), effect(2n, 1n, 'Ward'), effect(3n, 3n, 'Haste')],
+    });
+    const [mara, bo] = w.findAll('.member-card');
+    expect(mara.findAll('.effect-chips .tag').map((t) => t.text())).toEqual(['Bless · 2 rounds']);
+    expect(bo.findAll('.effect-chips .tag').map((t) => t.text())).toEqual(['Haste · 2 rounds']);
+    expect(w.text()).not.toContain('Ward');
+  });
+
+  it('clicking a member card selects that ally through the controller', async () => {
+    const { w, selectAlly } = mountCombat(FIGHT);
+    await targets(w)[0].trigger('click');
     expect(selectAlly).toHaveBeenCalledTimes(1);
     expect(selectAlly).toHaveBeenCalledWith(2n);
-    await w.findAll('.member')[0].trigger('click');
-    expect(selectAlly).toHaveBeenLastCalledWith(1n);
+    await targets(w)[1].trigger('click');
+    expect(selectAlly).toHaveBeenLastCalledWith(3n);
   });
 
-  it('moves the pressed state and the selected class with the controller selection', async () => {
-    const { w, allyTargetId } = mountCombat(PARTY);
+  it('moves the pressed state, the ring and the crosshair with the controller selection', async () => {
+    const { w, allyTargetId } = mountCombat(FIGHT);
     allyTargetId.value = 2n;
     await nextTick();
-    const [you, mara] = w.findAll('.member');
-    expect(mara.attributes('aria-pressed')).toBe('true');
+    const [mara, bo] = w.findAll('.member-card');
+    expect(mara.get('.member-target').attributes('aria-pressed')).toBe('true');
     expect(mara.classes()).toContain('selected');
-    expect(you.attributes('aria-pressed')).toBe('false');
-    expect(you.classes()).not.toContain('selected');
+    expect(mara.find('.marker').exists()).toBe(true);
+    expect(bo.get('.member-target').attributes('aria-pressed')).toBe('false');
+    allyTargetId.value = 1n;
+    await nextTick();
+    expect(w.findAll('.member-card.selected')).toHaveLength(0);
   });
 
-  it('keeps a member with no character row as a dimmed non-interactive Member card', async () => {
-    const { w, selectAlly } = mountCombat({ ...PARTY, knownCharacters: [character(3n, 'Bo')] });
-    const cards = w.findAll('.member');
-    expect(cards.map((c) => c.get('.member-name').text())).toEqual(['You', 'Member', 'Bo']);
-    const unknown = cards[1];
-    expect(unknown.element.tagName).toBe('DIV');
+  it('keeps a member with no character row as a muted non-button Member card with no ⋯', async () => {
+    const { w, selectAlly } = mountCombat({ ...FIGHT, knownCharacters: [online(3n, 'Bo')] });
+    const cards = w.findAll('.member-card');
+    expect(cards.map((c) => c.get('.member-name').text())).toEqual(['Member', 'Bo']);
+    const unknown = cards[0];
     expect(unknown.classes()).toContain('unknown');
-    expect(unknown.attributes('aria-pressed')).toBeUndefined();
-    expect(unknown.attributes('aria-label')).toBeUndefined();
-    expect(unknown.find('.member-hp').exists()).toBe(false);
+    expect(unknown.find('button').exists()).toBe(false);
+    expect(unknown.find('[role="progressbar"]').exists()).toBe(false);
+    expect(unknown.find('.player-menu').exists()).toBe(false);
     await unknown.trigger('click');
     expect(selectAlly).not.toHaveBeenCalled();
   });
 
+  it('an offline member card is muted, reads Offline and is still a target', () => {
+    const { w } = mountCombat({ ...FIGHT, knownCharacters: [online(2n, 'Mara', { online: false }), online(3n, 'Bo')] });
+    const mara = w.findAll('.member-card')[0];
+    expect(mara.classes()).toContain('muted');
+    expect(mara.get('.member-class').text()).toBe('Offline');
+    expect(mara.get('.member-target').attributes('aria-label')).toContain(', offline.');
+  });
+
   it('keeps a selected ally at 0 HP selected', () => {
     const { w } = mountCombat({
-      ...PARTY,
-      knownCharacters: [character(2n, 'Mara', { hp: 0n }), character(3n, 'Bo')],
+      ...FIGHT,
+      knownCharacters: [online(2n, 'Mara', { hp: 0n }), online(3n, 'Bo')],
       allyTargetId: 2n,
     });
-    const mara = w.findAll('.member')[1];
-    expect(mara.attributes('aria-pressed')).toBe('true');
-    expect(mara.get('.member-hp').text()).toBe('0/100');
+    const mara = w.findAll('.member-card')[0];
+    expect(mara.get('.member-target').attributes('aria-pressed')).toBe('true');
+    expect(mara.get('.health-track').attributes('title')).toBe('Health 0/100');
   });
 
-  it('reads Not in a party. with no You card when solo', () => {
-    const { w } = mountCombat({});
-    expect(w.text()).toContain('Not in a party.');
-    expect(w.find('.member').exists()).toBe(false);
-    expect(w.find('.hint').exists()).toBe(false);
+  it('puts each member pet row, a div and never a button, right after that member card', () => {
+    const fang = { id: 103n, characterId: 3n, name: 'Fang', level: 2n, currentHp: 8n, maxHp: 10n, expiresAtMicros: null };
+    const { w } = mountCombat({
+      ...FIGHT,
+      social: { petOf: (id: bigint) => (id === 3n ? fang : null) as never, petSecondsLeft: () => null },
+    });
+    const entries = w.findAll('.cards > .member-entry');
+    expect(entries.map((entry) => Array.from(entry.element.children).map((el) => el.className.split(' ')[0]))).toEqual([
+      ['member-card'],
+      ['member-card', 'pet-row'],
+    ]);
+    const pet = w.get('.pet-row');
+    expect(pet.element.tagName).toBe('DIV');
+    expect(pet.find('button').exists()).toBe(false);
+    expect(pet.element.closest('button')).toBeNull();
   });
 
-  it('shows no You card until a character row exists', () => {
-    const { w } = mountCombat({ ...PARTY, self: null });
-    expect(w.findAll('.member').map((c) => c.get('.member-name').text())).toEqual(['Mara', 'Bo']);
+  it('nests no button inside another button', () => {
+    const { w } = mountCombat({ ...FIGHT, allyTargetId: 2n });
+    expect(w.findAll('button button')).toHaveLength(0);
+    expect(w.findAll('.member-target .menu-opener')).toHaveLength(0);
   });
 
-  it('is exactly the Phase 47 block out of combat, even with a combat controller provided', () => {
+  it('keeps the incoming invite card in a fight', () => {
+    const inviter = online(9n, 'Cy', { groupId: 4n });
+    const { w } = mountCombat({
+      ...FIGHT,
+      social: {
+        incomingInvite: ref({
+          id: 40n,
+          groupId: 4n,
+          fromCharacterId: 9n,
+          toCharacterId: 1n,
+          createdAt: { microsSinceUnixEpoch: 0n },
+        }) as never,
+        inviteSecondsLeft: () => 200,
+        characterById: (id: bigint) => (id === 9n ? inviter : null) as never,
+      },
+    });
+    const section = w.get('section.party').element;
+    expect((section.lastElementChild as HTMLElement).classList.contains('invite-root')).toBe(true);
+    expect(section.querySelector('section.invite-card')).not.toBeNull();
+  });
+
+  // Was: 'reads Not in a party. with no You card when solo' (48). Solo in a fight the block shows
+  // nothing but the incoming invite card.
+  it('solo in a fight shows no member card, no heading and no Not in a party. line', () => {
+    const { w } = mountCombat({ self: online(1n, 'Me', { groupId: undefined }) });
+    expect(w.find('.member-card').exists()).toBe(false);
+    expect(w.find('h6').exists()).toBe(false);
+    expect(w.text()).toBe('');
+    expect(w.find('button').exists()).toBe(false);
+  });
+
+  it('solo in a fight still shows the incoming invite card', () => {
+    const inviter = online(9n, 'Cy', { groupId: 4n });
+    const { w } = mountCombat({
+      self: online(1n, 'Me', { groupId: undefined }),
+      social: {
+        incomingInvite: ref({
+          id: 40n,
+          groupId: 4n,
+          fromCharacterId: 9n,
+          toCharacterId: 1n,
+          createdAt: { microsSinceUnixEpoch: 0n },
+        }) as never,
+        inviteSecondsLeft: () => 200,
+        characterById: (id: bigint) => (id === 9n ? inviter : null) as never,
+      },
+    });
+    expect(w.find('section.invite-card').exists()).toBe(true);
+    expect(w.text()).not.toContain('Not in a party.');
+  });
+
+  // Was: 'shows no You card until a character row exists' (48). There is no self card any more;
+  // the members still list without your row (the self block case is in VitalsRail.test.ts).
+  it('lists the members while your own row has not applied', () => {
+    const { w } = mountCombat({ ...FIGHT, self: null });
+    expect(w.findAll('.member-card').map((c) => c.get('.member-name').text())).toEqual(['Mara', 'Bo']);
+  });
+
+  it('is exactly the out-of-combat block out of a fight, even with a combat controller provided', () => {
     const { w } = mountCombat({ ...PARTY, active: false });
     const cards = w.findAll('.member-card');
-    expect(w.find('.member').exists()).toBe(false);
+    expect(w.find('.member-target').exists()).toBe(false);
     expect(cards).toHaveLength(2);
     for (const card of cards) {
       expect(card.element.tagName).toBe('DIV');
-      expect(card.attributes('aria-pressed')).toBeUndefined();
+      expect(card.find('[aria-pressed]').exists()).toBe(false);
     }
-    expect(w.find('.hint').exists()).toBe(false);
+    expect(w.get('.party-head h6').text()).toBe('Party · 3');
+    expect(w.get('.party-head h6').classes()).not.toContain('sr-only');
     // You are a member here, so 51.1 adds the reason after the visible label.
     expect(w.get('button.invite').text()).toBe('Invite Only the leader can invite.');
-    expect(w.find('.member-hp').exists()).toBe(false);
     expect(w.findAll('.member-level').map((l) => l.text())).toEqual(['Lv 4 · 10 st', 'Lv 4 · 10 st']);
   });
 
   it('renders ally names as text, not markup', () => {
-    const { w } = mountCombat({
-      ...PARTY,
-      knownCharacters: [character(2n, PAYLOAD), character(3n, 'Bo')],
-    });
+    const { w } = mountCombat({ ...FIGHT, knownCharacters: [online(2n, PAYLOAD), online(3n, 'Bo')] });
     expect(w.find('img').exists()).toBe(false);
-    expect(w.findAll('.member-name')[1].text()).toBe(PAYLOAD);
-    expect(w.findAll('.member')[1].attributes('aria-label')).toBe(`Target ${PAYLOAD} with your next ability`);
+    expect(w.findAll('.member-name')[0].text()).toBe(PAYLOAD);
+    expect(targets(w)[0].attributes('aria-label')).toBe(
+      `Target ${PAYLOAD} with your next ability. Ranger, level 4, health 95 of 100, leader · others travel with them.`,
+    );
   });
 });
 
 describe('PartyBlock source', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/rails/PartyBlock.vue'), 'utf8');
+  const code = source
+    .split('\n')
+    .filter((line) => !/^\s*(\/\/|\*|<!--)/.test(line))
+    .join('\n');
 
   it('carries the copy and the wiring', () => {
     expect(source).toContain('Not in a party.');
     expect(source).toContain("prefill('invite ')");
-    expect(source).toContain('PhCrownSimple');
-    expect(source).toContain('weight="fill"');
-    expect(source).toContain('Click to target');
-    expect(source).toContain('selectAlly');
-    expect(source).toContain('aria-pressed');
-    expect(source).toContain('with your next ability');
+    expect(source).toContain('<CombatMemberCard');
+    expect(source).toContain('class="sr-only"');
+    // The ally targeting (selectAlly, aria-pressed, 'with your next ability') lives in CombatMemberCard.vue.
+    const card = readFileSync(resolve(process.cwd(), 'src/social/CombatMemberCard.vue'), 'utf8');
+    expect(card).toContain('selectAlly(');
+    expect(card).toContain('aria-pressed');
+    expect(card).toContain('with your next ability');
+  });
+
+  it('has no Click to target hint and no self card', () => {
+    expect(code).not.toContain('Click to target');
+    expect(code).not.toMatch(/selfCard/);
   });
 });
 

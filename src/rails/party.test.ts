@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { healthPercent, isPartyLeader, lowStaminaFor, partyMembers, partySize, selfCardView } from './party';
+import * as party from './party';
+import { healthPercent, isPartyLeader, lowStaminaFor, partyMembers, partySize } from './party';
 
 const at = (n: number) => ({ microsSinceUnixEpoch: BigInt(n) });
 
@@ -120,40 +121,11 @@ describe('partyMembers', () => {
   });
 });
 
-describe('selfCardView', () => {
-  it('names the player You and uses mana for a mana class', () => {
-    const view = selfCardView(character(1n, { maxMana: 50n, mana: 20n, hp: 50n, maxHp: 200n }), false);
-    expect(view.name).toBe('You');
-    expect(view.id).toBe(1n);
-    expect(view.known).toBe(true);
-    expect(view.resourceKind).toBe('mana');
-    expect(view.resource).toBe(20n);
-    expect(view.maxResource).toBe(50n);
-    expect(view.healthPercent).toBe(25);
-    expect(view.isLeader).toBe(false);
-  });
-
-  it('uses stamina when the maximum mana is 0', () => {
-    const view = selfCardView(character(1n, { maxMana: 0n }), true);
-    expect(view.resourceKind).toBe('stamina');
-    expect(view.resource).toBe(30n);
-    expect(view.maxResource).toBe(60n);
-    expect(view.isLeader).toBe(true);
-  });
-
-  it('matches the partyMembers view of the same character apart from the name and leader flag', () => {
-    const c = character(2n, { maxMana: 40n, mana: 10n });
-    const [other] = partyMembers({
-      group: { leaderCharacterId: 9n },
-      members: [{ id: 5n, characterId: 2n, joinedAt: at(1) }],
-      characters: [c],
-      selfId: 1n,
-    });
-    expect({ ...selfCardView(c, false), name: other.name }).toEqual(other);
-  });
-
-  it('reads 0 percent for a max of 0', () => {
-    expect(selfCardView(character(1n, { hp: 5n, maxHp: 0n }), false).healthPercent).toBe(0);
+// The Phase 48 self card view (the combat 'You' card) is gone with that card (51.1-UI-SPEC Supersedes):
+// the vitals rail self block is the self target in combat, so party.ts exports only these.
+describe('party module', () => {
+  it('exports the member views and helpers only', () => {
+    expect(Object.keys(party).sort()).toEqual(['healthPercent', 'isPartyLeader', 'lowStaminaFor', 'partyMembers', 'partySize']);
   });
 });
 
