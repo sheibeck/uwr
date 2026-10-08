@@ -14,6 +14,7 @@ import {
   baseStockQuantity,
   isBaseStockCandidate,
   levelBand,
+  originAllows,
   listPriceFor,
   pickBaseStock,
   planRestockBatch,
@@ -22,6 +23,7 @@ import {
   selectBaseStock,
   stockCategoryOf,
   vendorProfileOf,
+  type StockOrigin,
   type StockTemplate,
 } from './vendor_stock';
 
@@ -446,5 +448,111 @@ describe('vendor_stock.ts imports', () => {
     while ((m = re.exec(source)) !== null) out.push(m[1]);
     expect(out.sort()).toEqual(['./item_rules', './mechanical_vocabulary', './recipe_rules']);
     expect(source).not.toContain("'spacetimedb");
+  });
+});
+
+describe('originAllows (Phase 51.3: a vendor sells only the common and uncommon materials of its own region)', () => {
+  const own = (over: Partial<StockOrigin> = {}): StockOrigin => ({ regionId: 1n, role: 'gather', rarity: 'common', ...over });
+
+  it('allows anything without an origin, in any region or none', () => {
+    expect(originAllows(undefined, 1n)).toBe(true);
+    expect(originAllows(undefined, undefined)).toBe(true);
+  });
+
+  it('allows an own-region gather or drop material of common or uncommon rarity', () => {
+    for (const role of ['gather', 'drop']) {
+      for (const rarity of ['common', 'uncommon', 'Common', ' UNCOMMON ']) {
+        expect(originAllows(own({ role, rarity }), 1n)).toBe(true);
+      }
+    }
+  });
+
+  it('refuses another region and a vendor with no region', () => {
+    expect(originAllows(own(), 2n)).toBe(false);
+    expect(originAllows(own(), undefined)).toBe(false);
+  });
+
+  it('refuses rare, epic, legendary and unknown rarities even in the own region', () => {
+    for (const rarity of ['rare', 'epic', 'legendary', '', 'mythic']) {
+      expect(originAllows(own({ rarity }), 1n)).toBe(false);
+    }
+  });
+
+  it('refuses gear, trophy, recipe output, scroll and unknown roles even in the own region', () => {
+    for (const role of ['gear', 'trophy', 'recipe_output', 'output', 'scroll', 'gatherable', '']) {
+      expect(originAllows(own({ role }), 1n)).toBe(false);
+    }
+  });
+});
+
+describe('selectBaseStock with an origin map (Phase 51.3)', () => {
+  const T = 1_700_000_000_000_000n;
+  const hesper = { id: 5n, ...HESPER };
+  // 1..8 plain materials (no origin), 21 own common, 22 own uncommon, 23 own rare, 31 other-region
+  // common, 32 own trophy, 33 own gear, 34 own recipe output.
+  const templates: StockTemplate[] = [
+    ...Array.from({ length: 8 }, (_, i) => material(BigInt(i + 1))),
+    material(21n),
+    material(22n, { rarity: 'uncommon' }),
+    material(23n, { rarity: 'rare' }),
+    material(31n),
+    material(32n),
+    material(33n),
+    material(34n),
+  ];
+  const origins = new Map<bigint, StockOrigin>([
+    [21n, { regionId: 1n, role: 'gather', rarity: 'common' }],
+    [22n, { regionId: 1n, role: 'drop', rarity: 'uncommon' }],
+    [23n, { regionId: 1n, role: 'gather', rarity: 'rare' }],
+    [31n, { regionId: 2n, role: 'gather', rarity: 'common' }],
+    [32n, { regionId: 1n, role: 'trophy', rarity: 'common' }],
+    [33n, { regionId: 1n, role: 'gear', rarity: 'common' }],
+    [34n, { regionId: 1n, role: 'recipe_output', rarity: 'common' }],
+  ]);
+  const pick = (tick: bigint, vendorRegionId: bigint | undefined, withOrigins = true) =>
+    selectBaseStock({
+      templates,
+      vendor: hesper,
+      dangerMultiplier: 100n,
+      levelOffset: 0n,
+      excludeTemplateIds: [],
+      tickMicros: tick,
+      count: 12,
+      originOf: withOrigins ? (id: bigint) => origins.get(id) : undefined,
+      vendorRegionId,
+    }).map((p) => p.id);
+
+  it('without originOf the selection is exactly the old one', () => {
+    const plain = selectBaseStock({ templates, vendor: hesper, dangerMultiplier: 100n, levelOffset: 0n, excludeTemplateIds: [], tickMicros: T, count: 12 });
+    expect(pick(T, 1n, false)).toEqual(plain.map((p) => p.id));
+    expect(plain.map((p) => p.id)).toContain(31n);
+  });
+
+  it('never returns a material of another region, a rare, a trophy, gear or an output over 200 tick seeds', () => {
+    const seen = new Set<bigint>();
+    for (let k = 0n; k < 200n; k += 1n) {
+      for (const id of pick(T + k * 1_000_003n, 1n)) seen.add(id);
+    }
+    for (const never of [23n, 31n, 32n, 33n, 34n]) expect(seen.has(never)).toBe(false);
+    expect(seen.has(21n)).toBe(true);
+    expect(seen.has(22n)).toBe(true);
+    for (const id of [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]) expect(seen.has(id)).toBe(true);
+  });
+
+  it('a vendor in region 2 gets its own material and never the other region ones', () => {
+    const seen = new Set<bigint>();
+    for (let k = 0n; k < 200n; k += 1n) {
+      for (const id of pick(T + k * 1_000_003n, 2n)) seen.add(id);
+    }
+    expect(seen.has(31n)).toBe(true);
+    for (const never of [21n, 22n, 23n, 32n, 33n, 34n]) expect(seen.has(never)).toBe(false);
+  });
+
+  it('a vendor with no known region sells no tagged material at all', () => {
+    const seen = new Set<bigint>();
+    for (let k = 0n; k < 50n; k += 1n) {
+      for (const id of pick(T + k * 1_000_003n, undefined)) seen.add(id);
+    }
+    for (const tagged of [21n, 22n, 23n, 31n, 32n, 33n, 34n]) expect(seen.has(tagged)).toBe(false);
   });
 });

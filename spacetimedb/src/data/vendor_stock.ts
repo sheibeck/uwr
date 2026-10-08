@@ -5,6 +5,11 @@
 // Callers: the restock_vendors reducer in the module's index file, and the client vendor test
 // through @game-data (list price). Imports only ./mechanical_vocabulary, ./item_rules and ./recipe_rules (all import-light), so it stays
 // browser-safe through @game-data. ES2020 only, never throws.
+// Phase 51.3 adds the region rule: a template that carries an economy origin (a generated regional item)
+// is stocked only by a vendor of the SAME region, and only when it is a common or uncommon gather or drop
+// material. Rare regional materials, other regions' materials and every regional gear, trophy, recipe
+// output or scroll are never stock, so cross-region recipes require travel. A template without an origin
+// is selected exactly as before.
 // Selection is seeded and deterministic: the same vendor, templates and tick time always give the
 // same stock, from a 64-bit generator seeded with the vendor id and the tick timestamp. Nothing
 // here reads an unseeded source.
@@ -306,6 +311,22 @@ export function pickBaseStock<T extends { id: bigint; rarity: string }>(
   return picked.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
+/** Where a generated regional item came from: its region, its role and its rarity (an economy_item row). */
+export type StockOrigin = { regionId: bigint; role: string; rarity: string };
+
+/**
+ * The Phase 51.3 region rule. True when the template has no origin; otherwise only when the origin is the
+ * vendor's own region, the role is 'gather' or 'drop' and the rarity is common or uncommon. A vendor with
+ * no known region (undefined) matches no origin.
+ */
+export function originAllows(origin: StockOrigin | undefined, vendorRegionId: bigint | undefined): boolean {
+  if (!origin) return true;
+  if (vendorRegionId === undefined || origin.regionId !== vendorRegionId) return false;
+  if (origin.role !== 'gather' && origin.role !== 'drop') return false;
+  const rarity = typeof origin.rarity === 'string' ? origin.rarity.trim().toLowerCase() : '';
+  return rarity === 'common' || rarity === 'uncommon';
+}
+
 /**
  * The base stock for one vendor at one tick: the templates that suit its profile and area band,
  * minus those it already lists, picked by seeded weights.
@@ -318,12 +339,19 @@ export function selectBaseStock<T extends StockTemplate>(input: {
   excludeTemplateIds: readonly bigint[];
   tickMicros: bigint;
   count?: number;
+  /** The economy origin of a template id, when it has one (Phase 51.3). Omitted means no origin rule. */
+  originOf?: (templateId: bigint) => StockOrigin | undefined;
+  /** The region the vendor stands in (Phase 51.3). */
+  vendorRegionId?: bigint;
 }): T[] {
   const profile = vendorProfileOf(input.vendor);
   const level = areaLevel(input.dangerMultiplier, input.levelOffset);
   const excluded = input.excludeTemplateIds;
   const candidates = input.templates.filter(
-    (template) => isBaseStockCandidate(template, profile, level) && excluded.indexOf(template.id) === -1,
+    (template) =>
+      isBaseStockCandidate(template, profile, level) &&
+      excluded.indexOf(template.id) === -1 &&
+      originAllows(input.originOf ? input.originOf(template.id) : undefined, input.vendorRegionId),
   );
   return pickBaseStock(candidates, restockSeed(input.vendor.id, input.tickMicros), input.count === undefined ? BASE_STOCK_SIZE : input.count);
 }

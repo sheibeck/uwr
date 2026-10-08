@@ -455,6 +455,81 @@ describe('the first fill starts when a client connects', () => {
   });
 });
 
+describe('restock_vendors sells only its own region regional materials (Phase 51.3)', () => {
+  // Region 1 (Basin, vendor 5): 101 common gather, 102 uncommon drop, 103 rare gather, 105 gear,
+  // 106 trophy. Region 2 (Heights, vendor 9): 104 common gather. Vendor 5 must never list 103, 104, 105
+  // or 106; vendor 9 must never list 101, 102 or 103.
+  const regional = [
+    mat(101n, 'Bog Reed'),
+    mat(102n, 'Marsh Lily', { rarity: 'uncommon' }),
+    mat(103n, 'Gloom Cap', { rarity: 'rare' }),
+    mat(104n, 'Ash Moss'),
+    mat(105n, 'Mire Blade'),
+    mat(106n, 'Gator Tooth'),
+  ];
+  const origin = (itemTemplateId: bigint, regionId: bigint, role: string, rarity: string) => ({
+    itemTemplateId,
+    regionId,
+    role,
+    slotKey: `k${itemTemplateId}`,
+    kind: 'wood',
+    rarity,
+    terrain: '',
+    timeOfDay: 'any',
+    enemyTemplateId: 0n,
+  });
+  const ECONOMY = [
+    origin(101n, 1n, 'gather', 'common'),
+    origin(102n, 1n, 'drop', 'uncommon'),
+    origin(103n, 1n, 'gather', 'rare'),
+    origin(104n, 2n, 'gather', 'common'),
+    origin(105n, 1n, 'gear', 'common'),
+    origin(106n, 1n, 'trophy', 'common'),
+  ];
+  const VENDOR_NINE = { ...HESPER, id: 9n, name: 'Ember Vale', locationId: 20n };
+
+  function seenOver(ticks: number): { five: Set<bigint>; nine: Set<bigint>; ctx: any } {
+    const ctx = newCtx({
+      npc: [HESPER, VENDOR_NINE],
+      item_template: [...TEMPLATES(), ...regional],
+      economy_item: ECONOMY,
+    });
+    const five = new Set<bigint>();
+    const nine = new Set<bigint>();
+    for (let k = 0; k < ticks; k += 1) {
+      run(at(ctx, T0 + BigInt(k) * VENDOR_RESTOCK_INTERVAL_MICROS + BigInt(k) * 7n));
+      for (const id of templateIdsOf(ctx, 5n)) five.add(id);
+      for (const id of templateIdsOf(ctx, 9n)) nine.add(id);
+    }
+    return { five, nine, ctx };
+  }
+
+  it('lists its own common and uncommon material and never another region one, a rare, gear or a trophy', () => {
+    const { five, nine } = seenOver(60);
+    expect(five.has(101n)).toBe(true);
+    expect(five.has(102n)).toBe(true);
+    for (const never of [103n, 104n, 105n, 106n]) expect(five.has(never)).toBe(false);
+    expect(nine.has(104n)).toBe(true);
+    for (const never of [101n, 102n, 103n, 105n, 106n]) expect(nine.has(never)).toBe(false);
+  });
+
+  it('still lists untagged materials exactly as before', () => {
+    const { five } = seenOver(60);
+    for (const plain of [4n, 5n, 6n, 7n, 12n]) expect(five.has(plain)).toBe(true);
+  });
+
+  it('with no economy_item rows every template is eligible as today', () => {
+    const ctx = newCtx({ npc: [HESPER, VENDOR_NINE], item_template: [...TEMPLATES(), ...regional], economy_item: [] });
+    const seen = new Set<bigint>();
+    for (let k = 0; k < 60; k += 1) {
+      run(at(ctx, T0 + BigInt(k) * VENDOR_RESTOCK_INTERVAL_MICROS + BigInt(k) * 7n));
+      for (const id of templateIdsOf(ctx, 5n)) seen.add(id);
+    }
+    expect(seen.has(103n)).toBe(true);
+    expect(seen.has(104n)).toBe(true);
+  });
+});
+
 describe('schema', () => {
   it('keeps the two new tables private and shaped as planned', () => {
     const marker = recordedTable('vendor_base_stock')!;

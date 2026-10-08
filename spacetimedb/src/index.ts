@@ -44,6 +44,7 @@ import {
   planRestockBatch,
   restockSeed,
   selectBaseStock,
+  type StockOrigin,
 } from './data/vendor_stock';
 export default spacetimedb;
 import { registerReducers } from './reducers';
@@ -359,7 +360,13 @@ function ensureVendorRestockScheduled(ctx: any): void {
   });
 }
 
-function restockVendor(ctx: any, npc: any, templates: any[], tickMicros: bigint): void {
+function restockVendor(
+  ctx: any,
+  npc: any,
+  templates: any[],
+  tickMicros: bigint,
+  origins: Map<bigint, StockOrigin>,
+): void {
   // Drop this vendor's previous base stock (marked rows only), then forget the markers.
   for (const marker of [...ctx.db.vendor_base_stock.by_vendor.filter(npc.id)]) {
     if (ctx.db.vendor_inventory.id.find(marker.listingId)) {
@@ -381,6 +388,8 @@ function restockVendor(ctx: any, npc: any, templates: any[], tickMicros: bigint)
     levelOffset: location?.levelOffset ?? 0n,
     excludeTemplateIds,
     tickMicros,
+    originOf: (id: bigint) => origins.get(id),
+    vendorRegionId: location?.regionId,
   });
   for (const pick of picks) {
     const listing = ctx.db.vendor_inventory.insert({
@@ -406,9 +415,14 @@ scheduledReducers['restock_vendors'] = spacetimedb.reducer('restock_vendors', { 
   );
   if (plan.batch.length > 0) {
     const templates = [...ctx.db.item_template.iter()];
+    // Phase 51.3: the origin of every generated template, built once per tick (template id -> region, role, rarity).
+    const origins = new Map<bigint, StockOrigin>();
+    for (const row of ctx.db.economy_item.iter()) {
+      origins.set(row.itemTemplateId, { regionId: row.regionId, role: row.role, rarity: row.rarity });
+    }
     for (const id of plan.batch) {
       const npc = vendors.find((n: any) => n.id === id);
-      if (npc) restockVendor(ctx, npc, templates, now);
+      if (npc) restockVendor(ctx, npc, templates, now, origins);
     }
   }
   ctx.db.vendor_restock_tick.insert({
