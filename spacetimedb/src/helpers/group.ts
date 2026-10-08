@@ -9,8 +9,16 @@ export const effectiveGroupKey = (character: any) =>
  * place, in the given order, without duplicates. getGroupOrSoloParticipants builds the list with it
  * and startCombatForSpawn applies it again, so every fight-start path (start_combat, pulls,
  * gathering ambushes, quest-item aggro, pull_named_enemy) keeps the same rule.
+ * `inOtherFight` (optional) drops a candidate who is already fighting (51.1 review 2 IN-04);
+ * startCombatForSpawn passes it, so the paths that do not refuse first (the ambush, the quest-item
+ * aggro, pull_named_enemy, a delayed pull) never give anyone a second combat_participant row.
+ * The initiator is always kept.
  */
-export const fightRoster = (initiator: any, candidates: readonly any[]): any[] => {
+export const fightRoster = (
+  initiator: any,
+  candidates: readonly any[],
+  inOtherFight?: (characterId: bigint) => boolean
+): any[] => {
   const roster: any[] = [initiator];
   const seen = new Set([initiator.id.toString()]);
   for (const row of candidates) {
@@ -19,6 +27,7 @@ export const fightRoster = (initiator: any, candidates: readonly any[]): any[] =
     if (seen.has(key)) continue;
     if (row.locationId !== initiator.locationId) continue;
     if (row.online !== true) continue;
+    if (inOtherFight?.(row.id)) continue;
     seen.add(key);
     roster.push(row);
   }

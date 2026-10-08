@@ -101,6 +101,14 @@ describe('fightRoster: the one fight rule every fight start uses (code review CR
     const src = readFileSync(fileURLToPath(new URL('../reducers/combat.ts', import.meta.url)), 'utf8');
     const start = src.indexOf('export const startCombatForSpawn');
     const body = src.slice(start, src.indexOf('combat_encounter.insert', start));
-    expect(body).toContain('const participants = fightRoster(leader, candidates);');
+    expect(body).toMatch(/const participants = fightRoster\(\s*leader,\s*candidates,/);
+    // Review 2 IN-04: with the in-another-fight check.
+    expect(body).toContain('activeFightOf(ctx, characterId) !== null');
+  });
+
+  it('drops a candidate already in another fight, never the initiator (review 2 IN-04)', () => {
+    const fighting = new Set([1n, 3n]);
+    const out = fightRoster(ch(1n), [ch(2n), ch(3n), ch(4n)], (id) => fighting.has(id));
+    expect(out.map((r: any) => r.id)).toEqual([1n, 2n, 4n]);
   });
 });

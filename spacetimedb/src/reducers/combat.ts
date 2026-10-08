@@ -25,6 +25,7 @@ import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { fightRoster } from '../helpers/group';
+import { activeCombatIdForCharacter as activeFightOf } from '../helpers/events';
 import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { rollQualityTier, rollQualityForDrop, generateAffixData, buildDisplayName, getEquippedBonuses } from '../helpers/items';
@@ -177,7 +178,12 @@ export const startCombatForSpawn = (
   const { appendPrivateEvent } = deps;
   // The one fight rule (helpers/group.ts fightRoster): the initiator, plus members who are online
   // and at the initiator's place. Applied here as well, so no caller can pull an offline member in.
-  const participants = fightRoster(leader, candidates);
+  // A member already in another active fight stays out of this one (review 2 IN-04).
+  const participants = fightRoster(
+    leader,
+    candidates,
+    (characterId) => activeFightOf(ctx, characterId) !== null
+  );
   const combat = ctx.db.combat_encounter.insert({
     id: 0n,
     locationId: leader.locationId,

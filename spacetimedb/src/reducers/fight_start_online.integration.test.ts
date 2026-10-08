@@ -129,6 +129,40 @@ describe('offline members are never pulled into a fight (code review CR-02)', ()
   });
 });
 
+describe('a member already in another fight is not pulled in (review 2 IN-04)', () => {
+  /** Bran (2) is already in active fight 500. */
+  function branInAFight(ts: bigint) {
+    const ctx = newCtx(ts);
+    ctx.db._tables.combat_encounter = [
+      { id: 500n, locationId: 10n, groupId: undefined, leaderCharacterId: undefined, state: 'active', addCount: 0n, pendingAddCount: 0n, createdAt: { microsSinceUnixEpoch: ts - 5n } },
+    ];
+    ctx.db._tables.combat_participant = [
+      { id: 500n, combatId: 500n, characterId: 2n, status: 'active', nextAutoAttackAt: 0n },
+    ];
+    return ctx;
+  }
+  const newFighters = (ctx: any): bigint[] =>
+    rows(ctx, 'combat_participant')
+      .filter((p) => p.combatId !== 500n)
+      .map((p) => p.characterId);
+
+  const PATHS = [
+    ['the gathering ambush', T0, (ctx: any) => handlers.start_gather_resource(ctx, { characterId: 1n, nodeId: 70n })],
+    ['the quest-item aggro', T0, (ctx: any) => handlers.loot_quest_item(ctx, { characterId: 1n, questItemId: 71n })],
+    ['pull_named_enemy', T0 + 7n, (ctx: any) => handlers.pull_named_enemy(ctx, { characterId: 1n, namedEnemyId: 99n })],
+  ] as const;
+
+  for (const [label, ts, start] of PATHS) {
+    it(`${label}: the new fight holds only Mirel; Bran keeps his one participant row`, () => {
+      const ctx = branInAFight(ts);
+      start(ctx);
+      expect(rows(ctx, 'combat_encounter')).toHaveLength(2);
+      expect(newFighters(ctx)).toEqual([1n]);
+      expect(rows(ctx, 'combat_participant').filter((p) => p.characterId === 2n)).toHaveLength(1);
+    });
+  }
+});
+
 describe('end_combat after the fight\'s group dissolved (code review IN-05)', () => {
   it('the admin can still end the fight (no "Group not found")', async () => {
     const { fightSeed, fightCtx } = await import('../helpers/combat_fight_fixture');
