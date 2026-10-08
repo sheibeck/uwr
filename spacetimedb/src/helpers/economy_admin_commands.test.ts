@@ -8,6 +8,8 @@ import {
   parseEconomyCommand,
 } from './economy_admin_commands';
 import { DEFAULT_DIALS } from '../data/economy_rules';
+import { LLM_RESTING_LINE } from './llm_queue';
+import { defaultLlmAdminStateRow } from './test-utils';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -50,6 +52,16 @@ const ITEM = { id: 40n, name: 'Ember Moss' };
 const seeded = (): Seed => ({
   region: [REGION, { id: 8n, name: 'Ashfall' }, { id: 9n, name: 'Tidemarch' }],
   item_template: [ITEM],
+});
+
+/** seeded() plus two locations in Kesterlane Basin (region 7), so it can be designed. */
+const designSeed = (extra: Seed = {}): Seed => ({
+  ...seeded(),
+  location: [
+    { id: 70n, name: 'Pans', regionId: 7n, terrainType: 'swamp', isSafe: false },
+    { id: 71n, name: 'Hearth', regionId: 7n, terrainType: 'town', isSafe: true },
+  ],
+  ...extra,
 });
 
 // Every system line any test writes lands here for the suite-wide plain-text scan.
@@ -127,6 +139,13 @@ describe('parseEconomyCommand', () => {
     expect(parseEconomyCommand('/economy item Ember Moss reset')).toEqual({ verb: 'item_reset', itemName: 'Ember Moss' });
   });
 
+  it('parses design: the region name is every token after the verb; no name is help', () => {
+    expect(parseEconomyCommand('/economy design Kesterlane Basin')).toEqual({ verb: 'design', regionName: 'Kesterlane Basin' });
+    expect(parseEconomyCommand('/economy DESIGN   Ashfall')).toEqual({ verb: 'design', regionName: 'Ashfall' });
+    expect(parseEconomyCommand('/economy design')).toEqual({ verb: 'help' });
+    expect(parseEconomyCommand('/economy design   ')).toEqual({ verb: 'help' });
+  });
+
   it('parses ai and reset', () => {
     expect(parseEconomyCommand('/economy ai on')).toEqual({ verb: 'ai', enabled: true });
     expect(parseEconomyCommand('/economy AI off')).toEqual({ verb: 'ai', enabled: false });
@@ -180,6 +199,7 @@ describe('handleEconomyAdminCommand: a stranger', () => {
     '/economy ai on',
     '/economy reset',
     '/economy huh',
+    '/economy design Kesterlane Basin',
   ])('%s gets the refusal and changes no economy table', (text) => {
     const ctx = ctxFor(stranger, {
       ...seeded(),
@@ -190,6 +210,17 @@ describe('handleEconomyAdminCommand: a stranger', () => {
     expect(run(ctx, text)).toBe(true);
     expect(systemLines(ctx)).toEqual([ECONOMY_ADMIN_REFUSAL_LINE]);
     expect(snapshot(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a stranger cannot start a design even with the AI switch on', () => {
+    const ctx = ctxFor(stranger, designSeed({ economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }] }));
+    const before = snapshot(ctx);
+    run(ctx, '/economy design Kesterlane Basin');
+    expect(systemLines(ctx)).toEqual([ECONOMY_ADMIN_REFUSAL_LINE]);
+    expect(snapshot(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
   });
 
   it('the refusal is in the Keeper voice and plain text', () => {
@@ -496,6 +527,87 @@ describe('handleEconomyAdminCommand: show', () => {
   });
 });
 
+describe('handleEconomyAdminCommand: design', () => {
+  const ON = () => [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+  const econRow = (status: string, jobId = 1n) => ({
+    regionId: 7n,
+    status,
+    jobId,
+    otherRegionIds: '[]',
+    createdAt: { microsSinceUnixEpoch: 1n },
+    updatedAt: { microsSinceUnixEpoch: 1n },
+  });
+  const econJobs = (ctx: any) => rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
+  const QUEUED = 'Economy design queued for Kesterlane Basin. It runs in the background; see /economy region Kesterlane Basin for its status.';
+
+  it('with the switch off: says how to turn it on and writes no job or row', () => {
+    const ctx = ctxFor(admin, designSeed());
+    run(ctx, '/economy design Kesterlane Basin');
+    expect(systemLines(ctx)).toEqual(['The AI economy is off. Turn it on with /economy ai on first.']);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'region_economy')).toHaveLength(0);
+  });
+
+  it('with the switch on and no row: enqueues one phase_only job and the pending row', () => {
+    const ctx = ctxFor(admin, designSeed({ economy_dials: ON() }));
+    run(ctx, '/economy design kesterlane   BASIN');
+    expect(systemLines(ctx)).toEqual([QUEUED]);
+    const jobs = econJobs(ctx);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ playerId: admin, characterId: 1n, budgetDay: '' });
+    expect(JSON.parse(jobs[0].dedupeKey)[2]).toBe('region:7');
+    expect(JSON.parse(jobs[0].requestJson)).toMatchObject({ regionId: '7', mode: 'region', enemyTemplateId: '0' });
+    expect(rows(ctx, 'region_economy')).toEqual([expect.objectContaining({ regionId: 7n, status: 'pending', jobId: jobs[0].id })]);
+    expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+  });
+
+  it.each([
+    ['complete', 'Kesterlane Basin already has an economy (designed).'],
+    ['pending', 'Kesterlane Basin already has an economy (pending).'],
+  ])('a %s region: says so and writes nothing', (status, line) => {
+    const ctx = ctxFor(admin, designSeed({ economy_dials: ON(), region_economy: [econRow(status)] }));
+    const before = snapshot(ctx);
+    run(ctx, '/economy design Kesterlane Basin');
+    expect(systemLines(ctx)).toEqual([line]);
+    expect(snapshot(ctx)).toBe(before);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a failed region is re-queued: the row returns to pending with the new jobId', () => {
+    const ctx = ctxFor(admin, designSeed({ economy_dials: ON(), region_economy: [econRow('failed', 99n)] }));
+    run(ctx, '/economy design Kesterlane Basin');
+    expect(systemLines(ctx)).toEqual([QUEUED]);
+    const jobs = econJobs(ctx);
+    expect(jobs).toHaveLength(1);
+    expect(rows(ctx, 'region_economy')).toEqual([expect.objectContaining({ regionId: 7n, status: 'pending', jobId: jobs[0].id })]);
+    expect(jobs[0].id).not.toBe(99n);
+  });
+
+  it('an unknown region: No region by that name.', () => {
+    const ctx = ctxFor(admin, designSeed({ economy_dials: ON() }));
+    run(ctx, '/economy design Nowhere');
+    expect(systemLines(ctx)).toEqual(['No region by that name.']);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a region with no locations: No region by that name.', () => {
+    const ctx = ctxFor(admin, designSeed({ economy_dials: ON() }));
+    run(ctx, '/economy design Ashfall');
+    expect(systemLines(ctx)).toEqual(['No region by that name.']);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a halted game: the resting line, nothing written', () => {
+    const ctx = ctxFor(admin, designSeed({ economy_dials: ON(), llm_admin_state: [{ ...defaultLlmAdminStateRow(), llmEnabled: false }] }));
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    run(ctx, '/economy design Kesterlane Basin');
+    info.mockRestore();
+    expect(systemLines(ctx)).toEqual([LLM_RESTING_LINE]);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(rows(ctx, 'region_economy')).toHaveLength(0);
+  });
+});
+
 describe('plain text', () => {
   it('no system line written anywhere in this suite contains [, < or {', () => {
     expect(allLines.length).toBeGreaterThan(20);
@@ -509,6 +621,7 @@ describe('plain text', () => {
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy region NAME');
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy item NAME');
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy ai on|off');
+    expect(ECONOMY_COMMAND_USAGE).toContain('/economy design NAME');
     expect(ECONOMY_COMMAND_USAGE).toContain('/economy reset');
     expect(ECONOMY_COMMAND_USAGE).toContain('A drop or gold dial at 0 can leave a kill empty on purpose.');
   });

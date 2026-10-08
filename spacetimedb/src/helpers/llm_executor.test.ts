@@ -29,7 +29,7 @@ import { appendPrivateEvent, appendCreationEvent } from './events';
 import { estimateCostMicroUsd, findSecretLeaks } from './measurement';
 import { LLM_ROUTES, type LlmRoute } from '../data/llm_routes';
 import { ANTHROPIC_MESSAGES_URL } from '../data/llm_models';
-import { LLM_MAX_IN_FLIGHT } from '../data/llm_limits';
+import { LLM_MAX_IN_FLIGHT, LLM_NARRATION_MAX_IN_FLIGHT } from '../data/llm_limits';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -587,6 +587,58 @@ describe('combat narration claim rules (PIPE-07)', () => {
     proc.clock.advance(120_000_000n);
     const claim = claimLlmJob(proc.ctx, arg, makeDeps(proc));
     expect(claim.kind).toBe('run');
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Region economy (Phase 51.3 Plan 12): background work
+// ----------------------------------------------------------------------------
+
+describe('region economy claim rules (background work)', () => {
+  const enqueueEconomy = (proc: Proc) => enqueue(proc, 'region_economy', { budget: 'phase_only' });
+
+  it('the background limit is one below the cap', () => {
+    expect(LLM_NARRATION_MAX_IN_FLIGHT).toBe(LLM_MAX_IN_FLIGHT - 1);
+  });
+
+  it(`LLM_NARRATION_MAX_IN_FLIGHT in flight: a region_economy job is 'deferred' (the last slot stays for gameplay)`, () => {
+    const proc = makeProc();
+    seedInFlight(proc, LLM_NARRATION_MAX_IN_FLIGHT);
+    const jobId = enqueueEconomy(proc);
+    const outcome = runLlmJob(proc.ctx, takeDispatch(proc, jobId), makeDeps(proc));
+    expect(outcome).toBe('deferred');
+    expect(jobOf(proc, jobId).status).toBe('pending');
+    expect(jobOf(proc, jobId).attempt).toBe(0n);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+    expect(proc.http.calls).toHaveLength(0);
+  });
+
+  it('one fewer in flight: a region_economy job is claimed', () => {
+    const proc = makeProc();
+    seedInFlight(proc, LLM_NARRATION_MAX_IN_FLIGHT - 1);
+    const jobId = enqueueEconomy(proc);
+    const claim = claimLlmJob(proc.ctx, takeDispatch(proc, jobId), makeDeps(proc));
+    expect(claim.kind).toBe('run');
+    expect(jobOf(proc, jobId).status).toBe('in_flight');
+  });
+
+  it('with the background limit full, a gameplay job still gets the last slot', () => {
+    const proc = makeProc();
+    seedInFlight(proc, LLM_NARRATION_MAX_IN_FLIGHT);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const claim = claimLlmJob(proc.ctx, takeDispatch(proc, jobId), makeDeps(proc));
+    expect(claim.kind).toBe('run');
+  });
+
+  it('an old region_economy job is never expired by the narration age rule', () => {
+    const proc = makeProc();
+    const jobId = enqueueEconomy(proc);
+    const arg = takeDispatch(proc, jobId);
+    proc.clock.advance(3_600_000_000n);
+    const claim = claimLlmJob(proc.ctx, arg, makeDeps(proc));
+    expect(claim.kind).toBe('run');
+    expect(jobOf(proc, jobId).status).toBe('in_flight');
+    expect(jobOf(proc, jobId).errorCode).toBeUndefined();
   });
 });
 

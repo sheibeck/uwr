@@ -416,3 +416,57 @@ describe('startRegionEconomy gates', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Task 2: end to end through the real executor with a scripted fetch (no network)
+// ---------------------------------------------------------------------------
+
+/** A fake key built from fragments so no key-shaped literal appears in the source. */
+const FAKE_KEY = ['sk', '-ant-', 'api03-', 'CHAINTESTKEY'.repeat(4)].join('');
+
+/** The ok_json Claude response with its text replaced by the region_k0 reply. */
+function claudeReply(text: string): any {
+  const fixture = JSON.parse(readFileSync(join(CLAUDE_DIR, 'ok_json.json'), 'utf8'));
+  return { ...fixture, body: { ...fixture.body, content: [{ type: 'text', text }] } };
+}
+
+describe('end to end: fill, then the real llm_run path with a scripted fetch', () => {
+  it("writes the region's economy (status complete); the scripted fetch was the only fetch", () => {
+    const proc = createMockProcCtx({
+      seed: fillSeed({ economy_dials: dialsOn(), llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: ts(T0) }] }),
+      timestampMicros: T0,
+      responses: [claudeReply(replyText('region_k0'))],
+      strict: true,
+    });
+    proc.ctx.withTx((tx: any) => apply.applyLlmResult(tx, fillJob(), FILL_TEXT));
+    const prow = (t: string): any[] => proc.db._tables[t] ?? [];
+    expect(prow('world_gen_state')[0].step).toBe('COMPLETE');
+    const jobs = prow('llm_job').filter((j: any) => j.route === 'region_economy');
+    expect(jobs).toHaveLength(1);
+    expect(prow('region_economy')[0]).toMatchObject({ regionId: 1n, status: 'pending', jobId: jobs[0].id });
+
+    // What the scheduler does before running llm_run: delete the dispatch row and hand it over.
+    const list = prow('llm_dispatch');
+    const i = list.findIndex((r: any) => r.jobId === jobs[0].id);
+    expect(i).toBeGreaterThanOrEqual(0);
+    const arg = list.splice(i, 1)[0];
+    expect(arg.scheduledAt).toBeDefined();
+    void ScheduleAt;
+
+    const outcome = executor.runLlmJob(proc.ctx, arg, {
+      nowMs: () => Number(proc.clock.now() / 1000n),
+      apply: apply.applyLlmResult,
+      applyFailure: apply.applyLlmFailure,
+      log: () => {},
+    });
+    expect(outcome).toBe('completed');
+    expect(proc.http.calls).toHaveLength(1);
+    expect(proc.http.remaining()).toBe(0);
+    expect(prow('llm_job').find((j: any) => j.id === jobs[0].id).status).toBe('completed');
+    expect(prow('region_economy')[0]).toMatchObject({ regionId: 1n, status: 'complete' });
+    expect(prow('economy_item').filter((r: any) => r.regionId === 1n).length).toBeGreaterThanOrEqual(9);
+    expect(prow('enemy_loot_entry').length).toBeGreaterThan(0);
+    expect(prow('region_recipe')).toHaveLength(3);
+    // Both creatures were designed: no follow-up job, so nothing else can call out.
+    expect(prow('llm_job').filter((j: any) => j.route === 'region_economy')).toHaveLength(1);
+  });
+});
