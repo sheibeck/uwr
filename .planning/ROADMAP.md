@@ -746,13 +746,15 @@ Plans:
   2. The dials cover at least enemy health, enemy damage and how often enemies use their abilities, with ranges set in discuss. Every dial defaults to today's tuning, so nothing changes until an admin moves one, and each value is clamped to a safe range.
   3. Combat reads the dials in one shared place, so every fight path (pull, ambush, quest aggro, named enemy) uses the same rule, and a change applies to the next fight or spawn only.
   4. An admin command (for example `/combat`) shows and sets the dials, following the `/economy` command from 51.3; the Phase 52 admin screens get a panel beside the economy panel.
-  5. Tests cover the clamps, each override level and how they combine, and determinism.
+  5. Pull size: how many enemies a pull brings is settled in discuss and, if the owner wants, tied to difficulty through the dials.
+  6. Tests cover the clamps, each override level and how they combine, and determinism.
 
 **Plans:** 0 plans
 **Notes**:
 
   - Owner, 2026-10-08: "Could we also have a phase for combat dials? We'll want to be able to tune combat to make it harder/easier by difficulty level, redfin type". The owner then picked difficulty level, region type and enemy type, placed right after 51.3.
   - Which combat numbers to expose (health, damage, armor, ability frequency, XP, flee) and how the levels combine (multiply or most-specific-wins) are for this phase's discuss.
+  - Owner, 2026-10-08: "We'll also want to talk about pulling enemies and whether you get multiple enemies per pull. That's can be tied to difficult". For discuss: how many enemies a pull brings (adds per pull), how that scales with difficulty, and whether it is a dial. Today careful pull (an owner decision, quick task 261006-a0i) pulls one Nearby enemy; check what the pull and add rules do now before proposing.
   - Server changes are additive, published locally only with the key check, never clearing the database.
 
 Plans:
