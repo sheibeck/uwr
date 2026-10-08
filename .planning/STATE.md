@@ -221,6 +221,8 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
 - `todos/pending/2026-10-08-non-combat-utility-abilities.md`: audit and wire the non-combat ability kinds (travel, craft and gather boosts, utility) and add invisibility and lull (owner idea; ties to 51.3.1, 51.3, 51.5).
 
+- `todos/pending/2026-10-08-travel-with-leader-moves-to-the-self-menu.md`: the desktop Travel with leader switch moves into the self ⋯/right-click menu, with a follow icon beside your name (owner, after 51.1).
+
 ### Blockers/Concerns
 
 - **[Milestone end, user action] Maincloud migration.** On 2026-09-30 the user deferred it "until we're all done". Run section E of 42-USER-CHECKLIST.md: publish 1 from 5968d54f, deploy the client and `/setappversion`, `purge_legacy_llm` with COUNT 0 checks, then publish 2. Publish 1 also covers 41-MAINCLOUD-CHECKLIST.md. Phase 43 adds only additive, defaulted schema, so publish 2 from the final HEAD still needs no clear.
