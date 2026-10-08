@@ -1,0 +1,114 @@
+{
+  "region": {
+    "gatherables": {
+      "common": {
+        "name": "Pan Salt Cakes",
+        "kind": "base",
+        "terrain": "plains",
+        "description": "Slabs of pressed salt pried from the flat white ground, still carrying the faint outline of the boot that last stood there. They preserve meat, season soup and settle arguments about thirst."
+      },
+      "uncommon": {
+        "name": "Lampwright Wick Reed",
+        "kind": "cloth",
+        "terrain": "swamp",
+        "description": "Pale reeds that grow in the few damp hollows left in the basin, and which the lamp trade strips for fiber. Twisted together, they burn slowly and weave surprisingly well."
+      },
+      "rare": {
+        "name": "Orchard Glass Shard",
+        "kind": "trinket",
+        "terrain": "woods",
+        "description": "A sliver snapped from the fused trees, clear as water and warm as a held breath. Whatever struck the orchard left some of its light behind, and you can still see it if you tilt the piece."
+      }
+    },
+    "creatures": [
+      {
+        "enemy": "E1",
+        "drop": {
+          "name": "Crusted Chitin Plate",
+          "kind": "hide",
+          "description": "A curved plate of shell caked in hard white salt. It is stiff, light and very unwilling to rot."
+        },
+        "trophy": {
+          "name": "Skitterer Claw Pair",
+          "description": "Two brittle claws tied together with a bit of sinew, popular with collectors who like proof that they were nearly pinched."
+        },
+        "gear": {
+          "name": "Brine Pincer Knife",
+          "slot": "weapon",
+          "weaponType": "dagger",
+          "armorType": "none",
+          "description": "A short blade ground from a salt-hardened pincer, serrated where the creature once did its gripping."
+        }
+      },
+      {
+        "enemy": "E2",
+        "drop": {
+          "name": "Cinder Glass Dust",
+          "kind": "metal",
+          "description": "A glittering residue left where the wisp went out. It is fine as flour and sharp enough to remind you of that."
+        },
+        "trophy": {
+          "name": "Bottled Wisp Glow",
+          "description": "A stoppered vial of fading light that refuses to be entirely dark. It makes a decent curiosity and a poor lantern."
+        },
+        "gear": {
+          "name": "Orchard Bough Staff",
+          "slot": "weapon",
+          "weaponType": "staff",
+          "armorType": "none",
+          "description": "A staff of fused glass wood, glassy at the tip and faintly warm along the grip."
+        }
+      },
+      {
+        "enemy": "E3",
+        "drop": {
+          "name": "Brinebound Iron Slag",
+          "kind": "metal",
+          "description": "Heavy, pitted scrap from the sentinel's innards, crusted with old salt. It looks ruined and works fine."
+        },
+        "trophy": {
+          "name": "Sentinel Rune Plate",
+          "description": "A small engraved plate pried from the construct's chest. Nobody remembers what the writing says, which makes it valuable."
+        },
+        "gear": {
+          "name": "Drowned Watch Cuirass",
+          "slot": "chest",
+          "weaponType": "none",
+          "armorType": "plate",
+          "description": "A battered breastplate of salt-pitted metal, built for a guard who was never relieved of his post."
+        }
+      }
+    ],
+    "recipes": {
+      "first": {
+        "name": "Salted Wayfarer Jerky",
+        "category": "consumable",
+        "description": "Strips of cured meat rubbed with pan salt, tough enough to outlast the walk. It tastes of the desert, which is to say mostly of regret.",
+        "materials": [
+          "G1",
+          "D:E1"
+        ]
+      },
+      "second": {
+        "name": "Wickthread Sash",
+        "category": "armor",
+        "description": "A woven sash of reed fiber, light across the shoulders and kind to sunburn. Lampwrights wear them to look humble.",
+        "materials": [
+          "G2",
+          "G1"
+        ]
+      },
+      "third": {
+        "name": "Orchard Glow Pendant",
+        "category": "accessory",
+        "description": "A glass shard hung on a reed cord, glowing softly where the light is poor. It is pretty, and the moths will notice.",
+        "materials": [
+          "G3",
+          "G2",
+          "D:E2"
+        ]
+      }
+    }
+  },
+  "lateCreature": null
+}

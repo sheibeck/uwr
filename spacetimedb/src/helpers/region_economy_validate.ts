@@ -246,24 +246,29 @@ function validateRecipe(
     .map((ref) => locals.find((l) => l.ref === ref))
     .filter((l): l is LocalMaterial => l !== undefined);
 
-  // Primary and category.
+  // Primary and category (review B WR-01). The model's category wins whenever any local can serve it:
+  // its primary is the first listed local of a primary kind for that category, else the first such
+  // local anywhere in the region. Only when no local can serve it does the category change, to the
+  // category of the first listed local that has one (else of any local).
   const modelCategory = asText(field(entry, 'category'));
-  let category: RecipeCategory | null =
+  const wanted: RecipeCategory | null =
     RECIPE_CATEGORIES.indexOf(modelCategory) !== -1 ? (modelCategory as RecipeCategory) : null;
-  let primary = listedLocals.find((l) => categoryForKind(l.kind) !== null);
-  if (primary) {
-    if (category === null || !isPrimaryFor(category, primary.kind)) category = categoryForKind(primary.kind);
-  } else {
-    // No usable local handle in the model list: the rule primary, preferring the model's category.
-    const wanted = category;
+  let primary: LocalMaterial | undefined =
+    wanted !== null
+      ? listedLocals.find((l) => isPrimaryFor(wanted, l.kind)) ?? locals.find((l) => isPrimaryFor(wanted, l.kind))
+      : undefined;
+  let category: RecipeCategory | null = primary ? wanted : null;
+  if (!primary) {
     primary =
-      (wanted !== null ? locals.find((l) => isPrimaryFor(wanted, l.kind)) : undefined) ??
-      locals.find((l) => categoryForKind(l.kind) !== null);
+      listedLocals.find((l) => categoryForKind(l.kind) !== null) ?? locals.find((l) => categoryForKind(l.kind) !== null);
     category = primary ? categoryForKind(primary.kind) : null;
   }
   if (!primary || category === null) return null;
   const cat: RecipeCategory = category;
   const primaryRef = primary.ref;
+  // A changed category means the model's name and description describe another item ("Salted Wayfarer
+  // Jerky" as chest armor): both give way to the rule name and the rule description.
+  const repaired = wanted !== null && cat !== wanted;
 
   const requirements: { ref: string; count: bigint }[] = [{ ref: primaryRef, count: plan.primaryCount }];
 
@@ -300,9 +305,9 @@ function validateRecipe(
   return {
     index,
     tier,
-    name: names.take(field(entry, 'name'), 'output', cat),
+    name: names.take(repaired ? '' : field(entry, 'name'), 'output', cat),
     category: cat,
-    description: cleanDescription(asText(field(entry, 'description'))),
+    description: repaired ? '' : cleanDescription(asText(field(entry, 'description'))),
     requirements: requirements.slice(0, MAX_RECIPE_REQUIREMENTS),
   };
 }

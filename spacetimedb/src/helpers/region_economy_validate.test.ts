@@ -203,12 +203,35 @@ describe('validateRegionEconomyReply: recipe repair', () => {
     expect(refs(epic)).toEqual(['G1', 'F1', 'F3']);
   });
 
-  it('a weapon recipe whose first local material is hide becomes armor', () => {
+  // Review B WR-01: the model's category wins whenever any local can serve it; the listed handles are
+  // searched first, then every local of the region.
+  it('a weapon recipe that lists only hide keeps weapon when the region has a metal: that metal is the primary', () => {
     const reply = loadReply('region_k0');
+    reply.region.recipes.first.materials = ['D:E1', 'G1'];
+    const first = recipeAt(mustPlan(validateRegionEconomyReply(inputK0(), reply, never)), 0);
+    expect(first.category).toBe('weapon');
+    expect(first.name).toBe('Rivetbound Mace');
+    expect(refs(first)).toEqual(['D:E2', 'D:E1']);
+  });
+
+  it('a weapon recipe in a region with no metal at all becomes armor, with the rule name and rule description', () => {
+    const reply = loadReply('region_k0');
+    reply.region.creatures = reply.region.creatures.filter((c: any) => c.enemy === 'E1');
     reply.region.recipes.first.materials = ['D:E1', 'G1'];
     const first = recipeAt(mustPlan(validateRegionEconomyReply(inputK0(), reply, never)), 0);
     expect(first.category).toBe('armor');
     expect(refs(first)).toEqual(['D:E1', 'G1']);
+    expect(first.name).toBe('Kesterlane Basin Jerkin');
+    expect(first.description).toBe('');
+  });
+
+  it('a consumable that lists no edible keeps consumable and its name when an edible local exists elsewhere', () => {
+    const reply = loadReply('region_k0');
+    reply.region.recipes.third.materials = ['G1', 'G3'];
+    const third = recipeAt(mustPlan(validateRegionEconomyReply(inputK0(), reply, never)), 2);
+    expect(third.category).toBe('consumable');
+    expect(third.name).toBe('Brinewort Broth');
+    expect(refs(third)[0]).toBe('G2');
   });
 
   it('an invalid category is derived from the primary kind', () => {
@@ -288,6 +311,61 @@ describe('validateRegionEconomyReply: recipe repair', () => {
     expect(plan.recipes.map((r) => r.index)).toEqual([0, 1]);
     expect(refs(recipeAt(plan, 1))).toEqual(['G1', 'D:E1', 'F1']);
     expectCounts(recipeAt(plan, 1));
+  });
+});
+
+/** The live job 8206 input (local uwr, region 1): G1 base, G2 cloth, G3 trinket, D:E1 hide, D:E2 and D:E3 metal. */
+function inputLive(): RegionEconomyInput {
+  return {
+    mode: 'region',
+    regionId: 1n,
+    regionName: 'Kesterlane Basin',
+    biome: 'desert',
+    areaLevel: 1,
+    dominantFaction: 'The Lampwrights of Orrin Sill',
+    landmarks: [],
+    threats: [],
+    terrains: ['dungeon', 'plains', 'swamp', 'town', 'woods'],
+    enemies: [
+      { ref: 'E1', templateId: 1n, name: 'Salt-Crust Skitterer', creatureType: 'beast', level: 1 },
+      { ref: 'E2', templateId: 2n, name: 'Glass Orchard Wisp', creatureType: 'elemental', level: 1 },
+      { ref: 'E3', templateId: 3n, name: 'Brine Sentinel', creatureType: 'construct', level: 1 },
+    ],
+    recipeSlots: [
+      { tier: 'common', foreignRegionIndexes: [] },
+      { tier: 'common', foreignRegionIndexes: [] },
+      { tier: 'uncommon', foreignRegionIndexes: [] },
+    ],
+    foreignRegions: [],
+    foreign: [],
+    existingMaterials: [],
+  };
+}
+
+describe('validateRegionEconomyReply: the live job 8206 reply (review B WR-01)', () => {
+  const plan = () => mustPlan(validateRegionEconomyReply(inputLive(), loadReply('kesterlane_live'), never));
+
+  it('"Salted Wayfarer Jerky" (consumable, no edible in the region) becomes armor named and described by rule', () => {
+    const first = recipeAt(plan(), 0);
+    expect(first.category).toBe('armor');
+    expect(refs(first)).toEqual(['D:E1', 'G1']);
+    expect(first.name).toBe('Kesterlane Basin Jerkin');
+    expect(first.description).toBe('');
+  });
+
+  it('"Wickthread Sash" (armor, cloth listed first) keeps the name and description of the model', () => {
+    const second = recipeAt(plan(), 1);
+    expect(second.category).toBe('armor');
+    expect(second.name).toBe('Wickthread Sash');
+    expect(second.description).toContain('woven sash');
+    expect(refs(second)).toEqual(['G2', 'G1']);
+  });
+
+  it('"Orchard Glow Pendant" (accessory, trinket first) is kept as it is', () => {
+    const third = recipeAt(plan(), 2);
+    expect(third.category).toBe('accessory');
+    expect(third.name).toBe('Orchard Glow Pendant');
+    expect(refs(third)[0]).toBe('G3');
   });
 });
 
