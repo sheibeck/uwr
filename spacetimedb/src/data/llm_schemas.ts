@@ -30,6 +30,7 @@ import {
   WEAPON_TYPES,
 } from './mechanical_vocabulary';
 import { NPC_GENDERS } from './npc_gender';
+import { MATERIAL_KIND_VALUES } from './recipe_rules';
 
 /** Recursively freeze a value (arrays and plain objects). Returns the same reference. */
 export function deepFreeze<T>(value: T): T {
@@ -328,6 +329,56 @@ export const COMBAT_NARRATION_SCHEMA: Node = deepFreeze(
 );
 
 // ----------------------------------------------------------------------------
+// Region economy (Phase 51.3)
+// ----------------------------------------------------------------------------
+//
+// The reply of the region_economy route. The grammar fixes the "Small" counts:
+// exactly three gatherables (common, uncommon, rare), one drop, trophy and gear
+// per creature entry, and exactly three recipes (first, second, third). The
+// schema carries no description text and no bounds: every word of guidance lives
+// in the owner-approved route block, and the server validates and repairs the
+// reply (helpers/region_economy_validate.ts) and sets every number.
+
+const MATERIAL_KIND: Node = enumOf(MATERIAL_KIND_VALUES);
+
+const ECON_GATHERABLE: Node = obj({ name: S, kind: MATERIAL_KIND, terrain: LOCATION_TERRAIN, description: S });
+
+const ECON_DROP: Node = obj({ name: S, kind: MATERIAL_KIND, description: S });
+
+const ECON_TROPHY: Node = obj({ name: S, description: S });
+
+const ECON_GEAR: Node = obj({
+  name: S,
+  slot: enumOf(['weapon', 'chest', 'legs', 'boots']),
+  weaponType: enumOf([...WEAPON_TYPES, 'none']),
+  armorType: enumOf(['cloth', 'leather', 'chain', 'plate', 'none']),
+  description: S,
+});
+
+const ECON_CREATURE: Node = obj({ enemy: S, drop: ECON_DROP, trophy: ECON_TROPHY, gear: ECON_GEAR });
+
+const ECON_RECIPE: Node = obj({
+  name: S,
+  category: enumOf(['weapon', 'armor', 'accessory', 'consumable']),
+  description: S,
+  materials: strs,
+});
+
+/** Region mode fills region (lateCreature null); late-creature mode fills lateCreature (region null). */
+export const REGION_ECONOMY_SCHEMA: Node = deepFreeze(
+  obj({
+    region: nullable(
+      obj({
+        gatherables: obj({ common: ECON_GATHERABLE, uncommon: ECON_GATHERABLE, rare: ECON_GATHERABLE }),
+        creatures: { type: 'array', items: ECON_CREATURE },
+        recipes: obj({ first: ECON_RECIPE, second: ECON_RECIPE, third: ECON_RECIPE }),
+      }),
+    ),
+    lateCreature: nullable(ECON_CREATURE),
+  }),
+);
+
+// ----------------------------------------------------------------------------
 // Registry
 // ----------------------------------------------------------------------------
 
@@ -340,4 +391,5 @@ export const LLM_JSON_SCHEMAS = deepFreeze({
   skill: SKILL_GENERATION_SCHEMA,
   renown: RENOWN_PERK_SCHEMA,
   combatNarration: COMBAT_NARRATION_SCHEMA,
+  regionEconomy: REGION_ECONOMY_SCHEMA,
 });
