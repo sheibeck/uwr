@@ -3,8 +3,8 @@ created: 2026-10-08T22:00:00.000Z
 title: Implement the updated UWR Map mock - unplaced places and reaching more regions when the top bar runs out of room
 area: ui
 files:
-  - .planning/phases/999.28-cartographer-map/design/UWR Map.dc.html (imported mock)
-  - .planning/phases/999.28-cartographer-map/999.28-MAP-MOCK-DIFF.md (mock vs today's map)
+  - .planning/phases/999.28-compass-true-map/design/UWR Map.dc.html (imported mock)
+  - .planning/phases/999.28-compass-true-map/999.28-MAP-MOCK-DIFF.md (mock vs today's map)
   - src/map/MapScreen.vue, MapSheet.vue, MapMeta.vue, RegionsListbox.vue, GraphPlane.vue, MapLegend.vue
 ---
 ## Problem
