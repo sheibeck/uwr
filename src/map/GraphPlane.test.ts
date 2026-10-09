@@ -602,17 +602,27 @@ describe('GraphPlane: keyboard', () => {
     await nextTick();
     expect(activeId()).toBe('3');
 
-    const scrolled: Element[] = [];
+    // scrollToNode moves only the plane's scroll area (the parent), never the page: no scrollIntoView
+    const area = w.element.parentElement as HTMLElement;
+    const pageScroll = vi.fn();
     const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = function (this: Element) {
-      scrolled.push(this);
-    };
+    Element.prototype.scrollIntoView = pageScroll;
+    const node = nodeButton(w, 2n).element as HTMLElement;
+    const rect = (x: number, y: number, size: number) =>
+      ({ top: y, left: x, bottom: y + size, right: x + size, width: size, height: size, x, y, toJSON() {} }) as DOMRect;
+    vi.spyOn(area, 'getBoundingClientRect').mockReturnValue(rect(0, 0, 0));
+    vi.spyOn(node, 'getBoundingClientRect').mockReturnValue(rect(400, 600, 32));
+    Object.defineProperty(area, 'clientHeight', { configurable: true, value: 200 });
+    Object.defineProperty(area, 'clientWidth', { configurable: true, value: 300 });
     try {
       vm.scrollToNode(2n);
-      expect(scrolled.map((el) => (el as HTMLElement).dataset.nodeId)).toEqual(['2']);
+      // centred: 600 - (200 - 32) / 2 = 516 down, 400 - (300 - 32) / 2 = 266 across
+      expect(area.scrollTop).toBe(516);
+      expect(area.scrollLeft).toBe(266);
       // an unknown id is a no-op
       vm.scrollToNode(999n);
-      expect(scrolled).toHaveLength(1);
+      expect(area.scrollTop).toBe(516);
+      expect(pageScroll).not.toHaveBeenCalled();
     } finally {
       Element.prototype.scrollIntoView = original;
     }

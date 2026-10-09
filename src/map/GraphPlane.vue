@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { PhCastleTurret, PhDoorOpen, PhHammer, PhLockSimple, PhShieldCheck } from '@phosphor-icons/vue';
 import { compareReading } from './graphLayout';
+import { scrollWithin } from './scrollWithin';
+import type { ScrollBlock } from './scrollWithin';
 import type { CanvasSize, GraphLayout } from './graphLayout';
 import type { GateView, NodeView } from './nodeView';
 
@@ -102,8 +104,14 @@ function moveTo(id: bigint): void {
   focusedId.value = id;
   const element = nodeElement(id);
   if (element === null) return;
-  element.focus();
-  element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  element.focus({ preventScroll: true });
+  scrollNode(element, 'nearest');
+}
+
+/** Scroll a node inside the canvas scroll area (the plane's parent) only, never the page around it. */
+function scrollNode(element: HTMLElement, block: ScrollBlock): void {
+  const area = root.value?.parentElement ?? null;
+  if (area !== null) scrollWithin(area, element, block);
 }
 
 const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
@@ -170,12 +178,18 @@ function onKeydown(event: KeyboardEvent, id: bigint): void {
 
 /** Focus the group's current node (the roving tab stop), once the plane has redrawn. */
 function focusCurrent(): void {
-  void nextTick(() => nodeElement(tabId.value)?.focus());
+  void nextTick(() => {
+    const element = nodeElement(tabId.value);
+    if (element === null) return;
+    element.focus({ preventScroll: true });
+    scrollNode(element, 'nearest');
+  });
 }
 
 /** Scroll a node into the canvas (centred by default). Unknown ids do nothing. */
-function scrollToNode(id: bigint, block: 'center' | 'nearest' = 'center'): void {
-  nodeElement(id)?.scrollIntoView?.({ block, inline: block });
+function scrollToNode(id: bigint, block: ScrollBlock = 'center'): void {
+  const element = nodeElement(id);
+  if (element !== null) scrollNode(element, block);
 }
 
 // ---------------------------------------------------------------------------

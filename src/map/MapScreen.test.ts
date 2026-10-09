@@ -139,21 +139,22 @@ function harness(over: { args?: ScreenArgs | null; locationId?: bigint; location
 }
 
 let wrapper: VueWrapper | null = null;
-const scrolled: HTMLElement[] = [];
-const originalScroll = Element.prototype.scrollIntoView;
+// The plane scrolls a node inside its canvas only (scrollWithin); record which node each scroll targets.
+const scrolled = vi.hoisted(() => [] as HTMLElement[]);
+vi.mock('./scrollWithin', () => ({
+  scrollWithin: (_area: HTMLElement, element: HTMLElement) => {
+    scrolled.push(element);
+  },
+}));
 
 beforeEach(() => {
   scrolled.length = 0;
-  Element.prototype.scrollIntoView = function (this: Element) {
-    scrolled.push(this as HTMLElement);
-  };
 });
 
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
   document.body.innerHTML = '';
-  Element.prototype.scrollIntoView = originalScroll;
 });
 
 async function mountScreen(h: Harness): Promise<VueWrapper> {
