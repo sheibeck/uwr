@@ -974,11 +974,13 @@ describe('keyword and rail actions', () => {
     expect(s.feed.entries.value).toHaveLength(0);
   });
 
-  it('never calls the retired startPull or startGatherResource reducers', () => {
-    const source = readFileSync(resolve(__dirname, 'useConsole.ts'), 'utf8');
-    expect(source).not.toMatch(/startPull|startGatherResource/);
-    const context = readFileSync(resolve(__dirname, '../game/context.ts'), 'utf8');
-    expect(context).not.toMatch(/startPull|startGatherResource/);
+  it('never calls the retired spawn-pull or node-gather reducers', () => {
+    // Built from parts so a repo-wide grep for the retired names finds only real call sites.
+    const retired = ['start' + 'Pull', 'start' + 'GatherResource'];
+    for (const file of ['useConsole.ts', '../game/context.ts']) {
+      const source = readFileSync(resolve(__dirname, file), 'utf8');
+      for (const name of retired) expect(source, `${file}: ${name}`).not.toContain(name);
+    }
   });
 
   it('every action does nothing while offline', () => {

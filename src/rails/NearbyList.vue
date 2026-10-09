@@ -105,10 +105,11 @@ function pullDisabledFor(row: EnemyRow): 'true' | undefined {
   return pullBlocked(row) ? 'true' : undefined;
 }
 
-// One Pull button: a careful pull, the same as the feed keyword click (owner decision).
+// The enemy rows here are individual spawns (World event enemies, 51.3.1.1-18): their button fights
+// through start_combat, the same call as the feed keyword click. Plan 19 adds the family cards (Pull).
 function pull(row: EnemyRow): void {
   if (pullBlocked(row)) return;
-  consoleApi.pull({ id: row.id, name: row.name }, 'careful');
+  consoleApi.fight({ kind: 'event', id: row.id, name: row.name });
 }
 
 const ICONS: Record<NearbyKind, Component> = {

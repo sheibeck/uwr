@@ -67,6 +67,7 @@ function mountContent(setup: Setup = {}) {
     invite: vi.fn(),
     trade: vi.fn(),
     pull: vi.fn(),
+    fight: vi.fn(),
   };
   const game = {
     ...createInertGame(),
@@ -363,7 +364,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     expect(row.get('.row-hint').text()).toBe('Lv 8 · ×3');
   });
 
-  it('gives an available enemy one always-visible Pull button that starts a careful pull', async () => {
+  it('gives an available enemy one always-visible Pull button that fights the spawn (51.3.1.1-18: an event enemy)', async () => {
     const { w, calls } = mountContent(ENEMIES);
     const row = w.findAll('.nearby-row')[2];
     expect(row.findAll('button').map((b) => b.attributes('aria-label'))).toEqual([
@@ -375,8 +376,9 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     expect(button.attributes('title')).toBe('Pull Goblin Scout (Lv 8, Hard)');
     expect(button.attributes('aria-disabled')).toBeUndefined();
     await button.trigger('click');
-    expect(calls.pull).toHaveBeenCalledTimes(1);
-    expect(calls.pull).toHaveBeenCalledWith({ id: 3n, name: 'Goblin Scout' }, 'careful');
+    expect(calls.fight).toHaveBeenCalledTimes(1);
+    expect(calls.fight).toHaveBeenCalledWith({ kind: 'event', id: 3n, name: 'Goblin Scout' });
+    expect(calls.pull).not.toHaveBeenCalled();
   });
 
   it('shows Being pulled and In combat without buttons, the in-combat row dimmed', () => {
@@ -404,6 +406,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
       await button.trigger('click');
     }
     expect(calls.pull).not.toHaveBeenCalled();
+    expect(calls.fight).not.toHaveBeenCalled();
   });
 
   it('disables the pull buttons offline and sends nothing', async () => {
@@ -415,6 +418,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
       await button.trigger('click');
     }
     expect(calls.pull).not.toHaveBeenCalled();
+    expect(calls.fight).not.toHaveBeenCalled();
   });
 
   it('shows no difficulty and keeps Pull aria-disabled while the template level is unknown', async () => {
@@ -436,6 +440,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     expect(button.attributes('aria-disabled')).toBe('true');
     await button.trigger('click');
     expect(calls.pull).not.toHaveBeenCalled();
+    expect(calls.fight).not.toHaveBeenCalled();
   });
 
   it('shows the level but no difficulty word or color when the player level is unknown', async () => {
@@ -454,7 +459,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     expect(button.attributes('aria-label')).toBe('Pull Rotfang (Lv 8)');
     expect(button.attributes('aria-disabled')).toBeUndefined();
     await button.trigger('click');
-    expect(calls.pull).toHaveBeenCalledWith({ id: 3n, name: 'Rotfang' }, 'careful');
+    expect(calls.fight).toHaveBeenCalledWith({ kind: 'event', id: 3n, name: 'Rotfang' });
   });
 
   it('enables Pull and shows the con once the template arrives', async () => {
@@ -473,7 +478,7 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     expect(button.attributes('aria-disabled')).toBeUndefined();
     expect(w.get('.row-name').classes()).toContain('con-orange');
     await button.trigger('click');
-    expect(calls.pull).toHaveBeenCalledTimes(1);
+    expect(calls.fight).toHaveBeenCalledTimes(1);
   });
 
   it('does not show the empty line when only enemies are present, and still shows it when empty', () => {

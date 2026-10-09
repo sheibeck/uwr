@@ -169,7 +169,7 @@ describe('FeedView keywords', () => {
         { id: 20n, name: 'Gloamwood' },
       ]),
       connections: ref([{ id: 1n, fromLocationId: 10n, toLocationId: 20n }]),
-      nodesHere: ref([{ id: 7n, name: 'Old Well', state: 'available', characterId: null }]),
+      poolLevelsHere: ref([{ id: 7n, kind: 'resource', level: 2n, name: 'Old Well', locationId: 10n }]),
       playersHere: ref([
         { id: 9n, name: 'Marisol', level: 2n, online: true },
         { id: 11n, name: 'Tamsin', level: 2n, online: false },
@@ -187,7 +187,7 @@ describe('FeedView keywords', () => {
     expect(labels).toEqual(['Whisper Marisol']);
   });
 
-  it('builds keywords from npcs, connected places, nodes and players, never the own name', async () => {
+  it('builds keywords from npcs, connected places, resource pools and players, never the own name', async () => {
     const h = keywordHarness();
     const w = mountView(h);
     ingest(h, {
@@ -214,9 +214,9 @@ describe('FeedView keywords', () => {
     expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'place', id: 20n, name: 'Gloamwood' });
   });
 
-  it('hides nodes that belong to another character', async () => {
+  it('makes no keyword of an exhausted resource pool (level 0, 51.3.1.1-18)', async () => {
     const h = harness({
-      nodesHere: ref([{ id: 7n, name: 'Old Well', state: 'available', characterId: 99n }]),
+      poolLevelsHere: ref([{ id: 7n, kind: 'resource', level: 0n, name: 'Old Well', locationId: 10n }]),
     });
     const w = mountView(h);
     ingest(h, { segments: [{ kind: 'narration', speaker: 'The Keeper', text: 'The Old Well waits.' }] });
@@ -251,7 +251,7 @@ describe('FeedView keywords', () => {
       segments: [{ kind: 'narration', speaker: 'The Keeper', text }],
     });
 
-    it('makes the name of an available spawn a Pull keyword', async () => {
+    it('makes the name of an available spawn (a World event enemy) a keyword with the event target', async () => {
       const h = harness({ enemiesHere: ref([spawn(9n, 'Goblin Scout', 'available')]) });
       const w = mountView(h);
       ingest(h, keeperLine('A Goblin Scout prowls the road.'));
@@ -259,7 +259,42 @@ describe('FeedView keywords', () => {
       const button = w.get('button.keyword');
       expect(button.attributes('aria-label')).toBe('Pull Goblin Scout');
       await button.trigger('click');
-      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
+      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Goblin Scout', target: 'event' });
+    });
+
+    it('makes a family name here a keyword by pool id, and not a family at level 0 (51.3.1.1-18)', async () => {
+      const h = harness({
+        poolLevelsHere: ref([
+          { id: 5n, kind: 'creature', level: 2n, name: 'Goblins', locationId: 10n },
+          { id: 6n, kind: 'creature', level: 0n, name: 'Skitterers', locationId: 10n },
+        ]),
+      });
+      const w = mountView(h);
+      ingest(h, keeperLine('[Goblins] (Lv 3-5, Many). [Skitterers] (Lv 2-3, None).'));
+      await settle();
+      const buttons = w.findAll('button.keyword');
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0].text()).toBe('Goblins');
+      await buttons[0].trigger('click');
+      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+    });
+
+    it('makes a living named enemy of the character here a keyword with the named target', async () => {
+      const h = harness({
+        character: ref({ id: 1n, name: 'Bob', locationId: 10n }),
+        namedEnemies: ref([
+          { id: 3n, characterId: 1n, name: 'Old Brannoc', locationId: 10n, isAlive: true },
+          { id: 4n, characterId: 1n, name: 'Greymaw', locationId: 10n, isAlive: false },
+          { id: 8n, characterId: 1n, name: 'Far Thing', locationId: 99n, isAlive: true },
+        ]),
+      });
+      const w = mountView(h);
+      ingest(h, keeperLine('Old Brannoc, Greymaw and the Far Thing.'));
+      await settle();
+      const buttons = w.findAll('button.keyword');
+      expect(buttons).toHaveLength(1);
+      await buttons[0].trigger('click');
+      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 3n, name: 'Old Brannoc', target: 'named' });
     });
 
     it('does not make a pulled or engaged spawn a keyword', async () => {
@@ -295,7 +330,7 @@ describe('FeedView keywords', () => {
       expect(buttons).toHaveLength(1);
       expect(buttons[0].attributes('aria-label')).toBe('Pull Marisol');
       await buttons[0].trigger('click');
-      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Marisol' });
+      expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Marisol', target: 'event' });
     });
 
     it('renders a markup enemy name literally', async () => {

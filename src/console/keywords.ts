@@ -13,10 +13,16 @@
 // 261008-f3m), never from the vocabulary.
 
 export type KeywordKind = 'npc' | 'enemy' | 'place' | 'node' | 'player' | 'loot' | 'lootAll';
+/**
+ * What an enemy keyword reaches (51.3.1.1-18): a family pull by pool id, a named enemy or a World
+ * event spawn. Set only on enemy entries (src/rails/pullTargets.ts); absent on every other kind.
+ */
+export type KeywordTarget = 'family' | 'named' | 'event';
 export interface KeywordEntry {
   kind: KeywordKind;
   id: bigint;
   name: string;
+  target?: KeywordTarget;
 }
 export interface KeywordVocabulary {
   readonly size: number;
@@ -72,7 +78,7 @@ function isWordChar(ch: string): boolean {
   return ch !== '' && WORD_CHAR.test(ch);
 }
 
-type NameInput = readonly { id: bigint; name: string }[];
+type NameInput = readonly { id: bigint; name: string; target?: KeywordTarget }[];
 
 export function buildVocabulary(input: {
   npcs: NameInput;
@@ -103,7 +109,7 @@ export function buildVocabulary(input: {
       seen.add(folded);
       accepted.push({
         folded,
-        entry: { kind, id: row.id, name },
+        entry: row.target === undefined ? { kind, id: row.id, name } : { kind, id: row.id, name, target: row.target },
         startsWord: isWordChar(firstCodePoint(folded)),
         endsWord: isWordChar(lastCodePoint(folded)),
       });

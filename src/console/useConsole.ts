@@ -409,26 +409,45 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     if (narrativeSend({ text: 'look', mode: 'intent', echo: 'look' }) !== 'refused') bump();
   }
 
-  function gather(node: { id: bigint; name: string }): void {
+  // Gathers from a resource pool (51.3.1.1-18): the id is the pool_level id (= place_pool id).
+  function gather(pool: { id: bigint; name: string }): void {
     const characterId = game.characterId.value;
     if (!ready() || characterId === null) return;
     frame.closeScreen();
     conversation.value = null;
-    echo(`gather ${node.name}`);
-    void fire('startGatherResource', (r) => r.startGatherResource({ characterId, nodeId: node.id }));
+    echo(`gather ${pool.name}`);
+    void fire('gatherPool', (r) => r.gatherPool({ characterId, poolId: pool.id }));
     bump();
   }
 
-  function pull(enemy: { id: bigint; name: string }, pullType: 'careful' | 'body'): void {
+  // Pulls a family from its pool (51.3.1.1 D-12): one pull, no pull type. The id is the pool_level id.
+  function pull(target: { id: bigint; name: string }): void {
     const characterId = game.characterId.value;
     if (!ready() || characterId === null) return;
     // Actions are disabled in a fight (quick-261006-a0i).
     if (game.combat.active.value) return;
     frame.closeScreen();
     conversation.value = null;
-    // The echo mirrors the visible "Pull {name}" label; only the unreachable body pull is prefixed.
-    echo(pullType === 'body' ? `body pull ${enemy.name}` : `pull ${enemy.name}`);
-    void fire('startPull', (r) => r.startPull({ characterId, enemySpawnId: enemy.id, pullType }));
+    // The echo mirrors the typed form, which the server also accepts ('pull goblins').
+    echo(`pull ${target.name}`);
+    void fire('pullFamily', (r) => r.pullFamily({ characterId, poolId: target.id }));
+    bump();
+  }
+
+  // Fights an individual (51.3.1.1-18, D-39): a named enemy of the character's own (pull_named_enemy)
+  // or a World event spawn (start_combat).
+  function fight(target: { kind: 'named' | 'event'; id: bigint; name: string }): void {
+    const characterId = game.characterId.value;
+    if (!ready() || characterId === null) return;
+    if (game.combat.active.value) return;
+    frame.closeScreen();
+    conversation.value = null;
+    echo(`fight ${target.name}`);
+    if (target.kind === 'named') {
+      void fire('pullNamedEnemy', (r) => r.pullNamedEnemy({ characterId, namedEnemyId: target.id }));
+    } else {
+      void fire('startCombat', (r) => r.startCombat({ characterId, enemySpawnId: target.id }));
+    }
     bump();
   }
 
@@ -473,8 +492,13 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
         hail({ id: entry.id, name: entry.name });
         break;
       case 'enemy':
-        // One click is one action: a careful pull, the same as the Nearby Pull button (owner decision).
-        pull({ id: entry.id, name: entry.name }, 'careful');
+        // One click is one action, the same call as the Nearby button (UI-SPEC P3): a family is
+        // pulled; a named or World event enemy is fought. An entry without a target is a family.
+        if (entry.target === 'named' || entry.target === 'event') {
+          fight({ kind: entry.target, id: entry.id, name: entry.name });
+        } else {
+          pull({ id: entry.id, name: entry.name });
+        }
         break;
       case 'place':
         travel({ id: entry.id, name: entry.name });
@@ -523,6 +547,7 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     look,
     gather,
     pull,
+    fight,
     whisperTo,
     invite,
     trade,

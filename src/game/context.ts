@@ -89,8 +89,14 @@ export interface GameReducers {
     targetCharacterId?: bigint;
   }): Promise<void>;
   moveCharacter(a: { characterId: bigint; locationId: bigint }): Promise<void>;
-  startGatherResource(a: { characterId: bigint; nodeId: bigint }): Promise<void>;
-  startPull(a: { characterId: bigint; enemySpawnId: bigint; pullType: string }): Promise<void>;
+  /** Pull a family from its pool here (51.3.1.1 D-12): poolId = place_pool id = pool_level id. */
+  pullFamily(a: { characterId: bigint; poolId: bigint }): Promise<void>;
+  /** Gather from a resource pool here: poolId = place_pool id = pool_level id. */
+  gatherPool(a: { characterId: bigint; poolId: bigint }): Promise<void>;
+  /** Fight one of the character's own named enemies (named_enemy id). */
+  pullNamedEnemy(a: { characterId: bigint; namedEnemyId: bigint }): Promise<void>;
+  /** Fight an individual spawn here (a World event enemy; enemy_spawn id). */
+  startCombat(a: { characterId: bigint; enemySpawnId: bigint }): Promise<void>;
   bindLocation(a: { characterId: bigint }): Promise<void>;
   setFollowLeader(a: { characterId: bigint; follow: boolean }): Promise<void>;
   cancelGroupInvite(a: { characterId: bigint; targetName: string }): Promise<void>;
@@ -313,9 +319,15 @@ export interface ConsoleApi {
   examine(name: string): void;
   /** A bare look at the place (the Here card title eye). No-op offline. */
   look(): void;
-  gather(node: { id: bigint; name: string }): void;
-  /** Starts a pull on an enemy spawn. No-op offline and while game.combat.active. */
-  pull(enemy: { id: bigint; name: string }, pullType: 'careful' | 'body'): void;
+  /** Gathers from a resource pool (gather_pool; id = pool_level id). No-op offline. */
+  gather(pool: { id: bigint; name: string }): void;
+  /** Pulls a family from its pool (pull_family; id = pool_level id). No-op offline and while game.combat.active. */
+  pull(target: { id: bigint; name: string }): void;
+  /**
+   * Fights a named enemy (pull_named_enemy; id = named_enemy id) or a World event spawn (start_combat;
+   * id = enemy_spawn id). No-op offline and while game.combat.active.
+   */
+  fight(target: { kind: 'named' | 'event'; id: bigint; name: string }): void;
   whisperTo(name: string): void;
   invite(name: string): void;
   trade(): void;
@@ -465,6 +477,7 @@ export function createInertConsole(): ConsoleApi {
     look() {},
     gather() {},
     pull() {},
+    fight() {},
     whisperTo() {},
     invite() {},
     trade() {},

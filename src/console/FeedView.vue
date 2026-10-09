@@ -3,8 +3,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 import { PhArrowDown } from '@phosphor-icons/vue';
 import { LLM_PROGRESS_ROTATE_MS } from '@game-data/llm_indicator_lines';
 import { CONSOLE_KEY, GAME_KEY, createInertConsole, createInertGame } from '../game/context';
-import { pullableSpawns } from '../rails/enemies';
-import { visibleNodes } from '../rails/nearby';
+import { gatherTargets, pullTargets } from '../rails/pullTargets';
 import FeedLine from './FeedLine.vue';
 import KeeperProgress from './KeeperProgress.vue';
 import { selectLlmIndicator } from './indicator';
@@ -29,12 +28,18 @@ const vocabulary = computed(() => {
     const name = placeNames.get(connection.toLocationId);
     if (name !== undefined) places.push({ id: connection.toLocationId, name });
   }
+  // Enemy keywords (51.3.1.1-18, UI-SPEC P3): the families here by name, the character's living named
+  // enemies here and the World event spawns here; resource keywords are the gatherable pools here.
+  const namedHere =
+    here === null ? [] : game.namedEnemies.value.filter((enemy) => enemy.locationId === here.locationId);
   return buildVocabulary({
     npcs: game.npcsHere.value,
     // No enemy keywords in a fight: pulling is disabled there.
-    enemies: game.combat.active.value ? [] : pullableSpawns(game.enemiesHere.value),
+    enemies: game.combat.active.value
+      ? []
+      : pullTargets(game.poolLevelsHere.value, namedHere, game.enemiesHere.value),
     places,
-    nodes: visibleNodes(game.nodesHere.value, game.characterId.value),
+    nodes: gatherTargets(game.poolLevelsHere.value),
     // Online players only, as Nearby, the Map count, look and who (51.1; review client-rest IN-03):
     // an offline name would offer a Whisper the server refuses.
     players: game.playersHere.value.filter((player) => player.online === true),
