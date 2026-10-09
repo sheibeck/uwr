@@ -56,7 +56,8 @@ import {
   getGroupOrSoloParticipants,
   requirePullerOrLog,
 } from './helpers/group';
-import { startCombatForSpawn } from './reducers/combat';
+import { startCombat, startCombatForSpawn } from './reducers/combat';
+import type { CombatOrigin, DrawnEnemy } from './reducers/combat';
 import { registerViews } from './views';
 import {
   ARMOR_TYPES_WITH_NONE,
@@ -893,6 +894,7 @@ const reducerDeps = {
   grantRaceAbility,
   appendCreationEvent,
   startCombatForSpawn: null as any,
+  startCombat: null as any,
   submitCombatChoice: null as any,
 };
 
@@ -903,6 +905,17 @@ reducerDeps.startCombatForSpawn = (
   participants: any[],
   groupId: bigint | null
 ) => startCombatForSpawn(reducerDeps, ctx, leader, spawnToUse, participants, groupId);
+
+// The generalised fight start (Phase 51.3.1.1 Plan 10): a drawn group of pool enemies (or any list of
+// DrawnEnemy) with its origin recorded on the fight row.
+reducerDeps.startCombat = (
+  ctx: any,
+  leader: any,
+  candidates: any[],
+  groupId: bigint | null,
+  drawn: DrawnEnemy[],
+  origin: CombatOrigin
+) => startCombat(reducerDeps, ctx, leader, candidates, groupId, drawn, origin);
 
 registerReducers(reducerDeps);
 

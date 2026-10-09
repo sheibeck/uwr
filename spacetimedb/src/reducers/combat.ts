@@ -9,6 +9,8 @@ import {
   DOT_LIFE_DRAIN_PERCENT,
 } from '../data/combat_scaling';
 import { templateAtLevel } from '../data/enemy_rules';
+import { poolSeed } from '../data/density_rules';
+import type { CombatOrigin as CombatOriginValue } from '../data/mechanical_vocabulary';
 import { ScheduleAt } from 'spacetimedb';
 import {
   startRound, currentRound, roundsForCombat, ensureRound, cancelRoundTicks, choicesForRound, clearRoundChoices,
@@ -87,6 +89,41 @@ const takeSpawnMember = (ctx: any, spawnId: bigint) => {
   return member;
 };
 
+/**
+ * One enemy that joins a fight (Phase 51.3.1.1, RESEARCH "Generalised fight start"): a member drawn
+ * from a density pool (spawnId 0n, poolId = its place_pool id) or an individual spawn (spawnId = the
+ * enemy_spawn id, poolId 0n). `level` is the level it fights at (templateAtLevel).
+ */
+export type DrawnEnemy = {
+  enemyTemplateId: bigint;
+  level: bigint;
+  spawnId: bigint;
+  poolId: bigint;
+  roleTemplateId?: bigint;
+};
+
+/** Where a fight came from (data/mechanical_vocabulary COMBAT_ORIGINS; '' = no source line). */
+export type CombatOriginKind = CombatOriginValue;
+
+/**
+ * The origin recorded on the fight row (D-32): the client draws "Encounter · {name} · {n} left" and
+ * the source line from it. A pool fight carries its family, the density level at the draw and the
+ * plural noun; a named fight only its name.
+ */
+export type CombatOrigin = {
+  kind: CombatOriginKind;
+  familyId?: bigint;
+  level?: number;
+  name: string;
+  plural?: string;
+};
+
+/**
+ * Adds one enemy to a fight: the ONLY combat_enemy insert. `spawnToUse` is an enemy_spawn row (its
+ * id is the spawn id) or a DrawnEnemy. A pool enemy (spawnId 0n) never touches enemy_spawn: no
+ * member is taken and no spawn is marked engaged. `index` is the enemy's place in its draw, so two
+ * members of one draw pick their role templates independently.
+ */
 const addEnemyToCombat = (
   deps: any,
   ctx: any,
@@ -94,9 +131,14 @@ const addEnemyToCombat = (
   spawnToUse: any,
   participants: any[],
   consumeSpawnCount: boolean = true,
-  roleTemplateId?: bigint
+  roleTemplateId?: bigint,
+  index: number = 0
 ) => {
   const { SenderError, computeEnemyStats } = deps;
+  const spawnId: bigint = spawnToUse.spawnId ?? spawnToUse.id ?? 0n;
+  const poolId: bigint = spawnToUse.poolId ?? 0n;
+  const fromSpawn = spawnId !== 0n;
+  const consume = consumeSpawnCount && fromSpawn;
   const storedTemplate = ctx.db.enemy_template.id.find(spawnToUse.enemyTemplateId);
   if (!storedTemplate) throw new SenderError('Enemy template missing');
   // The spawn level (quick 261008-ag8): a spawn scaled to its place fights with the world-gen
@@ -106,8 +148,8 @@ const addEnemyToCombat = (
   let roleTemplate = roleTemplateId
     ? ctx.db.enemy_role_template.id.find(roleTemplateId)
     : null;
-  if (!roleTemplate && consumeSpawnCount) {
-    const member = takeSpawnMember(ctx, spawnToUse.id);
+  if (!roleTemplate && consume) {
+    const member = takeSpawnMember(ctx, spawnId);
     if (member) {
       roleTemplate = ctx.db.enemy_role_template.id.find(member.roleTemplateId);
     }
@@ -116,7 +158,9 @@ const addEnemyToCombat = (
     roleTemplate = pickRoleTemplate(
       ctx,
       template.id,
-      ctx.timestamp.microsSinceUnixEpoch + spawnToUse.id
+      fromSpawn
+        ? ctx.timestamp.microsSinceUnixEpoch + spawnId
+        : poolSeed(ctx.timestamp.microsSinceUnixEpoch, combat.id, BigInt(index))
     );
   }
 
@@ -129,7 +173,7 @@ const addEnemyToCombat = (
   const combatEnemy = ctx.db.combat_enemy.insert({
     id: 0n,
     combatId: combat.id,
-    spawnId: spawnToUse.id,
+    spawnId,
     enemyTemplateId: template.id,
     enemyRoleTemplateId: roleTemplate?.id,
     displayName,
@@ -140,7 +184,7 @@ const addEnemyToCombat = (
     aggroTargetCharacterId: undefined,
     nextAutoAttackAt: 0n, // legacy column: the round engine acts once per round, no per-enemy timer
     level: template.level,
-    poolId: 0n,
+    poolId,
     healTargetEnemyId: 0n,
   });
 
@@ -160,8 +204,8 @@ const addEnemyToCombat = (
     }
   }
 
-  if (consumeSpawnCount) {
-    const refreshed = ctx.db.enemy_spawn.id.find(spawnToUse.id);
+  if (consume) {
+    const refreshed = ctx.db.enemy_spawn.id.find(spawnId);
     if (refreshed) {
       ctx.db.enemy_spawn.id.update({
         ...refreshed,
@@ -174,6 +218,25 @@ const addEnemyToCombat = (
   return combatEnemy;
 };
 
+/**
+ * True when the spawn is an individual: its template is a boss, or a named_enemy row (at the spawn's
+ * place, or owned by the leader) uses its template. Index lookups only.
+ */
+const isNamedOrBossSpawn = (ctx: any, leader: any, spawn: any): boolean => {
+  const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+  if (template?.isBoss === true) return true;
+  const matches = (named: any) => named.enemyTemplateId === spawn.enemyTemplateId;
+  if (spawn.locationId !== undefined && [...ctx.db.named_enemy.by_location.filter(spawn.locationId)].some(matches)) {
+    return true;
+  }
+  return [...ctx.db.named_enemy.by_character.filter(leader.id)].some(matches);
+};
+
+/**
+ * The fight start for one individual spawn (named enemies, quest bosses, World event spawns and the
+ * paths not yet moved to pools): a wrapper over startCombat with one enemy. A named or boss spawn is
+ * origin 'named' (the source line names it); any other spawn has no origin ('').
+ */
 export const startCombatForSpawn = (
   deps: any,
   ctx: any,
@@ -181,6 +244,33 @@ export const startCombatForSpawn = (
   spawnToUse: any,
   candidates: any[],
   groupId: bigint | null
+) => {
+  const drawn: DrawnEnemy = {
+    enemyTemplateId: spawnToUse.enemyTemplateId,
+    level: spawnToUse.level,
+    spawnId: spawnToUse.id,
+    poolId: 0n,
+  };
+  const origin: CombatOrigin = {
+    kind: isNamedOrBossSpawn(ctx, leader, spawnToUse) ? 'named' : '',
+    name: spawnToUse.name,
+  };
+  return startCombat(deps, ctx, leader, candidates, groupId, [drawn], origin);
+};
+
+/**
+ * Starts every fight (Phase 51.3.1.1 D-01, D-14, D-32): the roster, the encounter row with its
+ * origin, one combat_enemy per drawn enemy (through addEnemyToCombat, the one insert), the
+ * participants and their round cooldowns, the opening lines, pets, and round 1. Returns the fight.
+ */
+export const startCombat = (
+  deps: any,
+  ctx: any,
+  leader: any,
+  candidates: any[],
+  groupId: bigint | null,
+  drawn: DrawnEnemy[],
+  origin: CombatOrigin
 ) => {
   const { appendPrivateEvent } = deps;
   // The one fight rule (helpers/group.ts fightRoster): the initiator, plus members who are online
@@ -201,14 +291,19 @@ export const startCombatForSpawn = (
     pendingAddCount: 0n,
     pendingAddAtMicros: undefined,
     createdAt: ctx.timestamp,
-    origin: '',
-    originFamilyId: 0n,
-    originLevel: 0n,
-    originName: '',
-    originPlural: '',
+    origin: origin.kind,
+    originFamilyId: origin.familyId ?? 0n,
+    originLevel: BigInt(Math.max(0, Math.floor(origin.level ?? 0))),
+    originName: origin.name,
+    originPlural: origin.plural ?? '',
   });
 
-  addEnemyToCombat(deps, ctx, combat, spawnToUse, participants);
+  // The first enemy added is the primary one (the summoner pet's opening target).
+  let primaryEnemy: any = null;
+  drawn.forEach((enemy, index) => {
+    const row = addEnemyToCombat(deps, ctx, combat, enemy, participants, true, enemy.roleTemplateId, index);
+    if (!primaryEnemy) primaryEnemy = row;
+  });
 
   for (const p of participants) {
     ctx.db.combat_participant.insert({
@@ -228,14 +323,14 @@ export const startCombatForSpawn = (
       p.id,
       p.ownerUserId,
       'combat',
-      `Combat begins against ${spawnToUse.name}.`
+      `Combat begins against ${origin.name}.`
     );
   }
 
   // Bring any pre-summoned pets into combat by setting their combatId
   for (const p of participants) {
     for (const ap of [...ctx.db.active_pet.by_character.filter(p.id)]) {
-      const pet = ctx.db.active_pet.id.update({
+      ctx.db.active_pet.id.update({
         ...ap,
         combatId: combat.id,
         nextAbilityAt: ap.abilityKey ? ctx.timestamp.microsSinceUnixEpoch : undefined,
@@ -244,9 +339,7 @@ export const startCombatForSpawn = (
       });
       if (p.className?.toLowerCase() === 'summoner') {
         // Single-target taunt: only generate initial aggro against the primary target
-        // (the spawn combat was initiated against), not every enemy in the encounter.
-        const primaryEnemy = [...ctx.db.combat_enemy.by_combat.filter(combat.id)]
-          .find(en => en.spawnId === spawnToUse.id && en.currentHp > 0n);
+        // (the first enemy of the fight), not every enemy in the encounter.
         if (primaryEnemy) {
           ctx.db.aggro_entry.insert({
             id: 0n,
