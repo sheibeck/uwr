@@ -39,15 +39,15 @@ import type { FamilyRelation } from '../data/mechanical_vocabulary';
 import { markLocationVisited } from './visited';
 import type { WorldGenInput, WorldFillInput, WorldFamiliesInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
-import { keeperFallback, flattenSegments } from './segments';
-import { enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
+import { keeperFallback, keeperSegments, flattenSegments, parseReplyObject } from './segments';
+import { buildDedupeKey, enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
 import { isRestingErrorCode } from './llm_status';
 import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './llm_inputs';
 import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
-import { REGION_HOLD_FAILED_LINE, regionOpenedLine } from './region_hold';
+import { REGION_HOLD_FAILED_LINE, regionHoldState, regionOpenedLine } from './region_hold';
 import { startRegionEconomy } from './region_economy';
 import {
   assignRegionFamilies,
@@ -471,9 +471,16 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
 // Staged world generation (Phase 43, LAT-03)
 // ---------------------------------------------------------------------------
 
-/** Posted to the triggering player when stage 1 lands. The Keeper is he. */
+/**
+ * Phase 51.3.1.2 (D-17): posted to a new character's creation console when stage 1 of the first region
+ * lands (the character waits there until the families are in), and to the creation console of a new
+ * character who waits on a starter region that is still being built (HELD). The owner's 7e line
+ * (Recommended) of .planning/phases/51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md (Status: APPROVED
+ * 2026-10-09), copied with `node scripts/llm/prompt_draft.mjs chosen <draft>`. No milestone line for
+ * travellers (7a at the crossing already set the expectation). The Keeper is he.
+ */
 export const WORLD_START_MILESTONE_LINE =
-  'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.';
+  'The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.';
 /** Stored (public) and posted when the stage-2 reply is unusable. */
 export const WORLD_FILL_FAILED_MESSAGE =
   'The Keeper loses the thread of the rest of the map. What he has already shown you will hold.';
@@ -490,11 +497,6 @@ export const WORLD_FILL_REFUSED_MESSAGE =
 export const WORLD_FAMILIES_FAILED_MESSAGE = 'The land is remembered, but not yet what lives in it.';
 /** Posted by the explore intent (Plan 43-11) when a fill retry starts. */
 export const WORLD_FILL_RETRY_LINE = 'The Keeper squints at the half-remembered land and tries again...';
-
-/** Posted to the triggering player when stage 2 lands. */
-export function worldFillCompleteLine(regionName: string): string {
-  return `The rest of ${regionName} settles into place. Try [travel] to see where the roads lead.`;
-}
 
 const lower = (v: unknown): string => String(v ?? '').trim().toLowerCase();
 
@@ -938,7 +940,10 @@ function errorName(err: unknown): string {
  *  - The owner's 7c line (regionOpenedLine with the stored region name) goes to the triggering character,
  *    wherever he is, and to everyone at the crossing, once each; the triggering character then gets the
  *    discovery line (pickDiscoveryMessage; the owner's choice moves it here from stage 1).
- *  - A starter state (sourceLocationId 0n) posts neither line here: Plan 13 places the new character.
+ *  - A starter state (sourceLocationId 0n) posts neither line: its new character, still waiting in
+ *    creation at location 0, is placed at the arrival point now (placeWaitingCharacter, D-17) with the
+ *    arrival message and then the discovery line. A starter character already placed (stage 1 placed it
+ *    before the 51.3.1.2 publish) is left where he is, with no second arrival message.
  *  - The region economy starts after COMPLETE, never as part of the hold (D-16): startRegionEconomy
  *    (gated on the AI economy switch inside) in a try/catch that logs the error name only, so an economy
  *    bug never hides a completed region (T-51.3.1.2-28).
@@ -971,12 +976,81 @@ export function finishRegionFill(tx: any, genState: any): void {
     }
   }
 
+  if (region && (current.sourceLocationId ?? 0n) === 0n) {
+    placeWaitingCharacter(tx, current, region);
+  }
+
   try {
     const filledRegion = region ? (tx.db.region.id.find(region.id) ?? region) : region;
     startRegionEconomy(tx, filledRegion, { playerId: current.playerId, characterId: current.characterId });
   } catch (err) {
     console.error('Region economy start failed for region ' + String(regionId) + ': ' + errorName(err));
   }
+}
+
+/**
+ * The stage-1 region description of a state, read back from its stored world_gen_start reply (Phase
+ * 51.3.1.2, D-17): the description is on no row, and the arrival message that shows it moved from stage 1
+ * to completion. The job is found by its dedupe key (the state's playerId, the route and
+ * SOURCE_KEYS.worldGen(state.id)); the newest completed one is read with the tolerant reply parser. null
+ * when there is no such job (a retry handed to another identity, a pruned row), the reply cannot be read
+ * or it has no description. Never throws: a lookup problem must not stop a placement.
+ */
+function storedRegionDescription(tx: any, state: any): string | null {
+  try {
+    const key = buildDedupeKey(state.playerId, 'world_gen_start', SOURCE_KEYS.worldGen(state.id));
+    const done = [...tx.db.llm_job.by_dedupe_key.filter(key)]
+      .filter((j: any) => j.status === 'completed')
+      .sort(newestFirst)[0];
+    const reply = done ? parseReplyObject(done.resultText) : undefined;
+    const description = reply?.regionDescription;
+    return typeof description === 'string' && description.trim() !== '' ? description : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The people at a place, for the arrival notice (npcNoticeLine). */
+function peopleAt(tx: any, locationId: bigint): { name: string; gender: NpcGender }[] {
+  const out: { name: string; gender: NpcGender }[] = [];
+  for (const npc of tx.db.npc.by_location.filter(locationId)) {
+    out.push({ name: npc.name, gender: npcGender(npc) });
+  }
+  return out;
+}
+
+/**
+ * Place the new character of a starter state who waited in creation (Phase 51.3.1.2, D-17), when the
+ * region is whole (finishRegionFill). Only a character still at location 0 is placed, so a character the
+ * old stage-1 code already placed is never placed twice (T-51.3.1.2-44). He stands at the arrival point
+ * (findRegionStart) with his bind point there, a visited row with no origin (the first place he has stood
+ * in) and the place's pools, as the stage-1 code did. Then the arrival message, moved from stage 1 with its
+ * last sentence replaced by the approved ending (owner choices: "No new wording for placement"), and the
+ * discovery line. Returns true when the character was placed.
+ */
+export function placeWaitingCharacter(tx: any, state: any, region: any): boolean {
+  const character = tx.db.character.id.find(state.characterId);
+  if (!character || character.locationId !== 0n) return false;
+  const arrival = findRegionStart(tx, region.id);
+  if (!arrival) return false;
+
+  tx.db.character.id.update({ ...character, locationId: arrival.id, boundLocationId: arrival.id });
+  // Visited places: the first spawn is the first place the character has stood in (no origin).
+  markLocationVisited(tx, character.id, arrival.id);
+  ensurePoolsForLocation(tx, arrival.id);
+
+  const regionDesc = storedRegionDescription(tx, state) ?? `A ${region.biome || 'mysterious'} region.`;
+  let arrivalMsg = `You open your eyes in ${arrival.name}, ${region.name}.\n\n${regionDesc}`;
+  const people = peopleAt(tx, arrival.id);
+  if (people.length > 0) {
+    arrivalMsg += '\n\n' + npcNoticeLine(people);
+  }
+  arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
+  const segments = keeperSegments(arrivalMsg);
+  appendPrivateEvent(tx, character.id, character.ownerUserId, 'narrative', flattenSegments(segments), segments);
+  appendPrivateEvent(tx, character.id, character.ownerUserId, 'system',
+    pickDiscoveryMessage(region.name, tx.timestamp.microsSinceUnixEpoch));
+  return true;
 }
 
 /** Newest first: by createdAt, then by id within one transaction (auto-inc ids alone are not an order). */

@@ -42,7 +42,6 @@ import {
 } from './events';
 import {
   pickWorldEventMessage,
-  pickDiscoveryMessage,
   writeRegionStart,
   writeRegionFill,
   writeRegionPlaces,
@@ -59,11 +58,10 @@ import {
 } from './world_gen';
 import { placeCountFor } from '../data/region_shape';
 import { DENSITY_RULES } from '../data/density_rules';
-import { discardInventedQuestTarget, ensurePoolsForLocation, familyOfOne, resolveKillQuestTarget } from './families';
+import { discardInventedQuestTarget, familyOfOne, resolveKillQuestTarget } from './families';
 import { cleanQuestTargetName, freeCreatureName } from './family_validate';
 import { nameKey } from '../data/economy_design_rules';
 import { nounsFromTemplateName } from '../data/family_rules';
-import { markLocationVisited } from './visited';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { validateRenownActivePerk } from './renown_perk_validate';
 // Re-exported: the validator lives in a pure module so offline harnesses can run it without the server runtime.
@@ -90,8 +88,6 @@ import {
   classFillRetryLine,
 } from './creation_generation';
 import { QUEST_TYPES } from '../data/mechanical_vocabulary';
-import { npcGender, npcNoticeLine } from '../data/npc_gender';
-import type { NpcGender } from '../data/npc_gender';
 import { segmentsFromReply, keeperSegments, keeperFallback, flattenSegments } from './segments';
 import { applyRegionEconomyResult, failRegionEconomy, startFamilyLoot } from './region_economy';
 import type { Segment, PresentSpeaker } from './segments';
@@ -512,11 +508,12 @@ export function applyClassFillResult(ctx: any, job: ApplyJob, resultText: string
  * world_gen_start success (stage 1 of world generation, Phase 43).
  *
  * Writes the region, its safe start location and the first NPC, connects the start location to the
- * source edge, places a still-unplaced character there and tells the player, then enqueues the
- * world_gen fill (stage 2) in the same transaction. A traveller (a non-starter state) gets neither the
- * discovery line nor the milestone line here (Phase 51.3.1.2 owner choices: no milestone line for
- * travellers; the discovery line comes with the region-opened line at COMPLETE); the World event line
- * is unchanged. The state is FILLING with one pending fill job,
+ * source edge, then enqueues the world_gen fill (stage 2) in the same transaction. Nobody is placed and
+ * no private line is posted here (Phase 51.3.1.2, D-15, D-17, owner choices): a new character (a starter
+ * state whose character is at location 0) waits in creation and gets the owner's 7e line on his creation
+ * console; finishRegionFill places him with the arrival message and the discovery line when the families
+ * land. A traveller gets no milestone line (7a set the expectation) and his discovery line comes with the
+ * region-opened line at COMPLETE. The World event line is unchanged. The state is FILLING with one pending fill job,
  * or FILL_ERROR when that enqueue is refused (the stage-1 rows stay). Only a GENERATING state is
  * touched: a late or stale stage-1 result does nothing.
  */
@@ -547,7 +544,7 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
   const starterRace = currentGenState.sourceRegionId === 0n && genCharacter?.race
     ? genCharacter.race.toLowerCase()
     : undefined;
-  const { region, startLocation } = writeRegionStart(ctx, data, currentGenState, starterRace);
+  const { region } = writeRegionStart(ctx, data, currentGenState, starterRace);
 
   // Record the region now, so the fill input can be read back from the stored rows
   ctx.db.world_gen_state.id.update({
@@ -567,32 +564,6 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
     });
   }
 
-  // Place character on the start location if they have no location (first region)
-  const character = ctx.db.character.id.find(currentGenState.characterId);
-  if (character && character.locationId === 0n) {
-    ctx.db.character.id.update({
-      ...ctx.db.character.id.find(character.id),
-      locationId: startLocation.id,
-      boundLocationId: startLocation.id,
-    });
-    // Visited places: the first spawn is the first place the character has stood in (no origin).
-    markLocationVisited(ctx, character.id, startLocation.id);
-    ensurePoolsForLocation(ctx, startLocation.id);
-
-    const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
-    const locationNpcs: { name: string; gender: NpcGender }[] = [];
-    for (const npc of ctx.db.npc.by_location.filter(startLocation.id)) {
-      locationNpcs.push({ name: npc.name, gender: npcGender(npc) });
-    }
-
-    let arrivalMsg = `You open your eyes in ${startLocation.name}, ${region.name}.\n\n${regionDesc}`;
-    if (locationNpcs.length > 0) {
-      arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
-    }
-    arrivalMsg += `\n\nTry [look] to examine your surroundings. The roads out are still being remembered.`;
-    writePrivateSegments(ctx, currentGenState.characterId, character.ownerUserId, 'narrative', keeperSegments(arrivalMsg));
-  }
-
   // Read source region name for the World event message
   const sourceRegion = ctx.db.region.id.find(currentGenState.sourceRegionId);
   const sourceRegionName = sourceRegion?.name || 'the known world';
@@ -600,12 +571,10 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
   appendWorldEvent(ctx, 'world',
     pickWorldEventMessage(sourceRegionName, data.biome || 'plains', ctx.timestamp.microsSinceUnixEpoch));
 
-  // A starter state keeps its stage-1 lines (Plan 13 changes that branch).
-  if (character && currentGenState.sourceRegionId === 0n) {
-    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
-      pickDiscoveryMessage(region.name, ctx.timestamp.microsSinceUnixEpoch));
-    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
-      WORLD_START_MILESTONE_LINE);
+  // A new character waits in creation until the region is whole (D-17): no placement here, no private line;
+  // his creation console gets the owner's 7e line once. finishRegionFill places him when the families land.
+  if (currentGenState.sourceRegionId === 0n && genCharacter && genCharacter.locationId === 0n) {
+    writeCreationSegments(ctx, currentGenState.playerId, 'creation', keeperFallback(WORLD_START_MILESTONE_LINE));
   }
 
   // Stage 2, in this same transaction: FILLING with one pending job, or FILL_ERROR when refused

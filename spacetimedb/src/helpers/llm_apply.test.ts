@@ -37,8 +37,7 @@ import {
 import { CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE, CLASS_FILL_RETRY_HINT } from './creation_generation';
 import { serializePerkEffect } from './renown';
 import { LLM_RESTING_LINE } from './llm_queue';
-import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE, WORLD_FAMILIES_FAILED_MESSAGE } from './world_gen';
-import { REGION_HOLD_FAILED_LINE } from './region_hold';
+import { finishRegionFill, WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE, WORLD_FAMILIES_FAILED_MESSAGE, WORLD_START_MILESTONE_LINE } from './world_gen';
 import { setLlmEnabled } from './llm_admin_state';
 import { utcDay } from './llm_budget';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
@@ -921,8 +920,8 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(locations[0]).toMatchObject({ isSafe: true, bindStone: true, craftingAvailable: true, regionId: region.id });
     expect(rows(ctx, 'npc').map((n: any) => [n.name, n.gender, n.locationId])).toEqual([['Vessa', 'female', locations[0].id]]);
     expect(rows(ctx, 'enemy_template')).toHaveLength(0);
-    // The player stands on the start location and meets the first NPC while the fill is still pending
-    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: locations[0].id, boundLocationId: locations[0].id });
+    // Phase 51.3.1.2 (D-17): the new character waits in creation (location 0) until the families land
+    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 0n, boundLocationId: 0n });
     expect(state(ctx)).toMatchObject({ step: 'FILLING', generatedRegionId: region.id });
     const jobs = rows(ctx, 'llm_job');
     expect(jobs).toHaveLength(1);
@@ -934,16 +933,11 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(input.startLocation.name).toBe('Ember Hollow');
     expect(input.npcsPresent).toEqual([{ name: 'Vessa', npcType: 'vendor', gender: 'female' }]);
 
-    const lines = rows(ctx, 'event_private');
-    expect(lines.map((e: any) => e.kind)).toEqual(['narrative', 'system', 'system']);
-    expect(lines[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
-    expect(lines[0].message).toContain('Ash drifts down like a slow, grey snowfall.');
-    expect(lines[0].message).toContain('You notice Vessa nearby. Perhaps she has something to say.');
-    expect(lines[0].message).toContain('Try [look] to examine your surroundings. The roads out are still being remembered.');
-    expect(lines[0].message).not.toContain('Paths lead to');
-    expect(lines[2].message).toBe(
-      'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
-    );
+    // No private line at stage 1; the creation console gets the owner's 7e line once.
+    expect(rows(ctx, 'event_private')).toEqual([]);
+    expect(rows(ctx, 'event_creation').map((e: any) => [e.kind, e.message])).toEqual([
+      ['creation', 'The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.'],
+    ]);
     expect(rows(ctx, 'event_world')).toHaveLength(1);
 
     // Stage 2a (Phase 51.3.1.2): the places only; a reply without a families array starts stage 2b.
@@ -959,18 +953,26 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'Old Brann', 'The Ledger Keeper']);
     expect(rows(ctx, 'region')[0]).toMatchObject({ dominantFaction: 'Ash Court', name: 'Cinderfall' });
     expect(rows(ctx, 'llm_job').map((j: any) => j.route)).toEqual(['world_gen', 'world_gen_families']);
-    expect(rows(ctx, 'event_private')).toHaveLength(3); // nothing new while the families are pending
+    expect(rows(ctx, 'event_private')).toEqual([]); // nothing while the families are pending
+    expect(rows(ctx, 'character')[0].locationId).toBe(0n);
 
-    // Stage 2b: the families complete the region. A starter state posts no line here (Plan 13 places him).
+    // Stage 2b: the families complete the region and the waiting character is placed (Plan 13, D-17).
     const familiesJob = { domain: 'world_gen_families', playerId: alice, contextJson: CTX } as any;
     applyLlmResult(ctx, familiesJob, JSON.stringify({ families: [FAMILY] }));
     expect(state(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: region.id });
     expect(rows(ctx, 'creature_family').map((f: any) => f.name)).toContain('Ember Wolves');
     expect(rows(ctx, 'enemy_template').length).toBeGreaterThan(0);
     expect(rows(ctx, 'llm_job')).toHaveLength(2); // stage 2b enqueued nothing (the economy switch is off)
-    const all = rows(ctx, 'event_private');
-    expect(all.map((e: any) => e.message).join('\n')).not.toContain('settles into place');
-    expect(all).toHaveLength(3);
+    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: locations[0].id, boundLocationId: locations[0].id });
+    const lines = rows(ctx, 'event_private');
+    expect(lines.map((e: any) => e.kind)).toEqual(['narrative', 'system']);
+    expect(lines[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
+    // No stage-1 job row is seeded here, so the description is the fallback.
+    expect(lines[0].message).toContain('A volcanic region.');
+    expect(lines[0].message).toContain('You notice Vessa and The Ledger Keeper nearby. Perhaps someone here has something to say.');
+    expect(lines[0].message.endsWith('Try [look] to examine your surroundings, or [travel] to move.')).toBe(true);
+    expect(lines[0].message).not.toContain('still being remembered');
+    expect(lines.map((e: any) => e.message).join('\n')).not.toContain('settles into place');
   });
 
   it('review WR-B01: stage 1 still reaches FILLING when the player already holds the stage-1 job and two others', () => {
@@ -1070,12 +1072,14 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(rows(ctx, 'region').map((r: any) => r.name)).toEqual(['Cinderfall']);
     const start = rows(ctx, 'location').find((l: any) => l.name === 'Ember Hollow');
     expect(start).toBeDefined();
-    expect(rows(ctx, 'character')[0].locationId).toBe(start.id);
-    // The start location is playable with its services
+    // Phase 51.3.1.2 (D-17, D-18): the new character keeps waiting in creation; the console names [explore].
+    expect(rows(ctx, 'character')[0].locationId).toBe(0n);
+    // The start location has its services
     const here = rows(ctx, 'npc').filter((n: any) => n.locationId === start.id).map((n: any) => n.npcType).sort();
     expect(here).toEqual(['banker', 'vendor']);
-    const last = rows(ctx, 'event_private').slice(-1)[0];
-    expect(last.message).toBe(`${LLM_RESTING_LINE} Type [explore] to try again.`);
+    expect(rows(ctx, 'event_private')).toEqual([]);
+    const last = rows(ctx, 'event_creation').slice(-1)[0];
+    expect(last).toMatchObject({ kind: 'creation_error', message: `${LLM_RESTING_LINE} Type [explore] to try again.` });
   });
 
   it('stage 1 with the enqueue refused (player day exhausted) stores the refused message and posts one line naming [explore]', () => {
@@ -1092,9 +1096,10 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(state(ctx)).toMatchObject({ step: 'FILL_ERROR', errorMessage: WORLD_FILL_REFUSED_MESSAGE });
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow']);
-    const last = rows(ctx, 'event_private').slice(-1)[0];
-    // Phase 51.3.1.2 (D-18): a placed character gets the owner's 7d line; the stored message is unchanged.
-    expect(last.message).toBe(REGION_HOLD_FAILED_LINE);
+    // Phase 51.3.1.2 (D-17, D-18): the new character waits in creation; his console gets the line with [explore].
+    expect(rows(ctx, 'event_private')).toEqual([]);
+    const last = rows(ctx, 'event_creation').slice(-1)[0];
+    expect(last).toMatchObject({ kind: 'creation_error', message: `${WORLD_FILL_REFUSED_MESSAGE} Type [explore] to try again.` });
   });
 
   function filling() {
@@ -1123,9 +1128,10 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     // The stage-1 NPC stays; the vendor is there already, the banker is added so the region is playable
     expect(rows(ctx, 'npc').map((n: any) => n.name).sort()).toEqual(['The Ledger Keeper', 'Vessa']);
     expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore); // never retried on its own
-    const last = rows(ctx, 'event_private').slice(-1)[0];
-    // Phase 51.3.1.2 (D-18): a placed character gets the owner's 7d line; the stored message is unchanged.
-    expect(last).toMatchObject({ kind: 'system', message: REGION_HOLD_FAILED_LINE });
+    // Phase 51.3.1.2 (D-17, D-18): the new character waits in creation; his console gets the line with [explore].
+    expect(rows(ctx, 'event_private')).toEqual([]);
+    const last = rows(ctx, 'event_creation').slice(-1)[0];
+    expect(last).toMatchObject({ kind: 'creation_error', message: `${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.` });
   });
 
   it('stage 2: a failed fill job (call failure, sweeper expiry) ends in FILL_ERROR and starts no new job', () => {
@@ -1145,7 +1151,7 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     const ctx = filling();
     applyLlmResult(ctx, fillJob, 'not json');
     expect(state(ctx).errorMessage).not.toMatch(/\d/);
-    for (const e of rows(ctx, 'event_private')) {
+    for (const e of [...rows(ctx, 'event_private'), ...rows(ctx, 'event_creation')]) {
       expect(e.message).not.toMatch(/\bKeeper\b[^.]*\b(its|itself|they|them|their|themselves)\b/);
     }
   });
@@ -1800,15 +1806,27 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
     const unplaced = () => ({ ...characterRow(), locationId: 0n, boundLocationId: 0n });
     const newCtx = () => moduleCtx({ player: [{ id: alice, userId: 7n }], character: [unplaced()], world_gen_state: [gen()] });
 
-    it('the arrival row carries Keeper narration segments; discovery and milestone lines carry none', () => {
+    it('stage 1: the 7e creation row is one Keeper segment; no private row (Phase 51.3.1.2, D-17)', () => {
       const ctx = newCtx();
       applyLlmResult(ctx, startJob, JSON.stringify(START));
+      expect(rows(ctx, 'event_private')).toEqual([]);
+      const [row] = rows(ctx, 'event_creation');
+      expect(row).toMatchObject({ kind: 'creation', message: WORLD_START_MILESTONE_LINE });
+      expectOneFallback(row);
+    });
+
+    it('at completion the arrival row carries Keeper narration segments; the discovery line carries none', () => {
+      const ctx = newCtx();
+      applyLlmResult(ctx, startJob, JSON.stringify(START));
+      const genState = rows(ctx, 'world_gen_state')[0];
+      ctx.db.world_gen_state.id.update({ ...genState, step: 'FILLING_FAMILIES' });
+      finishRegionFill(ctx, rows(ctx, 'world_gen_state')[0]);
       const privates = rows(ctx, 'event_private');
       const arrival = privates.find((r: any) => r.kind === 'narrative');
       expectKeeperOnly(arrival);
       expect(arrival.message.startsWith('You open your eyes in Ember Hollow, Cinderfall.')).toBe(true);
       const systems = privates.filter((r: any) => r.kind === 'system');
-      expect(systems.length).toBeGreaterThanOrEqual(2);
+      expect(systems).toHaveLength(1);
       for (const r of systems) expect(r.segments).toBeUndefined();
     });
 

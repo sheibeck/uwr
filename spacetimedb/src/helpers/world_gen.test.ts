@@ -40,7 +40,6 @@ import {
   WORLD_FILL_FAILED_MESSAGE,
   WORLD_FILL_REFUSED_MESSAGE,
   WORLD_FILL_RETRY_LINE,
-  worldFillCompleteLine,
   computeRegionDanger,
   startWorldGeneration,
   buildRegionContext,
@@ -1507,12 +1506,12 @@ describe('staged world copy (Phase 43)', () => {
     WORLD_FILL_FAILED_MESSAGE,
     WORLD_FILL_REFUSED_MESSAGE,
     WORLD_FILL_RETRY_LINE,
-    worldFillCompleteLine('Cinderfall'),
   ];
 
   it('pins the final wording', () => {
+    // Phase 51.3.1.2 (D-17): the owner's 7e line (Recommended), posted to a new character's creation console.
     expect(WORLD_START_MILESTONE_LINE).toBe(
-      'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
+      'The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.',
     );
     expect(WORLD_FILL_FAILED_MESSAGE).toBe(
       'The Keeper loses the thread of the rest of the map. What he has already shown you will hold.',
@@ -1521,15 +1520,19 @@ describe('staged world copy (Phase 43)', () => {
       'The Keeper cannot finish remembering this region right now. What he has shown you will hold.',
     );
     expect(WORLD_FILL_RETRY_LINE).toBe('The Keeper squints at the half-remembered land and tries again...');
-    expect(worldFillCompleteLine('Cinderfall')).toBe(
-      'The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.',
-    );
   });
 
   it('the Keeper is he; no line calls him or anyone it or they', () => {
     for (const line of LINES) {
-      expect(line).not.toMatch(/\b(it|its|itself|they|them|their|themselves)\b/i);
+      expect(line).not.toMatch(/\b(it|itself|they|them|their|themselves)\b/i);
     }
+    // "its" only where it names a place: the approved 7e line says "its roads and its creatures" of the
+    // region. No other line uses it.
+    for (const line of LINES.filter((l) => l !== WORLD_START_MILESTONE_LINE)) {
+      expect(line).not.toMatch(/\bits\b/i);
+    }
+    expect(WORLD_START_MILESTONE_LINE.match(/\bits\b/gi)).toEqual(['its', 'its']);
+    expect(WORLD_START_MILESTONE_LINE).toContain('A region is taking shape');
     for (const line of [WORLD_START_MILESTONE_LINE, WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE, WORLD_FILL_RETRY_LINE]) {
       expect(line).toContain('The Keeper');
     }

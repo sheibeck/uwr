@@ -650,7 +650,7 @@ describe('stage 1 for a traveller (D-15, owner choices)', () => {
     expect(rows(ctx, 'event_world')[0].message).toContain('Old Reach');
   });
 
-  it('a starter state keeps its stage-1 lines (Plan 13 changes it): the arrival narrative, the discovery line and the milestone line', () => {
+  it('a starter state (Plan 13, D-17): no private line at stage 1; the creation console gets the 7e line once', () => {
     const ctx = createMockCtx({
       seed: {
         player: [{ id: alice, userId: 7n, activeCharacterId: 10n }],
@@ -662,9 +662,8 @@ describe('stage 1 for a traveller (D-15, owner choices)', () => {
       strict: true,
     });
     applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
-    const lines = rows(ctx, 'event_private');
-    expect(lines.map((e: any) => e.kind)).toEqual(['narrative', 'system', 'system']);
-    expect(lines[1].message).toBe(pickDiscoveryMessage(REGION_NAME, T0));
-    expect(lines[2].message).toBe(WORLD_START_MILESTONE_LINE);
+    expect(rows(ctx, 'event_private')).toEqual([]);
+    expect(rows(ctx, 'event_creation').map((e: any) => [e.kind, e.message])).toEqual([['creation', WORLD_START_MILESTONE_LINE]]);
+    expect(rows(ctx, 'character')[0].locationId).toBe(0n);
   });
 });

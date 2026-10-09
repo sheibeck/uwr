@@ -12805,6 +12805,1302 @@ exports[`llm apply world_gen_families failure path > sets the state to FAMILIES_
 }"
 `;
 
+exports[`llm apply world_gen_families success (stage 2b, the families) > Phase 51.3.1.2 (D-17): starter region with the new character waiting in creation: completes and places him with the arrival message, then the discovery line 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "1n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "1n",
+      "locationId": "1n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "creature_family": [
+    {
+      "ambushRest": "out of the ash",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "The ash fell and the wolves came after it.",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "ai:1:ember wolves",
+      "name": "Ember Wolves",
+      "pluralNoun": "ember wolves",
+      "regionId": "1n",
+      "singularNoun": "ember wolf",
+      "temperament": "aggressive"
+    },
+    {
+      "ambushRest": "from the slag",
+      "ambushVerb": "rise",
+      "creatureType": "humanoid",
+      "fitTerrains": "mountains",
+      "history": "Old smiths who stayed too long by the fire.",
+      "iconKey": "humanoid",
+      "id": "2n",
+      "key": "ai:1:slag casters",
+      "name": "Slag Casters",
+      "pluralNoun": "slag casters",
+      "regionId": "1n",
+      "singularNoun": "slag caster",
+      "temperament": "wary"
+    },
+    {
+      "ambushRest": "down from the dark",
+      "ambushVerb": "swoop",
+      "creatureType": "beast",
+      "fitTerrains": "dungeon,mountains",
+      "history": "The Cave Shriekers have roamed Cinderfall for longer than any traveler remembers.",
+      "iconKey": "avian",
+      "id": "3n",
+      "key": "rule:1:cave shriekers",
+      "name": "Cave Shriekers",
+      "pluralNoun": "shriekers",
+      "regionId": "1n",
+      "singularNoun": "shrieker",
+      "temperament": "skittish"
+    },
+    {
+      "ambushRest": "out of the rubble",
+      "ambushVerb": "shamble",
+      "creatureType": "construct",
+      "fitTerrains": "dungeon,mountains",
+      "history": "The Rubble Golems have roamed Cinderfall for longer than any traveler remembers.",
+      "iconKey": "elemental",
+      "id": "4n",
+      "key": "rule:1:rubble golems",
+      "name": "Rubble Golems",
+      "pluralNoun": "golems",
+      "regionId": "1n",
+      "singularNoun": "golem",
+      "temperament": "wary"
+    }
+  ],
+  "economy_dials": [],
+  "economy_item": [],
+  "economy_item_dial": [],
+  "enemy_ability": [
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "1n",
+      "id": "2n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "2n",
+      "id": "3n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "2n",
+      "id": "4n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "3n",
+      "id": "5n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "3n",
+      "id": "6n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "7n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "4n",
+      "id": "8n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "9n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "10n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "6n",
+      "id": "11n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "6n",
+      "id": "12n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "7n",
+      "id": "13n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "7n",
+      "id": "14n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "8n",
+      "id": "15n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "8n",
+      "id": "16n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "9n",
+      "id": "17n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "9n",
+      "id": "18n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "10n",
+      "id": "19n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "10n",
+      "id": "20n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "11n",
+      "id": "21n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "11n",
+      "id": "22n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "12n",
+      "id": "23n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "12n",
+      "id": "24n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    }
+  ],
+  "enemy_role_template": [
+    {
+      "abilityProfile": "damage",
+      "displayName": "Ember Wolf",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Ember Packleader",
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Caster Raider",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Slag Caster",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Shrieker Warder",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Shrieker Raider",
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Shrieker Mender",
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Shrieker Hexer",
+      "enemyTemplateId": "8n",
+      "id": "8n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Golem Warder",
+      "enemyTemplateId": "9n",
+      "id": "9n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Golem Raider",
+      "enemyTemplateId": "10n",
+      "id": "10n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Golem Mender",
+      "enemyTemplateId": "11n",
+      "id": "11n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Golem Hexer",
+      "enemyTemplateId": "12n",
+      "id": "12n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    }
+  ],
+  "enemy_template": [
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "1n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Ember Wolf",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "2n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Ember Packleader",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "3n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Slag Caster",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Shrieker Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Cave Shriekers",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "6n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Shrieker Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Cave Shriekers",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "7n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Shrieker Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Cave Shriekers",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "8n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Shrieker Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Cave Shriekers",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "construct",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "9n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Golem Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Rubble Golems",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "construct",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "10n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Golem Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Rubble Golems",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "construct",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "11n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Golem Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Rubble Golems",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "construct",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "12n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Golem Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Rubble Golems",
+      "socialRadius": "0n",
+      "terrainTypes": "dungeon,mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "narrative",
+      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nA volcanic region.\\n\\nYou notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say.\\n\\nTry [look] to examine your surroundings, or [travel] to move.",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You open your eyes in Ember Hollow, Cinderfall."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "A volcanic region."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "You notice Vessa and Old Brann and The Ledger Keeper nearby. Perhaps someone here has something to say."
+        },
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "Try [look] to examine your surroundings, or [travel] to move."
+        }
+      ]
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "2n",
+      "kind": "system",
+      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
+      "ownerUserId": "7n"
+    }
+  ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "2n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "3n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "2n",
+      "filler": false,
+      "id": "4n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "3n",
+      "filler": true,
+      "id": "5n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "familyId": "3n",
+      "filler": true,
+      "id": "6n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "familyId": "3n",
+      "filler": true,
+      "id": "7n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "familyId": "3n",
+      "filler": true,
+      "id": "8n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "9n",
+      "familyId": "4n",
+      "filler": true,
+      "id": "9n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "10n",
+      "familyId": "4n",
+      "filler": true,
+      "id": "10n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "11n",
+      "familyId": "4n",
+      "filler": true,
+      "id": "11n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "12n",
+      "familyId": "4n",
+      "filler": true,
+      "id": "12n",
+      "role": "caster"
+    }
+  ],
+  "family_relation": [
+    {
+      "familyId": "1n",
+      "id": "1n",
+      "kind": "rival",
+      "otherFamilyId": "2n"
+    },
+    {
+      "familyId": "2n",
+      "id": "2n",
+      "kind": "rival",
+      "otherFamilyId": "1n"
+    },
+    {
+      "familyId": "3n",
+      "id": "3n",
+      "kind": "rival",
+      "otherFamilyId": "4n"
+    },
+    {
+      "familyId": "4n",
+      "id": "4n",
+      "kind": "rival",
+      "otherFamilyId": "3n"
+    }
+  ],
+  "item_template": [],
+  "location": [
+    {
+      "bindStone": true,
+      "craftingAvailable": true,
+      "description": "A sheltered town.",
+      "id": "1n",
+      "isHub": true,
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "Ember Hollow",
+      "regionId": "1n",
+      "terrainType": "town",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A cracked road.",
+      "id": "2n",
+      "isHub": false,
+      "isSafe": false,
+      "levelOffset": "0n",
+      "name": "Slag Road",
+      "placeNoun": "",
+      "regionId": "1n",
+      "shortName": "",
+      "terrainType": "plains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "A smoking crater.",
+      "id": "3n",
+      "isHub": false,
+      "isSafe": false,
+      "levelOffset": "1n",
+      "name": "Ashen Pit",
+      "placeNoun": "",
+      "regionId": "1n",
+      "shortName": "",
+      "terrainType": "mountains",
+      "zone": "Cinderfall"
+    },
+    {
+      "bindStone": false,
+      "craftingAvailable": false,
+      "description": "The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.",
+      "id": "4n",
+      "isHub": false,
+      "isSafe": true,
+      "levelOffset": "0n",
+      "name": "The Edge Beyond Cinderfall",
+      "placeNoun": "",
+      "regionId": "1n",
+      "shortName": "",
+      "terrainType": "uncharted",
+      "zone": "Uncharted"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "1n",
+      "id": "1n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "2n",
+      "id": "2n",
+      "toLocationId": "1n"
+    },
+    {
+      "fromLocationId": "2n",
+      "id": "3n",
+      "toLocationId": "3n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "4n",
+      "toLocationId": "2n"
+    },
+    {
+      "fromLocationId": "3n",
+      "id": "5n",
+      "toLocationId": "4n"
+    },
+    {
+      "fromLocationId": "4n",
+      "id": "6n",
+      "toLocationId": "3n"
+    }
+  ],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "2n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "9n",
+      "id": "3n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "10n",
+      "id": "4n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "11n",
+      "id": "5n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "12n",
+      "id": "6n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "id": "7n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "id": "8n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "id": "9n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "id": "10n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "id": "11n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "id": "12n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "id": "13n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "id": "14n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "9n",
+      "id": "15n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "10n",
+      "id": "16n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "11n",
+      "id": "17n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "12n",
+      "id": "18n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "1n",
+      "id": "19n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "20n",
+      "locationId": "3n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A soot-streaked trader.",
+      "gender": "female",
+      "greeting": "Buy something.",
+      "id": "1n",
+      "locationId": "1n",
+      "name": "Vessa",
+      "npcType": "vendor",
+      "personalityJson": "{}"
+    },
+    {
+      "description": "A hermit.",
+      "gender": "male",
+      "greeting": "Hm.",
+      "id": "2n",
+      "locationId": "1n",
+      "name": "Old Brann",
+      "npcType": "lore",
+      "personalityJson": "{\\"traits\\":[\\"gruff\\"],\\"speechPattern\\":\\"slow\\",\\"knowledgeDomains\\":[\\"ash\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    },
+    {
+      "description": "A meticulous figure who guards your valuables with obsessive precision.",
+      "gender": "female",
+      "greeting": "Your assets are safe. They are always safe. I do not make mistakes.",
+      "id": "3n",
+      "locationId": "1n",
+      "name": "The Ledger Keeper",
+      "npcType": "banker",
+      "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "25n",
+      "dirty": false,
+      "homeLevel": "1n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "2n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "2n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "3n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "4n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "4n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "25n",
+      "dirty": false,
+      "homeLevel": "1n",
+      "id": "5n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "2n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "25n",
+      "dirty": false,
+      "homeLevel": "1n",
+      "id": "6n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "3n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "7n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "4n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "beast",
+      "id": "1n",
+      "kind": "creature",
+      "level": "1n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Ember Wolves",
+      "pluralNoun": "ember wolves",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "ember wolf",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "humanoid",
+      "id": "2n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Slag Casters",
+      "pluralNoun": "slag casters",
+      "refId": "2n",
+      "regionId": "1n",
+      "singularNoun": "slag caster",
+      "temperament": "wary",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "elemental",
+      "id": "3n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Rubble Golems",
+      "pluralNoun": "golems",
+      "refId": "4n",
+      "regionId": "1n",
+      "singularNoun": "golem",
+      "temperament": "wary",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "beast",
+      "id": "4n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Ember Wolves",
+      "pluralNoun": "ember wolves",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "ember wolf",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "humanoid",
+      "id": "5n",
+      "kind": "creature",
+      "level": "1n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Slag Casters",
+      "pluralNoun": "slag casters",
+      "refId": "2n",
+      "regionId": "1n",
+      "singularNoun": "slag caster",
+      "temperament": "wary",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "avian",
+      "id": "6n",
+      "kind": "creature",
+      "level": "1n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Cave Shriekers",
+      "pluralNoun": "shriekers",
+      "refId": "3n",
+      "regionId": "1n",
+      "singularNoun": "shrieker",
+      "temperament": "skittish",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "elemental",
+      "id": "7n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Rubble Golems",
+      "pluralNoun": "golems",
+      "refId": "4n",
+      "regionId": "1n",
+      "singularNoun": "golem",
+      "temperament": "wary",
+      "timeOfDay": "any"
+    }
+  ],
+  "region": [
+    {
+      "biome": "volcanic",
+      "dangerMultiplier": "100n",
+      "dominantFaction": "Ash Court",
+      "generatedByCharacterId": "10n",
+      "id": "1n",
+      "isGenerated": true,
+      "landmarks": "[\\"The Slag Spire\\"]",
+      "name": "Cinderfall",
+      "regionType": "generated",
+      "starterForRace": "ashkin",
+      "threats": "[\\"ember wolves\\"]"
+    }
+  ],
+  "world_gen_state": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1600000000000000n",
+      "generatedRegionId": "1n",
+      "id": "5n",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceLocationId": "0n",
+      "sourceRegionId": "0n",
+      "step": "COMPLETE",
+      "updatedAt": "ts:1700000000000000n"
+    }
+  ],
+  "_jobs": [
+    "world_gen_families:pending"
+  ]
+}"
+`;
+
 exports[`llm apply world_gen_families success (stage 2b, the families) > QUIRK: a state in step COMPLETE returns silently 1`] = `
 "{
   "character": [
@@ -16794,75 +18090,47 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
 "{
   "character": [
     {
-      "boundLocationId": "1n",
+      "boundLocationId": "0n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "1n",
+      "locationId": "0n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "economy_item": [],
-  "economy_item_dial": [],
-  "event_private": [
+  "event_creation": [
     {
-      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
-      "ownerUserId": "7n",
+      "kind": "creation",
+      "message": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "You open your eyes in Ember Hollow, Cinderfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Ash drifts down like a slow, grey snowfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "You notice Vessa nearby. Perhaps she has something to say."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
+          "text": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered."
         }
       ]
     },
     {
-      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "2n",
-      "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "3n",
-      "kind": "system",
-      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "4n",
-      "kind": "system",
+      "kind": "creation_error",
       "message": "The Keeper is resting. Return later. Type [explore] to try again.",
-      "ownerUserId": "7n"
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "kind": "narration",
+          "speaker": "The Keeper",
+          "text": "The Keeper is resting. Return later. Type [explore] to try again."
+        }
+      ]
     }
   ],
   "event_world": [
@@ -16873,7 +18141,6 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
-  "item_template": [],
   "llm_job": [],
   "location": [
     {
@@ -16914,7 +18181,6 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
-  "place_pool": [],
   "player": [],
   "region": [
     {
@@ -16998,62 +18264,33 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
 "{
   "character": [
     {
-      "boundLocationId": "1n",
+      "boundLocationId": "0n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "1n",
+      "locationId": "0n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "economy_item": [],
-  "economy_item_dial": [],
-  "event_private": [
+  "event_creation": [
     {
-      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
-      "ownerUserId": "7n",
+      "kind": "creation",
+      "message": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "You open your eyes in Ember Hollow, Cinderfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Ash drifts down like a slow, grey snowfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
+          "text": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered."
         }
       ]
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "3n",
-      "kind": "system",
-      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
-      "ownerUserId": "7n"
     }
   ],
   "event_world": [
@@ -17064,7 +18301,6 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
-  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -17083,7 +18319,6 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
     }
   ],
   "npc": [],
-  "place_pool": [],
   "player": [],
   "region": [
     {
@@ -17169,67 +18404,33 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
 "{
   "character": [
     {
-      "boundLocationId": "1n",
+      "boundLocationId": "0n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "1n",
+      "locationId": "0n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "economy_item": [],
-  "economy_item_dial": [],
-  "event_private": [
+  "event_creation": [
     {
-      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
-      "ownerUserId": "7n",
+      "kind": "creation",
+      "message": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "You open your eyes in Ember Hollow, Cinderfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Ash drifts down like a slow, grey snowfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "You notice Vessa nearby. Perhaps she has something to say."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
+          "text": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered."
         }
       ]
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "3n",
-      "kind": "system",
-      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
-      "ownerUserId": "7n"
     }
   ],
   "event_world": [
@@ -17240,7 +18441,6 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
-  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -17270,7 +18470,6 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
-  "place_pool": [],
   "player": [],
   "region": [
     {
@@ -17609,71 +18808,37 @@ exports[`llm apply world_gen_start success (stage 1) > returns silently when the
 }"
 `;
 
-exports[`llm apply world_gen_start success (stage 1) > starter region: writes the region, start location and first NPC, places the character and starts the fill 1`] = `
+exports[`llm apply world_gen_start success (stage 1) > starter region: writes the region, start location and first NPC, keeps the new character in creation with the 7e line and starts the fill 1`] = `
 "{
   "character": [
     {
-      "boundLocationId": "1n",
+      "boundLocationId": "0n",
       "cha": "10n",
       "className": "Emberblade",
       "gold": "0n",
       "id": "10n",
       "level": "1n",
-      "locationId": "1n",
+      "locationId": "0n",
       "name": "Tester",
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
     }
   ],
-  "economy_item": [],
-  "economy_item_dial": [],
-  "event_private": [
+  "event_creation": [
     {
-      "characterId": "10n",
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
-      "kind": "narrative",
-      "message": "You open your eyes in Ember Hollow, Cinderfall.\\n\\nAsh drifts down like a slow, grey snowfall.\\n\\nYou notice Vessa nearby. Perhaps she has something to say.\\n\\nTry [look] to examine your surroundings. The roads out are still being remembered.",
-      "ownerUserId": "7n",
+      "kind": "creation",
+      "message": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.",
+      "playerId": "identity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "segments": [
         {
           "kind": "narration",
           "speaker": "The Keeper",
-          "text": "You open your eyes in Ember Hollow, Cinderfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Ash drifts down like a slow, grey snowfall."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "You notice Vessa nearby. Perhaps she has something to say."
-        },
-        {
-          "kind": "narration",
-          "speaker": "The Keeper",
-          "text": "Try [look] to examine your surroundings. The roads out are still being remembered."
+          "text": "The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered."
         }
       ]
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "system",
-      "message": "You step into Cinderfall. It has always been here. You were simply the first to notice.",
-      "ownerUserId": "7n"
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "3n",
-      "kind": "system",
-      "message": "The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.",
-      "ownerUserId": "7n"
     }
   ],
   "event_world": [
@@ -17684,7 +18849,6 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
-  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -17714,7 +18878,6 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
-  "place_pool": [],
   "player": [],
   "region": [
     {

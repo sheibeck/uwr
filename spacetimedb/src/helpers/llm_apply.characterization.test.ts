@@ -1168,7 +1168,7 @@ describe('llm apply world_gen (fill) failure path', () => {
 });
 
 describe('llm apply world_gen_start success (stage 1)', () => {
-  it('starter region: writes the region, start location and first NPC, places the character and starts the fill', () => {
+  it('starter region: writes the region, start location and first NPC, keeps the new character in creation with the 7e line and starts the fill', () => {
     const ctx = openGateCtx(worldSeed());
     execStageOne(ctx, { resultText: JSON.stringify(WORLD_START_JSON) });
 
@@ -1181,16 +1181,13 @@ describe('llm apply world_gen_start success (stage 1)', () => {
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa']);
     expect(rows(ctx, 'enemy_template')).toHaveLength(0);
 
-    const home = rows(ctx, 'location')[0];
-    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: home.id, boundLocationId: home.id });
-    const priv = rows(ctx, 'event_private');
-    expect(priv.map((e: any) => e.kind)).toEqual(['narrative', 'system', 'system']);
-    expect(priv[0].message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
-    expect(priv[0].message).toContain('You notice Vessa nearby.');
-    expect(priv[0].message).toContain('The roads out are still being remembered.');
-    expect(priv[2].message).toBe(
-      'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
-    );
+    // Phase 51.3.1.2 (D-17): the new character waits in creation until the families land (finishRegionFill
+    // places him); stage 1 posts no private line and the creation console gets the owner's 7e line once.
+    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 0n, boundLocationId: 0n });
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    expect(rows(ctx, 'event_creation').map((e: any) => [e.kind, e.message])).toEqual([
+      ['creation', 'The Keeper clears his throat. A region is taking shape around the place you will first stand; its roads and its creatures are still being remembered.'],
+    ]);
     expect(rows(ctx, 'event_world')).toHaveLength(1);
 
     const jobs = rows(ctx, 'llm_job');
@@ -1243,7 +1240,8 @@ describe('llm apply world_gen_start success (stage 1)', () => {
     execStageOne(ctx, { resultText: JSON.stringify({ ...WORLD_START_JSON, firstNpc: undefined }) });
     expect(rows(ctx, 'npc')).toHaveLength(0);
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING');
-    expect(rows(ctx, 'event_private')[0].message).not.toContain('You notice');
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    expect(rows(ctx, 'event_creation')).toHaveLength(1);
   });
 
   it('accepts a code-fenced reply', () => {
@@ -1261,8 +1259,10 @@ describe('llm apply world_gen_start success (stage 1)', () => {
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow']);
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'The Ledger Keeper']);
-    const last = rows(ctx, 'event_private').slice(-1)[0];
-    expect(last.message).toBe('The Keeper is resting. Return later. Type [explore] to try again.');
+    // Phase 51.3.1.2 (D-17, D-18): the new character is still in creation, so the line goes to his console.
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    const last = rows(ctx, 'event_creation').slice(-1)[0];
+    expect(last).toMatchObject({ kind: 'creation_error', message: 'The Keeper is resting. Return later. Type [explore] to try again.' });
   });
 
   it.each(['FILLING', 'FILL_ERROR', 'COMPLETE', 'PENDING', 'ERROR'])(
@@ -1465,6 +1465,8 @@ describe('llm apply world_gen_families success (stage 2b, the families)', () => 
     return ctx;
   }
 
+  // fillSeed's character already stands at the start location (stage 1 placed him before the 51.3.1.2
+  // publish: an in-flight starter), so completion places nobody and posts no line (T-51.3.1.2-44).
   it('starter region: writes the families, completes the state and posts no line', () => {
     const ctx = familiesCtx(fillSeed());
     execStage(ctx, 'world_gen_families', JSON.stringify(WORLD_FAMILIES_JSON));
@@ -1472,6 +1474,19 @@ describe('llm apply world_gen_families success (stage 2b, the families)', () => 
     expect(rows(ctx, 'creature_family').map((f: any) => f.name)).toEqual(expect.arrayContaining(['Ember Wolves', 'Slag Casters']));
     expect(rows(ctx, 'location')).toHaveLength(4);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+
+  it('Phase 51.3.1.2 (D-17): starter region with the new character waiting in creation: completes and places him with the arrival message, then the discovery line', () => {
+    const ctx = familiesCtx(fillSeed({ char: { locationId: 0n, boundLocationId: 0n } }));
+    execStage(ctx, 'world_gen_families', JSON.stringify(WORLD_FAMILIES_JSON));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 1n, boundLocationId: 1n });
+    const priv = rows(ctx, 'event_private');
+    expect(priv.map((e: any) => e.kind)).toEqual(['narrative', 'system']);
+    expect(priv[0].message.startsWith('You open your eyes in Ember Hollow, Cinderfall.')).toBe(true);
+    expect(priv[0].message.endsWith('Try [look] to examine your surroundings, or [travel] to move.')).toBe(true);
+    expect(priv[1].message).toContain('Cinderfall');
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
   });
 
   it('non-starter region: the triggering character gets the region-opened line, then the discovery line', () => {

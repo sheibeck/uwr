@@ -23,7 +23,7 @@ vi.mock('spacetimedb/server', async () =>
 
 import { createMockCtx } from './test-utils';
 import { applyWorldStartResult } from './llm_apply';
-import { startWorldGeneration } from './world_gen';
+import { finishRegionFill, startWorldGeneration } from './world_gen';
 import { autoRespawnDeadCharacter } from './character';
 import { executeResurrect } from './corpse';
 
@@ -73,8 +73,8 @@ const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
 const visitedFor = (ctx: any, characterId: bigint): any[] =>
   rows(ctx, 'visited_location').filter((r) => r.characterId === characterId);
 
-describe('first spawn into a new region (applyWorldStartResult)', () => {
-  it('marks the start location visited for the placed character, with no origin', () => {
+describe('first spawn into a new region (Phase 51.3.1.2, D-17: placed when the region is whole)', () => {
+  it('stage 1 (applyWorldStartResult) places nobody and marks nothing visited', () => {
     const ctx = newCtx({ world_gen_state: [genRow({ step: 'GENERATING' })] });
     const reply = JSON.stringify({
       regionName: 'Emberdeep',
@@ -87,11 +87,25 @@ describe('first spawn into a new region (applyWorldStartResult)', () => {
       { domain: 'world_gen_start', playerId: alice, contextJson: JSON.stringify({ genStateId: '5' }) } as any,
       reply,
     );
+    expect(rows(ctx, 'character')[0].locationId).toBe(0n);
+    expect(visitedFor(ctx, 10n)).toEqual([]);
+  });
+
+  it('completion (finishRegionFill) marks the start location visited for the placed character, with no origin', () => {
+    const ctx = newCtx({
+      world_gen_state: [genRow({ step: 'FILLING_FAMILIES', generatedRegionId: 1n })],
+      region: [{ id: 1n, name: 'Emberdeep', dangerMultiplier: 100n, starterForRace: 'kobold', biome: 'cavern' }],
+      location: [
+        { id: 21n, name: 'Hearthhold', regionId: 1n, isSafe: true, isHub: true, terrainType: 'town' },
+        { id: 22n, name: 'The Gate', regionId: 1n, isSafe: false, terrainType: 'cavern' },
+      ],
+    });
+    finishRegionFill(ctx, rows(ctx, 'world_gen_state')[0]);
     const placed = rows(ctx, 'character')[0];
-    expect(placed.locationId).not.toBe(0n);
+    expect(placed.locationId).toBe(21n);
     const mine = visitedFor(ctx, 10n);
     expect(mine).toHaveLength(1);
-    expect(mine[0]).toMatchObject({ locationId: placed.locationId, fromLocationId: undefined });
+    expect(mine[0]).toMatchObject({ locationId: 21n, fromLocationId: undefined });
     expect(mine[0].firstVisitedAt).toEqual(ts);
   });
 });

@@ -2101,7 +2101,7 @@ describe('staged world generation (LAT-03)', () => {
   };
   const state = (proc: any) => rows(proc, 'world_gen_state')[0];
 
-  it('stage 1 makes the region playable while the fill job is still pending; stage 2 then completes it', () => {
+  it('stage 1 writes the region while the new character waits in creation (7e); a legacy one-reply fill completes it and places him', () => {
     const { proc, reducerCtx } = setup([okJsonReply(WORLD_START_JSON), okJsonReply(REGION_FILL_JSON)]);
 
     // Finishing the character enqueues the small reveal job first.
@@ -2111,11 +2111,12 @@ describe('staged world generation (LAT-03)', () => {
     expect(rows(proc, 'llm_job').map((j: any) => j.route)).toEqual(['world_gen_start']);
     expect(state(proc).step).toBe('GENERATING');
 
-    // Stage 1 lands: the player stands on the start location with the first NPC; the fill job is pending.
+    // Stage 1 lands: the region, its start location and first NPC; the new character keeps waiting in
+    // creation (Phase 51.3.1.2, D-17) and the fill job is pending.
     expect(run(proc)).toBe('completed');
     const start = rows(proc, 'location').find((l: any) => l.name === 'Ember Hollow');
     expect(start).toBeDefined();
-    expect(rows(proc, 'character')[0]).toMatchObject({ locationId: start.id, boundLocationId: start.id });
+    expect(rows(proc, 'character')[0].locationId).toBe(0n);
     expect(rows(proc, 'region').map((r: any) => r.name)).toEqual(['Cinderfall']);
     expect(rows(proc, 'location')).toHaveLength(1);
     expect(rows(proc, 'npc').map((n: any) => [n.name, n.locationId, n.gender])).toEqual([['Vessa', start.id, 'female']]);
@@ -2125,14 +2126,19 @@ describe('staged world generation (LAT-03)', () => {
     expect(rows(proc, 'llm_job').find((j: any) => j.route === 'world_gen_start').status).toBe('completed');
     expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
     expect(rows(proc, 'enemy_template')).toHaveLength(0);
-    expect(rows(proc, 'event_private').map((e: any) => e.message)).toContain(
-      'The Keeper clears his throat. This ground will do; the rest of the region is still being remembered.',
-    );
+    expect(rows(proc, 'event_creation').map((e: any) => e.message)).toContain(WORLD_START_MILESTONE_LINE);
+    expect(rows(proc, 'event_private').filter((e: any) => e.kind === 'narrative')).toHaveLength(0);
     expect(proc.http.calls).toHaveLength(1);
 
-    // Stage 2 lands: the rest of the region.
+    // Stage 2 lands (a reply that still carries families: the legacy one-reply fill): the rest of the
+    // region, COMPLETE, and the waiting character is placed on the start location with the arrival message.
     expect(run(proc)).toBe('completed');
     expect(state(proc).step).toBe('COMPLETE');
+    expect(rows(proc, 'character')[0]).toMatchObject({ locationId: start.id, boundLocationId: start.id });
+    const arrival = rows(proc, 'event_private').filter((e: any) => e.kind === 'narrative').slice(-1)[0];
+    expect(arrival.message).toContain('You open your eyes in Ember Hollow, Cinderfall.');
+    expect(arrival.message).toContain('Ash drifts down like a slow, grey snowfall.');
+    expect(arrival.message.endsWith('Try [look] to examine your surroundings, or [travel] to move.')).toBe(true);
     expect(rows(proc, 'location').map((l: any) => l.name)).toEqual([
       'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
     ]);
@@ -2169,7 +2175,7 @@ describe('staged world generation (LAT-03)', () => {
     expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
   });
 
-  it('a stage-2 call failure leaves the stage-1 region playable with one [explore] line and no new job', () => {
+  it('a stage-2 call failure keeps the new character in creation with one [explore] line and no new job', () => {
     const err529 = JSON.parse(
       readFileSync(new URL('../helpers/__fixtures__/claude/err_529.json', import.meta.url), 'utf-8'),
     );
@@ -2183,10 +2189,13 @@ describe('staged world generation (LAT-03)', () => {
     const start = rows(proc, 'location').find((l: any) => l.name === 'Ember Hollow');
     const here = rows(proc, 'npc').filter((n: any) => n.locationId === start.id).map((n: any) => n.npcType).sort();
     expect(here).toEqual(['banker', 'vendor']);
-    expect(rows(proc, 'character')[0].locationId).toBe(start.id);
+    // Phase 51.3.1.2 (D-17, D-18): nobody enters before COMPLETE; the creation console names [explore].
+    expect(rows(proc, 'character')[0].locationId).toBe(0n);
     expect(rows(proc, 'llm_job')).toHaveLength(2); // nothing retried it
     expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
-    expect(rows(proc, 'event_private').slice(-1)[0].message).toContain('Type [explore] to try again.');
+    const last = rows(proc, 'event_creation').slice(-1)[0];
+    expect(last.kind).toBe('creation_error');
+    expect(last.message).toContain('Type [explore] to try again.');
     expect(proc.http.calls).toHaveLength(2);
   });
 
