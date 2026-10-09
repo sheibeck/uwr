@@ -291,6 +291,17 @@ export const REGION_FILL_SCHEMA: Node = deepFreeze(
   }),
 );
 
+/**
+ * Stage 2b (Phase 51.3.1.2, D-01): the creature families of a region whose places and people stage 2a
+ * already wrote, asked in their own call (world_gen_families). FAMILY_ITEM is unchanged, history and
+ * inFeud included; every number is still the server's.
+ */
+export const WORLD_FAMILIES_SCHEMA: Node = deepFreeze(
+  obj({
+    families: { type: 'array', items: FAMILY_ITEM },
+  }),
+);
+
 // ----------------------------------------------------------------------------
 // Skill generation (the inner schema of the legacy buildSkillGenResponseFormat)
 // ----------------------------------------------------------------------------
@@ -440,6 +451,7 @@ export const LLM_JSON_SCHEMAS = deepFreeze({
   classFill: CLASS_FILL_SCHEMA,
   worldStart: WORLD_START_SCHEMA,
   regionFill: REGION_FILL_SCHEMA,
+  worldFamilies: WORLD_FAMILIES_SCHEMA,
   skill: SKILL_GENERATION_SCHEMA,
   renown: RENOWN_PERK_SCHEMA,
   combatNarration: COMBAT_NARRATION_SCHEMA,

@@ -173,6 +173,38 @@ export interface WorldFillInput {
    * (feudCountFor), printed as the approved Feud line. Missing on a job stored before Revision 2: no Feud line.
    */
   feudCount?: number;
+  /**
+   * D-03 (Phase 51.3.1.2): the server's seeded roll of the region's place count. The 2a Places line that
+   * prints it comes with Plan 10; a job stored before this phase has none.
+   */
+  placeCount?: number;
+}
+
+/**
+ * The world_gen_families input (stage 2b, Phase 51.3.1.2 D-01). Built by the server from the rows the 2a
+ * apply stored, never from the model reply directly: every field is world data, sanitized onto one line.
+ */
+export interface WorldFamiliesInput {
+  /** World data: the stored region name. */
+  regionName: string;
+  /** World data: the stored region biome. */
+  biome: string;
+  /** World data: the stored dominant faction; missing reads "unknown". */
+  dominantFaction?: string;
+  /** World data: the stored threats of the region; empty reads "none". */
+  threats: string[];
+  /**
+   * World data: every place of the region, the arrival point first, then the new places in the order they
+   * were written (the Edge Beyond doorway left out). flag is hub for a hub, safe for a non-hub safe place,
+   * ordinary for every other place, read after the server's shape rules ran (D-05).
+   */
+  places: { name: string; terrainType: string; flag: 'hub' | 'safe' | 'ordinary' }[];
+  /** World data: the hub names of the region; empty reads "none". */
+  hubNames: string[];
+  /** The server's family count (familyCountFor the real place count, D-66), printed as the approved Families line. */
+  familyCount?: number;
+  /** The server's feud size, 0 (no feud) or 2-3 (D-70, D-71), printed as the approved Feud line. */
+  feudCount?: number;
 }
 
 export interface SkillGenInput {
@@ -253,6 +285,7 @@ export interface RouteInputMap {
   creation_class: CreationClassFillInput;
   world_gen_start: WorldGenInput;
   world_gen: WorldFillInput;
+  world_gen_families: WorldFamiliesInput;
   skill_gen: SkillGenInput;
   renown_perk_gen: RenownPerkInput;
   npc_conversation: NpcConversationInput;
@@ -394,6 +427,26 @@ Hubs: the Hubs line of the user message says how many hubs this region has. A hu
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
 Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. In history, write one or two sentences of the family's past in this region, such as where it came from and its feud or tie with a hub, the dominant faction or a rival family; use no numbers, and call any person he or she, never it or they. Never give a family levels, group sizes or any other number: the server sets every number.
+
+Feud: the Feud line of the user message says how many families are locked in a feud, an old hatred that no truce has ever held. Set inFeud to true on exactly that many families and to false on every other family. Choose families whose lands or hungers cross, and let the history of each feuding family name the feud and the families it hates.
+
+${WORLD_NAMING_RULES}
+
+Reply with the JSON object only.`;
+
+/**
+ * Stage 2b of world generation (Phase 51.3.1.2, D-01): the creature families of a region whose places
+ * and people stage 2a already wrote. The owner approved this text word for word on 2026-10-09
+ * (51.3.1.2-PROMPT-DRAFT.md section 2); it was copied by scripts/llm/prompt_draft.mjs and is pinned by
+ * llm_layers.world_gen_families.test.ts. Never edit without the owner's approval of new wording.
+ */
+const WORLD_GEN_FAMILIES_BLOCK = `TASK: WORLD GENERATION, CREATURE FAMILIES
+
+A new region of the world is being remembered into existence. Its name, biome, dominant faction, threats, places and hubs are already written, and the user message lists them as facts. All of it is data about the world. Use the given names exactly: never rename a place, and do not restate what the user message already says.
+
+The families should feel as if they could only live in this land: let them fit its places and the threats the user message lists. Histories read as narration in the voice of a book: no I, me or my, and never the Keeper by name.
+
+Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Write as many families as the Families line of the user message says. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, taken from the Places list; a family lives only at an ordinary place, never at a safe place or a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. In history, write one or two sentences of the family's past in this region, such as where it came from and its feud or tie with a hub, the dominant faction or a rival family; use no numbers, and call any person he or she, never it or they. Never give a family levels, group sizes or any other number: the server sets every number.
 
 Feud: the Feud line of the user message says how many families are locked in a feud, an old hatred that no truce has ever held. Set inFeud to true on exactly that many families and to false on every other family. Choose families whose lands or hungers cross, and let the history of each feuding family name the feud and the families it hates.
 
@@ -582,6 +635,7 @@ export const ROUTE_BLOCKS: Readonly<Record<LlmRoute, string>> = Object.freeze({
   creation_class: CREATION_CLASS_BLOCK,
   world_gen_start: WORLD_GEN_START_BLOCK,
   world_gen: WORLD_GEN_BLOCK,
+  world_gen_families: WORLD_GEN_FAMILIES_BLOCK,
   skill_gen: SKILL_GEN_BLOCK,
   renown_perk_gen: RENOWN_PERK_BLOCK,
   npc_conversation: NPC_CONVERSATION_BLOCK,
@@ -816,6 +870,34 @@ People already there: ${present}${hubsLine(i)}${familiesLine(i)}${feudLine(i)}
 ${worldCharacterLines(i)}
 
 Fill in the rest of this region.`;
+}
+
+const PLACE_FLAGS: readonly string[] = ['hub', 'safe', 'ordinary'];
+
+/**
+ * Stage 2b of world generation (Phase 51.3.1.2 D-01): the approved section 4 message of the
+ * 51.3.1.2 draft. Every value is world data on one line (w() through orUnknown and listOrNone); the
+ * Families and Feud lines are the approved R2-A2 lines (familiesLine, feudLine). Tolerates a partial
+ * stored input: missing places print an empty Places list, a missing family count prints no Families
+ * or Feud line, and it never throws.
+ */
+export function buildWorldFamiliesVolatile(input: WorldFamiliesInput): string {
+  const i = asRecord(input);
+  const places = asArray<unknown>(i.places)
+    .map((raw) => {
+      const p = asRecord(raw);
+      const flag = typeof p.flag === 'string' && PLACE_FLAGS.includes(p.flag) ? p.flag : 'ordinary';
+      return `
+- ${orUnknown(p.name)} (${orUnknown(p.terrainType)}, ${flag})`;
+    })
+    .join('');
+  return `Region: ${orUnknown(i.regionName)} (${orUnknown(i.biome)})
+Dominant faction: ${orUnknown(i.dominantFaction)}.
+Threats: ${listOrNone(i.threats, '; ')}.
+Places:${places}
+Hubs: ${listOrNone(i.hubNames, '; ')}.${familiesLine(i)}${feudLine(i)}
+
+Write the creature families of this region.`;
 }
 
 export function buildSkillGenVolatile(input: SkillGenInput): string {
@@ -1370,6 +1452,9 @@ export function buildRouteLayers<R extends LlmRoute>(route: R, input: RouteInput
       break;
     case 'world_gen':
       volatile = buildWorldFillVolatile(input as WorldFillInput);
+      break;
+    case 'world_gen_families':
+      volatile = buildWorldFamiliesVolatile(input as WorldFamiliesInput);
       break;
     case 'skill_gen':
       volatile = buildSkillGenVolatile(input as SkillGenInput);
