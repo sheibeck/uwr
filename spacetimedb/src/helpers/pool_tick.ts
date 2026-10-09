@@ -1,8 +1,9 @@
 // pool_tick.ts
 // The heartbeat of the density pools (Phase 51.3.1.1 Plan 14; SC4, SC5, D-21, D-23; RESEARCH
 // Section 5). The scheduled `tick_pools` reducer (index.ts) runs runPoolTick once a minute after its
-// guard and its one-row reschedule. Each step is a plain function so a later step (the Plan 15
-// migration) can be put in front:
+// guard and its one-row reschedule, once the world is migrated (pool_state.version at
+// POOL_MIGRATION_VERSION; until then tick_pools runs the Plan 15 migration step of
+// helpers/pool_migration.ts instead). Each step is a plain function:
 //   1. settleDirtyPools: settle only the pools away from home or wiped and waiting (the by_dirty
 //      index), so the cost follows active pools, not the size of the world (D-18, D-19, MD-13, B11);
 //   2. runHunters: every HUNTER_INTERVAL_MICROS, a seeded HUNTER_ACTIVITY_PCT chance per region to
@@ -45,8 +46,8 @@ export function poolState(ctx: any): PoolStateRow {
   return ctx.db.pool_state.insert({ id: POOL_STATE_ID, version: 0n, lastHunterMicros: 0n, lastTrendMicros: 0n });
 }
 
-/** Writes some fields of the singleton over the stored row (never over a stale copy). */
-function updatePoolState(ctx: any, fields: Partial<PoolStateRow>): PoolStateRow {
+/** Writes some fields of the singleton over the stored row (never over a stale copy). Plan 15 sets `version` through it. */
+export function updatePoolState(ctx: any, fields: Partial<PoolStateRow>): PoolStateRow {
   const updated = { ...poolState(ctx), ...fields };
   ctx.db.pool_state.id.update(updated);
   return updated;

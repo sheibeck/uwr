@@ -33,8 +33,8 @@ import spacetimedb, {
   PoolTick,
 } from './schema/tables';
 import { PASSAGE_SWEEP_INTERVAL_MICROS, sweepPassages } from './helpers/passages';
-import { DENSITY_RULES } from './data/density_rules';
 import { ensurePoolTickScheduled, runPoolTick } from './helpers/pool_tick';
+import { planMigrationStep, runMigrationStep } from './helpers/pool_migration';
 import { reconcileOnline, syncCharacterOnline } from './helpers/online';
 import { announcePartyPresence, sessionOnReconnect } from './helpers/party_presence';
 import { pruneFinishedReinviteWaits } from './helpers/group_invites';
@@ -454,18 +454,23 @@ scheduledReducers['sweep_passages'] = spacetimedb.reducer('sweep_passages', { ar
 });
 
 // Density pools (Phase 51.3.1.1): a private scheduled tick once a minute that settles dirty pools,
-// runs the light background hunter and reports region trends (helpers/pool_tick.ts). The guard is
-// first; the one-row reschedule comes before the work, so a failing step never breaks the chain.
-// Armed in init, on connect and by the passage sweep (ensurePoolTickScheduled).
+// runs the light background hunter and reports region trends (helpers/pool_tick.ts). Until the world
+// is migrated (pool_state.version below POOL_MIGRATION_VERSION) each run migrates one region instead,
+// with the cursor on the tick row (helpers/pool_migration.ts, Plan 15). The guard is first; the
+// one-row reschedule (from the step plan) comes before the work, so a failing step never breaks the
+// chain. Armed in init, on connect and by the passage sweep (ensurePoolTickScheduled).
 scheduledReducers['tick_pools'] = spacetimedb.reducer('tick_pools', { arg: PoolTick.rowType }, (ctx, { arg }) => {
   if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
-  ctx.db.pool_tick.insert({
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const step = planMigrationStep(ctx, arg, now);
+  const next = ctx.db.pool_tick.insert({
     scheduledId: 0n,
-    scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + DENSITY_RULES.POOL_TICK_MICROS),
-    afterRegionId: 0n,
+    scheduledAt: ScheduleAt.time(step.nextAt),
+    afterRegionId: step.nextAfterRegionId,
   });
   try {
-    runPoolTick(ctx, arg, ctx.timestamp.microsSinceUnixEpoch);
+    if (step.migrating) runMigrationStep(ctx, step, next, now);
+    else runPoolTick(ctx, arg, now);
   } catch (error) {
     console.error(`tick_pools: the pool work failed: ${String(error)}`);
   }

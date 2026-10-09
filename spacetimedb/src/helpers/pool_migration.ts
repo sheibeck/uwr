@@ -17,6 +17,11 @@
 // changes nothing. No LLM job is enqueued anywhere here (no paid call), and no --clear-database is
 // ever needed. Deterministic: "now" is passed in.
 
+import { ScheduleAt } from 'spacetimedb';
+import { DENSITY_RULES } from '../data/density_rules';
+import { planRestockBatch } from '../data/vendor_stock';
+import { redactSecrets } from './measurement';
+import { poolState, updatePoolState } from './pool_tick';
 import {
   addResourcePoolsForRegion,
   createFamily,
@@ -262,4 +267,102 @@ export function migrateRegion(ctx: any, regionId: bigint, now: bigint): void {
     ctx,
     places.map((place) => place.id as bigint),
   );
+}
+
+// ---------------------------------------------------------------------------
+// The cursor-batched step inside tick_pools (planRestockBatch pattern)
+// ---------------------------------------------------------------------------
+
+/** What one tick_pools run does and how it reschedules (planMigrationStep). */
+export interface MigrationStep {
+  /** True while pool_state.version is below POOL_MIGRATION_VERSION: the run migrates, no normal tick. */
+  migrating: boolean;
+  /** The region ids this run migrates (MIGRATION_REGIONS_PER_RUN of them, ascending). */
+  batch: bigint[];
+  /** Whether regions remain after this batch. */
+  more: boolean;
+  /** The cursor this run started from (the last region already migrated; 0n = none). */
+  afterRegionId: bigint;
+  /** When the next tick is due. */
+  nextAt: bigint;
+  /** The cursor of the next tick (0n once the migration is done or when not migrating). */
+  nextAfterRegionId: bigint;
+}
+
+/**
+ * The plan of one tick_pools run, computed before its one-row reschedule. Below POOL_MIGRATION_VERSION
+ * the sorted region ids go through planRestockBatch(ids, cursor, MIGRATION_REGIONS_PER_RUN): the next
+ * tick comes MIGRATION_CONTINUE_MICROS later while regions remain, else POOL_TICK_MICROS later with
+ * the cursor reset. At the version it is the normal tick (POOL_TICK_MICROS, cursor 0n). If reading the
+ * state fails, the run does no work and plans again a tick later from the same cursor, so the chain
+ * never breaks.
+ */
+export function planMigrationStep(
+  ctx: any,
+  arg: { afterRegionId?: bigint } | undefined,
+  now: bigint = ctx.timestamp.microsSinceUnixEpoch,
+): MigrationStep {
+  const afterRegionId: bigint = arg?.afterRegionId ?? 0n;
+  try {
+    if (poolState(ctx).version >= POOL_MIGRATION_VERSION) {
+      return {
+        migrating: false,
+        batch: [],
+        more: false,
+        afterRegionId: 0n,
+        nextAt: now + DENSITY_RULES.POOL_TICK_MICROS,
+        nextAfterRegionId: 0n,
+      };
+    }
+    const regionIds = [...ctx.db.region.iter()].map((region: any) => region.id as bigint).sort(ascending);
+    const plan = planRestockBatch(regionIds, afterRegionId, DENSITY_RULES.MIGRATION_REGIONS_PER_RUN);
+    return {
+      migrating: true,
+      batch: plan.batch,
+      more: plan.more,
+      afterRegionId,
+      nextAt: now + (plan.more ? DENSITY_RULES.MIGRATION_CONTINUE_MICROS : DENSITY_RULES.POOL_TICK_MICROS),
+      nextAfterRegionId: plan.nextAfterNpcId,
+    };
+  } catch (error) {
+    console.error(`tick_pools: planning the migration step failed: ${redactSecrets(String(error))}`);
+    return {
+      migrating: true,
+      batch: [],
+      more: true,
+      afterRegionId,
+      nextAt: now + DENSITY_RULES.POOL_TICK_MICROS,
+      nextAfterRegionId: afterRegionId,
+    };
+  }
+}
+
+/**
+ * The migration work of one tick_pools run, after its reschedule (`next` is the row it inserted).
+ * Each batch region is migrated in its own try/catch. When one fails, the error is logged, the rest
+ * of the batch is skipped and `next` is replaced by a row due MIGRATION_CONTINUE_MICROS later whose
+ * cursor is the last region that did migrate, so the next run retries the failed one (still one
+ * pending row). When the batch was the last one and every region succeeded, pool_state.version
+ * becomes POOL_MIGRATION_VERSION and the normal tick takes over. Returns whether every region succeeded.
+ */
+export function runMigrationStep(ctx: any, step: MigrationStep, next: any, now: bigint): boolean {
+  let lastDone = step.afterRegionId;
+  for (const regionId of step.batch) {
+    try {
+      migrateRegion(ctx, regionId, now);
+      lastDone = regionId;
+    } catch (error) {
+      console.error(`tick_pools: migrating region ${regionId} failed: ${redactSecrets(String(error))}`);
+      // A scheduled row is cancelled by deleting it; the retry row takes its place.
+      if (next?.scheduledId !== undefined) ctx.db.pool_tick.scheduledId.delete(next.scheduledId);
+      ctx.db.pool_tick.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(now + DENSITY_RULES.MIGRATION_CONTINUE_MICROS),
+        afterRegionId: lastDone,
+      });
+      return false;
+    }
+  }
+  if (!step.more) updatePoolState(ctx, { version: POOL_MIGRATION_VERSION });
+  return true;
 }
