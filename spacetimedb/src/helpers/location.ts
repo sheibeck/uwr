@@ -574,73 +574,36 @@ export function spawnEnemyWithTemplate(
   if (pref && pref !== 'any' && pref !== timePref) {
     throw new SenderError('That creature is not active right now');
   }
+  // D-07 / D-53: named enemies, bosses and quest targets are single individuals, so this spawns exactly
+  // one enemy whatever the template's group size says (ordinary creatures come from pools). It fights
+  // at today's place-scaled level with no bonus (D-52: Phase 52.5 owns boss difficulty).
   const seed = ctx.timestamp.microsSinceUnixEpoch + locationId + template.id;
-  const minGroup = template.groupMin && template.groupMin > 0n ? template.groupMin : 1n;
-  const maxGroup = template.groupMax && template.groupMax > 0n ? template.groupMax : minGroup;
-  const groupSeed = seed + template.id * 11n;
-  let groupCount = minGroup;
-  if (maxGroup > minGroup) {
-    const location = ctx.db.location.id.find(locationId);
-    const region = location ? ctx.db.region.id.find(location.regionId) : undefined;
-    const danger = region?.dangerMultiplier ?? GROUP_SIZE_DANGER_BASE;
-    const delta = danger > GROUP_SIZE_DANGER_BASE ? danger - GROUP_SIZE_DANGER_BASE : 0n;
-    const rawBias = Number(delta) / Math.max(1, Number(GROUP_SIZE_BIAS_RANGE));
-    const bias = Math.max(0, Math.min(GROUP_SIZE_BIAS_MAX, rawBias));
-    const biasScaled = Math.round(bias * 1000);
-    const invBias = 1000 - biasScaled;
-    const sizeCount = Number(maxGroup - minGroup + 1n);
-    let totalWeight = 0;
-    const weights: number[] = [];
-    for (let i = 0; i < sizeCount; i += 1) {
-      const lowWeight = sizeCount - i;
-      const highWeight = i + 1;
-      const weight = invBias * lowWeight + biasScaled * highWeight;
-      weights.push(weight);
-      totalWeight += weight;
-    }
-    let roll = groupSeed % BigInt(totalWeight);
-    for (let i = 0; i < weights.length; i += 1) {
-      const weight = BigInt(weights[i]);
-      if (roll < weight) {
-        groupCount = minGroup + BigInt(i);
-        break;
-      }
-      roll -= weight;
-    }
-  }
   // A tracked or quest-named spawn obeys the same place band as any other spawn.
   const spawnLevel = placeSpawnLevel(
     template.level,
     computeLocationTargetLevel(ctx, locationId, 1n),
     locationRow?.levelOffset ?? 0n,
   );
-  let firstSpawn: typeof EnemySpawn.rowType | null = null;
-  const total = Number(groupCount);
-  for (let i = 0; i < total; i += 1) {
-    const spawn = ctx.db.enemy_spawn.insert({
+  const spawn = ctx.db.enemy_spawn.insert({
+    id: 0n,
+    locationId,
+    enemyTemplateId: template.id,
+    name: template.name,
+    state: 'available',
+    lockedCombatId: undefined,
+    groupCount: 1n,
+    level: spawnLevel,
+  });
+  const role = pickRoleTemplate(ctx, template.id, seed + template.id * 11n);
+  if (role) {
+    ctx.db.enemy_spawn_member.insert({
       id: 0n,
-      locationId,
+      spawnId: spawn.id,
       enemyTemplateId: template.id,
-      name: template.name,
-      state: 'available',
-      lockedCombatId: undefined,
-      groupCount: 1n,
-      level: spawnLevel,
+      roleTemplateId: role.id,
     });
-    const role = pickRoleTemplate(ctx, template.id, groupSeed + BigInt(i) * 7n);
-    if (role) {
-      ctx.db.enemy_spawn_member.insert({
-        id: 0n,
-        spawnId: spawn.id,
-        enemyTemplateId: template.id,
-        roleTemplateId: role.id,
-      });
-    }
-    refreshSpawnGroupCount(ctx, spawn.id);
-    if (firstSpawn === null) {
-      firstSpawn = ctx.db.enemy_spawn.id.find(spawn.id)!;
-    }
   }
-  return firstSpawn!;
+  refreshSpawnGroupCount(ctx, spawn.id);
+  return ctx.db.enemy_spawn.id.find(spawn.id)!;
 }
 
