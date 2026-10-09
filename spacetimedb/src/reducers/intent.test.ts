@@ -485,13 +485,28 @@ describe('intent routing patterns', () => {
     });
   });
 
-  describe('attack pattern: /^(?:attack|fight|kill)\\s*(.*)$/', () => {
-    const pattern = /^(?:attack|fight|kill)\s*(.*)$/;
+  // Phase 51.3.1.1 Plan 16 (UI-SPEC P3): typed pull joins attack/fight/kill, and the verb must be a
+  // whole word (so "pullover" or "attacking" is not a fight command).
+  describe('attack pattern: /^(?:attack|fight|kill|pull)(?:\\s+(.*))?$/i', () => {
+    const pattern = /^(?:attack|fight|kill|pull)(?:\s+(.*))?$/i;
 
-    it('matches bare "attack" with empty target', () => {
+    it('is the pattern intent.ts uses', async () => {
+      const { readFileSync } = await import('node:fs');
+      const { fileURLToPath } = await import('node:url');
+      const src = readFileSync(fileURLToPath(new URL('./intent.ts', import.meta.url)), 'utf8');
+      expect(src).toContain('/^(?:attack|fight|kill|pull)(?:\\s+(.*))?$/i');
+    });
+
+    it('matches bare "attack" with no target', () => {
       const m = 'attack'.match(pattern);
       expect(m).not.toBeNull();
-      expect(m![1]).toBe('');
+      expect(m![1] ?? '').toBe('');
+    });
+
+    it('matches "pull goblins" and keeps the typed casing of the target', () => {
+      const m = 'Pull Goblins'.match(pattern);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe('Goblins');
     });
 
     it('matches "attack goblin" and captures target', () => {
@@ -512,13 +527,9 @@ describe('intent routing patterns', () => {
       expect(m![1]).toBe('dragon');
     });
 
-    it('matches "attacking" since pattern uses \\s* (greedy)', () => {
-      // Note: the pattern /^(?:attack|fight|kill)\s*(.*)$/ does match "attacking"
-      // because "attack" is consumed, then \s* matches zero, then (.*) captures "ing".
-      // This is acceptable since the dispatcher uses lower-cased input.
-      const m = 'attacking'.match(pattern);
-      expect(m).not.toBeNull();
-      expect(m![1]).toBe('ing');
+    it('does not match "attacking" or "pullover" (the verb is a whole word)', () => {
+      expect('attacking'.match(pattern)).toBeNull();
+      expect('pullover'.match(pattern)).toBeNull();
     });
   });
 
@@ -746,7 +757,7 @@ describe('intent routing patterns', () => {
       /^(?:whisper|tell|w)\s+(\S+)\s+(.+)$/i,
       /^(?:talk|hail|speak)\s+(?:to\s+)?(.+)$/i,
       /^(?:consider|con)\s+(.+)$/i,
-      /^(?:attack|fight|kill)\s*(.*)$/,
+      /^(?:attack|fight|kill|pull)(?:\s+(.*))?$/i,
       /^(?:use|cast)\s+(.+)$/,
     ];
 

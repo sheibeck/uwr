@@ -338,3 +338,181 @@ describe('examine describes a family or a resource (D-03, D-26)', () => {
     expect(examine(ctx, 'old greymaw')).toContain('You study Old Greymaw.');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 2: typed enemies, con and attack/fight/kill/pull (D-07, D-12, UI-SPEC P3)
+// ---------------------------------------------------------------------------
+
+const PROMPT_WORDS = ['[Careful Pull]', '[Charge In]'];
+const noPrompt = (ctx: any) => {
+  for (const e of rows(ctx, 'event_private')) {
+    for (const w of PROMPT_WORDS) expect(e.message).not.toContain(w);
+    expect(e.kind).not.toBe('combat_prompt');
+  }
+};
+
+describe('typed enemies lists families, then individuals', () => {
+  it('two families and a named enemy', () => {
+    const { ctx } = world({ skitterersHere: 50n, named: true });
+    say(ctx, 'enemies');
+    const out = lastMessage(ctx);
+    expect(out).toContain('Enemies at this location:');
+    expect(out).toContain('[Goblins] (Lv 3-5, Stable)');
+    expect(out).toContain('[Salt-Crust Skitterers] (Lv 3, Stable)');
+    expect(out).toContain('[Old Greymaw]');
+    expect(out.indexOf('[Goblins]')).toBeLessThan(out.indexOf('[Old Greymaw]'));
+    expect(out).not.toMatch(/%/);
+  });
+
+  it('a safe place with nothing prints No enemies nearby.', () => {
+    const { ctx } = world({ aliceAt: MARKET_ID });
+    say(ctx, 'mobs');
+    expect(lastMessage(ctx)).toBe('No enemies nearby.');
+  });
+
+  it('a legacy ordinary standing spawn is not listed', () => {
+    const { ctx } = world({ legacy: true });
+    say(ctx, 'enemies');
+    expect(lastMessage(ctx)).not.toContain('Goblin Brute');
+  });
+});
+
+describe('typed con answers for a family, an individual or an NPC', () => {
+  it('con goblins gives the threat phrasing for the family top level plus the density word', () => {
+    const { ctx } = world();
+    say(ctx, 'con goblins');
+    // Goblins top out at 5 at the orchard; Alice is level 3 (diff 2).
+    expect(lastMessage(ctx)).toBe('Goblins look dangerous. Proceed with caution. Population: Stable.');
+  });
+
+  it("a member name answers for that member's family", () => {
+    const { ctx } = world({ skitterersHere: 90n });
+    say(ctx, 'con skitterer hexer');
+    expect(lastMessage(ctx).startsWith('Salt-Crust Skitterers ')).toBe(true);
+    expect(lastMessage(ctx)).toContain('Population: Overrun.');
+  });
+
+  it('a named enemy is considered as an individual with the singular phrasing', () => {
+    const { ctx } = world({ named: true });
+    say(ctx, 'con old greymaw');
+    expect(lastMessage(ctx).startsWith('Old Greymaw ')).toBe(true);
+    expect(lastMessage(ctx)).not.toContain('Population');
+  });
+
+  it('an NPC still gets the regard line', () => {
+    const { ctx } = world();
+    ctx.db.npc.insert({ id: 0n, locationId: ORCHARD_ID, name: 'Mira Vale', npcType: 'lore', description: 'A guide.', greeting: 'Hello.', gender: 'female' });
+    say(ctx, 'con mira vale');
+    expect(lastMessage(ctx)).toContain('Mira Vale');
+    expect(lastMessage(ctx)).not.toContain('Population');
+  });
+
+  it('nothing by that name keeps the old miss', () => {
+    const { ctx } = world();
+    say(ctx, 'con dragons');
+    expect(lastMessage(ctx)).toBe('You see no one named "dragons" here to consider.');
+  });
+});
+
+describe('typed attack, fight, kill and pull share the Pull button path (D-12, UI-SPEC P3)', () => {
+  const fightOf = (ctx: any) => ({
+    encounters: rows(ctx, 'combat_encounter').map((c: any) => ({ origin: c.origin, originFamilyId: c.originFamilyId, originLevel: c.originLevel })),
+    enemies: rows(ctx, 'combat_enemy').map((e: any) => e.enemyTemplateId),
+    feed: feed(ctx).map((e: any) => e.message),
+  });
+
+  it.each(['pull goblins', 'attack goblins', 'fight goblin', 'kill goblins', 'Pull Goblins'])(
+    '"%s" starts the same fight as pull_family for that pool',
+    (text) => {
+      for (let i = 0n; i < 4n; i += 1n) {
+        const ts = T0 + i;
+        const typed = world({ goblins: 90n });
+        typed.ctx.timestamp = { microsSinceUnixEpoch: ts };
+        say(typed.ctx, text);
+        const button = world({ goblins: 90n });
+        button.ctx.timestamp = { microsSinceUnixEpoch: ts };
+        handlers.pull_family(button.ctx, { characterId: 1n, poolId: button.goblins.id });
+        const a = fightOf(typed.ctx);
+        const b = fightOf(button.ctx);
+        expect(a.encounters).toHaveLength(1);
+        expect(a.encounters[0].origin).toBe('pull');
+        expect(a.encounters).toEqual(b.encounters);
+        expect(a.enemies).toEqual(b.enemies);
+        // The same lead-in line as the button.
+        expect(a.feed.filter((m: string) => m.startsWith('You make some noise.'))).toEqual(
+          b.feed.filter((m: string) => m.startsWith('You make some noise.')),
+        );
+        noPrompt(typed.ctx);
+      }
+    },
+  );
+
+  it('a wiped-out family refuses with the pull refusal and starts nothing', () => {
+    const { ctx } = world({ goblins: 0n });
+    say(ctx, 'pull goblins');
+    expect(lastMessage(ctx)).toBe('There are no goblins here to pull.');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+  });
+
+  it('attack with no name pulls the first family in danger order', () => {
+    const { ctx } = world({ skitterersHere: 90n });
+    say(ctx, 'attack');
+    const fights = rows(ctx, 'combat_encounter');
+    expect(fights).toHaveLength(1);
+    expect(fights[0].originFamilyId).toBe(SKITTERERS_ID);
+    expect(fights[0].origin).toBe('pull');
+  });
+
+  it('attack with no family and no individual refuses', () => {
+    const { ctx } = world({ aliceAt: MARKET_ID });
+    say(ctx, 'attack');
+    expect(lastMessage(ctx)).toBe('There is nothing to fight here.');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+  });
+
+  it('an unknown name refuses and names what is here', () => {
+    const { ctx } = world({ named: true });
+    say(ctx, 'attack dragons');
+    expect(lastMessage(ctx)).toBe('No enemy named "dragons" here. Nearby: [Goblins], [Old Greymaw].');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+  });
+
+  it('attack {named enemy} starts the named fight with one enemy', () => {
+    const { ctx } = world({ named: true });
+    say(ctx, 'attack old greymaw');
+    const fights = rows(ctx, 'combat_encounter');
+    expect(fights).toHaveLength(1);
+    expect(fights[0].origin).toBe('named');
+    const enemies = rows(ctx, 'combat_enemy');
+    expect(enemies).toHaveLength(1);
+    expect(enemies[0].enemyTemplateId).toBe(NAMED_TEMPLATE_ID);
+    expect(ctx.db.named_enemy.id.find(1n).isAlive).toBe(false);
+    expect(feed(ctx).map((e: any) => e.message)).toContain('You engage Old Greymaw!');
+    noPrompt(ctx);
+  });
+
+  it('attack {event enemy} starts that fight', () => {
+    const { ctx } = world({ event: true });
+    say(ctx, 'fight ash wraith');
+    const enemies = rows(ctx, 'combat_enemy');
+    expect(enemies).toHaveLength(1);
+    expect(enemies[0].enemyTemplateId).toBe(EVENT_TEMPLATE_ID);
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+    noPrompt(ctx);
+  });
+
+  it('a character already in a fight is refused', () => {
+    const { ctx } = world({ goblins: 90n });
+    say(ctx, 'pull goblins');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+    say(ctx, 'attack goblins');
+    expect(lastMessage(ctx)).toBe('You are already in combat. Use your abilities.');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+  });
+
+  it('pull is a whole word: "pullover" is not a pull', () => {
+    const { ctx } = world({ goblins: 90n });
+    say(ctx, 'pullover');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+  });
+});
