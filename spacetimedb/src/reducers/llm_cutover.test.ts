@@ -25,6 +25,7 @@ import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { PLAYER_INPUT_MAX_CHARS } from '../data/llm_layers';
 import { STRANDED_CHARACTER_HINT } from './creation';
 import { WORLD_FILL_RETRY_LINE } from '../helpers/world_gen';
+import { REGION_HOLD_ARRIVING_LINE } from '../helpers/region_hold';
 import {
   CLASS_FILL_FAILED_LINE,
   CLASS_FILL_PATIENCE_LINE,
@@ -1604,7 +1605,9 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
   describe('travelling to an uncharted location', () => {
     const go = (ctx: any) => handlers.submit_intent(ctx, { characterId: 1n, text: 'go The Edge Beyond' });
 
-    it('starts one GENERATING state and job and posts the World event line', () => {
+    // Phase 51.3.1.2 (owner's 7a choice): the travel trigger posts the arrival hold line instead of
+    // the old start line; the [explore] retries below keep the start line.
+    it('starts one GENERATING state and job and posts the arrival hold line (7a), not the start line', () => {
       const ctx = newCtx(unchartedSeed());
       go(ctx);
 
@@ -1616,10 +1619,11 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       const input = resolveRouteInput(ctx, job) as any;
       expect(input.sourceRegionName).toBe('Ashen Reach');
       expect(input.characterRace).toBe('Kobold');
-      expect(systemLines(ctx)).toContain(WORLD_EVENT_START);
+      expect(systemLines(ctx)).toEqual([REGION_HOLD_ARRIVING_LINE]);
+      expect(systemLines(ctx)).not.toContain(WORLD_EVENT_START);
     });
 
-    it('a refused start posts the refusal line but not the World event line, and the state is ERROR', () => {
+    it('a refused start posts the refusal line but neither the start line nor the hold line, and the state is ERROR', () => {
       const ctx = newCtx(unchartedSeed());
       exhaustDay(ctx);
       go(ctx);
@@ -1628,6 +1632,7 @@ describe('world generation cutover (PIPE-01 / PIPE-04 / PIPE-05)', () => {
       expect(worldGenStates(ctx)[0].step).toBe('ERROR');
       const lines = systemLines(ctx);
       expect(lines).not.toContain(WORLD_EVENT_START);
+      expect(lines).not.toContain(REGION_HOLD_ARRIVING_LINE);
       expect(lines).toContain(
         'The Keeper strains but cannot shape this realm right now. Type [explore] to try again later.',
       );

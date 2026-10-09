@@ -22,12 +22,19 @@
 // sweep_passages scheduled reducer) returns each offline character standing in a passage to its
 // own side and then collapses the passage if it is empty. The first tick is also the one-time
 // cleanup of passages that existed before collapse did.
+//
+// A held crossing stays (Phase 51.3.1.2, D-15): while the region beyond a passage is still being
+// made, or its making failed (helpers/region_hold.ts crossingHoldState), the passage never
+// collapses and the sweep leaves its occupants where they are. Travellers wait at the crossing,
+// [explore] there still finds the generation state (whose sourceLocationId is the passage), and
+// once the state is COMPLETE the next departure or sweep collapses it as before.
 // ============================================================================
 
 import { activeCombatIdForCharacter } from './events';
 import { areLocationsConnected } from './location';
 import { onlineCharacterIds } from './online';
 import { markLocationVisited, visitedRowFor } from './visited';
+import { crossingHoldState } from './region_hold';
 
 /** The passage sweep runs every 5 minutes (the sweep_inactivity interval). */
 export const PASSAGE_SWEEP_INTERVAL_MICROS = 300_000_000n;
@@ -259,14 +266,16 @@ function hasActiveEncounterAt(ctx: any, locationId: bigint): boolean {
  * Collapse the passage into direct border crossings when nobody stands in it. Returns true when it
  * collapsed. Returns false, changing nothing, when the place does not exist, is not a passage,
  * has a character in it, has a fight still going on at it (the encounter and its locked enemy
- * spawn must stay where the fight is; the sweep collapses it after the fight ends), or has no
- * own-side or no far-side neighbour (nothing to link).
+ * spawn must stay where the fight is; the sweep collapses it after the fight ends), is a held
+ * crossing (the region beyond is still being made or its making failed, D-15), or has no own-side
+ * or no far-side neighbour (nothing to link).
  */
 export function collapsePassageIfEmpty(ctx: any, passageId: bigint): boolean {
   const passage = ctx.db.location.id.find(passageId);
   if (!passage || passage.terrainType !== 'passage') return false;
   if ([...ctx.db.character.by_location.filter(passageId)].length > 0) return false;
   if (hasActiveEncounterAt(ctx, passageId)) return false;
+  if (crossingHoldState(ctx, passageId) !== null) return false;
   const { own, far } = passageSides(ctx, passage);
   if (own.length === 0 || far.length === 0) return false;
 
@@ -315,8 +324,8 @@ export function collapsePassageAfterLeaving(
 }
 
 /**
- * One sweep pass. For each passage in id order that can collapse (it has an own side and a far
- * side, and no active fight at it): every offline character in it (no player row has it as
+ * One sweep pass. For each passage in id order that can collapse (it is not a held crossing, it
+ * has an own side and a far side, and no active fight at it): every offline character in it (no player row has it as
  * activeCharacterId) is moved silently, to the place it arrived from when
  * that place is an own-side neighbour of the passage, else to the lowest-id own-side neighbour,
  * never across the border; the new place is marked visited with no origin. Then the passage
@@ -333,8 +342,10 @@ export function sweepPassages(ctx: any): { moved: number; collapsed: number } {
   let moved = 0;
   let collapsed = 0;
   for (const passage of found) {
-    // A passage that cannot collapse (no own side or no far side to link, or a fight still going on
-    // at it) is left alone: moving its offline occupants would displace them for nothing.
+    // A passage that cannot collapse (a held crossing, no own side or no far side to link, or a
+    // fight still going on at it) is left alone: moving its offline occupants would displace them
+    // for nothing. A held crossing keeps its travellers waiting where they stand (D-15).
+    if (crossingHoldState(ctx, passage.id) !== null) continue;
     const { own, far } = passageSides(ctx, passage);
     if (own.length === 0 || far.length === 0) continue;
     if (hasActiveEncounterAt(ctx, passage.id)) continue;

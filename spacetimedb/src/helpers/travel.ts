@@ -9,6 +9,12 @@ import { markLocationVisited } from './visited';
 import { collapsePassageIfEmpty } from './passages';
 import { drawGroup, rollEncounter, rosterLevel, startPoolFight } from './encounters';
 import { ambushLine, travelQuiet } from '../data/density_lines';
+import {
+  REGION_HOLD_ARRIVING_LINE,
+  REGION_HOLD_FAILED_LINE,
+  crossingHoldState,
+  travelHoldRefusal,
+} from './region_hold';
 
 /** A place a travel roll can happen at: charted and not safe (D-10). Uncharted places never roll. */
 function travelRollsAt(place: any): boolean {
@@ -124,6 +130,12 @@ export function performTravel(
   // Determine if travel crosses regions
   const fromLocation = ctx.db.location.id.find(character.locationId);
   const isCrossRegion = fromLocation!.regionId !== location.regionId;
+
+  // The region hold (D-15, D-18): nobody enters a region before its generation state is COMPLETE.
+  // Checked before the party is gathered, stamina, cooldowns or the leave roll, so a leader's
+  // refusal stops the whole party and a member travelling alone is refused the same way.
+  const holdLine = travelHoldRefusal(ctx, fromLocation, location);
+  if (holdLine) { fail(holdLine); return false; }
 
   // Collect all traveling characters (group travel)
   const travelingCharacters: any[] = [];
@@ -436,12 +448,20 @@ export function performTravel(
         createdAt: ctx.timestamp,
         updatedAt: ctx.timestamp,
       });
-      const started = startWorldGeneration(ctx, genState);
-      // A refusal has already told the player how to try again; the World event line is for a real start.
-      if (started === 'enqueued' || started === 'duplicate') {
-        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system',
-          'The edges of reality shimmer around you. The world pauses, as if remembering something it had forgotten...');
-      }
+      // A refusal has already told the player how to try again (the state is ERROR, so no hold
+      // line follows). A real start leaves the state in progress: the arrival line below (the
+      // owner's 7a) replaces the old start line for every traveller of the trip.
+      startWorldGeneration(ctx, genState);
+    }
+  }
+
+  // Arriving at a held crossing (D-15, D-18): each traveller of this trip gets the hold line once,
+  // 7a while the region beyond is being made, 7d while its making failed.
+  const arrivalHold = crossingHoldState(ctx, location.id);
+  if (arrivalHold) {
+    const line = arrivalHold === 'held' ? REGION_HOLD_ARRIVING_LINE : REGION_HOLD_FAILED_LINE;
+    for (const traveler of travelingCharacters) {
+      appendPrivateEvent(ctx, traveler.id, traveler.ownerUserId, 'system', line);
     }
   }
 

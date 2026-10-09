@@ -310,6 +310,53 @@ describe('sweep_passages: edge cases and ordering', () => {
   });
 });
 
+describe('sweep_passages: a held crossing stays (Phase 51.3.1.2, D-15)', () => {
+  const genState = (step: string) => ({
+    id: 1n,
+    playerId: bob,
+    characterId: 1n,
+    sourceLocationId: 6n,
+    sourceRegionId: 1n,
+    step,
+    generatedRegionId: 4097n,
+    createdAt: { microsSinceUnixEpoch: T0 },
+    updatedAt: { microsSinceUnixEpoch: T0 },
+  });
+
+  it.each(['FILLING', 'FILLING_FAMILIES', 'FILL_ERROR', 'FAMILIES_ERROR'])(
+    'S at %s: the offline occupant stays at the crossing and the crossing stays',
+    (step) => {
+      const ctx = newCtx({
+        character: [character(1n, 6n)],
+        visited_location: [visit(1n, 1n, 6n, 5n)],
+        world_gen_state: [genState(step)],
+      });
+      expect(sweepPassages(ctx)).toEqual({ moved: 0, collapsed: 0 });
+      expect(where(ctx, 1n)).toBe(6n);
+      expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
+    },
+  );
+
+  it('S at FILLING: an empty held crossing is not collapsed by the tick', () => {
+    const ctx = newCtx({ world_gen_state: [genState('FILLING')] });
+    run(ctx);
+    expect(locationIds(ctx)).toEqual([3n, 5n, 6n, 4097n]);
+  });
+
+  it('once S is COMPLETE, the next sweep moves the offline occupant and collapses the crossing', () => {
+    const ctx = newCtx({
+      character: [character(1n, 6n)],
+      visited_location: [visit(1n, 1n, 6n, 5n)],
+      world_gen_state: [genState('FAMILIES_ERROR')],
+    });
+    expect(sweepPassages(ctx)).toEqual({ moved: 0, collapsed: 0 });
+    table(ctx, 'world_gen_state')[0].step = 'COMPLETE';
+    expect(sweepPassages(ctx)).toEqual({ moved: 1, collapsed: 1 });
+    expect(where(ctx, 1n)).toBe(5n);
+    expect(locationIds(ctx)).toEqual([3n, 5n, 4097n]);
+  });
+});
+
 describe('the sweep is armed when a client connects', () => {
   it('inserts one tick due now when none is pending, and a second connect adds none', () => {
     const ctx = newCtx({}, alice);

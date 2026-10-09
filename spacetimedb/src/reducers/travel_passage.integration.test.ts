@@ -181,6 +181,45 @@ describe('move_character collapses an emptied passage (real handler)', () => {
   });
 });
 
+describe('a held crossing does not collapse on departure (Phase 51.3.1.2, D-15)', () => {
+  const genState = (step: string) => ({
+    id: 1n,
+    playerId: alice,
+    characterId: 1n,
+    sourceLocationId: 6n,
+    sourceRegionId: 1n,
+    step,
+    generatedRegionId: 4097n,
+    createdAt: { microsSinceUnixEpoch: T0 },
+    updatedAt: { microsSinceUnixEpoch: T0 },
+  });
+
+  it.each(['FILLING', 'FILLING_FAMILIES', 'FILL_ERROR', 'FAMILIES_ERROR'])(
+    'S at %s: the last character leaving for its own side leaves the passage and its links in place',
+    (step) => {
+      const ctx = newCtx({ world_gen_state: [genState(step)] });
+      moveCharacter(ctx, { characterId: 1n, locationId: 5n });
+      expect(where(ctx, 1n)).toBe(5n);
+      expect(locationIds(ctx)).toEqual([5n, 6n, 4097n]);
+      expect(edges(ctx)).toEqual(['4097>6', '5>6', '6>4097', '6>5']);
+    },
+  );
+
+  it('S at FILLING: a respawn out of the passage keeps it too', () => {
+    const ctx = newCtx({ character: [character({ hp: 0n })], world_gen_state: [genState('FILLING')] });
+    respawnCharacter(ctx, { characterId: 1n });
+    expect(where(ctx, 1n)).toBe(5n);
+    expect(locationIds(ctx)).toEqual([5n, 6n, 4097n]);
+  });
+
+  it('S at COMPLETE: the departure collapses the passage as before', () => {
+    const ctx = newCtx({ world_gen_state: [genState('COMPLETE')] });
+    moveCharacter(ctx, { characterId: 1n, locationId: 5n });
+    expect(locationIds(ctx)).toEqual([5n, 4097n]);
+    expect(edges(ctx)).toEqual(['4097>5', '5>4097']);
+  });
+});
+
 describe('the other ways out of a passage also collapse it (review WR-02)', () => {
   const other = (over: Record<string, unknown> = {}) =>
     character({ id: 2n, name: 'Other', ownerUserId: 8n, locationId: 5n, ...over });

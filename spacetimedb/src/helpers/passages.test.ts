@@ -211,6 +211,34 @@ describe('collapsePassageIfEmpty', () => {
   });
 });
 
+describe('a held crossing never collapses (Phase 51.3.1.2, D-15)', () => {
+  const genState = (step: string) => ({ id: 1n, sourceLocationId: 6n, generatedRegionId: 4097n, step });
+
+  it.each(['PENDING', 'GENERATING', 'FILLING', 'FILLING_FAMILIES', 'FILL_ERROR', 'FAMILIES_ERROR'])(
+    'an empty passage whose region state is %s returns false and changes nothing',
+    (step) => {
+      // Empty character and combat_encounter tables are seeded so the reads before the hold check
+      // (which create a missing table in the mock) do not change the snapshot.
+      const ctx = world({ character: [], combat_encounter: [], world_gen_state: [genState(step)] });
+      const before = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v));
+      expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(false);
+      expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v))).toBe(before);
+    },
+  );
+
+  it.each(['COMPLETE', 'ERROR', 'HELD'])('an empty passage whose region state is %s collapses as before', (step) => {
+    const ctx = world({ world_gen_state: [genState(step)] });
+    expect(passages.collapsePassageIfEmpty(ctx, 6n)).toBe(true);
+    expect(locationIds(ctx)).toEqual([5n, 4097n]);
+  });
+
+  it('collapsePassageAfterLeaving keeps a held crossing too', () => {
+    const ctx = world({ world_gen_state: [genState('FILLING')] });
+    expect(passages.collapsePassageAfterLeaving(ctx, 6n, 5n)).toBe(false);
+    expect(locationIds(ctx)).toEqual([5n, 6n, 4097n]);
+  });
+});
+
 function ctx0() {
   return { microsSinceUnixEpoch: 5n };
 }
