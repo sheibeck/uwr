@@ -4,7 +4,11 @@ import { WEAPON_TYPES } from '../data/mechanical_vocabulary';
 import { findItemTemplateByName, getInventorySlotCount, MAX_INVENTORY_SLOTS } from '../helpers/items';
 import { awardXp } from '../helpers/combat_rewards';
 import { appendNpcDialog } from '../helpers/events';
-import { getGroupOrSoloParticipants } from '../helpers/group';
+import { fightRoster, getGroupOrSoloParticipants } from '../helpers/group';
+import { activeCombatIdForCharacter } from '../helpers/events';
+import { drawGroup, rollEncounter, rosterLevel, startPoolFight } from '../helpers/encounters';
+import { DENSITY_RULES } from '../data/density_rules';
+import { ambushLine } from '../data/density_lines';
 import { MAX_LEVEL } from '../data/xp';
 import { npcGender, npcPronouns } from '../data/npc_gender';
 
@@ -390,16 +394,20 @@ export function turnInQuestsAtNpc(ctx: any, character: any, npc: any, appendPriv
  * Picks up a discovered quest item (a delivery's package, an explore quest's object): the one path shared by
  * the loot_quest_item reducer and the "loot <item>" intent. The caller has validated the row (the
  * character's own, discovered, not yet looted). Marks it looted, completes the character's matching
- * unfinished quest instance (a turned-in or completed row is never touched), says so, and then rolls the
- * 30% aggro chance. The roll is deterministic: (characterId ^ ctx.timestamp) % 100 < 30; a failed aggro
- * (safe zone etc.) is skipped silently.
+ * unfinished quest instance (a turned-in or completed row is never touched), says so, and then rolls a
+ * quest-item ambush from the place's density pools (Phase 51.3.1.1 Plan 11, D-13): the seeded
+ * encounter roll of helpers/encounters.ts (phase 'aggro', factor QUEST_ITEM_AMBUSH_FACTOR_PCT, the
+ * roster's lowest level). A safe place, a wiped-out place or a character already fighting never
+ * ambushes; a hit draws a group (origin 'ambush_other') with an ambush line. A failed fight start is
+ * logged and skipped. Without `aggro.startCombat` (the "loot <item>" intent's bag until intent.ts
+ * passes it) the pickup draws no ambush.
  */
 export function pickUpQuestItem(
   ctx: any,
   character: any,
   questItem: any,
   appendPrivateEvent: any,
-  aggro: { ensurePoolsForLocation: any; effectiveGroupId: any; startCombatForSpawn: any },
+  aggro: { ensurePoolsForLocation: any; effectiveGroupId: any; startCombat?: any; startCombatForSpawn?: any },
 ): void {
   ctx.db.quest_item.id.update({ ...questItem, looted: true });
 
@@ -429,28 +437,66 @@ export function pickUpQuestItem(
 
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'quest', `You found ${questItem.name}!`);
 
-  // 30% aggro chance (deterministic roll)
-  const roll = (BigInt(character.id) ^ ctx.timestamp.microsSinceUnixEpoch) % 100n;
-  if (roll < 30n) {
-    try {
-      aggro.ensurePoolsForLocation(ctx, character.locationId);
-      // Find an available spawn at the character's location
-      let availableSpawn: any = null;
-      for (const spawn of ctx.db.enemy_spawn.by_location.filter(character.locationId)) {
-        if (spawn.state === 'available') {
-          availableSpawn = spawn;
-          break;
-        }
-      }
-      if (availableSpawn) {
-        const groupId = aggro.effectiveGroupId(character);
-        // Same fight rule as start_combat: only online members at this place come in (CR-02).
-        const participants = getGroupOrSoloParticipants(ctx, character);
-        aggro.startCombatForSpawn(ctx, character, availableSpawn, participants, groupId ?? null);
-      }
-    } catch (_e) {
-      // If aggro fails (safe zone etc.), skip silently
-    }
+  questItemAmbush(ctx, character, aggro);
+}
+
+/**
+ * The quest-item ambush (D-13): one seeded pool roll at the character's place, then the drawn group.
+ * Never at a safe place, never for a character already in a fight, never without aggro.startCombat.
+ */
+function questItemAmbush(
+  ctx: any,
+  character: any,
+  aggro: { ensurePoolsForLocation: any; effectiveGroupId: any; startCombat?: any },
+): void {
+  if (typeof aggro.startCombat !== 'function') return;
+  if (activeCombatIdForCharacter(ctx, character.id) !== null) return;
+  const location = ctx.db.location.id.find(character.locationId);
+  if (!location || location.isSafe) return;
+  try {
+    aggro.ensurePoolsForLocation(ctx, character.locationId);
+    const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+    const candidates = getGroupOrSoloParticipants(ctx, character);
+    const roster = fightRoster(character, candidates, (characterId: bigint) => activeCombatIdForCharacter(ctx, characterId) !== null);
+    const level = rosterLevel(roster);
+    const hit = rollEncounter(ctx, {
+      locationId: character.locationId,
+      isSafe: false,
+      partyLevel: level,
+      phase: 'aggro',
+      leaderId: character.id,
+      now,
+      factorPct: DENSITY_RULES.QUEST_ITEM_AMBUSH_FACTOR_PCT,
+    });
+    if (!hit) return;
+    const drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed });
+    if (drawn.length === 0) return;
+    const family = hit.family;
+    startPoolFight({ startCombat: aggro.startCombat }, ctx, {
+      leader: character,
+      candidates,
+      groupId: aggro.effectiveGroupId(character) ?? null,
+      pool: hit.pool,
+      family,
+      drawn,
+      originKind: 'ambush_other',
+      line: {
+        kind: 'ambush',
+        text: ambushLine({
+          phase: 'other',
+          party: roster.length > 1,
+          placeName: location.name,
+          count: drawn.length,
+          singular: family.singularNoun,
+          plural: family.pluralNoun,
+          verb: family.ambushVerb ?? '',
+          rest: family.ambushRest ?? '',
+        }),
+      },
+    });
+  } catch (e) {
+    // The pickup stands; the ambush is skipped.
+    console.error(`pickUpQuestItem: quest-item ambush failed for character ${character.id}: ${e}`);
   }
 }
 
@@ -462,6 +508,7 @@ export const registerQuestReducers = (deps: any) => {
     appendPrivateEvent,
     fail,
     ensurePoolsForLocation,
+    startCombat,
     startCombatForSpawn,
     spawnEnemyWithTemplate,
     effectiveGroupId,
@@ -485,7 +532,7 @@ export const registerQuestReducers = (deps: any) => {
       if (!questItem.discovered) { fail(ctx, character, 'You have not yet discovered this item'); return; }
       if (questItem.looted) { fail(ctx, character, 'You have already looted this item'); return; }
 
-      pickUpQuestItem(ctx, character, questItem, appendPrivateEvent, { ensurePoolsForLocation, effectiveGroupId, startCombatForSpawn });
+      pickUpQuestItem(ctx, character, questItem, appendPrivateEvent, { ensurePoolsForLocation, effectiveGroupId, startCombat });
     }
   );
 

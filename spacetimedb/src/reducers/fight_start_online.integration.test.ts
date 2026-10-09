@@ -65,10 +65,12 @@ function newCtx(ts: bigint) {
       })),
       region: startSeed().region,
       location: [...startSeed().location, { ...startSeed().location[0], id: 11n, name: 'Reedwater' }],
-      // The fixture's full enemy template (Cave Rat, id 1) with one available spawn here.
-      enemy_template: startSeed().enemy_template,
+      // The fixture's full enemy template (Cave Rat, id 1) with one available spawn here. Reed Wolf (2)
+      // is an ordinary creature here (Cave Rat is Old Greymaw's template, so it never forms a family):
+      // ensurePoolsForLocation pools it, and the quest-item ambush draws from that pool (Plan 11).
+      enemy_template: [...startSeed().enemy_template, { ...startSeed().enemy_template[0], id: 2n, name: 'Reed Wolf' }],
       enemy_spawn: [{ id: 90n, locationId: 10n, enemyTemplateId: 1n, name: 'Cave Rat', state: 'available', groupCount: 1n }],
-      location_enemy_template: [{ id: 95n, locationId: 10n, enemyTemplateId: 1n }],
+      location_enemy_template: [{ id: 95n, locationId: 10n, enemyTemplateId: 1n }, { id: 96n, locationId: 10n, enemyTemplateId: 2n }],
       resource_node: [{ id: 70n, locationId: 10n, name: 'Copper Vein', state: 'available', quantity: 3n }],
       npc: [{ id: 5n, name: 'Hesk Varrow', npcType: 'quest', locationId: 10n, gender: 'male' }],
       quest_template: [{
@@ -86,6 +88,25 @@ function newCtx(ts: bigint) {
 }
 
 const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+
+/**
+ * The first timestamp after T0 where loot_quest_item draws its pool ambush (Phase 51.3.1.1 Plan 11:
+ * the seeded roll of leader 1 at place 10, phase 'aggro'; it does not depend on who else is in the
+ * roster here, since every member has the same level).
+ */
+let questAggroAt: bigint | null = null;
+function questAggroTs(): bigint {
+  if (questAggroAt !== null) return questAggroAt;
+  for (let i = 0n; i < 400n; i += 1n) {
+    const ctx = newCtx(T0 + i);
+    handlers.loot_quest_item(ctx, { characterId: 1n, questItemId: 71n });
+    if (rows(ctx, 'combat_encounter').length === 1) {
+      questAggroAt = T0 + i;
+      return questAggroAt;
+    }
+  }
+  throw new Error('no timestamp draws the quest-item ambush');
+}
 const fighters = (ctx: any): bigint[] =>
   rows(ctx, 'combat_participant')
     .map((p) => p.characterId)
@@ -114,8 +135,9 @@ describe('offline members are never pulled into a fight (code review CR-02)', ()
   });
 
   it('the quest-item aggro pulls only online members at the place', () => {
-    // The aggro roll is (characterId ^ timestamp) % 100; T0 rolls 1 (< 30).
-    const ctx = newCtx(T0);
+    // Phase 51.3.1.1 Plan 11: the aggro is the seeded pool roll (helpers/encounters.ts) over the Cave
+    // Rat pool that ensurePoolsForLocation builds here; questAggroTs() is a timestamp where it hits.
+    const ctx = newCtx(questAggroTs());
     handlers.loot_quest_item(ctx, { characterId: 1n, questItemId: 71n });
     expect(rows(ctx, 'quest_item')[0].looted).toBe(true);
     expectOnlyMirelAndBran(ctx);
@@ -147,14 +169,14 @@ describe('a member already in another fight is not pulled in (review 2 IN-04)', 
       .map((p) => p.characterId);
 
   const PATHS = [
-    ['the gathering ambush', T0, (ctx: any) => handlers.start_gather_resource(ctx, { characterId: 1n, nodeId: 70n })],
-    ['the quest-item aggro', T0, (ctx: any) => handlers.loot_quest_item(ctx, { characterId: 1n, questItemId: 71n })],
-    ['pull_named_enemy', T0 + 7n, (ctx: any) => handlers.pull_named_enemy(ctx, { characterId: 1n, namedEnemyId: 99n })],
+    ['the gathering ambush', () => T0, (ctx: any) => handlers.start_gather_resource(ctx, { characterId: 1n, nodeId: 70n })],
+    ['the quest-item aggro', () => questAggroTs(), (ctx: any) => handlers.loot_quest_item(ctx, { characterId: 1n, questItemId: 71n })],
+    ['pull_named_enemy', () => T0 + 7n, (ctx: any) => handlers.pull_named_enemy(ctx, { characterId: 1n, namedEnemyId: 99n })],
   ] as const;
 
   for (const [label, ts, start] of PATHS) {
     it(`${label}: the new fight holds only Mirel; Bran keeps his one participant row`, () => {
-      const ctx = branInAFight(ts);
+      const ctx = branInAFight(ts());
       start(ctx);
       expect(rows(ctx, 'combat_encounter')).toHaveLength(2);
       expect(newFighters(ctx)).toEqual([1n]);

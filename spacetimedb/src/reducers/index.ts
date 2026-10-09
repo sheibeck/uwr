@@ -22,6 +22,7 @@ import { registerEconomyReducers } from './economy';
 import { registerIntentReducers } from './intent';
 import { registerCreationReducers } from './creation';
 import { registerLlmExecutorReducers } from './llm_executor';
+import { registerPoolReducers } from './pools';
 
 export const registerReducers = (deps: any) => {
   registerSocialReducers(deps);
@@ -48,4 +49,5 @@ export const registerReducers = (deps: any) => {
   registerIntentReducers(deps);
   registerCreationReducers(deps);
   registerLlmExecutorReducers(deps);
+  registerPoolReducers(deps);
 };
