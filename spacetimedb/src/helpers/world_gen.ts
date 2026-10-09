@@ -961,12 +961,35 @@ export function finishRegionFill(tx: any, genState: any): void {
   }
 }
 
+/** Newest first: by createdAt, then by id within one transaction (auto-inc ids alone are not an order). */
+function newestFirst(a: any, b: any): number {
+  const at: bigint = a.createdAt?.microsSinceUnixEpoch ?? 0n;
+  const bt: bigint = b.createdAt?.microsSinceUnixEpoch ?? 0n;
+  if (at !== bt) return at < bt ? 1 : -1;
+  return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+}
+
 /**
- * Stage 2 retry for the explore intent (Plan 43-11). A state matches the character when its
- * source location is the character's location or its generated region is the location's region.
- *  - 'busy':    a matching state is FILLING (nothing written);
- *  - 'started': a matching FILL_ERROR state was handed to the explorer and its fill re-enqueued;
- *  - 'refused': that enqueue was refused (the state is FILL_ERROR again, the refusal line posted);
+ * Re-run the failed stage of a state that was just handed to its retrier (Phase 51.3.1.2, D-09, D-18):
+ * FILL_ERROR re-enqueues the places call (startWorldFill), FAMILIES_ERROR the families call only
+ * (startWorldFamilies), so a families failure never reopens the places call and the places are never
+ * written twice (T-51.3.1.2-39). 'refused' when the enqueue was refused (the stage's fail function
+ * already put the state back in its error step and posted the line).
+ */
+function restartFailedStage(tx: any, handed: any): 'started' | 'refused' {
+  const result = handed.step === 'FAMILIES_ERROR' ? startWorldFamilies(tx, handed) : startWorldFill(tx, handed);
+  return result === 'refused' ? 'refused' : 'started';
+}
+
+/**
+ * Stage 2 retry for the explore intent (Plan 43-11; Phase 51.3.1.2 D-09, D-18). A state matches the
+ * character when its source location is the character's location (the crossing, which stays while the
+ * region is held) or its generated region is the location's region.
+ *  - 'busy':    a matching state is FILLING or FILLING_FAMILIES (nothing written);
+ *  - 'started': the newest matching FILL_ERROR or FAMILIES_ERROR state was handed to the explorer and
+ *               only its failed stage re-enqueued: world_gen for FILL_ERROR, world_gen_families for
+ *               FAMILIES_ERROR (a families failure never reopens the places call);
+ *  - 'refused': that enqueue was refused (the state is back in its error step, the refusal line posted);
  *  - 'none':    nothing matches.
  */
 export function retryWorldFill(
@@ -989,10 +1012,10 @@ export function retryWorldFill(
   }
   const states = [...matching.values()];
 
-  if (states.some((s: any) => s.step === 'FILLING')) return 'busy';
+  if (states.some((s: any) => s.step === 'FILLING' || s.step === 'FILLING_FAMILIES')) return 'busy';
   const failed = states
-    .filter((s: any) => s.step === 'FILL_ERROR')
-    .sort((a: any, b: any) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))[0];
+    .filter((s: any) => s.step === 'FILL_ERROR' || s.step === 'FAMILIES_ERROR')
+    .sort(newestFirst)[0];
   if (!failed) return 'none';
 
   const handed = {
@@ -1002,7 +1025,7 @@ export function retryWorldFill(
     updatedAt: tx.timestamp,
   };
   tx.db.world_gen_state.id.update(handed);
-  return startWorldFill(tx, handed) === 'refused' ? 'refused' : 'started';
+  return restartFailedStage(tx, handed);
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,7 +1092,7 @@ export function buildWorldFamiliesInput(tx: any, genState: any): WorldFamiliesIn
  * (T-51.3.1.2-26). A refused enqueue (kill switch or ceiling: the resting line; anything else: the
  * refused line) or an input that cannot be built fails the families instead: FAMILIES_ERROR, never
  * FILL_ERROR, so the places are never written twice (D-08, T-51.3.1.2-25). Plan 11 calls it from the 2a
- * apply; Plan 12 adds the [explore] retry.
+ * apply; the [explore] retries (retryWorldFill, retryStarterWorldGen) call it for a FAMILIES_ERROR state.
  */
 export function startWorldFamilies(tx: any, genState: any): 'enqueued' | 'duplicate' | 'refused' {
   let input: WorldFamiliesInput;

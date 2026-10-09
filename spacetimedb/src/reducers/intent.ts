@@ -1362,8 +1362,10 @@ export const registerIntentReducers = (deps: any) => {
         }
         return;
       }
-      // Phase 43: the second half of a region (stage 2). A FILLING state answers with patience, a FILL_ERROR
-      // state at the start location or the passage gets its fill job re-enqueued (stage 2 only, never stage 1).
+      // Phase 43: the second half of a region (stage 2). A FILLING or FILLING_FAMILIES state answers with
+      // patience; a failed state at the crossing or in the region gets only its failed stage re-enqueued
+      // (never stage 1): FILL_ERROR the places call (world_gen), FAMILIES_ERROR the families call
+      // (world_gen_families) alone, so the places are never asked for twice (Phase 51.3.1.2, D-09, D-18).
       const fill = retryWorldFill(ctx, character, ctx.sender);
       if (fill === 'busy') {
         return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', STARTER_RETRY_MESSAGES.busy);
