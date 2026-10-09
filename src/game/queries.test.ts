@@ -40,8 +40,6 @@ describe('gameQueries: keyed tables', () => {
     expect(q.npcsAt(3n)).toContain('"location_id" = 3');
     expect(q.enemySpawnsAt(3n)).toContain('"enemy_spawn"');
     expect(q.enemySpawnsAt(3n)).toContain('"location_id" = 3');
-    expect(q.resourceNodesAt(3n)).toContain('"resource_node"');
-    expect(q.resourceNodesAt(3n)).toContain('"location_id" = 3');
     expect(q.charactersAt(3n)).toContain('"character"');
     expect(q.charactersAt(3n)).toContain('"location_id" = 3');
     expect(q.connectionsFrom(3n)).toContain('"location_connection"');
@@ -192,6 +190,41 @@ describe('gameQueries: combat', () => {
       q.enemyAbilitiesByTemplate([1n]),
     ]) {
       expect(sql).toContain('WHERE');
+    }
+  });
+});
+
+describe('gameQueries: density pools (51.3.1.1-18)', () => {
+  it('selects pool_level by region with an OR chain on region_id', () => {
+    const sql = q.poolLevelsInRegions([1n, 2n]);
+    expect(sql).toContain('FROM "pool_level"');
+    expect(sql).toContain('"region_id" = 1');
+    expect(sql).toContain('"region_id" = 2');
+    expect(sql).toContain(' OR ');
+    expect(q.poolLevelsInRegions([4n])).not.toContain(' OR ');
+  });
+
+  it('refuses an empty region list', () => {
+    expect(() => q.poolLevelsInRegions([])).toThrow();
+  });
+
+  it('selects the own named enemies by character_id', () => {
+    const sql = q.namedEnemiesOf(7n);
+    expect(sql).toContain('FROM "named_enemy"');
+    expect(sql).toContain('"character_id" = 7');
+  });
+
+  it('selects the harvest-cap and visited-place views whole, with no WHERE', () => {
+    expect(q.myHarvestCaps).toContain('SELECT * FROM "my_harvest_caps"');
+    expect(q.myHarvestCaps).not.toContain('WHERE');
+    expect(q.myVisitedLocations).toContain('SELECT * FROM "my_visited_locations"');
+    expect(q.myVisitedLocations).not.toContain('WHERE');
+  });
+
+  it('has no resource_node query any more', () => {
+    expect((q as unknown as Record<string, unknown>).resourceNodesAt).toBeUndefined();
+    for (const value of Object.values(q)) {
+      if (typeof value === 'string') expect(value).not.toContain('resource_node');
     }
   });
 });

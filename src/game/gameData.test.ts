@@ -44,12 +44,13 @@ const queries: GameQueries = {
   activeWorldEvents: 'Q_ACTIVE_EVENTS',
   myCombatAggro: 'Q_COMBAT_AGGRO',
   myCombatLoot: 'Q_COMBAT_LOOT',
+  myHarvestCaps: 'Q_HARVEST_CAPS',
+  myVisitedLocations: 'Q_VISITED',
   eventPrivate: (id) => `Q_EVENT_PRIVATE_${id}`,
   eventLocation: (id) => `Q_EVENT_LOCATION_${id}`,
   eventGroup: (id) => `Q_EVENT_GROUP_${id}`,
   npcsAt: (id) => `Q_NPC_${id}`,
   enemySpawnsAt: (id) => `Q_ENEMY_SPAWNS_${id}`,
-  resourceNodesAt: (id) => `Q_NODE_${id}`,
   charactersAt: (id) => `Q_CHARS_AT_${id}`,
   connectionsFrom: (id) => `Q_CONNECTIONS_${id}`,
   hotbars: (id) => `Q_HOTBARS_${id}`,
@@ -77,6 +78,8 @@ const queries: GameQueries = {
   eventObjectivesByEvent: (ids) => `Q_OBJECTIVES_${ids.join(',')}`,
   enemyTemplatesById: (ids) => `Q_ENEMY_TEMPLATES_${ids.join(',')}`,
   enemyAbilitiesByTemplate: (ids) => `Q_ENEMY_ABILITIES_${ids.join(',')}`,
+  poolLevelsInRegions: (ids) => `Q_POOLS_${ids.join(',')}`,
+  namedEnemiesOf: (id) => `Q_NAMED_${id}`,
 };
 
 function makeCharacter(id: bigint, overrides: Record<string, unknown> = {}): Character {
@@ -210,6 +213,8 @@ const STATIC_SQL = [
   'Q_EVENT_WORLD',
   'Q_COMBAT_AGGRO',
   'Q_COMBAT_LOOT',
+  'Q_HARVEST_CAPS',
+  'Q_VISITED',
 ];
 
 describe('createGameData: static bindings', () => {
@@ -222,11 +227,11 @@ describe('createGameData: static bindings', () => {
     expect(h.bindings.every((b) => b.conn === null)).toBe(true);
   });
 
-  it('attaches the 9 static bindings and event_world to a connection, and re-attaches a new one', () => {
+  it('attaches the 11 static bindings and event_world to a connection, and re-attaches a new one', () => {
     const h = harness();
     const first = h.connect();
     for (const sql of STATIC_SQL) expect(h.find(sql).conn).toBe(first);
-    expect(STATIC_SQL).toHaveLength(10);
+    expect(STATIC_SQL).toHaveLength(12);
 
     const second = makeConn();
     h.conn.value = second;
@@ -434,13 +439,14 @@ describe('createGameData: enemy spawns here (quick-261006-a0i)', () => {
 });
 
 describe('createGameData: location keyed bindings', () => {
-  const LOCATION_SQL = ['Q_NPC_', 'Q_ENEMY_SPAWNS_', 'Q_NODE_', 'Q_CHARS_AT_', 'Q_CONNECTIONS_', 'Q_EVENT_LOCATION_'];
+  const LOCATION_SQL = ['Q_NPC_', 'Q_ENEMY_SPAWNS_', 'Q_CHARS_AT_', 'Q_CONNECTIONS_', 'Q_EVENT_LOCATION_'];
 
-  it('creates the six location bindings for the character location', () => {
+  it('creates the five location bindings for the character location, and none for resource nodes', () => {
     const h = harness();
     h.connect();
     h.character.value = makeCharacter(5n, { locationId: 3n });
     for (const prefix of LOCATION_SQL) expect(h.live(`${prefix}3`)).toHaveLength(1);
+    expect(h.bindings.some((b) => b.sql[0].startsWith('Q_NODE_'))).toBe(false);
   });
 
   it('swaps tables on applied and event_location immediately when moving', () => {
@@ -492,7 +498,6 @@ describe('createGameData: location keyed bindings', () => {
 
     expect(filterOf('Q_NPC_3')({ locationId: 3n })).toBe(true);
     expect(filterOf('Q_NPC_3')({ locationId: 9n })).toBe(false);
-    expect(filterOf('Q_NODE_3')({ locationId: 9n })).toBe(false);
     expect(filterOf('Q_ENEMY_SPAWNS_3')({ locationId: 3n })).toBe(true);
     expect(filterOf('Q_ENEMY_SPAWNS_3')({ locationId: 9n })).toBe(false);
     expect(filterOf('Q_CHARS_AT_3')({ locationId: 9n })).toBe(false);
@@ -1092,6 +1097,167 @@ describe('createGameData: feed and reducers', () => {
   });
 });
 
+describe('createGameData: density pools (51.3.1.1-18)', () => {
+  function loc(id: bigint, regionId: bigint): Location {
+    return { id, regionId, name: `Place${id}` } as unknown as Location;
+  }
+
+  // Places 3 and 6 are in region 1, 4 in region 2, 5 in region 3, 7 in region 4.
+  function world() {
+    const h = harness();
+    h.connect();
+    h.locations.value = [loc(3n, 1n), loc(4n, 2n), loc(5n, 3n), loc(6n, 1n), loc(7n, 4n)];
+    h.character.value = makeCharacter(5n, { locationId: 3n });
+    return h;
+  }
+
+  function applyConnections(h: ReturnType<typeof harness>, from: bigint, to: bigint[]): void {
+    const binding = h.find(`Q_CONNECTIONS_${from}`);
+    binding.rows.value = to.map((id, i) => ({ id: BigInt(i + 1), fromLocationId: from, toLocationId: id }));
+    binding.applied.value = true;
+  }
+
+  function applyVisited(
+    h: ReturnType<typeof harness>,
+    rows: { characterId: bigint; locationId: bigint }[],
+  ): void {
+    const binding = h.find('Q_VISITED');
+    binding.rows.value = rows.map((row, i) => ({ id: BigInt(i + 1), ...row }));
+    binding.applied.value = true;
+  }
+
+  function pool(id: bigint, locationId: bigint, regionId: bigint, extra: Record<string, unknown> = {}) {
+    return { id, locationId, regionId, kind: 'creature', level: 2n, name: `Pool${id}`, ...extra };
+  }
+
+  it('keys the pool_level binding by the region of the current place alone at first', () => {
+    const h = world();
+    expect(h.live('Q_POOLS_1')).toHaveLength(1);
+  });
+
+  it('adds the regions of the exit destinations and the visited places, sorted and de-duplicated', () => {
+    const h = world();
+    applyConnections(h, 3n, [4n, 6n]);
+    applyVisited(h, [
+      { characterId: 5n, locationId: 5n },
+      { characterId: 5n, locationId: 3n },
+    ]);
+    expect(h.live('Q_POOLS_1,2,3')).toHaveLength(1);
+    expect(h.game.visitedLocationIds.value).toEqual([5n, 3n]);
+  });
+
+  it('skips an unknown location id', () => {
+    const h = world();
+    applyConnections(h, 3n, [99n]);
+    applyVisited(h, [{ characterId: 5n, locationId: 98n }]);
+    expect(h.live('Q_POOLS_1')).toHaveLength(1);
+    expect(h.bindings.some((b) => b.sql[0].startsWith('Q_POOLS_') && b.sql[0] !== 'Q_POOLS_1')).toBe(false);
+  });
+
+  it('reads the visited places of the active character only', () => {
+    const h = world();
+    applyVisited(h, [
+      { characterId: 6n, locationId: 5n },
+      { characterId: 5n, locationId: 4n },
+    ]);
+    expect(h.game.visitedLocationIds.value).toEqual([4n]);
+    expect(h.live('Q_POOLS_1,2')).toHaveLength(1);
+  });
+
+  it('changes the key when the character moves to another region', () => {
+    const h = world();
+    const first = h.find('Q_POOLS_1');
+    first.applied.value = true;
+    h.character.value = makeCharacter(5n, { locationId: 7n });
+    expect(h.live('Q_POOLS_4')).toHaveLength(1);
+    h.find('Q_POOLS_4').applied.value = true;
+    expect(first.disposed).toBe(true);
+  });
+
+  it('filters rows to the keyed regions (the shared-cache rule)', () => {
+    const h = world();
+    applyConnections(h, 3n, [4n]);
+    const options = h.find('Q_POOLS_1,2').options as BindTableOptions<FakeConn, any>;
+    expect(options.filter?.({ regionId: 1n })).toBe(true);
+    expect(options.filter?.({ regionId: 2n })).toBe(true);
+    expect(options.filter?.({ regionId: 3n })).toBe(false);
+  });
+
+  it('exposes every pool row and the rows of the current place', () => {
+    const h = world();
+    applyConnections(h, 3n, [4n]);
+    const binding = h.find('Q_POOLS_1,2');
+    binding.rows.value = [pool(1n, 3n, 1n), pool(2n, 4n, 2n), pool(3n, 3n, 1n, { kind: 'resource' })];
+    binding.applied.value = true;
+    expect(h.game.poolLevels.value.map((row) => row.id)).toEqual([1n, 2n, 3n]);
+    expect(h.game.poolLevelsHere.value.map((row) => row.id)).toEqual([1n, 3n]);
+  });
+
+  it('reports a place not ready until the binding covering its region has applied', () => {
+    const h = world();
+    applyConnections(h, 3n, [4n]);
+    expect(h.game.poolsAppliedFor(3n)).toBe(false);
+    expect(h.game.poolsAppliedFor(4n)).toBe(false);
+    h.find('Q_POOLS_1,2').applied.value = true;
+    expect(h.game.poolsAppliedFor(3n)).toBe(true);
+    expect(h.game.poolsAppliedFor(4n)).toBe(true);
+    expect(h.game.poolsAppliedFor(6n)).toBe(true);
+    // Region 3 is not covered; an unknown place is never ready.
+    expect(h.game.poolsAppliedFor(5n)).toBe(false);
+    expect(h.game.poolsAppliedFor(99n)).toBe(false);
+    expect([...h.game.poolRegionsApplied.value].sort()).toEqual([1n, 2n]);
+  });
+
+  it('keeps the old regions ready during a swap, and the new region not ready until it applies', () => {
+    const h = world();
+    h.find('Q_POOLS_1').applied.value = true;
+    applyVisited(h, [{ characterId: 5n, locationId: 7n }]);
+    expect(h.live('Q_POOLS_1,4')).toHaveLength(1);
+    expect(h.game.poolsAppliedFor(3n)).toBe(true);
+    expect(h.game.poolsAppliedFor(7n)).toBe(false);
+    h.find('Q_POOLS_1,4').applied.value = true;
+    expect(h.game.poolsAppliedFor(7n)).toBe(true);
+  });
+
+  it('is not ready when the pool binding failed', () => {
+    const h = world();
+    h.find('Q_POOLS_1').failed.value = true;
+    expect(h.game.poolsAppliedFor(3n)).toBe(false);
+  });
+
+  it('subscribes the own named enemies by character, with a character filter', () => {
+    const h = world();
+    expect(h.live('Q_NAMED_5')).toHaveLength(1);
+    const binding = h.find('Q_NAMED_5');
+    const options = binding.options as BindTableOptions<FakeConn, any>;
+    expect(options.filter?.({ characterId: 5n })).toBe(true);
+    expect(options.filter?.({ characterId: 6n })).toBe(false);
+    binding.rows.value = [{ id: 3n, characterId: 5n, name: 'Old Brannoc', locationId: 3n, isAlive: true }];
+    binding.applied.value = true;
+    expect(h.game.namedEnemies.value.map((row) => row.id)).toEqual([3n]);
+  });
+
+  it('exposes the harvest-cap view once per connection', () => {
+    const h = world();
+    h.find('Q_HARVEST_CAPS').rows.value = [{ id: 1n, locationId: 3n, cappedUntilMicros: 9n }];
+    expect(h.game.harvestCaps.value).toEqual([{ id: 1n, locationId: 3n, cappedUntilMicros: 9n }]);
+  });
+
+  it('disposes the pool and named bindings on reset', () => {
+    const h = world();
+    expect(h.live('Q_POOLS_1')).toHaveLength(1);
+    h.game.reset();
+    expect(h.live('Q_POOLS_1')).toHaveLength(0);
+    expect(h.live('Q_NAMED_5')).toHaveLength(0);
+    expect(h.game.poolLevels.value).toEqual([]);
+  });
+
+  it('no longer exposes nodesHere', () => {
+    const h = world();
+    expect('nodesHere' in h.game).toBe(false);
+  });
+});
+
 describe('createGameData: reset and dispose', () => {
   function populated() {
     const h = harness();
@@ -1141,7 +1307,11 @@ describe('inert defaults', () => {
       game.npcsHere,
       game.enemiesHere,
       game.enemyTemplatesHere,
-      game.nodesHere,
+      game.poolLevels,
+      game.poolLevelsHere,
+      game.namedEnemies,
+      game.harvestCaps,
+      game.visitedLocationIds,
       game.playersHere,
       game.effects,
       game.quests,
@@ -1166,6 +1336,9 @@ describe('inert defaults', () => {
     ]) {
       expect(list.value).toEqual([]);
     }
+    expect('nodesHere' in game).toBe(false);
+    expect(game.poolsAppliedFor(3n)).toBe(false);
+    expect(game.poolRegionsApplied.value.size).toBe(0);
     expect(() => {
       game.reset();
       game.dispose();
