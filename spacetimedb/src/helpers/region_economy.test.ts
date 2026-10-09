@@ -1065,7 +1065,7 @@ describe('filler members stay out of the region economy (Plan 09, T-51.3.1.1-27)
     const ctx = ctxFor(seed);
     expect(econ.regionEnemyTemplates(ctx, 1n).map((t: any) => t.id)).toEqual([101n, 102n]);
     const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
-    expect(input.enemies.map((e: any) => e.templateId)).toEqual([101n, 102n]);
+    expect(input.enemies).toEqual([]);
   });
 });
 
@@ -1801,5 +1801,18 @@ describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX familie
     expect(rows(ctx, 'llm_job')).toHaveLength(1);
     expectWellFormed(ctx);
     expectNoDuplicates(ctx);
+  });
+});
+
+describe('repairRegionEconomyOutputs reads a family design (Plan 25)', () => {
+  it('a complete family design checks its recipes and changes nothing (the outputs already follow the rules)', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const { job } = regionJob(ctx, 1n);
+    const reply = JSON.stringify(familyEconomyReply());
+    econ.applyRegionEconomyResult(ctx, job, reply);
+    ctx.db._tables.llm_job = [{ id: 1n, requestJson: job.contextJson, resultText: reply }];
+    const before = recorder.snapshotDb(ctx.db);
+    expect(econ.repairRegionEconomyOutputs(ctx, 1n)).toEqual({ ok: true, checked: 3, changed: [] });
+    expect(recorder.snapshotDb(ctx.db)).toBe(before);
   });
 });

@@ -672,6 +672,8 @@ export interface AiLootEntry {
  * The 4 to 6 entries of one enemy's AI loot table: its drop (40), its trophy (25), its gear (10) and
  * 1 to 3 of the region's gatherables (15 each). The gatherable count and which ones come from a seed of
  * the region and the enemy template, so it is the same every time; it is capped at the gatherables given.
+ * Phase 51.3.1.1 (D-47): a family member with no gear of its own passes gearId 0n, and its table is the
+ * family's drop and trophy plus the gatherables, with no gear entry (3 to 5 entries).
  */
 export function aiLootTable(
   regionId: bigint,
@@ -691,8 +693,53 @@ export function aiLootTable(
   const out: AiLootEntry[] = [
     { itemTemplateId: ids.dropId, role: 'drop', weight: AI_LOOT_WEIGHTS.drop },
     { itemTemplateId: ids.trophyId, role: 'trophy', weight: AI_LOOT_WEIGHTS.trophy },
-    { itemTemplateId: ids.gearId, role: 'gear', weight: AI_LOOT_WEIGHTS.gear },
   ];
+  if (ids.gearId !== 0n) out.push({ itemTemplateId: ids.gearId, role: 'gear', weight: AI_LOOT_WEIGHTS.gear });
   for (const g of gatherables) out.push({ itemTemplateId: g.itemTemplateId, role: 'gatherable', weight: g.weight });
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// The region economy job's family cap (Phase 51.3.1.1 Plan 25, coordinator; D-66 allows up to 15
+// families per region, and the region_economy reply has a 4096-token budget)
+// ---------------------------------------------------------------------------
+
+/**
+ * The most families one region economy job designs. Every other family of the region gets its drop,
+ * trophy and member gear from the rule fallback when the region reply is applied. A named constant
+ * (D-57); a dial may follow in Phase 52.5.
+ */
+export const ECONOMY_DESIGN_FAMILIES_MAX = 7;
+
+/** One family the region economy job may design: its id, whether it is in the region's feud, and its places. */
+export interface DesignFamilyCandidate {
+  id: bigint;
+  /** True when the family is in the region's seeded feud (D-70). */
+  feud: boolean;
+  /** The number of places the family lives at. */
+  places: number;
+}
+
+/**
+ * The families the region economy job designs, at most `max` (ECONOMY_DESIGN_FAMILIES_MAX): feud
+ * families first, then families at more places, then id order. The result is in id order (so the job's
+ * handles E1, E2, ... follow the family ids) with no duplicate id. Pure.
+ */
+export function pickDesignFamilies(
+  candidates: readonly DesignFamilyCandidate[],
+  max: number = ECONOMY_DESIGN_FAMILIES_MAX,
+): bigint[] {
+  const byId = new Map<bigint, DesignFamilyCandidate>();
+  for (const c of candidates) if (!byId.has(c.id)) byId.set(c.id, c);
+  const ranked = [...byId.values()].sort(
+    (a, b) =>
+      (a.feud === b.feud ? 0 : a.feud ? -1 : 1) ||
+      b.places - a.places ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  const take = max > 0 ? Math.floor(max) : 0;
+  return ranked
+    .slice(0, take)
+    .map((c) => c.id)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }

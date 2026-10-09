@@ -14,6 +14,8 @@ import {
   REGION_ECONOMY_BIGINT_PATHS,
   REGION_ECONOMY_COUNTS,
   REGION_ECONOMY_SIZE,
+  dropRef,
+  economyFamilies,
   enemyRef,
   familyRef,
   foreignOffer,
@@ -38,13 +40,18 @@ import {
   type RegionEconomyMember,
 } from '../data/economy_design_rules';
 import { serverRoleToPrompt } from '../data/family_rules';
-import { FAMILY_PROMPT_ROLES } from '../data/mechanical_vocabulary';
-import { aiLootTable, SCROLL_TIER_WEIGHTS } from '../data/economy_rules';
+import { FAMILY_FEUD_KIND, FAMILY_PROMPT_ROLES } from '../data/mechanical_vocabulary';
+import { aiLootTable, pickDesignFamilies, SCROLL_TIER_WEIGHTS } from '../data/economy_rules';
 import { areaLevel, materialKey, type GeneratedItemTemplate } from '../data/recipe_rules';
 import {
+  validateFamilyEconomyReply,
   validateLateCreature,
+  validateLateFamily,
   validateRegionEconomyReply,
   type ValidatedCreature,
+  type ValidatedFamilyEconomy,
+  type ValidatedFamilyEntry,
+  type ValidatedRecipe,
 } from './region_economy_validate';
 import { enqueueLlmJob, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
@@ -235,19 +242,55 @@ export function regionEconomyFamilies(tx: any, regionId: bigint): RegionEconomyF
   return out;
 }
 
+/**
+ * The families one region economy job designs (coordinator cap, D-66): at most
+ * ECONOMY_DESIGN_FAMILIES_MAX of the region's living families (pickDesignFamilies: feud families first,
+ * then families at more places, then id order), listed in id order as E1, E2, ...; the rest are
+ * `ruleFamilyIds` (id order), which the region apply writes by rule. Places are the distinct places of
+ * the family's creature pools; the feud is a 'feud' family_relation row (D-70).
+ */
+export function economyDesignFamilies(tx: any, regionId: bigint): { designed: RegionEconomyFamily[]; ruleFamilyIds: bigint[] } {
+  const families = [...tx.db.creature_family.by_region.filter(regionId)].sort((a: any, b: any) => compareBig(a.id, b.id));
+  const living = families.filter((family: any) => familyEntry(tx, family, familyRef(0)).members.length > 0);
+  if (living.length === 0) return { designed: [], ruleFamilyIds: [] };
+  const places = new Map<bigint, Set<bigint>>();
+  for (const pool of tx.db.place_pool.by_region.filter(regionId)) {
+    if (pool.kind !== 'creature') continue;
+    const set = places.get(pool.refId) ?? new Set<bigint>();
+    set.add(pool.locationId);
+    places.set(pool.refId, set);
+  }
+  const chosen = new Set<bigint>(
+    pickDesignFamilies(
+      living.map((family: any) => ({
+        id: family.id as bigint,
+        feud: [...tx.db.family_relation.by_family.filter(family.id)].some((r: any) => r.kind === FAMILY_FEUD_KIND),
+        places: places.get(family.id)?.size ?? 0,
+      })),
+    ),
+  );
+  const designed: RegionEconomyFamily[] = [];
+  const ruleFamilyIds: bigint[] = [];
+  for (const family of living) {
+    if (chosen.has(family.id)) designed.push(familyEntry(tx, family, familyRef(designed.length)));
+    else ruleFamilyIds.push(family.id);
+  }
+  return { designed, ruleFamilyIds };
+}
+
 // ---------------------------------------------------------------------------
 // Input builder
 // ---------------------------------------------------------------------------
 
 /**
- * The stored route input of a region, from database rows only. Region mode carries the region's
- * creature families with their members (D-47), the gatherable slots and recipe tier slots of the
- * economy size (REGION_ECONOMY_SIZE; the tiers also depend on the number of other regions with a
- * complete economy) and up to three foreign regions (neighbors first) offering up to four materials
- * each. It still lists the 51.3 enemies for the 51.3 apply until the family apply ships (Plan 25).
- * Family mode (a family added after the region was designed) carries that one family as E1 and the
- * region's existing materials. Enemy mode (the 51.3 late creature, kept until Plan 25 moves the late
- * jobs to families) carries one enemy. Strings are stored as they are in the rows; the prompt builder
+ * The stored route input of a region, from database rows only. Region mode carries the creature
+ * families the job designs (D-47; at most ECONOMY_DESIGN_FAMILIES_MAX, economyDesignFamilies) with
+ * their members, the gatherable slots and recipe tier slots of the economy size (REGION_ECONOMY_SIZE;
+ * the tiers also depend on the number of other regions with a complete economy) and up to three
+ * foreign regions (neighbors first) offering up to four materials each. It lists no 51.3 enemies
+ * (Plan 25). Family mode (a family added after the region was designed) carries that one family as E1
+ * and the region's existing materials. Enemy mode (the 51.3 late creature) is kept only for tests and
+ * stored jobs; nothing starts one now. Strings are stored as they are in the rows; the prompt builder
  * sanitizes them.
  */
 export function buildRegionEconomyInput(
@@ -284,8 +327,7 @@ export function buildRegionEconomyInput(
     return base;
   }
 
-  base.enemies = regionEnemyTemplates(tx, regionId).map((t, i) => enemyEntry(t, i));
-  base.families = regionEconomyFamilies(tx, regionId);
+  base.families = economyDesignFamilies(tx, regionId).designed;
   base.gatherSlots = gatherSlotsForSize(REGION_ECONOMY_SIZE);
   const candidates = foreignCandidates(tx, regionId);
   const tiers = recipeTierSlotsForSize(BigInt(candidates.length), recipeCountForSize(REGION_ECONOMY_SIZE));
@@ -316,6 +358,11 @@ export interface EconomyJobContext {
   enemyTemplateId: bigint;
   /** 0n unless family mode (a late family, Phase 51.3.1.1). */
   familyId: bigint;
+  /**
+   * Region mode (Plan 25): the region's families past the design cap, which the apply writes by rule.
+   * [] when absent (jobs stored before Plan 25); malformed entries are skipped.
+   */
+  ruleFamilyIds: bigint[];
   input: RegionEconomyInput;
 }
 
@@ -378,7 +425,12 @@ export function readEconomyJobContext(contextJson: string | undefined): EconomyJ
   if (!isPlainObject(input)) return null;
   for (const path of REGION_ECONOMY_BIGINT_PATHS) reviveAt(input, path.split('.'));
   if (input.regionId !== regionId) return null;
-  return { regionId, mode, enemyTemplateId, familyId, input: input as unknown as RegionEconomyInput };
+  const ruleFamilyIds: bigint[] = [];
+  for (const raw of Array.isArray(parsed.ruleFamilyIds) ? parsed.ruleFamilyIds : []) {
+    const id = toBig(raw);
+    if (id !== null && id > 0n && ruleFamilyIds.indexOf(id) === -1) ruleFamilyIds.push(id);
+  }
+  return { regionId, mode, enemyTemplateId, familyId, ruleFamilyIds, input: input as unknown as RegionEconomyInput };
 }
 
 // ---------------------------------------------------------------------------
@@ -490,7 +542,7 @@ function ensureItem(
   slotKey: string,
   role: string,
   fields: GeneratedItemTemplate,
-  tag: { kind: string; terrain?: string; timeOfDay?: string; enemyTemplateId?: bigint },
+  tag: { kind: string; terrain?: string; timeOfDay?: string; enemyTemplateId?: bigint; familyId?: bigint },
 ): any {
   const tx = book.tx;
   const found = book.slots.get(slotKey);
@@ -511,7 +563,7 @@ function ensureItem(
     terrain: tag.terrain ?? '',
     timeOfDay: tag.timeOfDay ?? 'any',
     enemyTemplateId: tag.enemyTemplateId ?? 0n,
-    familyId: 0n,
+    familyId: tag.familyId ?? 0n,
   };
   tx.db.economy_item.insert(row);
   book.slots.set(slotKey, row);
@@ -579,6 +631,173 @@ function writeCreature(book: ApplyBook, creature: ValidatedCreature, enemyLevel:
   return drop;
 }
 
+/** The level of an enemy template (at least 1), or `otherwise` when the template is gone. */
+function templateLevel(tx: any, templateId: bigint, otherwise: bigint): bigint {
+  const template = tx.db.enemy_template.id.find(templateId);
+  return template ? levelOf(template.level) : otherwise;
+}
+
+/**
+ * The slotKeys of a family's drop and trophy: `drop:family:<id>` and `trophy:family:<id>`. A family
+ * of one read from a 51.3 input (familyId 0n) keeps the per-template keys of writeCreature
+ * (`drop:<templateId>`), so a 51.3 job answered in the family shape writes the rows it always did.
+ */
+function familySlotKeys(familyId: bigint, baseTemplateId: bigint): { drop: string; trophy: string } {
+  return familyId > 0n
+    ? { drop: `drop:family:${familyId}`, trophy: `trophy:family:${familyId}` }
+    : { drop: `drop:${baseTemplateId}`, trophy: `trophy:${baseTemplateId}` };
+}
+
+/**
+ * The members a family write gives loot tables to: the input family's members (handle order), then
+ * any member of the creature_family row that joined since the input was built (member id order;
+ * fillers included; a member whose template is gone is skipped). A 51.3 family of one (familyId 0n)
+ * has only its input member.
+ */
+function familyMemberIds(tx: any, familyId: bigint, inputMembers: readonly { templateId: bigint }[]): bigint[] {
+  const out: bigint[] = [];
+  for (const m of inputMembers) if (typeof m.templateId === 'bigint' && out.indexOf(m.templateId) === -1) out.push(m.templateId);
+  if (familyId === 0n) return out;
+  const rows = [...tx.db.family_member.by_family.filter(familyId)].sort((a: any, b: any) => compareBig(a.id, b.id));
+  for (const row of rows) {
+    if (out.indexOf(row.enemyTemplateId) !== -1 || !tx.db.enemy_template.id.find(row.enemyTemplateId)) continue;
+    out.push(row.enemyTemplateId);
+  }
+  return out;
+}
+
+/** Whether an enemy template has no enemy_loot_entry rows yet. */
+function lacksLoot(tx: any, templateId: bigint): boolean {
+  return [...tx.db.enemy_loot_entry.by_enemy.filter(templateId)].length === 0;
+}
+
+/**
+ * One family's economy (D-47): the family drop and trophy (economy_item.familyId set), one gear piece
+ * per member the entry covers (economy_item.enemyTemplateId = that member, familyId set; slotKey
+ * gear:<templateId>), and for every member with no enemy_loot_entry rows its AI loot table from
+ * aiLootTable: the family drop and trophy, its own gear (gearId 0n when it has none, so no gear
+ * entry) and the region's gatherables. The one writer for region mode, the late family and the rule
+ * families. Every write is looked up first (slotKey, existing loot rows), so a re-run writes nothing
+ * new. Returns the drop template.
+ */
+function writeFamily(
+  book: ApplyBook,
+  entry: ValidatedFamilyEntry,
+  memberIds: readonly bigint[],
+  familyLevel: bigint,
+  gatherableIds: readonly bigint[],
+): any {
+  const tx = book.tx;
+  const familyId = entry.familyId;
+  const base = memberIds.length > 0 ? memberIds[0] : entry.gear.length > 0 ? entry.gear[0].templateId : 0n;
+  const keys = familySlotKeys(familyId, base);
+  // A family's drop and trophy belong to the family, not one member; a 51.3 family of one keeps its template.
+  const owner = familyId > 0n ? 0n : base;
+  const drop = ensureItem(
+    book,
+    keys.drop,
+    'drop',
+    materialTemplate({
+      name: entry.drop.name,
+      description: entry.drop.description,
+      rarity: 'common',
+      areaLevel: book.areaLevel,
+      kind: entry.drop.kind,
+    }),
+    { kind: entry.drop.kind, enemyTemplateId: owner, familyId },
+  );
+  const trophy = ensureItem(
+    book,
+    keys.trophy,
+    'trophy',
+    trophyTemplate({ name: entry.trophy.name, description: entry.trophy.description, level: familyLevel }),
+    { kind: 'trophy', enemyTemplateId: owner, familyId },
+  );
+  const gearIds = new Map<bigint, bigint>();
+  for (const g of entry.gear) {
+    // A member that already has its loot table keeps it; its gear would be an item nothing drops.
+    if (!lacksLoot(tx, g.templateId)) continue;
+    const item = ensureItem(
+      book,
+      `gear:${g.templateId}`,
+      'gear',
+      gearTemplate({
+        name: g.name,
+        description: g.description,
+        slot: g.slot,
+        weaponType: g.weaponType,
+        armorType: g.armorType,
+        level: templateLevel(tx, g.templateId, familyLevel),
+        regionName: book.regionName,
+      }),
+      { kind: g.slot, enemyTemplateId: g.templateId, familyId },
+    );
+    gearIds.set(g.templateId, item.id);
+  }
+  for (const memberId of memberIds) {
+    if (!lacksLoot(tx, memberId)) continue;
+    const entries = aiLootTable(book.regionId, memberId, {
+      dropId: drop.id,
+      trophyId: trophy.id,
+      gearId: gearIds.get(memberId) ?? 0n,
+      gatherableIds,
+    });
+    for (const e of entries) {
+      tx.db.enemy_loot_entry.insert({
+        id: 0n,
+        enemyTemplateId: memberId,
+        regionId: book.regionId,
+        itemTemplateId: e.itemTemplateId,
+        role: e.role,
+        weight: e.weight,
+      });
+    }
+  }
+  return drop;
+}
+
+/**
+ * A family past the design cap (coordinator, D-66): its drop, trophy and one gear piece per member
+ * come from the rule fallback (the validator's rule names and gear for an entry that names nothing),
+ * then writeFamily writes them and the members' loot tables. A family that is gone, has no living
+ * member or whose members all have loot already is left alone.
+ */
+function writeRuleFamily(book: ApplyBook, input: RegionEconomyInput, familyId: bigint, gatherableIds: readonly bigint[]): void {
+  const tx = book.tx;
+  const family = tx.db.creature_family.id.find(familyId);
+  if (!family) return;
+  const listed = familyEntry(tx, family, familyRef(0));
+  if (listed.members.length === 0) return;
+  const memberIds = familyMemberIds(tx, family.id, listed.members);
+  if (!memberIds.some((id) => lacksLoot(tx, id))) return;
+  const ruleInput = { ...input, mode: 'family', families: [listed] } as RegionEconomyInput;
+  const ruleReply = { lateFamily: { family: listed.ref, gear: listed.members.map((m) => ({ member: m.ref })) } };
+  const entry = validateLateFamily(ruleInput, ruleReply, isTakenIn(book));
+  if (entry === null) return;
+  writeFamily(book, entry, memberIds, levelOf(listed.level), gatherableIds);
+}
+
+/**
+ * The family reply of region mode, validated, with every recipe slot the reply left out filled by
+ * rule: an absent entry is validated as an empty one, which the 51.3 recipe rules turn into a rule
+ * recipe over the local materials. Null when the reply itself is unusable.
+ */
+function validateFamilyPlan(input: RegionEconomyInput, parsed: unknown, isTaken: (name: string) => boolean): ValidatedFamilyEconomy | null {
+  const plan = validateFamilyEconomyReply(input, parsed, isTaken);
+  if (plan === null || plan.missingRecipes.length === 0 || !isPlainObject(parsed) || !isPlainObject(parsed.region)) return plan;
+  const region = parsed.region;
+  const recipes: unknown[] = Array.isArray(region.recipes) ? [...region.recipes] : [];
+  const slots = Array.isArray(input.recipeSlots) ? input.recipeSlots.length : 0;
+  for (let i = 0; i < slots; i++) if (!isPlainObject(recipes[i])) recipes[i] = {};
+  return validateFamilyEconomyReply(input, { ...parsed, region: { ...region, recipes } }, isTaken) ?? plan;
+}
+
+/** Whether a parsed region reply has the 51.3 shape (region.creatures) and not the family shape. */
+function isCreatureReply(parsed: unknown): boolean {
+  const region = isPlainObject(parsed) ? parsed.region : undefined;
+  return isPlainObject(region) && Array.isArray(region.creatures) && !Array.isArray(region.families);
+}
+
 interface ResolvedRequirement {
   id: bigint;
   kind: string;
@@ -619,63 +838,26 @@ function resolveRequirements(
   return out;
 }
 
+type LocalMap = Map<string, { id: bigint; kind: string; name: string }>;
+
 /**
- * The applied form of a region economy reply. Region mode, in this order: the status guard (pending
- * only), parse, name snapshot, validation (null sets status failed and writes no item rows), then the
- * gatherables, each creature (drop, trophy, gear, loot table), the recipes (output, recipe_template
- * keyed region:<regionId>:r<n> with req4, scroll for rare and above, region_recipe), and status
- * complete last. Every write is looked up first, so a re-run after success, a rollback or a partial
- * write leaves exactly one set of rows. Silent: no player line is written on any path. Enemy mode
- * goes to the late-creature apply.
+ * The recipes of a region apply: output, recipe_template keyed region:<regionId>:r<n> with req4, a
+ * scroll for rare and above, and region_recipe. `locals` maps the reply's G and D handles to the
+ * template ids this apply wrote. Every write is looked up first.
  */
-export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultText: string): void {
-  const c = readEconomyJobContext(job ? job.contextJson : undefined);
-  if (c === null) return;
-  if (c.mode === 'enemy') {
-    applyLateCreatureResult(ctx, c, resultText);
-    return;
-  }
-  // A late-family job (Phase 51.3.1.1): no job is started for one yet, and Plan 25 writes its reply.
-  if (c.mode === 'family') return;
-  const regionId = c.regionId;
-  const statusRow = ctx.db.region_economy.regionId.find(regionId);
-  if (!statusRow || statusRow.status !== 'pending') return;
-  if (isOtherJob(statusRow, job)) return;
-  const input = c.input;
-  const recipePrefix = `region:${regionId}:r`;
-  const book = openBook(ctx, input, regionId, () => true, (key) => key.startsWith(recipePrefix));
-  const plan = validateRegionEconomyReply(input, parseReplyText(resultText), isTakenIn(book));
-  if (plan === null) {
-    ctx.db.region_economy.regionId.update({ ...statusRow, status: 'failed', updatedAt: ctx.timestamp });
-    return;
-  }
-
-  // Gatherables (G1..G3).
-  const locals = new Map<string, { id: bigint; kind: string; name: string }>();
-  const gatherableIds: bigint[] = [];
-  for (const g of plan.gatherables) {
-    const template = ensureItem(
-      book,
-      `gather:${g.slot}`,
-      'gather',
-      materialTemplate({ name: g.name, description: g.description, rarity: g.slot, areaLevel: book.areaLevel, kind: g.kind }),
-      { kind: g.kind, terrain: text(g.terrain, 'plains').toLowerCase(), timeOfDay: 'any' },
-    );
-    locals.set(g.ref, { id: template.id, kind: g.kind, name: text(template.name) });
-    gatherableIds.push(template.id);
-  }
-
-  // Creatures (D:E<n>).
-  for (const creature of plan.creatures) {
-    const drop = writeCreature(book, creature, enemyLevelOf(input, creature.enemyTemplateId), gatherableIds);
-    locals.set(`D:${creature.enemyRef}`, { id: drop.id, kind: creature.drop.kind, name: text(drop.name) });
-  }
-
-  // Recipes.
+function writeRecipes(
+  ctx: any,
+  book: ApplyBook,
+  input: RegionEconomyInput,
+  recipes: readonly ValidatedRecipe[],
+  locals: LocalMap,
+  recipePrefix: string,
+): void {
+  const regionId = book.regionId;
   const recipeRows = new Map<string, any>();
   const existingRecipes = [...ctx.db.recipe_template.iter()];
   for (const row of existingRecipes) if (text(row.key).startsWith(recipePrefix)) recipeRows.set(row.key, row);
-  for (const recipe of plan.recipes) {
+  for (const recipe of recipes) {
     const reqs = resolveRequirements(book, input, recipe.requirements, locals);
     if (reqs === null || reqs.length < 2 || !reqs[0].local) continue;
     const [primary, second, third, fourth] = reqs;
@@ -740,6 +922,107 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
       });
     }
   }
+}
+
+/** One gatherable of a region apply, under `slotKey`; records its handle and id. */
+function writeGatherable(
+  book: ApplyBook,
+  slotKey: string,
+  g: { ref: string; slot: string; name: string; kind: string; terrain: string; description: string },
+  locals: LocalMap,
+  gatherableIds: bigint[],
+): void {
+  const template = ensureItem(
+    book,
+    slotKey,
+    'gather',
+    materialTemplate({ name: g.name, description: g.description, rarity: g.slot, areaLevel: book.areaLevel, kind: g.kind as any }),
+    { kind: g.kind, terrain: text(g.terrain, 'plains').toLowerCase(), timeOfDay: 'any' },
+  );
+  locals.set(g.ref, { id: template.id, kind: g.kind, name: text(template.name) });
+  gatherableIds.push(template.id);
+}
+
+/**
+ * A 51.3-shape region reply (region.creatures; a job stored before Plan 25): gatherables keyed by slot
+ * rarity (gather:common), each creature through writeCreature, then the recipes. False when the reply
+ * is unusable (nothing is written).
+ */
+function applyCreatureRegion(ctx: any, book: ApplyBook, input: RegionEconomyInput, parsed: unknown, recipePrefix: string): boolean {
+  const plan = validateRegionEconomyReply(input, parsed, isTakenIn(book));
+  if (plan === null) return false;
+  const locals: LocalMap = new Map();
+  const gatherableIds: bigint[] = [];
+  for (const g of plan.gatherables) writeGatherable(book, `gather:${g.slot}`, g, locals, gatherableIds);
+  for (const creature of plan.creatures) {
+    const drop = writeCreature(book, creature, enemyLevelOf(input, creature.enemyTemplateId), gatherableIds);
+    locals.set(`D:${creature.enemyRef}`, { id: drop.id, kind: creature.drop.kind, name: text(drop.name) });
+  }
+  writeRecipes(ctx, book, input, plan.recipes, locals, recipePrefix);
+  return true;
+}
+
+/**
+ * A family-shape region reply (draft B3, D-47): gatherables keyed by handle (gather:G1; the medium
+ * and large sizes repeat rarities), each designed family through writeFamily (D:E<n> is family n's
+ * drop), then the families past the design cap by rule (writeRuleFamily), then the recipes (a
+ * left-out recipe by rule). A family the reply left out gets no rows: the follow-up gives it a late
+ * family job. False when the reply is unusable (nothing is written).
+ */
+function applyFamilyRegion(ctx: any, book: ApplyBook, c: EconomyJobContext, parsed: unknown, recipePrefix: string): boolean {
+  const input = c.input;
+  const plan = validateFamilyPlan(input, parsed, isTakenIn(book));
+  if (plan === null) return false;
+  const locals: LocalMap = new Map();
+  const gatherableIds: bigint[] = [];
+  for (const g of plan.gatherables) writeGatherable(book, `gather:${g.ref}`, g, locals, gatherableIds);
+  const listed = economyFamilies(input);
+  for (const entry of plan.families) {
+    const family = listed.find((f) => f.ref === entry.familyRef);
+    const members = family && Array.isArray(family.members) ? family.members : [];
+    const drop = writeFamily(book, entry, familyMemberIds(ctx, entry.familyId, members), levelOf(family ? family.level : 1), gatherableIds);
+    locals.set(dropRef(entry.familyRef), { id: drop.id, kind: entry.drop.kind, name: text(drop.name) });
+  }
+  for (const familyId of c.ruleFamilyIds) writeRuleFamily(book, input, familyId, gatherableIds);
+  writeRecipes(ctx, book, input, plan.recipes, locals, recipePrefix);
+  return true;
+}
+
+/**
+ * The applied form of a region economy reply. Region mode, in this order: the status guard (pending
+ * only), parse, name snapshot, validation by the reply's shape (a family reply through
+ * validateFamilyEconomyReply and writeFamily, a 51.3 creatures reply through writeCreature; an
+ * unusable reply sets status failed and writes no item rows), the recipes, and status complete last.
+ * Every write is looked up first, so a re-run after success, a rollback or a partial write leaves
+ * exactly one set of rows. Silent: no player line is written on any path. Family mode goes to the
+ * late family apply, enemy mode (51.3 jobs) to the late-creature apply.
+ */
+export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultText: string): void {
+  const c = readEconomyJobContext(job ? job.contextJson : undefined);
+  if (c === null) return;
+  if (c.mode === 'enemy') {
+    applyLateCreatureResult(ctx, c, resultText);
+    return;
+  }
+  if (c.mode === 'family') {
+    applyLateFamilyResult(ctx, c, resultText);
+    return;
+  }
+  const regionId = c.regionId;
+  const statusRow = ctx.db.region_economy.regionId.find(regionId);
+  if (!statusRow || statusRow.status !== 'pending') return;
+  if (isOtherJob(statusRow, job)) return;
+  const input = c.input;
+  const recipePrefix = `region:${regionId}:r`;
+  const book = openBook(ctx, input, regionId, () => true, (key) => key.startsWith(recipePrefix));
+  const parsed = parseReplyText(resultText);
+  const wrote = isCreatureReply(parsed)
+    ? applyCreatureRegion(ctx, book, input, parsed, recipePrefix)
+    : applyFamilyRegion(ctx, book, c, parsed, recipePrefix);
+  if (!wrote) {
+    ctx.db.region_economy.regionId.update({ ...statusRow, status: 'failed', updatedAt: ctx.timestamp });
+    return;
+  }
 
   // Last: the region is complete only once every row above exists.
   const latest = ctx.db.region_economy.regionId.find(regionId) ?? statusRow;
@@ -801,8 +1084,7 @@ export function repairRegionEconomyOutputs(ctx: any, regionId: bigint): RegionRe
   // The same name book as the apply: the region's own rows are left out, so unchanged names validate
   // to themselves.
   const book = openBook(ctx, input, regionId, () => true, (key) => key.startsWith(recipePrefix));
-  const plan = validateRegionEconomyReply(input, parseReplyText(job.resultText), isTakenIn(book));
-  if (plan === null) return { ok: false, reason: 'no_design' };
+  const parsed = parseReplyText(job.resultText);
 
   // The local handles as the apply resolved them, from the rows it wrote.
   const locals = new Map<string, { id: bigint; kind: string; name: string }>();
@@ -811,12 +1093,29 @@ export function repairRegionEconomyOutputs(ctx: any, regionId: bigint): RegionRe
     const template = tag ? ctx.db.item_template.id.find(tag.itemTemplateId) : undefined;
     if (template) locals.set(ref, { id: template.id, kind: text(tag.kind, kind), name: text(template.name) });
   };
-  for (const g of plan.gatherables) localOf(g.ref, `gather:${g.slot}`, g.kind);
-  for (const creature of plan.creatures) localOf(`D:${creature.enemyRef}`, `drop:${creature.enemyTemplateId}`, creature.drop.kind);
+  let recipes: readonly ValidatedRecipe[];
+  if (isCreatureReply(parsed)) {
+    const plan = validateRegionEconomyReply(input, parsed, isTakenIn(book));
+    if (plan === null) return { ok: false, reason: 'no_design' };
+    for (const g of plan.gatherables) localOf(g.ref, `gather:${g.slot}`, g.kind);
+    for (const creature of plan.creatures) localOf(`D:${creature.enemyRef}`, `drop:${creature.enemyTemplateId}`, creature.drop.kind);
+    recipes = plan.recipes;
+  } else {
+    // A family design (Plan 25): gatherables by handle, each family's drop by its family slotKey.
+    const plan = validateFamilyPlan(input, parsed, isTakenIn(book));
+    if (plan === null) return { ok: false, reason: 'no_design' };
+    for (const g of plan.gatherables) localOf(g.ref, `gather:${g.ref}`, g.kind);
+    const listed = economyFamilies(input);
+    for (const entry of plan.families) {
+      const base = listed.find((f) => f.ref === entry.familyRef)?.members?.[0]?.templateId ?? 0n;
+      localOf(dropRef(entry.familyRef), familySlotKeys(entry.familyId, base).drop, entry.drop.kind);
+    }
+    recipes = plan.recipes;
+  }
 
   const changed: RepairedOutput[] = [];
   let checked = 0;
-  for (const recipe of plan.recipes) {
+  for (const recipe of recipes) {
     const tag = book.slots.get(`recipe:${recipe.index}`);
     const output = tag ? ctx.db.item_template.id.find(tag.itemTemplateId) : undefined;
     const key = `${recipePrefix}${recipe.index}`;
@@ -955,19 +1254,22 @@ export function startRegionEconomy(
   if (regionLocations(tx, regionId).length === 0) return 'no_region';
 
   const input = buildRegionEconomyInput(tx, region, 'region');
+  // The families past the design cap (coordinator, D-66): the apply writes them by rule.
+  const ruleFamilyIds = economyDesignFamilies(tx, regionId).ruleFamilyIds;
   const result = enqueueLlmJob(tx, {
     route: 'region_economy',
     playerId: who.playerId,
     characterId: who.characterId,
     sourceKey: SOURCE_KEYS.regionEconomy(regionId),
+    budget: 'phase_only',
     request: {
       regionId: regionId.toString(),
       mode: 'region',
       enemyTemplateId: '0',
       characterId: who.characterId.toString(),
+      ruleFamilyIds: ruleFamilyIds.map((id) => id.toString()),
       input: encodeRouteInput(input),
     },
-    budget: 'phase_only',
   });
   if (result.refused) {
     console.info(`region_economy enqueue refused for region ${String(regionId)}: ${result.refused}`);
@@ -1020,11 +1322,22 @@ function gatherRank(rarity: unknown): number {
   return i === -1 ? GATHER_SLOTS.length : i;
 }
 
+/** The region's gatherable template ids from the apply book: common, uncommon, rare, then by id. */
+function bookGatherableIds(ctx: any, book: ApplyBook): bigint[] {
+  return [...book.slots.values()]
+    .filter((row) => row.role === 'gather' && ctx.db.item_template.id.find(row.itemTemplateId))
+    .sort((a, b) => gatherRank(a.rarity) - gatherRank(b.rarity) || compareBig(a.itemTemplateId, b.itemTemplateId))
+    .map((row) => row.itemTemplateId as bigint);
+}
+
 /**
  * Late-creature mode: an enemy type that joined an already designed region gets its drop, trophy,
  * gear and loot table, built from the region's existing gatherables (common, uncommon, rare, then by
  * id). Writes only when the region's economy is complete and the enemy has no enemy_loot_entry rows;
  * an unusable reply writes nothing and changes no status. Uses the same writeCreature as region mode.
+ * Nothing starts an enemy-mode job since Plan 25; a 51.3 job stored before it may be answered in the
+ * family shape (lateFamily, the route schema since Plan 24): that reply reads the stored enemy as a
+ * family of one and writes the same per-template rows through writeFamily.
  */
 function applyLateCreatureResult(ctx: any, c: EconomyJobContext, resultText: string): void {
   const regionId = c.regionId;
@@ -1032,17 +1345,49 @@ function applyLateCreatureResult(ctx: any, c: EconomyJobContext, resultText: str
   if (enemyId === 0n) return;
   const statusRow = ctx.db.region_economy.regionId.find(regionId);
   if (!statusRow || statusRow.status !== 'complete') return;
-  const present = [...ctx.db.enemy_loot_entry.by_enemy.filter(enemyId)];
-  if (present.length > 0) return;
+  if (!lacksLoot(ctx, enemyId)) return;
   const own = new Set<string>([`drop:${enemyId}`, `trophy:${enemyId}`, `gear:${enemyId}`]);
   const book = openBook(ctx, c.input, regionId, (slotKey) => own.has(slotKey), () => false);
-  const creature = validateLateCreature(c.input, parseReplyText(resultText), isTakenIn(book));
-  if (creature === null || creature.enemyTemplateId !== enemyId) return;
-  const gatherableIds = [...book.slots.values()]
-    .filter((row) => row.role === 'gather' && ctx.db.item_template.id.find(row.itemTemplateId))
-    .sort((a, b) => gatherRank(a.rarity) - gatherRank(b.rarity) || compareBig(a.itemTemplateId, b.itemTemplateId))
-    .map((row) => row.itemTemplateId as bigint);
-  writeCreature(book, creature, enemyLevelOf(c.input, enemyId), gatherableIds);
+  const parsed = parseReplyText(resultText);
+  const creature = validateLateCreature(c.input, parsed, isTakenIn(book));
+  if (creature !== null) {
+    if (creature.enemyTemplateId !== enemyId) return;
+    writeCreature(book, creature, enemyLevelOf(c.input, enemyId), bookGatherableIds(ctx, book));
+    return;
+  }
+  // The stored enemy read as a family of one (economyFamilies reads an input without families so).
+  const { families: _families, ...enemyInput } = c.input;
+  const asFamily = enemyInput as RegionEconomyInput;
+  const entry = validateLateFamily(asFamily, parsed, isTakenIn(book));
+  if (entry === null || entry.familyId !== 0n) return;
+  const members = economyFamilies(asFamily).find((f) => f.ref === entry.familyRef)?.members ?? [];
+  if (members.length !== 1 || members[0].templateId !== enemyId) return;
+  writeFamily(book, entry, [enemyId], enemyLevelOf(c.input, enemyId), bookGatherableIds(ctx, book));
+}
+
+/**
+ * Late-family mode (D-47): a family that joined an already designed region, or that the region reply
+ * left out, gets its drop and trophy, gear per member and its members' loot tables through writeFamily,
+ * built from the region's existing gatherables. Writes only when the region's economy is complete, the
+ * family still exists and one of its members has no enemy_loot_entry rows; an unusable reply writes
+ * nothing and changes no status. A second apply of the same result changes nothing.
+ */
+function applyLateFamilyResult(ctx: any, c: EconomyJobContext, resultText: string): void {
+  const regionId = c.regionId;
+  const familyId = c.familyId;
+  if (familyId === 0n) return;
+  const statusRow = ctx.db.region_economy.regionId.find(regionId);
+  if (!statusRow || statusRow.status !== 'complete') return;
+  if (!ctx.db.creature_family.id.find(familyId)) return;
+  const listed = economyFamilies(c.input).find((f) => f.familyId === familyId);
+  const memberIds = familyMemberIds(ctx, familyId, listed && Array.isArray(listed.members) ? listed.members : []);
+  if (!memberIds.some((id) => lacksLoot(ctx, id))) return;
+  const keys = familySlotKeys(familyId, 0n);
+  const own = new Set<string>([keys.drop, keys.trophy, ...memberIds.map((id) => `gear:${id}`)]);
+  const book = openBook(ctx, c.input, regionId, (slotKey) => own.has(slotKey), () => false);
+  const entry = validateLateFamily(c.input, parseReplyText(resultText), isTakenIn(book));
+  if (entry === null || entry.familyId !== familyId) return;
+  writeFamily(book, entry, memberIds, levelOf(listed ? listed.level : 1), bookGatherableIds(ctx, book));
 }
 
 /**
