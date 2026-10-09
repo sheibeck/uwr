@@ -33,4 +33,4 @@ TBD (discuss). Options:
 - A steadier climb: a fixed step per crossing (for example +1 base level), or a minimum of +1 instead of +0.5.
 - Revisit the 800 cap together with MAX_LEVEL (52.5 dials, or when the level cap changes).
 - Tests: a chain of regions climbs at the agreed rate, no step down at a crossing, the cap behaviour.
-Tuning numbers belong to 52.5 (memory systems-then-ux-then-tuning); the rule shape (no step down at a crossing) is a system choice. Candidate home: Phase 51.3.2.1 Region Discovery (same region-creation step), decided at its discuss.
+Tuning numbers belong to 52.5 (memory systems-then-ux-then-tuning); the rule shape (no step down at a crossing) is a system choice. Moved to its own Phase 51.3.2.2 World Danger Growth (owner, 2026-10-09: "let's move this todo to it's own phase to revisit world danger growth").

@@ -75,7 +75,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 
 **Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.1.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
-**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.1.2 Bigger Regions → 51.3.2 Wind-Up, Cooldowns and Durations → 51.3.2.1 Region Discovery (owner, 2026-10-09) → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
+**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.1.2 Bigger Regions → 51.3.2 Wind-Up, Cooldowns and Durations → 51.3.2.1 Region Discovery (owner, 2026-10-09) → 51.3.2.2 World Danger Growth (owner, 2026-10-09) → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -91,9 +91,10 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.3.1.2: Bigger Regions** (INSERTED) - Regions of 8-10 places, generated across several calls; families scale with region size
 - [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
 - [ ] **Phase 51.3.2.1: Region Discovery** (INSERTED) - The discoverer and the new region announced to the world (sarcastically), discovery credit and renown, and very distinct region names
+- [ ] **Phase 51.3.2.2: World Danger Growth** (INSERTED) - The world climbs steadily away from the starting regions: no step down at a crossing, a steady rise per crossing, no early flat top
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
-- [ ] **Phase 51.5.1: Motion and Polish** (INSERTED) - Typed text reveal, login cross-fade, map transitions after travel, a context rail that grows with the screen, and NPCs first in Nearby
+- [ ] **Phase 51.5.1: Motion and Polish** (INSERTED) - Typed text reveal, login cross-fade, map transitions after travel, a context rail that grows with the screen, NPCs first in Nearby, and a leaner Here card
 - [ ] **Phase 52.1: Hotbar Manager** (INSERTED) - The designed Hotbar Manager: assign abilities to slots and manage hotbars
 - [ ] **Phase 52.1.1: Bank** (INSERTED) - The designed bank and vault screen
 - [ ] **Phase 52.1.2: Trade** (INSERTED) - Player trade from the player and party menus, with the server as the authority
@@ -967,7 +968,8 @@ Plans:
   1. When a new region is discovered, one World event announcement names the discoverer and makes much of them, sarcastically, and names the new region (and the region it lies beyond), in owner-approved wording; it is sent once, when the region is complete.
   2. The discoverer gets the credit, shown with the region (for example "Discovered by {name}" on the Map), and renown as a server first, once per region; retries, held joins and later visitors never award it again.
   3. A new region's name is very distinct from every existing region name: a server rule rejects names that share the distinctive word, its first letters or a near spelling (for example "Kestrane Saltpans" next to "Kesterlane Basin"); the prompt sees every existing region name; a clash is resolved without an extra paid call.
-  4. Tests cover the announcement (discoverer, new region and source named; sent once), the credit and server-first renown (once per region), the name rule (near-misses rejected, clearly different names pass, the fallback choice), and the prompt listing every region name.
+  4. Each new region has its own culture and atmosphere, clearly different from its neighbours and from the regions near them (not every region salt, brine, ships and water): the prompt sees the existing regions' themes and is told to differ, and a server check catches a new region that repeats a neighbour's theme.
+  5. Tests cover the announcement (discoverer, new region and source named; sent once), the credit and server-first renown (once per region), the name rule (near-misses rejected, clearly different names pass, the fallback choice), and the prompt listing every region name, the prompt listing every region name, and the neighbour-theme check.
 
 **Plans**: TBD
 **UI hint**: yes (the credit line where the region is shown; no new screen)
@@ -979,7 +981,29 @@ Plans:
   - Wording: the announcement lines and any prompt change need the owner's explicit approval of the exact text. Static templates for the announcement (no LLM call). Never "ripple"; no pronouns for the player (use the name).
   - Reuse: `awardServerFirst` / `renown_server_first`, `appendWorldEvent`, `finishRegionFill` (COMPLETE). Schema changes additive only (a defaulted column if the credit is stored on the region); never a clear.
   - Must land before the owner regenerates the world (only new generation is affected).
-  - Discuss: the level ramp across regions (todo `2026-10-09-region-level-ramp-across-the-world.md`) touches the same region creation step; decide whether it rides here.
+  - **Distinct atmospheres (owner, 2026-10-09):** "this goes along with region names. Regions should be unique amongst each other as well. So two regions next to each other both shouldn't have the same atmosphere. Right now we seem to have a world that is very oriented toward ships, brine, salt, water, etc. That's fine for a single region, or even two regions that are far away from each other. But we want diverse cultures and atmospheres for each new region." Today the prompt sees the neighbouring regions' name, biome and threats but nothing tells it to differ. Todo `2026-10-09-regions-need-distinct-atmospheres.md` (pulled into this phase). Prompt wording needs the owner's approval.
+  - The level ramp across regions moved to its own Phase 51.3.2.2 World Danger Growth (owner, 2026-10-09).
+
+### Phase 51.3.2.2: World Danger Growth (INSERTED)
+
+**Goal**: The world gets steadily more dangerous the further it reaches from the starting regions: a new region never feels like a step back from the one you came from, each crossing climbs at a known rate, and the climb does not go flat while there is still level room.
+**Depends on**: Phase 51.3.2.1 (Region Discovery, the same region-creation step; run order)
+**Requirements**: TBD (owner request 2026-10-09)
+**Success Criteria** (what must be TRUE):
+
+  1. A new region starts at about the level of the place you crossed from, so walking from the far end of one region into the next is never a step down (today: Sennet Basin's far places reach Lv 6, creatures about 7, and Kestrane Saltpans opens at Lv 4).
+  2. Each crossing raises the region level by a known, steady amount (at least one level, not a random half to one level).
+  3. The top of the climb is set together with the character level cap: the world does not go flat at Lv 8-10 while there is still level room (today a danger cap of 800 against MAX_LEVEL 10).
+  4. Rules live as named constants in one rules file (the numbers are tuned later in Phase 52.5); tests cover a chain of regions climbing at the agreed rate, no step down at a crossing, and the cap behaviour.
+
+**Plans**: TBD
+**UI hint**: no
+**Notes**:
+
+  - Owner, 2026-10-09: "How do we determine the level range of a new region? Is it based on the character who discovered it? ... It's fine if we are slowly ramping up, but I want to know that my world isn't just going to be a flat difficulty." Then: "let's move this todo to it's own phase to revisit world danger growth".
+  - How it works today (code and local DB read 2026-10-09): not based on the discoverer. A starter region is danger 100; each new region is its source's danger plus 50 to 100 (picked from the timestamp), capped at 800 (`computeRegionDanger`, `helpers/world_gen.ts`). A place's level is floor(danger / 100) plus its offset (0 at arrival, +1 per 2 hops, at most +2). Local chain: 100, 169, 259, 327, 422 (base Lv 1, 1, 2, 3, 4).
+  - Todo `2026-10-09-region-level-ramp-across-the-world.md` (pulled into this phase) has the options.
+  - Only new generation is affected (the owner regenerates the world once systems exist); no backfill. Schema changes additive only.
 
 ### Phase 51.4: Loot Rails (INSERTED)
 
@@ -1039,8 +1063,9 @@ Plans:
   3. After travel, the map transitions instead of jumping: existing nodes glide to their new positions, the arrival node turns from heard of to visited, new heard-of nodes and paths fade in, and the view follows you. Opening the map, switching region or resizing stays instant.
   4. The right context rail grows with the screen (288px at the narrowest desktop size, wider on wide screens): place names in Here, exits and Nearby fit without being cut off, and the Encounter panel and Map detail column still fit.
   5. Nearby lists NPCs first, as their own group above Creatures (they are the quest hooks), on desktop and in the mobile Map sheet.
-  6. With `prefers-reduced-motion` every one of these is instant; screen readers get the full text and final map labels at once; auto-scroll, pinning and the New lines pill still work.
-  7. Tests cover the reveal speed cap, finishing on a key, instant history, keyword buttons, reduced motion, the cross-fade focus, the map tween (old to new positions, new items hidden then shown, no animation on open), the rail width at the narrowest and wide desktop sizes, and NPCs first in Nearby.
+  6. The Here card no longer shows the danger rating's sentence (for example "You should not be here alone. You are not alone." under Deadly); the rating itself stays.
+  7. With `prefers-reduced-motion` every one of these is instant; screen readers get the full text and final map labels at once; auto-scroll, pinning and the New lines pill still work.
+  8. Tests cover the reveal speed cap, finishing on a key, instant history, keyword buttons, reduced motion, the cross-fade focus, the map tween (old to new positions, new items hidden then shown, no animation on open), the rail width at the narrowest and wide desktop sizes, NPCs first in Nearby, and no rating sentence on the Here card.
 
 **Plans**: TBD
 **UI hint**: yes
@@ -1054,6 +1079,7 @@ Plans:
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** density lines and safety ratings that change live (and World event shifts) are good candidates for the same calm transitions.
   - **Wider context rail (owner, 2026-10-09):** "I like having the rail grow with the screen. Put it in with 51.5.1". The right context rail (fixed 288px) grows with the screen so place names stop being cut off and busy places need less scrolling; it keeps 288px at the narrowest desktop size. The centre feed's 760px line leaves the spare width. Todo `2026-10-09-widen-the-right-context-rail-so-names-and-long-lists-fit.md` (pulled into this phase).
   - **NPCs first in Nearby (owner, 2026-10-09):** "NPCs should be listed first in the nearby list. Those are quest hooks and should be most visible." Then: "put it in 51.5.1". Today NPCs sit last, under "Also here". Ask the owner the group label (for example "People") and whether players move up with them. Todo `2026-10-09-nearby-lists-npcs-first.md` (pulled into this phase).
+  - **No rating sentence on the Here card (owner, 2026-10-09):** "add this to the right menu widening phase. Don't show the `You should not be here alone. You are not alone.` text in the right menu in the curernt location menu. We don't need that text there and right-hand rail space is valuable realestate." The sentence is the Deadly rating line (`RATING_LINES` in `data/density_lines.ts`, shown by `src/rails/HereCard.vue`); the other three ratings have their own. Confirm with the owner that all four go (the plan's default) and whether the line stays as the rating chip's tooltip. Todo `2026-10-09-here-card-drops-the-rating-sentence.md` (pulled into this phase).
 
 ### Phase 52.1: Hotbar Manager (INSERTED)
 
@@ -1285,6 +1311,7 @@ Plans:
 | 51.3.1.2. Bigger Regions | v3.0 | 14/14 | Code complete, UAT deferred | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.3.2.1. Region Discovery | v3.0 | 0/TBD | Not started | - |
+| 51.3.2.2. World Danger Growth | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
 | 51.5.1. Motion and Polish | v3.0 | 0/TBD | Not started | - |
