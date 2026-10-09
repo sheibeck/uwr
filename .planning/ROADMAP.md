@@ -2629,7 +2629,7 @@ Plans:
 **Source:** Owner, 2026-10-09: "add a Settings under the ... menu that will allow users to configure some things. One thing to configure would be to turn on|off displaying narrative text in the chat that is already visible in the UI elements. Like showing loot, or NPCs, etc. Essentially, if the narative main panel shows duplicate information that is clearly visible in the UI then it should not render that text. We'll default to OFF for now, but this would be a great way to prune the narrative experience down so we don't get so much wall-of-text overload as we navigate the game. We'll want to target the most offending areas first."
 
 **Goal:** Players get a Settings entry in the ⋯ menu. Its first setting controls whether the narrative feed repeats information that a UI element already shows clearly (for example loot, the NPCs and creatures listed in Nearby, exits).
-  - Default as the owner said: "OFF for now". Confirm at discuss which way OFF reads (duplicate text not shown, or the pruning not active).
+  - Default: the pruning setting is OFF, which means nothing is pruned and the narrative panel shows everything as today (owner, 2026-10-09: "OFF means don't prune, i.e. show everything in the narrative panel"). Players turn it ON to hide the duplicate text.
   - Start with the worst offenders: list the feed lines that repeat what a panel shows (look text on arrival, loot lines, Nearby lists), ranked by how much text they add per move.
   - The setting is per player and persists (server-side preference, not browser storage only).
   - Hidden lines stay in the stored log (Phase 52.3) so nothing is lost.
