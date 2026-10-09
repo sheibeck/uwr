@@ -34,6 +34,7 @@ import { buildRouteLayers } from '../../spacetimedb/src/data/llm_layers.ts';
 import { buildClaudeRequest } from '../../spacetimedb/src/helpers/claude_request.ts';
 import { LLM_SWEEP_ROUTES, LLM_SWEEP_EFFORTS, LLM_ROUTE_BASELINES, deriveRouteTuning } from '../../spacetimedb/src/data/llm_tuning.ts';
 import { DENSITY_RULES } from '../../spacetimedb/src/data/density_rules.ts';
+import { acceptedNewPlaces } from '../../spacetimedb/src/data/region_shape.ts';
 
 // ---------------------------------------------------------------------------
 // Clean replies, one per route (each must lint clean)
@@ -338,14 +339,29 @@ describe('structuralCheck', () => {
     expect(structuralCheck('world_gen', { locations: [{}, {}], families: fams(16), npcs: [] })).toEqual(['families_count']);
   });
 
-  it('a world_gen reply in the Phase 51.3.1.2 2a shape (places only) needs 2 to REGION_PLACES_MAX - 1 places and no creatures', () => {
+  it('a world_gen reply in the Phase 51.3.1.2 2a shape (places only) is judged as the server judges it: REGION_PLACES_FLOOR - 1 or more new places, no upper bound (code review B, WR-03)', () => {
     const locs = (n) => Array.from({ length: n }, () => ({}));
-    const most = DENSITY_RULES.REGION_PLACES_MAX - 1;
-    expect(structuralCheck('world_gen', { locations: locs(2), npcs: [] })).toEqual([]);
-    expect(structuralCheck('world_gen', { locations: locs(most), npcs: [{ gender: 'female' }] })).toEqual([]);
+    const floor = DENSITY_RULES.REGION_PLACES_FLOOR - 1;
+    expect(floor).toBe(5);
+    // Below the floor the server fails the fill (acceptedNewPlaces not ok), so the sweep flags it.
+    expect(structuralCheck('world_gen', { locations: locs(floor - 1), npcs: [] })).toEqual(['locations_count']);
+    expect(structuralCheck('world_gen', { locations: locs(2), npcs: [] })).toEqual(['locations_count']);
     expect(structuralCheck('world_gen', { locations: locs(1), npcs: [] })).toEqual(['locations_count']);
-    expect(structuralCheck('world_gen', { locations: locs(most + 1), npcs: [] })).toEqual(['locations_count']);
-    expect(structuralCheck('world_gen', { locations: locs(5), npcs: [{}] })).toEqual(['npc_gender_missing']);
+    expect(structuralCheck('world_gen', { npcs: [] })).toEqual(['locations_count']);
+    // At the floor and above, including past REGION_PLACES_MAX - 1 (the server trims the extra places).
+    expect(structuralCheck('world_gen', { locations: locs(floor), npcs: [] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: locs(DENSITY_RULES.REGION_PLACES_MAX - 1), npcs: [{ gender: 'female' }] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: locs(DENSITY_RULES.REGION_PLACES_MAX + 3), npcs: [] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: locs(floor), npcs: [{}] })).toEqual(['npc_gender_missing']);
+  });
+
+  it('the places-only floor agrees with the server rule acceptedNewPlaces for the largest place count', () => {
+    const locs = (n) => Array.from({ length: n }, () => ({}));
+    for (let n = 0; n <= DENSITY_RULES.REGION_PLACES_MAX + 3; n++) {
+      const server = acceptedNewPlaces(n, DENSITY_RULES.REGION_PLACES_MAX).ok;
+      const sweep = structuralCheck('world_gen', { locations: locs(n), npcs: [] }).length === 0;
+      expect({ n, sweep }).toEqual({ n, sweep: server });
+    }
   });
 
   it('skill_gen needs a skill and renown_perk_gen needs a perk', () => {

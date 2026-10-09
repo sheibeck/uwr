@@ -332,11 +332,16 @@ export function structuralCheck(route, parsedOrText) {
       if (!isObject(p) || !isObject(p.firstNpc) || !GENDERS.includes(p.firstNpc.gender)) bad.push('npc_gender_missing');
       break;
     case 'world_gen': {
-      // Phase 51.3.1.2 (D-01, Plan 10): the 2a reply carries places only, up to REGION_PLACES_MAX - 1 new places,
-      // and no creatures (the families are the separate world_gen_families route). The older shapes keep their checks.
+      // Phase 51.3.1.2 (D-01, Plan 10): the 2a reply carries places only and no creatures (the families are the
+      // separate world_gen_families route). It is judged as the server judges it (writeRegionPlaces, D-03, through
+      // acceptedNewPlaces): fewer than REGION_PLACES_FLOOR - 1 new places fails the fill, and any count above that is
+      // accepted (the server trims the extra places), so only a count below the floor is flagged (code review B,
+      // WR-03). The older shapes keep their checks.
       const placesOnly = isObject(p) && !Array.isArray(p.families) && !Array.isArray(p.enemies);
-      const maxLocations = placesOnly ? DENSITY_RULES.REGION_PLACES_MAX - 1 : 4;
-      if (!isObject(p) || !inRange(p.locations, 2, maxLocations)) bad.push('locations_count');
+      if (placesOnly) {
+        const minNew = DENSITY_RULES.REGION_PLACES_FLOOR - 1;
+        if (!Array.isArray(p.locations) || p.locations.length < minNew) bad.push('locations_count');
+      } else if (!isObject(p) || !inRange(p.locations, 2, 4)) bad.push('locations_count');
       // Phase 51.3.1.1 (Plans 23, 30): the fill reply carries families, not enemies; the older shape keeps its check.
       if (isObject(p) && Array.isArray(p.families)) {
         if (!inRange(p.families, 1, DENSITY_RULES.FAMILY_COUNT_MAX)) bad.push('families_count');

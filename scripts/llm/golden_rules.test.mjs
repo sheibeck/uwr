@@ -454,6 +454,37 @@ const WORLD_FILL = {
       isSafe: true,
       connectsTo: ['Tarpit Shallows'],
     },
+    // Code review B, WR-03: a good 2a reply meets the server's floor (REGION_PLACES_FLOOR - 1 = 5 new places).
+    {
+      name: 'Saltmarrow Dunes',
+      shortName: 'Saltmarrow',
+      placeNoun: 'the dunes',
+      description: 'Pale dunes that shift a little every night. The tracks you left yesterday point somewhere new.',
+      terrainType: 'plains',
+      isHub: false,
+      isSafe: false,
+      connectsTo: ['Kelp Road'],
+    },
+    {
+      name: 'Brinewatch Tower',
+      shortName: 'Brinewatch',
+      placeNoun: 'the tower',
+      description: 'A leaning watchtower whose lamp still burns, though nobody admits to keeping it lit.',
+      terrainType: 'woods',
+      isHub: false,
+      isSafe: true,
+      connectsTo: ['Saltmarrow Dunes'],
+    },
+    {
+      name: 'Cormorant Rocks',
+      shortName: 'Cormorant',
+      placeNoun: 'the rocks',
+      description: 'Black rocks crowded with birds that watch the shore in silence. The path between them is narrow and slick.',
+      terrainType: 'swamp',
+      isHub: false,
+      isSafe: false,
+      connectsTo: ['Brinewatch Tower'],
+    },
   ],
   npcs: [
     {
