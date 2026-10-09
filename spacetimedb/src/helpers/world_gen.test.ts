@@ -48,7 +48,10 @@ import {
   nowhereToGoLine,
   REGION_FILL_PENDING_HINT,
   REGION_FILL_FAILED_HINT,
+  regionHubCount,
+  readHubMarks,
 } from './world_gen';
+import { hubCountFor, hubHasStation, hubSeed, stationSeed } from '../data/density_rules';
 import { createMockDb, createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { resolveRouteInput } from './llm_inputs';
@@ -1576,5 +1579,315 @@ describe('NPC gender in the staged writers (Plan 41-18, PR-02 and PR-05)', () =>
     expect(rows.length).toBeGreaterThan(2);
     for (const r of rows) expect(['male', 'female']).toContain(r.gender);
     for (const r of runFirst(npcItem({ gender: 7 }))) expect(['male', 'female']).toContain(r.gender);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 09 Task 3: hubs, their vendor and banker, crafting stations and bind stones (D-59 to D-64)
+// ---------------------------------------------------------------------------
+
+describe('hubs (Plan 09 Task 3, D-59 to D-64)', () => {
+  const T0 = 1_700_000_000_000_000n;
+  const alice = { toHexString: () => 'a'.repeat(64) };
+  const ts = { microsSinceUnixEpoch: T0 };
+  // computeRegionDanger adds 50 + (timestamp % 51) to the source danger, capped at 800.
+  const DANGER_STEP = 50n + (T0 % 51n);
+
+  /** The first region id whose hub count at `danger` (not a starter) is `count`. Never a hard-coded roll. */
+  function regionIdWithHubCount(danger: bigint, count: number, from = 2n): bigint {
+    for (let id = from; id < from + 2000n; id += 1n) {
+      if (hubCountFor(danger, false, hubSeed(id)) === count) return id;
+    }
+    throw new Error(`no region id with hub count ${count} at danger ${danger}`);
+  }
+
+  /** A strict ctx whose next region insert gets `regionId` at `danger`, with a stage-2 state for it. */
+  function hubCtx(regionId: bigint, danger: bigint, extra: Record<string, any[]> = {}) {
+    const sourceDanger = danger >= 800n ? 800n : danger - DANGER_STEP;
+    const items = ['Wood', 'Peat', 'Scrap Cloth', 'Flax', 'Herbs'].map((name, i) => ({ id: 700n + BigInt(i), name, slot: 'resource' }));
+    return createMockCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n }],
+        character: [{ id: 10n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver', locationId: 0n }],
+        region: [{ id: regionId - 1n, name: 'Source', dangerMultiplier: sourceDanger }],
+        world_gen_state: [
+          {
+            id: 5n,
+            playerId: alice,
+            characterId: 10n,
+            sourceLocationId: 0n,
+            sourceRegionId: regionId - 1n,
+            step: 'GENERATING',
+            createdAt: ts,
+            updatedAt: ts,
+          },
+        ],
+        item_template: items,
+        ...extra,
+      },
+      sender: alice,
+      timestampMicros: T0,
+      strict: true,
+    });
+  }
+  const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+  const stateOf = (ctx: any) => rows(ctx, 'world_gen_state')[0];
+  const placesOf = (ctx: any, regionId: bigint) => rows(ctx, 'location').filter((l: any) => l.regionId === regionId);
+  const npcsAt = (ctx: any, locationId: bigint) => rows(ctx, 'npc').filter((n: any) => n.locationId === locationId);
+  const servicesAt = (ctx: any, locationId: bigint) =>
+    npcsAt(ctx, locationId)
+      .map((n: any) => n.npcType)
+      .filter((t: string) => t === 'vendor' || t === 'banker')
+      .sort();
+
+  function stageOne(ctx: any, reply: any = baseStartReply()) {
+    const state = stateOf(ctx);
+    const out = writeRegionStart(ctx, reply, state);
+    ctx.db.world_gen_state.id.update({ ...state, generatedRegionId: out.region.id });
+    return out;
+  }
+  function both(ctx: any, fill: any, start: any = baseStartReply()) {
+    const s = stageOne(ctx, start);
+    const f = writeRegionFill(ctx, fill, stateOf(ctx), s.region, s.startLocation);
+    return { ...s, ...f };
+  }
+  const SERVICE_NPCS = [
+    { name: 'Shopkeep', gender: 'male', npcType: 'vendor', locationName: 'Safe Haven', description: 'A vendor.', greeting: 'Hello.', personality: PERSONALITY },
+    { name: 'Banker Bob', gender: 'male', npcType: 'banker', locationName: 'Safe Haven', description: 'A banker.', greeting: 'Welcome.', personality: PERSONALITY },
+  ];
+
+  it('regionHubCount reads hubCountFor on the region id and danger', () => {
+    for (const id of [3n, 17n, 40n]) {
+      expect(regionHubCount({ id, dangerMultiplier: 400n }, false)).toBe(hubCountFor(400n, false, hubSeed(id)));
+    }
+    expect(regionHubCount({ id: 9n, dangerMultiplier: 800n }, true)).toBe(1);
+  });
+
+  it('readHubMarks: the arrival first when marked, then marked locations by name; unknown names are ignored', () => {
+    const arrival = { id: 1n, name: 'Safe Haven' };
+    const byName = new Map<string, any>([
+      ['sallow wood', { id: 2n }],
+      ['black fen', { id: 3n }],
+    ]);
+    const fill = {
+      arrival: { isHub: true },
+      locations: [
+        { name: 'Black Fen', isHub: true },
+        { name: 'Sallow Wood' },
+        { name: 'Nowhere', isHub: true },
+        { name: 'sallow wood', isHub: true },
+      ],
+    };
+    expect(readHubMarks(fill, arrival, byName)).toEqual([1n, 3n, 2n]);
+    expect(readHubMarks({ locations: [{ name: 'Black Fen' }] }, arrival, byName)).toEqual([]);
+    expect(readHubMarks(baseFillReply(), arrival, byName)).toEqual([]);
+  });
+
+  it('writeRegionStart, starter: the arrival point is safe, a hub, with a crafting station and a bind stone', () => {
+    const ctx = hubCtx(2n, 150n);
+    const { startLocation } = writeRegionStart(ctx, baseStartReply(), { ...stateOf(ctx), sourceRegionId: 0n }, 'kobold');
+    expect(startLocation).toMatchObject({ isSafe: true, isHub: true, craftingAvailable: true, bindStone: true });
+  });
+
+  it('writeRegionStart, not a starter: safe (until Plan 23), not a hub, no station and no bind stone (D-63, D-64)', () => {
+    const ctx = hubCtx(2n, 150n);
+    const { startLocation } = stageOne(ctx);
+    expect(startLocation).toMatchObject({ isSafe: true, isHub: false, craftingAvailable: false, bindStone: false });
+  });
+
+  it('the reply shape of today with hub count 1: the arrival point is the only hub, keeps the reply vendor and banker, with a station and a bind stone', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = hubCtx(regionId, 150n);
+    const { region, startLocation, locations } = both(
+      ctx,
+      familyFillReply({
+        locations: [
+          { name: 'Sallow Wood', description: 'w', terrainType: 'woods', isSafe: false, levelOffset: 0, connectsTo: ['Safe Haven'] },
+          { name: 'Reed Camp', description: 'c', terrainType: 'plains', isSafe: true, levelOffset: 0, connectsTo: ['Safe Haven'] },
+        ],
+        npcs: SERVICE_NPCS,
+      }),
+    );
+    expect(region.id).toBe(regionId);
+    expect(region.dangerMultiplier).toBe(150n);
+    const arrival = rows(ctx, 'location').find((l: any) => l.id === startLocation.id);
+    expect(arrival).toMatchObject({ isHub: true, isSafe: true, craftingAvailable: true, bindStone: true });
+    expect(npcsAt(ctx, arrival.id).filter((n: any) => n.npcType === 'vendor').map((n: any) => n.name)).toEqual(['Shopkeep']);
+    expect(npcsAt(ctx, arrival.id).filter((n: any) => n.npcType === 'banker').map((n: any) => n.name)).toEqual(['Banker Bob']);
+    for (const loc of locations) {
+      const row = rows(ctx, 'location').find((l: any) => l.id === loc.id);
+      expect(row).toMatchObject({ isHub: false, craftingAvailable: false, bindStone: false });
+    }
+    expect(rows(ctx, 'location').filter((l: any) => l.isHub)).toHaveLength(1);
+  });
+
+  it('two marked locations where the count is 1: the first mark is the hub, made safe with services and no creature pool; the second keeps its pools', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = hubCtx(regionId, 150n);
+    const { startLocation, locations } = both(
+      ctx,
+      familyFillReply({
+        locations: [
+          { name: 'Sallow Wood', description: 'w', terrainType: 'woods', isSafe: false, isHub: true, levelOffset: 0, connectsTo: ['Safe Haven'] },
+          { name: 'Black Fen', description: 'f', terrainType: 'swamp', isSafe: false, isHub: true, levelOffset: 1, connectsTo: ['Sallow Wood'] },
+        ],
+      }),
+    );
+    const row = (name: string) => rows(ctx, 'location').find((l: any) => l.name === name);
+    const wood = row('Sallow Wood');
+    const fen = row('Black Fen');
+    expect(wood).toMatchObject({ isHub: true, isSafe: true, bindStone: true });
+    expect(wood.craftingAvailable).toBe(hubHasStation(150n, false, stationSeed(regionId, wood.id)));
+    expect(servicesAt(ctx, wood.id)).toEqual(['banker', 'vendor']);
+    expect(rows(ctx, 'place_pool').filter((p: any) => p.locationId === wood.id && p.kind === 'creature')).toEqual([]);
+    expect(fen).toMatchObject({ isHub: false, isSafe: false });
+    expect(rows(ctx, 'place_pool').some((p: any) => p.locationId === fen.id && p.kind === 'creature')).toBe(true);
+    expect(rows(ctx, 'location').find((l: any) => l.id === startLocation.id)).toMatchObject({ isHub: false, bindStone: false });
+    expect(servicesAt(ctx, startLocation.id)).toEqual([]);
+    expect(locations).toHaveLength(2);
+  });
+
+  it('hub count 0: no hub, no vendor or banker anywhere in the region (theirs become lore), no station, no bind stone', () => {
+    const regionId = regionIdWithHubCount(800n, 0);
+    const ctx = hubCtx(regionId, 800n);
+    const { region, startLocation, locations, boundary } = both(
+      ctx,
+      familyFillReply({
+        npcs: [
+          ...SERVICE_NPCS,
+          { name: 'Wren Hale', gender: 'female', npcType: 'vendor', locationName: 'Sallow Wood', description: 'A peddler.', greeting: 'Hm.', personality: PERSONALITY },
+        ],
+      }),
+    );
+    expect(region.dangerMultiplier).toBe(800n);
+    const places = placesOf(ctx, region.id);
+    expect(places.filter((l: any) => l.isHub)).toEqual([]);
+    expect(places.filter((l: any) => l.craftingAvailable)).toEqual([]);
+    const npcs = rows(ctx, 'npc').filter((n: any) => places.some((l: any) => l.id === n.locationId));
+    expect(npcs.filter((n: any) => n.npcType === 'vendor' || n.npcType === 'banker')).toEqual([]);
+    for (const name of ['Shopkeep', 'Banker Bob', 'Wren Hale']) {
+      expect(npcs.find((n: any) => n.name === name)).toMatchObject({ npcType: 'lore' });
+    }
+    // D-64: the arrival point keeps its stage-1 value (no bind stone), and no new place gets one.
+    expect(places.find((l: any) => l.id === startLocation.id).bindStone).toBe(false);
+    for (const loc of [...locations, boundary]) {
+      expect(places.find((l: any) => l.id === loc.id).bindStone).toBe(false);
+    }
+  });
+
+  it('hub count 2 with one other safe place: both are hubs with services; each station is the server roll', () => {
+    const regionId = regionIdWithHubCount(400n, 2);
+    const ctx = hubCtx(regionId, 400n);
+    const { region, startLocation } = both(
+      ctx,
+      familyFillReply({
+        locations: [
+          { name: 'Sallow Wood', description: 'w', terrainType: 'woods', isSafe: false, levelOffset: 0, connectsTo: ['Safe Haven'] },
+          { name: 'Reed Camp', description: 'c', terrainType: 'plains', isSafe: true, levelOffset: 0, connectsTo: ['Safe Haven'] },
+        ],
+      }),
+    );
+    expect(region.dangerMultiplier).toBe(400n);
+    const hubs = placesOf(ctx, region.id).filter((l: any) => l.isHub);
+    const camp = placesOf(ctx, region.id).find((l: any) => l.name === 'Reed Camp');
+    expect(hubs.map((h: any) => h.id).sort()).toEqual([startLocation.id, camp.id].sort());
+    for (const hub of hubs) {
+      expect(hub).toMatchObject({ isSafe: true, bindStone: true });
+      expect(servicesAt(ctx, hub.id)).toEqual(['banker', 'vendor']);
+      expect(hub.craftingAvailable).toBe(hubHasStation(400n, false, stationSeed(regionId, hub.id)));
+    }
+  });
+
+  it('a starter region fill: the arrival point stays the only hub whatever the reply marks', () => {
+    const ctx = hubCtx(2n, 150n);
+    ctx.db.world_gen_state.id.update({ ...stateOf(ctx), sourceRegionId: 0n });
+    const { startLocation } = both(
+      ctx,
+      familyFillReply({
+        arrival: { isHub: false },
+        locations: [{ name: 'Reed Camp', description: 'c', terrainType: 'town', isSafe: true, isHub: true, levelOffset: 0, connectsTo: ['Safe Haven'] }],
+      }),
+    );
+    const hubs = rows(ctx, 'location').filter((l: any) => l.isHub);
+    expect(hubs.map((h: any) => h.id)).toEqual([startLocation.id]);
+    expect(hubs[0]).toMatchObject({ isSafe: true, craftingAvailable: true, bindStone: true });
+    expect(servicesAt(ctx, startLocation.id)).toEqual(['banker', 'vendor']);
+  });
+
+  it('failWorldFill at danger 150: the arrival point becomes the hub with a vendor and a banker; a second call inserts nothing', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = hubCtx(regionId, 150n);
+    const { startLocation } = stageOne(ctx);
+    failWorldFill(ctx, stateOf(ctx), WORLD_FILL_FAILED_MESSAGE);
+    expect(rows(ctx, 'location').find((l: any) => l.id === startLocation.id)).toMatchObject({
+      isHub: true,
+      isSafe: true,
+      bindStone: true,
+      craftingAvailable: hubHasStation(150n, false, stationSeed(regionId, startLocation.id)),
+    });
+    expect(servicesAt(ctx, startLocation.id)).toEqual(['banker', 'vendor']);
+    const before = { npc: rows(ctx, 'npc').length, location: rows(ctx, 'location').length };
+    failWorldFill(ctx, stateOf(ctx), WORLD_FILL_FAILED_MESSAGE);
+    expect({ npc: rows(ctx, 'npc').length, location: rows(ctx, 'location').length }).toEqual(before);
+  });
+
+  it('failWorldFill where the hub count is 0: no hub, no vendor and no banker', () => {
+    const regionId = regionIdWithHubCount(800n, 0);
+    const ctx = hubCtx(regionId, 800n);
+    const { startLocation } = stageOne(ctx, baseStartReply({ firstNpc: { ...baseStartReply().firstNpc, npcType: 'vendor' } }));
+    failWorldFill(ctx, stateOf(ctx), WORLD_FILL_FAILED_MESSAGE);
+    expect(rows(ctx, 'location').filter((l: any) => l.isHub)).toEqual([]);
+    expect(servicesAt(ctx, startLocation.id)).toEqual([]);
+    expect(npcsAt(ctx, startLocation.id).map((n: any) => [n.name, n.npcType])).toEqual([['Oswin Tarr', 'lore']]);
+  });
+
+  it('a fill retried after a failed fill keeps the arrival hub as the only hub and adds no second vendor or banker', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = hubCtx(regionId, 150n);
+    const { region, startLocation } = stageOne(ctx);
+    failWorldFill(ctx, stateOf(ctx), WORLD_FILL_FAILED_MESSAGE);
+    writeRegionFill(
+      ctx,
+      familyFillReply({
+        locations: [{ name: 'Reed Camp', description: 'c', terrainType: 'town', isSafe: true, isHub: true, levelOffset: 0, connectsTo: ['Safe Haven'] }],
+      }),
+      stateOf(ctx),
+      region,
+      startLocation,
+    );
+    expect(rows(ctx, 'location').filter((l: any) => l.isHub).map((l: any) => l.id)).toEqual([startLocation.id]);
+    expect(rows(ctx, 'npc').filter((n: any) => n.npcType === 'vendor')).toHaveLength(1);
+    expect(rows(ctx, 'npc').filter((n: any) => n.npcType === 'banker')).toHaveLength(1);
+  });
+
+  it('reuseStarterRegion places the character at the hub even when another safe, charted place has a lower id', () => {
+    const ctx = createMockCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n }],
+        character: [{ id: 10n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver', locationId: 0n }],
+        world_gen_state: [
+          { id: 5n, playerId: alice, characterId: 10n, sourceLocationId: 0n, sourceRegionId: 0n, step: 'PENDING', createdAt: ts, updatedAt: ts },
+        ],
+        region: [{ id: 1n, name: 'Emberdeep', dangerMultiplier: 100n, starterForRace: 'kobold', biome: 'cavern' }],
+        location: [
+          { id: 20n, name: 'Quiet Chapel', regionId: 1n, isSafe: true, isHub: false, terrainType: 'town' },
+          { id: 21n, name: 'Hearthhold', regionId: 1n, isSafe: true, isHub: true, terrainType: 'town' },
+        ],
+      },
+      sender: alice,
+      timestampMicros: T0,
+      strict: true,
+    });
+    expect(startWorldGeneration(ctx, stateOf(ctx))).toBe('reused');
+    expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 21n, boundLocationId: 21n });
+  });
+
+  it('every location and npc row the hub step writes matches the recorded schema', () => {
+    const regionId = regionIdWithHubCount(400n, 2);
+    const ctx = hubCtx(regionId, 400n);
+    both(ctx, familyFillReply({ npcs: SERVICE_NPCS }));
+    for (const table of ['location', 'npc']) {
+      for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
+    }
   });
 });
