@@ -58,7 +58,7 @@ function regionIdWithHubCount(danger: bigint, count: number, from = 2n): bigint 
 
 /** A world with a source region and its border place 50n; the state is GENERATING from that place. */
 function makeCtx(regionId: bigint, danger = 150n) {
-  const sourceDanger = danger - DANGER_STEP;
+  const sourceDanger = danger >= 800n ? 800n : danger - DANGER_STEP;
   const items = ['Wood', 'Peat', 'Scrap Cloth', 'Flax', 'Herbs'].map((name, i) => ({ id: 700n + BigInt(i), name, slot: 'resource' }));
   return createMockCtx({
     seed: {
@@ -137,8 +137,10 @@ function placesReply(locations: any[], over: Record<string, unknown> = {}) {
 }
 
 function world(opts: { hubs?: number; start?: any } = {}) {
-  const regionId = regionIdWithHubCount(150n, opts.hubs ?? 1);
-  const ctx = makeCtx(regionId);
+  // Hub count 0 needs a deep region (D-62: below danger 200 every region has a hub).
+  const danger = opts.hubs === 0 ? 800n : 150n;
+  const regionId = regionIdWithHubCount(danger, opts.hubs ?? 1);
+  const ctx = makeCtx(regionId, danger);
   const { region, startLocation } = stageOne(ctx, opts.start ?? startReply());
   expect(region.id).toBe(regionId);
   return { ctx, region, startLocation };

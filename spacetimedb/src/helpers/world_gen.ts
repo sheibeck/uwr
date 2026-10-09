@@ -54,6 +54,15 @@ import {
   keptFamilyCount,
   stationSeed,
 } from '../data/density_rules';
+import {
+  acceptedNewPlaces,
+  boundaryAnchorFor,
+  hopsFrom,
+  hostFloorFlips,
+  levelOffsetForHops,
+  shapeRegionEdges,
+  type ShapeNode,
+} from '../data/region_shape';
 
 /**
  * The /synccontent bootstrap: clears enemy spawns left at safe places, then seeds every place's
@@ -898,6 +907,201 @@ export function retryWorldFill(
   };
   tx.db.world_gen_state.id.update(handed);
   return startWorldFill(tx, handed) === 'refused' ? 'refused' : 'started';
+}
+
+/**
+ * The charted places of a region (Phase 51.3.1.2): the arrival point (findRegionStart) first, then
+ * the region's other non-uncharted places by id. The Edge Beyond doorway is never one of them. The
+ * families writer counts these (D-66) and Plan 08 builds the stage-2b input from them. Iterates
+ * location (no region index); callers are rare, per-region paths.
+ */
+export function regionChartedPlaces(tx: any, regionId: bigint): any[] {
+  const arrival = findRegionStart(tx, regionId);
+  const others = [...tx.db.location.iter()]
+    .filter((loc: any) => loc.regionId === regionId && loc.terrainType !== 'uncharted' && (!arrival || loc.id !== arrival.id))
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return arrival ? [arrival, ...others] : others;
+}
+
+/** What the stage-2a writer did: the places it wrote and the doorway, or a refusal before any write. */
+export type RegionPlacesResult =
+  | { ok: true; locations: any[]; boundary: any }
+  | { ok: false; reason: 'too_few' };
+
+/**
+ * Stage 2a write (Phase 51.3.1.2): the region facts, the new places, their connections, the hubs and
+ * their services, the place words, the NPCs and the Edge Beyond doorway around the arrival point stage 1
+ * wrote. It never writes a creature family, a pool or an enemy template (stage 2b does,
+ * writeRegionFamilies). Never renames or duplicates stage-1 content.
+ *
+ * `opts.placeCount` is the server's place count for the region (placeCountFor, 8-10, the arrival point
+ * included): at most placeCount - 1 new places are kept, in reply order, and a reply that leaves fewer
+ * than REGION_PLACES_FLOOR places in all writes nothing and returns too_few. null (a job asked without
+ * a count, in flight at the publish) keeps at most REGION_PLACES_MAX - 1 and has no floor (D-03).
+ *
+ * The model's levelOffset is never read (D-04) and its connectsTo, isSafe and hub marks are only
+ * inputs to the server rules (D-05, D-07; T-51.3.1.2-13, T-51.3.1.2-14).
+ */
+export function writeRegionPlaces(
+  tx: any,
+  fill: any,
+  genState: any,
+  region: any,
+  startLocation: any,
+  opts: { placeCount: number | null },
+): RegionPlacesResult {
+  const reply = fill && typeof fill === 'object' ? fill : {};
+
+  // 1. Usable places (D-03): objects whose name is not taken yet, case-insensitively, the arrival
+  //    point's name first. Collecting stops at the most the server could keep (T-51.3.1.2-13).
+  const most = acceptedNewPlaces(Number.MAX_SAFE_INTEGER, opts.placeCount).keep;
+  const taken = new Set<string>([lower(startLocation.name)]);
+  const usable: { item: any; name: string }[] = [];
+  const locationItems: any[] = Array.isArray(reply.locations) ? reply.locations : [];
+  for (const item of locationItems) {
+    if (usable.length >= most) break;
+    if (!item || typeof item !== 'object') continue;
+    const name = String(item.name || 'Unknown Location');
+    if (taken.has(lower(name))) continue;
+    taken.add(lower(name));
+    usable.push({ item, name });
+  }
+
+  // 2-3. The place count and the floor (D-03): a short reply returns before any write (T-51.3.1.2-15).
+  const accepted = acceptedNewPlaces(usable.length, opts.placeCount);
+  if (!accepted.ok) return { ok: false, reason: 'too_few' };
+  const kept = usable.slice(0, accepted.keep);
+
+  // 4. Canonical facts the stage-1 reply did not carry.
+  const current = tx.db.region.id.find(region.id) ?? region;
+  tx.db.region.id.update({
+    ...current,
+    dominantFaction: reply.dominantFaction || current.dominantFaction || undefined,
+    landmarks: reply.landmarks ? JSON.stringify(reply.landmarks) : current.landmarks,
+    threats: reply.threats ? JSON.stringify(reply.threats) : current.threats,
+  });
+
+  // 5. The shape (D-05), on node indices: 0 is the arrival point, then the kept places in reply order.
+  //    connectsTo names resolve against the arrival point and the kept names only (a trimmed or unknown
+  //    name is dropped); shapeRegionEdges cleans, repairs reachability (an orphan joins the
+  //    least-connected reached place) and trims above EXIT_DEGREE_CAP by non-bridge edges only. The
+  //    arrival point's passage to the source region and the doorway are outside these edges.
+  const indexByName = new Map<string, number>([[lower(startLocation.name), 0]]);
+  kept.forEach(({ name }, i) => indexByName.set(lower(name), i + 1));
+  const rawEdges: [number, number][] = [];
+  kept.forEach(({ item }, i) => {
+    if (!Array.isArray(item.connectsTo)) return;
+    for (const target of item.connectsTo) {
+      const j = indexByName.get(lower(target));
+      if (j !== undefined) rawEdges.push([i + 1, j]);
+    }
+  });
+  const count = kept.length + 1;
+  const edges = shapeRegionEdges({ count, edges: rawEdges });
+  const hops = hopsFrom(count, edges, 0);
+
+  // 6. The kept places. Level offset by the hop gradient (D-04): the arrival point's offset plus one per
+  //    LEVEL_HOPS_PER_STEP hops, at most LEVEL_OFFSET_MAX more; the reply's levelOffset is never read.
+  //    Place words (D-46): cleaned by the validator, '' when unusable or absent.
+  const arrivalNow = tx.db.location.id.find(startLocation.id) ?? startLocation;
+  const arrivalOffset: bigint = typeof arrivalNow.levelOffset === 'bigint' ? arrivalNow.levelOffset : 0n;
+  const newLocations: any[] = kept.map(({ item, name }, i) => {
+    const words = validatePlaceWords(item);
+    return tx.db.location.insert({
+      id: 0n,
+      name,
+      description: item.description || `A ${current.biome || 'mysterious'} stretch of ${region.name}.`,
+      zone: region.name,
+      regionId: region.id,
+      levelOffset: levelOffsetForHops(arrivalOffset, hops[i + 1] ?? 0),
+      isSafe: item.isSafe === true,
+      terrainType: item.terrainType && item.terrainType !== 'uncharted' ? item.terrainType : 'plains',
+      bindStone: false,
+      craftingAvailable: false,
+      shortName: words.shortName,
+      placeNoun: words.placeNoun,
+      isHub: false,
+    });
+  });
+  const ids: bigint[] = [startLocation.id, ...newLocations.map((row: any) => row.id)];
+
+  // 7. Connections: exactly the shaped edge set (D-05), never one twice.
+  for (const [a, b] of edges) {
+    if (!isConnected(tx, ids[a]!, ids[b]!)) connectLocations(tx, ids[a]!, ids[b]!);
+  }
+
+  // 8. Hubs (D-07: D-60 to D-64 unchanged): the server count, the reply marks on kept places only, then
+  //    the rule. A hub is safe.
+  const isStarter = genState.sourceRegionId === 0n;
+  const keptByName = new Map<string, any>(newLocations.map((row: any) => [lower(row.name), row] as [string, any]));
+  const hubs = placeRegionHubs(tx, {
+    region: current,
+    arrival: startLocation,
+    isStarter,
+    markedIds: readHubMarks(reply, startLocation, keptByName),
+  });
+
+  // 9. The host floor (D-05, SC3): at least MIN_HOST_PLACES places that are neither safe nor a hub, by
+  //    flipping the farthest non-hub safe places (after the hub step, so a hub is never flipped). The
+  //    arrival point keeps the safety stage 1 gave it.
+  const nodesNow = (): ShapeNode[] =>
+    ids.map((id, index) => {
+      const row = tx.db.location.id.find(id);
+      return { index, isSafe: row?.isSafe === true, isHub: row?.isHub === true };
+    });
+  for (const index of hostFloorFlips({ nodes: nodesNow(), hops })) {
+    if (index === 0) continue;
+    const row = tx.db.location.id.find(ids[index]!);
+    if (row && row.isSafe === true) tx.db.location.id.update({ ...row, isSafe: false });
+  }
+
+  // 10. The arrival point's place words from the reply (D-46), after the hub step rewrote its row.
+  writeArrivalPlaceWords(tx, startLocation, reply);
+
+  // 11. NPCs (D-06): by exact locationName among the arrival point and the kept places, else at the
+  //     arrival point; never a repeat of a name already standing there.
+  const byExactName = new Map<string, any>([[startLocation.name, startLocation]]);
+  for (const row of newLocations) byExactName.set(row.name, row);
+  const npcItems: any[] = Array.isArray(reply.npcs) ? reply.npcs : [];
+  for (const npc of npcItems) {
+    if (!npc || typeof npc !== 'object') continue;
+    const npcLocation = byExactName.get(npc.locationName) ?? startLocation;
+    const storedName = npc.name || 'Unknown NPC';
+    const alreadyThere = [...tx.db.npc.by_location.filter(npcLocation.id)].some(
+      (n: any) => lower(n.name) === lower(storedName),
+    );
+    if (alreadyThere) continue;
+    insertRegionNpc(tx, npc, npcLocation.id);
+  }
+
+  // 12. A vendor and a banker at each hub, and none anywhere else in the region (D-59).
+  settleRegionServices(tx, region.id, hubs);
+
+  // 13. The Edge Beyond doorway (D-05) off boundaryAnchorFor's place: the farthest from the arrival
+  //     point by hops, preferring non-safe non-hub places, ties by lowest id (index order is id order).
+  const anchor = ids[boundaryAnchorFor({ nodes: nodesNow(), hops })] ?? startLocation.id;
+  const boundary = tx.db.location.insert({
+    id: 0n,
+    name: `The Edge Beyond ${region.name || 'the Region'}`,
+    description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
+    zone: 'Uncharted',
+    regionId: region.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'uncharted',
+    bindStone: false,
+    craftingAvailable: false,
+    shortName: '',
+    placeNoun: '',
+    isHub: false,
+  });
+  connectLocations(tx, anchor, boundary.id);
+
+  return {
+    ok: true,
+    locations: newLocations.map((row: any) => tx.db.location.id.find(row.id) ?? row),
+    boundary,
+  };
 }
 
 /**
