@@ -52,7 +52,6 @@ import {
   readHubMarks,
 } from './world_gen';
 import {
-  askedFamilyCount,
   familyCountFor,
   familySeed,
   feudCountFor,
@@ -69,6 +68,7 @@ import { createMockDb, createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { resolveRouteInput } from './llm_inputs';
 import { buildRouteLayers } from '../data/llm_layers';
+import { placeCountFor } from '../data/region_shape';
 import { utcDay } from './llm_budget';
 import { setLlmEnabled, patchAdminState } from './llm_admin_state';
 import { LLM_RESTING_LINE } from './llm_queue';
@@ -1247,9 +1247,9 @@ describe('staged world fill (Phase 43)', () => {
         // Plan 51.3.1.1-23 (D-62): the server's hub count and whether the arrival point is a hub.
         hubCount: regionHubCount(rows(ctx, 'region').find((r: any) => r.name === 'Test Region'), false),
         arrivalIsHub: false,
-        // Plan 51.3.1.1-30 (D-66, D-70): the Families and Feud lines carry the server's own counts.
-        familyCount: askedFamilyCount(),
-        feudCount: feudCountFor(askedFamilyCount(), familySeed(rows(ctx, 'region').find((r: any) => r.name === 'Test Region').id)),
+        // Phase 51.3.1.2 (D-03, D-66): the 2a job carries the server's place count; the family and feud
+        // counts moved to the 2b job (buildWorldFamiliesInput), which counts the real places.
+        placeCount: placeCountFor(rows(ctx, 'region').find((r: any) => r.name === 'Test Region').id),
       });
       expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
     });
@@ -2302,28 +2302,22 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     expect(buildRouteLayers('world_gen', starterInput).volatile).toContain('\nHubs: one. The arrival point is a hub.\n');
   });
 
-  it('buildWorldFillInput asks for askedFamilyCount() families and the feud count of the region seed (Plan 30, D-66, D-70, D-71)', () => {
-    expect(askedFamilyCount()).toBe(7);
-    // One region whose seed rolls a feud and one whose seed rolls none, so both Feud line forms are covered.
-    const firstId = (pred: (n: number) => boolean): bigint => {
-      for (let id = 2n; id < 400n; id++) if (pred(feudCountFor(7, familySeed(id)))) return id;
-      throw new Error('no region id matches');
-    };
-    const withFeud = firstId((n) => n >= 2);
-    const noFeud = firstId((n) => n === 0);
-    for (const regionId of [withFeud, noFeud]) {
+  it('buildWorldFillInput asks for placeCountFor(region) places and no family or feud count (Phase 51.3.1.2, D-03, D-66)', () => {
+    const seen = new Set<number>();
+    for (const regionId of [2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n]) {
       const ctx = aiCtx(regionId, 150n);
       const { region } = stageOne(ctx);
       expect(region.id).toBe(regionId);
       const input = buildWorldFillInput(ctx, stateOf(ctx));
-      expect(input.familyCount).toBe(7);
-      expect(input.feudCount).toBe(feudCountFor(askedFamilyCount(), familySeed(regionId)));
-      const volatile = buildRouteLayers('world_gen', input).volatile;
-      const feudLine = input.feudCount === 0 ? 'Feud: none.' : `Feud: ${input.feudCount === 2 ? 'two' : 'three'} families.`;
-      expect(volatile).toContain(`\nFamilies: seven.\n${feudLine}\n\n`);
+      expect(input.placeCount).toBe(placeCountFor(regionId));
+      expect(input.placeCount).toBeGreaterThanOrEqual(8);
+      expect(input.placeCount).toBeLessThanOrEqual(10);
+      expect('familyCount' in input).toBe(false);
+      expect('feudCount' in input).toBe(false);
+      seen.add(input.placeCount as number);
     }
-    expect(feudCountFor(7, familySeed(withFeud))).toBeGreaterThanOrEqual(2);
-    expect(feudCountFor(7, familySeed(noFeud))).toBe(0);
+    // The count is the region's own (hubSeed), not one constant.
+    expect(seen.size).toBeGreaterThan(1);
   });
 
   it('an old-shape reply (enemies, no families) still builds families by rule and stores empty place words', () => {

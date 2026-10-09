@@ -15,8 +15,6 @@ import {
   familySeed,
   placeFamiliesSeed,
   familyCountFor,
-  askedFamilyCount,
-  keptFamilyCount,
   feudCountFor,
   feudHappens,
   pickFeud,
@@ -822,7 +820,8 @@ describe('family and feud constants (D-66, D-67, D-68, D-70)', () => {
     expect(R.FAMILIES_PER_PLACE_X10).toBe(15);
     expect(R.FAMILY_COUNT_MIN).toBe(3);
     expect(R.FAMILY_COUNT_MAX).toBe(15);
-    expect(R.FILL_PLANNED_PLACES).toBe(5);
+    // Phase 51.3.1.2 (D-03, D-66): the planned region size is gone; the 2a job carries placeCountFor.
+    expect('FILL_PLANNED_PLACES' in DENSITY_RULES).toBe(false);
     expect(R.PLACE_FAMILIES_MIN).toBe(3);
     expect(R.PLACE_FAMILIES_MAX).toBe(5);
     expect(R.FEUD_FAMILIES_MIN).toBe(2);
@@ -846,7 +845,7 @@ describe('family and feud constants (D-66, D-67, D-68, D-70)', () => {
   });
 });
 
-describe('familyCountFor, askedFamilyCount, keptFamilyCount (D-66)', () => {
+describe('familyCountFor (D-66)', () => {
   it('gives about 1.5 families per place, at least 3 and at most 15', () => {
     const cases: [number, number][] = [[0, 3], [2, 3], [3, 4], [4, 6], [5, 7], [8, 12], [10, 15], [12, 15]];
     for (const [places, families] of cases) expect(familyCountFor(places)).toBe(families);
@@ -858,11 +857,11 @@ describe('familyCountFor, askedFamilyCount, keptFamilyCount (D-66)', () => {
     expect(familyCountFor(Number.NaN)).toBe(3);
   });
 
-  it('asks for the planned region size and never keeps more than it asked', () => {
-    expect(askedFamilyCount()).toBe(7);
-    expect(keptFamilyCount(3)).toBe(4);
-    expect(keptFamilyCount(5)).toBe(7);
-    expect(keptFamilyCount(9)).toBe(7);
+  it('has no planned-count helpers left: the family count comes from the real places (Phase 51.3.1.2, D-66)', async () => {
+    const mod: Record<string, unknown> = await import('./density_rules');
+    expect('askedFamilyCount' in mod).toBe(false);
+    expect('keptFamilyCount' in mod).toBe(false);
+    expect(familyCountFor(5)).toBe(7);
   });
 
   it('gives a bigger region of 8, 9 or 10 places 12, 13 or 15 families (Phase 51.3.1.2, SC3)', () => {
