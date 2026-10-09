@@ -430,7 +430,9 @@ describe('lat06Decision', () => {
  * each keeps an explicit budget marked insufficient_data until a paid re-measurement (RESEARCH Pitfall 2).
  *   - world_gen (Phase 51.3.1.1 Plan 23): the fill reply now carries creature families, place words and
  *     hub marks, larger than the measured enemies reply (p99 1988), so 4096 output tokens; Plan 30
- *     (Revision 2) adds a history per family and up to the server's family count, so 6144.
+ *     (Revision 2) adds a history per family and up to the server's family count, so 6144. Phase 51.3.1.2
+ *     Plan 10 (D-01, D-12): the stage 2a reply (places and people, no families, no levelOffset) for up to ten
+ *     places and nine NPCs; 6656, the smallest multiple of 512 the free reply-budget guard accepts.
  *   - npc_conversation (Phase 51.3.1.1 Plan 32, a budget the owner raised): quest-offer replies passed the
  *     tuned 512 (jobs 8215-8217 stopped at max_tokens); the owner set 1024 as the hard ceiling, with one
  *     automatic retry on truncation, until a paid re-measurement.
@@ -440,17 +442,17 @@ describe('lat06Decision', () => {
  *     items than the measured 51.3 reply, so 6144 until the milestone-end measurement (D-12).
  */
 const RESHAPED_ROUTES: Partial<Record<LlmRoute, { maxTokens: number; timeoutMs: number }>> = {
-  world_gen: { maxTokens: 6144, timeoutMs: 150_000 },
+  world_gen: { maxTokens: 6656, timeoutMs: 150_000 },
   world_gen_families: { maxTokens: 7168, timeoutMs: 150_000 },
   npc_conversation: { maxTokens: 1024, timeoutMs: 30_000 },
   region_economy: { maxTokens: 6144, timeoutMs: 90_000 },
 };
 
 describe('LLM_TUNING', () => {
-  it('world_gen is 6144 output tokens and insufficient_data until a paid measurement (Plans 51.3.1.1-23, -30)', () => {
+  it('world_gen is 6656 output tokens and insufficient_data until a paid measurement (Plan 51.3.1.2-10, D-12)', () => {
     expect(LLM_TUNING.world_gen).toEqual({
       effort: 'low',
-      maxTokens: 6144,
+      maxTokens: 6656,
       timeoutMs: 150_000,
       status: 'insufficient_data',
       source: LLM_TUNING_SOURCE,
@@ -458,7 +460,7 @@ describe('LLM_TUNING', () => {
       samples: 0,
       tie: false,
     });
-    expect(LLM_ROUTES.world_gen.maxTokens).toBe(6144);
+    expect(LLM_ROUTES.world_gen.maxTokens).toBe(6656);
     // Within the route baseline, as for region_economy.
     expect(LLM_TUNING.world_gen.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.world_gen.maxTokens);
     for (const [name, want] of Object.entries(RESHAPED_ROUTES) as [LlmRoute, { maxTokens: number; timeoutMs: number }][]) {

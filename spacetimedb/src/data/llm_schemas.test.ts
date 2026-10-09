@@ -323,17 +323,18 @@ describe('staged generation schemas (Plan 43-04)', () => {
     ]);
   });
 
-  it('REGION_FILL_SCHEMA has no regionName, regionDescription or biome and requires NPC gender', () => {
-    expect((REGION_FILL_SCHEMA as any).required).toEqual([
+  it('REGION_FILL_SCHEMA (stage 2a) has no regionName, regionDescription, biome or families and requires NPC gender', () => {
+    expect((REGION_FILL_SCHEMA as any).required).toEqual(['dominantFaction', 'landmarks', 'threats', 'arrival', 'locations', 'npcs']);
+    expect(Object.keys((REGION_FILL_SCHEMA as any).properties)).toEqual([
       'dominantFaction',
       'landmarks',
       'threats',
       'arrival',
       'locations',
       'npcs',
-      'families',
     ]);
-    for (const key of ['regionName', 'regionDescription', 'biome', 'enemies']) {
+    // Phase 51.3.1.2 D-01: the creature families are asked in their own call (WORLD_FAMILIES_SCHEMA).
+    for (const key of ['regionName', 'regionDescription', 'biome', 'enemies', 'families']) {
       expect(props(REGION_FILL_SCHEMA)).not.toContain(key);
     }
     const item = (REGION_FILL_SCHEMA as any).properties.npcs.items;
@@ -350,9 +351,13 @@ describe('staged generation schemas (Plan 43-04)', () => {
       'terrainType',
       'isHub',
       'isSafe',
-      'levelOffset',
       'connectsTo',
     ]);
+    // Phase 51.3.1.2 D-04: the server sets every level by the hop gradient; the model gives none.
+    expect(Object.keys(loc.properties)).not.toContain('levelOffset');
+    expect(JSON.stringify(REGION_FILL_SCHEMA)).not.toContain('levelOffset');
+    // Stage 1 is unchanged: its startLocation still carries levelOffset.
+    expect(Object.keys((WORLD_START_SCHEMA as any).properties.startLocation.properties)).toContain('levelOffset');
     expect(loc.properties.shortName).toEqual({ type: 'string' });
     expect(loc.properties.placeNoun).toEqual({ type: 'string' });
     expect(loc.properties.isHub).toEqual({ type: 'boolean' });
@@ -380,9 +385,11 @@ describe('staged generation schemas (Plan 43-04)', () => {
   });
 });
 
-describe('region fill families, place words and hubs (Phase 51.3.1.1 Plan 23, D-46, D-61, D-62)', () => {
+// The family item moved with the families to the stage 2b schema (Phase 51.3.1.2 D-01), unchanged.
+describe('region fill place words and hubs, and the creature family item (Phase 51.3.1.1 Plan 23, D-46, D-61, D-62)', () => {
   const fill = REGION_FILL_SCHEMA as any;
-  const family = fill.properties.families.items;
+  const families = (WORLD_FAMILIES_SCHEMA as any).properties.families;
+  const family = families.items;
   const member = family.properties.members.items;
   const relation = family.properties.relations.items;
 
@@ -395,7 +402,7 @@ describe('region fill families, place words and hubs (Phase 51.3.1.1 Plan 23, D-
   });
 
   it('a family has exactly the section A3 fields plus the Revision 2 history and inFeud (R2-A3, D-68, D-70)', () => {
-    expect(fill.properties.families.type).toBe('array');
+    expect(families.type).toBe('array');
     expect(family.additionalProperties).toBe(false);
     expect(family.required).toEqual([
       'name',
@@ -430,9 +437,11 @@ describe('region fill families, place words and hubs (Phase 51.3.1.1 Plan 23, D-
   });
 
   it('asks for no number about creatures (the server sets every number, D-46)', () => {
-    const json = JSON.stringify(fill.properties.families);
+    const json = JSON.stringify(families);
     expect(json).not.toMatch(/"type":"(integer|number)"/);
-    expect(JSON.stringify(fill)).not.toMatch(/groupMin|groupMax|"level"/);
+    expect(JSON.stringify(WORLD_FAMILIES_SCHEMA)).not.toMatch(/groupMin|groupMax|"level"/);
+    // Stage 2a asks for no number at all now that levelOffset is gone (D-04).
+    expect(JSON.stringify(fill)).not.toMatch(/"type":"(integer|number)"/);
   });
 
   it('carries no description text and no bounds (all wording lives in the approved route block)', () => {
@@ -566,9 +575,9 @@ describe('world families schema, stage 2b (Phase 51.3.1.2 Plan 04, D-01)', () =>
     expect(schema.properties.families.type).toBe('array');
   });
 
-  it('reuses the region fill family item unchanged, history and inFeud included', () => {
+  it('carries the family item unchanged, history and inFeud included; the 2a schema no longer has one (51.3.1.2 Plan 10)', () => {
     const item = schema.properties.families.items;
-    expect(item).toBe((REGION_FILL_SCHEMA as any).properties.families.items);
+    expect((REGION_FILL_SCHEMA as any).properties.families).toBeUndefined();
     expect(item.additionalProperties).toBe(false);
     expect(item.required).toContain('history');
     expect(item.required).toContain('inFeud');

@@ -98,9 +98,9 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       // Plan 51.3.1.1-23 (D-62): the server's hub count and the arrival note print the Hubs line.
       hubCount: 1,
       arrivalIsHub: true,
-      // Plan 51.3.1.1-30 (D-66, D-70): the server's family and feud counts print the Families and Feud lines.
-      familyCount: 7,
-      feudCount: 2,
+      // Phase 51.3.1.2 Plan 10 (D-03): the server's place count prints the Places line. The family and feud
+      // counts moved to the world_gen_families message (D-01), so this stage 2a input carries none.
+      placeCount: 9,
       characterRace: `${world} race`,
       characterClass: `${world} class`,
       characterArchetype: 'warrior',
