@@ -46,6 +46,9 @@ import {
   worldFillCompleteLine,
 } from './world_gen';
 import { ensurePoolsForLocation, familyOfOne, resolveKillQuestTarget } from './families';
+import { cleanQuestTargetName, freeCreatureName } from './family_validate';
+import { nameKey } from '../data/economy_design_rules';
+import { nounsFromTemplateName } from '../data/family_rules';
 import { markLocationVisited } from './visited';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { validateRenownActivePerk } from './renown_perk_validate';
@@ -685,6 +688,24 @@ export function applySkillGenResult(ctx: any, job: ApplyJob, resultText: string)
   writePrivateSegments(ctx, charId, character.ownerUserId, 'narrative', keeperSegments(presentation));
 }
 
+/** Whether an offer_quest effect gave a target name at all (any value but a missing or blank one). */
+function hasTargetName(raw: unknown): boolean {
+  if (raw === undefined || raw === null) return false;
+  return typeof raw !== 'string' || raw.trim() !== '';
+}
+
+/**
+ * Whether a creature name is already used in the world (review B CR-01): an enemy template of that
+ * name, or a family named like it or like the family a template of that name would form. Reads the
+ * names once per call; the returned check is case-insensitive.
+ */
+function creatureNameTaken(ctx: any): (name: string) => boolean {
+  const used = new Set<string>();
+  for (const template of ctx.db.enemy_template.iter()) used.add(nameKey(String(template.name ?? '')));
+  for (const family of ctx.db.creature_family.iter()) used.add(nameKey(String(family.name ?? '')));
+  return (name: string) => used.has(nameKey(name)) || used.has(nameKey(nounsFromTemplateName(name).familyName));
+}
+
 /** npc_conversation success. */
 export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: string): void {
   const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -789,7 +810,14 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       // the NPC's dialogue and the reply's other effects still apply.
       let killTarget: { templateId: bigint; placeId: bigint } | null = null;
       if (questType === 'kill' || questType === 'kill_loot') {
-        const resolved = resolveKillQuestTarget(ctx, character.locationId, effect.targetEnemyName);
+        // Review B CR-01: the model's creature name is cleaned (1-3 plain words, no markup, digits or
+        // instruction words) before it is resolved or stored; a name given but unusable skips the quest.
+        const targetName = cleanQuestTargetName(effect.targetEnemyName);
+        if (hasTargetName(effect.targetEnemyName) && targetName === '') {
+          console.log(`offer_quest "${questName}": unusable target name (D-74); quest skipped`);
+          continue;
+        }
+        const resolved = resolveKillQuestTarget(ctx, character.locationId, targetName);
         if (!resolved) {
           console.log(`offer_quest "${questName}": no reachable creature pool (D-74); quest skipped`);
           continue;
@@ -798,15 +826,17 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
           killTarget = { templateId: resolved.templateId, placeId: resolved.placeId };
         } else {
           // The model invented the creature: a template with sensible defaults, linked here as before.
+          // Its cleaned name is made unique against the world's creature and family names (review B CR-01).
+          const inventedName = freeCreatureName(targetName, creatureNameTaken(ctx));
           const charLevel = Number(character.level);
           const newEt = ctx.db.enemy_template.insert({
             id: 0n,
-            name: effect.targetEnemyName,
+            name: inventedName,
             role: 'melee',
             roleDetail: 'standard',
             abilityProfile: 'basic',
             terrainTypes: 'any',
-            creatureType: String(effect.targetEnemyName).toLowerCase().includes('undead') ? 'undead' : 'beast',
+            creatureType: inventedName.toLowerCase().includes('undead') ? 'undead' : 'beast',
             timeOfDay: 'any',
             socialGroup: 'loner',
             socialRadius: 0n,
@@ -939,8 +969,10 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       if (questType === 'boss_kill') {
         let resolvedEnemyTemplateId: bigint | null = null;
 
-        if (effect.targetEnemyName) {
-          const targetName = effect.targetEnemyName.toLowerCase();
+        // Review B CR-01: the same cleaning as kill and kill_loot; an unusable name reads as no name.
+        const bossName = cleanQuestTargetName(effect.targetEnemyName);
+        if (bossName) {
+          const targetName = bossName.toLowerCase();
 
           // Search current location + connected locations for matching enemy template
           const searchLocIds: bigint[] = [character.locationId];
@@ -961,15 +993,16 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
 
           // LLM invented a new enemy — create template with sensible defaults
           if (!resolvedEnemyTemplateId) {
+            const inventedBoss = freeCreatureName(bossName, creatureNameTaken(ctx));
             const charLevel = Number(character.level);
             const newEt = ctx.db.enemy_template.insert({
               id: 0n,
-              name: effect.targetEnemyName,
+              name: inventedBoss,
               role: 'melee',
               roleDetail: 'standard',
               abilityProfile: 'basic',
               terrainTypes: 'any',
-              creatureType: effect.targetEnemyName.toLowerCase().includes('undead') ? 'undead' : 'beast',
+              creatureType: inventedBoss.toLowerCase().includes('undead') ? 'undead' : 'beast',
               timeOfDay: 'any',
               socialGroup: 'loner',
               socialRadius: 0n,

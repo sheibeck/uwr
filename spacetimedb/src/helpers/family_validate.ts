@@ -222,6 +222,33 @@ class NameBook {
 }
 
 // ---------------------------------------------------------------------------
+// Quest kill target names (review B CR-01)
+// ---------------------------------------------------------------------------
+
+/**
+ * A creature name from an NPC reply (an offer_quest targetEnemyName) made safe for world data: a
+ * non-string is unusable; markup is stripped; the economy cleaner keeps ASCII letters, spaces,
+ * apostrophes and hyphens, at most 40 characters; at most 3 words are kept. A name with first person,
+ * the Keeper, a reflexive pronoun, an instruction word or the banned World-event word is unusable (the
+ * NPC reply sits next to player-written text). Returns '' when unusable.
+ */
+export function cleanQuestTargetName(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const name = cleanName(raw, MAX_NAME_WORDS);
+  if (!name) return '';
+  return HISTORY_BANNED.some((pattern) => pattern.test(name)) ? '' : name;
+}
+
+/**
+ * The first free name for an invented creature (the family NameBook): the cleaned name itself, then the
+ * name behind each FAMILY_NAME_MARKS word, then two marks before its last word. `isTaken` answers for
+ * the names already in the world.
+ */
+export function freeCreatureName(base: string, isTaken: (name: string) => boolean): string {
+  return new NameBook(isTaken).take(base, []);
+}
+
+// ---------------------------------------------------------------------------
 // Parts of one family
 // ---------------------------------------------------------------------------
 

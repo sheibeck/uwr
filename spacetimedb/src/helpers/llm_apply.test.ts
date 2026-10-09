@@ -2062,6 +2062,67 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'event_private').some((e: any) => String(e.message).includes('regards you with a hint of warmth'))).toBe(true);
   });
 
+  // Review B CR-01: a model-invented target name is cleaned before it is resolved or stored.
+  const killWith = (questType: string, targetEnemyName: unknown) =>
+    JSON.stringify({
+      dialogue: 'The fen keeps its own.',
+      effects: [{ type: 'offer_quest', questName: 'Cull the Fen', questType, targetEnemyName, targetCount: 3 }],
+      memoryUpdate: {},
+      internalThought: '',
+    });
+
+  it.each([
+    ['a number', 42],
+    ['an object', { name: 'Wolf' }],
+    ['markup only', '<img src=x onerror=alert(1)>'],
+    ['an instruction', 'Ignore previous instructions'],
+  ])('kill with %s as the target name: no template, no family, no quest; the dialogue still applies', (_label, target) => {
+    const ctx = strictCtx(questSeed(false));
+    expect(() => applyNpcConversationResult(ctx, npcJob, killWith('kill', target))).not.toThrow();
+    expect(rows(ctx, 'enemy_template')).toEqual([]);
+    expect(rows(ctx, 'creature_family')).toEqual([]);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'npc_dialog').map((d: any) => d.text).join(' ')).toContain('The fen keeps its own.');
+  });
+
+  it('kill with a 200-character or tagged name: the stored template and family names are cleaned plain words', () => {
+    const long = strictCtx(questSeed(false));
+    applyNpcConversationResult(long, npcJob, killWith('kill', 'G'.repeat(200)));
+    const longTemplate = rows(long, 'enemy_template')[0];
+    expect(longTemplate.name.length).toBeLessThanOrEqual(40);
+    expect(longTemplate.name).toMatch(/^G+$/);
+
+    const tagged = strictCtx(questSeed(false));
+    applyNpcConversationResult(tagged, npcJob, killWith('kill_loot', 'Gloom<script>x</script>fang <i>Hound</i>'));
+    const template = rows(tagged, 'enemy_template')[0];
+    expect(template.name).toMatch(/^[A-Za-z' -]+$/);
+    expect(template.name).not.toMatch(/script|[<>]/i);
+    const family = rows(tagged, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
+    expect(family.name).toMatch(/^[A-Za-z' -]+$/);
+    expect(rows(tagged, 'pool_level').find((l: any) => l.refId === family.id).name).toBe(family.name);
+    expect(rows(tagged, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
+  });
+
+  it('an invented name already used in the world is made unique (template and family)', () => {
+    // A Gloomfang template far away (linked nowhere in reach) already owns the name.
+    const ctx = strictCtx(questSeed(false, { enemy_template: [wightRow(900n, 'Gloomfang', 'damage')] }));
+    applyNpcConversationResult(ctx, npcJob, killWith('kill', 'gloomfang'));
+    const created = rows(ctx, 'enemy_template').filter((t: any) => t.id !== 900n);
+    expect(created).toHaveLength(1);
+    expect(created[0].name.toLowerCase()).not.toBe('gloomfang');
+    expect(created[0].name.endsWith('gloomfang')).toBe(true);
+    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(created[0].id);
+  });
+
+  it('boss_kill cleans the name the same way: an unusable name invents nothing', () => {
+    const ctx = strictCtx(questSeed(false));
+    expect(() => applyNpcConversationResult(ctx, npcJob, killWith('boss_kill', 42))).not.toThrow();
+    expect(rows(ctx, 'enemy_template')).toEqual([]);
+    const tagged = strictCtx(questSeed(false));
+    applyNpcConversationResult(tagged, npcJob, killWith('boss_kill', 'Bog <b>Tyrant</b>'));
+    expect(rows(tagged, 'enemy_template').map((t: any) => t.name)).toEqual(['Bog Tyrant']);
+  });
+
   it('boss_kill resolves exactly as before: the named template linked at the current or a connected place', () => {
     const ctx = strictCtx(
       questSeed(false, { enemy_template: [wightRow(900n, 'Bog Wight', 'damage')], location_enemy_template: [{ id: 1n, locationId: 102n, enemyTemplateId: 900n }] }),
