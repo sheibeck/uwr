@@ -809,6 +809,7 @@ At this affinity plain world text npc is willing to: basic_services, personal_lo
 Memory of past interactions: {"topics":["plain world text topic"],"visits":"3"}
 
 Quest history with this player: Quests plain world text npc gave that the player completed: plain world text quest. plain world text npc can reference these for narrative continuity and offer follow-up quests that build on past adventures.
+plain world text npc has no unfinished task with this player: any earlier task is done or was set aside, whatever the memory says. plain world text npc may offer a new quest.
 
 The player has 1/5 active quests (can accept more).
 Nearby locations: plain world text nearby

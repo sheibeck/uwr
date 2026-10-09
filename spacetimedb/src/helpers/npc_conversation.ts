@@ -147,32 +147,41 @@ export function getCompletedQuestNamesForNpc(ctx: any, characterId: bigint, npcI
   }
 }
 
+/** The most creature families the NPC's "Enemies in the area" context lists (Plan 51.3.1.1-32, row 31). */
+export const NPC_NEARBY_FAMILIES_MAX = 15;
+
 /**
- * Collect enemy templates from the character's current location AND connected locations.
- * Returns up to 15 entries with name, level, and location name.
+ * The creature families living at a place and its connected places, for the NPC conversation context
+ * (Plan 51.3.1.1-32, deferred row 31). Read-only. It reads the public pool mirror (pool_level rows of
+ * kind 'creature' with a density level above 0, so a wiped-out family is left out): the place first, then
+ * its connected places in ascending id, each place's rows in id order. One entry per family (the first
+ * place it is found at): the family name, its level range there (level = lvLo, levelHi = lvHi) and the
+ * place name. Member and filler template names never reach the prompt. At most NPC_NEARBY_FAMILIES_MAX.
  */
 export function getNearbyEnemyContext(
   ctx: any,
   locationId: bigint,
-): { name: string; level: number; location: string }[] {
-  const results: { name: string; level: number; location: string }[] = [];
+): { name: string; level: number; levelHi: number; location: string }[] {
+  const results: { name: string; level: number; levelHi: number; location: string }[] = [];
+  const neighbours = [...ctx.db.location_connection.by_from.filter(locationId)]
+    .map((conn: any) => conn.toLocationId as bigint)
+    .filter((id: bigint) => id !== locationId)
+    .sort((a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0));
+  const placeIds: bigint[] = [locationId, ...new Set(neighbours)];
 
-  // Collect location IDs: current + connected
-  const locationIds: bigint[] = [locationId];
-  for (const conn of ctx.db.location_connection.by_from.filter(locationId)) {
-    locationIds.push(conn.toLocationId);
-  }
-
-  for (const locId of locationIds) {
-    if (results.length >= 15) break;
-    const loc = ctx.db.location.id.find(locId);
-    if (!loc) continue;
-    for (const ref of ctx.db.location_enemy_template.by_location.filter(locId)) {
-      if (results.length >= 15) break;
-      const et = ctx.db.enemy_template.id.find(ref.enemyTemplateId);
-      if (et) {
-        results.push({ name: et.name, level: Number(et.level), location: loc.name });
-      }
+  const seenFamilies = new Set<bigint>();
+  for (const placeId of placeIds) {
+    if (results.length >= NPC_NEARBY_FAMILIES_MAX) break;
+    const place = ctx.db.location.id.find(placeId);
+    if (!place) continue;
+    const levels = [...ctx.db.pool_level.by_location.filter(placeId)]
+      .filter((row: any) => row.kind === 'creature' && BigInt(row.level ?? 0n) > 0n)
+      .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    for (const row of levels) {
+      if (results.length >= NPC_NEARBY_FAMILIES_MAX) break;
+      if (seenFamilies.has(row.refId)) continue;
+      seenFamilies.add(row.refId);
+      results.push({ name: String(row.name ?? ''), level: Number(row.lvLo), levelHi: Number(row.lvHi), location: place.name });
     }
   }
 

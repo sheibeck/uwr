@@ -19,6 +19,7 @@ import {
   LLM_RETRY_BASE_MS,
   LLM_RETRY_JITTER_FRACTION,
   LLM_RETRY_MAX_MS,
+  LLM_TRUNCATION_RETRY_ROUTES,
 } from '../data/llm_limits';
 import type { ClaudeResult } from './claude_request';
 
@@ -34,6 +35,19 @@ export function maxAttempts(route: LlmRoute): number {
  */
 export function shouldRetry(result: ClaudeResult, attempt: bigint | number, route: LlmRoute): boolean {
   return !result.ok && result.retryable === true && Number(attempt) < maxAttempts(route);
+}
+
+/**
+ * The one owner-approved retry of a billed failure (Plan 51.3.1.1-32): a truncated reply is retried once
+ * when the route is in LLM_TRUNCATION_RETRY_ROUTES, no earlier attempt of the job stopped at max_tokens
+ * (the job's stored stop reason before this attempt's patch), and the attempt is below maxAttempts.
+ */
+export function shouldRetryTruncation(route: LlmRoute, earlierStopReason: string | undefined, attempt: bigint | number): boolean {
+  return (
+    (LLM_TRUNCATION_RETRY_ROUTES as readonly string[]).includes(route) &&
+    earlierStopReason !== 'max_tokens' &&
+    Number(attempt) < maxAttempts(route)
+  );
 }
 
 const abs = (n: bigint): bigint => (n < 0n ? -n : n);

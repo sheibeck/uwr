@@ -51,11 +51,12 @@ import {
   chargeLedgerUnknownBilling,
   globalCeilingClaimHeld,
   releaseLlmReservation,
+  reserveLlmBudget,
   settleLlmCost,
   subtractLedgerSpend,
   utcDay,
 } from './llm_budget';
-import { deferDelayMs, msToMicros, retryDelayMs, shouldRetry } from './llm_retry';
+import { deferDelayMs, msToMicros, retryDelayMs, shouldRetry, shouldRetryTruncation } from './llm_retry';
 import { hasLlmDispatch, insertLlmDispatch, scheduledMicros } from './llm_schedule';
 import { resolveRouteInput } from './llm_inputs';
 import { llmGate, markKeyCheck, recordSmokeResult, type SmokeEntry } from './llm_admin_state';
@@ -297,7 +298,9 @@ export function claimLlmJob(ctx: any, arg: DispatchArg, deps: ExecutorDeps): Cla
 
 /**
  * Classes of a 200 reply whose content was unusable. The call was made and billed, so
- * the real cost is settled and the job fails (no retry: the same prompt would be billed again).
+ * the real cost is settled and the job fails (no retry: the same prompt would be billed again),
+ * except one owner-approved truncation retry for the routes in LLM_TRUNCATION_RETRY_ROUTES
+ * (Plan 51.3.1.1-32: shouldRetryTruncation, with a fresh reservation through reserveLlmBudget).
  */
 export const BILLED_FAILURE_CLASSES: readonly ClaudeFailureClass[] = Object.freeze([
   'refusal',
@@ -348,7 +351,9 @@ interface AttemptOutcome {
  *   charged the reservation, the player nothing)
  * - ok narration persisted more than 20 s after enqueue: expired 'late', ledger only
  * - ok smoke: completed, ledger only
- * - billed failure (200 with unusable content): settle real cost, charge the player
+ * - billed failure (200 with unusable content): settle real cost, charge the player; a first
+ *   truncation on a LLM_TRUNCATION_RETRY_ROUTES route reserves again and goes pending with a
+ *   dispatch due now (one retry); a refused reservation is terminal as before
  * - retryable and attempts left: pending + new dispatch, reservation held; a thrown
  *   attempt of unknown billing adds the reservation to the ledger
  * - anything else: failed, reservation and call refunded; a thrown attempt adds the
@@ -491,6 +496,32 @@ function persistAttempt(ctx: any, c: RunClaim, a: AttemptOutcome, deps: Executor
 
     if ((BILLED_FAILURE_CLASSES as readonly string[]).includes(result.class)) {
       const { patch, amount } = settle(true);
+      // Plan 51.3.1.1-32 (deferred row 31): one automatic retry of a truncated reply. The truncated
+      // attempt is settled like any billed failure; the retry takes a fresh reservation through the
+      // normal budget checks (kill switch, daily calls and cost, global ceiling), so a refusal is terminal.
+      // job.stopReason is the row read in this transaction (an earlier truncation blocks a second retry).
+      if (result.class === 'truncated' && shouldRetryTruncation(c.route, job.stopReason, c.attempt)) {
+        const reservation = reserveLlmBudget(tx, {
+          playerId: job.playerId,
+          route: c.route,
+          requestJson: job.requestJson,
+          mode: job.budgetDay ? 'player' : 'phase_only',
+        });
+        if (reservation.ok) {
+          tx.db.llm_job.id.update({
+            ...base,
+            ...patch,
+            reservedMicroUsd: reservation.reservedMicroUsd,
+            budgetDay: reservation.budgetDay,
+            status: 'pending',
+            errorCode: result.class,
+            nextAttemptAt: new Timestamp(now),
+          });
+          insertLlmDispatch(tx, c.jobId, now);
+          logCall(amount);
+          return { kind: 'retry' };
+        }
+      }
       const failed = { ...base, ...patch, status: 'failed', errorCode: result.class, finishedAt: tx.timestamp };
       tx.db.llm_job.id.update(failed);
       logCall(amount);

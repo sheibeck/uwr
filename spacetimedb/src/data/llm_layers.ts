@@ -218,7 +218,12 @@ export interface NpcConversationInput {
   activeQuestCount: number;
   maxQuests: number;
   nearbyLocationNames?: string[];
-  nearbyEnemies?: { name: string; level: number; location: string }[];
+  /**
+   * The creature families nearby (Plan 51.3.1.1-32: one per family from the pools, helpers/npc_conversation.ts
+   * getNearbyEnemyContext): level is the family's lowest level at the place, levelHi its highest (absent in
+   * inputs stored before; the line then reads one level).
+   */
+  nearbyEnemies?: { name: string; level: number; levelHi?: number; location: string }[];
   recentQuestNames?: string[];
   /**
    * 51.3.1.1-26 (D-22): recent word about population shifts in the NPC's region, as rule-based
@@ -899,6 +904,12 @@ function familyHistoriesLine(input: NpcConversationInput): string {
 Creature families of ${w(input.region.name)}: ${items.join('; ')}. ${w(input.npc.name)} may draw on these histories when it fits the conversation.`;
 }
 
+/** A nearby family's levels: 'lo-hi' when levelHi is above level, else 'lo' (numbers only, Plan 51.3.1.1-32). */
+function enemyLevelText(e: { level: number; levelHi?: number }): string {
+  const lo = String(e.level);
+  return typeof e.levelHi === 'number' && e.levelHi > e.level ? `${lo}-${String(e.levelHi)}` : lo;
+}
+
 export function buildNpcConversationVolatile(input: NpcConversationInput): string {
   const { npc, region, location, personality } = input;
   const unlocks = unlocksForTier(input.affinityTier);
@@ -913,9 +924,17 @@ export function buildNpcConversationVolatile(input: NpcConversationInput): strin
     completed.length > 0
       ? `Quests ${w(npc.name)} gave that the player completed: ${joinW(completed, ', ')}. ${w(npc.name)} can reference these for narrative continuity and offer follow-up quests that build on past adventures.`
       : 'No quests completed together yet.';
-  const activeQuest = input.activeQuestFromThisNpc
-    ? `\n${w(npc.name)} has already given this player a task that is not yet complete. Do NOT offer another quest.`
-    : '';
+  // D-75 (owner-approved 2026-10-09): with no unfinished task from this NPC the volatile says so, so a stale
+  // memory cannot make the NPC refuse work; when the player's quests are FULL only the first sentence is
+  // kept, so the FULL line still governs. An absent field (inputs stored before) adds nothing.
+  const activeQuest =
+    input.activeQuestFromThisNpc === true
+      ? `\n${w(npc.name)} has already given this player a task that is not yet complete. Do NOT offer another quest.`
+      : input.activeQuestFromThisNpc === false
+        ? `\n${w(npc.name)} has no unfinished task with this player: any earlier task is done or was set aside, whatever the memory says.${
+            input.activeQuestCount < input.maxQuests ? ` ${w(npc.name)} may offer a new quest.` : ''
+          }`
+        : '';
   const questContext =
     input.activeQuestCount >= input.maxQuests
       ? `The player has ${input.activeQuestCount}/${input.maxQuests} active quests (FULL, do NOT offer new quests).`
@@ -927,7 +946,7 @@ export function buildNpcConversationVolatile(input: NpcConversationInput): strin
   const enemies =
     input.nearbyEnemies && input.nearbyEnemies.length > 0
       ? `\nEnemies in the area: ${input.nearbyEnemies
-          .map((e) => `${w(e.name)} (level ${String(e.level)}, at ${w(e.location)})`)
+          .map((e) => `${w(e.name)} (level ${enemyLevelText(e)}, at ${w(e.location)})`)
           .join('; ')}`
       : '';
   const rumors = regionRumorsLine(input);

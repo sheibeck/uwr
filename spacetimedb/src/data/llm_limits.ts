@@ -49,6 +49,14 @@ export const LLM_NO_AUTO_RETRY_ROUTES: readonly LlmRoute[] = Object.freeze([
   'smoke_test',
 ] as LlmRoute[]);
 
+/**
+ * Routes whose truncated reply (stop_reason max_tokens) is retried ONCE automatically before the
+ * failure line (Plan 51.3.1.1-32, deferred row 31). Owner, 2026-10-09: "We probably want to limit npc
+ * replies to not be over the 1,024 then, yes? I don't want to keep running into this issue." The
+ * truncated attempt is billed and logged; the retry takes a fresh reservation (helpers/llm_executor.ts).
+ */
+export const LLM_TRUNCATION_RETRY_ROUTES: readonly LlmRoute[] = Object.freeze(['npc_conversation'] as LlmRoute[]);
+
 /** A narration result older than this at claim or persist is dropped. */
 export const LLM_NARRATION_MAX_AGE_MICROS = 20_000_000n;
 
