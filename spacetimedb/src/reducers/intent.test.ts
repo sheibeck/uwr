@@ -1061,4 +1061,15 @@ describe('[explore] retry outcomes in submit_intent (Phase 51.3.1.2, Plan 12)', 
     expect(branch).toContain('FAMILIES_ERROR');
     expect(branch).toContain('FILLING_FAMILIES');
   });
+
+  it("at location 0: the starter retry's fill_started outcome gives WORLD_FILL_RETRY_LINE (D-17)", () => {
+    const branch = exploreBranch();
+    const start = branch.indexOf('const starter = retryStarterWorldGen(');
+    const end = branch.indexOf('const fill = retryWorldFill(', start);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    expect(branch.slice(start, end)).toMatch(
+      /starter === 'fill_started'\) \{\s*return appendPrivateEvent\([^;]*WORLD_FILL_RETRY_LINE\)/,
+    );
+  });
 });

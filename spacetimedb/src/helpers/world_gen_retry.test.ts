@@ -22,6 +22,7 @@ vi.mock('spacetimedb/server', async () =>
 );
 
 import {
+  retryStarterWorldGen,
   retryWorldFill,
   WORLD_FAMILIES_FAILED_MESSAGE,
   WORLD_FILL_REFUSED_MESSAGE,
@@ -287,5 +288,119 @@ describe('retryWorldFill: a families failure retries the families call only (D-0
     expect(retryWorldFill(away, explorer(away), bob)).toBe('none');
     expect(rows(away, 'llm_job')).toHaveLength(0);
     expect(stateById(away, 5n).step).toBe('FAMILIES_ERROR');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// retryStarterWorldGen: the creation-console retry for a new character's first region
+// ---------------------------------------------------------------------------
+
+describe('retryStarterWorldGen: a new character in creation retries the failed stage only (D-17, D-18)', () => {
+  const STARTER = 60n;
+
+  /** Aldric (alice's, user 7) waits at location 0; bob is another identity of the same user. */
+  function starterCtx(states: Record<string, unknown>[]) {
+    return createMockCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n, activeCharacterId: 10n }, { id: bob, userId: 7n }],
+        character: [charRow({ locationId: 0n })],
+        region: [{ ...regionRow(STARTER, 'Kobold Hollows'), regionType: 'starter' }],
+        location: regionPlaces(STARTER, 601n),
+        npc: [],
+        world_gen_state: states.map((s, i) =>
+          stateRow({ id: BigInt(i + 1), sourceLocationId: 0n, sourceRegionId: 0n, generatedRegionId: STARTER, ...s }),
+        ),
+      },
+      sender: bob,
+      timestampMicros: T0,
+      strict: true,
+    });
+  }
+  const aldric = (ctx: any) => rows(ctx, 'character').find((c: any) => c.id === 10n);
+  const creationLines = (ctx: any) => rows(ctx, 'event_creation').map((e: any) => [e.playerId, e.kind, e.message]);
+
+  it('FILL_ERROR: fill_started, one world_gen job, FILLING, the character kept and the asker handed the state', () => {
+    const ctx = starterCtx([{ step: 'FILL_ERROR', errorMessage: 'x' }]);
+    expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('fill_started');
+
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(1);
+    expect(stateById(ctx, 1n)).toMatchObject({ step: 'FILLING', playerId: bob, characterId: 10n, generatedRegionId: STARTER });
+    expect(stateById(ctx, 1n).errorMessage).toBeUndefined();
+    expect(jobRoutes(ctx)).toEqual(['world_gen']);
+    const job = rows(ctx, 'llm_job')[0];
+    expect(job).toMatchObject({ playerId: bob, characterId: 10n });
+    expect(JSON.parse(job.requestJson).genStateId).toBe('1');
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+  });
+
+  it('FAMILIES_ERROR: fill_started, one world_gen_families job and no world_gen job, FILLING_FAMILIES, the places unchanged', () => {
+    const ctx = starterCtx([{}]);
+    const placesBefore = regionLocationCount(ctx, STARTER);
+    expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('fill_started');
+
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(1);
+    expect(stateById(ctx, 1n)).toMatchObject({ step: 'FILLING_FAMILIES', playerId: bob, characterId: 10n });
+    expect(jobRoutes(ctx)).toEqual(['world_gen_families']);
+    expect(JSON.parse(rows(ctx, 'llm_job')[0].dedupeKey)).toEqual([bob.toHexString(), 'world_gen_families', '1']);
+    expect(regionLocationCount(ctx, STARTER)).toBe(placesBefore);
+    expect(rows(ctx, 'npc')).toHaveLength(0);
+  });
+
+  it.each(['PENDING', 'GENERATING', 'FILLING', 'FILLING_FAMILIES'])(
+    'busy: a %s starter state (even beside a failed one) writes nothing',
+    (step) => {
+      const ctx = starterCtx([{ step: 'FAMILIES_ERROR' }, { step, errorMessage: undefined }]);
+      const before = rows(ctx, 'world_gen_state').map((s: any) => ({ ...s }));
+      expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('busy');
+      expect(rows(ctx, 'world_gen_state')).toEqual(before);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+      expect(rows(ctx, 'event_creation')).toHaveLength(0);
+
+      const older = starterCtx([{ step, errorMessage: undefined }, { step: 'FILL_ERROR', errorMessage: 'x' }]);
+      expect(retryStarterWorldGen(older, aldric(older), bob)).toBe('busy');
+      expect(rows(older, 'llm_job')).toHaveLength(0);
+    },
+  );
+
+  it('the newest starter state decides: an older stage-1 ERROR beside a newer FILL_ERROR retries the places call, no fresh state', () => {
+    const ctx = starterCtx([{ step: 'ERROR', errorMessage: 'y', generatedRegionId: undefined }, { step: 'FILL_ERROR', errorMessage: 'x' }]);
+    expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('fill_started');
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(2);
+    expect(stateById(ctx, 1n).step).toBe('ERROR');
+    expect(stateById(ctx, 2n).step).toBe('FILLING');
+    expect(jobRoutes(ctx)).toEqual(['world_gen']);
+  });
+
+  it('all ERROR (stage 1 failed): a fresh starter state and a world_gen_start job, as today', () => {
+    const ctx = starterCtx([{ step: 'ERROR', errorMessage: 'y', generatedRegionId: undefined }]);
+    expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('started');
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(2);
+    expect(stateById(ctx, 1n).step).toBe('ERROR');
+    expect(rows(ctx, 'world_gen_state')[1]).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: 10n, sourceRegionId: 0n });
+    expect(jobRoutes(ctx)).toEqual(['world_gen_start']);
+  });
+
+  it('none: no starter state, or the newest one is COMPLETE', () => {
+    const empty = starterCtx([]);
+    expect(retryStarterWorldGen(empty, aldric(empty), bob)).toBe('none');
+    expect(rows(empty, 'world_gen_state')).toHaveLength(0);
+
+    const complete = starterCtx([{ step: 'FAMILIES_ERROR' }, { step: 'COMPLETE', errorMessage: undefined }]);
+    expect(retryStarterWorldGen(complete, aldric(complete), bob)).toBe('none');
+    expect(rows(complete, 'llm_job')).toHaveLength(0);
+    expect(stateById(complete, 1n).step).toBe('FAMILIES_ERROR');
+  });
+
+  it.each([
+    ['FILL_ERROR', `${WORLD_FILL_REFUSED_MESSAGE} Type [explore] to try again.`],
+    ['FAMILIES_ERROR', `${WORLD_FAMILIES_FAILED_MESSAGE} Type [explore] to try again.`],
+  ])('refused %s retry: the state back in its error step, one creation_error line to the asker, no job', (step, line) => {
+    const ctx = starterCtx([{ step, errorMessage: 'x' }]);
+    exhaustDay(ctx, bob);
+    expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('refused');
+    expect(stateById(ctx, 1n)).toMatchObject({ step, errorMessage: WORLD_FILL_REFUSED_MESSAGE, playerId: bob, characterId: 10n });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(creationLines(ctx)).toEqual([[bob, 'creation_error', line]]);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 });
