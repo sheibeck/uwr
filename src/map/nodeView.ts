@@ -55,8 +55,8 @@ export interface MapPool extends RatingPool {
 /**
  * What the Map rates places from (the exits' inputs, Plan 20): the pool_level rows of the loaded
  * regions, game.poolsAppliedFor, the viewer's rating level (useRatingLevel, the party's lowest) and
- * the D-34 step (bossOrNamedAt). Without a source no pool row is known, so every non-safe place is
- * Unknown (never guessed) and a safe place still reads Safe.
+ * the D-34 step (bossOrNamedAt). Required on every caller (review C IN-01): a place whose rows have
+ * not applied is Unknown (never guessed) and a safe place still reads Safe.
  */
 export interface MapRatingSource {
   pools: readonly MapPool[];
@@ -71,9 +71,8 @@ export interface MapPlaceRating {
   range: { lo: bigint; hi: bigint } | null;
 }
 
-function poolsByPlace(source: MapRatingSource | undefined): Map<bigint, MapPool[]> {
+function poolsByPlace(source: MapRatingSource): Map<bigint, MapPool[]> {
   const byPlace = new Map<bigint, MapPool[]>();
-  if (source === undefined) return byPlace;
   for (const pool of source.pools) {
     const list = byPlace.get(pool.locationId);
     if (list === undefined) byPlace.set(pool.locationId, [pool]);
@@ -84,15 +83,15 @@ function poolsByPlace(source: MapRatingSource | undefined): Map<bigint, MapPool[
 
 function ratePlace(
   place: { id: bigint; isSafe: boolean; terrainType: string },
-  source: MapRatingSource | undefined,
+  source: MapRatingSource,
   poolsHere: readonly MapPool[],
 ): MapPlaceRating {
   const view = ratingForPlace({
     location: { isSafe: place.isSafe, terrainType: place.terrainType },
     poolsHere,
-    ready: source !== undefined && source.poolsApplied(place.id),
-    playerLevel: source === undefined ? null : source.ratingLevel,
-    bossOrNamedHere: source !== undefined && source.bossOrNamed(place.id),
+    ready: source.poolsApplied(place.id),
+    playerLevel: source.ratingLevel,
+    bossOrNamedHere: source.bossOrNamed(place.id),
   });
   const families = poolsHere.filter((pool) => pool.kind === 'creature');
   const range = view.key === 'safe' || view.levelLabel === '' ? null : ratingLevelRange(families);
@@ -102,7 +101,7 @@ function ratePlace(
 /** The rating of one place for the Map and the destination detail (the same rule as the rails). */
 export function mapPlaceRating(
   place: { id: bigint; isSafe: boolean; terrainType: string },
-  source: MapRatingSource | undefined,
+  source: MapRatingSource,
 ): MapPlaceRating {
   return ratePlace(place, source, poolsByPlace(source).get(place.id) ?? []);
 }
@@ -218,11 +217,9 @@ export interface NodeViewsInput {
   currentLocationId: bigint | null;
   selectedId: bigint | null;
   boundLocationId: bigint | null;
-  /** Not read by the node rating since 51.3.1.1 (the rating reads `rating.ratingLevel`). */
-  playerLevel: number;
   steps: ReadonlyMap<bigint, number>;
-  /** The pool rows the places are rated from; absent, every non-safe place is Unknown. */
-  rating?: MapRatingSource;
+  /** The pool rows the places are rated from (the rating level is `rating.ratingLevel`). */
+  rating: MapRatingSource;
 }
 
 export function nodeViews(input: NodeViewsInput): NodeView[] {

@@ -4,16 +4,13 @@
 // 51.3.1.1 (UI-SPEC "Exits, Here card and mobile chips", D-33, D-41): each row carries the place's
 // safety rating from the shared rule (rating.ts over @game-data/place_rating), computed from the
 // destination's own pool rows and the viewer's rating level; Unknown until those rows apply, never
-// Safe. The band (danger) stays for the Map's region chips and gate pills (B9).
+// Safe. The Map's region chips and gate pills keep their band (B9) through map/regionChips.
 //
 // Pure, no Vue. The costs and blocks come from travelChecks (the same prediction the Map's detail
-// column uses, built on the shared stamina rule in @game-data/travel_config); the danger band and
-// colour come from placeDanger (the Map rule, never the mock's strings); the terrain word and icon
-// from terrainOf. A time shown here is always the server's cooldown row minus the server clock (the
+// column uses, built on the shared stamina rule in @game-data/travel_config); the terrain word and
+// icon from terrainOf. A time shown here is always the server's cooldown row minus the server clock (the
 // caller passes the travelChecks); no duration is read or assumed. The server re-checks every trip.
 
-import { placeDanger } from '../map/danger';
-import type { PlaceDanger } from '../map/danger';
 import { terrainOf } from '../map/terrain';
 import type { TerrainInfo } from '../map/terrain';
 import type { TravelChecks } from '../map/travelChecks';
@@ -78,8 +75,6 @@ export interface ExitRow {
   /** The place description when it is not empty, else ''. */
   title: string;
   terrain: TerrainInfo;
-  /** The Map band (kept for the region chips and gate pills; places show the rating). */
-  danger: PlaceDanger;
   /** The safety rating of the destination for this viewer (word, line, level label). */
   rating: PlaceRatingView;
   crossing: boolean;
@@ -103,7 +98,6 @@ export interface ExitRowsInput {
   locations: ReadonlyMap<bigint, ExitLocation>;
   regions: readonly ExitRegion[];
   heardOf: ReadonlySet<bigint>;
-  playerLevel: number;
   /** pool_level rows of every loaded region (game.poolLevels); each destination reads its own. */
   pools: readonly ExitPool[];
   /** game.poolsAppliedFor: the destination's pool rows have applied. */
@@ -194,7 +188,6 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
     if (!destination) continue;
 
     const terrain = terrainOf(destination.terrainType ?? '');
-    const danger = placeDanger(destination, input.regions, input.playerLevel);
     const crossing = input.here !== null && input.here.regionId !== destination.regionId;
     const regionName = input.regions.find((r) => r.id === destination.regionId)?.name ?? 'Unknown region';
     const heardOf = input.heardOf.has(destination.id);
@@ -223,7 +216,6 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
       shortName: short !== '' ? short : destination.name,
       title: destination.description ? destination.description : '',
       terrain,
-      danger,
       rating,
       crossing,
       regionName,
@@ -245,18 +237,6 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
     });
   }
   return rows;
-}
-
-/** The scoped colour class every rail and line component maps to a token (no inline colours). */
-export function dangerClass(danger: PlaceDanger): string {
-  if (danger.kind === 'band' && danger.band !== null) return `lv-${danger.band}`;
-  return danger.kind === 'safe' ? 'lv-safe' : 'lv-unknown';
-}
-
-/** 'Lv 2–3 · even', 'Safe' or 'Danger unknown': the sub-line and chip line 2 wording. */
-export function dangerText(danger: PlaceDanger): string {
-  if (danger.kind === 'band') return `${danger.levelLabel} · ${danger.word}`;
-  return danger.word;
 }
 
 /**

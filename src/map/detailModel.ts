@@ -136,8 +136,8 @@ export interface BuildDetailInput {
   giverNpcs: readonly { id: bigint; locationId: bigint }[];
   checks: TravelChecks | null;
   connected: boolean;
-  /** The pool rows the danger tag rates from (the Map's source); absent, a non-safe place is Unknown. */
-  rating?: MapRatingSource;
+  /** The pool rows the danger tag rates from (the Map's source, required: review C IN-01). */
+  rating: MapRatingSource;
 }
 
 const NO_ACTION: TravelAction = {

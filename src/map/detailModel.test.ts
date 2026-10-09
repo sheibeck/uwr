@@ -64,6 +64,8 @@ const RATING: MapRatingSource = {
   ratingLevel: 4n,
   bossOrNamed: () => false,
 };
+// No pool row has applied anywhere: every non-safe place is Unknown.
+const NO_ROWS: MapRatingSource = { pools: [], poolsApplied: () => false, ratingLevel: null, bossOrNamed: () => false };
 const regionName = (id: bigint): string => REGIONS.find((r) => r.id === id)?.name ?? 'Unknown region';
 
 const me: TravellerLike = { id: 1n, name: 'Aldric', locationId: 10n, stamina: 50n, online: true };
@@ -363,8 +365,8 @@ describe('buildDetail, tags', () => {
   it('a place whose pool rows have not applied is Unknown: the range only, neutral, never Safe', () => {
     const loading = detail(12n).tags.find((t) => t.key === 'danger');
     expect(loading).toMatchObject({ icon: 'question', text: 'Lv 2–3', color: 'var(--color-neutral-500)' });
-    expect(detail(11n, { rating: undefined }).tags.some((t) => t.key === 'danger')).toBe(false);
-    expect(detail(11n, { rating: undefined }).tags.some((t) => t.text === 'Safe')).toBe(false);
+    expect(detail(11n, { rating: NO_ROWS }).tags.some((t) => t.key === 'danger')).toBe(false);
+    expect(detail(11n, { rating: NO_ROWS }).tags.some((t) => t.text === 'Safe')).toBe(false);
   });
 
   it('a quiet place with no family has the word alone', () => {

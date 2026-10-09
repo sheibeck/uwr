@@ -1,8 +1,6 @@
 import { computed, inject } from 'vue';
 import type { ComputedRef } from 'vue';
 import { GAME_KEY, createInertGame } from '../game/context';
-import { placeDanger } from '../map/danger';
-import type { PlaceDanger } from '../map/danger';
 import { MAP_KEY, createInertMap } from '../map/mapContext';
 import { terrainOf } from '../map/terrain';
 import type { TerrainInfo } from '../map/terrain';
@@ -26,7 +24,6 @@ export interface HereView {
   title: string;
   regionName: string;
   terrain: TerrainInfo;
-  danger: PlaceDanger;
   /**
    * The place's safety rating for this viewer (51.3.1.1 D-08, D-33): Unknown (no word) until the
    * place's pool rows apply, never Safe; a living boss or named enemy here raises it a step (D-34).
@@ -75,7 +72,6 @@ export function usePlaceView(): ComputedRef<HereView | null> {
       title: described.locationName,
       regionName: region ? region.name : UNKNOWN_PLACE,
       terrain: terrainOf(location.terrainType ?? ''),
-      danger: placeDanger(location, game.regions.value, Number(character.level)),
       rating: ratingForPlace({
         location,
         poolsHere: game.poolLevelsHere.value,
@@ -135,7 +131,6 @@ export function useExits(): ExitsPanel {
       locations: locationsById.value,
       regions,
       heardOf: map.known.value.heardOf,
-      playerLevel: Number(me.level),
       pools: game.poolLevels.value,
       poolsApplied: (id) => game.poolsAppliedFor(id),
       ratingLevel: ratingLevel.value,

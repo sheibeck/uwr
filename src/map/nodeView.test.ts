@@ -68,6 +68,9 @@ const RATING: MapRatingSource = {
   bossOrNamed: () => false,
 };
 
+// No pool row has applied anywhere: every non-safe place is Unknown (the old 'no source' case).
+const NO_ROWS: MapRatingSource = { pools: [], poolsApplied: () => false, ratingLevel: null, bossOrNamed: () => false };
+
 function build(over: Partial<Parameters<typeof nodeViews>[0]> = {}) {
   const layoutPlaces: LayoutPlace[] = places.map((p) => ({
     id: p.id,
@@ -86,7 +89,6 @@ function build(over: Partial<Parameters<typeof nodeViews>[0]> = {}) {
     currentLocationId: 1n,
     selectedId: null,
     boundLocationId: null,
-    playerLevel: 3,
     steps: stepsFrom(adjacency, 1n),
     rating: RATING,
     ...over,
@@ -198,8 +200,8 @@ describe('nodeViews states', () => {
     expect(v?.caption).toBe('Lv 3');
   });
 
-  it('with no rating source every non-safe place is Unknown (never guessed) and safe places stay Safe', () => {
-    const { byId } = build({ rating: undefined });
+  it('with no applied pool rows every non-safe place is Unknown (never guessed) and safe places stay Safe', () => {
+    const { byId } = build({ rating: NO_ROWS });
     expect(byId(1n)?.rating.key).toBe('safe');
     for (const id of [2n, 3n, 4n, 7n]) {
       expect(byId(id)?.rating).toMatchObject({ key: 'unknown', word: '' });
@@ -248,8 +250,8 @@ describe('nodeViews states', () => {
       currentLocationId: 1n,
       selectedId: null,
       boundLocationId: null,
-      playerLevel: 3,
       steps: new Map(),
+      rating: RATING,
     });
     const v = views.find((x) => x.id === 8n);
     expect(v?.terrain.icon).toBe(PhMapPin);
@@ -285,8 +287,8 @@ describe('nodeViews states', () => {
       currentLocationId: 1n,
       selectedId: null,
       boundLocationId: null,
-      playerLevel: 3,
       steps: new Map(),
+      rating: RATING,
     });
     expect(views.find((v) => v.id === 3n)).toBeUndefined();
   });
@@ -308,8 +310,8 @@ describe('nodeViews states', () => {
       currentLocationId: 1n,
       selectedId: null,
       boundLocationId: null,
-      playerLevel: 3,
       steps: new Map([[1n, 0]]),
+      rating: RATING,
     });
     expect(v.name).toBe(payload);
     expect(v.ariaLabel.startsWith(`${payload}, here`)).toBe(true);
@@ -351,7 +353,7 @@ describe('aria-labels', () => {
 
   it('reads a quiet place with its word and no rating word while the rows load', () => {
     expect(build().byId(3n)?.ariaLabel).toBe('Ashgrove, heard of, level 2 to 3, quiet, 2 steps from here');
-    expect(build({ rating: undefined }).byId(3n)?.ariaLabel).toBe('Ashgrove, heard of, 2 steps from here');
+    expect(build({ rating: NO_ROWS }).byId(3n)?.ariaLabel).toBe('Ashgrove, heard of, 2 steps from here');
   });
 
   it('reads a one-level range as level n', () => {

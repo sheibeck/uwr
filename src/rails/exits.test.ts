@@ -76,7 +76,6 @@ function rowsFor(setup: Setup = {}): ExitRow[] {
     locations,
     regions: REGIONS,
     heardOf: setup.heardOf ?? new Set<bigint>(),
-    playerLevel: 4,
     pools: setup.pools ?? POOLS,
     poolsApplied: setup.applied ?? (() => true),
     ratingLevel: setup.ratingLevel === undefined ? 4n : setup.ratingLevel,
@@ -106,7 +105,7 @@ const row = (rows: ExitRow[], name: string): ExitRow => {
 };
 
 describe('exitRows, same region', () => {
-  it('a visited neighbour: rating, band colour kept, note, Travel button', () => {
+  it('a visited neighbour: rating, note, Travel button', () => {
     const gloam = row(rowsFor(), 'Gloamwood');
     expect(gloam.rating).toEqual({
       key: 'risky',
@@ -114,8 +113,7 @@ describe('exitRows, same region', () => {
       line: 'Watch the edges. Things here will come for you.',
       levelLabel: 'Lv 3–5',
     });
-    expect(gloam.danger.color).toBe('var(--color-con-yellow)');
-    expect(gloam.danger.band).toBe('tough');
+    expect('danger' in gloam).toBe(false);
     expect(gloam.crossing).toBe(false);
     expect(gloam.locked).toBe(false);
     expect(gloam.timeText).toBeNull();
@@ -140,8 +138,6 @@ describe('exitRows, same region', () => {
   it('an uncharted neighbour reads Danger unknown in the unknown colour (review IN-08)', () => {
     const edge = row(rowsFor({ routes: [EDGE] }), 'Beyond');
     expect(edge.rating).toEqual({ key: 'unknown', word: 'Danger unknown', line: '', levelLabel: '' });
-    expect(edge.danger.kind).toBe('unknown');
-    expect(edge.danger.color).toBe('var(--color-neutral-500)');
     expect(edge.terrain.word).toBe('Uncharted');
   });
 
@@ -304,7 +300,6 @@ describe('exitRows, edge cases', () => {
       locations: new Map([[11n, GLOAM]]),
       regions: REGIONS,
       heardOf: new Set(),
-      playerLevel: 4,
       pools: [],
       poolsApplied: () => true,
       ratingLevel: 4n,
@@ -335,7 +330,6 @@ describe('exitRows, edge cases', () => {
       locations: new Map([[12n, MARSH]]),
       regions: REGIONS,
       heardOf: new Set(),
-      playerLevel: 4,
       pools: [],
       poolsApplied: () => true,
       ratingLevel: 4n,

@@ -60,6 +60,9 @@ const RATING: MapRatingSource = {
   bossOrNamed: () => false,
 };
 
+// No pool row has applied anywhere: every non-safe place is Unknown.
+const NO_ROWS: MapRatingSource = { pools: [], poolsApplied: () => false, ratingLevel: null, bossOrNamed: () => false };
+
 interface BuildOptions {
   rating?: MapRatingSource | null;
   places?: NodePlace[];
@@ -98,9 +101,8 @@ function build(options: BuildOptions = {}) {
     currentLocationId: currentId,
     selectedId,
     boundLocationId: null,
-    playerLevel: 3,
     steps: currentId === null ? new Map() : stepsFrom(adjacency, currentId),
-    rating: options.rating === null ? undefined : (options.rating ?? RATING),
+    rating: options.rating === null ? NO_ROWS : (options.rating ?? RATING),
   });
   const chips = regionChips({
     drawn: places,
@@ -669,7 +671,7 @@ describe('GraphPlane: the safety rating on the ring and caption (D-42)', () => {
     );
   });
 
-  it('with no rating source a non-safe place is Unknown and a safe place stays Safe', () => {
+  it('with no applied pool rows a non-safe place is Unknown and a safe place stays Safe', () => {
     const { wrapper: w } = mountPlane({ rating: null });
     expect(nodeButton(w, 1n).classes()).toContain('rate-safe');
     expect(nodeButton(w, 2n).classes()).toContain('rate-unknown');
@@ -954,8 +956,8 @@ function mountHand(layout: GraphLayout, currentId: bigint | null = HAND.centre) 
     currentLocationId: currentId,
     selectedId: null,
     boundLocationId: null,
-    playerLevel: 3,
     steps: new Map(),
+    rating: RATING,
   });
   const props = { layout, views, gates: [], routes: [], regionName: 'Ashfall', selectedId: null, currentId, mobile: false };
   wrapper = mount(GraphPlane, { props, attachTo: document.body });

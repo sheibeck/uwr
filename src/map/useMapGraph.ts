@@ -191,7 +191,6 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
       currentLocationId: currentId.value,
       selectedId: map.selectedId.value,
       boundLocationId: boundId.value,
-      playerLevel: playerLevel.value,
       steps: steps.value,
       rating: rating.value,
     });
