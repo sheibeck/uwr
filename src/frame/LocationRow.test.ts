@@ -12,9 +12,9 @@ import { MAP_KEY, createInertMap } from '../map/mapContext';
 import type { MapData } from '../map/mapContext';
 import type { TravelTimer } from '../map/travelTimer';
 
-// The mobile location line (51-UI-SPEC "Mobile (Story screen, 12a A.6)"): pin, place, terrain and
-// level in its band colour, and the region travel timer while it runs. No time of day (the desktop
-// header keeps it).
+// The mobile location line (51-UI-SPEC "Mobile (Story screen, 12a A.6)"; 51.3.1.1 UI-SPEC "Rating
+// Marks"): pin, place, terrain, the safety rating word in its colour and the level range, and the
+// region travel timer while it runs. No time of day (the desktop header keeps it).
 
 const SOURCE = readFileSync(resolve(process.cwd(), 'src/frame/LocationRow.vue'), 'utf8');
 
@@ -31,6 +31,10 @@ interface Options {
   timer?: TravelTimer;
   withPlace?: boolean;
   name?: string;
+  /** The place's pool rows have applied (default true). */
+  applied?: boolean;
+  /** The family's density level (default 2, Stable: Quiet for the level-4 hero at Lv 2-4). */
+  familyLevel?: bigint;
 }
 
 function build(options: Options = {}) {
@@ -51,6 +55,10 @@ function build(options: Options = {}) {
       },
     ]),
     regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 200n }]),
+    poolLevelsHere: ref([
+      { id: 1n, regionId: 1n, locationId: 10n, kind: 'creature', level: options.familyLevel ?? 2n, lvLo: 2n, lvHi: 4n },
+    ]),
+    poolsAppliedFor: () => options.applied ?? true,
   } as unknown as GameData;
   const map = {
     ...createInertMap(),
@@ -64,7 +72,7 @@ function build(options: Options = {}) {
 }
 
 describe('LocationRow', () => {
-  it('shows the pin, the place with its full name in title, the terrain and the level in its band colour', () => {
+  it('shows the pin, the place with its full name in title, the terrain, the rating word and the range', () => {
     const w = build();
     expect(w.findComponent(PhMapPin).exists()).toBe(true);
     expect(w.get('.name').text()).toBe('The Crossing');
@@ -77,19 +85,37 @@ describe('LocationRow', () => {
     for (const hidden of [...spoken.querySelectorAll('[aria-hidden="true"]')]) hidden.remove();
     expect((spoken.textContent ?? '').trim()).toBe('Woods');
     const level = w.get('.level');
-    expect(level.text()).toBe('Lv 2–4');
-    expect(level.classes()).toContain('lv-even');
+    expect(level.text()).toBe('Quiet Lv 2–4');
+    const rating = level.get('.rating-mark');
+    expect(rating.text()).toBe('Quiet');
+    expect(rating.classes()).toContain('rate-quiet');
+    expect(rating.classes()).toContain('size-12');
+    expect(level.get('.range').text()).toBe('Lv 2–4');
   });
 
-  it('shows Safe for a safe place and Danger unknown for an uncharted one', () => {
+  it('an Overrun family reads Risky in its colour', () => {
+    const w = build({ familyLevel: 3n });
+    expect(w.get('.level .rating-mark').text()).toBe('Risky');
+    expect(w.get('.level .rating-mark').classes()).toContain('rate-risky');
+  });
+
+  it('shows Safe for a safe place and Danger unknown for an uncharted one, with no range', () => {
     const safe = build({ isSafe: true, terrainType: 'town' });
     expect(safe.get('.level').text()).toBe('Safe');
-    expect(safe.get('.level').classes()).toContain('lv-safe');
+    expect(safe.get('.level .rating-mark').classes()).toContain('rate-safe');
+    expect(safe.find('.range').exists()).toBe(false);
     wrapper?.unmount();
     const unknown = build({ terrainType: 'uncharted' });
     expect(unknown.get('.terrain').text()).toBe('· Uncharted ·');
     expect(unknown.get('.level').text()).toBe('Danger unknown');
-    expect(unknown.get('.level').classes()).toContain('lv-unknown');
+    expect(unknown.get('.level .rating-mark').classes()).toContain('rate-unknown');
+  });
+
+  it('before the pool rows apply there is no word, the range stays and it never reads Safe', () => {
+    const w = build({ applied: false });
+    expect(w.get('.level').text()).toBe('Lv 2–4');
+    expect(w.find('.level .rating-mark').exists()).toBe(false);
+    expect(w.text()).not.toContain('Safe');
   });
 
   it('an unknown terrain keeps the pin icon and its own word', () => {
@@ -135,5 +161,7 @@ describe('LocationRow', () => {
     expect(SOURCE).toMatch(/padding: 8px 16px 4px/);
     expect(SOURCE).toMatch(/text-overflow: ellipsis/);
     expect(SOURCE).not.toMatch(/v-html/);
+    // the range is Micro 10 in neutral-500
+    expect(SOURCE).toMatch(/\.range\s*\{[^}]*font-size: 10px;[^}]*color: var\(--color-neutral-500\);/);
   });
 });

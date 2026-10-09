@@ -2,10 +2,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import HeaderBar from './HeaderBar.vue';
 import AccountMenu from './AccountMenu.vue';
+import { GAME_KEY, createInertGame } from '../game/context';
+import type { GameData } from '../game/context';
 
 let wrapper: VueWrapper | null = null;
 
@@ -15,9 +17,10 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function mountHeader(overrides: Record<string, unknown> = {}): VueWrapper {
+function mountHeader(overrides: Record<string, unknown> = {}, game?: GameData): VueWrapper {
   wrapper = mount(HeaderBar, {
     attachTo: document.body,
+    global: game ? { provide: { [GAME_KEY as symbol]: game } } : {},
     props: {
       placeLabel: 'Ashen Reach · Hollow Gate',
       timeOfDay: 'day',
@@ -299,5 +302,96 @@ describe('AccountMenu', () => {
     expect(src).toContain('role="menuitem"');
     expect(src).toContain('stopPropagation');
     expect(src).toContain('width: 200px');
+  });
+});
+
+// 51.3.1.1 UI-SPEC "Rating Marks": the desktop header pill after the place name (dot plus word, the
+// rating colour), hidden until the Here data applies; Unknown never reads Safe.
+interface PlaceOptions {
+  isSafe?: boolean;
+  terrainType?: string;
+  applied?: boolean;
+  familyLevel?: bigint;
+}
+
+function placeGame(options: PlaceOptions = {}): GameData {
+  return {
+    ...createInertGame(),
+    character: ref({ id: 1n, name: 'Hero', level: 4n, locationId: 10n }),
+    locations: ref([
+      {
+        id: 10n,
+        name: 'Hollow Gate',
+        description: '',
+        regionId: 1n,
+        isSafe: options.isSafe ?? false,
+        levelOffset: 0n,
+        terrainType: options.terrainType ?? 'woods',
+        bindStone: false,
+        craftingAvailable: false,
+        shortName: '',
+      },
+    ]),
+    regions: ref([{ id: 1n, name: 'Ashen Reach', dangerMultiplier: 400n }]),
+    // One family at Lv 3-4 for the level-4 hero: Stable is Quiet, Overrun is Risky.
+    poolLevelsHere: ref([
+      { id: 1n, regionId: 1n, locationId: 10n, kind: 'creature', level: options.familyLevel ?? 2n, lvLo: 3n, lvHi: 4n },
+    ]),
+    poolsAppliedFor: () => options.applied ?? true,
+  } as unknown as GameData;
+}
+
+describe('HeaderBar rating pill', () => {
+  it('shows no pill without place data', () => {
+    const w = mountHeader();
+    expect(w.find('.rating-pill').exists()).toBe(false);
+  });
+
+  it('shows the dot and the word in the rating colour after the place name', () => {
+    const w = mountHeader({}, placeGame());
+    const pill = w.get('.rating-pill');
+    expect(pill.text()).toBe('Quiet');
+    expect(pill.classes()).toContain('rate-quiet');
+    expect(pill.get('.dot').attributes('aria-hidden')).toBe('true');
+    expect(pill.attributes('title')).toBe('Something lives here, but it keeps to itself.');
+    const html = w.html();
+    expect(html.indexOf('class="location"')).toBeLessThan(html.indexOf('rating-pill'));
+    expect(html.indexOf('rating-pill')).toBeLessThan(html.indexOf('class="time"'));
+  });
+
+  it('reads Risky for an Overrun family and Safe for a safe place', () => {
+    const risky = mountHeader({}, placeGame({ familyLevel: 3n }));
+    expect(risky.get('.rating-pill').text()).toBe('Risky');
+    expect(risky.get('.rating-pill').classes()).toContain('rate-risky');
+    risky.unmount();
+    const safe = mountHeader({}, placeGame({ isSafe: true, terrainType: 'town' }));
+    expect(safe.get('.rating-pill').text()).toBe('Safe');
+    expect(safe.get('.rating-pill').classes()).toContain('rate-safe');
+  });
+
+  it('is hidden until the pool rows apply and never reads Safe meanwhile', () => {
+    const w = mountHeader({}, placeGame({ applied: false }));
+    expect(w.find('.rating-pill').exists()).toBe(false);
+    expect(w.text()).not.toContain('Safe');
+  });
+
+  it('stays in combat, before the In combat tag', () => {
+    const w = mountHeader({ inCombat: true, roundNumber: 2n }, placeGame());
+    const html = w.html();
+    expect(w.get('.rating-pill').text()).toBe('Quiet');
+    expect(html.indexOf('rating-pill')).toBeLessThan(html.indexOf('in-combat-tag'));
+  });
+
+  it('declares the pill form and lets the place name ellipsize first', () => {
+    const src = readSource('HeaderBar.vue');
+    expect(src).toMatch(/RatingMark/);
+    expect(src).toMatch(
+      /\.rating-pill\s*\{[^}]*border-radius: 999px;[^}]*padding: 0 8px;[^}]*font-size: 12px;[^}]*box-shadow: inset 0 0 0 1px color-mix\(in srgb, currentColor 50%, transparent\);/,
+    );
+    // the pill keeps its width (fixed short words); the location shrinks and the name ellipsizes
+    expect(src).toMatch(/\.header-bar > \* \{\s*flex-shrink: 0;/);
+    expect(src).toMatch(/\.header-bar > \.location \{[^}]*min-width: 0;[^}]*flex-shrink: 1;/);
+    expect(src).toMatch(/\.place \{[^}]*text-overflow: ellipsis;/);
+    expect(src).not.toMatch(/#[0-9a-fA-F]{3,6}|oklch\(|v-html/);
   });
 });
