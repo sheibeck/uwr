@@ -61,7 +61,7 @@ const POOL_COLUMNS: Record<string, string[]> = {
     'pluralNoun',
     'timeOfDay',
   ],
-  pool_harvest: ['id', 'characterId', 'locationId', 'windowStartMicros', 'gathers', 'cappedUntilMicros'],
+  pool_harvest: ['id', 'characterId', 'locationId', 'windowStartMicros', 'gathers', 'cappedUntilMicros', 'userId'],
   pool_state: ['id', 'version', 'lastHunterMicros', 'lastTrendMicros'],
   pool_region: ['regionId', 'trendSum'],
   pool_rumor: ['id', 'regionId', 'locationId', 'kind', 'familyId', 'otherFamilyId', 'atMicros'],
@@ -155,6 +155,7 @@ describe('pool table indexes', () => {
     ['pool_level', 'by_location', 'locationId'],
     ['pool_level', 'by_region', 'regionId'],
     ['pool_harvest', 'by_character', 'characterId'],
+    ['pool_harvest', 'by_user', 'userId'],
     ['pool_rumor', 'by_region', 'regionId'],
   ];
   for (const [table, accessor, column] of EXPECTED) {
@@ -183,6 +184,7 @@ const NEW_COLUMNS: Record<string, Record<string, string>> = {
     originPlural: 'string',
   },
   economy_item: { familyId: 'u64' },
+  pool_harvest: { userId: 'u64' },
 };
 
 describe('defaulted columns on existing tables (additive only)', () => {
@@ -241,9 +243,9 @@ function harvestView() {
 }
 
 const HARVEST_ROWS = [
-  { id: 1n, characterId: 5n, locationId: 10n, windowStartMicros: 100n, gathers: 3n, cappedUntilMicros: 900n },
-  { id: 2n, characterId: 5n, locationId: 11n, windowStartMicros: 100n, gathers: 1n, cappedUntilMicros: 0n },
-  { id: 3n, characterId: 6n, locationId: 10n, windowStartMicros: 100n, gathers: 3n, cappedUntilMicros: 800n },
+  { id: 1n, characterId: 5n, locationId: 10n, windowStartMicros: 100n, gathers: 3n, cappedUntilMicros: 900n, userId: 7n },
+  { id: 2n, characterId: 5n, locationId: 11n, windowStartMicros: 100n, gathers: 1n, cappedUntilMicros: 0n, userId: 7n },
+  { id: 3n, characterId: 6n, locationId: 10n, windowStartMicros: 100n, gathers: 3n, cappedUntilMicros: 800n, userId: 8n },
 ];
 
 describe('my_harvest_caps view', () => {
@@ -258,6 +260,24 @@ describe('my_harvest_caps view', () => {
     });
     const out = harvestView().fn({ db, sender: alice });
     expect(out).toEqual([{ id: 1n, locationId: 10n, cappedUntilMicros: 900n }]);
+  });
+
+  it("lists the player's caps whichever character gathered, plus an older per-character row (review A WR-01)", () => {
+    const db = noScanDb({
+      player: [{ id: alice, userId: 7n, activeCharacterId: 5n }],
+      pool_harvest: [
+        // Capped by another character of the same user (12n): the active character shares the cap.
+        { id: 4n, characterId: 12n, locationId: 20n, windowStartMicros: 100n, gathers: 4n, cappedUntilMicros: 700n, userId: 7n },
+        // Written before userId existed, by the active character.
+        { id: 5n, characterId: 5n, locationId: 21n, windowStartMicros: 100n, gathers: 4n, cappedUntilMicros: 600n, userId: 0n },
+        // Another user's character: never listed.
+        { id: 6n, characterId: 13n, locationId: 22n, windowStartMicros: 100n, gathers: 4n, cappedUntilMicros: 500n, userId: 8n },
+      ],
+    });
+    expect(harvestView().fn({ db, sender: alice })).toEqual([
+      { id: 4n, locationId: 20n, cappedUntilMicros: 700n },
+      { id: 5n, locationId: 21n, cappedUntilMicros: 600n },
+    ]);
   });
 
   it('returns [] without a player, a userId or an active character', () => {

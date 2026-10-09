@@ -205,6 +205,32 @@ describe('the per-player harvest cap (D-27, D-28; T-51.3.1.1-37)', () => {
     expect(feed(ctx, 2n)).not.toContain(harvestCapRefusal());
   });
 
+  it("a second character of the same player is refused once the first is capped (review A WR-01)", () => {
+    const { ctx, pools } = world({
+      mutate: (seed) => {
+        const alice = seed.character.find((c: any) => c.id === 1n);
+        seed.character.push({ ...alice, id: 4n, name: 'Alicealt' });
+      },
+    });
+    for (let i = 0n; i < DENSITY_RULES.HARVEST_CAP_GATHERS; i += 1n) {
+      gatherOnce(ctx, pools.ironOrchard.id, 1n, T0 + i * 20n * SEC);
+    }
+    expect(rows(ctx, 'pool_harvest')).toEqual([
+      expect.objectContaining({ userId: 7n, characterId: 1n, locationId: ORCHARD_ID, gathers: DENSITY_RULES.HARVEST_CAP_GATHERS }),
+    ]);
+
+    // The alt (same user 7n) shares the cap: refused, nothing starts.
+    at(ctx, ALICE, T0 + 200n * SEC);
+    handlers.gather_pool(ctx, { characterId: 4n, poolId: pools.ironOrchard.id });
+    expect(gathersOf(ctx, 4n)).toHaveLength(0);
+    expect(feed(ctx, 4n)).toContain(harvestCapRefusal());
+    expect(bag(ctx, 4n, IRON_ORE_ID)).toBe(0n);
+
+    // Bob (another user) is unaffected.
+    gatherOnce(ctx, pools.ironOrchard.id, 2n, T0 + 220n * SEC);
+    expect(bag(ctx, 2n, IRON_ORE_ID)).toBe(1n);
+  });
+
   it('the cap lifts when the window ends', () => {
     const { ctx, pools } = world();
     for (let i = 0n; i < DENSITY_RULES.HARVEST_CAP_GATHERS; i += 1n) {

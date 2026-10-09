@@ -92,7 +92,7 @@ describe('recordHarvest (D-28)', () => {
     expect(rows(ctx)[0]).toMatchObject({ windowStartMicros: later, gathers: 1n, cappedUntilMicros: 0n });
   });
 
-  it('keeps one row per (character, place): another place and another player count on their own', () => {
+  it('keeps one row per (player, place): another place and another player count on their own', () => {
     const ctx = poolCtx(poolWorld());
     gather(ctx, 1n, ORCHARD_ID, Number(CAP));
     gather(ctx, 1n, FLATS_ID, 1);
@@ -103,6 +103,47 @@ describe('recordHarvest (D-28)', () => {
     expect(harvestCappedFor(ctx, 2n, ORCHARD_ID, T0 + 10n * MIN)).toBe(false);
     expect(harvestRow(ctx, 1n, FLATS_ID)).toMatchObject({ gathers: 1n });
     expect(harvestRow(ctx, 2n, ORCHARD_ID)).toMatchObject({ gathers: 2n });
+  });
+});
+
+describe('the cap is per player, not per character (review A WR-01)', () => {
+  /** Alice (user 7n) gets a second character, 4n. */
+  function withAlt() {
+    const seed = poolWorld();
+    const alice = seed.character.find((c: any) => c.id === 1n);
+    seed.character.push({ ...alice, id: 4n, name: 'Alicealt' });
+    return poolCtx(seed);
+  }
+
+  it("a player's characters share one row and one cap per place", () => {
+    const ctx = withAlt();
+    gather(ctx, 1n, ORCHARD_ID, Number(CAP) - 1);
+    recordHarvest(ctx, 4n, ORCHARD_ID, T0 + 10n * MIN);
+    expect(rows(ctx)).toHaveLength(1);
+    expect(rows(ctx)[0]).toMatchObject({ userId: 7n, characterId: 4n, gathers: CAP, cappedUntilMicros: T0 + WINDOW });
+    expect(harvestCappedFor(ctx, 1n, ORCHARD_ID, T0 + 11n * MIN)).toBe(true);
+    expect(harvestCappedFor(ctx, 4n, ORCHARD_ID, T0 + 11n * MIN)).toBe(true);
+    expect(harvestCappedFor(ctx, 2n, ORCHARD_ID, T0 + 11n * MIN)).toBe(false);
+  });
+
+  it('an older per-character row (userId 0n) still counts and moves to the user on the next gather', () => {
+    const ctx = withAlt();
+    ctx.db.pool_harvest.insert({
+      id: 0n,
+      characterId: 1n,
+      locationId: ORCHARD_ID,
+      windowStartMicros: T0,
+      gathers: CAP,
+      cappedUntilMicros: T0 + WINDOW,
+      userId: 0n,
+    });
+    expect(harvestCappedFor(ctx, 1n, ORCHARD_ID, T0 + MIN)).toBe(true);
+    // The alt has no row of its own and the old row is not yet the user's.
+    expect(harvestCappedFor(ctx, 4n, ORCHARD_ID, T0 + MIN)).toBe(false);
+    recordHarvest(ctx, 1n, ORCHARD_ID, T0 + WINDOW + MIN);
+    expect(rows(ctx)).toHaveLength(1);
+    expect(rows(ctx)[0]).toMatchObject({ userId: 7n, characterId: 1n, gathers: 1n });
+    expect(harvestRow(ctx, 4n, ORCHARD_ID)).toMatchObject({ id: rows(ctx)[0].id });
   });
 });
 

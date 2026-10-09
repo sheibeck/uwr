@@ -2651,10 +2651,16 @@ export const PoolLevel = table(
 );
 
 // The per-player harvest cap at one place (D-27). Read by the client only through my_harvest_caps.
+// Keyed by the owning user (userId), so a player's characters share one cap per place; characterId
+// is the character that gathered last. Rows written before userId existed read userId 0n and are
+// looked up by character until their next gather stamps the user (review A WR-01).
 export const PoolHarvest = table(
   {
     name: 'pool_harvest',
-    indexes: [{ accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] }],
+    indexes: [
+      { accessor: 'by_character', algorithm: 'btree', columns: ['characterId'] },
+      { accessor: 'by_user', algorithm: 'btree', columns: ['userId'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -2663,6 +2669,7 @@ export const PoolHarvest = table(
     windowStartMicros: t.u64(),
     gathers: t.u64(),
     cappedUntilMicros: t.u64(), // 0n = not capped
+    userId: t.u64().default(0n),
   }
 );
 

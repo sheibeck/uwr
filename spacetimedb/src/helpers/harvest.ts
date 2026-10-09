@@ -1,8 +1,9 @@
 // harvest.ts
 // The per-player, per-place harvest cap of Phase 51.3.1.1 (D-27, D-28; T-51.3.1.1-37, T-51.3.1.1-39).
 // A player may gather HARVEST_CAP_GATHERS times at a place per HARVEST_WINDOW_MICROS. The state lives
-// in the private pool_harvest table, one row per (character, place); the my_harvest_caps view shows
-// only the capped-until time of capped rows, never the count or the window start.
+// in the private pool_harvest table, one row per (owning user, place), so a player's characters share
+// the cap (review A WR-01); the my_harvest_caps view shows only the capped-until time of capped rows,
+// never the count or the window start.
 //
 // Check harvestCappedFor BEFORE a gather starts; call recordHarvest when the gather pays out.
 
@@ -24,10 +25,26 @@ export function gatherDurationMicros(ctx: any, character: any): bigint {
   return raw < MIN_GATHER_MICROS ? MIN_GATHER_MICROS : raw;
 }
 
-/** The pool_harvest row of a character at a place, or null. */
+/** The owning user of a character (0n when the character is missing or has no owner). */
+function ownerOf(ctx: any, characterId: bigint): bigint {
+  const character = ctx.db.character.id.find(characterId);
+  return (character?.ownerUserId as bigint | undefined) ?? 0n;
+}
+
+/**
+ * The pool_harvest row that holds a character's cap at a place, or null: the owning user's row at
+ * the place (shared by all of the user's characters), else a row written before the userId column
+ * existed (userId 0n) for this character at the place.
+ */
 export function harvestRow(ctx: any, characterId: bigint, locationId: bigint): any | null {
+  const userId = ownerOf(ctx, characterId);
+  if (userId > 0n) {
+    for (const row of ctx.db.pool_harvest.by_user.filter(userId)) {
+      if (row.locationId === locationId) return row;
+    }
+  }
   for (const row of ctx.db.pool_harvest.by_character.filter(characterId)) {
-    if (row.locationId === locationId) return row;
+    if (row.locationId === locationId && (row.userId ?? 0n) === 0n) return row;
   }
   return null;
 }
@@ -41,18 +58,20 @@ function stateOf(row: any | null): HarvestState | null {
   };
 }
 
-/** Whether the character is at the harvest cap at this place at `now`. */
+/** Whether the character's player is at the harvest cap at this place at `now`. */
 export function harvestCappedFor(ctx: any, characterId: bigint, locationId: bigint, now: bigint): boolean {
   return isHarvestCapped(stateOf(harvestRow(ctx, characterId, locationId)), now);
 }
 
 /**
- * Records one gather of the character at the place (nextHarvest): the first gather inserts the row, a
- * gather inside the window increments it, the cap gather stores the capped-until time, and a gather
- * after the window starts a fresh window with capped-until 0n (so the view stops listing the place).
- * Returns the written row.
+ * Records one gather of the character at the place against its player's cap (nextHarvest): the first
+ * gather inserts the row, a gather inside the window increments it, the cap gather stores the
+ * capped-until time, and a gather after the window starts a fresh window with capped-until 0n (so the
+ * view stops listing the place). Every write stamps the owning user (an older per-character row moves
+ * to the user) and the gathering character. Returns the written row.
  */
 export function recordHarvest(ctx: any, characterId: bigint, locationId: bigint, now: bigint): any {
+  const userId = ownerOf(ctx, characterId);
   const row = harvestRow(ctx, characterId, locationId);
   const next = nextHarvest(stateOf(row), now);
   if (!row) {
@@ -63,10 +82,13 @@ export function recordHarvest(ctx: any, characterId: bigint, locationId: bigint,
       windowStartMicros: next.windowStartMicros,
       gathers: next.gathers,
       cappedUntilMicros: next.cappedUntilMicros,
+      userId,
     });
   }
   const updated = {
     ...row,
+    characterId,
+    userId,
     windowStartMicros: next.windowStartMicros,
     gathers: next.gathers,
     cappedUntilMicros: next.cappedUntilMicros,
