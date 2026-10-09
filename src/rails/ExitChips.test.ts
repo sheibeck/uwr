@@ -11,7 +11,8 @@ import type { ConsoleApi, GameData } from '../game/context';
 import { MAP_KEY, createInertMap } from '../map/mapContext';
 import type { MapData } from '../map/mapContext';
 
-// The mobile exit chip strip and its open card (51-UI-SPEC "Mobile (Story screen, 12a A.6)").
+// The mobile exit chip strip and its open card (51-UI-SPEC "Mobile (Story screen, 12a A.6)"; 51.3.1.1
+// UI-SPEC "Rating Marks" and "Exits, Here card and mobile chips": short name over rating and range).
 
 const SOURCE = readFileSync(resolve(process.cwd(), 'src/rails/ExitChips.vue'), 'utf8');
 
@@ -32,8 +33,17 @@ function place(over: Record<string, unknown>) {
     terrainType: 'woods',
     bindStone: false,
     craftingAvailable: false,
+    shortName: '',
     ...over,
   };
+}
+
+// Gloamwood: Stable at Lv 3-5 (gap 1 for the level-4 hero): Risky. Brackwater: Overrun at Lv 6: Deadly.
+function pools(longRange: boolean) {
+  return [
+    { id: 1n, regionId: 1n, locationId: 11n, kind: 'creature', level: longRange ? 3n : 2n, lvLo: longRange ? 12n : 3n, lvHi: longRange ? 14n : 5n },
+    { id: 2n, regionId: 2n, locationId: 12n, kind: 'creature', level: 3n, lvLo: 6n, lvHi: 6n },
+  ];
 }
 
 interface Options {
@@ -46,6 +56,13 @@ interface Options {
   longName?: string;
   /** Mira's (a follower's) region timer, in seconds from the clock's zero. */
   followerCooldownSeconds?: number;
+  shortName?: string;
+  /** Places whose pool rows have applied (default: every place). */
+  applied?: Set<bigint>;
+  /** Gloamwood's family at Lv 12-14, Overrun (Deadly). */
+  longRange?: boolean;
+  /** Exits to build instead of the three default ones (all same-region woods). */
+  exitCount?: number;
 }
 
 function build(options: Options = {}) {
@@ -60,9 +77,12 @@ function build(options: Options = {}) {
     characterId: ref(1n),
     locations: ref([
       place({ id: 10n, name: 'The Crossing', terrainType: 'town', levelOffset: 1n }),
-      place({ id: 11n, name: options.longName ?? 'Gloamwood', levelOffset: 1n }),
+      place({ id: 11n, name: options.longName ?? 'Gloamwood', levelOffset: 1n, shortName: options.shortName ?? '' }),
       place({ id: 12n, name: 'Brackwater', regionId: 2n, terrainType: 'swamp' }),
       place({ id: 13n, name: 'Harbour', terrainType: 'town', isSafe: true }),
+      ...Array.from({ length: options.exitCount ?? 0 }, (_, i) =>
+        place({ id: BigInt(20 + i), name: `Wayside Hollow Number ${i + 1}` }),
+      ),
     ]),
     regions: ref([
       { id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 300n },
@@ -71,7 +91,13 @@ function build(options: Options = {}) {
     connections: ref(
       options.noExits
         ? []
-        : [
+        : options.exitCount !== undefined
+          ? Array.from({ length: options.exitCount }, (_, i) => ({
+              id: BigInt(100 + i),
+              fromLocationId: 10n,
+              toLocationId: BigInt(20 + i),
+            }))
+          : [
             { id: 1n, fromLocationId: 10n, toLocationId: 11n },
             { id: 2n, fromLocationId: 10n, toLocationId: 12n },
             { id: 3n, fromLocationId: 10n, toLocationId: 13n },
@@ -89,6 +115,8 @@ function build(options: Options = {}) {
         : [],
     ),
     knownCharacters: ref(options.followers ? [mira, jory] : []),
+    poolLevels: ref(pools(options.longRange ?? false)),
+    poolsAppliedFor: (id: bigint) => (options.applied ? options.applied.has(id) : true),
   } as unknown as GameData;
 
   const cooldowns = [
@@ -132,18 +160,41 @@ describe('ExitChips strip', () => {
     }
   });
 
-  it('line 2 is the level and band, Safe, or the lock and clock on a crossing while the timer runs', () => {
+  it('line 2 is the rating and range, Safe, or the lock and clock on a crossing while the timer runs', () => {
     const idle = build();
-    expect(chip(idle.w, 'Gloamwood').get('.chip-line').text()).toBe('Lv 3–5 · tough');
+    const gloam = chip(idle.w, 'Gloamwood');
+    expect(gloam.get('.chip-line').text()).toBe('Risky · Lv 3–5');
+    expect(gloam.get('.chip-line .rating-mark').text()).toBe('Risky');
+    expect(gloam.get('.chip-line .rating-mark').classes()).toContain('rate-risky');
+    expect(gloam.get('.chip-line .chip-range').text()).toBe('Lv 3–5');
+    expect(gloam.get('.ring').classes()).toContain('rate-risky');
     expect(chip(idle.w, 'Harbour').get('.chip-line').text()).toBe('Safe');
-    expect(chip(idle.w, 'Gloamwood').get('.chip-line').classes()).toContain('lv-tough');
+    expect(chip(idle.w, 'Harbour').get('.ring').classes()).toContain('rate-safe');
+    expect(chip(idle.w, 'Brackwater').get('.chip-line').text()).toBe('Deadly · Lv 6');
     wrapper?.unmount();
 
     const { w } = build({ cooldownSeconds: 192 });
     const marsh = chip(w, 'Brackwater');
     expect(marsh.findComponent(PhLockSimple).exists()).toBe(true);
     expect(marsh.get('.chip-line').text()).toBe('3:12');
-    expect(chip(w, 'Gloamwood').get('.chip-line').text()).toBe('Lv 3–5 · tough');
+    expect(chip(w, 'Gloamwood').get('.chip-line').text()).toBe('Risky · Lv 3–5');
+  });
+
+  it('a chip whose pool rows have not applied is Unknown: no word, the range stays, never Safe', () => {
+    const { w } = build({ applied: new Set([12n]) });
+    const gloam = chip(w, 'Gloamwood');
+    expect(gloam.get('.chip-line').text()).toBe('Lv 3–5');
+    expect(gloam.get('.ring').classes()).toContain('rate-unknown');
+    expect(gloam.text()).not.toContain('Safe');
+  });
+
+  it('line 1 is the short name when the place has one; the full name stays in the label and the card', async () => {
+    const { w } = build({ shortName: 'Gloam' });
+    const gloam = w.findAll('button.chip').find((b) => b.get('.chip-name-text').text() === 'Gloam');
+    expect(gloam).toBeTruthy();
+    expect(gloam!.attributes('aria-label')).toBe('Gloamwood, Risky, Lv 3–5');
+    await gloam!.trigger('click');
+    expect(w.get('.card-name').text()).toBe('Gloamwood');
   });
 
   it('a crossing chip shows the door mark; the others do not', () => {
@@ -190,7 +241,9 @@ describe('ExitChips card', () => {
     const { w, consoleApi } = build();
     await chip(w, 'Gloamwood').trigger('click');
     expect(w.get('.card-name').text()).toBe('Gloamwood');
-    expect(w.get('.card-terrain').text()).toBe('Woods · Lv 3–5 · tough');
+    expect(w.get('.card-terrain').text()).toBe('Woods · Risky · Lv 3–5');
+    expect(w.get('.card-terrain .rating-mark').classes()).toContain('rate-risky');
+    expect(w.get('.card-rating-line').text()).toBe('Watch the edges. Things here will come for you.');
     expect(w.get('.card-status').text()).toBe('5 stamina');
     const button = w.get('.exit-card button.btn-primary');
     expect(button.text()).toBe('Travel to Gloamwood');
@@ -321,6 +374,85 @@ describe('ExitChips card', () => {
     expect(w.find('img').exists()).toBe(false);
     expect(w.get('.card-name').text()).toBe(payload);
   });
+
+  it('a short name with markup stays text', () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    const { w } = build({ shortName: payload });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.findAll('.chip-name-text').map((n) => n.text())).toContain(payload);
+  });
+});
+
+// UI Q5 backstops at the 390 x 844 phone frame. happy-dom has no layout, so the sizes come from the
+// component's own rules (judged at 390px: no desktop-only query may supply them) and the line-2 width
+// is estimated at Inter's widest average glyph (0.62em) for the 10px Micro size.
+describe('ExitChips measured at 390x844', () => {
+  const MOBILE_WIDTH = 390;
+  const style = SOURCE.slice(SOURCE.indexOf('<style'));
+
+  /** The value of `prop` in the top-level rule (or a rule whose @media holds at 390px) for exactly `selector`. */
+  function mobileValue(selector: string, prop: string): string | null {
+    let value: string | null = null;
+    const mediaBlocks = [...style.matchAll(/@media([^{]*)\{([\s\S]*?\})\s*\}/g)];
+    const topLevel = style.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, '');
+    const scan = (css: string): void => {
+      for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selectors = match[1].split(',').map((x) => x.trim());
+        if (!selectors.includes(selector)) continue;
+        const found = match[2].match(new RegExp(`(?:^|[;\\s])${prop}:\\s*([^;]+);`));
+        if (found) value = found[1].trim();
+      }
+    };
+    scan(topLevel);
+    for (const block of mediaBlocks) {
+      const max = block[1].match(/max-width:\s*(\d+)px/);
+      const min = block[1].match(/min-width:\s*(\d+)px/);
+      if (max && MOBILE_WIDTH > Number(max[1])) continue;
+      if (min && MOBILE_WIDTH < Number(min[1])) continue;
+      scan(block[2]);
+    }
+    return value;
+  }
+
+  const estimate = (text: string, px: number): number => text.length * px * 0.62;
+
+  it("a long place name and 'Deadly · Lv 12–14' fit the 144px text column; the row scrolls sideways", () => {
+    const long = 'The Very Long Road Of A Thousand Winding Switchbacks';
+    const { w } = build({ longName: long, longRange: true });
+    const c = chip(w, long);
+    expect(c.get('.chip-line').text()).toBe('Deadly · Lv 12–14');
+    expect(c.attributes('aria-label')).toBe(`${long}, Deadly, Lv 12–14`);
+    // the column is capped at 144px and line 1 ellipsizes inside it
+    expect(mobileValue('.chip-text', 'max-width')).toBe('144px');
+    expect(mobileValue('.chip-text', 'min-width')).toBe('0');
+    expect(mobileValue('.chip-name-text', 'text-overflow')).toBe('ellipsis');
+    expect(mobileValue('.chip-name-text', 'white-space')).toBe('nowrap');
+    expect(mobileValue('.chip-name-text', 'overflow')).toBe('hidden');
+    // line 2 is Micro 10 on one line and fits the column without clipping
+    expect(mobileValue('.chip-line', 'font-size')).toBe('10px');
+    expect(mobileValue('.chip-line', 'white-space')).toBe('nowrap');
+    expect(estimate('Deadly · Lv 12–14', 10)).toBeLessThanOrEqual(144);
+    expect(estimate(long, 12)).toBeGreaterThan(144);
+    // the strip scrolls sideways and its chips never shrink
+    expect(mobileValue('.strip', 'overflow-x')).toBe('auto');
+    expect(mobileValue('.strip > li', 'flex')).toBe('none');
+    expect(mobileValue('.chip', 'flex')).toBe('none');
+  });
+
+  for (const count of [1, 8]) {
+    it(`with ${count} exit${count === 1 ? '' : 's'} every chip renders at 44px and stays usable`, async () => {
+      const { w, consoleApi } = build({ exitCount: count });
+      const chips = w.findAll('ul.strip > li > button.chip');
+      expect(chips).toHaveLength(count);
+      expect(mobileValue('.chip', 'min-height')).toBe('44px');
+      for (const c of chips) expect(c.attributes('aria-expanded')).toBe('false');
+      const last = chips[chips.length - 1];
+      await last.trigger('click');
+      expect(last.attributes('aria-expanded')).toBe('true');
+      await w.get('.exit-card button.card-button').trigger('click');
+      expect(consoleApi.travel).toHaveBeenCalledTimes(1);
+    });
+  }
 });
 
 describe('ExitChips source', () => {
@@ -330,5 +462,8 @@ describe('ExitChips source', () => {
     expect(SOURCE).not.toMatch(/all:\s*unset/);
     expect(SOURCE).toMatch(/outline-offset: -2px/);
     expect(SOURCE).not.toMatch(/v-html|COOLDOWN|game\.feed|Date\.now/);
+    expect(SOURCE).not.toMatch(/margin:\s*0\s*-|margin-[a-z]+:\s*-/);
+    expect(SOURCE).not.toMatch(/min-height: 40px/);
+    expect(SOURCE).toMatch(/RatingMark/);
   });
 });

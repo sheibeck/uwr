@@ -33,9 +33,19 @@ function place(over: Record<string, unknown>) {
     terrainType: 'woods',
     bindStone: false,
     craftingAvailable: false,
+    shortName: '',
     ...over,
   };
 }
+
+// The Crossing: one Quiet family at Lv 2-4 (gap 0 for the level-4 hero). Gloamwood: Stable at Lv 2
+// (gap -2): Quiet. Brackwater: Overrun at Lv 6-8: Deadly. Harbour is safe.
+const POOLS = [
+  { id: 1n, regionId: 1n, locationId: 10n, kind: 'creature', level: 1n, lvLo: 2n, lvHi: 4n, name: 'Goblins' },
+  { id: 2n, regionId: 1n, locationId: 11n, kind: 'creature', level: 2n, lvLo: 2n, lvHi: 2n, name: 'Wolves' },
+  { id: 3n, regionId: 1n, locationId: 11n, kind: 'resource', level: 3n, lvLo: 0n, lvHi: 0n, name: 'Ironwood' },
+  { id: 4n, regionId: 2n, locationId: 12n, kind: 'creature', level: 3n, lvLo: 6n, lvHi: 8n, name: 'Bog wights' },
+];
 
 interface Options {
   connected?: boolean;
@@ -48,6 +58,11 @@ interface Options {
   ready?: boolean;
   gathering?: boolean;
   heardOf?: Set<bigint>;
+  /** Places whose pool rows have applied (default: every place). */
+  applied?: Set<bigint>;
+  /** Places with a living named enemy of the hero. */
+  namedAt?: bigint[];
+  names?: Record<string, { name?: string; shortName?: string }>;
 }
 
 function build(options: Options = {}) {
@@ -60,7 +75,7 @@ function build(options: Options = {}) {
     characterId: ref(1n),
     locations: ref([
       place({ id: 10n, name: 'The Crossing', terrainType: 'town', levelOffset: 1n }),
-      place({ id: 11n, name: 'Gloamwood', description: options.description ?? '', bindStone: true }),
+      place({ id: 11n, name: 'Gloamwood', description: options.description ?? '', bindStone: true, ...options.names?.['11'] }),
       place({ id: 12n, name: 'Brackwater', regionId: 2n, terrainType: 'swamp', levelOffset: 1n }),
       place({ id: 13n, name: 'Harbour', regionId: 1n, terrainType: 'town', isSafe: true }),
     ]),
@@ -78,6 +93,19 @@ function build(options: Options = {}) {
           ],
     ),
     gathers: ref(options.gathering ? [{ id: 1n }] : []),
+    poolLevels: ref(POOLS),
+    poolLevelsHere: ref(POOLS.filter((p) => p.locationId === (options.characterLocation ?? 10n))),
+    poolsAppliedFor: (id: bigint) => (options.applied ? options.applied.has(id) : true),
+    namedEnemies: ref(
+      (options.namedAt ?? []).map((locationId, i) => ({
+        id: BigInt(i + 1),
+        characterId: 1n,
+        name: 'Rotfang',
+        enemyTemplateId: 9n,
+        locationId,
+        isAlive: true,
+      })),
+    ),
   } as unknown as GameData;
 
   const timer = options.timer ?? { running: false, secondsLeft: 0 };
@@ -124,8 +152,26 @@ describe('HereCard header', () => {
     expect(consoleApi.examine).not.toHaveBeenCalled();
 
     const sub = w.get('.sub-line');
-    expect(sub.text()).toBe('Town · Lv 2–4 · even');
-    expect(sub.get('.sub-danger').classes()).toContain('lv-even');
+    expect(sub.text()).toBe('Town · Quiet · Lv 2–4');
+    expect(sub.get('.rating-mark').classes()).toContain('rate-quiet');
+    expect(sub.get('.sub-range').text()).toBe('Lv 2–4');
+    expect(w.get('.rating-line').text()).toBe('Something lives here, but it keeps to itself.');
+    expect(w.get('.rating-line').element.tagName).toBe('P');
+  });
+
+  it('a living named enemy here raises the rating one step (D-34)', () => {
+    const { w } = build({ namedAt: [10n] });
+    expect(w.get('.sub-line').text()).toBe('Town · Risky · Lv 2–4');
+    expect(w.get('.sub-line .rating-mark').classes()).toContain('rate-risky');
+    expect(w.get('.rating-line').text()).toBe('Watch the edges. Things here will come for you.');
+  });
+
+  it('before the pool rows apply the place is Unknown: no word, the range stays, never Safe', () => {
+    const { w } = build({ applied: new Set() });
+    const sub = w.get('.sub-line');
+    expect(sub.text()).toBe('Town · Lv 2–4');
+    expect(sub.text()).not.toContain('Safe');
+    expect(w.find('.rating-line').exists()).toBe(false);
   });
 
   it('shows the timer chip only while the timer runs', () => {
@@ -148,10 +194,18 @@ describe('HereCard header', () => {
     places.value = [...places.value];
     await nextTick();
     expect(w.get('.sub-line').text()).toBe('Town · Safe');
+    expect(w.get('.sub-line .rating-mark').classes()).toContain('rate-safe');
+    expect(w.get('.rating-line').text()).toBe('Nothing here will hurt you.');
     places.value[0].terrainType = 'uncharted';
     places.value = [...places.value];
     await nextTick();
     expect(w.get('.sub-line').text()).toBe('Uncharted · Danger unknown');
+    expect(w.find('.rating-line').exists()).toBe(false);
+  });
+
+  it('the terrain ellipsizes first in the sub-line; the rating and range keep their width', () => {
+    expect(SOURCE).toMatch(/\.sub-terrain\s*\{[^}]*min-width: 0;[^}]*text-overflow: ellipsis;/);
+    expect(SOURCE).toMatch(/\.sub-rating,\s*\.sub-range\s*\{[^}]*flex-shrink: 0;/);
   });
 
   it('an uncharted exit fills its right-hand column with Danger unknown (review IN-08)', async () => {
@@ -162,7 +216,8 @@ describe('HereCard header', () => {
     await nextTick();
     const right = rowButton(w, 'Gloamwood').get('.exit-right');
     expect(right.text()).toBe('Danger unknown');
-    expect(right.classes()).toContain('lv-unknown');
+    expect(right.get('.rating-mark').classes()).toContain('rate-unknown');
+    expect(right.find('.exit-range').exists()).toBe(false);
   });
 });
 
@@ -178,9 +233,40 @@ describe('HereCard exits', () => {
     }
     expect(items[0].get('button.btn-eye').attributes('aria-label')).toBe('Examine Brackwater');
     expect(items[0].get('.exit-suffix').text()).toBe('· Saltmarsh');
-    expect(items[0].get('.exit-right').text()).toBe('Lv 6–8');
     expect(items[1].find('.exit-suffix').exists()).toBe(false);
-    expect(items[1].get('.exit-right').text()).toBe('Lv 2');
+  });
+
+  it('each row shows the ring in the rating colour and, right-aligned, the word over the range', () => {
+    const { w } = build();
+    const [marsh, gloam] = w.findAll('li.exit');
+    expect(marsh.get('.ring').classes()).toContain('rate-deadly');
+    expect(marsh.get('.exit-right .rating-mark').text()).toBe('Deadly');
+    expect(marsh.get('.exit-right .rating-mark').classes()).toContain('rate-deadly');
+    expect(marsh.get('.exit-right .exit-range').text()).toBe('Lv 6–8');
+    expect(gloam.get('.ring').classes()).toContain('rate-quiet');
+    expect(gloam.get('.exit-right .rating-mark').text()).toBe('Quiet');
+    expect(gloam.get('.exit-right .exit-range').text()).toBe('Lv 2');
+    // the rating word sits above the range (a column), both Micro 10
+    expect(SOURCE).toMatch(/\.exit-right\s*\{[^}]*flex-direction: column;[^}]*align-items: flex-end;/);
+    expect(SOURCE).toMatch(/\.exit-range\s*\{[^}]*color: var\(--color-neutral-500\);/);
+  });
+
+  it('the row title is the rating line and the accessible name reads place, rating and range', () => {
+    const { w } = build();
+    const marsh = rowButton(w, 'Brackwater');
+    expect(marsh.attributes('title')).toBe('You should not be here alone. You are not alone.');
+    expect(marsh.attributes('aria-label')).toBe('Brackwater (Saltmarsh), Deadly, Lv 6–8');
+    expect(rowButton(w, 'Gloamwood').attributes('aria-label')).toBe('Gloamwood, Quiet, Lv 2');
+  });
+
+  it("an exit whose pool rows have not applied shows no word and never Safe", () => {
+    const { w } = build({ applied: new Set([10n, 12n]) });
+    const gloam = rowButton(w, 'Gloamwood');
+    expect(gloam.get('.ring').classes()).toContain('rate-unknown');
+    expect(gloam.find('.exit-right .rating-mark').exists()).toBe(false);
+    expect(gloam.get('.exit-right .exit-range').text()).toBe('Lv 2');
+    expect(gloam.text()).not.toContain('Safe');
+    expect(gloam.attributes('title')).toBeUndefined();
   });
 
   it('an exit eye examines the neighbour by name', async () => {
@@ -198,6 +284,10 @@ describe('HereCard exits', () => {
     expect(panelId).toBeTruthy();
     const panel = w.get(`#${panelId}`);
     expect(panel.text()).toContain('Woods · 5 stamina · Bind stone');
+    // the rating line is the panel's first line
+    const first = panel.element.firstElementChild as HTMLElement;
+    expect(first.classList.contains('panel-rating-line')).toBe(true);
+    expect(first.textContent).toBe('Something lives here, but it keeps to itself.');
     expect(panel.get('button.btn-primary').text()).toBe('Travel');
 
     const marsh = rowButton(w, 'Brackwater');
@@ -339,11 +429,20 @@ describe('HereCard empty and loading states', () => {
 });
 
 describe('HereCard text safety', () => {
-  it('a description with an img onerror payload stays text in the row title', () => {
+  it('a place name or short name with an img onerror payload stays text', async () => {
     const payload = '<img src=x onerror="alert(1)">';
-    const { w } = build({ description: payload });
+    const { w } = build({ names: { '11': { name: payload, shortName: payload } } });
     expect(w.find('img').exists()).toBe(false);
-    expect(w.get('.exit-row[title]').attributes('title')).toBe(payload);
+    const row = w.findAll('li.exit').find((li) => li.get('.exit-name').text() === payload);
+    expect(row).toBeTruthy();
+    expect(row!.get('button.exit-row').attributes('aria-label')).toBe(`${payload}, Quiet, Lv 2`);
+  });
+
+  it('a place with no rating line falls back to its description as the row title', () => {
+    const payload = '<img src=x onerror="alert(1)">';
+    const { w } = build({ description: payload, applied: new Set([10n]) });
+    expect(w.find('img').exists()).toBe(false);
+    expect(rowButton(w, 'Gloamwood').attributes('title')).toBe(payload);
   });
 });
 
@@ -355,6 +454,8 @@ describe('HereCard source', () => {
     expect(SOURCE).toMatch(/padding: 0 8px 8px 32px/);
     expect(SOURCE).toMatch(/outline-offset: -2px/);
     expect(SOURCE).not.toMatch(/v-html/);
+    expect(SOURCE).not.toMatch(/margin:\s*0\s*-|margin-[a-z]+:\s*-/);
+    expect(SOURCE).toMatch(/RatingMark/);
   });
 
   it('never makes its own feed lines or a fixed timer duration', () => {

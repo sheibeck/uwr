@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { travelChecks } from '../map/travelChecks';
 import type { TravelChecksInput, TravellerLike } from '../map/travelChecks';
 import { exitLabel, exitRows } from './exits';
-import type { ExitLocation, ExitRow } from './exits';
+import type { ExitLocation, ExitPool, ExitRow } from './exits';
 
-// The rail exits model (51-UI-SPEC "Rail Travel Panel"): ring, suffix, right text, note and button
-// per exit, built from the same travel rules as the Map (travelChecks, placeDanger, terrainOf).
+// The rail exits model (51-UI-SPEC "Rail Travel Panel"; 51.3.1.1 UI-SPEC "Exits, Here card and mobile
+// chips"): ring, suffix, rating, note and button per exit, built from the same travel rules as the
+// Map (travelChecks, placeDanger, terrainOf) and the shared place rating (rating.ts).
 
 const REGIONS = [
   { id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 300n },
@@ -21,6 +22,7 @@ function place(over: Partial<ExitLocation> & { id: bigint; name: string }): Exit
     terrainType: 'woods',
     bindStone: false,
     craftingAvailable: false,
+    shortName: '',
     ...over,
   };
 }
@@ -30,6 +32,14 @@ const GLOAM = place({ id: 11n, name: 'Gloamwood', levelOffset: 1n, bindStone: tr
 const MARSH = place({ id: 12n, name: 'Brackwater', regionId: 2n, terrainType: 'swamp' });
 const EDGE = place({ id: 13n, name: 'Beyond', terrainType: 'uncharted', isSafe: true });
 const HAVEN = place({ id: 14n, name: 'Haven', terrainType: 'town', isSafe: true, description: 'A quiet harbour.' });
+
+// Gloamwood: Goblins Stable at Lv 3-5 (gap 1 for a level-4 viewer): Risky. Brackwater: Bog wights
+// Overrun at Lv 6 (gap 2): Deadly. Resource pools never rate a place.
+const POOLS: ExitPool[] = [
+  { locationId: 11n, kind: 'creature', level: 2n, lvLo: 3n, lvHi: 5n },
+  { locationId: 11n, kind: 'resource', level: 3n, lvLo: 0n, lvHi: 0n },
+  { locationId: 12n, kind: 'creature', level: 3n, lvLo: 6n, lvHi: 6n },
+];
 
 const SELF: TravellerLike = { id: 1n, name: 'Hero', locationId: 10n, stamina: 50n, online: true };
 
@@ -42,6 +52,10 @@ interface Setup {
   timerSeconds?: number;
   followers?: TravellerLike[];
   followerTimers?: Record<string, number>;
+  pools?: ExitPool[];
+  applied?: (id: bigint) => boolean;
+  ratingLevel?: bigint | null;
+  namedAt?: ReadonlySet<bigint>;
 }
 
 function rowsFor(setup: Setup = {}): ExitRow[] {
@@ -63,6 +77,10 @@ function rowsFor(setup: Setup = {}): ExitRow[] {
     regions: REGIONS,
     heardOf: setup.heardOf ?? new Set<bigint>(),
     playerLevel: 4,
+    pools: setup.pools ?? POOLS,
+    poolsApplied: setup.applied ?? (() => true),
+    ratingLevel: setup.ratingLevel === undefined ? 4n : setup.ratingLevel,
+    bossOrNamed: (id) => setup.namedAt?.has(id) ?? false,
     connected: setup.connected ?? true,
     checksFor: (destination) =>
       travelChecks({
@@ -88,9 +106,14 @@ const row = (rows: ExitRow[], name: string): ExitRow => {
 };
 
 describe('exitRows, same region', () => {
-  it('a visited neighbour: level text, band colour, note, Travel button', () => {
+  it('a visited neighbour: rating, band colour kept, note, Travel button', () => {
     const gloam = row(rowsFor(), 'Gloamwood');
-    expect(gloam.rightText).toBe('Lv 3–5');
+    expect(gloam.rating).toEqual({
+      key: 'risky',
+      word: 'Risky',
+      line: 'Watch the edges. Things here will come for you.',
+      levelLabel: 'Lv 3–5',
+    });
     expect(gloam.danger.color).toBe('var(--color-con-yellow)');
     expect(gloam.danger.band).toBe('tough');
     expect(gloam.crossing).toBe(false);
@@ -116,7 +139,7 @@ describe('exitRows, same region', () => {
 
   it('an uncharted neighbour reads Danger unknown in the unknown colour (review IN-08)', () => {
     const edge = row(rowsFor({ routes: [EDGE] }), 'Beyond');
-    expect(edge.rightText).toBe('Danger unknown');
+    expect(edge.rating).toEqual({ key: 'unknown', word: 'Danger unknown', line: '', levelLabel: '' });
     expect(edge.danger.kind).toBe('unknown');
     expect(edge.danger.color).toBe('var(--color-neutral-500)');
     expect(edge.terrain.word).toBe('Uncharted');
@@ -124,7 +147,35 @@ describe('exitRows, same region', () => {
 
   it('a safe neighbour reads Safe', () => {
     const haven = row(rowsFor({ routes: [HAVEN] }), 'Haven');
-    expect(haven.rightText).toBe('Safe');
+    expect(haven.rating).toEqual({ key: 'safe', word: 'Safe', line: 'Nothing here will hurt you.', levelLabel: '' });
+  });
+
+  it('a destination whose pool rows have not applied is Unknown (no word), never Safe; the range stays', () => {
+    const rows = rowsFor({ applied: (id) => id !== 11n });
+    expect(row(rows, 'Gloamwood').rating).toEqual({ key: 'unknown', word: '', line: '', levelLabel: 'Lv 3–5' });
+    expect(row(rows, 'Brackwater').rating.key).toBe('deadly');
+    const noLevel = rowsFor({ ratingLevel: null });
+    expect(row(noLevel, 'Gloamwood').rating.word).toBe('');
+  });
+
+  it('reads each destination only from its own pools', () => {
+    const rows = rowsFor({ pools: [{ locationId: 12n, kind: 'creature', level: 1n, lvLo: 1n, lvHi: 2n }] });
+    expect(row(rows, 'Gloamwood').rating).toMatchObject({ key: 'quiet', levelLabel: '' });
+    expect(row(rows, 'Brackwater').rating).toMatchObject({ key: 'quiet', levelLabel: 'Lv 1–2' });
+  });
+
+  it('a living boss or named enemy at the destination raises its rating one step (D-34)', () => {
+    const rows = rowsFor({ namedAt: new Set([11n]) });
+    expect(row(rows, 'Gloamwood').rating.key).toBe('deadly');
+  });
+
+  it('the short name is used when the place has one, else the full name', () => {
+    const rows = rowsFor({ routes: [{ ...GLOAM, shortName: 'Gloam' }, MARSH] });
+    expect(row(rows, 'Gloamwood').shortName).toBe('Gloam');
+    expect(row(rows, 'Gloamwood').name).toBe('Gloamwood');
+    expect(row(rows, 'Brackwater').shortName).toBe('Brackwater');
+    const blank = rowsFor({ routes: [{ ...GLOAM, shortName: '   ' }] });
+    expect(row(blank, 'Gloamwood').shortName).toBe('Gloamwood');
   });
 
   it('the title is the description when there is one, else empty', () => {
@@ -254,6 +305,10 @@ describe('exitRows, edge cases', () => {
       regions: REGIONS,
       heardOf: new Set(),
       playerLevel: 4,
+      pools: [],
+      poolsApplied: () => true,
+      ratingLevel: 4n,
+      bossOrNamed: () => false,
       connected: true,
       checksFor: () =>
         travelChecks({
@@ -281,6 +336,10 @@ describe('exitRows, edge cases', () => {
       regions: REGIONS,
       heardOf: new Set(),
       playerLevel: 4,
+      pools: [],
+      poolsApplied: () => true,
+      ratingLevel: 4n,
+      bossOrNamed: () => false,
       connected: true,
       checksFor: () =>
         travelChecks({
@@ -302,13 +361,26 @@ describe('exitRows, edge cases', () => {
 });
 
 describe('exitLabel and costText', () => {
-  it('names the full place, region, level and band; a locked crossing adds the minute sentence', () => {
+  it('names the full place, region, rating and level; a locked crossing adds the minute sentence', () => {
     const rows = rowsFor({ timerSeconds: 192 });
-    expect(exitLabel(row(rows, 'Gloamwood'))).toBe('Gloamwood, Lv 3–5, tough');
+    expect(exitLabel(row(rows, 'Gloamwood'))).toBe('Gloamwood, Risky, Lv 3–5');
     expect(exitLabel(row(rows, 'Brackwater'))).toBe(
-      'Brackwater (Saltmarsh), Lv 6, tough, Region travel ready in about 4 minutes',
+      'Brackwater (Saltmarsh), Deadly, Lv 6, Region travel ready in about 4 minutes',
     );
     expect(exitLabel(row(rowsFor({ routes: [EDGE] }), 'Beyond'))).toBe('Beyond, Danger unknown');
+    expect(exitLabel(row(rowsFor({ routes: [HAVEN] }), 'Haven'))).toBe('Haven, Safe');
+  });
+
+  it('the full name is in the label even when a short name is shown; Unknown keeps the range only', () => {
+    const rows = rowsFor({ routes: [{ ...GLOAM, shortName: 'Gloam' }], applied: () => false });
+    expect(exitLabel(row(rows, 'Gloamwood'))).toBe('Gloamwood, Lv 3–5');
+  });
+
+  it('no label carries a count, a home level or a cap value (privacy)', () => {
+    for (const r of rowsFor()) {
+      const label = exitLabel(r).replace(/Lv \d+(–\d+)?/, '');
+      expect(label).not.toMatch(/\d/);
+    }
   });
 
   it('keeps the lock sentence when gathering outranks the timer as the block (review IN-04)', () => {
@@ -316,7 +388,7 @@ describe('exitLabel and costText', () => {
     expect(marsh.locked).toBe(true);
     expect(marsh.note.text).toBe('Finish gathering first.');
     expect(marsh.note.srText).toBeNull();
-    expect(exitLabel(marsh)).toBe('Brackwater (Saltmarsh), Lv 6, tough, Region travel ready in about 4 minutes');
+    expect(exitLabel(marsh)).toBe('Brackwater (Saltmarsh), Deadly, Lv 6, Region travel ready in about 4 minutes');
   });
 
   it('carries the shared stamina text', () => {
