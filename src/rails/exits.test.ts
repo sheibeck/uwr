@@ -232,6 +232,61 @@ describe('exitRows, crossings', () => {
   });
 });
 
+describe('exitRows, a place in a bigger region (Phase 51.3.1.2, SC1)', () => {
+  // The most exits a place in a bigger region can have: four in-region exits (the server's exit
+  // degree cap), the passage back to the source region and The Edge Beyond doorway.
+  const MEADOW = place({ id: 15n, name: 'Larkspur Meadow', terrainType: 'plains' });
+  const CRAG = place({ id: 16n, name: 'Hollowcrag', terrainType: 'mountains' });
+  const SIX = [GLOAM, HAVEN, MEADOW, CRAG, MARSH, EDGE];
+
+  it('builds one row per route, in route order, each with its own destination and note', () => {
+    const rows = rowsFor({ routes: SIX });
+    expect(rows).toHaveLength(6);
+    expect(rows.map((r) => r.locationId)).toEqual([11n, 14n, 15n, 16n, 12n, 13n]);
+    expect(rows.map((r) => r.name)).toEqual([
+      'Gloamwood',
+      'Haven',
+      'Larkspur Meadow',
+      'Hollowcrag',
+      'Brackwater',
+      'Beyond',
+    ]);
+    expect(rows.map((r) => r.note.text)).toEqual([
+      'Woods · 5 stamina · Bind stone · Crafting',
+      'Town · 5 stamina',
+      'Plains · 5 stamina',
+      'Mountains · 5 stamina',
+      'New region · 10 stamina · starts the region travel timer',
+      'Uncharted · 5 stamina',
+    ]);
+    expect(new Set(rows.map((r) => r.note.text)).size).toBe(6);
+    expect(rows.map((r) => r.button.ariaLabel)).toEqual([
+      'Travel to Gloamwood',
+      'Travel to Haven',
+      'Travel to Larkspur Meadow',
+      'Travel to Hollowcrag',
+      'Cross into Saltmarsh',
+      'Travel to Beyond',
+    ]);
+  });
+
+  it('reads the source-region passage as a new region and the doorway as Danger unknown', () => {
+    const rows = rowsFor({ routes: SIX });
+    const crossings = rows.filter((r) => r.crossing);
+    expect(crossings.map((r) => r.name)).toEqual(['Brackwater']);
+    for (const r of crossings) {
+      expect(r.note.text.startsWith('New region')).toBe(true);
+      expect(r.note.tone).toBe('accent');
+      expect(r.button.label).toBe('Cross');
+    }
+    const edge = row(rows, 'Beyond');
+    expect(edge.crossing).toBe(false);
+    expect(edge.rating.word).toBe('Danger unknown');
+    expect(edge.terrain.word).toBe('Uncharted');
+    expect(rows.filter((r) => !r.crossing).every((r) => r.button.label === 'Travel')).toBe(true);
+  });
+});
+
 describe('exitRows, followers, blocks and offline', () => {
   const mira: TravellerLike = { id: 2n, name: 'Mira', locationId: 10n, stamina: 50n, online: true };
   const jory: TravellerLike = { id: 3n, name: 'Jory', locationId: 10n, stamina: 50n, online: true };
