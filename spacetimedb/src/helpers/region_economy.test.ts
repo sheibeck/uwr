@@ -393,7 +393,7 @@ describe('readEconomyJobContext', () => {
     expect(c!.mode).toBe('region');
     expect(c!.enemyTemplateId).toBe(0n);
     expect(c!.input).toEqual(input);
-    expect(REGION_ECONOMY_BIGINT_PATHS.length).toBe(4);
+    expect(REGION_ECONOMY_BIGINT_PATHS.length).toBe(6);
     expect(typeof c!.input.regionName).toBe('string');
     expect(typeof c!.input.areaLevel).toBe('number');
   });
@@ -1102,5 +1102,209 @@ describe('applyRegionEconomyResult: gatherables join the resource pools (Plan 09
     // 101 and 102 got their loot from the reply; 110 and 111 are fillers: only 103 gets a late job.
     const late = rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
     expect(late.map((j: any) => JSON.parse(j.requestJson).enemyTemplateId)).toEqual(['103']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.1 Plan 24: the job input speaks in families (D-47) and its counts come from the
+// economy size constant (D-50, D-57)
+// ---------------------------------------------------------------------------
+
+/**
+ * Region 1 with two families: the Skitterers (id 1: 112 damage, 111 caster filler, 101 tank, 110
+ * healer filler, stored out of role order) and the Brine Sentinels (id 2: 102 damage). Region 2 has
+ * a family of its own that never shows up in region 1's input.
+ */
+function familyWorld(): Seed {
+  const seed = baseWorld();
+  seed.enemy_template.push(
+    enemyRow(110n, 'Skitter Tender', 'beast', 1n, { role: 'healer' }),
+    enemyRow(111n, 'Skitter Saltspitter', 'beast', 1n, { role: 'caster' }),
+    enemyRow(112n, 'Skitter Pincer', 'beast', 2n),
+    enemyRow(201n, 'Ash Hound', 'beast', 3n),
+  );
+  seed.creature_family = [
+    familyRow(1n, 1n, 'Salt-Crust Skitterers', 'beast'),
+    familyRow(2n, 1n, 'Brine Sentinels', 'construct'),
+    familyRow(3n, 2n, 'Ash Hounds', 'beast'),
+  ];
+  seed.family_member = [
+    { id: 1n, familyId: 1n, enemyTemplateId: 112n, role: 'damage', filler: false },
+    { id: 2n, familyId: 1n, enemyTemplateId: 111n, role: 'caster', filler: true },
+    { id: 3n, familyId: 1n, enemyTemplateId: 101n, role: 'tank', filler: false },
+    { id: 4n, familyId: 1n, enemyTemplateId: 110n, role: 'healer', filler: true },
+    { id: 5n, familyId: 2n, enemyTemplateId: 102n, role: 'damage', filler: false },
+    { id: 6n, familyId: 3n, enemyTemplateId: 201n, role: 'damage', filler: false },
+  ];
+  return seed;
+}
+
+function familyRow(id: bigint, regionId: bigint, name: string, creatureType: string) {
+  return {
+    id,
+    regionId,
+    key: `${regionId}:${creatureType}:${id}`,
+    name,
+    singularNoun: 'creature',
+    pluralNoun: 'creatures',
+    temperament: 'aggressive',
+    iconKey: 'beast',
+    creatureType,
+    ambushVerb: 'burst',
+    ambushRest: 'out of the dark',
+    fitTerrains: 'swamp',
+  };
+}
+
+const SKITTERERS = {
+  ref: 'E1',
+  familyId: 1n,
+  name: 'Salt-Crust Skitterers',
+  creatureType: 'beast',
+  level: 1,
+  members: [
+    { ref: 'E1.tank', templateId: 101n, role: 'tank', name: 'Salt-Crust Skitterer' },
+    { ref: 'E1.damage', templateId: 112n, role: 'damage', name: 'Skitter Pincer' },
+    { ref: 'E1.support', templateId: 110n, role: 'support', name: 'Skitter Tender' },
+    { ref: 'E1.caster', templateId: 111n, role: 'caster', name: 'Skitter Saltspitter' },
+  ],
+};
+
+describe('buildRegionEconomyInput: families (D-47)', () => {
+  it('region mode lists the region families by id, members tank, damage, support, caster (fillers included)', () => {
+    const ctx = ctxFor(familyWorld());
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.families).toEqual([
+      SKITTERERS,
+      {
+        ref: 'E2',
+        familyId: 2n,
+        name: 'Brine Sentinels',
+        creatureType: 'construct',
+        level: 2,
+        members: [{ ref: 'E2.damage', templateId: 102n, role: 'damage', name: 'Brine Sentinel' }],
+      },
+    ]);
+  });
+
+  it('the family level is its lowest member level (the base member)', () => {
+    const seed = familyWorld();
+    seed.enemy_template = seed.enemy_template.map((t: any) => (t.id === 101n ? { ...t, level: 4n } : t));
+    const ctx = ctxFor(seed);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.families![0].level).toBe(1);
+    seed.enemy_template = seed.enemy_template.map((t: any) => ({ ...t, level: 5n }));
+    const all5 = ctxFor(seed);
+    expect(econ.buildRegionEconomyInput(all5, region(all5, 1n), 'region').families![0].level).toBe(5);
+  });
+
+  it('two members of one role get numbered handles; a member whose template is gone is left out', () => {
+    const seed = familyWorld();
+    seed.enemy_template.push(enemyRow(113n, 'Skitter Clacker', 'beast', 1n));
+    seed.family_member.push(
+      { id: 7n, familyId: 1n, enemyTemplateId: 113n, role: 'damage', filler: false },
+      { id: 8n, familyId: 1n, enemyTemplateId: 999n, role: 'tank', filler: false },
+    );
+    const ctx = ctxFor(seed);
+    const fam = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region').families![0];
+    expect(fam.members.map((m) => m.ref)).toEqual(['E1.tank', 'E1.damage', 'E1.damage2', 'E1.support', 'E1.caster']);
+    expect(fam.members.map((m) => m.templateId)).toEqual([101n, 112n, 113n, 110n, 111n]);
+  });
+
+  it('a family with no living member template is left out, and the handles stay dense', () => {
+    const seed = familyWorld();
+    seed.creature_family.unshift(familyRow(0n, 1n, 'Gone Things', 'undead'));
+    seed.family_member.push({ id: 9n, familyId: 0n, enemyTemplateId: 998n, role: 'tank', filler: false });
+    const ctx = ctxFor(seed);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.families!.map((f) => [f.ref, f.familyId])).toEqual([
+      ['E1', 1n],
+      ['E2', 2n],
+    ]);
+  });
+
+  it('a region with no families has families []', () => {
+    const ctx = ctxFor(baseWorld());
+    expect(econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region').families).toEqual([]);
+  });
+
+  it('region mode takes its gatherable slots and recipe tiers from the size (small today)', () => {
+    const ctx = ctxFor(oneNeighbor());
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.gatherSlots).toEqual(['common', 'uncommon', 'rare']);
+    expect(input.recipeSlots.map((s) => s.tier)).toEqual(['common', 'uncommon', 'rare']);
+    expect(input.recipeSlots).toHaveLength(3);
+  });
+
+  it('region mode still lists the 51.3 enemies for the apply until the family apply ships (Plan 25)', () => {
+    const ctx = ctxFor(familyWorld());
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.enemies.map((e) => e.templateId)).toEqual([101n, 102n]);
+  });
+
+  it("family mode lists that one family as E1 and the region's existing materials, with no slots", () => {
+    const seed = familyWorld();
+    withEconomy(seed, 1n, 'complete', [
+      [960n, 'Panlight Salt', 'gather', 'common', 'base'],
+      [961n, 'Skitter Chitin', 'drop', 'common', 'hide'],
+      [962n, 'Skitterer Eyestalk', 'trophy', 'common', 'trophy'],
+    ]);
+    const ctx = ctxFor(seed);
+    const family = ctx.db.creature_family.id.find(2n);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', family);
+    expect(input.mode).toBe('family');
+    expect(input.families).toEqual([
+      {
+        ref: 'E1',
+        familyId: 2n,
+        name: 'Brine Sentinels',
+        creatureType: 'construct',
+        level: 2,
+        members: [{ ref: 'E1.damage', templateId: 102n, role: 'damage', name: 'Brine Sentinel' }],
+      },
+    ]);
+    expect(input.enemies).toEqual([]);
+    expect(input.gatherSlots).toEqual([]);
+    expect(input.recipeSlots).toEqual([]);
+    expect(input.foreignRegions).toEqual([]);
+    expect(input.foreign).toEqual([]);
+    expect(input.existingMaterials).toEqual([
+      { name: 'Panlight Salt', kind: 'base' },
+      { name: 'Skitter Chitin', kind: 'hide' },
+    ]);
+  });
+
+  it('a stored family input round-trips through readEconomyJobContext with every bigint intact', () => {
+    const ctx = ctxFor(familyWorld());
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    const contextJson = JSON.stringify({ regionId: '1', mode: 'region', enemyTemplateId: '0', input: encodeRouteInput(input) });
+    const c = econ.readEconomyJobContext(contextJson);
+    expect(c!.input).toEqual(input);
+    expect(c!.input.families![0].familyId).toBe(1n);
+    expect(c!.input.families![0].members[0].templateId).toBe(101n);
+  });
+
+  it('a family-mode job context is read with its family id', () => {
+    const ctx = ctxFor(familyWorld());
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', ctx.db.creature_family.id.find(1n));
+    const contextJson = JSON.stringify({ regionId: '1', mode: 'family', familyId: '1', input: encodeRouteInput(input) });
+    const c = econ.readEconomyJobContext(contextJson);
+    expect(c).not.toBeNull();
+    expect(c!.mode).toBe('family');
+    expect(c!.familyId).toBe(1n);
+    expect(c!.enemyTemplateId).toBe(0n);
+    expect(c!.input).toEqual(input);
+    expect(econ.readEconomyJobContext(JSON.stringify({ regionId: '1', mode: 'family', familyId: 'x', input: encodeRouteInput(input) }))).toBeNull();
+  });
+
+  it('a family-mode result is not applied by the 51.3 apply (Plan 25 owns it)', () => {
+    const seed = familyWorld();
+    seed.region_economy.push(econRow(1n, 'complete'));
+    const ctx = ctxFor(seed);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', ctx.db.creature_family.id.find(1n));
+    const contextJson = JSON.stringify({ regionId: '1', mode: 'family', familyId: '1', input: encodeRouteInput(input) });
+    const before = APPLY_TABLES.map((t) => rows(ctx, t).length);
+    econ.applyRegionEconomyResult(ctx, { domain: 'region_economy', contextJson }, replyText('late'));
+    expect(APPLY_TABLES.map((t) => rows(ctx, t).length)).toEqual(before);
   });
 });

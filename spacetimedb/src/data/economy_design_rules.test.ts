@@ -36,6 +36,14 @@ import {
   regionalOutputTemplate,
   armorSlotFromName,
   scrollTemplate,
+  REGION_ECONOMY_SIZES,
+  REGION_ECONOMY_SIZE,
+  gatherSlotsForSize,
+  recipeTierSlotsForSize,
+  familyRef,
+  memberRef,
+  economyFamilies,
+  type RegionEconomyInput,
 } from './economy_design_rules';
 import {
   ARMOR_FORMS,
@@ -294,6 +302,8 @@ describe('REGION_ECONOMY_COUNTS and handles', () => {
     expect([...REGION_ECONOMY_BIGINT_PATHS]).toEqual([
       'regionId',
       'enemies[].templateId',
+      'families[].familyId',
+      'families[].members[].templateId',
       'foreignRegions[].regionId',
       'foreign[].templateId',
     ]);
@@ -330,6 +340,170 @@ describe('recipeTierSlots', () => {
   it('never throws on a negative or odd count', () => {
     expect(recipeTierSlots(-1n)).toEqual(['common', 'common', 'uncommon']);
     expect(recipeTierSlots(undefined as unknown as bigint)).toEqual(['common', 'common', 'uncommon']);
+  });
+});
+
+describe('economy size (D-50, D-57: a named constant)', () => {
+  it("small is today's three gatherables and three recipes; medium five and five; large seven and seven", () => {
+    expect(REGION_ECONOMY_SIZES.small).toEqual({ gatherSlots: ['common', 'uncommon', 'rare'], recipes: 3 });
+    expect(REGION_ECONOMY_SIZES.medium).toEqual({
+      gatherSlots: ['common', 'common', 'uncommon', 'uncommon', 'rare'],
+      recipes: 5,
+    });
+    expect(REGION_ECONOMY_SIZES.large).toEqual({
+      gatherSlots: ['common', 'common', 'common', 'uncommon', 'uncommon', 'rare', 'rare'],
+      recipes: 7,
+    });
+    expect(Object.keys(REGION_ECONOMY_SIZES)).toEqual(['small', 'medium', 'large']);
+  });
+
+  it('is frozen all the way down', () => {
+    expect(Object.isFrozen(REGION_ECONOMY_SIZES)).toBe(true);
+    for (const size of Object.values(REGION_ECONOMY_SIZES)) {
+      expect(Object.isFrozen(size)).toBe(true);
+      expect(Object.isFrozen(size.gatherSlots)).toBe(true);
+    }
+  });
+
+  it('the server sets small today', () => {
+    expect(REGION_ECONOMY_SIZE).toBe('small');
+  });
+
+  it('REGION_ECONOMY_COUNTS takes its gatherables and recipes from the size', () => {
+    expect(REGION_ECONOMY_COUNTS.gatherables).toBe(REGION_ECONOMY_SIZES[REGION_ECONOMY_SIZE].gatherSlots.length);
+    expect(REGION_ECONOMY_COUNTS.recipes).toBe(REGION_ECONOMY_SIZES[REGION_ECONOMY_SIZE].recipes);
+  });
+
+  it('gatherSlotsForSize returns a fresh copy of the slots, small for an unknown size', () => {
+    expect(gatherSlotsForSize('small')).toEqual(['common', 'uncommon', 'rare']);
+    expect(gatherSlotsForSize('medium')).toEqual(['common', 'common', 'uncommon', 'uncommon', 'rare']);
+    expect(gatherSlotsForSize('large')).toHaveLength(7);
+    expect(gatherSlotsForSize('huge')).toEqual(['common', 'uncommon', 'rare']);
+    expect(gatherSlotsForSize('constructor')).toEqual(['common', 'uncommon', 'rare']);
+    const copy = gatherSlotsForSize('small');
+    copy.push('epic');
+    expect(gatherSlotsForSize('small')).toHaveLength(3);
+  });
+
+  it('recipeTierSlotsForSize with three recipes equals recipeTierSlots', () => {
+    for (let k = 0n; k <= 4n; k++) expect(recipeTierSlotsForSize(k, 3)).toEqual(recipeTierSlots(k));
+  });
+
+  it('a fourth and later recipe alternates common and uncommon', () => {
+    expect(recipeTierSlotsForSize(2n, 5)).toEqual(['uncommon', 'rare', 'epic', 'common', 'uncommon']);
+    expect(recipeTierSlotsForSize(0n, 7)).toEqual([
+      'common',
+      'common',
+      'uncommon',
+      'common',
+      'uncommon',
+      'common',
+      'uncommon',
+    ]);
+    expect(recipeTierSlotsForSize(3n, 7)).toEqual([
+      'uncommon',
+      'epic',
+      'legendary',
+      'common',
+      'uncommon',
+      'common',
+      'uncommon',
+    ]);
+  });
+
+  it('a count below three keeps the first tiers; a non-integer count reads as three', () => {
+    expect(recipeTierSlotsForSize(1n, 2)).toEqual(['common', 'uncommon']);
+    expect(recipeTierSlotsForSize(1n, 0)).toEqual([]);
+    expect(recipeTierSlotsForSize(1n, -4)).toEqual([]);
+    expect(recipeTierSlotsForSize(1n, Number.NaN)).toEqual(recipeTierSlots(1n));
+  });
+});
+
+describe('family handles (D-47)', () => {
+  it('familyRef takes a zero-based position', () => {
+    expect(familyRef(0)).toBe('E1');
+    expect(familyRef(2)).toBe('E3');
+  });
+
+  it('memberRef uses the prompt role word: healer is support', () => {
+    expect(memberRef('E1', 'tank')).toBe('E1.tank');
+    expect(memberRef('E1', 'damage')).toBe('E1.damage');
+    expect(memberRef('E1', 'healer')).toBe('E1.support');
+    expect(memberRef('E2', 'caster')).toBe('E2.caster');
+    expect(memberRef('E1', 'support')).toBe('E1.support');
+  });
+
+  it('a second member of the same role gets a number', () => {
+    expect(memberRef('E1', 'damage', 1)).toBe('E1.damage2');
+    expect(memberRef('E1', 'healer', 2)).toBe('E1.support3');
+  });
+});
+
+describe('economyFamilies: the families of a stored input', () => {
+  const base = (over: Partial<RegionEconomyInput>): RegionEconomyInput => ({
+    mode: 'region',
+    regionId: 1n,
+    regionName: 'Kesterlane Basin',
+    biome: 'coastal',
+    areaLevel: 1,
+    dominantFaction: 'unknown',
+    landmarks: [],
+    threats: [],
+    terrains: ['swamp'],
+    enemies: [],
+    recipeSlots: [],
+    foreignRegions: [],
+    foreign: [],
+    existingMaterials: [],
+    ...over,
+  });
+
+  it('returns the stored families as they are', () => {
+    const families = [
+      {
+        ref: 'E1',
+        familyId: 7n,
+        name: 'Salt-Crust Skitterers',
+        creatureType: 'beast',
+        level: 1,
+        members: [{ ref: 'E1.tank', templateId: 101n, role: 'tank', name: 'Skitter Shellback' }],
+      },
+    ];
+    expect(economyFamilies(base({ families }))).toEqual(families);
+  });
+
+  it('a 51.3 input with enemies and no families reads as families of one', () => {
+    const input = base({
+      enemies: [
+        { ref: 'E1', templateId: 101n, name: 'Salt-Crust Skitterer', creatureType: 'beast', level: 1 },
+        { ref: 'E2', templateId: 102n, name: 'Brine Sentinel', creatureType: 'construct', level: 2 },
+      ],
+    });
+    expect(economyFamilies(input)).toEqual([
+      {
+        ref: 'E1',
+        familyId: 0n,
+        name: 'Salt-Crust Skitterer',
+        creatureType: 'beast',
+        level: 1,
+        members: [{ ref: 'E1.damage', templateId: 101n, role: 'damage', name: 'Salt-Crust Skitterer' }],
+      },
+      {
+        ref: 'E2',
+        familyId: 0n,
+        name: 'Brine Sentinel',
+        creatureType: 'construct',
+        level: 2,
+        members: [{ ref: 'E2.damage', templateId: 102n, role: 'damage', name: 'Brine Sentinel' }],
+      },
+    ]);
+  });
+
+  it('never throws on a partial or hostile stored input', () => {
+    expect(economyFamilies({} as RegionEconomyInput)).toEqual([]);
+    expect(economyFamilies(null as unknown as RegionEconomyInput)).toEqual([]);
+    expect(economyFamilies({ enemies: [null, 3, { ref: 'E1' }] } as unknown as RegionEconomyInput)).toHaveLength(1);
+    expect(economyFamilies({ families: [null, 'x'] } as unknown as RegionEconomyInput)).toEqual([]);
   });
 });
 
@@ -973,7 +1147,7 @@ describe('purity', () => {
     const froms = [...source.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
     expect(froms.length).toBeGreaterThan(0);
     for (const f of froms) {
-      expect(f).toMatch(/^\.\/(recipe_rules|crafting_rules|equipment_rules|combat_constants|mechanical_vocabulary)$/);
+      expect(f).toMatch(/^\.\/(recipe_rules|crafting_rules|equipment_rules|combat_constants|mechanical_vocabulary|family_rules)$/);
     }
   });
 });

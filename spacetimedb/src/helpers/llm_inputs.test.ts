@@ -143,6 +143,20 @@ const INPUTS: { [R in LlmRoute]: RouteInputMap[R] } = {
     threats: ['Rockfalls on the north face'],
     terrains: ['mountains', 'woods'],
     enemies: [{ ref: 'E1', templateId: 9007199254740997n, name: '12', creatureType: 'beast', level: 6 }],
+    families: [
+      {
+        ref: 'E1',
+        familyId: 9007199254741003n,
+        name: '67',
+        creatureType: 'beast',
+        level: 6,
+        members: [
+          { ref: 'E1.tank', templateId: 9007199254741005n, role: 'tank', name: '89' },
+          { ref: 'E1.support', templateId: 9007199254741007n, role: 'support', name: 'Gritmaw Mender' },
+        ],
+      },
+    ],
+    gatherSlots: ['common', 'uncommon', 'rare'],
     recipeSlots: [
       { tier: 'common', foreignRegionIndexes: [] },
       { tier: 'uncommon', foreignRegionIndexes: [] },
@@ -238,6 +252,12 @@ describe('decodeRouteInput', () => {
     expect(out.foreign[0].name).toBe('345');
     expect(out.enemies[0].level).toBe(6);
     expect(out.foreign[0].regionIndex).toBe(0);
+    expect(out.families![0].familyId).toBe(9007199254741003n);
+    expect(out.families![0].members.map((m) => m.templateId)).toEqual([9007199254741005n, 9007199254741007n]);
+    expect(out.families![0].name).toBe('67');
+    expect(out.families![0].members[0].name).toBe('89');
+    expect(out.families![0].level).toBe(6);
+    expect(out.gatherSlots).toEqual(['common', 'uncommon', 'rare']);
   });
 
   it('leaves a bigint field that was never set undefined', () => {
@@ -307,11 +327,13 @@ describe('ROUTE_BIGINT_PATHS', () => {
     expect(Object.isFrozen(ROUTE_BIGINT_PATHS)).toBe(true);
   });
 
-  it('region_economy uses the four REGION_ECONOMY_BIGINT_PATHS (Phase 51.3)', () => {
+  it('region_economy uses the six REGION_ECONOMY_BIGINT_PATHS (Phase 51.3; families in 51.3.1.1)', () => {
     expect(ROUTE_BIGINT_PATHS.region_economy).toEqual([...REGION_ECONOMY_BIGINT_PATHS]);
     expect(ROUTE_BIGINT_PATHS.region_economy).toEqual([
       'regionId',
       'enemies[].templateId',
+      'families[].familyId',
+      'families[].members[].templateId',
       'foreignRegions[].regionId',
       'foreign[].templateId',
     ]);
@@ -326,10 +348,14 @@ describe('ROUTE_BIGINT_PATHS', () => {
 });
 
 describe('smokeInputFor', () => {
-  it('the region_economy entry is a fixed small region-mode input (typed map only, never smoked)', () => {
+  it('the region_economy entry is a fixed small region-mode input with one family (typed map only, never smoked)', () => {
     const input = smokeInputFor('region_economy');
     expect(input.mode).toBe('region');
-    expect(input.enemies).toHaveLength(1);
+    expect(input.families).toHaveLength(1);
+    expect(input.families![0].ref).toBe('E1');
+    expect(input.families![0].members.map((m) => m.ref)).toEqual(['E1.tank', 'E1.damage']);
+    expect(input.enemies).toEqual([]);
+    expect(input.gatherSlots).toEqual(['common', 'uncommon', 'rare']);
     expect(input.foreignRegions).toEqual([]);
     expect(input.foreign).toEqual([]);
     expect(input.recipeSlots.map((s) => s.tier)).toEqual(['common', 'common', 'uncommon']);
