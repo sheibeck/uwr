@@ -75,7 +75,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 
 **Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.1.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
-**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.1.2 Bigger Regions → 51.3.2 Wind-Up, Cooldowns and Durations → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
+**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.1.2 Bigger Regions → 51.3.2 Wind-Up, Cooldowns and Durations → 51.3.2.1 Region Discovery (owner, 2026-10-09) → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -90,6 +90,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.3.1.1: Density Pools** (INSERTED) - Places hold living populations of creature families and resources at density levels; dangerous travel, group pulls, depletion and regrowth (promoted backlog 999.29)
 - [ ] **Phase 51.3.1.2: Bigger Regions** (INSERTED) - Regions of 8-10 places, generated across several calls; families scale with region size
 - [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
+- [ ] **Phase 51.3.2.1: Region Discovery** (INSERTED) - The discoverer and the new region announced to the world (sarcastically), discovery credit and renown, and very distinct region names
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
 - [ ] **Phase 51.5.1: Motion and Polish** (INSERTED) - Typed text reveal, login cross-fade, map transitions after travel, and a context rail that grows with the screen
@@ -750,6 +751,7 @@ Plans:
 **Wave 7** *(blocked on Wave 6 completion)*
 
 - [ ] 51.3-13-PLAN.md — Local publish B with the read-only no-paid-call proof, spend-safety contract test, validation map
+
 **Notes**:
 
   - Owner decisions (2026-10-07):
@@ -877,6 +879,7 @@ Plans:
 **Wave 16**
 
 - [ ] 51.3.1.1-27-PLAN.md — Cleanup of retired paths, one resource per gather (D-72), phase guards, the owner copy review (51.3.1.1-COPY-REVIEW.md), local publish C, validation map
+
 **UI hint**: yes (design source: `.planning/phases/51.3.1.1-density-pools/design/UWR Living Places.dc.html`, imported 2026-10-08; differences resolved in `51.3.1.1-MOCK-DIFF.md` and CONTEXT D-29 to D-45; the combat timer and lock-in parts of the mock are ignored)
 **Notes**:
 
@@ -953,6 +956,30 @@ Plans:
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** drawn groups mean more multi-enemy fights; the enemy-target display and enemy wind-ups must read well with 2-4 enemies at once. No change to scope.
 
   - **Fleeing in the combat summary (owner, 2026-10-09):** "when you flee combat, the keeper should definitely summarize the combat by noting your cowardice." Then: "If anyone flees, the combat summary should include their cowardice in a funny, sarcastic way. Add it to 51.3.2". Today a successful flee logs only "You successfully flee." and the outro runs only on victory or defeat (`enqueueCombatOutroNarration`, `reducers/combat.ts` near lines 1935 and 2038), so fled fighters never reach it. Plan: record who fled (and in which round) on the fight, pass them to the outro summary input, and run an outro when the fight ends because everyone fled. **The prompt wording needs the owner's explicit approval of the exact text** (the outro instruction); re-check the golden tests and the `claude_request` snapshot. Discuss: whether to fold in the related todo `2026-10-07-combat-outro-tells-how-the-fight-unfolded.md` (fight digest from the abilities used, action-oriented victory story), since both change the same outro prompt. Todo `2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md` (pulled into this phase).
+
+### Phase 51.3.2.1: Region Discovery (INSERTED)
+
+**Goal**: Discovering a new region is an event: the whole world hears the discoverer's name, sarcastically celebrated, together with the new region's name; the discoverer is credited and earns renown; and every region name is very distinct from every other.
+**Depends on**: Phase 51.3.1.2 (Bigger Regions: the region completes in stages, the crossing hold and line 7c), Phase 51.3.2 (run order)
+**Requirements**: TBD (owner requests 2026-10-09)
+**Success Criteria** (what must be TRUE):
+
+  1. When a new region is discovered, one World event announcement names the discoverer and makes much of them, sarcastically, and names the new region (and the region it lies beyond), in owner-approved wording; it is sent once, when the region is complete.
+  2. The discoverer gets the credit, shown with the region (for example "Discovered by {name}" on the Map), and renown as a server first, once per region; retries, held joins and later visitors never award it again.
+  3. A new region's name is very distinct from every existing region name: a server rule rejects names that share the distinctive word, its first letters or a near spelling (for example "Kestrane Saltpans" next to "Kesterlane Basin"); the prompt sees every existing region name; a clash is resolved without an extra paid call.
+  4. Tests cover the announcement (discoverer, new region and source named; sent once), the credit and server-first renown (once per region), the name rule (near-misses rejected, clearly different names pass, the fallback choice), and the prompt listing every region name.
+
+**Plans**: TBD
+**UI hint**: yes (the credit line where the region is shown; no new screen)
+**Notes**:
+
+  - Owner, 2026-10-09: "When a player explores a new region for the first time, the world event anouncement should make much of their name ... sarcastically so. And they should get credit for the discovery + renown! The world event anouncment should anounce their name." Then: "And it should also anounce the name of the new Region". Then: "Let's add a new phase for that discovery anouncement. Not just a small task." (moved here from Phase 52.4).
+  - Owner, 2026-10-09: "Also, Kestrane Saltpans sounds a lot like Kesterlane Basin. We want rules to make sure that Region names are distinct. Very distinct from one another." Today the only guard is prompt text (`WORLD_NAMING_RULES`), the prompt sees neighbouring regions only, and the server checks nothing.
+  - Todos (pulled into this phase): `2026-10-09-region-discoverer-named-in-world-event-with-renown.md` (draft lines, open questions: does the party at the crossing share the credit, does a race's starter region count) and `2026-10-09-region-names-must-be-very-distinct.md` (the proposed rule, alternates in the same call, place names too?).
+  - Wording: the announcement lines and any prompt change need the owner's explicit approval of the exact text. Static templates for the announcement (no LLM call). Never "ripple"; no pronouns for the player (use the name).
+  - Reuse: `awardServerFirst` / `renown_server_first`, `appendWorldEvent`, `finishRegionFill` (COMPLETE). Schema changes additive only (a defaulted column if the credit is stored on the region); never a clear.
+  - Must land before the owner regenerates the world (only new generation is affected).
+  - Discuss: the level ramp across regions (todo `2026-10-09-region-level-ramp-across-the-world.md`) touches the same region creation step; decide whether it rides here.
 
 ### Phase 51.4: Loot Rails (INSERTED)
 
@@ -1138,7 +1165,6 @@ Plans:
   3. The detail shows the player's contribution and percentile, the party's contribution and the bronze, silver and gold thresholds, with Travel there and Track (stored on the server; the tracked event leads the rail's Tracking).
   4. `increment_event_counter` is admin-only, the failure status mismatch is fixed, and `collect_event_item` no longer crashes.
   5. At 390×844 World events opens from More and every action above works.
-  6. When a player discovers a new region, the World event announcement names them and makes much of them, sarcastically, and names the new region (owner-approved wording); the discoverer gets the credit (shown with the region) and renown as a server first, once per region.
 
 **Plans**: TBD
 **UI hint**: yes
@@ -1149,7 +1175,7 @@ Plans:
 
   - Renumbered from 51.2 to 51.6 (owner, 2026-10-07: "push world events to after character / level up"). Then renumbered from 51.6 to 52.4 (owner, 2026-10-08: "move log, world events, and parity and production to the very end, in that order so parity and production is last."). Older documents call it 51.2 or 51.6; its folder is `52.4-world-events` and its UI-SPEC is `52.4-UI-SPEC.md`.
 
-  - **Region discoverer named (owner, 2026-10-09):** "When a player explores a new region for the first time, the world event anouncement should make much of their name ... sarcastically so. And they should get credit for the discovery + renown! The world event anouncment should anounce their name." Then: "And it should also anounce the name of the new Region". Today the new-region line names only the region it lies beyond (not the new region), and the discoverer gets only a private line, with no renown. Reuse `awardServerFirst` (`renown_server_first`). Draft lines, open questions (party share, starter regions) and the test list are in the todo `2026-10-09-region-discoverer-named-in-world-event-with-renown.md` (pulled into this phase). The announcement wording needs the owner's explicit approval.
+  - **Region discovery announcement:** moved to Phase 51.3.2.1 Region Discovery (owner, 2026-10-09: "Let's add a new phase for that discovery anouncement. Not just a small task."). Its announcement is a plain World event line; this phase's history keeps it like any other.
   - Context: `51-CONTEXT.md` (Area 3 decisions).
   - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 53 Journal). All changes are additive and published locally only.
   - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.
@@ -1256,6 +1282,7 @@ Plans:
 | 51.3.1.1. Density Pools | v3.0 | 32/32 | Code complete, UAT deferred | - |
 | 51.3.1.2. Bigger Regions | v3.0 | 14/14 | Code complete, UAT deferred | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
+| 51.3.2.1. Region Discovery | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
 | 51.5.1. Motion and Polish | v3.0 | 0/TBD | Not started | - |
@@ -1337,6 +1364,7 @@ Plans:
 The owner wants abilities that are not just for combat (2026-10-08): "abilities that improve crafting, travel or travel speed, invisibility, lull, gathering, etc. Utility spells that aren't just for combat."
 
 The mechanical vocabulary already lists the kinds `utility` (out-of-combat only), `travel` (movement speed boost or location reveal), `craft_boost` (next crafting quality), `gather_boost` (next gathering yield), plus travel cost effects (`travel_cost_increase`, `travel_cost_discount`). Each has a power budget in `skill_budget.ts`. It is not known whether skill generation offers them, whether casting them out of combat works end to end, or whether any system reads their effects:
+
 - travel speed against the cross-region travel timer
 - crafting quality
 - gathering yield
@@ -1346,6 +1374,7 @@ There are no kinds for invisibility or stealth (avoid aggro or pulls) or lull (c
 #### Approach
 
 TBD. Start with an audit:
+
 1. For each existing non-combat kind, check whether it is generated, castable out of combat, and wired to the system it should affect.
 2. Fix the gaps.
 3. Then add new kinds (invisibility or stealth, lull) through the mechanical vocabulary with budgets, server rules and tests.
@@ -1363,6 +1392,7 @@ Pets read as real companions: a kind and an icon (for example `Summoned` with `P
 #### Threat rework
 
 The threat numbers date from the fixed classes: tank x1.5, healer x0.5, summoner x0.75 (`TANK_THREAT_MULTIPLIER`, `HEALER_THREAT_MULTIPLIER`, `SUMMONER_THREAT_MULTIPLIER` in `data/combat_scaling.ts`, mirrored in `THREAT_CONFIG` in `mechanical_vocabulary.ts`), healing at 50% of the amount healed, pets starting at 200 (`SUMMONER_PET_INITIAL_AGGRO`), and taunt forcing the target. Generated classes have no fixed role, so revisit:
+
 - where threat comes from (by ability kind and the class's generated role or archetype, not a fixed class name);
 - taunt and threat-reduction kinds, and how pets hold threat;
 - how threat ties to Phase 52.5 Balance Dials (was 51.3.1 Combat Dials) (pull size, enemy difficulty) and the enemy target shown on its panel (51.3.2);
@@ -2520,12 +2550,14 @@ Plans:
   - being told a direction (an NPC's directions in 999.10, a quest giver, a rumour that says "north of the Glass Shard");
   - possibly an ability or item (a map, a survey skill from 999.4's utility abilities).
   The server stores what each character knows (a private table of learned relations, or fixed places per character), so the client never sees true positions it has not earned.
+
 - **Unplaced places.** A heard-of place (or region) with no learned relation is drawn apart from the fixed map, for example in an "Unplaced" strip at the left edge, labelled as such, so it never implies a false direction. Once a relation is learned it moves to its true spot (with the 51.5.1 map transition).
 - **Client layout:** `graphLayout.ts` anchors every fixed node at its true position (north up), then only nudges for spacing and labels. The "orient" step that rotates the graph is removed or replaced. Regions on the region picker or overview follow the same rule.
 - **North arrow:** a small "N" compass in a map corner, desktop and mobile, tokens only, Phosphor icon if one fits (for example `PhCompass` or `PhNavigationArrow`); `<svg>` is already allowed under `src/map/`.
 - **Text that names a direction** (exit chips, NPC directions in 999.10, "lies to the east") reads the same positions, so words and map agree.
 
 **Design source (owner, 2026-10-08):** `UWR Map.dc.html` (updated mock), imported into `.planning/phases/999.28-compass-true-map/design/`; differences in `999.28-MAP-MOCK-DIFF.md` (MM-01 to MM-17). Owner decisions on it:
+
 - **Region switcher with this item, not before:** the region chips become one region button with "Next door" neighbours and a "+N · All N regions" link opening a searchable popover (desktop) or a Regions bottom sheet (mobile), sections You are here / Next door / Visited / Heard of. Regions lock only by the travel timer, never by level (reject the mock's level locks).
 - **North arrow top-right,** as in the mock (supersedes the earlier "left corner").
 - **A "YOU" pill above your current node,** and your place highlighted so it stands out more (owner: "It also highlights the place you are so it sticks out more.").
@@ -2540,7 +2572,6 @@ Plans:
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
-
 
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** the map can show each place's safety rating (word and colour) from 999.29.
 
@@ -2559,6 +2590,7 @@ Plans:
 The owner, 2026-10-08, verbatim: "I have a question. when we travel into a location, is there any sort of an aggro check that might cause combat by entering a location? We want travel, particularly when you travel above your level to feel dangerous. So, just being able to travel freely without fear of getting jumped by enemies is boring. With a narrative game, proximity is something that we don't really have since we aren't in a 3d space. Could we devise some sort of proximity system. this is just an idea, but maybe you can have creatures that are Near and Far. Near creatures are in your aggro proximity.  I don't know, I'm still thinking about how we would interact with enemies in a zone to represent the idea of how close or far they are, groups of mobs verses just single. Something that makes travel through a location \"dangerous\" without it turning into just a bunch of sub-locations within a location. Although, that's also an idea, that you sort of have sub-locations or instances you move through. And the more dense with mobs a location is, the harder it is to travel into or out of without provoking an attack."
 
 **Answer to the question (2026-10-08 scout): no.** Arriving at or leaving a place never starts a fight. Fights start only from:
+
 - a pull (`start_combat`; careful pull of one Nearby enemy, quick task 261006-a0i), which may bring the spawn's group (`enemy_spawn.groupCount`, scaled by region danger);
 - the gather ambush ("As you reach for {node}, {enemy} notices you and attacks!", `finish_gather`);
 - quest aggro (quest item pickups, `reducers/quests.ts`) and named-enemy pulls.
@@ -2570,8 +2602,10 @@ So travel is safe everywhere, whatever the level gap.
 Owner, 2026-10-08 (verbatim): "this could be as simple as MobDensity is a property of a location. The more dense the mobs, the more chance you have to A. get attacked when you enter or leave B. pull a group of enemies instead of a single enemy when fighting"
 
 So the core is one number per location, **mob density**:
+
 - **A. Ambush on travel:** entering or leaving a place rolls an attack chance that rises with its mob density (scaled by the level gap and tuned by dials).
 - **B. Pull size:** a pull brings a group instead of one enemy more often the denser the place is.
+
 Everything else below (Near and Far, counterplay, sub-areas) is optional on top of this.
 
 Moved out of Phase 51.3.1 into this backlog item (owner, 2026-10-08), dial included.
@@ -2591,8 +2625,6 @@ Moved out of Phase 51.3.1 into this backlog item (owner, 2026-10-08), dial inclu
 - Backlog 999.4: sneak, invisibility, lull abilities; threat.
 - 261008-ag8 spawn levels: the con gap is now real (spawns take the place's level), so above-level travel can be scored.
 
-
-
 **Still to discuss with the owner:** how density is set (by world generation, by rule from spawn count and region danger, or both), whether it changes as enemies are killed and respawn, the exact roll (density, level gap, enemy kind), how a party travelling together rolls, counterplay, and how much of Near and Far or sub-areas to build.
 
 **Requirements:** TBD (unit tests required: deterministic seeded rolls; chance by density, level gap and kind; safe places never roll; group pull odds by density; dial clamps and overrides; party behaviour with offline members never pulled in, as CR-02)
@@ -2601,7 +2633,6 @@ Moved out of Phase 51.3.1 into this backlog item (owner, 2026-10-08), dial inclu
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
-
 
 ### Phase 999.30: Pre-travel warning system (BACKLOG)
 
@@ -2616,12 +2647,12 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-
 ### Phase 999.31: Require a verified email at sign-in (BACKLOG)
 
 **Source:** WR-04 from the Phase 51.1 code review. Owner, 2026-10-08: "No, we don't need to verify the email address at this point. can we backlog that?" It is no longer a maincloud blocker.
 
 **Goal:** Sign-in only links a character to an email the provider has verified. Today `login_email` refuses a token whose `email_verified` is false, but a token without the `email_verified` claim still passes (`spacetimedb/src/helpers/login_identity.ts`). The issuer and audience pins limit this to tokens SpacetimeAuth issues for our own client.
+
   - Record whether SpacetimeAuth's id token carries `email_verified`.
   - If it does, require it and add a test for a token without the claim.
   - If it does not, record in `spacetimedb/src/data/auth_config.ts` which sign-in methods the client allows, and confirm that each one verifies the address.
@@ -2638,6 +2669,7 @@ Plans:
 **Source:** Owner, 2026-10-09: "add a Settings under the ... menu that will allow users to configure some things. One thing to configure would be to turn on|off displaying narrative text in the chat that is already visible in the UI elements. Like showing loot, or NPCs, etc. Essentially, if the narative main panel shows duplicate information that is clearly visible in the UI then it should not render that text. We'll default to OFF for now, but this would be a great way to prune the narrative experience down so we don't get so much wall-of-text overload as we navigate the game. We'll want to target the most offending areas first."
 
 **Goal:** Players get a Settings entry in the ⋯ menu. Its first setting controls whether the narrative feed repeats information that a UI element already shows clearly (for example loot, the NPCs and creatures listed in Nearby, exits).
+
   - Default: the pruning setting is OFF, which means nothing is pruned and the narrative panel shows everything as today (owner, 2026-10-09: "OFF means don't prune, i.e. show everything in the narrative panel"). Players turn it ON to hide the duplicate text.
   - Start with the worst offenders: list the feed lines that repeat what a panel shows (look text on arrival, loot lines, Nearby lists), ranked by how much text they add per move.
   - The setting is per player and persists (server-side preference, not browser storage only).
@@ -2655,6 +2687,7 @@ Plans:
 **Source:** Owner, 2026-10-09: "I have an idea for adding images into our game at some point. Here's a rough plan from chatgpt (I think we'd actually want to use chatgpt for image generation, it's just better)." The plan is kept in full at `.planning/phases/999.33-ai-generated-artwork/999.33-SOURCE-PLAN.md` (a draft input for discuss, not decisions).
 
 **Goal:** Artwork fills in over time for places, creature families and named NPCs, as "an illustration in a living game book". If art exists it shows; if not, play continues text-only and one generation job is queued. Art never blocks gameplay.
+
   - Provider: the owner prefers OpenAI (ChatGPT) image generation; keep a small provider wrapper.
   - Where art shows (from the plan): place art inline under the place title on arrival or first look (not on every repeated look, never shifting old feed entries); creature art in a Nearby detail card; NPC portraits beside talk.
   - Data: separate art asset and job tables keyed by stable entity (place, family or member, NPC), images in object storage (not in SpacetimeDB rows), versioned paths, stored prompt and prompt version, a shared house style with narrative-safety rules (never visually answer a mystery or reveal a secret).
@@ -2662,6 +2695,7 @@ Plans:
   - Start with a validation batch (about 5 places, 5 creatures, 5 NPCs) reviewed by the owner before mass generation.
 
 **Notes for discuss:**
+
   - The plan predates Density Pools: creatures are now families with role members (51.3.1.1), so art likely keys on the family (and maybe members), not individual enemies.
   - Image prompts are generation prompts: their exact wording needs the owner's approval like every other prompt.
   - Open questions: object storage host and cost, image binaries from a SpacetimeDB procedure (size limits) or a small worker, client display sizes against the UI-SPEC, and whether the owner's world regeneration should wait for art.

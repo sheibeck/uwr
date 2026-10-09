@@ -6,15 +6,15 @@ current_phase: 48
 current_phase_name: Combat Encounter
 status: executing
 stopped_at: Phase 51.3.1.1 UI-SPEC approved
-last_updated: "2026-10-08T21:04:54.056Z"
+last_updated: "2026-10-09T16:16:08.262Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 48 execution started
 progress:
-  total_phases: 23
-  completed_phases: 10
-  total_plans: 147
-  completed_plans: 147
-  percent: 43
+  total_phases: 25
+  completed_phases: 12
+  total_plans: 193
+  completed_plans: 193
+  percent: 48
 ---
 
 # Project State
@@ -200,6 +200,7 @@ See MILESTONES.md for full delivery summaries.
 - Phase 52.1 inserted after Phase 52: split out of Phase 52 on 2026-10-07 (owner: phases overloaded)
 - Phase 51.3 inserted after Phase 51.2: Loot: AI-filled loot tables per enemy type plus the designed loot rails (owner 2026-10-07)
 - Phase 51.4 inserted after Phase 51.3: Loot Rails split from the loot phase; 51.3 renamed Regional Economy (owner 2026-10-07)
+- Phase 51.3.2.1 inserted after Phase 51.3.2: Region Discovery: discoverer and new region announced sarcastically, credit and server-first renown, very distinct region names (owner 2026-10-09)
 
 ### Pending Todos
 
@@ -221,8 +222,9 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
 - `todos/pending/2026-10-09-widen-the-right-context-rail-so-names-and-long-lists-fit.md`: the right context rail (fixed 288px) cuts off place names and makes busy places a long scroll; the centre feed has spare width. Owner chose a rail that grows with the screen; folded into Phase 51.5.1.
 - `todos/pending/2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`: a successful flee ends with only a system line; if anyone flees, the end-of-fight summary notes their cowardice in a funny, sarcastic way (owner). Folded into Phase 51.3.2; prompt wording needs the owner's approval.
-- `todos/pending/2026-10-09-region-discoverer-named-in-world-event-with-renown.md`: the new-region World event names the discoverer, sarcastically, and the new region, and the discoverer gets credit and server-first renown (owner). Folded into Phase 52.4; announcement wording needs the owner's approval.
-- `todos/pending/2026-10-09-region-names-must-be-very-distinct.md`: "Kestrane Saltpans" vs "Kesterlane Basin"; region names must be very distinct (owner). Today only prompt guidance, the prompt sees neighbours only, and the server checks nothing. Needed before the world is regenerated; prompt wording needs approval.
+- `todos/pending/2026-10-09-region-discoverer-named-in-world-event-with-renown.md`: the new-region World event names the discoverer, sarcastically, and the new region, and the discoverer gets credit and server-first renown (owner). Moved into new Phase 51.3.2.1 Region Discovery (owner: "a new phase ... Not just a small task"); announcement wording needs the owner's approval.
+- `todos/pending/2026-10-09-region-names-must-be-very-distinct.md`: "Kestrane Saltpans" vs "Kesterlane Basin"; region names must be very distinct (owner). Today only prompt guidance, the prompt sees neighbours only, and the server checks nothing. Folded into Phase 51.3.2.1 Region Discovery; needed before the world is regenerated; prompt wording needs approval.
+- `todos/pending/2026-10-09-region-level-ramp-across-the-world.md`: the owner asked how region levels are set. Not by the discoverer: source danger +50..100 per crossing, cap 800, place offsets 0..+2 by hops. It climbs, but a crossing steps down from the previous region's far end, the climb is slow, and it goes flat at the cap. Discuss in 51.3.2.1.
 
 ### Blockers/Concerns
 
@@ -356,7 +358,7 @@ Phase 51.3.1.2 (Bigger Regions) is code-complete and verified in code. 51.3.1.2-
 
 ### Resume note (2026-10-09, after 51.3.1.2)
 
-- **51.3.1.2 is DONE in code** (UAT deferred). **Next: 51.3.2 Combat Wind-Up, Cooldowns and Durations in Rounds** (backlog 999.17): needs the owner for its discuss. Bring to that discuss: the todo `2026-10-09-travel-ability-gives-damage-buff.md` (ability vocabulary contract: same-category fallbacks, nothing on the AI's menu without a working system, contract test, the travel_discount fix) proposed as added scope; 999.4 Ability Expansion stays in the backlog (owner). Also the three combat todos from 51.3.1.1. Already in scope (owner, 2026-10-09): if anyone flees, the end-of-fight summary notes their cowardice in a funny, sarcastic way (todo `2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`; outro wording needs approval; consider folding in the victory-outro todo).
+- **51.3.1.2 is DONE in code** (UAT deferred). **Next: 51.3.2 Combat Wind-Up, Cooldowns and Durations in Rounds** (backlog 999.17): needs the owner for its discuss. Bring to that discuss: the todo `2026-10-09-travel-ability-gives-damage-buff.md` (ability vocabulary contract: same-category fallbacks, nothing on the AI's menu without a working system, contract test, the travel_discount fix) proposed as added scope; 999.4 Ability Expansion stays in the backlog (owner). Also the three combat todos from 51.3.1.1. **After 51.3.2 comes the new Phase 51.3.2.1 Region Discovery** (owner, 2026-10-09): discoverer and new region announced sarcastically, credit and server-first renown, very distinct region names; discuss the level-ramp todo there. Already in scope (owner, 2026-10-09): if anyone flees, the end-of-fight summary notes their cowardice in a funny, sarcastic way (todo `2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`; outro wording needs approval; consider folding in the victory-outro todo).
 - **Practice (owner, 2026-10-09):** run the full suite once after all lanes finish, never alongside them (memory full-suite-after-lanes); no tuning of AI caps/budgets and no paid checks until all systems exist (memory systems-then-ux-then-tuning). Executor rules for 51.3.1.2 are in `scratchpad/p51312/rules.md` (copy and adapt per phase).
 - **Owner-approved this session:** 51.3.1.1 COPY-REVIEW (en dash; new Nearby load line), 51.3.1.2 PROMPT-DRAFT with Owner choices.
 
