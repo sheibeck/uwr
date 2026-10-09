@@ -2624,5 +2624,22 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.32: Settings menu and hiding narrative text the UI already shows (BACKLOG)
+
+**Source:** Owner, 2026-10-09: "add a Settings under the ... menu that will allow users to configure some things. One thing to configure would be to turn on|off displaying narrative text in the chat that is already visible in the UI elements. Like showing loot, or NPCs, etc. Essentially, if the narative main panel shows duplicate information that is clearly visible in the UI then it should not render that text. We'll default to OFF for now, but this would be a great way to prune the narrative experience down so we don't get so much wall-of-text overload as we navigate the game. We'll want to target the most offending areas first."
+
+**Goal:** Players get a Settings entry in the ⋯ menu. Its first setting controls whether the narrative feed repeats information that a UI element already shows clearly (for example loot, the NPCs and creatures listed in Nearby, exits).
+  - Default as the owner said: "OFF for now". Confirm at discuss which way OFF reads (duplicate text not shown, or the pruning not active).
+  - Start with the worst offenders: list the feed lines that repeat what a panel shows (look text on arrival, loot lines, Nearby lists), ranked by how much text they add per move.
+  - The setting is per player and persists (server-side preference, not browser storage only).
+  - Hidden lines stay in the stored log (Phase 52.3) so nothing is lost.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
 *Last updated: 2026-10-09 after Phase 51.3.1.1 Density Pools went code-complete (32 plans, two review rounds, verification human_needed, UAT and the owner wording review deferred)*
