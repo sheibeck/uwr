@@ -184,7 +184,12 @@ describe('fill hook: on', () => {
     expect(JSON.parse(job.dedupeKey)).toEqual(['a'.repeat(64), 'region_economy', 'region:1']);
     // phase_only: no player day was charged.
     expect(job.budgetDay).toBe('');
-    expect(rows(ctx, 'llm_player_budget')).toHaveLength(0);
+    // The player's day holds only the families job's reservation (stage 2b is a player-day job).
+    const familiesHeld = rows(ctx, 'llm_job')
+      .filter((j: any) => j.route === 'world_gen_families')
+      .reduce((sum: bigint, j: any) => sum + j.reservedMicroUsd, 0n);
+    const dayHeld = rows(ctx, 'llm_player_budget').reduce((sum: bigint, d: any) => sum + d.reservedMicroUsd + d.spentMicroUsd, 0n);
+    expect(dayHeld).toBe(familiesHeld);
 
     const req = requestOf(job);
     expect(req).toMatchObject({ regionId: '1', mode: 'region', enemyTemplateId: '0', characterId: '10' });

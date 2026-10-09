@@ -21,6 +21,13 @@
  * world_gen fills in the rest. Each result touches only a state at its own step (stage 1 needs
  * GENERATING, stage 2 needs FILLING), and a failed stage 2 leaves the stage-1 region playable.
  *
+ * Phase 51.3.1.2 (D-01, D-08) splits stage 2 in two: world_gen (2a, at FILLING) writes the places and
+ * enqueues world_gen_families in the same transaction (FILLING_FAMILIES); world_gen_families (2b, at
+ * FILLING_FAMILIES) writes the families and completes the region (finishRegionFill: COMPLETE, the
+ * region-opened line, the economy). Every 2b failure is FAMILIES_ERROR, never FILL_ERROR, so the places
+ * are never written twice. A world_gen reply that still carries families (a job queued before that
+ * publish) completes the region in one apply.
+ *
  * Phase 43 (plan 13) stages the class the same way: creation_class_reveal (stage 1, at
  * GENERATING_CLASS) stores the class name, description and one ability and enqueues the
  * creation_class fill in the same transaction; creation_class (stage 2, at CLASS_FILLING) merges
@@ -38,13 +45,20 @@ import {
   pickDiscoveryMessage,
   writeRegionStart,
   writeRegionFill,
+  writeRegionPlaces,
+  writeRegionFamilies,
   findRegionStart,
   startWorldFill,
   failWorldFill,
+  startWorldFamilies,
+  failWorldFamilies,
+  finishRegionFill,
   WORLD_START_MILESTONE_LINE,
   WORLD_FILL_FAILED_MESSAGE,
-  worldFillCompleteLine,
+  WORLD_FAMILIES_FAILED_MESSAGE,
 } from './world_gen';
+import { placeCountFor } from '../data/region_shape';
+import { DENSITY_RULES } from '../data/density_rules';
 import { discardInventedQuestTarget, ensurePoolsForLocation, familyOfOne, resolveKillQuestTarget } from './families';
 import { cleanQuestTargetName, freeCreatureName } from './family_validate';
 import { nameKey } from '../data/economy_design_rules';
@@ -79,7 +93,7 @@ import { QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { segmentsFromReply, keeperSegments, keeperFallback, flattenSegments } from './segments';
-import { applyRegionEconomyResult, failRegionEconomy, startRegionEconomy, startFamilyLoot } from './region_economy';
+import { applyRegionEconomyResult, failRegionEconomy, startFamilyLoot } from './region_economy';
 import type { Segment, PresentSpeaker } from './segments';
 
 /**
@@ -223,6 +237,15 @@ export function applyLlmFailure(ctx: any, job: ApplyJob): void {
     const genState = ctx.db.world_gen_state.id.find(genStateId);
     if (genState && genState.step === 'FILLING') {
       failWorldFill(ctx, genState, resting ? LLM_RESTING_LINE : WORLD_FILL_FAILED_MESSAGE);
+    }
+  } else if (job.domain === 'world_gen_families') {
+    // Stage 2b failed (call failure, apply_error, sweeper expiry): the places stay. Only a FILLING_FAMILIES
+    // state is failed, to FAMILIES_ERROR and never FILL_ERROR (D-08), and nothing retries it here.
+    const context = job.contextJson ? JSON.parse(job.contextJson) : {};
+    const genStateId = BigInt(context.genStateId);
+    const genState = ctx.db.world_gen_state.id.find(genStateId);
+    if (genState && genState.step === 'FILLING_FAMILIES') {
+      failWorldFamilies(ctx, genState, resting ? LLM_RESTING_LINE : WORLD_FAMILIES_FAILED_MESSAGE);
     }
   } else if (job.domain === 'skill_gen') {
     const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -490,7 +513,10 @@ export function applyClassFillResult(ctx: any, job: ApplyJob, resultText: string
  *
  * Writes the region, its safe start location and the first NPC, connects the start location to the
  * source edge, places a still-unplaced character there and tells the player, then enqueues the
- * world_gen fill (stage 2) in the same transaction. The state is FILLING with one pending fill job,
+ * world_gen fill (stage 2) in the same transaction. A traveller (a non-starter state) gets neither the
+ * discovery line nor the milestone line here (Phase 51.3.1.2 owner choices: no milestone line for
+ * travellers; the discovery line comes with the region-opened line at COMPLETE); the World event line
+ * is unchanged. The state is FILLING with one pending fill job,
  * or FILL_ERROR when that enqueue is refused (the stage-1 rows stay). Only a GENERATING state is
  * touched: a late or stale stage-1 result does nothing.
  */
@@ -574,7 +600,8 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
   appendWorldEvent(ctx, 'world',
     pickWorldEventMessage(sourceRegionName, data.biome || 'plains', ctx.timestamp.microsSinceUnixEpoch));
 
-  if (character) {
+  // A starter state keeps its stage-1 lines (Plan 13 changes that branch).
+  if (character && currentGenState.sourceRegionId === 0n) {
     appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
       pickDiscoveryMessage(region.name, ctx.timestamp.microsSinceUnixEpoch));
     appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
@@ -586,9 +613,30 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
 }
 
 /**
- * world_gen success (stage 2 of world generation, Phase 43): the rest of the region around the
- * stage-1 start location. Only a FILLING state is touched. A malformed reply, or one without a
- * locations array, fails the fill (FILL_ERROR) and leaves every stage-1 row as it was.
+ * The place count a stored world_gen job was asked with (its request input's placeCount), when it is a
+ * whole number within REGION_PLACES_MIN..MAX; else null (a job queued before the 51.3.1.2 publish).
+ */
+function storedPlaceCount(context: any): number | null {
+  const value = context?.input?.placeCount;
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= DENSITY_RULES.REGION_PLACES_MIN &&
+    value <= DENSITY_RULES.REGION_PLACES_MAX
+    ? value
+    : null;
+}
+
+/**
+ * world_gen success (stage 2a of world generation, Phase 51.3.1.2, D-01, D-03): the places of the region
+ * around the stage-1 start location. Only a FILLING state is touched. A malformed reply, one without a
+ * locations array, a missing region or start location, or a reply below the place floor fails the fill
+ * (FILL_ERROR) and writes no place.
+ *  - A reply without a families array is stage 2a: writeRegionPlaces with the server's place count
+ *    (placeCountFor) when the stored job was asked with one, else none (no floor). Then, in the same
+ *    transaction, the families job (stage 2b) starts. A throw there is caught: the paid places stay and
+ *    the state is FAMILIES_ERROR (Pitfall 2, T-51.3.1.2-35).
+ *  - A reply with a families array is a job queued before the 51.3.1.2 publish: the legacy one-reply
+ *    writer, then finishRegionFill (COMPLETE, the region-opened line, the economy).
  */
 export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string): void {
   const context = job.contextJson ? JSON.parse(job.contextJson) : {};
@@ -618,30 +666,69 @@ export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string
     return;
   }
 
-  writeRegionFill(ctx, data, currentGenState, region, startLocation);
+  if (Array.isArray(data.families)) {
+    // Legacy: a job queued before the 51.3.1.2 publish (one reply with the places and the families).
+    writeRegionFill(ctx, data, currentGenState, region, startLocation);
+    finishRegionFill(ctx, currentGenState);
+    return;
+  }
 
-  ctx.db.world_gen_state.id.update({
-    ...currentGenState,
-    step: 'COMPLETE',
-    errorMessage: undefined,
-    updatedAt: ctx.timestamp,
-  });
+  // Stage 2a: the server's place count when the job was asked with one (D-03), else no floor.
+  const placeCount = storedPlaceCount(context) !== null ? placeCountFor(region.id) : null;
+  const placed = writeRegionPlaces(ctx, data, currentGenState, region, startLocation, { placeCount });
+  if (!placed.ok) {
+    failWorldFill(ctx, currentGenState, WORLD_FILL_FAILED_MESSAGE);
+    return;
+  }
 
-  // Phase 51.3: chain the region economy job (only when the AI economy switch is on). The region_economy
-  // row is the once-only lock; an economy bug never fails the fill. The region is read again: the fill
-  // just wrote its faction, landmarks and threats.
+  // Stage 2b, in this same transaction: FILLING_FAMILIES with one pending job, or FAMILIES_ERROR when
+  // refused. A throw is caught so a chain bug never rolls back the paid places (Pitfall 2).
   try {
-    const filledRegion = ctx.db.region.id.find(region.id) ?? region;
-    startRegionEconomy(ctx, filledRegion, { playerId: currentGenState.playerId, characterId: currentGenState.characterId });
+    startWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState);
   } catch (err) {
-    console.error('Region economy start failed for region ' + region.id + ': ' + errName(err));
+    console.error('World families start failed for state ' + String(genStateId) + ': ' + errName(err));
+    failWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState, WORLD_FAMILIES_FAILED_MESSAGE);
+  }
+}
+
+/**
+ * world_gen_families success (stage 2b, Phase 51.3.1.2, D-01, D-08): the creature families of a region
+ * whose places stage 2a wrote. Only a FILLING_FAMILIES state is touched, so a repeated result adds
+ * nothing. A reply that cannot be parsed, a missing region, or a reply writeRegionFamilies refuses (no
+ * families array, or no usable family: rule-only completion is not allowed here) fails the families
+ * (FAMILIES_ERROR, never FILL_ERROR) and writes no family. Otherwise finishRegionFill completes the region:
+ * COMPLETE, the region-opened and discovery lines, then the economy.
+ */
+export function applyWorldFamiliesResult(ctx: any, job: ApplyJob, resultText: string): void {
+  const context = job.contextJson ? JSON.parse(job.contextJson) : {};
+  const genStateId = BigInt(context.genStateId);
+  const currentGenState = ctx.db.world_gen_state.id.find(genStateId);
+  if (!currentGenState || currentGenState.step !== 'FILLING_FAMILIES') return;
+
+  let data: any;
+  try {
+    data = extractJson(resultText);
+  } catch (parseErr) {
+    console.error(`World families reply could not be parsed [world_gen_families]: ${errName(parseErr)}`);
+    failWorldFamilies(ctx, currentGenState, WORLD_FAMILIES_FAILED_MESSAGE);
+    return;
   }
 
-  const character = ctx.db.character.id.find(currentGenState.characterId);
-  if (character) {
-    appendPrivateEvent(ctx, currentGenState.characterId, character.ownerUserId, 'system',
-      worldFillCompleteLine(region.name));
+  const region = currentGenState.generatedRegionId != null
+    ? ctx.db.region.id.find(currentGenState.generatedRegionId)
+    : undefined;
+  if (!region) {
+    failWorldFamilies(ctx, currentGenState, WORLD_FAMILIES_FAILED_MESSAGE);
+    return;
   }
+
+  const written = writeRegionFamilies(ctx, data, region, { ruleOnlyAllowed: false });
+  if (!written.ok) {
+    failWorldFamilies(ctx, currentGenState, WORLD_FAMILIES_FAILED_MESSAGE);
+    return;
+  }
+
+  finishRegionFill(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState);
 }
 
 /** skill_gen success. */
@@ -1203,6 +1290,8 @@ export function applyLlmResult(ctx: any, job: ApplyJob, resultText: string): voi
     applyWorldStartResult(ctx, job, resultText);
   } else if (job.domain === 'world_gen') {
     applyWorldFillResult(ctx, job, resultText);
+  } else if (job.domain === 'world_gen_families') {
+    applyWorldFamiliesResult(ctx, job, resultText);
   } else if (job.domain === 'skill_gen') {
     applySkillGenResult(ctx, job, resultText);
   } else if (job.domain === 'npc_conversation') {
