@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   encounterHeading,
+  encounterHeadingParts,
   encounterSourceView,
   encounterTitle,
   hostileViews,
@@ -397,6 +398,22 @@ describe('livingHostileIds and encounterHeading', () => {
     expect(encounterHeading('   ', 1)).toBe('Encounter · 1 left');
     expect(encounterHeading('Old Greymaw', 1)).toBe('Encounter · Old Greymaw · 1 left');
     expect(encounterHeading('Goblins', 0)).toBe('Encounter · Goblins · 0 left');
+  });
+
+  it('splits the heading so the count can keep its width, and omits the count before the rows apply (IN-05)', () => {
+    expect(encounterHeadingParts('Goblins', 3, true)).toEqual({
+      text: 'Encounter · Goblins · 3 left',
+      lead: 'Encounter · Goblins',
+      count: ' · 3 left',
+    });
+    expect(encounterHeadingParts('', 2, true)).toEqual({ text: 'Encounter · 2 left', lead: 'Encounter', count: ' · 2 left' });
+    // A title holding the separator still splits at the count.
+    expect(encounterHeadingParts('Ash · Bone', 1, true).lead).toBe('Encounter · Ash · Bone');
+    expect(encounterHeadingParts('Goblins', 0, false)).toEqual({
+      text: 'Encounter · Goblins',
+      lead: 'Encounter · Goblins',
+      count: '',
+    });
   });
 });
 

@@ -104,6 +104,23 @@ describe('EncounterStrip header', () => {
     expect(wrapper!.get('button.strip-open').text()).toBe('Encounter · Goblins · 2 left');
   });
 
+  it('keeps the count in its own unshrinking span with the full heading as the title (IN-05)', () => {
+    mountStrip({ encounter: { origin: 'pull', originName: 'Goblins', originPlural: 'goblins', originLevel: 2n } });
+    const label = wrapper!.get('.strip-label');
+    expect(label.attributes('title')).toBe('Encounter · Goblins · 2 left');
+    expect(label.get('.head-lead').text()).toBe('Encounter · Goblins');
+    expect(label.get('.head-count').text()).toBe('· 2 left');
+    const source = readFileSync(resolve(process.cwd(), 'src/combat/EncounterStrip.vue'), 'utf8');
+    expect(source).toMatch(/\.head-count\s*\{[^}]*flex: none;/);
+    expect(source).toMatch(/\.head-lead\s*\{[^}]*text-overflow: ellipsis;/);
+  });
+
+  it('omits the count before the enemy rows apply (IN-05)', () => {
+    mountStrip({ applied: false, enemies: [] });
+    expect(wrapper!.get('button.strip-open').text()).toBe('Encounter');
+    expect(wrapper!.find('.head-count').exists()).toBe(false);
+  });
+
   it('emits open with the button element', async () => {
     mountStrip();
     const open = wrapper!.get('button.strip-open');

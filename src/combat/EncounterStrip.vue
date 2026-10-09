@@ -5,7 +5,7 @@ import { COMBAT_KEY, GAME_KEY, createInertCombat, createInertGame } from '../gam
 import EffectChips from '../rails/EffectChips.vue';
 import {
   STRIP_EFFECT_LIMIT,
-  encounterHeading,
+  encounterHeadingParts,
   encounterRowOf,
   encounterTitle,
   hostileViews,
@@ -46,7 +46,11 @@ const hostiles = computed(() =>
 );
 
 const heading = computed(() =>
-  encounterHeading(encounterTitle(encounter.value, hostiles.value), livingHostileIds(hostiles.value).length),
+  encounterHeadingParts(
+    encounterTitle(encounter.value, hostiles.value),
+    livingHostileIds(hostiles.value).length,
+    combat.applied.value,
+  ),
 );
 const showChips = computed(() => !props.collapsed && combat.applied.value);
 
@@ -68,7 +72,11 @@ function onChip(id: bigint, defeated: boolean): void {
   <section class="encounter-strip" aria-label="Encounter">
     <div class="strip-head">
       <button type="button" class="strip-open" aria-label="Open encounter list" @click="onOpen">
-        <span class="strip-label">{{ heading }}</span>
+        <!-- The count keeps its width; the title ellipsizes and the full heading is the title (IN-05). -->
+        <span class="strip-label" :title="heading.text"
+          ><span class="head-lead">{{ heading.lead }}</span
+          ><span v-if="heading.count" class="head-count">{{ heading.count }}</span></span
+        >
         <span class="strip-spacer"></span>
         <PhCaretUp class="strip-caret" :size="14" aria-hidden="true" />
       </button>
@@ -165,13 +173,24 @@ function onChip(id: bigint, defeated: boolean): void {
 }
 
 .strip-label {
+  display: flex;
   min-width: 0;
-  overflow: hidden;
   font-size: 10px;
   letter-spacing: 0.1em;
-  text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.head-lead {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The living count never shrinks; pre keeps its leading space at the flex item's start. */
+.head-count {
+  flex: none;
+  white-space: pre;
 }
 
 .strip-spacer {

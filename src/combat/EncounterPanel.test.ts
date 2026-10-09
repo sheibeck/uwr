@@ -295,9 +295,11 @@ describe('EncounterPanel threat block removed (D-40)', () => {
 });
 
 describe('EncounterPanel empty and loading states', () => {
-  it('shows only the heading before the enemy binding applies', () => {
+  it('shows only the heading before the enemy binding applies, with no count (IN-05)', () => {
     mountPanel({ applied: false, enemies: [] });
     expect(wrapper!.find('h6').exists()).toBe(true);
+    expect(wrapper!.get('h6').text()).toBe('Encounter');
+    expect(wrapper!.find('h6 .head-count').exists()).toBe(false);
     expect(wrapper!.find('.hostile-card').exists()).toBe(false);
     expect(wrapper!.text()).not.toContain('No hostiles left.');
   });
@@ -607,6 +609,12 @@ describe('EncounterPanel heading, source and foot (UI Q7, D-32)', () => {
   it('heads a family fight with the family name and the living count', () => {
     mountPanel({ encounter: pull });
     expect(wrapper!.get('h6').text()).toBe('Encounter · Goblins · 2 left');
+    // IN-05: the count keeps its width while the title ellipsizes; the full heading is the title.
+    expect(wrapper!.get('h6').attributes('title')).toBe('Encounter · Goblins · 2 left');
+    expect(wrapper!.get('h6 .head-lead').text()).toBe('Encounter · Goblins');
+    expect(wrapper!.get('h6 .head-count').text()).toBe('· 2 left');
+    expect(PANEL_SOURCE).toMatch(/\.head-count\s*\{[^}]*flex: none;/);
+    expect(PANEL_SOURCE).toMatch(/\.head-lead\s*\{[^}]*text-overflow: ellipsis;/);
     expect(wrapper!.get('p.source').text()).toBe('Pulled from Goblins that read stable here.');
     expect(wrapper!.get('p.source').classes()).not.toContain('ambush');
   });
@@ -639,9 +647,10 @@ describe('EncounterPanel heading, source and foot (UI Q7, D-32)', () => {
     expect(wrapper!.find('.source').exists()).toBe(false);
   });
 
-  it('ellipsizes the heading', () => {
-    expect(PANEL_SOURCE).toMatch(/\.panel-head h6\s*\{[^}]*text-overflow:\s*ellipsis/);
+  it('ellipsizes the heading title and never the count (IN-05)', () => {
+    expect(PANEL_SOURCE).toMatch(/\.head-lead\s*\{[^}]*text-overflow:\s*ellipsis/);
     expect(PANEL_SOURCE).toMatch(/\.panel-head h6\s*\{[^}]*white-space:\s*nowrap/);
+    expect(PANEL_SOURCE).toMatch(/\.head-count\s*\{[^}]*flex: none/);
   });
 
   it('ends the rail with the foot line: dot, place and rating', () => {

@@ -318,6 +318,30 @@ export function encounterHeading(title: string, livingCount: number): string {
   return sharedEncounterHeading(title, livingCount);
 }
 
+/** The heading split so the living count keeps its width while the title ellipsizes (review C IN-05). */
+export interface EncounterHeadingParts {
+  /** The whole heading as shown, for the title attribute. */
+  text: string;
+  /** 'Encounter · {title}' (or 'Encounter'): the part that ellipsizes. */
+  lead: string;
+  /** ' · {n} left', never shrunk; '' until the fight's enemy rows have applied. */
+  count: string;
+}
+
+/**
+ * The shared heading split at its last ' · ' (the count segment, which never holds one), so the copy
+ * stays in @game-data/density_lines. Before the enemy rows apply the count is left out rather than
+ * read '0 left'.
+ */
+export function encounterHeadingParts(title: string, livingCount: number, applied: boolean): EncounterHeadingParts {
+  const full = encounterHeading(title, livingCount);
+  const at = full.lastIndexOf(' · ');
+  if (at < 0) return { text: full, lead: full, count: '' };
+  const lead = full.slice(0, at);
+  if (!applied) return { text: lead, lead, count: '' };
+  return { text: full, lead, count: full.slice(at) };
+}
+
 /** The combat_encounter origin columns the heading and source line read (Plan 10, D-32). */
 export interface EncounterOriginRow {
   origin: string;

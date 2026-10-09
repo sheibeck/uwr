@@ -12,7 +12,7 @@ import {
 import RatingMark from '../rails/RatingMark.vue';
 import { usePlaceView } from '../rails/useExits';
 import {
-  encounterHeading,
+  encounterHeadingParts,
   encounterRowOf,
   encounterSourceView,
   encounterTitle,
@@ -55,7 +55,9 @@ const hostiles = computed(() =>
 );
 
 const livingCount = computed(() => livingHostileIds(hostiles.value).length);
-const heading = computed(() => encounterHeading(encounterTitle(encounter.value, hostiles.value), livingCount.value));
+const heading = computed(() =>
+  encounterHeadingParts(encounterTitle(encounter.value, hostiles.value), livingCount.value, combat.applied.value),
+);
 const source = computed(() => encounterSourceView(encounter.value));
 
 // '[dot] {Place} · {Rating}' (rail only). The dot carries the rating colour; until the place's pools
@@ -82,7 +84,12 @@ function examine(name: string): void {
 <template>
   <section class="encounter-panel" :class="{ sheet: variant === 'sheet' }" aria-label="Encounter">
     <div class="panel-head">
-      <h6>{{ heading }}</h6>
+      <!-- The count keeps its width; the title ellipsizes and the full heading is the title (IN-05). -->
+      <h6 :title="heading.text">
+        <span class="head-lead">{{ heading.lead }}</span><span v-if="heading.count" class="head-count">{{
+          heading.count
+        }}</span>
+      </h6>
       <span v-if="variant === 'rail'" class="hint">Tab to cycle</span>
     </div>
     <p v-if="source" class="source" :class="{ ambush: source.tone === 'ambush' }">{{ source.text }}</p>
@@ -136,12 +143,23 @@ function examine(name: string): void {
 }
 
 .panel-head h6 {
+  display: flex;
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--color-neutral-400);
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.head-lead {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The living count never shrinks; pre keeps its leading space at the flex item's start. */
+.head-count {
+  flex: none;
+  white-space: pre;
 }
 
 .hint {
