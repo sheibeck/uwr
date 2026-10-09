@@ -87,6 +87,13 @@ describe('pull_family draws a group sized by density (D-11, D-12)', () => {
     expect(feed(ctx, 1n).indexOf(lead)).toBeLessThan(feed(ctx, 1n).indexOf('Combat begins against Goblins.'));
   });
 
+  it("a pull refreshes the player's lastActivityAt (review A IN-08)", () => {
+    const { ctx, goblins } = world(undefined, T0 + 5n);
+    pull(ctx, goblins.id);
+    const alice = rows(ctx, 'player').find((p: any) => p.id === ALICE);
+    expect(alice.lastActivityAt).toEqual({ microsSinceUnixEpoch: T0 + 5n });
+  });
+
   it('an Overrun family sends 2-4 with slot 0 a tank or damage member', () => {
     for (let i = 0n; i < 12n; i += 1n) {
       const { ctx, goblins } = world(90n, T0 + i);

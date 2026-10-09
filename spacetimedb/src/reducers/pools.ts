@@ -52,11 +52,18 @@ export const registerPoolReducers = (deps: any) => {
   } = deps;
 
   const refuse = (ctx: any, character: any, message: string) => fail(ctx, character, message, 'combat');
+  // A pull or a gather is player activity: sweep_inactivity must not camp a player who only gathers
+  // (the same lastActivityAt write as start_combat and move_character; review A IN-08).
+  const touchActivity = (ctx: any) => {
+    const player = ctx.db.player.id.find(ctx.sender);
+    if (player) ctx.db.player.id.update({ ...player, lastActivityAt: ctx.timestamp });
+  };
   const refuseGather = (ctx: any, character: any, message: string) => fail(ctx, character, message, 'system');
 
   spacetimedb.reducer('pull_family', { characterId: t.u64(), poolId: t.u64() }, (ctx: any, args: any) => {
     // Ownership first (T-51.3.1.1-33): a foreign character id throws before anything is read.
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    touchActivity(ctx);
     // The one pull body, shared with the typed pull (helpers/encounters.ts, Plan 16).
     const stored = ctx.db.place_pool.id.find(args.poolId);
     const refusal = pullFamilyFor(deps, ctx, character, stored, ctx.timestamp.microsSinceUnixEpoch);
@@ -66,6 +73,7 @@ export const registerPoolReducers = (deps: any) => {
   spacetimedb.reducer('gather_pool', { characterId: t.u64(), poolId: t.u64() }, (ctx: any, args: any) => {
     // Ownership first (T-51.3.1.1-38): a foreign character id throws before anything is read.
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    touchActivity(ctx);
     if (activeCombatIdForCharacter(ctx, character.id)) return refuseGather(ctx, character, GATHER_REFUSALS.fighting);
     for (const _gather of ctx.db.resource_gather.by_character.filter(character.id)) {
       return refuseGather(ctx, character, GATHER_REFUSALS.gathering);

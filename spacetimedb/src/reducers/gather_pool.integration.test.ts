@@ -146,6 +146,13 @@ describe('gather_pool and finish_gather pay out one per gather (D-26, D-72)', ()
     ]);
   });
 
+  it("starting a gather refreshes the player's lastActivityAt (review A IN-08)", () => {
+    const { ctx, pools } = world();
+    start(ctx, pools.ironOrchard.id, 1n, T0 + 7n * SEC);
+    expect(gathersOf(ctx, 1n)).toHaveLength(1);
+    expect(rows(ctx, 'player').find((p: any) => p.id === ALICE).lastActivityAt).toEqual({ microsSinceUnixEpoch: T0 + 7n * SEC });
+  });
+
   it('every non-zero density yields one (D-72: density sets how many gathers, not the yield)', () => {
     for (const [count, want] of [[100n, 1n], [80n, 1n], [40n, 1n], [33n, 1n], [5n, 1n]] as const) {
       const { ctx, pools } = world({ iron: count });
