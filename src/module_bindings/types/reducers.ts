@@ -124,6 +124,8 @@ import EconomySetAiEnabledReducer from "../economy_set_ai_enabled_reducer";
 import SubmitIntentReducer from "../submit_intent_reducer";
 import StartCreationReducer from "../start_creation_reducer";
 import SubmitCreationInputReducer from "../submit_creation_input_reducer";
+import PullFamilyReducer from "../pull_family_reducer";
+import GatherPoolReducer from "../gather_pool_reducer";
 
 export type SetAppVersionParams = __Infer<typeof SetAppVersionReducer>;
 export type RequestSkillOfferParams = __Infer<typeof RequestSkillOfferReducer>;
@@ -243,4 +245,6 @@ export type EconomySetAiEnabledParams = __Infer<typeof EconomySetAiEnabledReduce
 export type SubmitIntentParams = __Infer<typeof SubmitIntentReducer>;
 export type StartCreationParams = __Infer<typeof StartCreationReducer>;
 export type SubmitCreationInputParams = __Infer<typeof SubmitCreationInputReducer>;
+export type PullFamilyParams = __Infer<typeof PullFamilyReducer>;
+export type GatherPoolParams = __Infer<typeof GatherPoolReducer>;
 

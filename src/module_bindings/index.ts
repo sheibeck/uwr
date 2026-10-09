@@ -152,6 +152,8 @@ import EconomySetAiEnabledReducer from "./economy_set_ai_enabled_reducer";
 import SubmitIntentReducer from "./submit_intent_reducer";
 import StartCreationReducer from "./start_creation_reducer";
 import SubmitCreationInputReducer from "./submit_creation_input_reducer";
+import PullFamilyReducer from "./pull_family_reducer";
+import GatherPoolReducer from "./gather_pool_reducer";
 
 // Import all procedure arg schemas
 
@@ -1943,6 +1945,8 @@ const reducersSchema = __reducers(
   __reducerSchema("submit_intent", SubmitIntentReducer),
   __reducerSchema("start_creation", StartCreationReducer),
   __reducerSchema("submit_creation_input", SubmitCreationInputReducer),
+  __reducerSchema("pull_family", PullFamilyReducer),
+  __reducerSchema("gather_pool", GatherPoolReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
