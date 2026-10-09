@@ -1497,18 +1497,35 @@ describe('applyRegionEconomyResult: a family reply (D-47)', () => {
     expect(axe.req1TemplateId).toBe(familyItem(ctx, 'drop', 2n).itemTemplateId);
   });
 
-  it('a member with no gear in the reply gets a loot table from the family drop and trophy only (no gear entry)', () => {
+  it('a member with no gear in the reply gets rule gear in its loot table with the family drop and trophy (review B WR-01, D-47)', () => {
     const ctx = ctxFor(familyApplyWorld());
     const reply = familyEconomyReply();
     reply.region.families[0] = { ...SKITTER_FAMILY, gear: SKITTER_FAMILY.gear.filter((g) => g.member !== 'E1.caster') };
     econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
-    expect(memberGear(ctx, 111n)).toBeUndefined();
+    const gear = memberGear(ctx, 111n);
+    expect(gear).toBeDefined();
+    expect(gear).toMatchObject({ familyId: 1n, slotKey: 'gear:111' });
+    const gearItem = rows(ctx, 'item_template').find((t: any) => t.id === gear.itemTemplateId);
+    expect(gearItem.name).toMatch(/^[A-Za-z' -]+$/);
     const loot = lootOf(ctx, 111n);
     expect(loot.length).toBeGreaterThanOrEqual(3);
-    expect(loot.some((e: any) => e.role === 'gear')).toBe(false);
+    expect(loot.filter((e: any) => e.role === 'gear').map((e: any) => e.itemTemplateId)).toEqual([gear.itemTemplateId]);
     expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([familyItem(ctx, 'drop', 1n).itemTemplateId]);
     expect(loot.filter((e: any) => e.role === 'trophy').map((e: any) => e.itemTemplateId)).toEqual([familyItem(ctx, 'trophy', 1n).itemTemplateId]);
-    expect(econRows(ctx, 'gear')).toHaveLength(6);
+    // Every member of both families has its one gear piece.
+    expect(econRows(ctx, 'gear')).toHaveLength(7);
+    expectNoDuplicates(ctx);
+  });
+
+  it('rule gear for a left-out member is written once: a second apply of the same reply adds nothing', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const reply = familyEconomyReply();
+    reply.region.families[0] = { ...SKITTER_FAMILY, gear: SKITTER_FAMILY.gear.filter((g) => g.member !== 'E1.caster') };
+    const { job } = regionJob(ctx, 1n);
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(reply));
+    const before = { items: rows(ctx, 'item_template').length, loot: rows(ctx, 'enemy_loot_entry').length };
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(reply));
+    expect({ items: rows(ctx, 'item_template').length, loot: rows(ctx, 'enemy_loot_entry').length }).toEqual(before);
   });
 
   it('a recipe the reply left out is filled by rule; a gatherable slot left out is filled by rule', () => {
@@ -1597,8 +1614,10 @@ describe('applyRegionEconomyResult: a family reply (D-47)', () => {
     expect(slotItem(ctx, 'drop:101')!.item.name).toBe('Skitter Chitin');
     expect(slotItem(ctx, 'drop:102')!.item.name).toBe('Sentinel Rivet');
     expect(slotItem(ctx, 'gear:101')!.item.name).toBe('Pincer Blade');
-    expect(slotItem(ctx, 'gear:102')).toBeUndefined();
-    expect(lootOf(ctx, 102n).some((e: any) => e.role === 'gear')).toBe(false);
+    // The member the reply gave no gear gets rule gear (review B WR-01, D-47).
+    const ruleGear = slotItem(ctx, 'gear:102')!;
+    expect(ruleGear).toBeDefined();
+    expect(lootOf(ctx, 102n).filter((e: any) => e.role === 'gear').map((e: any) => e.itemTemplateId)).toEqual([ruleGear.item.id]);
     expect(lootOf(ctx, 102n).length).toBeGreaterThan(0);
   });
 });

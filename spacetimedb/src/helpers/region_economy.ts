@@ -654,9 +654,34 @@ function lacksLoot(tx: any, templateId: bigint): boolean {
 }
 
 /**
+ * Rule gear for members a family reply left without gear (review B WR-01): the members are validated
+ * as a stub late-family entry that names only them, so the validator's rule names and repairGear apply
+ * exactly as for a family past the design cap (writeRuleFamily). Names already written in this apply
+ * are taken. A template that is gone is skipped.
+ */
+function ruleGearFor(book: ApplyBook, entry: ValidatedFamilyEntry, templateIds: readonly bigint[]): ValidatedFamilyEntry['gear'] {
+  if (templateIds.length === 0) return [];
+  const members: RegionEconomyMember[] = [];
+  for (const templateId of templateIds) {
+    const template = book.tx.db.enemy_template.id.find(templateId);
+    if (!template) continue;
+    const memberRow = [...book.tx.db.family_member.by_template.filter(templateId)][0];
+    const role = serverRoleToPrompt(text(memberRow ? memberRow.role : template.role));
+    members.push({ ref: `${entry.familyRef}.rule${members.length + 1}`, templateId, role, name: text(template.name) });
+  }
+  if (members.length === 0) return [];
+  const stub: RegionEconomyFamily = { ref: entry.familyRef, familyId: entry.familyId, name: '', creatureType: '', level: 1, members };
+  const ruleInput = { regionName: book.regionName, mode: 'family', families: [stub] } as unknown as RegionEconomyInput;
+  const ruleReply = { lateFamily: { family: entry.familyRef, gear: members.map((m) => ({ member: m.ref })) } };
+  const ruleEntry = validateLateFamily(ruleInput, ruleReply, isTakenIn(book));
+  return ruleEntry ? ruleEntry.gear : [];
+}
+
+/**
  * One family's economy (D-47): the family drop and trophy (economy_item.familyId set), one gear piece
  * per member the entry covers (economy_item.enemyTemplateId = that member, familyId set; slotKey
- * gear:<templateId>), and for every member with no enemy_loot_entry rows its AI loot table from
+ * gear:<templateId>), rule gear for each member in entry.missingGearFor that still lacks loot (review
+ * B WR-01), and for every member with no enemy_loot_entry rows its AI loot table from
  * aiLootTable: the family drop and trophy, its own gear (gearId 0n when it has none, so no gear
  * entry) and the region's gatherables. The one writer for region mode, the late family and the rule
  * families. Every write is looked up first (slotKey, existing loot rows), so a re-run writes nothing
@@ -699,6 +724,29 @@ function writeFamily(
   for (const g of entry.gear) {
     // A member that already has its loot table keeps it; its gear would be an item nothing drops.
     if (!lacksLoot(tx, g.templateId)) continue;
+    const item = ensureItem(
+      book,
+      `gear:${g.templateId}`,
+      'gear',
+      gearTemplate({
+        name: g.name,
+        description: g.description,
+        slot: g.slot,
+        weaponType: g.weaponType,
+        armorType: g.armorType,
+        level: templateLevel(tx, g.templateId, familyLevel),
+        regionName: book.regionName,
+      }),
+      { kind: g.slot, enemyTemplateId: g.templateId, familyId },
+    );
+    gearIds.set(g.templateId, item.id);
+  }
+  // Review B WR-01 (D-47, draft B3): a member the reply gave no gear gets rule gear before its loot
+  // table is written, so it never ends up with a gearless table that no later pass would fill.
+  const missing = (entry.missingGearFor ?? []).filter(
+    (id) => !gearIds.has(id) && memberIds.indexOf(id) !== -1 && lacksLoot(tx, id),
+  );
+  for (const g of ruleGearFor(book, entry, missing)) {
     const item = ensureItem(
       book,
       `gear:${g.templateId}`,
