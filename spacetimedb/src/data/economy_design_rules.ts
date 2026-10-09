@@ -13,6 +13,7 @@
 import { CRAFTING_MODIFIER_DEFS, ESSENCE_TIER_THRESHOLDS, MATERIAL_DEFS, MODIFIER_REAGENT_THRESHOLDS } from './crafting_rules';
 import { STARTER_ITEM_NAMES } from './combat_constants';
 import { BASIC_RESOURCE_DEFS, JUNK_DEFS } from './equipment_rules';
+import { DENSITY_RULES } from './density_rules';
 import { serverRoleToPrompt } from './family_rules';
 import { QUALITY_TIERS, type QualityTier } from './mechanical_vocabulary';
 import {
@@ -299,6 +300,17 @@ export type RegionEconomySize = keyof typeof REGION_ECONOMY_SIZES;
  * today's counts: three gatherables and three recipes.
  */
 export const REGION_ECONOMY_SIZE: keyof typeof REGION_ECONOMY_SIZES = 'small';
+
+/**
+ * The economy size of a new region job by its charted places (D-10, Phase 51.3.1.2): 'medium' (five
+ * gatherables, five recipes) from DENSITY_RULES.ECONOMY_MEDIUM_MIN_PLACES places, else
+ * REGION_ECONOMY_SIZE. The uncharted doorway is not a charted place; the caller leaves it out. A
+ * fractional count reads as its floor; a negative or non-finite count reads as small.
+ */
+export function regionEconomySizeFor(placeCount: number): RegionEconomySize {
+  const count = typeof placeCount === 'number' && Number.isFinite(placeCount) ? Math.floor(placeCount) : 0;
+  return count >= DENSITY_RULES.ECONOMY_MEDIUM_MIN_PLACES ? 'medium' : REGION_ECONOMY_SIZE;
+}
 
 function sizeOf(size: string): (typeof REGION_ECONOMY_SIZES)[RegionEconomySize] {
   return Object.prototype.hasOwnProperty.call(REGION_ECONOMY_SIZES, size)

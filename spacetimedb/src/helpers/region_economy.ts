@@ -15,7 +15,6 @@ import {
   GATHER_SLOTS,
   REGION_ECONOMY_BIGINT_PATHS,
   REGION_ECONOMY_COUNTS,
-  REGION_ECONOMY_SIZE,
   dropRef,
   economyFamilies,
   enemyRef,
@@ -30,6 +29,7 @@ import {
   orderForeignRegions,
   recipeCountForSize,
   recipeTierSlotsForSize,
+  regionEconomySizeFor,
   regionalOutputTemplate,
   scrollTemplate,
   slotForeignIndexes,
@@ -94,6 +94,11 @@ export function regionLocations(tx: any, regionId: bigint): any[] {
   const out: any[] = [];
   for (const loc of tx.db.location.iter()) if (loc.regionId === regionId) out.push(loc);
   return out.sort((a, b) => compareBig(a.id, b.id));
+}
+
+/** The charted places of a region: its locations except the uncharted doorway (D-10). */
+export function chartedPlaceCount(tx: any, regionId: bigint): number {
+  return regionLocations(tx, regionId).filter((loc) => text(loc.terrainType).trim().toLowerCase() !== 'uncharted').length;
 }
 
 /** The distinct terrains of a region, lowercase, by location count descending then name; ['plains'] when none. */
@@ -267,7 +272,7 @@ export function economyDesignFamilies(tx: any, regionId: bigint): { designed: Re
 /**
  * The stored route input of a region, from database rows only. Region mode carries the creature
  * families the job designs (D-47; at most ECONOMY_DESIGN_FAMILIES_MAX, economyDesignFamilies) with
- * their members, the gatherable slots and recipe tier slots of the economy size (REGION_ECONOMY_SIZE;
+ * their members, the gatherable slots and recipe tier slots of the economy size (regionEconomySizeFor;
  * the tiers also depend on the number of other regions with a complete economy) and up to three
  * foreign regions (neighbors first) offering up to four materials each. It lists no 51.3 enemies
  * (Plan 25). Family mode (a family added after the region was designed) carries that one family as E1
@@ -310,9 +315,12 @@ export function buildRegionEconomyInput(
   }
 
   base.families = economyDesignFamilies(tx, regionId).designed;
-  base.gatherSlots = gatherSlotsForSize(REGION_ECONOMY_SIZE);
+  // D-10 (Phase 51.3.1.2): the size follows the region's charted places (the doorway not counted).
+  // Only a new region job reads it; a complete economy is never re-designed.
+  const size = regionEconomySizeFor(chartedPlaceCount(tx, regionId));
+  base.gatherSlots = gatherSlotsForSize(size);
   const candidates = foreignCandidates(tx, regionId);
-  const tiers = recipeTierSlotsForSize(BigInt(candidates.length), recipeCountForSize(REGION_ECONOMY_SIZE));
+  const tiers = recipeTierSlotsForSize(BigInt(candidates.length), recipeCountForSize(size));
   const take = Math.min(REGION_ECONOMY_COUNTS.maxForeignRegions, candidates.length);
   const picked = orderForeignRegions(regionId, candidates).slice(0, take);
   base.foreignRegions = picked.map((id) => ({ regionId: id, name: text(tx.db.region.id.find(id)?.name) }));

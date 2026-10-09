@@ -1159,7 +1159,7 @@ describe('purity', () => {
     const froms = [...source.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
     expect(froms.length).toBeGreaterThan(0);
     for (const f of froms) {
-      expect(f).toMatch(/^\.\/(recipe_rules|crafting_rules|equipment_rules|combat_constants|mechanical_vocabulary|family_rules)$/);
+      expect(f).toMatch(/^\.\/(recipe_rules|crafting_rules|equipment_rules|combat_constants|mechanical_vocabulary|family_rules|density_rules)$/);
     }
   });
 });
