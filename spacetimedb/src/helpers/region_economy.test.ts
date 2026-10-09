@@ -1058,14 +1058,15 @@ function addFillers(target: { enemy_template: any[]; location_enemy_template: an
   ];
 }
 
-describe('filler members stay out of the region economy (Plan 09, T-51.3.1.1-27)', () => {
-  it('regionEnemyTemplates and the region input list exactly the 2 real members of a migrated family', () => {
-    const seed = baseWorld();
-    addFillers(seed as any);
-    const ctx = ctxFor(seed);
-    expect(econ.regionEnemyTemplates(ctx, 1n).map((t: any) => t.id)).toEqual([101n, 102n]);
-    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
-    expect(input.enemies).toEqual([]);
+describe('the 51.3 per-template economy is gone from the source (Plan 25)', () => {
+  it('region_economy.ts no longer exports startEnemyLoot, startLateEnemies or regionEnemyTemplates', () => {
+    const mod = econ as Record<string, unknown>;
+    expect(mod.startEnemyLoot).toBeUndefined();
+    expect(mod.regionEnemyTemplates).toBeUndefined();
+    expect(typeof mod.startFamilyLoot).toBe('function');
+    const source = readFileSync(fileURLToPath(new URL('./region_economy.ts', import.meta.url)), 'utf8') as string;
+    expect(source).not.toMatch(/function startEnemyLoot|function startLateEnemies|function regionEnemyTemplates/);
+    expect(source).toMatch(/function startLateFamilies/);
   });
 });
 
@@ -1116,20 +1117,20 @@ describe('applyRegionEconomyResult: gatherables join the resource pools (Plan 09
     expect(rows(ctx, 'place_pool')).toHaveLength(before);
   });
 
-  it('the late-enemy follow-up enqueues nothing for filler members that joined while the job was pending', () => {
+  it('after a 51.3-shape apply, the follow-up is one family job per family with a member lacking loot, never one per member', () => {
     const ctx = ctxFor(poolWorldK0());
     const { job } = legacyRegionJob(ctx, 1n);
     const alice = { toHexString: () => 'a'.repeat(64) };
     const ownedJob = { ...job, playerId: alice, contextJson: JSON.stringify({ ...JSON.parse(job.contextJson), characterId: '10' }) };
-    // A migrated family's filler members appear while the region job is pending, and so does one real
-    // late enemy type (the Drowned Tollman, 103), the control that the follow-up does enqueue.
+    // A migrated family (1: 101, 102 and fillers 110, 111) appears while the region job is pending.
     addFillers(ctx.db._tables);
-    ctx.db._tables.location_enemy_template.push({ id: 52n, locationId: 12n, enemyTemplateId: 103n });
+    ctx.db._tables.creature_family = [familyRow(1n, 1n, 'Salt-Crust Skitterers', 'beast')];
     econ.applyRegionEconomyResult(ctx, ownedJob, k0ReplyOnTerrains());
     expect(econRowOf(ctx, 1n).status).toBe('complete');
-    // 101 and 102 got their loot from the reply; 110 and 111 are fillers: only 103 gets a late job.
+    // 101 and 102 got their loot from the reply; the fillers 110 and 111 did not: one job for family 1.
     const late = rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
-    expect(late.map((j: any) => JSON.parse(j.requestJson).enemyTemplateId)).toEqual(['103']);
+    expect(late.map((j: any) => [JSON.parse(j.requestJson).mode, JSON.parse(j.requestJson).familyId])).toEqual([['family', '1']]);
+    expect(JSON.parse(late[0].dedupeKey)[2]).toBe('family:1');
   });
 });
 
@@ -1758,6 +1759,52 @@ describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX familie
     expect(picked.ruleFamilyIds).toEqual([4n, 5n]);
     const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
     expect(input.families).toEqual(picked.designed);
+  });
+
+  it('after a family apply with the switch on: one family job per left-out family, none for designed families, deduped', () => {
+    const seed = familyApplyWorld();
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+    seed.llm_job = [];
+    seed.creature_family.push(familyRow(4n, 1n, 'Late Things', 'beast'));
+    seed.enemy_template.push(enemyRow(140n, 'Late Thing', 'beast', 1n), enemyRow(141n, 'Late Thing Mender', 'beast', 1n));
+    seed.family_member.push(
+      { id: 20n, familyId: 4n, enemyTemplateId: 140n, role: 'damage', filler: false },
+      { id: 21n, familyId: 4n, enemyTemplateId: 141n, role: 'healer', filler: true },
+    );
+    const ctx = ctxFor(seed);
+    const { job } = regionJob(ctx, 1n);
+    const alice = { toHexString: () => 'a'.repeat(64) };
+    const ownedJob = { ...job, playerId: alice, contextJson: JSON.stringify({ ...JSON.parse(job.contextJson), characterId: '10' }) };
+    // The reply designs only the Skitterers: the Sentinels (3 members) and the Late Things (2) lack loot.
+    const reply = familyEconomyReply();
+    reply.region.families = [SKITTER_FAMILY];
+    econ.applyRegionEconomyResult(ctx, ownedJob, JSON.stringify(reply));
+    const jobs = rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
+    expect(jobs.map((j: any) => JSON.parse(j.dedupeKey)[2])).toEqual(['family:2', 'family:4']);
+    for (const j of jobs) expect(JSON.parse(j.requestJson)).toMatchObject({ regionId: '1', mode: 'family', characterId: '10' });
+    expect(jobs.every((j: any) => j.budgetDay === '')).toBe(true);
+    // A second trigger finds the jobs still pending: deduped.
+    const family2 = ctx.db.creature_family.id.find(2n);
+    expect(econ.startFamilyLoot(ctx, family2, 1n, { playerId: alice, characterId: 10n })).toBe('duplicate');
+    expect(rows(ctx, 'llm_job')).toHaveLength(2);
+  });
+
+  it('startFamilyLoot gates: off, not ready, a family whose members all have loot, a missing region', () => {
+    const seed = familyApplyWorld('complete');
+    const who = { playerId: { toHexString: () => 'a'.repeat(64) }, characterId: 10n };
+    const off = ctxFor({ ...seed });
+    expect(econ.startFamilyLoot(off, off.db.creature_family.id.find(1n), 1n, who)).toBe('off');
+    const on = (s: Seed) => ({ ...s, economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }], llm_job: [] });
+    const pending = ctxFor(on(familyApplyWorld('pending')));
+    expect(econ.startFamilyLoot(pending, pending.db.creature_family.id.find(1n), 1n, who)).toBe('not_ready');
+    const looted = on(familyApplyWorld('complete'));
+    looted.enemy_loot_entry = [102n, 120n, 121n].map((id, i) => ({ id: BigInt(i + 1), enemyTemplateId: id, regionId: 1n, itemTemplateId: 5n, role: 'drop', weight: 1n }));
+    const lootedCtx = ctxFor(looted);
+    expect(econ.startFamilyLoot(lootedCtx, lootedCtx.db.creature_family.id.find(2n), 1n, who)).toBe('exists');
+    expect(econ.startFamilyLoot(lootedCtx, lootedCtx.db.creature_family.id.find(1n), 99n, who)).toBe('not_ready');
+    expect(econ.startFamilyLoot(lootedCtx, undefined, 1n, who)).toBe('no_region');
+    expect(rows(lootedCtx, 'llm_job')).toEqual([]);
+    expect(econ.startFamilyLoot(lootedCtx, lootedCtx.db.creature_family.id.find(1n), 1n, who)).toBe('enqueued');
   });
 
   it('the region job stores the rule families; the apply gives them rule-named drop, trophy and member gear and loot tables, with no late job', () => {

@@ -42,6 +42,7 @@ import { setLlmEnabled } from './llm_admin_state';
 import { utcDay } from './llm_budget';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { RENOWN_PERK_POOLS } from '../data/renown_data';
+import { DEFAULT_DIALS } from '../data/economy_rules';
 
 const T0 = 1_700_000_000_000_000n;
 
@@ -1897,6 +1898,46 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'family_member')).toEqual([]);
     expect(creaturePools(ctx)).toEqual([]);
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
+  });
+
+  // Plan 25 (D-47, D-54): the family of one gets the same late family job as any family (switch on,
+  // region economy complete); boss_kill keeps no family and no job.
+  const economyOn = (complete = true): Record<string, any[]> => ({
+    economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }],
+    region_economy: complete
+      ? [{ regionId: 1n, status: 'complete', jobId: 1n, otherRegionIds: '[]', createdAt: ts(T0 - 10n), updatedAt: ts(T0 - 10n) }]
+      : [],
+    llm_job: [],
+  });
+  const familyJobs = (ctx: any) =>
+    rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy' && JSON.parse(j.requestJson).mode === 'family');
+
+  it.each(['kill', 'kill_loot'])('%s with the AI economy on: one family-mode job for the family of one (family:<id>)', (questType) => {
+    const ctx = strictCtx(questSeed(false, economyOn()));
+    applyNpcConversationResult(ctx, npcJob, killReply(questType, 'Gloomfang'));
+    const template = invented(ctx);
+    const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
+    const jobs = familyJobs(ctx);
+    expect(jobs).toHaveLength(1);
+    expect(JSON.parse(jobs[0].dedupeKey)[2]).toBe(`family:${family.id}`);
+    expect(JSON.parse(jobs[0].requestJson)).toMatchObject({ regionId: '1', mode: 'family', familyId: String(family.id), characterId: '10' });
+    expect(rows(ctx, 'llm_job').filter((j: any) => JSON.parse(j.requestJson).mode === 'enemy')).toEqual([]);
+  });
+
+  it('kill with the AI economy off, or the region not designed: no job', () => {
+    for (const extra of [{}, { ...economyOn(), economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: false }] }, economyOn(false)]) {
+      const ctx = strictCtx(questSeed(false, extra));
+      applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+      expect(invented(ctx)).toBeTruthy();
+      expect(rows(ctx, 'llm_job')).toEqual([]);
+    }
+  });
+
+  it('boss_kill with the AI economy on: no family and no job', () => {
+    const ctx = strictCtx(questSeed(false, economyOn()));
+    applyNpcConversationResult(ctx, npcJob, killReply('boss_kill', 'Gloomfang'));
+    expect(rows(ctx, 'creature_family')).toEqual([]);
+    expect(rows(ctx, 'llm_job')).toEqual([]);
   });
 
   it('kill naming an existing template linked here creates no new family', () => {

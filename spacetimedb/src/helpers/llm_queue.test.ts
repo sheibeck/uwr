@@ -244,6 +244,7 @@ describe('buildDedupeKey and SOURCE_KEYS', () => {
     expect(SOURCE_KEYS.smokeTest()).toBe('smoke');
     expect(SOURCE_KEYS.regionEconomy(4097n)).toBe('region:4097');
     expect(SOURCE_KEYS.enemyLoot(12n)).toBe('enemy:12');
+    expect(SOURCE_KEYS.familyLoot(12n)).toBe('family:12');
     expect(Object.isFrozen(SOURCE_KEYS)).toBe(true);
   });
 

@@ -153,7 +153,11 @@ describe('fill hook: on', () => {
     expect(req).toMatchObject({ regionId: '1', mode: 'region', enemyTemplateId: '0', characterId: '10' });
     const expected = encodeRouteInput(econ.buildRegionEconomyInput(ctx, ctx.db.region.id.find(1n), 'region'));
     expect(req.input).toEqual(JSON.parse(JSON.stringify(expected)));
-    expect(req.input.enemies.map((e: any) => e.name)).toEqual(['Ember Wolf', 'Slag Caster']);
+    // Plan 25: the job speaks in families (the fill's rule families with their members), no 51.3 enemies.
+    expect(req.input.enemies).toEqual([]);
+    const memberNames = req.input.families.flatMap((f: any) => f.members.map((m: any) => m.name));
+    expect(memberNames).toEqual(expect.arrayContaining(['Ember Wolf', 'Slag Caster']));
+    expect(req.ruleFamilyIds).toEqual([]);
 
     expect(econDispatches(ctx)).toHaveLength(1);
     const econRows = rows(ctx, 'region_economy');
@@ -269,20 +273,22 @@ const killOffer = JSON.stringify({
   internalThought: '',
 });
 
-describe('late-enemy hook: npc_conversation creates an enemy type', () => {
-  it('switch on and region complete: one enemy-mode job (enemy:<id>, phase_only)', () => {
+describe('quest family hook: npc_conversation invents a kill target (D-54)', () => {
+  it('switch on and region complete: one family-mode job for its family of one (family:<id>, phase_only)', () => {
     const ctx = ctxFor(npcSeed('complete', dialsOn()));
     apply.applyLlmResult(ctx, npcJob(), killOffer);
     const et = rows(ctx, 'enemy_template');
     expect(et).toHaveLength(1);
+    const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${et[0].id}`);
+    expect(family).toBeTruthy();
     const jobs = econJobs(ctx);
     expect(jobs).toHaveLength(1);
-    expect(JSON.parse(jobs[0].dedupeKey)[2]).toBe(`enemy:${et[0].id}`);
+    expect(JSON.parse(jobs[0].dedupeKey)[2]).toBe(`family:${family.id}`);
     expect(jobs[0].budgetDay).toBe('');
     const req = requestOf(jobs[0]);
-    expect(req).toMatchObject({ regionId: '1', mode: 'enemy', enemyTemplateId: String(et[0].id) });
-    expect(req.input.enemies.map((e: any) => e.name)).toEqual(['Cellar Undead Rat']);
-    // The region row is not touched by an enemy job.
+    expect(req).toMatchObject({ regionId: '1', mode: 'family', familyId: String(family.id), characterId: '10' });
+    expect(req.input.families.map((f: any) => f.members.map((m: any) => m.name))).toEqual([['Cellar Undead Rat']]);
+    // The region row is not touched by a family job.
     expect(rows(ctx, 'region_economy')[0]).toMatchObject({ status: 'complete', jobId: 1n });
   });
 
@@ -300,12 +306,14 @@ describe('late-enemy hook: npc_conversation creates an enemy type', () => {
     expect(econJobs(ctx)).toHaveLength(0);
   });
 
-  it('startEnemyLoot refuses an enemy that already has loot entries', () => {
+  it('startFamilyLoot refuses a family whose members all have loot entries', () => {
     const seed = npcSeed('complete', dialsOn());
     seed.enemy_template = [{ id: 60n, name: 'Wolf', level: 3n, creatureType: 'beast' }];
+    seed.creature_family = [{ id: 7n, regionId: 1n, key: '1:beast', name: 'Wolves', singularNoun: 'wolf', pluralNoun: 'wolves', temperament: 'wary', iconKey: 'beast', creatureType: 'beast', ambushVerb: '', ambushRest: '', fitTerrains: 'plains' }];
+    seed.family_member = [{ id: 1n, familyId: 7n, enemyTemplateId: 60n, role: 'damage', filler: false }];
     seed.enemy_loot_entry = [{ id: 1n, enemyTemplateId: 60n, regionId: 1n, itemTemplateId: 5n, role: 'drop', weight: 1n }];
     const ctx = ctxFor(seed);
-    expect(econ.startEnemyLoot(ctx, ctx.db.enemy_template.id.find(60n), 1n, { playerId: alice, characterId: 10n })).toBe('exists');
+    expect(econ.startFamilyLoot(ctx, ctx.db.creature_family.id.find(7n), 1n, { playerId: alice, characterId: 10n })).toBe('exists');
     expect(econJobs(ctx)).toHaveLength(0);
   });
 });
@@ -314,7 +322,15 @@ describe('late-enemy hook: npc_conversation creates an enemy type', () => {
 // Task 1: dispatch and the follow-up after a region apply
 // ---------------------------------------------------------------------------
 
-/** Kesterlane Basin (region 1): two enemies (101, 102) for the region_k0 reply, and 103 joins while pending. */
+const familyRow = (id: bigint, name: string) => ({
+  id, regionId: 1n, key: `1:f${id}`, name, singularNoun: 'creature', pluralNoun: 'creatures', temperament: 'aggressive',
+  iconKey: 'beast', creatureType: 'beast', ambushVerb: '', ambushRest: '', fitTerrains: 'swamp',
+});
+
+/**
+ * Kesterlane Basin (region 1): two families of one, the Skitterers (1: 101) and the Sentinels (2: 102),
+ * for a family reply; the Tollmen (3: 103) can join while the region job is pending.
+ */
 function kesterlaneSeed(extra: Seed = {}): Seed {
   const enemy = (id: bigint, name: string, creatureType: string, level: bigint) => ({
     id, name, role: 'damage', roleDetail: '', abilityProfile: '', terrainTypes: 'swamp', creatureType, timeOfDay: 'any',
@@ -334,8 +350,43 @@ function kesterlaneSeed(extra: Seed = {}): Seed {
       { id: 2n, locationId: 12n, enemyTemplateId: 102n },
     ],
     enemy_template: [enemy(101n, 'Salt-Crust Skitterer', 'beast', 1n), enemy(102n, 'Brine Sentinel', 'construct', 2n), enemy(103n, 'Drowned Tollman', 'undead', 2n)],
+    creature_family: [familyRow(1n, 'Salt-Crust Skitterers'), familyRow(2n, 'Brine Sentinels')],
+    family_member: [
+      { id: 1n, familyId: 1n, enemyTemplateId: 101n, role: 'damage', filler: false },
+      { id: 2n, familyId: 2n, enemyTemplateId: 102n, role: 'damage', filler: false },
+    ],
     ...extra,
   };
+}
+
+/** A family-shape reply (draft B3) for a stored region input: names from fixed lists, gear for every member. */
+function familyReplyFor(input: any): string {
+  const DROPS = ['Skitter Chitin', 'Sentinel Rivet', 'Ember Hide', 'Slag Rivet'];
+  const TROPHIES = ['Skitterer Eyestalk', 'Tide Seal', 'Ember Fang', 'Slag Eye'];
+  const GEAR = ['Pincer Blade', 'Halberd Axe', 'Ember Claw', 'Slag Wand', 'Ash Greaves', 'Cinder Boots', 'Coal Jerkin', 'Soot Pants'];
+  let g = 0;
+  const families = input.families.map((f: any, i: number) => ({
+    family: f.ref,
+    drop: { name: DROPS[i], kind: 'hide', description: 'A drop.' },
+    trophy: { name: TROPHIES[i], description: 'A trophy.' },
+    gear: f.members.map((m: any) => ({ member: m.ref, name: GEAR[g++] ?? '', slot: 'weapon', weaponType: 'sword', armorType: 'none', description: 'Gear.' })),
+  }));
+  return JSON.stringify({
+    region: {
+      gatherables: [
+        { name: 'Panlight Salt', kind: 'base', terrain: input.terrains[0], description: 'Salt.' },
+        { name: 'Brinewort', kind: 'edible', terrain: input.terrains[0], description: 'A leaf.' },
+        { name: 'Undercroft Quartz', kind: 'trinket', terrain: input.terrains[0], description: 'A stone.' },
+      ],
+      families,
+      recipes: [
+        { name: 'Chitin Jerkin', category: 'armor', description: 'A jerkin.', materials: ['D:E1', 'G1'] },
+        { name: 'Brinewort Broth', category: 'consumable', description: 'A broth.', materials: ['G2', 'G1'] },
+        { name: 'Quartz Pendant', category: 'accessory', description: 'A pendant.', materials: ['G3', 'G1'] },
+      ],
+    },
+    lateFamily: null,
+  });
 }
 
 /** Starts the region job through startRegionEconomy (the real enqueue) and returns the stored job row. */
@@ -353,7 +404,7 @@ const toApply = (job: any) => ({ domain: job.route, playerId: job.playerId, cont
 describe('applyLlmResult / applyLlmFailure dispatch region_economy', () => {
   it('a success writes the region economy (status complete) and no player line', () => {
     const { ctx, job } = startedRegion();
-    apply.applyLlmResult(ctx, toApply(job), replyText('region_k0'));
+    apply.applyLlmResult(ctx, toApply(job), familyReplyFor(requestOf(job).input));
     expect(rows(ctx, 'region_economy')[0]).toMatchObject({ regionId: 1n, status: 'complete', jobId: job.id });
     expect(rows(ctx, 'economy_item').length).toBeGreaterThan(0);
     expect(rows(ctx, 'recipe_template').length).toBe(3);
@@ -367,25 +418,32 @@ describe('applyLlmResult / applyLlmFailure dispatch region_economy', () => {
     expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 
-  it('follow-up: an enemy that joined while the region was pending gets one enemy-mode job after the apply', () => {
+  it('follow-up: a family that joined while the region was pending gets one family-mode job after the apply', () => {
     const { ctx, job } = startedRegion();
-    // The Drowned Tollman (103) moves in while the job is pending.
-    ctx.db._tables.location_enemy_template.push({ id: 3n, locationId: 12n, enemyTemplateId: 103n });
-    apply.applyLlmResult(ctx, toApply(job), replyText('region_k0'));
+    // The Tollmen (family 3: 103 and a filler mender 104) join while the job is pending.
+    ctx.db._tables.enemy_template.push({ ...ctx.db._tables.enemy_template[2], id: 104n, name: 'Drowned Mender', role: 'healer' });
+    ctx.db._tables.creature_family.push(familyRow(3n, 'Drowned Tollmen'));
+    ctx.db._tables.family_member.push(
+      { id: 3n, familyId: 3n, enemyTemplateId: 103n, role: 'damage', filler: false },
+      { id: 4n, familyId: 3n, enemyTemplateId: 104n, role: 'healer', filler: true },
+    );
+    apply.applyLlmResult(ctx, toApply(job), familyReplyFor(requestOf(job).input));
     expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
-    const enemyJobs = econJobs(ctx).filter((j: any) => requestOf(j).mode === 'enemy');
-    expect(enemyJobs).toHaveLength(1);
-    expect(JSON.parse(enemyJobs[0].dedupeKey)[2]).toBe('enemy:103');
-    expect(requestOf(enemyJobs[0])).toMatchObject({ regionId: '1', enemyTemplateId: '103', characterId: '10' });
-    expect(enemyJobs[0].characterId).toBe(10n);
-    // 101 and 102 got loot entries from the region apply: no job for them.
+    const familyJobs = econJobs(ctx).filter((j: any) => requestOf(j).mode === 'family');
+    // One job for the family, not one per member.
+    expect(familyJobs).toHaveLength(1);
+    expect(JSON.parse(familyJobs[0].dedupeKey)[2]).toBe('family:3');
+    expect(requestOf(familyJobs[0])).toMatchObject({ regionId: '1', familyId: '3', characterId: '10' });
+    expect(familyJobs[0].characterId).toBe(10n);
+    // Families 1 and 2 got loot entries from the region apply: no job for them.
     expect(econJobs(ctx)).toHaveLength(2);
   });
 
   it('follow-up: none when the switch is off', () => {
     const { ctx, job } = startedRegion(dialsOff());
-    ctx.db._tables.location_enemy_template.push({ id: 3n, locationId: 12n, enemyTemplateId: 103n });
-    apply.applyLlmResult(ctx, toApply(job), replyText('region_k0'));
+    ctx.db._tables.creature_family.push(familyRow(3n, 'Drowned Tollmen'));
+    ctx.db._tables.family_member.push({ id: 3n, familyId: 3n, enemyTemplateId: 103n, role: 'damage', filler: false });
+    apply.applyLlmResult(ctx, toApply(job), familyReplyFor(requestOf(job).input));
     expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
     expect(econJobs(ctx)).toHaveLength(1);
   });
@@ -431,12 +489,16 @@ function claudeReply(text: string): any {
 
 describe('end to end: fill, then the real llm_run path with a scripted fetch', () => {
   it("writes the region's economy (status complete); the scripted fetch was the only fetch", () => {
+    // A probe fill on a plain context builds the same stored region input (same seed, same clock).
+    const probe = ctxFor(fillSeed({ economy_dials: dialsOn() }));
+    apply.applyLlmResult(probe, fillJob(), FILL_TEXT);
+    const probeInput = requestOf(econJobs(probe)[0]).input;
     const proc = createMockProcCtx({
       seed: fillSeed({ economy_dials: dialsOn(), llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: ts(T0) }] }),
       timestampMicros: T0,
-      // The route schema's top-level keys are region and lateFamily since Plan 24 (claude_request fails a
-      // reply missing one); the 51.3 region reply still validates through the 51.3 apply until Plan 25.
-      responses: [claudeReply(JSON.stringify({ ...JSON.parse(replyText('region_k0')), lateFamily: null }))],
+      // The canned family reply answers the stored input (the probe fill above builds the same one); the
+      // route schema's top-level keys are region and lateFamily (claude_request fails a reply missing one).
+      responses: [claudeReply(familyReplyFor(probeInput))],
       strict: true,
     });
     proc.ctx.withTx((tx: any) => apply.applyLlmResult(tx, fillJob(), FILL_TEXT));
@@ -444,6 +506,7 @@ describe('end to end: fill, then the real llm_run path with a scripted fetch', (
     expect(prow('world_gen_state')[0].step).toBe('COMPLETE');
     const jobs = prow('llm_job').filter((j: any) => j.route === 'region_economy');
     expect(jobs).toHaveLength(1);
+    expect(requestOf(jobs[0]).input).toEqual(probeInput);
     expect(prow('region_economy')[0]).toMatchObject({ regionId: 1n, status: 'pending', jobId: jobs[0].id });
 
     // What the scheduler does before running llm_run: delete the dispatch row and hand it over.
@@ -468,7 +531,7 @@ describe('end to end: fill, then the real llm_run path with a scripted fetch', (
     expect(prow('economy_item').filter((r: any) => r.regionId === 1n).length).toBeGreaterThanOrEqual(9);
     expect(prow('enemy_loot_entry').length).toBeGreaterThan(0);
     expect(prow('region_recipe')).toHaveLength(3);
-    // Both creatures were designed: no follow-up job, so nothing else can call out.
+    // Every family (fillers included) was designed: no follow-up job, so nothing else can call out.
     expect(prow('llm_job').filter((j: any) => j.route === 'region_economy')).toHaveLength(1);
   });
 });
