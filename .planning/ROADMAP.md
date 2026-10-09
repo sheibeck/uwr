@@ -1975,6 +1975,7 @@ Plans:
 - **Full calendar** (owner): days, months and years, named months and weekdays, and seasons.
 - **The world starts on a random calendar date** (owner): players enter the world in medias res.
 - **Weather system** (owner): weather by region and time, which can affect combat, the harvestable materials available, and which enemies appear in a zone at that time.
+- **Followed by 999.34** (owner, 2026-10-09): day, night and weather change which creature families and resources a place holds; it goes after this item.
 - **Players can see the date, the weather and the time** (owner). The UI shows day or night today.
 - Unit tests: day and night lengths, the date computed from timestamps, the random start date, the transition schedule, weather selection, and the time and look output.
 
