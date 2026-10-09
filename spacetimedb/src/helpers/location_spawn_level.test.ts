@@ -173,14 +173,6 @@ describe('a place no enemy type fits (Mother Pan Undercroft, +4)', () => {
     }
   });
 
-  it('respawnLocationSpawns leaves only level 5 spawns', () => {
-    const ctx = build({ spawns: [spawnRow(20n, 1n)] });
-    loc.respawnLocationSpawns(ctx, 5n, 3);
-    const rows = spawnsAt(ctx, 5n);
-    expect(rows.length).toBe(3);
-    for (const row of rows) expect((row as any).level).toBe(5n);
-  });
-
   it('spawnEnemyWithTemplate gives level 5', () => {
     const ctx = build();
     const spawn = loc.spawnEnemyWithTemplate(ctx, 5n, 1n) as any;
@@ -222,7 +214,7 @@ describe('ensureAvailableSpawn reads the spawn level', () => {
   });
 });
 
-describe('ensureSpawnsForLocation re-levels legacy spawns on arrival', () => {
+describe('relevelLegacySpawns re-levels legacy spawns', () => {
   it('re-levels available legacy rows only; engaged and event rows are left alone', () => {
     const ctx = build({
       withPlayer: true,
@@ -236,7 +228,7 @@ describe('ensureSpawnsForLocation re-levels legacy spawns on arrival', () => {
       ],
       eventSpawnIds: [43n],
     });
-    loc.ensureSpawnsForLocation(ctx, 5n);
+    loc.relevelLegacySpawns(ctx, 5n);
     const byId = (id: bigint) => ctx.db.enemy_spawn.id.find(id) as any;
     expect(byId(40n).level).toBe(5n);
     expect(byId(41n).level).toBe(4n);
@@ -246,7 +238,7 @@ describe('ensureSpawnsForLocation re-levels legacy spawns on arrival', () => {
 
   it('does not touch a row that already has a positive level', () => {
     const ctx = build({ withPlayer: true, spawns: [spawnRow(44n, 1n, { level: 6n })] });
-    loc.ensureSpawnsForLocation(ctx, 5n);
+    loc.relevelLegacySpawns(ctx, 5n);
     expect((ctx.db.enemy_spawn.id.find(44n) as any).level).toBe(6n);
   });
 });

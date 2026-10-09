@@ -159,7 +159,7 @@ describe('both paths behave the same', () => {
 describe('pickUpQuestItem (helper)', () => {
   function stubs() {
     return {
-      ensureSpawnsForLocation: vi.fn(),
+      ensurePoolsForLocation: vi.fn(),
       effectiveGroupId: vi.fn(() => undefined),
       startCombatForSpawn: vi.fn(),
     };
@@ -175,7 +175,7 @@ describe('pickUpQuestItem (helper)', () => {
     expect(rollOf(ctx.timestamp.microsSinceUnixEpoch)).toBe(29n);
     const aggro = stubs();
     pickUpQuestItem(ctx, rows(ctx, 'character')[0], rows(ctx, 'quest_item')[0], append, aggro);
-    expect(aggro.ensureSpawnsForLocation).toHaveBeenCalledWith(ctx, 10n);
+    expect(aggro.ensurePoolsForLocation).toHaveBeenCalledWith(ctx, 10n);
     expect(aggro.startCombatForSpawn).toHaveBeenCalledTimes(1);
     const [, leader, spawn, participants, groupId] = aggro.startCombatForSpawn.mock.calls[0];
     expect(leader.id).toBe(1n);
@@ -189,7 +189,7 @@ describe('pickUpQuestItem (helper)', () => {
     expect(rollOf(ctx.timestamp.microsSinceUnixEpoch)).toBe(30n);
     const aggro = stubs();
     pickUpQuestItem(ctx, rows(ctx, 'character')[0], rows(ctx, 'quest_item')[0], append, aggro);
-    expect(aggro.ensureSpawnsForLocation).not.toHaveBeenCalled();
+    expect(aggro.ensurePoolsForLocation).not.toHaveBeenCalled();
     expect(aggro.startCombatForSpawn).not.toHaveBeenCalled();
   });
 

@@ -20,7 +20,7 @@ const GUARD = 'if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString
 const SCHEDULED: Array<{ name: string; file: string; arg: any; touchesDb: boolean }> = [
   { name: 'regen_health', file: './combat.ts', arg: { scheduledId: 1n }, touchesDb: true },
   { name: 'tick_casts', file: './combat.ts', arg: { scheduledId: 1n }, touchesDb: true },
-  { name: 'respawn_enemy', file: './combat.ts', arg: { scheduledId: 1n, locationId: 10n }, touchesDb: true },
+  { name: 'respawn_enemy', file: './combat.ts', arg: { scheduledId: 1n, locationId: 10n }, touchesDb: false }, // drains since 51.3.1.1-08
   { name: 'tick_bard_songs', file: './combat.ts', arg: { scheduledId: 1n, bardCharacterId: 1n }, touchesDb: true },
   { name: 'tick_effects', file: './combat.ts', arg: { scheduledId: 1n }, touchesDb: false },
   { name: 'tick_hot', file: './combat.ts', arg: { scheduledId: 1n }, touchesDb: false },
