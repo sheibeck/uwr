@@ -249,6 +249,7 @@ describe('runHunters: the light background hunter (D-21)', () => {
     const goblins = rows(ctx, 'place_pool').find((r: any) => r.kind === 'creature' && r.refId === GOBLINS_ID);
     const skitterers = rows(ctx, 'place_pool').find((r: any) => r.kind === 'creature' && r.refId === SKITTERERS_ID);
     let activeChecks = 0;
+    let seededActive = 0;
     let overrunPicks = 0;
     let stablePicks = 0;
     const first = T0 / HUNT + 1n;
@@ -261,13 +262,22 @@ describe('runHunters: the light background hunter (D-21)', () => {
       const g = poolRow(ctx, goblins.id).count;
       const s = poolRow(ctx, skitterers.id).count;
       if (g !== 75n || s !== 50n) activeChecks += 1;
+      if (hunterActive(poolSeed(REGION_ID, k))) seededActive += 1;
       if (g !== 75n) overrunPicks += 1;
       if (s !== 50n) stablePicks += 1;
     }
     const pct = DENSITY_RULES.HUNTER_ACTIVITY_PCT;
     expect(pct).toBeLessThanOrEqual(30); // low by default
-    expect(activeChecks).toBeGreaterThanOrEqual(pct - 12);
-    expect(activeChecks).toBeLessThanOrEqual(pct + 12);
+    // The tick acts exactly on the checks whose region seed is active.
+    expect(activeChecks).toBe(seededActive);
+    expect(activeChecks).toBeGreaterThan(0);
+    expect(activeChecks).toBeLessThan(50);
+    // Across ten regions over the same 100 intervals, the active share is near HUNTER_ACTIVITY_PCT.
+    let regionChecks = 0;
+    for (let regionId = 1n; regionId <= 10n; regionId += 1n) {
+      for (let k = first; k < first + 100n; k += 1n) if (hunterActive(poolSeed(regionId, k))) regionChecks += 1;
+    }
+    expect(Math.abs(regionChecks / 10 - pct)).toBeLessThanOrEqual(5);
     expect(overrunPicks + stablePicks).toBe(activeChecks * DENSITY_RULES.HUNTER_PLACES_PER_REGION);
     expect(overrunPicks).toBeGreaterThan(stablePicks);
   });
