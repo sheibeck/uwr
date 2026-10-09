@@ -53,6 +53,8 @@ const PET_BASE_DAMAGE = 3n;
 const DEFAULT_AI_CHANCE = 50;
 const DEFAULT_AI_WEIGHT = 50;
 const DEFAULT_AI_RANDOMNESS = 15;
+// Unused since the careful pull was retired (Phase 51.3.1.1 D-12); kept for a careful-pull ability in
+// 999.4, with WIS_PULL_BONUS_PER_POINT and the pull_veil effect (Pitfall 9).
 const PULL_DELAY_CAREFUL = 2_000_000n;
 const PULL_DELAY_BODY = 1_000_000n;
 const PULL_ADD_DELAY_ROUNDS = 2n;
@@ -394,7 +396,6 @@ export const registerCombatReducers = (deps: any) => {
     appendPrivateEvent,
     appendGroupEvent,
     activeCombatIdForCharacter,
-    ensureAvailableSpawn,
     computeEnemyStats,
     sumCharacterEffect,
     sumEnemyEffect,
@@ -587,14 +588,6 @@ export const registerCombatReducers = (deps: any) => {
         ctx.db.combat_enemy_cooldown.id.delete(row.id);
       }
     }
-  };
-
-  const schedulePullResolve = (ctx: any, pullId: bigint, resolveAtMicros: bigint) => {
-    ctx.db.pull_tick.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(resolveAtMicros),
-      pullId,
-    });
   };
 
   const updateQuestProgressForKill = (
@@ -993,14 +986,15 @@ export const registerCombatReducers = (deps: any) => {
       }
     }
 
+    // Individual spawns only (event spawns, named and other individuals): ordinary creatures live in
+    // density pools and are pulled with pull_family (Phase 51.3.1.1 D-12, SC3). A missing or busy
+    // spawn is a refusal; no ordinary enemy is ever spawned here.
     const spawn = ctx.db.enemy_spawn.id.find(args.enemySpawnId);
-    let desiredLevel = 1n;
-    const spawnToUse =
-      spawn && spawn.locationId === locationId && spawn.state === 'available'
-        ? spawn
-        : ensureAvailableSpawn(ctx, locationId, desiredLevel);
+    if (!spawn || spawn.locationId !== locationId || spawn.state !== 'available') {
+      return failCombat(ctx, character, 'That enemy is not here to fight.');
+    }
 
-    startCombatForSpawn(deps, ctx, character, spawnToUse, participants, groupId);
+    startCombatForSpawn(deps, ctx, character, spawn, participants, groupId);
   });
 
   spacetimedb.reducer(
@@ -1048,21 +1042,16 @@ export const registerCombatReducers = (deps: any) => {
       if (activeGather) {
         return failCombat(ctx, character, 'Cannot pull while gathering');
       }
-      // Mid-combat pulling allowed — resolve_pull handles adding to existing fight
+      // The careful pull is retired (D-12): a careful single pull may return as an ability in 999.4.
+      // start_pull stays for the client until Plan 27 and now starts the individual's fight at once:
+      // no pull_state, no pull_tick, no WIS or pull_veil odds.
+      if (activeCombatIdForCharacter(ctx, character.id)) {
+        return failCombat(ctx, character, 'Already in combat');
+      }
       const locationId = character.locationId;
       const pullType = args.pullType.trim().toLowerCase();
       if (pullType !== 'careful' && pullType !== 'body') {
         return failCombat(ctx, character, 'Invalid pull type');
-      }
-
-      // Anyone in a group can pull (puller restriction removed)
-      const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
-      let groupId: bigint | null = membership ? membership.groupId : null;
-
-      for (const pull of ctx.db.pull_state.by_character.filter(character.id)) {
-        if (pull.state === 'pending') {
-          return failCombat(ctx, character, 'Pull already in progress');
-        }
       }
 
       const spawn = ctx.db.enemy_spawn.id.find(args.enemySpawnId);
@@ -1070,32 +1059,10 @@ export const registerCombatReducers = (deps: any) => {
         return failCombat(ctx, character, 'Enemy is not available to pull');
       }
 
-      ctx.db.enemy_spawn.id.update({ ...spawn, state: 'pulling' });
-
-      const delayMicros = pullType === 'careful' ? PULL_DELAY_CAREFUL : PULL_DELAY_BODY;
-      const resolveAt = ctx.timestamp.microsSinceUnixEpoch + delayMicros;
-      const pull = ctx.db.pull_state.insert({
-        id: 0n,
-        characterId: character.id,
-        groupId: groupId ?? undefined,
-        locationId,
-        enemySpawnId: spawn.id,
-        pullType,
-        state: 'pending',
-        outcome: undefined,
-        delayedAdds: undefined,
-        delayedAddsAtMicros: undefined,
-        createdAt: ctx.timestamp,
-      });
-      schedulePullResolve(ctx, pull.id, resolveAt);
-
-      logPrivateAndGroup(
-        ctx,
-        character,
-        'system',
-        `You begin a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`,
-        `${character.name} begins a ${pullType === 'careful' ? 'Careful Pull' : 'Body Pull'} on ${spawn.name}.`
-      );
+      const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
+      const groupId: bigint | null = membership ? membership.groupId : null;
+      const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
+      startCombatForSpawn(deps, ctx, character, spawn, participants, groupId);
     }
   );
 
@@ -1121,219 +1088,14 @@ export const registerCombatReducers = (deps: any) => {
   scheduledReducers['resolve_pull'] = spacetimedb.reducer('resolve_pull', { arg: PullTick.rowType }, (ctx, { arg }) => {
     // Scheduled reducers are callable by clients: only the module itself may resolve a pull.
     if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
+    // The careful pull is retired (D-12): nothing schedules a pull any more. An old pending pull
+    // drains here: its row goes and a spawn it held is released; no fight starts. The reducer and its
+    // tables stay registered (Pitfall 9) until Plan 27.
     const pull = ctx.db.pull_state.id.find(arg.pullId);
-    if (!pull || pull.state !== 'pending') return;
-
-    const character = ctx.db.character.id.find(pull.characterId);
+    if (!pull) return;
     const spawn = ctx.db.enemy_spawn.id.find(pull.enemySpawnId);
-    if (!character || !spawn || spawn.locationId !== pull.locationId) {
-      if (spawn && spawn.state === 'pulling') {
-        ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
-      }
-      ctx.db.pull_state.id.delete(pull.id);
-      return;
-    }
-    const existingCombatId = activeCombatIdForCharacter(ctx, character.id);
-    if (existingCombatId) {
-      // Mid-combat pull: add new enemies to existing combat
-      const combat = ctx.db.combat_encounter.id.find(existingCombatId);
-      if (combat) {
-        const existingParticipants = [...ctx.db.combat_participant.by_combat.filter(existingCombatId)]
-          .map((p: any) => ctx.db.character.id.find(p.characterId))
-          .filter(Boolean);
-
-        addEnemyToCombat(deps, ctx, combat, spawn, existingParticipants);
-
-        logPrivateAndGroup(ctx, character, 'combat',
-          `You pull ${spawn.name} into the existing fight!`,
-          `${character.name} pulls ${spawn.name} into the fight!`);
-
-        ctx.db.pull_state.id.update({ ...pull, state: 'resolved', outcome: 'success' });
-        return;
-      }
-      // Combat disappeared between check and lookup — fall through to start fresh
-    }
-
-    const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
-    if (!template) {
+    if (spawn && spawn.state === 'pulling') {
       ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
-      ctx.db.pull_state.id.delete(pull.id);
-      return;
-    }
-
-    const candidates = PULL_ALLOW_EXTERNAL_ADDS
-      ? [...ctx.db.enemy_spawn.by_location.filter(pull.locationId)]
-        .filter((row) => row.id !== spawn.id && row.state === 'available')
-        .map((row) => ({
-          spawn: row,
-          template: ctx.db.enemy_template.id.find(row.enemyTemplateId),
-        }))
-        .filter(
-          (row) =>
-            row.template &&
-            row.template.isSocial === true &&
-            row.template.id === template.id
-        )
-      : [];
-
-    const targetRadius = Number(template.socialRadius ?? 0n);
-    const overlapPressure = targetRadius + candidates.length;
-    let success = pull.pullType === 'careful' ? 80 : 40;
-    let partial = pull.pullType === 'careful' ? 15 : 30;
-    let fail = 100 - success - partial;
-    const pressurePenalty = Math.min(30, overlapPressure * 5);
-    success -= pressurePenalty;
-    fail += pressurePenalty;
-    const veil = deps.sumCharacterEffect(ctx, character.id, 'pull_veil');
-    if (veil > 0n) {
-      success = Math.min(95, success + 15);
-      fail = Math.max(5, fail - 15);
-      for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
-        if (effect.effectType === 'pull_veil') ctx.db.character_effect.id.delete(effect.id);
-      }
-    }
-    const awarenessAlert =
-      template.awareness?.toLowerCase() === 'alert' ||
-      candidates.some((row) => row.template?.awareness?.toLowerCase() === 'alert');
-    if (awarenessAlert) {
-      success = Math.max(5, success - 10);
-      fail = Math.min(95, fail + 10);
-    }
-    partial = Math.max(5, 100 - success - fail);
-
-    // WIS off-stat hook: WIS shifts pull success% up and fail% down (same pattern as pull_veil)
-    const wisOffset = Number(statOffset(character.wis, WIS_PULL_BONUS_PER_POINT));
-    if (wisOffset !== 0) {
-      success = Math.min(95, Math.max(5, success + wisOffset));
-      fail = Math.max(5, Math.min(95, fail - wisOffset));
-      // partial is the remainder (100 - success - fail), not adjusted directly
-    }
-
-    const roll =
-      Number(
-        (ctx.timestamp.microsSinceUnixEpoch + spawn.id + character.id) % 100n
-      );
-    let outcome: 'success' | 'partial' | 'failure' = 'success';
-    if (roll < success) {
-      outcome = 'success';
-    } else if (roll < success + partial) {
-      outcome = 'partial';
-    } else {
-      outcome = 'failure';
-    }
-
-    const maxAdds = candidates.length;
-    const addCount = maxAdds > 0 ? Math.min(maxAdds, Math.max(1, targetRadius || 1)) : 0;
-
-    const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
-    if (participants.length === 0) {
-      ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available' });
-      ctx.db.pull_state.id.delete(pull.id);
-      return;
-    }
-
-    const combat = startCombatForSpawn(
-      deps,
-      ctx,
-      character,
-      spawn,
-      participants,
-      pull.groupId ?? null
-    );
-
-    const reasons: string[] = [];
-    if (awarenessAlert) {
-      reasons.push('The area is on alert.');
-    }
-    if (veil > 0n) {
-      reasons.push('A veil of calm muffles your pull.');
-    }
-    if (PULL_ALLOW_EXTERNAL_ADDS && overlapPressure > 0) {
-      reasons.push(`Other ${template.name}s are nearby and may answer the call.`);
-    }
-    const reasonSuffix = reasons.length > 0 ? ` ${reasons.join(' ')}` : '';
-
-    const reserveAdds = (count: number) => {
-      if (count <= 0) return [] as { spawn: any; roleTemplateId?: bigint }[];
-      const reserved: { spawn: any; roleTemplateId?: bigint }[] = [];
-      let remaining = count;
-      for (const candidate of candidates) {
-        if (remaining <= 0) break;
-        if (!candidate.spawn) continue;
-        const candidateSpawn = ctx.db.enemy_spawn.id.find(candidate.spawn.id);
-        if (!candidateSpawn || candidateSpawn.state !== 'available') continue;
-        ctx.db.enemy_spawn.id.update({
-          ...candidateSpawn,
-          state: 'engaged',
-          lockedCombatId: combat.id,
-        });
-        reserved.push({ spawn: candidateSpawn, roleTemplateId: undefined });
-        remaining -= 1;
-      }
-      return reserved;
-    };
-
-    if (outcome === 'partial' && addCount > 0) {
-      // The add joins at the end of round N + 1 (it acts from round N + 2), where N is the round the
-      // pull opened; arriveAtMicros is only an estimate for the client.
-      const pullRound = currentRound(ctx, combat.id)?.roundNumber ?? 1n;
-      const reserved = reserveAdds(addCount);
-      for (const add of reserved) {
-        ctx.db.combat_pending_add.insert({
-          id: 0n,
-          combatId: combat.id,
-          enemyTemplateId: add.spawn.enemyTemplateId,
-          enemyRoleTemplateId: add.roleTemplateId,
-          spawnId: add.spawn.id,
-          arriveAtMicros: ctx.timestamp.microsSinceUnixEpoch + roundsToEstimateMicros(PULL_ADD_DELAY_ROUNDS),
-          arriveAtRound: pullRound + PULL_ADD_DELAY_ROUNDS - 1n,
-        });
-      }
-      for (const p of participants) {
-        logPrivateAndGroup(
-          ctx,
-          p,
-          'system',
-          `Your ${pull.pullType} pull draws attention. You engage ${spawn.name}, but ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${PULL_ADD_DELAY_ROUNDS} rounds.${reasonSuffix}`,
-          `${character.name}'s pull draws attention. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} will arrive in ${PULL_ADD_DELAY_ROUNDS} rounds.`
-        );
-      }
-    } else if (outcome === 'failure' && addCount > 0) {
-      const reserved = reserveAdds(addCount);
-      for (const add of reserved) {
-        addEnemyToCombat(
-          deps,
-          ctx,
-          combat,
-          add.spawn,
-          participants,
-          false,
-          add.roleTemplateId
-        );
-      }
-      // Send private message to each participant (participants are Character rows)
-      for (const p of participants) {
-        const privateMsg = p.id === character.id
-          ? `Your ${pull.pullType} pull is noticed. You engage ${spawn.name} and ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.${reasonSuffix}`
-          : `${character.name}'s ${pull.pullType} pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.${reasonSuffix}`;
-        appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
-      }
-      // Send group message once
-      if (combat.groupId) {
-        appendGroupEvent(ctx, combat.groupId, character.id, 'system', `${character.name}'s pull is noticed. ${reserved.length} ${reserved.length === 1 ? 'add' : 'adds'} rush in immediately.`);
-      }
-    } else {
-      // Send private message to each participant (participants are Character rows)
-      for (const p of participants) {
-        const privateMsg = p.id === character.id
-          ? `Your ${pull.pullType} pull is clean. You engage ${spawn.name} alone.${reasonSuffix}`
-          : `${character.name}'s pull is clean.`;
-        appendPrivateEvent(ctx, p.id, p.ownerUserId, 'system', privateMsg);
-      }
-      // Send group message once
-      if (combat.groupId) {
-        appendGroupEvent(ctx, combat.groupId, character.id, 'system', `${character.name}'s pull is clean.`);
-      }
     }
     ctx.db.pull_state.id.delete(pull.id);
   });
