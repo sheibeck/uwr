@@ -17,7 +17,7 @@ export const MIN_GATHER_MICROS = 500_000n;
 
 /**
  * How long a gather takes for this character: the 8 s cast, shortened by the gatherSpeedBonus perk
- * (percent), never below MIN_GATHER_MICROS. Shared by gather_pool and start_gather_resource.
+ * (percent), never below MIN_GATHER_MICROS. Used by gather_pool.
  */
 export function gatherDurationMicros(ctx: any, character: any): bigint {
   const gatherSpeedBonus = getPerkBonusByField(ctx, character.id, 'gatherSpeedBonus', character.level);
