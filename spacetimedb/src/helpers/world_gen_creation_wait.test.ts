@@ -11,11 +11,24 @@ vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
 );
 
-import { applyLlmResult, type ApplyJob } from './llm_apply';
+import { applyLlmResult, applyLlmFailure, type ApplyJob } from './llm_apply';
 import * as worldGen from './world_gen';
-import { pickDiscoveryMessage, WORLD_START_MILESTONE_LINE, findRegionStart } from './world_gen';
+import {
+  pickDiscoveryMessage,
+  WORLD_START_MILESTONE_LINE,
+  WORLD_FILL_FAILED_MESSAGE,
+  WORLD_FAMILIES_FAILED_MESSAGE,
+  WORLD_FILL_REFUSED_MESSAGE,
+  findRegionStart,
+  startWorldGeneration,
+  retryStarterWorldGen,
+  retryWorldFill,
+  regionFillHint,
+} from './world_gen';
+import { regionHoldState } from './region_hold';
+import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { createMockCtx } from './test-utils';
-import { buildDedupeKey, SOURCE_KEYS } from './llm_queue';
+import { buildDedupeKey, SOURCE_KEYS, LLM_RESTING_LINE } from './llm_queue';
 import { utcDay } from './llm_budget';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import { placeCountFor } from '../data/region_shape';
@@ -374,5 +387,257 @@ describe('placement when the families land (finishRegionFill, D-17)', () => {
     applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
     expect(privateOf(ctx, 11n)).toEqual([]);
     expect(creationOf(ctx, bob)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2: a second new character of the same race waits on a held starter region (HELD)
+// ---------------------------------------------------------------------------
+
+const B_STATE = 6n;
+const B_CHAR = 11n;
+
+/** Bob's new character (same race as Aldric) and his fresh starter state, as creation inserts them. */
+function addSecond(ctx: any, over: Record<string, unknown> = {}): any {
+  ctx.db.player.insert({ id: bob, userId: 8n, activeCharacterId: B_CHAR });
+  ctx.db.character.insert(newCharacter({ id: B_CHAR, ownerUserId: 8n, name: 'Bree', ...over }));
+  return ctx.db.world_gen_state.insert(starterState({ id: B_STATE, playerId: bob, characterId: B_CHAR, step: 'PENDING' }));
+}
+const failureLine = (message: string) => ['creation_error', `${message} Type [explore] to try again.`];
+
+/** The reuse arrival message at the region's home place (its hub), as reuseStarterRegion writes it. */
+function expectedReuseArrival(ctx: any): string {
+  const region = theRegion(ctx);
+  const home = findRegionStart(ctx, region.id);
+  const people = rows(ctx, 'npc')
+    .filter((n: any) => n.locationId === home.id)
+    .map((n: any) => ({ name: n.name, gender: npcGender(n) }));
+  let msg = `You open your eyes in ${home.name}, ${region.name}.`;
+  if (people.length > 0) msg += '\n\n' + npcNoticeLine(people);
+  return msg + `\n\n${ARRIVAL_ENDING}`;
+}
+
+describe('a second new character on a starter region that is still being built (HELD, D-15, D-17)', () => {
+  it.each([
+    ['FILLING', (ctx: any) => applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY))],
+    ['FILLING_FAMILIES', (ctx: any) => throughPlaces(ctx)],
+  ])('while the region is %s: HELD with the region, no model call, the 7e line once, still at location 0', (step, upTo) => {
+    const ctx = starterCtx();
+    upTo(ctx);
+    expect(stateOf(ctx).step).toBe(step);
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    const b = addSecond(ctx);
+
+    expect(startWorldGeneration(ctx, b)).toBe('held');
+    expect(stateOf(ctx, B_STATE)).toMatchObject({ step: 'HELD', generatedRegionId: theRegion(ctx).id });
+    expect(charOf(ctx, B_CHAR)).toMatchObject({ locationId: 0n, boundLocationId: 0n });
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+    expect(rows(ctx, 'llm_player_budget').filter((r: any) => r.playerId === bob)).toEqual([]);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E]]);
+    expect(privateOf(ctx, B_CHAR)).toEqual([]);
+    // A HELD state never holds the region itself, and the generating state is untouched.
+    expect(regionHoldState(ctx, theRegion(ctx).id)).toBe('held');
+    expect(stateOf(ctx).step).toBe(step);
+  });
+
+  it('when the families land both wait no longer: Aldric at the arrival point, Bree at the home place with the reuse arrival; both states COMPLETE', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
+
+    const home = findRegionStart(ctx, theRegion(ctx).id);
+    expect(home.isHub).toBe(true);
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(stateOf(ctx, B_STATE).step).toBe('COMPLETE');
+    expect(charOf(ctx)).toMatchObject({ locationId: home.id, boundLocationId: home.id });
+    expect(charOf(ctx, B_CHAR)).toMatchObject({ locationId: home.id, boundLocationId: home.id });
+    expect(privateOf(ctx).map((e: any) => e.kind)).toEqual(['narrative', 'system']);
+    const bree = privateOf(ctx, B_CHAR);
+    expect(bree.map((e: any) => e.kind)).toEqual(['narrative']);
+    expect(bree[0].message).toBe(expectedReuseArrival(ctx));
+    const visited = rows(ctx, 'visited_location').filter((v: any) => v.characterId === B_CHAR);
+    expect(visited).toHaveLength(1);
+    expect(visited[0]).toMatchObject({ locationId: home.id, fromLocationId: undefined });
+    // Bree's console got only the 7e line.
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E]]);
+  });
+
+  it('an open (COMPLETE) starter region places a new character at once, as today (reused)', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
+    const b = addSecond(ctx);
+
+    expect(startWorldGeneration(ctx, b)).toBe('reused');
+    const home = findRegionStart(ctx, theRegion(ctx).id);
+    expect(stateOf(ctx, B_STATE)).toMatchObject({ step: 'COMPLETE', generatedRegionId: theRegion(ctx).id });
+    expect(charOf(ctx, B_CHAR).locationId).toBe(home.id);
+    expect(privateOf(ctx, B_CHAR)[0].message).toBe(expectedReuseArrival(ctx));
+    expect(creationOf(ctx, bob)).toEqual([]);
+  });
+
+  it('a failed starter region (FAMILIES_ERROR) when the second character arrives: HELD, the 7e line, then the failure line naming [explore]', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    applyLlmFailure(ctx, familiesJob);
+    expect(stateOf(ctx).step).toBe('FAMILIES_ERROR');
+
+    expect(startWorldGeneration(ctx, addSecond(ctx))).toBe('held');
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+    expect(charOf(ctx, B_CHAR).locationId).toBe(0n);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E], failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
+  });
+
+  it('a different race never waits on this region', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    expect(startWorldGeneration(ctx, addSecond(ctx, { race: 'Human' }))).toBe('enqueued');
+    expect(stateOf(ctx, B_STATE).step).toBe('GENERATING');
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore + 1);
+    expect(creationOf(ctx, bob)).toEqual([]);
+  });
+});
+
+describe('a failure while new characters wait reaches every waiting console (D-18)', () => {
+  it('a places failure (2a): the generating player and the HELD player get today\'s line; both stay at location 0', () => {
+    const ctx = starterCtx();
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmFailure(ctx, fillJobFor(theRegion(ctx).id));
+
+    expect(stateOf(ctx).step).toBe('FILL_ERROR');
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+    expect(creationOf(ctx, alice)).toEqual([['creation', LINE_7E], failureLine(WORLD_FILL_FAILED_MESSAGE)]);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E], failureLine(WORLD_FILL_FAILED_MESSAGE)]);
+    expect(charOf(ctx).locationId).toBe(0n);
+    expect(charOf(ctx, B_CHAR).locationId).toBe(0n);
+    expect(rows(ctx, 'event_private')).toEqual([]);
+  });
+
+  it('a families failure (2b): both consoles get the approved section 5 line', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmFailure(ctx, familiesJob);
+
+    expect(stateOf(ctx).step).toBe('FAMILIES_ERROR');
+    expect(creationOf(ctx, alice).slice(-1)).toEqual([failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E], failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
+    expect(charOf(ctx, B_CHAR).locationId).toBe(0n);
+  });
+
+  it('a HELD character who is no longer waiting (placed elsewhere) gets no failure line', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    startWorldGeneration(ctx, addSecond(ctx));
+    ctx.db.character.id.update({ ...charOf(ctx, B_CHAR), locationId: 999n });
+    applyLlmFailure(ctx, familiesJob);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E]]);
+  });
+});
+
+describe('[explore] from a HELD character\'s creation console (retryStarterWorldGen, D-18)', () => {
+  function heldOn(step: 'FILL_ERROR' | 'FAMILIES_ERROR' | 'FILLING_FAMILIES' | 'COMPLETE') {
+    const ctx = starterCtx();
+    if (step === 'FILL_ERROR') {
+      applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+      startWorldGeneration(ctx, addSecond(ctx));
+      applyLlmFailure(ctx, fillJobFor(theRegion(ctx).id));
+    } else {
+      throughPlaces(ctx);
+      startWorldGeneration(ctx, addSecond(ctx));
+      if (step === 'FAMILIES_ERROR') applyLlmFailure(ctx, familiesJob);
+      if (step === 'COMPLETE') {
+        applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
+        // Bree missed the completion (a state left HELD): her own [explore] places her.
+        ctx.db.world_gen_state.id.update({ ...stateOf(ctx, B_STATE), step: 'HELD' });
+        ctx.db.character.id.update({ ...charOf(ctx, B_CHAR), locationId: 0n, boundLocationId: 0n });
+      }
+    }
+    expect(stateOf(ctx).step).toBe(step);
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+    return ctx;
+  }
+
+  it.each([
+    ['FAMILIES_ERROR', 'world_gen_families', 'FILLING_FAMILIES'],
+    ['FILL_ERROR', 'world_gen', 'FILLING'],
+  ] as const)('%s: only the failed stage is re-enqueued on the generating state, charged to the asker; Aldric stays the character of the state', (step, route, running) => {
+    const ctx = heldOn(step);
+    const before = rows(ctx, 'llm_job').filter((j: any) => j.route === route).length;
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('fill_started');
+
+    expect(stateOf(ctx)).toMatchObject({ step: running, playerId: bob, characterId: 10n });
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+    const jobs = jobsOf(ctx, route);
+    expect(jobs).toHaveLength(before + 1);
+    expect(jobs[jobs.length - 1]).toMatchObject({ status: 'pending', playerId: bob, characterId: 10n });
+    expect(jobsOf(ctx, 'world_gen_start').filter((j: any) => j.status === 'pending')).toEqual([]);
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(2);
+    expect(charOf(ctx, B_CHAR).locationId).toBe(0n);
+  });
+
+  it('while the region is in progress: busy, nothing written', () => {
+    const ctx = heldOn('FILLING_FAMILIES');
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    const statesBefore = JSON.stringify(rows(ctx, 'world_gen_state'), (_k, v) => (typeof v === 'bigint' ? `${v}` : v));
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('busy');
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+    expect(JSON.stringify(rows(ctx, 'world_gen_state'), (_k, v) => (typeof v === 'bigint' ? `${v}` : v))).toBe(statesBefore);
+  });
+
+  it('the region is COMPLETE but she is still waiting: she is placed now (reused) and her state is COMPLETE', () => {
+    const ctx = heldOn('COMPLETE');
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('reused');
+    const home = findRegionStart(ctx, theRegion(ctx).id);
+    expect(charOf(ctx, B_CHAR).locationId).toBe(home.id);
+    expect(stateOf(ctx, B_STATE).step).toBe('COMPLETE');
+    expect(privateOf(ctx, B_CHAR).slice(-1)[0].message).toBe(expectedReuseArrival(ctx));
+  });
+
+  it('a refused retry (the asker\'s day is spent): refused, the error step again, one creation_error line for the asker', () => {
+    const ctx = heldOn('FAMILIES_ERROR');
+    ctx.db.llm_player_budget.insert({
+      id: 0n,
+      playerId: bob,
+      dayUtc: utcDay(ctx.timestamp),
+      reservedMicroUsd: 0n,
+      spentMicroUsd: LLM_PLAYER_DAILY_COST_MICRO_USD,
+      calls: 1n,
+    });
+    const bobLinesBefore = creationOf(ctx, bob).length;
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('refused');
+    expect(stateOf(ctx)).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: WORLD_FILL_REFUSED_MESSAGE });
+    const added = creationOf(ctx, bob).slice(bobLinesBefore);
+    expect(added).toEqual([failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
+  });
+
+  it('the resting line (kill switch) reaches the HELD console too', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmFailure(ctx, { ...familiesJob, errorCode: 'halted' });
+    expect(creationOf(ctx, bob).slice(-1)).toEqual([['creation_error', `${LLM_RESTING_LINE} Type [explore] to try again.`]]);
+  });
+});
+
+describe('HELD is never a hold, a hint or a lock', () => {
+  it('a COMPLETE region with a HELD state is open; regionFillHint is null; retryWorldFill in the region finds nothing', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
+    addSecond(ctx);
+    ctx.db.world_gen_state.id.update({ ...stateOf(ctx, B_STATE), step: 'HELD', generatedRegionId: theRegion(ctx).id });
+
+    const region = theRegion(ctx);
+    expect(regionHoldState(ctx, region.id)).toBe('open');
+    expect(regionFillHint(ctx, region.id)).toBeNull();
+    // Aldric stands in the region and types [explore]: nothing to retry.
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    expect(retryWorldFill(ctx, charOf(ctx), alice)).toBe('none');
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
   });
 });
