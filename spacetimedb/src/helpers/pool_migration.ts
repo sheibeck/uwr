@@ -14,8 +14,8 @@
 //   6. standing state is retired: available ordinary spawns (with their members) and available,
 //      unlocked resource nodes (D-01). Event, engaged, pulling and harvesting rows finish normally.
 // Every step is find-or-create on a natural key, so a rerun, a crash mid-way or an overlapping tick
-// changes nothing. No LLM job is enqueued anywhere here (no paid call), and no --clear-database is
-// ever needed. Deterministic: "now" is passed in.
+// changes nothing. No LLM job is enqueued anywhere here (no paid call), and the database is never
+// cleared. Deterministic: "now" is passed in.
 
 import { ScheduleAt } from 'spacetimedb';
 import { DENSITY_RULES } from '../data/density_rules';
