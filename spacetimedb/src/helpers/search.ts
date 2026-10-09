@@ -1,5 +1,9 @@
-import { spawnResourceNode } from './location';
-
+/**
+ * The passive search on arrival. Phase 51.3.1.1 Plan 12 (D-26): resources are found only as shared
+ * pools now, so the search no longer rolls for or spawns personal resource nodes (foundResources is
+ * always false); it still cleans up the character's old nodes at the place, discovers quest items
+ * and named enemies, and writes the search_result row.
+ */
 export function performPassiveSearch(
   ctx: any,
   character: any,
@@ -16,21 +20,11 @@ export function performPassiveSearch(
   const nowMicros = BigInt(ctx.timestamp.microsSinceUnixEpoch as bigint);
   const seed: bigint = charId ^ nowMicros;
 
-  let foundResources = false;
+  const foundResources = false;
   let foundQuestItem = false;
   let questItemId: bigint | undefined = undefined;
   let foundNamedEnemy = false;
   let namedEnemyId: bigint | undefined = undefined;
-
-  // Roll 1: Hidden resources
-  // Perception lowers the find threshold: base 35 (65% chance), -1 per 25 perception points.
-  // WIS=5 (perception≈125) → threshold 30 → 70% | Goblin (perception≈150) → 29 → 71% | WIS=10 (≈250) → 25 → 75%
-  const perceptionBonus = (character.perception as bigint) / 25n;
-  const resourceFindThreshold = 35n > perceptionBonus ? 35n - perceptionBonus : 0n;
-  const resourceRoll: bigint = seed % 100n;
-  if (resourceRoll >= resourceFindThreshold) {
-    foundResources = true;
-  }
 
   // Quest items: always spawn for delivery/explore quests at target location
   for (const qi of ctx.db.quest_instance.by_character.filter(character.id)) {
@@ -153,24 +147,5 @@ export function performPassiveSearch(
     if (node.locationId === locationId) {
       ctx.db.resource_node.id.delete(node.id);
     }
-  }
-
-  // Spawn personal resource nodes if resources found
-  if (foundResources) {
-    let nodeCount: number;
-    // Node count tiers use upper range (resourceRoll >= findThreshold already confirmed):
-    // roll 90-99 → 3 nodes (10%), roll 70-89 → 2 nodes (20%), else → 1 node
-    if (resourceRoll >= 90n) {
-      nodeCount = 3;
-    } else if (resourceRoll >= 70n) {
-      nodeCount = 2;
-    } else {
-      nodeCount = 1;
-    }
-    for (let i = 0; i < nodeCount; i += 1) {
-      spawnResourceNode(ctx, locationId, character.id, BigInt(i) * 1000n);
-    }
-    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'move',
-      'You discover some resources.');
   }
 }
