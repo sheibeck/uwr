@@ -229,7 +229,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-09-regions-need-distinct-atmospheres.md`: the world drifted into one theme (salt, brine, ships); each region needs its own culture and atmosphere, distinct from its neighbours (owner). Folded into Phase 51.3.2.1.
 - `todos/pending/2026-10-09-here-card-drops-the-rating-sentence.md`: the Here card drops the danger rating sentence to save rail space (owner). Folded into Phase 51.5.1.
 - `todos/pending/2026-10-09-equip-ignores-level-requirement.md`: gear shows "Requires Lv n" but equips at any level (an older world-tier decision removed the gate; the label stayed). Owner: enforce it, in Phase 51.5.
-- `todos/pending/2026-10-09-how-many-safe-places-a-region-gets.md`: Kestrane has 3 safe places; hubs are rolled (max 2) but the AI's safe places are limited only by the 4-host floor. Discuss a danger-based cap in Phase 51.3.2.2 (owner).
+- `todos/pending/2026-10-09-how-many-safe-places-a-region-gets.md`: Kestrane has 3 safe places; hubs are rolled (max 2) but the AI's safe places are limited only by the 4-host floor. Owner direction: one safe place per region; NPCs sometimes at non-safe places (1, at most 2). Phase 51.3.2.2.
 - `todos/pending/2026-10-09-nearby-lists-npcs-first.md`: NPCs (quest hooks) move to the top of Nearby, before Creatures (owner). Client only. Folded into Phase 51.5.1 (owner).
 
 ### Blockers/Concerns
