@@ -17,13 +17,45 @@ const FENCE = /^(\s*)```/;
 // Draft structure
 // ---------------------------------------------------------------------------------------------------------------
 
-/** Splits a draft into lines and reads its status line. The draft must be LF-only. */
+/** True for a real calendar date written YYYY-MM-DD. */
+const isCalendarDate = (s) => {
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+
+/**
+ * Splits a draft into lines and reads its status line. The draft must be LF-only. The status line is read from the
+ * header only: the lines before the first `## ` heading, outside fenced blocks (a `Status:` line in a later section
+ * or inside a fenced example never counts). Approved means the line reads `Status: APPROVED YYYY-MM-DD` with a
+ * real date.
+ */
 export function parseDraft(text) {
   if (text.includes('\r')) throw new Error('draft contains a carriage return; it must be LF-only');
   const lines = text.split('\n');
-  const line = lines.find((l) => l.startsWith('Status: ')) ?? null;
+  let line = null;
+  let inFence = false;
+  for (const l of lines) {
+    if (FENCE.test(l)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    if (l.startsWith('## ')) break;
+    if (l.startsWith('Status: ')) {
+      line = l;
+      break;
+    }
+  }
   const m = line ? /^Status: APPROVED (\d{4}-\d{2}-\d{2})\b/.exec(line) : null;
-  return { status: { approved: m !== null, date: m ? m[1] : null, line }, lines };
+  const approved = m !== null && isCalendarDate(m[1]);
+  return { status: { approved, date: approved ? m[1] : null, line }, lines };
+}
+
+/** Throws unless the draft's status line reads `Status: APPROVED YYYY-MM-DD`. `what` names the refused action. */
+export function assertApproved(status, what) {
+  if (!(status.approved && status.date)) {
+    throw new Error(`${what}: draft is not APPROVED (${status.line ?? 'no status line in the header'})`);
+  }
 }
 
 const headingLevel = (line) => {
@@ -108,12 +140,15 @@ const choiceHeading = (key) => (/^\d+$/.test(key) ? `## ${key}.` : `### ${key}.`
 /**
  * The owner's chosen line for each section the `## Owner choices` list names with ALTERNATIVE or RECOMMENDED.
  * Bullets start `- **Section N (...):**` or `- **Nx (...):**`; other bullets (blocks approved as drafted, notes)
- * are skipped. The text comes from that section's fence with the named label. When the bullet quotes text in
- * backticks and names the alternative, its first quote must equal the fence text. A section with no labelled fences
- * (section 6, indicator lines) yields its raw bullet text. `required` lists keys that must be present.
+ * are skipped. The text comes from that section's fence with the named label; a choice whose variant cannot be
+ * found throws. When the bullet quotes text in backticks (whichever label it names), its first quote must equal the
+ * chosen fence text, so an owner's edit written into the bullet fails loudly instead of being dropped. Only the keys
+ * listed in `raw` may yield their raw bullet text, and only when their section has no labelled fences (section 6,
+ * indicator lines). A key listed twice throws. The draft must be APPROVED. `required` lists keys that must be present.
  */
-export function ownerChoices(text, { required = [] } = {}) {
-  const { lines } = parseDraft(text);
+export function ownerChoices(text, { required = [], raw = [] } = {}) {
+  const { status, lines } = parseDraft(text);
+  assertApproved(status, 'owner choices');
   const start = lines.findIndex((l) => l.startsWith('## Owner choices'));
   if (start < 0) throw new Error('draft has no ## Owner choices section');
 
@@ -125,11 +160,14 @@ export function ownerChoices(text, { required = [] } = {}) {
   }
 
   const choices = {};
+  const seen = new Set();
   for (const bullet of bullets) {
     const m = /^\*\*(?:Section (\d+)|(\d+[a-z])) \([^)]*\):\*\*(.*)$/.exec(bullet);
     if (!m) continue;
     const key = m[1] ?? m[2];
     const rest = m[3];
+    if (seen.has(key)) throw new Error(`owner choice ${key} is listed twice`);
+    seen.add(key);
     const alt = /\bALTERNATIVE\b/.test(rest);
     const rec = /\bRECOMMENDED\b/.test(rest);
     if (!alt && !rec) continue;
@@ -143,18 +181,25 @@ export function ownerChoices(text, { required = [] } = {}) {
       throw new Error(`owner choice ${key}: ${err.message}`);
     }
     const labelled = fences.filter((f) => f.label !== null);
-    if (labelled.length === 0) {
+    if (raw.includes(key)) {
+      if (labelled.length > 0) {
+        throw new Error(`owner choice ${key}: listed as a raw choice, but its section has labelled fences`);
+      }
       choices[key] = bullet;
       continue;
+    }
+    if (labelled.length === 0) {
+      throw new Error(`owner choice ${key}: section has no labelled (**Recommended** / **Alternative**) fences`);
     }
     const chosen = labelled.filter((f) => f.label === label);
     if (chosen.length !== 1) {
       throw new Error(`owner choice ${key}: section has ${chosen.length} ${label} fences, expected 1`);
     }
     const quote = /`([^`]*)`/.exec(rest);
-    if (alt && quote && quote[1] !== chosen[0].text) {
+    if (quote && quote[1] !== chosen[0].text) {
       throw new Error(
-        `owner choice ${key}: quoted text differs from the alternative fence at index ${firstDiff(quote[1], chosen[0].text)}`,
+        `owner choice ${key}: quoted text differs from the ${label} fence at index ${firstDiff(quote[1], chosen[0].text)}` +
+          ' (an edit written into the bullet is not supported: edit the fence text instead)',
       );
     }
     choices[key] = chosen[0].text;
@@ -246,6 +291,7 @@ export function compareBlock(approved, shipped) {
 
 // ---------------------------------------------------------------------------------------------------------------
 // Command line: node scripts/llm/prompt_draft.mjs <mode> <draft> [args]   (paths relative to the current directory)
+//   (chosen, pins, write and check refuse a draft whose status line is not `Status: APPROVED YYYY-MM-DD`)
 //   status                              the status line; exit 1 unless APPROVED with a date
 //   block <heading>                     the raw rule-delimited block
 //   fences <heading>                    the fenced blocks as JSON
@@ -257,6 +303,39 @@ export function compareBlock(approved, shipped) {
 
 export const REQUIRED_CHOICES = ['5', '6', '7a', '7b', '7c', '7d', '7e'];
 
+/** The 51.3.1.2 choices that ship as their raw owner bullet (section 6, indicator lines: no labelled fences). */
+export const RAW_BULLET_CHOICES = ['6'];
+
+/** The modes that copy or certify approved text: each refuses a draft that is not APPROVED. */
+export const APPROVED_ONLY_MODES = ['chosen', 'pins', 'write', 'check'];
+
+/**
+ * The repo-relative path of a phase file, in the live phase folder or, once the milestone is archived, in a
+ * `.planning/milestones/*-phases/` or `.planning/*-phases/` folder. `fsLike` supplies `existsSync` and
+ * `readdirSync` (node:fs in practice), so this stays testable without the disk. Throws naming every place searched.
+ */
+export function findPhaseFile(repoRoot, phaseDir, fileName, fsLike) {
+  const join = (...parts) => parts.join('/');
+  const tried = [join('.planning', 'phases', phaseDir, fileName)];
+  for (const root of ['.planning/milestones', '.planning']) {
+    let entries = [];
+    try {
+      entries = fsLike.readdirSync(join(repoRoot, root));
+    } catch {
+      entries = [];
+    }
+    for (const entry of [...entries].map(String).filter((e) => e.endsWith('-phases')).sort()) {
+      tried.push(join(root, entry, phaseDir, fileName));
+    }
+  }
+  const found = tried.find((rel) => fsLike.existsSync(join(repoRoot, rel)));
+  if (found) return found;
+  throw new Error(
+    `${fileName} not found: searched .planning/phases/${phaseDir}/ and the .planning/milestones/*-phases/ and ` +
+      `.planning/*-phases/ archives (${tried.length} places)`,
+  );
+}
+
 const USAGE = 'usage: node scripts/llm/prompt_draft.mjs <status|block|fences|chosen|pins|write|check> <draft> [args]';
 
 async function main(argv) {
@@ -265,6 +344,7 @@ async function main(argv) {
   if (!mode || !draftPath) throw new Error(USAGE);
   const text = fs.readFileSync(draftPath, 'utf8');
   const { status, lines } = parseDraft(text);
+  if (APPROVED_ONLY_MODES.includes(mode)) assertApproved(status, mode);
   const need = (n) => {
     if (args.length < n) throw new Error(`${mode}: missing arguments\n${USAGE}`);
   };
@@ -282,7 +362,9 @@ async function main(argv) {
       console.log(JSON.stringify(fencedBlocks(lines, args[0]), null, 2));
       return 0;
     case 'chosen':
-      console.log(JSON.stringify(ownerChoices(text, { required: REQUIRED_CHOICES }), null, 2));
+      console.log(
+        JSON.stringify(ownerChoices(text, { required: REQUIRED_CHOICES, raw: RAW_BULLET_CHOICES }), null, 2),
+      );
       return 0;
     case 'pins': {
       need(2);

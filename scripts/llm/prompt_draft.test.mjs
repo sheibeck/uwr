@@ -1,23 +1,29 @@
 // Run from the repo root: npx vitest run scripts/llm/prompt_draft.test.mjs --maxWorkers=1
 // The prompt-draft tool (Phase 51.3.1.2, Plan 01): reads an owner-approved PROMPT-DRAFT.md, resolves the chosen
 // variants, and copies or checks a block against spacetimedb/src/data/llm_layers.ts. Nothing here touches the
-// network, a key or a token. The only child process is the one CLI test, which runs `node` on a local file.
+// network, a key or a token. The only child processes are the CLI tests, which run `node` on local files (a refused
+// unapproved draft is written to a temp folder, never to the repo).
 
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  APPROVED_ONLY_MODES,
+  assertApproved,
   compareBlock,
   evaluateBlock,
   fencedBlocks,
+  findPhaseFile,
   firstDiff,
   REQUIRED_CHOICES,
   ownerChoices,
   parseDraft,
+  RAW_BULLET_CHOICES,
   ruleBlock,
   sha256Hex,
   substituteNaming,
@@ -27,14 +33,19 @@ import {
 import { ROUTE_BLOCKS } from '../../spacetimedb/src/data/llm_layers.ts';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const DRAFT_PATH = '.planning/phases/51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md';
-const FROZEN_DRAFT_PATH = '.planning/phases/51.3.1.1-density-pools/51.3.1.1-PROMPT-DRAFT.md';
+// The drafts live in the phase folder until the milestone is archived, then under a *-phases archive (WR-05).
+const DRAFT_PATH = findPhaseFile(REPO_ROOT, '51.3.1.2-bigger-regions', '51.3.1.2-PROMPT-DRAFT.md', fs);
+const FROZEN_DRAFT_PATH = findPhaseFile(REPO_ROOT, '51.3.1.1-density-pools', '51.3.1.1-PROMPT-DRAFT.md', fs);
 const LAYERS_PATH = 'spacetimedb/src/data/llm_layers.ts';
 const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 
 const DRAFT = read(DRAFT_PATH);
 const FROZEN = read(FROZEN_DRAFT_PATH);
 const LAYERS = read(LAYERS_PATH);
+
+// Raw-bullet keys: section 6 of the real draft, section 3 of the synthetic one (no labelled fences).
+const DRAFT_RAW = { raw: RAW_BULLET_CHOICES };
+const SYN_RAW = { raw: ['3'] };
 
 // A small synthetic draft that exercises every edge case.
 const SYNTHETIC = [
@@ -207,7 +218,7 @@ describe('fencedBlocks', () => {
 });
 
 describe('ownerChoices', () => {
-  const choices = ownerChoices(DRAFT);
+  const choices = ownerChoices(DRAFT, DRAFT_RAW);
 
   it('resolves every chosen line of the approved draft', () => {
     expect(Object.keys(choices).sort()).toEqual(['5', '6', '7a', '7b', '7c', '7d', '7e']);
@@ -229,7 +240,7 @@ describe('ownerChoices', () => {
   });
 
   it('resolves a synthetic draft, including a wrapped bullet and a raw section', () => {
-    expect(ownerChoices(SYNTHETIC)).toEqual({
+    expect(ownerChoices(SYNTHETIC, SYN_RAW)).toEqual({
       2: 'Second alt line.',
       3: '**Section 3 (raw):** the ALTERNATIVE: move only `x` to `y`.',
       '4a': 'Four a rec.',
@@ -239,26 +250,117 @@ describe('ownerChoices', () => {
 
   it('throws when a quoted choice differs from its Alternative fence', () => {
     const bad = SYNTHETIC.replace('ships: `Second alt line.`', 'ships: `Second alt line, edited.`');
-    expect(() => ownerChoices(bad)).toThrow(/Section 2|2/);
+    expect(() => ownerChoices(bad, SYN_RAW)).toThrow(/Section 2|2/);
   });
 
   it('throws when a chosen section is missing', () => {
     const bad = SYNTHETIC.replace('### 4b. Second', '### 4c. Second');
-    expect(() => ownerChoices(bad)).toThrow(/4b/);
+    expect(() => ownerChoices(bad, SYN_RAW)).toThrow(/4b/);
   });
 
   it('throws when the named variant has no fence', () => {
     const bad = SYNTHETIC.replace('- **4b (sub):** RECOMMENDED, and', '- **4b (sub):** ALTERNATIVE, and');
-    expect(() => ownerChoices(bad)).toThrow(/4b/);
+    expect(() => ownerChoices(bad, SYN_RAW)).toThrow(/4b/);
   });
 
   it('throws when a required key is missing', () => {
-    expect(() => ownerChoices(SYNTHETIC, { required: ['2', '9'] })).toThrow(/9/);
-    expect(() => ownerChoices(DRAFT, { required: ['5', '6', '7a', '7b', '7c', '7d', '7e'] })).not.toThrow();
+    expect(() => ownerChoices(SYNTHETIC, { required: ['2', '9'], ...SYN_RAW })).toThrow(/9/);
+    expect(() => ownerChoices(DRAFT, { required: ['5', '6', '7a', '7b', '7c', '7d', '7e'], ...DRAFT_RAW })).not.toThrow();
   });
 
   it('throws without an Owner choices section', () => {
     expect(() => ownerChoices('# D\n\nStatus: APPROVED 2026-01-01\n\n## 1. x\n')).toThrow(/Owner choices/);
+  });
+});
+
+describe('approval and choice guards (code review B, CR-01)', () => {
+  const unapprove = (text) => text.replace(/^Status: APPROVED [^\n]*$/m, 'Status: AWAITING OWNER APPROVAL');
+
+  it('reads the status line from the header only, never from a later section or a fenced example', () => {
+    const late = '# D\n\n## 1. x\n\nStatus: APPROVED 2026-01-02\n';
+    expect(parseDraft(late).status).toEqual({ approved: false, date: null, line: null });
+    const fenced = '# D\n\n```\nStatus: APPROVED 2026-01-02\n```\n\nStatus: AWAITING OWNER APPROVAL\n\n## 1. x\n';
+    expect(parseDraft(fenced).status.approved).toBe(false);
+    expect(parseDraft(fenced).status.line).toBe('Status: AWAITING OWNER APPROVAL');
+  });
+
+  it('needs a real date on the APPROVED line', () => {
+    expect(parseDraft('# D\n\nStatus: APPROVED 2026-13-40\n').status.approved).toBe(false);
+    expect(parseDraft('# D\n\nStatus: APPROVED soon\n').status.approved).toBe(false);
+    expect(() => assertApproved(parseDraft('# D\n\nStatus: APPROVED 2026-13-40\n').status, 'chosen')).toThrow(
+      /chosen: draft is not APPROVED/,
+    );
+  });
+
+  it('refuses the owner choices of a draft that is not APPROVED', () => {
+    expect(() => ownerChoices(unapprove(SYNTHETIC), SYN_RAW)).toThrow(/not APPROVED/);
+    expect(() => ownerChoices(unapprove(DRAFT), DRAFT_RAW)).toThrow(/not APPROVED/);
+  });
+
+  it('never falls back to the bullet text when a section lost its bold labels (the review reproduction, 7a)', () => {
+    const start = DRAFT.indexOf('### 7a.');
+    const end = DRAFT.indexOf('### 7b.');
+    const section = DRAFT.slice(start, end).replace('**Recommended:**', 'Recommended:').replace('**Alternative:**', 'Alternative:');
+    const bad = DRAFT.slice(0, start) + section + DRAFT.slice(end);
+    expect(() => ownerChoices(bad, DRAFT_RAW)).toThrow(/owner choice 7a: section has no labelled/);
+  });
+
+  it('allows the raw bullet only for a listed key, and only when its section has no labelled fences', () => {
+    expect(() => ownerChoices(SYNTHETIC)).toThrow(/owner choice 3: section has no labelled/);
+    expect(() => ownerChoices(SYNTHETIC, { raw: ['3', '2'] })).toThrow(/owner choice 2: listed as a raw choice/);
+    expect(() => ownerChoices(DRAFT)).toThrow(/owner choice 6/);
+  });
+
+  it('fails loudly on a quoted edit to a RECOMMENDED bullet, and accepts a quote equal to the fence', () => {
+    const edited = SYNTHETIC.replace('- **4a (sub):** RECOMMENDED.', '- **4a (sub):** RECOMMENDED, but please say `Edited by owner.`');
+    expect(() => ownerChoices(edited, SYN_RAW)).toThrow(/owner choice 4a: quoted text differs from the recommended fence/);
+    const same = SYNTHETIC.replace('- **4a (sub):** RECOMMENDED.', '- **4a (sub):** RECOMMENDED: `Four a rec.`');
+    expect(ownerChoices(same, SYN_RAW)['4a']).toBe('Four a rec.');
+  });
+
+  it('fails on a choice key listed twice, whichever variant the second bullet names', () => {
+    const twice = SYNTHETIC.replace('- **Discovery line:**', '- **4a (sub):** ALTERNATIVE.\n- **Discovery line:**');
+    expect(() => ownerChoices(twice, SYN_RAW)).toThrow(/owner choice 4a is listed twice/);
+    const twiceSame = SYNTHETIC.replace('- **Discovery line:**', '- **4b (again):** RECOMMENDED.\n- **Discovery line:**');
+    expect(() => ownerChoices(twiceSame, SYN_RAW)).toThrow(/owner choice 4b is listed twice/);
+  });
+
+  it('lists exactly the copying modes as approved-only', () => {
+    expect(APPROVED_ONLY_MODES).toEqual(['chosen', 'pins', 'write', 'check']);
+  });
+});
+
+describe('findPhaseFile (code review B, WR-05)', () => {
+  const fakeFs = (files) => ({
+    existsSync: (p) => files.includes(p),
+    readdirSync: (dir) => {
+      if (dir === 'R/.planning') return ['phases', 'v2.2-phases', 'notes'];
+      if (dir === 'R/.planning/milestones') return ['v3.0-phases', 'v3.1-phases'];
+      throw new Error('ENOENT');
+    },
+  });
+
+  it('prefers the live phase folder', () => {
+    const files = ['R/.planning/phases/P/F.md', 'R/.planning/milestones/v3.1-phases/P/F.md'];
+    expect(findPhaseFile('R', 'P', 'F.md', fakeFs(files))).toBe('.planning/phases/P/F.md');
+  });
+
+  it('finds the file in a milestone archive after the phase folder moved', () => {
+    expect(findPhaseFile('R', 'P', 'F.md', fakeFs(['R/.planning/milestones/v3.1-phases/P/F.md']))).toBe(
+      '.planning/milestones/v3.1-phases/P/F.md',
+    );
+    expect(findPhaseFile('R', 'P', 'F.md', fakeFs(['R/.planning/v2.2-phases/P/F.md']))).toBe('.planning/v2.2-phases/P/F.md');
+  });
+
+  it('fails with a clear message when neither place has it', () => {
+    expect(() => findPhaseFile('R', 'P', 'F.md', fakeFs([]))).toThrow(
+      /F\.md not found: searched \.planning\/phases\/P\/ and the \.planning\/milestones\/\*-phases\//,
+    );
+  });
+
+  it('resolves the real 51.3.1.2 draft', () => {
+    expect(fs.existsSync(path.join(REPO_ROOT, DRAFT_PATH))).toBe(true);
+    expect(DRAFT_PATH.endsWith('51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md')).toBe(true);
   });
 });
 
@@ -376,7 +478,32 @@ describe('command line', () => {
     });
     const parsed = JSON.parse(out);
     expect(Object.keys(parsed).sort()).toEqual([...REQUIRED_CHOICES].sort());
-    expect(parsed).toEqual(ownerChoices(DRAFT));
-    expect(parsed['5']).toBe(ownerChoices(DRAFT)['5']);
+    expect(parsed).toEqual(ownerChoices(DRAFT, DRAFT_RAW));
+    expect(parsed['5']).toBe(ownerChoices(DRAFT, DRAFT_RAW)['5']);
+  });
+
+  it('refuses chosen, pins, write and check on a draft that is not APPROVED, and writes nothing (CR-01)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prompt-draft-'));
+    try {
+      const draft = path.join(dir, 'draft.md');
+      const layers = path.join(dir, 'layers.ts');
+      fs.writeFileSync(draft, DRAFT.replace(/^Status: APPROVED [^\n]*$/m, 'Status: AWAITING OWNER APPROVAL'));
+      fs.writeFileSync(layers, LAYERS);
+      const runs = [
+        ['chosen', draft],
+        ['pins', draft, '## 1.', layers],
+        ['write', draft, '## 1.', 'WORLD_GEN_BLOCK', layers],
+        ['check', draft, '## 1.', 'WORLD_GEN_BLOCK', layers],
+      ];
+      for (const args of runs) {
+        const r = spawnSync(process.execPath, ['scripts/llm/prompt_draft.mjs', ...args], { cwd: REPO_ROOT, encoding: 'utf8' });
+        expect(r.status, args[0]).toBe(1);
+        expect(r.stdout, args[0]).toBe('');
+        expect(r.stderr).toContain(`${args[0]}: draft is not APPROVED (Status: AWAITING OWNER APPROVAL)`);
+      }
+      expect(fs.readFileSync(layers, 'utf8')).toBe(LAYERS);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
