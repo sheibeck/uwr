@@ -186,7 +186,7 @@ describe('settleDirtyPools: regrowth and Overrun settling on the tick', () => {
     expect(poolRow(ctx, goblinsOrchard.id).count).toBe(34n);
   });
 
-  it('a creature pool whose family row is missing logs once and the other pools still settle in the same tick', () => {
+  it('a creature pool whose family row is missing logs once, is removed with its level row, and the other pools still settle (review A IN-07)', () => {
     const ctx = poolCtx(quietWorld());
     const { goblinsOrchard } = seedPools(ctx);
     const orphan = createPool(
@@ -201,8 +201,14 @@ describe('settleDirtyPools: regrowth and Overrun settling on the tick', () => {
 
     expect(errors).toHaveBeenCalledTimes(1);
     expect(String(errors.mock.calls[0][0])).toContain(`pool ${orphan.id}`);
-    expect(poolRow(ctx, orphan.id).count).toBe(30n);
+    expect(poolRow(ctx, orphan.id)).toBeUndefined();
+    expect(rows(ctx, 'pool_level').find((r: any) => r.id === orphan.id)).toBeUndefined();
     expect(poolRow(ctx, goblinsOrchard.id).count).toBe(34n);
+
+    // Later ticks never log it again.
+    tickAt(ctx, T0 + 2n * MIN);
+    tickAt(ctx, T0 + 3n * MIN);
+    expect(errors).toHaveBeenCalledTimes(1);
   });
 
   it('a pool that throws while settling is isolated: the next pool still settles', () => {

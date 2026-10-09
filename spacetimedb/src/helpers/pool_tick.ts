@@ -69,8 +69,9 @@ export function updatePoolState(ctx: any, fields: Partial<PoolStateRow>): PoolSt
 /**
  * Step 1: settles every dirty pool (count away from home, or a wiped family waiting out its reset)
  * through settlePool, in id order. Clean pools are never read or written. A creature pool whose
- * family row is missing is a bad row: it is logged and left alone (no nameless mirror is written).
- * Each pool is isolated: a failure logs one line and the next pool still settles.
+ * family row is missing is an orphan: it is logged once and deleted with its pool_level row, as the
+ * migration's pruneOrphanPools does, so it is never logged again (review A IN-07; no nameless mirror
+ * is written). Each pool is isolated: a failure logs one line and the next pool still settles.
  */
 export function settleDirtyPools(ctx: any, now: bigint): number {
   const dirty: PlacePoolRow[] = [...ctx.db.place_pool.by_dirty.filter(true)].sort(byId);
@@ -78,7 +79,10 @@ export function settleDirtyPools(ctx: any, now: bigint): number {
   for (const pool of dirty) {
     try {
       if (pool.kind === 'creature' && !ctx.db.creature_family.id.find(pool.refId)) {
-        throw new Error(`creature family ${pool.refId} is missing`);
+        console.error(`tick_pools: pool ${pool.id} has no creature family ${pool.refId}; the orphan pool is removed`);
+        ctx.db.pool_level.id.delete(pool.id);
+        ctx.db.place_pool.id.delete(pool.id);
+        continue;
       }
       settlePool(ctx, pool, now);
       settled += 1;
