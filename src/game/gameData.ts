@@ -8,6 +8,7 @@ import type {
   CharacterCast,
   CharacterEffect,
   CombatAction,
+  CombatEncounter,
   CombatEnemy,
   CombatEnemyCast,
   CombatEnemyEffect,
@@ -77,11 +78,14 @@ import { createServerClock } from './serverClock';
 //                        named_enemy (the own named enemies, 51.3.1.1-18)
 //   by group             group, group_member, event_group
 //   by id list           party and inviter characters, quest templates, event objectives,
-//                        the enemy templates of the spawns here (level, for the con color)
+//                        the enemy templates of the spawns here (level, for the con color), the
+//                        templates of the own named enemies (level, con, Boss; 51.3.1.1-31)
 //   combat (48)          own participant and own choice rows by character; participants,
 //                        enemies, enemy effects, rounds, casts, narratives and pets of the one fight by combat
 //                        id (the key follows the own participant row); enemy templates and
-//                        abilities by id list; my_combat_aggro once per connection
+//                        abilities by id list; my_combat_aggro once per connection; the fight's
+//                        combat_encounter row by id (= the combat id, 51.3.1.1-31). The pets come
+//                        through the fight roster (active_pet.combat_id is optional; queries.ts)
 //
 // Shared-cache rule: the SDK cache is shared by every subscription of the same table, so
 // bindTable's rows are whatever the whole cache holds. Every keyed table binding therefore
@@ -139,6 +143,7 @@ export interface GameConn extends ConnLike {
     combatAction: Row<CombatAction>;
     combatEnemyCast: Row<CombatEnemyCast>;
     combatEnemyEffect: Row<CombatEnemyEffect>;
+    combatEncounter: Row<CombatEncounter>;
     combatNarrative: Row<CombatNarrative>;
     activePet: Row<ActivePet>;
     myCombatAggro: Row<MyCombatAggroEntry>;
@@ -499,6 +504,15 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     queries.combatPets,
     (row, k) => row.combatId === k,
   );
+  // The fight's combat_encounter row (51.3.1.1-31): its id is the combat id; the origin columns name
+  // the encounter heading and the source line (D-32).
+  const fightEncounter = keyedTable<CombatEncounter, bigint>(
+    combatKey,
+    (c) => c.db.combatEncounter,
+    queries.combatEncounter,
+    (row, k) => row.id === k,
+  );
+  const fightEncounterRows = keyedRows(fightEncounter);
   const fightParticipantRows = keyedRows(fightParticipants);
   const fightEnemyRows = keyedRows(fightEnemies);
 
@@ -634,6 +648,19 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     queries.namedEnemiesOf,
     (row, k) => row.characterId === k,
   );
+  const namedEnemyRows = keyedRows(namedEnemies);
+  // The templates of the own named enemies (51.3.1.1-31, D-39): level, con colour and Boss for the
+  // named cards. Every own named enemy counts, alive or slain, so a death keeps the key. A SEPARATE
+  // binding from spawnTemplates and the fight's enemyTemplates (their keys and contracts stay).
+  const namedTemplateKey = computed<string | null>(() =>
+    idListKey(namedEnemyRows.value.map((named) => named.enemyTemplateId)),
+  );
+  const namedTemplates = keyedIdList<EnemyTemplate>(
+    namedTemplateKey,
+    (c) => c.db.enemyTemplate,
+    queries.enemyTemplatesById,
+    (row) => row.id,
+  );
 
   const known = keyedIdList<Character>(
     partyKey,
@@ -663,6 +690,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     spawnTemplates,
     pools,
     namedEnemies,
+    namedTemplates,
     players,
     connectionRows,
     hotbars,
@@ -687,6 +715,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     fightCasts,
     fightEnemyEffects,
     fightPets,
+    fightEncounter,
     fightNarratives,
     enemyTemplates,
     enemyAbilities,
@@ -781,6 +810,13 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     aggro: combatAggro.rows,
     characterNames,
     petNames,
+    // The row of the CURRENT combat id only: during a key swap the old binding's row can still be
+    // the visible one, and it must not name the new fight.
+    encounter: computed<CombatEncounter | null>(() => {
+      const id = combatKey.value;
+      if (id === null) return null;
+      return fightEncounterRows.value.find((row) => row.id === id) ?? null;
+    }),
   };
   // Round headers, wind-up blocks and narrated rounds reach the feed from the combat rows.
   wireCombatFeed({ combat, feed, clock, selfId: characterKey });
@@ -817,7 +853,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     poolLevelsHere,
     poolRegionsApplied,
     poolsAppliedFor,
-    namedEnemies: keyedRows(namedEnemies),
+    namedEnemies: namedEnemyRows,
+    namedEnemyTemplates: keyedRows(namedTemplates),
     harvestCaps: harvestCaps.rows,
     visitedLocationIds,
     playersHere,

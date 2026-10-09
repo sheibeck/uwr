@@ -147,6 +147,7 @@ function setup() {
     isDesktop: ref(true),
     activeScreen,
     screenArgs: ref(null),
+    timeOfDay: ref(null),
     openScreen,
     closeScreen,
   };

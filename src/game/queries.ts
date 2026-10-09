@@ -13,6 +13,12 @@ import { tables } from '../module_bindings';
 // Density pools (51.3.1.1-18): pool_level is keyed by region ids (an OR chain on region_id), the own
 // named_enemy rows by character_id; my_harvest_caps and my_visited_locations are per-sender views
 // (no WHERE). resource_node is no longer subscribed.
+// 51.3.1.1-31: the own fight's combat_encounter row is keyed by its id (= the combat id), for the
+// encounter heading and source line. active_pet.combat_id is an OPTIONAL u64, and SpacetimeDB cannot
+// parse a bare literal as an option ("cannot be parsed as type (some: U64 | none: ())"), so the
+// fight's pets come through the fight roster: a semijoin of combat_participant (by combat_id) to
+// active_pet on the indexed character_id columns; the client keeps the rows whose combatId matches.
+// Never compare an optional column with a literal (queries.test.ts checks every query).
 
 export interface GameQueries {
   myCharacterEffects: string;
@@ -50,6 +56,8 @@ export interface GameQueries {
   combatNarratives(combatId: bigint): string;
   combatPets(combatId: bigint): string;
   combatEnemyEffects(combatId: bigint): string;
+  /** The fight's combat_encounter row (its id is the combat id). */
+  combatEncounter(combatId: bigint): string;
   renown(characterId: bigint): string;
   renownPerks(characterId: bigint): string;
   resourceGathers(characterId: bigint): string;
@@ -120,9 +128,15 @@ export function gameQueries(): GameQueries {
       toSql(tables.combatEnemyCast.where((r) => r.combatId.eq(combatId))),
     combatNarratives: (combatId) =>
       toSql(tables.combatNarrative.where((r) => r.combatId.eq(combatId))),
-    combatPets: (combatId) => toSql(tables.activePet.where((r) => r.combatId.eq(combatId))),
+    combatPets: (combatId) =>
+      toSql(
+        tables.combatParticipant
+          .where((r) => r.combatId.eq(combatId))
+          .rightSemijoin(tables.activePet, (participant, pet) => participant.characterId.eq(pet.characterId)),
+      ),
     combatEnemyEffects: (combatId) =>
       toSql(tables.combatEnemyEffect.where((r) => r.combatId.eq(combatId))),
+    combatEncounter: (combatId) => toSql(tables.combatEncounter.where((r) => r.id.eq(combatId))),
     renown: (characterId) => toSql(tables.renown.where((r) => r.characterId.eq(characterId))),
     renownPerks: (characterId) =>
       toSql(tables.renownPerk.where((r) => r.characterId.eq(characterId))),

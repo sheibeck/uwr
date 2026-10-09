@@ -8,6 +8,7 @@ import type {
   CharacterCast,
   CharacterEffect,
   CombatAction,
+  CombatEncounter,
   CombatEnemy,
   CombatEnemyCast,
   CombatEnemyEffect,
@@ -49,6 +50,7 @@ import type { KeywordEntry } from '../console/keywords';
 import type { ScreenId } from '../screens/screens';
 import type { ActiveScreen } from '../frame/useScreens';
 import type { RoundTimerState } from '../combat/roundClock';
+import type { TimeOfDay } from '../session/frameView';
 import { createServerClock } from './serverClock';
 import type { ServerClock } from './serverClock';
 
@@ -152,6 +154,11 @@ export interface CombatData {
   /** Fight participants, party and the player, by id. */
   readonly characterNames: Readonly<Ref<ReadonlyMap<bigint, string>>>;
   readonly petNames: Readonly<Ref<ReadonlyMap<bigint, string>>>;
+  /**
+   * The own fight's combat_encounter row (its origin columns name the heading and the source line,
+   * 51.3.1.1 D-32); null outside a fight or before the row applies (51.3.1.1-31).
+   */
+  readonly encounter: Readonly<Ref<CombatEncounter | null>>;
 }
 
 export interface GameData {
@@ -186,6 +193,11 @@ export interface GameData {
   poolsAppliedFor(locationId: bigint): boolean;
   /** The active character's own named_enemy rows, every place (filter by locationId and isAlive). */
   readonly namedEnemies: List<NamedEnemy>;
+  /**
+   * The templates of the active character's own named enemies, every place (level, con colour and
+   * isBoss for the named cards, D-39; 51.3.1.1-31). A binding of its own, beside enemyTemplatesHere.
+   */
+  readonly namedEnemyTemplates: List<EnemyTemplate>;
   /** my_harvest_caps: the active character's capped places (cappedUntilMicros), never an amount. */
   readonly harvestCaps: List<MyHarvestCap>;
   /** The active character's visited place ids (my_visited_locations). */
@@ -251,6 +263,11 @@ export interface FrameControls {
   readonly activeScreen: Readonly<Ref<ActiveScreen>>;
   /** The arguments of the open vendor (which NPC) or map (which place or region) screen; null for every other screen and when closed. */
   readonly screenArgs: Readonly<Ref<ScreenArgs | null>>;
+  /**
+   * Day or night from world_state, the value the header shows (FrameView.timeOfDay); null while
+   * unknown. Nearby hides the resource pools of the other time of day (D-55; 51.3.1.1-31).
+   */
+  readonly timeOfDay: Readonly<Ref<TimeOfDay | null>>;
   openScreen(id: ScreenId | 'encounter', args?: ScreenArgs): void;
   /** No-op when nothing is open. */
   closeScreen(): void;
@@ -370,6 +387,7 @@ export function createInertCombatData(): CombatData {
     aggro: empty<MyCombatAggroEntry>(),
     characterNames: constant<ReadonlyMap<bigint, string>>(new Map()),
     petNames: constant<ReadonlyMap<bigint, string>>(new Map()),
+    encounter: constant<CombatEncounter | null>(null),
   };
 }
 
@@ -390,6 +408,7 @@ export function createInertGame(): GameData {
     poolRegionsApplied: constant<ReadonlySet<bigint>>(new Set()),
     poolsAppliedFor: () => false,
     namedEnemies: empty<NamedEnemy>(),
+    namedEnemyTemplates: empty<EnemyTemplate>(),
     harvestCaps: empty<MyHarvestCap>(),
     visitedLocationIds: empty<bigint>(),
     playersHere: empty<Character>(),
@@ -431,6 +450,7 @@ export function createInertFrame(): FrameControls {
     isDesktop: constant(true),
     activeScreen: constant<ActiveScreen>(null),
     screenArgs: constant<ScreenArgs | null>(null),
+    timeOfDay: constant<TimeOfDay | null>(null),
     openScreen() {},
     closeScreen() {},
   };

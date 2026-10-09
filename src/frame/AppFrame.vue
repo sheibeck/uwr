@@ -60,6 +60,8 @@ const frameControls: FrameControls = {
   isDesktop,
   activeScreen: screens.active,
   screenArgs: computed(() => screenArgs.value),
+  // Day or night, the value the header shows (Nearby hides out-of-time resource pools, D-55).
+  timeOfDay: computed(() => props.view.timeOfDay),
   openScreen(id: ScreenId | 'encounter', args?: ScreenArgs) {
     const focused = document.activeElement;
     const element = focused instanceof HTMLElement ? focused : null;
