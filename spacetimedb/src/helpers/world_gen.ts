@@ -3,11 +3,16 @@
 // World generation runs in two jobs (Phase 43, LAT-03). world_gen_state.step is a plain string:
 //   PENDING     inserted by a trigger, not yet started
 //   GENERATING  stage 1 (route world_gen_start) is running: region, start location, first NPC
-//   FILLING     stage 1 landed and stage 2 (route world_gen) is running: the rest of the region
-//   COMPLETE    stage 2 landed
-//   FILL_ERROR  stage 2 failed or was refused; the stage-1 region stays playable (the start
+//   FILLING     stage 1 landed and stage 2a (route world_gen) is running: the region's places
+//   FILLING_FAMILIES  stage 2a landed and stage 2b (route world_gen_families) is running: its creature
+//               families (Phase 51.3.1.2, D-01)
+//   COMPLETE    the region is whole: the hold at the crossing ends and the region economy starts
+//               (finishRegionFill, D-15, D-16)
+//   FILL_ERROR  stage 2a failed or was refused; the stage-1 region stays playable (the start
 //               location has its vendor and banker) and only the player's [explore] starts a
 //               new fill job, so no automatic retry loop exists
+//   FAMILIES_ERROR  stage 2b failed or was refused; the places stay as written and are never
+//               written again (never FILL_ERROR, D-08, D-09)
 //   ERROR       stage 1 failed or was refused; nothing was written
 // world_gen_state is public: errorMessage only ever holds a fixed in-voice line.
 
@@ -32,7 +37,7 @@ import {
 import { nameKey } from '../data/economy_design_rules';
 import type { FamilyRelation } from '../data/mechanical_vocabulary';
 import { markLocationVisited } from './visited';
-import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
+import type { WorldGenInput, WorldFillInput, WorldFamiliesInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { keeperFallback, flattenSegments } from './segments';
 import { enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
@@ -43,7 +48,6 @@ import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
 import {
-  askedFamilyCount,
   assignRegionFamilies,
   chooseHubs,
   familyCountFor,
@@ -60,6 +64,7 @@ import {
   hopsFrom,
   hostFloorFlips,
   levelOffsetForHops,
+  placeCountFor,
   shapeRegionEdges,
   type ShapeNode,
 } from '../data/region_shape';
@@ -455,6 +460,14 @@ export const WORLD_FILL_FAILED_MESSAGE =
 /** Stored (public) and posted when the stage-2 enqueue is refused for a reason other than resting. */
 export const WORLD_FILL_REFUSED_MESSAGE =
   'The Keeper cannot finish remembering this region right now. What he has shown you will hold.';
+/**
+ * Stored (public) when stage 2b fails or its input cannot be built (D-09, D-18): the owner's
+ * Alternative for section 5 of .planning/phases/51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md
+ * (Status: APPROVED 2026-10-09), the part before ' Type [explore] to try again.', copied with
+ * `node scripts/llm/prompt_draft.mjs chosen <draft>`. The whole sentence is posted only on the creation
+ * console; a character at the crossing gets the 7d line (REGION_HOLD_FAILED_LINE) instead.
+ */
+export const WORLD_FAMILIES_FAILED_MESSAGE = 'The land is remembered, but not yet what lives in it.';
 /** Posted by the explore intent (Plan 43-11) when a fill retry starts. */
 export const WORLD_FILL_RETRY_LINE = 'The Keeper squints at the half-remembered land and tries again...';
 
@@ -761,11 +774,10 @@ export function buildWorldFillInput(tx: any, genState: any): WorldFillInput {
     // The Hubs line (D-62): the same count placeRegionHubs enforces when the reply is written.
     hubCount: regionHubCount(region, genState.sourceRegionId === 0n),
     arrivalIsHub: start.isHub === true,
-    // The Families and Feud lines (D-66, D-70, D-71): the server's own counts. The write
-    // (writeRegionFamilies) counts the real charted places with familyCountFor; Plan 08 moves this
-    // request to the same count.
-    familyCount: askedFamilyCount(),
-    feudCount: feudCountFor(askedFamilyCount(), familySeed(region.id)),
+    // Phase 51.3.1.2 (D-03): the server's place count, the arrival point included (8-10, hubSeed only,
+    // so this request and the 2a write agree). The family and feud counts moved to the 2b job (D-66),
+    // which counts the real places after this reply is written (buildWorldFamiliesInput).
+    placeCount: placeCountFor(region.id),
   };
 }
 
@@ -892,6 +904,124 @@ export function retryWorldFill(
   };
   tx.db.world_gen_state.id.update(handed);
   return startWorldFill(tx, handed) === 'refused' ? 'refused' : 'started';
+}
+
+// ---------------------------------------------------------------------------
+// Stage 2b: the creature families (Phase 51.3.1.2, D-01, D-08, D-09, D-66)
+// ---------------------------------------------------------------------------
+
+/** A stored JSON array of strings (the region's threats); anything unreadable reads as none. */
+function storedStringList(raw: unknown): string[] {
+  if (typeof raw !== 'string' || raw.trim() === '') return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v: unknown): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The 2b flag of a place as it stands (the shape rules already ran, D-05): hub beats safe, else ordinary. */
+function familiesPlaceFlag(loc: any): 'hub' | 'safe' | 'ordinary' {
+  if (loc?.isHub === true) return 'hub';
+  if (loc?.isSafe === true) return 'safe';
+  return 'ordinary';
+}
+
+/**
+ * The stage-2b input, read back from the rows stage 2a stored (never from either reply, so 2b sees
+ * exactly what the players see): the region's charted places (regionChartedPlaces: the arrival point
+ * first, the Edge Beyond doorway never) with their hub, safe or ordinary flag after the server's shape
+ * rules, the hub names, the dominant faction and threats, familyCount = familyCountFor(real places)
+ * (D-66) and feudCount = feudCountFor(familyCount, familySeed(regionId)) (D-70, D-71): the same counts
+ * writeRegionFamilies keeps. Strings go in raw; the route builder sanitizes them. Throws a plain Error
+ * when the region or its arrival point is missing.
+ */
+export function buildWorldFamiliesInput(tx: any, genState: any): WorldFamiliesInput {
+  const region =
+    genState.generatedRegionId !== undefined && genState.generatedRegionId !== null
+      ? tx.db.region.id.find(genState.generatedRegionId)
+      : undefined;
+  if (!region) throw new Error('World families: the generated region is missing');
+  if (!findRegionStart(tx, region.id)) throw new Error('World families: the region has no start location');
+  const places = regionChartedPlaces(tx, region.id);
+
+  const familyCount = familyCountFor(places.length);
+  return {
+    regionName: String(region.name ?? ''),
+    biome: region.biome ?? 'plains',
+    dominantFaction: region.dominantFaction || undefined,
+    threats: storedStringList(region.threats),
+    places: places.map((loc: any) => ({
+      name: String(loc.name ?? ''),
+      terrainType: String(loc.terrainType ?? ''),
+      flag: familiesPlaceFlag(loc),
+    })),
+    hubNames: places.filter((loc: any) => loc.isHub === true).map((loc: any) => String(loc.name ?? '')),
+    familyCount,
+    feudCount: feudCountFor(familyCount, familySeed(region.id)),
+  };
+}
+
+/**
+ * Stage 2b start, in the caller's transaction (D-01): enqueue the world_gen_families job for this state
+ * and move it to FILLING_FAMILIES. One job per state (dedupe by route and sourceKey worldGen(genStateId):
+ * a second call while it is active is 'duplicate'); the route is cap-exempt and never retries itself
+ * (T-51.3.1.2-26). A refused enqueue (kill switch or ceiling: the resting line; anything else: the
+ * refused line) or an input that cannot be built fails the families instead: FAMILIES_ERROR, never
+ * FILL_ERROR, so the places are never written twice (D-08, T-51.3.1.2-25). Plan 11 calls it from the 2a
+ * apply; Plan 12 adds the [explore] retry.
+ */
+export function startWorldFamilies(tx: any, genState: any): 'enqueued' | 'duplicate' | 'refused' {
+  let input: WorldFamiliesInput;
+  try {
+    input = buildWorldFamiliesInput(tx, genState);
+  } catch {
+    failWorldFamilies(tx, genState, WORLD_FAMILIES_FAILED_MESSAGE);
+    return 'refused';
+  }
+
+  const result = enqueueLlmJob(tx, {
+    route: 'world_gen_families',
+    playerId: genState.playerId,
+    characterId: genState.characterId,
+    sourceKey: SOURCE_KEYS.worldGen(genState.id),
+    request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
+  });
+
+  if (result.refused) {
+    failWorldFamilies(
+      tx,
+      genState,
+      isRestingErrorCode(result.refused) ? LLM_RESTING_LINE : WORLD_FILL_REFUSED_MESSAGE,
+    );
+    return 'refused';
+  }
+
+  const current = tx.db.world_gen_state.id.find(genState.id) ?? genState;
+  tx.db.world_gen_state.id.update({
+    ...current,
+    step: 'FILLING_FAMILIES',
+    errorMessage: undefined,
+    updatedAt: tx.timestamp,
+  });
+  return result.created ? 'enqueued' : 'duplicate';
+}
+
+/**
+ * Stage 2b failed (call failure, malformed or empty reply, refused enqueue, unreadable input): the state
+ * becomes FAMILIES_ERROR with the in-voice message (D-08, D-09). Never FILL_ERROR; no row is removed.
+ */
+export function failWorldFamilies(tx: any, genState: any, message: string): void {
+  const current = tx.db.world_gen_state.id.find(genState.id);
+  if (current) {
+    tx.db.world_gen_state.id.update({
+      ...current,
+      step: 'FAMILIES_ERROR',
+      errorMessage: message,
+      updatedAt: tx.timestamp,
+    });
+  }
 }
 
 /**

@@ -141,7 +141,6 @@ export const DENSITY_RULES = deepFreeze({
   FAMILIES_PER_PLACE_X10: 15, // D-66: about 1.5 families per place, in integer tenths
   FAMILY_COUNT_MIN: 3, // D-66: a region has at least this many families
   FAMILY_COUNT_MAX: 15, // D-66: and at most this many
-  FILL_PLANNED_PLACES: 5, // D-66: the region size the fill request plans for (the arrival point plus the most new places the Counts sentence asks for); Phase 51.3.1.2 (D-69) replaces it with the server's own place count
   PLACE_FAMILIES_MIN: 3, // D-67: families one host place holds, fewer when the region has fewer
   PLACE_FAMILIES_MAX: 5, // D-67
   FEUD_FAMILIES_MIN: 2, // D-70: families in a region's one seeded feud
@@ -758,19 +757,6 @@ function wholeCount(n: number): number {
 export function familyCountFor(placeCount: number): number {
   const raw = Math.floor((wholeCount(placeCount) * DENSITY_RULES.FAMILIES_PER_PLACE_X10) / 10);
   return Math.max(DENSITY_RULES.FAMILY_COUNT_MIN, Math.min(DENSITY_RULES.FAMILY_COUNT_MAX, raw));
-}
-
-/** The family count the fill request asks for: the planned region size FILL_PLANNED_PLACES (D-66). */
-export function askedFamilyCount(): number {
-  return familyCountFor(DENSITY_RULES.FILL_PLANNED_PLACES);
-}
-
-/**
- * The family count the server keeps once it knows the region's real size (D-66): never more than it
- * asked for, fewer when the region turned out smaller.
- */
-export function keptFamilyCount(actualPlaces: number): number {
-  return Math.min(askedFamilyCount(), familyCountFor(actualPlaces));
 }
 
 /**
