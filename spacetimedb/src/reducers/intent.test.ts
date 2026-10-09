@@ -1033,3 +1033,32 @@ describe('sell command helpers', () => {
     });
   });
 });
+
+// Phase 51.3.1.2 (Plan 12, D-09, D-17, D-18): the [explore] branch maps the retry outcomes to the existing
+// lines. This file mocks helpers/location, so the reducer itself runs in explore_retry.integration.test.ts;
+// here the branch is read as source so a remapped outcome fails fast.
+describe('[explore] retry outcomes in submit_intent (Phase 51.3.1.2, Plan 12)', () => {
+  const exploreBranch = (): string => {
+    // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
+    const { readFileSync } = require('node:fs');
+    const source: string = readFileSync(new URL('./intent.ts', import.meta.url), 'utf8');
+    const start = source.indexOf("if (lower === 'explore') {");
+    const end = source.indexOf('// --- TRAVEL', start);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    return source.slice(start, end);
+  };
+
+  it('in game: busy gives the busy line, started gives WORLD_FILL_RETRY_LINE, refused adds no second line', () => {
+    const branch = exploreBranch();
+    expect(branch).toMatch(/fill === 'busy'\) \{\s*return appendPrivateEvent\([^;]*STARTER_RETRY_MESSAGES\.busy\)/);
+    expect(branch).toMatch(/fill === 'started'\) \{\s*return appendPrivateEvent\([^;]*WORLD_FILL_RETRY_LINE\)/);
+    expect(branch).toMatch(/fill === 'refused'\) return;/);
+  });
+
+  it('the in-game comment names the families retry (FAMILIES_ERROR re-enqueues 2b only)', () => {
+    const branch = exploreBranch();
+    expect(branch).toContain('FAMILIES_ERROR');
+    expect(branch).toContain('FILLING_FAMILIES');
+  });
+});

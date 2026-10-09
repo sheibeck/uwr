@@ -1463,9 +1463,10 @@ describe('staged world fill (Phase 43)', () => {
       },
     );
 
-    it('busy: a matching FILLING state starts nothing', () => {
+    // Phase 51.3.1.2 (D-09): a running families call (FILLING_FAMILIES) is busy as well.
+    it.each(['FILLING', 'FILLING_FAMILIES'])('busy: a matching %s state starts nothing', (step) => {
       const { ctx } = failedSeed('region');
-      ctx.db.world_gen_state.id.update({ ...stateOf(ctx), step: 'FILLING' });
+      ctx.db.world_gen_state.id.update({ ...stateOf(ctx), step });
       expect(retryWorldFill(ctx, rows(ctx, 'character')[1], bob)).toBe('busy');
       expect(rows(ctx, 'llm_job')).toHaveLength(0);
       expect(stateOf(ctx).playerId).toBe(alice);
