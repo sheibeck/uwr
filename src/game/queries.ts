@@ -8,8 +8,9 @@ import { tables } from '../module_bindings';
 // event_world are small or already scoped server-side, so they stay unfiltered.
 // The combat tables are keyed by character id (own participant and own choice rows) or by
 // combat id (everything of the one fight); enemy templates and abilities are id-list OR
-// chains. The threat view my_combat_aggro is static: it is scoped server-side. So is the loot
-// view my_combat_loot (the active character's untaken drops, quick 261008-f3m).
+// chains. The loot view my_combat_loot is static: it is scoped server-side (the active character's
+// untaken drops, quick 261008-f3m). The threat view my_combat_aggro is no longer subscribed: the
+// threat block is gone (51.3.1.1-22, D-40) and nothing reads it (review C WR-06).
 // Density pools (51.3.1.1-18): pool_level is keyed by region ids (an OR chain on region_id), the own
 // named_enemy rows by character_id; my_harvest_caps and my_visited_locations are per-sender views
 // (no WHERE). resource_node is no longer subscribed.
@@ -29,7 +30,6 @@ export interface GameQueries {
   faction: string;
   eventWorld: string;
   activeWorldEvents: string;
-  myCombatAggro: string;
   myCombatLoot: string;
   /** The active character's harvest caps (per-sender view, no WHERE). */
   myHarvestCaps: string;
@@ -93,7 +93,6 @@ export function gameQueries(): GameQueries {
     faction: toSql(tables.faction),
     eventWorld: toSql(tables.eventWorld),
     activeWorldEvents: toSql(tables.worldEvent.where((r) => r.status.eq('active'))),
-    myCombatAggro: toSql(tables.myCombatAggro),
     myCombatLoot: toSql(tables.myCombatLoot),
     myHarvestCaps: toSql(tables.myHarvestCaps),
     myVisitedLocations: toSql(tables.myVisitedLocations),

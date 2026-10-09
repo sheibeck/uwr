@@ -30,7 +30,6 @@ import type {
   HotbarSlot,
   Location,
   LocationConnection,
-  MyCombatAggroEntry,
   MyHarvestCap,
   MyLlmJob,
   NamedEnemy,
@@ -118,8 +117,6 @@ export interface CombatData {
   readonly applied: Readonly<Ref<boolean>>;
   /** The fight's enemy cast binding has applied. */
   readonly castsApplied: Readonly<Ref<boolean>>;
-  /** The threat view has applied. */
-  readonly aggroApplied: Readonly<Ref<boolean>>;
   /** The fight's round binding has applied; round rows that arrive after it are live, not a snapshot. */
   readonly roundsApplied: Readonly<Ref<boolean>>;
   /**
@@ -149,8 +146,6 @@ export interface CombatData {
   /** Lingers for a short while after the fight ends, so a late narration still matches its round. */
   readonly narratives: List<CombatNarrative>;
   readonly pets: List<ActivePet>;
-  /** The threat view rows of the player's fights. */
-  readonly aggro: List<MyCombatAggroEntry>;
   /** Fight participants, party and the player, by id. */
   readonly characterNames: Readonly<Ref<ReadonlyMap<bigint, string>>>;
   readonly petNames: Readonly<Ref<ReadonlyMap<bigint, string>>>;
@@ -376,7 +371,6 @@ export function createInertCombatData(): CombatData {
     active: constant(false),
     applied: constant(false),
     castsApplied: constant(false),
-    aggroApplied: constant(false),
     roundsApplied: constant(false),
     participantApplied: constant(false),
     combatId: constant<bigint | null>(null),
@@ -394,7 +388,6 @@ export function createInertCombatData(): CombatData {
     enemyEffects: empty<CombatEnemyEffect>(),
     narratives: empty<CombatNarrative>(),
     pets: empty<ActivePet>(),
-    aggro: empty<MyCombatAggroEntry>(),
     characterNames: constant<ReadonlyMap<bigint, string>>(new Map()),
     petNames: constant<ReadonlyMap<bigint, string>>(new Map()),
     encounter: constant<CombatEncounter | null>(null),

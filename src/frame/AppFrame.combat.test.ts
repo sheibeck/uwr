@@ -194,7 +194,6 @@ function combatGame(names: Names): { game: GameData; reducers: Reducers } {
     ...base.combat,
     active: ref(true),
     applied: ref(true),
-    aggroApplied: ref(true),
     castsApplied: ref(true),
     combatId: ref<bigint | null>(COMBAT_ID),
     self: ref(self),
@@ -246,10 +245,6 @@ function combatGame(names: Names): { game: GameData; reducers: Reducers } {
         maxHp: 40n,
         attackDamage: 4n,
       },
-    ]),
-    aggro: ref([
-      { id: 1n, combatId: COMBAT_ID, enemyId: 9n, characterId: CHARACTER_ID, value: 120n },
-      { id: 2n, combatId: COMBAT_ID, enemyId: 9n, characterId: MARA_ID, value: 90n },
     ]),
     characterNames: ref(
       new Map<bigint, string>([

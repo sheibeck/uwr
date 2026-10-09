@@ -33,8 +33,6 @@ interface Setup {
   abilities?: Array<Record<string, unknown>>;
   casts?: Array<Record<string, unknown>>;
   effects?: Array<Record<string, unknown>>;
-  aggro?: Array<Record<string, unknown>>;
-  aggroApplied?: boolean;
   applied?: boolean;
   target?: bigint | null;
   roundNumber?: bigint | null;
@@ -66,7 +64,6 @@ function mountPanel(setup: Setup = {}, props: { variant?: 'rail' | 'sheet' } = {
     ...createInertCombatData(),
     active: ref(true),
     applied: ref(setup.applied ?? true),
-    aggroApplied: ref(setup.aggroApplied ?? true),
     enemies: ref(setup.enemies ?? [enemy(9n, 'Rotfang'), enemy(3n, 'Gnawer', { currentHp: 50n, maxHp: 100n })]),
     enemyTemplates: ref(
       setup.templates ?? [
@@ -79,7 +76,6 @@ function mountPanel(setup: Setup = {}, props: { variant?: 'rail' | 'sheet' } = {
     ),
     casts: ref(setup.casts ?? []),
     enemyEffects: ref(setup.effects ?? []),
-    aggro: ref(setup.aggro ?? []),
     roundNumber: ref(setup.roundNumber === undefined ? 3n : setup.roundNumber),
     characterNames: ref(setup.characterNames ?? new Map<bigint, string>()),
     petNames: ref(setup.petNames ?? new Map<bigint, string>()),
@@ -288,14 +284,8 @@ describe('EncounterPanel wind-ups', () => {
 });
 
 describe('EncounterPanel threat block removed (D-40)', () => {
-  it('draws no threat heading, rows or empty line even with threat rows applied', () => {
-    mountPanel({
-      aggro: [
-        { combatId: 1n, enemyId: 9n, characterId: 8n, value: 300n },
-        { combatId: 1n, enemyId: 9n, characterId: 5n, value: 400n },
-      ],
-      characterNames: new Map([[8n, 'Mara']]),
-    });
+  it('draws no threat heading, rows or empty line', () => {
+    mountPanel({ characterNames: new Map([[8n, 'Mara']]) });
     expect(wrapper!.find('.threat').exists()).toBe(false);
     expect(wrapper!.find('.threat-heading').exists()).toBe(false);
     expect(wrapper!.text()).not.toContain('Threat');

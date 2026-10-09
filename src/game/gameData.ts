@@ -34,7 +34,6 @@ import type {
   HotbarSlot,
   Location,
   LocationConnection,
-  MyCombatAggroEntry,
   MyHarvestCap,
   MyLlmJob,
   NamedEnemy,
@@ -66,7 +65,7 @@ import { createServerClock } from './serverClock';
 //
 // Scope of each subscription:
 //   once per connection  the five views, faction, active world events, event_world,
-//                        my_combat_aggro and my_combat_loot (the loot links, quick 261008-f3m),
+//                        my_combat_loot (the loot links, quick 261008-f3m),
 //                        my_harvest_caps and my_visited_locations (51.3.1.1-18)
 //   by user              event_private
 //   by location          event_location, npc, enemy_spawn, character, location_connection
@@ -83,7 +82,7 @@ import { createServerClock } from './serverClock';
 //   combat (48)          own participant and own choice rows by character; participants,
 //                        enemies, enemy effects, rounds, casts, narratives and pets of the one fight by combat
 //                        id (the key follows the own participant row); enemy templates and
-//                        abilities by id list; my_combat_aggro once per connection; the fight's
+//                        abilities by id list; the fight's
 //                        combat_encounter row by id (= the combat id, 51.3.1.1-31). The pets come
 //                        through the fight roster (active_pet.combat_id is optional; queries.ts)
 //
@@ -146,7 +145,6 @@ export interface GameConn extends ConnLike {
     combatEncounter: Row<CombatEncounter>;
     combatNarrative: Row<CombatNarrative>;
     activePet: Row<ActivePet>;
-    myCombatAggro: Row<MyCombatAggroEntry>;
     myCombatLoot: Row<CombatLoot>;
   };
   reducers: GameReducers;
@@ -205,10 +203,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     sql: [queries.activeWorldEvents],
     filter: (row) => row.status === 'active',
   });
-  const combatAggro = deps.bind<MyCombatAggroEntry>({
-    table: (c) => c.db.myCombatAggro,
-    sql: [queries.myCombatAggro],
-  });
   const combatLoot = deps.bind<CombatLoot>({
     table: (c) => c.db.myCombatLoot,
     sql: [queries.myCombatLoot],
@@ -233,7 +227,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     factionStandings,
     factions,
     worldEvents,
-    combatAggro,
     combatLoot,
     harvestCaps,
     visited,
@@ -789,7 +782,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
       () => combatKey.value !== null && (fightEnemies.current.value?.applied.value ?? false),
     ),
     castsApplied: computed(() => fightCasts.current.value?.applied.value ?? false),
-    aggroApplied: computed(() => combatAggro.applied.value),
     roundsApplied: computed(() => fightRounds.current.value?.applied.value ?? false),
     participantApplied: computed(() => ownParticipant.current.value?.applied.value ?? false),
     combatId: combatKey,
@@ -807,7 +799,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     enemyEffects: keyedRows(fightEnemyEffects),
     narratives: keyedRows(fightNarratives),
     pets: petRows,
-    aggro: combatAggro.rows,
     characterNames,
     petNames,
     // The row of the CURRENT combat id only: during a key swap the old binding's row can still be

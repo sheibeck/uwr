@@ -183,9 +183,11 @@ describe('gameQueries: combat', () => {
     expect(() => q.enemyAbilitiesByTemplate([])).toThrow();
   });
 
-  it('selects the threat view whole, with no WHERE', () => {
-    expect(q.myCombatAggro).toContain('SELECT * FROM "my_combat_aggro"');
-    expect(q.myCombatAggro).not.toContain('WHERE');
+  it('no longer selects the threat view (D-40, review C WR-06)', () => {
+    expect('myCombatAggro' in q).toBe(false);
+    for (const value of Object.values(q)) {
+      if (typeof value === 'string') expect(value).not.toContain('my_combat_aggro');
+    }
   });
 
   it('selects the loot view whole, with no WHERE (quick 261008-f3m)', () => {

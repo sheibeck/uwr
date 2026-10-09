@@ -42,7 +42,6 @@ const queries: GameQueries = {
   faction: 'Q_FACTION',
   eventWorld: 'Q_EVENT_WORLD',
   activeWorldEvents: 'Q_ACTIVE_EVENTS',
-  myCombatAggro: 'Q_COMBAT_AGGRO',
   myCombatLoot: 'Q_COMBAT_LOOT',
   myHarvestCaps: 'Q_HARVEST_CAPS',
   myVisitedLocations: 'Q_VISITED',
@@ -216,7 +215,6 @@ const STATIC_SQL = [
   'Q_FACTION',
   'Q_ACTIVE_EVENTS',
   'Q_EVENT_WORLD',
-  'Q_COMBAT_AGGRO',
   'Q_COMBAT_LOOT',
   'Q_HARVEST_CAPS',
   'Q_VISITED',
@@ -232,11 +230,11 @@ describe('createGameData: static bindings', () => {
     expect(h.bindings.every((b) => b.conn === null)).toBe(true);
   });
 
-  it('attaches the 11 static bindings and event_world to a connection, and re-attaches a new one', () => {
+  it('attaches the 10 static bindings and event_world to a connection, and re-attaches a new one', () => {
     const h = harness();
     const first = h.connect();
     for (const sql of STATIC_SQL) expect(h.find(sql).conn).toBe(first);
-    expect(STATIC_SQL).toHaveLength(12);
+    expect(STATIC_SQL).toHaveLength(11);
 
     const second = makeConn();
     h.conn.value = second;
@@ -1053,16 +1051,18 @@ describe('createGameData: combat', () => {
     });
   });
 
-  it('mirrors the threat view rows and its applied flag', () => {
+  it('does not subscribe the threat view and exposes no threat data (D-40, review C WR-06)', () => {
     const h = harness();
     h.connect();
-    expect(h.game.combat.aggro.value).toEqual([]);
-    expect(h.game.combat.aggroApplied.value).toBe(false);
-    const view = h.find('Q_COMBAT_AGGRO');
-    view.rows.value = [{ id: 1n, combatId: 10n, enemyId: 2n, characterId: 5n, value: 7n }];
-    view.applied.value = true;
-    expect(h.game.combat.aggro.value).toHaveLength(1);
-    expect(h.game.combat.aggroApplied.value).toBe(true);
+    const tablesRead: PropertyKey[] = [];
+    const db = new Proxy({}, { get: (_target, key) => (tablesRead.push(key), {}) });
+    for (const binding of h.bindings) {
+      (binding.options as { table?: (c: unknown) => unknown }).table?.({ db });
+    }
+    expect(tablesRead.length).toBeGreaterThan(0);
+    expect(tablesRead).not.toContain('myCombatAggro');
+    expect('aggro' in h.game.combat).toBe(false);
+    expect('aggroApplied' in h.game.combat).toBe(false);
   });
 
   it('disposes every combat binding on dispose and on scope stop', () => {
@@ -1512,7 +1512,6 @@ describe('inert defaults', () => {
       combat.active,
       combat.applied,
       combat.castsApplied,
-      combat.aggroApplied,
       combat.roundsApplied,
       combat.participantApplied,
     ]) {
@@ -1539,7 +1538,6 @@ describe('inert defaults', () => {
       combat.enemyEffects,
       combat.narratives,
       combat.pets,
-      combat.aggro,
     ]) {
       expect(list.value).toEqual([]);
     }
