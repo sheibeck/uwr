@@ -137,9 +137,11 @@ export interface HostileViewsInput {
   selfId: bigint | null;
   characterNames: ReadonlyMap<bigint, string>;
   petNames: ReadonlyMap<bigint, string>;
-  /** Template ids of the viewer's named enemies (named_enemy rows); such an enemy reads Named. */
-  namedTemplateIds?: ReadonlySet<bigint>;
-  /** The fight's origin is 'named' (a single named enemy); every enemy reads Named. */
+  /**
+   * The fight's origin is 'named' (startCombatForSpawn records it for every named or boss spawn);
+   * every enemy reads Named. The origin is the only Named rule: a named enemy's template can also be
+   * an ordinary family member's, so matching template ids would mark pool draws Named (WR-05).
+   */
   namedFight?: boolean;
 }
 
@@ -241,10 +243,7 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
       const percent = Math.round(fraction * 100);
       const defeated = enemy.currentHp <= 0n;
       const targeted = !defeated && input.targetId !== null && input.targetId === enemy.id;
-      const role = roleView(template?.role, {
-        boss: isBoss,
-        named: input.namedFight === true || (input.namedTemplateIds?.has(enemy.enemyTemplateId) ?? false),
-      });
+      const role = roleView(template?.role, { boss: isBoss, named: input.namedFight === true });
       const intent = intentOf(enemy);
 
       const abilityNames: string[] = [];

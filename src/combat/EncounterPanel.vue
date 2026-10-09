@@ -37,8 +37,6 @@ const place = usePlaceView();
 const combat = game.combat;
 const encounter = computed(() => encounterRowOf(combat));
 
-const namedTemplateIds = computed(() => new Set(game.namedEnemies.value.map((row) => row.enemyTemplateId)));
-
 const hostiles = computed(() =>
   hostileViews({
     enemies: combat.enemies.value,
@@ -52,7 +50,6 @@ const hostiles = computed(() =>
     selfId: game.characterId.value,
     characterNames: combat.characterNames.value,
     petNames: combat.petNames.value,
-    namedTemplateIds: namedTemplateIds.value,
     namedFight: encounter.value?.origin === 'named',
   }),
 );

@@ -422,19 +422,14 @@ describe('hostileViews role (D-40)', () => {
     expect(views.map((v) => v.role.word)).toEqual(['Tank', 'Support', 'Caster', 'Damage', 'Damage']);
   });
 
-  it('shows Boss for a boss template and Named for a named template or a named fight', () => {
+  it('shows Boss for a boss template and Named only for a named fight (the origin, WR-05)', () => {
     const boss = hostileViews(input({ templates: [{ id: 100n, level: 3n, role: 'tank', isBoss: true }] }))[0];
     expect(boss.role.key).toBe('boss');
-    const named = hostileViews(
-      input({ templates: [{ id: 100n, level: 3n, role: 'healer' }], namedTemplateIds: new Set([100n]) }),
-    )[0];
-    expect(named.role.key).toBe('named');
     const namedFight = hostileViews(input({ templates: [{ id: 100n, level: 3n, role: 'tank' }], namedFight: true }))[0];
     expect(namedFight.role.key).toBe('named');
-    const plain = hostileViews(
-      input({ templates: [{ id: 100n, level: 3n, role: 'tank' }], namedTemplateIds: new Set([7n]) }),
-    )[0];
+    const plain = hostileViews(input({ templates: [{ id: 100n, level: 3n, role: 'tank' }], namedFight: false }))[0];
     expect(plain.role.key).toBe('tank');
+    expect(hostileViews(input({ templates: [{ id: 100n, level: 3n, role: 'healer' }] }))[0].role.key).toBe('support');
   });
 
   it('puts the role word after the name in the aria label', () => {

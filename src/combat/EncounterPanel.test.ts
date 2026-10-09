@@ -578,12 +578,22 @@ describe('EncounterPanel role chips and target lines (UI Q6)', () => {
     expect(wrapper!.get('.target-line').text()).toBe('Targeting Mara');
   });
 
-  it('marks a named enemy with the Named chip', () => {
+  it('marks the enemy of a named fight (origin named) with the Named chip', () => {
     mountPanel({
       enemies: [enemy(9n, 'Old Greymaw')],
-      namedEnemies: [{ id: 1n, characterId: 5n, name: 'Old Greymaw', enemyTemplateId: 100n, locationId: 10n, isAlive: true }],
+      encounter: { origin: 'named', originName: 'Cave Rat', originPlural: '', originLevel: 0n },
     });
     expect(wrapper!.get('.role-chip').text()).toBe('Named');
+  });
+
+  it("a pool draw of a named enemy's template is not Named (WR-05)", () => {
+    // The named enemy's template is also an ordinary family member's: a pulled member is not Named.
+    mountPanel({
+      enemies: [enemy(9n, 'Cave Rat')],
+      encounter: { origin: 'pull', originName: 'Cave Rats', originPlural: 'cave rats', originLevel: 2n },
+      namedEnemies: [{ id: 1n, characterId: 5n, name: 'Old Greymaw', enemyTemplateId: 100n, locationId: 10n, isAlive: true }],
+    });
+    expect(wrapper!.get('.role-chip').text()).not.toBe('Named');
   });
 
   it('target line icons and colours follow the UI-SPEC table', () => {
