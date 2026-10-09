@@ -810,6 +810,13 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       // the NPC's dialogue and the reply's other effects still apply.
       let killTarget: { templateId: bigint; placeId: bigint } | null = null;
       if (questType === 'kill' || questType === 'kill_loot') {
+        // Review B WR-02: resolved from the quest giver's place, not from where the player stands when the
+        // reply lands (the player may have moved, even to another region, since the talk was enqueued).
+        const questPlaceId: bigint = npc.locationId;
+        if (!ctx.db.location.id.find(questPlaceId)) {
+          console.log(`offer_quest "${questName}": the quest giver's place is gone (D-74); quest skipped`);
+          continue;
+        }
         // Review B CR-01: the model's creature name is cleaned (1-3 plain words, no markup, digits or
         // instruction words) before it is resolved or stored; a name given but unusable skips the quest.
         const targetName = cleanQuestTargetName(effect.targetEnemyName);
@@ -817,7 +824,7 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
           console.log(`offer_quest "${questName}": unusable target name (D-74); quest skipped`);
           continue;
         }
-        const resolved = resolveKillQuestTarget(ctx, character.locationId, targetName);
+        const resolved = resolveKillQuestTarget(ctx, questPlaceId, targetName);
         if (!resolved) {
           console.log(`offer_quest "${questName}": no reachable creature pool (D-74); quest skipped`);
           continue;
@@ -851,13 +858,13 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
           });
           ctx.db.location_enemy_template.insert({
             id: 0n,
-            locationId: character.locationId,
+            locationId: questPlaceId,
             enemyTemplateId: newEt.id,
           });
           // D-54: its family of one, with its own Scarce pool at the resolved place.
           let family: any = null;
           try {
-            family = familyOfOne(ctx, newEt, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
+            family = familyOfOne(ctx, newEt, questPlaceId, ctx.timestamp.microsSinceUnixEpoch);
           } catch (err) {
             console.error('Quest family start failed for enemy ' + newEt.id + ': ' + errName(err));
           }

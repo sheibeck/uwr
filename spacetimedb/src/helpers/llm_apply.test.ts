@@ -2114,6 +2114,41 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(created[0].id);
   });
 
+  // Review B WR-02: D-74 resolves from the quest giver's place, not where the player stands at apply time.
+  const movedAway = (seed: Record<string, any[]>) => {
+    seed.region = [...seed.region, { id: 2n, name: 'Far Fen', dangerMultiplier: 200n, regionType: 'generated', biome: 'swamp', landmarks: '[]', threats: '[]' }];
+    seed.location = [...seed.location, { ...placeRow(200n, 'Far Marsh', 'swamp', false), regionId: 2n }];
+    seed.character = seed.character.map((c: any) => ({ ...c, locationId: 200n }));
+    return seed;
+  };
+
+  it('a player who moved to another region before the reply landed: the invented pool sits at the NPC side', () => {
+    const ctx = strictCtx(movedAway(questSeed(false)));
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+    const template = invented(ctx);
+    const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
+    expect(family.regionId).toBe(1n);
+    expect(creaturePools(ctx).filter((p: any) => p.refId === family.id).map((p: any) => p.locationId)).toEqual([100n]);
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: template.id, targetLocationId: 100n });
+    expect(rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === 200n)).toBe(false);
+    expect(rows(ctx, 'place_pool').some((p: any) => p.locationId === 200n)).toBe(false);
+  });
+
+  it("a player who moved away: a pooled target is still found from the NPC's place", () => {
+    const ctx = strictCtx(movedAway(questSeed(true, wightFamily())));
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Bog Wight'));
+    expect(rows(ctx, 'quest_template')).toEqual([expect.objectContaining({ targetEnemyTemplateId: 900n, targetLocationId: 102n })]);
+  });
+
+  it("the quest giver's place is gone: no kill quest", () => {
+    const seed = questSeed(false);
+    seed.npc = seed.npc.map((n: any) => ({ ...n, locationId: 999n }));
+    const ctx = strictCtx(seed);
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+    expect(rows(ctx, 'enemy_template')).toEqual([]);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+  });
+
   it('boss_kill cleans the name the same way: an unusable name invents nothing', () => {
     const ctx = strictCtx(questSeed(false));
     expect(() => applyNpcConversationResult(ctx, npcJob, killWith('boss_kill', 42))).not.toThrow();
