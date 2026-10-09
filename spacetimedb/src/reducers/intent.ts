@@ -645,6 +645,7 @@ export const registerIntentReducers = (deps: any) => {
         pickUpQuestItem(ctx, character, match, appendPrivateEvent, {
           ensurePoolsForLocation: deps.ensurePoolsForLocation,
           effectiveGroupId: deps.effectiveGroupId,
+          startCombat: deps.startCombat,
           startCombatForSpawn: deps.startCombatForSpawn,
         });
         return;

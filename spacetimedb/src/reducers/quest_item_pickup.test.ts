@@ -12,9 +12,8 @@
  *   - a safe place, or a place whose families are all wiped out, never ambushes;
  *   - a turned-in or already completed instance of the quest is never touched;
  *   - a failing fight start is swallowed and the pickup still stands.
- * KNOWN GAP (Plan 11 hand-off): reducers/intent.ts (outside Plan 11's files) still hands
- * pickUpQuestItem the old dependency bag without startCombat, so the "loot <item>" intent picks the
- * item up but draws no ambush until intent.ts passes `startCombat: deps.startCombat`.
+ * The "loot <item>" intent hands pickUpQuestItem startCombat too (Plan 13 closed Plan 11's gap), so
+ * both paths draw the same ambush.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
@@ -193,15 +192,15 @@ describe('both paths behave the same', () => {
     expect(snapshot(a)).toEqual(snapshot(b));
   });
 
-  it('KNOWN GAP: on a hit the intent path picks the item up the same way but draws no ambush yet', () => {
+  it('leave identical quest rows, item rows, combats and messages when the roll hits (one ambush each)', () => {
     const a = newCtx({ ts: aggroTs() });
     viaReducer(a);
     const b = newCtx({ ts: aggroTs() });
     viaIntent(b);
     expect(rows(a, 'combat_encounter')).toHaveLength(1);
-    expect(rows(b, 'combat_encounter')).toHaveLength(0); // flips to 1 when intent.ts passes startCombat
-    expect(snapshot(b).questItems).toEqual(snapshot(a).questItems);
-    expect(snapshot(b).questInstances).toEqual(snapshot(a).questInstances);
+    expect(rows(b, 'combat_encounter')).toHaveLength(1);
+    expect(rows(b, 'combat_encounter')[0]).toMatchObject({ origin: 'ambush_other', originFamilyId: GOBLINS_ID });
+    expect(snapshot(b)).toEqual(snapshot(a));
   });
 });
 
