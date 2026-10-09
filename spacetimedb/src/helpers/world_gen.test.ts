@@ -108,6 +108,12 @@ function baseFillReply(overrides: any = {}) {
   };
 }
 
+/** The enemy templates the reply named: every template except the server-made filler members (Plan 09). */
+function replyEnemyTemplates(tx: any): any[] {
+  const fillers = new Set(tx.db.family_member._rows().filter((m: any) => m.filler).map((m: any) => m.enemyTemplateId));
+  return tx.db.enemy_template._rows().filter((e: any) => !fillers.has(e.id));
+}
+
 function baseGenState(overrides: any = {}) {
   return {
     id: 1n,
@@ -684,9 +690,10 @@ describe('starter region behavior (stage 1 and stage 2)', () => {
     const starterGenState = { id: 1n, sourceRegionId: 0n, sourceLocationId: 0n, characterId: 10n };
     writeBoth(tx, baseStartReply(), fill, starterGenState);
 
-    const enemies = tx.db.enemy_template._rows();
+    const enemies = replyEnemyTemplates(tx);
     expect(enemies.length).toBe(2);
-    for (const enemy of enemies) {
+    // The server-made filler members of the families (Plan 09) sit at the region base level too.
+    for (const enemy of tx.db.enemy_template._rows()) {
       expect(enemy.level).toBe(1n);
     }
   });
@@ -703,7 +710,7 @@ describe('starter region behavior (stage 1 and stage 2)', () => {
 
 describe('validator retention on model output', () => {
   function enemyLevels(tx: any): bigint[] {
-    return tx.db.enemy_template._rows().map((e: any) => e.level);
+    return replyEnemyTemplates(tx).map((e: any) => e.level);
   }
 
   it('clamps enemy levels far above and far below the danger band of a non-starter region into the band', () => {

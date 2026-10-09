@@ -12,7 +12,7 @@
 // world_gen_state is public: errorMessage only ever holds a fixed in-voice line.
 
 import { connectLocations } from './location';
-import { ensurePoolsForLocation } from './families';
+import { buildRegionFamilies, ensurePoolsForLocation } from './families';
 import { markLocationVisited } from './visited';
 import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
@@ -884,17 +884,15 @@ export function writeRegionFill(
     });
   }
 
-  // 6. Link enemies to the new non-safe locations
-  const nonSafeLocations = newLocations.filter((loc: any) => !loc.isSafe);
-  for (const enemyRow of enemyTemplateRows) {
-    for (const loc of nonSafeLocations) {
-      tx.db.location_enemy_template.insert({
-        id: 0n,
-        locationId: loc.id,
-        enemyTemplateId: enemyRow.id,
-      });
-    }
-  }
+  // 6. Families and pools by rule (Plan 09, D-20, D-25, D-26, D-61): the enemy types grouped into
+  //    families, linked to the places that host creatures and fit their terrain, rivals of each other,
+  //    creature pools at those places and resource pools at every charted place, the arrival point
+  //    included (a non-safe, non-hub arrival point can host families).
+  const regionPlaces = [startLocation, ...newLocations].map((loc: any) => tx.db.location.id.find(loc.id) ?? loc);
+  buildRegionFamilies(tx, current, enemyTemplateRows, regionPlaces, tx.timestamp.microsSinceUnixEpoch);
+  const nonSafeLocations = newLocations
+    .map((loc: any) => tx.db.location.id.find(loc.id) ?? loc)
+    .filter((loc: any) => !loc.isSafe);
 
   // 7. NPCs: by exact locationName, else at the start location; never a repeat of a name already there
   const npcItems: any[] = Array.isArray(fill.npcs) ? fill.npcs : [];

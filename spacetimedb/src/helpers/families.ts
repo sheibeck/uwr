@@ -7,6 +7,8 @@
 //   - seedCreaturePools / seedResourcePools / addResourcePoolsForRegion: pools at a place, with home
 //     densities set by rule only (the AI never sets a number, D-46);
 //   - ensurePoolsForLocation: the lazy safety net that replaces ensureSpawnsForLocation (Plan 08);
+//   - buildRegionFamilies (with ruleRelations, familyFitPlaces, linkFamilyToPlaces, seedRegionPools):
+//     a freshly filled region's families and pools by rule (Plan 09);
 //   - familyOfOne: a pool of its own for an AI-invented quest kill target (D-54).
 //
 // Every pool is created through pools.ts createPool. Stats come from enemyStatsForLevel and the role
@@ -528,6 +530,102 @@ export function addResourcePoolsForRegion(ctx: any, regionId: bigint, now: bigin
     }
   }
   return created;
+}
+
+// ---------------------------------------------------------------------------
+// Region fill (Plan 09: D-20, D-25, D-26, D-61)
+// ---------------------------------------------------------------------------
+
+/**
+ * The rule relations of a region built without AI relations (D-20 default): every family is a rival
+ * of every other, as ordered pairs, ids deduplicated. Map straight into createRelations per familyId.
+ */
+export function ruleRelations(familyIds: readonly bigint[]): { familyId: bigint; otherFamilyId: bigint; kind: 'rival' }[] {
+  const ids: bigint[] = [];
+  for (const id of familyIds) if (!ids.includes(id)) ids.push(id);
+  const out: { familyId: bigint; otherFamilyId: bigint; kind: 'rival' }[] = [];
+  for (const familyId of ids) {
+    for (const otherFamilyId of ids) {
+      if (otherFamilyId !== familyId) out.push({ familyId, otherFamilyId, kind: 'rival' });
+    }
+  }
+  return out;
+}
+
+/**
+ * The places a family lives among `places`: the ones that host creatures (charted, neither safe nor a
+ * hub, D-18, D-61) whose terrain is in `fitTerrains`, else every such place. Id order.
+ */
+export function familyFitPlaces(fitTerrains: readonly string[] | string, places: readonly any[]): any[] {
+  const fit = typeof fitTerrains === 'string' ? splitTerrains(fitTerrains) : fitTerrains.map((t) => t.trim().toLowerCase());
+  const hosts = places.filter(hostsCreatures).sort(byId);
+  const fitting = hosts.filter((place) => fit.includes(String(place.terrainType ?? '').trim().toLowerCase()));
+  return fitting.length > 0 ? fitting : hosts;
+}
+
+/**
+ * Links a family to each of `fitPlaces` (linkFamilyToLocation) and records it in `familiesByPlace`
+ * (place id -> family ids), which seedRegionPools reads. Plan 23 calls it per validated AI family.
+ */
+export function linkFamilyToPlaces(
+  ctx: any,
+  familyId: bigint,
+  fitPlaces: readonly any[],
+  familiesByPlace: Map<bigint, bigint[]>,
+): void {
+  for (const place of fitPlaces) {
+    linkFamilyToLocation(ctx, familyId, place.id);
+    const ids = familiesByPlace.get(place.id) ?? [];
+    if (!ids.includes(familyId)) ids.push(familyId);
+    familiesByPlace.set(place.id, ids);
+  }
+}
+
+/**
+ * The pools of a freshly built region: creature pools at each host place with the families linked
+ * there (ascending family id, as ensurePoolsForLocation orders them), resource pools at every charted
+ * place (D-26). Rerun-safe (createPool is find-or-create).
+ */
+export function seedRegionPools(
+  ctx: any,
+  places: readonly any[],
+  familiesByPlace: ReadonlyMap<bigint, readonly bigint[]>,
+  now: bigint,
+): void {
+  for (const place of [...places].sort(byId)) {
+    const ids = [...(familiesByPlace.get(place.id) ?? [])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    if (ids.length > 0) seedCreaturePools(ctx, place, ids, now);
+    seedResourcePools(ctx, place, now);
+  }
+}
+
+/**
+ * The region fill's families by rule (D-25), from the enemy types today's prompt returns:
+ * familiesFromTemplates, createFamily at the region's base level, each family linked to its fit places
+ * (familyFitPlaces), rule relations (every pair rivals, D-20), then seedRegionPools. `places` should
+ * be the region's rows as they stand after the hub step (a hub is safe and hosts no creatures); a row
+ * is re-read by id. Find-or-create throughout, so a second run inserts nothing. Returns the family
+ * rows in definition order.
+ */
+export function buildRegionFamilies(ctx: any, region: any, templates: readonly any[], places: readonly any[], now: bigint): any[] {
+  const current = places.map((place) => ctx.db.location.id.find(place.id) ?? place).filter((place) => !!place);
+  const defs = familiesFromTemplates(ctx, region.id, templates.filter((t) => !!t));
+  const baseLevel = regionBaseLevel(ctx, region.id);
+  const families = defs.map((def) => createFamily(ctx, region.id, def, baseLevel));
+  const familiesByPlace = new Map<bigint, bigint[]>();
+  families.forEach((family, i) => {
+    linkFamilyToPlaces(ctx, family.id, familyFitPlaces(defs[i]!.fitTerrains, current), familiesByPlace);
+  });
+  const relations = ruleRelations(families.map((family) => family.id));
+  for (const family of families) {
+    createRelations(
+      ctx,
+      family.id,
+      relations.filter((r) => r.familyId === family.id),
+    );
+  }
+  seedRegionPools(ctx, current, familiesByPlace, now);
+  return families;
 }
 
 /** Whether a family is a quest family of one (it manages its own pool, D-54). */
