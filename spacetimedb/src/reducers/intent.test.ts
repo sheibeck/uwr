@@ -1,4 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+
+// The look helper reaches the density pool helpers (helpers/encounters.ts), which import
+// spacetimedb/server: the recording mock stands in for it, and the schema is recorded first.
+vi.mock('spacetimedb/server', async () =>
+  (await import('../helpers/schema_recorder')).createRecordingServerMock(),
+);
+
+beforeAll(async () => {
+  await import('../schema/tables');
+});
 
 // Mock dependencies that import SpacetimeDB modules
 vi.mock('../helpers/npc_affinity', () => ({
@@ -199,15 +209,34 @@ describe('buildLookOutput', () => {
     expect(parts.join('\n')).not.toContain('Quest items');
   });
 
-  describe('resource nodes and privacy', () => {
-    const lookWith = (resource_node: any[]) => {
+  describe('resource pools (Phase 51.3.1.1 D-26, D-55)', () => {
+    const pool = (over: Record<string, unknown>) => ({
+      id: 1n,
+      regionId: 1n,
+      locationId: 1n,
+      kind: 'resource',
+      refId: 7n,
+      count: 100n,
+      homeLevel: 3n,
+      wipedAtMicros: 0n,
+      lastSettledMicros: 1000000000000n,
+      dirty: false,
+      timeOfDay: 'any',
+      ...over,
+    });
+    const lookWith = (seed: { place_pool?: any[]; resource_node?: any[]; isNight?: boolean }) => {
       const db = createMockDb({
         location: [{ id: 1n, name: 'Town', description: 'A town.', isSafe: true, bindStone: false, craftingAvailable: false }],
-        world_state: [{ id: 1n, isNight: false, nextTransitionAtMicros: 2000000000000n }],
+        world_state: [{ id: 1n, isNight: seed.isNight ?? false, nextTransitionAtMicros: 2000000000000n }],
         npc: [],
         character: [],
         enemy_spawn: [],
-        resource_node,
+        resource_node: seed.resource_node ?? [],
+        place_pool: seed.place_pool ?? [],
+        item_template: [
+          { id: 7n, name: 'Stone', rarity: 'common', slot: 'material' },
+          { id: 8n, name: 'Moonpetal', rarity: 'common', slot: 'material' },
+        ],
         location_connection: [],
         quest_item: [],
       });
@@ -215,22 +244,20 @@ describe('buildLookOutput', () => {
       return buildLookOutput(ctx, { id: 10n, locationId: 1n, level: 1n }).join('\n');
     };
 
-    it('lists shared nodes and the character\'s own personal nodes', () => {
-      const out = lookWith([
-        { id: 1n, locationId: 1n, name: 'Stone', state: 'available' },
-        { id: 2n, locationId: 1n, name: 'Iron Shard', state: 'available', characterId: 10n },
-      ]);
-      expect(out).toContain('Gather Stone');
-      expect(out).toContain('Gather Iron Shard');
+    it('lists each resource pool with its Gather keyword and density word', () => {
+      const out = lookWith({ place_pool: [pool({})] });
+      expect(out).toContain('{{color:#22c55e}}[Gather Stone]{{/color}} (Abundant).');
     });
 
-    it('hides another character\'s personal node', () => {
-      const out = lookWith([
-        { id: 1n, locationId: 1n, name: 'Stone', state: 'available' },
-        { id: 2n, locationId: 1n, name: 'Iron Shard', state: 'available', characterId: 99n },
-      ]);
-      expect(out).toContain('Gather Stone');
+    it('never lists a resource node', () => {
+      const out = lookWith({ resource_node: [{ id: 1n, locationId: 1n, name: 'Iron Shard', state: 'available' }] });
       expect(out).not.toContain('Iron Shard');
+    });
+
+    it('leaves out a night-only pool by day and lists it at night', () => {
+      const night = pool({ id: 2n, refId: 8n, timeOfDay: 'night' });
+      expect(lookWith({ place_pool: [night] })).not.toContain('Moonpetal');
+      expect(lookWith({ place_pool: [night], isNight: true })).toContain('[Gather Moonpetal]');
     });
   });
 });

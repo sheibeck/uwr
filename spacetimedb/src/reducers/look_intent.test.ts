@@ -32,12 +32,28 @@ function newCtx() {
       character: [{ id: 1n, ownerUserId: 7n, name: 'Mirel', level: 3n, locationId: 10n }],
       location: [{ id: 10n, name: 'The Crossing', description: 'A crossroads.', isSafe: true, bindStone: false, craftingAvailable: false }],
       world_state: [{ id: 1n, isNight: false, nextTransitionAtMicros: T0 + 3_600_000_000n }],
+      // Phase 51.3.1.1 Plan 16 (D-26): look reads resource pools; resource_node rows are no longer read.
+      place_pool: [
+        {
+          id: 1n,
+          regionId: 1n,
+          locationId: 10n,
+          kind: 'resource',
+          refId: 7n,
+          count: 100n,
+          homeLevel: 3n,
+          wipedAtMicros: 0n,
+          lastSettledMicros: T0,
+          dirty: false,
+          timeOfDay: 'any',
+        },
+      ],
       resource_node: [
-        { id: 100n, locationId: 10n, name: 'Stone', state: 'available', itemTemplateId: 7n },
-        { id: 101n, locationId: 10n, name: 'Iron Shard', state: 'available', itemTemplateId: 8n, characterId: 99n },
+        { id: 101n, locationId: 10n, name: 'Iron Shard', state: 'available', itemTemplateId: 8n },
       ],
       item_template: [
         { id: 7n, name: 'Stone', rarity: 'common', slot: 'material', armorType: 'none', description: 'A grey lump of rock.' },
+        { id: 8n, name: 'Iron Shard', rarity: 'common', slot: 'material', armorType: 'none', description: 'A shard.' },
       ],
     },
     sender: alice,
@@ -85,16 +101,16 @@ describe('submit_intent look (real handler)', () => {
     expect(events(ctx)[0].message).toBe('You don\'t see "Moon Pearl" here.');
   });
 
-  it('another character\'s personal node is a miss', () => {
+  it('a resource node row is a miss (only resource pools are read, D-26)', () => {
     const ctx = newCtx();
     submitIntent(ctx, { characterId: 1n, text: 'look iron shard' });
     expect(events(ctx)[0].message).toBe('You don\'t see "iron shard" here.');
   });
 
-  it('bare look does not list another character\'s personal node', () => {
+  it('bare look lists the resource pool and never a resource node', () => {
     const ctx = newCtx();
     submitIntent(ctx, { characterId: 1n, text: 'look' });
-    expect(events(ctx)[0].message).toContain('Gather Stone');
+    expect(events(ctx)[0].message).toContain('[Gather Stone]');
     expect(events(ctx)[0].message).not.toContain('Iron Shard');
   });
 });

@@ -38,6 +38,22 @@ const node = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** A resource pool row (Phase 51.3.1.1): Abundant (count 100, home 3) Iron Shard at location 1. */
+const resourcePool = (over: Record<string, unknown> = {}) => ({
+  id: 100n,
+  regionId: 1n,
+  locationId: 1n,
+  kind: 'resource',
+  refId: 7n,
+  count: 100n,
+  homeLevel: 3n,
+  wipedAtMicros: 0n,
+  lastSettledMicros: 0n,
+  dirty: false,
+  timeOfDay: 'any',
+  ...over,
+});
+
 const bowTemplate = {
   id: 20n,
   name: 'Ashwood Bow',
@@ -102,87 +118,74 @@ describe('lookMissLine', () => {
   });
 });
 
-describe('describeLookTarget: resource nodes', () => {
-  it('describes an available node with its yield and description', () => {
-    const ctx = ctxWith({ resource_node: [node()], item_template: [ironTemplate] });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')).toBe(
-      [
-        'Iron Shard',
-        'Ready to gather.',
-        'Gathering yields Iron Shard (common material).',
-        'A jagged shard of iron scavenged from ruins.',
-      ].join('\n'),
-    );
+describe('describeLookTarget: resource pools (Phase 51.3.1.1 D-26, D-55)', () => {
+  const ABUNDANT = [
+    'Iron Shard',
+    'Abundant.',
+    'Iron shard lies thick across the area.',
+    'Gathering yields Iron Shard (common material).',
+    'A jagged shard of iron scavenged from ruins.',
+  ].join('\n');
+
+  it('describes an Abundant pool with its word, line, yield and description', () => {
+    const ctx = ctxWith({ place_pool: [resourcePool()], item_template: [ironTemplate] });
+    expect(describeLookTarget(ctx, ME, 'Iron Shard')).toBe(ABUNDANT);
+  });
+
+  it('uses the place noun of the place', () => {
+    const ctx = ctxWith({
+      location: [{ id: 1n, name: 'Glass Orchard', terrainType: 'woods', placeNoun: 'the orchard' }],
+      place_pool: [resourcePool()],
+      item_template: [ironTemplate],
+    });
+    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[2]).toBe('Iron shard lies thick across the orchard.');
   });
 
   it('matches case-insensitively', () => {
-    const ctx = ctxWith({ resource_node: [node()], item_template: [ironTemplate] });
-    expect(describeLookTarget(ctx, ME, 'iRoN sHaRd')).toContain('Ready to gather.');
+    const ctx = ctxWith({ place_pool: [resourcePool()], item_template: [ironTemplate] });
+    expect(describeLookTarget(ctx, ME, 'iRoN sHaRd')).toBe(ABUNDANT);
   });
 
   it('matches a partial name when no exact match exists', () => {
-    const ctx = ctxWith({ resource_node: [node()], item_template: [ironTemplate] });
+    const ctx = ctxWith({ place_pool: [resourcePool()], item_template: [ironTemplate] });
     expect(describeLookTarget(ctx, ME, 'shard')).toContain('Gathering yields');
   });
 
-  it('says someone is gathering when locked by another character', () => {
-    const ctx = ctxWith({
-      resource_node: [node({ state: 'harvesting', lockedByCharacterId: 11n })],
+  it('an Exhausted pool says there is none left', () => {
+    const ctx = ctxWith({ place_pool: [resourcePool({ count: 0n })], item_template: [ironTemplate] });
+    const lines = describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n');
+    expect(lines[1]).toBe('Exhausted.');
+    expect(lines[2]).toBe('There is no iron shard left in the area, for now.');
+  });
+
+  it('a night-only pool is not there by day and is described at night', () => {
+    const day = ctxWith({
+      place_pool: [resourcePool({ timeOfDay: 'night' })],
       item_template: [ironTemplate],
+      world_state: [{ id: 1n, isNight: false }],
     });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[1]).toBe('Someone is gathering it.');
-  });
-
-  it('says someone is gathering when harvesting without a lock', () => {
-    const ctx = ctxWith({ resource_node: [node({ state: 'harvesting' })], item_template: [ironTemplate] });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[1]).toBe('Someone is gathering it.');
-  });
-
-  it('says you are gathering when locked by this character', () => {
-    const ctx = ctxWith({
-      resource_node: [node({ state: 'harvesting', lockedByCharacterId: 10n })],
+    expect(describeLookTarget(day, ME, 'Iron Shard')).toBeNull();
+    const night = ctxWith({
+      place_pool: [resourcePool({ timeOfDay: 'night' })],
       item_template: [ironTemplate],
+      world_state: [{ id: 1n, isNight: true }],
     });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[1]).toBe('You are gathering it now.');
+    expect(describeLookTarget(night, ME, 'Iron Shard')).toBe(ABUNDANT);
   });
 
-  it('says depleted for any other state', () => {
-    const ctx = ctxWith({ resource_node: [node({ state: 'depleted' })], item_template: [ironTemplate] });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[1]).toBe('Depleted.');
-  });
-
-  it('describes an available unlocked node first when several share the name', () => {
-    const ctx = ctxWith({
-      resource_node: [
-        node({ id: 101n, state: 'depleted' }),
-        node({ id: 102n, state: 'harvesting', lockedByCharacterId: 11n }),
-        node({ id: 103n, state: 'available' }),
-      ],
-      item_template: [ironTemplate],
-    });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[1]).toBe('Ready to gather.');
-  });
-
-  it('still describes a node whose template is missing', () => {
-    const ctx = ctxWith({ resource_node: [node()] });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')).toBe(
-      ['Iron Shard', 'Ready to gather.', 'Gathering yields Iron Shard.'].join('\n'),
-    );
-  });
-
-  it('does not describe a node at another location', () => {
-    const ctx = ctxWith({ resource_node: [node({ locationId: 2n })], item_template: [ironTemplate] });
+  it('a pool whose template is missing is not described', () => {
+    const ctx = ctxWith({ place_pool: [resourcePool()] });
     expect(describeLookTarget(ctx, ME, 'Iron Shard')).toBeNull();
   });
 
-  it('does not describe another character\'s personal node', () => {
-    const ctx = ctxWith({ resource_node: [node({ characterId: 99n })], item_template: [ironTemplate] });
+  it('does not describe a pool at another location', () => {
+    const ctx = ctxWith({ place_pool: [resourcePool({ locationId: 2n })], item_template: [ironTemplate] });
     expect(describeLookTarget(ctx, ME, 'Iron Shard')).toBeNull();
   });
 
-  it('describes the character\'s own personal node', () => {
-    const ctx = ctxWith({ resource_node: [node({ characterId: 10n })], item_template: [ironTemplate] });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')).toContain('Ready to gather.');
+  it('never reads a resource node', () => {
+    const ctx = ctxWith({ resource_node: [node()], item_template: [ironTemplate] });
+    expect(describeLookTarget(ctx, ME, 'Iron Shard')).toBeNull();
   });
 });
 
@@ -297,7 +300,7 @@ describe('describeLookTarget: inventory items', () => {
     const ctx = ctxWith({
       item_instance: [instance({ templateId: 7n, qualityTier: undefined })],
       item_template: [{ ...ironTemplate, slot: 'toString' }],
-      resource_node: [node()],
+      place_pool: [resourcePool()],
     });
     expect(describeLookTarget(ctx, ME, 'Iron Shard')).toContain('(common tostring)');
     const itemOnly = ctxWith({
@@ -331,38 +334,38 @@ describe('describeLookTarget: inventory items', () => {
 });
 
 describe('describeLookTarget: check order and existing output', () => {
-  it('an exact node match beats a partial NPC match', () => {
+  it('an exact resource match beats a partial NPC match', () => {
     const ctx = ctxWith({
       npc: [{ id: 1n, locationId: 1n, name: 'Iron Shard Trader', description: 'A hard-eyed dealer.' }],
-      resource_node: [node()],
+      place_pool: [resourcePool()],
       item_template: [ironTemplate],
     });
     expect(describeLookTarget(ctx, ME, 'iron shard')).toContain('Gathering yields');
   });
 
-  it('an exact NPC match still wins over an exact node match', () => {
+  it('an exact NPC match still wins over an exact resource match', () => {
     const ctx = ctxWith({
       npc: [{ id: 1n, locationId: 1n, name: 'Iron Shard', description: 'A talking shard.' }],
-      resource_node: [node()],
+      place_pool: [resourcePool()],
       item_template: [ironTemplate],
     });
     expect(describeLookTarget(ctx, ME, 'iron shard')).toBe('[Iron Shard]: A talking shard.');
   });
 
-  it('a partial NPC match still wins over a partial node match (category order inside a pass)', () => {
+  it('a partial NPC match still wins over a partial resource match (category order inside a pass)', () => {
     const ctx = ctxWith({
       npc: [{ id: 1n, locationId: 1n, name: 'Iron Shard Trader', description: 'A hard-eyed dealer.' }],
-      resource_node: [node()],
+      place_pool: [resourcePool()],
       item_template: [ironTemplate],
     });
     expect(describeLookTarget(ctx, ME, 'shard')).toBe('[Iron Shard Trader]: A hard-eyed dealer.');
   });
 
-  it('a Stone node click is not captured by a Stone Golem enemy at the same location', () => {
+  it('a Stone resource click is not captured by a Stone Golem enemy at the same location', () => {
     const ctx = ctxWith({
       enemy_spawn: [{ id: 1n, locationId: 1n, name: 'Stone Golem', enemyTemplateId: 5n }],
       enemy_template: [{ id: 5n, level: 3n, role: 'Brute', creatureType: 'Construct', isBoss: false }],
-      resource_node: [node({ name: 'Stone', itemTemplateId: 8n })],
+      place_pool: [resourcePool({ refId: 8n })],
       item_template: [{ ...ironTemplate, id: 8n, name: 'Stone' }],
     });
     const out = describeLookTarget(ctx, ME, 'Stone')!;
@@ -372,29 +375,29 @@ describe('describeLookTarget: check order and existing output', () => {
     expect(describeLookTarget(ctx, ME, 'golem')).toContain('You study Stone Golem');
   });
 
-  it('a node named Wood is not captured by a player named Woodrow', () => {
+  it('a resource named Wood is not captured by a player named Woodrow', () => {
     const ctx = ctxWith({
       character: [ME, { id: 11n, locationId: 1n, level: 3n, name: 'Woodrow', race: 'Human', className: 'Ranger', online: true }],
-      resource_node: [node({ name: 'Wood', itemTemplateId: 9n })],
+      place_pool: [resourcePool({ refId: 9n })],
       item_template: [{ ...ironTemplate, id: 9n, name: 'Wood' }],
     });
     expect(describeLookTarget(ctx, ME, 'wood')).toContain('Gathering yields');
   });
 
-  it('an exact carried item beats a partial node match', () => {
+  it('an exact carried item beats a partial resource match', () => {
     const ctx = ctxWith({
-      resource_node: [node({ name: 'Iron Shard Vein', itemTemplateId: 7n })],
+      place_pool: [resourcePool({ refId: 31n })],
       item_instance: [instance({ templateId: 7n, qualityTier: undefined })],
-      item_template: [ironTemplate],
+      item_template: [ironTemplate, { ...ironTemplate, id: 31n, name: 'Iron Shard Vein' }],
     });
     const out = describeLookTarget(ctx, ME, 'Iron Shard')!;
     expect(out.split('\n')[0]).toBe('Iron Shard');
     expect(out).toContain('You carry one.');
   });
 
-  it('a node wins over an inventory item with the same name', () => {
+  it('a resource wins over an inventory item with the same name', () => {
     const ctx = ctxWith({
-      resource_node: [node()],
+      place_pool: [resourcePool()],
       item_instance: [instance({ templateId: 7n })],
       item_template: [ironTemplate],
     });
@@ -572,14 +575,14 @@ describe('describeLookTarget: bind stone', () => {
 });
 
 describe('describeLookTarget: the new categories come last', () => {
-  it('a Stone node still wins look at stone over a neighbouring place named Stone', () => {
+  it('a Stone resource pool still wins look at stone over a neighbouring place named Stone', () => {
     const seed = placesSeed({
-      resource_node: [node({ id: 100n, locationId: 10n, name: 'Stone', itemTemplateId: 7n })],
-      item_template: [ironTemplate],
+      place_pool: [resourcePool({ locationId: 10n })],
+      item_template: [{ ...ironTemplate, name: 'Stone' }],
     });
     seed.location.push(placeRow({ id: 16n, name: 'Stone', description: 'A town of stone.' }));
     seed.location_connection.push(...linkRows(10n, 16n));
-    expect(describeLookTarget(ctxWith(seed), HERE, 'stone')?.startsWith('Stone\nReady to gather.')).toBe(true);
+    expect(describeLookTarget(ctxWith(seed), HERE, 'stone')?.startsWith('Stone\nAbundant.')).toBe(true);
   });
 
   it('an NPC named like a neighbouring place answers before the place', () => {
