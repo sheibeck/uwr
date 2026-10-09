@@ -118,7 +118,8 @@ function describeIndividual(ctx: any, character: any, matches: NameMatcher): str
 
 /**
  * A creature family here (D-03), matched by its name, plural, singular or a member's name: the level
- * range and population word, the density line, the group hint, and the members by prompt role.
+ * range and population word, the density line, the group hint, the family's history when it has one
+ * (D-68), and the members by prompt role.
  */
 function describeFamily(ctx: any, character: any, matches: NameMatcher): string | null {
   const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
@@ -138,6 +139,9 @@ function describeFamily(ctx: any, character: any, matches: NameMatcher): string 
   ];
   const hint = groupHint(hit.level);
   if (hint) lines.push(`${hint}.`);
+  // The family's past in its region (D-68, Plan 29): its own line, no label; none when it has no history.
+  const history = String(hit.family.history ?? '').trim();
+  if (history) lines.push(history);
   if (hit.members.length > 0) {
     const members = hit.members.map((m) => `${m.name} (${serverRoleToPrompt(m.role)})`);
     lines.push(`${FAMILY_MEMBERS_LABEL} ${members.join(', ')}.`);

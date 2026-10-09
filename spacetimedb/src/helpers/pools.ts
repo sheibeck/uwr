@@ -23,6 +23,7 @@ import {
 } from '../data/density_lines';
 import { placeSpawnLevel } from '../data/enemy_rules';
 import { normalizeEnemyRole, resourceIconKey } from '../data/family_rules';
+import { FAMILY_FEUD_KIND } from '../data/mechanical_vocabulary';
 import { materialKind } from '../data/recipe_rules';
 import { appendPrivateEvent } from './events';
 import { computeLocationTargetLevel } from './location';
@@ -426,19 +427,25 @@ function fitsTerrain(fitTerrains: string, terrainType: string): boolean {
 }
 
 /**
- * The rivals and predators of a family in its region, deduplicated, in id order: the families it
- * names as rival or predator, and the families that name it as prey or as their rival (rivalry runs
- * both ways). Never the family itself; never a family of another region.
+ * The rivals, feud partners and predators of a family in its region, deduplicated, in id order: the
+ * families it names as rival, feud (FAMILY_FEUD_KIND) or predator, and the families that name it as
+ * prey, rival or feud (rivalry and the feud run both ways; a feud partner counts exactly like a rival,
+ * D-20, D-70). Never the family itself; never a family of another region.
  */
 function vacuumCandidates(ctx: any, wipedFamilyId: bigint, regionId: bigint): any[] {
   const ids = new Set<bigint>();
   for (const rel of ctx.db.family_relation.by_family.filter(wipedFamilyId)) {
-    if (rel.kind === 'rival' || rel.kind === 'predator') ids.add(rel.otherFamilyId);
+    if (rel.kind === 'rival' || rel.kind === FAMILY_FEUD_KIND || rel.kind === 'predator') ids.add(rel.otherFamilyId);
   }
   for (const family of ctx.db.creature_family.by_region.filter(regionId)) {
     if (family.id === wipedFamilyId) continue;
     for (const rel of ctx.db.family_relation.by_family.filter(family.id)) {
-      if (rel.otherFamilyId === wipedFamilyId && (rel.kind === 'prey' || rel.kind === 'rival')) ids.add(family.id);
+      if (
+        rel.otherFamilyId === wipedFamilyId &&
+        (rel.kind === 'prey' || rel.kind === 'rival' || rel.kind === FAMILY_FEUD_KIND)
+      ) {
+        ids.add(family.id);
+      }
     }
   }
   ids.delete(wipedFamilyId);
