@@ -569,11 +569,20 @@ describe('settleCount', () => {
 });
 
 describe('yieldForLevel', () => {
-  it('yields by density (D-38)', () => {
-    expect(yieldForLevel(3)).toBe(3n);
-    expect(yieldForLevel(2)).toBe(2n);
+  it('yields one at any non-zero density and none at level 0 (D-72)', () => {
+    expect(yieldForLevel(3)).toBe(1n);
+    expect(yieldForLevel(2)).toBe(1n);
     expect(yieldForLevel(1)).toBe(1n);
     expect(yieldForLevel(0)).toBe(0n);
+  });
+
+  it('applies GATHER_YIELD_MULTIPLIER, default x1 (D-72, the Phase 52.5 dial)', () => {
+    expect(R.GATHER_YIELD_MULTIPLIER).toBe(1n);
+    expect(R.YIELD_BY_LEVEL).toEqual({ 0: 0n, 1: 1n, 2: 1n, 3: 1n });
+    for (const level of [0, 1, 2, 3]) {
+      expect(yieldForLevel(level)).toBe((R.YIELD_BY_LEVEL[level] ?? 0n) * R.GATHER_YIELD_MULTIPLIER);
+      expect(yieldForLevel(level, 3n)).toBe(level === 0 ? 0n : 3n);
+    }
   });
 
   it('drops a resource home a level in about two gathers', () => {
