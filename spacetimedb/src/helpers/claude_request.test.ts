@@ -152,7 +152,21 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       landmarks: [`${world} landmark`],
       threats: [`${world} threat`],
       terrains: ['swamp', 'woods'],
-      enemies: [{ ref: 'E1', templateId: 3n, name: `${world} enemy`, creatureType: 'beast', level: 4 }],
+      enemies: [],
+      families: [
+        {
+          ref: 'E1',
+          familyId: 5n,
+          name: `${world} family`,
+          creatureType: 'beast',
+          level: 4,
+          members: [
+            { ref: 'E1.tank', templateId: 3n, role: 'tank', name: `${world} enemy` },
+            { ref: 'E1.caster', templateId: 4n, role: 'caster', name: `${world} hexer` },
+          ],
+        },
+      ],
+      gatherSlots: ['common', 'uncommon', 'rare'],
       recipeSlots: [
         { tier: 'common', foreignRegionIndexes: [] },
         { tier: 'uncommon', foreignRegionIndexes: [] },

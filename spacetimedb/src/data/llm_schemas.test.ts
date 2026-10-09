@@ -463,54 +463,59 @@ describe('region npc gender (Plan 41-18, PR-02)', () => {
   });
 });
 
-describe('region economy reply schema (Phase 51.3 plan 04)', () => {
+describe('region economy reply schema (Phase 51.3 plan 04; families in 51.3.1.1 plan 24, draft B3)', () => {
   const schema = REGION_ECONOMY_SCHEMA as any;
   const region = schema.properties.region.anyOf[0];
-  const creature = region.properties.creatures.items;
-  const recipe = region.properties.recipes.properties.first;
-  const gatherable = region.properties.gatherables.properties.common;
+  const family = region.properties.families.items;
+  const gear = family.properties.gear.items;
+  const recipe = region.properties.recipes.items;
+  const gatherable = region.properties.gatherables.items;
 
   it('is frozen and passes lintSchema with zero problems', () => {
     expect(Object.isFrozen(schema)).toBe(true);
-    expect(Object.isFrozen(region.properties.recipes.properties.third.properties.materials)).toBe(true);
+    expect(Object.isFrozen(recipe.properties.materials)).toBe(true);
+    expect(Object.isFrozen(gear.properties.slot.enum)).toBe(true);
     expect(lintSchema(schema)).toEqual([]);
   });
 
-  it('requires exactly region and lateCreature, each an anyOf of an object and null', () => {
-    expect(schema.required).toEqual(['region', 'lateCreature']);
+  it('requires exactly region and lateFamily, each an anyOf of an object and null', () => {
+    expect(schema.required).toEqual(['region', 'lateFamily']);
     expect(schema.additionalProperties).toBe(false);
-    for (const key of ['region', 'lateCreature']) {
+    for (const key of ['region', 'lateFamily']) {
       const node = schema.properties[key];
       expect(node.anyOf).toHaveLength(2);
       expect(node.anyOf[0].type).toBe('object');
       expect(node.anyOf[1]).toEqual({ type: 'null' });
     }
+    expect(JSON.stringify(schema)).not.toContain('lateCreature');
   });
 
-  it('fixes the Small counts by grammar: three gatherables, three recipes, a creatures array', () => {
-    expect(region.required).toEqual(['gatherables', 'creatures', 'recipes']);
-    expect(region.properties.gatherables.required).toEqual(['common', 'uncommon', 'rare']);
-    expect(region.properties.recipes.required).toEqual(['first', 'second', 'third']);
-    expect(region.properties.creatures.type).toBe('array');
-    expect(region.properties.creatures.items.type).toBe('object');
+  it('gatherables, families and recipes are arrays: the counts come from the economy size, never the grammar', () => {
+    expect(region.required).toEqual(['gatherables', 'families', 'recipes']);
+    for (const key of ['gatherables', 'families', 'recipes']) {
+      expect(region.properties[key].type).toBe('array');
+      expect(region.properties[key].items.type).toBe('object');
+    }
   });
 
-  it('the creature object has enemy, drop, trophy and gear with the gear enums', () => {
-    expect(creature.required).toEqual(['enemy', 'drop', 'trophy', 'gear']);
-    expect(creature.properties.drop.required).toEqual(['name', 'kind', 'description']);
-    expect(creature.properties.trophy.required).toEqual(['name', 'description']);
-    const gear = creature.properties.gear;
-    expect(gear.required).toEqual(['name', 'slot', 'weaponType', 'armorType', 'description']);
+  it('a family entry has family, drop, trophy and a gear array of { member, name, slot, weaponType, armorType, description }', () => {
+    expect(family.required).toEqual(['family', 'drop', 'trophy', 'gear']);
+    expect(family.properties.family).toEqual({ type: 'string' });
+    expect(family.properties.drop.required).toEqual(['name', 'kind', 'description']);
+    expect(family.properties.trophy.required).toEqual(['name', 'description']);
+    expect(family.properties.gear.type).toBe('array');
+    expect(gear.required).toEqual(['member', 'name', 'slot', 'weaponType', 'armorType', 'description']);
+    expect(gear.properties.member).toEqual({ type: 'string' });
     expect(gear.properties.slot.enum).toEqual(['weapon', 'chest', 'legs', 'boots']);
     expect(gear.properties.weaponType.enum).toEqual([...WEAPON_TYPES, 'none']);
     expect(gear.properties.armorType.enum).toEqual(['cloth', 'leather', 'chain', 'plate', 'none']);
-    expect(schema.properties.lateCreature.anyOf[0]).toEqual(creature);
+    expect(schema.properties.lateFamily.anyOf[0]).toEqual(family);
   });
 
   it('material kinds equal MATERIAL_KIND_VALUES, terrain is the location terrain enum, categories are the four', () => {
     expect(gatherable.required).toEqual(['name', 'kind', 'terrain', 'description']);
     expect(gatherable.properties.kind.enum).toEqual([...MATERIAL_KIND_VALUES]);
-    expect(creature.properties.drop.properties.kind.enum).toEqual([...MATERIAL_KIND_VALUES]);
+    expect(family.properties.drop.properties.kind.enum).toEqual([...MATERIAL_KIND_VALUES]);
     expect(gatherable.properties.terrain.enum).toEqual(
       (WORLD_START_SCHEMA as any).properties.startLocation.properties.terrainType.enum,
     );
