@@ -42,6 +42,8 @@ import {
   isQuestRewardName,
   AI_LOOT_WEIGHTS,
   aiLootTable,
+  ECONOMY_DESIGN_FAMILIES_MAX,
+  pickDesignFamilies,
   ESSENCE_CHANCE_PCT,
   MODIFIER_CHANCE_PCT,
   SCROLL_DROP_BASE_PCT,
@@ -1074,6 +1076,55 @@ describe('aiLootTable', () => {
   it('caps the gatherable count at the ids it is given', () => {
     const table = aiLootTable(2n, 3n, { ...ids, gatherableIds: [20n] });
     expect(table.filter((e) => e.role === 'gatherable')).toHaveLength(1);
+  });
+
+  // Phase 51.3.1.1 Plan 25 (D-47): a family member with no gear of its own draws only from the family's
+  // drop and trophy plus the gatherables.
+  it('gearId 0n leaves the gear entry out: 3 to 5 entries, the same drop, trophy and gatherables', () => {
+    for (let enemy = 1n; enemy <= 20n; enemy += 1n) {
+      const withGear = aiLootTable(4n, enemy, ids);
+      const noGear = aiLootTable(4n, enemy, { ...ids, gearId: 0n });
+      expect(noGear.some((e) => e.role === 'gear')).toBe(false);
+      expect(noGear.some((e) => e.itemTemplateId === 0n)).toBe(false);
+      expect(noGear.length).toBeGreaterThanOrEqual(3);
+      expect(noGear.length).toBeLessThanOrEqual(5);
+      expect(noGear).toEqual(withGear.filter((e) => e.role !== 'gear'));
+    }
+  });
+});
+
+// Phase 51.3.1.1 Plan 25 (coordinator, D-66): the AI economy job designs at most this many families.
+describe('ECONOMY_DESIGN_FAMILIES_MAX and pickDesignFamilies', () => {
+  const fam = (id: bigint, feud = false, places = 1) => ({ id, feud, places });
+
+  it('is 7', () => {
+    expect(ECONOMY_DESIGN_FAMILIES_MAX).toBe(7);
+  });
+
+  it('keeps every family, in id order, when there are no more than the cap', () => {
+    expect(pickDesignFamilies([fam(3n), fam(1n), fam(2n, false, 4)])).toEqual([1n, 2n, 3n]);
+    expect(pickDesignFamilies([])).toEqual([]);
+    const seven = [7n, 6n, 5n, 4n, 3n, 2n, 1n].map((id) => fam(id));
+    expect(pickDesignFamilies(seven)).toEqual([1n, 2n, 3n, 4n, 5n, 6n, 7n]);
+  });
+
+  it('above the cap: feud families first, then families at more places, then id order; the result is in id order', () => {
+    const families = [
+      fam(1n), fam(2n), fam(3n), fam(4n, false, 3), fam(5n), fam(6n, true), fam(7n), fam(8n, false, 2),
+      fam(9n, true, 1), fam(10n), fam(11n, false, 5), fam(12n), fam(13n), fam(14n), fam(15n, true, 2),
+    ];
+    // Feuds 15 (2 places), 6 and 9 (1 place each, id order); then 11 (5), 4 (3), 8 (2); then 1 by id.
+    expect(pickDesignFamilies(families)).toEqual([1n, 4n, 6n, 8n, 9n, 11n, 15n]);
+  });
+
+  it('takes a smaller cap and never returns a duplicate', () => {
+    expect(pickDesignFamilies([fam(2n), fam(1n, true), fam(2n), fam(3n, false, 9)], 2)).toEqual([1n, 3n]);
+    expect(pickDesignFamilies([fam(1n), fam(2n)], 0)).toEqual([]);
+  });
+
+  it('does not depend on the input order', () => {
+    const families = Array.from({ length: 12 }, (_, i) => fam(BigInt(i + 1), i % 5 === 0, (i * 7) % 4));
+    expect(pickDesignFamilies([...families].reverse())).toEqual(pickDesignFamilies(families));
   });
 });
 

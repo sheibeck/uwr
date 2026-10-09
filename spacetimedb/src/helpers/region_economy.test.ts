@@ -257,13 +257,10 @@ describe('buildRegionEconomyInput: region facts', () => {
 });
 
 describe('buildRegionEconomyInput: enemies', () => {
-  it('lists the distinct enemy templates of the region, by template id, as E1, E2', () => {
+  it('region mode no longer lists the 51.3 enemies: the job speaks in families (Plan 25)', () => {
     const ctx = ctxFor(baseWorld());
     const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
-    expect(input.enemies).toEqual([
-      { ref: 'E1', templateId: 101n, name: 'Salt-Crust Skitterer', creatureType: 'beast', level: 1 },
-      { ref: 'E2', templateId: 102n, name: 'Brine Sentinel', creatureType: 'construct', level: 2 },
-    ]);
+    expect(input.enemies).toEqual([]);
   });
 });
 
@@ -476,6 +473,34 @@ function regionJob(ctx: any, regionId: bigint) {
   return { input, job: jobFor(input) };
 }
 
+/**
+ * The 51.3 enemies of a region as the 51.3 input builder listed them (the distinct templates linked at
+ * the region's places, by id, E1, E2, ...). Since Plan 25 the builder lists families only.
+ */
+function legacyEnemies(ctx: any, regionId: bigint): RegionEconomyInput['enemies'] {
+  const ids = new Set<bigint>();
+  for (const loc of rows(ctx, 'location')) {
+    if (loc.regionId !== regionId) continue;
+    for (const l of rows(ctx, 'location_enemy_template')) if (l.locationId === loc.id) ids.add(l.enemyTemplateId);
+  }
+  const templates = [...ids]
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .map((id) => rows(ctx, 'enemy_template').find((t: any) => t.id === id))
+    .filter((t: any) => t !== undefined);
+  return templates.map((t: any, i: number) => ({ ref: `E${i + 1}`, templateId: t.id, name: t.name, creatureType: t.creatureType, level: Number(t.level) }));
+}
+
+/**
+ * A region job stored before Plan 25 (a 51.3 input: enemies, no families, no gather slots), for the
+ * 51.3-shape replies (creatures) that still apply through writeCreature.
+ */
+function legacyRegionJob(ctx: any, regionId: bigint) {
+  const built = econ.buildRegionEconomyInput(ctx, region(ctx, regionId), 'region');
+  const { families: _families, gatherSlots: _slots, ...rest } = built;
+  const input: RegionEconomyInput = { ...rest, enemies: legacyEnemies(ctx, regionId) };
+  return { input, job: jobFor(input) };
+}
+
 const econRowOf = (ctx: any, regionId: bigint) => rows(ctx, 'region_economy').find((r: any) => r.regionId === regionId);
 const slotItem = (ctx: any, slotKey: string) => {
   const tag = rows(ctx, 'economy_item').find((r: any) => r.slotKey === slotKey);
@@ -533,7 +558,7 @@ function throwOnce(ctx: any, table: string, method: string) {
 describe('applyRegionEconomyResult: region_k0', () => {
   it('writes 3 gatherables, each creature drop, trophy, gear and loot table, 3 recipes, then status complete', () => {
     const ctx = ctxFor(k0World());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     econ.applyRegionEconomyResult(ctx, job, replyText('region_k0'));
 
     const gathers = ['common', 'uncommon', 'rare'].map((slot) => slotItem(ctx, `gather:${slot}`)!);
@@ -605,14 +630,14 @@ describe('applyRegionEconomyResult: region_k0', () => {
 
   it('rowColumnProblems is [] for item_template, recipe_template (with req4), economy_item, enemy_loot_entry and region_recipe', () => {
     const ctx = ctxFor(k0World());
-    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, replyText('region_k0'));
+    econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, replyText('region_k0'));
     expect(rows(ctx, 'recipe_template').every((r: any) => 'req4TemplateId' in r && 'req4Count' in r)).toBe(true);
     expectWellFormed(ctx);
   });
 
   it('a reply wrapped in prose still parses (first { to last })', () => {
     const ctx = ctxFor(k0World());
-    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, `Here is the design:\n${replyText('region_k0')}\nDone.`);
+    econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, `Here is the design:\n${replyText('region_k0')}\nDone.`);
     expect(econRowOf(ctx, 1n).status).toBe('complete');
     expect(rows(ctx, 'recipe_template').length).toBe(3);
   });
@@ -621,7 +646,7 @@ describe('applyRegionEconomyResult: region_k0', () => {
 describe('applyRegionEconomyResult: region_k3 (legendary req4, scrolls)', () => {
   it('legendary req4 points at a material of foreign region index 2; epic and legendary are scroll-learned', () => {
     const ctx = ctxFor(k3World());
-    const { input, job } = regionJob(ctx, 14n);
+    const { input, job } = legacyRegionJob(ctx, 14n);
     expect(input.recipeSlots.map((s) => s.tier)).toEqual(['uncommon', 'epic', 'legendary']);
     econ.applyRegionEconomyResult(ctx, job, replyText('region_k3'));
     expect(econRowOf(ctx, 14n).status).toBe('complete');
@@ -657,7 +682,7 @@ describe('applyRegionEconomyResult: region_k3 (legendary req4, scrolls)', () => 
 describe('applyRegionEconomyResult: idempotency', () => {
   it('idempotent re-run: applying the same job a second time changes nothing', () => {
     const ctx = ctxFor(k0World());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     econ.applyRegionEconomyResult(ctx, job, replyText('region_k0'));
     const before = recorder.snapshotDb(ctx.db);
     econ.applyRegionEconomyResult(ctx, job, replyText('region_k0'));
@@ -666,7 +691,7 @@ describe('applyRegionEconomyResult: idempotency', () => {
 
   it('partial write then re-run: a forced throw on the first recipe insert, then a re-run, leaves one row per slot and key', () => {
     const ctx = ctxFor(k0World());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     expect(() =>
       econ.applyRegionEconomyResult(throwOnce(ctx, 'recipe_template', 'insert'), job, replyText('region_k0')),
     ).toThrow(/forced/);
@@ -683,13 +708,13 @@ describe('applyRegionEconomyResult: idempotency', () => {
 
     // The result equals a clean single apply on a fresh database (names stay stable on the re-run).
     const fresh = ctxFor(k0World());
-    econ.applyRegionEconomyResult(fresh, regionJob(fresh, 1n).job, replyText('region_k0'));
+    econ.applyRegionEconomyResult(fresh, legacyRegionJob(fresh, 1n).job, replyText('region_k0'));
     expect(recorder.snapshotDb(ctx.db)).toBe(recorder.snapshotDb(fresh.db));
   });
 
   it('partial write then re-run: a throw on the region_recipe insert still ends with one region_recipe per recipe', () => {
     const ctx = ctxFor(k3World());
-    const { job } = regionJob(ctx, 14n);
+    const { job } = legacyRegionJob(ctx, 14n);
     expect(() =>
       econ.applyRegionEconomyResult(throwOnce(ctx, 'region_recipe', 'insert'), job, replyText('region_k3')),
     ).toThrow(/forced/);
@@ -697,17 +722,17 @@ describe('applyRegionEconomyResult: idempotency', () => {
     expectNoDuplicates(ctx);
     expect(rows(ctx, 'region_recipe').length).toBe(rows(ctx, 'recipe_template').length);
     const fresh = ctxFor(k3World());
-    econ.applyRegionEconomyResult(fresh, regionJob(fresh, 14n).job, replyText('region_k3'));
+    econ.applyRegionEconomyResult(fresh, legacyRegionJob(fresh, 14n).job, replyText('region_k3'));
     expect(recorder.snapshotDb(ctx.db)).toBe(recorder.snapshotDb(fresh.db));
   });
 
   it('the same input and reply on two fresh databases produce identical rows', () => {
     const a = ctxFor(k0World());
     const b = ctxFor(k0World());
-    const { job } = regionJob(a, 1n);
+    const { job } = legacyRegionJob(a, 1n);
     // The input build only reads, but the strict mock lists every table it touched (creature_family
     // since Plan 24), so b reads the same tables before the comparison.
-    regionJob(b, 1n);
+    legacyRegionJob(b, 1n);
     econ.applyRegionEconomyResult(a, job, replyText('region_k0'));
     econ.applyRegionEconomyResult(b, job, replyText('region_k0'));
     expect(recorder.snapshotDb(a.db)).toBe(recorder.snapshotDb(b.db));
@@ -718,7 +743,7 @@ describe('applyRegionEconomyResult: idempotency', () => {
       const seed = k0World();
       seed.region_economy = status === 'missing' ? [] : [econRow(1n, status)];
       const ctx = ctxFor(seed);
-      const { job } = regionJob(ctx, 1n);
+      const { job } = legacyRegionJob(ctx, 1n);
       const before = recorder.snapshotDb(ctx.db);
       econ.applyRegionEconomyResult(ctx, job, replyText('region_k0'));
       expect(recorder.snapshotDb(ctx.db)).toBe(before);
@@ -741,7 +766,7 @@ describe('applyRegionEconomyResult: failed reply', () => {
   ]) {
     it(`failed reply (${label}) sets status failed and writes no item rows or player lines`, () => {
       const ctx = ctxFor(k0World());
-      const { job } = regionJob(ctx, 1n);
+      const { job } = legacyRegionJob(ctx, 1n);
       const before = JSON.parse(recorder.snapshotDb(ctx.db));
       econ.applyRegionEconomyResult(ctx, job, reply);
       const after = JSON.parse(recorder.snapshotDb(ctx.db));
@@ -761,7 +786,7 @@ describe('applyRegionEconomyResult: names and edges', () => {
     const ctx = ctxFor(seed);
     const reply = JSON.parse(replyText('region_k0'));
     reply.region.gatherables.uncommon.name = 'Ember Moss';
-    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
+    econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, JSON.stringify(reply));
     expect(slotItem(ctx, 'gather:uncommon')!.item.name).toBe('Kesterlane Basin Ember Moss');
     expect(rows(ctx, 'item_template').filter((t: any) => t.name.toLowerCase() === 'ember moss').length).toBe(1);
   });
@@ -770,7 +795,7 @@ describe('applyRegionEconomyResult: names and edges', () => {
     const seed = k0World();
     seed.recipe_template.push({ id: 50n, key: 'rule:x', name: 'Rivetbound Mace', outputTemplateId: 1n, outputCount: 1n, req1TemplateId: 1n, req1Count: 1n, req2TemplateId: 1n, req2Count: 1n, req4TemplateId: 0n, req4Count: 0n });
     const ctx = ctxFor(seed);
-    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, replyText('region_k0'));
+    econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, replyText('region_k0'));
     expect(recipeByKey(ctx, 'region:1:r0').name).toBe('Kesterlane Basin Rivetbound Mace');
   });
 
@@ -778,7 +803,7 @@ describe('applyRegionEconomyResult: names and edges', () => {
     const seed = k0World();
     seed.location_enemy_template = [];
     const ctx = ctxFor(seed);
-    const { input, job } = regionJob(ctx, 1n);
+    const { input, job } = legacyRegionJob(ctx, 1n);
     expect(input.enemies).toEqual([]);
     econ.applyRegionEconomyResult(ctx, job, replyText('region_k0'));
     expect(econRowOf(ctx, 1n).status).toBe('complete');
@@ -796,7 +821,7 @@ describe('applyRegionEconomyResult: names and edges', () => {
 describe('the job id check (review B IN-02)', () => {
   it("an older job's late result or failure changes nothing while the region waits on another job", () => {
     const ctx = ctxFor(k0World());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     const before = recorder.snapshotDb(ctx.db);
     econ.applyRegionEconomyResult(ctx, { ...job, jobId: 2n }, replyText('region_k0'));
     econ.failRegionEconomy(ctx, { ...job, jobId: 2n });
@@ -806,13 +831,13 @@ describe('the job id check (review B IN-02)', () => {
 
   it('the matching job applies, and a job without an id is still accepted', () => {
     const matching = ctxFor(k0World());
-    econ.applyRegionEconomyResult(matching, { ...regionJob(matching, 1n).job, jobId: 1n }, replyText('region_k0'));
+    econ.applyRegionEconomyResult(matching, { ...legacyRegionJob(matching, 1n).job, jobId: 1n }, replyText('region_k0'));
     expect(econRowOf(matching, 1n).status).toBe('complete');
     const failed = ctxFor(k0World());
-    econ.failRegionEconomy(failed, { ...regionJob(failed, 1n).job, jobId: 1n });
+    econ.failRegionEconomy(failed, { ...legacyRegionJob(failed, 1n).job, jobId: 1n });
     expect(econRowOf(failed, 1n).status).toBe('failed');
     const legacy = ctxFor(k0World());
-    econ.applyRegionEconomyResult(legacy, regionJob(legacy, 1n).job, replyText('region_k0'));
+    econ.applyRegionEconomyResult(legacy, legacyRegionJob(legacy, 1n).job, replyText('region_k0'));
     expect(econRowOf(legacy, 1n).status).toBe('complete');
   });
 });
@@ -820,7 +845,7 @@ describe('the job id check (review B IN-02)', () => {
 describe('failRegionEconomy and markRegionEconomyPending', () => {
   it('failRegionEconomy turns a pending region job to failed and writes nothing else (no event rows)', () => {
     const ctx = ctxFor(k0World());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     const before = JSON.parse(recorder.snapshotDb(ctx.db));
     econ.failRegionEconomy(ctx, job);
     const after = JSON.parse(recorder.snapshotDb(ctx.db));
@@ -873,7 +898,7 @@ describe('failRegionEconomy and markRegionEconomyPending', () => {
 /** Region 1 designed by the region_k0 reply; the Drowned Tollman (103) then moves into the town. */
 function lateWorld(status: string | null = 'complete'): any {
   const ctx = ctxFor(k0World());
-  econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, replyText('region_k0'));
+  econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, replyText('region_k0'));
   ctx.db._tables.location_enemy_template.push({ id: 9n, locationId: 13n, enemyTemplateId: 103n });
   const row = econRowOf(ctx, 1n);
   if (status === null) ctx.db._tables.region_economy = [];
@@ -985,7 +1010,7 @@ describe('AI-table loot check: a designed enemy rolls from its written loot tabl
     seed.item_template.push(itemRow(80n, 'Rat Tail', { slot: 'junk', isJunk: true }), itemRow(81n, 'Torn Pelt', { slot: 'junk', isJunk: true }));
     seed.named_enemy = [];
     const ctx = ctxFor(seed);
-    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, replyText('region_k0'));
+    econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, replyText('region_k0'));
 
     const template = ctx.db.enemy_template.id.find(101n);
     const ai = rows(ctx, 'enemy_loot_entry').filter((e: any) => e.enemyTemplateId === 101n);
@@ -1071,7 +1096,7 @@ describe('applyRegionEconomyResult: gatherables join the resource pools (Plan 09
 
   it('each place of matching terrain gets a resource pool for its gatherable, and a rerun adds none', () => {
     const ctx = ctxFor(poolWorldK0());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     econ.applyRegionEconomyResult(ctx, job, k0ReplyOnTerrains());
     expect(econRowOf(ctx, 1n).status).toBe('complete');
 
@@ -1093,7 +1118,7 @@ describe('applyRegionEconomyResult: gatherables join the resource pools (Plan 09
 
   it('the late-enemy follow-up enqueues nothing for filler members that joined while the job was pending', () => {
     const ctx = ctxFor(poolWorldK0());
-    const { job } = regionJob(ctx, 1n);
+    const { job } = legacyRegionJob(ctx, 1n);
     const alice = { toHexString: () => 'a'.repeat(64) };
     const ownedJob = { ...job, playerId: alice, contextJson: JSON.stringify({ ...JSON.parse(job.contextJson), characterId: '10' }) };
     // A migrated family's filler members appear while the region job is pending, and so does one real
@@ -1239,10 +1264,10 @@ describe('buildRegionEconomyInput: families (D-47)', () => {
     expect(input.recipeSlots).toHaveLength(3);
   });
 
-  it('region mode still lists the 51.3 enemies for the apply until the family apply ships (Plan 25)', () => {
+  it('region mode lists no 51.3 enemies once the family apply ships (Plan 25)', () => {
     const ctx = ctxFor(familyWorld());
     const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
-    expect(input.enemies.map((e) => e.templateId)).toEqual([101n, 102n]);
+    expect(input.enemies).toEqual([]);
   });
 
   it("family mode lists that one family as E1 and the region's existing materials, with no slots", () => {
@@ -1300,14 +1325,481 @@ describe('buildRegionEconomyInput: families (D-47)', () => {
     expect(econ.readEconomyJobContext(JSON.stringify({ regionId: '1', mode: 'family', familyId: 'x', input: encodeRouteInput(input) }))).toBeNull();
   });
 
-  it('a family-mode result is not applied by the 51.3 apply (Plan 25 owns it)', () => {
+  it('a family-mode job ignores a 51.3 late-creature reply (it reads lateFamily only)', () => {
     const seed = familyWorld();
     seed.region_economy.push(econRow(1n, 'complete'));
+    seed.enemy_loot_entry = [];
     const ctx = ctxFor(seed);
     const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', ctx.db.creature_family.id.find(1n));
     const contextJson = JSON.stringify({ regionId: '1', mode: 'family', familyId: '1', input: encodeRouteInput(input) });
     const before = APPLY_TABLES.map((t) => rows(ctx, t).length);
     econ.applyRegionEconomyResult(ctx, { domain: 'region_economy', contextJson }, replyText('late'));
     expect(APPLY_TABLES.map((t) => rows(ctx, t).length)).toEqual(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.1 Plan 25: the family economy apply (D-47): a drop and a trophy per family, gear per
+// member, member loot tables from both; the late family apply; the AI design cap (coordinator, D-66)
+// ---------------------------------------------------------------------------
+
+/**
+ * familyWorld with three members for the Brine Sentinels (120 tank, 102 damage, 121 caster), region 1
+ * pending, and the apply tables seeded. E1 = the Skitterers (101 tank, 112 damage, 110 support, 111
+ * caster), E2 = the Sentinels (E2.tank, E2.damage, E2.caster).
+ */
+function familyApplyWorld(status = 'pending'): Seed {
+  const seed = familyWorld();
+  seed.enemy_template.push(
+    enemyRow(120n, 'Sentinel Bulwark', 'construct', 2n, { role: 'tank' }),
+    enemyRow(121n, 'Sentinel Hexer', 'construct', 2n, { role: 'caster' }),
+  );
+  seed.family_member.push(
+    { id: 10n, familyId: 2n, enemyTemplateId: 120n, role: 'tank', filler: true },
+    { id: 11n, familyId: 2n, enemyTemplateId: 121n, role: 'caster', filler: true },
+  );
+  seed.region_economy.push(econRow(1n, status));
+  seed.recipe_template = [];
+  seed.enemy_loot_entry = [];
+  seed.region_recipe = [];
+  seed.family_relation = [];
+  seed.place_pool = [];
+  return seed;
+}
+
+const gearOf = (member: string, name: string, slot: string, weaponType: string, armorType: string) => ({
+  member,
+  name,
+  slot,
+  weaponType,
+  armorType,
+  description: `${name}, carried into the salt.`,
+});
+
+const SKITTER_FAMILY = {
+  family: 'E1',
+  drop: { name: 'Skitter Chitin', kind: 'hide', description: 'Plates of a skitterer shell.' },
+  trophy: { name: 'Skitterer Eyestalk', description: 'It still turns toward you.' },
+  gear: [
+    gearOf('E1.tank', 'Shellback Plate', 'chest', 'none', 'plate'),
+    gearOf('E1.damage', 'Pincer Blade', 'weapon', 'sword', 'none'),
+    gearOf('E1.support', 'Tender Wraps', 'legs', 'none', 'cloth'),
+    gearOf('E1.caster', 'Saltspitter Wand', 'weapon', 'wand', 'none'),
+  ],
+};
+
+const SENTINEL_FAMILY = (ref = 'E2') => ({
+  family: ref,
+  drop: { name: 'Sentinel Rivet', kind: 'metal', description: 'A rivet as long as a finger.' },
+  trophy: { name: 'Tide Seal', description: 'A seal no tide obeys any more.' },
+  gear: [
+    gearOf(`${ref}.tank`, 'Bulwark Greaves', 'boots', 'none', 'chain'),
+    gearOf(`${ref}.damage`, 'Halberdier Axe', 'weapon', 'axe', 'none'),
+    gearOf(`${ref}.caster`, 'Hexer Wand', 'weapon', 'wand', 'none'),
+  ],
+});
+
+/** A clean small reply in the B3 shape for familyApplyWorld. */
+function familyEconomyReply(): any {
+  return {
+    region: {
+      gatherables: [
+        { name: 'Panlight Salt', kind: 'base', terrain: 'swamp', description: 'Salt that keeps the light.' },
+        { name: 'Brinewort', kind: 'edible', terrain: 'swamp', description: 'A bitter leaf of the pans.' },
+        { name: 'Undercroft Quartz', kind: 'trinket', terrain: 'dungeon', description: 'Cold stone from below.' },
+      ],
+      families: [SKITTER_FAMILY, SENTINEL_FAMILY()],
+      recipes: [
+        { name: 'Chitin Jerkin', category: 'armor', description: 'A jerkin of plates.', materials: ['D:E1', 'G1'] },
+        { name: 'Rivet Axe', category: 'weapon', description: 'An axe of rivets.', materials: ['D:E2', 'G2'] },
+        { name: 'Brinewort Broth', category: 'consumable', description: 'A bitter broth.', materials: ['G2', 'G1'] },
+      ],
+    },
+    lateFamily: null,
+  };
+}
+
+const econRows = (ctx: any, role: string) => rows(ctx, 'economy_item').filter((r: any) => r.role === role);
+const itemOf = (ctx: any, id: bigint) => rows(ctx, 'item_template').find((t: any) => t.id === id);
+const lootOf = (ctx: any, templateId: bigint) => rows(ctx, 'enemy_loot_entry').filter((e: any) => e.enemyTemplateId === templateId);
+const familyItem = (ctx: any, role: string, familyId: bigint) => econRows(ctx, role).find((r: any) => r.familyId === familyId);
+const memberGear = (ctx: any, templateId: bigint) => econRows(ctx, 'gear').find((r: any) => r.enemyTemplateId === templateId);
+
+const SKITTER_MEMBERS = [101n, 112n, 110n, 111n];
+const SENTINEL_MEMBERS = [120n, 102n, 121n];
+
+describe('applyRegionEconomyResult: a family reply (D-47)', () => {
+  it('writes 3 gatherables, a drop and a trophy per family, gear per member, 7 member loot tables and 3 recipes; status complete', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const { input, job } = regionJob(ctx, 1n);
+    expect(input.families!.map((f) => f.members.map((m) => m.ref))).toEqual([
+      ['E1.tank', 'E1.damage', 'E1.support', 'E1.caster'],
+      ['E2.tank', 'E2.damage', 'E2.caster'],
+    ]);
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(familyEconomyReply()));
+
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    const gathers = ['G1', 'G2', 'G3'].map((ref) => slotItem(ctx, `gather:${ref}`)!);
+    expect(gathers.map((g) => [g.item.name, g.tag.rarity])).toEqual([
+      ['Panlight Salt', 'common'],
+      ['Brinewort', 'uncommon'],
+      ['Undercroft Quartz', 'rare'],
+    ]);
+    expect(econRows(ctx, 'gather')).toHaveLength(3);
+
+    expect(econRows(ctx, 'drop')).toHaveLength(2);
+    expect(econRows(ctx, 'trophy')).toHaveLength(2);
+    for (const [familyId, drop, trophy] of [
+      [1n, 'Skitter Chitin', 'Skitterer Eyestalk'],
+      [2n, 'Sentinel Rivet', 'Tide Seal'],
+    ] as const) {
+      const d = familyItem(ctx, 'drop', familyId);
+      const t = familyItem(ctx, 'trophy', familyId);
+      expect([itemOf(ctx, d.itemTemplateId).name, itemOf(ctx, t.itemTemplateId).name]).toEqual([drop, trophy]);
+      expect([d.regionId, d.enemyTemplateId, t.regionId, t.enemyTemplateId]).toEqual([1n, 0n, 1n, 0n]);
+    }
+
+    expect(econRows(ctx, 'gear')).toHaveLength(7);
+    for (const [familyId, members] of [
+      [1n, SKITTER_MEMBERS],
+      [2n, SENTINEL_MEMBERS],
+    ] as const) {
+      const dropId = familyItem(ctx, 'drop', familyId).itemTemplateId;
+      const trophyId = familyItem(ctx, 'trophy', familyId).itemTemplateId;
+      for (const member of members) {
+        const own = memberGear(ctx, member);
+        expect([own.familyId, own.regionId]).toEqual([familyId, 1n]);
+        const loot = lootOf(ctx, member);
+        expect(loot.length).toBeGreaterThanOrEqual(4);
+        expect(loot.length).toBeLessThanOrEqual(6);
+        expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([dropId]);
+        expect(loot.filter((e: any) => e.role === 'trophy').map((e: any) => e.itemTemplateId)).toEqual([trophyId]);
+        expect(loot.filter((e: any) => e.role === 'gear').map((e: any) => e.itemTemplateId)).toEqual([own.itemTemplateId]);
+        for (const e of loot.filter((x: any) => x.role === 'gatherable')) expect(gathers.map((g) => g.item.id)).toContain(e.itemTemplateId);
+      }
+    }
+    expect(itemOf(ctx, memberGear(ctx, 101n).itemTemplateId).name).toBe('Shellback Plate');
+    expect(itemOf(ctx, memberGear(ctx, 121n).itemTemplateId).name).toBe('Hexer Wand');
+
+    expect(rows(ctx, 'recipe_template')).toHaveLength(3);
+    expect(rows(ctx, 'region_recipe')).toHaveLength(3);
+    expectWellFormed(ctx);
+    expectNoDuplicates(ctx);
+  });
+
+  it("D:E1 in a recipe resolves to family E1's drop item", () => {
+    const ctx = ctxFor(familyApplyWorld());
+    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(familyEconomyReply()));
+    const jerkin = recipeByKey(ctx, 'region:1:r0');
+    const axe = recipeByKey(ctx, 'region:1:r1');
+    expect(jerkin.req1TemplateId).toBe(familyItem(ctx, 'drop', 1n).itemTemplateId);
+    expect(axe.req1TemplateId).toBe(familyItem(ctx, 'drop', 2n).itemTemplateId);
+  });
+
+  it('a member with no gear in the reply gets a loot table from the family drop and trophy only (no gear entry)', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const reply = familyEconomyReply();
+    reply.region.families[0] = { ...SKITTER_FAMILY, gear: SKITTER_FAMILY.gear.filter((g) => g.member !== 'E1.caster') };
+    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
+    expect(memberGear(ctx, 111n)).toBeUndefined();
+    const loot = lootOf(ctx, 111n);
+    expect(loot.length).toBeGreaterThanOrEqual(3);
+    expect(loot.some((e: any) => e.role === 'gear')).toBe(false);
+    expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([familyItem(ctx, 'drop', 1n).itemTemplateId]);
+    expect(loot.filter((e: any) => e.role === 'trophy').map((e: any) => e.itemTemplateId)).toEqual([familyItem(ctx, 'trophy', 1n).itemTemplateId]);
+    expect(econRows(ctx, 'gear')).toHaveLength(6);
+  });
+
+  it('a recipe the reply left out is filled by rule; a gatherable slot left out is filled by rule', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const reply = familyEconomyReply();
+    reply.region.recipes = reply.region.recipes.slice(0, 1);
+    reply.region.gatherables = reply.region.gatherables.slice(0, 2);
+    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
+    expect(rows(ctx, 'recipe_template')).toHaveLength(3);
+    expect(econRows(ctx, 'gather')).toHaveLength(3);
+    expect(recipeByKey(ctx, 'region:1:r0').name).toBe('Chitin Jerkin');
+    expectWellFormed(ctx);
+    expectNoDuplicates(ctx);
+  });
+
+  it('a family the reply left out gets no rows (a late family job designs it); the region still completes', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const reply = familyEconomyReply();
+    reply.region.families = [SKITTER_FAMILY];
+    econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    expect(familyItem(ctx, 'drop', 2n)).toBeUndefined();
+    for (const member of SENTINEL_MEMBERS) expect(lootOf(ctx, member)).toEqual([]);
+    for (const member of SKITTER_MEMBERS) expect(lootOf(ctx, member).length).toBeGreaterThan(0);
+  });
+
+  it('idempotent: applying the same family reply twice changes nothing', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const { job } = regionJob(ctx, 1n);
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(familyEconomyReply()));
+    const once = recorder.snapshotDb(ctx.db);
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(familyEconomyReply()));
+    expect(recorder.snapshotDb(ctx.db)).toBe(once);
+  });
+
+  it('partial write then re-run leaves exactly the rows of a clean apply', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const { job } = regionJob(ctx, 1n);
+    expect(() =>
+      econ.applyRegionEconomyResult(throwOnce(ctx, 'recipe_template', 'insert'), job, JSON.stringify(familyEconomyReply())),
+    ).toThrow(/forced/);
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(familyEconomyReply()));
+    const fresh = ctxFor(familyApplyWorld());
+    econ.applyRegionEconomyResult(fresh, regionJob(fresh, 1n).job, JSON.stringify(familyEconomyReply()));
+    expect(recorder.snapshotDb(ctx.db)).toBe(recorder.snapshotDb(fresh.db));
+    expectNoDuplicates(ctx);
+  });
+
+  it('an unusable family reply (an empty region) sets status failed and writes no item rows', () => {
+    const ctx = ctxFor(familyApplyWorld());
+    const before = APPLY_TABLES.map((t) => rows(ctx, t).length);
+    econ.applyRegionEconomyResult(
+      ctx,
+      regionJob(ctx, 1n).job,
+      JSON.stringify({ region: { gatherables: [], families: [], recipes: [] }, lateFamily: null }),
+    );
+    expect(econRowOf(ctx, 1n).status).toBe('failed');
+    expect(APPLY_TABLES.map((t) => rows(ctx, t).length)).toEqual(before);
+  });
+
+  it('a 51.3-shape reply (creatures) on a 51.3 stored input still applies through writeCreature', () => {
+    const ctx = ctxFor(k0World());
+    econ.applyRegionEconomyResult(ctx, legacyRegionJob(ctx, 1n).job, replyText('region_k0'));
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    expect(slotItem(ctx, 'drop:101')!.tag.enemyTemplateId).toBe(101n);
+    expect(slotItem(ctx, 'gear:102')!.tag.enemyTemplateId).toBe(102n);
+    expect(slotItem(ctx, 'gather:common')).toBeDefined();
+  });
+
+  it('a family reply on a 51.3 stored input (families of one) writes per-template rows', () => {
+    const ctx = ctxFor(k0World());
+    const { job } = legacyRegionJob(ctx, 1n);
+    const reply = {
+      region: {
+        gatherables: familyEconomyReply().region.gatherables,
+        families: [
+          { ...SKITTER_FAMILY, family: 'E1', gear: [gearOf('E1.damage', 'Pincer Blade', 'weapon', 'sword', 'none')] },
+          { ...SENTINEL_FAMILY('E2'), gear: [] },
+        ],
+        recipes: familyEconomyReply().region.recipes,
+      },
+      lateFamily: null,
+    };
+    econ.applyRegionEconomyResult(ctx, job, JSON.stringify(reply));
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    expect(slotItem(ctx, 'drop:101')!.item.name).toBe('Skitter Chitin');
+    expect(slotItem(ctx, 'drop:102')!.item.name).toBe('Sentinel Rivet');
+    expect(slotItem(ctx, 'gear:101')!.item.name).toBe('Pincer Blade');
+    expect(slotItem(ctx, 'gear:102')).toBeUndefined();
+    expect(lootOf(ctx, 102n).some((e: any) => e.role === 'gear')).toBe(false);
+    expect(lootOf(ctx, 102n).length).toBeGreaterThan(0);
+  });
+});
+
+/** familyApplyWorld designed without the Sentinels (E2 left out), then a family-mode job for them. */
+function lateFamilyWorld(): { ctx: any; job: any } {
+  const ctx = ctxFor(familyApplyWorld());
+  const reply = familyEconomyReply();
+  reply.region.families = [SKITTER_FAMILY];
+  econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
+  const family = ctx.db.creature_family.id.find(2n);
+  const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', family);
+  const contextJson = JSON.stringify({ regionId: '1', mode: 'family', familyId: '2', characterId: '0', input: encodeRouteInput(input) });
+  return { ctx, job: { domain: 'region_economy', playerId: null, contextJson } };
+}
+
+const LATE_FAMILY_REPLY = JSON.stringify({ region: null, lateFamily: SENTINEL_FAMILY('E1') });
+
+describe('applyLateFamilyResult (a family-mode job, D-47)', () => {
+  it("writes the family's drop and trophy, gear for each member and the members' loot tables from the region gatherables", () => {
+    const { ctx, job } = lateFamilyWorld();
+    econ.applyRegionEconomyResult(ctx, job, LATE_FAMILY_REPLY);
+    const d = familyItem(ctx, 'drop', 2n);
+    const t = familyItem(ctx, 'trophy', 2n);
+    expect([itemOf(ctx, d.itemTemplateId).name, itemOf(ctx, t.itemTemplateId).name]).toEqual(['Sentinel Rivet', 'Tide Seal']);
+    const gatherIds = econRows(ctx, 'gather').map((r: any) => r.itemTemplateId);
+    for (const member of SENTINEL_MEMBERS) {
+      const own = memberGear(ctx, member);
+      expect(own.familyId).toBe(2n);
+      const loot = lootOf(ctx, member);
+      expect(loot.length).toBeGreaterThanOrEqual(4);
+      expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([d.itemTemplateId]);
+      expect(loot.filter((e: any) => e.role === 'trophy').map((e: any) => e.itemTemplateId)).toEqual([t.itemTemplateId]);
+      expect(loot.filter((e: any) => e.role === 'gear').map((e: any) => e.itemTemplateId)).toEqual([own.itemTemplateId]);
+      for (const e of loot.filter((x: any) => x.role === 'gatherable')) expect(gatherIds).toContain(e.itemTemplateId);
+    }
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    expectWellFormed(ctx);
+    expectNoDuplicates(ctx);
+  });
+
+  it('a second apply of the same result changes nothing', () => {
+    const { ctx, job } = lateFamilyWorld();
+    econ.applyRegionEconomyResult(ctx, job, LATE_FAMILY_REPLY);
+    const once = recorder.snapshotDb(ctx.db);
+    econ.applyRegionEconomyResult(ctx, job, LATE_FAMILY_REPLY);
+    expect(recorder.snapshotDb(ctx.db)).toBe(once);
+  });
+
+  it('a partial write then a re-run leaves exactly the rows of a clean apply', () => {
+    const { ctx, job } = lateFamilyWorld();
+    expect(() => econ.applyRegionEconomyResult(throwOnce(ctx, 'enemy_loot_entry', 'insert'), job, LATE_FAMILY_REPLY)).toThrow(/forced/);
+    econ.applyRegionEconomyResult(ctx, job, LATE_FAMILY_REPLY);
+    const fresh = lateFamilyWorld();
+    econ.applyRegionEconomyResult(fresh.ctx, fresh.job, LATE_FAMILY_REPLY);
+    expect(recorder.snapshotDb(ctx.db)).toBe(recorder.snapshotDb(fresh.ctx.db));
+  });
+
+  it('writes nothing when the region is not complete, the family is gone, or the reply is unusable', () => {
+    const mutations: ((ctx: any) => void)[] = [
+      (ctx) => {
+        econRowOf(ctx, 1n).status = 'pending';
+      },
+      (ctx) => {
+        ctx.db._tables.creature_family = ctx.db._tables.creature_family.filter((f: any) => f.id !== 2n);
+      },
+    ];
+    for (const mutate of mutations) {
+      const { ctx, job } = lateFamilyWorld();
+      mutate(ctx);
+      const before = recorder.snapshotDb(ctx.db);
+      econ.applyRegionEconomyResult(ctx, job, LATE_FAMILY_REPLY);
+      expect(recorder.snapshotDb(ctx.db)).toBe(before);
+    }
+    for (const reply of ['not json', '{}', JSON.stringify({ region: null, lateFamily: null })]) {
+      const { ctx, job } = lateFamilyWorld();
+      const before = recorder.snapshotDb(ctx.db);
+      econ.applyRegionEconomyResult(ctx, job, reply);
+      expect(recorder.snapshotDb(ctx.db)).toBe(before);
+    }
+  });
+
+  it('an enemy-mode job (51.3, queued before publish) still goes to the late-creature apply', () => {
+    const ctx = lateWorld();
+    const { job } = lateJob(ctx);
+    econ.applyRegionEconomyResult(ctx, job, replyText('late'));
+    expect(slotItem(ctx, 'drop:103')!.item.name).toBe('Tollman Brine');
+  });
+
+  it('an enemy-mode job answered in the family shape (lateFamily) writes the per-template rows', () => {
+    const ctx = lateWorld();
+    const { job } = lateJob(ctx);
+    const reply = JSON.stringify({
+      region: null,
+      lateFamily: {
+        family: 'E1',
+        drop: { name: 'Tollman Brine', kind: 'base', description: 'Black water.' },
+        trophy: { name: 'Rusted Toll Token', description: 'A token.' },
+        gear: [gearOf('E1.damage', 'Tollkeeper Hook', 'weapon', 'dagger', 'none')],
+      },
+    });
+    econ.applyRegionEconomyResult(ctx, job, reply);
+    expect([slotItem(ctx, 'drop:103')!.item.name, slotItem(ctx, 'gear:103')!.item.name]).toEqual(['Tollman Brine', 'Tollkeeper Hook']);
+    expect(lootOf(ctx, 103n).length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+/**
+ * Region 1 with nine one-member families (ids 1..9, templates 301..309). Families 8 and 9 feud; family
+ * 6 lives at three places, family 7 at two; every family lives at place 10.
+ */
+function nineFamilyWorld(): Seed {
+  const seed = baseWorld();
+  // Family members only: no stray 51.3 links.
+  seed.location_enemy_template = [];
+  seed.creature_family = [];
+  seed.family_member = [];
+  seed.place_pool = [];
+  seed.family_relation = [
+    { id: 1n, familyId: 8n, otherFamilyId: 9n, kind: 'feud' },
+    { id: 2n, familyId: 9n, otherFamilyId: 8n, kind: 'feud' },
+    { id: 3n, familyId: 1n, otherFamilyId: 2n, kind: 'rival' },
+  ];
+  let poolId = 1n;
+  const pool = (familyId: bigint, locationId: bigint) => ({
+    id: poolId++,
+    regionId: 1n,
+    locationId,
+    kind: 'creature',
+    refId: familyId,
+    count: 50n,
+    homeLevel: 1n,
+    wipedAtMicros: 0n,
+    lastSettledMicros: T0,
+    dirty: false,
+    timeOfDay: 'any',
+  });
+  for (let i = 1n; i <= 9n; i += 1n) {
+    seed.enemy_template.push(enemyRow(300n + i, `Kin ${i}`, 'beast', 1n));
+    seed.creature_family.push(familyRow(i, 1n, `Kin Family ${i}`, 'beast'));
+    seed.family_member.push({ id: i, familyId: i, enemyTemplateId: 300n + i, role: 'damage', filler: false });
+    seed.place_pool.push(pool(i, 10n));
+  }
+  seed.place_pool.push(pool(6n, 11n), pool(6n, 12n), pool(7n, 11n));
+  seed.recipe_template = [];
+  seed.enemy_loot_entry = [];
+  seed.region_recipe = [];
+  return seed;
+}
+
+describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX families (coordinator, D-66)', () => {
+  it('region mode lists the feud families and the families at more places first, then id order; the rest are rule families', () => {
+    const ctx = ctxFor(nineFamilyWorld());
+    const picked = econ.economyDesignFamilies(ctx, 1n);
+    // Feud 8 and 9, then 6 (3 places) and 7 (2 places), then 1, 2, 3 by id; 4 and 5 are left to the rule.
+    expect(picked.designed.map((f) => f.familyId)).toEqual([1n, 2n, 3n, 6n, 7n, 8n, 9n]);
+    expect(picked.designed.map((f) => f.ref)).toEqual(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7']);
+    expect(picked.ruleFamilyIds).toEqual([4n, 5n]);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.families).toEqual(picked.designed);
+  });
+
+  it('the region job stores the rule families; the apply gives them rule-named drop, trophy and member gear and loot tables, with no late job', () => {
+    const seed = nineFamilyWorld();
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+    seed.llm_job = [];
+    const ctx = ctxFor(seed);
+    const who = { playerId: { toHexString: () => 'a'.repeat(64) }, characterId: 10n };
+    expect(econ.startRegionEconomy(ctx, region(ctx, 1n), who)).toBe('enqueued');
+    const stored = rows(ctx, 'llm_job')[0];
+    const request = JSON.parse(stored.requestJson);
+    expect(request.ruleFamilyIds).toEqual(['4', '5']);
+    expect(request.input.families.map((f: any) => f.familyId)).toEqual(['1', '2', '3', '6', '7', '8', '9']);
+
+    const families = request.input.families.map((f: any, i: number) => ({
+      family: f.ref,
+      drop: { name: `Kin Hide ${i + 1}`, kind: 'hide', description: '' },
+      trophy: { name: `Kin Tooth ${i + 1}`, description: '' },
+      gear: [gearOf(`${f.ref}.damage`, `Kin Claw ${i + 1}`, 'weapon', 'dagger', 'none')],
+    }));
+    const reply = { region: { gatherables: familyEconomyReply().region.gatherables, families, recipes: [] }, lateFamily: null };
+    econ.applyRegionEconomyResult(
+      ctx,
+      { domain: 'region_economy', playerId: who.playerId, contextJson: stored.requestJson, jobId: stored.id },
+      JSON.stringify(reply),
+    );
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+
+    for (const familyId of [4n, 5n]) {
+      const d = familyItem(ctx, 'drop', familyId);
+      const t = familyItem(ctx, 'trophy', familyId);
+      const g = memberGear(ctx, 300n + familyId);
+      expect([d, t, g].every((x) => x !== undefined)).toBe(true);
+      expect(itemOf(ctx, d.itemTemplateId).name).toMatch(/^Kesterlane Basin /);
+      expect(itemOf(ctx, t.itemTemplateId).name).toMatch(/^Kesterlane Basin Trophy/);
+      const roles = lootOf(ctx, 300n + familyId).map((e: any) => e.role);
+      expect(roles).toEqual(expect.arrayContaining(['drop', 'trophy', 'gear']));
+    }
+    for (let i = 1n; i <= 9n; i += 1n) expect(lootOf(ctx, 300n + i).length).toBeGreaterThan(0);
+    // Every family has loot, so the follow-up enqueues nothing: still only the region job.
+    expect(rows(ctx, 'llm_job')).toHaveLength(1);
+    expectWellFormed(ctx);
+    expectNoDuplicates(ctx);
   });
 });
