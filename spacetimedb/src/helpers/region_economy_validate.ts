@@ -11,20 +11,28 @@
  * recipes keep no foreign material, rare, epic and legendary keep exactly one per required region.
  *
  * Users: the region_economy apply (plan 10), which writes the plan to the database.
+ *
+ * Phase 51.3.1.1 (Plan 24, D-47): the family reply (draft B3) goes through validateFamilyEconomyReply
+ * and validateLateFamily. Counts come from the stored input (its gatherSlots and recipeSlots, set from
+ * the economy size), and family and member handles resolve against input.families only. The 51.3
+ * functions (validateRegionEconomyReply, validateLateCreature) stay for replies in flight at publish.
  */
 import {
   categoryForKind,
   cleanDescription,
   cleanItemName,
   dropRef,
+  economyFamilies,
   gatherRef,
   GATHER_SLOTS,
+  REGION_ECONOMY_SIZES,
   MAX_RECIPE_REQUIREMENTS,
   nameKey,
   regionalRequirementPlan,
   repairGear,
   uniqueItemName,
   type FallbackRole,
+  type RegionEconomyFamily,
   type RegionEconomyInput,
 } from '../data/economy_design_rules';
 import {
@@ -81,6 +89,53 @@ export interface ValidatedRegionEconomy {
   recipes: ValidatedRecipe[];
 }
 
+/** One piece of gear of a family member, for the member handle the stored input lists. */
+export interface ValidatedFamilyGear {
+  /** The input member handle (E1.tank). */
+  member: string;
+  /** From the input, never from the reply. */
+  templateId: bigint;
+  name: string;
+  slot: string;
+  weaponType: string;
+  armorType: string;
+  description: string;
+}
+
+/** One family entry of a family reply (D-47): a drop and a trophy for the family, gear per member. */
+export interface ValidatedFamilyEntry {
+  /** The input family handle (E1..). */
+  familyRef: string;
+  /** From the input (creature_family.id; 0n for a 51.3 enemy read as a family of one). */
+  familyId: bigint;
+  drop: { name: string; kind: MaterialKind; description: string };
+  trophy: { name: string; description: string };
+  /** In the input's member order (tank, damage, support, caster), one per member the reply covered. */
+  gear: ValidatedFamilyGear[];
+  /** Template ids of the members the reply gave no gear (the apply writes rule gear for them). */
+  missingGearFor: bigint[];
+}
+
+/** The validated family reply of region mode. */
+export interface ValidatedFamilyEconomy {
+  /**
+   * One per input gather slot (the economy size), in G order, with the slot rarity from the input. A
+   * slot the reply left out is filled by rule (rule name, base, the first terrain) and listed in
+   * missingGatherables.
+   */
+  gatherables: ValidatedGatherable[];
+  /** The G handles filled by rule. */
+  missingGatherables: string[];
+  /** In reply order, at most one per input family; a family the reply left out is absent. */
+  families: ValidatedFamilyEntry[];
+  /** The familyIds of the input families the reply left out (the apply falls back by rule). */
+  missingFamilies: bigint[];
+  /** In slot order; at most one per input recipe slot. */
+  recipes: ValidatedRecipe[];
+  /** The recipe slot indexes with no usable recipe (left out or not repairable). */
+  missingRecipes: number[];
+}
+
 const RECIPE_KEYS: readonly string[] = ['first', 'second', 'third'];
 const RECIPE_CATEGORIES: readonly string[] = ['weapon', 'armor', 'accessory', 'consumable'];
 
@@ -128,31 +183,36 @@ function gatherRule(terrain: string, regionName: string): string {
   return region === '' ? `Gathered from the ${terrain}.` : `Gathered from the ${terrain} of ${region}.`;
 }
 
+/** One gatherable slot: the reply entry cleaned, or the rule gatherable when the entry is not an object. */
+function gatherableAt(input: RegionEconomyInput, slot: string, i: number, entry: unknown, names: NameBook): ValidatedGatherable {
+  const terrains = Array.isArray(input.terrains) ? input.terrains.filter((t) => typeof t === 'string' && t !== '') : [];
+  const firstTerrain = terrains.length > 0 ? terrains[0] : 'plains';
+  const kind = materialKind(field(entry, 'kind'), 'base');
+  const modelTerrain = asText(field(entry, 'terrain'));
+  const terrain = terrains.indexOf(modelTerrain) !== -1 ? modelTerrain : firstTerrain;
+  const name = names.take(field(entry, 'name'), 'gather', kind);
+  const cleaned = cleanDescription(asText(field(entry, 'description')));
+  return {
+    slot,
+    ref: gatherRef(i),
+    name,
+    kind,
+    terrain,
+    description: cleaned === '' ? gatherRule(terrain, input.regionName) : cleaned,
+  };
+}
+
 function validateGatherables(
   input: RegionEconomyInput,
   gatherables: unknown,
   names: NameBook,
 ): { list: ValidatedGatherable[]; supplied: number } {
-  const terrains = Array.isArray(input.terrains) ? input.terrains.filter((t) => typeof t === 'string' && t !== '') : [];
-  const firstTerrain = terrains.length > 0 ? terrains[0] : 'plains';
   const list: ValidatedGatherable[] = [];
   let supplied = 0;
   GATHER_SLOTS.forEach((slot, i) => {
     const entry = field(gatherables, slot);
     if (isPlainObject(entry)) supplied++;
-    const kind = materialKind(field(entry, 'kind'), 'base');
-    const modelTerrain = asText(field(entry, 'terrain'));
-    const terrain = terrains.indexOf(modelTerrain) !== -1 ? modelTerrain : firstTerrain;
-    const name = names.take(field(entry, 'name'), 'gather', kind);
-    const cleaned = cleanDescription(asText(field(entry, 'description')));
-    list.push({
-      slot,
-      ref: gatherRef(i),
-      name,
-      kind,
-      terrain,
-      description: cleaned === '' ? gatherRule(terrain, input.regionName) : cleaned,
-    });
+    list.push(gatherableAt(input, slot, i, entry, names));
   });
   return { list, supplied };
 }
@@ -371,4 +431,175 @@ export function validateLateCreature(
   if (!enemy) return null;
   const names = new NameBook(asText(input.regionName), safeIsTaken(isTaken));
   return validateCreatureBody(entry, enemy.ref, enemy.templateId, names);
+}
+
+// ---------------------------------------------------------------------------
+// Family reply (Phase 51.3.1.1 Plan 24, draft B3, D-47)
+// ---------------------------------------------------------------------------
+
+/** The rarity of each gather slot of an input: its stored gatherSlots, or the small size for an input stored before them. */
+function inputGatherSlots(input: RegionEconomyInput): string[] {
+  const stored = Array.isArray(input.gatherSlots)
+    ? input.gatherSlots.filter((x): x is string => typeof x === 'string' && x !== '')
+    : [];
+  return stored.length > 0 ? stored : [...REGION_ECONOMY_SIZES.small.gatherSlots];
+}
+
+/** The input family a reply handle names (compared normalised), or undefined. Only a string handle is read. */
+function findFamily(families: readonly RegionEconomyFamily[], raw: unknown): RegionEconomyFamily | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const ref = normaliseHandle(raw);
+  if (ref === '') return undefined;
+  return families.find((f) => normaliseHandle(f.ref) === ref);
+}
+
+/**
+ * One family entry: drop and trophy as the 51.3 creature body; gear resolved per member handle of
+ * this family only (an unknown or foreign handle is dropped, the first entry for a member wins), with
+ * the 51.3 gear repair. Names are taken in the input's member order, so the result does not depend on
+ * the reply's gear order.
+ */
+function validateFamilyEntry(entry: unknown, family: RegionEconomyFamily, names: NameBook): ValidatedFamilyEntry {
+  const drop = field(entry, 'drop');
+  const trophy = field(entry, 'trophy');
+  const dropKind = materialKind(field(drop, 'kind'), 'hide');
+  const members = Array.isArray(family.members) ? family.members.filter(isPlainObject) : [];
+  const byMember = new Map<string, unknown>();
+  const gearList = field(entry, 'gear');
+  for (const item of Array.isArray(gearList) ? gearList : []) {
+    if (!isPlainObject(item)) continue;
+    const raw = field(item, 'member');
+    if (typeof raw !== 'string') continue;
+    const ref = normaliseHandle(raw);
+    const member = members.find((m) => normaliseHandle(m.ref) === ref);
+    if (!member || byMember.has(member.ref)) continue;
+    byMember.set(member.ref, item);
+  }
+  const result: ValidatedFamilyEntry = {
+    familyRef: family.ref,
+    familyId: family.familyId,
+    drop: {
+      name: names.take(field(drop, 'name'), 'gather', dropKind),
+      kind: dropKind,
+      description: cleanDescription(asText(field(drop, 'description'))),
+    },
+    trophy: {
+      name: names.take(field(trophy, 'name'), 'trophy', ''),
+      description: cleanDescription(asText(field(trophy, 'description'))),
+    },
+    gear: [],
+    missingGearFor: [],
+  };
+  for (const member of members) {
+    const item = byMember.get(member.ref);
+    if (item === undefined) {
+      result.missingGearFor.push(member.templateId);
+      continue;
+    }
+    const repaired = repairGear({
+      slot: asText(field(item, 'slot')),
+      weaponType: asText(field(item, 'weaponType')),
+      armorType: asText(field(item, 'armorType')),
+    });
+    result.gear.push({
+      member: member.ref,
+      templateId: member.templateId,
+      name: names.take(field(item, 'name'), 'gear', repaired.slot),
+      slot: repaired.slot,
+      weaponType: repaired.weaponType,
+      armorType: repaired.armorType,
+      description: cleanDescription(asText(field(item, 'description'))),
+    });
+  }
+  return result;
+}
+
+/**
+ * Region mode of the family reply (draft B3): gatherables[], families[] and recipes[], or null when
+ * the reply is unusable (not an object, no region object, or a region from which no gatherable,
+ * family or recipe was supplied). Counts come from the stored input, never the reply: the first
+ * gatherSlots.length gatherables (slot rarities from the input; the rest of the reply is dropped, a
+ * missing slot is filled by rule and reported), one entry per input family (resolved against
+ * input.families only; a 51.3 input reads its enemies as families of one) and the first
+ * recipeSlots.length recipes, each validated by the 51.3 recipe rules over the gatherables and the
+ * family drops (D:E1). lateFamily is ignored. isTaken must be case-insensitive and cover the existing
+ * item_template and recipe_template names; reserved names are checked inside. Numbers are never read.
+ */
+export function validateFamilyEconomyReply(
+  input: RegionEconomyInput,
+  reply: unknown,
+  isTaken: (name: string) => boolean,
+): ValidatedFamilyEconomy | null {
+  const region = field(reply, 'region');
+  if (!isPlainObject(region)) return null;
+  const names = new NameBook(asText(input.regionName), safeIsTaken(isTaken));
+
+  // Gatherables: one per input slot.
+  const slots = inputGatherSlots(input);
+  const gatherNode = field(region, 'gatherables');
+  const gatherList = Array.isArray(gatherNode) ? gatherNode : [];
+  const gatherables: ValidatedGatherable[] = [];
+  const missingGatherables: string[] = [];
+  let supplied = 0;
+  slots.forEach((slot, i) => {
+    const entry = gatherList[i];
+    if (isPlainObject(entry)) supplied++;
+    else missingGatherables.push(gatherRef(i));
+    gatherables.push(gatherableAt(input, slot, i, entry, names));
+  });
+
+  // Families: one entry per input family, first entry wins.
+  const inputFamilies = economyFamilies(input);
+  const familyNode = field(region, 'families');
+  const families: ValidatedFamilyEntry[] = [];
+  const seen = new Set<string>();
+  for (const entry of Array.isArray(familyNode) ? familyNode : []) {
+    if (!isPlainObject(entry)) continue;
+    const family = findFamily(inputFamilies, field(entry, 'family'));
+    if (!family || seen.has(family.ref)) continue;
+    seen.add(family.ref);
+    families.push(validateFamilyEntry(entry, family, names));
+  }
+  const missingFamilies = inputFamilies.filter((f) => !seen.has(f.ref)).map((f) => f.familyId);
+
+  // Recipes: the first recipeSlots.length, by the 51.3 rules.
+  const locals: LocalMaterial[] = [
+    ...gatherables.map((g) => ({ ref: g.ref, kind: g.kind })),
+    ...families.map((f) => ({ ref: dropRef(f.familyRef), kind: f.drop.kind })),
+  ];
+  const recipeSlots = Array.isArray(input.recipeSlots) ? input.recipeSlots : [];
+  const recipeNode = field(region, 'recipes');
+  const recipeList = Array.isArray(recipeNode) ? recipeNode : [];
+  const recipes: ValidatedRecipe[] = [];
+  const missingRecipes: number[] = [];
+  recipeSlots.forEach((_slot, index) => {
+    const entry = recipeList[index];
+    const recipe = isPlainObject(entry) ? validateRecipe(input, index, entry, locals, names) : null;
+    if (recipe) recipes.push(recipe);
+    else missingRecipes.push(index);
+  });
+
+  if (supplied === 0 && families.length === 0 && recipes.length === 0) return null;
+  return { gatherables, missingGatherables, families, missingFamilies, recipes, missingRecipes };
+}
+
+/**
+ * Late-family mode (a family added after the region was designed, draft B2b): the drop, trophy and
+ * gear of reply.lateFamily, or null when it is not an object. The family is resolved against the
+ * input's families (a stored 51.3 late-creature input reads as a family of one); with exactly one
+ * listed family a missing or unknown handle is repaired to it, with several an unknown handle returns
+ * null. The region field is ignored. Names share one set and are checked against isTaken.
+ */
+export function validateLateFamily(
+  input: RegionEconomyInput,
+  reply: unknown,
+  isTaken: (name: string) => boolean,
+): ValidatedFamilyEntry | null {
+  const entry = field(reply, 'lateFamily');
+  if (!isPlainObject(entry)) return null;
+  const families = economyFamilies(input);
+  const family = findFamily(families, field(entry, 'family')) ?? (families.length === 1 ? families[0] : undefined);
+  if (!family) return null;
+  const names = new NameBook(asText(input.regionName), safeIsTaken(isTaken));
+  return validateFamilyEntry(entry, family, names);
 }
