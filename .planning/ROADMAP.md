@@ -2643,5 +2643,28 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.33: AI-generated artwork for places, creatures and NPCs (BACKLOG)
+
+**Source:** Owner, 2026-10-09: "I have an idea for adding images into our game at some point. Here's a rough plan from chatgpt (I think we'd actually want to use chatgpt for image generation, it's just better)." The plan is kept in full at `.planning/phases/999.33-ai-generated-artwork/999.33-SOURCE-PLAN.md` (a draft input for discuss, not decisions).
+
+**Goal:** Artwork fills in over time for places, creature families and named NPCs, as "an illustration in a living game book". If art exists it shows; if not, play continues text-only and one generation job is queued. Art never blocks gameplay.
+  - Provider: the owner prefers OpenAI (ChatGPT) image generation; keep a small provider wrapper.
+  - Where art shows (from the plan): place art inline under the place title on arrival or first look (not on every repeated look, never shifting old feed entries); creature art in a Nearby detail card; NPC portraits beside talk.
+  - Data: separate art asset and job tables keyed by stable entity (place, family or member, NPC), images in object storage (not in SpacetimeDB rows), versioned paths, stored prompt and prompt version, a shared house style with narrative-safety rules (never visually answer a mystery or reveal a secret).
+  - Generation runs through the server-side AI executor pattern (procedures), with daily limits, deferral on quota errors, and no retry loops; the owner's cost rules apply (paid checks and tuning wait until systems exist).
+  - Start with a validation batch (about 5 places, 5 creatures, 5 NPCs) reviewed by the owner before mass generation.
+
+**Notes for discuss:**
+  - The plan predates Density Pools: creatures are now families with role members (51.3.1.1), so art likely keys on the family (and maybe members), not individual enemies.
+  - Image prompts are generation prompts: their exact wording needs the owner's approval like every other prompt.
+  - Open questions: object storage host and cost, image binaries from a SpacetimeDB procedure (size limits) or a small worker, client display sizes against the UI-SPEC, and whether the owner's world regeneration should wait for art.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
 *Last updated: 2026-10-09 after Phase 51.3.1.1 Density Pools went code-complete (32 plans, two review rounds, verification human_needed, UAT and the owner wording review deferred)*
