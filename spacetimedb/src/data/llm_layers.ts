@@ -226,6 +226,12 @@ export interface NpcConversationInput {
    * DENSITY_RULES.RUMOR_PROMPT_MAX are used.
    */
   regionRumors?: string[];
+  /**
+   * 51.3.1.1-30 (D-68): the histories of the creature families of the NPC's region, from
+   * families.ts regionFamilyHistories (the NPC's place first, then the feud, then by id). World data;
+   * at most DENSITY_RULES.NPC_FAMILY_HISTORIES_MAX are used, and entries with an empty history are skipped.
+   */
+  familyHistories?: { name: string; history: string }[];
 }
 
 /** Player-character names inside are tagged with wrapPlayerName; enemy names are world data. */
@@ -877,6 +883,22 @@ function regionRumorsLine(input: NpcConversationInput): string {
 Recent word in ${w(input.region.name)}: ${items.join('; ')}. ${w(input.npc.name)} may pass this on as rumour when it fits the conversation.`;
 }
 
+/**
+ * 51.3.1.1-30 (D-68): the owner-approved family-history line, PROMPT-DRAFT section R2-C (Revision 2
+ * APPROVED 2026-10-08), with its leading newline, or '' when no family has a history. It goes right
+ * after the rumour line (or where that line would be). Each history loses its final full stop once.
+ */
+function familyHistoriesLine(input: NpcConversationInput): string {
+  const items = (input.familyHistories ?? [])
+    .map((family) => ({ name: w(family?.name ?? ''), history: w(family?.history ?? '').replace(/\.$/, '') }))
+    .filter((family) => family.name.length > 0 && family.history.length > 0)
+    .slice(0, DENSITY_RULES.NPC_FAMILY_HISTORIES_MAX)
+    .map((family) => `${family.name}: ${family.history}`);
+  if (items.length === 0) return '';
+  return `
+Creature families of ${w(input.region.name)}: ${items.join('; ')}. ${w(input.npc.name)} may draw on these histories when it fits the conversation.`;
+}
+
 export function buildNpcConversationVolatile(input: NpcConversationInput): string {
   const { npc, region, location, personality } = input;
   const unlocks = unlocksForTier(input.affinityTier);
@@ -909,6 +931,7 @@ export function buildNpcConversationVolatile(input: NpcConversationInput): strin
           .join('; ')}`
       : '';
   const rumors = regionRumorsLine(input);
+  const families = familyHistoriesLine(input);
   const recent =
     input.recentQuestNames && input.recentQuestNames.length > 0
       ? `\nRecently completed quests: ${joinW(input.recentQuestNames, ', ')}.`
@@ -934,7 +957,7 @@ Memory of past interactions: ${memory}
 
 Quest history with this player: ${questHistory}${activeQuest}
 
-${questContext}${nearby}${enemies}${rumors}${recent}
+${questContext}${nearby}${enemies}${rumors}${families}${recent}
 
 The player says:
 ${wrapPlayerInput(input.playerMessage)}

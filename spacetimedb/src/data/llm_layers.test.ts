@@ -307,6 +307,7 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       nearbyEnemies: [{ name: `${world} enemy`, level: 2, location: `${world} lair` }],
       recentQuestNames: [`${world} recent`],
       regionRumors: [`${world} rumour`], // 51.3.1.1-26: the hostile-world checks cover the rumour line
+      familyHistories: [{ name: `${world} family`, history: `${world} history.` }], // 51.3.1.1-30: and the family-history line
     },
     combat_narration: combatRound(world, player),
     region_economy: {

@@ -15,6 +15,7 @@ import {
 } from '../helpers/npc_conversation';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { recentRumors } from '../helpers/pool_events';
+import { regionFamilyHistories } from '../helpers/families';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints, type NpcConversationInput } from '../data/llm_layers';
 import { npcGender } from '../data/npc_gender';
 
@@ -74,6 +75,8 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const recentQuestNames = completedQuestNames.slice(-5);
     // 51.3.1.1-26 (D-22): recent word about population shifts in this NPC's region (read-only).
     const regionRumors = location ? recentRumors(ctx, location.regionId, ctx.timestamp.microsSinceUnixEpoch) : [];
+    // 51.3.1.1-30 (D-68): the histories of the region's creature families, this NPC's place first (read-only).
+    const familyHistories = location ? regionFamilyHistories(ctx, location.regionId, location.id) : [];
 
     const input: NpcConversationInput = {
       npc: { name: npc.name, npcType: npc.npcType, gender: npcGender(npc) },
@@ -98,6 +101,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
       nearbyEnemies,
       recentQuestNames,
       regionRumors,
+      familyHistories,
     };
 
     // The turn marker is read after getOrCreateNpcMemory, so two racing tabs see the same key
