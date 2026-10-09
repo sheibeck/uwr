@@ -1139,7 +1139,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
 
   1. Combat dials (enemy health, damage, armour and ability chance) exist globally and can be overridden by difficulty (con band), by region and by enemy type: creature type, family, role (from 51.3.1.1), and bosses and named foes.
-  2. Population dials replace the fixed numbers 51.3.1.1 ships with: encounter chance, group size, depletion, creature regrowth, resource regrowth, gather yield by density, the per-player harvest cap and hunter activity, globally, per region, by difficulty and by family.
+  2. Population dials replace the fixed numbers 51.3.1.1 ships with: encounter chance, group size, depletion, creature regrowth, resource regrowth, the gather yield multiplier (default x1; owner 2026-10-09, D-72), the per-player harvest cap and hunter activity, globally, per region, by difficulty and by family.
   3. Quest bosses, named foes and boss templates are harder than ordinary enemies at the same place by default, through the bosses-and-named layer (owner: "Quest bosses should be harder!"; on 2026-10-08 the owner chose to wait for this phase rather than add a fixed bonus earlier). Today they get no stat bonus at all.
   4. Every other dial defaults to the shipped numbers, so nothing changes until an admin moves one; each value is clamped; combat and the pools read the dials in one shared place, and a change applies to the next fight, spawn, roll or tick only.
   5. Admin commands (for example `/combat` and a populations command) show and set the dials, following `/economy`. Balance dials only, no simulation tools (owner).
