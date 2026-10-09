@@ -1663,10 +1663,18 @@ describe('applyRegionEconomyResult: a family reply (D-47)', () => {
 
 /** familyApplyWorld designed without the Sentinels (E2 left out), then a family-mode job for them. */
 function lateFamilyWorld(): { ctx: any; job: any } {
-  const ctx = ctxFor(familyApplyWorld());
+  // The switch is on at the region apply (Phase 51.3.1.2 D-11: with it off the left-out family would
+  // get rule loot at once), so the Sentinels wait for their late-family job.
+  const seed = familyApplyWorld();
+  seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+  seed.llm_job = [];
+  const ctx = ctxFor(seed);
   const reply = familyEconomyReply();
   reply.region.families = [SKITTER_FAMILY];
-  econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
+  const regionApplyJob = regionJob(ctx, 1n).job;
+  const owner = { toHexString: () => 'a'.repeat(64) };
+  const owned = { ...regionApplyJob, playerId: owner, contextJson: JSON.stringify({ ...JSON.parse(regionApplyJob.contextJson), characterId: '10' }) };
+  econ.applyRegionEconomyResult(ctx, owned, JSON.stringify(reply));
   const family = ctx.db.creature_family.id.find(2n);
   const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', family);
   const contextJson = JSON.stringify({ regionId: '1', mode: 'family', familyId: '2', characterId: '0', input: encodeRouteInput(input) });
@@ -1865,7 +1873,7 @@ describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX familie
     expect(econ.startFamilyLoot(lootedCtx, lootedCtx.db.creature_family.id.find(1n), 1n, who)).toBe('enqueued');
   });
 
-  it('the region job stores the rule families; the apply gives them rule-named drop, trophy and member gear and loot tables, with no late job', () => {
+  it('a new region job sends no rule families; the families past the cap get one late-family job each after the apply (Phase 51.3.1.2, D-11)', () => {
     const seed = nineFamilyWorld();
     seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
     seed.llm_job = [];
@@ -1874,7 +1882,41 @@ describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX familie
     expect(econ.startRegionEconomy(ctx, region(ctx, 1n), who)).toBe('enqueued');
     const stored = rows(ctx, 'llm_job')[0];
     const request = JSON.parse(stored.requestJson);
-    expect(request.ruleFamilyIds).toEqual(['4', '5']);
+    expect(request.ruleFamilyIds).toEqual([]);
+    expect(request.input.families.map((f: any) => f.familyId)).toEqual(['1', '2', '3', '6', '7', '8', '9']);
+    const families = request.input.families.map((f: any, i: number) => ({
+      family: f.ref,
+      drop: { name: `Kin Hide ${i + 1}`, kind: 'hide', description: '' },
+      trophy: { name: `Kin Tooth ${i + 1}`, description: '' },
+      gear: [gearOf(`${f.ref}.damage`, `Kin Claw ${i + 1}`, 'weapon', 'dagger', 'none')],
+    }));
+    const reply = { region: { gatherables: familyEconomyReply().region.gatherables, families, recipes: [] }, lateFamily: null };
+    econ.applyRegionEconomyResult(
+      ctx,
+      { domain: 'region_economy', playerId: who.playerId, contextJson: stored.requestJson, jobId: stored.id },
+      JSON.stringify(reply),
+    );
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    for (const familyId of [4n, 5n]) {
+      expect(familyItem(ctx, 'drop', familyId)).toBeUndefined();
+      expect(lootOf(ctx, 300n + familyId)).toEqual([]);
+    }
+    const late = rows(ctx, 'llm_job').filter((j: any) => JSON.parse(j.requestJson).mode === 'family');
+    expect(late.map((j: any) => JSON.parse(j.dedupeKey)[2])).toEqual(['family:4', 'family:5']);
+    expect(late.every((j: any) => j.budgetDay === '')).toBe(true);
+  });
+
+  it('a stored region job that still carries rule families writes them by rule: rule-named drop, trophy, member gear and loot tables, with no late job', () => {
+    const seed = nineFamilyWorld();
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+    seed.llm_job = [];
+    const ctx = ctxFor(seed);
+    const who = { playerId: { toHexString: () => 'a'.repeat(64) }, characterId: 10n };
+    expect(econ.startRegionEconomy(ctx, region(ctx, 1n), who)).toBe('enqueued');
+    const stored = rows(ctx, 'llm_job')[0];
+    // A job enqueued before Phase 51.3.1.2 stored the families past the cap.
+    const request = { ...JSON.parse(stored.requestJson), ruleFamilyIds: ['4', '5'] };
+    stored.requestJson = JSON.stringify(request);
     expect(request.input.families.map((f: any) => f.familyId)).toEqual(['1', '2', '3', '6', '7', '8', '9']);
 
     const families = request.input.families.map((f: any, i: number) => ({

@@ -449,6 +449,244 @@ describe('applyLlmResult / applyLlmFailure dispatch region_economy', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.2 Plan 07 (D-11): one late-family loot job per family past the design cap; rule loot
+// only when that job fails, its reply is unusable, its start is refused, or the switch is off
+// ---------------------------------------------------------------------------
+
+const BIG_FAMILIES = 13;
+/** Distinct name words (item names drop digits): family n uses BIG_WORDS[n - 1]. */
+const BIG_WORDS = ['Ash', 'Brine', 'Cinder', 'Dusk', 'Ember', 'Fen', 'Gloam', 'Hollow', 'Iron', 'Jade', 'Kelp', 'Loam', 'Mire'];
+const bigMember = (n: number): bigint => 400n + BigInt(n);
+
+/** Kesterlane Basin (region 1) with 13 one-member families (ids 1..13, members 401..413), no feuds, no pools. */
+function bigRegionSeed(extra: Seed = {}): Seed {
+  const enemy = (id: bigint, name: string) => ({
+    id, name, role: 'damage', roleDetail: '', abilityProfile: '', terrainTypes: 'swamp', creatureType: 'beast', timeOfDay: 'any',
+    socialGroup: '', socialRadius: 0n, awareness: 'normal', groupMin: 1n, groupMax: 1n, armorClass: 10n, level: 1n, maxHp: 20n, baseDamage: 3n, xpReward: 10n,
+  });
+  const families: any[] = [];
+  const members: any[] = [];
+  const templates: any[] = [];
+  for (let n = 1; n <= BIG_FAMILIES; n++) {
+    families.push(familyRow(BigInt(n), `Kin Family ${n}`));
+    templates.push(enemy(bigMember(n), `Kin ${n}`));
+    members.push({ id: BigInt(n), familyId: BigInt(n), enemyTemplateId: bigMember(n), role: 'damage', filler: false });
+  }
+  return {
+    player: [{ id: alice, userId: 7n, activeCharacterId: 10n }],
+    character: [{ id: 10n, ownerUserId: 7n, name: 'Tester', locationId: 10n }],
+    region: [{ id: 1n, name: 'Kesterlane Basin', dangerMultiplier: 100n, regionType: 'wild', biome: 'coastal', dominantFaction: 'The Brine Wardens', landmarks: '[]', threats: '[]' }],
+    location: [
+      { id: 10n, name: 'Pans', regionId: 1n, terrainType: 'swamp', isSafe: false },
+      { id: 12n, name: 'Undercroft', regionId: 1n, terrainType: 'dungeon', isSafe: false },
+    ],
+    location_connection: [],
+    enemy_template: templates,
+    creature_family: families,
+    family_member: members,
+    family_relation: [],
+    place_pool: [],
+    economy_dials: dialsOn(),
+    llm_job: [],
+    ...extra,
+  };
+}
+
+/** A family-shape region reply that designs every listed family (one member each). */
+function bigRegionReplyFor(input: any): string {
+  const families = input.families.map((f: any, i: number) => ({
+    family: f.ref,
+    drop: { name: `${BIG_WORDS[i]} Hide`, kind: 'hide', description: 'A drop.' },
+    trophy: { name: `${BIG_WORDS[i]} Tooth`, description: 'A trophy.' },
+    gear: f.members.map((m: any) => ({ member: m.ref, name: `${BIG_WORDS[i]} Claw`, slot: 'weapon', weaponType: 'sword', armorType: 'none', description: 'Gear.' })),
+  }));
+  return JSON.stringify({
+    region: {
+      gatherables: [
+        { name: 'Panlight Salt', kind: 'base', terrain: input.terrains[0], description: 'Salt.' },
+        { name: 'Brinewort', kind: 'edible', terrain: input.terrains[0], description: 'A leaf.' },
+        { name: 'Undercroft Quartz', kind: 'trinket', terrain: input.terrains[0], description: 'A stone.' },
+      ],
+      families,
+      recipes: [],
+    },
+    lateFamily: null,
+  });
+}
+
+const bigWho = { playerId: alice, characterId: 10n };
+const lootRows = (ctx: any, templateId: bigint): any[] => rows(ctx, 'enemy_loot_entry').filter((e: any) => e.enemyTemplateId === templateId);
+const familyJobs = (ctx: any): any[] => econJobs(ctx).filter((j: any) => requestOf(j).mode === 'family');
+const familyEconRow = (ctx: any, role: string, familyId: bigint) =>
+  rows(ctx, 'economy_item').find((r: any) => r.role === role && r.familyId === familyId);
+
+/** Rule loot for a family of one: its drop, trophy and member gear rows, and the member's loot table naming them. */
+function expectRuleLoot(ctx: any, n: number): void {
+  const familyId = BigInt(n);
+  const drop = familyEconRow(ctx, 'drop', familyId);
+  const trophy = familyEconRow(ctx, 'trophy', familyId);
+  const gear = rows(ctx, 'economy_item').find((r: any) => r.role === 'gear' && r.enemyTemplateId === bigMember(n));
+  expect([drop, trophy, gear].every((x) => x !== undefined)).toBe(true);
+  const dropName = rows(ctx, 'item_template').find((t: any) => t.id === drop.itemTemplateId).name;
+  expect(dropName).toMatch(/^Kesterlane Basin /);
+  const loot = lootRows(ctx, bigMember(n));
+  expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([drop.itemTemplateId]);
+  expect(loot.filter((e: any) => e.role === 'trophy').map((e: any) => e.itemTemplateId)).toEqual([trophy.itemTemplateId]);
+  expect(loot.filter((e: any) => e.role === 'gear').map((e: any) => e.itemTemplateId)).toEqual([gear.itemTemplateId]);
+}
+
+const countsOf = (ctx: any): number[] =>
+  ['item_template', 'economy_item', 'enemy_loot_entry', 'llm_job', 'recipe_template'].map((t) => rows(ctx, t).length);
+
+/** Starts the region job of the 13-family region (dials on) and returns the stored job row. */
+function bigStarted(extra: Seed = {}) {
+  const ctx = ctxFor(bigRegionSeed(extra));
+  expect(econ.startRegionEconomy(ctx, ctx.db.region.id.find(1n), bigWho)).toBe('enqueued');
+  return { ctx, job: econJobs(ctx)[0] };
+}
+
+/** The 13-family region after the region apply with the switch on: 7 designed, 6 late-family jobs queued. */
+function bigApplied() {
+  const { ctx, job } = bigStarted();
+  apply.applyLlmResult(ctx, { ...toApply(job), jobId: job.id }, bigRegionReplyFor(requestOf(job).input));
+  return { ctx, job };
+}
+
+describe('a region past the design cap: one late-family loot job per remaining family (Phase 51.3.1.2, D-11)', () => {
+  it('the region job designs 7 families and sends no rule-family list', () => {
+    const { job } = bigStarted();
+    const request = requestOf(job);
+    expect(request.input.families.map((f: any) => f.familyId)).toEqual(['1', '2', '3', '4', '5', '6', '7']);
+    expect(request.ruleFamilyIds).toEqual([]);
+    expect(econJobs(bigStarted().ctx)).toHaveLength(1);
+  });
+
+  it('the region apply writes the 7 designed families, no rule loot for the other 6, and queues 6 phase_only family jobs', () => {
+    const { ctx } = bigApplied();
+    expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
+    for (let n = 1; n <= 7; n++) {
+      expect(lootRows(ctx, bigMember(n)).length).toBeGreaterThan(0);
+      const drop = familyEconRow(ctx, 'drop', BigInt(n));
+      expect(rows(ctx, 'item_template').find((t: any) => t.id === drop.itemTemplateId).name).toBe(`${BIG_WORDS[n - 1]} Hide`);
+    }
+    for (let n = 8; n <= BIG_FAMILIES; n++) {
+      expect(lootRows(ctx, bigMember(n))).toEqual([]);
+      expect(familyEconRow(ctx, 'drop', BigInt(n))).toBeUndefined();
+    }
+    const jobs = familyJobs(ctx);
+    expect(jobs.map((j: any) => JSON.parse(j.dedupeKey)[2])).toEqual(['family:8', 'family:9', 'family:10', 'family:11', 'family:12', 'family:13']);
+    expect(jobs.every((j: any) => j.budgetDay === '')).toBe(true);
+    for (const j of jobs) expect(requestOf(j)).toMatchObject({ regionId: '1', mode: 'family', characterId: '10' });
+  });
+
+  it('a failed late-family job writes rule loot for its family once; a second failure writes nothing new', () => {
+    const { ctx } = bigApplied();
+    const job = familyJobs(ctx).find((j: any) => requestOf(j).familyId === '9');
+    apply.applyLlmFailure(ctx, { ...toApply(job), errorCode: 'refusal' });
+    expectRuleLoot(ctx, 9);
+    // Only family 9 changed.
+    for (const n of [8, 10, 11, 12, 13]) expect(lootRows(ctx, bigMember(n))).toEqual([]);
+    expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
+    const once = countsOf(ctx);
+    apply.applyLlmFailure(ctx, { ...toApply(job), errorCode: 'apply_error' });
+    expect(countsOf(ctx)).toEqual(once);
+  });
+
+  it('an unusable late-family reply writes rule loot for that family once', () => {
+    for (const reply of ['not json', JSON.stringify({ region: null, lateFamily: null })]) {
+      const { ctx } = bigApplied();
+      const job = familyJobs(ctx).find((j: any) => requestOf(j).familyId === '8');
+      apply.applyLlmResult(ctx, toApply(job), reply);
+      expectRuleLoot(ctx, 8);
+      for (const n of [9, 10, 11, 12, 13]) expect(lootRows(ctx, bigMember(n))).toEqual([]);
+      const once = countsOf(ctx);
+      apply.applyLlmResult(ctx, toApply(job), reply);
+      expect(countsOf(ctx)).toEqual(once);
+    }
+  });
+
+  it('a usable late-family reply writes AI-named loot and no rule loot', () => {
+    const { ctx } = bigApplied();
+    const job = familyJobs(ctx).find((j: any) => requestOf(j).familyId === '8');
+    const reply = JSON.stringify({
+      region: null,
+      lateFamily: {
+        family: 'E1',
+        drop: { name: 'Kin Pelt', kind: 'hide', description: 'A pelt.' },
+        trophy: { name: 'Kin Fang', description: 'A fang.' },
+        gear: [{ member: 'E1.damage', name: 'Kin Hook', slot: 'weapon', weaponType: 'dagger', armorType: 'none', description: 'A hook.' }],
+      },
+    });
+    apply.applyLlmResult(ctx, toApply(job), reply);
+    const drop = familyEconRow(ctx, 'drop', 8n);
+    expect(rows(ctx, 'item_template').find((t: any) => t.id === drop.itemTemplateId).name).toBe('Kin Pelt');
+    expect(lootRows(ctx, bigMember(8)).length).toBeGreaterThan(0);
+  });
+
+  it('a refused late-family start (kill switch) writes rule loot for each remaining family at once', () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const { ctx, job } = bigStarted();
+    ctx.db._tables.llm_admin_state = [{ ...defaultLlmAdminStateRow(), llmEnabled: false }];
+    apply.applyLlmResult(ctx, { ...toApply(job), jobId: job.id }, bigRegionReplyFor(requestOf(job).input));
+    expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
+    expect(familyJobs(ctx)).toEqual([]);
+    for (let n = 8; n <= BIG_FAMILIES; n++) expectRuleLoot(ctx, n);
+    expect(info.mock.calls.some((c) => String(c[0]).includes('halted'))).toBe(true);
+  });
+
+  it('with the AI economy switch off at apply time, every family still lacking loot gets rule loot and no job', () => {
+    const { ctx, job } = bigStarted();
+    // Family 14 joins while the region job is pending, then the switch goes off.
+    ctx.db._tables.enemy_template.push({ ...ctx.db._tables.enemy_template[0], id: bigMember(14), name: 'Kin 14' });
+    ctx.db._tables.creature_family.push(familyRow(14n, 'Kin Family 14'));
+    ctx.db._tables.family_member.push({ id: 14n, familyId: 14n, enemyTemplateId: bigMember(14), role: 'damage', filler: false });
+    ctx.db._tables.economy_dials = dialsOff();
+    apply.applyLlmResult(ctx, { ...toApply(job), jobId: job.id }, bigRegionReplyFor(requestOf(job).input));
+    expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
+    expect(familyJobs(ctx)).toEqual([]);
+    for (let n = 8; n <= 14; n++) expectRuleLoot(ctx, n);
+    for (let n = 1; n <= 7; n++) {
+      const drop = familyEconRow(ctx, 'drop', BigInt(n));
+      expect(rows(ctx, 'item_template').find((t: any) => t.id === drop.itemTemplateId).name).toBe(`${BIG_WORDS[n - 1]} Hide`);
+    }
+  });
+
+  it('a stored region job that still carries ruleFamilyIds (queued before this change) writes those families by rule', () => {
+    const { ctx, job } = bigStarted();
+    const legacy = { ...requestOf(job), ruleFamilyIds: ['8', '9', '10', '11', '12', '13'] };
+    const legacyJob = { ...toApply(job), contextJson: JSON.stringify(legacy), jobId: job.id };
+    apply.applyLlmResult(ctx, legacyJob, bigRegionReplyFor(legacy.input));
+    expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
+    for (let n = 8; n <= BIG_FAMILIES; n++) expectRuleLoot(ctx, n);
+    // Every family has loot: no late job.
+    expect(familyJobs(ctx)).toEqual([]);
+  });
+
+  it('a region whose economy is already complete is untouched by every path', () => {
+    const { ctx, job } = bigApplied();
+    for (const j of familyJobs(ctx)) apply.applyLlmFailure(ctx, { ...toApply(j), errorCode: 'refusal' });
+    const done = countsOf(ctx);
+    const snapshot = JSON.stringify(rows(ctx, 'enemy_loot_entry'), (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    // A second start, a late region failure, a repeated region apply and repeated family failures.
+    expect(econ.startRegionEconomy(ctx, ctx.db.region.id.find(1n), bigWho)).toBe('exists');
+    apply.applyLlmFailure(ctx, { ...toApply(job), jobId: job.id, errorCode: 'refusal' });
+    apply.applyLlmResult(ctx, { ...toApply(job), jobId: job.id }, bigRegionReplyFor(requestOf(job).input));
+    for (const j of familyJobs(ctx)) apply.applyLlmFailure(ctx, { ...toApply(j), errorCode: 'refusal' });
+    for (let n = 1; n <= BIG_FAMILIES; n++) econ.writeRuleLootForFamily(ctx, 1n, BigInt(n));
+    expect(countsOf(ctx)).toEqual(done);
+    expect(JSON.stringify(rows(ctx, 'enemy_loot_entry'), (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).toBe(snapshot);
+    expect(rows(ctx, 'region_economy')[0].status).toBe('complete');
+  });
+
+  it('writeRuleLootForFamily writes nothing while the region economy is not complete', () => {
+    const { ctx } = bigStarted();
+    const before = countsOf(ctx);
+    expect(econ.writeRuleLootForFamily(ctx, 1n, 9n)).toBe(false);
+    expect(countsOf(ctx)).toEqual(before);
+  });
+});
+
 describe('startRegionEconomy gates', () => {
   it("'off' with no dials row; 'no_region' for a region with no locations; retryFailed revives a failed row", () => {
     const off = ctxFor(kesterlaneSeed());
