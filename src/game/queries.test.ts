@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { tables } from '../module_bindings';
 import { gameQueries } from './queries';
 
 const q = gameQueries();
@@ -137,13 +138,30 @@ describe('gameQueries: combat', () => {
       [q.combatRounds(10n), 'combat_round'],
       [q.combatCasts(10n), 'combat_enemy_cast'],
       [q.combatNarratives(10n), 'combat_narrative'],
-      [q.combatPets(10n), 'active_pet'],
       [q.combatEnemyEffects(10n), 'combat_enemy_effect'],
     ];
     for (const [sql, table] of cases) {
       expect(sql).toContain(`FROM "${table}"`);
       expect(sql).toContain('"combat_id" = 10');
     }
+  });
+
+  it('selects the own fight combat_encounter row by its id, the combat id (51.3.1.1-31)', () => {
+    const sql = q.combatEncounter(10n);
+    expect(sql).toContain('FROM "combat_encounter"');
+    expect(sql).toContain('"id" = 10');
+    expect(sql).not.toContain(' OR ');
+  });
+
+  it('selects the fight pets through the fight roster, never a literal on the optional combat_id', () => {
+    // active_pet.combat_id is u64 OPTIONAL: SpacetimeDB rejects `combat_id = 10` ("cannot be parsed as
+    // type (some: U64 | none: ())"), so pets came through no subscription (51.3.1.1-31). The pets of the
+    // fight are the pets of its participants: a semijoin on the indexed character_id columns.
+    const sql = q.combatPets(10n);
+    expect(sql).toBe(
+      'SELECT "active_pet".* FROM "combat_participant" JOIN "active_pet" ON "combat_participant"."character_id" = "active_pet"."character_id" WHERE "combat_participant"."combat_id" = 10',
+    );
+    expect(sql).not.toContain('"active_pet"."combat_id"');
   });
 
   it('builds OR chains for enemy templates and enemy abilities', () => {
@@ -186,6 +204,7 @@ describe('gameQueries: combat', () => {
       q.combatNarratives(1n),
       q.combatPets(1n),
       q.combatEnemyEffects(1n),
+      q.combatEncounter(1n),
       q.enemyTemplatesById([1n]),
       q.enemyAbilitiesByTemplate([1n]),
     ]) {
@@ -226,5 +245,70 @@ describe('gameQueries: density pools (51.3.1.1-18)', () => {
     for (const value of Object.values(q)) {
       if (typeof value === 'string') expect(value).not.toContain('resource_node');
     }
+  });
+});
+
+describe('gameQueries: every literal compares a column the server can parse it as (51.3.1.1-31)', () => {
+  type Column = { typeBuilder: { algebraicType: { tag: string; value?: { variants?: Array<{ name: string }> } } }; columnMetadata?: { name?: string } };
+  type TableLike = { sourceName: string; columns: Record<string, Column> };
+
+  const bySource = new Map<string, TableLike>();
+  for (const table of Object.values(tables) as unknown as TableLike[]) bySource.set(table.sourceName, table);
+
+  function columnOf(table: string, column: string): Column | undefined {
+    const def = bySource.get(table);
+    if (def === undefined) return undefined;
+    for (const [key, col] of Object.entries(def.columns)) {
+      if ((col.columnMetadata?.name ?? key) === column) return col;
+    }
+    return undefined;
+  }
+
+  function isOption(col: Column): boolean {
+    const type = col.typeBuilder.algebraicType;
+    const variants = type.tag === 'Sum' ? (type.value?.variants ?? []) : [];
+    return variants.length === 2 && variants[0].name === 'some' && variants[1].name === 'none';
+  }
+
+  /** Every SQL string gameQueries can build, with sample ids. */
+  function everySql(): string[] {
+    const out: string[] = [];
+    for (const value of Object.values(q) as unknown[]) {
+      if (typeof value === 'string') {
+        out.push(value);
+        continue;
+      }
+      const build = value as (arg: unknown) => string;
+      try {
+        out.push(build(7n));
+      } catch {
+        out.push(build([7n, 8n]));
+      }
+    }
+    return out;
+  }
+
+  const LITERAL = /"(\w+)"\."(\w+)" (?:=|<>|<=|>=|<|>) (?:-?\d+|'(?:[^']|'')*'|TRUE|FALSE|NULL|0x[0-9a-fA-F]+)/g;
+
+  it('finds the tables and columns of every comparison', () => {
+    let compared = 0;
+    for (const sql of everySql()) {
+      for (const match of sql.matchAll(LITERAL)) {
+        compared += 1;
+        expect(columnOf(match[1], match[2]), `${match[1]}.${match[2]}`).toBeDefined();
+      }
+    }
+    expect(compared).toBeGreaterThan(30);
+  });
+
+  it('never compares an optional column with a bare literal', () => {
+    const optional: string[] = [];
+    for (const sql of everySql()) {
+      for (const match of sql.matchAll(LITERAL)) {
+        const col = columnOf(match[1], match[2]);
+        if (col !== undefined && isOption(col)) optional.push(match[0]);
+      }
+    }
+    expect(optional).toEqual([]);
   });
 });

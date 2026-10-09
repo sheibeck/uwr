@@ -333,6 +333,22 @@ describe('AppFrame screen arguments (FrameControls.screenArgs)', () => {
   });
 });
 
+describe('AppFrame time of day (FrameControls.timeOfDay, 51.3.1.1-31)', () => {
+  it('carries the view time of day, the value the header shows, and follows it live', async () => {
+    const w = mountFrame(true);
+    await settle();
+    expect(controls!.timeOfDay.value).toBe('day');
+    await w.setProps({ view: { ...view, timeOfDay: 'night' } });
+    expect(controls!.timeOfDay.value).toBe('night');
+    await w.setProps({ view: { ...view, timeOfDay: null } });
+    expect(controls!.timeOfDay.value).toBeNull();
+  });
+
+  it('the inert frame has no known time of day', () => {
+    expect(createInertFrame().timeOfDay.value).toBeNull();
+  });
+});
+
 describe('AppFrame header meta', () => {
   it('renders a screen meta component in the desktop drawer header', async () => {
     const w = mountFrame(true);

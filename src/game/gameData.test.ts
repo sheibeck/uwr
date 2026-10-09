@@ -67,6 +67,7 @@ const queries: GameQueries = {
   combatNarratives: (id) => `Q_NARR_${id}`,
   combatPets: (id) => `Q_PETS_${id}`,
   combatEnemyEffects: (id) => `Q_ENEMY_EFFECTS_${id}`,
+  combatEncounter: (id) => `Q_ENCOUNTER_${id}`,
   renown: (id) => `Q_RENOWN_${id}`,
   renownPerks: (id) => `Q_PERKS_${id}`,
   resourceGathers: (id) => `Q_GATHERS_${id}`,
@@ -663,6 +664,7 @@ describe('createGameData: combat', () => {
     'Q_CASTS_10',
     'Q_PETS_10',
     'Q_ENEMY_EFFECTS_10',
+    'Q_ENCOUNTER_10',
   ];
 
   // The player (character 5) takes part in fight 10.
@@ -974,6 +976,83 @@ describe('createGameData: combat', () => {
     expect(h.game.combat.petNames.value.get(7n)).toBe('Wolf');
   });
 
+  it('keeps a pet of a participant out of the fight rows while it is not in this fight', () => {
+    // The pets come through the fight roster (active_pet.combat_id is optional, 51.3.1.1-31): the
+    // client filter still keeps only the pets whose combat id is this fight.
+    const h = inFight();
+    const filter = filterOf(h, 'Q_PETS_10');
+    expect(filter({ id: 7n, characterId: 5n, combatId: 10n })).toBe(true);
+    expect(filter({ id: 8n, characterId: 5n, combatId: undefined })).toBe(false);
+    expect(filter({ id: 9n, characterId: 8n, combatId: 11n })).toBe(false);
+  });
+
+  describe('the encounter row (51.3.1.1-31)', () => {
+    const encounter = (id: bigint, extra: Record<string, unknown> = {}) => ({
+      id,
+      origin: 'pull',
+      originFamilyId: 2n,
+      originLevel: 2n,
+      originName: 'Goblins',
+      originPlural: 'goblins',
+      ...extra,
+    });
+
+    it('binds combat_encounter by the fight combat id, with an id filter', () => {
+      const h = inFight();
+      expect(h.live('Q_ENCOUNTER_10')).toHaveLength(1);
+      expect(filterOf(h, 'Q_ENCOUNTER_10')({ id: 10n })).toBe(true);
+      expect(filterOf(h, 'Q_ENCOUNTER_10')({ id: 11n })).toBe(false);
+    });
+
+    it('binds nothing and reads null outside a fight', () => {
+      const h = harness();
+      h.connect();
+      h.character.value = makeCharacter(5n);
+      expect(h.bindings.some((b) => b.sql[0].startsWith('Q_ENCOUNTER_'))).toBe(false);
+      expect(h.game.combat.encounter.value).toBeNull();
+    });
+
+    it('is the row of the own fight once it arrives, and null before', () => {
+      const h = inFight();
+      expect(h.game.combat.encounter.value).toBeNull();
+      h.find('Q_ENCOUNTER_10').rows.value = [encounter(10n)];
+      h.find('Q_ENCOUNTER_10').applied.value = true;
+      expect(h.game.combat.encounter.value?.originName).toBe('Goblins');
+    });
+
+    it('reads null when the only row in the binding belongs to another combat id', () => {
+      const h = inFight();
+      h.find('Q_ENCOUNTER_10').rows.value = [encounter(11n)];
+      expect(h.game.combat.encounter.value).toBeNull();
+    });
+
+    it('follows a new fight: the old row is never shown for the new combat id', () => {
+      const h = inFight();
+      h.find('Q_ENCOUNTER_10').rows.value = [encounter(10n)];
+      h.find('Q_ENCOUNTER_10').applied.value = true;
+      h.find('Q_PART_OF_5').rows.value = [{ id: 2n, combatId: 11n, characterId: 5n, status: 'active' }];
+      expect(h.live('Q_ENCOUNTER_11')).toHaveLength(1);
+      expect(h.game.combat.encounter.value).toBeNull();
+      h.find('Q_ENCOUNTER_11').rows.value = [encounter(11n, { originName: 'Wolves' })];
+      h.find('Q_ENCOUNTER_11').applied.value = true;
+      expect(h.game.combat.encounter.value?.originName).toBe('Wolves');
+    });
+
+    it('is disposed when the fight ends, and by reset()', () => {
+      const h = inFight();
+      h.find('Q_ENCOUNTER_10').rows.value = [encounter(10n)];
+      h.find('Q_PART_OF_5').rows.value = [];
+      expect(h.live('Q_ENCOUNTER_10')).toHaveLength(0);
+      expect(h.game.combat.encounter.value).toBeNull();
+
+      const again = inFight();
+      again.find('Q_ENCOUNTER_10').rows.value = [encounter(10n)];
+      again.game.reset();
+      expect(again.live('Q_ENCOUNTER_10')).toHaveLength(0);
+      expect(again.game.combat.encounter.value).toBeNull();
+    });
+  });
+
   it('mirrors the threat view rows and its applied flag', () => {
     const h = harness();
     h.connect();
@@ -1241,6 +1320,76 @@ describe('createGameData: density pools (51.3.1.1-18)', () => {
     expect(h.game.namedEnemies.value.map((row) => row.id)).toEqual([3n]);
   });
 
+  describe('the templates of the own named enemies (51.3.1.1-31, D-39)', () => {
+    function withNamed(h: ReturnType<typeof harness>, rows: Record<string, unknown>[]): void {
+      const binding = h.find('Q_NAMED_5');
+      binding.rows.value = rows;
+      binding.applied.value = true;
+    }
+    const named = (id: bigint, templateId: bigint, extra: Record<string, unknown> = {}) => ({
+      id,
+      characterId: 5n,
+      enemyTemplateId: templateId,
+      locationId: 3n,
+      isAlive: true,
+      name: `Named${id}`,
+      ...extra,
+    });
+
+    it('binds nothing and lists nothing with no named enemies', () => {
+      const h = world();
+      withNamed(h, []);
+      expect(h.bindings.some((b) => b.sql[0].startsWith('Q_ENEMY_TEMPLATES_'))).toBe(false);
+      expect(h.game.namedEnemyTemplates.value).toEqual([]);
+    });
+
+    it('binds the template ids of every own named enemy, alive or slain, any place', () => {
+      const h = world();
+      withNamed(h, [named(1n, 12n), named(2n, 9n, { locationId: 7n, isAlive: false }), named(3n, 12n)]);
+      expect(h.live('Q_ENEMY_TEMPLATES_9,12')).toHaveLength(1);
+      const binding = h.find('Q_ENEMY_TEMPLATES_9,12');
+      const filter = (binding.options as BindTableOptions<FakeConn, any>).filter!;
+      expect(filter({ id: 9n })).toBe(true);
+      expect(filter({ id: 12n })).toBe(true);
+      expect(filter({ id: 4n })).toBe(false);
+      binding.rows.value = [
+        { id: 9n, level: 8n, isBoss: true },
+        { id: 12n, level: 3n, isBoss: false },
+      ];
+      binding.applied.value = true;
+      expect(h.game.namedEnemyTemplates.value.map((row) => row.id)).toEqual([9n, 12n]);
+    });
+
+    it('does not re-key when a named enemy dies (the template ids stay)', () => {
+      const h = world();
+      withNamed(h, [named(1n, 12n), named(2n, 9n)]);
+      const first = h.find('Q_ENEMY_TEMPLATES_9,12');
+      withNamed(h, [named(1n, 12n, { isAlive: false }), named(2n, 9n)]);
+      expect(h.find('Q_ENEMY_TEMPLATES_9,12')).toBe(first);
+      expect(first.disposed).toBe(false);
+      expect(h.bindings.filter((b) => b.sql[0].startsWith('Q_ENEMY_TEMPLATES_'))).toHaveLength(1);
+    });
+
+    it('is a binding of its own beside the spawn templates here', () => {
+      const h = world();
+      const spawns = h.find('Q_ENEMY_SPAWNS_3');
+      spawns.rows.value = [{ id: 1n, locationId: 3n, enemyTemplateId: 4n }];
+      spawns.applied.value = true;
+      withNamed(h, [named(1n, 12n)]);
+      expect(h.live('Q_ENEMY_TEMPLATES_4')).toHaveLength(1);
+      expect(h.live('Q_ENEMY_TEMPLATES_12')).toHaveLength(1);
+    });
+
+    it('is disposed by reset()', () => {
+      const h = world();
+      withNamed(h, [named(1n, 12n)]);
+      expect(h.live('Q_ENEMY_TEMPLATES_12')).toHaveLength(1);
+      h.game.reset();
+      expect(h.live('Q_ENEMY_TEMPLATES_12')).toHaveLength(0);
+      expect(h.game.namedEnemyTemplates.value).toEqual([]);
+    });
+  });
+
   it('exposes the harvest-cap view once per connection', () => {
     const h = world();
     h.find('Q_HARVEST_CAPS').rows.value = [{ id: 1n, locationId: 3n, cappedUntilMicros: 9n }];
@@ -1314,6 +1463,7 @@ describe('inert defaults', () => {
       game.poolLevels,
       game.poolLevelsHere,
       game.namedEnemies,
+      game.namedEnemyTemplates,
       game.harvestCaps,
       game.visitedLocationIds,
       game.playersHere,
@@ -1367,6 +1517,7 @@ describe('inert defaults', () => {
       combat.openRound,
       combat.roundNumber,
       combat.ownAction,
+      combat.encounter,
     ]) {
       expect(single.value).toBeNull();
     }
@@ -1404,6 +1555,7 @@ describe('inert defaults', () => {
     expect(consoleApi.conversation.value).toBeNull();
     const frame = createInertFrame();
     expect(frame.isDesktop.value).toBe(true);
+    expect(frame.timeOfDay.value).toBeNull();
     expect(frame.activeScreen.value).toBeNull();
     expect(() => {
       frame.openScreen('map');
