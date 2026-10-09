@@ -36,7 +36,8 @@ import {
 // ---------------------------------------------------------------------------
 
 const MAX_NAME_WORDS = 4;
-const MAX_NAME_CHARS = 40;
+/** The character cap of a cleaned name (cleanItemName); also re-applied after a uniqueness prefix. */
+export const MAX_NAME_CHARS = 40;
 const MAX_DESCRIPTION_CHARS = 240;
 
 function asText(value: unknown): string {

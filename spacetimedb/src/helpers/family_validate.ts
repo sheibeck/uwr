@@ -26,7 +26,7 @@
  * ValidatedFamily to createFamily (helpers/families.ts).
  */
 import type { FamilyDefinition, FamilyMemberDefinition } from './families';
-import { cleanItemName, nameKey } from '../data/economy_design_rules';
+import { MAX_NAME_CHARS, cleanItemName, nameKey } from '../data/economy_design_rules';
 import { ambushVerbForms } from '../data/density_lines';
 import { DENSITY_RULES, POOL_ROLL, pickFeud } from '../data/density_rules';
 import { economyRoll, rollBelow } from '../data/economy_rules';
@@ -194,6 +194,18 @@ function withPrefix(prefix: string, base: string): string {
   return [prefix, ...baseWords].join(' ');
 }
 
+/**
+ * `name` kept to `max` characters (review 2 IN-02): the words between the first (a prefix) and the last
+ * (the creature noun) go first, then a single over-long word loses its end.
+ */
+function fitChars(name: string, max: number): string {
+  if (name.length <= max) return name;
+  let words = splitWords(name);
+  while (words.length > 2 && words.join(' ').length > max) words = [words[0]!, ...words.slice(2)];
+  const fitted = words.join(' ');
+  return fitted.length > max ? fitted.slice(0, max).trim() : fitted;
+}
+
 /** One name set for a whole reply: a name is taken when the caller says so or it was chosen earlier here. */
 class NameBook {
   private readonly used = new Set<string>();
@@ -206,15 +218,17 @@ class NameBook {
   /**
    * The first free name of: the base, the base behind each place word, the base behind each mark, then
    * two marks before the base's last word. Plain words only, never a numeral. The last candidate is
-   * kept if every one is taken (only an isTaken that answers true for everything gets there).
+   * kept if every one is taken (only an isTaken that answers true for everything gets there). With
+   * `maxChars`, every candidate is fitted to it before it is checked, so a prefixed name stays in the cap.
    */
-  take(base: string, placeWords: readonly string[]): string {
-    const candidates: string[] = [base];
+  take(base: string, placeWords: readonly string[], maxChars?: number): string {
+    let candidates: string[] = [base];
     for (const word of [...placeWords, ...FAMILY_NAME_MARKS]) {
       if (word && nameKey(word) !== nameKey(splitWords(base)[0] ?? '')) candidates.push(withPrefix(word, base));
     }
     const last = lastWord(base);
     for (const a of FAMILY_NAME_MARKS) for (const b of FAMILY_NAME_MARKS) if (a !== b) candidates.push(`${a} ${b} ${last}`);
+    if (maxChars !== undefined) candidates = candidates.map((name) => fitChars(name, maxChars));
     const chosen = candidates.find((name) => !this.taken(name)) ?? candidates[candidates.length - 1]!;
     this.used.add(nameKey(chosen));
     return chosen;
@@ -242,10 +256,12 @@ export function cleanQuestTargetName(raw: unknown): string {
 /**
  * The first free name for an invented creature (the family NameBook): the cleaned name itself, then the
  * name behind each FAMILY_NAME_MARKS word, then two marks before its last word. `isTaken` answers for
- * the names already in the world.
+ * the names already in the world. Every candidate keeps the 40-character name cap after its prefix
+ * (review 2 IN-02). Known limitation: a renamed target ("Old Ash Wolf") no longer matches the name in
+ * the NPC's dialogue and quest description ("Ash Wolf"), and the model's casing is kept.
  */
 export function freeCreatureName(base: string, isTaken: (name: string) => boolean): string {
-  return new NameBook(isTaken).take(base, []);
+  return new NameBook(isTaken).take(base, [], MAX_NAME_CHARS);
 }
 
 // ---------------------------------------------------------------------------

@@ -2142,6 +2142,17 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(created[0].id);
   });
 
+  it('a taken 40-character invented name stays within 40 characters after its uniqueness mark (review 2 IN-02)', () => {
+    const taken = 'G'.repeat(40);
+    const ctx = strictCtx(questSeed(false, { enemy_template: [wightRow(900n, taken, 'damage')] }));
+    applyNpcConversationResult(ctx, npcJob, killWith('kill', 'G'.repeat(200)));
+    const created = rows(ctx, 'enemy_template').filter((t: any) => t.id !== 900n);
+    expect(created).toHaveLength(1);
+    expect(created[0].name.length).toBeLessThanOrEqual(40);
+    expect(created[0].name).not.toBe(taken);
+    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(created[0].id);
+  });
+
   // Review B WR-02: D-74 resolves from the quest giver's place, not where the player stands at apply time.
   const movedAway = (seed: Record<string, any[]>) => {
     seed.region = [...seed.region, { id: 2n, name: 'Far Fen', dangerMultiplier: 200n, regionType: 'generated', biome: 'swamp', landmarks: '[]', threats: '[]' }];

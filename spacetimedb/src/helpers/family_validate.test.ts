@@ -450,6 +450,39 @@ describe('cleanQuestTargetName and freeCreatureName (review B CR-01)', () => {
   });
 });
 
+describe('freeCreatureName keeps the 40-character cap after its prefix (review 2 IN-02)', () => {
+  it('a taken 40-character one-word name gets a mark and is cut back to 40', () => {
+    const base = cleanQuestTargetName('G'.repeat(200));
+    expect(base).toHaveLength(40);
+    const name = freeCreatureName(base, (n) => n.toLowerCase() === base.toLowerCase());
+    expect(name.length).toBeLessThanOrEqual(40);
+    expect(name.toLowerCase()).not.toBe(base.toLowerCase());
+    expect(FAMILY_NAME_MARKS).toContain(name.split(' ')[0]);
+  });
+
+  it('a taken long two-word name drops its first word behind the mark and keeps the creature noun', () => {
+    const base = `${'A'.repeat(19)} ${'B'.repeat(20)}`;
+    expect(base).toHaveLength(40);
+    const name = freeCreatureName(base, (n) => n === base);
+    expect(name.length).toBeLessThanOrEqual(40);
+    expect(name).toBe(`${FAMILY_NAME_MARKS[0]} ${'B'.repeat(20)}`);
+  });
+
+  it('every capped candidate is still checked: a world that holds the first fitted names gets the next free one', () => {
+    const base = 'G'.repeat(40);
+    const held = new Set([base, ...FAMILY_NAME_MARKS.slice(0, 3).map((m) => `${m} ${base}`.slice(0, 40))]);
+    const name = freeCreatureName(base, (n) => held.has(n));
+    expect(name.length).toBeLessThanOrEqual(40);
+    expect(held.has(name)).toBe(false);
+    expect(name.startsWith(FAMILY_NAME_MARKS[3]!)).toBe(true);
+  });
+
+  it('a short name is unchanged by the cap', () => {
+    const taken = new Set(['gloomfang']);
+    expect(freeCreatureName('Gloomfang', (n) => taken.has(n.toLowerCase()))).toBe(`${FAMILY_NAME_MARKS[0]} Gloomfang`);
+  });
+});
+
 describe('cleanFamilyHistory (D-68, T-51.3.1.1-93)', () => {
   const two = 'The wolves came down from the ridge in a hard winter. No hunter has driven them back since.';
 
