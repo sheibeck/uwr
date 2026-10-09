@@ -155,9 +155,11 @@ describe('namedRows', () => {
     { id: 2n, level: 9n, isBoss: true },
     { id: 3n, level: 5n },
   ];
+  // Target 6 with an offset: the place band is Lv 5-7 (placeLevelBand).
+  const AT = { target: 6n, levelOffset: 1n };
 
   it('builds a living named row with the sub-line and Fight label', () => {
-    const [row] = namedRows([{ id: 11n, name: 'Old Brannoc', enemyTemplateId: 1n, isAlive: true }], [], templates, [], 6n);
+    const [row] = namedRows([{ id: 11n, name: 'Old Brannoc', enemyTemplateId: 1n, isAlive: true }], [], templates, [], 6n, AT);
     expect(row).toMatchObject<Partial<NamedRow>>({
       key: 'named-11',
       kind: 'named',
@@ -181,13 +183,14 @@ describe('namedRows', () => {
       templates,
       [{ name: 'Crown of Ash', targetEnemyTemplateId: 2n }],
       6n,
+      { target: 9n, levelOffset: 0n },
     );
     expect(row.boss).toBe(true);
     expect(row.subLine).toBe('Boss · Quest: Crown of Ash · Lv 9');
   });
 
   it('omits the level while the template is unknown and keeps Named', () => {
-    const [row] = namedRows([{ id: 13n, name: 'Vesk', enemyTemplateId: 99n, isAlive: true }], [], templates, [], 6n);
+    const [row] = namedRows([{ id: 13n, name: 'Vesk', enemyTemplateId: 99n, isAlive: true }], [], templates, [], 6n, AT);
     expect(row.subLine).toBe('Named');
     expect(row.levelText).toBeNull();
     expect(row.con).toBeNull();
@@ -196,7 +199,7 @@ describe('namedRows', () => {
   });
 
   it('a slain named row reads the slain line and cannot be fought', () => {
-    const [row] = namedRows([{ id: 14n, name: 'Vesk', enemyTemplateId: 1n, isAlive: false }], [], templates, [], 6n);
+    const [row] = namedRows([{ id: 14n, name: 'Vesk', enemyTemplateId: 1n, isAlive: false }], [], templates, [], 6n, AT);
     expect(row.subLine).toBe(SLAIN_NAMED_LINE);
     expect(row.state).toBe('slain');
     expect(row.fightable).toBe(false);
@@ -214,6 +217,7 @@ describe('namedRows', () => {
       templates,
       [],
       6n,
+      AT,
     );
     expect(rows.map((r) => r.name)).toEqual(['Cinder Maw', 'Ember Herald']);
     const maw = rows[0];
@@ -235,8 +239,63 @@ describe('namedRows', () => {
       templates,
       [],
       6n,
+      AT,
     );
+    // Cid's template (Lv 9) is outside the band, so he reads the place target 6; Bea and Zed read 5.
     expect(rows.map((r) => r.name)).toEqual(['Cid', 'Bea', 'Zed', 'Ash']);
+  });
+
+  it('a named enemy reads the place-scaled level the server fights at, not its template level (WR-03)', () => {
+    // A level-12 template at a level-4 place (band 3-5) reads, colours and sorts as Lv 4.
+    const [row] = namedRows(
+      [{ id: 31n, name: 'Grath', enemyTemplateId: 5n, isAlive: true }],
+      [],
+      [{ id: 5n, level: 12n, isBoss: false }],
+      [],
+      4n,
+      { target: 4n, levelOffset: 1n },
+    );
+    expect(row.levelText).toBe('Lv 4');
+    expect(row.subLine).toBe('Named · Lv 4');
+    expect(row.con).toEqual(conFor(4n, 4n));
+    // Inside the band the template keeps its own level; an exact place (offset 0) has no band.
+    const inside = namedRows(
+      [{ id: 31n, name: 'Grath', enemyTemplateId: 5n, isAlive: true }],
+      [],
+      [{ id: 5n, level: 5n }],
+      [],
+      4n,
+      { target: 4n, levelOffset: 1n },
+    )[0];
+    expect(inside.levelText).toBe('Lv 5');
+    const exact = namedRows(
+      [{ id: 31n, name: 'Grath', enemyTemplateId: 5n, isAlive: true }],
+      [],
+      [{ id: 5n, level: 5n }],
+      [],
+      4n,
+      { target: 4n, levelOffset: 0n },
+    )[0];
+    expect(exact.levelText).toBe('Lv 4');
+  });
+
+  it('omits a named level while the place is unknown rather than show the template level', () => {
+    const [row] = namedRows([{ id: 11n, name: 'Old Brannoc', enemyTemplateId: 1n, isAlive: true }], [], templates, [], 6n, null);
+    expect(row.levelText).toBeNull();
+    expect(row.con).toBeNull();
+    expect(row.subLine).toBe('Named');
+  });
+
+  it('event spawns keep their own row level whatever the place', () => {
+    const [row] = namedRows(
+      [],
+      [{ id: 21n, name: 'Ember Herald', state: 'available', enemyTemplateId: 3n, level: 11n }],
+      templates,
+      [],
+      6n,
+      { target: 2n, levelOffset: 0n },
+    );
+    expect(row.levelText).toBe('Lv 11');
   });
 });
 
@@ -342,7 +401,7 @@ describe('allExhausted', () => {
 
 describe('nearbyGroups', () => {
   const families = familyRows([creature()], 4n, PLACE);
-  const named = namedRows([{ id: 1n, name: 'Vesk', enemyTemplateId: 1n, isAlive: true }], [], [], [], 4n);
+  const named = namedRows([{ id: 1n, name: 'Vesk', enemyTemplateId: 1n, isAlive: true }], [], [], [], 4n, null);
   const resources = resourceRows([resource()], false, [], false, 0n, PLACE);
   const base = { isSafe: false, isUncharted: false, ready: true, families, named, resources, place: PLACE, others: 1 };
 
@@ -435,6 +494,7 @@ describe('privacy (D-05)', () => {
       [{ id: 1n, level: 8n, isBoss: false }],
       [{ name: 'Ash Road', targetEnemyTemplateId: 1n }],
       6n,
+      { target: 8n, levelOffset: 0n },
     );
     const strings: string[] = [];
     for (const row of fam) strings.push(row.name, row.line, row.hint, row.badgeWord, row.pullLabel, row.title);

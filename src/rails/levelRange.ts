@@ -17,14 +17,27 @@ export interface RouteView {
   label: string;
 }
 
+/**
+ * The place's target level, the server's computeLocationTargetLevel(ctx, locationId, 1n):
+ * floor(region.dangerMultiplier / 100) + the place's levelOffset, never below 1. An unknown region
+ * reads as the server's default multiplier of 100.
+ */
+export function placeTargetLevel(
+  place: { regionId: bigint; levelOffset: bigint },
+  regions: readonly { id: bigint; dangerMultiplier: bigint }[],
+): bigint {
+  const region = regions.find((r) => r.id === place.regionId);
+  const multiplier = region ? region.dangerMultiplier : 100n;
+  const level = multiplier / 100n + place.levelOffset;
+  return level > 1n ? level : 1n;
+}
+
 export function routeLevel(
   dest: { isSafe: boolean; regionId: bigint; levelOffset: bigint },
   regions: readonly { id: bigint; dangerMultiplier: bigint }[],
 ): RouteLevel {
   if (dest.isSafe) return { safe: true };
-  const region = regions.find((r) => r.id === dest.regionId);
-  const base = region ? Math.floor(Number(region.dangerMultiplier) / 100) : 1;
-  const level = Math.max(1, base + Number(dest.levelOffset));
+  const level = Number(placeTargetLevel(dest, regions));
   if (dest.levelOffset === 0n) return { safe: false, lo: level, hi: level };
   return { safe: false, lo: Math.max(1, level - 1), hi: level + 1 };
 }

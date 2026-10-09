@@ -29,7 +29,8 @@ import CharacterName from '../social/CharacterName.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
 import PoolCard from './PoolCard.vue';
 import { NEARBY_COPY, familyRows, namedRows, nearbyGroups, resourceRows } from './pools';
-import type { FamilyRow, NamedRow, QuestTargetLike, ResourceRow } from './pools';
+import type { FamilyRow, NamedPlace, NamedRow, QuestTargetLike, ResourceRow } from './pools';
+import { placeTargetLevel } from './levelRange';
 
 // Nearby (47-UI-SPEC "Nearby", CON-04; 51-UI-SPEC "Rail Row Additions"; rebuilt around the density
 // pools in 51.3.1.1-19, UI-SPEC "Nearby" sections and UI Considerations Q1-Q3). Groups, in order:
@@ -169,6 +170,16 @@ const families = computed(() => familyRows(game.poolLevelsHere.value, playerLeve
 
 // The templates of the spawns here and of the own named enemies (51.3.1.1-31, D-39): level, con
 // colour and Boss for the named cards. namedRows maps them by id, so a template in both is harmless.
+// A named enemy's level is scaled to this place the way the server levels it (WR-03): the place
+// target from its region's danger multiplier and its own level offset. Unknown until the place and
+// its region rows are loaded, and then the cards omit the level.
+const namedPlace = computed<NamedPlace | null>(() => {
+  const location = place.value;
+  if (location === null) return null;
+  if (!game.regions.value.some((region) => region.id === location.regionId)) return null;
+  return { target: placeTargetLevel(location, game.regions.value), levelOffset: location.levelOffset };
+});
+
 const named = computed(() => {
   const here = place.value?.id ?? null;
   return namedRows(
@@ -177,6 +188,7 @@ const named = computed(() => {
     [...game.enemyTemplatesHere.value, ...game.namedEnemyTemplates.value],
     questTargets.value,
     playerLevel.value,
+    namedPlace.value,
   );
 });
 

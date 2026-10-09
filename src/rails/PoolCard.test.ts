@@ -61,7 +61,10 @@ const salt = (over: Partial<PoolLike> = {}, opts: { capped?: boolean; gathering?
   )[0];
 
 const named = (alive = true, templates = [{ id: 1n, level: 7n, isBoss: false }]) =>
-  namedRows([{ id: 11n, name: 'Old Brannoc', enemyTemplateId: 1n, isAlive: alive }], [], templates, [], 6n)[0];
+  namedRows([{ id: 11n, name: 'Old Brannoc', enemyTemplateId: 1n, isAlive: alive }], [], templates, [], 6n, {
+    target: 7n,
+    levelOffset: 0n,
+  })[0];
 
 function mountCard(props: Record<string, unknown>) {
   wrapper = mount(PoolCard, { props: props as never, attachTo: document.body });
@@ -177,6 +180,7 @@ describe('named card', () => {
       [],
       [],
       6n,
+      null,
     )[0];
     const w = mountCard({ variant: 'named', row });
     expect(w.get('.card-sub').text()).toBe('Named · Lv 6 · In combat');

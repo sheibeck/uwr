@@ -34,7 +34,9 @@ afterEach(() => {
 const PAYLOAD = '<img src=x onerror=alert(1)>';
 
 const CROSSING = { id: 10n, name: 'The Crossing', regionId: 1n, bindStone: true, isSafe: true, terrainType: 'town', placeNoun: '' };
-const PLAIN = { id: 11n, name: 'Cinder Road', regionId: 1n, bindStone: false, isSafe: false, terrainType: 'plains', placeNoun: 'the pans' };
+const PLAIN = { id: 11n, name: 'Cinder Road', regionId: 1n, bindStone: false, isSafe: false, terrainType: 'plains', placeNoun: 'the pans', levelOffset: 0n };
+// Region 1 at danger 800: Cinder Road's place target is Lv 8 (placeTargetLevel, offset 0: exact).
+const REGION_LV8 = { id: 1n, name: 'Ashlands', dangerMultiplier: 800n };
 const LANE = { id: 12n, name: 'Quiet Lane', regionId: 1n, bindStone: false, isSafe: true, terrainType: 'town', placeNoun: '' };
 const EDGE = { id: 13n, name: 'Far Edge', regionId: 2n, bindStone: false, isSafe: true, terrainType: 'uncharted', placeNoun: '' };
 
@@ -931,7 +933,10 @@ describe('Named & quest targets group (UI Q2)', () => {
 
   it('a named enemy shows its template level, con colour and Boss once the template is known (D-39, 51.3.1.1-31)', () => {
     const { w } = mountList(
-      poolsGame({ namedEnemyTemplates: ref([{ id: 9n, name: 'Wight', level: 8n, isBoss: true }]) }),
+      poolsGame({
+        regions: ref([REGION_LV8]),
+        namedEnemyTemplates: ref([{ id: 9n, name: 'Wight', level: 8n, isBoss: true }]),
+      }),
     );
     const card = groupNamed(w, 'Named & quest targets').get('.pool-card');
     expect(card.get('.card-sub').text()).toBe('Boss · Lv 8');
@@ -949,9 +954,31 @@ describe('Named & quest targets group (UI Q2)', () => {
   it('a template in both the spawn and the named lists is harmless', () => {
     const template = { id: 9n, name: 'Wight', level: 8n, isBoss: false };
     const { w } = mountList(
-      poolsGame({ enemyTemplatesHere: ref([template]), namedEnemyTemplates: ref([template]) }),
+      poolsGame({
+        regions: ref([REGION_LV8]),
+        enemyTemplatesHere: ref([template]),
+        namedEnemyTemplates: ref([template]),
+      }),
     );
     expect(groupNamed(w, 'Named & quest targets').get('.card-sub').text()).toBe('Named · Lv 8');
+  });
+
+  it('a named enemy reads the place-scaled level, not its template level (WR-03)', () => {
+    // A level-12 template at the Lv 8 place (exact, offset 0) fights at Lv 8, so the card says so.
+    const { w } = mountList(
+      poolsGame({
+        regions: ref([REGION_LV8]),
+        namedEnemyTemplates: ref([{ id: 9n, name: 'Wight', level: 12n, isBoss: false }]),
+      }),
+    );
+    expect(groupNamed(w, 'Named & quest targets').get('.card-sub').text()).toBe('Named · Lv 8');
+  });
+
+  it("a named enemy shows no level while the place's region is not loaded", () => {
+    const { w } = mountList(
+      poolsGame({ regions: ref([]), namedEnemyTemplates: ref([{ id: 9n, name: 'Wight', level: 8n, isBoss: false }]) }),
+    );
+    expect(groupNamed(w, 'Named & quest targets').get('.card-sub').text()).toBe('Named');
   });
 
   it('a completed quest adds no quest part', () => {

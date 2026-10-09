@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { routeLevel, routeLevelLabel, routesFrom } from './levelRange';
+import { placeTargetLevel, routeLevel, routeLevelLabel, routesFrom } from './levelRange';
 
 const regions = [
   { id: 1n, dangerMultiplier: 100n },
   { id: 6n, dangerMultiplier: 600n },
 ];
+
+describe('placeTargetLevel (the server computeLocationTargetLevel at base 1)', () => {
+  it('is floor(dangerMultiplier / 100) plus the level offset, never below 1', () => {
+    expect(placeTargetLevel({ regionId: 6n, levelOffset: 0n }, regions)).toBe(6n);
+    expect(placeTargetLevel({ regionId: 6n, levelOffset: 2n }, regions)).toBe(8n);
+    expect(placeTargetLevel({ regionId: 1n, levelOffset: -3n }, regions)).toBe(1n);
+    expect(placeTargetLevel({ regionId: 6n, levelOffset: 0n }, [{ id: 6n, dangerMultiplier: 650n }])).toBe(6n);
+  });
+  it('reads an unknown region as the default multiplier of 100', () => {
+    expect(placeTargetLevel({ regionId: 99n, levelOffset: 1n }, regions)).toBe(2n);
+  });
+});
 
 describe('routeLevel', () => {
   it('is safe for a safe destination whatever the region', () => {

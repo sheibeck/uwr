@@ -22,7 +22,7 @@ import {
   harvestCapRefusal,
   resourceLine,
 } from '@game-data/density_lines';
-import { effectiveEnemyLevel } from '@game-data/enemy_rules';
+import { effectiveEnemyLevel, placeSpawnLevel } from '@game-data/enemy_rules';
 import { conFor } from '../combat/difficulty';
 import type { ConView } from '../combat/difficulty';
 import { enemyStatus } from './enemies';
@@ -242,8 +242,21 @@ function namedRow(input: {
 }
 
 /**
+ * The place a named enemy stands at, as the server levels it: the place's target level
+ * (placeTargetLevel, the server's computeLocationTargetLevel) and its levelOffset.
+ */
+export interface NamedPlace {
+  target: bigint;
+  levelOffset: bigint;
+}
+
+/**
  * The named, boss and quest individuals here: the player's own named enemies at this place and the
  * World event spawns here. Living before slain, then level desc, then name.
+ *
+ * A named enemy's level is the place-scaled level the server shows in the look text and fights at
+ * (placeSpawnLevel of the template level in the place band, else the place target; WR-03). With no
+ * place (its row or region not loaded) the named rows omit the level rather than show a wrong one.
  */
 export function namedRows(
   namedHere: readonly NamedLike[],
@@ -251,6 +264,7 @@ export function namedRows(
   templates: readonly TemplateLike[],
   quests: readonly QuestTargetLike[],
   playerLevel: bigint | null,
+  place: NamedPlace | null,
 ): NamedRow[] {
   const templateById = new Map<bigint, TemplateLike>();
   for (const template of templates) templateById.set(template.id, template);
@@ -265,7 +279,10 @@ export function namedRows(
         id: enemy.id,
         name: enemy.name,
         template,
-        level: template?.level,
+        level:
+          template === undefined || place === null
+            ? undefined
+            : placeSpawnLevel(template.level, place.target, place.levelOffset),
         state: enemy.isAlive ? 'alive' : 'slain',
         quest: questFor(enemy.enemyTemplateId),
         playerLevel,
