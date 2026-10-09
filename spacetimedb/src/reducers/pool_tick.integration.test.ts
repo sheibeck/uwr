@@ -29,6 +29,7 @@ import {
   settleDirtyPools,
   ensurePoolTickScheduled,
 } from '../helpers/pool_tick';
+import { POOL_MIGRATION_VERSION, migrateRegion } from '../helpers/pool_migration';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -69,11 +70,17 @@ const poolRow = (ctx: any, id: bigint) => rows(ctx, 'place_pool').find((r: any) 
 const densityLines = (ctx: any) =>
   rows(ctx, 'event_private').filter((e: any) => e.kind === 'density_down' || e.kind === 'density_gone');
 
-/** A pool world whose hunter and trend clocks were just reset at T0 (neither runs for a while). */
+/**
+ * A migrated pool world (Plan 15: pool_state.version is POOL_MIGRATION_VERSION, so tick_pools runs the
+ * normal tick) whose hunter and trend clocks were just reset at T0 (neither runs for a while).
+ */
 function quietWorld(opts: Parameters<typeof poolWorld>[0] = {}) {
   return poolWorld({
     ...opts,
-    extra: { pool_state: [{ id: 1n, version: 0n, lastHunterMicros: T0, lastTrendMicros: T0 }], ...(opts.extra ?? {}) },
+    extra: {
+      pool_state: [{ id: 1n, version: POOL_MIGRATION_VERSION, lastHunterMicros: T0, lastTrendMicros: T0 }],
+      ...(opts.extra ?? {}),
+    },
   });
 }
 
@@ -472,5 +479,164 @@ describe('arming the pool tick (init, clientConnected, sweep_passages)', () => {
     const forged = poolCtx(poolWorld(), ALICE);
     sweepPassagesTick(forged, { arg: { scheduledId: 1n } });
     expect(pendingTicks(forged)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 15: the cursor-batched migration step in front of the normal tick
+// ---------------------------------------------------------------------------
+
+describe('tick_pools: the migration of an existing world, one region per run (51.3.1.1-15)', () => {
+  const CONTINUE = DENSITY_RULES.MIGRATION_CONTINUE_MICROS;
+  const TICK = DENSITY_RULES.POOL_TICK_MICROS;
+  const pendingTicks = (ctx: any) => rows(ctx, 'pool_tick');
+  const atOf = (row: any) => row.scheduledAt.value.microsSinceUnixEpoch;
+  const version = (ctx: any) => rows(ctx, 'pool_state')[0]?.version;
+
+  /** Region 2 'Far Fen' as it stood before this phase: a start camp with a vendor, a reed bed with a standing Thorn Boar. */
+  function twoRegionWorld() {
+    return poolWorld({
+      extra: {
+        region: [{ id: 2n, name: 'Far Fen', dangerMultiplier: 200n, regionType: 'wild', biome: 'swamp', landmarks: '[]', threats: '[]' }],
+        location: [
+          { id: 50n, name: 'Fen Camp', description: 'Fen Camp.', zone: 'z', regionId: 2n, levelOffset: 0n, isSafe: true, terrainType: 'town', bindStone: true, craftingAvailable: false, shortName: '', placeNoun: '', isHub: false },
+          { id: 51n, name: 'Fen Reeds', description: 'Fen Reeds.', zone: 'z', regionId: 2n, levelOffset: 0n, isSafe: false, terrainType: 'woods', bindStone: false, craftingAvailable: false, shortName: '', placeNoun: '', isHub: false },
+        ],
+        npc: [{ id: 1n, name: 'Hale Dunmore', npcType: 'vendor', locationId: 50n, description: 'A trader.', greeting: 'Well met.', gender: 'male' }],
+        enemy_template: [
+          {
+            id: 501n, name: 'Thorn Boar', role: 'melee', roleDetail: 'melee', abilityProfile: 'melee', terrainTypes: 'woods',
+            creatureType: 'beast', timeOfDay: 'any', socialGroup: 'Thorn Boar', socialRadius: 0n, awareness: 'normal',
+            groupMin: 1n, groupMax: 3n, armorClass: 5n, level: 2n, maxHp: 50n, baseDamage: 6n, xpReward: 20n,
+          },
+        ],
+        location_enemy_template: [{ id: 1n, locationId: 51n, enemyTemplateId: 501n }],
+        enemy_spawn: [{ id: 1n, locationId: 51n, enemyTemplateId: 501n, name: 'Thorn Boar', state: 'available', lockedCombatId: undefined, groupCount: 2n, level: 2n }],
+        enemy_spawn_member: [{ id: 1n, spawnId: 1n, enemyTemplateId: 501n, roleTemplateId: 0n }],
+      },
+    });
+  }
+
+  /** Fires one scheduled run the way the scheduler does: the fired row leaves the table, ctx.timestamp is `t`. */
+  function fire(ctx: any, t: bigint, arg: any = pendingTicks(ctx)[0]): void {
+    ctx.db._tables.pool_tick = pendingTicks(ctx).filter((row: any) => row !== arg);
+    ctx.timestamp = { microsSinceUnixEpoch: t };
+    tickPools(ctx, { arg });
+  }
+
+  /** Wraps ctx.db so any resource_node access throws (the last step of a region's migration). */
+  function failingNodes(ctx: any): () => void {
+    const realDb = ctx.db;
+    ctx.db = new Proxy(realDb, {
+      get(target: any, name: string) {
+        if (name === 'resource_node') throw new Error('boom');
+        return target[name];
+      },
+    });
+    return () => {
+      ctx.db = realDb;
+    };
+  }
+
+  it('migrates region 1, then region 2 (setting the version), then runs the normal tick; one row per run', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    const t1 = T0;
+    fire(ctx, t1, ARG);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(1n);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(t1 + CONTINUE);
+    expect(rows(ctx, 'place_pool').some((p: any) => p.regionId === REGION_ID && p.kind === 'resource')).toBe(true);
+    expect(rows(ctx, 'place_pool').some((p: any) => p.regionId === 2n)).toBe(false);
+    expect(version(ctx)).toBe(0n);
+
+    const t2 = t1 + CONTINUE;
+    fire(ctx, t2);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(0n);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(t2 + TICK);
+    expect(version(ctx)).toBe(POOL_MIGRATION_VERSION);
+    const boars = rows(ctx, 'creature_family').find((f: any) => f.key === '2:beast');
+    expect(boars).toBeDefined();
+    expect(rows(ctx, 'place_pool').some((p: any) => p.kind === 'creature' && p.refId === boars.id && p.locationId === 51n)).toBe(true);
+    expect(rows(ctx, 'enemy_spawn')).toHaveLength(0);
+    expect(rows(ctx, 'enemy_spawn_member')).toHaveLength(0);
+    expect(rows(ctx, 'location').find((l: any) => l.id === 50n)).toMatchObject({ isHub: true, craftingAvailable: false });
+
+    // While migrating, hunters and trends never ran.
+    expect(rows(ctx, 'pool_state')[0]).toMatchObject({ lastHunterMicros: 0n, lastTrendMicros: 0n });
+    expect(rows(ctx, 'pool_region')).toHaveLength(0);
+
+    const t3 = t2 + TICK;
+    fire(ctx, t3);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(0n);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(t3 + TICK);
+    expect(rows(ctx, 'pool_state')[0]).toMatchObject({ version: POOL_MIGRATION_VERSION, lastHunterMicros: t3, lastTrendMicros: t3 });
+    expect(rows(ctx, 'pool_region').length).toBeGreaterThan(0);
+  });
+
+  it('the migration enqueues no LLM job (no paid call)', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    fire(ctx, T0, ARG);
+    fire(ctx, T0 + CONTINUE);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+  });
+
+  it('a failing region is logged, the reschedule stays and the cursor is not advanced past it; the next run retries it', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    const restore = failingNodes(ctx);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => fire(ctx, T0, ARG)).not.toThrow();
+    expect(errors.mock.calls.some((call) => String(call[0]).includes('migrating region 1'))).toBe(true);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(0n);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(T0 + CONTINUE);
+    expect(version(ctx)).toBe(0n);
+
+    restore();
+    fire(ctx, T0 + CONTINUE);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(1n);
+  });
+
+  it('a failing last region keeps the version below POOL_MIGRATION_VERSION and is retried after MIGRATION_CONTINUE_MICROS', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    fire(ctx, T0, ARG);
+    const restore = failingNodes(ctx);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const t2 = T0 + CONTINUE;
+    fire(ctx, t2);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(1n);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(t2 + CONTINUE);
+    expect(version(ctx)).toBe(0n);
+
+    restore();
+    fire(ctx, t2 + CONTINUE);
+    expect(version(ctx)).toBe(POOL_MIGRATION_VERSION);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(0n);
+  });
+
+  it('a stale overlapping run that replays a region changes no family, pool or spawn', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    fire(ctx, T0, ARG);
+    fire(ctx, T0 + CONTINUE);
+    const families = rows(ctx, 'creature_family').length;
+    const pools = rows(ctx, 'place_pool').length;
+    // Replays the region 2 work directly (the version is set, so tick_pools itself would not).
+    ctx.timestamp = { microsSinceUnixEpoch: T0 + 2n * CONTINUE };
+    migrateRegion(ctx, 2n, T0 + 2n * CONTINUE);
+    migrateRegion(ctx, REGION_ID, T0 + 2n * CONTINUE);
+    expect(rows(ctx, 'creature_family')).toHaveLength(families);
+    expect(rows(ctx, 'place_pool')).toHaveLength(pools);
+  });
+
+  it('a world with no regions sets the version on its first run', () => {
+    const seed = poolWorld();
+    seed.region = [];
+    const ctx = poolCtx(seed, MODULE, T0);
+    fire(ctx, T0, ARG);
+    expect(version(ctx)).toBe(POOL_MIGRATION_VERSION);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(T0 + TICK);
   });
 });

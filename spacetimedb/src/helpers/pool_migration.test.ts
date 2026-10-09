@@ -14,8 +14,10 @@ import {
   isInventedQuestKillTarget,
   markLegacyHub,
   migrateRegion,
+  planMigrationStep,
   retireStandingState,
 } from './pool_migration';
+import { DENSITY_RULES } from '../data/density_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -536,5 +538,58 @@ describe('retireStandingState (D-01, T-51.3.1.1-48)', () => {
     retireStandingState(ctx, [CRYPT]);
     expect(rows(ctx, 'enemy_spawn').map((s: any) => s.id).sort()).toEqual([1n, 2n, 3n, 5n, 6n, 7n]);
     expect(rows(ctx, 'resource_node').map((n: any) => n.id).sort()).toEqual([1n, 2n, 4n]);
+  });
+});
+
+describe('planMigrationStep (the cursor plan, planRestockBatch pattern)', () => {
+  const twoRegions = () => {
+    const seed = preWorld();
+    // Inserted out of order: the plan sorts the region ids.
+    seed.region = [regionRow(2n, 'Far Fen'), regionRow(REGION, 'Old Reach')];
+    return seed;
+  };
+
+  it('below POOL_MIGRATION_VERSION: one region per run, continuing after MIGRATION_CONTINUE_MICROS', () => {
+    const ctx = ctxFor(twoRegions());
+    expect(planMigrationStep(ctx, { afterRegionId: 0n }, T0)).toEqual({
+      migrating: true,
+      batch: [1n],
+      more: true,
+      afterRegionId: 0n,
+      nextAt: T0 + DENSITY_RULES.MIGRATION_CONTINUE_MICROS,
+      nextAfterRegionId: 1n,
+    });
+  });
+
+  it('the last region hands over to the normal cadence with the cursor reset', () => {
+    const ctx = ctxFor(twoRegions());
+    expect(planMigrationStep(ctx, { afterRegionId: 1n }, T0)).toEqual({
+      migrating: true,
+      batch: [2n],
+      more: false,
+      afterRegionId: 1n,
+      nextAt: T0 + DENSITY_RULES.POOL_TICK_MICROS,
+      nextAfterRegionId: 0n,
+    });
+  });
+
+  it('a missing arg or cursor reads 0n', () => {
+    const ctx = ctxFor(twoRegions());
+    expect(planMigrationStep(ctx, undefined, T0).batch).toEqual([1n]);
+    expect(planMigrationStep(ctx, {}, T0).batch).toEqual([1n]);
+  });
+
+  it('at POOL_MIGRATION_VERSION it does not migrate: the normal tick every POOL_TICK_MICROS, cursor 0n', () => {
+    const seed = twoRegions();
+    seed.pool_state = [{ id: 1n, version: POOL_MIGRATION_VERSION, lastHunterMicros: 0n, lastTrendMicros: 0n }];
+    const ctx = ctxFor(seed);
+    expect(planMigrationStep(ctx, { afterRegionId: 1n }, T0)).toEqual({
+      migrating: false,
+      batch: [],
+      more: false,
+      afterRegionId: 0n,
+      nextAt: T0 + DENSITY_RULES.POOL_TICK_MICROS,
+      nextAfterRegionId: 0n,
+    });
   });
 });
