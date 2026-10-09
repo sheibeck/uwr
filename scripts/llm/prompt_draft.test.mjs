@@ -310,7 +310,7 @@ describe('templateBody, evaluateBlock and compareBlock on the shipped source', (
   });
 
   it('refuses to evaluate a literal with another interpolation or an escape', () => {
-    const src = 'const N = `names`;\nconst X = `a ${OTHER} b`;\nconst Y = `a \\n b`;\n';
+    const src = 'const WORLD_NAMING_RULES = `names`;\nconst X = `a ${OTHER} b`;\nconst Y = `a \\n b`;\n';
     expect(() => evaluateBlock(src, 'X')).toThrow(/interpolation/);
     expect(() => evaluateBlock(src, 'Y')).toThrow(/backslash/);
   });
