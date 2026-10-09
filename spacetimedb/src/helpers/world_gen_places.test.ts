@@ -638,3 +638,55 @@ describe('writeRegionFill: the legacy one-reply path (a world_gen job queued bef
     expect(rows(ctx, 'creature_family').map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
   });
 });
+
+describe('writeRegionPlaces: the NPC count is the server number (D-06, review A WR-06)', () => {
+  const npcItem = (name: string, locationName: string, npcType = 'lore') => ({
+    name, gender: 'female', npcType, locationName, description: 'Someone.', greeting: 'Hm.', personality: PERSONALITY,
+  });
+  const regionNpcs = (ctx: any, regionId: bigint) => {
+    const ids = new Set<bigint>(rows(ctx, 'location').filter((l: any) => l.regionId === regionId).map((l: any) => l.id));
+    return rows(ctx, 'npc').filter((n: any) => ids.has(n.locationId));
+  };
+
+  it('names the cap in DENSITY_RULES: 5 more NPCs, the most of the approved 3-5', () => {
+    expect(DENSITY_RULES.REGION_NPCS_MAX).toBe(5);
+  });
+
+  it('a reply with 30 NPCs keeps REGION_NPCS_MAX plus a vendor and a banker per hub, in reply order', () => {
+    const { ctx, region, startLocation } = world({ hubs: 1 });
+    const before = regionNpcs(ctx, region.id).length; // the stage-1 first NPC
+    const npcs = Array.from({ length: 30 }, (_, i) => npcItem(`Wanderer ${i + 1}`, `Place ${(i % 8) + 1}`));
+    const out = places2a(ctx, region, startLocation, placesReply(chain(8), { npcs }), 9);
+    expect(out.ok).toBe(true);
+    const hubCount = charted(ctx, region.id).filter((l: any) => l.isHub).length;
+    expect(hubCount).toBe(1);
+    const allowed = DENSITY_RULES.REGION_NPCS_MAX + 2 * hubCount;
+    const written = regionNpcs(ctx, region.id).filter((n: any) => n.name.startsWith('Wanderer '));
+    expect(written.map((n: any) => n.name)).toEqual(npcs.slice(0, allowed).map((n) => n.name));
+    // The server still gives the hub its vendor and banker on top.
+    const hub = charted(ctx, region.id).find((l: any) => l.isHub);
+    expect(services(ctx, hub.id)).toEqual(['banker', 'vendor']);
+    expect(regionNpcs(ctx, region.id).length).toBeLessThanOrEqual(before + allowed + 2);
+  });
+
+  it('a reply within the count keeps every NPC (the cap never trims an ordinary reply)', () => {
+    const { ctx, region, startLocation } = world({ hubs: 1 });
+    const npcs = [
+      npcItem('Hub Trader', 'Safe Haven', 'vendor'),
+      npcItem('Hub Clerk', 'Safe Haven', 'banker'),
+      ...Array.from({ length: 5 }, (_, i) => npcItem(`Local ${i + 1}`, `Place ${i + 1}`)),
+    ];
+    places2a(ctx, region, startLocation, placesReply(chain(8), { npcs }), 9);
+    for (const n of npcs) expect(rows(ctx, 'npc').some((r: any) => r.name === n.name), n.name).toBe(true);
+  });
+
+  it('with no hubs the cap is REGION_NPCS_MAX', () => {
+    const { ctx, region, startLocation } = world({ hubs: 0 });
+    const npcs = Array.from({ length: 12 }, (_, i) => npcItem(`Drifter ${i + 1}`, `Place ${(i % 8) + 1}`));
+    places2a(ctx, region, startLocation, placesReply(chain(8), { npcs }), 9);
+    expect(charted(ctx, region.id).filter((l: any) => l.isHub)).toHaveLength(0);
+    expect(rows(ctx, 'npc').filter((n: any) => n.name.startsWith('Drifter ')).map((n: any) => n.name)).toEqual(
+      npcs.slice(0, DENSITY_RULES.REGION_NPCS_MAX).map((n) => n.name),
+    );
+  });
+});

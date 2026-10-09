@@ -157,6 +157,7 @@ export const DENSITY_RULES = deepFreeze({
   EXIT_DEGREE_CAP: 4, // D-05: in-region exits per place, trimmed only where the edge is not a bridge
   MIN_HOST_PLACES: 4, // D-05: places that can host creatures (non-safe, non-hub); the farthest safe places flip to reach it
   ECONOMY_MEDIUM_MIN_PLACES: 8, // D-10: a region this big gets the medium economy (5 gatherables, 5 recipes)
+  REGION_NPCS_MAX: 5, // D-06: the most NPCs a stage-2a reply may add besides each hub's vendor and banker (the approved wording asks for 3-5); the rest are dropped (review A WR-06)
 });
 
 // ---------------------------------------------------------------------------

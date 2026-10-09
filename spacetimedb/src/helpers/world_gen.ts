@@ -50,6 +50,7 @@ import { enemyStatsForLevel } from '../data/enemy_rules';
 import { REGION_HOLD_FAILED_LINE, regionHoldState, regionOpenedLine } from './region_hold';
 import { startRegionEconomy } from './region_economy';
 import {
+  DENSITY_RULES,
   assignRegionFamilies,
   chooseHubs,
   familyCountFor,
@@ -1659,11 +1660,15 @@ export function writeRegionPlaces(
   writeArrivalPlaceWords(tx, startLocation, reply);
 
   // 11. NPCs (D-06): by exact locationName among the arrival point and the kept places, else at the
-  //     arrival point; never a repeat of a name already standing there.
+  //     arrival point; never a repeat of a name already standing there. At most the server's count are
+  //     kept, in reply order: REGION_NPCS_MAX plus a vendor and a banker for each hub (review A WR-06).
   const byExactName = new Map<string, any>([[startLocation.name, startLocation]]);
   for (const row of newLocations) byExactName.set(row.name, row);
   const npcItems: any[] = Array.isArray(reply.npcs) ? reply.npcs : [];
+  const npcMax = DENSITY_RULES.REGION_NPCS_MAX + 2 * hubs.length;
+  let npcsKept = 0;
   for (const npc of npcItems) {
+    if (npcsKept >= npcMax) break;
     if (!npc || typeof npc !== 'object') continue;
     const npcLocation = byExactName.get(npc.locationName) ?? startLocation;
     const storedName = npc.name || 'Unknown NPC';
@@ -1672,6 +1677,7 @@ export function writeRegionPlaces(
     );
     if (alreadyThere) continue;
     insertRegionNpc(tx, npc, npcLocation.id);
+    npcsKept += 1;
   }
 
   // 12. A vendor and a banker at each hub, and none anywhere else in the region (D-59).
