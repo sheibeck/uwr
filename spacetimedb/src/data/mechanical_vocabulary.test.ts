@@ -3,6 +3,8 @@ import {
   ABILITY_KINDS,
   FAMILY_TEMPERAMENTS,
   FAMILY_RELATIONS,
+  FAMILY_FEUD_KIND,
+  FAMILY_RELATION_KINDS,
   FAMILY_ICON_KEYS,
   FAMILY_PROMPT_ROLES,
   POOL_KINDS,
@@ -111,5 +113,12 @@ describe('density pool vocabularies', () => {
   it('FAMILY_PROMPT_ROLES differs from ENEMY_ROLES only by support (the server healer)', () => {
     expect(FAMILY_PROMPT_ROLES.includes('support')).toBe(true);
     expect((FAMILY_PROMPT_ROLES as readonly string[]).includes('healer')).toBe(false);
+  });
+
+  it('adds the server-only feud kind without changing the AI relation enum (D-70)', () => {
+    expect(FAMILY_FEUD_KIND).toBe('feud');
+    expect([...FAMILY_RELATION_KINDS]).toEqual(['rival', 'prey', 'predator', 'feud']);
+    expect([...FAMILY_RELATIONS]).toEqual(['rival', 'prey', 'predator']);
+    expect((FAMILY_RELATIONS as readonly string[]).includes(FAMILY_FEUD_KIND)).toBe(false);
   });
 });

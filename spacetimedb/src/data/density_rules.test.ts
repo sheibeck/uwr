@@ -11,6 +11,16 @@ import {
   encounterSeed,
   hubSeed,
   stationSeed,
+  FAMILY_SEED_TAG,
+  familySeed,
+  placeFamiliesSeed,
+  familyCountFor,
+  askedFamilyCount,
+  keptFamilyCount,
+  feudCountFor,
+  pickFeud,
+  pickPlaceFamilies,
+  assignRegionFamilies,
   countToLevel,
   homeCount,
   gapPct,
@@ -759,5 +769,237 @@ describe('chooseHubs (D-60, D-61, D-62)', () => {
   it('never names a place twice', () => {
     const hubs = chooseHubs({ ...base, places: [A, B, C, D], count: 2, existingHubIds: [1n], markedIds: [1n, 1n] });
     expect(hubs).toEqual([1n, 2n]);
+  });
+});
+
+// ============================================================================
+// Plan 28: families per region and per place (D-66, D-67), feuds (D-70), histories (D-68)
+// ============================================================================
+
+describe('family and feud constants (D-66, D-67, D-68, D-70)', () => {
+  it('names every new number', () => {
+    expect(R.FAMILIES_PER_PLACE_X10).toBe(15);
+    expect(R.FAMILY_COUNT_MIN).toBe(3);
+    expect(R.FAMILY_COUNT_MAX).toBe(15);
+    expect(R.FILL_PLANNED_PLACES).toBe(5);
+    expect(R.PLACE_FAMILIES_MIN).toBe(3);
+    expect(R.PLACE_FAMILIES_MAX).toBe(5);
+    expect(R.FEUD_FAMILIES_MIN).toBe(2);
+    expect(R.FEUD_FAMILIES_MAX).toBe(3);
+    expect(R.NPC_FAMILY_HISTORIES_MAX).toBe(4);
+    expect(Object.isFrozen(DENSITY_RULES)).toBe(true);
+  });
+
+  it('adds the family roll indexes without a duplicate', () => {
+    expect(POOL_ROLL.PLACE_FAMILY_COUNT).toBe(83n);
+    expect(POOL_ROLL.PLACE_FAMILY_ORDER).toBe(84n);
+    expect(POOL_ROLL.FEUD_COUNT).toBe(85n);
+    expect(POOL_ROLL.FEUD_PICK).toBe(86n);
+    expect(POOL_ROLL.RULE_FAMILY_ORDER).toBe(87n);
+    const values = Object.values(POOL_ROLL);
+    expect(new Set(values).size).toBe(values.length);
+  });
+});
+
+describe('familyCountFor, askedFamilyCount, keptFamilyCount (D-66)', () => {
+  it('gives about 1.5 families per place, at least 3 and at most 15', () => {
+    const cases: [number, number][] = [[0, 3], [2, 3], [3, 4], [4, 6], [5, 7], [8, 12], [10, 15], [12, 15]];
+    for (const [places, families] of cases) expect(familyCountFor(places)).toBe(families);
+  });
+
+  it('floors a fractional count and clamps a negative one', () => {
+    expect(familyCountFor(3.9)).toBe(4);
+    expect(familyCountFor(-4)).toBe(3);
+    expect(familyCountFor(Number.NaN)).toBe(3);
+  });
+
+  it('asks for the planned region size and never keeps more than it asked', () => {
+    expect(askedFamilyCount()).toBe(7);
+    expect(keptFamilyCount(3)).toBe(4);
+    expect(keptFamilyCount(5)).toBe(7);
+    expect(keptFamilyCount(9)).toBe(7);
+  });
+});
+
+describe('familySeed and placeFamiliesSeed', () => {
+  it('are stable and distinct from the hub and station seeds', () => {
+    expect(familySeed(3n)).toBe(familySeed(3n));
+    expect(familySeed(3n)).toBe(poolSeed(3n, FAMILY_SEED_TAG));
+    expect(familySeed(3n)).not.toBe(familySeed(4n));
+    expect(familySeed(3n)).not.toBe(hubSeed(3n));
+    expect(placeFamiliesSeed(3n, 9n)).toBe(placeFamiliesSeed(3n, 9n));
+    expect(placeFamiliesSeed(3n, 9n)).not.toBe(placeFamiliesSeed(3n, 10n));
+    expect(placeFamiliesSeed(3n, 9n)).not.toBe(placeFamiliesSeed(4n, 9n));
+    expect(placeFamiliesSeed(3n, 9n)).not.toBe(stationSeed(3n, 9n));
+  });
+});
+
+describe('feudCountFor (D-70)', () => {
+  const regionSeeds = Array.from({ length: 200 }, (_, i) => familySeed(BigInt(i + 1)));
+
+  it('gives no feud below two families, and two at most for two', () => {
+    for (const s of regionSeeds.slice(0, 20)) {
+      expect(feudCountFor(0, s)).toBe(0);
+      expect(feudCountFor(1, s)).toBe(0);
+      expect(feudCountFor(2, s)).toBe(2);
+    }
+  });
+
+  it('gives 2 or 3 feuding families, both over many regions, the same for the same seed', () => {
+    const counts = regionSeeds.map((s) => feudCountFor(7, s));
+    for (const n of counts) expect([2, 3]).toContain(n);
+    expect(counts).toContain(2);
+    expect(counts).toContain(3);
+    expect(regionSeeds.map((s) => feudCountFor(7, s))).toEqual(counts);
+    for (const s of regionSeeds.slice(0, 20)) expect([2, 3]).toContain(feudCountFor(3, s));
+  });
+});
+
+describe('pickFeud (D-70)', () => {
+  const keys = ['a', 'b', 'c', 'd', 'e', 'f'];
+  const seed = familySeed(5n);
+
+  it('keeps the marks first and fills by a seeded pick', () => {
+    const feud = pickFeud({ keys, markedKeys: ['b', 'd'], count: 3, seed });
+    expect(feud).toHaveLength(3);
+    expect(feud.slice(0, 2)).toEqual(['b', 'd']);
+    expect(keys).toContain(feud[2]);
+    expect(['b', 'd']).not.toContain(feud[2]);
+  });
+
+  it('keeps only the first marks up to the count', () => {
+    expect(pickFeud({ keys, markedKeys: ['b', 'c', 'd', 'e'], count: 2, seed })).toEqual(['b', 'c']);
+  });
+
+  it('ignores an unknown or repeated mark', () => {
+    const feud = pickFeud({ keys, markedKeys: ['z', 'b', 'b'], count: 2, seed });
+    expect(feud[0]).toBe('b');
+    expect(feud).toHaveLength(2);
+    expect(new Set(feud).size).toBe(2);
+  });
+
+  it('clamps the count to the keys and gives [] below two', () => {
+    expect(pickFeud({ keys: ['a', 'b'], markedKeys: [], count: 5, seed }).sort()).toEqual(['a', 'b']);
+    expect(pickFeud({ keys: ['a'], markedKeys: ['a'], count: 2, seed })).toEqual([]);
+    expect(pickFeud({ keys, markedKeys: ['a'], count: 1, seed })).toEqual([]);
+    expect(pickFeud({ keys, markedKeys: [], count: 0, seed })).toEqual([]);
+  });
+
+  it('gives the same output for the same input', () => {
+    const one = pickFeud({ keys, markedKeys: [], count: 3, seed });
+    expect(one).toHaveLength(3);
+    expect(new Set(one).size).toBe(3);
+    expect(pickFeud({ keys, markedKeys: [], count: 3, seed })).toEqual(one);
+  });
+});
+
+describe('pickPlaceFamilies (D-67)', () => {
+  const cand = (key: string, over: Partial<{ aiFit: boolean; terrainFit: boolean; placesSoFar: number }> = {}) => ({
+    key, aiFit: false, terrainFit: false, placesSoFar: 0, ...over,
+  });
+  const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((k) => cand(k));
+  const placeSeeds = Array.from({ length: 60 }, (_, i) => placeFamiliesSeed(1n, BigInt(i + 1)));
+
+  it('picks 3 to 5 families, every size over many places', () => {
+    const sizes = placeSeeds.map((s) => pickPlaceFamilies(many, s).length);
+    for (const n of sizes) {
+      expect(n).toBeGreaterThanOrEqual(R.PLACE_FAMILIES_MIN);
+      expect(n).toBeLessThanOrEqual(R.PLACE_FAMILIES_MAX);
+    }
+    expect(new Set(sizes)).toEqual(new Set([3, 4, 5]));
+  });
+
+  it('gives every candidate when fewer exist', () => {
+    expect(pickPlaceFamilies([cand('x'), cand('y')], placeSeeds[0]!).sort()).toEqual(['x', 'y']);
+    expect(pickPlaceFamilies([], placeSeeds[0]!)).toEqual([]);
+  });
+
+  it('puts AI fit first, then terrain fit, then the rest', () => {
+    const list = [
+      cand('a'), cand('b'), cand('c'), cand('d'),
+      cand('t1', { terrainFit: true }), cand('t2', { terrainFit: true }),
+      cand('ai', { aiFit: true, placesSoFar: 4 }),
+    ];
+    for (const s of placeSeeds) {
+      const picked = pickPlaceFamilies(list, s);
+      expect(picked[0]).toBe('ai');
+      expect(picked.slice(1, 3).sort()).toEqual(['t1', 't2']);
+    }
+  });
+
+  it('prefers families placed fewer times within a tier', () => {
+    const list = ['a', 'b', 'c', 'd', 'e', 'f'].map((k, i) => cand(k, { placesSoFar: i < 3 ? 0 : 2 }));
+    for (const s of placeSeeds) {
+      const picked = pickPlaceFamilies(list, s);
+      expect(picked.slice(0, 3).sort()).toEqual(['a', 'b', 'c']);
+    }
+  });
+
+  it('does not depend on the input order, and is seeded', () => {
+    const reversed = [...many].reverse();
+    const results = placeSeeds.map((s) => pickPlaceFamilies(many, s));
+    placeSeeds.forEach((s, i) => expect(pickPlaceFamilies(reversed, s)).toEqual(results[i]));
+    expect(new Set(results.map((r) => r.join(','))).size).toBeGreaterThan(1);
+  });
+});
+
+describe('assignRegionFamilies (D-67)', () => {
+  const places = [
+    { id: 12n, name: 'Ashen Ford', terrainType: 'plains' },
+    { id: 10n, name: 'Hollow Pines', terrainType: 'woods' },
+    { id: 11n, name: 'Sunk Mire', terrainType: 'swamp' },
+  ];
+  const fam = (key: string, aiFitNames: string[] = [], fitTerrains: string[] = []) => ({ key, aiFitNames, fitTerrains });
+  const families = [
+    fam('wolves', ['Ashen Ford'], ['plains']),
+    fam('boars', [], ['woods']),
+    fam('crawlers', ['Sunk Mire'], ['swamp']),
+    fam('wights', [], ['Swamp']),
+    fam('hounds', [], ['plains']),
+    fam('wisps', [], ['mountains']),
+    fam('golems', [], ['dungeon']),
+  ];
+
+  it('gives each host place 3 to 5 families and honours the AI fit', () => {
+    for (let r = 1n; r <= 30n; r += 1n) {
+      const map = assignRegionFamilies({ regionId: r, places, families });
+      expect([...map.keys()].sort()).toEqual([10n, 11n, 12n]);
+      for (const keys of map.values()) {
+        expect(keys.length).toBeGreaterThanOrEqual(3);
+        expect(keys.length).toBeLessThanOrEqual(5);
+        expect(new Set(keys).size).toBe(keys.length);
+      }
+      expect(map.get(12n)).toContain('wolves');
+      expect(map.get(11n)).toContain('crawlers');
+    }
+  });
+
+  it('places every family when there is room, else every place is full', () => {
+    for (let r = 1n; r <= 30n; r += 1n) {
+      const map = assignRegionFamilies({ regionId: r, places, families });
+      const placed = new Set([...map.values()].flat());
+      const full = [...map.values()].every((keys) => keys.length === R.PLACE_FAMILIES_MAX);
+      for (const f of families) expect(placed.has(f.key) || full).toBe(true);
+    }
+    const noFit = families.map((f) => fam(f.key));
+    for (let r = 1n; r <= 30n; r += 1n) {
+      const placed = new Set([...assignRegionFamilies({ regionId: r, places, families: noFit }).values()].flat());
+      expect(placed.size).toBe(noFit.length);
+    }
+  });
+
+  it('fills a lone place up to the most families a place holds', () => {
+    for (let r = 1n; r <= 10n; r += 1n) {
+      const map = assignRegionFamilies({ regionId: r, places: [places[0]!], families });
+      expect(map.get(12n)).toHaveLength(R.PLACE_FAMILIES_MAX);
+    }
+  });
+
+  it('gives the same map for the same input, and both families everywhere when there are two', () => {
+    const one = assignRegionFamilies({ regionId: 4n, places, families });
+    expect(assignRegionFamilies({ regionId: 4n, places: [...places].reverse(), families })).toEqual(one);
+    const two = assignRegionFamilies({ regionId: 4n, places, families: families.slice(0, 2) });
+    for (const keys of two.values()) expect([...keys].sort()).toEqual(['boars', 'wolves']);
+    expect(assignRegionFamilies({ regionId: 4n, places: [], families })).toEqual(new Map());
   });
 });
