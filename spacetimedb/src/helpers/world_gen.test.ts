@@ -6,14 +6,19 @@ import { fileURLToPath } from 'node:url';
 
 // Mock dependencies that import SpacetimeDB modules
 const poolCalls: bigint[] = [];
-vi.mock('./location', () => ({
-  // Same as the real helper: one row per direction.
+vi.mock('./location', async (importOriginal) => ({
+  // The real helpers (the region fill seeds resource pools from the gather tables, Plan 09) ...
+  ...(await importOriginal<typeof import('./location')>()),
+  // ... with connections as the real helper writes them: one row per direction.
   connectLocations: (ctx: any, fromId: bigint, toId: bigint) => {
     ctx.db.location_connection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
     ctx.db.location_connection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
   },
 }));
-vi.mock('./families', () => ({
+vi.mock('./families', async (importOriginal) => ({
+  // The real family layer (the region fill builds families and pools, Plan 09); only the lazy
+  // arrival net is recorded.
+  ...(await importOriginal<typeof import('./families')>()),
   ensurePoolsForLocation: (_ctx: any, locationId: bigint) => {
     poolCalls.push(locationId);
   },
@@ -398,7 +403,8 @@ describe('writeRegionFill', () => {
     expect(tx.db.location_connection._rows().some((c: any) => c.fromLocationId === start.id && c.toLocationId === boundary.id)).toBe(true);
   });
 
-  it('links every enemy to the new non-safe locations only', () => {
+  it("links every enemy's family to the new non-safe locations only", () => {
+    // Plan 09: step 6 is buildRegionFamilies, so the Wolf comes with its three filler members.
     const tx = createMockTx();
     const { locations } = writeBoth(
       tx,
@@ -411,8 +417,11 @@ describe('writeRegionFill', () => {
       }),
     );
     const links = tx.db.location_enemy_template._rows();
-    expect(links).toHaveLength(1);
-    expect(links[0].locationId).toBe(locations.find((l: any) => l.name === 'Dark Woods').id);
+    const wolf = tx.db.enemy_template._rows().find((t: any) => t.name === 'Wolf');
+    expect(links).toHaveLength(4);
+    expect(links.map((l: any) => l.enemyTemplateId)).toContain(wolf.id);
+    const darkWoods = locations.find((l: any) => l.name === 'Dark Woods').id;
+    expect(links.every((l: any) => l.locationId === darkWoods)).toBe(true);
   });
 
   it('places an NPC at its exact locationName, else at the start location', () => {
@@ -524,6 +533,101 @@ describe('writeRegionFill', () => {
         if (table === 'region' && row.id === 100n) continue;
         expect(rowColumnProblems(table, row)).toEqual([]);
       }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 09: the region fill builds families and pools by rule (D-20, D-25, D-26, D-61)
+// ---------------------------------------------------------------------------
+
+/** A strict tx (accessors from the recorded schema), with the gather items the fill's terrains read. */
+function createStrictTx(seed: Record<string, any[]> = {}) {
+  const items = ['Wood', 'Peat', 'Scrap Cloth', 'Flax', 'Herbs'].map((name, i) => ({ id: 700n + BigInt(i), name, slot: 'resource' }));
+  const db = createMockDb({ item_template: items, ...seed }, { strict: true });
+  return { db, timestamp: { microsSinceUnixEpoch: 1000000000000n } };
+}
+
+const rowsOf = (tx: any, table: string): any[] => tx.db._tables[table] ?? [];
+
+/** Three new places (woods and swamp hostile, plains camp safe) and two enemy types. */
+function familyFillReply(overrides: any = {}) {
+  return baseFillReply({
+    locations: [
+      { name: 'Sallow Wood', description: 'w', terrainType: 'woods', isSafe: false, levelOffset: 0, connectsTo: ['Safe Haven'] },
+      { name: 'Black Fen', description: 'f', terrainType: 'swamp', isSafe: false, levelOffset: 1, connectsTo: ['Sallow Wood'] },
+      { name: 'Reed Camp', description: 'c', terrainType: 'plains', isSafe: true, levelOffset: 0, connectsTo: ['Safe Haven'] },
+    ],
+    enemies: [
+      { name: 'Fen Stalker', creatureType: 'beast', role: 'melee', terrainTypes: 'woods, swamp', groupMin: 1, groupMax: 2, level: 2 },
+      { name: 'Drowned Seer', creatureType: 'undead', role: 'caster', terrainTypes: 'swamp', groupMin: 1, groupMax: 1, level: 2 },
+    ],
+    ...overrides,
+  });
+}
+
+describe('writeRegionFill builds families and pools by rule (Plan 09 Task 1)', () => {
+  it('two enemy types become two families with fillers, linked by terrain, rivals both ways, with creature and resource pools', () => {
+    const tx = createStrictTx({ region: [{ id: 100n, name: 'Source', dangerMultiplier: 100n }] });
+    const { region, startLocation, locations, boundary } = writeBoth(tx, baseStartReply(), familyFillReply());
+    const place = (name: string) => locations.find((l: any) => l.name === name);
+    const wood = place('Sallow Wood');
+    const fen = place('Black Fen');
+    const camp = place('Reed Camp');
+
+    const families = rowsOf(tx, 'creature_family');
+    expect(families.map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
+    const [beast, undead] = families;
+    const membersOf = (family: any) => rowsOf(tx, 'family_member').filter((m: any) => m.familyId === family.id);
+    for (const family of families) {
+      expect(membersOf(family).map((m: any) => m.role).sort()).toEqual(['caster', 'damage', 'healer', 'tank']);
+      expect(membersOf(family).filter((m: any) => m.filler)).toHaveLength(3);
+    }
+
+    const linkedAt = (loc: any) =>
+      rowsOf(tx, 'location_enemy_template').filter((l: any) => l.locationId === loc.id).map((l: any) => l.enemyTemplateId);
+    for (const m of membersOf(beast)) {
+      expect(linkedAt(wood)).toContain(m.enemyTemplateId);
+      expect(linkedAt(fen)).toContain(m.enemyTemplateId);
+    }
+    for (const m of membersOf(undead)) {
+      expect(linkedAt(fen)).toContain(m.enemyTemplateId);
+      expect(linkedAt(wood)).not.toContain(m.enemyTemplateId);
+    }
+    expect(linkedAt(startLocation)).toEqual([]);
+    expect(linkedAt(camp)).toEqual([]);
+
+    expect(rowsOf(tx, 'family_relation').map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([
+      [beast.id, undead.id, 'rival'],
+      [undead.id, beast.id, 'rival'],
+    ]);
+
+    const pools = (loc: any, kind: string) => rowsOf(tx, 'place_pool').filter((p: any) => p.locationId === loc.id && p.kind === kind);
+    expect(pools(wood, 'creature').map((p: any) => [p.refId, p.homeLevel])).toEqual([[beast.id, 2n]]);
+    expect(pools(fen, 'creature').map((p: any) => p.refId)).toEqual([beast.id, undead.id]);
+    expect(pools(fen, 'creature')[0].homeLevel).toBe(2n);
+    expect(pools(startLocation, 'creature')).toEqual([]);
+    expect(pools(camp, 'creature')).toEqual([]);
+    for (const loc of [startLocation, wood, fen, camp]) expect(pools(loc, 'resource').length).toBeGreaterThan(0);
+    expect(rowsOf(tx, 'place_pool').filter((p: any) => p.locationId === boundary.id)).toEqual([]);
+  });
+
+  it('a reply with no enemies still gets resource pools and no creature family', () => {
+    const tx = createStrictTx();
+    const { startLocation, locations } = writeBoth(tx, baseStartReply(), familyFillReply({ enemies: [] }));
+    expect(rowsOf(tx, 'creature_family')).toEqual([]);
+    expect(rowsOf(tx, 'place_pool').filter((p: any) => p.kind === 'creature')).toEqual([]);
+    for (const loc of [startLocation, ...locations]) {
+      expect(rowsOf(tx, 'place_pool').some((p: any) => p.locationId === loc.id && p.kind === 'resource')).toBe(true);
+    }
+  });
+
+  it('every family and pool row it writes matches the recorded schema', () => {
+    const tx = createStrictTx();
+    writeBoth(tx, baseStartReply(), familyFillReply());
+    for (const table of ['creature_family', 'family_member', 'family_relation', 'place_pool', 'pool_level']) {
+      expect(rowsOf(tx, table).length).toBeGreaterThan(0);
+      for (const row of rowsOf(tx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
     }
   });
 });

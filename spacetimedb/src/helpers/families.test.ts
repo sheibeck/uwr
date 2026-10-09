@@ -11,13 +11,16 @@ import { T0, REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_
 import { createPool } from './pools';
 import {
   addResourcePoolsForRegion,
+  buildRegionFamilies,
   createFamily,
   createRelations,
   ensurePoolsForLocation,
   familiesFromTemplates,
+  familyFitPlaces,
   familyOfOne,
   isOrdinaryTemplate,
   linkFamilyToLocation,
+  ruleRelations,
   seedCreaturePools,
   seedResourcePools,
   type FamilyDefinition,
@@ -756,5 +759,140 @@ describe('familyOfOne (D-54)', () => {
     expect(refs).toContain(GOBLINS_ID);
     expect(refs).toContain(family.id);
     expect(rows(ctx, 'family_member').filter((m: any) => m.enemyTemplateId === 950n)).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 09: region fill families by rule (D-20, D-25, D-26, D-61)
+// ---------------------------------------------------------------------------
+
+describe('ruleRelations (D-20 rule default)', () => {
+  it('every ordered pair of distinct families is a rival, deduplicated', () => {
+    expect(ruleRelations([1n, 2n, 2n, 3n])).toEqual([
+      { familyId: 1n, otherFamilyId: 2n, kind: 'rival' },
+      { familyId: 1n, otherFamilyId: 3n, kind: 'rival' },
+      { familyId: 2n, otherFamilyId: 1n, kind: 'rival' },
+      { familyId: 2n, otherFamilyId: 3n, kind: 'rival' },
+      { familyId: 3n, otherFamilyId: 1n, kind: 'rival' },
+      { familyId: 3n, otherFamilyId: 2n, kind: 'rival' },
+    ]);
+    expect(ruleRelations([4n])).toEqual([]);
+    expect(ruleRelations([])).toEqual([]);
+  });
+});
+
+describe('buildRegionFamilies (Plan 09)', () => {
+  const NEW_REGION = 2n;
+  const regionPlace = (id: bigint, name: string, terrainType: string, isSafe: boolean, isHub = false) => ({
+    ...placeRow(id, name, terrainType, isSafe, isHub),
+    regionId: NEW_REGION,
+  });
+  const fillSeed = () =>
+    poolWorld({
+      extra: {
+        region: [
+          { id: NEW_REGION, name: 'Mirefold', dangerMultiplier: 200n, regionType: 'generated', biome: 'swamp', landmarks: '[]', threats: '[]' },
+        ],
+        location: [
+          regionPlace(20n, 'Reed Landing', 'town', true),
+          regionPlace(21n, 'Sallow Wood', 'woods', false),
+          regionPlace(22n, 'Black Fen', 'swamp', false),
+          regionPlace(23n, 'Lantern Post', 'town', true, true),
+          regionPlace(24n, 'Mist Edge', 'uncharted', true),
+        ],
+        enemy_template: [
+          enemyTemplate(960n, 'Fen Stalker', 'melee', 'beast', { terrainTypes: 'woods, swamp' }),
+          enemyTemplate(961n, 'Drowned Seer', 'caster', 'undead', { terrainTypes: 'swamp' }),
+        ],
+        item_template: [itemRow(370n, 'Wood'), itemRow(371n, 'Peat'), itemRow(372n, 'Scrap Cloth')],
+      },
+    });
+  const regionRow = (ctx: any) => rows(ctx, 'region').find((r: any) => r.id === NEW_REGION);
+  const places = (ctx: any) => rows(ctx, 'location').filter((l: any) => l.regionId === NEW_REGION);
+  const templates = (ctx: any) => rows(ctx, 'enemy_template').filter((t: any) => t.id === 960n || t.id === 961n);
+  const linksAt = (ctx: any, locationId: bigint) =>
+    rows(ctx, 'location_enemy_template')
+      .filter((l: any) => l.locationId === locationId)
+      .map((l: any) => l.enemyTemplateId);
+
+  it('builds one family per creature type, links by terrain fit, pairs rivals and seeds the pools', () => {
+    const ctx = poolCtx(fillSeed());
+    const families = buildRegionFamilies(ctx, regionRow(ctx), templates(ctx), places(ctx), T0);
+
+    expect(families.map((f: any) => f.key)).toEqual(['2:beast', '2:undead']);
+    const [beast, undead] = families;
+    for (const family of families) {
+      const members = rows(ctx, 'family_member').filter((m: any) => m.familyId === family.id);
+      expect(members.map((m: any) => m.role).sort()).toEqual(['caster', 'damage', 'healer', 'tank']);
+    }
+    const beastMembers = rows(ctx, 'family_member').filter((m: any) => m.familyId === beast.id);
+    expect(beastMembers.filter((m: any) => m.filler)).toHaveLength(3);
+    expect(beastMembers.find((m: any) => !m.filler)).toMatchObject({ enemyTemplateId: 960n, role: 'tank' });
+
+    // Beasts fit woods and swamp; the undead fit only the swamp. Safe places, hubs and uncharted get no link.
+    for (const member of beastMembers) {
+      expect(linksAt(ctx, 21n)).toContain(member.enemyTemplateId);
+      expect(linksAt(ctx, 22n)).toContain(member.enemyTemplateId);
+    }
+    const undeadMembers = rows(ctx, 'family_member').filter((m: any) => m.familyId === undead.id);
+    for (const member of undeadMembers) {
+      expect(linksAt(ctx, 22n)).toContain(member.enemyTemplateId);
+      expect(linksAt(ctx, 21n)).not.toContain(member.enemyTemplateId);
+    }
+    for (const id of [20n, 23n, 24n]) expect(linksAt(ctx, id)).toEqual([]);
+
+    const relations = rows(ctx, 'family_relation')
+      .filter((r: any) => r.familyId === beast.id || r.familyId === undead.id)
+      .map((r: any) => [r.familyId, r.otherFamilyId, r.kind]);
+    expect(relations).toEqual([
+      [beast.id, undead.id, 'rival'],
+      [undead.id, beast.id, 'rival'],
+    ]);
+
+    expect(poolsHere(ctx, 21n, 'creature').map((p: any) => p.refId)).toEqual([beast.id]);
+    expect(poolsHere(ctx, 21n, 'creature')[0].homeLevel).toBe(2n);
+    const fen = poolsHere(ctx, 22n, 'creature');
+    expect(fen.map((p: any) => p.refId)).toEqual([beast.id, undead.id]);
+    expect(fen.map((p: any) => Number(p.homeLevel))).toEqual(creatureHomeLevels(2, poolSeed(22n, NEW_REGION)));
+    for (const id of [20n, 23n, 24n]) expect(poolsHere(ctx, id, 'creature')).toEqual([]);
+
+    // Resource pools at every charted place (the safe landing and the hub included), never uncharted.
+    for (const id of [20n, 21n, 22n, 23n]) expect(poolsHere(ctx, id, 'resource').length).toBeGreaterThan(0);
+    expect(poolsHere(ctx, 24n, 'resource')).toEqual([]);
+  });
+
+  it('a family that fits no host place lives at every host place', () => {
+    const seed = fillSeed();
+    seed.enemy_template = seed.enemy_template!.map((t: any) => (t.id === 961n ? { ...t, terrainTypes: 'mountains' } : t));
+    const ctx = poolCtx(seed);
+    const [, undead] = buildRegionFamilies(ctx, regionRow(ctx), templates(ctx), places(ctx), T0);
+    expect(poolsHere(ctx, 21n, 'creature').map((p: any) => p.refId)).toContain(undead.id);
+    expect(poolsHere(ctx, 22n, 'creature').map((p: any) => p.refId)).toContain(undead.id);
+  });
+
+  it('no templates: resource pools only, no family', () => {
+    const ctx = poolCtx(fillSeed());
+    const familiesBefore = rows(ctx, 'creature_family').length;
+    expect(buildRegionFamilies(ctx, regionRow(ctx), [], places(ctx), T0)).toEqual([]);
+    expect(rows(ctx, 'creature_family')).toHaveLength(familiesBefore);
+    expect(rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature')).toEqual([]);
+    expect(poolsHere(ctx, 21n, 'resource').length).toBeGreaterThan(0);
+  });
+
+  it('a second run for the same region inserts nothing', () => {
+    const ctx = poolCtx(fillSeed());
+    buildRegionFamilies(ctx, regionRow(ctx), templates(ctx), places(ctx), T0);
+    const tables = [...FAMILY_TABLES, 'place_pool', 'pool_level'];
+    const before = counts(ctx, tables);
+    buildRegionFamilies(ctx, regionRow(ctx), templates(ctx), places(ctx), T0);
+    expect(counts(ctx, tables)).toEqual(before);
+  });
+
+  it('familyFitPlaces (reused by Plan 23): host places of a fitting terrain, else every host place', () => {
+    const ctx = poolCtx(fillSeed());
+    const all = places(ctx);
+    expect(familyFitPlaces(['swamp'], all).map((p: any) => p.id)).toEqual([22n]);
+    expect(familyFitPlaces(['mountains'], all).map((p: any) => p.id)).toEqual([21n, 22n]);
+    expect(familyFitPlaces([], all).map((p: any) => p.id)).toEqual([21n, 22n]);
   });
 });
