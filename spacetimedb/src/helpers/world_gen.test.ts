@@ -53,13 +53,13 @@ import {
 } from './world_gen';
 import {
   askedFamilyCount,
+  familyCountFor,
   familySeed,
   feudCountFor,
   feudHappens,
   hubCountFor,
   hubHasStation,
   hubSeed,
-  keptFamilyCount,
   stationSeed,
 } from '../data/density_rules';
 import { enemyStatsForLevel } from '../data/enemy_rules';
@@ -483,7 +483,8 @@ describe('writeRegionFill', () => {
     expect(oswins.map((n: any) => n.description).sort()).toEqual(['A figure at the crossing.', 'Elsewhere is fine.']);
   });
 
-  it('adds the uncharted boundary on the last non-safe new location', () => {
+  it('adds the uncharted boundary on the farthest non-safe, non-hub place (ties by lowest id; Phase 51.3.1.2, D-05)', () => {
+    // Pit and Chapel are both 2 hops out; Chapel is flipped unsafe by the host floor; Pit has the lower id.
     const tx = createMockTx();
     const { region, boundary, locations } = writeBoth(
       tx,
@@ -501,7 +502,7 @@ describe('writeRegionFill', () => {
     expect(tx.db.location_connection._rows().some((c: any) => c.fromLocationId === pit.id && c.toLocationId === boundary.id)).toBe(true);
   });
 
-  it('anchors the boundary on the last new location when every new location is safe', () => {
+  it('anchors the boundary on the farthest place when every new location is marked safe (the host floor flips them; D-05)', () => {
     const tx = createMockTx();
     const { boundary, locations } = writeBoth(
       tx,
@@ -2061,9 +2062,9 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     const camp = locRow(ctx, 'Reed Camp');
     expect(camp).toMatchObject({ isHub: true, isSafe: true });
 
-    // Plan 29 (D-66): five places keep keptFamilyCount(5) families; the AI's two come first, the rest by rule.
+    // Plan 29 (D-66), Phase 51.3.1.2: five places keep familyCountFor(5) families; the AI's two come first, the rest by rule.
     const families = rows(ctx, 'creature_family');
-    expect(families).toHaveLength(keptFamilyCount(5));
+    expect(families).toHaveLength(familyCountFor(5));
     expect(families.slice(0, 2).map((f: any) => f.name)).toEqual(['Saltcrust Skitterers', 'Drowned Tollmen']);
     for (const f of families.slice(2)) expect(f.key.startsWith(`rule:${regionId}:`)).toBe(true);
     const [skitter, toll] = families;
@@ -2083,7 +2084,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     // 7 AI member templates, all new, AI-named, canonical roles (support -> healer), server stats and
     // abilities; the rule families add four filler members each (Plan 29).
     const templates = rows(ctx, 'enemy_template');
-    expect(templates).toHaveLength(7 + 4 * (keptFamilyCount(5) - 2));
+    expect(templates).toHaveLength(7 + 4 * (familyCountFor(5) - 2));
     expect(membersOf(ctx, skitter).map((m: any) => [m.role, m.filler])).toEqual([
       ['tank', false],
       ['damage', false],
@@ -2188,7 +2189,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     );
     // Plan 29 (D-66): the one AI family that survives comes first; the rest of the count is by rule.
     const families = rows(ctx, 'creature_family');
-    expect(families).toHaveLength(keptFamilyCount(5));
+    expect(families).toHaveLength(familyCountFor(5));
     const [family] = families;
     expect(family.key.startsWith(`ai:${regionId}:`)).toBe(true);
     expect(families.slice(1).every((f: any) => f.key.startsWith(`rule:${regionId}:`))).toBe(true);
@@ -2349,7 +2350,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     const ctx = aiCtx(regionId, 150n);
     const { region } = both(ctx, aiFillReply({ families: [null, 'x', 7], enemies: familyFillReply().enemies }));
     const keys = rows(ctx, 'creature_family').map((f: any) => f.key);
-    expect(keys).toHaveLength(keptFamilyCount(5));
+    expect(keys).toHaveLength(familyCountFor(5));
     expect(keys.every((k: string) => k.startsWith(`rule:${region.id}:`))).toBe(true);
     expect(rows(ctx, 'enemy_template').some((t: any) => t.name === 'Fen Stalker' || t.name === 'Drowned Seer')).toBe(false);
   });
@@ -2377,7 +2378,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     });
     both(ctx, aiFillReply());
     const fresh = rows(ctx, 'creature_family').filter((f: any) => f.id !== 900n);
-    expect(fresh).toHaveLength(keptFamilyCount(5));
+    expect(fresh).toHaveLength(familyCountFor(5));
     expect(fresh.map((f: any) => f.name)).not.toContain('Drowned Tollmen');
     const names = rows(ctx, 'enemy_template').map((t: any) => t.name);
     expect(names.filter((n: string) => n === 'Skitter Pincer')).toHaveLength(1);
@@ -2424,7 +2425,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
       };
     }
     const unsafeArrival = () => startReply({ terrainType: 'woods', isSafe: false });
-    const feudRegion = () => regionIdWhere(150n, 1, (id) => feudSize(id, keptFamilyCount(4)) >= 2);
+    const feudRegion = () => regionIdWhere(150n, 1, (id) => feudSize(id, familyCountFor(4)) >= 2);
 
     function sizedWorld(regionId = feudRegion(), fill: any = sizedReply()) {
       const ctx = aiCtx(regionId, 150n);
@@ -2432,9 +2433,9 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
       return { ctx, regionId, ...out };
     }
 
-    it('a region of four places keeps keptFamilyCount(4) = 6 families: the two AI ones, then four by rule with four fillers each (D-66)', () => {
+    it('a region of four places keeps familyCountFor(4) = 6 families: the two AI ones, then four by rule with four fillers each (D-66)', () => {
       const { ctx, regionId } = sizedWorld();
-      expect(keptFamilyCount(4)).toBe(6);
+      expect(familyCountFor(4)).toBe(6);
       const families = rows(ctx, 'creature_family');
       expect(families).toHaveLength(6);
       expect(families.slice(0, 2).map((f: any) => f.key)).toEqual([

@@ -46,12 +46,12 @@ import {
   askedFamilyCount,
   assignRegionFamilies,
   chooseHubs,
+  familyCountFor,
   familySeed,
   feudCountFor,
   hubCountFor,
   hubHasStation,
   hubSeed,
-  keptFamilyCount,
   stationSeed,
 } from '../data/density_rules';
 import {
@@ -472,22 +472,6 @@ function isConnected(tx: any, fromId: bigint, toId: bigint): boolean {
   return false;
 }
 
-/** Locations reachable from `startId` through connections that stay inside `allowed`. */
-function reachableWithin(tx: any, startId: bigint, allowed: Set<bigint>): Set<bigint> {
-  const seen = new Set<bigint>([startId]);
-  const queue: bigint[] = [startId];
-  while (queue.length > 0) {
-    const id = queue.shift() as bigint;
-    for (const conn of tx.db.location_connection.by_from.filter(id)) {
-      if (allowed.has(conn.toLocationId) && !seen.has(conn.toLocationId)) {
-        seen.add(conn.toLocationId);
-        queue.push(conn.toLocationId);
-      }
-    }
-  }
-  return seen;
-}
-
 /**
  * Stage 1: write the region, its one start location (the arrival point) and the first NPC (when the
  * reply has one) into the public tables. A non-starter region is connected both ways to the source
@@ -777,8 +761,9 @@ export function buildWorldFillInput(tx: any, genState: any): WorldFillInput {
     // The Hubs line (D-62): the same count placeRegionHubs enforces when the reply is written.
     hubCount: regionHubCount(region, genState.sourceRegionId === 0n),
     arrivalIsHub: start.isHub === true,
-    // The Families and Feud lines (D-66, D-70, D-71): the server's own counts. writeRegionFill recomputes
-    // them from the same seed (keptFamilyCount, feudCountFor), so the request and the write agree.
+    // The Families and Feud lines (D-66, D-70, D-71): the server's own counts. The write
+    // (writeRegionFamilies) counts the real charted places with familyCountFor; Plan 08 moves this
+    // request to the same count.
     familyCount: askedFamilyCount(),
     feudCount: feudCountFor(askedFamilyCount(), familySeed(region.id)),
   };
@@ -1104,16 +1089,63 @@ export function writeRegionPlaces(
   };
 }
 
+/** What the stage-2b writer did: the family rows, or a refusal decided before any write. */
+export type RegionFamiliesResult =
+  | { ok: true; families: any[] }
+  | { ok: false; reason: 'malformed' | 'empty' };
+
 /**
- * Stage 2 write: the rest of the region around the start location stage 1 wrote. Never renames or
- * duplicates stage-1 content (a location with the start location's name, or an earlier one, is
- * skipped; an NPC whose name already stands at its location is skipped). Every new location ends up
- * connected to the region; the hubs of the region are placed by the server count with the reply's
- * marks, each with a vendor and a banker (D-59 to D-64); the reply's place words are stored (D-46);
- * the reply's creature families are validated, completed by rule to the server's count for the
- * region's size, placed 3-5 to each host place, given a history each and one seeded feud (Plan 23,
- * Plan 29: D-66 to D-71), or, for an older reply, families are built by rule from its enemy types
- * (Plan 09, with rule histories and a feud by rule); and an uncharted boundary closes the region.
+ * Stage 2b write (Phase 51.3.1.2): the creature families of a region whose places stage 2a wrote.
+ *  - The places are regionChartedPlaces as they stand now (the arrival point first, the doorway never),
+ *    and the family count is familyCountFor of their number (D-66: 8, 9, 10 places give 12, 13, 15).
+ *  - A reply with no families array is malformed; a families array with no usable family is empty
+ *    unless `opts.ruleOnlyAllowed` (the legacy one-reply path) lets the rule fill the whole count. Both
+ *    refusals return before any write (D-08, T-51.3.1.2-15).
+ *  - Otherwise the AI's valid families come first and completeRegionFamilies fills the count by rule
+ *    with the seeded feud (D-70, D-71) and a history for every family (D-68); buildAiFamilies places
+ *    3-5 per host place (D-67), stores the relations and the feud, and seeds the pools.
+ */
+export function writeRegionFamilies(
+  tx: any,
+  reply: any,
+  region: any,
+  opts: { ruleOnlyAllowed: boolean },
+): RegionFamiliesResult {
+  if (!reply || typeof reply !== 'object' || !Array.isArray(reply.families)) return { ok: false, reason: 'malformed' };
+
+  const current = tx.db.region.id.find(region.id) ?? region;
+  const regionPlaces = regionChartedPlaces(tx, region.id);
+  const places = regionPlaces.map(familyPlace);
+  const isTaken = takenNameCheck(tx);
+  const familyCount = familyCountFor(regionPlaces.length);
+  const seed = familySeed(region.id);
+  // validateFamilies answers null both for a missing array (ruled out above) and for an array with no
+  // usable family: here null means empty.
+  const validated = validateFamilies(reply, { regionId: region.id, places, isTaken, familyCount }).families ?? [];
+  if (validated.length === 0 && !opts.ruleOnlyAllowed) return { ok: false, reason: 'empty' };
+
+  const { families, feudKeys } = completeRegionFamilies(validated, {
+    regionId: region.id,
+    regionName: String(current.name ?? ''),
+    places,
+    isTaken,
+    familyCount,
+    feudCount: feudCountFor(familyCount, seed),
+    seed,
+  });
+  const rows = buildAiFamilies(tx, region.id, families, feudKeys, regionPlaces, tx.timestamp.microsSinceUnixEpoch);
+  return { ok: true, families: rows };
+}
+
+/**
+ * The legacy one-reply region write, kept for in-flight compatibility: it serves a world_gen reply from
+ * a job queued before the 51.3.1.2 publish (one reply carrying the places and the families together).
+ *  1. writeRegionPlaces with no place count: no floor, at most REGION_PLACES_MAX - 1 new places, under
+ *     the same shape, gradient, hub, host-floor and doorway rules (D-03 to D-07);
+ *  2. a reply with a families array: writeRegionFamilies with rule completion allowed, so a reply whose
+ *     families all fail still gets the whole count by rule (D-66);
+ *  3. an older reply (enemies, no families): its enemy types grouped into families by rule (Plan 09,
+ *     D-20, D-25, D-26), with rule histories and a feud by rule (Plan 29), over the charted places.
  */
 export function writeRegionFill(
   tx: any,
@@ -1122,158 +1154,18 @@ export function writeRegionFill(
   region: any,
   startLocation: any,
 ): { locations: any[]; boundary: any | null } {
-  // 1. Canonical facts the stage-1 reply did not carry
-  const current = tx.db.region.id.find(region.id) ?? region;
-  tx.db.region.id.update({
-    ...current,
-    dominantFaction: fill.dominantFaction || current.dominantFaction || undefined,
-    landmarks: fill.landmarks ? JSON.stringify(fill.landmarks) : current.landmarks,
-    threats: fill.threats ? JSON.stringify(fill.threats) : current.threats,
-  });
-  const dangerMultiplier: bigint = current.dangerMultiplier;
+  const reply = fill && typeof fill === 'object' ? fill : {};
+  const placed = writeRegionPlaces(tx, reply, genState, region, startLocation, { placeCount: null });
+  if (!placed.ok) return { locations: [], boundary: null };
 
-  // 2. New locations: skip a name already taken, case-insensitively, by the start location or an earlier one
-  const taken = new Set<string>([lower(startLocation.name)]);
-  const byExactName = new Map<string, any>([[startLocation.name, startLocation]]);
-  const byLowerName = new Map<string, any>([[lower(startLocation.name), startLocation]]);
-  const newLocations: any[] = [];
-  const planned: { item: any; row: any }[] = [];
-  const locationItems: any[] = Array.isArray(fill.locations) ? fill.locations : [];
-  for (const loc of locationItems) {
-    if (!loc || typeof loc !== 'object') continue;
-    const name = String(loc.name || 'Unknown Location');
-    if (taken.has(lower(name))) continue;
-    taken.add(lower(name));
-    const isSafe = loc.isSafe === true;
-    // Place words (D-46): cleaned by the validator, '' when unusable or absent (an older reply).
-    const words = validatePlaceWords(loc);
-    const row = tx.db.location.insert({
-      id: 0n,
-      name,
-      description: loc.description || `A ${current.biome || 'mysterious'} stretch of ${region.name}.`,
-      zone: region.name,
-      regionId: region.id,
-      levelOffset: toBigIntSafe(loc.levelOffset, { min: -10n, max: 10n, fallback: 0n }),
-      isSafe,
-      terrainType: loc.terrainType && loc.terrainType !== 'uncharted' ? loc.terrainType : 'plains',
-      bindStone: false,
-      craftingAvailable: false,
-      shortName: words.shortName,
-      placeNoun: words.placeNoun,
-      isHub: false,
-    });
-    newLocations.push(row);
-    planned.push({ item: loc, row });
-    byExactName.set(name, row);
-    byLowerName.set(lower(name), row);
-  }
-
-  // 3. connectsTo against the start location plus the new names
-  for (const { item, row } of planned) {
-    if (!Array.isArray(item.connectsTo)) continue;
-    for (const targetName of item.connectsTo) {
-      const target = byLowerName.get(lower(targetName));
-      if (target && target.id !== row.id && !isConnected(tx, row.id, target.id)) {
-        connectLocations(tx, row.id, target.id);
-      }
-    }
-  }
-
-  // 4. Every new location is reachable from the start location: connect any that are not
-  //    (the first new location to the start location when no new location reached it)
-  const inRegion = new Set<bigint>([startLocation.id, ...newLocations.map((l: any) => l.id)]);
-  let reached = reachableWithin(tx, startLocation.id, inRegion);
-  for (const loc of newLocations) {
-    if (reached.has(loc.id)) continue;
-    connectLocations(tx, startLocation.id, loc.id);
-    reached = reachableWithin(tx, startLocation.id, inRegion);
-  }
-
-  // 4b. Hubs (D-60 to D-64): the server count, the reply marks, then the rule.
-  //     A hub is safe, so the families step below gives it no creature pool.
-  const isStarter = genState.sourceRegionId === 0n;
-  const insertedByLowerName = new Map<string, any>(planned.map(({ row }) => [lower(row.name), row] as [string, any]));
-  const hubs = placeRegionHubs(tx, {
-    region: current,
-    arrival: startLocation,
-    isStarter,
-    markedIds: readHubMarks(fill, startLocation, insertedByLowerName),
-  });
-
-  // 4c. The arrival point's place words from the reply (D-46), after the hub step rewrote its row.
-  writeArrivalPlaceWords(tx, startLocation, fill);
-
-  // 5. Families. The places are the arrival point and the new locations as they stand after the hub
-  //    step (a hub is safe and hosts no creatures; a non-safe, non-hub arrival point can, D-61).
-  const now: bigint = tx.timestamp.microsSinceUnixEpoch;
-  const regionPlaces = [startLocation, ...newLocations].map((loc: any) => tx.db.location.id.find(loc.id) ?? loc);
-  if (Array.isArray(fill.families)) {
-    // 5a. The approved reply (Plan 23, D-25, D-46) with the server's count (Plan 29, D-66): the AI's
-    //     first keptFamilyCount families in reply order, the rest by rule (completeRegionFamilies), so a
-    //     reply whose families all fail still gets the whole count; then the seeded feud (D-70, D-71)
-    //     and a history for every family (D-68). The places are all charted here (the boundary comes later).
-    const places = regionPlaces.map(familyPlace);
-    const isTaken = takenNameCheck(tx);
-    const familyCount = keptFamilyCount(regionPlaces.length);
-    const seed = familySeed(region.id);
-    const validated = validateFamilies(fill, { regionId: region.id, places, isTaken, familyCount }).families ?? [];
-    const { families, feudKeys } = completeRegionFamilies(validated, {
-      regionId: region.id,
-      regionName: String(current.name ?? ''),
-      places,
-      isTaken,
-      familyCount,
-      feudCount: feudCountFor(familyCount, seed),
-      seed,
-    });
-    buildAiFamilies(tx, region.id, families, feudKeys, regionPlaces, now);
+  if (Array.isArray(reply.families)) {
+    writeRegionFamilies(tx, reply, region, { ruleOnlyAllowed: true });
   } else {
-    // 5b. An older reply (enemies, no families: a job in flight at publish): today's enemy types, grouped
-    //     into families by rule (Plan 09, D-20, D-25, D-26), with rule histories and a feud by rule (Plan 29).
-    const enemyTemplateRows = insertReplyEnemyTemplates(tx, fill, dangerMultiplier);
-    buildRegionFamilies(tx, current, enemyTemplateRows, regionPlaces, now);
+    const current = tx.db.region.id.find(region.id) ?? region;
+    const enemyTemplateRows = insertReplyEnemyTemplates(tx, reply, current.dangerMultiplier ?? 100n);
+    buildRegionFamilies(tx, current, enemyTemplateRows, regionChartedPlaces(tx, region.id), tx.timestamp.microsSinceUnixEpoch);
   }
-  const nonSafeLocations = newLocations
-    .map((loc: any) => tx.db.location.id.find(loc.id) ?? loc)
-    .filter((loc: any) => !loc.isSafe);
-
-  // 7. NPCs: by exact locationName, else at the start location; never a repeat of a name already there
-  const npcItems: any[] = Array.isArray(fill.npcs) ? fill.npcs : [];
-  for (const npc of npcItems) {
-    if (!npc || typeof npc !== 'object') continue;
-    const npcLocation = byExactName.get(npc.locationName) ?? startLocation;
-    const storedName = npc.name || 'Unknown NPC';
-    const alreadyThere = [...tx.db.npc.by_location.filter(npcLocation.id)].some(
-      (n: any) => lower(n.name) === lower(storedName),
-    );
-    if (alreadyThere) continue;
-    insertRegionNpc(tx, npc, npcLocation.id);
-  }
-
-  // 8. A vendor and a banker at each hub, and none anywhere else in the region (D-59)
-  settleRegionServices(tx, region.id, hubs);
-
-  // 9. The uncharted boundary at the edge of the region (anchored on the places still non-safe after 4b)
-  const lastNonSafe = nonSafeLocations[nonSafeLocations.length - 1];
-  const boundaryAnchor = lastNonSafe ?? newLocations[newLocations.length - 1] ?? startLocation;
-  const boundary = tx.db.location.insert({
-    id: 0n,
-    name: `The Edge Beyond ${region.name || 'the Region'}`,
-    description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
-    zone: 'Uncharted',
-    regionId: region.id,
-    levelOffset: 0n,
-    isSafe: true,
-    terrainType: 'uncharted',
-    bindStone: false,
-    craftingAvailable: false,
-    shortName: '',
-    placeNoun: '',
-    isHub: false,
-  });
-  connectLocations(tx, boundaryAnchor.id, boundary.id);
-
-  return { locations: newLocations, boundary };
+  return { locations: placed.locations, boundary: placed.boundary };
 }
 
 /** A region row as the family validator sees it (D-61). */

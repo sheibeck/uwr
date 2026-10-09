@@ -9738,14 +9738,14 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
   ],
   "location_connection": [
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "1n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "2n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
       "fromLocationId": "2n",
@@ -11028,14 +11028,14 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
   ],
   "location_connection": [
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "1n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "2n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
       "fromLocationId": "2n",
@@ -12510,14 +12510,14 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
   ],
   "location_connection": [
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "1n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "2n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
       "fromLocationId": "2n",
@@ -13167,14 +13167,14 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
   ],
   "location_connection": [
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "1n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "2n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
       "fromLocationId": "2n",
@@ -13899,14 +13899,14 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
   ],
   "location_connection": [
     {
-      "fromLocationId": "2n",
+      "fromLocationId": "1n",
       "id": "1n",
-      "toLocationId": "1n"
+      "toLocationId": "2n"
     },
     {
-      "fromLocationId": "1n",
+      "fromLocationId": "2n",
       "id": "2n",
-      "toLocationId": "2n"
+      "toLocationId": "1n"
     },
     {
       "fromLocationId": "2n",
