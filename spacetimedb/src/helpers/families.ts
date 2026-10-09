@@ -9,13 +9,15 @@
 //   - ensurePoolsForLocation: the lazy safety net that replaces ensureSpawnsForLocation (Plan 08);
 //   - buildRegionFamilies (with ruleRelations, familyFitPlaces, linkFamilyToPlaces, seedRegionPools):
 //     a freshly filled region's families and pools by rule (Plan 09);
-//   - familyOfOne: a pool of its own for an AI-invented quest kill target (D-54).
+//   - familyOfOne: a pool of its own for an AI-invented quest kill target (D-54);
+//   - storeFeud / regionFamilyHistories: a region's seeded feud as mutual relations (D-70) and the
+//     family histories one NPC conversation is given (D-68), Plan 28.
 //
 // Every pool is created through pools.ts createPool. Stats come from enemyStatsForLevel and the role
 // profiles, abilities from memberAbilities. Deterministic: seeded picks only, "now" is passed in.
 
-import type { EnemyRole, FamilyRelation } from '../data/mechanical_vocabulary';
-import { FAMILY_RELATIONS } from '../data/mechanical_vocabulary';
+import type { EnemyRole, FamilyRelation, FamilyRelationKind } from '../data/mechanical_vocabulary';
+import { FAMILY_FEUD_KIND, FAMILY_RELATION_KINDS } from '../data/mechanical_vocabulary';
 import { enemyStatsForLevel } from '../data/enemy_rules';
 import {
   ROLE_ORDER,
@@ -64,6 +66,8 @@ export interface FamilyDefinition {
   ambushRest: string;
   fitTerrains: string[];
   members: FamilyMemberDefinition[];
+  /** One or two sentences of the family's past in its region (D-68); '' when absent. */
+  history?: string;
 }
 
 export interface FamilyRelationDef {
@@ -211,6 +215,7 @@ export function createFamily(ctx: any, regionId: bigint, def: FamilyDefinition, 
     ambushVerb: def.ambushVerb,
     ambushRest: def.ambushRest,
     fitTerrains: def.fitTerrains.join(','),
+    history: def.history ?? '',
   });
 
   const joined = new Set<bigint>();
@@ -248,16 +253,17 @@ export function linkFamilyToLocation(ctx: any, familyId: bigint, locationId: big
 
 /**
  * Stores a family's relations (D-20), find-or-create by (family, other family, kind). A self-relation
- * and a kind outside FAMILY_RELATIONS are ignored.
+ * and a kind outside FAMILY_RELATION_KINDS (the AI's FAMILY_RELATIONS plus the server's 'feud', D-70)
+ * are ignored.
  */
 export function createRelations(
   ctx: any,
   familyId: bigint,
-  relations: readonly { otherFamilyId: bigint; kind: FamilyRelation }[],
+  relations: readonly { otherFamilyId: bigint; kind: FamilyRelationKind }[],
 ): void {
   for (const relation of relations) {
     if (relation.otherFamilyId === familyId) continue;
-    if (!(FAMILY_RELATIONS as readonly string[]).includes(relation.kind)) continue;
+    if (!(FAMILY_RELATION_KINDS as readonly string[]).includes(relation.kind)) continue;
     const exists = [...ctx.db.family_relation.by_family.filter(familyId)].some(
       (row: any) => row.otherFamilyId === relation.otherFamilyId && row.kind === relation.kind,
     );
@@ -748,4 +754,50 @@ export function familyOfOne(ctx: any, template: any, questLocationId: bigint, no
     now,
   );
   return family;
+}
+
+// ---------------------------------------------------------------------------
+// The seeded feud (D-70) and the NPC history selection (D-68), Plan 28
+// ---------------------------------------------------------------------------
+
+/**
+ * Stores a region's feud as mutual 'feud' relations (D-70): every ordered pair of the distinct ids, so
+ * later systems (Phase 52.4 World Events) find the feud from either side. Fewer than
+ * FEUD_FAMILIES_MIN distinct families store nothing. Idempotent through createRelations.
+ */
+export function storeFeud(ctx: any, familyIds: readonly bigint[]): void {
+  const ids = [...new Set(familyIds)];
+  if (ids.length < DENSITY_RULES.FEUD_FAMILIES_MIN) return;
+  for (const id of ids) {
+    createRelations(
+      ctx,
+      id,
+      ids.filter((other) => other !== id).map((other) => ({ otherFamilyId: other, kind: FAMILY_FEUD_KIND })),
+    );
+  }
+}
+
+/**
+ * The family histories one NPC conversation in a region is given (D-68; read-only): the region's
+ * families with a non-empty history, never a 'quest:' family; those with a creature pool at the
+ * place first, then those in a feud, then the rest, each group by id; at most
+ * NPC_FAMILY_HISTORIES_MAX. Plan 30 feeds it to the NPC prompt.
+ */
+export function regionFamilyHistories(ctx: any, regionId: bigint, locationId: bigint): { name: string; history: string }[] {
+  const pooledHere = new Set<bigint>();
+  for (const pool of ctx.db.place_pool.by_location.filter(locationId)) {
+    if (pool.kind === 'creature') pooledHere.add(pool.refId);
+  }
+  const families = [...ctx.db.creature_family.by_region.filter(regionId)].filter(
+    (family: any) =>
+      !String(family.key ?? '').startsWith('quest:') && String(family.history ?? '').trim() !== '',
+  );
+  const inFeud = (family: any): boolean =>
+    [...ctx.db.family_relation.by_family.filter(family.id)].some((row: any) => row.kind === FAMILY_FEUD_KIND);
+  const rank = (family: any): number => (pooledHere.has(family.id) ? 0 : inFeud(family) ? 1 : 2);
+  const ranked = families.map((family: any) => ({ family, rank: rank(family) }));
+  ranked.sort((a, b) => a.rank - b.rank || byId(a.family, b.family));
+  return ranked
+    .slice(0, DENSITY_RULES.NPC_FAMILY_HISTORIES_MAX)
+    .map(({ family }) => ({ name: String(family.name), history: String(family.history).trim() }));
 }

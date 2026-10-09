@@ -2558,6 +2558,8 @@ export const CreatureFamily = table(
     ambushVerb: t.string(),
     ambushRest: t.string(),
     fitTerrains: t.string(), // comma list of terrain types
+    // D-68: one or two sentences of the family's past in its region; '' for families made before Phase 51.3.1.1 Plan 28
+    history: t.string().default(''),
   }
 );
 
