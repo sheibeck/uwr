@@ -373,7 +373,15 @@ describe('runRegionTrends: wilder and quieter regions (D-23)', () => {
 describe('runPoolTick and poolState', () => {
   it('poolState creates the singleton once with zero times', () => {
     const ctx = poolCtx(poolWorld());
-    expect(poolState(ctx)).toEqual({ id: 1n, version: 0n, lastHunterMicros: 0n, lastTrendMicros: 0n });
+    expect(poolState(ctx)).toEqual({
+      id: 1n,
+      version: 0n,
+      lastHunterMicros: 0n,
+      lastTrendMicros: 0n,
+      migrationFailRegionId: 0n,
+      migrationFailCount: 0n,
+      migrationSkippedRegions: '',
+    });
     poolState(ctx);
     expect(rows(ctx, 'pool_state')).toHaveLength(1);
   });
@@ -615,6 +623,80 @@ describe('tick_pools: the migration of an existing world, one region per run (51
     fire(ctx, t2 + CONTINUE);
     expect(version(ctx)).toBe(POOL_MIGRATION_VERSION);
     expect(pendingTicks(ctx)[0].afterRegionId).toBe(0n);
+  });
+
+  /** Wraps ctx.db so the node step throws only for places of region 1 (a region that fails every run). */
+  function failingRegionOne(ctx: any): void {
+    const realDb = ctx.db;
+    const regionOf = (locationId: bigint) => rows(ctx, 'location').find((l: any) => l.id === locationId)?.regionId;
+    ctx.db = new Proxy(realDb, {
+      get(target: any, name: string) {
+        if (name !== 'resource_node') return target[name];
+        const table = target[name];
+        return new Proxy(table, {
+          get(t2: any, prop: string) {
+            if (prop !== 'by_location') return t2[prop];
+            return {
+              filter: (locationId: bigint) => {
+                if (regionOf(locationId) === REGION_ID) throw new Error('boom');
+                return t2.by_location.filter(locationId);
+              },
+            };
+          },
+        });
+      },
+    });
+  }
+
+  it('a region that fails MIGRATION_MAX_ATTEMPTS runs in a row is skipped and recorded; the rest migrates (review A WR-02)', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    failingRegionOne(ctx);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const MAX = DENSITY_RULES.MIGRATION_MAX_ATTEMPTS;
+    expect(MAX).toBeGreaterThan(1n);
+
+    let t = T0;
+    fire(ctx, t, ARG);
+    for (let attempt = 2n; attempt < MAX; attempt += 1n) {
+      expect(pendingTicks(ctx)[0].afterRegionId).toBe(0n);
+      expect(rows(ctx, 'pool_state')[0]).toMatchObject({ migrationFailRegionId: REGION_ID, migrationFailCount: attempt - 1n });
+      t += CONTINUE;
+      fire(ctx, t);
+    }
+    expect(rows(ctx, 'pool_state')[0]).toMatchObject({ migrationFailRegionId: REGION_ID, migrationFailCount: MAX - 1n });
+    expect(version(ctx)).toBe(0n);
+
+    // The MAX-th failure skips region 1: the cursor moves past it, it is recorded, the record clears.
+    t += CONTINUE;
+    fire(ctx, t);
+    expect(pendingTicks(ctx)).toHaveLength(1);
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(1n);
+    expect(rows(ctx, 'pool_state')[0]).toMatchObject({
+      migrationFailRegionId: 0n,
+      migrationFailCount: 0n,
+      migrationSkippedRegions: '1',
+    });
+    expect(errors.mock.calls.filter((call) => String(call[0]).includes('skipped'))).toHaveLength(1);
+    expect(errors.mock.calls.filter((call) => String(call[0]).includes('migrating region 1'))).toHaveLength(Number(MAX));
+
+    // Region 2 still migrates, the version is set and the normal tick takes over.
+    t += CONTINUE;
+    fire(ctx, t);
+    expect(version(ctx)).toBe(POOL_MIGRATION_VERSION);
+    expect(rows(ctx, 'creature_family').some((f: any) => f.key === '2:beast')).toBe(true);
+    expect(atOf(pendingTicks(ctx)[0])).toBe(t + TICK);
+  });
+
+  it('a region that recovers before MIGRATION_MAX_ATTEMPTS clears its failure record', () => {
+    const ctx = poolCtx(twoRegionWorld(), MODULE, T0);
+    const restore = failingNodes(ctx);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    fire(ctx, T0, ARG);
+    expect(rows(ctx, 'pool_state')[0]).toMatchObject({ migrationFailRegionId: REGION_ID, migrationFailCount: 1n });
+    restore();
+    fire(ctx, T0 + CONTINUE);
+    expect(rows(ctx, 'pool_state')[0]).toMatchObject({ migrationFailRegionId: 0n, migrationFailCount: 0n, migrationSkippedRegions: '' });
+    expect(pendingTicks(ctx)[0].afterRegionId).toBe(1n);
   });
 
   it('a stale overlapping run that replays a region changes no family, pool or spawn', () => {

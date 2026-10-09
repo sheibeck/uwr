@@ -62,7 +62,15 @@ const POOL_COLUMNS: Record<string, string[]> = {
     'timeOfDay',
   ],
   pool_harvest: ['id', 'characterId', 'locationId', 'windowStartMicros', 'gathers', 'cappedUntilMicros', 'userId'],
-  pool_state: ['id', 'version', 'lastHunterMicros', 'lastTrendMicros'],
+  pool_state: [
+    'id',
+    'version',
+    'lastHunterMicros',
+    'lastTrendMicros',
+    'migrationFailRegionId',
+    'migrationFailCount',
+    'migrationSkippedRegions',
+  ],
   pool_region: ['regionId', 'trendSum'],
   pool_rumor: ['id', 'regionId', 'locationId', 'kind', 'familyId', 'otherFamilyId', 'atMicros'],
   pool_tick: ['scheduledId', 'scheduledAt', 'afterRegionId'],
@@ -185,6 +193,7 @@ const NEW_COLUMNS: Record<string, Record<string, string>> = {
   },
   economy_item: { familyId: 'u64' },
   pool_harvest: { userId: 'u64' },
+  pool_state: { migrationFailRegionId: 'u64', migrationFailCount: 'u64', migrationSkippedRegions: 'string' },
 };
 
 describe('defaulted columns on existing tables (additive only)', () => {

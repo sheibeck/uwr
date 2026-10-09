@@ -95,6 +95,7 @@ export const DENSITY_RULES = deepFreeze({
   POOL_TICK_MICROS: 60_000_000n, // the pool tick runs once a minute
   MIGRATION_CONTINUE_MICROS: 1_000_000n, // the migration cursor continues a second later
   MIGRATION_REGIONS_PER_RUN: 1, // regions migrated per run (bounded transactions)
+  MIGRATION_MAX_ATTEMPTS: 5n, // a region that fails this many runs in a row is skipped and recorded
 
   // --- Homes ---
   RESOURCE_POOLS_PER_PLACE: 4, // D-26: resource pools at a place

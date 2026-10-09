@@ -420,12 +420,34 @@ export function planMigrationStep(
 }
 
 /**
+ * Records one failed migration attempt of a region in pool_state (review A WR-02) and returns whether
+ * the region has now failed MIGRATION_MAX_ATTEMPTS runs in a row. On that last failure the region id
+ * is appended to migrationSkippedRegions (an admin check) and the failure record is cleared.
+ */
+function recordMigrationFailure(ctx: any, regionId: bigint): boolean {
+  const state = poolState(ctx);
+  const attempts = (state.migrationFailRegionId === regionId ? state.migrationFailCount ?? 0n : 0n) + 1n;
+  if (attempts < DENSITY_RULES.MIGRATION_MAX_ATTEMPTS) {
+    updatePoolState(ctx, { migrationFailRegionId: regionId, migrationFailCount: attempts });
+    return false;
+  }
+  const skipped = (state.migrationSkippedRegions ?? '').split(',').filter((id: string) => id !== '');
+  if (!skipped.includes(regionId.toString())) skipped.push(regionId.toString());
+  updatePoolState(ctx, { migrationFailRegionId: 0n, migrationFailCount: 0n, migrationSkippedRegions: skipped.join(',') });
+  return true;
+}
+
+/**
  * The migration work of one tick_pools run, after its reschedule (`next` is the row it inserted).
- * Each batch region is migrated in its own try/catch. When one fails, the error is logged, the rest
- * of the batch is skipped and `next` is replaced by a row due MIGRATION_CONTINUE_MICROS later whose
- * cursor is the last region that did migrate, so the next run retries the failed one (still one
- * pending row). When the batch was the last one and every region succeeded, pool_state.version
- * becomes POOL_MIGRATION_VERSION and the normal tick takes over. Returns whether every region succeeded.
+ * Each batch region is migrated in its own try/catch. When one fails, the error is logged and the
+ * failure counted in pool_state; the rest of the batch is skipped and `next` is replaced by a row due
+ * MIGRATION_CONTINUE_MICROS later whose cursor is the last region that did migrate, so the next run
+ * retries the failed one (still one pending row). A region that fails MIGRATION_MAX_ATTEMPTS runs in a
+ * row is skipped instead: one more error line says so, its id is recorded in
+ * pool_state.migrationSkippedRegions, and the step goes on as if it had migrated, so one bad region
+ * never stops the whole tick (review A WR-02). When the batch was the last one and every region
+ * succeeded or was skipped, pool_state.version becomes POOL_MIGRATION_VERSION and the normal tick
+ * takes over. Returns whether every region succeeded or was skipped.
  */
 export function runMigrationStep(ctx: any, step: MigrationStep, next: any, now: bigint): boolean {
   let lastDone = step.afterRegionId;
@@ -433,8 +455,18 @@ export function runMigrationStep(ctx: any, step: MigrationStep, next: any, now: 
     try {
       migrateRegion(ctx, regionId, now);
       lastDone = regionId;
+      if (poolState(ctx).migrationFailRegionId === regionId) {
+        updatePoolState(ctx, { migrationFailRegionId: 0n, migrationFailCount: 0n });
+      }
     } catch (error) {
       console.error(`tick_pools: migrating region ${regionId} failed: ${redactSecrets(String(error))}`);
+      if (recordMigrationFailure(ctx, regionId)) {
+        console.error(
+          `tick_pools: region ${regionId} failed ${DENSITY_RULES.MIGRATION_MAX_ATTEMPTS} migration runs in a row; skipped (pool_state.migrationSkippedRegions)`,
+        );
+        lastDone = regionId;
+        continue;
+      }
       // A scheduled row is cancelled by deleting it; the retry row takes its place.
       if (next?.scheduledId !== undefined) ctx.db.pool_tick.scheduledId.delete(next.scheduledId);
       ctx.db.pool_tick.insert({

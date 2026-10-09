@@ -2673,7 +2673,9 @@ export const PoolHarvest = table(
   }
 );
 
-// Singleton (id 1n): the migration version and the last hunter and trend runs.
+// Singleton (id 1n): the migration version and the last hunter and trend runs. The migration's
+// failure record (review A WR-02): the region that keeps failing and how many runs in a row it failed,
+// and the comma-separated ids of regions skipped after MIGRATION_MAX_ATTEMPTS (for an admin check).
 export const PoolState = table(
   { name: 'pool_state' },
   {
@@ -2681,6 +2683,9 @@ export const PoolState = table(
     version: t.u64(),
     lastHunterMicros: t.u64(),
     lastTrendMicros: t.u64(),
+    migrationFailRegionId: t.u64().default(0n),
+    migrationFailCount: t.u64().default(0n),
+    migrationSkippedRegions: t.string().default(''),
   }
 );
 

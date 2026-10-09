@@ -27,6 +27,11 @@ export interface PoolStateRow {
   version: bigint;
   lastHunterMicros: bigint;
   lastTrendMicros: bigint;
+  /** The region whose migration failed last (0n none) and its failures in a row (review A WR-02). */
+  migrationFailRegionId: bigint;
+  migrationFailCount: bigint;
+  /** Comma-separated ids of regions the migration skipped after MIGRATION_MAX_ATTEMPTS. */
+  migrationSkippedRegions: string;
 }
 
 const POOL_STATE_ID = 1n;
@@ -43,7 +48,15 @@ function logFailure(what: string, error: unknown): void {
 export function poolState(ctx: any): PoolStateRow {
   const existing = ctx.db.pool_state.id.find(POOL_STATE_ID);
   if (existing) return existing;
-  return ctx.db.pool_state.insert({ id: POOL_STATE_ID, version: 0n, lastHunterMicros: 0n, lastTrendMicros: 0n });
+  return ctx.db.pool_state.insert({
+    id: POOL_STATE_ID,
+    version: 0n,
+    lastHunterMicros: 0n,
+    lastTrendMicros: 0n,
+    migrationFailRegionId: 0n,
+    migrationFailCount: 0n,
+    migrationSkippedRegions: '',
+  });
 }
 
 /** Writes some fields of the singleton over the stored row (never over a stale copy). Plan 15 sets `version` through it. */
