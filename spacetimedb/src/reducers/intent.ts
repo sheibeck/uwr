@@ -1,5 +1,5 @@
 import { getAffinityForNpc, awardNpcAffinity } from '../helpers/npc_affinity';
-import { performTravel } from '../helpers/travel';
+import { performTravel, travelDeps } from '../helpers/travel';
 import { buildLookOutput } from '../helpers/look';
 import { parseLookCommand, describeLookTarget, lookMissLine } from '../helpers/examine';
 import { flattenLineBreaks } from '../helpers/chat_text';
@@ -1453,17 +1453,7 @@ export const registerIntentReducers = (deps: any) => {
         return fail(ctx, character, `No path leads to "${travelTarget}". ${hint}`);
       }
 
-      performTravel(ctx, {
-        appendSystemMessage: deps.appendSystemMessage,
-        appendPrivateEvent,
-        appendLocationEvent,
-        appendGroupEvent: deps.appendGroupEvent,
-        areLocationsConnected,
-        activeCombatIdForCharacter,
-        ensurePoolsForLocation: deps.ensurePoolsForLocation,
-        isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
-        effectiveGroupId: deps.effectiveGroupId,
-      }, character, matchedLocation.id);
+      performTravel(ctx, travelDeps(deps), character, matchedLocation.id);
       return;
     }
 
@@ -1638,17 +1628,7 @@ export const registerIntentReducers = (deps: any) => {
       if (loc.name.toLowerCase().includes(lower) && !implicitDest) { implicitDest = loc; }
     }
     if (implicitDest) {
-      performTravel(ctx, {
-        appendSystemMessage: deps.appendSystemMessage,
-        appendPrivateEvent,
-        appendLocationEvent,
-        appendGroupEvent: deps.appendGroupEvent,
-        areLocationsConnected,
-        activeCombatIdForCharacter,
-        ensurePoolsForLocation: deps.ensurePoolsForLocation,
-        isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
-        effectiveGroupId: deps.effectiveGroupId,
-      }, character, implicitDest.id);
+      performTravel(ctx, travelDeps(deps), character, implicitDest.id);
       return;
     }
 

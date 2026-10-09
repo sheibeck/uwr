@@ -8,6 +8,41 @@ import { beginCombatCooldowns } from './combat_round_state';
 import { markLocationVisited } from './visited';
 import { collapsePassageIfEmpty } from './passages';
 
+/** The deps performTravel needs (the fight start comes in through startCombat, the bound form). */
+export interface TravelDeps {
+  appendSystemMessage: (ctx: any, character: any, msg: string) => void;
+  appendPrivateEvent: (ctx: any, charId: bigint, ownerId: any, kind: string, msg: string) => void;
+  appendLocationEvent: (ctx: any, locationId: bigint, kind: string, msg: string, charId?: bigint) => void;
+  appendGroupEvent?: (ctx: any, groupId: bigint, charId: bigint, kind: string, msg: string) => void;
+  areLocationsConnected: (ctx: any, fromId: bigint, toId: bigint) => boolean;
+  activeCombatIdForCharacter: (ctx: any, charId: bigint) => bigint | undefined;
+  ensurePoolsForLocation: (ctx: any, locationId: bigint) => void;
+  isGroupLeaderOrSolo: (ctx: any, character: any) => boolean;
+  effectiveGroupId: (character: any) => bigint | undefined;
+  /** index.ts reducerDeps.startCombat: (ctx, leader, candidates, groupId, drawn, origin) => combat row. */
+  startCombat: (...args: any[]) => any;
+}
+
+/**
+ * The one deps builder for every travel caller (move_character and both typed travel paths), picked
+ * from the module deps bag, so no caller can miss a dependency (the fight start above all). Call it
+ * inside the reducer: index.ts fills reducerDeps.startCombat after the bag is built.
+ */
+export function travelDeps(deps: any): TravelDeps {
+  return {
+    appendSystemMessage: deps.appendSystemMessage,
+    appendPrivateEvent: deps.appendPrivateEvent,
+    appendLocationEvent: deps.appendLocationEvent,
+    appendGroupEvent: deps.appendGroupEvent,
+    areLocationsConnected: deps.areLocationsConnected,
+    activeCombatIdForCharacter: deps.activeCombatIdForCharacter,
+    ensurePoolsForLocation: deps.ensurePoolsForLocation,
+    isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
+    effectiveGroupId: deps.effectiveGroupId,
+    startCombat: deps.startCombat,
+  };
+}
+
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
  * Handles validation, stamina costs, cross-region cooldowns, group travel,
@@ -18,17 +53,7 @@ import { collapsePassageIfEmpty } from './passages';
  */
 export function performTravel(
   ctx: any,
-  deps: {
-    appendSystemMessage: (ctx: any, character: any, msg: string) => void;
-    appendPrivateEvent: (ctx: any, charId: bigint, ownerId: any, kind: string, msg: string) => void;
-    appendLocationEvent: (ctx: any, locationId: bigint, kind: string, msg: string, charId?: bigint) => void;
-    appendGroupEvent?: (ctx: any, groupId: bigint, charId: bigint, kind: string, msg: string) => void;
-    areLocationsConnected: (ctx: any, fromId: bigint, toId: bigint) => boolean;
-    activeCombatIdForCharacter: (ctx: any, charId: bigint) => bigint | undefined;
-    ensurePoolsForLocation: (ctx: any, locationId: bigint) => void;
-    isGroupLeaderOrSolo: (ctx: any, character: any) => boolean;
-    effectiveGroupId: (character: any) => bigint | undefined;
-  },
+  deps: TravelDeps,
   character: any,
   targetLocationId: bigint
 ): boolean {

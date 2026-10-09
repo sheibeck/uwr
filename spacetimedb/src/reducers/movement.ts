@@ -1,18 +1,10 @@
-import { performTravel } from '../helpers/travel';
+import { performTravel, travelDeps } from '../helpers/travel';
 
 export const registerMovementReducers = (deps: any) => {
   const {
     spacetimedb,
     t,
     requireCharacterOwnedBy,
-    areLocationsConnected,
-    activeCombatIdForCharacter,
-    appendPrivateEvent,
-    appendLocationEvent,
-    appendGroupEvent,
-    ensurePoolsForLocation,
-    isGroupLeaderOrSolo,
-    effectiveGroupId,
   } = deps;
 
   spacetimedb.reducer('move_character', { characterId: t.u64(), locationId: t.u64() }, (ctx: any, args: any) => {
@@ -22,16 +14,6 @@ export const registerMovementReducers = (deps: any) => {
       ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
     }
 
-    performTravel(ctx, {
-      appendSystemMessage: deps.appendSystemMessage,
-      appendPrivateEvent,
-      appendLocationEvent,
-      appendGroupEvent,
-      areLocationsConnected,
-      activeCombatIdForCharacter,
-      ensurePoolsForLocation,
-      isGroupLeaderOrSolo,
-      effectiveGroupId,
-    }, character, args.locationId);
+    performTravel(ctx, travelDeps(deps), character, args.locationId);
   });
 };
