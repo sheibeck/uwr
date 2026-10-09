@@ -107,6 +107,20 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       sourceRegionName: `${world} source`,
       neighborRegions: [{ name: `${world} neighbor`, biome: `${world} biome`, threats: `${world} threats` }],
     },
+    // Phase 51.3.1.2 (D-01): stage 2b, built from the stored 2a rows; no player text.
+    world_gen_families: {
+      regionName: `${world} region`,
+      biome: `${world} biome`,
+      dominantFaction: `${world} faction`,
+      threats: [`${world} threat`],
+      places: [
+        { name: `${world} start`, terrainType: 'plains', flag: 'ordinary' },
+        { name: `${world} town`, terrainType: 'town', flag: 'hub' },
+      ],
+      hubNames: [`${world} town`],
+      familyCount: 8,
+      feudCount: 2,
+    },
     skill_gen: {
       characterName: player,
       race: `${world} race`,

@@ -68,6 +68,20 @@ const INPUTS: { [R in LlmRoute]: RouteInputMap[R] } = {
     sourceRegionName: 'Ember Rise',
     neighborRegions: [{ name: 'Ember Rise', biome: 'volcanic', threats: 'ash wraiths' }],
   },
+  // Phase 51.3.1.2 (D-01): stage 2b, stored world rows only; a numeric-looking name stays a string.
+  world_gen_families: {
+    regionName: 'Cinder Vale',
+    biome: 'volcanic',
+    dominantFaction: 'The Slag Wardens',
+    threats: ['ash wraiths', '12'],
+    places: [
+      { name: 'Slag Gate', terrainType: 'town', flag: 'hub' },
+      { name: '345', terrainType: 'mountains', flag: 'ordinary' },
+    ],
+    hubNames: ['Slag Gate'],
+    familyCount: 8,
+    feudCount: 2,
+  },
   skill_gen: {
     characterName: EMOJI_NAME,
     race: 'Ashkin',
@@ -177,8 +191,8 @@ function roundTrip<R extends LlmRoute>(route: R, input: RouteInputMap[R]): Route
 }
 
 describe('golden round trip', () => {
-  it('has a fixture for every one of the eleven routes', () => {
-    expect(LLM_ROUTE_NAMES).toHaveLength(11);
+  it('has a fixture for every one of the twelve routes', () => {
+    expect(LLM_ROUTE_NAMES).toHaveLength(12);
     expect(Object.keys(INPUTS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
@@ -343,6 +357,7 @@ describe('ROUTE_BIGINT_PATHS', () => {
   it('has an entry for each new stage-1 route', () => {
     expect(ROUTE_BIGINT_PATHS.world_gen_start).toEqual([]);
     expect(ROUTE_BIGINT_PATHS.creation_class_reveal).toEqual([]);
+    expect(ROUTE_BIGINT_PATHS.world_gen_families).toEqual([]); // Phase 51.3.1.2: no bigint field
     expect(Object.keys(ROUTE_BIGINT_PATHS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 });
@@ -393,6 +408,17 @@ describe('smokeInputFor', () => {
     expect(world.biome).toBe('plains');
     expect(world.startLocation.name).toBe('The Crossing');
     expect(world.npcsPresent).toEqual([{ name: 'Tester', npcType: 'vendor', gender: 'male' }]);
+  });
+
+  it('the world_gen_families smoke input is a fixed small region with one hub (Phase 51.3.1.2, D-01)', () => {
+    const input = smokeInputFor('world_gen_families');
+    expect(input.regionName).toBe('The Threshold');
+    expect(input.places.map((p) => p.flag)).toEqual(['hub', 'ordinary', 'ordinary']);
+    expect(input.hubNames).toEqual(['The Crossing']);
+    expect(input.familyCount).toBe(3);
+    expect(input.feudCount).toBe(0);
+    const { volatile } = buildRouteLayers('world_gen_families', input);
+    expect(volatile).toContain('\nFamilies: three.\nFeud: none.\n');
   });
 
   it('the stage-1 smoke inputs are the old one-shot smoke inputs', () => {

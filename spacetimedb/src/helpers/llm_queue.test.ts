@@ -629,7 +629,28 @@ describe('per-player active-job cap', () => {
       'region_economy',
       'renown_perk_gen',
       'world_gen',
+      'world_gen_families',
     ]);
+  });
+
+  it('Phase 51.3.1.2 (D-01): a families job (2b) is never refused busy, though the 2a job still counts', () => {
+    // The 2b job is enqueued inside the 2a apply while the 2a job (received) still counts as active.
+    const held = [
+      seededJob(1n, 'world_gen', { status: 'received' }),
+      seededJob(2n, 'npc_conversation'),
+      seededJob(3n, 'skill_gen', { status: 'in_flight' }),
+    ];
+    const ctx = ctxAt({ llm_job: held });
+    expect(countActiveCappedJobs(ctx, PLAYER)).toBeGreaterThanOrEqual(LLM_PLAYER_MAX_ACTIVE_JOBS);
+    expect(npc(ctx).refused).toBe('busy'); // control: a new player request is still capped
+    const families = enqueueLlmJob(ctx, {
+      route: 'world_gen_families',
+      playerId: PLAYER,
+      sourceKey: SOURCE_KEYS.worldGen(5n),
+      request: { genStateId: '5' },
+    } as any);
+    expect(families.created).toBe(true);
+    expect(families.refused).toBeUndefined();
   });
 
   it('review WR-B01: a stage-2 fill is never refused busy, whatever else the player holds', () => {

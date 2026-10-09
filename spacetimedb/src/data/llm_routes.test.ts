@@ -8,6 +8,7 @@ import {
   CLASS_FILL_SCHEMA,
   WORLD_START_SCHEMA,
   REGION_FILL_SCHEMA,
+  WORLD_FAMILIES_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   COMBAT_NARRATION_SCHEMA,
@@ -23,6 +24,7 @@ const BASELINE_MAX_TOKENS: Record<LlmRoute, number> = {
   creation_class: 4096,
   world_gen_start: 4096,
   world_gen: 8192,
+  world_gen_families: 8192, // Phase 51.3.1.2 (D-01): as world_gen
   skill_gen: 4096,
   renown_perk_gen: 2048,
   npc_conversation: 1024,
@@ -37,6 +39,7 @@ const JSON_SCHEMAS: Partial<Record<LlmRoute, object>> = {
   creation_class: CLASS_FILL_SCHEMA,
   world_gen_start: WORLD_START_SCHEMA,
   world_gen: REGION_FILL_SCHEMA,
+  world_gen_families: WORLD_FAMILIES_SCHEMA,
   skill_gen: SKILL_GENERATION_SCHEMA,
   renown_perk_gen: RENOWN_PERK_SCHEMA,
   combat_narration: COMBAT_NARRATION_SCHEMA,
@@ -60,13 +63,14 @@ describe('llm_models', () => {
 });
 
 describe('LLM_ROUTES', () => {
-  it('has eleven unique route names in the fixed order matching the table keys', () => {
+  it('has twelve unique route names in the fixed order matching the table keys', () => {
     expect([...LLM_ROUTE_NAMES]).toEqual([
       'creation_race',
       'creation_class_reveal',
       'creation_class',
       'world_gen_start',
       'world_gen',
+      'world_gen_families',
       'skill_gen',
       'npc_conversation',
       'combat_narration',
@@ -74,8 +78,8 @@ describe('LLM_ROUTES', () => {
       'region_economy',
       'smoke_test',
     ]);
-    expect(LLM_ROUTE_NAMES).toHaveLength(11);
-    expect(new Set(LLM_ROUTE_NAMES).size).toBe(11);
+    expect(LLM_ROUTE_NAMES).toHaveLength(12);
+    expect(new Set(LLM_ROUTE_NAMES).size).toBe(12);
     expect(Object.keys(LLM_ROUTES).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
   });
 
@@ -135,6 +139,16 @@ describe('LLM_ROUTES', () => {
     expect(validateRoutes(LLM_ROUTES)).toEqual([]);
   });
 
+  it('world_gen_families (stage 2b, Phase 51.3.1.2 D-01) is a json route on WORLD_FAMILIES_SCHEMA, low effort, 150 s, right after world_gen', () => {
+    const cfg = LLM_ROUTES.world_gen_families;
+    expect(cfg.output).toEqual({ kind: 'json', schema: WORLD_FAMILIES_SCHEMA });
+    expect((cfg.output as { schema: object }).schema).toBe(WORLD_FAMILIES_SCHEMA);
+    expect(cfg.effort).toBe('low');
+    expect(cfg.timeoutMs).toBe(150_000);
+    expect(cfg.maxTokens).toBe(LLM_TUNING.world_gen_families.maxTokens);
+    expect(LLM_ROUTE_NAMES.indexOf('world_gen_families')).toBe(LLM_ROUTE_NAMES.indexOf('world_gen') + 1);
+  });
+
   it('stage timeouts follow the contract (timeouts stay at baseline; only effort and max_tokens are tuned)', () => {
     expect(LLM_ROUTES.creation_class_reveal.timeoutMs).toBe(60_000);
     expect(LLM_ROUTES.creation_class.timeoutMs).toBe(90_000);
@@ -157,7 +171,7 @@ describe('validateRoutes', () => {
 
   it('reports every route missing on an empty table', () => {
     const problems = validateRoutes({});
-    expect(problems).toHaveLength(11);
+    expect(problems).toHaveLength(12);
     for (const name of LLM_ROUTE_NAMES) expect(problems).toContain(`${name}: missing route`);
   });
 

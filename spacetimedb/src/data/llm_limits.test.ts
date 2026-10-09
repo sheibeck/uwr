@@ -59,6 +59,7 @@ describe('llm_limits constants (Phase 41)', () => {
         'creation_race',
         'smoke_test',
         'world_gen',
+        'world_gen_families', // Phase 51.3.1.2 (D-01): never auto-retried, like world_gen
         'world_gen_start',
       ].sort(),
     );
@@ -71,10 +72,11 @@ describe('llm_limits constants (Phase 41)', () => {
       'creation_class',
       'world_gen_start',
       'world_gen',
+      'world_gen_families', // Phase 51.3.1.2 (D-01): warms the 2b grammar
       'skill_gen',
       'renown_perk_gen',
     ]);
-    expect(L.LLM_SMOKE_ROUTES).toHaveLength(8);
+    expect(L.LLM_SMOKE_ROUTES).toHaveLength(9);
   });
 
   it('retry lifetime bound: a retrying route always finishes before the pending expiry', () => {
@@ -103,6 +105,8 @@ describe('llm_limits constants (Phase 41)', () => {
 describe('LLM_TRUNCATION_RETRY_ROUTES (Plan 51.3.1.1-32, deferred row 31)', () => {
   it('lists only npc_conversation, frozen, and shares no route with the no-auto-retry list', () => {
     expect([...L.LLM_TRUNCATION_RETRY_ROUTES]).toEqual(['npc_conversation']);
+    // Phase 51.3.1.2 (D-01): a truncated families reply fails into the families retry line, never an automatic retry.
+    expect(L.LLM_TRUNCATION_RETRY_ROUTES as readonly string[]).not.toContain('world_gen_families');
     expect(Object.isFrozen(L.LLM_TRUNCATION_RETRY_ROUTES)).toBe(true);
     for (const r of L.LLM_TRUNCATION_RETRY_ROUTES) {
       expect(isLlmRoute(r), r).toBe(true);

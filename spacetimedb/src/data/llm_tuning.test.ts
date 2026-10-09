@@ -98,6 +98,7 @@ describe('constants', () => {
       creation_class: [4096, 90_000],
       world_gen_start: [4096, 90_000],
       world_gen: [8192, 150_000],
+      world_gen_families: [8192, 150_000],
       skill_gen: [4096, 60_000],
       npc_conversation: [1024, 30_000],
       combat_narration: [1024, 20_000],
@@ -433,10 +434,16 @@ describe('lat06Decision', () => {
  *   - npc_conversation (Phase 51.3.1.1 Plan 32, a budget the owner raised): quest-offer replies passed the
  *     tuned 512 (jobs 8215-8217 stopped at max_tokens); the owner set 1024 as the hard ceiling, with one
  *     automatic retry on truncation, until a paid re-measurement.
+ *   - world_gen_families (Phase 51.3.1.2 Plan 04, D-01): the new stage 2b families route has no record at all;
+ *     its budget is the one the free reply-budget guard (llm_reply_budget.test.ts, D-12) accepts.
+ *   - region_economy (Phase 51.3.1.2 Plan 04, D-10): the medium economy of a bigger region asks for more
+ *     items than the measured 51.3 reply, so 6144 until the milestone-end measurement (D-12).
  */
 const RESHAPED_ROUTES: Partial<Record<LlmRoute, { maxTokens: number; timeoutMs: number }>> = {
   world_gen: { maxTokens: 6144, timeoutMs: 150_000 },
+  world_gen_families: { maxTokens: 7168, timeoutMs: 150_000 },
   npc_conversation: { maxTokens: 1024, timeoutMs: 30_000 },
+  region_economy: { maxTokens: 6144, timeoutMs: 90_000 },
 };
 
 describe('LLM_TUNING', () => {
@@ -472,6 +479,35 @@ describe('LLM_TUNING', () => {
     });
     expect(LLM_ROUTES.npc_conversation.maxTokens).toBe(1024);
     expect(LLM_TUNING.npc_conversation.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.npc_conversation.maxTokens);
+  });
+
+  it('world_gen_families is 7168 output tokens, low effort, 150 s and insufficient_data until a paid measurement (Plan 51.3.1.2-04, D-01, D-12)', () => {
+    expect(LLM_TUNING.world_gen_families).toEqual({
+      effort: 'low',
+      maxTokens: 7168,
+      timeoutMs: 150_000,
+      status: 'insufficient_data',
+      source: LLM_TUNING_SOURCE,
+      p99OutputTokens: null,
+      samples: 0,
+      tie: false,
+    });
+    expect(LLM_ROUTES.world_gen_families.maxTokens).toBe(7168);
+    expect(LLM_TUNING.world_gen_families.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.world_gen_families.maxTokens);
+  });
+
+  it('region_economy is 6144 output tokens and insufficient_data for the medium economy (Plan 51.3.1.2-04, D-10)', () => {
+    expect(LLM_TUNING.region_economy).toEqual({
+      effort: 'low',
+      maxTokens: 6144,
+      timeoutMs: 90_000,
+      status: 'insufficient_data',
+      source: LLM_TUNING_SOURCE,
+      p99OutputTokens: null,
+      samples: 0,
+      tie: false,
+    });
+    expect(LLM_ROUTES.region_economy.maxTokens).toBe(6144);
   });
 
   it('has one frozen entry per route', () => {
