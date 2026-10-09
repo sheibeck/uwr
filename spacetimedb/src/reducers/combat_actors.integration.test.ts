@@ -506,7 +506,7 @@ describe('pending adds arrive in rounds (RND-03)', () => {
   });
 });
 
-describe('resolve_pull: module-identity guard and adds in rounds', () => {
+describe('resolve_pull: module-identity guard and the drained careful pull', () => {
   const pullSeed = () => {
     const seed = startSeed({
       pull_state: [
@@ -523,7 +523,7 @@ describe('resolve_pull: module-identity guard and adds in rounds', () => {
     seed.enemy_template[0] = { ...seed.enemy_template[0], isSocial: true, socialRadius: 1n };
     return seed;
   };
-  // (now + spawnId 1 + characterId 1) % 100 = 75: past a careful pull's success band, inside its partial band
+  // The old careful pull rolled a partial result at this time; since Plan 11 nothing rolls here.
   const PARTIAL_AT = T0 + 73n;
   const pullArg = { arg: { scheduledId: 1n, scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: T0 } }, pullId: 1n } };
 
@@ -534,24 +534,15 @@ describe('resolve_pull: module-identity guard and adds in rounds', () => {
     expect(snapshotDb(ctx.db)).toBe(before);
   });
 
-  it('a partial pull in round 1 stores arriveAtRound 2 and says the adds will arrive in 2 rounds', () => {
+  it('a module call drains the pending pull (Phase 51.3.1.1 Plan 11, D-12): no fight, no adds, the row goes', () => {
     const ctx = fightCtx(pullSeed(), MODULE, PARTIAL_AT);
     handlers.resolve_pull(ctx, pullArg);
 
-    const pending = rows(ctx, 'combat_pending_add');
-    expect(pending).toHaveLength(1);
-    expect(pending[0]).toMatchObject({ combatId: 1n, spawnId: 2n, arriveAtRound: 2n });
-    expect(pending[0].arriveAtMicros).toBe(PARTIAL_AT + 2n * TEN_S);
-    expect(rowColumnProblems('combat_pending_add', pending[0])).toEqual([]);
-    expect(lines(ctx, 1n, /1 add will arrive in 2 rounds\./)).toHaveLength(1);
-    expect(lines(ctx, 1n, /in \d+s\./)).toHaveLength(0);
-
-    // the add has not joined after round 1 and is a combat enemy after round 2
-    fire(ctx, T0 + TEN_S);
-    expect(rows(ctx, 'combat_enemy')).toHaveLength(1);
-    fire(ctx, T0 + 2n * TEN_S);
-    expect(rows(ctx, 'combat_enemy')).toHaveLength(2);
+    expect(rows(ctx, 'pull_state')).toHaveLength(0);
     expect(rows(ctx, 'combat_pending_add')).toHaveLength(0);
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(0);
+    expect(lines(ctx, 1n, /add will arrive/)).toHaveLength(0);
   });
 });
 

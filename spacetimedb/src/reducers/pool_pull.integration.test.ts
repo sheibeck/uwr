@@ -11,7 +11,7 @@
  * resolve_pull draining.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { capturedReducer } from '../helpers/schema_recorder';
+import { capturedReducer, snapshotDb } from '../helpers/schema_recorder';
 import {
   T0,
   MODULE,
@@ -198,3 +198,105 @@ describe('pull_family refusals start nothing (T-51.3.1.1-33, T-51.3.1.1-34)', ()
   });
 });
 
+
+// ── Task 3: the careful pull and the ordinary spawn fallback are retired (D-12, SC3) ────────────────
+
+describe('start_combat, start_pull and resolve_pull serve individual spawns only', () => {
+  const SPAWN_ID = 900n;
+  /** The pool world with one individual spawn (a Goblin Brute) at the orchard, in `state`. */
+  function spawnWorld(state = 'available', locationId: bigint = ORCHARD_ID, extra: Record<string, any[]> = {}) {
+    return world(undefined, T0, (seed) => {
+      seed.enemy_spawn = [
+        { id: SPAWN_ID, locationId, enemyTemplateId: 101n, name: 'Goblin Brute', state, lockedCombatId: undefined, groupCount: 1n, level: 4n },
+      ];
+      for (const [table, more] of Object.entries(extra)) seed[table] = [...(seed[table] ?? []), ...more];
+    }).ctx;
+  }
+  const spawns = (ctx: any) => rows(ctx, 'enemy_spawn');
+  const NOT_HERE = 'That enemy is not here to fight.';
+
+  it('start_combat on an available spawn here starts that one fight', () => {
+    const ctx = spawnWorld();
+    handlers.start_combat(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID });
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+    expect(rows(ctx, 'combat_enemy').map((e: any) => e.enemyTemplateId)).toEqual([101n]);
+    expect(spawns(ctx)).toHaveLength(1);
+  });
+
+  for (const [label, id, state, at] of [
+    ['a missing spawn', 999n, 'available', ORCHARD_ID],
+    ['an engaged spawn', SPAWN_ID, 'engaged', ORCHARD_ID],
+    ['a spawn at another place', SPAWN_ID, 'available', 11n],
+  ] as const) {
+    it(`start_combat on ${label} refuses with a fail() line and spawns nothing`, () => {
+      const ctx = spawnWorld(state, at);
+      handlers.start_combat(ctx, { characterId: 1n, enemySpawnId: id });
+      expect(feed(ctx, 1n)).toContain(NOT_HERE);
+      expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+      expect(spawns(ctx)).toHaveLength(1);
+      expect(rows(ctx, 'enemy_spawn_member')).toHaveLength(0);
+    });
+  }
+
+  for (const pullType of ['careful', 'body']) {
+    it(`start_pull (${pullType}) starts the fight at once: no pull_state, no pull_tick`, () => {
+      const ctx = spawnWorld();
+      handlers.start_pull(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID, pullType });
+      expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+      expect(rows(ctx, 'combat_enemy').map((e: any) => e.enemyTemplateId)).toEqual([101n]);
+      expect(rows(ctx, 'combat_participant').map((p: any) => p.characterId).sort()).toEqual([1n, 2n]);
+      expect(rows(ctx, 'pull_state')).toHaveLength(0);
+      expect(rows(ctx, 'pull_tick')).toHaveLength(0);
+    });
+  }
+
+  it('start_pull on an unavailable spawn refuses and starts nothing', () => {
+    const ctx = spawnWorld('engaged');
+    handlers.start_pull(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID, pullType: 'careful' });
+    expect(feed(ctx, 1n)).toContain('Enemy is not available to pull');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+  });
+
+  it('start_pull while already fighting refuses (no second fight)', () => {
+    const ctx = spawnWorld();
+    handlers.start_combat(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID });
+    ctx.db._tables.enemy_spawn.push({ id: 901n, locationId: ORCHARD_ID, enemyTemplateId: 102n, name: 'Goblin Cutter', state: 'available', lockedCombatId: undefined, groupCount: 1n, level: 4n });
+    handlers.start_pull(ctx, { characterId: 1n, enemySpawnId: 901n, pullType: 'body' });
+    expect(feed(ctx, 1n)).toContain('Already in combat');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+  });
+
+  const pendingPull = {
+    id: 1n, characterId: 1n, groupId: undefined, locationId: ORCHARD_ID, enemySpawnId: SPAWN_ID,
+    pullType: 'careful', state: 'pending', outcome: undefined, delayedAdds: undefined,
+    delayedAddsAtMicros: undefined, createdAt: { microsSinceUnixEpoch: T0 },
+  };
+  const pullArg = { arg: { scheduledId: 1n, scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: T0 } }, pullId: 1n } };
+
+  it('resolve_pull (module) drains an old pending pull: the row goes, the spawn is released, no fight starts', () => {
+    const ctx = spawnWorld('pulling', ORCHARD_ID, { pull_state: [pendingPull] });
+    ctx.sender = MODULE;
+    handlers.resolve_pull(ctx, pullArg);
+    expect(rows(ctx, 'pull_state')).toHaveLength(0);
+    expect(spawns(ctx)[0].state).toBe('available');
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(0);
+  });
+
+  it('resolve_pull (module) with no pull_state row does nothing', () => {
+    const ctx = spawnWorld();
+    ctx.sender = MODULE;
+    const spawnBefore = { ...spawns(ctx)[0] };
+    handlers.resolve_pull(ctx, pullArg);
+    expect(rows(ctx, 'pull_state')).toHaveLength(0);
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
+    expect(spawns(ctx)).toEqual([spawnBefore]);
+  });
+
+  it('resolve_pull from a forged sender touches no db', () => {
+    const ctx = spawnWorld('pulling', ORCHARD_ID, { pull_state: [pendingPull] });
+    const before = snapshotDb(ctx.db);
+    handlers.resolve_pull(ctx, pullArg);
+    expect(snapshotDb(ctx.db)).toBe(before);
+  });
+});
