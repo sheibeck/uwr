@@ -6,13 +6,20 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { rowColumnProblems } from './schema_recorder';
 import { enemyStatsForLevel } from '../data/enemy_rules';
 import { memberAbilities } from '../data/family_rules';
-import { REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_ID, poolWorld, poolCtx } from './pool_fixture';
+import { DENSITY_RULES, creatureHomeLevels, homeCount, poolSeed } from '../data/density_rules';
+import { T0, REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_ID, poolWorld, poolCtx } from './pool_fixture';
+import { createPool } from './pools';
 import {
+  addResourcePoolsForRegion,
   createFamily,
   createRelations,
+  ensurePoolsForLocation,
   familiesFromTemplates,
+  familyOfOne,
   isOrdinaryTemplate,
   linkFamilyToLocation,
+  seedCreaturePools,
+  seedResourcePools,
   type FamilyDefinition,
 } from './families';
 
@@ -365,5 +372,389 @@ describe('createRelations', () => {
   });
 });
 
-// Keep the unused fixture ids referenced for later describe blocks.
-void MARKET_ID;
+// ---------------------------------------------------------------------------
+// Task 2: pool seeding, ensurePoolsForLocation, region resource pools, the family of one
+// ---------------------------------------------------------------------------
+
+const FOG_ID = 12n;
+
+function itemRow(id: bigint, name: string) {
+  return {
+    id,
+    name,
+    slot: 'resource',
+    armorType: 'none',
+    rarity: 'common',
+    tier: 1n,
+    isJunk: false,
+    vendorValue: 2n,
+    requiredLevel: 1n,
+    allowedClasses: 'any',
+    strBonus: 0n,
+    dexBonus: 0n,
+    chaBonus: 0n,
+    wisBonus: 0n,
+    intBonus: 0n,
+    hpBonus: 0n,
+    manaBonus: 0n,
+    armorClassBonus: 0n,
+    magicResistanceBonus: 0n,
+    weaponBaseDamage: 0n,
+    weaponDps: 0n,
+    weaponType: '',
+    stackable: true,
+    wellFedDurationMicros: 0n,
+    wellFedBuffType: '',
+    wellFedBuffMagnitude: 0n,
+  };
+}
+
+function gatherRow(itemTemplateId: bigint, terrain: string, rarity: string, timeOfDay = 'any') {
+  return {
+    itemTemplateId,
+    regionId: REGION_ID,
+    role: 'gather',
+    slotKey: `gather:${itemTemplateId.toString()}`,
+    kind: 'edible',
+    rarity,
+    terrain,
+    timeOfDay,
+    enemyTemplateId: 0n,
+    familyId: 0n,
+  };
+}
+
+function placeRow(id: bigint, name: string, terrainType: string, isSafe: boolean, isHub = false) {
+  return {
+    id,
+    name,
+    description: `${name}.`,
+    zone: 'z',
+    regionId: REGION_ID,
+    levelOffset: 0n,
+    isSafe,
+    terrainType,
+    bindStone: isHub,
+    craftingAvailable: isHub,
+    shortName: '',
+    placeNoun: '',
+    isHub,
+  };
+}
+
+const location = (ctx: any, id: bigint) => rows(ctx, 'location').find((l: any) => l.id === id);
+const poolsHere = (ctx: any, locationId: bigint, kind: string) =>
+  rows(ctx, 'place_pool').filter((p: any) => p.locationId === locationId && p.kind === kind);
+const nameOf = (ctx: any, itemId: bigint) => rows(ctx, 'item_template').find((i: any) => i.id === itemId)?.name;
+
+function thirdFamily() {
+  return {
+    id: 3n,
+    regionId: REGION_ID,
+    key: '1:undead',
+    name: 'Drowned Seers',
+    singularNoun: 'seer',
+    pluralNoun: 'seers',
+    temperament: 'aggressive',
+    iconKey: 'undead',
+    creatureType: 'undead',
+    ambushVerb: '',
+    ambushRest: '',
+    fitTerrains: 'swamp',
+  };
+}
+
+describe('seedCreaturePools (D-18, D-46)', () => {
+  it('seeds one pool per family at a non-safe place with rule home levels [2, 2, 1] in seeded order', () => {
+    const ctx = poolCtx(poolWorld({ extra: { creature_family: [thirdFamily()] } }));
+    const created = seedCreaturePools(ctx, location(ctx, ORCHARD_ID), [GOBLINS_ID, SKITTERERS_ID, 3n], T0);
+    const expected = creatureHomeLevels(3, poolSeed(ORCHARD_ID, REGION_ID));
+    expect([...expected].sort()).toEqual([1, 2, 2]);
+    expect(created.map((p: any) => p.refId)).toEqual([GOBLINS_ID, SKITTERERS_ID, 3n]);
+    expect(created.map((p: any) => Number(p.homeLevel))).toEqual(expected);
+    expect(created.map((p: any) => p.count)).toEqual(expected.map((level) => homeCount('creature', level)));
+    for (const pool of created) {
+      expect(pool).toMatchObject({ kind: 'creature', regionId: REGION_ID, locationId: ORCHARD_ID, timeOfDay: 'any' });
+      expect(rows(ctx, 'pool_level').some((l: any) => l.id === pool.id)).toBe(true);
+    }
+  });
+
+  it('never seeds a safe place, a hub or an uncharted place', () => {
+    const ctx = poolCtx(poolWorld({ extra: { location: [placeRow(FOG_ID, 'Fog Edge', 'uncharted', false)] } }));
+    expect(seedCreaturePools(ctx, location(ctx, MARKET_ID), [GOBLINS_ID], T0)).toEqual([]);
+    expect(seedCreaturePools(ctx, location(ctx, FOG_ID), [GOBLINS_ID], T0)).toEqual([]);
+    expect(rows(ctx, 'place_pool')).toEqual([]);
+  });
+
+  it('is idempotent', () => {
+    const ctx = poolCtx(poolWorld());
+    seedCreaturePools(ctx, location(ctx, ORCHARD_ID), [GOBLINS_ID, SKITTERERS_ID], T0);
+    const before = rows(ctx, 'place_pool').length;
+    seedCreaturePools(ctx, location(ctx, ORCHARD_ID), [GOBLINS_ID, SKITTERERS_ID], T0);
+    expect(rows(ctx, 'place_pool')).toHaveLength(before);
+  });
+});
+
+describe('seedResourcePools (D-26, D-38, D-55)', () => {
+  it('home levels by rarity: common 3, regional uncommon 2, modifier reagent 1', () => {
+    const seed = poolWorld({
+      extra: {
+        item_template: [itemRow(310n, 'Glassbloom'), itemRow(311n, 'Wisdom Herb')],
+        economy_item: [gatherRow(310n, 'woods', 'uncommon')],
+      },
+    });
+    const ctx = poolCtx(seed);
+    const created = seedResourcePools(ctx, location(ctx, ORCHARD_ID), T0);
+    const byName = Object.fromEntries(created.map((p: any) => [nameOf(ctx, p.refId), p]));
+    expect(Object.keys(byName).sort()).toEqual(['Glassbloom', 'Iron Ore', 'Wild Berries', 'Wisdom Herb']);
+    expect(byName['Wild Berries']).toMatchObject({ homeLevel: 3n, count: 100n, timeOfDay: 'any', kind: 'resource' });
+    expect(byName['Iron Ore']).toMatchObject({ homeLevel: 3n, count: 100n });
+    expect(byName['Glassbloom']).toMatchObject({ homeLevel: 2n, count: 66n });
+    expect(byName['Wisdom Herb']).toMatchObject({ homeLevel: 1n, count: 33n });
+  });
+
+  it('keeps night on the pool and its level row; the same template as any and night is stored as any', () => {
+    const seed = poolWorld({ extra: { item_template: [itemRow(312n, 'Moonweave Cloth')] } });
+    seed.economy_item = [gatherRow(302n, 'woods', 'common', 'night'), ...seed.economy_item!];
+    const ctx = poolCtx(seed);
+    const created = seedResourcePools(ctx, location(ctx, ORCHARD_ID), T0);
+    const byName = Object.fromEntries(created.map((p: any) => [nameOf(ctx, p.refId), p]));
+    expect(Object.keys(byName).sort()).toEqual(['Iron Ore', 'Moonweave Cloth', 'Wild Berries']);
+    expect(byName['Moonweave Cloth']).toMatchObject({ timeOfDay: 'night', homeLevel: 1n });
+    const level = rows(ctx, 'pool_level').find((l: any) => l.id === byName['Moonweave Cloth'].id);
+    expect(level.timeOfDay).toBe('night');
+    expect(byName['Wild Berries']).toMatchObject({ timeOfDay: 'any', homeLevel: 3n });
+  });
+
+  it('picks at most RESOURCE_POOLS_PER_PLACE distinct items and never one pinned to 0', () => {
+    const woods = ['Wood', 'Resin', 'Dry Grass', 'Bitter Herbs', 'Clear Water'];
+    const seed = poolWorld({
+      extra: {
+        item_template: woods.map((name, i) => itemRow(320n + BigInt(i), name)),
+        economy_item_dial: [{ itemTemplateId: 320n, dropRatePct: 0n }],
+      },
+    });
+    for (const placeId of [ORCHARD_ID, 30n, 31n, 32n, 33n]) {
+      const s = { ...seed, location: [...seed.location!, placeRow(30n, 'A', 'woods', false), placeRow(31n, 'B', 'woods', false), placeRow(32n, 'C', 'woods', false), placeRow(33n, 'D', 'woods', true)] };
+      const ctx = poolCtx(s);
+      const created = seedResourcePools(ctx, location(ctx, placeId), T0);
+      expect(created.length).toBe(DENSITY_RULES.RESOURCE_POOLS_PER_PLACE);
+      const ids = created.map((p: any) => p.refId);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).not.toContain(320n);
+    }
+  });
+
+  it('seeds a safe town, never an uncharted place, and adds nothing on a rerun', () => {
+    const seed = poolWorld({
+      extra: {
+        item_template: [itemRow(330n, 'Clear Water')],
+        location: [placeRow(FOG_ID, 'Fog Edge', 'uncharted', false)],
+      },
+    });
+    const ctx = poolCtx(seed);
+    const town = seedResourcePools(ctx, location(ctx, MARKET_ID), T0);
+    expect(town.map((p: any) => nameOf(ctx, p.refId))).toEqual(['Clear Water']);
+    expect(seedResourcePools(ctx, location(ctx, FOG_ID), T0)).toEqual([]);
+    const before = rows(ctx, 'place_pool').length;
+    seedResourcePools(ctx, location(ctx, MARKET_ID), T0);
+    expect(rows(ctx, 'place_pool')).toHaveLength(before);
+  });
+});
+
+describe('ensurePoolsForLocation (lazy safety net)', () => {
+  const flatsSeed = () =>
+    poolWorld({
+      extra: {
+        enemy_template: [
+          enemyTemplate(901n, 'Drowned Seer', 'caster', 'undead'),
+          enemyTemplate(902n, 'Bog Wight', 'melee', 'undead'),
+          enemyTemplate(903n, 'Mire Spark', 'caster', 'elemental'),
+          enemyTemplate(904n, 'Mire King', 'melee', 'undead', { isBoss: true }),
+        ],
+        location_enemy_template: [901n, 902n, 903n, 904n, 201n].map((tid, i) => ({
+          id: BigInt(i + 1),
+          locationId: FLATS_ID,
+          enemyTemplateId: tid,
+        })),
+        item_template: [itemRow(340n, 'Peat'), itemRow(341n, 'Murky Water')],
+        location: [placeRow(FOG_ID, 'Fog Edge', 'uncharted', false)],
+      },
+    });
+
+  it('groups linked ordinary templates into families, links them and seeds creature and resource pools', () => {
+    const ctx = poolCtx(flatsSeed());
+    ensurePoolsForLocation(ctx, FLATS_ID);
+
+    const families = rows(ctx, 'creature_family');
+    const undead = families.find((f: any) => f.key === '1:undead');
+    const elemental = families.find((f: any) => f.key === '1:elemental');
+    expect(undead).toBeTruthy();
+    expect(elemental).toBeTruthy();
+    expect(families).toHaveLength(4);
+
+    const undeadMembers = rows(ctx, 'family_member').filter((m: any) => m.familyId === undead.id);
+    expect(undeadMembers.map((m: any) => [m.enemyTemplateId, m.role])).toEqual(
+      expect.arrayContaining([
+        [901n, 'caster'],
+        [902n, 'tank'],
+      ]),
+    );
+    expect(rows(ctx, 'family_member').some((m: any) => m.enemyTemplateId === 904n)).toBe(false);
+
+    const linked = rows(ctx, 'location_enemy_template')
+      .filter((l: any) => l.locationId === FLATS_ID)
+      .map((l: any) => l.enemyTemplateId);
+    for (const member of undeadMembers) expect(linked).toContain(member.enemyTemplateId);
+
+    const creature = poolsHere(ctx, FLATS_ID, 'creature').map((p: any) => p.refId);
+    expect(creature.sort()).toEqual([SKITTERERS_ID, undead.id, elemental.id].sort());
+    expect(poolsHere(ctx, FLATS_ID, 'resource').length).toBeGreaterThan(0);
+  });
+
+  it('a second call changes nothing and reads only the pools', () => {
+    const ctx = poolCtx(flatsSeed());
+    ensurePoolsForLocation(ctx, FLATS_ID);
+    const snapshot = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    const db = ctx.db;
+    ctx.db = new Proxy(db, {
+      get(target: any, name: string) {
+        if (name === 'location_enemy_template' || name === 'creature_family' || name === 'item_template') {
+          throw new Error(`unexpected read of ${name}`);
+        }
+        return target[name];
+      },
+    });
+    ensurePoolsForLocation(ctx, FLATS_ID);
+    ctx.db = db;
+    expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).toBe(snapshot);
+  });
+
+  it('never seeds creature pools at a safe place and never touches an uncharted place', () => {
+    const seed = flatsSeed();
+    seed.location_enemy_template = [
+      ...seed.location_enemy_template!,
+      { id: 50n, locationId: MARKET_ID, enemyTemplateId: 901n },
+      { id: 51n, locationId: FOG_ID, enemyTemplateId: 902n },
+    ];
+    seed.item_template = [...seed.item_template!, itemRow(342n, 'Clear Water')];
+    const ctx = poolCtx(seed);
+    ensurePoolsForLocation(ctx, MARKET_ID);
+    expect(poolsHere(ctx, MARKET_ID, 'creature')).toEqual([]);
+    expect(poolsHere(ctx, MARKET_ID, 'resource').length).toBeGreaterThan(0);
+    expect(rows(ctx, 'creature_family')).toHaveLength(2);
+
+    const before = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    ensurePoolsForLocation(ctx, FOG_ID);
+    ensurePoolsForLocation(ctx, 9999n);
+    expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).toBe(before);
+  });
+});
+
+describe('addResourcePoolsForRegion (D-48)', () => {
+  it("adds the region's AI gatherables at every place of matching terrain, beyond the per-place count", () => {
+    const seed = poolWorld({
+      extra: {
+        item_template: [itemRow(350n, 'Glassbloom'), itemRow(351n, 'Saltmoss'), itemRow(352n, 'Pan Salt')],
+        economy_item: [gatherRow(350n, 'woods', 'uncommon', 'night'), gatherRow(351n, 'swamp', 'rare'), gatherRow(352n, 'town', 'common')],
+      },
+    });
+    const ctx = poolCtx(seed);
+    for (let i = 0n; i < 4n; i += 1n) {
+      createPool(ctx, { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'resource', refId: 400n + i, homeLevel: 2 }, T0);
+    }
+    addResourcePoolsForRegion(ctx, REGION_ID, T0);
+
+    const orchard = poolsHere(ctx, ORCHARD_ID, 'resource');
+    expect(orchard).toHaveLength(6);
+    expect(orchard.find((p: any) => p.refId === 301n)).toMatchObject({ homeLevel: 3n, timeOfDay: 'any' });
+    expect(orchard.find((p: any) => p.refId === 350n)).toMatchObject({ homeLevel: 2n, timeOfDay: 'night' });
+    expect(poolsHere(ctx, FLATS_ID, 'resource').map((p: any) => [p.refId, p.homeLevel])).toEqual([[351n, 1n]]);
+    expect(poolsHere(ctx, MARKET_ID, 'resource').map((p: any) => p.refId)).toEqual([352n]);
+
+    const before = rows(ctx, 'place_pool').length;
+    addResourcePoolsForRegion(ctx, REGION_ID, T0);
+    expect(rows(ctx, 'place_pool')).toHaveLength(before);
+  });
+});
+
+describe('familyOfOne (D-54)', () => {
+  const questSeed = () =>
+    poolWorld({
+      extra: {
+        enemy_template: [
+          enemyTemplate(950n, 'Gloomfang', 'melee', 'beast', { terrainTypes: 'any', socialGroup: 'loner', groupMax: 1n }),
+        ],
+        location: [placeRow(5n, 'Quiet Chapel', 'town', true), placeRow(6n, 'Lone Shrine', 'town', true)],
+        location_connection: [
+          { id: 20n, fromLocationId: MARKET_ID, toLocationId: FLATS_ID },
+          { id: 21n, fromLocationId: MARKET_ID, toLocationId: 5n },
+        ],
+      },
+    });
+  const template = (ctx: any) => rows(ctx, 'enemy_template').find((t: any) => t.id === 950n);
+
+  it('at a non-safe place: family quest:<id> with one member and a Scarce pool there', () => {
+    const ctx = poolCtx(questSeed());
+    const templatesBefore = rows(ctx, 'enemy_template').length;
+    const family = familyOfOne(ctx, template(ctx), ORCHARD_ID, T0);
+
+    expect(family).toMatchObject({
+      key: 'quest:950',
+      name: 'Gloomfangs',
+      singularNoun: 'gloomfang',
+      pluralNoun: 'gloomfangs',
+      temperament: 'aggressive',
+      iconKey: 'beast',
+      creatureType: 'beast',
+    });
+    expect(rows(ctx, 'enemy_template')).toHaveLength(templatesBefore);
+    expect(rows(ctx, 'family_member').filter((m: any) => m.familyId === family.id)).toEqual([
+      expect.objectContaining({ enemyTemplateId: 950n, role: 'damage', filler: false }),
+    ]);
+    expect(template(ctx).role).toBe('damage');
+    const pools = poolsHere(ctx, ORCHARD_ID, 'creature').filter((p: any) => p.refId === family.id);
+    expect(pools).toHaveLength(1);
+    expect(pools[0]).toMatchObject({ homeLevel: 1n, count: 25n });
+    expect(
+      rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === ORCHARD_ID && l.enemyTemplateId === 950n),
+    ).toBe(true);
+  });
+
+  it('at a safe place: the pool goes to the lowest-id non-safe connected place', () => {
+    const ctx = poolCtx(questSeed());
+    const family = familyOfOne(ctx, template(ctx), MARKET_ID, T0);
+    const pools = rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature' && p.refId === family.id);
+    expect(pools.map((p: any) => p.locationId)).toEqual([ORCHARD_ID]);
+  });
+
+  it('with no non-safe place nearby: the family and no pool', () => {
+    const ctx = poolCtx(questSeed());
+    const family = familyOfOne(ctx, template(ctx), 6n, T0);
+    expect(family.key).toBe('quest:950');
+    expect(rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature')).toEqual([]);
+  });
+
+  it('is idempotent', () => {
+    const ctx = poolCtx(questSeed());
+    const first = familyOfOne(ctx, template(ctx), ORCHARD_ID, T0);
+    const before = counts(ctx, [...FAMILY_TABLES, 'place_pool', 'pool_level']);
+    const second = familyOfOne(ctx, template(ctx), ORCHARD_ID, T0);
+    expect(second.id).toBe(first.id);
+    expect(counts(ctx, [...FAMILY_TABLES, 'place_pool', 'pool_level'])).toEqual(before);
+  });
+
+  it('seeds the place first, so its ordinary families still get pools', () => {
+    const seed = questSeed();
+    seed.location_enemy_template = [
+      { id: 60n, locationId: ORCHARD_ID, enemyTemplateId: 101n },
+      { id: 61n, locationId: ORCHARD_ID, enemyTemplateId: 950n },
+    ];
+    const ctx = poolCtx(seed);
+    const family = familyOfOne(ctx, template(ctx), ORCHARD_ID, T0);
+    const refs = poolsHere(ctx, ORCHARD_ID, 'creature').map((p: any) => p.refId);
+    expect(refs).toContain(GOBLINS_ID);
+    expect(refs).toContain(family.id);
+    expect(rows(ctx, 'family_member').filter((m: any) => m.enemyTemplateId === 950n)).toHaveLength(1);
+  });
+});
