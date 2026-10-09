@@ -24,6 +24,7 @@ import {
   LLM_INDICATOR_LINES,
   LLM_INDICATOR_POOLS,
   LLM_INDICATOR_PRIORITY,
+  LLM_QUEUE_EXEMPT_ROUTES,
 } from '@game-data/llm_indicator_lines';
 
 export type LlmConsoleScope = 'creation' | 'game';
@@ -41,8 +42,11 @@ export interface LlmIndicatorState {
   indicatorLine: string | null;
 }
 
-/** Fill routes run after the reveal and do not lock the input (research S3); the families call (stage 2b) too. */
-export const QUEUE_EXEMPT_ROUTES: readonly string[] = Object.freeze(['world_gen', 'world_gen_families']);
+/**
+ * Fill routes run after the reveal and do not lock the input (research S3); the families call (stage 2b) too.
+ * The list is the server module's (code review B, IN-04); the client keeps no copy.
+ */
+export const QUEUE_EXEMPT_ROUTES: readonly string[] = LLM_QUEUE_EXEMPT_ROUTES;
 
 function has(record: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);

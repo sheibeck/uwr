@@ -3,6 +3,7 @@ import {
   LLM_INDICATOR_FALLBACK_LINE,
   LLM_INDICATOR_LINES,
   LLM_INDICATOR_POOLS,
+  LLM_QUEUE_EXEMPT_ROUTES,
 } from '@game-data/llm_indicator_lines';
 import {
   QUEUE_EXEMPT_ROUTES,
@@ -170,5 +171,10 @@ describe('QUEUE_EXEMPT_ROUTES', () => {
     for (const route of QUEUE_EXEMPT_ROUTES) {
       expect(Object.prototype.hasOwnProperty.call(LLM_INDICATOR_LINES, route)).toBe(true);
     }
+  });
+
+  it('is the list of the server module, not a client copy (code review B, IN-04)', () => {
+    expect(QUEUE_EXEMPT_ROUTES).toBe(LLM_QUEUE_EXEMPT_ROUTES);
+    expect(Object.isFrozen(LLM_QUEUE_EXEMPT_ROUTES)).toBe(true);
   });
 });

@@ -158,6 +158,13 @@ export const LLM_INPUT_LOCKING_CREATION_STEPS: readonly string[] = Object.freeze
   'GENERATING_CLASS',
 ]);
 
+/**
+ * Routes whose active jobs never hold the client's narrative send queue: the fill routes run after
+ * the reveal and do not lock the input (world_gen, stage 2a), nor does the families call
+ * (world_gen_families, stage 2b). The client imports this list (code review B, IN-04).
+ */
+export const LLM_QUEUE_EXEMPT_ROUTES: readonly string[] = Object.freeze(['world_gen', 'world_gen_families']);
+
 /** Job statuses that count as in progress. Mirrors LLM_ACTIVE_JOB_STATUSES on the server. */
 export const LLM_INDICATOR_ACTIVE_STATUSES: readonly string[] = Object.freeze([
   'pending',
