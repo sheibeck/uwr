@@ -65,10 +65,10 @@ describe('hostileViews ordering and HP', () => {
     expect(view.percent).toBe(100);
   });
 
-  it('renders max HP 0 as an empty bar and 0/0', () => {
+  it('renders max HP 0 as an empty bar and Down (a 0 HP row is defeated)', () => {
     const [view] = hostileViews(input({ enemies: [enemy(1n, { currentHp: 0n, maxHp: 0n })] }));
     expect(view.widthPercent).toBe('0%');
-    expect(view.hpText).toBe('0/0');
+    expect(view.hpText).toBe('Down');
     expect(view.percent).toBe(0);
   });
 
