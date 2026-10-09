@@ -86,7 +86,7 @@ describe('Phase 51.3 spend-safety contract (SC6)', () => {
 
   it('every enqueuing function in helpers/region_economy.ts reads aiEnabled before it enqueues', () => {
     const source = readFileSync(join(SRC_ROOT, ECONOMY_FILE), 'utf8') as string;
-    for (const fn of ['startRegionEconomy', 'startEnemyLoot']) {
+    for (const fn of ['startRegionEconomy', 'startFamilyLoot']) {
       const start = source.indexOf(`export function ${fn}(`);
       expect(start, `${fn} exists`).toBeGreaterThan(-1);
       const rest = source.slice(start + 1);

@@ -1,8 +1,10 @@
 /**
  * The Phase 51.3 region economy job, server side: this file builds the route input from a region's
- * stored rows, starts the job (startRegionEconomy, startEnemyLoot: gated on economy_dials.aiEnabled,
- * budget phase_only) and applies a validated reply (items, loot tables, recipes and scrolls). The
- * route registration lives in llm_routes/llm_layers; nothing here calls the model directly.
+ * stored rows, starts the job (startRegionEconomy, startFamilyLoot: gated on economy_dials.aiEnabled,
+ * budget phase_only) and applies a validated reply (items, loot tables, recipes and scrolls). Since
+ * Phase 51.3.1.1 Plan 25 the economy is per creature family (D-47): a drop and a trophy per family,
+ * gear per member, one late job per family. The route registration lives in llm_routes/llm_layers;
+ * nothing here calls the model directly.
  *
  * Every function takes a duck-typed `tx: any` (a reducer ctx or a withTx tx). This module must not
  * import helpers/llm_apply.ts: llm_apply imports this module (Plan 12), so the reply text is parsed
@@ -104,26 +106,6 @@ export function regionTerrains(tx: any, regionId: bigint): string[] {
   }
   const list = [...counts.keys()].sort((a, b) => (counts.get(b)! - counts.get(a)!) || (a < b ? -1 : a > b ? 1 : 0));
   return list.length > 0 ? list : ['plains'];
-}
-
-/**
- * The distinct enemy templates placed at the region's locations, sorted by template id. Server-made
- * filler members of a family (family_member.filler, Phase 51.3.1.1) are left out, so the region job's
- * input and the late-enemy follow-up (one paid job per template) stay at today's size and cost until
- * the family economy ships (Plan 25, T-51.3.1.1-27).
- */
-export function regionEnemyTemplates(tx: any, regionId: bigint): any[] {
-  const ids = new Set<bigint>();
-  for (const loc of regionLocations(tx, regionId)) {
-    for (const link of tx.db.location_enemy_template.by_location.filter(loc.id)) ids.add(link.enemyTemplateId);
-  }
-  const out: any[] = [];
-  for (const id of [...ids].sort(compareBig)) {
-    if ([...tx.db.family_member.by_template.filter(id)].some((m: any) => m.filler === true)) continue;
-    const template = tx.db.enemy_template.id.find(id);
-    if (template) out.push(template);
-  }
-  return out;
 }
 
 /** The regions bordering a region: the connection walk of buildRegionContext (both directions). */
@@ -1036,9 +1018,9 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
     console.error(`Resource pools for region ${String(regionId)} failed: ${err instanceof Error ? err.name : typeof err}`);
   }
 
-  // Follow-up (SC1 late enemies): enemy types that joined while the job was pending, or that the reply
-  // left out, get their own enemy-mode job. Never fails the apply.
-  startLateEnemies(ctx, regionId, job);
+  // Follow-up (SC1, D-47): families that joined while the job was pending, or that the reply left out,
+  // get one family-mode job each. Never fails the apply.
+  startLateFamilies(ctx, regionId, job);
 }
 
 // ---------------------------------------------------------------------------
@@ -1194,22 +1176,33 @@ function storedCharacterId(contextJson: string | undefined): bigint {
 }
 
 /**
- * After a region apply: every enemy template of the region with no enemy_loot_entry rows gets one
- * enemy-mode job (startEnemyLoot), for the same player as the region job. Each start is in try/catch.
+ * Whether a family has a member whose template exists and has no enemy_loot_entry rows (the family
+ * needs a late economy job). Fillers count: they drop the family's loot too (D-47).
  */
-function startLateEnemies(ctx: any, regionId: bigint, job: EconomyApplyJob): void {
+function familyNeedsLoot(tx: any, familyId: bigint): boolean {
+  return familyMemberIds(tx, familyId, []).some((id) => lacksLoot(tx, id));
+}
+
+/**
+ * After a region apply: every family of the region with a member lacking enemy_loot_entry rows gets
+ * ONE family-mode job (startFamilyLoot), never one per member, for the same player as the region job:
+ * families that joined while the region job was pending, and families the reply left out. Families in
+ * id order. Each start is in try/catch; never fails the apply.
+ */
+function startLateFamilies(ctx: any, regionId: bigint, job: EconomyApplyJob): void {
   try {
     if (getDials(ctx).aiEnabled !== true) return;
     const who = { playerId: job ? job.playerId : undefined, characterId: storedCharacterId(job ? job.contextJson : undefined) };
-    for (const template of regionEnemyTemplates(ctx, regionId)) {
+    const families = [...ctx.db.creature_family.by_region.filter(regionId)].sort((a: any, b: any) => compareBig(a.id, b.id));
+    for (const family of families) {
       try {
-        startEnemyLoot(ctx, template, regionId, who);
+        if (familyNeedsLoot(ctx, family.id)) startFamilyLoot(ctx, family, regionId, who);
       } catch (err) {
-        console.error(`Enemy loot start failed for enemy ${String(template.id)}: ${err instanceof Error ? err.name : typeof err}`);
+        console.error(`Family loot start failed for family ${String(family.id)}: ${err instanceof Error ? err.name : typeof err}`);
       }
     }
   } catch (err) {
-    console.error(`Enemy loot follow-up failed for region ${String(regionId)}: ${err instanceof Error ? err.name : typeof err}`);
+    console.error(`Family loot follow-up failed for region ${String(regionId)}: ${err instanceof Error ? err.name : typeof err}`);
   }
 }
 
@@ -1223,7 +1216,7 @@ export interface EconomyJobOwner {
   characterId: bigint;
 }
 
-/** 'not_ready' (enemy mode only): the region's economy is not complete yet. */
+/** 'not_ready' (family mode only): the region's economy is not complete yet. */
 export type EconomyStartResult =
   | 'off'
   | 'exists'
@@ -1280,37 +1273,40 @@ export function startRegionEconomy(
 }
 
 /**
- * Starts the small enemy-mode job for an enemy type that joined an already designed region. Gates:
- * the AI economy switch, the region's economy complete, the enemy with no enemy_loot_entry rows.
- * Budget 'phase_only', sourceKey enemy:<id>. A refusal writes nothing.
+ * Starts the late family job (D-47, D-54): one family-mode job for a family that joined an already
+ * designed region, or that the region reply left out, or a quest family of one. Gates, in order: the
+ * AI economy switch (economy_dials.aiEnabled), a family row, the region's economy complete, a member
+ * of the family lacking enemy_loot_entry rows, the region row. Budget 'phase_only' (the kill switch,
+ * the global ceiling and the ledger still apply), sourceKey family:<id> (an active job for the family
+ * is reused: 'duplicate'). A refusal writes nothing.
  */
-export function startEnemyLoot(tx: any, enemyTemplate: any, regionId: bigint, who: EconomyJobOwner): EconomyStartResult {
+export function startFamilyLoot(tx: any, family: any, regionId: bigint, who: EconomyJobOwner): EconomyStartResult {
   if (getDials(tx).aiEnabled !== true) return 'off';
-  if (!enemyTemplate || typeof regionId !== 'bigint') return 'no_region';
+  if (!family || typeof regionId !== 'bigint') return 'no_region';
   const row = tx.db.region_economy.regionId.find(regionId);
   if (!row || row.status !== 'complete') return 'not_ready';
-  const enemyId: bigint = enemyTemplate.id;
-  if ([...tx.db.enemy_loot_entry.by_enemy.filter(enemyId)].length > 0) return 'exists';
+  const familyId: bigint = family.id;
+  if (!familyNeedsLoot(tx, familyId)) return 'exists';
   const region = tx.db.region.id.find(regionId);
   if (!region) return 'no_region';
 
-  const input = buildRegionEconomyInput(tx, region, 'enemy', enemyTemplate);
+  const input = buildRegionEconomyInput(tx, region, 'family', family);
   const result = enqueueLlmJob(tx, {
     route: 'region_economy',
     playerId: who.playerId,
     characterId: who.characterId,
-    sourceKey: SOURCE_KEYS.enemyLoot(enemyId),
+    sourceKey: SOURCE_KEYS.familyLoot(familyId),
+    budget: 'phase_only',
     request: {
       regionId: regionId.toString(),
-      mode: 'enemy',
-      enemyTemplateId: enemyId.toString(),
+      mode: 'family',
+      familyId: familyId.toString(),
       characterId: who.characterId.toString(),
       input: encodeRouteInput(input),
     },
-    budget: 'phase_only',
   });
   if (result.refused) {
-    console.info(`region_economy enqueue refused for enemy ${String(enemyId)} in region ${String(regionId)}: ${result.refused}`);
+    console.info(`region_economy enqueue refused for family ${String(familyId)} in region ${String(regionId)}: ${result.refused}`);
     return `refused:${result.refused}`;
   }
   return result.created ? 'enqueued' : 'duplicate';

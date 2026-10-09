@@ -76,7 +76,7 @@ import { QUEST_TYPES } from '../data/mechanical_vocabulary';
 import { npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { segmentsFromReply, keeperSegments, keeperFallback, flattenSegments } from './segments';
-import { applyRegionEconomyResult, failRegionEconomy, startRegionEconomy, startEnemyLoot } from './region_economy';
+import { applyRegionEconomyResult, failRegionEconomy, startRegionEconomy, startFamilyLoot } from './region_economy';
 import type { Segment, PresentSpeaker } from './segments';
 
 /**
@@ -920,18 +920,21 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
             // Phase 51.3.1.1 (D-54): an invented kill or kill_loot target becomes a family of one with its
             // own Scarce pool, pulled like any other creature. A boss_kill target stays an individual (D-07).
             if (questType === 'kill' || questType === 'kill_loot') {
+              let family: any = null;
               try {
-                familyOfOne(ctx, newEt, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
+                family = familyOfOne(ctx, newEt, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
               } catch (err) {
                 console.error('Quest family start failed for enemy ' + newEt.id + ': ' + errName(err));
               }
-            }
-            // Phase 51.3: a late enemy type in a designed region gets its own loot job (switch on only).
-            try {
-              const location = ctx.db.location.id.find(character.locationId);
-              if (location) startEnemyLoot(ctx, newEt, location.regionId, { playerId: job.playerId, characterId: character.id });
-            } catch (err) {
-              console.error('Enemy loot start failed for enemy ' + newEt.id + ': ' + errName(err));
+              // Phase 51.3.1.1 (D-47, D-54): the family of one gets the same late family economy job as
+              // any family in a designed region (switch on only). boss_kill gets no family and no job.
+              if (family) {
+                try {
+                  startFamilyLoot(ctx, family, family.regionId, { playerId: job.playerId, characterId: character.id });
+                } catch (err) {
+                  console.error('Family loot start failed for family ' + family.id + ': ' + errName(err));
+                }
+              }
             }
           }
         }

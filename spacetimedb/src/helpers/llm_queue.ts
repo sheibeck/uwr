@@ -105,8 +105,10 @@ export const SOURCE_KEYS = Object.freeze({
   smokeTest: (): string => 'smoke',
   /** One region's economy design (Phase 51.3): `region:<regionId>`. */
   regionEconomy: (regionId: bigint): string => join('region', regionId),
-  /** One late creature's loot design (Phase 51.3): `enemy:<enemyTemplateId>`. */
+  /** One late creature's loot design (Phase 51.3; no longer enqueued): `enemy:<enemyTemplateId>`. */
   enemyLoot: (enemyTemplateId: bigint): string => join('enemy', enemyTemplateId),
+  /** One late family's economy design (Phase 51.3.1.1, D-47): `family:<creatureFamilyId>`. */
+  familyLoot: (familyId: bigint): string => join('family', familyId),
 });
 
 /**

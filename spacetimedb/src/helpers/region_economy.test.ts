@@ -418,7 +418,7 @@ function k0World(): Seed {
   seed.recipe_template = [];
   seed.enemy_loot_entry = [];
   seed.region_recipe = [];
-  // Read by regionEnemyTemplates (filler members, Plan 09); seeded so two fresh databases snapshot alike.
+  // Read by the family follow-up (Plan 25); seeded so two fresh databases snapshot alike.
   seed.family_member = [];
   return seed;
 }
