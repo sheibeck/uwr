@@ -2177,6 +2177,47 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'quest_template')).toEqual([]);
   });
 
+  // Review 2 WR-02: boss_kill resolves and links from the quest giver's place too.
+  it('boss_kill after the player moved to region 2: the invented boss is linked at the NPC place, nothing at 200n', () => {
+    const ctx = strictCtx(movedAway(questSeed(false)));
+    applyNpcConversationResult(ctx, npcJob, killReply('boss_kill', 'Gloomfang'));
+    const template = invented(ctx);
+    expect(template).toBeTruthy();
+    expect(rows(ctx, 'location_enemy_template').filter((l: any) => l.enemyTemplateId === template.id).map((l: any) => l.locationId)).toEqual([100n]);
+    expect(rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === 200n)).toBe(false);
+    expect(rows(ctx, 'quest_template')).toEqual([expect.objectContaining({ questType: 'boss_kill', targetEnemyTemplateId: template.id })]);
+  });
+
+  it("boss_kill after the player moved away: a boss linked only at the player's new place is not the target", () => {
+    const seed = movedAway(
+      questSeed(false, { enemy_template: [wightRow(900n, 'Bog Wight', 'damage')], location_enemy_template: [{ id: 1n, locationId: 200n, enemyTemplateId: 900n }] }),
+    );
+    const named = strictCtx(seed);
+    applyNpcConversationResult(named, npcJob, killReply('boss_kill', 'bog wight'));
+    const quest = rows(named, 'quest_template')[0];
+    expect(quest.targetEnemyTemplateId).not.toBe(900n);
+    expect(rows(named, 'location_enemy_template').filter((l: any) => l.locationId === 200n)).toHaveLength(1);
+
+    // No name: the fallback takes the first enemy at the NPC's place (none here), never the one at 200n.
+    const unnamed = strictCtx(
+      movedAway(
+        questSeed(false, { enemy_template: [wightRow(900n, 'Bog Wight', 'damage')], location_enemy_template: [{ id: 1n, locationId: 200n, enemyTemplateId: 900n }] }),
+      ),
+    );
+    applyNpcConversationResult(unnamed, npcJob, killWith('boss_kill', undefined));
+    expect(rows(unnamed, 'quest_template')).toEqual([expect.objectContaining({ questType: 'boss_kill', targetEnemyTemplateId: 0n })]);
+  });
+
+  it("the quest giver's place is gone: no boss_kill quest and no invented boss", () => {
+    const seed = questSeed(false);
+    seed.npc = seed.npc.map((n: any) => ({ ...n, locationId: 999n }));
+    const ctx = strictCtx(seed);
+    applyNpcConversationResult(ctx, npcJob, killReply('boss_kill', 'Gloomfang'));
+    expect(rows(ctx, 'enemy_template')).toEqual([]);
+    expect(rows(ctx, 'location_enemy_template')).toEqual([]);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+  });
+
   it('boss_kill cleans the name the same way: an unusable name invents nothing', () => {
     const ctx = strictCtx(questSeed(false));
     expect(() => applyNpcConversationResult(ctx, npcJob, killWith('boss_kill', 42))).not.toThrow();

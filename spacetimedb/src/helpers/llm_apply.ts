@@ -808,15 +808,17 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       // family named by the model, its front-liner) is the target; an unknown name becomes a family of one
       // pooled at the nearest hosting place; anything else skips this quest (no player line, D-58), while
       // the NPC's dialogue and the reply's other effects still apply.
+      // Review B WR-02 / review 2 WR-02: kill, kill_loot and boss_kill targets are resolved from the quest
+      // giver's place, not from where the player stands when the reply lands (the player may have moved,
+      // even to another region, since the talk was enqueued). A giver whose place is gone skips the quest.
+      const questPlaceId: bigint = npc.locationId;
+      const placeBound = questType === 'kill' || questType === 'kill_loot' || questType === 'boss_kill';
+      if (placeBound && !ctx.db.location.id.find(questPlaceId)) {
+        console.log(`offer_quest "${questName}": the quest giver's place is gone (D-74); quest skipped`);
+        continue;
+      }
       let killTarget: { templateId: bigint; placeId: bigint } | null = null;
       if (questType === 'kill' || questType === 'kill_loot') {
-        // Review B WR-02: resolved from the quest giver's place, not from where the player stands when the
-        // reply lands (the player may have moved, even to another region, since the talk was enqueued).
-        const questPlaceId: bigint = npc.locationId;
-        if (!ctx.db.location.id.find(questPlaceId)) {
-          console.log(`offer_quest "${questName}": the quest giver's place is gone (D-74); quest skipped`);
-          continue;
-        }
         // Review B CR-01: the model's creature name is cleaned (1-3 plain words, no markup, digits or
         // instruction words) before it is resolved or stored; a name given but unusable skips the quest.
         const targetName = cleanQuestTargetName(effect.targetEnemyName);
@@ -980,9 +982,9 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
         if (bossName) {
           const targetName = bossName.toLowerCase();
 
-          // Search current location + connected locations for matching enemy template
-          const searchLocIds: bigint[] = [character.locationId];
-          for (const conn of ctx.db.location_connection.by_from.filter(character.locationId)) {
+          // Search the quest giver's place + its connected places for a matching enemy template
+          const searchLocIds: bigint[] = [questPlaceId];
+          for (const conn of ctx.db.location_connection.by_from.filter(questPlaceId)) {
             searchLocIds.push(conn.toLocationId);
           }
 
@@ -1021,19 +1023,19 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
               baseDamage: BigInt(3 + charLevel * 2),
               xpReward: BigInt(charLevel * 10 + 15),
             });
-            // Link to character's current location
+            // Link at the quest giver's place
             ctx.db.location_enemy_template.insert({
               id: 0n,
-              locationId: character.locationId,
+              locationId: questPlaceId,
               enemyTemplateId: newEt.id,
             });
             resolvedEnemyTemplateId = newEt.id;
           }
         }
 
-        // Fallback: grab first enemy at the location if no targetEnemyName
+        // Fallback: grab the first enemy at the quest giver's place if no targetEnemyName
         if (!resolvedEnemyTemplateId) {
-          for (const ref of ctx.db.location_enemy_template.by_location.filter(character.locationId)) {
+          for (const ref of ctx.db.location_enemy_template.by_location.filter(questPlaceId)) {
             resolvedEnemyTemplateId = ref.enemyTemplateId;
             break;
           }
