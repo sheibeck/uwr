@@ -4,12 +4,14 @@
 // a text node or a bound attribute (no HTML is built) and every colour is a CSS token.
 //
 // Rules are composed, never re-derived: travelChecks owns who travels, the cost and the blocking
-// order; shortestPath and routeNote own the far-place route; placeDanger, regionChips, terrainOf,
-// formatClock, aboutMinutes and trackedQuests own the rest. The button is a prediction; the server
+// order; shortestPath and routeNote own the far-place route; mapPlaceRating (the rails' rating,
+// 51.3.1.1 D-42) owns the danger tag; regionChips (the band range, B9), terrainOf, formatClock,
+// aboutMinutes and trackedQuests own the rest. The button is a prediction; the server
 // re-checks every trip and its refusal line is the truth.
 
-import { BAND_COLOR, placeDanger } from './danger';
-import type { PlaceDanger } from './danger';
+import { BAND_COLOR } from './danger';
+import { RATE_COLOR, mapPlaceRating } from './nodeView';
+import type { MapPlaceRating, MapRatingSource } from './nodeView';
 import { regionChips } from './regionChips';
 import type { RegionChip } from './regionChips';
 import { routeNote, shortestPath } from './route';
@@ -134,6 +136,8 @@ export interface BuildDetailInput {
   giverNpcs: readonly { id: bigint; locationId: bigint }[];
   checks: TravelChecks | null;
   connected: boolean;
+  /** The pool rows the danger tag rates from (the Map's source); absent, a non-safe place is Unknown. */
+  rating?: MapRatingSource;
 }
 
 const NO_ACTION: TravelAction = {
@@ -259,7 +263,7 @@ export function travelAction(input: TravelActionInput): TravelAction {
   return { ...NO_ACTION, note: NO_PATH_NOTE };
 }
 
-const SAFE_COLOR = placeDanger({ terrainType: 'town', isSafe: true, regionId: 0n, levelOffset: 0n }, [], 1).color;
+const SAFE_COLOR = RATE_COLOR.safe;
 
 function emptyDetail(): DetailView {
   return {
@@ -280,14 +284,26 @@ function emptyDetail(): DetailView {
   };
 }
 
-function dangerTag(danger: PlaceDanger): DetailTag {
-  if (danger.kind === 'safe') return { key: 'danger', icon: 'shield', text: 'Safe', color: danger.color };
-  if (danger.kind === 'unknown') return { key: 'danger', icon: 'question', text: danger.word, color: danger.color };
-  return { key: 'danger', icon: 'sword', text: `${danger.levelLabel} · ${danger.word}`, color: danger.color };
+/**
+ * The rating tag: '{Rating} · Lv a-b' (the word alone with no family) with the sword in the rating
+ * colour; Safe with the shield; uncharted 'Danger unknown' with the question mark. While the place's
+ * pool rows have not applied the tag is the range alone in neutral (never Safe), or no tag at all.
+ */
+function dangerTag({ view }: MapPlaceRating): DetailTag | null {
+  const color = RATE_COLOR[view.key];
+  if (view.key === 'safe') return { key: 'danger', icon: 'shield', text: view.word, color };
+  if (view.key === 'unknown') {
+    const text = view.word !== '' ? view.word : view.levelLabel;
+    return text === '' ? null : { key: 'danger', icon: 'question', text, color };
+  }
+  const text = view.levelLabel === '' ? view.word : `${view.word} · ${view.levelLabel}`;
+  return { key: 'danger', icon: 'sword', text, color };
 }
 
-function tagsFor(place: DetailLocation, terrain: TerrainInfo, danger: PlaceDanger, bound: boolean): DetailTag[] {
-  const tags: DetailTag[] = [{ key: 'terrain', icon: 'terrain', text: terrain.word, color: null }, dangerTag(danger)];
+function tagsFor(place: DetailLocation, terrain: TerrainInfo, rating: MapPlaceRating, bound: boolean): DetailTag[] {
+  const tags: DetailTag[] = [{ key: 'terrain', icon: 'terrain', text: terrain.word, color: null }];
+  const danger = dangerTag(rating);
+  if (danger !== null) tags.push(danger);
   if (bound) tags.push({ key: 'bind', icon: 'castle', text: 'Your bind point', color: 'var(--color-accent-300)' });
   else if (place.bindStone) tags.push({ key: 'bind', icon: 'castle', text: 'Bind stone', color: null });
   if (place.craftingAvailable) tags.push({ key: 'crafting', icon: 'hammer', text: 'Crafting', color: null });
@@ -394,7 +410,7 @@ export function buildDetail(input: BuildDetailInput): DetailView {
   const regionName = (id: bigint): string => input.regions.find((r) => r.id === id)?.name ?? 'Unknown region';
   const isVisited = kind === 'here' || input.visited.has(place.id);
   const terrain = terrainOf(place.terrainType);
-  const danger = placeDanger(place, input.regions, input.playerLevel);
+  const rating = mapPlaceRating(place, input.rating);
   const uncharted = place.terrainType === 'uncharted';
 
   const known = [...input.locations.values()].filter(
@@ -419,7 +435,7 @@ export function buildDetail(input: BuildDetailInput): DetailView {
     kicker: kind === 'here' ? 'You are here' : 'Destination',
     title: place.name,
     regionLine: `${regionName(place.regionId)} · ${chip.levelLabel} · ${isVisited ? 'visited' : 'heard of'}`,
-    tags: tagsFor(place, terrain, danger, input.boundLocationId === place.id),
+    tags: tagsFor(place, terrain, rating, input.boundLocationId === place.id),
     terrain,
     crossing:
       crossing && current !== undefined

@@ -210,8 +210,9 @@ describe('nodeViews states', () => {
   it('a living named enemy or boss raises the rating one step (D-34), and the lowest party level rates', () => {
     const named = build({ rating: { ...RATING, bossOrNamed: (id) => id === 3n } }).byId(3n);
     expect(named?.rating.key).toBe('risky');
-    const weakest = build({ rating: { ...RATING, ratingLevel: 1n } }).byId(3n);
-    expect(weakest?.rating.key).toBe('risky');
+    // Gloamwood is Risky for a level 3 viewer and Deadly when the weakest member is level 2.
+    const weakest = build({ rating: { ...RATING, ratingLevel: 2n } }).byId(2n);
+    expect(weakest?.rating.key).toBe('deadly');
   });
 
   it('the rating uses the shared rule (mapPlaceRating = ratingForPlace over the place pools)', () => {

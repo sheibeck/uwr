@@ -57,15 +57,10 @@ function gateStyle(index: number): Record<string, string> {
   return gate ? { left: `${gate.x}px`, top: `${gate.y}px` } : {};
 }
 
-/** The scoped class that carries the ring colour of a place's danger. */
-function bandClass(view: NodeView): string {
-  if (view.danger.kind === 'safe') return 'band-safe';
-  if (view.danger.kind === 'unknown' || view.danger.band === null) return 'band-unknown';
-  return `band-${view.danger.band}`;
-}
-
+// The ring and the caption carry the place's safety rating (51.3.1.1 D-42) through the scoped rate-*
+// class in view.levelColor (rate-safe, rate-quiet, rate-risky, rate-deadly, rate-unknown).
 function nodeClasses(view: NodeView): string[] {
-  const classes = ['node', `state-${view.stateWord === 'heard of' ? 'heard' : view.stateWord}`, bandClass(view)];
+  const classes = ['node', `state-${view.stateWord === 'heard of' ? 'heard' : view.stateWord}`, view.levelColor];
   if (view.pressed) classes.push('selected');
   if (view.uncharted) classes.push('uncharted');
   if (view.passage) classes.push('passage');
@@ -307,21 +302,15 @@ defineExpose({ focusCurrent, scrollToNode });
             />
             <PhCastleTurret v-else-if="view.bindStone" class="mark mark-bind-stone" :size="12" aria-hidden="true" />
             <PhHammer v-if="view.crafting" class="mark mark-crafting" :size="12" aria-hidden="true" />
-            <span
-              v-if="props.mobile && view.levelLabel !== '' && !view.safe"
-              class="level level-inline"
-              :style="{ color: view.levelColor }"
-              >{{ view.levelLabel }}</span
-            >
+            <span v-if="props.mobile && view.caption !== ''" class="level level-inline" :class="view.levelColor">{{
+              view.caption
+            }}</span>
           </span>
           <span v-if="!props.mobile" class="sub"
-            >{{ view.subPrefix }}{{ view.terrain.word }}{{ view.subState }}<PhShieldCheck
-              v-if="view.safe"
-              class="sub-safe"
-              :size="10"
-              aria-hidden="true"
-            /><template v-if="view.levelLabel !== '' && !view.safe"
-              > · <span class="level" :style="{ color: view.levelColor }">{{ view.levelLabel }}</span></template
+            ><span class="sub-text">{{ view.subPrefix }}{{ view.terrain.word }}{{ view.subState }}</span
+            ><PhShieldCheck v-if="view.safe" class="sub-safe" :size="10" aria-hidden="true" /><template
+              v-if="view.caption !== ''"
+              ><span class="sub-sep">·</span><span class="level" :class="view.levelColor">{{ view.caption }}</span></template
             ></span
           >
         </div>
@@ -468,7 +457,7 @@ defineExpose({ focusCurrent, scrollToNode });
   outline-offset: 1px;
 }
 
-/* ring: visited 2px band colour, heard of 1px band colour at 45% */
+/* ring: visited 2px rating colour, heard of 1px rating colour at 45% (D-42) */
 .state-visited .circle {
   border: 2px solid var(--color-neutral-500);
 }
@@ -478,43 +467,42 @@ defineExpose({ focusCurrent, scrollToNode });
   color: var(--color-neutral-400);
 }
 
-.band-safe.state-visited .circle,
-.band-easy.state-visited .circle {
+.rate-safe.state-visited .circle {
   border-color: var(--color-con-light-green);
 }
 
-.band-even.state-visited .circle {
+.rate-quiet.state-visited .circle {
   border-color: var(--color-con-blue);
 }
 
-.band-tough.state-visited .circle {
+.rate-risky.state-visited .circle {
   border-color: var(--color-con-yellow);
 }
 
-.band-deadly.state-visited .circle {
+.rate-deadly.state-visited .circle {
   border-color: var(--color-con-red);
 }
 
-.band-safe.state-heard .circle,
-.band-easy.state-heard .circle {
+.rate-safe.state-heard .circle {
   border-color: color-mix(in srgb, var(--color-con-light-green) 45%, transparent);
 }
 
-.band-even.state-heard .circle {
+.rate-quiet.state-heard .circle {
   border-color: color-mix(in srgb, var(--color-con-blue) 45%, transparent);
 }
 
-.band-tough.state-heard .circle {
+.rate-risky.state-heard .circle {
   border-color: color-mix(in srgb, var(--color-con-yellow) 45%, transparent);
 }
 
-.band-deadly.state-heard .circle {
+.rate-deadly.state-heard .circle {
   border-color: color-mix(in srgb, var(--color-con-red) 45%, transparent);
 }
 
-/* uncharted and unknown-danger places: a 1px dashed neutral ring */
-.band-unknown.state-visited .circle,
-.band-unknown.state-heard .circle {
+/* uncharted places and places whose rating is Unknown (pool rows not applied): a 1px dashed
+   neutral ring, never the Safe colour */
+.rate-unknown.state-visited .circle,
+.rate-unknown.state-heard .circle {
   border: 1px dashed var(--color-neutral-500);
 }
 
@@ -581,14 +569,37 @@ defineExpose({ focusCurrent, scrollToNode });
   justify-content: center;
 }
 
-/* Mobile: one Micro 10 line, the name then the level in its band colour; the full sub-line stays in
-   the node aria-label. */
+/* Mobile: one Micro 10 line, the name then the rating caption in its colour; the full sub-line stays
+   in the node aria-label. */
 .label.mobile .line {
   font-size: 10px;
 }
 
-.level-inline {
+/* The caption ('Risky · Lv 4–5') never shrinks: the name or the terrain text ellipsizes first, so
+   the colour always stays beside its word (UI Q10). */
+.level-inline,
+.sub .level {
   flex: none;
+}
+
+.level.rate-safe {
+  color: var(--color-con-light-green);
+}
+
+.level.rate-quiet {
+  color: var(--color-con-blue);
+}
+
+.level.rate-risky {
+  color: var(--color-con-yellow);
+}
+
+.level.rate-deadly {
+  color: var(--color-con-red);
+}
+
+.level.rate-unknown {
+  color: var(--color-neutral-500);
 }
 
 .name {
@@ -628,18 +639,36 @@ defineExpose({ focusCurrent, scrollToNode });
 }
 
 .sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
   font-weight: 400;
   color: var(--color-neutral-500);
 }
 
+.label.align-right .sub {
+  justify-content: flex-end;
+}
+
+.label.align-center .sub {
+  justify-content: center;
+}
+
+.sub-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sub-sep {
+  flex: none;
+}
+
 .sub-safe {
-  margin-left: 4px;
-  vertical-align: middle;
+  flex: none;
   color: var(--color-con-light-green);
 }
 

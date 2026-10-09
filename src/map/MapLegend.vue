@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { PhCastleTurret, PhDoorOpen, PhHammer, PhShieldCheck } from '@phosphor-icons/vue';
-import { BAND_COLOR, BAND_WORD } from './danger';
-import type { Band } from './danger';
+import { RATING_WORDS } from '@game-data/place_rating';
 import { TERRAIN_LEGEND } from './terrain';
 
 // The legend row (51-UI-SPEC "Legend row"): four groups in fixed order (Places, Terrain, Danger,
 // Marks) separated by 1px dividers. Ordinary text; swatches and icons are aria-hidden. The mobile
 // disclosure wrapper belongs to plan 51-11, so the content is the same on both layouts.
+// The Danger group is the safety rating (51.3.1.1 D-42): Safe, then the viewer's level label and the
+// three ratings in their colours; the words come from the shared rule (@game-data/place_rating).
 const props = defineProps<{ playerLevel: number; mobile: boolean }>();
 
-const BANDS: readonly Band[] = ['easy', 'even', 'tough', 'deadly'];
+const RATES = (['quiet', 'risky', 'deadly'] as const).map((key) => ({ key, word: RATING_WORDS[key] }));
 </script>
 
 <template>
@@ -29,10 +30,8 @@ const BANDS: readonly Band[] = ['easy', 'even', 'tough', 'deadly'];
     <div class="group" data-group="danger">
       <span class="item item-safe"><PhShieldCheck :size="12" aria-hidden="true" />Safe</span>
       <span class="item">
-        <span class="danger-label">Danger vs Lv {{ props.playerLevel }}:</span>
-        <span v-for="band in BANDS" :key="band" class="band" :style="{ color: BAND_COLOR[band] }">{{
-          BAND_WORD[band]
-        }}</span>
+        <span class="danger-label">Safety for Lv {{ props.playerLevel }}:</span>
+        <span v-for="rate in RATES" :key="rate.key" class="rate" :class="`rate-${rate.key}`">{{ rate.word }}</span>
       </span>
     </div>
     <span class="divider" aria-hidden="true"></span>
@@ -77,6 +76,18 @@ const BANDS: readonly Band[] = ['easy', 'even', 'tough', 'deadly'];
 
 .item-safe svg {
   color: var(--color-con-light-green);
+}
+
+.rate-quiet {
+  color: var(--color-con-blue);
+}
+
+.rate-risky {
+  color: var(--color-con-yellow);
+}
+
+.rate-deadly {
+  color: var(--color-con-red);
 }
 
 .divider {
