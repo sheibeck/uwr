@@ -135,7 +135,7 @@ function writeBoth(tx: any, start: any, fill: any, genState: any = baseGenState(
 }
 
 describe('writeRegionStart', () => {
-  it('inserts one region, one safe start location with bind stone and crafting, and one NPC at it', () => {
+  it('inserts one region, one safe start location (not a hub: no bind stone, no station, Plan 09 D-63 D-64) and one NPC at it', () => {
     const tx = createMockTx();
     tx.db.region.insert({ id: 100n, name: 'Source', dangerMultiplier: 100n });
     const { region, startLocation, firstNpc } = writeRegionStart(tx, baseStartReply(), baseGenState());
@@ -150,8 +150,9 @@ describe('writeRegionStart', () => {
       regionId: region.id,
       isSafe: true,
       terrainType: 'town',
-      bindStone: true,
-      craftingAvailable: true,
+      bindStone: false,
+      craftingAvailable: false,
+      isHub: false,
     });
     expect(tx.db.npc._rows()).toHaveLength(1);
     expect(firstNpc).toMatchObject({ name: 'Oswin Tarr', locationId: startLocation.id, npcType: 'lore', gender: 'male' });

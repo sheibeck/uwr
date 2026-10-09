@@ -24,6 +24,7 @@ import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
+import { chooseHubs, hubCountFor, hubHasStation, hubSeed, stationSeed } from '../data/density_rules';
 
 /**
  * The /synccontent bootstrap: clears enemy spawns left at safe places, then seeds every place's
@@ -343,12 +344,19 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
   }
   if (!existingStarterRegion) return false;
 
-  // Home location: first safe, charted location; else any charted location.
+  // Home location: the region's charted hub (D-61); else the first safe, charted location; else any
+  // charted location.
   let homeLocation: any = null;
   for (const loc of ctx.db.location.iter()) {
-    if (loc.regionId === existingStarterRegion.id && loc.isSafe && loc.terrainType !== 'uncharted') {
-      homeLocation = loc;
-      break;
+    if (loc.regionId !== existingStarterRegion.id || loc.isHub !== true || loc.terrainType === 'uncharted') continue;
+    if (!homeLocation || loc.id < homeLocation.id) homeLocation = loc;
+  }
+  if (!homeLocation) {
+    for (const loc of ctx.db.location.iter()) {
+      if (loc.regionId === existingStarterRegion.id && loc.isSafe && loc.terrainType !== 'uncharted') {
+        homeLocation = loc;
+        break;
+      }
     }
   }
   if (!homeLocation) {
@@ -443,10 +451,16 @@ function reachableWithin(tx: any, startId: bigint, allowed: Set<bigint>): Set<bi
 }
 
 /**
- * Stage 1: write the region, its one safe start location (bind stone and crafting) and the first
- * NPC (when the reply has one) into the public tables. A non-starter region is connected both
- * ways to the source location. The caller records generatedRegionId and starts the fill.
+ * Stage 1: write the region, its one start location (the arrival point) and the first NPC (when the
+ * reply has one) into the public tables. A non-starter region is connected both ways to the source
+ * location. The caller records generatedRegionId and starts the fill.
  * Optional starterRace: marks the region as the starter for that race.
+ *
+ * The arrival point (Phase 51.3.1.1, D-59 to D-64):
+ *   - starter region: safe, its one hub, with a crafting station and a bind stone (D-61, D-63);
+ *   - any other region: safe (the first-glimpse wording of today asks for a safe place; Plan 23
+ *     changes that with the approved wording), not a hub, no station and no bind stone. The fill
+ *     decides the hubs (placeRegionHubs), and only a hub gets a station and a bind stone (D-63, D-64).
  */
 export function writeRegionStart(
   tx: any,
@@ -486,11 +500,11 @@ export function writeRegionStart(
     levelOffset: toBigIntSafe(start.levelOffset, { min: -10n, max: 10n, fallback: 0n }),
     isSafe: true,
     terrainType: terrain,
-    bindStone: true,
-    craftingAvailable: true,
+    bindStone: isStarter,
+    craftingAvailable: isStarter,
     shortName: '',
     placeNoun: '',
-    isHub: false,
+    isHub: isStarter,
   });
 
   if (genState.sourceLocationId !== 0n) {
@@ -529,8 +543,9 @@ function insertRegionNpc(tx: any, npc: any, locationId: bigint): any {
 }
 
 /**
- * The vendor and banker safety net: the start location always has both, whatever the model
- * wrote (or did not write). Safe to run more than once.
+ * The vendor and banker safety net of one hub (D-59, D-60): a hub always has both, whatever the model
+ * wrote (or did not write). settleRegionServices runs it for each hub of a region. Safe to run more
+ * than once.
  */
 export function ensureRegionServices(tx: any, startLocation: any): void {
   const npcsAtHome = [...tx.db.npc.by_location.filter(startLocation.id)];
@@ -561,6 +576,113 @@ export function ensureRegionServices(tx: any, startLocation: any): void {
       greeting: 'Your assets are safe. They are always safe. I do not make mistakes.',
       personalityJson: JSON.stringify({ traits: ['meticulous', 'protective'], speechPattern: 'speaks in clipped precise sentences', knowledgeDomains: ['banking', 'valuables'], secrets: [], affinityMultiplier: 1.0 }),
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hubs (Phase 51.3.1.1, D-59 to D-64): server logic, placed with the prompt of today (no hub marks yet)
+// ---------------------------------------------------------------------------
+
+/**
+ * How many hubs a region gets (D-62): hubCountFor on the region danger and hubSeed(region.id). Plan
+ * 23 uses it for the Hubs line of the fill request, so the request and the write always agree.
+ */
+export function regionHubCount(region: any, isStarter: boolean): number {
+  return hubCountFor(region?.dangerMultiplier ?? 100n, isStarter, hubSeed(region.id));
+}
+
+/**
+ * The hubs a fill reply marks, in order: the arrival point first when `fill.arrival.isHub` is true,
+ * then each `fill.locations[i]` with `isHub` true, resolved by lowercase name in `rowsByLowerName`
+ * (the rows the fill inserted; an unknown or skipped name is ignored). The reply of today carries
+ * neither field, so the list is empty until Plan 23 ships the approved wording.
+ */
+export function readHubMarks(fill: any, arrival: any, rowsByLowerName: ReadonlyMap<string, any>): bigint[] {
+  const marks: bigint[] = [];
+  const add = (id: bigint | undefined): void => {
+    if (typeof id === 'bigint' && !marks.includes(id)) marks.push(id);
+  };
+  const arrivalMark = fill && typeof fill === 'object' ? fill.arrival : undefined;
+  if (arrival && arrivalMark && typeof arrivalMark === 'object' && arrivalMark.isHub === true) add(arrival.id);
+  const items: any[] = fill && Array.isArray(fill.locations) ? fill.locations : [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || item.isHub !== true) continue;
+    add(rowsByLowerName.get(lower(item.name))?.id);
+  }
+  return marks;
+}
+
+/**
+ * Places the hubs of a region (D-60 to D-64). The candidates are its charted locations; chooseHubs
+ * takes the server count (regionHubCount), the ids already marked isHub, the reply marks and the rule
+ * order (safe, then town or city, then the arrival point). Each chosen place that is not yet a hub
+ * becomes one: safe (D-61), a bind stone (D-64) and a crafting station when it already had one or the
+ * station roll hits (hubHasStation on stationSeed, D-63; an existing station is kept). An existing
+ * hub keeps its row as it is. An arrival point with a bind stone that is not a hub yet was written
+ * before hubs existed (stage 1 gave every arrival point a bind stone, a vendor and a banker), so it
+ * counts as an existing hub (D-61: existing start locations become hubs). Returns the hub rows as they
+ * now stand, in the order chosen.
+ */
+export function placeRegionHubs(
+  tx: any,
+  opts: { region: any; arrival: any; isStarter: boolean; markedIds: readonly bigint[] },
+): any[] {
+  const region = tx.db.region.id.find(opts.region.id) ?? opts.region;
+  const arrival = opts.arrival ? tx.db.location.id.find(opts.arrival.id) ?? opts.arrival : null;
+  const places = [...tx.db.location.iter()]
+    .filter((loc: any) => loc.regionId === region.id && loc.terrainType !== 'uncharted')
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const existingHubIds: bigint[] = places.filter((loc: any) => loc.isHub === true).map((loc: any) => loc.id);
+  if (arrival && arrival.isHub !== true && arrival.bindStone === true && !existingHubIds.includes(arrival.id)) {
+    existingHubIds.unshift(arrival.id);
+  }
+  const chosen = chooseHubs({
+    places: places.map((loc: any) => ({ id: loc.id, isSafe: loc.isSafe === true, terrainType: String(loc.terrainType ?? '') })),
+    arrivalId: arrival ? arrival.id : 0n,
+    count: regionHubCount(region, opts.isStarter),
+    isStarter: opts.isStarter,
+    existingHubIds,
+    markedIds: opts.markedIds,
+  });
+
+  const hubs: any[] = [];
+  for (const id of chosen) {
+    const row = tx.db.location.id.find(id);
+    if (!row) continue;
+    if (row.isHub === true) {
+      hubs.push(row);
+      continue;
+    }
+    const hub = {
+      ...row,
+      isHub: true,
+      isSafe: true,
+      bindStone: true,
+      craftingAvailable:
+        row.craftingAvailable === true ||
+        hubHasStation(region.dangerMultiplier ?? 100n, opts.isStarter, stationSeed(region.id, row.id)),
+    };
+    tx.db.location.id.update(hub);
+    hubs.push(hub);
+  }
+  return hubs;
+}
+
+/**
+ * The services of a region (D-59): each hub gets its vendor and banker (ensureRegionServices), and
+ * every vendor or banker standing at a place of this region that is not a hub becomes an ordinary
+ * local (npcType lore; name, description and greeting kept), so a region with no hub has neither.
+ * NPCs of other regions are never touched. Safe to run more than once.
+ */
+export function settleRegionServices(tx: any, regionId: bigint, hubs: readonly any[]): void {
+  for (const hub of hubs) ensureRegionServices(tx, hub);
+  const hubIds = new Set<bigint>(hubs.map((hub: any) => hub.id));
+  for (const loc of [...tx.db.location.iter()]) {
+    if (loc.regionId !== regionId || hubIds.has(loc.id) || loc.isHub === true) continue;
+    for (const npc of [...tx.db.npc.by_location.filter(loc.id)]) {
+      if (npc.npcType !== 'vendor' && npc.npcType !== 'banker') continue;
+      tx.db.npc.id.update({ ...npc, npcType: 'lore' });
+    }
   }
 }
 
@@ -659,8 +781,9 @@ export function startWorldFill(tx: any, genState: any): 'enqueued' | 'duplicate'
 
 /**
  * Stage 2 failed (call failure, malformed reply, refused enqueue): the state becomes FILL_ERROR
- * with the in-voice message, the start location keeps its vendor and banker, and the player gets
- * one line that names [explore]. The stage-1 rows are never touched.
+ * with the in-voice message, the hubs of the region are placed by rule with their vendor and banker
+ * (placeRegionHubs with no marks, then settleRegionServices; D-59 to D-64), and the player gets one
+ * line that names [explore]. No stage-1 row is removed.
  */
 export function failWorldFill(tx: any, genState: any, message: string): void {
   const current = tx.db.world_gen_state.id.find(genState.id);
@@ -673,10 +796,15 @@ export function failWorldFill(tx: any, genState: any, message: string): void {
     });
   }
 
-  const regionId = (current ?? genState).generatedRegionId;
+  const stored = current ?? genState;
+  const regionId = stored.generatedRegionId;
   if (regionId !== undefined && regionId !== null) {
+    const region = tx.db.region.id.find(regionId);
     const start = findRegionStart(tx, regionId);
-    if (start) ensureRegionServices(tx, start);
+    if (region && start) {
+      const hubs = placeRegionHubs(tx, { region, arrival: start, isStarter: stored.sourceRegionId === 0n, markedIds: [] });
+      settleRegionServices(tx, regionId, hubs);
+    }
   }
 
   const char = tx.db.character.id.find(genState.characterId);
@@ -738,7 +866,8 @@ export function retryWorldFill(
  * Stage 2 write: the rest of the region around the start location stage 1 wrote. Never renames or
  * duplicates stage-1 content (a location with the start location's name, or an earlier one, is
  * skipped; an NPC whose name already stands at its location is skipped). Every new location ends up
- * connected to the region, the start location keeps its vendor and banker, and an uncharted
+ * connected to the region; the hubs of the region are placed by the server rules with a vendor and a
+ * banker each (D-59 to D-64); families and pools are built by rule (Plan 09); and an uncharted
  * boundary closes the region.
  */
 export function writeRegionFill(
@@ -812,6 +941,17 @@ export function writeRegionFill(
     connectLocations(tx, startLocation.id, loc.id);
     reached = reachableWithin(tx, startLocation.id, inRegion);
   }
+
+  // 4b. Hubs (D-60 to D-64): the server count, the reply marks (none until Plan 23), then the rule.
+  //     A hub is safe, so the families step below gives it no creature pool.
+  const isStarter = genState.sourceRegionId === 0n;
+  const insertedByLowerName = new Map<string, any>(planned.map(({ row }) => [lower(row.name), row] as [string, any]));
+  const hubs = placeRegionHubs(tx, {
+    region: current,
+    arrival: startLocation,
+    isStarter,
+    markedIds: readHubMarks(fill, startLocation, insertedByLowerName),
+  });
 
   // 5. Enemy templates with role templates and abilities
   const enemyTemplateRows: any[] = [];
@@ -907,10 +1047,10 @@ export function writeRegionFill(
     insertRegionNpc(tx, npc, npcLocation.id);
   }
 
-  // 8. Vendor and banker at the start location
-  ensureRegionServices(tx, startLocation);
+  // 8. A vendor and a banker at each hub, and none anywhere else in the region (D-59)
+  settleRegionServices(tx, region.id, hubs);
 
-  // 9. The uncharted boundary at the edge of the region
+  // 9. The uncharted boundary at the edge of the region (anchored on the places still non-safe after 4b)
   const lastNonSafe = nonSafeLocations[nonSafeLocations.length - 1];
   const boundaryAnchor = lastNonSafe ?? newLocations[newLocations.length - 1] ?? startLocation;
   const boundary = tx.db.location.insert({
