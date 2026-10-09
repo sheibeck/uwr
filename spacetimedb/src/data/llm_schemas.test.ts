@@ -12,6 +12,7 @@ import {
   CLASS_FILL_SCHEMA,
   WORLD_START_SCHEMA,
   REGION_FILL_SCHEMA,
+  WORLD_FAMILIES_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   COMBAT_NARRATION_SCHEMA,
@@ -43,6 +44,7 @@ const ALL: Array<[string, any]> = [
   ['CLASS_FILL_SCHEMA', CLASS_FILL_SCHEMA],
   ['WORLD_START_SCHEMA', WORLD_START_SCHEMA],
   ['REGION_FILL_SCHEMA', REGION_FILL_SCHEMA],
+  ['WORLD_FAMILIES_SCHEMA', WORLD_FAMILIES_SCHEMA],
   ['SKILL_GENERATION_SCHEMA', SKILL_GENERATION_SCHEMA],
   ['RENOWN_PERK_SCHEMA', RENOWN_PERK_SCHEMA],
   ['COMBAT_NARRATION_SCHEMA', COMBAT_NARRATION_SCHEMA],
@@ -69,6 +71,7 @@ describe('lint and determinism', () => {
     expect(countUnionParams(RENOWN_PERK_SCHEMA)).toBe(6);
     expect(countUnionParams(WORLD_START_SCHEMA)).toBe(0);
     expect(countUnionParams(REGION_FILL_SCHEMA)).toBe(0);
+    expect(countUnionParams(WORLD_FAMILIES_SCHEMA)).toBe(0);
     expect(countUnionParams(COMBAT_NARRATION_SCHEMA)).toBe(0);
     expect(countUnionParams(REGION_ECONOMY_SCHEMA)).toBe(2);
     for (const [, schema] of ALL) expect(countOptionalParams(schema)).toBe(0);
@@ -119,6 +122,7 @@ describe('lint and determinism', () => {
     expect(LLM_JSON_SCHEMAS.classFill).toBe(CLASS_FILL_SCHEMA);
     expect(LLM_JSON_SCHEMAS.worldStart).toBe(WORLD_START_SCHEMA);
     expect(LLM_JSON_SCHEMAS.regionFill).toBe(REGION_FILL_SCHEMA);
+    expect(LLM_JSON_SCHEMAS.worldFamilies).toBe(WORLD_FAMILIES_SCHEMA);
     expect(Object.keys(LLM_JSON_SCHEMAS).sort()).toEqual([
       'classFill',
       'classReveal',
@@ -128,6 +132,7 @@ describe('lint and determinism', () => {
       'regionFill',
       'renown',
       'skill',
+      'worldFamilies',
       'worldStart',
     ]);
     expect(LLM_JSON_SCHEMAS.skill).toBe(SKILL_GENERATION_SCHEMA);
@@ -547,5 +552,30 @@ describe('region economy reply schema (Phase 51.3 plan 04; families in 51.3.1.1 
 
   it('LLM_JSON_SCHEMAS.regionEconomy is the same object', () => {
     expect(LLM_JSON_SCHEMAS.regionEconomy).toBe(REGION_ECONOMY_SCHEMA);
+  });
+});
+
+describe('world families schema, stage 2b (Phase 51.3.1.2 Plan 04, D-01)', () => {
+  const schema = WORLD_FAMILIES_SCHEMA as any;
+
+  it('is { families: FAMILY_ITEM[] } with no other property and additionalProperties false', () => {
+    expect(schema.type).toBe('object');
+    expect(schema.additionalProperties).toBe(false);
+    expect(Object.keys(schema.properties)).toEqual(['families']);
+    expect(schema.required).toEqual(['families']);
+    expect(schema.properties.families.type).toBe('array');
+  });
+
+  it('reuses the region fill family item unchanged, history and inFeud included', () => {
+    const item = schema.properties.families.items;
+    expect(item).toBe((REGION_FILL_SCHEMA as any).properties.families.items);
+    expect(item.additionalProperties).toBe(false);
+    expect(item.required).toContain('history');
+    expect(item.required).toContain('inFeud');
+    expect(item.required).toContain('fitLocations');
+  });
+
+  it('passes the schema linter', () => {
+    expect(lintSchema(WORLD_FAMILIES_SCHEMA)).toEqual([]);
   });
 });

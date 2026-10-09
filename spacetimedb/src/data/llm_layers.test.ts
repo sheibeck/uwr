@@ -200,6 +200,7 @@ const EXPECTED_TAG_MATCHES: Record<LlmRoute, number> = {
   creation_class: 0,
   world_gen_start: 0,
   world_gen: 0,
+  world_gen_families: 0, // Plan 51.3.1.2-04: stored world rows only, no player text
   skill_gen: 2, // one pair: the character name
   renown_perk_gen: 2, // one pair: the character name
   npc_conversation: 2, // one pair: the player message
@@ -270,6 +271,19 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       characterArchetype: 'warrior',
       sourceRegionName: `${world} source`,
       neighborRegions: [{ name: `${world} neighbor`, biome: `${world} biome`, threats: `${world} threats` }],
+    },
+    world_gen_families: {
+      regionName: `${world} region`,
+      biome: `${world} biome`,
+      dominantFaction: `${world} faction`,
+      threats: [`${world} threat`],
+      places: [
+        { name: `${world} arrival`, terrainType: `${world} terrain`, flag: "ordinary" },
+        { name: `${world} town`, terrainType: "town", flag: "hub" },
+      ],
+      hubNames: [`${world} town`],
+      familyCount: 8,
+      feudCount: 2,
     },
     skill_gen: {
       characterName: player,
@@ -350,7 +364,7 @@ function stripRealTags(text: string): string {
 
 describe('route blocks and volatile builders', () => {
   describe('ROUTE_BLOCKS', () => {
-    it('is frozen and has a non-empty string for each of the eleven routes', () => {
+    it('is frozen and has a non-empty string for each of the twelve routes', () => {
       expect(Object.isFrozen(ROUTE_BLOCKS)).toBe(true);
       expect(Object.keys(ROUTE_BLOCKS).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
       for (const route of LLM_ROUTE_NAMES) {
@@ -359,8 +373,8 @@ describe('route blocks and volatile builders', () => {
       }
     });
 
-    it('the four stage blocks and region_economy start with TASK: and end with the JSON-only line', () => {
-      for (const route of ['creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen', 'region_economy'] as const) {
+    it('the four stage blocks, world_gen_families and region_economy start with TASK: and end with the JSON-only line', () => {
+      for (const route of ['creation_class_reveal', 'creation_class', 'world_gen_start', 'world_gen', 'world_gen_families', 'region_economy'] as const) {
         expect(ROUTE_BLOCKS[route], route).toMatch(/^TASK: /);
         expect(ROUTE_BLOCKS[route].endsWith('Reply with the JSON object only.'), route).toBe(true);
       }
