@@ -18,9 +18,10 @@ The desktop context rail (Here, exits, Nearby pools, gatherables, tracked quests
 
 ## Solution
 
-TBD (discuss when picked up). Ideas:
+**Decided (owner, 2026-10-09):** "I like having the rail grow with the screen. Put it in with 51.5.1". The rail grows with the screen width and keeps 288px at the narrowest desktop size. Pulled into Phase 51.5.1 Motion and Polish (ROADMAP success criterion 4).
+
+Notes for that phase:
 - Widen the rail (for example 340-380px), or make it fluid with a clamp (for example `clamp(288px, 24vw, 400px)`) so it grows on wide screens and keeps 288px at the 900px breakpoint.
 - With the extra width, consider showing more per row (two columns of pool cards, or names wrapping to two lines instead of an ellipsis) so less scrolling is needed.
 - Check that the Encounter panel (same rail in combat) and the Map screen's detail column still look right, and that the 900px desktop breakpoint still fits vitals rail + feed + context rail.
 - Update the 45 UI-SPEC rail constant and any width-dependent tests.
-Candidate home: Phase 51.5.1 Motion and Polish, or a quick task if the owner wants it sooner.
