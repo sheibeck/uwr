@@ -35,7 +35,6 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 // ---------------------------------------------------------------------------
 
 interface GapBand { maxGap: number; pct: number }
-interface WeightBand { maxGap: number; w: number }
 interface DangerBand { maxDanger: number; pct: number }
 
 export const DENSITY_RULES = deepFreeze({
@@ -100,15 +99,11 @@ export const DENSITY_RULES = deepFreeze({
   RESOURCE_HOME_BY_RARITY: { common: 3, uncommon: 2, rare: 1 } as Record<string, number>, // D-38
   STABLE_HOME_FAMILIES_PER_PLACE: 2, // D-46: the first two families of a place are home Stable, the rest Scarce
 
-  // --- Place rating (UI-SPEC Rating rule, D-08: integer tenths, no floats) ---
-  RATING_WEIGHT_X10: [
-    { maxGap: -2, w: 5 },
-    { maxGap: 0, w: 10 },
-    { maxGap: 2, w: 16 },
-  ] as WeightBand[], // UI-SPEC: weight of one family by its gap to the party
-  RATING_WEIGHT_ABOVE_X10: 25, // UI-SPEC: a family 3 or more levels above
-  RATING_QUIET_MAX_X10: 22, // UI-SPEC: Quiet up to 2.2
-  RATING_RISKY_MAX_X10: 44, // UI-SPEC: Risky up to 4.4, Dangerous above
+  // --- Place rating (D-73: level first, crowds nudge; replaces the UI-SPEC summed score; dials in Phase 52.5) ---
+  RATING_GAP_QUIET_MAX: 0, // D-73: the toughest present family at or below the party's lowest level reads Quiet
+  RATING_GAP_RISKY_MAX: 2, // D-73: one or two levels above reads Risky, more reads Deadly
+  RATING_CROWD_LEVEL: 3, // D-73: any family at this density (Overrun) crowds the place
+  RATING_CROWD_FAMILIES: 3, // D-73: this many living families (density above Wiped out) crowd the place
 
   // --- Rumours and trends (D-22, D-23) ---
   RUMOR_KEEP_PER_REGION: 5, // D-22: rumours kept per region

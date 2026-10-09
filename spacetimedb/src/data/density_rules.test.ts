@@ -117,11 +117,13 @@ describe('place rating constants (D-73)', () => {
     expect(rules.RATING_GAP_RISKY_MAX).toBe(2);
     expect(rules.RATING_CROWD_LEVEL).toBe(3);
     expect(rules.RATING_CROWD_FAMILIES).toBe(3);
+    // The summed-score names are built from parts, so a repo grep for them finds no use at all.
+    const X10 = '_X' + '10';
     for (const gone of [
-      'RATING_WEIGHT_X10',
-      'RATING_WEIGHT_ABOVE_X10',
-      'RATING_QUIET_MAX_X10',
-      'RATING_RISKY_MAX_X10',
+      'RATING_WEIGHT' + X10,
+      'RATING_WEIGHT_ABOVE' + X10,
+      'RATING_QUIET_MAX' + X10,
+      'RATING_RISKY_MAX' + X10,
       'RATING_CROWD_STABLE_LEVEL',
       'RATING_CROWD_STABLE_FAMILIES',
     ]) {

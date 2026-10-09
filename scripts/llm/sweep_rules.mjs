@@ -7,6 +7,7 @@
 import { KEEPER_BANNED_PHRASES } from '../../spacetimedb/src/data/keeper_bible.ts';
 import { inferGenderFromText } from '../../spacetimedb/src/data/npc_gender.ts';
 import { SEGMENT_KINDS } from '../../spacetimedb/src/helpers/segments.ts';
+import { DENSITY_RULES } from '../../spacetimedb/src/data/density_rules.ts';
 import {
   LLM_ROUTE_BASELINES,
   LLM_SWEEP_EFFORTS,
@@ -332,7 +333,10 @@ export function structuralCheck(route, parsedOrText) {
       break;
     case 'world_gen':
       if (!isObject(p) || !inRange(p.locations, 2, 4)) bad.push('locations_count');
-      if (!isObject(p) || !inRange(p.enemies, 2, 3)) bad.push('enemies_count');
+      // Phase 51.3.1.1 (Plans 23, 30): the fill reply carries families, not enemies; the older shape keeps its check.
+      if (isObject(p) && Array.isArray(p.families)) {
+        if (!inRange(p.families, 1, DENSITY_RULES.FAMILY_COUNT_MAX)) bad.push('families_count');
+      } else if (!isObject(p) || !inRange(p.enemies, 2, 3)) bad.push('enemies_count');
       if (!isObject(p) || (Array.isArray(p.npcs) && p.npcs.some((x) => !isObject(x) || !GENDERS.includes(x.gender)))) {
         bad.push('npc_gender_missing');
       }

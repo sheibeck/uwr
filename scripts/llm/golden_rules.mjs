@@ -55,8 +55,15 @@ export const GOLDEN_RULES = Object.freeze([...GOLDEN_SPECIFIC, ...TONE_RULES]);
 
 /** The rule ids Phase 46 added; the Phase 44 record replay ignores them (46-05). */
 export const GOLDEN_RULES_ADDED_IN_46 = Object.freeze(['segments_invalid', 'keeper_first_person']);
-/** Routes whose reply shape changed in Phase 46; the Phase 44 record replay skips them (46-05). */
-export const GOLDEN_SHAPE_CHANGED_ROUTES = Object.freeze(['npc_conversation', 'combat_narration']);
+/**
+ * Routes whose reply shape changed after the Phase 44 record, so its replay skips them:
+ *   - npc_conversation and combat_narration: the Phase 46 segment shape (46-05);
+ *   - world_gen_start and world_gen: Phase 51.3.1.1 (Plans 23 and 30) reshaped the world-gen replies
+ *     (startLocation.isSafe, the arrival words and hub marks, families with histories and feud marks).
+ * The Phase 44 record predates both, so these routes stay skipped until the owner re-records the paid
+ * golden run at the end of the milestone.
+ */
+export const GOLDEN_SHAPE_CHANGED_ROUTES = Object.freeze(['npc_conversation', 'combat_narration', 'world_gen_start', 'world_gen']);
 
 /** Routes whose reply is a segments array (the combat route becomes one in 46-08; the rules hold either way). */
 const SEGMENT_ROUTES = new Set(['npc_conversation', 'combat_narration']);

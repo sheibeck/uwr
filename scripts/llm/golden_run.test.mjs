@@ -493,8 +493,10 @@ describe('golden-set cross-check', () => {
 });
 
 /**
- * The Phase 44 record was taken before the segment shape. Its npc and combat items are skipped on replay (their
- * shape changed in Phase 46), and the two rules added in Phase 46 are ignored for the rest.
+ * The Phase 44 record was taken before the segment shape (Phase 46) and before the Phase 51.3.1.1 world-gen
+ * shapes. Its npc and combat items (shape changed in Phase 46) and its world_gen_start and world_gen items
+ * (reshaped in Phase 51.3.1.1, Plans 23 and 30) are skipped on replay, and the two rules added in Phase 46
+ * are ignored for the rest. The owner re-records the paid golden run at the end of the milestone.
  */
 const shapeChanged = (id) => GOLDEN_SHAPE_CHANGED_ROUTES.includes(goldenItem(id).route);
 const replayFailures = (stored) =>

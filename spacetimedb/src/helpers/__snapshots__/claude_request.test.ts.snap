@@ -790,7 +790,7 @@ Rules:
 
 exports[`buildClaudeRequest > npc_conversation: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 512,
+  "max_tokens": 1024,
   "messages": [
     {
       "content": "The NPC in this conversation is plain world text npc.

@@ -340,8 +340,9 @@ export function lat06Decision(latenciesMs: readonly number[]): {
 // the six swept no-retry routes moved from 512/512/768/1024/2560/256 to 1024/1024/1024/1536/2560/768.
 // A route the derivation cannot tune keeps its baseline as 'insufficient_data'
 // (smoke_test is 'not_swept'). A route whose reply shape changed after the sweep (world_gen since
-// Plan 51.3.1.1-23) keeps an explicit budget as 'insufficient_data'; llm_tuning.test.ts lists it in
-// RESHAPED_ROUTES instead of deriving it from the stale record.
+// Plan 51.3.1.1-23), or whose budget the owner raised (npc_conversation, Plan 51.3.1.1-32), keeps an
+// explicit budget as 'insufficient_data'; llm_tuning.test.ts lists it in RESHAPED_ROUTES instead of
+// deriving it from the stale record.
 
 const entry = (
   effort: LlmEffort,
@@ -374,7 +375,10 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   // server's family count (seven today), so 6144. The owner decides when to run a paid measurement.
   world_gen: entry('low', 6144, 150_000, 'insufficient_data'),
   skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
-  npc_conversation: entry('low', 512, 30_000, 'tuned', 379, 10, true),
+  // Plan 51.3.1.1-32 (deferred row 31): quest-offer replies passed the tuned 512 (jobs 8215-8217 stopped at
+  // max_tokens). The owner set 1024 as the hard ceiling, and Plan 51.3.1.1-32 adds one automatic retry on
+  // truncation (llm_executor.ts). 1024 stands until a paid re-measurement.
+  npc_conversation: entry('low', 1024, 30_000, 'insufficient_data'),
   combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),
   renown_perk_gen: entry('low', 1024, 60_000, 'tuned', 756, 10, false),
   region_economy: entry('low', 4096, 90_000, 'insufficient_data'),
