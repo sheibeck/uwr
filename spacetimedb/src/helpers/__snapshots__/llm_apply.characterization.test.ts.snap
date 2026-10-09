@@ -11683,6 +11683,8 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "xp": "0n"
     }
   ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "event_private": [
     {
       "characterId": "10n",
@@ -11747,6 +11749,7 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
+  "item_template": [],
   "llm_job": [],
   "location": [
     {
@@ -11787,6 +11790,7 @@ exports[`llm apply world_gen_start success (stage 1) > QUIRK: with the calls gat
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
+  "place_pool": [],
   "player": [],
   "region": [
     {
@@ -11883,6 +11887,8 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
       "xp": "0n"
     }
   ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "event_private": [
     {
       "characterId": "10n",
@@ -11934,6 +11940,7 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -11952,6 +11959,7 @@ exports[`llm apply world_gen_start success (stage 1) > a reply without a first N
     }
   ],
   "npc": [],
+  "place_pool": [],
   "player": [],
   "region": [
     {
@@ -12050,6 +12058,8 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "xp": "0n"
     }
   ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "event_private": [
     {
       "characterId": "10n",
@@ -12106,6 +12116,7 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -12135,6 +12146,7 @@ exports[`llm apply world_gen_start success (stage 1) > accepts a code-fenced rep
       "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
+  "place_pool": [],
   "player": [],
   "region": [
     {
@@ -12508,6 +12520,8 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "xp": "0n"
     }
   ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "event_private": [
     {
       "characterId": "10n",
@@ -12564,6 +12578,7 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "message": "A new land has been remembered beyond the known world... the air carries hints of ashen."
     }
   ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -12593,6 +12608,7 @@ exports[`llm apply world_gen_start success (stage 1) > starter region: writes th
       "personalityJson": "{\\"traits\\":[\\"brisk\\"],\\"speechPattern\\":\\"clipped\\",\\"knowledgeDomains\\":[\\"trade\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
+  "place_pool": [],
   "player": [],
   "region": [
     {
