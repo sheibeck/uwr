@@ -795,7 +795,7 @@ Plans:
   6. Every tunable number (encounter chance, group size, depletion, creature and resource regrowth, gather yield by density, the per-player harvest cap, hunter activity) lives as a named constant in one shared rules file, so Phase 52.5 Balance Dials can put dials on them later. No admin dial or command ships here (owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place.").
   7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, and the migration of existing enemies and nodes.
 
-**Plans**: 31 plans (run in lanes; Plan 31 is the client follow-ups found during execution; run one at a time in number order; Plans 23-26 wait for the owner's approval of `51.3.1.1-PROMPT-DRAFT.md`; Plan 30 waits for the owner's approval of its Revision 2)
+**Plans**: 32 plans (run in lanes; Plan 31 is the client follow-ups found during execution; Plan 32 is the server live-test fixes (D-73 to D-75, NPC replies, golden tests) and runs before Plan 27; run one at a time in number order; Plans 23-26 wait for the owner's approval of `51.3.1.1-PROMPT-DRAFT.md`; Plan 30 waits for the owner's approval of its Revision 2)
 
 Plans:
 **Wave 1**
@@ -871,6 +871,10 @@ Plans:
 - [ ] 51.3.1.1-31-PLAN.md — Client follow-ups: Map rating wiring, encounter row binding, named enemy templates, time of day in Nearby (D-55), send errors on card actions, Fight keyword labels
 
 **Wave 15**
+
+- [ ] 51.3.1.1-32-PLAN.md — Live-test fixes: safety rating level first with a crowd nudge (D-73), quest targets drawn on a 40% slot chance and kill quests only when completable (D-74), NPC replies at 1024 with one truncation retry, nearby families from the pools, the no-task line (D-75), golden fixtures
+
+**Wave 16**
 
 - [ ] 51.3.1.1-27-PLAN.md — Cleanup of retired paths, one resource per gather (D-72), phase guards, the owner copy review (51.3.1.1-COPY-REVIEW.md), local publish C, validation map
 **UI hint**: yes (design source: `.planning/phases/51.3.1.1-density-pools/design/UWR Living Places.dc.html`, imported 2026-10-08; differences resolved in `51.3.1.1-MOCK-DIFF.md` and CONTEXT D-29 to D-45; the combat timer and lock-in parts of the mock are ignored)
