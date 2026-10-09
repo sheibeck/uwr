@@ -23,9 +23,17 @@ import {
   memberAbilities,
   normalizeEnemyRole,
   nounsFromTemplateName,
+  questFamilyKey,
   temperamentForCreatureType,
 } from '../data/family_rules';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
+import { DENSITY_RULES, POOL_ROLL, creatureHomeLevels, poolSeed, resourceHomeLevel } from '../data/density_rules';
+import { pickWithoutReplacement, pinPct, scaleWeights } from '../data/economy_rules';
+import { CRAFTING_MODIFIER_DEFS, MATERIAL_DEFS } from '../data/crafting_rules';
+import { loadItemPins } from './economy_state';
+import { getGatherableResourceTemplates } from './location';
+import { regionalGatherEntries } from './regional_gather';
+import { createPool, type PlacePoolRow } from './pools';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -338,4 +346,308 @@ export function familiesFromTemplates(ctx: any, regionId: bigint, templates: rea
     });
   }
   return defs;
+}
+
+// ---------------------------------------------------------------------------
+// Pool seeding (D-18, D-26, D-38, D-46, D-48, D-55)
+// ---------------------------------------------------------------------------
+
+/** Whether a place is uncharted (never seeded). */
+function isUncharted(location: any): boolean {
+  return String(location?.terrainType ?? '').trim().toLowerCase() === 'uncharted';
+}
+
+/** Whether creature families may live at a place: charted, not safe, not a hub (D-18, D-61). */
+function hostsCreatures(location: any): boolean {
+  return !!location && !location.isSafe && location.isHub !== true && !isUncharted(location);
+}
+
+/**
+ * Creature pools at a non-safe, non-hub, charted place, one per family (find-or-create through
+ * createPool). Home levels by rule only (D-18, D-46): creatureHomeLevels on a place seed, so the first
+ * STABLE_HOME_FAMILIES_PER_PLACE families of the seeded order are Stable and the rest Scarce; never
+ * Overrun. Returns the pools in family order; [] at a safe place, a hub or an uncharted place.
+ */
+export function seedCreaturePools(ctx: any, location: any, familyIds: readonly bigint[], now: bigint): PlacePoolRow[] {
+  if (!hostsCreatures(location)) return [];
+  const ids: bigint[] = [];
+  for (const id of familyIds) if (!ids.includes(id)) ids.push(id);
+  const homes = creatureHomeLevels(ids.length, poolSeed(location.id, location.regionId));
+  return ids.map((familyId, i) =>
+    createPool(
+      ctx,
+      {
+        regionId: location.regionId,
+        locationId: location.id,
+        kind: 'creature',
+        refId: familyId,
+        homeLevel: homes[i] ?? 1,
+        timeOfDay: 'any',
+      },
+      now,
+    ),
+  );
+}
+
+const MODIFIER_NAMES: ReadonlySet<string> = new Set(CRAFTING_MODIFIER_DEFS.map((def) => def.name.toLowerCase()));
+const MATERIAL_TIER_BY_NAME: ReadonlyMap<string, bigint> = new Map(
+  MATERIAL_DEFS.map((def) => [def.name.toLowerCase(), def.tier] as [string, bigint]),
+);
+
+/**
+ * The rarity a resource pool's home level reads (D-38): a regional AI gatherable reads its
+ * economy_item rarity; a modifier reagent is rare; a MATERIAL_DEFS entry is common at tier 1,
+ * uncommon at tier 2 and rare above; every other static terrain item is common.
+ */
+export function resourceRarity(ctx: any, template: any): string {
+  const economy = ctx.db.economy_item.itemTemplateId.find(template.id);
+  if (economy && economy.role === 'gather') {
+    const rarity = String(economy.rarity ?? '').trim().toLowerCase();
+    if (rarity) return rarity;
+  }
+  const name = String(template.name ?? '').trim().toLowerCase();
+  if (MODIFIER_NAMES.has(name)) return 'rare';
+  const tier = MATERIAL_TIER_BY_NAME.get(name);
+  if (tier !== undefined) return tier <= 1n ? 'common' : tier === 2n ? 'uncommon' : 'rare';
+  return 'common';
+}
+
+/** The zone tier of a region's gather table, as spawnResourceNode computes it. */
+function zoneTierFor(ctx: any, regionId: bigint): number {
+  const dm: bigint = ctx.db.region.id.find(regionId)?.dangerMultiplier ?? 100n;
+  return dm < 130n ? 1 : dm < 190n ? 2 : 3;
+}
+
+interface ResourceCandidate {
+  itemTemplateId: bigint;
+  weight: bigint;
+  template: any;
+  timeOfDay: string;
+}
+
+/** Merges two times of day of one item: equal stays, anything else (any, or day plus night) is any. */
+function mergeTime(a: string, b: string): string {
+  return a === b ? a : 'any';
+}
+
+/**
+ * The gather table of a place as distinct candidates: every time of day, the admin item pins applied
+ * (a pin of 0 removes the entry), one candidate per template (the heaviest weight; 'any' wins over a
+ * time, and an item found both by day and by night is 'any').
+ */
+function resourceCandidates(ctx: any, location: any): ResourceCandidate[] {
+  const terrain = String(location.terrainType ?? '').trim() || 'plains';
+  const raw = getGatherableResourceTemplates(ctx, terrain, 'any', zoneTierFor(ctx, location.regionId), location.regionId);
+  const pins = loadItemPins(ctx);
+  const weights = scaleWeights(
+    raw.map((entry: any) => entry.weight),
+    raw.map((entry: any) => pinPct(pins.get(entry.template.id))),
+  );
+  const byTemplate = new Map<bigint, ResourceCandidate>();
+  raw.forEach((entry: any, i: number) => {
+    const weight = weights[i] ?? 0n;
+    if (weight <= 0n) return;
+    const timeOfDay = String(entry.timeOfDay ?? '').trim().toLowerCase() || 'any';
+    const seen = byTemplate.get(entry.template.id);
+    if (!seen) {
+      byTemplate.set(entry.template.id, { itemTemplateId: entry.template.id, weight, template: entry.template, timeOfDay });
+      return;
+    }
+    seen.timeOfDay = mergeTime(seen.timeOfDay, timeOfDay);
+    if (weight > seen.weight) seen.weight = weight;
+  });
+  return [...byTemplate.values()];
+}
+
+/**
+ * Resource pools at a charted place, safe places included (towns keep their gatherables, D-26): up to
+ * RESOURCE_POOLS_PER_PLACE distinct items drawn (seeded, weighted, POOL_ROLL.RESOURCE_PICK) from the
+ * place's gather table with the admin pins applied, home level by rarity (D-38) and the entry's time
+ * of day kept on the pool (D-55). A place that already has that many resource pools gets none; a rerun
+ * inserts nothing. Returns the new pools in pick order.
+ */
+export function seedResourcePools(ctx: any, location: any, now: bigint): PlacePoolRow[] {
+  if (!location || isUncharted(location)) return [];
+  const existing = new Set<bigint>();
+  for (const pool of ctx.db.place_pool.by_location.filter(location.id)) {
+    if (pool.kind === 'resource') existing.add(pool.refId);
+  }
+  const room = DENSITY_RULES.RESOURCE_POOLS_PER_PLACE - existing.size;
+  if (room <= 0) return [];
+  const candidates = resourceCandidates(ctx, location).filter((c) => !existing.has(c.itemTemplateId));
+  const picks = pickWithoutReplacement(candidates, room, poolSeed(location.id), POOL_ROLL.RESOURCE_PICK);
+  return picks.map((pick) =>
+    createPool(
+      ctx,
+      {
+        regionId: location.regionId,
+        locationId: location.id,
+        kind: 'resource',
+        refId: pick.itemTemplateId,
+        homeLevel: resourceHomeLevel(resourceRarity(ctx, pick.template)),
+        timeOfDay: pick.timeOfDay,
+      },
+      now,
+    ),
+  );
+}
+
+/**
+ * The region's AI gatherables join the pools (D-48): at every charted place of the region, each
+ * regional gather entry on the place's terrain that has no pool there gets one, beyond the per-place
+ * count, with its rarity home and time of day. An item pinned to 0 is skipped. Rerun-safe. Returns
+ * the new pools.
+ */
+export function addResourcePoolsForRegion(ctx: any, regionId: bigint, now: bigint): PlacePoolRow[] {
+  const pins = loadItemPins(ctx);
+  const places = [...ctx.db.location.iter()].filter((l: any) => l.regionId === regionId && !isUncharted(l)).sort(byId);
+  const created: PlacePoolRow[] = [];
+  for (const place of places) {
+    const pooled = new Set<bigint>();
+    for (const pool of ctx.db.place_pool.by_location.filter(place.id)) {
+      if (pool.kind === 'resource') pooled.add(pool.refId);
+    }
+    for (const entry of regionalGatherEntries(ctx, regionId, String(place.terrainType ?? ''), 'any')) {
+      const id: bigint = entry.template.id;
+      if (pooled.has(id) || pinPct(pins.get(id)) <= 0n) continue;
+      created.push(
+        createPool(
+          ctx,
+          {
+            regionId,
+            locationId: place.id,
+            kind: 'resource',
+            refId: id,
+            homeLevel: resourceHomeLevel(resourceRarity(ctx, entry.template)),
+            timeOfDay: entry.timeOfDay || 'any',
+          },
+          now,
+        ),
+      );
+      pooled.add(id);
+    }
+  }
+  return created;
+}
+
+/** Whether a family is a quest family of one (it manages its own pool, D-54). */
+function isQuestFamily(family: any): boolean {
+  return String(family?.key ?? '').startsWith('quest:');
+}
+
+/**
+ * The lazy safety net and the new body of every former ensureSpawnsForLocation call (Plan 08).
+ * Uncharted or missing places are left alone. When the place already has a resource pool and (a
+ * creature pool, or it hosts no creatures) it returns after one index lookup. Otherwise:
+ *   - resource pools are seeded when the place has none;
+ *   - at a non-safe, non-hub place with no creature pool, the ordinary templates linked there join:
+ *     a template already in a family brings that family (quest families of one excluded), the rest
+ *     are grouped by rule (familiesFromTemplates) and created at the region's base level; each family
+ *     is linked to the place and the creature pools are seeded.
+ * A second call changes nothing.
+ */
+export function ensurePoolsForLocation(ctx: any, locationId: bigint): void {
+  const location = ctx.db.location.id.find(locationId);
+  if (!location || isUncharted(location)) return;
+  let hasResource = false;
+  let hasCreature = false;
+  for (const pool of ctx.db.place_pool.by_location.filter(locationId)) {
+    if (pool.kind === 'resource') hasResource = true;
+    else hasCreature = true;
+  }
+  const wantsCreatures = hostsCreatures(location);
+  if (hasResource && (hasCreature || !wantsCreatures)) return;
+
+  const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+  if (!hasResource) seedResourcePools(ctx, location, now);
+  if (!wantsCreatures || hasCreature) return;
+
+  const familyIds: bigint[] = [];
+  const ungrouped: any[] = [];
+  const seen = new Set<bigint>();
+  for (const link of [...ctx.db.location_enemy_template.by_location.filter(locationId)]) {
+    const templateId: bigint = link.enemyTemplateId;
+    if (seen.has(templateId)) continue;
+    seen.add(templateId);
+    if (!isOrdinaryTemplate(ctx, templateId)) continue;
+    const memberships = [...ctx.db.family_member.by_template.filter(templateId)];
+    if (memberships.length === 0) {
+      ungrouped.push(ctx.db.enemy_template.id.find(templateId));
+      continue;
+    }
+    for (const member of memberships) {
+      const family = ctx.db.creature_family.id.find(member.familyId);
+      if (family && !isQuestFamily(family) && !familyIds.includes(family.id)) familyIds.push(family.id);
+    }
+  }
+  const baseLevel = regionBaseLevel(ctx, location.regionId);
+  for (const def of familiesFromTemplates(ctx, location.regionId, ungrouped)) {
+    const family = createFamily(ctx, location.regionId, def, baseLevel);
+    if (!familyIds.includes(family.id)) familyIds.push(family.id);
+  }
+  if (familyIds.length === 0) return;
+  familyIds.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const familyId of familyIds) linkFamilyToLocation(ctx, familyId, locationId);
+  seedCreaturePools(ctx, location, familyIds, now);
+}
+
+/** Where a quest family's pool goes: the quest place when it hosts creatures, else its lowest-id such neighbour. */
+function questPoolPlace(ctx: any, questLocationId: bigint): any | null {
+  const here = ctx.db.location.id.find(questLocationId);
+  if (hostsCreatures(here)) return here;
+  let best: any = null;
+  for (const link of ctx.db.location_connection.by_from.filter(questLocationId)) {
+    const place = ctx.db.location.id.find(link.toLocationId);
+    if (!hostsCreatures(place)) continue;
+    if (!best || place.id < best.id) best = place;
+  }
+  return best;
+}
+
+/**
+ * A pool of its own for an AI-invented quest kill or kill_loot target (D-54; boss_kill targets never
+ * come here, D-07). Family key quest:<templateId>, one member (the template itself, role by
+ * normalizeEnemyRole), nouns from the template name, temperament and icon by creature type. The pool
+ * (home Scarce) goes at the quest place when it is non-safe, else at the lowest-id non-safe connected
+ * place, else nowhere. That place is seeded first (ensurePoolsForLocation) so its ordinary families
+ * keep their pools, and the template is linked there. Find-or-create by key; returns the family row.
+ */
+export function familyOfOne(ctx: any, template: any, questLocationId: bigint, now: bigint): any {
+  const key = questFamilyKey(template.id);
+  const existing = ctx.db.creature_family.key.find(key);
+  if (existing) return existing;
+
+  const questPlace = ctx.db.location.id.find(questLocationId);
+  const poolPlace = questPoolPlace(ctx, questLocationId);
+  const regionId: bigint = poolPlace?.regionId ?? questPlace?.regionId ?? 0n;
+  const nouns = nounsFromTemplateName(String(template.name ?? ''));
+  const creatureType = String(template.creatureType ?? '').trim().toLowerCase() || 'beast';
+  const family = createFamily(
+    ctx,
+    regionId,
+    {
+      key,
+      name: nouns.familyName || String(template.name ?? ''),
+      singularNoun: nouns.singular,
+      pluralNoun: nouns.plural,
+      creatureType,
+      temperament: temperamentForCreatureType(creatureType),
+      iconKey: iconKeyForCreatureType(creatureType),
+      ambushVerb: '',
+      ambushRest: '',
+      fitTerrains: splitTerrains(template.terrainTypes),
+      members: [{ role: normalizeEnemyRole(template.role), name: template.name, existingTemplateId: template.id, filler: false }],
+    },
+    regionBaseLevel(ctx, regionId),
+  );
+  if (!poolPlace) return family;
+
+  linkFamilyToLocation(ctx, family.id, poolPlace.id);
+  ensurePoolsForLocation(ctx, poolPlace.id);
+  createPool(
+    ctx,
+    { regionId: poolPlace.regionId, locationId: poolPlace.id, kind: 'creature', refId: family.id, homeLevel: 1, timeOfDay: 'any' },
+    now,
+  );
+  return family;
 }
