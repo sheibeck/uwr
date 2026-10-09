@@ -243,3 +243,89 @@ export function compareBlock(approved, shipped) {
   const index = firstDiff(approved, shipped);
   return { match: index < 0, index, length: shipped.length, sha256: sha256Hex(shipped) };
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Command line: node scripts/llm/prompt_draft.mjs <mode> <draft> [args]   (paths relative to the current directory)
+//   status                              the status line; exit 1 unless APPROVED with a date
+//   block <heading>                     the raw rule-delimited block
+//   fences <heading>                    the fenced blocks as JSON
+//   chosen                              the owner's chosen lines as JSON (keys 5, 6, 7a to 7e required)
+//   pins <heading> <layersPath>         length and sha256 of the block with the naming rules substituted
+//   write <heading> <CONST> <layersPath> write the block into that const, print 'written'
+//   check <heading> <CONST> <layersPath> MATCH or DIFFER at index N, plus length and sha256; exit 1 on a difference
+// ---------------------------------------------------------------------------------------------------------------
+
+export const REQUIRED_CHOICES = ['5', '6', '7a', '7b', '7c', '7d', '7e'];
+
+const USAGE = 'usage: node scripts/llm/prompt_draft.mjs <status|block|fences|chosen|pins|write|check> <draft> [args]';
+
+async function main(argv) {
+  const fs = await import('node:fs');
+  const [mode, draftPath, ...args] = argv;
+  if (!mode || !draftPath) throw new Error(USAGE);
+  const text = fs.readFileSync(draftPath, 'utf8');
+  const { status, lines } = parseDraft(text);
+  const need = (n) => {
+    if (args.length < n) throw new Error(`${mode}: missing arguments\n${USAGE}`);
+  };
+
+  switch (mode) {
+    case 'status':
+      console.log(status.line ?? '(no status line)');
+      return status.approved && status.date ? 0 : 1;
+    case 'block':
+      need(1);
+      console.log(ruleBlock(lines, args[0]));
+      return 0;
+    case 'fences':
+      need(1);
+      console.log(JSON.stringify(fencedBlocks(lines, args[0]), null, 2));
+      return 0;
+    case 'chosen':
+      console.log(JSON.stringify(ownerChoices(text, { required: REQUIRED_CHOICES }), null, 2));
+      return 0;
+    case 'pins': {
+      need(2);
+      const src = fs.readFileSync(args[1], 'utf8');
+      const block = substituteNaming(ruleBlock(lines, args[0]), evaluateBlock(src, 'WORLD_NAMING_RULES'));
+      console.log(`${args[0]} length ${block.length}, sha256 ${sha256Hex(block)}`);
+      return 0;
+    }
+    case 'write': {
+      need(3);
+      const src = fs.readFileSync(args[2], 'utf8');
+      fs.writeFileSync(args[2], writeTemplate(src, args[1], ruleBlock(lines, args[0])));
+      console.log('written');
+      return 0;
+    }
+    case 'check': {
+      need(3);
+      const src = fs.readFileSync(args[2], 'utf8');
+      const approved = substituteNaming(ruleBlock(lines, args[0]), evaluateBlock(src, 'WORLD_NAMING_RULES'));
+      const r = compareBlock(approved, evaluateBlock(src, args[1]));
+      console.log(
+        `${args[0]} vs ${args[1]}: ${r.match ? 'MATCH' : `DIFFER at index ${r.index}`} (length ${r.length}, sha256 ${r.sha256})`,
+      );
+      return r.match ? 0 : 1;
+    }
+    default:
+      throw new Error(`unknown mode ${mode}\n${USAGE}`);
+  }
+}
+
+const isMain = await (async () => {
+  if (!process.argv[1]) return false;
+  const { pathToFileURL } = await import('node:url');
+  const { resolve } = await import('node:path');
+  return import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+})();
+
+if (isMain) {
+  main(process.argv.slice(2)).then(
+    (code) => process.exit(code),
+    (err) => {
+      console.error(err.message);
+      process.exit(1);
+    },
+  );
+}

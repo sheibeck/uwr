@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,7 @@ import {
   evaluateBlock,
   fencedBlocks,
   firstDiff,
+  REQUIRED_CHOICES,
   ownerChoices,
   parseDraft,
   ruleBlock,
@@ -363,5 +365,18 @@ describe('writeTemplate', () => {
 
   it('throws for a const that does not exist', () => {
     expect(() => writeTemplate(SRC, 'Z', 'text')).toThrow(/Z/);
+  });
+});
+
+describe('command line', () => {
+  it('prints the chosen variants as JSON', () => {
+    const out = execFileSync(process.execPath, ['scripts/llm/prompt_draft.mjs', 'chosen', DRAFT_PATH], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    });
+    const parsed = JSON.parse(out);
+    expect(Object.keys(parsed).sort()).toEqual([...REQUIRED_CHOICES].sort());
+    expect(parsed).toEqual(ownerChoices(DRAFT));
+    expect(parsed['5']).toBe(ownerChoices(DRAFT)['5']);
   });
 });
