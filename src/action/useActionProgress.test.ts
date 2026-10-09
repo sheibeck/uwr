@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { effectScope, nextTick, ref } from 'vue';
 import { createActionFirstSeen } from './actionFirstSeen';
 import { useActionProgress } from './useActionProgress';
@@ -91,6 +93,12 @@ describe('useActionProgress: pool gathers (51.3.1.1-18)', () => {
     await nextTick();
     expect(h.action.value?.label).toBe('Gathering Ironwood');
     h.scope.stop();
+  });
+
+  it('labels a pool gather without a synthetic negative node id (review C IN-09)', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/action/useActionProgress.ts'), 'utf8');
+    expect(source).not.toMatch(/-gather\.id/);
+    expect(source).toContain('label: pool.name');
   });
 
   it('shows the generic label for a legacy node gather (nodeId, no pool)', async () => {

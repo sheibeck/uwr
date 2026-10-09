@@ -10,7 +10,13 @@ import type { AbilityTemplate, CharacterCast, ResourceGather, ResourceNode } fro
 
 const MICROS_PER_SECOND = 1_000_000;
 
-export type GatherRow = Pick<ResourceGather, 'id' | 'characterId' | 'nodeId' | 'endsAtMicros'>;
+export type GatherRow = Pick<ResourceGather, 'id' | 'characterId' | 'nodeId' | 'endsAtMicros'> & {
+  /**
+   * What is gathered, when the caller knows it (a pool gather's pool name, 51.3.1.1); checked before
+   * the node lookup, so no synthetic node row is needed (review C IN-09).
+   */
+  label?: string;
+};
 export type CastRow = Pick<CharacterCast, 'id' | 'characterId' | 'abilityTemplateId' | 'endsAtMicros'>;
 export type NodeRow = Pick<ResourceNode, 'id' | 'name'>;
 export type AbilityRow = Pick<AbilityTemplate, 'id' | 'name' | 'kind' | 'castSeconds'>;
@@ -86,12 +92,12 @@ export function currentAction(sources: ActionSources): ActionView | null {
   }
   const gather = later(sources.gathers.filter((row) => row.characterId === me));
   if (gather !== null) {
-    const node = sources.nodes.find((row) => row.id === gather.nodeId);
-    const named = node !== undefined && node.name.trim() !== '';
+    const given = gather.label ?? '';
+    const name = given.trim() !== '' ? given : (sources.nodes.find((row) => row.id === gather.nodeId)?.name ?? '');
     return {
       kind: 'gather',
       key: gatherKey(gather.id),
-      label: named ? `Gathering ${node.name}` : 'Gathering',
+      label: name.trim() !== '' ? `Gathering ${name}` : 'Gathering',
       endsAtMicros: gather.endsAtMicros,
       knownTotalMicros: 0,
       abilityKind: null,

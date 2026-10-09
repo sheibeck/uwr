@@ -65,6 +65,17 @@ describe('currentAction', () => {
     ).toBe('Gathering');
   });
 
+  it("labels a gather with the row's own label first (a pool gather, review C IN-09)", () => {
+    expect(currentAction(sources({ gathers: [gather(1n, { nodeId: 0n, label: 'Panlight Salt' })] }))?.label).toBe(
+      'Gathering Panlight Salt',
+    );
+    // The label wins over a node row; a blank label falls back to the node name.
+    expect(currentAction(sources({ gathers: [gather(1n, { label: 'Panlight Salt' })] }))?.label).toBe(
+      'Gathering Panlight Salt',
+    );
+    expect(currentAction(sources({ gathers: [gather(1n, { label: '  ' })] }))?.label).toBe('Gathering Ironwood');
+  });
+
   it('labels a cast with the ability name and its total', () => {
     const view = currentAction(sources({ casts: [cast(2n)] }));
     expect(view?.kind).toBe('cast');

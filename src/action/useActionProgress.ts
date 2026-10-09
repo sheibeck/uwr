@@ -43,28 +43,25 @@ export function useActionProgress(input: ActionProgressInput): {
   action: Readonly<Ref<ActionView | null>>;
   progress: Readonly<Ref<ActionProgress | null>>;
 } {
-  // Resources are pools now (51.3.1.1-18) and resource_node is no longer subscribed. currentAction
-  // names a gather by the node row whose id is its nodeId, so each pool gather gets a name row keyed
-  // by a negative id (minus the gather row id, which no real node id can equal) and is passed with
-  // that key as its nodeId. A legacy node gather keeps its nodeId and finds no row: 'Gathering'.
+  // Resources are pools now (51.3.1.1-18) and resource_node is no longer subscribed. A pool gather
+  // carries its pool's name as the row label, keeping its own nodeId (review C IN-09: no synthetic
+  // node rows); a legacy node gather has no label and no node row, so it reads 'Gathering'.
+  const NO_NODES: readonly NodeRow[] = [];
   const sources = computed<ActionSources>(() => {
     const gathers: GatherRow[] = [];
-    const nodes: NodeRow[] = [];
     for (const gather of input.gathers.value) {
       if (gather.poolId <= 0n) {
         gathers.push(gather);
         continue;
       }
-      const key = -gather.id;
-      gathers.push({ ...gather, nodeId: key });
       const pool = input.pools.value.find((row) => row.id === gather.poolId);
-      if (pool !== undefined) nodes.push({ id: key, name: pool.name });
+      gathers.push(pool === undefined ? gather : { ...gather, label: pool.name });
     }
     return {
       characterId: input.characterId.value,
       gathers,
       casts: input.casts.value,
-      nodes,
+      nodes: NO_NODES,
       abilities: input.abilities.value,
     };
   });
