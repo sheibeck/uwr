@@ -22,14 +22,15 @@ const BASELINE_MAX_TOKENS: Record<LlmRoute, number> = {
   creation_race: 4096,
   creation_class_reveal: 2048,
   creation_class: 4096,
-  world_gen_start: 4096,
-  world_gen: 8192,
-  world_gen_families: 8192, // Phase 51.3.1.2 (D-01): as world_gen
+  // Phase 51.3.1.2 (D-19): the four region-creation routes share REGION_CREATION_MAX_TOKENS (20000).
+  world_gen_start: 20_000,
+  world_gen: 20_000,
+  world_gen_families: 20_000, // Phase 51.3.1.2 (D-01): as world_gen
   skill_gen: 4096,
   renown_perk_gen: 2048,
   npc_conversation: 1024,
   combat_narration: 1024,
-  region_economy: 4096,
+  region_economy: 20_000,
   smoke_test: 256,
 };
 

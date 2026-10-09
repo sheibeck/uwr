@@ -12,10 +12,15 @@
  * the budget for longer words than the fixture's, whitespace and the model's own variance, until the
  * owner's paid measurement at milestone end replaces the budget (the route is insufficient_data until then).
  *
+ * Phase 51.3.1.2 (D-19): the region-creation routes now share the generous REGION_CREATION_MAX_TOKENS, so
+ * these guards are a sanity check (the largest asked reply fits under the cap), no longer the rule that
+ * sets the budget.
+ *
  * Two cases: stage 2b (world_gen_families, Plan 04) and stage 2a (world_gen, Plan 10: places and people).
  */
 import { describe, it, expect } from 'vitest';
 import { LLM_ROUTES } from './llm_routes';
+import { REGION_CREATION_MAX_TOKENS } from './llm_tuning';
 import { DENSITY_RULES } from './density_rules';
 import { FAMILY_ICON_KEYS, FAMILY_TEMPERAMENTS, FAMILY_RELATIONS, FAMILY_PROMPT_ROLES } from './mechanical_vocabulary';
 import { validateFamilies, FAMILY_HISTORY_MAX_CHARS, type FamilyPlace } from '../helpers/family_validate';
@@ -237,12 +242,13 @@ describe('reply budget guard, stage 2a world_gen (D-12)', () => {
     expect(estimate, `estimate ${estimate} tokens vs ${limit}`).toBeLessThanOrEqual(limit);
   });
 
-  it('the budget is the smallest multiple of 512 the guard accepts, 4096 at least and within the 8192 baseline', () => {
+  it('sanity check (D-19): the budget is the shared region-creation cap and the largest asked reply fits well under it', () => {
     const estimate = estimateTokens(reply);
     const budget = LLM_ROUTES.world_gen.maxTokens;
-    expect(budget % 512).toBe(0);
-    expect(budget).toBeGreaterThanOrEqual(4096);
-    expect(budget).toBeLessThanOrEqual(8192);
-    if (budget > 4096) expect(estimate).toBeGreaterThan(HEADROOM_SHARE * (budget - 512));
+    expect(budget).toBe(REGION_CREATION_MAX_TOKENS);
+    expect(LLM_ROUTES.world_gen_families.maxTokens).toBe(REGION_CREATION_MAX_TOKENS);
+    // A sanity bound, not a budget rule: the estimate stays at or under the 80% headroom of the cap.
+    expect(estimate).toBeGreaterThan(0);
+    expect(estimate, `estimate ${estimate} tokens vs cap ${budget}`).toBeLessThanOrEqual(HEADROOM_SHARE * budget);
   });
 });

@@ -906,7 +906,7 @@ Reply format: respond with ONLY a JSON object of this shape, with no text before
 
 exports[`buildClaudeRequest > region_economy: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 6144,
+  "max_tokens": 20000,
   "messages": [
     {
       "content": "Region: plain world text region (plain world text biome), area level 4.
@@ -1914,7 +1914,7 @@ This is a connectivity check, not a story. Reply with one short sentence in the 
 
 exports[`buildClaudeRequest > world_gen: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 6656,
+  "max_tokens": 20000,
   "messages": [
     {
       "content": "Region: plain world text region (plain world text biome)
@@ -2165,7 +2165,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > world_gen_families: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 7168,
+  "max_tokens": 20000,
   "messages": [
     {
       "content": "Region: plain world text region (plain world text biome)
@@ -2363,7 +2363,7 @@ Reply with the JSON object only.",
 
 exports[`buildClaudeRequest > world_gen_start: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 1536,
+  "max_tokens": 20000,
   "messages": [
     {
       "content": "World context:

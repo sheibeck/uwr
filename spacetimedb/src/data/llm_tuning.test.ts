@@ -18,6 +18,7 @@ import {
   LLM_DISPATCH_ALLOWANCE_MS,
   LLM_CLASS_REVEAL_THRESHOLD_MS,
   LLM_NO_RETRY_HEADROOM_TOKENS,
+  REGION_CREATION_MAX_TOKENS,
   noRetryMaxTokens,
   tunedMaxTokens,
   samplePasses,
@@ -91,19 +92,23 @@ describe('constants', () => {
     expect(LLM_SWEEP_ROUTES).not.toContain('smoke_test');
   });
 
-  it('pins the baselines to the Phase 40 and 43-04 values (kept for insufficient data)', () => {
+  it('REGION_CREATION_MAX_TOKENS is the generous shared region-creation cap, 20000 (Phase 51.3.1.2 D-19)', () => {
+    expect(REGION_CREATION_MAX_TOKENS).toBe(20_000);
+  });
+
+  it('pins the baselines to the Phase 40 and 43-04 values (kept for insufficient data), the region-creation cap for the four region-creation routes (D-19)', () => {
     const table: Record<string, [number, number]> = {
       creation_race: [4096, 90_000],
       creation_class_reveal: [2048, 60_000],
       creation_class: [4096, 90_000],
-      world_gen_start: [4096, 90_000],
-      world_gen: [8192, 150_000],
-      world_gen_families: [8192, 150_000],
+      world_gen_start: [20_000, 90_000],
+      world_gen: [20_000, 150_000],
+      world_gen_families: [20_000, 150_000],
       skill_gen: [4096, 60_000],
       npc_conversation: [1024, 30_000],
       combat_narration: [1024, 20_000],
       renown_perk_gen: [2048, 60_000],
-      region_economy: [4096, 90_000],
+      region_economy: [20_000, 90_000],
       smoke_test: [256, 30_000],
     };
     for (const name of LLM_ROUTE_NAMES) {
@@ -252,7 +257,7 @@ describe('deriveRouteTuning', () => {
   it('no record keeps the baseline and says insufficient_data', () => {
     expect(deriveRouteTuning('world_gen', undefined, base)).toEqual({
       effort: 'low',
-      maxTokens: 8192,
+      maxTokens: REGION_CREATION_MAX_TOKENS,
       timeoutMs: 150_000,
       status: 'insufficient_data',
       source: LLM_TUNING_SOURCE,
@@ -265,7 +270,7 @@ describe('deriveRouteTuning', () => {
   it('fewer than 5 successful samples in the chosen cell keeps the baseline', () => {
     const rec = routeRecord([1000, 1000, 1000, 1000], [1000, 1000, 1000, 1000]);
     const out = deriveRouteTuning('world_gen', rec, base);
-    expect(out).toMatchObject({ status: 'insufficient_data', effort: 'low', maxTokens: 8192, timeoutMs: 150_000 });
+    expect(out).toMatchObject({ status: 'insufficient_data', effort: 'low', maxTokens: REGION_CREATION_MAX_TOKENS, timeoutMs: 150_000 });
   });
 
   it('smoke_test is never swept', () => {
@@ -280,7 +285,7 @@ describe('deriveRouteTuning', () => {
         { ok: false, stopReason: 'max_tokens', latencyMs: 1, inputTokens: 1, outputTokens: 1, cacheWriteTokens: 0, cacheReadTokens: 0 },
       ],
     });
-    expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'insufficient_data', maxTokens: 8192, effort: 'low' });
+    expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'insufficient_data', maxTokens: REGION_CREATION_MAX_TOKENS, effort: 'low' });
   });
 
   it.each(['low', 'medium'] as const)(
@@ -290,7 +295,7 @@ describe('deriveRouteTuning', () => {
       // The truncated sample is not ok, so the chosen cell still has enough successful samples without it.
       rec.efforts[cellName].samples.push(sample(4096, { ok: false, stopReason: 'max_tokens', schemaOk: false }));
       expect(deriveRecordFields(rec)).toMatchObject({ insufficientData: true, p99OutputTokens: null, maxTokens: null });
-      expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'insufficient_data', maxTokens: 8192, effort: 'low' });
+      expect(deriveRouteTuning('world_gen', rec, base)).toMatchObject({ status: 'insufficient_data', maxTokens: REGION_CREATION_MAX_TOKENS, effort: 'low' });
     },
   );
 
@@ -432,27 +437,57 @@ describe('lat06Decision', () => {
  *     hub marks, larger than the measured enemies reply (p99 1988), so 4096 output tokens; Plan 30
  *     (Revision 2) adds a history per family and up to the server's family count, so 6144. Phase 51.3.1.2
  *     Plan 10 (D-01, D-12): the stage 2a reply (places and people, no families, no levelOffset) for up to ten
- *     places and nine NPCs; 6656, the smallest multiple of 512 the free reply-budget guard accepts.
+ *     places and nine NPCs; it was 6656, the smallest multiple of 512 the free reply-budget guard accepted.
  *   - npc_conversation (Phase 51.3.1.1 Plan 32, a budget the owner raised): quest-offer replies passed the
  *     tuned 512 (jobs 8215-8217 stopped at max_tokens); the owner set 1024 as the hard ceiling, with one
  *     automatic retry on truncation, until a paid re-measurement.
  *   - world_gen_families (Phase 51.3.1.2 Plan 04, D-01): the new stage 2b families route has no record at all;
- *     its budget is the one the free reply-budget guard (llm_reply_budget.test.ts, D-12) accepts.
+ *     the free reply-budget guard (llm_reply_budget.test.ts, D-12) checks its largest asked reply fits.
  *   - region_economy (Phase 51.3.1.2 Plan 04, D-10): the medium economy of a bigger region asks for more
- *     items than the measured 51.3 reply, so 6144 until the milestone-end measurement (D-12).
+ *     items than the measured 51.3 reply; insufficient_data until the milestone-end measurement (D-12).
+ * Phase 51.3.1.2 (D-19): world_gen, world_gen_families and region_economy now all take the shared
+ * REGION_CREATION_MAX_TOKENS (20000) instead of a per-route budget.
  */
 const RESHAPED_ROUTES: Partial<Record<LlmRoute, { maxTokens: number; timeoutMs: number }>> = {
-  world_gen: { maxTokens: 6656, timeoutMs: 150_000 },
-  world_gen_families: { maxTokens: 7168, timeoutMs: 150_000 },
+  world_gen: { maxTokens: REGION_CREATION_MAX_TOKENS, timeoutMs: 150_000 },
+  world_gen_families: { maxTokens: REGION_CREATION_MAX_TOKENS, timeoutMs: 150_000 },
   npc_conversation: { maxTokens: 1024, timeoutMs: 30_000 },
-  region_economy: { maxTokens: 6144, timeoutMs: 90_000 },
+  region_economy: { maxTokens: REGION_CREATION_MAX_TOKENS, timeoutMs: 90_000 },
 };
 
+/**
+ * Phase 51.3.1.2 (D-19): the four region-creation routes share REGION_CREATION_MAX_TOKENS. world_gen_start
+ * keeps its measured record (status 'tuned', p99 818 over 10 samples) and every derived field except
+ * maxTokens, which is the shared cap rather than the derived 1536.
+ */
+const REGION_CREATION_ROUTES: readonly LlmRoute[] = ['world_gen_start', 'world_gen', 'world_gen_families', 'region_economy'];
+
 describe('LLM_TUNING', () => {
-  it('world_gen is 6656 output tokens and insufficient_data until a paid measurement (Plan 51.3.1.2-10, D-12)', () => {
+  it('the four region-creation routes share REGION_CREATION_MAX_TOKENS and keep their timeouts and statuses (D-19)', () => {
+    const want: Record<string, { timeoutMs: number; status: string }> = {
+      world_gen_start: { timeoutMs: 90_000, status: 'tuned' },
+      world_gen: { timeoutMs: 150_000, status: 'insufficient_data' },
+      world_gen_families: { timeoutMs: 150_000, status: 'insufficient_data' },
+      region_economy: { timeoutMs: 90_000, status: 'insufficient_data' },
+    };
+    for (const name of REGION_CREATION_ROUTES) {
+      expect(LLM_TUNING[name], name).toMatchObject({ maxTokens: REGION_CREATION_MAX_TOKENS, ...want[name] });
+      expect(LLM_ROUTES[name].maxTokens, name).toBe(REGION_CREATION_MAX_TOKENS);
+      expect(LLM_ROUTE_BASELINES[name].maxTokens, name).toBe(REGION_CREATION_MAX_TOKENS);
+    }
+    // world_gen_start keeps its measured p99 data.
+    expect(LLM_TUNING.world_gen_start).toMatchObject({ effort: 'low', p99OutputTokens: 818, samples: 10, tie: true });
+    // No other route takes the cap.
+    for (const name of LLM_ROUTE_NAMES) {
+      if (REGION_CREATION_ROUTES.includes(name)) continue;
+      expect(LLM_TUNING[name].maxTokens, name).toBeLessThan(REGION_CREATION_MAX_TOKENS);
+    }
+  });
+
+  it('world_gen is the region-creation cap and insufficient_data until a paid measurement (Plan 51.3.1.2-10, D-12, D-19)', () => {
     expect(LLM_TUNING.world_gen).toEqual({
       effort: 'low',
-      maxTokens: 6656,
+      maxTokens: REGION_CREATION_MAX_TOKENS,
       timeoutMs: 150_000,
       status: 'insufficient_data',
       source: LLM_TUNING_SOURCE,
@@ -460,7 +495,7 @@ describe('LLM_TUNING', () => {
       samples: 0,
       tie: false,
     });
-    expect(LLM_ROUTES.world_gen.maxTokens).toBe(6656);
+    expect(LLM_ROUTES.world_gen.maxTokens).toBe(REGION_CREATION_MAX_TOKENS);
     // Within the route baseline, as for region_economy.
     expect(LLM_TUNING.world_gen.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.world_gen.maxTokens);
     for (const [name, want] of Object.entries(RESHAPED_ROUTES) as [LlmRoute, { maxTokens: number; timeoutMs: number }][]) {
@@ -483,10 +518,10 @@ describe('LLM_TUNING', () => {
     expect(LLM_TUNING.npc_conversation.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.npc_conversation.maxTokens);
   });
 
-  it('world_gen_families is 7168 output tokens, low effort, 150 s and insufficient_data until a paid measurement (Plan 51.3.1.2-04, D-01, D-12)', () => {
+  it('world_gen_families is the region-creation cap, low effort, 150 s and insufficient_data until a paid measurement (Plan 51.3.1.2-04, D-01, D-12, D-19)', () => {
     expect(LLM_TUNING.world_gen_families).toEqual({
       effort: 'low',
-      maxTokens: 7168,
+      maxTokens: REGION_CREATION_MAX_TOKENS,
       timeoutMs: 150_000,
       status: 'insufficient_data',
       source: LLM_TUNING_SOURCE,
@@ -494,14 +529,14 @@ describe('LLM_TUNING', () => {
       samples: 0,
       tie: false,
     });
-    expect(LLM_ROUTES.world_gen_families.maxTokens).toBe(7168);
+    expect(LLM_ROUTES.world_gen_families.maxTokens).toBe(REGION_CREATION_MAX_TOKENS);
     expect(LLM_TUNING.world_gen_families.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.world_gen_families.maxTokens);
   });
 
-  it('region_economy is 6144 output tokens and insufficient_data for the medium economy (Plan 51.3.1.2-04, D-10)', () => {
+  it('region_economy is the region-creation cap and insufficient_data for the medium economy (Plan 51.3.1.2-04, D-10, D-19)', () => {
     expect(LLM_TUNING.region_economy).toEqual({
       effort: 'low',
-      maxTokens: 6144,
+      maxTokens: REGION_CREATION_MAX_TOKENS,
       timeoutMs: 90_000,
       status: 'insufficient_data',
       source: LLM_TUNING_SOURCE,
@@ -509,7 +544,7 @@ describe('LLM_TUNING', () => {
       samples: 0,
       tie: false,
     });
-    expect(LLM_ROUTES.region_economy.maxTokens).toBe(6144);
+    expect(LLM_ROUTES.region_economy.maxTokens).toBe(REGION_CREATION_MAX_TOKENS);
   });
 
   it('has one frozen entry per route', () => {
@@ -574,7 +609,9 @@ describe('traceability: llm_measurements.json', () => {
       // A route whose reply shape changed after the sweep has no valid record yet (asserted below).
       if (name in RESHAPED_ROUTES) continue;
       const rec = RECORD.status === 'applied' ? RECORD.routes[name] : undefined;
-      const expected = deriveRouteTuning(name, rec, LLM_ROUTE_BASELINES[name]);
+      const derived = deriveRouteTuning(name, rec, LLM_ROUTE_BASELINES[name]);
+      // D-19: a measured region-creation route (world_gen_start) keeps every derived field but maxTokens.
+      const expected = REGION_CREATION_ROUTES.includes(name) ? { ...derived, maxTokens: REGION_CREATION_MAX_TOKENS } : derived;
       expect(LLM_TUNING[name]).toEqual(expected);
       expect(LLM_TUNING[name].source).toBe(LLM_TUNING_SOURCE);
     }

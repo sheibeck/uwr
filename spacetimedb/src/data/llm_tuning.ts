@@ -64,6 +64,15 @@ export const LLM_POOL_MEAN_TOLERANCE = 0.15;
  */
 export const LLM_NO_RETRY_HEADROOM_TOKENS = 512;
 
+/**
+ * Phase 51.3.1.2 (D-19): the one shared max_tokens of the four region-creation routes (world_gen_start,
+ * world_gen, world_gen_families, region_economy). Generous on purpose: region creation is rare and must
+ * not fail on a tight cap while the systems are still being built. The prompt's counts keep the replies
+ * short and the route timeout is the real backstop. Billing is per token written, so only the in-flight
+ * reservation rises. The free reply-size guards stay as a sanity check that the largest asked reply fits.
+ */
+export const REGION_CREATION_MAX_TOKENS = 20_000;
+
 /** Dispatch allowance added to each class-reveal API latency (enqueue to apply, beyond the API call), in ms. */
 export const LLM_DISPATCH_ALLOWANCE_MS = 300;
 
@@ -168,14 +177,15 @@ export const LLM_ROUTE_BASELINES: Readonly<Record<LlmRoute, RouteBaseline>> = Ob
   creation_race: baseline(4096, 90_000),
   creation_class_reveal: baseline(2048, 60_000),
   creation_class: baseline(4096, 90_000),
-  world_gen_start: baseline(4096, 90_000),
-  world_gen: baseline(8192, 150_000),
-  world_gen_families: baseline(8192, 150_000), // Phase 51.3.1.2 (D-01): as world_gen
+  // Phase 51.3.1.2 (D-19): the four region-creation routes share REGION_CREATION_MAX_TOKENS.
+  world_gen_start: baseline(REGION_CREATION_MAX_TOKENS, 90_000),
+  world_gen: baseline(REGION_CREATION_MAX_TOKENS, 150_000),
+  world_gen_families: baseline(REGION_CREATION_MAX_TOKENS, 150_000), // Phase 51.3.1.2 (D-01): as world_gen
   skill_gen: baseline(4096, 60_000),
   npc_conversation: baseline(1024, 30_000),
   combat_narration: baseline(1024, 20_000),
   renown_perk_gen: baseline(2048, 60_000),
-  region_economy: baseline(4096, 90_000),
+  region_economy: baseline(REGION_CREATION_MAX_TOKENS, 90_000),
   smoke_test: baseline(256, 30_000),
 });
 
@@ -369,20 +379,23 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   creation_race: entry('low', 1024, 90_000, 'tuned', 265, 10, true),
   creation_class_reveal: entry('low', 1024, 60_000, 'tuned', 327, 10, true),
   creation_class: entry('low', 1024, 90_000, 'tuned', 465, 10, true),
-  world_gen_start: entry('low', 1536, 90_000, 'tuned', 818, 10, true),
+  // Phase 51.3.1.2 (D-19): the measured p99 (818 over 10 samples) stays on record, but the budget is the
+  // shared region-creation cap, not the derived 1536.
+  world_gen_start: entry('low', REGION_CREATION_MAX_TOKENS, 90_000, 'tuned', 818, 10, true),
   // Plan 51.3.1.1-23: the fill reply now carries families, place words and hub marks, larger than the
   // measured enemies reply (p99 1988), so 4096 and insufficient_data until a paid re-measurement.
   // Plan 51.3.1.1-30 (prompt Revision 2): the reply grew again, by a history per family and by up to the
   // server's family count (seven today), so 6144. The owner decides when to run a paid measurement.
   // Phase 51.3.1.2 Plan 10 (D-01, D-12): stage 2a, places and people only (no families, no levelOffset),
   // for up to ten places and nine NPCs. The free reply-budget guard (llm_reply_budget.test.ts) estimates
-  // the largest asked reply at 5065 tokens, over 80% of 4096 and of 6144, so 6656, the smallest multiple
-  // of 512 it accepts. insufficient_data: the owner's paid region at the milestone-end UAT sets the real budget.
-  world_gen: entry('low', 6656, 150_000, 'insufficient_data'),
-  // Phase 51.3.1.2 (D-01, D-12): the stage 2b families reply, up to fifteen families. The free reply-budget
-  // guard (llm_reply_budget.test.ts) holds the largest asked reply under 80% of this budget; insufficient_data
-  // until the owner's paid measurement at milestone end.
-  world_gen_families: entry('low', 7168, 150_000, 'insufficient_data'),
+  // the largest asked reply at 5065 tokens. Phase 51.3.1.2 (D-19): the budget is now the shared
+  // region-creation cap; the guard stays as a sanity check. insufficient_data: the owner's paid region at
+  // the milestone-end UAT records the real sizes.
+  world_gen: entry('low', REGION_CREATION_MAX_TOKENS, 150_000, 'insufficient_data'),
+  // Phase 51.3.1.2 (D-01, D-12, D-19): the stage 2b families reply, up to fifteen families, on the shared
+  // region-creation cap. The free reply-budget guard (llm_reply_budget.test.ts) checks the largest asked
+  // reply fits under it; insufficient_data until the owner's paid measurement at milestone end.
+  world_gen_families: entry('low', REGION_CREATION_MAX_TOKENS, 150_000, 'insufficient_data'),
   skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
   // Plan 51.3.1.1-32 (deferred row 31): quest-offer replies passed the tuned 512 (jobs 8215-8217 stopped at
   // max_tokens). The owner set 1024 as the hard ceiling, and Plan 51.3.1.1-32 adds one automatic retry on
@@ -390,8 +403,8 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   npc_conversation: entry('low', 1024, 30_000, 'insufficient_data'),
   combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),
   renown_perk_gen: entry('low', 1024, 60_000, 'tuned', 756, 10, false),
-  // Phase 51.3.1.2 (D-10): the medium economy of a bigger region asks for more items, so 6144;
-  // insufficient_data until the milestone-end measurement (D-12).
-  region_economy: entry('low', 6144, 90_000, 'insufficient_data'),
+  // Phase 51.3.1.2 (D-10, D-19): the medium economy of a bigger region asks for more items; it shares the
+  // region-creation cap. insufficient_data until the milestone-end measurement (D-12).
+  region_economy: entry('low', REGION_CREATION_MAX_TOKENS, 90_000, 'insufficient_data'),
   smoke_test: entry('low', 256, 30_000, 'not_swept'),
 });
