@@ -138,6 +138,17 @@ export const DENSITY_RULES = deepFreeze({
     { maxDanger: 650, pct: 30 },
   ] as DangerBand[], // D-63
   CRAFTING_STATION_CHANCE_ABOVE: 15, // D-63
+
+  // --- Families per region and per place (D-66, D-67), feuds (D-70) and histories (D-68); dials arrive in Phase 52.5 ---
+  FAMILIES_PER_PLACE_X10: 15, // D-66: about 1.5 families per place, in integer tenths
+  FAMILY_COUNT_MIN: 3, // D-66: a region has at least this many families
+  FAMILY_COUNT_MAX: 15, // D-66: and at most this many
+  FILL_PLANNED_PLACES: 5, // D-66: the region size the fill request plans for (the arrival point plus the most new places the Counts sentence asks for); Phase 51.3.1.2 (D-69) replaces it with the server's own place count
+  PLACE_FAMILIES_MIN: 3, // D-67: families one host place holds, fewer when the region has fewer
+  PLACE_FAMILIES_MAX: 5, // D-67
+  FEUD_FAMILIES_MIN: 2, // D-70: families in a region's one seeded feud
+  FEUD_FAMILIES_MAX: 3, // D-70
+  NPC_FAMILY_HISTORIES_MAX: 4, // D-68: family histories fed to one NPC conversation
 });
 
 // ---------------------------------------------------------------------------
@@ -158,6 +169,11 @@ export const POOL_ROLL = Object.freeze({
   HUB_COUNT: 80n, // D-62
   HUB_SECOND: 81n, // D-62
   CRAFTING_STATION: 82n, // D-63
+  PLACE_FAMILY_COUNT: 83n, // D-67
+  PLACE_FAMILY_ORDER: 84n, // D-67
+  FEUD_COUNT: 85n, // D-70
+  FEUD_PICK: 86n, // D-70: pick i rolls at FEUD_PICK + i
+  RULE_FAMILY_ORDER: 87n, // D-66: the order of the rule family list (helpers/family_validate.ts)
 });
 
 // ---------------------------------------------------------------------------
@@ -214,6 +230,22 @@ export function hubSeed(regionId: bigint): bigint {
 /** The seed of one hub's crafting-station roll (D-63); no timestamp, like hubSeed. */
 export function stationSeed(regionId: bigint, locationId: bigint): bigint {
   return poolSeed(regionId, locationId, HUB_SEED_TAG);
+}
+
+/** Tag mixed into the family, feud and per-place family seeds. */
+export const FAMILY_SEED_TAG = 11n;
+
+/**
+ * The seed of a region's feud and rule family order (D-66, D-70). No timestamp, like hubSeed, so the
+ * fill request and the reply write agree (D-62 precedent).
+ */
+export function familySeed(regionId: bigint): bigint {
+  return poolSeed(regionId, FAMILY_SEED_TAG);
+}
+
+/** The seed of one place's family pick (D-67); no timestamp, like familySeed. */
+export function placeFamiliesSeed(regionId: bigint, locationId: bigint): bigint {
+  return poolSeed(regionId, locationId, FAMILY_SEED_TAG);
 }
 
 // ---------------------------------------------------------------------------
@@ -676,4 +708,185 @@ export function chooseHubs(input: {
     chosen.push(next.id);
   }
   return chosen;
+}
+
+// ---------------------------------------------------------------------------
+// Families per region and per place (D-66, D-67), feuds (D-70)
+// ---------------------------------------------------------------------------
+
+/** A whole, non-negative count; anything not a finite number reads as 0. */
+function wholeCount(n: number): number {
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+}
+
+/**
+ * A region's family count from its size (D-66): about FAMILIES_PER_PLACE_X10 / 10 families per place,
+ * at least FAMILY_COUNT_MIN and at most FAMILY_COUNT_MAX. A negative or fractional count is floored and
+ * clamped.
+ */
+export function familyCountFor(placeCount: number): number {
+  const raw = Math.floor((wholeCount(placeCount) * DENSITY_RULES.FAMILIES_PER_PLACE_X10) / 10);
+  return Math.max(DENSITY_RULES.FAMILY_COUNT_MIN, Math.min(DENSITY_RULES.FAMILY_COUNT_MAX, raw));
+}
+
+/** The family count the fill request asks for: the planned region size FILL_PLANNED_PLACES (D-66). */
+export function askedFamilyCount(): number {
+  return familyCountFor(DENSITY_RULES.FILL_PLANNED_PLACES);
+}
+
+/**
+ * The family count the server keeps once it knows the region's real size (D-66): never more than it
+ * asked for, fewer when the region turned out smaller.
+ */
+export function keptFamilyCount(actualPlaces: number): number {
+  return Math.min(askedFamilyCount(), familyCountFor(actualPlaces));
+}
+
+/**
+ * How many families a region's one feud holds (D-70): FEUD_FAMILIES_MIN to FEUD_FAMILIES_MAX by a
+ * FEUD_COUNT roll, never more than the families; 0 when there are fewer than FEUD_FAMILIES_MIN. Seed
+ * with familySeed(regionId).
+ */
+export function feudCountFor(familyCount: number, seed: bigint): number {
+  const families = wholeCount(familyCount);
+  const min = DENSITY_RULES.FEUD_FAMILIES_MIN;
+  if (families < min) return 0;
+  const span = BigInt(DENSITY_RULES.FEUD_FAMILIES_MAX - min + 1);
+  return Math.min(families, min + Number(rollBelow(seed, POOL_ROLL.FEUD_COUNT, span)));
+}
+
+/**
+ * The keys of a region's feud (D-70): the count clamped to 0..keys.length; the reply's marks first, in
+ * mark order (only keys that exist, no repeats) until the count; then the remaining keys by an
+ * equal-weight seeded pick (FEUD_PICK + i; entries carry the key's position as the id). A result
+ * shorter than FEUD_FAMILIES_MIN is [] (a feud needs two).
+ */
+export function pickFeud(input: {
+  keys: readonly string[];
+  markedKeys: readonly string[];
+  count: number;
+  seed: bigint;
+}): string[] {
+  const keys = [...new Set(input.keys)];
+  const count = Math.min(wholeCount(input.count), keys.length);
+  const feud: string[] = [];
+  for (const mark of input.markedKeys) {
+    if (feud.length >= count) break;
+    if (keys.includes(mark) && !feud.includes(mark)) feud.push(mark);
+  }
+  const rest = keys
+    .map((key, i) => ({ itemTemplateId: BigInt(i), weight: 1n, key }))
+    .filter((entry) => !feud.includes(entry.key));
+  for (const entry of pickWithoutReplacement(rest, count - feud.length, input.seed, POOL_ROLL.FEUD_PICK)) {
+    feud.push(entry.key);
+  }
+  return feud.length < DENSITY_RULES.FEUD_FAMILIES_MIN ? [] : feud;
+}
+
+export interface PlaceFamilyCandidate {
+  key: string;
+  aiFit: boolean;
+  terrainFit: boolean;
+  placesSoFar: number;
+}
+
+/**
+ * The families one host place holds (D-67): PLACE_FAMILIES_MIN to PLACE_FAMILIES_MAX by a
+ * PLACE_FAMILY_COUNT roll, capped at the candidates. Candidates are sorted by key and given a seeded
+ * rank (one PLACE_FAMILY_ORDER roll seeds the shuffle, the creatureHomeLevels pattern), then ordered by
+ * fit tier (the AI's fit, then terrain fit, then the rest), then fewest places so far, then the rank.
+ * The result does not depend on the input order. Seed with placeFamiliesSeed(regionId, locationId).
+ */
+export function pickPlaceFamilies(candidates: readonly PlaceFamilyCandidate[], seed: bigint): string[] {
+  const tier = (c: PlaceFamilyCandidate): number => (c.aiFit ? 0 : c.terrainFit ? 1 : 2);
+  const sorted = [...candidates].sort((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : tier(a) - tier(b) || a.placesSoFar - b.placesSoFar,
+  );
+  const unique = sorted.filter((c, i) => i === 0 || sorted[i - 1]!.key !== c.key);
+  const n = unique.length;
+  const span = BigInt(DENSITY_RULES.PLACE_FAMILIES_MAX - DENSITY_RULES.PLACE_FAMILIES_MIN + 1);
+  const target = Math.min(n, DENSITY_RULES.PLACE_FAMILIES_MIN + Number(rollBelow(seed, POOL_ROLL.PLACE_FAMILY_COUNT, span)));
+
+  const order = Array.from({ length: n }, (_, i) => i);
+  const shuffleSeed = economyRoll(seed, POOL_ROLL.PLACE_FAMILY_ORDER);
+  for (let i = n - 1; i > 0; i -= 1) {
+    const j = Number(rollBelow(shuffleSeed, BigInt(i), BigInt(i + 1)));
+    const tmp = order[i]!;
+    order[i] = order[j]!;
+    order[j] = tmp;
+  }
+  const rank = new Array<number>(n).fill(0);
+  order.forEach((candidateIndex, r) => {
+    rank[candidateIndex] = r;
+  });
+
+  return unique
+    .map((c, i) => ({ c, rank: rank[i]! }))
+    .sort((a, b) => tier(a.c) - tier(b.c) || a.c.placesSoFar - b.c.placesSoFar || a.rank - b.rank)
+    .slice(0, target)
+    .map((entry) => entry.c.key);
+}
+
+export interface RegionFamilyPlace {
+  id: bigint;
+  name: string;
+  terrainType: string;
+}
+
+export interface RegionFamilyInput {
+  key: string;
+  aiFitNames: readonly string[];
+  fitTerrains: readonly string[];
+}
+
+/**
+ * The families of each host place of a new region (D-67). The caller passes only host places (charted,
+ * neither safe nor a hub). Places in id order each run pickPlaceFamilies over every family (aiFit: the
+ * family's aiFitNames hold the place name exactly; terrainFit: its fitTerrains hold the place terrain,
+ * lowercase; placesSoFar from a running tally) with placeFamiliesSeed(regionId, place.id). Then each
+ * family placed nowhere (in input order) joins the place with room (fewer than PLACE_FAMILIES_MAX)
+ * where it fits best, then the place with the fewest families, then the lowest id; with no room it
+ * stays unplaced (a vacuum can still bring it in by terrain, D-20). Every host place is a key.
+ */
+export function assignRegionFamilies(input: {
+  regionId: bigint;
+  places: readonly RegionFamilyPlace[];
+  families: readonly RegionFamilyInput[];
+}): Map<bigint, string[]> {
+  const sortedPlaces = [...input.places].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const places = sortedPlaces.filter((place, i) => i === 0 || sortedPlaces[i - 1]!.id !== place.id);
+  const aiFit = (family: RegionFamilyInput, place: RegionFamilyPlace): boolean => family.aiFitNames.includes(place.name);
+  const terrainFit = (family: RegionFamilyInput, place: RegionFamilyPlace): boolean => {
+    const terrain = place.terrainType.trim().toLowerCase();
+    return family.fitTerrains.some((fit) => fit.trim().toLowerCase() === terrain);
+  };
+
+  const tally = new Map<string, number>();
+  const result = new Map<bigint, string[]>();
+  for (const place of places) {
+    const picked = pickPlaceFamilies(
+      input.families.map((family) => ({
+        key: family.key,
+        aiFit: aiFit(family, place),
+        terrainFit: terrainFit(family, place),
+        placesSoFar: tally.get(family.key) ?? 0,
+      })),
+      placeFamiliesSeed(input.regionId, place.id),
+    );
+    result.set(place.id, picked);
+    for (const key of picked) tally.set(key, (tally.get(key) ?? 0) + 1);
+  }
+
+  for (const family of input.families) {
+    if ((tally.get(family.key) ?? 0) > 0) continue;
+    const fit = (place: RegionFamilyPlace): number => (aiFit(family, place) ? 0 : terrainFit(family, place) ? 1 : 2);
+    const size = (place: RegionFamilyPlace): number => (result.get(place.id) ?? []).length;
+    const best = places
+      .filter((place) => size(place) < DENSITY_RULES.PLACE_FAMILIES_MAX)
+      .sort((a, b) => fit(a) - fit(b) || size(a) - size(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
+    if (!best) continue;
+    result.get(best.id)!.push(family.key);
+    tally.set(family.key, 1);
+  }
+  return result;
 }

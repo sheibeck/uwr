@@ -329,6 +329,12 @@ export type FamilyTemperament = (typeof FAMILY_TEMPERAMENTS)[number];
 export const FAMILY_RELATIONS = ['rival', 'prey', 'predator'] as const;
 export type FamilyRelation = (typeof FAMILY_RELATIONS)[number];
 
+// FAMILY_RELATIONS stays the AI's relation enum (llm_schemas FAMILY_RELATION_ITEM); 'feud' is set by the
+// server only (D-70): a seeded feud of 2-3 families per new region, stored as mutual family_relation rows
+export const FAMILY_FEUD_KIND = 'feud' as const;
+export const FAMILY_RELATION_KINDS = [...FAMILY_RELATIONS, FAMILY_FEUD_KIND] as const;
+export type FamilyRelationKind = (typeof FAMILY_RELATION_KINDS)[number];
+
 // Family icon keys, one Phosphor icon each (D-32, UI-SPEC icon table)
 export const FAMILY_ICON_KEYS = ['humanoid', 'beast', 'insect', 'spirit', 'undead', 'avian', 'aquatic', 'elemental'] as const;
 export type FamilyIconKey = (typeof FAMILY_ICON_KEYS)[number];
