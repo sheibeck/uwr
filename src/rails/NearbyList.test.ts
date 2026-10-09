@@ -26,8 +26,10 @@ afterEach(() => {
 
 const PAYLOAD = '<img src=x onerror=alert(1)>';
 
-const CROSSING = { id: 10n, name: 'The Crossing', regionId: 1n, bindStone: true };
-const PLAIN = { id: 11n, name: 'Cinder Road', regionId: 1n, bindStone: false };
+const CROSSING = { id: 10n, name: 'The Crossing', regionId: 1n, bindStone: true, isSafe: true, terrainType: 'town', placeNoun: '' };
+const PLAIN = { id: 11n, name: 'Cinder Road', regionId: 1n, bindStone: false, isSafe: false, terrainType: 'plains', placeNoun: 'the pans' };
+const LANE = { id: 12n, name: 'Quiet Lane', regionId: 1n, bindStone: false, isSafe: true, terrainType: 'town', placeNoun: '' };
+const EDGE = { id: 13n, name: 'Far Edge', regionId: 2n, bindStone: false, isSafe: true, terrainType: 'uncharted', placeNoun: '' };
 
 function character(over: Record<string, unknown> = {}) {
   return { id: 1n, name: 'Hero', locationId: 10n, boundLocationId: 99n, level: 6n, ...over };
@@ -36,7 +38,7 @@ function character(over: Record<string, unknown> = {}) {
 function mountList(
   game: Record<string, unknown> = {},
   bindLocation = vi.fn(() => Promise.resolve()),
-  options: { desktop?: boolean } = {},
+  options: { desktop?: boolean; props?: Record<string, unknown> } = {},
 ) {
   const calls = {
     hail: vi.fn(),
@@ -53,8 +55,10 @@ function mountList(
     connected: ref(true),
     character: characterRef,
     characterId: ref(1n),
-    locations: ref([CROSSING, PLAIN]),
+    locations: ref([CROSSING, PLAIN, LANE, EDGE]),
     reducers: ref({ bindLocation }),
+    // The place's pool rows have applied (51.3.1.1-19: the pool groups wait for them).
+    poolsAppliedFor: () => true,
     ...game,
   } as unknown as GameData;
   const consoleApi = { ...createInertConsole(), ...calls } as unknown as ConsoleApi;
@@ -66,6 +70,7 @@ function mountList(
   } as unknown as FrameControls;
   wrapper = mount(NearbyList, {
     attachTo: document.body,
+    props: options.props ?? {},
     global: {
       provide: {
         [GAME_KEY as symbol]: data,
@@ -102,8 +107,8 @@ describe('Examine eye on every row', () => {
   it('is the last button of each row, outside .row-main, and calls examine with the name', async () => {
     const { w, calls } = mountList(FULL);
     const rows = w.findAll('.nearby-row');
-    // enemy, NPCs (Aldric, Marta), bind stone, player (Bo); no resource node rows (51.3.1.1-18)
-    expect(rows.map((r) => r.get('.row-name').text())).toEqual(['Goblin Scout', 'Aldric', 'Marta', 'Bind stone', 'Bo']);
+    // NPCs (Aldric, Marta), bind stone, player (Bo); the event spawn is a named card (51.3.1.1-19)
+    expect(rows.map((r) => r.get('.row-name').text())).toEqual(['Aldric', 'Marta', 'Bind stone', 'Bo']);
     for (const row of rows) {
       // The player cluster ends with the menu opener, so the eye is the one before it.
       const buttons = row.findAll('button');
@@ -115,7 +120,6 @@ describe('Examine eye on every row', () => {
       expect(eye.element.parentElement!.classList.contains('row-actions')).toBe(true);
     }
     const examineNames: Record<string, string> = {
-      'Goblin Scout': 'Goblin Scout',
       Aldric: 'Aldric',
       Marta: 'Marta',
       Bo: 'Bo',
@@ -129,7 +133,7 @@ describe('Examine eye on every row', () => {
   });
 
   it('keeps the empty line and shows no eye when nothing is nearby', () => {
-    const { w } = mountList({ character: ref(character({ locationId: 11n })) });
+    const { w } = mountList({ character: ref(character({ locationId: 12n })) });
     expect(w.text()).toContain('No one is nearby.');
     expect(w.find('[aria-label^="Examine"]').exists()).toBe(false);
   });
@@ -159,7 +163,7 @@ describe('Examine eye on every row', () => {
 describe('row shapes', () => {
   it('NPC rows are static with the hint NPC, Talk to, Trade with (vendors), then Examine', async () => {
     const { w, calls } = mountList(FULL);
-    const [, aldric, marta] = w.findAll('.nearby-row');
+    const [aldric, marta] = w.findAll('.nearby-row');
     for (const row of [aldric, marta]) {
       expect(row.find('button.row-main').exists()).toBe(false);
       expect(row.get('.row-hint').text()).toBe('NPC');
@@ -170,14 +174,11 @@ describe('row shapes', () => {
     expect(calls.hail).toHaveBeenCalledWith({ id: 3n, name: 'Aldric' });
   });
 
-  it('players show Whisper, Examine and the menu; enemies show Pull and Examine', () => {
+  it('players show Whisper, Examine and the menu', () => {
     const { w } = mountList(FULL);
     const rows = w.findAll('.nearby-row');
-    expect(labels(rows[4])).toEqual(['Whisper Bo', 'Examine Bo', 'Actions for Bo']);
+    expect(labels(rows[3])).toEqual(['Whisper Bo', 'Examine Bo', 'Actions for Bo']);
     expect(w.find('[aria-label="Invite Bo"]').exists()).toBe(false);
-    expect(labels(rows[0]).length).toBe(2);
-    expect(labels(rows[0])[0]).toMatch(/^Pull Goblin Scout/);
-    expect(labels(rows[0])[1]).toBe('Examine Goblin Scout');
   });
 
   it('lists no resource node row and has no gather click (51.3.1.1-18)', () => {
@@ -188,9 +189,10 @@ describe('row shapes', () => {
     expect(calls.gather).not.toHaveBeenCalled();
   });
 
-  it('the enemy spawn button fights the spawn (an event enemy) with no pull type (51.3.1.1-18)', async () => {
+  it('the event spawn card fights the spawn with no pull type (51.3.1.1-18, -19)', async () => {
     const { w, calls } = mountList(FULL);
-    await w.get('[aria-label^="Pull Goblin Scout"]').trigger('click');
+    await w.get('[aria-label="Fight Goblin Scout"]').trigger('click');
+    await flushPromises();
     expect(calls.fight).toHaveBeenCalledTimes(1);
     expect(calls.fight).toHaveBeenCalledWith({ kind: 'event', id: 7n, name: 'Goblin Scout' });
     expect(calls.pull).not.toHaveBeenCalled();
@@ -596,5 +598,435 @@ describe('source', () => {
 
   it('never nests a button inside a row main part', () => {
     expect(source).not.toMatch(/row-main[^>]*>[^<]*<button/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// 51.3.1.1-19: the pool groups (UI-SPEC "Nearby: Creatures / Named & quest targets / Resources /
+// Also here", UI Considerations Q1-Q3).
+// ---------------------------------------------------------------------------------------------
+
+let poolSeq = 500n;
+
+function poolRow(over: Record<string, unknown> = {}) {
+  poolSeq += 1n;
+  return {
+    id: poolSeq,
+    regionId: 1n,
+    locationId: 11n,
+    kind: 'creature',
+    refId: 1n,
+    level: 2n,
+    lvLo: 4n,
+    lvHi: 5n,
+    name: 'Goblins',
+    iconKey: 'humanoid',
+    temperament: 'aggressive',
+    singularNoun: 'goblin',
+    pluralNoun: 'goblins',
+    timeOfDay: 'any',
+    ...over,
+  };
+}
+
+const resourcePool = (over: Record<string, unknown> = {}) =>
+  poolRow({
+    kind: 'resource',
+    name: 'Panlight Salt',
+    iconKey: 'mineral',
+    temperament: '',
+    singularNoun: '',
+    pluralNoun: '',
+    lvLo: 0n,
+    lvHi: 0n,
+    ...over,
+  });
+
+function namedEnemy(over: Record<string, unknown> = {}) {
+  return {
+    id: 40n,
+    characterId: 1n,
+    name: 'Old Brannoc',
+    enemyTemplateId: 9n,
+    locationId: 11n,
+    isAlive: true,
+    respawnMinutes: 60n,
+    ...over,
+  };
+}
+
+function poolsGame(over: Record<string, unknown> = {}) {
+  return {
+    character: ref(character({ locationId: 11n })),
+    poolLevelsHere: ref([
+      poolRow({ id: 1n, name: 'Goblins', level: 3n }),
+      poolRow({
+        id: 2n,
+        name: 'Wisps',
+        level: 1n,
+        iconKey: 'spirit',
+        temperament: 'skittish',
+        singularNoun: 'wisp',
+        pluralNoun: 'wisps',
+      }),
+      resourcePool({ id: 3n }),
+    ]),
+    namedEnemies: ref([namedEnemy(), namedEnemy({ id: 41n, name: 'Elsewhere', locationId: 10n })]),
+    npcsHere: ref([{ id: 2n, name: 'Marta', npcType: 'vendor' }]),
+    ...over,
+  };
+}
+
+const groupLabels = (w: VueWrapper) => w.findAll('h6').map((h) => h.text());
+const groupNamed = (w: VueWrapper, label: string) =>
+  w.findAll('.nearby-group').find((g) => g.get('h6').text() === label)!;
+
+describe('pool groups', () => {
+  it('shows Creatures, Named & quest targets, Resources and Also here in order', () => {
+    const { w } = mountList(poolsGame());
+    expect(groupLabels(w)).toEqual(['Nearby', 'Creatures', 'Named & quest targets', 'Resources', 'Also here']);
+    const groups = w.findAll('.nearby-group');
+    expect(groups.map((g) => g.get('h6').text())).toEqual([
+      'Creatures',
+      'Named & quest targets',
+      'Resources',
+      'Also here',
+    ]);
+    for (const group of groups) {
+      const list = group.get('ul').element;
+      for (const item of Array.from(list.children)) expect(item.tagName).toBe('LI');
+    }
+    const [creatures, named, resources] = groups;
+    expect(creatures.findAll('.card-name').map((n) => n.text())).toEqual(['Goblins', 'Wisps']);
+    expect(named.findAll('.card-name').map((n) => n.text())).toEqual(['Old Brannoc']);
+    expect(resources.findAll('.card-name').map((n) => n.text())).toEqual(['Panlight Salt']);
+  });
+
+  it('lists no individual ordinary enemy and no resource node; the family card carries the line and hint', () => {
+    const { w } = mountList(poolsGame());
+    const goblins = w.findAll('.pool-card')[0];
+    expect(goblins.get('.card-line').text()).toBe('Goblins swarm the pans, and every last goblin has noticed you.');
+    expect(goblins.get('.card-hint').text()).toBe('Expect a crowd');
+    expect(goblins.get('.density-badge').text()).toBe('Population: Overrun');
+    expect(w.findAll('.kind-enemy, .kind-node')).toHaveLength(0);
+  });
+
+  it('Pull, Fight and Gather call the console with the pool or enemy id and the name', async () => {
+    const { w, calls } = mountList(poolsGame());
+    await w.get('[aria-label="Pull Goblins"]').trigger('click');
+    await w.get('[aria-label="Fight Old Brannoc"]').trigger('click');
+    await w.get('[aria-label="Gather Panlight Salt"]').trigger('click');
+    await flushPromises();
+    expect(calls.pull).toHaveBeenCalledWith({ id: 1n, name: 'Goblins' });
+    expect(calls.fight).toHaveBeenCalledWith({ kind: 'named', id: 40n, name: 'Old Brannoc' });
+    expect(calls.gather).toHaveBeenCalledWith({ id: 3n, name: 'Panlight Salt' });
+  });
+
+  it('offline every card button is aria-disabled and sends nothing', async () => {
+    const { w, calls } = mountList(poolsGame({ connected: ref(false) }));
+    for (const label of ['Pull Goblins', 'Fight Old Brannoc', 'Gather Panlight Salt']) {
+      const button = w.get(`[aria-label="${label}"]`);
+      expect(button.attributes('aria-disabled')).toBe('true');
+      await button.trigger('click');
+    }
+    await flushPromises();
+    expect(calls.pull).not.toHaveBeenCalled();
+    expect(calls.fight).not.toHaveBeenCalled();
+    expect(calls.gather).not.toHaveBeenCalled();
+  });
+
+  it("a rejected send prints Couldn't send that. Try again. and the button re-enables", async () => {
+    const { w, calls, data } = mountList(poolsGame());
+    calls.pull.mockImplementation(() => {
+      throw new Error('socket');
+    });
+    const before = data.feed.entries.value.length;
+    await w.get('[aria-label="Pull Goblins"]').trigger('click');
+    await vi.waitFor(() => expect(data.feed.entries.value.length).toBe(before + 1));
+    const line = data.feed.entries.value[data.feed.entries.value.length - 1];
+    expect(line.message).toBe("Couldn't send that. Try again.");
+    const pull = w.get('[aria-label="Pull Goblins"]');
+    expect(pull.attributes('aria-disabled')).toBeUndefined();
+    expect(pull.attributes('aria-busy')).toBeUndefined();
+  });
+
+  it('renders nothing pool-based until the place pool rows have applied, and no empty line', () => {
+    const { w } = mountList(poolsGame({ poolsAppliedFor: () => false, npcsHere: ref([]) }));
+    expect(groupLabels(w)).toEqual(['Nearby']);
+    expect(w.find('.pool-card').exists()).toBe(false);
+    expect(w.text()).not.toContain('No one is nearby.');
+    expect(w.text()).not.toContain('Nothing hunts here now.');
+  });
+
+  it('reads the pools-applied state for the current place', () => {
+    const asked: bigint[] = [];
+    const poolsAppliedFor = (id: bigint): boolean => {
+      asked.push(id);
+      return true;
+    };
+    mountList(poolsGame({ poolsAppliedFor }));
+    expect(asked).toContain(11n);
+  });
+});
+
+describe('Creatures group (UI Q1)', () => {
+  it('is omitted at a safe place and at an uncharted place', () => {
+    for (const locationId of [12n, 13n]) {
+      const { w } = mountList(
+        poolsGame({ character: ref(character({ locationId })), poolLevelsHere: ref([poolRow({ locationId })]) }),
+      );
+      expect(groupLabels(w)).not.toContain('Creatures');
+      w.unmount();
+      wrapper = null;
+    }
+  });
+
+  it('says Nothing hunts here now. at a non-safe place with no family pools', () => {
+    const { w } = mountList(poolsGame({ poolLevelsHere: ref([resourcePool()]) }));
+    const creatures = groupNamed(w, 'Creatures');
+    expect(creatures.get('.group-empty').text()).toBe('Nothing hunts here now.');
+    expect(creatures.find('ul').exists()).toBe(false);
+  });
+
+  it('keeps a wiped-out family last with its line and no Pull', () => {
+    const { w } = mountList(
+      poolsGame({
+        poolLevelsHere: ref([
+          poolRow({ id: 1n, name: 'Rats', pluralNoun: 'rats', singularNoun: 'rat', level: 0n, lvHi: 30n }),
+          poolRow({ id: 2n, level: 1n }),
+        ]),
+      }),
+    );
+    const cards = groupNamed(w, 'Creatures').findAll('.pool-card');
+    expect(cards.map((c) => c.get('.card-name').text())).toEqual(['Goblins', 'Rats']);
+    expect(cards[1].find('button').exists()).toBe(false);
+    expect(cards[1].get('.card-line').text()).toBe('No rats are left in the pans. The quiet feels borrowed.');
+  });
+
+  it('a place with no noun and an unknown terrain uses the area', () => {
+    const plainNoNoun = { ...PLAIN, placeNoun: '', terrainType: 'grassland' };
+    const { w } = mountList(poolsGame({ locations: ref([CROSSING, plainNoNoun]) }));
+    expect(w.findAll('.card-line')[0].text()).toBe('Goblins swarm the area, and every last goblin has noticed you.');
+  });
+});
+
+describe('Named & quest targets group (UI Q2)', () => {
+  it('is omitted with no named, boss or quest enemy here', () => {
+    const { w } = mountList(poolsGame({ namedEnemies: ref([]) }));
+    expect(groupLabels(w)).not.toContain('Named & quest targets');
+  });
+
+  it('a slain named enemy shows the slain line and no button, after the living', () => {
+    const { w } = mountList(
+      poolsGame({
+        namedEnemies: ref([namedEnemy({ name: 'Ash Wight', isAlive: false }), namedEnemy({ id: 42n, name: 'Vesk' })]),
+      }),
+    );
+    const cards = groupNamed(w, 'Named & quest targets').findAll('.pool-card');
+    expect(cards.map((c) => c.get('.card-name').text())).toEqual(['Vesk', 'Ash Wight']);
+    expect(cards[1].classes()).toContain('slain');
+    expect(cards[1].get('.card-sub').text()).toBe('Slain · back after a long rest');
+    expect(cards[1].find('button').exists()).toBe(false);
+  });
+
+  it('a quest target shows Quest: {name}; an engaged event spawn shows In combat and an aria-disabled Fight', () => {
+    const { w } = mountList(
+      poolsGame({
+        quests: ref([{ id: 1n, characterId: 1n, questTemplateId: 70n, progress: 0n, completed: false }]),
+        questTemplates: ref([{ id: 70n, name: 'Crown of Ash', targetEnemyTemplateId: 9n }]),
+        enemiesHere: ref([
+          {
+            id: 7n,
+            name: 'Cinder Maw',
+            state: 'engaged',
+            locationId: 11n,
+            enemyTemplateId: 1n,
+            groupCount: 1n,
+            level: 6n,
+            lockedCombatId: 3n,
+          },
+        ]),
+      }),
+    );
+    const named = groupNamed(w, 'Named & quest targets');
+    expect(named.findAll('.card-sub').map((s) => s.text())).toEqual([
+      'Named · Lv 6 · In combat',
+      'Named · Quest: Crown of Ash',
+    ]);
+    expect(named.get('[aria-label="Fight Cinder Maw"]').attributes('aria-disabled')).toBe('true');
+  });
+
+  it('a completed quest adds no quest part', () => {
+    const { w } = mountList(
+      poolsGame({
+        quests: ref([{ id: 1n, characterId: 1n, questTemplateId: 70n, progress: 1n, completed: true }]),
+        questTemplates: ref([{ id: 70n, name: 'Crown of Ash', targetEnemyTemplateId: 9n }]),
+      }),
+    );
+    expect(groupNamed(w, 'Named & quest targets').get('.card-sub').text()).toBe('Named');
+  });
+});
+
+describe('Resources group (UI Q3)', () => {
+  it('is omitted with no resource pools', () => {
+    const { w } = mountList(poolsGame({ poolLevelsHere: ref([poolRow()]) }));
+    expect(groupLabels(w)).not.toContain('Resources');
+  });
+
+  it('lists only pools of this time of day', () => {
+    const pools = ref([
+      resourcePool({ id: 3n, name: 'Moonmoss', timeOfDay: 'night' }),
+      resourcePool({ id: 4n, name: 'Sunwort', timeOfDay: 'day' }),
+    ]);
+    const day = mountList(poolsGame({ poolLevelsHere: pools }), undefined, { props: { timeOfDay: 'day' } }).w;
+    const dayNames = day.findAll('.card-name').map((n) => n.text());
+    expect(dayNames).toContain('Sunwort');
+    expect(dayNames).not.toContain('Moonmoss');
+    day.unmount();
+    wrapper = null;
+    const night = mountList(poolsGame({ poolLevelsHere: pools }), undefined, { props: { timeOfDay: 'night' } }).w;
+    const nightNames = night.findAll('.card-name').map((n) => n.text());
+    expect(nightNames).toContain('Moonmoss');
+    expect(nightNames).not.toContain('Sunwort');
+  });
+
+  it('every pool Exhausted keeps the cards and adds one summary line', () => {
+    const { w } = mountList(
+      poolsGame({ poolLevelsHere: ref([resourcePool({ level: 0n }), resourcePool({ level: 0n, name: 'Reed' })]) }),
+    );
+    const resources = groupNamed(w, 'Resources');
+    expect(resources.findAll('.pool-card')).toHaveLength(2);
+    expect(resources.find('button').exists()).toBe(false);
+    expect(resources.findAll('.group-empty')).toHaveLength(1);
+    expect(resources.get('.group-empty').text()).toBe('Everything worth taking has been picked from the pans.');
+  });
+
+  it('the harvest cap here disables Gather with its visible reason; a gather in progress too', () => {
+    const now = BigInt(Date.now()) * 1000n;
+    const capped = mountList(
+      poolsGame({ harvestCaps: ref([{ id: 1n, locationId: 11n, cappedUntilMicros: now + 600_000_000n }]) }),
+    ).w;
+    const gather = capped.get('[aria-label="Gather Panlight Salt"]');
+    expect(gather.attributes('aria-disabled')).toBe('true');
+    expect(capped.get('.card-reason').text()).toBe('You have taken what you can carry from here for now.');
+    capped.unmount();
+    wrapper = null;
+    const busy = mountList(
+      poolsGame({ gathers: ref([{ id: 1n, characterId: 1n, nodeId: 0n, endsAtMicros: 0n, poolId: 3n }]) }),
+    ).w;
+    expect(busy.get('[aria-label="Gather Panlight Salt"]').attributes('aria-disabled')).toBe('true');
+    expect(busy.get('.card-reason').text()).toBe('Finish gathering first.');
+  });
+
+  it('an expired cap does not disable Gather', () => {
+    const { w } = mountList(poolsGame({ harvestCaps: ref([{ id: 1n, locationId: 11n, cappedUntilMicros: 1n }]) }));
+    expect(w.get('[aria-label="Gather Panlight Salt"]').attributes('aria-disabled')).toBeUndefined();
+  });
+});
+
+describe('Also here', () => {
+  it('is labelled only when a group above renders', () => {
+    const atSafe = mountList({ ...FULL, enemiesHere: ref([]) }).w;
+    expect(groupLabels(atSafe)).toEqual(['Nearby']);
+    expect(atSafe.findAll('.nearby-row').length).toBeGreaterThan(0);
+    atSafe.unmount();
+    wrapper = null;
+    const withPools = mountList(poolsGame()).w;
+    expect(groupLabels(withPools)).toContain('Also here');
+  });
+
+  it('No one is nearby. only when there are no families, named, resources or anyone else', () => {
+    const { w } = mountList(
+      poolsGame({
+        poolLevelsHere: ref([]),
+        namedEnemies: ref([]),
+        npcsHere: ref([]),
+        character: ref(character({ locationId: 12n })),
+      }),
+    );
+    expect(w.text()).toContain('No one is nearby.');
+    w.unmount();
+    wrapper = null;
+    const other = mountList(poolsGame({ npcsHere: ref([]) })).w;
+    expect(other.text()).not.toContain('No one is nearby.');
+  });
+});
+
+describe('keep focus on pool cards', () => {
+  it('a Pull that goes away (wiped out) hands focus to the first button of the row now at that index', async () => {
+    const pools = ref([poolRow({ id: 1n, name: 'Goblins', level: 3n }), poolRow({ id: 2n, name: 'Wisps', level: 1n })]);
+    const { w } = mountList(poolsGame({ poolLevelsHere: pools, namedEnemies: ref([]) }));
+    (w.get('[aria-label="Pull Goblins"]').element as HTMLElement).focus();
+    pools.value = [poolRow({ id: 1n, name: 'Goblins', level: 0n }), poolRow({ id: 2n, name: 'Wisps', level: 1n })];
+    await nextTick();
+    await nextTick();
+    // Wisps now leads (the wiped family sorts last), so the row at the old index holds Pull Wisps.
+    expect(document.activeElement).toBe(w.get('[aria-label="Pull Wisps"]').element);
+  });
+
+  it('a slain named enemy with nothing after it hands focus to the Nearby heading', async () => {
+    const named = ref([namedEnemy({ name: 'Vesk', locationId: 12n })]);
+    const { w } = mountList(
+      poolsGame({
+        poolLevelsHere: ref([]),
+        npcsHere: ref([]),
+        namedEnemies: named,
+        character: ref(character({ locationId: 12n })),
+      }),
+    );
+    (w.get('[aria-label="Fight Vesk"]').element as HTMLElement).focus();
+    named.value = [namedEnemy({ name: 'Vesk', locationId: 12n, isAlive: false })];
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(w.get('h6').element);
+  });
+});
+
+describe('pool cards: security, privacy and structure', () => {
+  it('has no nested buttons anywhere in Nearby', () => {
+    const { w } = mountList(
+      poolsGame({ playersHere: FULL.playersHere, enemiesHere: FULL.enemiesHere, enemyTemplatesHere: FULL.enemyTemplatesHere }),
+    );
+    expect(w.findAll('.pool-card').length).toBeGreaterThan(3);
+    expect(w.element.querySelectorAll('button button')).toHaveLength(0);
+  });
+
+  it('renders markup in family, resource, named and place names as text', () => {
+    const { w } = mountList(
+      poolsGame({
+        locations: ref([CROSSING, { ...PLAIN, placeNoun: PAYLOAD }]),
+        poolLevelsHere: ref([poolRow({ name: PAYLOAD, pluralNoun: '', singularNoun: '' }), resourcePool({ name: PAYLOAD })]),
+        namedEnemies: ref([namedEnemy({ name: PAYLOAD })]),
+      }),
+    );
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.findAll('.card-name').map((n) => n.text())).toEqual([PAYLOAD, PAYLOAD, PAYLOAD]);
+    expect(w.findAll('.card-line')[0].text()).toContain(PAYLOAD.toLowerCase());
+  });
+
+  it('with numeric fixtures no rendered text shows a count, a cap amount or a percent', () => {
+    const now = BigInt(Date.now()) * 1000n;
+    const { w } = mountList(
+      poolsGame({
+        poolLevelsHere: ref([poolRow({ level: 3n, lvLo: 12n, lvHi: 14n, refId: 777n }), resourcePool({ level: 2n, refId: 888n })]),
+        harvestCaps: ref([{ id: 5n, locationId: 11n, cappedUntilMicros: now + 123_456_789n }]),
+      }),
+    );
+    const text = w.get('section').text().replace(/Lv \d+(-\d+)?/g, '');
+    expect(text).not.toMatch(/\d|%/);
+  });
+});
+
+describe('pool card source', () => {
+  const source = readFileSync(resolve(__dirname, 'NearbyList.vue'), 'utf8');
+
+  it('calls the console through the action runner and keeps focus by pool keys', () => {
+    expect(source).toContain('consoleApi.pull(');
+    expect(source).toContain('consoleApi.gather(');
+    expect(source).toContain('consoleApi.fight(');
+    expect(source).toContain('runner.run(');
+    expect(source).toContain('family-${');
+    expect(source).toContain('named-${');
+    expect(source).toContain('resource-${');
   });
 });
