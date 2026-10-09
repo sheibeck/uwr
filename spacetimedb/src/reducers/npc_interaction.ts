@@ -14,6 +14,7 @@ import {
   parseNpcPersonality,
 } from '../helpers/npc_conversation';
 import { flattenLineBreaks } from '../helpers/chat_text';
+import { recentRumors } from '../helpers/pool_events';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints, type NpcConversationInput } from '../data/llm_layers';
 import { npcGender } from '../data/npc_gender';
 
@@ -71,6 +72,8 @@ export const registerNpcInteractionReducers = (deps: any) => {
     const activeQuestFromThisNpc = getActiveQuestCountForNpc(ctx, character.id, npcId) >= MAX_QUESTS_PER_NPC;
     const nearbyEnemies = getNearbyEnemyContext(ctx, character.locationId);
     const recentQuestNames = completedQuestNames.slice(-5);
+    // 51.3.1.1-26 (D-22): recent word about population shifts in this NPC's region (read-only).
+    const regionRumors = location ? recentRumors(ctx, location.regionId, ctx.timestamp.microsSinceUnixEpoch) : [];
 
     const input: NpcConversationInput = {
       npc: { name: npc.name, npcType: npc.npcType, gender: npcGender(npc) },
@@ -94,6 +97,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
       nearbyLocationNames,
       nearbyEnemies,
       recentQuestNames,
+      regionRumors,
     };
 
     // The turn marker is read after getOrCreateNpcMemory, so two racing tabs see the same key
