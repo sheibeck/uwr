@@ -39,7 +39,13 @@ interface Setup {
   attach?: boolean;
 }
 
-const gatherRow = (id: bigint, endsAt: number) => ({ id, characterId: 5n, nodeId: 3n, endsAtMicros: BigInt(endsAt) });
+const gatherRow = (id: bigint, endsAt: number) => ({
+  id,
+  characterId: 5n,
+  nodeId: 0n,
+  poolId: 9n,
+  endsAtMicros: BigInt(endsAt),
+});
 const castRow = (id: bigint, endsAt: number, abilityTemplateId = 20n) => ({
   id,
   characterId: 5n,
@@ -63,7 +69,7 @@ function makeGame(setup: Setup = {}) {
     characterId: ref(5n),
     gathers,
     characterCasts: casts,
-    nodesHere: ref([{ id: 3n, name: setup.nodeName ?? 'Ironwood' }]),
+    poolLevels: ref([{ id: 9n, kind: 'resource', level: 2n, name: setup.nodeName ?? 'Ironwood' }]),
     abilities: ref([{ id: 20n, name: setup.abilityName ?? 'Mend', kind: 'heal', castSeconds: 2n }]),
     combat: { ...createInertCombatData(), active },
     actionFirstSeen: seen.firstSeen,

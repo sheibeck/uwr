@@ -76,7 +76,7 @@ function setup() {
   const character = shallowRef<any>({ id: 1n, name: 'Bob', locationId: 10n, level: 3n, className: 'Warden' });
   const llmJobs = shallowRef<any[]>([]);
   const npcsHere = shallowRef<any[]>([]);
-  const nodesHere = shallowRef<any[]>([]);
+  const poolLevelsHere = shallowRef<any[]>([]);
   const locations = shallowRef<any[]>([]);
   const connections = shallowRef<any[]>([]);
   const groupInvites = shallowRef<any[]>([]);
@@ -120,7 +120,7 @@ function setup() {
     character,
     llmJobs,
     npcsHere,
-    nodesHere,
+    poolLevelsHere,
     locations,
     connections,
     groupInvites,
@@ -170,7 +170,7 @@ function setup() {
     character,
     llmJobs,
     npcsHere,
-    nodesHere,
+    poolLevelsHere,
     locations,
     connections,
     groupInvites,
@@ -547,6 +547,47 @@ describe('narrative queue', () => {
     });
     const echoLine = lines(s.feed).find((l) => l.message === 'How far is the crossing?');
     expect(echoLine).toEqual({ kind: 'echo', message: 'How far is the crossing?', queued: false });
+  });
+
+  describe('typed gather names come from the resource pools here (51.3.1.1-18)', () => {
+    async function talking() {
+      const s = setup();
+      s.npcsHere.value = [npc(3n, 'Ferryman')];
+      s.poolLevelsHere.value = [
+        { id: 9n, kind: 'resource', level: 2n, name: 'Panlight Salt', locationId: 10n },
+        { id: 10n, kind: 'resource', level: 0n, name: 'Bitterleaf', locationId: 10n },
+        { id: 5n, kind: 'creature', level: 3n, name: 'Goblins', locationId: 10n },
+      ];
+      s.api.draft.value = 'hail Ferryman';
+      s.api.submit();
+      s.settle('submitIntent');
+      await flush();
+      expect(s.api.conversation.value).toEqual({ npcId: 3n, name: 'Ferryman' });
+      return s;
+    }
+
+    it('a gather of a resource pool here leaves the conversation as a command', async () => {
+      const s = await talking();
+      s.api.draft.value = 'gather Panlight Salt';
+      s.api.submit();
+      await flush();
+      expect(s.reducers.talkToNpc).not.toHaveBeenCalled();
+      expect(s.reducers.submitIntent).toHaveBeenLastCalledWith({ characterId: 1n, text: 'gather Panlight Salt' });
+    });
+
+    it('an exhausted resource or a family name is not a gather name: it stays talk', async () => {
+      const s = await talking();
+      s.api.draft.value = 'gather Bitterleaf';
+      s.api.submit();
+      await flush();
+      expect(s.reducers.talkToNpc).toHaveBeenCalledTimes(1);
+      s.settle('talkToNpc');
+      await flush();
+      s.api.draft.value = 'gather Goblins';
+      s.api.submit();
+      await flush();
+      expect(s.reducers.talkToNpc).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('a queued line never reaches a different NPC (WR-06)', () => {

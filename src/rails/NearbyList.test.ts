@@ -45,6 +45,7 @@ function mountList(
     whisperTo: vi.fn(),
     invite: vi.fn(),
     pull: vi.fn(),
+    fight: vi.fn(),
   };
   const characterRef = ref(character());
   const data = {
@@ -87,6 +88,7 @@ const FULL = {
     { id: 2n, name: 'Marta', npcType: 'vendor' },
     { id: 3n, name: 'Aldric', npcType: 'quest' },
   ]),
+  // A legacy field the list must ignore: resources are pools now (51.3.1.1-18; Plan 19 adds the cards).
   nodesHere: ref([
     { id: 20n, name: 'Iron Vein', state: 'available' },
     { id: 21n, name: 'Empty Vein', state: 'depleted' },
@@ -105,16 +107,8 @@ describe('Examine eye on every row', () => {
   it('is the last button of each row, outside .row-main, and calls examine with the name', async () => {
     const { w, calls } = mountList(FULL);
     const rows = w.findAll('.nearby-row');
-    // enemy, NPCs (Aldric, Marta), bind stone, nodes (Empty Vein, Iron Vein), player (Bo)
-    expect(rows.map((r) => r.get('.row-name').text())).toEqual([
-      'Goblin Scout',
-      'Aldric',
-      'Marta',
-      'Bind stone',
-      'Empty Vein',
-      'Iron Vein',
-      'Bo',
-    ]);
+    // enemy, NPCs (Aldric, Marta), bind stone, player (Bo); no resource node rows (51.3.1.1-18)
+    expect(rows.map((r) => r.get('.row-name').text())).toEqual(['Goblin Scout', 'Aldric', 'Marta', 'Bind stone', 'Bo']);
     for (const row of rows) {
       // The player cluster ends with the menu opener, so the eye is the one before it.
       const buttons = row.findAll('button');
@@ -129,8 +123,6 @@ describe('Examine eye on every row', () => {
       'Goblin Scout': 'Goblin Scout',
       Aldric: 'Aldric',
       Marta: 'Marta',
-      'Empty Vein': 'Empty Vein',
-      'Iron Vein': 'Iron Vein',
       Bo: 'Bo',
     };
     for (const row of rows) {
@@ -186,21 +178,27 @@ describe('row shapes', () => {
   it('players show Whisper, Examine and the menu; enemies show Pull and Examine', () => {
     const { w } = mountList(FULL);
     const rows = w.findAll('.nearby-row');
-    expect(labels(rows[6])).toEqual(['Whisper Bo', 'Examine Bo', 'Actions for Bo']);
+    expect(labels(rows[4])).toEqual(['Whisper Bo', 'Examine Bo', 'Actions for Bo']);
     expect(w.find('[aria-label="Invite Bo"]').exists()).toBe(false);
     expect(labels(rows[0]).length).toBe(2);
     expect(labels(rows[0])[0]).toMatch(/^Pull Goblin Scout/);
     expect(labels(rows[0])[1]).toBe('Examine Goblin Scout');
   });
 
-  it('a gatherable node keeps its gather click and has an eye; a depleted node has only the eye', async () => {
+  it('lists no resource node row and has no gather click (51.3.1.1-18)', () => {
     const { w, calls } = mountList(FULL);
-    const rows = w.findAll('.nearby-row');
-    const iron = rows[5];
-    await iron.get('button.row-main').trigger('click');
-    expect(calls.gather).toHaveBeenCalledWith({ id: 20n, name: 'Iron Vein' });
-    expect(labels(iron).filter((l) => l === 'Examine Iron Vein')).toHaveLength(1);
-    expect(rows[4].find('button.row-main').exists()).toBe(false);
+    expect(w.text()).not.toContain('Iron Vein');
+    expect(w.text()).not.toContain('Empty Vein');
+    expect(w.find('button.row-main').exists()).toBe(false);
+    expect(calls.gather).not.toHaveBeenCalled();
+  });
+
+  it('the enemy spawn button fights the spawn (an event enemy) with no pull type (51.3.1.1-18)', async () => {
+    const { w, calls } = mountList(FULL);
+    await w.get('[aria-label^="Pull Goblin Scout"]').trigger('click');
+    expect(calls.fight).toHaveBeenCalledTimes(1);
+    expect(calls.fight).toHaveBeenCalledWith({ kind: 'event', id: 7n, name: 'Goblin Scout' });
+    expect(calls.pull).not.toHaveBeenCalled();
   });
 
   it('renders markup names as text', () => {

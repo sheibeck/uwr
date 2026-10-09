@@ -1252,9 +1252,9 @@ describe('createGameData: density pools (51.3.1.1-18)', () => {
     expect(h.game.poolLevels.value).toEqual([]);
   });
 
-  it('binds no resource_node rows: nodesHere stays empty', () => {
+  it('no longer exposes nodesHere', () => {
     const h = world();
-    expect(h.game.nodesHere.value).toEqual([]);
+    expect('nodesHere' in h.game).toBe(false);
   });
 });
 
@@ -1336,6 +1336,7 @@ describe('inert defaults', () => {
     ]) {
       expect(list.value).toEqual([]);
     }
+    expect('nodesHere' in game).toBe(false);
     expect(game.poolsAppliedFor(3n)).toBe(false);
     expect(game.poolRegionsApplied.value.size).toBe(0);
     expect(() => {

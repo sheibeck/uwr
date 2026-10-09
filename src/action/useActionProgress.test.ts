@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
 import { createActionFirstSeen } from './actionFirstSeen';
 import { useActionProgress } from './useActionProgress';
-import type { CastRow, GatherRow } from './actionProgress';
+import type { CastRow } from './actionProgress';
+import type { PoolGatherRow } from './useActionProgress';
 
 const S = 1_000_000;
 const T = 1_700_000_000 * S;
@@ -27,7 +28,7 @@ function setup() {
   let now = T;
   const skew = ref(0);
   const characterId = ref<bigint | null>(5n);
-  const gathers = ref<readonly GatherRow[]>([]);
+  const gathers = ref<readonly PoolGatherRow[]>([]);
   const casts = ref<readonly CastRow[]>([]);
   const inCombat = ref(false);
   const clock = { skewMicros: skew, nowMicros: () => now + skew.value };
@@ -40,7 +41,10 @@ function setup() {
         characterId,
         gathers,
         casts,
-        nodes: ref([{ id: 3n, name: 'Ironwood' }]),
+        pools: ref([
+          { id: 9n, name: 'Ironwood' },
+          { id: 3n, name: 'Wrong Pool' },
+        ]),
         abilities: ref([{ id: 20n, name: 'Mend', kind: 'heal', castSeconds: 2n }]),
         inCombat,
         clock,
@@ -64,10 +68,12 @@ function setup() {
   };
 }
 
-const gatherRow = (id: bigint, endsAt: number): GatherRow => ({
+// A pool gather (51.3.1.1-18): nodeId 0n, poolId = the pool_level id.
+const gatherRow = (id: bigint, endsAt: number): PoolGatherRow => ({
   id,
   characterId: 5n,
-  nodeId: 3n,
+  nodeId: 0n,
+  poolId: 9n,
   endsAtMicros: BigInt(endsAt),
 });
 
@@ -76,6 +82,32 @@ const castRow = (id: bigint, endsAt: number): CastRow => ({
   characterId: 5n,
   abilityTemplateId: 20n,
   endsAtMicros: BigInt(endsAt),
+});
+
+describe('useActionProgress: pool gathers (51.3.1.1-18)', () => {
+  it('names a pool gather from the pool_level row of its poolId', async () => {
+    const h = setup();
+    h.gathers.value = [gatherRow(1n, T + 8 * S)];
+    await nextTick();
+    expect(h.action.value?.label).toBe('Gathering Ironwood');
+    h.scope.stop();
+  });
+
+  it('shows the generic label for a legacy node gather (nodeId, no pool)', async () => {
+    const h = setup();
+    h.gathers.value = [{ id: 1n, characterId: 5n, nodeId: 3n, poolId: 0n, endsAtMicros: BigInt(T + 8 * S) }];
+    await nextTick();
+    expect(h.action.value?.label).toBe('Gathering');
+    h.scope.stop();
+  });
+
+  it('shows the generic label while the pool row is not known', async () => {
+    const h = setup();
+    h.gathers.value = [{ id: 1n, characterId: 5n, nodeId: 0n, poolId: 77n, endsAtMicros: BigInt(T + 8 * S) }];
+    await nextTick();
+    expect(h.action.value?.label).toBe('Gathering');
+    h.scope.stop();
+  });
 });
 
 describe('useActionProgress', () => {
