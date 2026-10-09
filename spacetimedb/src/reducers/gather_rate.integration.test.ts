@@ -6,12 +6,17 @@
  * and finish_gather yields the node's stored quantity before the perk bonuses, whatever the dial says
  * by then. A modifier reagent node still yields exactly 1; a node with no stored quantity falls back
  * to today's 2 to 6 roll.
+ *
+ * Phase 51.3.1.1 Plan 12 adds the pool path (poolId > 0): there the dial applies at the finish, on the
+ * pool's density yield (see the last describe block).
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer } from '../helpers/schema_recorder';
 import { createMockCtx } from '../helpers/test-utils';
 import { MODULE, startSeed } from '../helpers/combat_fight_fixture';
 import { DEFAULT_DIALS } from '../data/economy_rules';
+import { REGION_ID, ORCHARD_ID, IRON_ORE_ID, poolWorld, poolCtx, seedPools } from '../helpers/pool_fixture';
+import { createPool, setPoolCount } from '../helpers/pools';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -127,6 +132,80 @@ describe('a modifier reagent still yields exactly 1', () => {
       const ctx = newCtx({ ts: tsForBase(6n), nodeName: 'Glowing Stone', nodeTemplate: REAGENT, dials: { gatherRatePct: pct } });
       run(ctx);
       expect(bagCount(ctx, REAGENT)).toBe(1n);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.1 Plan 12 (D-38): the pool path. A pool gather (poolId > 0) yields by the pool's
+// density level at the finish (YIELD_BY_LEVEL), then the 51.3 gather dial (gatherYield, the region's
+// effective gatherRatePct), then the same perk and racial bonuses as the node path. A modifier
+// reagent still yields exactly 1.
+// ---------------------------------------------------------------------------
+
+const GLOWING = 303n;
+
+function poolGatherCtx(opts: { count: bigint; dial?: bigint; regionDial?: bigint; reagent?: boolean; racialLootBonus?: bigint }) {
+  const seed = poolWorld();
+  const iron = seed.item_template.find((r: any) => r.id === IRON_ORE_ID);
+  seed.item_template.push({ ...iron, id: GLOWING, name: 'Glowing Stone' });
+  seed.economy_dials = opts.dial === undefined ? [] : [{ id: 1n, ...DEFAULT_DIALS, gatherRatePct: opts.dial }];
+  if (opts.regionDial !== undefined) seed.economy_region_dial = [{ regionId: REGION_ID, gatherRatePct: opts.regionDial }];
+  if (opts.racialLootBonus !== undefined) {
+    seed.character = seed.character.map((c: any) => (c.id === 1n ? { ...c, racialLootBonus: opts.racialLootBonus } : c));
+  }
+  const ctx = poolCtx(seed, MODULE, T0);
+  const pools = seedPools(ctx);
+  setPoolCount(ctx, pools.goblinsOrchard, 0n, T0);
+  const pool = createPool(
+    ctx,
+    { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'resource', refId: opts.reagent ? GLOWING : IRON_ORE_ID, homeLevel: 3 },
+    T0,
+  );
+  setPoolCount(ctx, pool, opts.count, T0);
+  const gather = ctx.db.resource_gather.insert({ id: 0n, characterId: 1n, nodeId: 0n, endsAtMicros: T0, poolId: pool.id });
+  return { ctx, gatherId: gather.id };
+}
+
+const ownBag = (ctx: any, templateId: bigint): bigint =>
+  (ctx.db._tables.item_instance ?? [])
+    .filter((r: any) => r.ownerCharacterId === 1n && r.templateId === templateId)
+    .reduce((n: bigint, r: any) => n + (r.quantity ?? 1n), 0n);
+
+describe('the pool path: density yield, then the gather dial (Phase 51.3.1.1 D-38)', () => {
+  const cases: [bigint, bigint | undefined, bigint][] = [
+    [66n, undefined, 2n], // Plentiful, no dial row (default 100)
+    [66n, 100n, 2n],
+    [66n, 200n, 4n], // the dial doubles the density yield
+    [100n, 300n, 9n], // Abundant x3, then x3
+    [100n, 50n, 1n], // 3 * 50% = 1 (rounded down)
+    [20n, 50n, 1n], // Sparse never drops below 1
+  ];
+  for (const [count, dial, want] of cases) {
+    it(`count ${count} at dial ${dial ?? 'default'} yields ${want}`, () => {
+      const { ctx, gatherId } = poolGatherCtx({ count, dial });
+      finish(ctx, { arg: { scheduledId: 1n, gatherId } });
+      expect(ownBag(ctx, IRON_ORE_ID)).toBe(want);
+    });
+  }
+
+  it('the region override is the effective dial', () => {
+    const { ctx, gatherId } = poolGatherCtx({ count: 66n, dial: 100n, regionDial: 300n });
+    finish(ctx, { arg: { scheduledId: 1n, gatherId } });
+    expect(ownBag(ctx, IRON_ORE_ID)).toBe(6n);
+  });
+
+  it('the racial bonus still applies after the dial', () => {
+    const { ctx, gatherId } = poolGatherCtx({ count: 66n, dial: 200n, racialLootBonus: 100n });
+    finish(ctx, { arg: { scheduledId: 1n, gatherId } });
+    expect(ownBag(ctx, IRON_ORE_ID)).toBe(5n);
+  });
+
+  for (const pct of [50n, 100n, 300n]) {
+    it(`a modifier reagent pool yields exactly 1 at ${pct} percent`, () => {
+      const { ctx, gatherId } = poolGatherCtx({ count: 100n, dial: pct, reagent: true, racialLootBonus: 100n });
+      finish(ctx, { arg: { scheduledId: 1n, gatherId } });
+      expect(ownBag(ctx, GLOWING)).toBe(1n);
     });
   }
 });
