@@ -10,6 +10,7 @@ import {
   deferDelayMs,
   deterministicJitterMs,
   msToMicros,
+  shouldRetryTruncation,
 } from './llm_retry';
 
 const failure = (cls: ClaudeFailureClass): ClaudeResult => ({
@@ -234,4 +235,19 @@ describe('msToMicros', () => {
 it('type check: route union stays in sync', () => {
   const r: LlmRoute = 'skill_gen';
   expect(maxAttempts(r)).toBe(3);
+});
+
+describe('shouldRetryTruncation (Plan 51.3.1.1-32, deferred row 31)', () => {
+  it('retries a first truncation of npc_conversation below the attempt limit', () => {
+    expect(shouldRetryTruncation('npc_conversation', undefined, 1)).toBe(true);
+    expect(shouldRetryTruncation('npc_conversation', 'end_turn', 2n)).toBe(true);
+  });
+
+  it('never for another route, after an earlier truncation, or at the last attempt', () => {
+    expect(shouldRetryTruncation('skill_gen', undefined, 1)).toBe(false);
+    expect(shouldRetryTruncation('world_gen', undefined, 1)).toBe(false);
+    expect(shouldRetryTruncation('npc_conversation', 'max_tokens', 1)).toBe(false);
+    expect(shouldRetryTruncation('npc_conversation', undefined, maxAttempts('npc_conversation'))).toBe(false);
+    expect(shouldRetryTruncation('npc_conversation', undefined, 3n)).toBe(false);
+  });
 });

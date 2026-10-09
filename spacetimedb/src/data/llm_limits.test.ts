@@ -99,3 +99,14 @@ describe('llm_limits constants (Phase 41)', () => {
     }
   });
 });
+
+describe('LLM_TRUNCATION_RETRY_ROUTES (Plan 51.3.1.1-32, deferred row 31)', () => {
+  it('lists only npc_conversation, frozen, and shares no route with the no-auto-retry list', () => {
+    expect([...L.LLM_TRUNCATION_RETRY_ROUTES]).toEqual(['npc_conversation']);
+    expect(Object.isFrozen(L.LLM_TRUNCATION_RETRY_ROUTES)).toBe(true);
+    for (const r of L.LLM_TRUNCATION_RETRY_ROUTES) {
+      expect(isLlmRoute(r), r).toBe(true);
+      expect(L.LLM_NO_AUTO_RETRY_ROUTES as readonly string[]).not.toContain(r);
+    }
+  });
+});

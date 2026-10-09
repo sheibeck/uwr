@@ -669,6 +669,8 @@ describe('world-gen failure for a placed character', () => {
 interface OtherRoute {
   route: LlmRoute;
   retries: boolean;
+  /** One automatic retry after a truncation (LLM_TRUNCATION_RETRY_ROUTES, Plan 51.3.1.1-32). */
+  truncationRetry?: boolean;
   seed: () => Record<string, any[]>;
   enqueue: (proc: Proc) => bigint;
   /** Lines after a terminal failure that is not a resting stop. */
@@ -685,6 +687,7 @@ const OTHER_ROUTES: OtherRoute[] = [
   {
     route: 'npc_conversation',
     retries: true,
+    truncationRetry: true,
     seed: () => ({}),
     enqueue: (proc) =>
       enqueue(proc, 'npc_conversation', {
@@ -755,8 +758,47 @@ function otherJob(r: OtherRoute, responses: Array<MockReply | MockThrow> = []) {
 describe.each(CLASSES)('non-lock routes, failure class: $name', (cls) => {
   describe.each(OTHER_ROUTES)('$route', (r) => {
     const willRetry = r.retries && cls.transient === true;
+    const truncationRetry = r.truncationRetry === true && cls.name === 'truncation';
 
-    if (willRetry) {
+    if (truncationRetry) {
+      it('retries once after a truncation, then a second truncation is terminal: one line, both attempts billed', () => {
+        const { proc, jobId, reserved } = otherJob(r, [...cls.script(), ...cls.script()]);
+        const deps = realDeps(proc);
+
+        expect(run(proc, jobId, deps)).toBe('retry');
+        const pending = jobOf(proc, jobId);
+        expect(pending.status).toBe('pending');
+        expect(pending.errorCode).toBe('truncated');
+        expect(pending.attempt).toBe(1n);
+        expect(rows(proc, 'llm_dispatch')).toHaveLength(1);
+        expect(deps.applyFailure).not.toHaveBeenCalled();
+        expect(playerLines()).toEqual([]);
+        expect(dayOf(proc).spentMicroUsd).toBe(FIXTURE_COST);
+        expect(dayOf(proc).reservedMicroUsd).toBe(pending.reservedMicroUsd);
+
+        expect(run(proc, jobId, deps)).toBe('failed');
+        const job = jobOf(proc, jobId);
+        expect(job.status).toBe('failed');
+        expect(job.errorCode).toBe(cls.errorCode);
+        expect(job.attempt).toBe(2n);
+        expect(proc.http.calls).toHaveLength(2);
+        expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+        expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+        expectLines(playerLines(), r.terminal());
+        expectPlayerSafe(playerTexts(proc));
+
+        // Money exact for two billed attempts: each real cost charged, nothing held, two calls counted.
+        expect(reserved >= FIXTURE_COST).toBe(true);
+        expect(job.reservedMicroUsd).toBe(0n);
+        expect(job.costMicroUsd).toBe(FIXTURE_COST * 2n);
+        expect(dayOf(proc).reservedMicroUsd).toBe(0n);
+        expect(dayOf(proc).spentMicroUsd).toBe(FIXTURE_COST * 2n);
+        expect(dayOf(proc).calls).toBe(2n);
+        expect(ledger(proc).reservedMicroUsd).toBe(0n);
+        expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST * 2n);
+        expect(ledger(proc).calls).toBe(2n);
+      });
+    } else if (willRetry) {
       it('retries once: one dispatch, one call so far, no player line, reservation held', () => {
         const { proc, jobId, reserved } = otherJob(r, cls.script());
         const deps = realDeps(proc);

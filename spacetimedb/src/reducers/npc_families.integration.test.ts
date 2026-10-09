@@ -10,6 +10,7 @@ import { capturedReducer } from '../helpers/schema_recorder';
 import { poolWorld, poolCtx, seedPools, T0, ALICE, REGION_ID, ORCHARD_ID, GOBLINS_ID, SKITTERERS_ID } from '../helpers/pool_fixture';
 import { resolveRouteInput } from '../helpers/llm_inputs';
 import { buildRouteLayers } from '../data/llm_layers';
+import { getNearbyEnemyContext } from '../helpers/npc_conversation';
 import { DENSITY_RULES } from '../data/density_rules';
 import { FAMILY_FEUD_KIND } from '../data/mechanical_vocabulary';
 
@@ -187,5 +188,16 @@ describe('talk_to_npc: the creature families of the region (51.3.1.1-30, R2-C)',
     const before = snapshot();
     talk(ctx);
     expect(snapshot()).toBe(before);
+  });
+});
+
+describe('talk_to_npc: nearby families from the pools (51.3.1.1-32, row 31)', () => {
+  it('stores nearbyEnemies equal to getNearbyEnemyContext for the NPC place: one entry per family, with its level range', () => {
+    const ctx = world(false);
+    const expected = getNearbyEnemyContext(ctx, ORCHARD_ID);
+    const input = talk(ctx);
+    expect(input.nearbyEnemies).toEqual(expected);
+    expect(input.nearbyEnemies.map((e: any) => e.name)).toEqual(['Goblins', 'Salt-Crust Skitterers']);
+    expect(input.nearbyEnemies[0]).toMatchObject({ level: 3, levelHi: 5, location: 'Glass Orchard' });
   });
 });

@@ -29,7 +29,7 @@ import { appendPrivateEvent, appendCreationEvent } from './events';
 import { estimateCostMicroUsd, findSecretLeaks } from './measurement';
 import { LLM_ROUTES, type LlmRoute } from '../data/llm_routes';
 import { ANTHROPIC_MESSAGES_URL } from '../data/llm_models';
-import { LLM_MAX_IN_FLIGHT, LLM_NARRATION_MAX_IN_FLIGHT } from '../data/llm_limits';
+import { LLM_MAX_IN_FLIGHT, LLM_NARRATION_MAX_IN_FLIGHT, LLM_PLAYER_DAILY_CALLS } from '../data/llm_limits';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -1527,13 +1527,112 @@ describe('retry by class (PIPE-04)', () => {
     );
   });
 
-  it('a truncated reply (max_tokens, billed) is terminal and charges the real cost', () => {
-    const proc = makeProc([reply('max_tokens')]);
+  // Plan 51.3.1.1-32 (deferred row 31, owner 2026-10-09): a truncated npc_conversation reply is retried
+  // ONCE automatically before the "seems distracted" line. The truncated attempt is billed and logged.
+  it('npc_conversation truncated once: billed, logged as truncated, re-reserved and retried at once; the retry completes', () => {
+    const proc = makeProc([reply('max_tokens'), reply('ok_text')]);
     const jobId = enqueue(proc, 'npc_conversation');
-    expect(run(proc, jobId)).toBe('failed');
+    const deps = makeDeps(proc);
+
+    expect(run(proc, jobId, deps)).toBe('retry');
+
+    const job = jobOf(proc, jobId);
+    const persistAt = nowMicros(proc);
+    expect(job.status).toBe('pending');
+    expect(job.errorCode).toBe('truncated');
+    expect(job.stopReason).toBe('max_tokens');
+    expect(job.attempt).toBe(1n);
+    expect(job.costMicroUsd).toBe(FIXTURE_COST);
+    expect(job.reservedMicroUsd > 0n).toBe(true);
+    expect(job.nextAttemptAt.microsSinceUnixEpoch).toBe(persistAt);
+    const dispatches = rows(proc, 'llm_dispatch');
+    expect(dispatches).toHaveLength(1);
+    expect(dispatches[0].jobId).toBe(jobId);
+    expect(scheduledMicros(dispatches[0].scheduledAt)).toBe(persistAt);
+    // The truncated attempt is charged; a fresh reservation (and call) is held for the retry.
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(playerDay(proc).calls).toBe(2n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(job.reservedMicroUsd);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(ledger(proc).reservedMicroUsd).toBe(job.reservedMicroUsd);
+    const logs = callLogs(proc, jobId);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ outcome: 'truncated', stopReason: 'max_tokens', costMicroUsd: FIXTURE_COST });
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    expect(deps.apply).not.toHaveBeenCalled();
+
+    expect(run(proc, jobId, deps)).toBe('completed');
+    expect(jobOf(proc, jobId).status).toBe('completed');
+    expect(jobOf(proc, jobId).attempt).toBe(2n);
+    expect(deps.apply).toHaveBeenCalledTimes(1);
+    expect(deps.applyFailure).not.toHaveBeenCalled();
+    expect(callLogs(proc, jobId).map((l) => l.outcome)).toEqual(['truncated', 'ok']);
+    expect(jobOf(proc, jobId).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+  });
+
+  it('npc_conversation truncated twice: the second is terminal, one failure, both attempts billed, nothing held', () => {
+    const proc = makeProc([reply('max_tokens'), reply('max_tokens')]);
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = makeDeps(proc);
+
+    expect(run(proc, jobId, deps)).toBe('retry');
+    expect(run(proc, jobId, deps)).toBe('failed');
+
+    const job = jobOf(proc, jobId);
+    expect(job.status).toBe('failed');
+    expect(job.errorCode).toBe('truncated');
+    expect(job.attempt).toBe(2n);
+    expect(job.costMicroUsd).toBe(FIXTURE_COST * 2n);
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(callLogs(proc, jobId).map((l) => [l.outcome, l.stopReason])).toEqual([
+      ['truncated', 'max_tokens'],
+      ['truncated', 'max_tokens'],
+    ]);
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST * 2n);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(2n);
+    expect(ledger(proc).spentMicroUsd).toBe(FIXTURE_COST * 2n);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+  });
+
+  it('a truncated skill_gen reply (max_tokens, billed) is terminal at once and charges the real cost', () => {
+    const proc = makeProc([reply('max_tokens')]);
+    const jobId = enqueue(proc, 'skill_gen');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
     expect(jobOf(proc, jobId).errorCode).toBe('truncated');
     expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(playerDay(proc).calls).toBe(1n);
     expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(callLogs(proc, jobId).map((l) => l.outcome)).toEqual(['truncated']);
+  });
+
+  it('npc_conversation truncated when the retry cannot be reserved (daily call cap): terminal at once', () => {
+    const today = utcDay({ microsSinceUnixEpoch: T0 });
+    const proc = makeProc([reply('max_tokens')], {
+      seed: {
+        llm_player_budget: [
+          { id: 1n, playerId: alice, dayUtc: today, reservedMicroUsd: 0n, spentMicroUsd: 0n, calls: LLM_PLAYER_DAILY_CALLS - 1n },
+        ],
+      },
+    });
+    const jobId = enqueue(proc, 'npc_conversation');
+    const deps = makeDeps(proc);
+    expect(run(proc, jobId, deps)).toBe('failed');
+    const job = jobOf(proc, jobId);
+    expect(job.errorCode).toBe('truncated');
+    expect(job.reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).spentMicroUsd).toBe(FIXTURE_COST);
+    expect(playerDay(proc).reservedMicroUsd).toBe(0n);
+    expect(playerDay(proc).calls).toBe(LLM_PLAYER_DAILY_CALLS);
+    expect(ledger(proc).reservedMicroUsd).toBe(0n);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
   });
 
   it('an ok reply whose usage is missing: completed; the ledger is charged the reservation, the player nothing', () => {
