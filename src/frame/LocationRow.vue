@@ -3,11 +3,13 @@ import { computed, inject } from 'vue';
 import { PhHourglassMedium, PhMapPin } from '@phosphor-icons/vue';
 import { MAP_KEY, createInertMap } from '../map/mapContext';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
-import { dangerClass } from '../rails/exits';
+import RatingMark from '../rails/RatingMark.vue';
 import { usePlaceView } from '../rails/useExits';
 
 // The mobile location line (51-UI-SPEC "Mobile (Story screen, 12a A.6)"): the pin, the place, its
-// terrain and its level in the Map's band colour, and the region travel timer while it runs. The
+// terrain, its safety rating word in the rating colour (Label 12) and the level range (Micro 10,
+// 51.3.1.1 UI-SPEC "Rating Marks"), and the region travel timer while it runs. Unknown (pools not
+// applied yet) shows no word and keeps the range; it never reads Safe. The
 // time of day is not here (the Console 12a mock puts terrain and level in its place); the desktop
 // header keeps it. The place name comes from the frame view; the terrain and level read the character's
 // place. All names are server text, rendered as text nodes only.
@@ -20,11 +22,7 @@ const timer = computed(() => map.selfTimer.value);
 const clock = computed(() => formatClock(timer.value.secondsLeft));
 const minutes = computed(() => `Region travel ready in ${aboutMinutes(timer.value.secondsLeft)}`);
 
-const levelText = computed(() => {
-  const danger = here.value?.danger;
-  if (!danger) return '';
-  return danger.levelLabel !== '' ? danger.levelLabel : danger.word;
-});
+const rating = computed(() => here.value?.rating ?? null);
 </script>
 
 <template>
@@ -34,7 +32,12 @@ const levelText = computed(() => {
     <template v-if="here">
       <!-- The separators are visual only: screen readers hear 'Woods', not 'dot Woods dot'. -->
       <span class="terrain"><span aria-hidden="true">· </span>{{ here.terrain.word }}<span aria-hidden="true"> ·</span></span>
-      <span class="level" :class="dangerClass(here.danger)">{{ levelText }}</span>
+      <span v-if="rating && (rating.word !== '' || rating.levelLabel !== '')" class="level"
+        ><RatingMark v-if="rating.word !== ''" :rating="rating" :dot="false" :size="12" /><template
+          v-if="rating.word !== '' && rating.levelLabel !== ''"
+          >{{ ' ' }}</template
+        ><span v-if="rating.levelLabel !== ''" class="range">{{ rating.levelLabel }}</span></span
+      >
     </template>
     <template v-if="timer.running">
       <span class="timer">
@@ -80,24 +83,9 @@ const levelText = computed(() => {
   color: var(--color-neutral-500);
 }
 
-.lv-easy,
-.lv-safe {
-  color: var(--color-con-light-green);
-}
-
-.lv-even {
-  color: var(--color-con-blue);
-}
-
-.lv-tough {
-  color: var(--color-con-yellow);
-}
-
-.lv-deadly {
-  color: var(--color-con-red);
-}
-
-.lv-unknown {
+.range {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
   color: var(--color-neutral-500);
 }
 

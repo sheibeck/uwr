@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { PhArrowFatUp, PhMapPin, PhMoonStars, PhSun } from '@phosphor-icons/vue';
 import { HEADER_SCREENS, type ScreenId } from '../screens/screens';
 import InCombatTag from '../combat/InCombatTag.vue';
+import { ratingClass } from '../rails/rating';
+import RatingMark from '../rails/RatingMark.vue';
+import { usePlaceView } from '../rails/useExits';
 import AccountMenu from './AccountMenu.vue';
 
 const props = defineProps<{
@@ -17,6 +21,15 @@ const props = defineProps<{
   inCombat?: boolean;
   roundNumber?: bigint | null;
 }>();
+
+// The safety rating pill after the place name (51.3.1.1 UI-SPEC "Rating Marks", D-08): the same
+// Here view as the rail and the location line, so the surfaces never disagree. Hidden until the
+// place's pool rows apply (Unknown has no word); it never reads Safe meanwhile. It stays in combat.
+const here = usePlaceView();
+const rating = computed(() => {
+  const view = here.value;
+  return view !== null && view.rating.word !== '' ? view.rating : null;
+});
 
 const emit = defineEmits<{
   'toggle-screen': [screen: ScreenId, opener: HTMLElement];
@@ -37,6 +50,14 @@ function onScreenClick(id: ScreenId, event: MouseEvent) {
     <span class="location">
       <PhMapPin class="location-icon" :size="14" aria-hidden="true" />
       <span class="place" :title="props.placeLabel">{{ props.placeLabel }}</span>
+    </span>
+    <span
+      v-if="rating"
+      class="rating-pill"
+      :class="ratingClass(rating.key)"
+      :title="rating.line !== '' ? rating.line : undefined"
+    >
+      <RatingMark :rating="rating" />
     </span>
     <InCombatTag v-if="props.inCombat" :round-number="props.roundNumber ?? null" />
     <span v-if="props.timeOfDay" class="time">
@@ -121,6 +142,32 @@ function onScreenClick(id: ScreenId, event: MouseEvent) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The pill keeps its width (fixed short words): the place name ellipsizes first. */
+.rating-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 50%, transparent);
+}
+.rate-safe {
+  color: var(--color-con-light-green);
+}
+.rate-quiet {
+  color: var(--color-con-blue);
+}
+.rate-risky {
+  color: var(--color-con-yellow);
+}
+.rate-deadly {
+  color: var(--color-con-red);
+}
+.rate-unknown {
+  color: var(--color-neutral-500);
 }
 .time {
   display: flex;
