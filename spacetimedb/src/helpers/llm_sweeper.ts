@@ -53,7 +53,7 @@ import {
 } from '../data/llm_limits';
 import { redactSecrets } from './measurement';
 import { applyLlmFailure, failWorldGen, toApplyJob, type ApplyJob } from './llm_apply';
-import { failWorldFill, WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { failWorldFill, failWorldFamilies, WORLD_FILL_FAILED_MESSAGE, WORLD_FAMILIES_FAILED_MESSAGE } from './world_gen';
 import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { appendCreationEvent } from './events';
 import { flattenSegments, keeperFallback } from './segments';
@@ -281,7 +281,11 @@ function genStateIdOf(job: any): string | undefined {
 /**
  * Release generation locks whose job is gone. A creation state is locked by an active
  * creation job of its own identity; a world-gen state by an active job naming its id: a
- * world_gen_start job holds PENDING/GENERATING (stage 1), a world_gen job holds FILLING (stage 2).
+ * world_gen_start job holds PENDING/GENERATING (stage 1), a world_gen job holds FILLING (stage 2a),
+ * a world_gen_families job holds FILLING_FAMILIES (stage 2b, Phase 51.3.1.2). A stranded stage-1
+ * lock fails to ERROR, a stranded 2a lock to FILL_ERROR, and a stranded 2b lock to FAMILIES_ERROR,
+ * never FILL_ERROR, so the places are never written twice (D-08, Pitfall 1). ERROR, FILL_ERROR,
+ * FAMILIES_ERROR, HELD and COMPLETE are never touched, and nothing is re-enqueued here.
  * Only locks older than the grace are touched (a lock and its job are always written in the
  * same transaction, so a younger lock without a job cannot exist, but the grace keeps the rule
  * conservative). Iterates both state tables: the only caller is the sweeper reducer.
@@ -290,7 +294,8 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
   const active = activeLlmJobs(ctx);
   const creationHeld = new Set<string>();
   const worldGenHeld = new Set<string>(); // stage 1: world_gen_start
-  const worldFillHeld = new Set<string>(); // stage 2: world_gen
+  const worldFillHeld = new Set<string>(); // stage 2a: world_gen
+  const worldFamiliesHeld = new Set<string>(); // stage 2b: world_gen_families
   for (const job of active) {
     if (job.route === 'creation_race' || job.route === 'creation_class_reveal' || job.route === 'creation_class') {
       creationHeld.add(`${job.route}|${job.playerId.toHexString()}`);
@@ -300,6 +305,9 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
     } else if (job.route === 'world_gen') {
       const id = genStateIdOf(job);
       if (id !== undefined) worldFillHeld.add(id);
+    } else if (job.route === 'world_gen_families') {
+      const id = genStateIdOf(job);
+      if (id !== undefined) worldFamiliesHeld.add(id);
     }
   }
   const stale = (row: any): boolean => now - row.updatedAt.microsSinceUnixEpoch > LLM_SWEEP_STRANDED_LOCK_GRACE_MICROS;
@@ -321,13 +329,16 @@ function releaseStrandedLocks(ctx: any, now: bigint, d: SweepDeps): number {
   }
   for (const state of [...ctx.db.world_gen_state.iter()]) {
     const isStage1 = state.step === 'PENDING' || state.step === 'GENERATING';
-    const isStage2 = state.step === 'FILLING';
-    if (!isStage1 && !isStage2) continue; // ERROR, FILL_ERROR and COMPLETE are never touched
-    const held = isStage1 ? worldGenHeld : worldFillHeld;
+    const isStage2a = state.step === 'FILLING';
+    const isStage2b = state.step === 'FILLING_FAMILIES';
+    // ERROR, FILL_ERROR, FAMILIES_ERROR, HELD and COMPLETE are never touched
+    if (!isStage1 && !isStage2a && !isStage2b) continue;
+    const held = isStage1 ? worldGenHeld : isStage2a ? worldFillHeld : worldFamiliesHeld;
     if (!stale(state) || held.has(state.id.toString())) continue;
     try {
       if (isStage1) failWorldGen(ctx, state, WORLD_GEN_LOCK_RELEASED);
-      else failWorldFill(ctx, state, WORLD_FILL_FAILED_MESSAGE);
+      else if (isStage2a) failWorldFill(ctx, state, WORLD_FILL_FAILED_MESSAGE);
+      else failWorldFamilies(ctx, state, WORLD_FAMILIES_FAILED_MESSAGE);
       released += 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
