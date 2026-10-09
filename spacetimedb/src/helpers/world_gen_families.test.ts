@@ -29,11 +29,14 @@ import {
   startWorldFamilies,
   failWorldFamilies,
   failWorldFill,
+  finishRegionFill,
+  pickDiscoveryMessage,
   WORLD_FAMILIES_FAILED_MESSAGE,
   WORLD_FILL_FAILED_MESSAGE,
   WORLD_FILL_REFUSED_MESSAGE,
 } from './world_gen';
-import { REGION_HOLD_FAILED_LINE } from './region_hold';
+import { REGION_HOLD_FAILED_LINE, regionOpenedLine } from './region_hold';
+import { DEFAULT_DIALS } from '../data/economy_rules';
 import { familyCountFor, familySeed, feudCountFor } from '../data/density_rules';
 import { createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
@@ -477,4 +480,128 @@ it('no families path ever sets FILL_ERROR (every failure case checks the step, T
   failWorldFamilies(direct, stateOf(direct), WORLD_FAMILIES_FAILED_MESSAGE);
   steps.push(stateOf(direct).step);
   expect(steps).toEqual(['FAMILIES_ERROR', 'FAMILIES_ERROR', 'FAMILIES_ERROR', 'FAMILIES_ERROR']);
+});
+
+// ---------------------------------------------------------------------------
+// finishRegionFill: the hold ends and the economy starts after it (D-15, D-16)
+// ---------------------------------------------------------------------------
+
+describe('finishRegionFill (D-15, D-16; the discovery line moves to 7c)', () => {
+  const dialsOn = (): any[] => [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+  const dialsOff = (): any[] => [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: false }];
+  const econJobs = (ctx: any): any[] => rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
+  const OPENED = regionOpenedLine('Saltmarsh Reach');
+  const DISCOVERY = pickDiscoveryMessage('Saltmarsh Reach', T0);
+
+  const finishing = (step: string, seed: Record<string, any[]> = {}) =>
+    makeCtx({ seed: { character: people(), world_gen_state: [stateRow({ step })], ...seed } });
+
+  it.each(['FILLING_FAMILIES', 'FILLING'])(
+    'a %s state becomes COMPLETE; the crossing and the triggering character get 7c, then he gets the discovery line',
+    (step) => {
+      const ctx = finishing(step, { world_gen_state: [stateRow({ step, errorMessage: 'stale' })] });
+      finishRegionFill(ctx, stateOf(ctx));
+      expect(stateOf(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: REGION });
+      expect(stateOf(ctx).errorMessage).toBeUndefined();
+      expect(rowColumnProblems('world_gen_state', stateOf(ctx))).toEqual([]);
+
+      const lines = privateLines(ctx);
+      expect(lines.filter((l: any) => l.characterId === 10n).map((l: any) => l.message)).toEqual([OPENED, DISCOVERY]);
+      expect(lines.filter((l: any) => l.characterId === 11n).map((l: any) => l.message)).toEqual([OPENED]);
+      expect(lines.filter((l: any) => l.characterId === 12n).map((l: any) => l.message)).toEqual([OPENED]);
+      expect(lines.filter((l: any) => l.characterId === 13n)).toEqual([]);
+      for (const line of lines) expect(line.kind).toBe('system');
+      expect(OPENED).toContain('Beyond it lies Saltmarsh Reach, and the way in is open.');
+      expect(rows(ctx, 'event_creation')).toHaveLength(0);
+    },
+  );
+
+  it('the triggering character standing at the crossing gets 7c once, then the discovery line', () => {
+    const ctx = finishing('FILLING_FAMILIES');
+    ctx.db.character.id.update({ ...rows(ctx, 'character')[0], locationId: CROSSING });
+    finishRegionFill(ctx, stateOf(ctx));
+    const mine = privateLines(ctx).filter((l: any) => l.characterId === 10n).map((l: any) => l.message);
+    expect(mine).toEqual([OPENED, DISCOVERY]);
+  });
+
+  it('with the AI economy switch on, one region_economy job for the state\'s player and character, after COMPLETE', () => {
+    const ctx = finishing('FILLING_FAMILIES', { economy_dials: dialsOn() });
+    finishRegionFill(ctx, stateOf(ctx));
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    const jobs = econJobs(ctx);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ playerId: alice, characterId: 10n });
+    expect(JSON.parse(jobs[0].requestJson)).toMatchObject({ regionId: REGION.toString(), mode: 'region' });
+  });
+
+  it.each([
+    ['missing economy_dials row', {}],
+    ['aiEnabled false', { economy_dials: dialsOff() }],
+  ])('with the switch off (%s) no economy job is enqueued', (_name, seed) => {
+    const ctx = finishing('FILLING_FAMILIES', seed);
+    finishRegionFill(ctx, stateOf(ctx));
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(econJobs(ctx)).toHaveLength(0);
+    expect(rows(ctx, 'region_economy')).toHaveLength(0);
+  });
+
+  it('a throw inside the economy start is caught and logged by name only; the region is still COMPLETE and opened', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const base = finishing('FILLING_FAMILIES', { economy_dials: dialsOn() });
+      const db = new Proxy(base.db, {
+        get(target, prop, receiver) {
+          if (prop === 'economy_dials') throw new Error('broken economy_dials');
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+      const ctx = { ...base, db };
+      expect(() => finishRegionFill(ctx, stateOf(base))).not.toThrow();
+      expect(stateOf(base).step).toBe('COMPLETE');
+      expect(privateLines(base).filter((l: any) => l.message === OPENED)).toHaveLength(3);
+      expect(econJobs(base)).toHaveLength(0);
+      const logged = error.mock.calls.map((c) => String(c[0]));
+      expect(logged).toContain(`Region economy start failed for region ${REGION}: Error`);
+      expect(logged.join('\n')).not.toContain('broken economy_dials');
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('a starter state (sourceLocationId 0n): COMPLETE and the economy start, but no 7c and no discovery line here', () => {
+    const ctx = makeCtx({
+      seed: {
+        character: [{ id: 10n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver', locationId: 0n }],
+        world_gen_state: [stateRow({ step: 'FILLING_FAMILIES', sourceLocationId: 0n, sourceRegionId: 0n })],
+        economy_dials: dialsOn(),
+      },
+    });
+    finishRegionFill(ctx, stateOf(ctx));
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(econJobs(ctx)).toHaveLength(1);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+  });
+
+  it('a state that is already COMPLETE is left as it is: no second line and no second job', () => {
+    const ctx = finishing('FILLING_FAMILIES', { economy_dials: dialsOn() });
+    finishRegionFill(ctx, stateOf(ctx));
+    const linesBefore = privateLines(ctx).length;
+    const stateBefore = { ...stateOf(ctx) };
+    finishRegionFill(ctx, stateOf(ctx));
+    expect(privateLines(ctx)).toHaveLength(linesBefore);
+    expect(econJobs(ctx)).toHaveLength(1);
+    expect(stateOf(ctx)).toEqual(stateBefore);
+  });
+
+  it.each(['FAMILIES_ERROR', 'FILL_ERROR', 'ERROR', 'GENERATING', 'PENDING'])(
+    'a %s state is not a finishing state: nothing changes',
+    (step) => {
+      const ctx = finishing(step, { economy_dials: dialsOn() });
+      finishRegionFill(ctx, stateOf(ctx));
+      expect(stateOf(ctx).step).toBe(step);
+      expect(privateLines(ctx)).toHaveLength(0);
+      expect(econJobs(ctx)).toHaveLength(0);
+    },
+  );
 });
