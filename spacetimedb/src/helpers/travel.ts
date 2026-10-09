@@ -11,7 +11,7 @@ import { collapsePassageIfEmpty } from './passages';
 /**
  * Shared travel logic used by both move_character reducer and narrative intent handler.
  * Handles validation, stamina costs, cross-region cooldowns, group travel,
- * spawns, passive search, auto-look, world events, and auto-join group combat.
+ * pool seeding (ensurePoolsForLocation), passive search, auto-look, world events, and auto-join group combat.
  *
  * Errors are reported via deps.appendSystemMessage (the fail() pattern).
  * Returns true if travel succeeded, false if blocked.
@@ -25,7 +25,7 @@ export function performTravel(
     appendGroupEvent?: (ctx: any, groupId: bigint, charId: bigint, kind: string, msg: string) => void;
     areLocationsConnected: (ctx: any, fromId: bigint, toId: bigint) => boolean;
     activeCombatIdForCharacter: (ctx: any, charId: bigint) => bigint | undefined;
-    ensureSpawnsForLocation: (ctx: any, locationId: bigint) => void;
+    ensurePoolsForLocation: (ctx: any, locationId: bigint) => void;
     isGroupLeaderOrSolo: (ctx: any, character: any) => boolean;
     effectiveGroupId: (character: any) => bigint | undefined;
   },
@@ -39,7 +39,7 @@ export function performTravel(
     appendGroupEvent,
     areLocationsConnected,
     activeCombatIdForCharacter,
-    ensureSpawnsForLocation,
+    ensurePoolsForLocation,
     isGroupLeaderOrSolo,
     effectiveGroupId,
   } = deps;
@@ -183,7 +183,7 @@ export function performTravel(
     appendPrivateEvent(ctx, row.id, row.ownerUserId, 'move', `You travel to ${location.name}.`);
     appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
     appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
-    ensureSpawnsForLocation(ctx, location.id);
+    ensurePoolsForLocation(ctx, location.id);
     performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
 
     // Auto-look: show full location overview after travel

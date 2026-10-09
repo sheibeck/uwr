@@ -11,7 +11,8 @@
 //   ERROR       stage 1 failed or was refused; nothing was written
 // world_gen_state is public: errorMessage only ever holds a fixed in-voice line.
 
-import { connectLocations, ensureSpawnsForLocation } from './location';
+import { connectLocations } from './location';
+import { ensurePoolsForLocation } from './families';
 import { markLocationVisited } from './visited';
 import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
@@ -23,6 +24,25 @@ import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
+
+/**
+ * The /synccontent bootstrap: clears enemy spawns left at safe places, then seeds every place's
+ * families and pools (ensurePoolsForLocation; ordinary creatures are pools since Phase 51.3.1.1,
+ * D-01). Moved here from location.ts by Plan 08 because families.ts imports location.ts.
+ */
+export function ensureLocationRuntimeBootstrap(ctx: any) {
+  for (const location of [...ctx.db.location.iter()]) {
+    if (location.isSafe) {
+      for (const spawn of [...ctx.db.enemy_spawn.by_location.filter(location.id)]) {
+        for (const member of [...ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)]) {
+          ctx.db.enemy_spawn_member.id.delete(member.id);
+        }
+        ctx.db.enemy_spawn.id.delete(spawn.id);
+      }
+    }
+    ensurePoolsForLocation(ctx, location.id);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Relocated from data/world_gen.ts -- these are active generation functions
@@ -348,7 +368,7 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
   });
   // Visited places: reusing a starter region puts the character at its home place (no origin).
   markLocationVisited(ctx, character.id, homeLocation.id);
-  ensureSpawnsForLocation(ctx, homeLocation.id);
+  ensurePoolsForLocation(ctx, homeLocation.id);
 
   ctx.db.world_gen_state.id.update({
     ...genState,

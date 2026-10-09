@@ -5,15 +5,17 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // Mock dependencies that import SpacetimeDB modules
-const spawnCalls: bigint[] = [];
+const poolCalls: bigint[] = [];
 vi.mock('./location', () => ({
   // Same as the real helper: one row per direction.
   connectLocations: (ctx: any, fromId: bigint, toId: bigint) => {
     ctx.db.location_connection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
     ctx.db.location_connection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
   },
-  ensureSpawnsForLocation: (_ctx: any, locationId: bigint) => {
-    spawnCalls.push(locationId);
+}));
+vi.mock('./families', () => ({
+  ensurePoolsForLocation: (_ctx: any, locationId: bigint) => {
+    poolCalls.push(locationId);
   },
 }));
 vi.mock('spacetimedb/server', async () =>
@@ -720,7 +722,7 @@ describe('startWorldGeneration', () => {
   });
 
   it('reuses a matching starter region with no model call: places the character, completes the state, posts the arrival', () => {
-    spawnCalls.length = 0;
+    poolCalls.length = 0;
     const ctx = newCtx(starterSeed());
     expect(startWorldGeneration(ctx, stateOf(ctx))).toBe('reused');
 
@@ -728,7 +730,7 @@ describe('startWorldGeneration', () => {
     expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
     expect(rows(ctx, 'character')[0]).toMatchObject({ locationId: 21n, boundLocationId: 21n });
     expect(stateOf(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: 1n });
-    expect(spawnCalls).toEqual([21n]);
+    expect(poolCalls).toEqual([21n]);
     const events = rows(ctx, 'event_private');
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ kind: 'narrative', characterId: 10n, ownerUserId: 7n });

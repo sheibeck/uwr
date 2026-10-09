@@ -15,12 +15,6 @@ export const NIGHT_DURATION_MICROS = 1_200_000_000n;
 export const DEFAULT_LOCATION_SPAWNS = 3;
 export const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
 
-export function getLocationSpawnCap(ctx: any, locationId: bigint): number {
-  // Flat 3-6 per location, seeded by locationId for consistency across calls.
-  // Danger is expressed through isSocial (social enemies pull together) not quantity.
-  return 3 + Number(locationId % 4n);
-}
-
 /** Returns true if the given EnemySpawn was created by a world event (has an EventSpawnEnemy link). */
 export function isEventSpawn(ctx: any, spawnId: bigint): boolean {
   return [...ctx.db.event_spawn_enemy.by_spawn.filter(spawnId)].length > 0;
@@ -308,9 +302,10 @@ export function ensureAvailableSpawn(
 }
 
 /**
- * Spawns from before the level column carry level 0 and read as their type's level. On arrival,
- * give each available one the level its place calls for (quick 261008-ag8). Engaged spawns and
- * event spawns are left alone; the next day/night turn replaces the rest.
+ * Spawns from before the level column carry level 0 and read as their type's level. Give each
+ * available one the level its place calls for (quick 261008-ag8). Engaged spawns and event spawns
+ * are left alone. No arrival path calls this since ordinary creatures became pools (Phase 51.3.1.1
+ * Plan 08); it stays for the leftover spawns until the Plan 27 cleanup.
  */
 export function relevelLegacySpawns(ctx: any, locationId: bigint) {
   const location = ctx.db.location.id.find(locationId);
@@ -327,99 +322,6 @@ export function relevelLegacySpawns(ctx: any, locationId: bigint) {
       ...spawn,
       level: placeSpawnLevel(template.level, target, offset),
     });
-  }
-}
-
-export function ensureSpawnsForLocation(ctx: any, locationId: bigint) {
-  const location = ctx.db.location.id.find(locationId);
-  if (!location || location.isSafe) return;
-  relevelLegacySpawns(ctx, locationId);
-
-  const activeGroupKeys = new Set<string>();
-  for (const player of ctx.db.player.iter()) {
-    if (!player.activeCharacterId) continue;
-    const character = ctx.db.character.id.find(player.activeCharacterId);
-    if (!character || character.locationId !== locationId) continue;
-    const groupKey = character.groupId ? character.groupId.toString() : `solo_${character.id.toString()}`;
-    activeGroupKeys.add(groupKey);
-  }
-  const needed = activeGroupKeys.size;
-  const cap = getLocationSpawnCap(ctx, locationId);
-  let available = 0;
-  let total = 0;
-  for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
-    if (isEventSpawn(ctx, row.id)) continue; // event spawns don't count against cap
-    if (row.state === 'available') available += 1;
-    total += 1;
-  }
-  while (available < needed && total < cap) {
-    const availableTemplates: bigint[] = [];
-    for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
-      if (row.state !== 'available') continue;
-      availableTemplates.push(row.enemyTemplateId);
-    }
-    spawnEnemy(ctx, locationId, 1n, availableTemplates);
-    available += 1;
-    total += 1;
-  }
-}
-
-export function ensureLocationRuntimeBootstrap(ctx: any) {
-  for (const location of ctx.db.location.iter()) {
-    // Skip enemy spawns for safe zones and clean up any existing spawns
-    if (location.isSafe) {
-      for (const spawn of ctx.db.enemy_spawn.by_location.filter(location.id)) {
-        for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
-          ctx.db.enemy_spawn_member.id.delete(member.id);
-        }
-        ctx.db.enemy_spawn.id.delete(spawn.id);
-      }
-      continue;
-    }
-
-    let count = countNonEventSpawns(ctx, location.id);
-    const cap = getLocationSpawnCap(ctx, location.id);
-    while (count < cap) {
-      const existingTemplates: bigint[] = [];
-      for (const row of ctx.db.enemy_spawn.by_location.filter(location.id)) {
-        existingTemplates.push(row.enemyTemplateId);
-      }
-      spawnEnemy(ctx, location.id, 1n, existingTemplates);
-      const newCount = countNonEventSpawns(ctx, location.id);
-      if (newCount <= count) break; // safety guard: spawnEnemy was a no-op, avoid infinite loop
-      count = newCount;
-    }
-  }
-}
-
-function countNonEventSpawns(ctx: any, locationId: bigint): number {
-  let count = 0;
-  for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
-    if (!isEventSpawn(ctx, row.id)) count += 1;
-  }
-  return count;
-}
-
-export function respawnLocationSpawns(ctx: any, locationId: bigint, desired: number) {
-  for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
-    if (row.state === 'available') {
-      if (isEventSpawn(ctx, row.id)) continue; // never unspawn event enemies on day/night cycle
-      for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(row.id)) {
-        ctx.db.enemy_spawn_member.id.delete(member.id);
-      }
-      ctx.db.enemy_spawn.id.delete(row.id);
-    }
-  }
-  let count = countNonEventSpawns(ctx, locationId);
-  while (count < desired) {
-    const existingTemplates: bigint[] = [];
-    for (const row of ctx.db.enemy_spawn.by_location.filter(locationId)) {
-      existingTemplates.push(row.enemyTemplateId);
-    }
-    spawnEnemy(ctx, locationId, 1n, existingTemplates);
-    const newCount = countNonEventSpawns(ctx, locationId);
-    if (newCount <= count) break; // safety guard: spawnEnemy was a no-op, avoid infinite loop
-    count = newCount;
   }
 }
 

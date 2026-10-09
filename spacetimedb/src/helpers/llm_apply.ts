@@ -45,7 +45,7 @@ import {
   WORLD_FILL_FAILED_MESSAGE,
   worldFillCompleteLine,
 } from './world_gen';
-import { ensureSpawnsForLocation } from './location';
+import { ensurePoolsForLocation } from './families';
 import { markLocationVisited } from './visited';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { validateRenownActivePerk } from './renown_perk_validate';
@@ -548,7 +548,7 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
     });
     // Visited places: the first spawn is the first place the character has stood in (no origin).
     markLocationVisited(ctx, character.id, startLocation.id);
-    ensureSpawnsForLocation(ctx, startLocation.id);
+    ensurePoolsForLocation(ctx, startLocation.id);
 
     const regionDesc = data.regionDescription || `A ${data.biome || 'mysterious'} region.`;
     const locationNpcs: { name: string; gender: NpcGender }[] = [];

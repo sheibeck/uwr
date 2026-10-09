@@ -202,11 +202,9 @@ import {
   spawnEnemy,
   spawnEnemyWithTemplate,
   ensureAvailableSpawn,
-  ensureSpawnsForLocation,
-  ensureLocationRuntimeBootstrap,
-  respawnLocationSpawns,
-  getLocationSpawnCap,
 } from './helpers/location';
+import { ensurePoolsForLocation } from './helpers/families';
+import { ensureLocationRuntimeBootstrap } from './helpers/world_gen';
 
 import {
   STANDING_PER_KILL,
@@ -297,11 +295,7 @@ scheduledReducers['tick_day_night'] = spacetimedb.reducer('tick_day_night', { ar
   });
   const message = nextIsNight ? 'Night falls over the realm.' : 'Dawn breaks over the realm.';
   appendWorldEvent(ctx, 'world', message);
-  for (const location of ctx.db.location.iter()) {
-    if (!location.isSafe) {
-      respawnLocationSpawns(ctx, location.id, getLocationSpawnCap(ctx, location.id));
-    }
-  }
+  // Ordinary creatures are pools now (Phase 51.3.1.1, D-01): the turn no longer respawns anything.
   ctx.db.day_night_tick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextTransition),
@@ -831,7 +825,7 @@ const reducerDeps = {
   logPrivateAndGroup,
   appendPrivateAndGroupEvent,
   appendLocationEvent,
-  ensureSpawnsForLocation,
+  ensurePoolsForLocation,
   ensureAvailableSpawn,
   computeEnemyStats,
   activeCombatIdForCharacter,

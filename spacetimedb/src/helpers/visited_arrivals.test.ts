@@ -7,13 +7,15 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
-// The location helper writes spawn rows we do not care about here.
+// The location helper is reduced to connections; the pool seeding writes rows we do not care about here.
 vi.mock('./location', () => ({
   connectLocations: (ctx: any, fromId: bigint, toId: bigint) => {
     ctx.db.location_connection.insert({ id: 0n, fromLocationId: fromId, toLocationId: toId });
     ctx.db.location_connection.insert({ id: 0n, fromLocationId: toId, toLocationId: fromId });
   },
-  ensureSpawnsForLocation: () => {},
+}));
+vi.mock('./families', () => ({
+  ensurePoolsForLocation: () => {},
 }));
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
