@@ -743,17 +743,18 @@ describe('migrateEconomyToFamilies (D-47, D-49, T-51.3.1.1-77)', () => {
 
 describe('POOL_MIGRATION_VERSION 2n re-runs the region pass on a version-1 world (Plan 25)', () => {
   it('a world migrated at version 1 runs the pass again: pools unchanged, filler loot added, then the version reads 2n', () => {
-    // A version-1 world: the Plan 15 pass ran before the 51.3 economy rows were tagged.
+    // A version-1 world: the Plan 15 pass ran (pooling the region gatherables) before the member rows
+    // were tagged; the member rows and loot tables are put back as the 51.3 apply left them.
     const bare = economyWorld();
     const { economy_item: tags, enemy_loot_entry: loot } = bare;
-    bare.economy_item = [];
+    bare.economy_item = tags.filter((row: any) => row.role === 'gather');
     bare.enemy_loot_entry = [];
     const ctx = ctxFor(bare);
     migrateRegion(ctx, REGION, T0);
     ctx.db._tables.economy_item = tags;
     ctx.db._tables.enemy_loot_entry = loot;
     ctx.db._tables.pool_state = [{ id: 1n, version: 1n, lastHunterMicros: 0n, lastTrendMicros: 0n }];
-    const poolsBefore = JSON.stringify(rows(ctx, 'place_pool').map((p: any) => [p.id, p.locationId, p.kind, p.refId, p.count, p.homeLevel]));
+    const poolsBefore = rows(ctx, 'place_pool').map((p: any) => [p.id, p.locationId, p.kind, p.refId, p.count, p.homeLevel].map(String).join(':')).join(',');
     const familiesBefore = rows(ctx, 'creature_family').length;
     const membersBefore = rows(ctx, 'family_member').length;
 
@@ -763,7 +764,7 @@ describe('POOL_MIGRATION_VERSION 2n re-runs the region pass on a version-1 world
     expect(runMigrationStep(ctx, step, undefined, T0 + 1_000_000n)).toBe(true);
 
     expect(rows(ctx, 'pool_state')[0].version).toBe(2n);
-    expect(JSON.stringify(rows(ctx, 'place_pool').map((p: any) => [p.id, p.locationId, p.kind, p.refId, p.count, p.homeLevel]))).toBe(poolsBefore);
+    expect(rows(ctx, 'place_pool').map((p: any) => [p.id, p.locationId, p.kind, p.refId, p.count, p.homeLevel].map(String).join(':')).join(',')).toBe(poolsBefore);
     expect(rows(ctx, 'creature_family')).toHaveLength(familiesBefore);
     expect(rows(ctx, 'family_member')).toHaveLength(membersBefore);
     const beast = familyByKey(ctx, '1:beast');

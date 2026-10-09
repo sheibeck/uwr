@@ -12,13 +12,18 @@
 //   4. an AI-invented quest kill or kill_loot target becomes a family of one (D-54);
 //   5. every charted place gets resource pools, plus the region's AI gatherables (D-26, D-48);
 //   6. standing state is retired: available ordinary spawns (with their members) and available,
-//      unlocked resource nodes (D-01). Event, engaged, pulling and harvesting rows finish normally.
+//      unlocked resource nodes (D-01). Event, engaged, pulling and harvesting rows finish normally;
+//   7. (version 2, Plan 25) the region's 51.3 per-type economy rows move to families: each member's
+//      economy_item rows are tagged with its family, and members with no loot table get one from the
+//      family's drop and trophy (D-47, D-49), built locally with no job.
 // Every step is find-or-create on a natural key, so a rerun, a crash mid-way or an overlapping tick
 // changes nothing. No LLM job is enqueued anywhere here (no paid call), and the database is never
 // cleared. Deterministic: "now" is passed in.
 
 import { ScheduleAt } from 'spacetimedb';
 import { DENSITY_RULES } from '../data/density_rules';
+import { aiLootTable } from '../data/economy_rules';
+import { GATHER_SLOTS } from '../data/economy_design_rules';
 import { planRestockBatch } from '../data/vendor_stock';
 import { redactSecrets } from './measurement';
 import { poolState, updatePoolState } from './pool_tick';
@@ -39,10 +44,11 @@ import { findRegionStart } from './world_gen';
 
 /**
  * The data version the migration brings a world to. This is a schema-of-data version, not a tunable:
- * a world whose pool_state.version is below it is migrated (again) by tick_pools. Plan 25 raises it
- * with the family economy step.
+ * a world whose pool_state.version is below it is migrated (again) by tick_pools. Version 2 (Plan 25)
+ * adds the family economy step (migrateEconomyToFamilies); a version-1 world runs the whole region
+ * pass again, which is idempotent for the pool steps.
  */
-export const POOL_MIGRATION_VERSION = 1n;
+export const POOL_MIGRATION_VERSION = 2n;
 
 function byId(a: { id: bigint }, b: { id: bigint }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -267,6 +273,82 @@ export function migrateRegion(ctx: any, regionId: bigint, now: bigint): void {
     ctx,
     places.map((place) => place.id as bigint),
   );
+
+  // 7. The 51.3 per-type economy rows move to the families (version 2, Plan 25; D-49). No job.
+  migrateEconomyToFamilies(ctx, regionId);
+}
+
+// ---------------------------------------------------------------------------
+// The 51.3 per-type economy rows move to families (Plan 25; D-47, D-49, T-51.3.1.1-77)
+// ---------------------------------------------------------------------------
+
+/** Rank of a gather slot rarity (common, uncommon, rare); anything else sorts last. */
+function gatherRank(rarity: unknown): number {
+  const i = GATHER_SLOTS.indexOf(String(rarity ?? ''));
+  return i === -1 ? GATHER_SLOTS.length : i;
+}
+
+/**
+ * Moves a region's 51.3 per-type economy rows to its families, with no paid call (no job is
+ * enqueued; the loot tables are built locally). For each family of the region (id order):
+ *   - every economy_item row of a member template (economy_item.by_enemy) is tagged with the family
+ *     (familyId), when it is not yet;
+ *   - the family's drop and trophy are those of the lowest-id member template that has both;
+ *   - every member with no enemy_loot_entry rows gets its table from aiLootTable: that drop and
+ *     trophy, its own 51.3 gear row when it has one (else gearId 0n, no gear entry) and the region's
+ *     gatherables (common, uncommon, rare, then id), as the region apply writes them.
+ * A family with no economy rows at all is left alone (its members keep the rule fallback loot), and a
+ * member that has a loot table keeps it. Idempotent: a second run tags and inserts nothing. Returns
+ * how many rows were tagged and how many loot tables were written.
+ */
+export function migrateEconomyToFamilies(ctx: any, regionId: bigint): { tagged: number; tables: number } {
+  const result = { tagged: 0, tables: 0 };
+  const families = [...ctx.db.creature_family.by_region.filter(regionId)].sort(byId);
+  if (families.length === 0) return result;
+  const gatherableIds = [...ctx.db.economy_item.by_region.filter(regionId)]
+    .filter((row: any) => row.role === 'gather' && ctx.db.item_template.id.find(row.itemTemplateId))
+    .sort((a: any, b: any) => gatherRank(a.rarity) - gatherRank(b.rarity) || ascending(a.itemTemplateId, b.itemTemplateId))
+    .map((row: any) => row.itemTemplateId as bigint);
+
+  for (const family of families) {
+    const memberIds = [...ctx.db.family_member.by_family.filter(family.id)]
+      .map((m: any) => m.enemyTemplateId as bigint)
+      .filter((id: bigint) => !!ctx.db.enemy_template.id.find(id))
+      .sort(ascending)
+      .filter((id: bigint, i: number, all: bigint[]) => all.indexOf(id) === i);
+    const rowsOf = new Map<bigint, any[]>();
+    for (const id of memberIds) rowsOf.set(id, [...ctx.db.economy_item.by_enemy.filter(id)]);
+
+    for (const id of memberIds) {
+      for (const row of rowsOf.get(id) ?? []) {
+        if (row.familyId === family.id) continue;
+        ctx.db.economy_item.itemTemplateId.update({ ...row, familyId: family.id });
+        result.tagged += 1;
+      }
+    }
+
+    const roleOf = (id: bigint, role: string): any => (rowsOf.get(id) ?? []).find((row: any) => row.role === role);
+    const source = memberIds.find((id) => roleOf(id, 'drop') && roleOf(id, 'trophy'));
+    if (source === undefined) continue;
+    const dropId: bigint = roleOf(source, 'drop').itemTemplateId;
+    const trophyId: bigint = roleOf(source, 'trophy').itemTemplateId;
+    for (const id of memberIds) {
+      if ([...ctx.db.enemy_loot_entry.by_enemy.filter(id)].length > 0) continue;
+      const gear = roleOf(id, 'gear');
+      for (const entry of aiLootTable(regionId, id, { dropId, trophyId, gearId: gear ? gear.itemTemplateId : 0n, gatherableIds })) {
+        ctx.db.enemy_loot_entry.insert({
+          id: 0n,
+          enemyTemplateId: id,
+          regionId,
+          itemTemplateId: entry.itemTemplateId,
+          role: entry.role,
+          weight: entry.weight,
+        });
+      }
+      result.tables += 1;
+    }
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
