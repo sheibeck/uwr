@@ -78,7 +78,6 @@ import CraftRecipeReducer from "./craft_recipe_reducer";
 import CraftRecipeCountReducer from "./craft_recipe_count_reducer";
 import LearnRecipeScrollReducer from "./learn_recipe_scroll_reducer";
 import SalvageItemReducer from "./salvage_item_reducer";
-import StartGatherResourceReducer from "./start_gather_resource_reducer";
 import StartTradeReducer from "./start_trade_reducer";
 import AddTradeItemReducer from "./add_trade_item_reducer";
 import RemoveTradeItemReducer from "./remove_trade_item_reducer";
@@ -106,8 +105,6 @@ import AcceptGroupInviteReducer from "./accept_group_invite_reducer";
 import RejectGroupInviteReducer from "./reject_group_invite_reducer";
 import CancelGroupInviteReducer from "./cancel_group_invite_reducer";
 import StartCombatReducer from "./start_combat_reducer";
-import StartTrackedCombatReducer from "./start_tracked_combat_reducer";
-import StartPullReducer from "./start_pull_reducer";
 import SetCombatTargetReducer from "./set_combat_target_reducer";
 import FleeCombatReducer from "./flee_combat_reducer";
 import DismissCombatResultsReducer from "./dismiss_combat_results_reducer";
@@ -1871,7 +1868,6 @@ const reducersSchema = __reducers(
   __reducerSchema("craft_recipe_count", CraftRecipeCountReducer),
   __reducerSchema("learn_recipe_scroll", LearnRecipeScrollReducer),
   __reducerSchema("salvage_item", SalvageItemReducer),
-  __reducerSchema("start_gather_resource", StartGatherResourceReducer),
   __reducerSchema("start_trade", StartTradeReducer),
   __reducerSchema("add_trade_item", AddTradeItemReducer),
   __reducerSchema("remove_trade_item", RemoveTradeItemReducer),
@@ -1899,8 +1895,6 @@ const reducersSchema = __reducers(
   __reducerSchema("reject_group_invite", RejectGroupInviteReducer),
   __reducerSchema("cancel_group_invite", CancelGroupInviteReducer),
   __reducerSchema("start_combat", StartCombatReducer),
-  __reducerSchema("start_tracked_combat", StartTrackedCombatReducer),
-  __reducerSchema("start_pull", StartPullReducer),
   __reducerSchema("set_combat_target", SetCombatTargetReducer),
   __reducerSchema("flee_combat", FleeCombatReducer),
   __reducerSchema("dismiss_combat_results", DismissCombatResultsReducer),

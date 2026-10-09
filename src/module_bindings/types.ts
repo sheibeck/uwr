@@ -483,6 +483,7 @@ export const CreatureFamily = __t.object("CreatureFamily", {
   ambushVerb: __t.string(),
   ambushRest: __t.string(),
   fitTerrains: __t.string(),
+  history: __t.string(),
 });
 export type CreatureFamily = __Infer<typeof CreatureFamily>;
 
