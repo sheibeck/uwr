@@ -1371,6 +1371,7 @@ export const PoolHarvest = __t.object("PoolHarvest", {
   windowStartMicros: __t.u64(),
   gathers: __t.u64(),
   cappedUntilMicros: __t.u64(),
+  userId: __t.u64(),
 });
 export type PoolHarvest = __Infer<typeof PoolHarvest>;
 
@@ -1414,6 +1415,9 @@ export const PoolState = __t.object("PoolState", {
   version: __t.u64(),
   lastHunterMicros: __t.u64(),
   lastTrendMicros: __t.u64(),
+  migrationFailRegionId: __t.u64(),
+  migrationFailCount: __t.u64(),
+  migrationSkippedRegions: __t.string(),
 });
 export type PoolState = __Infer<typeof PoolState>;
 
