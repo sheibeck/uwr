@@ -435,7 +435,7 @@ describe('buildRegionEconomyVolatile: prompt injection (T-51.3-45, T-51.3.1.1-74
     ...f,
     name: HOSTILE_WORLD,
     creatureType: HOSTILE_WORLD,
-    members: f.members.map((m) => ({ ...m, name: `${HOSTILE_WORLD}\nsecond line` })),
+    members: f.members.map((m) => ({ ...m, name: `${HOSTILE_WORLD}\nsecond line and more` })),
   });
   const hostile = (input: RegionEconomyInput): RegionEconomyInput => ({
     ...input,

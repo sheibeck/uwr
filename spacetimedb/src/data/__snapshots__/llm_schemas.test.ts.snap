@@ -548,7 +548,7 @@ exports[`lint and determinism > REGION_ECONOMY_SCHEMA serialization is determini
   "additionalProperties": false,
   "required": [
     "region",
-    "lateCreature"
+    "lateFamily"
   ],
   "properties": {
     "region": {
@@ -558,160 +558,68 @@ exports[`lint and determinism > REGION_ECONOMY_SCHEMA serialization is determini
           "additionalProperties": false,
           "required": [
             "gatherables",
-            "creatures",
+            "families",
             "recipes"
           ],
           "properties": {
             "gatherables": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "common",
-                "uncommon",
-                "rare"
-              ],
-              "properties": {
-                "common": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name",
-                    "kind",
-                    "terrain",
-                    "description"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "metal",
-                        "hide",
-                        "cloth",
-                        "trinket",
-                        "wood",
-                        "edible",
-                        "base"
-                      ]
-                    },
-                    "terrain": {
-                      "type": "string",
-                      "enum": [
-                        "mountains",
-                        "woods",
-                        "plains",
-                        "swamp",
-                        "dungeon",
-                        "town",
-                        "city"
-                      ]
-                    },
-                    "description": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "uncommon": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name",
-                    "kind",
-                    "terrain",
-                    "description"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "metal",
-                        "hide",
-                        "cloth",
-                        "trinket",
-                        "wood",
-                        "edible",
-                        "base"
-                      ]
-                    },
-                    "terrain": {
-                      "type": "string",
-                      "enum": [
-                        "mountains",
-                        "woods",
-                        "plains",
-                        "swamp",
-                        "dungeon",
-                        "town",
-                        "city"
-                      ]
-                    },
-                    "description": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "rare": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name",
-                    "kind",
-                    "terrain",
-                    "description"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "metal",
-                        "hide",
-                        "cloth",
-                        "trinket",
-                        "wood",
-                        "edible",
-                        "base"
-                      ]
-                    },
-                    "terrain": {
-                      "type": "string",
-                      "enum": [
-                        "mountains",
-                        "woods",
-                        "plains",
-                        "swamp",
-                        "dungeon",
-                        "town",
-                        "city"
-                      ]
-                    },
-                    "description": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            },
-            "creatures": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "enemy",
+                  "name",
+                  "kind",
+                  "terrain",
+                  "description"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "metal",
+                      "hide",
+                      "cloth",
+                      "trinket",
+                      "wood",
+                      "edible",
+                      "base"
+                    ]
+                  },
+                  "terrain": {
+                    "type": "string",
+                    "enum": [
+                      "mountains",
+                      "woods",
+                      "plains",
+                      "swamp",
+                      "dungeon",
+                      "town",
+                      "city"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "families": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "family",
                   "drop",
                   "trophy",
                   "gear"
                 ],
                 "properties": {
-                  "enemy": {
+                  "family": {
                     "type": "string"
                   },
                   "drop": {
@@ -760,56 +668,63 @@ exports[`lint and determinism > REGION_ECONOMY_SCHEMA serialization is determini
                     }
                   },
                   "gear": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [
-                      "name",
-                      "slot",
-                      "weaponType",
-                      "armorType",
-                      "description"
-                    ],
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "slot": {
-                        "type": "string",
-                        "enum": [
-                          "weapon",
-                          "chest",
-                          "legs",
-                          "boots"
-                        ]
-                      },
-                      "weaponType": {
-                        "type": "string",
-                        "enum": [
-                          "dagger",
-                          "rapier",
-                          "sword",
-                          "blade",
-                          "mace",
-                          "axe",
-                          "bow",
-                          "staff",
-                          "greatsword",
-                          "wand",
-                          "none"
-                        ]
-                      },
-                      "armorType": {
-                        "type": "string",
-                        "enum": [
-                          "cloth",
-                          "leather",
-                          "chain",
-                          "plate",
-                          "none"
-                        ]
-                      },
-                      "description": {
-                        "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "member",
+                        "name",
+                        "slot",
+                        "weaponType",
+                        "armorType",
+                        "description"
+                      ],
+                      "properties": {
+                        "member": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slot": {
+                          "type": "string",
+                          "enum": [
+                            "weapon",
+                            "chest",
+                            "legs",
+                            "boots"
+                          ]
+                        },
+                        "weaponType": {
+                          "type": "string",
+                          "enum": [
+                            "dagger",
+                            "rapier",
+                            "sword",
+                            "blade",
+                            "mace",
+                            "axe",
+                            "bow",
+                            "staff",
+                            "greatsword",
+                            "wand",
+                            "none"
+                          ]
+                        },
+                        "armorType": {
+                          "type": "string",
+                          "enum": [
+                            "cloth",
+                            "leather",
+                            "chain",
+                            "plate",
+                            "none"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        }
                       }
                     }
                   }
@@ -817,110 +732,36 @@ exports[`lint and determinism > REGION_ECONOMY_SCHEMA serialization is determini
               }
             },
             "recipes": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "first",
-                "second",
-                "third"
-              ],
-              "properties": {
-                "first": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name",
-                    "category",
-                    "description",
-                    "materials"
-                  ],
-                  "properties": {
-                    "name": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "category",
+                  "description",
+                  "materials"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "weapon",
+                      "armor",
+                      "accessory",
+                      "consumable"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "materials": {
+                    "type": "array",
+                    "items": {
                       "type": "string"
-                    },
-                    "category": {
-                      "type": "string",
-                      "enum": [
-                        "weapon",
-                        "armor",
-                        "accessory",
-                        "consumable"
-                      ]
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "materials": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                },
-                "second": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name",
-                    "category",
-                    "description",
-                    "materials"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "category": {
-                      "type": "string",
-                      "enum": [
-                        "weapon",
-                        "armor",
-                        "accessory",
-                        "consumable"
-                      ]
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "materials": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                },
-                "third": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name",
-                    "category",
-                    "description",
-                    "materials"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "category": {
-                      "type": "string",
-                      "enum": [
-                        "weapon",
-                        "armor",
-                        "accessory",
-                        "consumable"
-                      ]
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "materials": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
                     }
                   }
                 }
@@ -933,19 +774,19 @@ exports[`lint and determinism > REGION_ECONOMY_SCHEMA serialization is determini
         }
       ]
     },
-    "lateCreature": {
+    "lateFamily": {
       "anyOf": [
         {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "enemy",
+            "family",
             "drop",
             "trophy",
             "gear"
           ],
           "properties": {
-            "enemy": {
+            "family": {
               "type": "string"
             },
             "drop": {
@@ -994,56 +835,63 @@ exports[`lint and determinism > REGION_ECONOMY_SCHEMA serialization is determini
               }
             },
             "gear": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "name",
-                "slot",
-                "weaponType",
-                "armorType",
-                "description"
-              ],
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "slot": {
-                  "type": "string",
-                  "enum": [
-                    "weapon",
-                    "chest",
-                    "legs",
-                    "boots"
-                  ]
-                },
-                "weaponType": {
-                  "type": "string",
-                  "enum": [
-                    "dagger",
-                    "rapier",
-                    "sword",
-                    "blade",
-                    "mace",
-                    "axe",
-                    "bow",
-                    "staff",
-                    "greatsword",
-                    "wand",
-                    "none"
-                  ]
-                },
-                "armorType": {
-                  "type": "string",
-                  "enum": [
-                    "cloth",
-                    "leather",
-                    "chain",
-                    "plate",
-                    "none"
-                  ]
-                },
-                "description": {
-                  "type": "string"
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "member",
+                  "name",
+                  "slot",
+                  "weaponType",
+                  "armorType",
+                  "description"
+                ],
+                "properties": {
+                  "member": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "slot": {
+                    "type": "string",
+                    "enum": [
+                      "weapon",
+                      "chest",
+                      "legs",
+                      "boots"
+                    ]
+                  },
+                  "weaponType": {
+                    "type": "string",
+                    "enum": [
+                      "dagger",
+                      "rapier",
+                      "sword",
+                      "blade",
+                      "mace",
+                      "axe",
+                      "bow",
+                      "staff",
+                      "greatsword",
+                      "wand",
+                      "none"
+                    ]
+                  },
+                  "armorType": {
+                    "type": "string",
+                    "enum": [
+                      "cloth",
+                      "leather",
+                      "chain",
+                      "plate",
+                      "none"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
                 }
               }
             }

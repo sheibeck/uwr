@@ -367,15 +367,17 @@ export const COMBAT_NARRATION_SCHEMA: Node = deepFreeze(
 );
 
 // ----------------------------------------------------------------------------
-// Region economy (Phase 51.3)
+// Region economy (Phase 51.3; per family since 51.3.1.1, draft section B3)
 // ----------------------------------------------------------------------------
 //
-// The reply of the region_economy route. The grammar fixes the "Small" counts:
-// exactly three gatherables (common, uncommon, rare), one drop, trophy and gear
-// per creature entry, and exactly three recipes (first, second, third). The
-// schema carries no description text and no bounds: every word of guidance lives
-// in the owner-approved route block, and the server validates and repairs the
-// reply (helpers/region_economy_validate.ts) and sets every number.
+// The reply of the region_economy route: gatherables in G-handle order, one
+// entry per family (one drop and one trophy, and one piece of gear per member
+// handle), and recipes in recipe-line order. The counts come from the economy
+// size the server fills into the user message (D-50), so the grammar fixes none:
+// the validator keeps the first N of each for the size. The schema carries no
+// description text and no bounds: every word of guidance lives in the
+// owner-approved route block, and the server validates and repairs the reply
+// (helpers/region_economy_validate.ts) and sets every number.
 
 const MATERIAL_KIND: Node = enumOf(MATERIAL_KIND_VALUES);
 
@@ -385,7 +387,9 @@ const ECON_DROP: Node = obj({ name: S, kind: MATERIAL_KIND, description: S });
 
 const ECON_TROPHY: Node = obj({ name: S, description: S });
 
-const ECON_GEAR: Node = obj({
+/** One piece of gear, for the member handle (E1.tank) that carries or guards it. */
+const ECON_GEAR_MEMBER: Node = obj({
+  member: S,
   name: S,
   slot: enumOf(['weapon', 'chest', 'legs', 'boots']),
   weaponType: enumOf([...WEAPON_TYPES, 'none']),
@@ -393,7 +397,13 @@ const ECON_GEAR: Node = obj({
   description: S,
 });
 
-const ECON_CREATURE: Node = obj({ enemy: S, drop: ECON_DROP, trophy: ECON_TROPHY, gear: ECON_GEAR });
+/** One family entry, by its handle (E1): a drop and a trophy for the family, gear per member. */
+const ECON_FAMILY: Node = obj({
+  family: S,
+  drop: ECON_DROP,
+  trophy: ECON_TROPHY,
+  gear: { type: 'array', items: ECON_GEAR_MEMBER },
+});
 
 const ECON_RECIPE: Node = obj({
   name: S,
@@ -402,17 +412,17 @@ const ECON_RECIPE: Node = obj({
   materials: strs,
 });
 
-/** Region mode fills region (lateCreature null); late-creature mode fills lateCreature (region null). */
+/** Region mode fills region (lateFamily null); late-family mode fills lateFamily (region null). */
 export const REGION_ECONOMY_SCHEMA: Node = deepFreeze(
   obj({
     region: nullable(
       obj({
-        gatherables: obj({ common: ECON_GATHERABLE, uncommon: ECON_GATHERABLE, rare: ECON_GATHERABLE }),
-        creatures: { type: 'array', items: ECON_CREATURE },
-        recipes: obj({ first: ECON_RECIPE, second: ECON_RECIPE, third: ECON_RECIPE }),
+        gatherables: { type: 'array', items: ECON_GATHERABLE },
+        families: { type: 'array', items: ECON_FAMILY },
+        recipes: { type: 'array', items: ECON_RECIPE },
       }),
     ),
-    lateCreature: nullable(ECON_CREATURE),
+    lateFamily: nullable(ECON_FAMILY),
   }),
 );
 

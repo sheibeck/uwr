@@ -434,7 +434,9 @@ describe('end to end: fill, then the real llm_run path with a scripted fetch', (
     const proc = createMockProcCtx({
       seed: fillSeed({ economy_dials: dialsOn(), llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: ts(T0) }] }),
       timestampMicros: T0,
-      responses: [claudeReply(replyText('region_k0'))],
+      // The route schema's top-level keys are region and lateFamily since Plan 24 (claude_request fails a
+      // reply missing one); the 51.3 region reply still validates through the 51.3 apply until Plan 25.
+      responses: [claudeReply(JSON.stringify({ ...JSON.parse(replyText('region_k0')), lateFamily: null }))],
       strict: true,
     });
     proc.ctx.withTx((tx: any) => apply.applyLlmResult(tx, fillJob(), FILL_TEXT));
