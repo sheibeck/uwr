@@ -152,6 +152,13 @@ export interface WorldFillInput {
   characterArchetype: string;
   sourceRegionName: string;
   neighborRegions: { name: string; biome: string; threats: string }[];
+  /**
+   * The server's hub count for the region, 0-2 (regionHubCount, D-62), printed as the approved Hubs
+   * line (PROMPT-DRAFT A2). Missing on a job stored before Plan 51.3.1.1-23: no Hubs line then.
+   */
+  hubCount?: number;
+  /** True when the arrival point is already a hub (the starter region, or a fill retried after a failure). */
+  arrivalIsHub?: boolean;
 }
 
 export interface SkillGenInput {
@@ -331,7 +338,7 @@ The user message gives the character the region is linked to, the region the cha
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every place should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you.
 
-Start location: the safe place where a traveler first arrives. It MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description. Give it a terrainType and a levelOffset (usually 0).
+Start location: the place where a traveler first arrives. It is not always a town: in a wild or hostile region it can be as dangerous as anywhere else. It MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description. Give it a terrainType, a levelOffset (usually 0) and isSafe set to true or false: true only where a traveler can rest without being attacked.
 
 First NPC: the first NPC is a man or a woman who stands in the start location. Set gender to male or female, and describe the NPC as he or she to match, never it or they. The NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
@@ -345,15 +352,17 @@ A new region of the world is being remembered into existence. Its name, biome, a
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every location should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you. Descriptions read as narration in the voice of a book: no I, me or my, and never the Keeper by name.
 
-Counts: 2-4 more locations, 1-2 more NPCs and 2-3 enemy types. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
+Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and 2-3 creature families. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
 
 Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType, a levelOffset and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
 
-Essential services: the arrival point MUST end up with at least one NPC with npcType "vendor" and one with npcType "banker", counting the people already there. Add whichever is missing, with the arrival point's exact name as its locationName. These are essential services for new players.
+Place words: every new location gets a shortName and a placeNoun, and so does the arrival point, under arrival. The shortName is the name cut to one or two words for a small map label, such as Mother Pan for Mother Pan Flats. The placeNoun is how a sentence points at the place, in lowercase and starting with the, such as the pans, the orchard or the old walls.
+
+Hubs: the Hubs line of the user message says how many hubs this region has. A hub is a town, camp or outpost where people live and trade. Set isHub to true on exactly that many places and to false on every other place. The arrival point is one of the places, marked under arrival, and when the user message says the arrival point is a hub, its isHub is true. Put a hub where a settlement makes sense: near the border toward a neighboring region, or in the middle of the region with wilder places around it. A hub is a safe place, so a hub location has isSafe set to true. Each hub MUST end up with at least one NPC with npcType "vendor" and one with npcType "banker", counting the people already there. Add whichever is missing, with the hub's exact name as its locationName. No vendor or banker lives anywhere else, so a region with no hubs has neither.
 
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
-Enemies: each enemy type gets a creatureType, a role, the terrain types it lives in, a group size range (groupMin and groupMax) and a level that suits the region.
+Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. Never give a family levels, group sizes or any other number: the server sets every number.
 
 ${WORLD_NAMING_RULES}
 
@@ -677,9 +686,26 @@ Generate the first glimpse of a region: its name, description and biome, the pla
 }
 
 /**
+ * The approved hub count texts of the Hubs line (PROMPT-DRAFT section A2, owner-approved 2026-10-08,
+ * D-62), indexed by the server's hub count. Never edit without the owner's approval of new wording.
+ */
+const HUB_COUNT_TEXT: readonly string[] = ['none, this region is too wild for settlements.', 'one.', 'two.'];
+const ARRIVAL_IS_HUB_NOTE = ' The arrival point is a hub.';
+
+/**
+ * The Hubs line of the fill request, with its leading newline, or '' when the stored input has no
+ * usable hub count (a job queued before Plan 51.3.1.1-23; the server then places the hubs by rule).
+ */
+function hubsLine(i: Record<string, unknown>): string {
+  const count = i.hubCount;
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 0 || count >= HUB_COUNT_TEXT.length) return '';
+  return `\nHubs: ${HUB_COUNT_TEXT[count]}${i.arrivalIsHub === true ? ARRIVAL_IS_HUB_NOTE : ''}`;
+}
+
+/**
  * Stage 2 of world generation. Tolerates an older stored input (missing
- * fields read "unknown", a missing people list is empty), so a job queued
- * before the stage split never throws.
+ * fields read "unknown", a missing people list is empty, a missing hub count
+ * prints no Hubs line), so a job queued before the stage split never throws.
  */
 export function buildWorldFillVolatile(input: WorldFillInput): string {
   const i = asRecord(input);
@@ -696,7 +722,7 @@ export function buildWorldFillVolatile(input: WorldFillInput): string {
       : 'none';
   return `Region: ${orUnknown(i.regionName)} (${orUnknown(i.biome)})
 Arrival point: ${orUnknown(start.name)} (${orUnknown(start.terrainType)}): ${orUnknownMulti(start.description)}
-People already there: ${present}
+People already there: ${present}${hubsLine(i)}
 
 ${worldCharacterLines(i)}
 

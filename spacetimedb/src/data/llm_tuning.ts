@@ -339,7 +339,9 @@ export function lat06Decision(latenciesMs: readonly number[]): {
 // Review WR-A04 re-derived them with the no-retry headroom floor (the record is unchanged):
 // the six swept no-retry routes moved from 512/512/768/1024/2560/256 to 1024/1024/1024/1536/2560/768.
 // A route the derivation cannot tune keeps its baseline as 'insufficient_data'
-// (smoke_test is 'not_swept').
+// (smoke_test is 'not_swept'). A route whose reply shape changed after the sweep (world_gen since
+// Plan 51.3.1.1-23) keeps an explicit budget as 'insufficient_data'; llm_tuning.test.ts lists it in
+// RESHAPED_ROUTES instead of deriving it from the stale record.
 
 const entry = (
   effort: LlmEffort,
@@ -366,7 +368,9 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   creation_class_reveal: entry('low', 1024, 60_000, 'tuned', 327, 10, true),
   creation_class: entry('low', 1024, 90_000, 'tuned', 465, 10, true),
   world_gen_start: entry('low', 1536, 90_000, 'tuned', 818, 10, true),
-  world_gen: entry('low', 2560, 150_000, 'tuned', 1988, 10, true),
+  // Plan 51.3.1.1-23: the fill reply now carries families, place words and hub marks, larger than the
+  // measured enemies reply (p99 1988), so 4096 and insufficient_data until a paid re-measurement.
+  world_gen: entry('low', 4096, 150_000, 'insufficient_data'),
   skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
   npc_conversation: entry('low', 512, 30_000, 'tuned', 379, 10, true),
   combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),

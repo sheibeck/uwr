@@ -1066,9 +1066,10 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
     "dominantFaction",
     "landmarks",
     "threats",
+    "arrival",
     "locations",
     "npcs",
-    "enemies"
+    "families"
   ],
   "properties": {
     "dominantFaction": {
@@ -1086,6 +1087,26 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
         "type": "string"
       }
     },
+    "arrival": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shortName",
+        "placeNoun",
+        "isHub"
+      ],
+      "properties": {
+        "shortName": {
+          "type": "string"
+        },
+        "placeNoun": {
+          "type": "string"
+        },
+        "isHub": {
+          "type": "boolean"
+        }
+      }
+    },
     "locations": {
       "type": "array",
       "items": {
@@ -1093,14 +1114,23 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
         "additionalProperties": false,
         "required": [
           "name",
+          "shortName",
+          "placeNoun",
           "description",
           "terrainType",
+          "isHub",
           "isSafe",
           "levelOffset",
           "connectsTo"
         ],
         "properties": {
           "name": {
+            "type": "string"
+          },
+          "shortName": {
+            "type": "string"
+          },
+          "placeNoun": {
             "type": "string"
           },
           "description": {
@@ -1117,6 +1147,9 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
               "town",
               "city"
             ]
+          },
+          "isHub": {
+            "type": "boolean"
           },
           "isSafe": {
             "type": "boolean"
@@ -1219,22 +1252,32 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
         }
       }
     },
-    "enemies": {
+    "families": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "name",
+          "singularNoun",
+          "pluralNoun",
           "creatureType",
-          "role",
-          "terrainTypes",
-          "groupMin",
-          "groupMax",
-          "level"
+          "iconKey",
+          "temperament",
+          "ambushVerb",
+          "ambushRest",
+          "members",
+          "fitLocations",
+          "relations"
         ],
         "properties": {
           "name": {
+            "type": "string"
+          },
+          "singularNoun": {
+            "type": "string"
+          },
+          "pluralNoun": {
             "type": "string"
           },
           "creatureType": {
@@ -1248,25 +1291,87 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
               "aberration"
             ]
           },
-          "role": {
+          "iconKey": {
             "type": "string",
             "enum": [
-              "melee",
-              "ranged",
-              "caster"
+              "humanoid",
+              "beast",
+              "insect",
+              "spirit",
+              "undead",
+              "avian",
+              "aquatic",
+              "elemental"
             ]
           },
-          "terrainTypes": {
+          "temperament": {
+            "type": "string",
+            "enum": [
+              "aggressive",
+              "wary",
+              "skittish"
+            ]
+          },
+          "ambushVerb": {
             "type": "string"
           },
-          "groupMin": {
-            "type": "integer"
+          "ambushRest": {
+            "type": "string"
           },
-          "groupMax": {
-            "type": "integer"
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "role",
+                "name"
+              ],
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "tank",
+                    "damage",
+                    "support",
+                    "caster"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            }
           },
-          "level": {
-            "type": "integer"
+          "fitLocations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "family",
+                "kind"
+              ],
+              "properties": {
+                "family": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "rival",
+                    "prey",
+                    "predator"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -1713,7 +1818,8 @@ exports[`lint and determinism > WORLD_START_SCHEMA serialization is deterministi
         "name",
         "description",
         "terrainType",
-        "levelOffset"
+        "levelOffset",
+        "isSafe"
       ],
       "properties": {
         "name": {
@@ -1736,6 +1842,9 @@ exports[`lint and determinism > WORLD_START_SCHEMA serialization is deterministi
         },
         "levelOffset": {
           "type": "integer"
+        },
+        "isSafe": {
+          "type": "boolean"
         }
       }
     },

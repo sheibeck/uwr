@@ -28,6 +28,10 @@ import {
   TARGET_RULES,
   ARMOR_TYPES,
   WEAPON_TYPES,
+  FAMILY_TEMPERAMENTS,
+  FAMILY_RELATIONS,
+  FAMILY_ICON_KEYS,
+  FAMILY_PROMPT_ROLES,
 } from './mechanical_vocabulary';
 import { NPC_GENDERS } from './npc_gender';
 import { MATERIAL_KIND_VALUES } from './recipe_rules';
@@ -178,15 +182,25 @@ const NPC_PERSONALITY: Node = obj({
   affinityMultiplier: NUM,
 });
 
-/** A region location with its safety flag and the names it connects to (stage 2). */
+/**
+ * A region location (stage 2): its place words (a short map label and the noun a sentence points
+ * with, Phase 51.3.1.1 D-46), its hub mark (D-62: the server keeps at most its own hub count), its
+ * safety flag and the names it connects to.
+ */
 const LOCATION_ITEM: Node = obj({
   name: S,
+  shortName: S,
+  placeNoun: S,
   description: S,
   terrainType: LOCATION_TERRAIN,
+  isHub: BOOL,
   isSafe: BOOL,
   levelOffset: INT,
   connectsTo: strs,
 });
+
+/** The arrival point stage 1 already wrote: only its place words and its hub mark (D-46, D-62). */
+const ARRIVAL_ITEM: Node = obj({ shortName: S, placeNoun: S, isHub: BOOL });
 
 /** A region NPC with the location they stand in (stage 2). */
 const REGION_NPC_ITEM: Node = obj({
@@ -199,21 +213,39 @@ const REGION_NPC_ITEM: Node = obj({
   personality: NPC_PERSONALITY,
 });
 
-const ENEMY_ITEM: Node = obj({
+/** The creature types a family may have (family_validate.ts clamps anything else to beast). */
+const CREATURE_TYPE: Node = enumOf(['beast', 'undead', 'humanoid', 'elemental', 'construct', 'aberration']);
+
+/** One member of a creature family: its prompt role (support is the server's healer) and its own name. */
+const FAMILY_MEMBER_ITEM: Node = obj({ role: enumOf(FAMILY_PROMPT_ROLES), name: S });
+
+/** Another family of the region, by its exact name, and how this family relates to it (D-20). */
+const FAMILY_RELATION_ITEM: Node = obj({ family: S, kind: enumOf(FAMILY_RELATIONS) });
+
+/**
+ * A creature family (Phase 51.3.1.1 D-46, PROMPT-DRAFT A3): names, nouns, enums, the ambush words,
+ * its members, the places it lives at and its relations. No number of any kind: levels, group sizes,
+ * densities, stats and abilities are the server's (helpers/family_validate.ts, helpers/families.ts).
+ */
+const FAMILY_ITEM: Node = obj({
   name: S,
-  creatureType: { type: 'string', enum: ['beast', 'undead', 'humanoid', 'elemental', 'construct', 'aberration'] },
-  role: { type: 'string', enum: ['melee', 'ranged', 'caster'] },
-  terrainTypes: S,
-  groupMin: INT,
-  groupMax: INT,
-  level: INT,
+  singularNoun: S,
+  pluralNoun: S,
+  creatureType: CREATURE_TYPE,
+  iconKey: enumOf(FAMILY_ICON_KEYS),
+  temperament: enumOf(FAMILY_TEMPERAMENTS),
+  ambushVerb: S,
+  ambushRest: S,
+  members: { type: 'array', items: FAMILY_MEMBER_ITEM },
+  fitLocations: strs,
+  relations: { type: 'array', items: FAMILY_RELATION_ITEM },
 });
 
 /**
- * Stage 1: the region's name and look, the safe place a traveler arrives and
- * the first person met there. The start location is always safe (the bind
- * stone and crafting go there), so it has no isSafe and no connectsTo; the
- * first NPC always stands in the start location, so it has no locationName.
+ * Stage 1: the region's name and look, the place a traveler first arrives and the first person met
+ * there. The model says whether the arrival point is safe (isSafe, D-61); the server still forces it
+ * safe for the starter region and for any hub (helpers/world_gen.ts writeRegionStart, placeRegionHubs).
+ * It has no connectsTo; the first NPC always stands in the start location, so it has no locationName.
  */
 export const WORLD_START_SCHEMA: Node = deepFreeze(
   obj({
@@ -225,6 +257,7 @@ export const WORLD_START_SCHEMA: Node = deepFreeze(
       description: S,
       terrainType: LOCATION_TERRAIN,
       levelOffset: INT,
+      isSafe: BOOL,
     }),
     firstNpc: obj({
       name: S,
@@ -237,15 +270,20 @@ export const WORLD_START_SCHEMA: Node = deepFreeze(
   }),
 );
 
-/** Stage 2: everything else in the region, for the region and arrival point stage 1 already named. */
+/**
+ * Stage 2: everything else in the region, for the region and arrival point stage 1 already named: the
+ * arrival point's place words and hub mark, the new locations, the people and the creature families
+ * (Phase 51.3.1.1: families replace the enemy types, D-46).
+ */
 export const REGION_FILL_SCHEMA: Node = deepFreeze(
   obj({
     dominantFaction: S,
     landmarks: strs,
     threats: strs,
+    arrival: ARRIVAL_ITEM,
     locations: { type: 'array', items: LOCATION_ITEM },
     npcs: { type: 'array', items: REGION_NPC_ITEM },
-    enemies: { type: 'array', items: ENEMY_ITEM },
+    families: { type: 'array', items: FAMILY_ITEM },
   }),
 );
 
