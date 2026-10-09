@@ -20,11 +20,14 @@ import {
   familyOfOne,
   isOrdinaryTemplate,
   linkFamilyToLocation,
+  regionFamilyHistories,
   ruleRelations,
   seedCreaturePools,
   seedResourcePools,
+  storeFeud,
   type FamilyDefinition,
 } from './families';
+import { FAMILY_FEUD_KIND } from '../data/mechanical_vocabulary';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -894,5 +897,148 @@ describe('buildRegionFamilies (Plan 09)', () => {
     expect(familyFitPlaces(['swamp'], all).map((p: any) => p.id)).toEqual([22n]);
     expect(familyFitPlaces(['mountains'], all).map((p: any) => p.id)).toEqual([21n, 22n]);
     expect(familyFitPlaces([], all).map((p: any) => p.id)).toEqual([21n, 22n]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 28: family histories (D-68) and the seeded feud (D-70)
+// ---------------------------------------------------------------------------
+
+describe('createFamily history (D-68)', () => {
+  it('stores the definition history, else an empty one', () => {
+    const ctx = poolCtx(poolWorld());
+    const withHistory = createFamily(ctx, REGION_ID, { ...wolfDefinition(), history: 'The wolves came down from the ridge.' }, 3n);
+    const stored = rows(ctx, 'creature_family').find((r: any) => r.id === withHistory.id);
+    expect(stored.history).toBe('The wolves came down from the ridge.');
+    expect(rowColumnProblems('creature_family', stored)).toEqual([]);
+
+    const plain = createFamily(ctx, REGION_ID, { ...wolfDefinition(), key: '1:plainwolves', name: 'Plain Wolves', members: [] }, 3n);
+    const plainRow = rows(ctx, 'creature_family').find((r: any) => r.id === plain.id);
+    expect(plainRow.history).toBe('');
+    expect(rowColumnProblems('creature_family', plainRow)).toEqual([]);
+  });
+
+  it('leaves an existing family and its history as they are', () => {
+    const ctx = poolCtx(poolWorld());
+    createFamily(ctx, REGION_ID, { ...wolfDefinition(), history: 'The first history.' }, 3n);
+    const before = counts(ctx, FAMILY_TABLES);
+    const again = createFamily(ctx, REGION_ID, { ...wolfDefinition(), history: 'A new history.' }, 3n);
+    expect(counts(ctx, FAMILY_TABLES)).toEqual(before);
+    expect(rows(ctx, 'creature_family').find((r: any) => r.id === again.id).history).toBe('The first history.');
+  });
+});
+
+describe('createRelations and storeFeud (D-70)', () => {
+  it('stores a feud row and still ignores self and unknown kinds, idempotently', () => {
+    const ctx = poolCtx(poolWorld({ noRelations: true }));
+    const relations = [
+      { otherFamilyId: SKITTERERS_ID, kind: 'feud' as const },
+      { otherFamilyId: GOBLINS_ID, kind: 'feud' as const },
+      { otherFamilyId: SKITTERERS_ID, kind: 'war' as any },
+    ];
+    createRelations(ctx, GOBLINS_ID, relations);
+    createRelations(ctx, GOBLINS_ID, relations);
+    const stored = rows(ctx, 'family_relation');
+    expect(stored.map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([[GOBLINS_ID, SKITTERERS_ID, 'feud']]);
+    expect(rowColumnProblems('family_relation', stored[0])).toEqual([]);
+  });
+
+  it('writes the feud as mutual rows, every ordered pair, once', () => {
+    const third = { ...rows(poolCtx(poolWorld()), 'creature_family')[0], id: 3n, key: '1:third', name: 'Thirds' };
+    const ctx = poolCtx(poolWorld({ noRelations: true, extra: { creature_family: [third] } }));
+    storeFeud(ctx, [GOBLINS_ID, SKITTERERS_ID, 3n]);
+    const feud = rows(ctx, 'family_relation').filter((r: any) => r.kind === FAMILY_FEUD_KIND);
+    expect(feud).toHaveLength(6);
+    const pairs = feud.map((r: any) => `${r.familyId}>${r.otherFamilyId}`).sort();
+    expect(pairs).toEqual(['1>2', '1>3', '2>1', '2>3', '3>1', '3>2']);
+    storeFeud(ctx, [GOBLINS_ID, SKITTERERS_ID, 3n]);
+    expect(rows(ctx, 'family_relation')).toHaveLength(6);
+  });
+
+  it('writes nothing for one family or a repeated id', () => {
+    const ctx = poolCtx(poolWorld({ noRelations: true }));
+    storeFeud(ctx, [GOBLINS_ID]);
+    storeFeud(ctx, [GOBLINS_ID, GOBLINS_ID]);
+    storeFeud(ctx, []);
+    expect(rows(ctx, 'family_relation')).toHaveLength(0);
+  });
+});
+
+describe('regionFamilyHistories (D-68)', () => {
+  const family = (id: bigint, name: string, history: string, over: Record<string, unknown> = {}) => ({
+    id,
+    regionId: REGION_ID,
+    key: `1:test${id.toString()}`,
+    name,
+    singularNoun: 'beast',
+    pluralNoun: 'beasts',
+    temperament: 'wary',
+    iconKey: 'beast',
+    creatureType: 'beast',
+    ambushVerb: 'charge',
+    ambushRest: 'out of the brush',
+    fitTerrains: 'woods',
+    history,
+    ...over,
+  });
+
+  function historyWorld() {
+    const ctx = poolCtx(
+      poolWorld({
+        noRelations: true,
+        extra: {
+          creature_family: [
+            family(101n, 'Ridge Wolves', 'The wolves came first.'),
+            family(102n, 'Grave Hounds', 'The hounds came from the barrows.'),
+            family(103n, 'Mire Crawlers', 'The crawlers rose out of the mud.'),
+            family(104n, 'Ember Wisps', 'The wisps drift over the ash.'),
+            family(105n, 'Crag Lurkers', 'The lurkers keep to the rocks.'),
+            family(106n, 'Reef Snappers', 'The snappers hold the shallows.'),
+            family(107n, 'Quiet Moths', '   '),
+            family(108n, 'Lone Boar', 'The boar was hunted for a quest.', { key: 'quest:77' }),
+            family(109n, 'Far Wolves', 'The far wolves live elsewhere.', { regionId: 2n, key: '2:far' }),
+          ],
+        },
+      }),
+    );
+    for (const refId of [105n, 103n, 107n, 108n]) {
+      createPool(ctx, { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'creature', refId, homeLevel: 1 }, T0);
+    }
+    createPool(ctx, { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'resource', refId: 101n, homeLevel: 1 }, T0);
+    createPool(ctx, { regionId: REGION_ID, locationId: FLATS_ID, kind: 'creature', refId: 104n, homeLevel: 1 }, T0);
+    storeFeud(ctx, [106n, 102n]);
+    return ctx;
+  }
+
+  it('gives the place families first, then the feud, then the rest, at most four', () => {
+    const ctx = historyWorld();
+    expect(regionFamilyHistories(ctx, REGION_ID, ORCHARD_ID)).toEqual([
+      { name: 'Mire Crawlers', history: 'The crawlers rose out of the mud.' },
+      { name: 'Crag Lurkers', history: 'The lurkers keep to the rocks.' },
+      { name: 'Grave Hounds', history: 'The hounds came from the barrows.' },
+      { name: 'Reef Snappers', history: 'The snappers hold the shallows.' },
+    ]);
+    expect(DENSITY_RULES.NPC_FAMILY_HISTORIES_MAX).toBe(4);
+  });
+
+  it('never gives an empty history, a quest family or another region, and fills by id', () => {
+    const ctx = historyWorld();
+    const all = regionFamilyHistories(ctx, REGION_ID, FLATS_ID);
+    expect(all.map((h) => h.name)).toEqual(['Ember Wisps', 'Grave Hounds', 'Reef Snappers', 'Ridge Wolves']);
+    const names = [
+      ...regionFamilyHistories(ctx, REGION_ID, ORCHARD_ID),
+      ...regionFamilyHistories(ctx, REGION_ID, MARKET_ID),
+      ...all,
+    ].map((h) => h.name);
+    for (const banned of ['Quiet Moths', 'Lone Boar', 'Far Wolves', 'Goblins', 'Skitterers']) expect(names).not.toContain(banned);
+    expect(regionFamilyHistories(ctx, 2n, ORCHARD_ID)).toEqual([{ name: 'Far Wolves', history: 'The far wolves live elsewhere.' }]);
+    expect(regionFamilyHistories(ctx, 99n, ORCHARD_ID)).toEqual([]);
+  });
+
+  it('only reads', () => {
+    const ctx = historyWorld();
+    const before = counts(ctx, [...FAMILY_TABLES, 'place_pool', 'pool_level']);
+    regionFamilyHistories(ctx, REGION_ID, ORCHARD_ID);
+    expect(counts(ctx, [...FAMILY_TABLES, 'place_pool', 'pool_level'])).toEqual(before);
   });
 });

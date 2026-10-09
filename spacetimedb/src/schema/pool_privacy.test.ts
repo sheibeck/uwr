@@ -28,6 +28,7 @@ const POOL_COLUMNS: Record<string, string[]> = {
     'ambushVerb',
     'ambushRest',
     'fitTerrains',
+    'history',
   ],
   family_member: ['id', 'familyId', 'enemyTemplateId', 'role', 'filler'],
   family_relation: ['id', 'familyId', 'otherFamilyId', 'kind'],
@@ -124,6 +125,12 @@ describe('pool table columns', () => {
         expect(info.optional, `${name}.${col}`).toBe(false);
       }
     }
+  });
+
+  it('creature_family.history is a defaulted string appended last (D-68)', () => {
+    const info = recordedTable('creature_family')!.cols.history!;
+    expect(info).toMatchObject({ kind: 'string', optional: false, defaulted: true });
+    expect(Object.keys(recordedTable('creature_family')!.cols).pop()).toBe('history');
   });
 
   it('flags are bools and the hidden numbers are u64', () => {
