@@ -35,6 +35,9 @@ export const LLM_INDICATOR_LINES: Readonly<Record<string, string | null>> = Obje
   creation_class: 'The Keeper is sorting out the rest of what you can do...',
   world_gen_start: 'The Keeper is unrolling a map, with visible reluctance...',
   world_gen: 'The Keeper is filling in the rest of the map, grudgingly...',
+  // Phase 51.3.1.2 (D-17, owner's section 6 choice): the families call (stage 2b) took this line from the
+  // world_gen pool, word for word.
+  world_gen_families: 'The Keeper is placing things that will want to eat you...',
   skill_gen: 'The Keeper is weighing what you might become...',
   renown_perk_gen: 'The Keeper is tallying what your name is worth...',
   npc_conversation: 'The Keeper leans in to listen...',
@@ -50,6 +53,7 @@ export const LLM_INDICATOR_PRIORITY: readonly string[] = Object.freeze([
   'creation_class_reveal',
   'creation_class',
   'world_gen',
+  'world_gen_families',
   'skill_gen',
   'renown_perk_gen',
   'npc_conversation',
@@ -75,6 +79,7 @@ export const LLM_CREATION_CONSOLE_ROUTES: readonly string[] = Object.freeze([
   'creation_class',
   'world_gen_start',
   'world_gen',
+  'world_gen_families', // Phase 51.3.1.2 (D-17): the starter region's families
 ]);
 
 /** Routes the game console never shows: they belong to the creation console only. */
@@ -122,9 +127,10 @@ export const LLM_INDICATOR_POOLS: Readonly<Record<string, readonly string[]>> = 
   world_gen: Object.freeze([
     'The Keeper is filling in the rest of the map, grudgingly...',
     'The Keeper is deciding who else lives out here...',
-    'The Keeper is placing things that will want to eat you...',
     'The Keeper is remembering the roads between places...',
   ]),
+  // Phase 51.3.1.2 (owner's section 6 choice, the ALTERNATIVE): only this line moved from world_gen.
+  world_gen_families: Object.freeze(['The Keeper is placing things that will want to eat you...']),
   skill_gen: Object.freeze(['The Keeper is weighing what you might become...']),
   renown_perk_gen: Object.freeze(['The Keeper is tallying what your name is worth...']),
   npc_conversation: Object.freeze(['The Keeper leans in to listen...']),

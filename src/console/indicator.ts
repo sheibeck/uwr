@@ -41,8 +41,8 @@ export interface LlmIndicatorState {
   indicatorLine: string | null;
 }
 
-/** Fill routes run after the reveal and do not lock the input (research S3). */
-export const QUEUE_EXEMPT_ROUTES: readonly string[] = Object.freeze(['world_gen']);
+/** Fill routes run after the reveal and do not lock the input (research S3); the families call (stage 2b) too. */
+export const QUEUE_EXEMPT_ROUTES: readonly string[] = Object.freeze(['world_gen', 'world_gen_families']);
 
 function has(record: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
