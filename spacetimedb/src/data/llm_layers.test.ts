@@ -716,21 +716,29 @@ describe('route blocks and volatile builders', () => {
       expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 2, arrivalIsHub: false })).toContain('\nHubs: two.\n');
     });
 
-    it('buildWorldFillVolatile prints the Families and Feud lines right after the Hubs line (Plan 51.3.1.1-30, R2-A2)', () => {
-      // The draft's R2-A2 examples and the D-71 variant, copied exactly.
-      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, familyCount: 7, feudCount: 2 })).toContain(
-        '(vendor, he)\nHubs: one.\nFamilies: seven.\nFeud: two families.\n\n',
+    it('buildWorldFillVolatile prints the Places line between the People and Hubs lines (Phase 51.3.1.2, section 3, D-03)', () => {
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, placeCount: 9 })).toContain(
+        '(vendor, he)\nPlaces: nine in all, the arrival point included.\nHubs: one.\n\n',
       );
-      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 0, familyCount: 7, feudCount: 3 })).toContain(
-        '\nHubs: none, this region is too wild for settlements.\nFamilies: seven.\nFeud: three families.\n\n',
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 0, placeCount: 8 })).toContain(
+        '\nPlaces: eight in all, the arrival point included.\nHubs: none, this region is too wild for settlements.\n\n',
       );
-      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, familyCount: 7, feudCount: 0 })).toContain(
-        '\nHubs: one.\nFamilies: seven.\nFeud: none.\n\n',
+      expect(buildWorldFillVolatile({ ...benign.world_gen, placeCount: 10 })).toContain(
+        '(vendor, he)\nPlaces: ten in all, the arrival point included.\n\n',
       );
-      // No counts on the stored input (a job queued before Revision 2): neither line.
-      const old = buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1 });
+      // No place count on the stored input (a job queued before 51.3.1.2) or one outside 8..10: no Places line.
+      for (const placeCount of [undefined, 7, 11, 9.5]) {
+        expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, placeCount })).not.toContain('Places:');
+      }
+    });
+
+    it('buildWorldFillVolatile no longer prints the Families or Feud line; they moved to the 2b builder (Phase 51.3.1.2, D-01)', () => {
+      // An older stored input still carrying the Revision 2 counts prints neither line.
+      const old = buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, familyCount: 7, feudCount: 2 });
       expect(old).not.toContain('Families:');
       expect(old).not.toContain('Feud:');
+      expect(old).toBe(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1 }));
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 0, familyCount: 7, feudCount: 0 })).not.toContain('Feud:');
     });
 
     it('buildCreationClassFillVolatile renders the class and the first ability and asks for stats and two more abilities', () => {

@@ -19,19 +19,28 @@ import type { WorldFillInput } from './llm_layers';
 // APPROVED 2026-10-08", D-66, D-68, D-70) and the D-71 "Feud: none." variant: the world_gen block is
 // A1 with the three R2-A1 edits (the Counts sentence, the history sentence, the Feud paragraph), and
 // the fill request gains the Families and Feud lines (R2-A2).
+//
+// Phase 51.3.1.2 (Plan 10): the owner approved the 51.3.1.2 draft on 2026-10-09
+// (.planning/phases/51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md, "Status: APPROVED 2026-10-09",
+// sections 1 and 3 approved as drafted). The world_gen block is now stage 2a, places and people:
+// the Counts paragraph reads the place count from the Places line and asks for 3-5 more NPCs
+// (D-03, D-06), the Locations paragraph has no levelOffset (D-04), and the Creature families and
+// Feud paragraphs moved to the world_gen_families block (D-01). The fill request gains the Places
+// line and loses the Families and Feud lines (section 3); world_gen_start is unchanged.
 // ============================================================================
 
-// Changing WORLD_GEN_BLOCK or WORLD_GEN_START_BLOCK requires the owner's approval of the new wording
-// (D-49, D-58), then updating the hash and length in the same commit.
-// The world_gen pin moved with the owner's approval of Revision 2 on 2026-10-08 (was 32bd3555..., 5262).
-const APPROVED_WORLD_GEN_SHA256 = '2225ffd6ac5b5e39766b8ea0662ade1753a20e2a941bf47f9f74a9da07f2820d';
-const APPROVED_WORLD_GEN_LENGTH = 5896;
+// Changing WORLD_GEN_BLOCK or WORLD_GEN_START_BLOCK requires the owner's approval of new wording
+// (D-49, D-58, D-13), then updating the hash and length in the same commit.
+// The world_gen pin moved with the owner's approval of the 51.3.1.2 draft on 2026-10-09, section 1
+// (was 2225ffd6..., 5896 for Revision 2; 32bd3555..., 5262 before that).
+const APPROVED_WORLD_GEN_SHA256 = 'a27e15b580fbfa3d8fc394287ee6bc64598428c44bc87e3fc2ed619ce7d3effa';
+const APPROVED_WORLD_GEN_LENGTH = 4099;
 const APPROVED_WORLD_GEN_START_SHA256 = '99c44b73a12ef8dbc6e1fd897e4c3c78aaf18b75659ef115f45b597429a37960';
 const APPROVED_WORLD_GEN_START_LENGTH = 2560;
 
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 
-describe('world_gen block: the approved section A1 text', () => {
+describe('world_gen block: the approved 51.3.1.2 section 1 text (stage 2a)', () => {
   const block = ROUTE_BLOCKS.world_gen;
 
   it('matches the approved sha256 and length', () => {
@@ -47,30 +56,36 @@ describe('world_gen block: the approved section A1 text', () => {
     expect(block).toContain('NAMING RULES: location and region names MUST be diverse.');
   });
 
-  it('carries the Revision 2 Counts sentence, the Place words, Hubs and Creature families paragraphs', () => {
+  it('carries the section 1 Counts paragraph: the Places line count, 3-5 more NPCs, families in a later step (D-03, D-06)', () => {
     expect(block).toContain(
-      'Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and as many creature families as the Families line of the user message says.',
+      'Counts: the Places line of the user message says how many places the region has in all, the arrival point included, so write one new location fewer than that number. Write 3-5 more NPCs besides the vendor and banker each hub needs. Also name the region\'s dominant faction, a few landmarks and the threats that make a sensible traveler nervous. The region\'s creature families are written in a later step.',
     );
-    expect(block).not.toContain('2-3 creature families');
+    expect(block).toContain('the Places line of the user message says how many places the region has in all');
+    expect(block.split('Write 3-5 more NPCs')).toHaveLength(2);
+    expect(block).not.toContain('2-4 more locations');
+    expect(block).not.toContain('1-3 more NPCs');
     expect(block).toContain('Place words:');
-    expect(block).toContain('Creature families:');
     expect(block).toContain('Hubs: the Hubs line of the user message');
-    expect(block).toContain('a family never lives at a safe place or at a hub');
     expect(block).toContain('never it or they');
     expect(block).not.toContain('Essential services:');
     expect(block).not.toContain('Enemies:');
     expect(block).not.toMatch(/enemy types/);
   });
 
-  it('carries the Revision 2 history sentence and Feud paragraph in the approved places (R2-A1, D-68, D-70)', () => {
-    const history =
-      "In history, write one or two sentences of the family's past in this region, such as where it came from and its feud or tie with a hub, the dominant faction or a rival family; use no numbers, and call any person he or she, never it or they.";
-    const feud =
-      'Feud: the Feud line of the user message says how many families are locked in a feud, an old hatred that no truce has ever held. Set inFeud to true on exactly that many families and to false on every other family. Choose families whose lands or hungers cross, and let the history of each feuding family name the feud and the families it hates.';
-    expect(block).toContain(`each with the kind rival, prey or predator. ${history} Never give a family levels`);
-    expect(block).toContain(`the server sets every number.\n\n${feud}\n\nNAMING RULES: `);
-    expect(block.split('In history, write one or two sentences')).toHaveLength(2);
-    expect(block.split('Feud: the Feud line of the user message')).toHaveLength(2);
+  it('asks for no levels and no families: no levelOffset, no Creature families or Feud paragraph (D-04, D-01)', () => {
+    expect(block).toContain('Each location has a terrainType and isSafe set to true or false.');
+    expect(block).not.toContain('levelOffset');
+    expect(block).not.toContain('Creature families:');
+    expect(block).not.toContain('Feud:');
+    expect(block).not.toContain('Families line');
+    expect(block).not.toContain('inFeud');
+    expect(block).not.toContain('fitLocations');
+  });
+
+  it('its only interpolation is WORLD_NAMING_RULES, once, right before the last line', () => {
+    expect(block.split('NAMING RULES: ')).toHaveLength(2);
+    expect(block).toMatch(/\n\nNAMING RULES: [^]*\n\nReply with the JSON object only\.$/);
+    expect(block).not.toContain('<player_input>');
   });
 });
 
@@ -142,7 +157,7 @@ describe('buildWorldFillVolatile: the approved Hubs line (section A2, D-62)', ()
   });
 });
 
-describe('buildWorldFillVolatile: the Revision 2 Families and Feud lines (R2-A2, D-66, D-70, D-71)', () => {
+describe('buildWorldFillVolatile: the approved 51.3.1.2 Places line (section 3, D-03)', () => {
   const base: WorldFillInput = {
     regionName: 'Kesterlane Basin',
     biome: 'coastal',
@@ -155,77 +170,89 @@ describe('buildWorldFillVolatile: the Revision 2 Families and Feud lines (R2-A2,
     neighborRegions: [],
   };
   const PEOPLE = 'People already there: Marta Vell (lore, she)';
-  // The draft's own R2-A2 examples, copied exactly.
-  const R2_EXAMPLE_ONE = 'Hubs: one.\nFamilies: seven.\nFeud: two families.';
-  const R2_EXAMPLE_NONE = 'Hubs: none, this region is too wild for settlements.\nFamilies: seven.\nFeud: three families.';
-  // D-71 (owner 2026-10-08): the exact line for a region that rolls no feud.
-  const FEUD_NONE = 'Feud: none.';
 
-  it('prints the R2-A2 examples right after the People line, in the order Hubs, Families, Feud', () => {
-    const one = buildWorldFillVolatile({ ...base, hubCount: 1, familyCount: 7, feudCount: 2 });
-    expect(one).toContain(`${PEOPLE}\n${R2_EXAMPLE_ONE}\n\n`);
-    const none = buildWorldFillVolatile({ ...base, hubCount: 0, familyCount: 7, feudCount: 3 });
-    expect(none).toContain(`${PEOPLE}\n${R2_EXAMPLE_NONE}\n\n`);
-  });
+  // The section 3 rendered example of the approved draft (N = 9), copied exactly
+  // (`node scripts/llm/prompt_draft.mjs fences <draft> "## 3."`, second fence).
+  const SECTION_3_EXAMPLE = `Region: Kesterlane Basin (coastal)
+Arrival point: Mother Pan Flats (swamp): Salt pans stretch flat and white to the horizon, cracked into plates the size of tables. Brine wells up between them in the heat of the day and smells of old coins.
+People already there: Marta Vell (lore, she)
+Places: nine in all, the arrival point included.
+Hubs: one.
 
-  it('a region that rolls no feud prints exactly "Feud: none." (D-71)', () => {
-    const out = buildWorldFillVolatile({ ...base, hubCount: 1, familyCount: 7, feudCount: 0 });
-    expect(out).toContain(`${PEOPLE}\nHubs: one.\nFamilies: seven.\n${FEUD_NONE}\n\n`);
-    expect(out).not.toContain(' families.\n');
+A Dwarf Warden (warrior) wandered beyond Cragmoor Reach. Neighboring regions: Cragmoor Reach (mountains, threats: rockfalls; wolves in the passes)
+
+Fill in the rest of this region.`;
+  const SECTION_3_INPUT: WorldFillInput = {
+    regionName: 'Kesterlane Basin',
+    biome: 'coastal',
+    startLocation: {
+      name: 'Mother Pan Flats',
+      description:
+        'Salt pans stretch flat and white to the horizon, cracked into plates the size of tables. Brine wells up between them in the heat of the day and smells of old coins.',
+      terrainType: 'swamp',
+    },
+    npcsPresent: [{ name: 'Marta Vell', npcType: 'lore', gender: 'female' }],
+    characterRace: 'Dwarf',
+    characterClass: 'Warden',
+    characterArchetype: 'warrior',
+    sourceRegionName: 'Cragmoor Reach',
+    neighborRegions: [{ name: 'Cragmoor Reach', biome: 'mountains', threats: 'rockfalls; wolves in the passes' }],
+    hubCount: 1,
+    placeCount: 9,
+  };
+
+  it('renders the section 3 example exactly', () => {
+    expect(buildWorldFillVolatile(SECTION_3_INPUT)).toBe(SECTION_3_EXAMPLE);
   });
 
   it.each([
-    [3, 'three'],
-    [4, 'four'],
-    [5, 'five'],
-    [6, 'six'],
-    [7, 'seven'],
     [8, 'eight'],
     [9, 'nine'],
     [10, 'ten'],
-    [11, 'eleven'],
-    [12, 'twelve'],
-    [13, 'thirteen'],
-    [14, 'fourteen'],
-    [15, 'fifteen'],
-  ])('familyCount %s prints "Families: %s."', (familyCount, word) => {
-    const out = buildWorldFillVolatile({ ...base, hubCount: 1, familyCount, feudCount: 2 }).split('\n');
+  ])('placeCount %s prints "Places: %s in all, the arrival point included." between the People and Hubs lines', (placeCount, word) => {
+    const out = buildWorldFillVolatile({ ...base, hubCount: 1, placeCount }).split('\n');
     const at = out.indexOf(PEOPLE);
-    expect(out.slice(at + 1, at + 4)).toEqual(['Hubs: one.', `Families: ${word}.`, 'Feud: two families.']);
+    expect(at).toBeGreaterThan(-1);
+    expect(out.slice(at + 1, at + 3)).toEqual([`Places: ${word} in all, the arrival point included.`, 'Hubs: one.']);
+    expect(out.filter((l) => l.startsWith('Places:'))).toHaveLength(1);
   });
 
-  it('feudCount 3 prints "Feud: three families."', () => {
-    expect(buildWorldFillVolatile({ ...base, familyCount: 7, feudCount: 3 })).toContain('\nFamilies: seven.\nFeud: three families.\n');
-  });
-
-  it('without a hub count the Families and Feud lines still follow the People line', () => {
-    expect(buildWorldFillVolatile({ ...base, familyCount: 7, feudCount: 2 })).toContain(
-      `${PEOPLE}\nFamilies: seven.\nFeud: two families.\n\n`,
+  it('without a hub count the Places line still follows the People line', () => {
+    expect(buildWorldFillVolatile({ ...base, placeCount: 8 })).toContain(
+      `${PEOPLE}\nPlaces: eight in all, the arrival point included.\n\n`,
     );
   });
 
-  it('a stored input without familyCount (a job queued before Revision 2) prints neither line and is otherwise unchanged', () => {
+  it('a place count outside 8..10, a non-integer or a missing one prints no Places line (a job stored before 51.3.1.2)', () => {
     const before = buildWorldFillVolatile({ ...base, hubCount: 1 });
-    expect(before).not.toContain('Families:');
-    expect(before).not.toContain('Feud:');
-    expect(buildWorldFillVolatile({ ...base, hubCount: 1, feudCount: 2 })).toBe(before);
-    expect(
-      buildWorldFillVolatile({ ...base, hubCount: 1, familyCount: 7, feudCount: 2 }).replace('\nFamilies: seven.\nFeud: two families.', ''),
-    ).toBe(before);
-  });
-
-  it('a family count outside 3..15 or a non-integer prints neither line (never a number from storage)', () => {
-    const before = buildWorldFillVolatile({ ...base, hubCount: 1 });
-    for (const familyCount of [0, 1, 2, 16, -3, 7.5, Number.NaN, '7' as unknown as number, null as unknown as number]) {
-      expect(buildWorldFillVolatile({ ...base, hubCount: 1, familyCount, feudCount: 2 })).toBe(before);
+    expect(before).not.toContain('Places:');
+    for (const placeCount of [7, 11, 9.5, 0, -9, Number.NaN, undefined, '9' as unknown as number, null as unknown as number]) {
+      expect(buildWorldFillVolatile({ ...base, hubCount: 1, placeCount })).toBe(before);
     }
   });
 
-  it('a feud count other than 0, 2 or 3 prints no Feud line; the Families line stays', () => {
-    for (const feudCount of [undefined, 1, 4, -1, 2.5, Number.NaN, '2' as unknown as number, null as unknown as number]) {
-      const out = buildWorldFillVolatile({ ...base, hubCount: 1, familyCount: 7, feudCount });
-      expect(out).toContain('\nHubs: one.\nFamilies: seven.\n\n');
-      expect(out).not.toContain('Feud:');
+  it('every other line is unchanged: removing the Places line gives the message of the same input without a count', () => {
+    const before = buildWorldFillVolatile({ ...base, hubCount: 2, arrivalIsHub: true });
+    const withPlaces = buildWorldFillVolatile({ ...base, hubCount: 2, arrivalIsHub: true, placeCount: 10 });
+    expect(withPlaces.replace('\nPlaces: ten in all, the arrival point included.', '')).toBe(before);
+    expect(before.split('\n').slice(0, 5)).toEqual([
+      'Region: Kesterlane Basin (coastal)',
+      'Arrival point: Mother Pan Flats (swamp): Salt as far as the eye goes.',
+      PEOPLE,
+      'Hubs: two. The arrival point is a hub.',
+      '',
+    ]);
+  });
+
+  it('an older stored input carrying familyCount and feudCount prints neither a Families nor a Feud line (they moved to 2b)', () => {
+    const before = buildWorldFillVolatile({ ...base, hubCount: 1, placeCount: 9 });
+    for (const feudCount of [0, 2, 3]) {
+      const old = buildWorldFillVolatile({ ...base, hubCount: 1, placeCount: 9, familyCount: 7, feudCount });
+      expect(old).not.toContain('Families:');
+      expect(old).not.toContain('Feud:');
+      expect(old).toBe(before);
     }
+    const revision2Job = buildWorldFillVolatile({ ...base, hubCount: 1, familyCount: 7, feudCount: 2 });
+    expect(revision2Job).toBe(buildWorldFillVolatile({ ...base, hubCount: 1 }));
   });
 });
