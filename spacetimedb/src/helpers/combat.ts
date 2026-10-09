@@ -1304,7 +1304,9 @@ export function executeEnemyAbility(
   enemyId: bigint,
   abilityKey: string,
   targetCharacterId?: bigint,
-  targetPetId?: bigint
+  targetPetId?: bigint,
+  /** The ally enemy a heal or shield lands on (the round engine's choice, Plan 05). */
+  targetEnemyId?: bigint
 ) {
   const combat = ctx.db.combat_encounter.id.find(combatId);
   if (!combat || combat.state !== 'active') return;
@@ -1375,7 +1377,7 @@ export function executeEnemyAbility(
     castSeconds: abilityRow.castSeconds,
   };
 
-  resolveAbility(ctx, combatId, actor, dispatchAbility, targetCharacterId, targetPetId);
+  resolveAbility(ctx, combatId, actor, dispatchAbility, targetCharacterId, targetPetId, targetEnemyId);
 }
 
 export function executePetAbility(
@@ -1556,6 +1558,8 @@ export function executeAbilityAction(
       abilityKey: string;
       targetCharacterId?: bigint;
       targetPetId?: bigint;
+      /** A heal or shield: the ally enemy it lands on (D-53). */
+      targetEnemyId?: bigint;
     }
     | {
       actorType: 'pet';
@@ -1578,7 +1582,8 @@ export function executeAbilityAction(
       args.actorId,
       args.abilityKey,
       args.targetCharacterId,
-      args.targetPetId
+      args.targetPetId,
+      args.targetEnemyId
     );
     return true;
   }

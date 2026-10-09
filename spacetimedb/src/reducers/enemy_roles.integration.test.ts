@@ -104,7 +104,11 @@ function roleFight(
   });
   const base = seed.enemy_template[0];
   seed.enemy_template = members.map((m) => ({ ...base, id: m.id, name: m.name, role: m.role }));
-  for (const row of seed.combat_enemy) row.enemyTemplateId = row.id;
+  for (const row of seed.combat_enemy) {
+    row.enemyTemplateId = row.id;
+    // the fixture's rows predate combat_enemy.level (0 = the template's level)
+    if (row.level === undefined) row.level = 0n;
+  }
   seed.enemy_ability = [
     ...(seed.enemy_ability ?? []),
     ...members.flatMap((m) =>
@@ -197,7 +201,7 @@ describe('a support heals the most hurt ally of its own fight (D-53)', () => {
       restIn(ctx, round);
       fire(ctx, passingNow(round, 2n));
     }
-    expect(lines(ctx, 1n, /Mend/)).toHaveLength(0);
+    expect(lines(ctx, 1n, /Mend/)).toHaveLength(0);
     expect(lines(ctx, 1n, /mends|recovers/)).toHaveLength(0);
     expect(rows(ctx, 'combat_enemy_cast')).toHaveLength(0);
     expect(lines(ctx, 1n, autoAttackOn('Mender'))).toHaveLength(10);

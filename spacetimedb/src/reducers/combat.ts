@@ -739,13 +739,85 @@ export const registerCombatReducers = (deps: any) => {
       return !!character && character.hp > 0n;
     });
 
+  /** Ability kinds an enemy casts on its own side (D-53): the target is an ally enemy, never a player. */
+  const ENEMY_ALLY_KINDS = ['heal', 'shield'];
+  const isEnemyAllyKind = (kind: string | undefined): boolean =>
+    ENEMY_ALLY_KINDS.includes(String(kind ?? '').toLowerCase());
+  /** Target rules that name the caster's own side; such an ability never sets the card's Targeting line. */
+  const ENEMY_ALLY_RULES = ['self', 'all_allies', 'lowest_hp_ally', 'single_ally'];
+
+  /** Lowest currentHp / maxHp first (cross-multiplied, no division), ties to the lower id. */
+  const byHpFraction = (a: any, b: any): number => {
+    const left = a.currentHp * b.maxHp;
+    const right = b.currentHp * a.maxHp;
+    if (left !== right) return left < right ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
+
+  const hasEnemyShield = (ctx: any, combatId: bigint, enemyId: bigint): boolean =>
+    [...ctx.db.combat_enemy_effect.by_enemy.filter(enemyId)].some(
+      (effect: any) => effect.combatId === combatId && effect.effectType === 'damage_shield' && effect.magnitude > 0n
+    );
+
+  /**
+   * The ally a support's heal or shield is for (D-53): a living enemy of the same fight, the caster
+   * included (only the caster for the `self` rule). A heal takes the lowest HP fraction below full; a
+   * shield takes an ally without a damage_shield, lowest HP fraction first. Nobody eligible gives
+   * undefined, so the ability is skipped (the enemy falls through to its auto-attack) or fizzles.
+   */
+  const pickAllyTarget = (
+    ctx: any, combatId: bigint, enemyId: bigint, rule: string | undefined, kind: string
+  ): { allyEnemyId: bigint } | undefined => {
+    const living = [...ctx.db.combat_enemy.by_combat.filter(combatId)].filter((row: any) => row.currentHp > 0n);
+    const pool = String(rule ?? '').toLowerCase() === 'self' ? living.filter((row: any) => row.id === enemyId) : living;
+    const eligible = kind.toLowerCase() === 'heal'
+      ? pool.filter((row: any) => row.maxHp > 0n && row.currentHp < row.maxHp)
+      : pool.filter((row: any) => !hasEnemyShield(ctx, combatId, row.id));
+    const chosen = eligible.sort(byHpFraction)[0];
+    return chosen ? { allyEnemyId: chosen.id } : undefined;
+  };
+
+  /**
+   * D-40: the enemy card's data on its combat_enemy row. `healTargetEnemyId` is the ally a heal or
+   * shield is for (0n = none); `target` is the player or pet the enemy goes for (a pet target clears
+   * the character column). Phase 51.3.2 replaces the rule behind these values and keeps the columns.
+   * One update at most, and only when a value changes.
+   */
+  const writeEnemyCard = (
+    ctx: any,
+    enemyId: bigint,
+    patch: { healTargetEnemyId?: bigint; target?: { characterId?: bigint; petId?: bigint } }
+  ): void => {
+    const row = ctx.db.combat_enemy.id.find(enemyId);
+    if (!row) return;
+    const next = { ...row };
+    let changed = false;
+    if (patch.healTargetEnemyId !== undefined && (row.healTargetEnemyId ?? 0n) !== patch.healTargetEnemyId) {
+      next.healTargetEnemyId = patch.healTargetEnemyId;
+      changed = true;
+    }
+    if (patch.target) {
+      const petId = patch.target.petId ?? undefined;
+      const characterId = petId !== undefined ? undefined : (patch.target.characterId ?? undefined);
+      if ((row.aggroTargetPetId ?? undefined) !== petId || (row.aggroTargetCharacterId ?? undefined) !== characterId) {
+        next.aggroTargetPetId = petId;
+        next.aggroTargetCharacterId = characterId;
+        changed = true;
+      }
+    }
+    if (changed) ctx.db.combat_enemy.id.update(next);
+  };
+
   const pickEnemyTarget = (
     rule: string | undefined,
     candidates: typeof deps.CombatParticipant.rowType[],
     ctx: any,
     combatId: bigint,
-    enemyId: bigint
-  ): { characterId?: bigint; petId?: bigint } | undefined => {
+    enemyId: bigint,
+    kind?: string
+  ): { characterId?: bigint; petId?: bigint; allyEnemyId?: bigint } | undefined => {
+    // A heal or shield always picks an ally enemy (whatever its rule says), never a player or pet.
+    if (isEnemyAllyKind(kind)) return pickAllyTarget(ctx, combatId, enemyId, rule, String(kind));
     // Enemies never target a 0-HP character, even one whose death is only marked at the end of the round (WR-02).
     const activeParticipants = livingActiveParticipants(ctx, candidates);
     if (activeParticipants.length === 0) return undefined;
@@ -2266,11 +2338,12 @@ export const registerCombatReducers = (deps: any) => {
           if (row.abilityKey === ability.abilityKey) cooldownTable.id.delete(row.id);
         }
       }
-      const target = pickEnemyTarget(ability.targetRule, activeParticipants, ctx, combat.id, enemy.id);
+      // A heal with nobody hurt, or a shield with every ally shielded, has no target: skipped (D-53).
+      const target = pickEnemyTarget(ability.targetRule, activeParticipants, ctx, combat.id, enemy.id, ability.kind);
       if (!target) continue;
 
       // Skip duplicate effects
-      if (!target.petId && ability.kind === 'dot') {
+      if (!target.petId && target.characterId !== undefined && ability.kind === 'dot') {
         const alreadyApplied = [...ctx.db.character_effect.by_character.filter(target.characterId!)]
           .some((effect: any) => effect.effectType === 'dot' && effect.sourceAbility === ability.name);
         if (alreadyApplied) continue;
@@ -2308,9 +2381,19 @@ export const registerCombatReducers = (deps: any) => {
       });
     }
 
+    // D-40: the card shows the ally a heal or shield is for, else the player or pet this enemy goes for.
+    const allyId = chosen.target.allyEnemyId;
+    const rule = String(chosen.ability.targetRule ?? '').toLowerCase();
+    writeEnemyCard(ctx, enemy.id, allyId !== undefined
+      ? { healTargetEnemyId: allyId }
+      : ENEMY_ALLY_RULES.includes(rule)
+        ? { healTargetEnemyId: 0n }
+        : { healTargetEnemyId: 0n, target: chosen.target });
+
     const windup = windupRounds(chosen.ability.castSeconds);
     if (windup > 0n) {
-      // Announce now; the landing step of resolveRound fires it at the end of round N + windup.
+      // Announce now; the landing step of resolveRound fires it at the end of round N + windup. A heal or
+      // shield remembers its ally (targetEnemyId) and has no player or pet target.
       ctx.db.combat_enemy_cast.insert({
         id: 0n,
         combatId: combat.id,
@@ -2321,7 +2404,7 @@ export const registerCombatReducers = (deps: any) => {
         targetPetId: chosen.target.petId,
         announcedRound: roundNumber,
         landsAtRound: roundNumber + windup,
-        targetEnemyId: 0n,
+        targetEnemyId: allyId ?? 0n,
       });
       const eName = enemy.displayName ?? template?.name ?? 'enemy';
       postToActiveParticipants(ctx, activeParticipants, 'combat', `${eName} begins to cast ${chosen.ability.name}.`);
@@ -2336,6 +2419,7 @@ export const registerCombatReducers = (deps: any) => {
       abilityKey: chosen.ability.abilityKey,
       targetCharacterId: chosen.target.characterId,
       targetPetId: chosen.target.petId,
+      targetEnemyId: allyId,
     });
     return true;
   };
@@ -2383,23 +2467,40 @@ export const registerCombatReducers = (deps: any) => {
         const active = livingActiveParticipants(ctx, participants);
         const eName = enemy.displayName ?? template?.name ?? 'enemy';
 
-        let target: { characterId?: bigint; petId?: bigint } | undefined;
-        const hasCharacterTarget = cast.targetCharacterId !== undefined && cast.targetCharacterId !== null;
-        const hasPetTarget = cast.targetPetId !== undefined && cast.targetPetId !== null;
-        if (hasCharacterTarget) {
-          const member = active.find((p: any) => p.characterId === cast.targetCharacterId);
-          const character = member ? ctx.db.character.id.find(cast.targetCharacterId) : undefined;
-          if (member && character && character.hp > 0n) target = { characterId: cast.targetCharacterId };
-        } else if (hasPetTarget) {
-          const pet = ctx.db.active_pet.id.find(cast.targetPetId);
-          if (pet && pet.combatId === combat.id && pet.currentHp > 0n) target = { petId: cast.targetPetId };
+        let target: { characterId?: bigint; petId?: bigint; allyEnemyId?: bigint } | undefined;
+        const allyCast = isEnemyAllyKind(ability.kind);
+        if (allyCast) {
+          // A heal or shield lands on its stored ally while that ally lives; it re-picks by the same
+          // rule only when the ally is gone, and never lands on a player (D-53).
+          const storedAllyId = cast.targetEnemyId ?? 0n;
+          const storedAlly = storedAllyId !== 0n ? ctx.db.combat_enemy.id.find(storedAllyId) : undefined;
+          if (storedAlly && storedAlly.combatId === combat.id && storedAlly.currentHp > 0n) {
+            target = { allyEnemyId: storedAlly.id };
+          }
+        } else {
+          const hasCharacterTarget = cast.targetCharacterId !== undefined && cast.targetCharacterId !== null;
+          const hasPetTarget = cast.targetPetId !== undefined && cast.targetPetId !== null;
+          if (hasCharacterTarget) {
+            const member = active.find((p: any) => p.characterId === cast.targetCharacterId);
+            const character = member ? ctx.db.character.id.find(cast.targetCharacterId) : undefined;
+            if (member && character && character.hp > 0n) target = { characterId: cast.targetCharacterId };
+          } else if (hasPetTarget) {
+            const pet = ctx.db.active_pet.id.find(cast.targetPetId);
+            if (pet && pet.combatId === combat.id && pet.currentHp > 0n) target = { petId: cast.targetPetId };
+          }
         }
         if (!target) {
-          target = pickEnemyTarget(ability.targetRule, active, ctx, combat.id, enemy.id);
+          target = pickEnemyTarget(ability.targetRule, active, ctx, combat.id, enemy.id, ability.kind);
         }
         if (!target) {
           postToActiveParticipants(ctx, active, 'combat', `${eName}'s ${ability.name} fizzles.`);
+          if (allyCast) writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n });
           continue;
+        }
+        if (target.allyEnemyId !== undefined) {
+          writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: target.allyEnemyId });
+        } else if (!ENEMY_ALLY_RULES.includes(String(ability.targetRule ?? '').toLowerCase())) {
+          writeEnemyCard(ctx, enemy.id, { target });
         }
         executeAbilityAction(ctx, {
           actorType: 'enemy',
@@ -2408,6 +2509,7 @@ export const registerCombatReducers = (deps: any) => {
           abilityKey: cast.abilityKey,
           targetCharacterId: target.characterId,
           targetPetId: target.petId,
+          targetEnemyId: target.allyEnemyId,
         });
       } catch (error) {
         console.error(`landEnemyCasts: cast ${cast.id} failed in combat ${combat.id}: ${String(error)}`);
@@ -2422,14 +2524,24 @@ export const registerCombatReducers = (deps: any) => {
     ctx: any, combat: any, enemy: any, template: any,
     participants: any[], activeParticipants: any[], nowMicros: bigint, roundNumber: bigint
   ) => {
-    if (activeParticipants.length === 0) return;
-    const target = pickEnemyTarget('aggro', activeParticipants, ctx, combat.id, enemy.id);
-    if (!target) return;
+    const target = activeParticipants.length > 0
+      ? pickEnemyTarget('aggro', activeParticipants, ctx, combat.id, enemy.id)
+      : undefined;
+    if (!target) {
+      // No action this round still ends a heal target from an earlier round (D-40).
+      writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n });
+      return;
+    }
 
     if (target.petId) {
       // Attack pet
       const pet = ctx.db.active_pet.id.find(target.petId);
-      if (!pet || pet.currentHp === 0n) return;
+      if (!pet || pet.currentHp === 0n) {
+        writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n });
+        return;
+      }
+      // D-40: the card's Targeting line; an auto-attack also ends a heal target from an earlier round.
+      writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n, target: { petId: pet.id } });
       const rawDmg = enemy.attackDamage ?? template.baseDamage ?? 5n;
       const nextHp = pet.currentHp > rawDmg ? pet.currentHp - rawDmg : 0n;
       ctx.db.active_pet.id.update({ ...pet, currentHp: nextHp });
@@ -2443,10 +2555,15 @@ export const registerCombatReducers = (deps: any) => {
     }
 
     const character = ctx.db.character.id.find(target.characterId!);
-    if (!character || character.hp === 0n) return;
-    const participant = [...ctx.db.combat_participant.by_combat.filter(combat.id)]
-      .find((p: any) => p.characterId === character.id);
-    if (!participant || participant.status !== 'active') return;
+    const participant = character
+      ? [...ctx.db.combat_participant.by_combat.filter(combat.id)].find((p: any) => p.characterId === character.id)
+      : undefined;
+    if (!character || character.hp === 0n || !participant || participant.status !== 'active') {
+      writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n });
+      return;
+    }
+    // D-40: the card's Targeting line; an auto-attack also ends a heal target from an earlier round.
+    writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n, target: { characterId: character.id } });
 
     const groupId = effectiveGroupId(character);
     const eName = enemy.displayName ?? template?.name ?? 'enemy';
@@ -3026,9 +3143,14 @@ export const registerCombatReducers = (deps: any) => {
                 `${enemy.displayName ?? 'enemy'}'s ${castAbilityName(ctx, enemy, cast.abilityKey)} is interrupted.`
               );
             }
+            // The stunned turn is its round action: a heal target (an interrupted heal or an earlier one) ends (D-40).
+            writeEnemyCard(ctx, enemy.id, { healTargetEnemyId: 0n });
             return;
           }
-          // A winding-up enemy takes no other action until its ability lands (the landing step below).
+          // A winding-up enemy takes no other action until its ability lands (the landing step below); a
+          // heal or shield wind-up keeps its ally on the card until then. Every other action rewrites the
+          // card (writeEnemyCard in tryEnemyAbilityForRound and processEnemyAutoAttackForRound), which
+          // clears a heal target from an earlier round.
           if (pendingCasts.length > 0) return;
           const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
           if (!template) return;
