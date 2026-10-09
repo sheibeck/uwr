@@ -7,6 +7,7 @@ import { handleLlmAdminCommand } from '../helpers/llm_admin_commands';
 import { handleEconomyAdminCommand } from '../helpers/economy_admin_commands';
 import { flattenLineBreaks } from '../helpers/chat_text';
 import { turnInQuestsAtNpc, questObjectiveText } from './quests';
+import { refuseWhileDead } from '../helpers/character';
 
 
 // Compute all racial contributions at a target level (same logic as awardXp / computeRacialAtLevel).
@@ -363,6 +364,7 @@ export const registerCommandReducers = (deps: any) => {
 
   spacetimedb.reducer('hail_npc', { characterId: t.u64(), npcName: t.string() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     hailNpc(ctx, character, args.npcName);
   });
 

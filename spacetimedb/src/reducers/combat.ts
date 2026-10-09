@@ -25,7 +25,7 @@ import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByFiel
 import { absorbEnemyShield, addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { settlePoolKills } from '../helpers/pools';
-import { partyMembersInLocation } from '../helpers/character';
+import { partyMembersInLocation, refuseWhileDead } from '../helpers/character';
 import { fightRoster } from '../helpers/group';
 import { activeCombatIdForCharacter as activeFightOf } from '../helpers/events';
 import { RENOWN_GAIN } from '../data/renown_data';
@@ -963,6 +963,7 @@ export const registerCombatReducers = (deps: any) => {
 
   spacetimedb.reducer('start_combat', { characterId: t.u64(), enemySpawnId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const _player = ctx.db.player.id.find(ctx.sender);
     if (_player) {
       ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
@@ -1002,6 +1003,7 @@ export const registerCombatReducers = (deps: any) => {
     { characterId: t.u64(), enemyId: t.u64().optional() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const combatId = activeCombatIdForCharacter(ctx, character.id);
       if (!combatId) return failCombat(ctx, character, 'Not in combat');
       if (args.enemyId) {

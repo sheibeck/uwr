@@ -1,3 +1,5 @@
+import { refuseWhileDead } from '../helpers/character';
+
 export const registerItemTradingReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -156,6 +158,7 @@ export const registerItemTradingReducers = (deps: any) => {
     { characterId: t.u64(), targetName: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const target = findCharacterByName(ctx, args.targetName.trim());
       if (!target) return failItem(ctx, character, 'Target not found');
       if (target.id === character.id) return failItem(ctx, character, 'Cannot trade with yourself');
@@ -197,6 +200,7 @@ export const registerItemTradingReducers = (deps: any) => {
     { characterId: t.u64(), itemInstanceId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const trade = findActiveTrade(ctx, character.id);
       if (!trade) return failItem(ctx, character, 'No active trade');
       const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
@@ -238,6 +242,7 @@ export const registerItemTradingReducers = (deps: any) => {
 
   spacetimedb.reducer('offer_trade', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const trade = findActiveTrade(ctx, character.id);
     if (!trade) return failItem(ctx, character, 'No active trade');
     if (trade.fromCharacterId === character.id) {

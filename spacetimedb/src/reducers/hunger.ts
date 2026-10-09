@@ -1,4 +1,5 @@
 import { FOOD_BUFF_LABELS } from '../data/recipe_rules';
+import { refuseWhileDead } from '../helpers/character';
 
 export const registerFoodReducers = (deps: any) => {
   const {
@@ -14,6 +15,7 @@ export const registerFoodReducers = (deps: any) => {
     { characterId: t.u64(), itemInstanceId: t.u64() },
     (ctx: any, { characterId, itemInstanceId }: { characterId: bigint; itemInstanceId: bigint }) => {
       const character = requireCharacterOwnedBy(ctx, characterId);
+      if (refuseWhileDead(ctx, character)) return;
 
       const instance = ctx.db.item_instance.id.find(itemInstanceId);
       if (!instance) { fail(ctx, character, 'Item not found'); return; }

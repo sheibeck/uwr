@@ -4,7 +4,7 @@ import { collapsePassageAfterLeaving } from '../helpers/passages';
 import { syncCharacterOnline } from '../helpers/online';
 import { announcePartyPresence } from '../helpers/party_presence';
 import { endInvite, settleGroupAfterLeave } from '../helpers/group_invites';
-import { promptRespawnIfDead, respawnDeadCharacter } from '../helpers/character';
+import { promptRespawnIfDead, refuseWhileDead, respawnDeadCharacter } from '../helpers/character';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
@@ -140,6 +140,7 @@ export const registerCharacterReducers = (deps: any) => {
 
   spacetimedb.reducer('bind_location', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     // Same rule and wording as the typed `bind` intent (reducers/intent.ts).
     if (activeCombatIdForCharacter(ctx, character.id)) {
       fail(ctx, character, 'You cannot bind while in combat.');

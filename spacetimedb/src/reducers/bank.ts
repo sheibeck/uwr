@@ -1,3 +1,5 @@
+import { refuseWhileDead } from '../helpers/character';
+
 export const registerBankReducers = (deps: any) => {
   const {
     spacetimedb,
@@ -21,6 +23,7 @@ export const registerBankReducers = (deps: any) => {
     { characterId: t.u64(), instanceId: t.u64() },
     (ctx: any, args: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const userId = requirePlayerUserId(ctx);
 
       const instance = ctx.db.item_instance.id.find(args.instanceId);
@@ -96,6 +99,7 @@ export const registerBankReducers = (deps: any) => {
     { characterId: t.u64(), bankSlotId: t.u64() },
     (ctx: any, args: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const userId = requirePlayerUserId(ctx);
 
       const bankSlot = ctx.db.bank_slot.id.find(args.bankSlotId);

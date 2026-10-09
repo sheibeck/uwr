@@ -7,6 +7,7 @@ import type { BagMaterial, MaterialKind } from '../data/recipe_rules';
 import { isQuestItemTemplate } from '../data/item_rules';
 import { craftBatchFits } from '../data/inventory_rules';
 import { QUALITY_TIERS } from '../data/mechanical_vocabulary';
+import { refuseWhileDead } from '../helpers/character';
 
 export const registerItemCraftingReducers = (deps: any) => {
   const {
@@ -27,6 +28,7 @@ export const registerItemCraftingReducers = (deps: any) => {
 
   spacetimedb.reducer('research_recipes', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const location = ctx.db.location.id.find(character.locationId);
     if (!location?.craftingAvailable) {
       appendPrivateEvent(
@@ -295,6 +297,7 @@ export const registerItemCraftingReducers = (deps: any) => {
   // data/inventory_rules.ts, the same rule that bounds the client stepper through maxCraftCount).
   const craftBatch = (ctx: any, args: CraftArgs, count: bigint) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const location = ctx.db.location.id.find(character.locationId);
     if (!location?.craftingAvailable) {
       appendPrivateEvent(
@@ -448,6 +451,7 @@ export const registerItemCraftingReducers = (deps: any) => {
     { characterId: t.u64(), itemInstanceId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
 
       // Find the scroll item
       const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
@@ -490,6 +494,7 @@ export const registerItemCraftingReducers = (deps: any) => {
 
   spacetimedb.reducer('salvage_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) return failItem(ctx, character, 'Not your item');

@@ -11,6 +11,7 @@ import { DENSITY_RULES } from '../data/density_rules';
 import { ambushLine } from '../data/density_lines';
 import { MAX_LEVEL } from '../data/xp';
 import { npcGender, npcPronouns } from '../data/npc_gender';
+import { refuseWhileDead } from '../helpers/character';
 
 // Slots the quest reward cycles through by player level. All are EQUIPMENT_SLOTS (helpers/items.ts);
 // 'mainHand' is the weapon slot.
@@ -524,6 +525,7 @@ export const registerQuestReducers = (deps: any) => {
     { characterId: t.u64(), questItemId: t.u64() },
     (ctx: any, args: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
 
       // Find and validate the quest item
       const questItem = ctx.db.quest_item.id.find(args.questItemId);
@@ -542,6 +544,7 @@ export const registerQuestReducers = (deps: any) => {
     { characterId: t.u64(), namedEnemyId: t.u64() },
     (ctx: any, args: any) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
 
       // Find and validate the named enemy
       const namedEnemy = ctx.db.named_enemy.id.find(args.namedEnemyId);
@@ -580,6 +583,7 @@ export const registerQuestReducers = (deps: any) => {
     questInstanceId: t.u64(),
   }, (ctx: any, args: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const qi = ctx.db.quest_instance.id.find(args.questInstanceId);
     if (!qi) { fail(ctx, character, 'Quest not found.'); return; }
     if (qi.characterId !== character.id) { fail(ctx, character, 'Not your quest.'); return; }

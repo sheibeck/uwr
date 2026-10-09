@@ -3,6 +3,7 @@ import { requireAdmin } from '../data/admin';
 import { fireWorldEvent, resolveWorldEvent, incrementWorldStat } from '../helpers/world_events';
 import { appendPrivateEvent } from '../helpers/events';
 import { EventDespawnTick } from '../schema/tables';
+import { refuseWhileDead } from '../helpers/character';
 
 export function registerWorldEventReducers(deps: any) {
   const { spacetimedb, t, SenderError, fail } = deps;
@@ -56,6 +57,7 @@ export function registerWorldEventReducers(deps: any) {
         fail(ctx, character, 'You do not own this character');
         return;
       }
+      if (refuseWhileDead(ctx, character)) return;
 
       // Find the EventSpawnItem
       const spawnItem = ctx.db.event_spawn_item.id.find(eventSpawnItemId);

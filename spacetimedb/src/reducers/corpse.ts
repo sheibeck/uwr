@@ -1,3 +1,5 @@
+import { refuseWhileDead } from '../helpers/character';
+
 const CONFIRMATION_TIMEOUT = 30_000_000n; // 30 seconds in microseconds
 
 export const registerCorpseReducers = (deps: any) => {
@@ -19,6 +21,7 @@ export const registerCorpseReducers = (deps: any) => {
 
   spacetimedb.reducer('loot_corpse_item', { characterId: t.u64(), corpseItemId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
 
     // Find the CorpseItem row
     const corpseItem = ctx.db.corpse_item.id.find(args.corpseItemId);
@@ -82,6 +85,7 @@ export const registerCorpseReducers = (deps: any) => {
 
   spacetimedb.reducer('loot_all_corpse', { characterId: t.u64(), corpseId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
 
     // Find the Corpse row
     const corpse = ctx.db.corpse.id.find(args.corpseId);
@@ -139,6 +143,7 @@ export const registerCorpseReducers = (deps: any) => {
 
   spacetimedb.reducer('initiate_resurrect', { casterCharacterId: t.u64(), corpseId: t.u64() }, (ctx, args) => {
     const caster = requireCharacterOwnedBy(ctx, args.casterCharacterId);
+    if (refuseWhileDead(ctx, caster)) return;
 
     // Verify caster is not in combat
     const combatId = activeCombatIdForCharacter(ctx, caster.id);
@@ -378,6 +383,7 @@ export const registerCorpseReducers = (deps: any) => {
 
   spacetimedb.reducer('initiate_corpse_summon', { casterCharacterId: t.u64(), targetCharacterId: t.u64() }, (ctx, args) => {
     const caster = requireCharacterOwnedBy(ctx, args.casterCharacterId);
+    if (refuseWhileDead(ctx, caster)) return;
 
     // Verify caster is not in combat
     const combatId = activeCombatIdForCharacter(ctx, caster.id);

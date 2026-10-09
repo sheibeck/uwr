@@ -12,6 +12,7 @@ import {
   takeFromVendorListing,
 } from '../helpers/vendor_sale';
 import { peaceAllyReason, peaceAllyRefusal } from '../data/ally_target_rules';
+import { refuseWhileDead } from '../helpers/character';
 
 export const registerItemReducers = (deps: any) => {
   const {
@@ -190,6 +191,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), npcId: t.u64(), itemTemplateId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const vendorNpc = vendorHere(ctx, character, args.npcId);
       if (!vendorNpc) return failItem(ctx, character, 'There is no vendor here.');
       const template = ctx.db.item_template.id.find(args.itemTemplateId);
@@ -216,6 +218,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), listingId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const listing = ctx.db.vendor_inventory.id.find(args.listingId);
       if (!listing) return failItem(ctx, character, 'That item is no longer for sale.');
       const vendorNpc = vendorHere(ctx, character, listing.npcId);
@@ -232,6 +235,7 @@ export const registerItemReducers = (deps: any) => {
     quantity: bigint | undefined
   ) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {
@@ -278,6 +282,7 @@ export const registerItemReducers = (deps: any) => {
   // never supply them. Every refusal happens before the first write.
   spacetimedb.reducer('buyback_last_sale', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const sale = ctx.db.vendor_buyback.characterId.find(character.id);
     if (!sale) return failItem(ctx, character, 'Nothing to buy back.');
     // A template removed since the sale can never be restored: say so (instead of "backpack is
@@ -326,6 +331,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('sell_all_junk', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     // This reducer takes no npc id, so the rule is the typed 'sell junk' one: some vendor npc must
     // be at the character's location. Refused before any write.
     const hasVendorHere = [...ctx.db.npc.by_location.filter(character.locationId)].some(
@@ -372,6 +378,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('take_loot', { characterId: t.u64(), lootId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const loot = ctx.db.combat_loot.id.find(args.lootId);
     if (!loot) return failItem(ctx, character, 'Loot not found');
     if (loot.characterId !== character.id || loot.ownerUserId !== character.ownerUserId) {
@@ -461,6 +468,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('take_all_loot', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const allLoot = [...ctx.db.combat_loot.by_character.filter(character.id)];
     if (allLoot.length === 0) return;
 
@@ -561,6 +569,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), itemInstanceId: t.u64() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       if (activeCombatIdForCharacter(ctx, character.id)) {
         return failItem(ctx, character, 'Cannot change equipment during combat');
       }
@@ -615,6 +624,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), slot: t.string() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       if (activeCombatIdForCharacter(ctx, character.id)) {
         return failItem(ctx, character, 'Cannot change equipment during combat');
       }
@@ -875,6 +885,7 @@ export const registerItemReducers = (deps: any) => {
     { characterId: t.u64(), abilityTemplateId: t.u64(), targetCharacterId: t.u64().optional() },
     (ctx, args) => {
       const character = requireCharacterOwnedBy(ctx, args.characterId);
+      if (refuseWhileDead(ctx, character)) return;
       const _player = ctx.db.player.id.find(ctx.sender);
       if (_player) {
         ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
@@ -1003,6 +1014,7 @@ export const registerItemReducers = (deps: any) => {
 
   spacetimedb.reducer('use_item', { characterId: t.u64(), itemInstanceId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const instance = ctx.db.item_instance.id.find(args.itemInstanceId);
     if (!instance) return failItem(ctx, character, 'Item not found');
     if (instance.ownerCharacterId !== character.id) {

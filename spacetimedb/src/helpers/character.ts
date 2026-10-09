@@ -2,7 +2,7 @@ import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
 import { appendPrivateEvent, appendLocationEvent, appendGroupEvent, activeCombatIdForCharacter } from './events';
 import { cleanupDecayedCorpses } from './corpse';
-import { deathPromptLine, RESPAWN_IN_COMBAT, RESPAWN_NOT_DEAD } from '../data/death_lines';
+import { DEAD_IN_FIGHT, deathPromptLine, RESPAWN_IN_COMBAT, RESPAWN_NOT_DEAD } from '../data/death_lines';
 import { markLocationVisited } from './visited';
 import { collapsePassageAfterLeaving } from './passages';
 import { syncCharacterOnline } from './online';
@@ -249,6 +249,23 @@ export function promptRespawnIfDead(ctx: any, character: any): boolean {
     'system',
     deathPromptLine(respawnPlaceName(ctx, character), ctx.timestamp.microsSinceUnixEpoch + character.id),
   );
+  return true;
+}
+
+/**
+ * The dead act only to respawn, accept or decline a resurrection, and talk (owner, 2026-10-09: "You
+ * should [not] be able to take any in game actions like that when dead ... Respawning should be the
+ * only action you can take."). Every in-world reducer calls this right after resolving its character:
+ * false for the living; for the dead it writes the death prompt (or DEAD_IN_FIGHT while the fight that
+ * killed him goes on) and returns true so the caller returns without changing anything. Never throws,
+ * so the line survives.
+ */
+export function refuseWhileDead(ctx: any, character: any): boolean {
+  // Dead is hp exactly 0 (hp is a u64), the same test the combat and respawn code use.
+  if (!character || character.hp !== 0n) return false;
+  if (!promptRespawnIfDead(ctx, character)) {
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', DEAD_IN_FIGHT);
+  }
   return true;
 }
 

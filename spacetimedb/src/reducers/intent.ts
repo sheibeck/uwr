@@ -36,8 +36,8 @@ import {
   pullFamilyFor,
 } from '../helpers/encounters';
 import { findRaceDefinition } from '../data/race_bonuses';
-import { RESPAWN_COMMAND } from '../data/death_lines';
-import { respawnDeadCharacter } from '../helpers/character';
+import { RESPAWN_COMMAND, allowedWhileDead } from '../data/death_lines';
+import { refuseWhileDead, respawnDeadCharacter } from '../helpers/character';
 import { turnInCompletedQuest, turnInQuestsAtNpc, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
@@ -87,6 +87,12 @@ export const registerIntentReducers = (deps: any) => {
     // --- RESPAWN: the placeholder for a death screen (owner, 2026-10-09); the death prompt's [respawn] sends it ---
     if (lower === RESPAWN_COMMAND) {
       respawnDeadCharacter(ctx, character);
+      return;
+    }
+
+    // --- DEAD: only help, look and talk (owner, 2026-10-09: "Respawning should be the only action you can take") ---
+    if (character.hp === 0n && !allowedWhileDead(lower)) {
+      refuseWhileDead(ctx, character);
       return;
     }
 

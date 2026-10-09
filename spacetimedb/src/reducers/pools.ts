@@ -22,6 +22,7 @@ import { fightRoster, getGroupOrSoloParticipants } from '../helpers/group';
 import { gatherDurationMicros, harvestCappedFor } from '../helpers/harvest';
 import { isNightTime } from '../helpers/location';
 import { settlePool } from '../helpers/pools';
+import { refuseWhileDead } from '../helpers/character';
 
 /**
  * Refusal lines of pull_family (PROPOSED, D-58: listed in 51.3.1.1-11-SUMMARY.md for the one copy
@@ -63,6 +64,7 @@ export const registerPoolReducers = (deps: any) => {
   spacetimedb.reducer('pull_family', { characterId: t.u64(), poolId: t.u64() }, (ctx: any, args: any) => {
     // Ownership first (T-51.3.1.1-33): a foreign character id throws before anything is read.
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     touchActivity(ctx);
     // The one pull body, shared with the typed pull (helpers/encounters.ts, Plan 16).
     const stored = ctx.db.place_pool.id.find(args.poolId);
@@ -73,6 +75,7 @@ export const registerPoolReducers = (deps: any) => {
   spacetimedb.reducer('gather_pool', { characterId: t.u64(), poolId: t.u64() }, (ctx: any, args: any) => {
     // Ownership first (T-51.3.1.1-38): a foreign character id throws before anything is read.
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     touchActivity(ctx);
     if (activeCombatIdForCharacter(ctx, character.id)) return refuseGather(ctx, character, GATHER_REFUSALS.fighting);
     for (const _gather of ctx.db.resource_gather.by_character.filter(character.id)) {

@@ -181,6 +181,7 @@ import {
   findCharacterByName,
   autoRespawnDeadCharacter,
   promptRespawnIfDead,
+  refuseWhileDead,
   campCharacter,
   grantRaceAbility,
 } from './helpers/character';
@@ -508,6 +509,7 @@ registerViews({
 // Reducer: the player asks the Keeper for a new skill offer (recovers a failed or missed offer)
 spacetimedb.reducer('request_skill_offer', { characterId: t.u64() }, (ctx: any, { characterId }: { characterId: bigint }) => {
   const character = requireCharacterOwnedBy(ctx, characterId);
+  if (refuseWhileDead(ctx, character)) return;
   const offer = requestSkillOffer(ctx, character, ctx.sender);
   if (offer.kind === 'system') {
     fail(ctx, character, offer.text);
@@ -529,6 +531,7 @@ spacetimedb.reducer('choose_skill', { pendingSkillId: t.u64() }, (ctx: any, { pe
   if (!player || !character.ownerUserId || player.userId !== character.ownerUserId) {
     throw new SenderError('Not your character');
   }
+  if (refuseWhileDead(ctx, character)) return;
 
   // Insert chosen skill into ability_template
   const abilityRow = ctx.db.ability_template.insert({
@@ -623,6 +626,7 @@ spacetimedb.reducer('apply_level_up', { characterId: t.u64() }, (ctx: any, { cha
   if (!player || !character.ownerUserId || player.userId !== character.ownerUserId) {
     throw new SenderError('Not your character');
   }
+  if (refuseWhileDead(ctx, character)) return;
 
   // Check there are pending levels to apply
   const currentPending = character.pendingLevels ?? 0n;

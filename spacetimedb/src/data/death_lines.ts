@@ -32,3 +32,25 @@ export function deathPromptLine(place: string, seed: bigint): string {
 export const RESPAWN_NOT_DEAD = 'You are not dead. Yet.';
 /** Shown when the command is typed while the fight that killed you is still going. */
 export const RESPAWN_IN_COMBAT = 'You cannot respawn until the fight is over.';
+
+/** Shown when a dead character tries to act while the fight that killed him is still going. */
+export const DEAD_IN_FIGHT = 'You are dead, and the fight goes on without you.';
+
+// What a dead character may still type (owner, 2026-10-09: "Respawning should be the only action you
+// can take", resurrection aside). Asking for help, looking around (the client sends `look` on load)
+// and talking: say and whisper/tell/w, the chat forms submit_intent routes. Slash commands are handled
+// before this check. The patterns mirror the dispatcher's own (helpers/examine.ts LOOK_REGEX, the SAY
+// and WHISPER branches in reducers/intent.ts).
+const DEAD_ALLOWED_EXACT: ReadonlySet<string> = new Set([RESPAWN_COMMAND, 'help', 'h', '?']);
+const DEAD_ALLOWED_PATTERNS: readonly RegExp[] = [
+  /^(?:look|l)(?:\s+.+)?$/,
+  /^say\s+\S/,
+  /^(?:whisper|tell|w)\s+\S+\s+\S/,
+];
+
+/** Whether a dead character may send this (lowercased, trimmed) intent text. */
+export function allowedWhileDead(lower: string): boolean {
+  const text = lower.trim().toLowerCase();
+  if (DEAD_ALLOWED_EXACT.has(text)) return true;
+  return DEAD_ALLOWED_PATTERNS.some((pattern) => pattern.test(text));
+}

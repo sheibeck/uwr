@@ -257,7 +257,8 @@ describe('choice validation posts a visible line and writes nothing (RND-01)', (
     seed.combat_participant[0].status = 'dead';
     const ctx = fightCtx(seed, ALICE);
     handlers.use_ability(ctx, { characterId: 1n, abilityTemplateId: 1n });
-    rejected(ctx, /^You cannot act right now\.$/);
+    // The dead lockout (owner, 2026-10-09) answers first, mid-fight, with DEAD_IN_FIGHT.
+    rejected(ctx, /^You are dead, and the fight goes on without you\.$/);
   });
 
   it('an unknown ability is rejected', () => {

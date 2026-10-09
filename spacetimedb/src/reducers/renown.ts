@@ -2,6 +2,7 @@ import { RENOWN_PERK_POOLS } from '../data/renown_data';
 import { awardRenown, grantAchievement } from '../helpers/renown';
 import { ensureDefaultHotbar } from '../helpers/items';
 import { chooseRenownPerkLogic } from './renown_perk';
+import { refuseWhileDead } from '../helpers/character';
 
 export const registerRenownReducers = (deps: any) => {
   const { spacetimedb, t, requireAdmin, requireCharacterOwnedBy, appendSystemMessage, fail } = deps;
@@ -9,6 +10,7 @@ export const registerRenownReducers = (deps: any) => {
   spacetimedb.reducer('choose_perk', { characterId: t.u64(), perkKey: t.string() }, (ctx: any, { characterId, perkKey }: any) => {
     // Auth check
     const character = requireCharacterOwnedBy(ctx, characterId);
+    if (refuseWhileDead(ctx, character)) return;
 
     // Get Renown row
     let renownRow: any = null;
@@ -112,6 +114,7 @@ export const registerRenownReducers = (deps: any) => {
     // Auth check
     const character = requireCharacterOwnedBy(ctx, characterId);
     if (!character) return;
+    if (refuseWhileDead(ctx, character)) return;
 
     const result = chooseRenownPerkLogic(ctx, { characterId, perkId });
     if (!result.success) {

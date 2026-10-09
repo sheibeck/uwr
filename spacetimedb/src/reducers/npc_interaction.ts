@@ -18,6 +18,7 @@ import { recentRumors } from '../helpers/pool_events';
 import { regionFamilyHistories } from '../helpers/families';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints, type NpcConversationInput } from '../data/llm_layers';
 import { npcGender } from '../data/npc_gender';
+import { refuseWhileDead } from '../helpers/character';
 
 export const registerNpcInteractionReducers = (deps: any) => {
   const { spacetimedb, t } = deps;
@@ -29,6 +30,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     message: t.string(),
   }, (ctx: any, args: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const { npcId } = args;
     // Capped here, before the job snapshot and the echo: the model only ever sees this many code
     // points, so the reservation, the stored snapshot and the log never carry more.
@@ -141,6 +143,7 @@ export const registerNpcInteractionReducers = (deps: any) => {
     itemInstanceId: t.u64(),
   }, (ctx: any, args: any) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
+    if (refuseWhileDead(ctx, character)) return;
     const { npcId, itemInstanceId } = args;
 
     const npc = ctx.db.npc.id.find(npcId);
