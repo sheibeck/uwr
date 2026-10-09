@@ -383,9 +383,9 @@ export const REGION_FILL_FAILED_HINT =
   'The Keeper never finished remembering the roads out of here. Type [explore] and he will try again.';
 
 /**
- * The next step for a character in a region whose stage-2 fill has not landed (review WR-B02): a FILLING
- * state asks for a moment, a FILL_ERROR state names [explore] (retryWorldFill matches it by region).
- * null when no state for the region is FILLING or FILL_ERROR. world_gen_state has no region index; the
+ * The next step for a character in a region whose stage-2 fill has not landed (review WR-B02): a FILLING or
+ * FILLING_FAMILIES state asks for a moment, a FILL_ERROR or FAMILIES_ERROR state names [explore]
+ * (retryWorldFill matches it by region). null when no state for the region is in one of those steps. world_gen_state has no region index; the
  * table is small and the callers (arrival in a reused starter region, travel with no exits) are rare.
  */
 export function regionFillHint(tx: any, regionId: bigint): string | null {
@@ -393,8 +393,9 @@ export function regionFillHint(tx: any, regionId: bigint): string | null {
   let failed = false;
   for (const s of tx.db.world_gen_state.iter()) {
     if (s.generatedRegionId === undefined || s.generatedRegionId === null || s.generatedRegionId !== regionId) continue;
-    if (s.step === 'FILLING') filling = true;
-    else if (s.step === 'FILL_ERROR') failed = true;
+    // Review A IN-01: the 2b steps read like the 2a ones (the same approved hint lines).
+    if (s.step === 'FILLING' || s.step === 'FILLING_FAMILIES') filling = true;
+    else if (s.step === 'FILL_ERROR' || s.step === 'FAMILIES_ERROR') failed = true;
   }
   if (filling) return REGION_FILL_PENDING_HINT;
   if (failed) return REGION_FILL_FAILED_HINT;

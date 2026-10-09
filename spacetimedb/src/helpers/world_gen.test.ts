@@ -950,6 +950,19 @@ describe('startWorldGeneration', () => {
       const both = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILL_ERROR'), genStateRow({ id: 6n, step: 'FILLING', generatedRegionId: 1n })] });
       expect(regionFillHint(both, 1n)).toBe(REGION_FILL_PENDING_HINT);
     });
+
+    it('regionFillHint knows the 2b steps (review A IN-01): FILLING_FAMILIES asks for a moment, FAMILIES_ERROR names [explore]', () => {
+      const filling = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILLING_FAMILIES')] });
+      expect(regionFillHint(filling, 1n)).toBe(REGION_FILL_PENDING_HINT);
+      expect(nowhereToGoLine(filling, 21n)).toBe(`There is nowhere to go from here yet. ${REGION_FILL_PENDING_HINT}`);
+
+      const failed = newCtx({ ...starterSeed(), world_gen_state: [firstState('FAMILIES_ERROR')] });
+      expect(regionFillHint(failed, 1n)).toBe(REGION_FILL_FAILED_HINT);
+      expect(regionFillHint(failed, 2n)).toBeNull();
+
+      const both = newCtx({ ...starterSeed(), world_gen_state: [firstState('FAMILIES_ERROR'), genStateRow({ id: 6n, step: 'FILLING_FAMILIES', generatedRegionId: 1n })] });
+      expect(regionFillHint(both, 1n)).toBe(REGION_FILL_PENDING_HINT);
+    });
   });
 
   it('does not reuse a starter region of another race: it enqueues instead', () => {
