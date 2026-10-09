@@ -10,3 +10,7 @@ Collected by the coordinator from executor reports. Each needs a home before the
 | 4 | Plan 05 | `spawnEnemyWithTemplate` still refuses boss templates with "Named enemies cannot be tracked" (meant for `start_tracked_combat`). Nothing sets `isBoss` today. | Plan 27 (retires `start_tracked_combat`) |
 | 5 | Plan 04 | New PROPOSED copy inline in `helpers/combat.ts`: `{caster} mends {ally}.`, `{caster} recovers.`, `{ally} is shielded by {ability}.`, `A ward on {enemy} absorbs {n} damage.` | Plan 27 copy review (D-58) |
 | 6 | Plan 07 | `FAMILY_NAME_MARKS` (Grey, Pale, Wild, Dark, Old, Red, Black, Lesser) is PROPOSED copy in `helpers/family_validate.ts`. | Plan 27 copy review (D-58) |
+| 7 | Plan 08 | `helpers/combat_rewards.ts` (~L225, ~L241) still inserts `enemy_respawn_tick` rows after kills; they drain harmlessly through the guarded no-op `respawn_enemy`. | Plan 11 or 27: stop the inserts |
+| 8 | Plan 08 | `relevelLegacySpawns` has no production caller; `DEFAULT_LOCATION_SPAWNS` is still exported and imported by `index.ts`. Two doc comments in `helpers/families.ts` (L9, L539) still name the deleted spawn functions. | Plan 27 cleanup |
+| 9 | Plan 08 | `pickUpQuestItem` aggro still looks for an `enemy_spawn`, so quest-item aggro finds nothing until Plan 11's pool draw; `start_combat` still uses `ensureAvailableSpawn` / `spawnEnemy`. | Plan 11 (pool draw) / Plan 27 (retire) |
+| 10 | Plan 08 | Fixed by the coordinator (a12c3b65): `helpers/online.test.ts` single-writer guard now allows the test fixture `helpers/pool_fixture.ts`. | done |
