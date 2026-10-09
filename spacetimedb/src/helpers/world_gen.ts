@@ -12,7 +12,18 @@
 // world_gen_state is public: errorMessage only ever holds a fixed in-voice line.
 
 import { connectLocations } from './location';
-import { buildRegionFamilies, ensurePoolsForLocation } from './families';
+import {
+  buildRegionFamilies,
+  createFamily,
+  createRelations,
+  ensurePoolsForLocation,
+  linkFamilyToPlaces,
+  regionBaseLevel,
+  seedRegionPools,
+} from './families';
+import { validateFamilies, validatePlaceWords, type FamilyPlace, type ValidatedFamily } from './family_validate';
+import { nameKey } from '../data/economy_design_rules';
+import type { FamilyRelation } from '../data/mechanical_vocabulary';
 import { markLocationVisited } from './visited';
 import type { WorldGenInput, WorldFillInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
@@ -458,9 +469,11 @@ function reachableWithin(tx: any, startId: bigint, allowed: Set<bigint>): Set<bi
  *
  * The arrival point (Phase 51.3.1.1, D-59 to D-64):
  *   - starter region: safe, its one hub, with a crafting station and a bind stone (D-61, D-63);
- *   - any other region: safe (the first-glimpse wording of today asks for a safe place; Plan 23
- *     changes that with the approved wording), not a hub, no station and no bind stone. The fill
- *     decides the hubs (placeRegionHubs), and only a hub gets a station and a bind stone (D-63, D-64).
+ *   - any other region: the model's isSafe (the approved first-glimpse wording asks for it, Plan 23,
+ *     D-61); a reply without a boolean isSafe (one written under the older wording, which asked for a
+ *     safe place) reads as safe. Not a hub, no station and no bind stone: the fill decides the hubs
+ *     (placeRegionHubs, which also makes a hub safe), and only a hub gets a station and a bind stone
+ *     (D-63, D-64).
  */
 export function writeRegionStart(
   tx: any,
@@ -498,7 +511,7 @@ export function writeRegionStart(
     zone: regionName,
     regionId: region.id,
     levelOffset: toBigIntSafe(start.levelOffset, { min: -10n, max: 10n, fallback: 0n }),
-    isSafe: true,
+    isSafe: isStarter || start.isSafe !== false,
     terrainType: terrain,
     bindStone: isStarter,
     craftingAvailable: isStarter,
@@ -734,6 +747,9 @@ export function buildWorldFillInput(tx: any, genState: any): WorldFillInput {
     sourceRegionName: sourceRegion?.name ?? 'the known world',
     // The start location is now connected to the source region, so the new region would otherwise list itself.
     neighborRegions: buildRegionContext(tx, genState.sourceRegionId).filter((r) => r.name !== region.name),
+    // The Hubs line (D-62): the same count placeRegionHubs enforces when the reply is written.
+    hubCount: regionHubCount(region, genState.sourceRegionId === 0n),
+    arrivalIsHub: start.isHub === true,
   };
 }
 
@@ -866,8 +882,10 @@ export function retryWorldFill(
  * Stage 2 write: the rest of the region around the start location stage 1 wrote. Never renames or
  * duplicates stage-1 content (a location with the start location's name, or an earlier one, is
  * skipped; an NPC whose name already stands at its location is skipped). Every new location ends up
- * connected to the region; the hubs of the region are placed by the server rules with a vendor and a
- * banker each (D-59 to D-64); families and pools are built by rule (Plan 09); and an uncharted
+ * connected to the region; the hubs of the region are placed by the server count with the reply's
+ * marks, each with a vendor and a banker (D-59 to D-64); the reply's place words are stored (D-46);
+ * the reply's creature families are validated and created with the server's numbers (Plan 23), or,
+ * for an older reply, families are built by rule from its enemy types (Plan 09); and an uncharted
  * boundary closes the region.
  */
 export function writeRegionFill(
@@ -900,6 +918,8 @@ export function writeRegionFill(
     if (taken.has(lower(name))) continue;
     taken.add(lower(name));
     const isSafe = loc.isSafe === true;
+    // Place words (D-46): cleaned by the validator, '' when unusable or absent (an older reply).
+    const words = validatePlaceWords(loc);
     const row = tx.db.location.insert({
       id: 0n,
       name,
@@ -911,8 +931,8 @@ export function writeRegionFill(
       terrainType: loc.terrainType && loc.terrainType !== 'uncharted' ? loc.terrainType : 'plains',
       bindStone: false,
       craftingAvailable: false,
-      shortName: '',
-      placeNoun: '',
+      shortName: words.shortName,
+      placeNoun: words.placeNoun,
       isHub: false,
     });
     newLocations.push(row);
@@ -942,7 +962,7 @@ export function writeRegionFill(
     reached = reachableWithin(tx, startLocation.id, inRegion);
   }
 
-  // 4b. Hubs (D-60 to D-64): the server count, the reply marks (none until Plan 23), then the rule.
+  // 4b. Hubs (D-60 to D-64): the server count, the reply marks, then the rule.
   //     A hub is safe, so the families step below gives it no creature pool.
   const isStarter = genState.sourceRegionId === 0n;
   const insertedByLowerName = new Map<string, any>(planned.map(({ row }) => [lower(row.name), row] as [string, any]));
@@ -953,7 +973,154 @@ export function writeRegionFill(
     markedIds: readHubMarks(fill, startLocation, insertedByLowerName),
   });
 
-  // 5. Enemy templates with role templates and abilities
+  // 4c. The arrival point's place words from the reply (D-46), after the hub step rewrote its row.
+  writeArrivalPlaceWords(tx, startLocation, fill);
+
+  // 5. Families. The places are the arrival point and the new locations as they stand after the hub
+  //    step (a hub is safe and hosts no creatures; a non-safe, non-hub arrival point can, D-61).
+  const now: bigint = tx.timestamp.microsSinceUnixEpoch;
+  const regionPlaces = [startLocation, ...newLocations].map((loc: any) => tx.db.location.id.find(loc.id) ?? loc);
+  const aiFamilies = Array.isArray(fill.families)
+    ? validateFamilies(fill, {
+        regionId: region.id,
+        places: regionPlaces.map(familyPlace),
+        isTaken: takenNameCheck(tx),
+      }).families
+    : null;
+  if (aiFamilies) {
+    // 5a. The approved reply (Plan 23, D-25, D-46): the AI's families with the server's numbers.
+    buildAiFamilies(tx, region.id, aiFamilies, regionPlaces, now);
+  } else {
+    // 5b. An older reply (enemies, no families: a job in flight at publish) or a families array with no
+    //     usable family: today's enemy types, grouped into families by rule (Plan 09, D-20, D-25, D-26).
+    const enemyTemplateRows = insertReplyEnemyTemplates(tx, fill, dangerMultiplier);
+    buildRegionFamilies(tx, current, enemyTemplateRows, regionPlaces, now);
+  }
+  const nonSafeLocations = newLocations
+    .map((loc: any) => tx.db.location.id.find(loc.id) ?? loc)
+    .filter((loc: any) => !loc.isSafe);
+
+  // 7. NPCs: by exact locationName, else at the start location; never a repeat of a name already there
+  const npcItems: any[] = Array.isArray(fill.npcs) ? fill.npcs : [];
+  for (const npc of npcItems) {
+    if (!npc || typeof npc !== 'object') continue;
+    const npcLocation = byExactName.get(npc.locationName) ?? startLocation;
+    const storedName = npc.name || 'Unknown NPC';
+    const alreadyThere = [...tx.db.npc.by_location.filter(npcLocation.id)].some(
+      (n: any) => lower(n.name) === lower(storedName),
+    );
+    if (alreadyThere) continue;
+    insertRegionNpc(tx, npc, npcLocation.id);
+  }
+
+  // 8. A vendor and a banker at each hub, and none anywhere else in the region (D-59)
+  settleRegionServices(tx, region.id, hubs);
+
+  // 9. The uncharted boundary at the edge of the region (anchored on the places still non-safe after 4b)
+  const lastNonSafe = nonSafeLocations[nonSafeLocations.length - 1];
+  const boundaryAnchor = lastNonSafe ?? newLocations[newLocations.length - 1] ?? startLocation;
+  const boundary = tx.db.location.insert({
+    id: 0n,
+    name: `The Edge Beyond ${region.name || 'the Region'}`,
+    description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
+    zone: 'Uncharted',
+    regionId: region.id,
+    levelOffset: 0n,
+    isSafe: true,
+    terrainType: 'uncharted',
+    bindStone: false,
+    craftingAvailable: false,
+    shortName: '',
+    placeNoun: '',
+    isHub: false,
+  });
+  connectLocations(tx, boundaryAnchor.id, boundary.id);
+
+  return { locations: newLocations, boundary };
+}
+
+/** A region row as the family validator sees it (D-61). */
+function familyPlace(loc: any): FamilyPlace {
+  return {
+    name: String(loc?.name ?? ''),
+    isSafe: loc?.isSafe === true,
+    isHub: loc?.isHub === true,
+    terrainType: String(loc?.terrainType ?? ''),
+  };
+}
+
+/**
+ * The validator's isTaken: family and member names share one name book with every existing enemy
+ * template and creature family (Plan 07). Read once per fill (a rare, per-region path).
+ */
+function takenNameCheck(tx: any): (name: string) => boolean {
+  const names = new Set<string>();
+  for (const template of tx.db.enemy_template.iter()) names.add(nameKey(String(template.name ?? '')));
+  for (const family of tx.db.creature_family.iter()) names.add(nameKey(String(family.name ?? '')));
+  return (name: string) => names.has(nameKey(name));
+}
+
+/** The relation the other family holds back (D-20): a rival is a rival; prey names its predator. */
+const INVERSE_RELATION: Readonly<Record<FamilyRelation, FamilyRelation>> = Object.freeze({
+  rival: 'rival',
+  prey: 'predator',
+  predator: 'prey',
+});
+
+/**
+ * The AI families of a region fill (Plan 23, D-25, D-46): each validated family is created at the
+ * region's base level (createFamily: new member templates with the AI's names, server stats and the
+ * rule abilities), linked to its fit places, its relations stored both ways (the other family holds
+ * the inverse), then the creature and resource pools are seeded with server home densities
+ * (seedRegionPools). `places` are the region rows after the hub step. Returns the family rows.
+ */
+function buildAiFamilies(tx: any, regionId: bigint, families: readonly ValidatedFamily[], places: readonly any[], now: bigint): any[] {
+  const baseLevel = regionBaseLevel(tx, regionId);
+  const placeByName = new Map<string, any>(places.map((place: any) => [String(place.name), place] as [string, any]));
+  const familiesByPlace = new Map<bigint, bigint[]>();
+  const rowByKey = new Map<string, any>();
+  for (const def of families) {
+    const row = createFamily(tx, regionId, def, baseLevel);
+    rowByKey.set(def.key, row);
+    const fit = def.fitLocationNames.map((name) => placeByName.get(name)).filter((place: any) => !!place);
+    linkFamilyToPlaces(tx, row.id, fit, familiesByPlace);
+  }
+  for (const def of families) {
+    const row = rowByKey.get(def.key);
+    for (const relation of def.relations) {
+      const other = rowByKey.get(relation.otherKey);
+      if (!row || !other || other.id === row.id) continue;
+      createRelations(tx, row.id, [{ otherFamilyId: other.id, kind: relation.kind }]);
+      createRelations(tx, other.id, [{ otherFamilyId: row.id, kind: INVERSE_RELATION[relation.kind] }]);
+    }
+  }
+  seedRegionPools(tx, places, familiesByPlace, now);
+  return [...rowByKey.values()];
+}
+
+/**
+ * The arrival point's place words from `fill.arrival` (D-46, validatePlaceWords): a usable word is
+ * written over the row as it stands now (the hub step may have rewritten it); an unusable or missing
+ * word leaves the stored one as it is.
+ */
+function writeArrivalPlaceWords(tx: any, startLocation: any, fill: any): void {
+  const raw = fill && typeof fill === 'object' ? fill.arrival : undefined;
+  if (!raw || typeof raw !== 'object') return;
+  const words = validatePlaceWords(raw);
+  const row = tx.db.location.id.find(startLocation.id);
+  if (!row) return;
+  const shortName = words.shortName || row.shortName || '';
+  const placeNoun = words.placeNoun || row.placeNoun || '';
+  if (shortName === row.shortName && placeNoun === row.placeNoun) return;
+  tx.db.location.id.update({ ...row, shortName, placeNoun });
+}
+
+/**
+ * The enemy types of an older fill reply (`fill.enemies`, the shape before Plan 23) as enemy templates
+ * with role templates and abilities, levels clamped to the region's danger band. Only the rule path
+ * (buildRegionFamilies) uses them.
+ */
+function insertReplyEnemyTemplates(tx: any, fill: any, dangerMultiplier: bigint): any[] {
   const enemyTemplateRows: any[] = [];
   const enemyItems: any[] = Array.isArray(fill.enemies) ? fill.enemies : [];
   for (const enemy of enemyItems) {
@@ -1023,52 +1190,5 @@ export function writeRegionFill(
       targetRule: 'single_enemy',
     });
   }
-
-  // 6. Families and pools by rule (Plan 09, D-20, D-25, D-26, D-61): the enemy types grouped into
-  //    families, linked to the places that host creatures and fit their terrain, rivals of each other,
-  //    creature pools at those places and resource pools at every charted place, the arrival point
-  //    included (a non-safe, non-hub arrival point can host families).
-  const regionPlaces = [startLocation, ...newLocations].map((loc: any) => tx.db.location.id.find(loc.id) ?? loc);
-  buildRegionFamilies(tx, current, enemyTemplateRows, regionPlaces, tx.timestamp.microsSinceUnixEpoch);
-  const nonSafeLocations = newLocations
-    .map((loc: any) => tx.db.location.id.find(loc.id) ?? loc)
-    .filter((loc: any) => !loc.isSafe);
-
-  // 7. NPCs: by exact locationName, else at the start location; never a repeat of a name already there
-  const npcItems: any[] = Array.isArray(fill.npcs) ? fill.npcs : [];
-  for (const npc of npcItems) {
-    if (!npc || typeof npc !== 'object') continue;
-    const npcLocation = byExactName.get(npc.locationName) ?? startLocation;
-    const storedName = npc.name || 'Unknown NPC';
-    const alreadyThere = [...tx.db.npc.by_location.filter(npcLocation.id)].some(
-      (n: any) => lower(n.name) === lower(storedName),
-    );
-    if (alreadyThere) continue;
-    insertRegionNpc(tx, npc, npcLocation.id);
-  }
-
-  // 8. A vendor and a banker at each hub, and none anywhere else in the region (D-59)
-  settleRegionServices(tx, region.id, hubs);
-
-  // 9. The uncharted boundary at the edge of the region (anchored on the places still non-safe after 4b)
-  const lastNonSafe = nonSafeLocations[nonSafeLocations.length - 1];
-  const boundaryAnchor = lastNonSafe ?? newLocations[newLocations.length - 1] ?? startLocation;
-  const boundary = tx.db.location.insert({
-    id: 0n,
-    name: `The Edge Beyond ${region.name || 'the Region'}`,
-    description: 'The mists thicken here. Reality seems uncertain, as though the world has not yet decided what lies beyond.',
-    zone: 'Uncharted',
-    regionId: region.id,
-    levelOffset: 0n,
-    isSafe: true,
-    terrainType: 'uncharted',
-    bindStone: false,
-    craftingAvailable: false,
-    shortName: '',
-    placeNoun: '',
-    isHub: false,
-  });
-  connectLocations(tx, boundaryAnchor.id, boundary.id);
-
-  return { locations: newLocations, boundary };
+  return enemyTemplateRows;
 }

@@ -2015,15 +2015,33 @@ describe('staged world generation (LAT-03)', () => {
     dominantFaction: 'Ash Court',
     landmarks: ['The Slag Spire'],
     threats: ['ember wolves'],
+    // The approved reply shape (Plan 51.3.1.1-23): the executor checks the top-level keys of the route schema.
+    arrival: { shortName: 'Ember Hollow', placeNoun: 'the hollow', isHub: true },
     locations: [
-      { name: 'Slag Road', description: 'A cracked road.', terrainType: 'plains', isSafe: false, levelOffset: 0, connectsTo: ['Ember Hollow', 'Ashen Pit'] },
-      { name: 'Ashen Pit', description: 'A smoking crater.', terrainType: 'mountains', isSafe: false, levelOffset: 1, connectsTo: ['Slag Road'] },
+      { name: 'Slag Road', shortName: 'Slag Road', placeNoun: 'the road', description: 'A cracked road.', terrainType: 'plains', isHub: false, isSafe: false, levelOffset: 0, connectsTo: ['Ember Hollow', 'Ashen Pit'] },
+      { name: 'Ashen Pit', shortName: 'Ashen Pit', placeNoun: 'the pit', description: 'A smoking crater.', terrainType: 'mountains', isHub: false, isSafe: false, levelOffset: 1, connectsTo: ['Slag Road'] },
     ],
     npcs: [
       { name: 'Old Brann', gender: 'male', npcType: 'lore', locationName: 'Slag Road', description: 'A hermit.', greeting: 'Hm.', personality: PERSONALITY },
     ],
-    enemies: [
-      { name: 'Ember Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'plains', groupMin: 1, groupMax: 2, level: 1 },
+    families: [
+      {
+        name: 'Ember Wolves',
+        singularNoun: 'wolf',
+        pluralNoun: 'wolves',
+        creatureType: 'beast',
+        iconKey: 'beast',
+        temperament: 'aggressive',
+        ambushVerb: 'burst',
+        ambushRest: 'out of the smoke',
+        members: [
+          { role: 'tank', name: 'Ember Packleader' },
+          { role: 'damage', name: 'Ember Biter' },
+          { role: 'caster', name: 'Ember Howler' },
+        ],
+        fitLocations: ['Slag Road'],
+        relations: [],
+      },
     ],
   };
 
