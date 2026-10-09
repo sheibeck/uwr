@@ -11,11 +11,6 @@ export const DAY_DURATION_MICROS = 2_400_000_000n;
 export const NIGHT_DURATION_MICROS = 1_200_000_000n;
 export const RESOURCE_GATHER_CAST_MICROS = 8_000_000n;
 
-/** Returns true if the given EnemySpawn was created by a world event (has an EventSpawnEnemy link). */
-export function isEventSpawn(ctx: any, spawnId: bigint): boolean {
-  return [...ctx.db.event_spawn_enemy.by_spawn.filter(spawnId)].length > 0;
-}
-
 export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLevel: bigint) {
   const location = ctx.db.location.id.find(locationId);
   if (!location) return baseLevel;
