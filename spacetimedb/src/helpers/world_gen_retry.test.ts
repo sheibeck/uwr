@@ -385,10 +385,29 @@ describe('retryStarterWorldGen: a new character in creation retries the failed s
     expect(retryStarterWorldGen(empty, aldric(empty), bob)).toBe('none');
     expect(rows(empty, 'world_gen_state')).toHaveLength(0);
 
+    // A COMPLETE newest state whose character was placed: nothing to retry.
     const complete = starterCtx([{ step: 'FAMILIES_ERROR' }, { step: 'COMPLETE', errorMessage: undefined }]);
+    complete.db.character.id.update({ ...aldric(complete), locationId: 601n, boundLocationId: 601n });
     expect(retryStarterWorldGen(complete, aldric(complete), bob)).toBe('none');
     expect(rows(complete, 'llm_job')).toHaveLength(0);
     expect(stateById(complete, 1n).step).toBe('FAMILIES_ERROR');
+    expect(aldric(complete).locationId).toBe(601n);
+  });
+
+  it('a COMPLETE newest state whose character still waits (his placement at completion threw, review A WR-02): placed now, reused, no job', () => {
+    const ctx = starterCtx([{ step: 'COMPLETE', errorMessage: undefined }]);
+    expect(retryStarterWorldGen(ctx, aldric(ctx), bob)).toBe('reused');
+    expect(aldric(ctx)).toMatchObject({ locationId: 601n, boundLocationId: 601n });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(stateById(ctx, 1n)).toMatchObject({ step: 'COMPLETE', playerId: alice });
+    const arrival = rows(ctx, 'event_private').filter((e: any) => e.characterId === 10n);
+    expect(arrival.map((e: any) => e.kind)).toEqual(['narrative', 'system']);
+    expect(arrival[0].message.startsWith('You open your eyes in Brinegate 60, Kobold Hollows.')).toBe(true);
+
+    // The region is gone: nothing to place him in.
+    const gone = starterCtx([{ step: 'COMPLETE', errorMessage: undefined, generatedRegionId: 999n }]);
+    expect(retryStarterWorldGen(gone, aldric(gone), bob)).toBe('none');
+    expect(aldric(gone).locationId).toBe(0n);
   });
 
   it.each([

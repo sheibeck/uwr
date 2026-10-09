@@ -338,6 +338,7 @@ export function retryStarterWorldGen(ctx: any, character: any, playerId: any): S
   const newest = [...starters].sort(newestFirst)[0];
   if (!newest) return 'none';
   if (newest.step === 'HELD') return retryHeldStarter(ctx, newest, character, playerId);
+  if (newest.step === 'COMPLETE') return placeAfterFailedPlacement(ctx, newest);
 
   if (newest.step === 'FILL_ERROR' || newest.step === 'FAMILIES_ERROR') {
     const handed = { ...newest, playerId, characterId: character.id, updatedAt: ctx.timestamp };
@@ -358,6 +359,19 @@ export function retryStarterWorldGen(ctx: any, character: any, playerId: any): S
   });
   const started = startWorldGeneration(ctx, fresh);
   return started === 'enqueued' || started === 'duplicate' ? 'started' : started;
+}
+
+/**
+ * The region of a COMPLETE starter state is whole, but its character still waits at location 0: his
+ * placement at completion threw and was skipped so it could not roll back the paid families (review A
+ * WR-02). His [explore] places him now at the arrival point (placeWaitingCharacter, no call): 'reused'.
+ * 'none' when he is already placed, or the region or its arrival point is gone.
+ */
+function placeAfterFailedPlacement(ctx: any, state: any): StarterRetryOutcome {
+  const regionId = state.generatedRegionId;
+  const region = regionId !== undefined && regionId !== null ? ctx.db.region.id.find(regionId) : undefined;
+  if (!region) return 'none';
+  return placeWaitingCharacter(ctx, state, region) ? 'reused' : 'none';
 }
 
 /** Next step for someone standing in a region whose second half is still being generated (review WR-B02). */
@@ -438,21 +452,11 @@ function placeAtHome(ctx: any, genState: any, character: any, region: any): bool
   const homeLocation = regionHomePlace(ctx, region.id);
   if (!homeLocation) return false;
 
-  ctx.db.character.id.update({
-    ...(ctx.db.character.id.find(character.id) ?? character),
-    locationId: homeLocation.id,
-    boundLocationId: homeLocation.id,
-  });
+  // The side rows first, the character and state rows last (review A WR-02): a throw part-way leaves him
+  // waiting at location 0 with his state as it was, for a later [explore] to place, never half-placed.
   // Visited places: reusing a starter region puts the character at its home place (no origin).
   markLocationVisited(ctx, character.id, homeLocation.id);
   ensurePoolsForLocation(ctx, homeLocation.id);
-
-  ctx.db.world_gen_state.id.update({
-    ...(ctx.db.world_gen_state.id.find(genState.id) ?? genState),
-    step: 'COMPLETE',
-    generatedRegionId: region.id,
-    updatedAt: ctx.timestamp,
-  });
 
   let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${region.name}.`;
   const people = peopleAt(ctx, homeLocation.id);
@@ -466,6 +470,18 @@ function placeAtHome(ctx: any, genState: any, character: any, region: any): bool
     const hint = regionFillHint(ctx, region.id);
     arrivalMsg += `\n\nTry [look] to examine your surroundings.` + (hint ? ` ${hint}` : '');
   }
+
+  ctx.db.character.id.update({
+    ...(ctx.db.character.id.find(character.id) ?? character),
+    locationId: homeLocation.id,
+    boundLocationId: homeLocation.id,
+  });
+  ctx.db.world_gen_state.id.update({
+    ...(ctx.db.world_gen_state.id.find(genState.id) ?? genState),
+    step: 'COMPLETE',
+    generatedRegionId: region.id,
+    updatedAt: ctx.timestamp,
+  });
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
   return true;
 }
@@ -1079,8 +1095,14 @@ export function finishRegionFill(tx: any, genState: any): void {
     }
   }
 
+  // Placement never rolls back the paid families (review A WR-02): each placement is guarded, and a
+  // character it could not place stays at location 0 for a later [explore] (retryStarterWorldGen).
   if (region && (current.sourceLocationId ?? 0n) === 0n) {
-    placeWaitingCharacter(tx, current, region);
+    try {
+      placeWaitingCharacter(tx, current, region);
+    } catch (err) {
+      console.error('Waiting character placement failed for state ' + String(current.id) + ': ' + errorName(err));
+    }
   }
   if (region) placeHeldCharacters(tx, region);
 
@@ -1111,11 +1133,17 @@ function heldStatesOf(tx: any, regionId: bigint): any[] {
  */
 function placeHeldCharacters(tx: any, region: any): void {
   for (const held of heldStatesOf(tx, region.id)) {
-    const character = tx.db.character.id.find(held.characterId);
-    if (character && character.locationId === 0n) {
-      placeAtHome(tx, held, character, region);
-    } else {
-      tx.db.world_gen_state.id.update({ ...held, step: 'COMPLETE', updatedAt: tx.timestamp });
+    // One bad character never undoes the region or the others (review A WR-02): his state stays HELD and
+    // his [explore] places him later (retryHeldStarter).
+    try {
+      const character = tx.db.character.id.find(held.characterId);
+      if (character && character.locationId === 0n) {
+        placeAtHome(tx, held, character, region);
+      } else {
+        tx.db.world_gen_state.id.update({ ...held, step: 'COMPLETE', updatedAt: tx.timestamp });
+      }
+    } catch (err) {
+      console.error('Held placement failed for state ' + String(held.id) + ': ' + errorName(err));
     }
   }
 }
@@ -1166,7 +1194,7 @@ export function placeWaitingCharacter(tx: any, state: any, region: any): boolean
   const arrival = findRegionStart(tx, region.id);
   if (!arrival) return false;
 
-  tx.db.character.id.update({ ...character, locationId: arrival.id, boundLocationId: arrival.id });
+  // The side rows first, the character row last (review A WR-02): a throw part-way leaves him at location 0.
   // Visited places: the first spawn is the first place the character has stood in (no origin).
   markLocationVisited(tx, character.id, arrival.id);
   ensurePoolsForLocation(tx, arrival.id);
@@ -1179,6 +1207,7 @@ export function placeWaitingCharacter(tx: any, state: any, region: any): boolean
   }
   arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
   const segments = keeperSegments(arrivalMsg);
+  tx.db.character.id.update({ ...character, locationId: arrival.id, boundLocationId: arrival.id });
   appendPrivateEvent(tx, character.id, character.ownerUserId, 'narrative', flattenSegments(segments), segments);
   appendPrivateEvent(tx, character.id, character.ownerUserId, 'system',
     pickDiscoveryMessage(region.name, tx.timestamp.microsSinceUnixEpoch));

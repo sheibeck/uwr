@@ -641,3 +641,80 @@ describe('HELD is never a hold, a hint or a lock', () => {
     expect(stateOf(ctx, B_STATE).step).toBe('HELD');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Review A WR-02: a placement throw never rolls back the paid families
+// ---------------------------------------------------------------------------
+
+/** Make the visited-place insert throw for one character (a placement side effect), until disarmed. */
+function throwOnVisit(ctx: any, characterId: bigint): () => void {
+  const realDb = ctx.db;
+  ctx.db = new Proxy(realDb, {
+    get: (_t: any, name: string) => {
+      const table = realDb[name];
+      if (name !== 'visited_location') return table;
+      return new Proxy(table, {
+        get: (tt: any, prop: string) =>
+          prop === 'insert'
+            ? (row: any) => {
+                if (row.characterId === characterId) throw new TypeError('placement exploded');
+                return tt.insert(row);
+              }
+            : tt[prop],
+      });
+    },
+  });
+  return () => {
+    ctx.db = realDb;
+  };
+}
+
+describe('a placement that throws at completion (review A WR-02)', () => {
+  it("the starter's own character: the families, COMPLETE and the economy stay; he waits at location 0; his [explore] places him later", () => {
+    const ctx = starterCtx({ economy_dials: dialsOn() });
+    throughPlaces(ctx);
+    const disarm = throwOnVisit(ctx, 10n);
+    expect(() => applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()))).not.toThrow();
+    disarm();
+
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(rows(ctx, 'creature_family').length).toBeGreaterThan(0);
+    expect(jobsOf(ctx, 'region_economy')).toHaveLength(1);
+    expect(regionHoldState(ctx, theRegion(ctx).id)).toBe('open');
+    // Not half-placed: still at location 0, no arrival line.
+    expect(charOf(ctx)).toMatchObject({ locationId: 0n, boundLocationId: 0n });
+    expect(privateOf(ctx)).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledWith('Waiting character placement failed for state 5: TypeError');
+
+    // His [explore] from the creation console places him now, with the arrival message; no call.
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    expect(retryStarterWorldGen(ctx, charOf(ctx), alice)).toBe('reused');
+    const arrival = findRegionStart(ctx, theRegion(ctx).id);
+    expect(charOf(ctx)).toMatchObject({ locationId: arrival.id, boundLocationId: arrival.id });
+    expect(privateOf(ctx)[0].message).toBe(expectedArrival(ctx, REGION_DESCRIPTION));
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+  });
+
+  it('one HELD character: the region, the families and the starter character are unaffected; her state stays HELD and her [explore] places her', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    startWorldGeneration(ctx, addSecond(ctx));
+    const disarm = throwOnVisit(ctx, B_CHAR);
+    expect(() => applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()))).not.toThrow();
+    disarm();
+
+    const home = findRegionStart(ctx, theRegion(ctx).id);
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(rows(ctx, 'creature_family').length).toBeGreaterThan(0);
+    expect(charOf(ctx).locationId).toBe(home.id);
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+    expect(charOf(ctx, B_CHAR)).toMatchObject({ locationId: 0n, boundLocationId: 0n });
+    expect(privateOf(ctx, B_CHAR)).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledWith('Held placement failed for state 6: TypeError');
+
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('reused');
+    expect(charOf(ctx, B_CHAR).locationId).toBe(home.id);
+    expect(stateOf(ctx, B_STATE).step).toBe('COMPLETE');
+    expect(privateOf(ctx, B_CHAR)[0].message).toBe(expectedReuseArrival(ctx));
+  });
+});
