@@ -52,6 +52,8 @@ import {
   readHubMarks,
 } from './world_gen';
 import { hubCountFor, hubHasStation, hubSeed, stationSeed } from '../data/density_rules';
+import { enemyStatsForLevel } from '../data/enemy_rules';
+import { memberAbilities } from '../data/family_rules';
 import { createMockDb, createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { resolveRouteInput } from './llm_inputs';
@@ -1223,6 +1225,9 @@ describe('staged world fill (Phase 43)', () => {
         sourceRegionName: 'Ashen Reach',
         // The new region is now connected to the source region and must not list itself.
         neighborRegions: [{ name: 'Far Reach', biome: 'forest', threats: 'wolves' }],
+        // Plan 51.3.1.1-23 (D-62): the server's hub count and whether the arrival point is a hub.
+        hubCount: regionHubCount(rows(ctx, 'region').find((r: any) => r.name === 'Test Region'), false),
+        arrivalIsHub: false,
       });
       expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
     });
@@ -1690,7 +1695,7 @@ describe('hubs (Plan 09 Task 3, D-59 to D-64)', () => {
     expect(startLocation).toMatchObject({ isSafe: true, isHub: true, craftingAvailable: true, bindStone: true });
   });
 
-  it('writeRegionStart, not a starter: safe (until Plan 23), not a hub, no station and no bind stone (D-63, D-64)', () => {
+  it('writeRegionStart, not a starter: safe when the reply says nothing (an old reply), not a hub, no station and no bind stone (D-63, D-64)', () => {
     const ctx = hubCtx(2n, 150n);
     const { startLocation } = stageOne(ctx);
     expect(startLocation).toMatchObject({ isSafe: true, isHub: false, craftingAvailable: false, bindStone: false });
@@ -1888,6 +1893,431 @@ describe('hubs (Plan 09 Task 3, D-59 to D-64)', () => {
     const ctx = hubCtx(regionId, 400n);
     both(ctx, familyFillReply({ npcs: SERVICE_NPCS }));
     for (const table of ['location', 'npc']) {
+      for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 23: the approved reply shape (families, place words, hub marks) and the arrival point's isSafe
+// (D-25, D-46, D-59 to D-63). Canned replies only: nothing here enqueues or calls the model.
+// ---------------------------------------------------------------------------
+
+describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
+  const T0 = 1_700_000_000_000_000n;
+  const alice = { toHexString: () => 'a'.repeat(64) };
+  const ts = { microsSinceUnixEpoch: T0 };
+  const DANGER_STEP = 50n + (T0 % 51n);
+
+  function regionIdWithHubCount(danger: bigint, count: number, from = 2n): bigint {
+    for (let id = from; id < from + 2000n; id += 1n) {
+      if (hubCountFor(danger, false, hubSeed(id)) === count) return id;
+    }
+    throw new Error(`no region id with hub count ${count} at danger ${danger}`);
+  }
+
+  function aiCtx(regionId: bigint, danger: bigint, extra: Record<string, any[]> = {}) {
+    const sourceDanger = danger >= 800n ? 800n : danger - DANGER_STEP;
+    const items = ['Wood', 'Peat', 'Scrap Cloth', 'Flax', 'Herbs'].map((name, i) => ({ id: 700n + BigInt(i), name, slot: 'resource' }));
+    return createMockCtx({
+      seed: {
+        player: [{ id: alice, userId: 7n }],
+        character: [{ id: 10n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver', locationId: 0n }],
+        region: [{ id: regionId - 1n, name: 'Source', dangerMultiplier: sourceDanger }],
+        world_gen_state: [
+          { id: 5n, playerId: alice, characterId: 10n, sourceLocationId: 0n, sourceRegionId: regionId - 1n, step: 'GENERATING', createdAt: ts, updatedAt: ts },
+        ],
+        item_template: items,
+        ...extra,
+      },
+      sender: alice,
+      timestampMicros: T0,
+      strict: true,
+    });
+  }
+  const rows = (ctx: any, table: string): any[] => ctx.db._tables[table] ?? [];
+  const stateOf = (ctx: any) => rows(ctx, 'world_gen_state')[0];
+  const locRow = (ctx: any, name: string) => rows(ctx, 'location').find((l: any) => l.name === name);
+  const servicesAt = (ctx: any, locationId: bigint) =>
+    rows(ctx, 'npc')
+      .filter((n: any) => n.locationId === locationId)
+      .map((n: any) => n.npcType)
+      .filter((t: string) => t === 'vendor' || t === 'banker')
+      .sort();
+  const membersOf = (ctx: any, family: any) => rows(ctx, 'family_member').filter((m: any) => m.familyId === family.id);
+  const linkedAt = (ctx: any, loc: any) =>
+    rows(ctx, 'location_enemy_template').filter((l: any) => l.locationId === loc.id).map((l: any) => l.enemyTemplateId);
+  const creaturePools = (ctx: any, loc: any) =>
+    rows(ctx, 'place_pool').filter((p: any) => p.locationId === loc.id && p.kind === 'creature').map((p: any) => p.refId);
+
+  function stageOne(ctx: any, reply: any = baseStartReply()) {
+    const out = writeRegionStart(ctx, reply, stateOf(ctx));
+    ctx.db.world_gen_state.id.update({ ...stateOf(ctx), generatedRegionId: out.region.id });
+    return out;
+  }
+  function both(ctx: any, fill: any, start: any = baseStartReply()) {
+    const s = stageOne(ctx, start);
+    const f = writeRegionFill(ctx, fill, stateOf(ctx), s.region, s.startLocation);
+    return { ...s, ...f };
+  }
+  function stageOneStarter(ctx: any) {
+    ctx.db.world_gen_state.id.update({ ...stateOf(ctx), sourceRegionId: 0n });
+    const out = writeRegionStart(ctx, baseStartReply(), stateOf(ctx), 'kobold');
+    ctx.db.world_gen_state.id.update({ ...stateOf(ctx), generatedRegionId: out.region.id });
+    return out;
+  }
+  const startReply = (over: Record<string, unknown>) =>
+    baseStartReply({ startLocation: { ...baseStartReply().startLocation, ...over } });
+
+  const member = (role: string, name: string) => ({ role, name });
+  /** The approved reply shape: three hostile places, a marked safe camp, two families and place words. */
+  function aiFillReply(overrides: any = {}): any {
+    return {
+      dominantFaction: 'The Brine Wardens',
+      landmarks: ['The Salt Stair'],
+      threats: ['skitterers in the reeds'],
+      arrival: { shortName: 'Haven', placeNoun: 'the haven', isHub: false },
+      locations: [
+        { name: 'Sallow Wood', shortName: 'Sallow', placeNoun: 'the wood', description: 'w', terrainType: 'woods', isHub: false, isSafe: false, levelOffset: 0, connectsTo: ['Safe Haven'] },
+        { name: 'Black Fen', shortName: 'Black Fen', placeNoun: 'the black fen', description: 'f', terrainType: 'swamp', isHub: false, isSafe: false, levelOffset: 1, connectsTo: ['Sallow Wood'] },
+        { name: 'Grey Moor', shortName: 'Moor', placeNoun: 'the moor', description: 'm', terrainType: 'plains', isHub: false, isSafe: false, levelOffset: 0, connectsTo: ['Safe Haven'] },
+        { name: 'Reed Camp', shortName: 'Reed Camp', placeNoun: 'the camp', description: 'c', terrainType: 'plains', isHub: true, isSafe: true, levelOffset: 0, connectsTo: ['Safe Haven'] },
+      ],
+      npcs: [],
+      families: [
+        {
+          name: 'Saltcrust Skitterers',
+          singularNoun: 'skitterer',
+          pluralNoun: 'skitterers',
+          creatureType: 'beast',
+          iconKey: 'insect',
+          temperament: 'aggressive',
+          ambushVerb: 'swarm',
+          ambushRest: 'up through the salt',
+          members: [
+            member('tank', 'Skitter Shellback'),
+            member('damage', 'Skitter Pincer'),
+            member('support', 'Skitter Tender'),
+            member('caster', 'Skitter Saltspitter'),
+          ],
+          fitLocations: ['Sallow Wood', 'Black Fen'],
+          relations: [{ family: 'Drowned Tollmen', kind: 'rival' }],
+        },
+        {
+          name: 'Drowned Tollmen',
+          singularNoun: 'tollman',
+          pluralNoun: 'tollmen',
+          creatureType: 'undead',
+          iconKey: 'undead',
+          temperament: 'wary',
+          ambushVerb: 'rise',
+          ambushRest: 'from the black water',
+          members: [member('tank', 'Tollman Warden'), member('damage', 'Tollman Hook'), member('caster', 'Tollman Bellringer')],
+          fitLocations: ['Black Fen'],
+          relations: [],
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it('two AI families: their names, nouns and words, 7 new members with server stats and rule abilities, linked and pooled only at their fit places, rivals both ways; place words stored', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const { startLocation } = both(ctx, aiFillReply());
+    const wood = locRow(ctx, 'Sallow Wood');
+    const fen = locRow(ctx, 'Black Fen');
+    const moor = locRow(ctx, 'Grey Moor');
+    const camp = locRow(ctx, 'Reed Camp');
+    expect(camp).toMatchObject({ isHub: true, isSafe: true });
+
+    const families = rows(ctx, 'creature_family');
+    expect(families.map((f: any) => f.name)).toEqual(['Saltcrust Skitterers', 'Drowned Tollmen']);
+    const [skitter, toll] = families;
+    expect(skitter).toMatchObject({
+      key: `ai:${regionId}:saltcrust skitterers`,
+      regionId,
+      singularNoun: 'skitterer',
+      pluralNoun: 'skitterers',
+      creatureType: 'beast',
+      iconKey: 'insect',
+      temperament: 'aggressive',
+      ambushVerb: 'swarm',
+      ambushRest: 'up through the salt',
+    });
+    expect(toll).toMatchObject({ singularNoun: 'tollman', pluralNoun: 'tollmen', temperament: 'wary', ambushVerb: 'rise' });
+
+    // 7 member templates, all new, AI-named, canonical roles (support -> healer), server stats and abilities.
+    const templates = rows(ctx, 'enemy_template');
+    expect(templates).toHaveLength(7);
+    expect(membersOf(ctx, skitter).map((m: any) => [m.role, m.filler])).toEqual([
+      ['tank', false],
+      ['damage', false],
+      ['healer', false],
+      ['caster', false],
+    ]);
+    expect(membersOf(ctx, toll).map((m: any) => m.role)).toEqual(['tank', 'damage', 'caster']);
+    const tender = templates.find((e: any) => e.name === 'Skitter Tender');
+    expect(tender.role).toBe('healer');
+    const stats = enemyStatsForLevel(1n);
+    for (const t of templates) {
+      expect(t).toMatchObject({ level: 1n, maxHp: stats.maxHp, baseDamage: stats.baseDamage, groupMin: 1n, groupMax: 1n });
+      const m = rows(ctx, 'family_member').find((x: any) => x.enemyTemplateId === t.id);
+      expect(t.role).toBe(m.role);
+      const keys = rows(ctx, 'enemy_ability').filter((a: any) => a.enemyTemplateId === t.id).map((a: any) => a.abilityKey);
+      expect(keys).toEqual(memberAbilities(m.role).map((a) => a.abilityKey));
+    }
+
+    // Links and creature pools only at the fit places.
+    for (const m of membersOf(ctx, skitter)) {
+      expect(linkedAt(ctx, wood)).toContain(m.enemyTemplateId);
+      expect(linkedAt(ctx, fen)).toContain(m.enemyTemplateId);
+    }
+    for (const m of membersOf(ctx, toll)) {
+      expect(linkedAt(ctx, fen)).toContain(m.enemyTemplateId);
+      expect(linkedAt(ctx, wood)).not.toContain(m.enemyTemplateId);
+    }
+    for (const loc of [moor, camp, startLocation]) expect(linkedAt(ctx, loc)).toEqual([]);
+    expect(creaturePools(ctx, wood)).toEqual([skitter.id]);
+    expect(creaturePools(ctx, fen)).toEqual([skitter.id, toll.id]);
+    for (const loc of [moor, camp, startLocation]) expect(creaturePools(ctx, loc)).toEqual([]);
+    // Home densities are the server's (creatureHomeLevels), never from the reply.
+    for (const p of rows(ctx, 'place_pool').filter((x: any) => x.kind === 'creature')) {
+      expect([1n, 2n, 3n]).toContain(p.homeLevel);
+    }
+
+    // The relation, stored both ways.
+    expect(rows(ctx, 'family_relation').map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([
+      [skitter.id, toll.id, 'rival'],
+      [toll.id, skitter.id, 'rival'],
+    ]);
+
+    // Place words on the new places and on the arrival point.
+    expect([wood, fen, moor, camp].map((l: any) => [l.shortName, l.placeNoun])).toEqual([
+      ['Sallow', 'the wood'],
+      ['Black Fen', 'the black fen'],
+      ['Moor', 'the moor'],
+      ['Reed Camp', 'the camp'],
+    ]);
+    expect(rows(ctx, 'location').find((l: any) => l.id === startLocation.id)).toMatchObject({ shortName: 'Haven', placeNoun: 'the haven' });
+  });
+
+  it('a prey relation is stored with its inverse (the other family names this one its predator)', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const fill = aiFillReply();
+    fill.families[0].relations = [{ family: 'Drowned Tollmen', kind: 'prey' }];
+    both(ctx, fill);
+    const [skitter, toll] = rows(ctx, 'creature_family');
+    expect(rows(ctx, 'family_relation').map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([
+      [skitter.id, toll.id, 'prey'],
+      [toll.id, skitter.id, 'predator'],
+    ]);
+  });
+
+  it('a hostile reply: clean names, a family fit only to the safe arrival point and the hub placed by terrain, no unknown relation, no number from the reply', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const { startLocation } = both(
+      ctx,
+      aiFillReply({
+        arrival: { shortName: '<script>x</script>', placeNoun: 'The Haven!', isHub: false },
+        families: [
+          {
+            name: '<b>Gloom</b> Rats {{color:red}}',
+            singularNoun: 'rat <i>',
+            pluralNoun: 'rats',
+            creatureType: 'dragon',
+            iconKey: 'laser',
+            temperament: 'furious',
+            ambushVerb: 'ran',
+            ambushRest: '<img src=x> from 99 holes',
+            level: 40,
+            groupMin: 9,
+            groupMax: 30,
+            members: [
+              { role: 'tank', name: 'Rat <b>King</b>', level: 50, maxHp: 99999 },
+              { role: 'boss', name: 'Rat God' },
+              { role: 'caster', name: 'Rat Mage 7' },
+            ],
+            fitLocations: ['Safe Haven', 'Reed Camp', 'Nowhere'],
+            relations: [
+              { family: 'Nobody At All', kind: 'rival' },
+              { family: 'Gloom Rats', kind: 'prey' },
+              { family: 'x', kind: 'friend' },
+            ],
+          },
+        ],
+      }),
+    );
+    const families = rows(ctx, 'creature_family');
+    expect(families).toHaveLength(1);
+    const [family] = families;
+    expect(family.name).not.toMatch(/[<>{}]/);
+    expect(family.name).toContain('Gloom');
+    expect(family).toMatchObject({ creatureType: 'beast', temperament: 'wary', iconKey: '' });
+    for (const t of rows(ctx, 'enemy_template')) {
+      expect(t.name).not.toMatch(/[<>{}0-9]/);
+      expect(t).toMatchObject({ level: 1n, groupMin: 1n, groupMax: 1n, maxHp: enemyStatsForLevel(1n).maxHp });
+    }
+    expect(rows(ctx, 'enemy_template').some((t: any) => t.name === 'Rat God')).toBe(false);
+    expect(rows(ctx, 'family_relation')).toEqual([]);
+    // Never the safe arrival point or the hub: placed by its usual terrain (beast: woods, plains, swamp).
+    const hostIds = ['Sallow Wood', 'Black Fen', 'Grey Moor'].map((n) => locRow(ctx, n).id);
+    const pooled = rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature').map((p: any) => p.locationId);
+    expect([...pooled].sort()).toEqual([...hostIds].sort());
+    expect(creaturePools(ctx, startLocation)).toEqual([]);
+    expect(creaturePools(ctx, locRow(ctx, 'Reed Camp'))).toEqual([]);
+    // Unusable place words are stored clean or empty, never as markup.
+    const arrival = rows(ctx, 'location').find((l: any) => l.id === startLocation.id);
+    expect(arrival.shortName).not.toMatch(/[<>]/);
+    expect(arrival.placeNoun).toBe('');
+  });
+
+  it('a family fit to a non-safe, non-hub arrival point lives there with a creature pool (D-61)', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const fill = aiFillReply();
+    fill.families[1].fitLocations = ['Safe Haven'];
+    const { startLocation } = both(ctx, fill, startReply({ terrainType: 'swamp', isSafe: false }));
+    const arrival = rows(ctx, 'location').find((l: any) => l.id === startLocation.id);
+    expect(arrival).toMatchObject({ isSafe: false, isHub: false, bindStone: false, craftingAvailable: false });
+    const toll = rows(ctx, 'creature_family').find((f: any) => f.name === 'Drowned Tollmen');
+    expect(creaturePools(ctx, arrival)).toEqual([toll.id]);
+    for (const m of membersOf(ctx, toll)) expect(linkedAt(ctx, arrival)).toContain(m.enemyTemplateId);
+    expect(servicesAt(ctx, arrival.id)).toEqual([]);
+  });
+
+  it('writeRegionStart takes the model isSafe for a non-starter; the starter arrival point stays a safe hub with a station (D-61, D-63)', () => {
+    const ctxA = aiCtx(2n, 150n);
+    expect(writeRegionStart(ctxA, startReply({ isSafe: false }), stateOf(ctxA)).startLocation).toMatchObject({
+      isSafe: false,
+      isHub: false,
+      craftingAvailable: false,
+      bindStone: false,
+    });
+    const ctxB = aiCtx(2n, 150n);
+    expect(writeRegionStart(ctxB, startReply({ isSafe: true }), stateOf(ctxB)).startLocation).toMatchObject({ isSafe: true, isHub: false });
+    const ctxC = aiCtx(2n, 150n);
+    expect(
+      writeRegionStart(ctxC, startReply({ isSafe: false }), { ...stateOf(ctxC), sourceRegionId: 0n }, 'kobold').startLocation,
+    ).toMatchObject({ isSafe: true, isHub: true, craftingAvailable: true, bindStone: true });
+    // A stage-1 reply from before the approved wording has no isSafe: that wording asked for a safe place.
+    const ctxD = aiCtx(2n, 150n);
+    expect(writeRegionStart(ctxD, baseStartReply(), stateOf(ctxD)).startLocation).toMatchObject({ isSafe: true });
+    // Only a real boolean false makes it unsafe.
+    const ctxE = aiCtx(2n, 150n);
+    expect(writeRegionStart(ctxE, startReply({ isSafe: 'false' }), stateOf(ctxE)).startLocation).toMatchObject({ isSafe: true });
+  });
+
+  it('arrival.isHub true where the count is 1: the arrival point becomes the safe hub with a vendor and a banker, even when stage 1 wrote it unsafe (D-59, D-62)', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const fill = aiFillReply({ arrival: { shortName: 'Haven', placeNoun: 'the haven', isHub: true } });
+    fill.locations = fill.locations.map((l: any) => ({ ...l, isHub: false }));
+    const { startLocation } = both(ctx, fill, startReply({ isSafe: false }));
+    expect(startLocation.isSafe).toBe(false);
+    const arrival = rows(ctx, 'location').find((l: any) => l.id === startLocation.id);
+    expect(arrival).toMatchObject({ isHub: true, isSafe: true, bindStone: true });
+    expect(servicesAt(ctx, arrival.id)).toEqual(['banker', 'vendor']);
+    expect(rows(ctx, 'location').filter((l: any) => l.isHub).map((l: any) => l.id)).toEqual([arrival.id]);
+    expect(creaturePools(ctx, arrival)).toEqual([]);
+  });
+
+  it('a reply that marks hubs where the count is 0 leaves the region with no hub, no vendor and no banker', () => {
+    const regionId = regionIdWithHubCount(800n, 0);
+    const ctx = aiCtx(regionId, 800n);
+    const fill = aiFillReply({
+      arrival: { shortName: 'Haven', placeNoun: 'the haven', isHub: true },
+      npcs: [
+        { name: 'Shopkeep', gender: 'male', npcType: 'vendor', locationName: 'Reed Camp', description: 'A vendor.', greeting: 'Hello.', personality: PERSONALITY },
+      ],
+    });
+    const { region } = both(ctx, fill);
+    const places = rows(ctx, 'location').filter((l: any) => l.regionId === region.id);
+    expect(places.filter((l: any) => l.isHub)).toEqual([]);
+    const npcs = rows(ctx, 'npc').filter((n: any) => places.some((l: any) => l.id === n.locationId));
+    expect(npcs.filter((n: any) => n.npcType === 'vendor' || n.npcType === 'banker')).toEqual([]);
+  });
+
+  it('buildWorldFillInput carries the server hub count and whether the arrival point is a hub (D-62)', () => {
+    const regionId = regionIdWithHubCount(150n, 2);
+    const ctx = aiCtx(regionId, 150n);
+    const { region } = stageOne(ctx);
+    const input = buildWorldFillInput(ctx, stateOf(ctx));
+    expect(input.hubCount).toBe(regionHubCount(region, false));
+    expect(input.hubCount).toBe(2);
+    expect(input.arrivalIsHub).toBe(false);
+    expect(buildRouteLayers('world_gen', input).volatile).toContain('\nHubs: two.\n');
+
+    const starter = aiCtx(2n, 150n);
+    stageOneStarter(starter);
+    const starterInput = buildWorldFillInput(starter, stateOf(starter));
+    expect(starterInput).toMatchObject({ hubCount: 1, arrivalIsHub: true });
+    expect(buildRouteLayers('world_gen', starterInput).volatile).toContain('\nHubs: one. The arrival point is a hub.\n');
+  });
+
+  it('an old-shape reply (enemies, no families) still builds families by rule and stores empty place words', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const { region, startLocation, locations } = both(ctx, familyFillReply());
+    expect(rows(ctx, 'creature_family').map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
+    for (const loc of [startLocation, ...locations]) {
+      expect(rows(ctx, 'location').find((l: any) => l.id === loc.id)).toMatchObject({ shortName: '', placeNoun: '' });
+    }
+  });
+
+  it('a reply with families writes no enemy template outside the family members, even with stray enemies', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    both(ctx, aiFillReply({ enemies: [{ name: 'Stray Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'woods', level: 9 }] }));
+    const memberIds = new Set(rows(ctx, 'family_member').map((m: any) => m.enemyTemplateId));
+    expect(rows(ctx, 'enemy_template').filter((t: any) => !memberIds.has(t.id))).toEqual([]);
+    expect(rows(ctx, 'enemy_template').some((t: any) => t.name === 'Stray Wolf')).toBe(false);
+  });
+
+  it('a families array with no usable family falls back to the rule path from the enemies', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    const { region } = both(ctx, aiFillReply({ families: [null, 'x', 7], enemies: familyFillReply().enemies }));
+    expect(rows(ctx, 'creature_family').map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
+  });
+
+  it('a name already taken by an existing enemy template or family is made unique', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n, {
+      enemy_template: [{ id: 900n, name: 'Skitter Pincer', role: 'damage', level: 1n }],
+      creature_family: [
+        {
+          id: 900n,
+          regionId: 1n,
+          key: '1:undead',
+          name: 'Drowned Tollmen',
+          singularNoun: 'tollman',
+          pluralNoun: 'tollmen',
+          temperament: 'wary',
+          iconKey: '',
+          creatureType: 'undead',
+          ambushVerb: '',
+          ambushRest: '',
+          fitTerrains: '',
+        },
+      ],
+    });
+    both(ctx, aiFillReply());
+    const fresh = rows(ctx, 'creature_family').filter((f: any) => f.id !== 900n);
+    expect(fresh).toHaveLength(2);
+    expect(fresh.map((f: any) => f.name)).not.toContain('Drowned Tollmen');
+    const names = rows(ctx, 'enemy_template').map((t: any) => t.name);
+    expect(names.filter((n: string) => n === 'Skitter Pincer')).toHaveLength(1);
+  });
+
+  it('every row the AI family path writes matches the recorded schema', () => {
+    const regionId = regionIdWithHubCount(150n, 1);
+    const ctx = aiCtx(regionId, 150n);
+    both(ctx, aiFillReply());
+    for (const table of ['location', 'creature_family', 'family_member', 'family_relation', 'enemy_template', 'enemy_role_template', 'enemy_ability', 'place_pool', 'pool_level']) {
+      expect(rows(ctx, table).length, table).toBeGreaterThan(0);
       for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
     }
   });
