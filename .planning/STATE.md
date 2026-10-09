@@ -225,7 +225,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-09-region-discoverer-named-in-world-event-with-renown.md`: the new-region World event names the discoverer, sarcastically, and the new region, and the discoverer gets credit and server-first renown (owner). Moved into new Phase 51.3.2.1 Region Discovery (owner: "a new phase ... Not just a small task"); announcement wording needs the owner's approval.
 - `todos/pending/2026-10-09-region-names-must-be-very-distinct.md`: "Kestrane Saltpans" vs "Kesterlane Basin"; region names must be very distinct (owner). Today only prompt guidance, the prompt sees neighbours only, and the server checks nothing. Folded into Phase 51.3.2.1 Region Discovery; needed before the world is regenerated; prompt wording needs approval.
 - `todos/pending/2026-10-09-region-level-ramp-across-the-world.md`: the owner asked how region levels are set. Not by the discoverer: source danger +50..100 per crossing, cap 800, place offsets 0..+2 by hops. It climbs, but a crossing steps down from the previous region's far end, the climb is slow, and it goes flat at the cap. Discuss in 51.3.2.1.
-- `todos/pending/2026-10-09-nearby-lists-npcs-first.md`: NPCs (quest hooks) move to the top of Nearby, before Creatures (owner). Client only. Candidate home: 51.5.1 or a quick task.
+- `todos/pending/2026-10-09-nearby-lists-npcs-first.md`: NPCs (quest hooks) move to the top of Nearby, before Creatures (owner). Client only. Folded into Phase 51.5.1 (owner).
 
 ### Blockers/Concerns
 

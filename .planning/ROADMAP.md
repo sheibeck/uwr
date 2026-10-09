@@ -93,7 +93,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.3.2.1: Region Discovery** (INSERTED) - The discoverer and the new region announced to the world (sarcastically), discovery credit and renown, and very distinct region names
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
-- [ ] **Phase 51.5.1: Motion and Polish** (INSERTED) - Typed text reveal, login cross-fade, map transitions after travel, and a context rail that grows with the screen
+- [ ] **Phase 51.5.1: Motion and Polish** (INSERTED) - Typed text reveal, login cross-fade, map transitions after travel, a context rail that grows with the screen, and NPCs first in Nearby
 - [ ] **Phase 52.1: Hotbar Manager** (INSERTED) - The designed Hotbar Manager: assign abilities to slots and manage hotbars
 - [ ] **Phase 52.1.1: Bank** (INSERTED) - The designed bank and vault screen
 - [ ] **Phase 52.1.2: Trade** (INSERTED) - Player trade from the player and party menus, with the server as the authority
@@ -1038,8 +1038,9 @@ Plans:
   2. Moving from sign-in to the picker or creation and into the game cross-fades, and focus lands on the new screen's main input.
   3. After travel, the map transitions instead of jumping: existing nodes glide to their new positions, the arrival node turns from heard of to visited, new heard-of nodes and paths fade in, and the view follows you. Opening the map, switching region or resizing stays instant.
   4. The right context rail grows with the screen (288px at the narrowest desktop size, wider on wide screens): place names in Here, exits and Nearby fit without being cut off, and the Encounter panel and Map detail column still fit.
-  5. With `prefers-reduced-motion` every one of these is instant; screen readers get the full text and final map labels at once; auto-scroll, pinning and the New lines pill still work.
-  6. Tests cover the reveal speed cap, finishing on a key, instant history, keyword buttons, reduced motion, the cross-fade focus, the map tween (old to new positions, new items hidden then shown, no animation on open), and the rail width at the narrowest and wide desktop sizes.
+  5. Nearby lists NPCs first, as their own group above Creatures (they are the quest hooks), on desktop and in the mobile Map sheet.
+  6. With `prefers-reduced-motion` every one of these is instant; screen readers get the full text and final map labels at once; auto-scroll, pinning and the New lines pill still work.
+  7. Tests cover the reveal speed cap, finishing on a key, instant history, keyword buttons, reduced motion, the cross-fade focus, the map tween (old to new positions, new items hidden then shown, no animation on open), the rail width at the narrowest and wide desktop sizes, and NPCs first in Nearby.
 
 **Plans**: TBD
 **UI hint**: yes
@@ -1052,6 +1053,7 @@ Plans:
 
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** density lines and safety ratings that change live (and World event shifts) are good candidates for the same calm transitions.
   - **Wider context rail (owner, 2026-10-09):** "I like having the rail grow with the screen. Put it in with 51.5.1". The right context rail (fixed 288px) grows with the screen so place names stop being cut off and busy places need less scrolling; it keeps 288px at the narrowest desktop size. The centre feed's 760px line leaves the spare width. Todo `2026-10-09-widen-the-right-context-rail-so-names-and-long-lists-fit.md` (pulled into this phase).
+  - **NPCs first in Nearby (owner, 2026-10-09):** "NPCs should be listed first in the nearby list. Those are quest hooks and should be most visible." Then: "put it in 51.5.1". Today NPCs sit last, under "Also here". Ask the owner the group label (for example "People") and whether players move up with them. Todo `2026-10-09-nearby-lists-npcs-first.md` (pulled into this phase).
 
 ### Phase 52.1: Hotbar Manager (INSERTED)
 

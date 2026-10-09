@@ -21,4 +21,4 @@ Today the Nearby rail groups run, in order: Creatures (one card per family), Nam
 - Order within NPCs: those with a quest to offer (or a tracked quest's NPC) first, if that signal is available on the client; otherwise the current order.
 - Update `nearbyGroups` (or the template order), the NearbyList comment, the 51.3.1.1 UI-SPEC Nearby section, and the group-order tests; check the mobile Map sheet, which reuses ContextContent.
 - Client only; no server change.
-Candidate home: Phase 51.5.1 Motion and Polish (with the wider rail), or a quick task if the owner wants it sooner.
+Decided (owner, 2026-10-09): "put it in 51.5.1". Pulled into Phase 51.5.1 Motion and Polish (success criterion 5).
