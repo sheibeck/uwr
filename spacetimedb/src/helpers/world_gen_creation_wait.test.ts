@@ -718,3 +718,101 @@ describe('a placement that throws at completion (review A WR-02)', () => {
     expect(privateOf(ctx, B_CHAR)[0].message).toBe(expectedReuseArrival(ctx));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Review A WR-03: a second same-race character during stage 1 joins that build (HELD), never a duplicate
+// ---------------------------------------------------------------------------
+
+const STAGE1_FAILED_LINE = 'The map blurs and will not settle. The world refuses to be remembered right now. Type [explore] to try again.';
+const starterRegions = (ctx: any) => rows(ctx, 'region').filter((r: any) => r.starterForRace === 'kobold');
+
+describe('a second new character while the first starter region is still in stage 1 (review A WR-03)', () => {
+  it('joins the build: HELD with no region yet, no model call, the 7e line once, still at location 0', () => {
+    const ctx = starterCtx();
+    expect(stateOf(ctx).step).toBe('GENERATING');
+    const jobsBefore = rows(ctx, 'llm_job').length;
+
+    expect(startWorldGeneration(ctx, addSecond(ctx))).toBe('held');
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+    expect(stateOf(ctx, B_STATE).generatedRegionId).toBeUndefined();
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+    expect(jobsOf(ctx, 'world_gen_start').filter((j: any) => j.playerId === bob)).toEqual([]);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E]]);
+    expect(charOf(ctx, B_CHAR).locationId).toBe(0n);
+  });
+
+  it('a different race does not join it', () => {
+    const ctx = starterCtx();
+    expect(startWorldGeneration(ctx, addSecond(ctx, { race: 'Human' }))).toBe('enqueued');
+    expect(stateOf(ctx, B_STATE).step).toBe('GENERATING');
+  });
+
+  it('stage 1 lands: the region is named on her state; when the families land both are placed; one starter region only', () => {
+    const ctx = starterCtx();
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    expect(stateOf(ctx, B_STATE)).toMatchObject({ step: 'HELD', generatedRegionId: theRegion(ctx).id });
+
+    applyLlmResult(ctx, fillJobFor(theRegion(ctx).id), JSON.stringify(placesReply(9)));
+    applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
+    const home = findRegionStart(ctx, theRegion(ctx).id);
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(stateOf(ctx, B_STATE).step).toBe('COMPLETE');
+    expect(charOf(ctx).locationId).toBe(home.id);
+    expect(charOf(ctx, B_CHAR).locationId).toBe(home.id);
+    expect(privateOf(ctx, B_CHAR)[0].message).toBe(expectedReuseArrival(ctx));
+    expect(starterRegions(ctx)).toHaveLength(1);
+    expect(jobsOf(ctx, 'world_gen_start')).toHaveLength(1);
+  });
+
+  it('a 2a failure after the join reaches her console too (she waits on the region now)', () => {
+    const ctx = starterCtx();
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    applyLlmFailure(ctx, fillJobFor(theRegion(ctx).id));
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E], failureLine(WORLD_FILL_FAILED_MESSAGE)]);
+  });
+
+  it('her [explore] while the build is still in stage 1: busy, nothing written', () => {
+    const ctx = starterCtx();
+    startWorldGeneration(ctx, addSecond(ctx));
+    const jobsBefore = rows(ctx, 'llm_job').length;
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('busy');
+    expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore);
+    expect(stateOf(ctx, B_STATE).step).toBe('HELD');
+  });
+
+  it('stage 1 fails: both consoles get the failure line; her [explore] starts her own region on her state', () => {
+    const ctx = starterCtx();
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmFailure(ctx, startJob);
+    expect(stateOf(ctx).step).toBe('ERROR');
+    expect(creationOf(ctx, alice).slice(-1)).toEqual([['creation_error', STAGE1_FAILED_LINE]]);
+    expect(creationOf(ctx, bob)).toEqual([['creation', LINE_7E], ['creation_error', STAGE1_FAILED_LINE]]);
+
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('started');
+    expect(stateOf(ctx, B_STATE)).toMatchObject({ step: 'GENERATING', playerId: bob, characterId: B_CHAR });
+    const own = jobsOf(ctx, 'world_gen_start').filter((j: any) => j.status === 'pending');
+    expect(own).toHaveLength(1);
+    expect(own[0]).toMatchObject({ playerId: bob, characterId: B_CHAR });
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(2);
+  });
+
+  it('two starter regions of one race (made before this fix): a new character always goes to the lowest region id', () => {
+    const regionOf = (id: bigint) => ({ id, name: `Hollow ${id}`, dangerMultiplier: 100n, regionType: 'starter', biome: 'swamp', starterForRace: 'kobold' });
+    const placeOf = (id: bigint, regionId: bigint) => ({
+      id, name: `Hub ${regionId}`, description: '', zone: '', regionId, levelOffset: 0n, isSafe: true, terrainType: 'town',
+      bindStone: false, craftingAvailable: false, isHub: true,
+    });
+    const ctx = starterCtx({
+      world_gen_state: [],
+      region: [regionOf(9n), regionOf(3n)],
+      location: [placeOf(90n, 9n), placeOf(30n, 3n)],
+      npc: [],
+      location_connection: [],
+    });
+    const state = ctx.db.world_gen_state.insert(starterState({ id: 0n, step: 'PENDING' }));
+    expect(startWorldGeneration(ctx, state)).toBe('reused');
+    expect(charOf(ctx).locationId).toBe(30n);
+  });
+});

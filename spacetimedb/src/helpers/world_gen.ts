@@ -410,14 +410,86 @@ export function nowhereToGoLine(tx: any, locationId: bigint): string {
   return hint ? `There is nowhere to go from here yet. ${hint}` : 'There is nowhere to go from here.';
 }
 
-/** The starter region of a race (starterForRace, compared lowercased), or null. */
+/**
+ * The starter region of a race (starterForRace, compared lowercased), or null. The lowest region id wins,
+ * so duplicates that already exist resolve the same way every time (review A WR-03).
+ */
 function starterRegionFor(ctx: any, race: unknown): any | null {
   const raceLower = String(race ?? '').toLowerCase();
   if (!raceLower) return null;
+  let found: any | null = null;
   for (const region of ctx.db.region.iter()) {
-    if (region.starterForRace && region.starterForRace.toLowerCase() === raceLower) return region;
+    if (!region.starterForRace || region.starterForRace.toLowerCase() !== raceLower) continue;
+    if (found === null || region.id < found.id) found = region;
   }
-  return null;
+  return found;
+}
+
+/** The starter steps before stage 1 lands: the build has no region row yet (review A WR-03). */
+const STARTER_STAGE1_STEPS: readonly string[] = Object.freeze(['PENDING', 'GENERATING']);
+
+/**
+ * Another character's starter build of this race that is still in stage 1 (PENDING or GENERATING, so
+ * no region row exists yet), lowest state id first; null when there is none (review A WR-03). A new
+ * character of the same race joins it (HELD) instead of paying for a duplicate starter region.
+ * world_gen_state has no step index; the table is small and this path is rare (character creation).
+ */
+function starterBuildInStage1(ctx: any, race: unknown, exceptCharacterId: bigint): any | null {
+  const raceLower = String(race ?? '').toLowerCase();
+  if (!raceLower) return null;
+  let found: any | null = null;
+  for (const s of ctx.db.world_gen_state.iter()) {
+    if (s.sourceRegionId !== 0n || !STARTER_STAGE1_STEPS.includes(s.step) || s.characterId === exceptCharacterId) continue;
+    const builder = ctx.db.character.id.find(s.characterId);
+    if (!builder || String(builder.race ?? '').toLowerCase() !== raceLower) continue;
+    if (found === null || s.id < found.id) found = s;
+  }
+  return found;
+}
+
+/** The HELD states that joined a starter build of this race before its stage 1 landed (no region yet), by id. */
+function heldOnStarterBuild(tx: any, raceLower: string): any[] {
+  if (!raceLower) return [];
+  return [...tx.db.world_gen_state.iter()]
+    .filter((s: any) => {
+      if (s.step !== 'HELD' || s.sourceRegionId !== 0n) return false;
+      if (s.generatedRegionId !== undefined && s.generatedRegionId !== null) return false;
+      const waiting = tx.db.character.id.find(s.characterId);
+      return !!waiting && String(waiting.race ?? '').toLowerCase() === raceLower;
+    })
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * Stage 1 of a starter region landed (review A WR-03): every new character of its race who joined the
+ * build while it had no region (a HELD state with no generatedRegionId) now waits on the region itself,
+ * so finishRegionFill places him and the failure lines of stages 2a and 2b reach him. The stage-1 apply
+ * calls it before the fill starts. No line is posted (each already has the 7e line).
+ */
+export function joinStarterHolds(tx: any, regionId: bigint, race: unknown): void {
+  for (const held of heldOnStarterBuild(tx, String(race ?? '').toLowerCase())) {
+    tx.db.world_gen_state.id.update({ ...held, generatedRegionId: regionId, updatedAt: tx.timestamp });
+  }
+}
+
+/**
+ * The new characters still waiting in creation on a starter build that failed at stage 1 (review A
+ * WR-03): HELD states with no region whose character, still at location 0, has the build's race. Empty
+ * for a state that is no starter, or while another starter build of that race is still in stage 1 (they
+ * keep waiting on it). failWorldGen tells them the same failure line; their [explore] starts their own
+ * region (retryHeldStarter).
+ */
+export function starterBuildWaiters(tx: any, buildState: any): any[] {
+  if (!buildState || buildState.sourceRegionId !== 0n) return [];
+  const builder = tx.db.character.id.find(buildState.characterId);
+  const raceLower = String(builder?.race ?? '').toLowerCase();
+  if (!raceLower) return [];
+  const other = starterBuildInStage1(tx, raceLower, buildState.characterId);
+  if (other && other.id !== buildState.id) return [];
+  return heldOnStarterBuild(tx, raceLower).filter((s: any) => {
+    const waiting = tx.db.character.id.find(s.characterId);
+    return !!waiting && waiting.locationId === 0n && waiting.id !== buildState.characterId;
+  });
 }
 
 /**
@@ -507,16 +579,17 @@ function regionBuildStates(tx: any, regionId: bigint): any[] {
  * When the region has already failed (FILL_ERROR or FAMILIES_ERROR), the failure line of that stage
  * follows, so he knows [explore] retries it (T-51.3.1.2-43). No model call.
  */
-function holdNewCharacter(ctx: any, genState: any, region: any, hold: 'held' | 'held_failed'): void {
+function holdNewCharacter(ctx: any, genState: any, region: any | null, hold: 'held' | 'held_failed'): void {
   ctx.db.world_gen_state.id.update({
     ...(ctx.db.world_gen_state.id.find(genState.id) ?? genState),
     step: 'HELD',
-    generatedRegionId: region.id,
+    // No region yet: he joined a same-race build still in stage 1; joinStarterHolds names it (review A WR-03).
+    generatedRegionId: region ? region.id : undefined,
     errorMessage: undefined,
     updatedAt: ctx.timestamp,
   });
   const lines: [string, string][] = [['creation', WORLD_START_MILESTONE_LINE]];
-  if (hold === 'held_failed') {
+  if (hold === 'held_failed' && region) {
     const failed = regionBuildStates(ctx, region.id).find((s: any) => s.step === 'FILL_ERROR' || s.step === 'FAMILIES_ERROR');
     if (failed) lines.push(['creation_error', failedStageCreationLine(failed.step, failed.errorMessage)]);
   }
@@ -532,11 +605,19 @@ function holdNewCharacter(ctx: any, genState: any, region: any, hold: 'held' | '
  *  - 'placed': the region is open (whole, Phase 51.3.1.2): he is put at its home place now (placeAtHome);
  *  - 'held':   the region is still being built or its build failed (regionHoldState not 'open'): he waits
  *              in creation (HELD, the 7e line) and finishRegionFill places him when it is whole (D-15, D-17);
- *  - false:    no starter region for his race, or it has no charted place: a new region is generated.
+ *  - 'held':   also when no region row exists yet but another character's starter build of his race is
+ *              still in stage 1: he joins that build (HELD with no region; joinStarterHolds names the region
+ *              when stage 1 lands) instead of paying for a duplicate starter region (review A WR-03);
+ *  - false:    no starter region or build for his race, or the region has no charted place: a new region
+ *              is generated.
  */
 function reuseStarterRegion(ctx: any, genState: any, character: any): 'placed' | 'held' | false {
   const region = starterRegionFor(ctx, character.race);
-  if (!region) return false;
+  if (!region) {
+    if (!starterBuildInStage1(ctx, character.race, character.id)) return false;
+    holdNewCharacter(ctx, genState, null, 'held');
+    return 'held';
+  }
   const hold = regionHoldState(ctx, region.id);
   if (hold !== 'open') {
     holdNewCharacter(ctx, genState, region, hold);
@@ -554,8 +635,24 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): 'placed' |
  *    'fill_started', or 'refused' when the enqueue was refused (the failure lines already went out);
  *  - otherwise the region is whole and he was missed: he is placed at its home place now ('reused').
  * 'none' when the region is gone or has no charted place.
+ * A HELD state with no region joined a same-race build before its stage 1 landed (review A WR-03): 'busy'
+ * while that build is still in stage 1; the region its race has now otherwise (named on the state, then
+ * decided as above); and when that build failed at stage 1 (no region), his own region starts on his
+ * state, charged to the asker ('started', or the startWorldGeneration outcome).
  */
 function retryHeldStarter(ctx: any, held: any, character: any, playerId: any): StarterRetryOutcome {
+  if (held.generatedRegionId === undefined || held.generatedRegionId === null) {
+    if (starterBuildInStage1(ctx, character.race, character.id)) return 'busy';
+    const landed = starterRegionFor(ctx, character.race);
+    if (!landed) {
+      const own = { ...held, playerId, step: 'PENDING', errorMessage: undefined, updatedAt: ctx.timestamp };
+      ctx.db.world_gen_state.id.update(own);
+      const started = startWorldGeneration(ctx, own);
+      return started === 'enqueued' || started === 'duplicate' ? 'started' : started;
+    }
+    held = { ...held, generatedRegionId: landed.id, updatedAt: ctx.timestamp };
+    ctx.db.world_gen_state.id.update(held);
+  }
   const regionId = held.generatedRegionId;
   const region = regionId !== undefined && regionId !== null ? ctx.db.region.id.find(regionId) : undefined;
   if (!region) return 'none';

@@ -52,6 +52,8 @@ import {
   startWorldFamilies,
   failWorldFamilies,
   finishRegionFill,
+  joinStarterHolds,
+  starterBuildWaiters,
   WORLD_START_MILESTONE_LINE,
   WORLD_FILL_FAILED_MESSAGE,
   WORLD_FAMILIES_FAILED_MESSAGE,
@@ -154,11 +156,26 @@ export function failWorldGen(tx: any, genState: any, message: string) {
     updatedAt: tx.timestamp,
   });
   const line = message + ' Type [explore] to try again.';
+  const told = new Set<string>();
   if (char && char.locationId !== 0n) {
     appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', line);
   } else {
+    told.add(identityKey(genState.playerId));
     writeCreationSegments(tx, genState.playerId, 'creation_error', keeperFallback(line));
   }
+  // Review A WR-03: new characters of the race who joined this starter build before its stage 1 landed
+  // get the same line, each player once; their [explore] starts their own region.
+  for (const waiting of starterBuildWaiters(tx, genState)) {
+    const key = identityKey(waiting.playerId);
+    if (told.has(key)) continue;
+    told.add(key);
+    writeCreationSegments(tx, waiting.playerId, 'creation_error', keeperFallback(line));
+  }
+}
+
+/** An identity's hex string (or its string form), to tell each player once. */
+function identityKey(playerId: any): string {
+  return typeof playerId?.toHexString === 'function' ? playerId.toHexString() : String(playerId);
 }
 
 /** The step each creation route's job holds the state at while it runs. */
@@ -552,6 +569,9 @@ export function applyWorldStartResult(ctx: any, job: ApplyJob, resultText: strin
     generatedRegionId: region.id,
     updatedAt: ctx.timestamp,
   });
+  // Review A WR-03: new characters of the race who joined this build during stage 1 now wait on the
+  // region itself (before the fill starts, so a refused fill already reaches them).
+  if (starterRace) joinStarterHolds(ctx, region.id, starterRace);
 
   // Transform the source edge location into a normal passage now that it's been explored
   const sourceEdge = ctx.db.location.id.find(currentGenState.sourceLocationId);
