@@ -1794,7 +1794,7 @@ describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX familie
     const who = { playerId: { toHexString: () => 'a'.repeat(64) }, characterId: 10n };
     const off = ctxFor({ ...seed });
     expect(econ.startFamilyLoot(off, off.db.creature_family.id.find(1n), 1n, who)).toBe('off');
-    const on = (s: Seed) => ({ ...s, economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }], llm_job: [] });
+    const on = (s: Seed): Seed => ({ ...s, economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }], llm_job: [] });
     const pending = ctxFor(on(familyApplyWorld('pending')));
     expect(econ.startFamilyLoot(pending, pending.db.creature_family.id.find(1n), 1n, who)).toBe('not_ready');
     const looted = on(familyApplyWorld('complete'));
