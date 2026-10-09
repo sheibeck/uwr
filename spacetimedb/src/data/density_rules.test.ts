@@ -110,6 +110,26 @@ describe('DENSITY_RULES', () => {
   });
 });
 
+describe('place rating constants (D-73)', () => {
+  it('names every D-73 threshold, and the summed-score constants are gone', () => {
+    const rules = DENSITY_RULES as unknown as Record<string, unknown>;
+    expect(rules.RATING_GAP_QUIET_MAX).toBe(0);
+    expect(rules.RATING_GAP_RISKY_MAX).toBe(2);
+    expect(rules.RATING_CROWD_LEVEL).toBe(3);
+    expect(rules.RATING_CROWD_FAMILIES).toBe(3);
+    for (const gone of [
+      'RATING_WEIGHT_X10',
+      'RATING_WEIGHT_ABOVE_X10',
+      'RATING_QUIET_MAX_X10',
+      'RATING_RISKY_MAX_X10',
+      'RATING_CROWD_STABLE_LEVEL',
+      'RATING_CROWD_STABLE_FAMILIES',
+    ]) {
+      expect(rules[gone], gone).toBeUndefined();
+    }
+  });
+});
+
 describe('countToLevel', () => {
   it('maps counts to Wiped out, Scarce, Stable and Overrun', () => {
     expect(countToLevel(0n)).toBe(0);

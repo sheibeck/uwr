@@ -430,9 +430,13 @@ describe('lat06Decision', () => {
  *   - world_gen (Phase 51.3.1.1 Plan 23): the fill reply now carries creature families, place words and
  *     hub marks, larger than the measured enemies reply (p99 1988), so 4096 output tokens; Plan 30
  *     (Revision 2) adds a history per family and up to the server's family count, so 6144.
+ *   - npc_conversation (Phase 51.3.1.1 Plan 32, a budget the owner raised): quest-offer replies passed the
+ *     tuned 512 (jobs 8215-8217 stopped at max_tokens); the owner set 1024 as the hard ceiling, with one
+ *     automatic retry on truncation, until a paid re-measurement.
  */
 const RESHAPED_ROUTES: Partial<Record<LlmRoute, { maxTokens: number; timeoutMs: number }>> = {
   world_gen: { maxTokens: 6144, timeoutMs: 150_000 },
+  npc_conversation: { maxTokens: 1024, timeoutMs: 30_000 },
 };
 
 describe('LLM_TUNING', () => {
@@ -453,6 +457,21 @@ describe('LLM_TUNING', () => {
     for (const [name, want] of Object.entries(RESHAPED_ROUTES) as [LlmRoute, { maxTokens: number; timeoutMs: number }][]) {
       expect(LLM_TUNING[name], name).toMatchObject({ ...want, status: 'insufficient_data', p99OutputTokens: null, samples: 0 });
     }
+  });
+
+  it('npc_conversation is 1024 output tokens, the owner\'s hard ceiling, and insufficient_data until a paid measurement (Plan 51.3.1.1-32)', () => {
+    expect(LLM_TUNING.npc_conversation).toEqual({
+      effort: 'low',
+      maxTokens: 1024,
+      timeoutMs: 30_000,
+      status: 'insufficient_data',
+      source: LLM_TUNING_SOURCE,
+      p99OutputTokens: null,
+      samples: 0,
+      tie: false,
+    });
+    expect(LLM_ROUTES.npc_conversation.maxTokens).toBe(1024);
+    expect(LLM_TUNING.npc_conversation.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.npc_conversation.maxTokens);
   });
 
   it('has one frozen entry per route', () => {

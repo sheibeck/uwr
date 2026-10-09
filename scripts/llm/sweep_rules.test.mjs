@@ -329,6 +329,14 @@ describe('structuralCheck', () => {
     expect(structuralCheck('world_gen', { locations: [{}, {}], enemies: [{}, {}, {}], npcs: [{ gender: 'male' }, {}] })).toEqual(['npc_gender_missing']);
   });
 
+  it('a world_gen reply in the Phase 51.3.1.1 shape is checked for 1 to FAMILY_COUNT_MAX families, not enemies', () => {
+    const fams = (n) => Array.from({ length: n }, () => ({}));
+    expect(structuralCheck('world_gen', { locations: [{}, {}], families: fams(2), npcs: [] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: [{}, {}], families: fams(15), npcs: [] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: [{}, {}], families: [], npcs: [] })).toEqual(['families_count']);
+    expect(structuralCheck('world_gen', { locations: [{}, {}], families: fams(16), npcs: [] })).toEqual(['families_count']);
+  });
+
   it('skill_gen needs a skill and renown_perk_gen needs a perk', () => {
     expect(structuralCheck('skill_gen', { skills: [] })).toEqual(['missing_skills']);
     expect(structuralCheck('renown_perk_gen', { perks: [] })).toEqual(['missing_perks']);

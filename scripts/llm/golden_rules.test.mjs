@@ -415,6 +415,7 @@ const WORLD_START = {
     description: 'A stair of wet stone where the ferries arrive after the fog does.',
     terrainType: 'town',
     levelOffset: 0,
+    isSafe: true,
   },
   firstNpc: {
     name: 'Edda Vane',
@@ -429,19 +430,26 @@ const WORLD_FILL = {
   dominantFaction: 'The Ferrymen',
   landmarks: ['The Drowned Lighthouse'],
   threats: ['smugglers'],
+  arrival: { shortName: 'Gull Steps', placeNoun: 'the steps', isHub: true },
   locations: [
     {
       name: 'Tarpit Shallows',
+      shortName: 'Tarpit',
+      placeNoun: 'the shallows',
       description: 'A tidal flat that smells of old rope. You will want boots.',
       terrainType: 'swamp',
+      isHub: false,
       isSafe: false,
       levelOffset: 1,
       connectsTo: ['Gull Steps'],
     },
     {
       name: 'Kelp Road',
+      shortName: 'Kelp Road',
+      placeNoun: 'the road',
       description: 'A road that the sea reclaims twice a day and returns in worse repair.',
       terrainType: 'plains',
+      isHub: false,
       isSafe: true,
       levelOffset: 0,
       connectsTo: ['Tarpit Shallows'],
@@ -458,9 +466,44 @@ const WORLD_FILL = {
       personality: PERSONALITY,
     },
   ],
-  enemies: [
-    { name: 'Sea Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'swamp', groupMin: 1, groupMax: 3, level: 2 },
-    { name: 'Reef Crawler', creatureType: 'beast', role: 'melee', terrainTypes: 'swamp', groupMin: 1, groupMax: 2, level: 3 },
+  families: [
+    {
+      name: 'Sea Wolves',
+      singularNoun: 'sea wolf',
+      pluralNoun: 'sea wolves',
+      creatureType: 'beast',
+      iconKey: 'beast',
+      temperament: 'aggressive',
+      ambushVerb: 'lunge',
+      ambushRest: 'out of the reeds',
+      members: [
+        { role: 'tank', name: 'Sea Wolf Packleader' },
+        { role: 'damage', name: 'Sea Wolf' },
+        { role: 'support', name: 'Sea Wolf Elder' },
+      ],
+      fitLocations: ['Tarpit Shallows'],
+      relations: [{ family: 'Reef Crawlers', kind: 'rival' }],
+      history: 'The Sea Wolves came ashore with the first fog and never went back. The ferrymen say the tide owes them a debt.',
+      inFeud: true,
+    },
+    {
+      name: 'Reef Crawlers',
+      singularNoun: 'reef crawler',
+      pluralNoun: 'reef crawlers',
+      creatureType: 'beast',
+      iconKey: 'aquatic',
+      temperament: 'wary',
+      ambushVerb: 'scuttle',
+      ambushRest: 'from under the planks',
+      members: [
+        { role: 'tank', name: 'Shellback Crawler' },
+        { role: 'caster', name: 'Brine Crawler' },
+      ],
+      fitLocations: ['Tarpit Shallows'],
+      relations: [{ family: 'Sea Wolves', kind: 'rival' }],
+      history: 'The Reef Crawlers have nested under the flats since before the road was laid.',
+      inFeud: true,
+    },
   ],
 };
 
@@ -1243,7 +1286,7 @@ describe('golden set: allowed speakers (Phase 46)', () => {
 describe('golden rules: replay-guard exports (Phase 46)', () => {
   it('exports the added rule ids and the shape-changed routes, frozen', () => {
     expect([...GOLDEN_RULES_ADDED_IN_46]).toEqual(['segments_invalid', 'keeper_first_person']);
-    expect([...GOLDEN_SHAPE_CHANGED_ROUTES]).toEqual(['npc_conversation', 'combat_narration']);
+    expect([...GOLDEN_SHAPE_CHANGED_ROUTES]).toEqual(['npc_conversation', 'combat_narration', 'world_gen_start', 'world_gen']);
     expect(Object.isFrozen(GOLDEN_RULES_ADDED_IN_46)).toBe(true);
     expect(Object.isFrozen(GOLDEN_SHAPE_CHANGED_ROUTES)).toBe(true);
     for (const id of GOLDEN_RULES_ADDED_IN_46) expect(GOLDEN_RULES).toContain(id);
