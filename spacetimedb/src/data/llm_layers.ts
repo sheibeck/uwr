@@ -163,19 +163,21 @@ export interface WorldFillInput {
   /** True when the arrival point is already a hub (the starter region, or a fill retried after a failure). */
   arrivalIsHub?: boolean;
   /**
-   * D-66 (Plan 51.3.1.1-30): the server's family count for the region, 3-15 (askedFamilyCount), printed
-   * as the approved Families line (PROMPT-DRAFT R2-A2). Missing on a job stored before Revision 2: no
-   * Families line and no Feud line then (the server still applies its own counts when it writes the reply).
+   * D-66 (Plan 51.3.1.1-30): the region's family count, stored on jobs before 51.3.1.2. The 2a builder no
+   * longer prints it: the Families line moved to the world_gen_families message (Phase 51.3.1.2, D-01).
+   * Kept so an older stored input still reads.
    */
   familyCount?: number;
   /**
-   * D-70, D-71 (Plan 51.3.1.1-30): the server's feud size for the region, 0 (no feud) or 2-3
-   * (feudCountFor), printed as the approved Feud line. Missing on a job stored before Revision 2: no Feud line.
+   * D-70, D-71 (Plan 51.3.1.1-30): the region's feud size, stored on jobs before 51.3.1.2. The 2a builder
+   * no longer prints it: the Feud line moved to the world_gen_families message (Phase 51.3.1.2, D-01).
+   * Kept so an older stored input still reads.
    */
   feudCount?: number;
   /**
-   * D-03 (Phase 51.3.1.2): the server's seeded roll of the region's place count. The 2a Places line that
-   * prints it comes with Plan 10; a job stored before this phase has none.
+   * D-03 (Phase 51.3.1.2): the server's seeded roll of the region's place count (placeCountFor), the arrival
+   * point included, printed as the approved Places line (51.3.1.2-PROMPT-DRAFT section 3) for a whole count
+   * in REGION_PLACES_MIN..REGION_PLACES_MAX. Missing on a job stored before this phase: no Places line then.
    */
   placeCount?: number;
 }
@@ -410,25 +412,27 @@ ${WORLD_NAMING_RULES}
 
 Reply with the JSON object only.`;
 
+/**
+ * Stage 2a of world generation (Phase 51.3.1.2, D-01, D-03, D-04, D-06): the places and people of a region.
+ * The owner approved this text word for word on 2026-10-09 (51.3.1.2-PROMPT-DRAFT.md section 1); it was
+ * copied by scripts/llm/prompt_draft.mjs and is pinned by llm_layers.world_gen.test.ts. Never edit without
+ * the owner's approval of new wording.
+ */
 const WORLD_GEN_BLOCK = `TASK: WORLD GENERATION, FILL IN THE REGION
 
 A new region of the world is being remembered into existence. Its name, biome, arrival point and first person met are already written, and the user message lists them as facts, along with the character the region is linked to, the region the character wandered beyond and the neighboring regions. All of it is data about the world. Use the given names exactly: never rename the region or the arrival point, never repeat a person already present, and do not restate what the user message already says.
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every location should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you. Descriptions read as narration in the voice of a book: no I, me or my, and never the Keeper by name.
 
-Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and as many creature families as the Families line of the user message says. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
+Counts: the Places line of the user message says how many places the region has in all, the arrival point included, so write one new location fewer than that number. Write 3-5 more NPCs besides the vendor and banker each hub needs. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous. The region's creature families are written in a later step.
 
-Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType, a levelOffset and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
+Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
 
 Place words: every new location gets a shortName and a placeNoun, and so does the arrival point, under arrival. The shortName is the name cut to one or two words for a small map label, such as Mother Pan for Mother Pan Flats. The placeNoun is how a sentence points at the place, in lowercase and starting with the, such as the pans, the orchard or the old walls.
 
 Hubs: the Hubs line of the user message says how many hubs this region has. A hub is a town, camp or outpost where people live and trade. Set isHub to true on exactly that many places and to false on every other place. The arrival point is one of the places, marked under arrival, and when the user message says the arrival point is a hub, its isHub is true. Put a hub where a settlement makes sense: near the border toward a neighboring region, or in the middle of the region with wilder places around it. A hub is a safe place, so a hub location has isSafe set to true. Each hub MUST end up with at least one NPC with npcType "vendor" and one with npcType "banker", counting the people already there. Add whichever is missing, with the hub's exact name as its locationName. No vendor or banker lives anywhere else, so a region with no hubs has neither.
 
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
-
-Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. In history, write one or two sentences of the family's past in this region, such as where it came from and its feud or tie with a hub, the dominant faction or a rival family; use no numbers, and call any person he or she, never it or they. Never give a family levels, group sizes or any other number: the server sets every number.
-
-Feud: the Feud line of the user message says how many families are locked in a feud, an old hatred that no truce has ever held. Set inFeud to true on exactly that many families and to false on every other family. Choose families whose lands or hungers cross, and let the history of each feuding family name the feud and the families it hates.
 
 ${WORLD_NAMING_RULES}
 
@@ -794,8 +798,9 @@ function hubsLine(i: Record<string, unknown>): string {
 
 /**
  * The approved count words of the Families and Feud lines (PROMPT-DRAFT R2-A2, Revision 2 approved by
- * the owner 2026-10-08; 'none' is the D-71 "Feud: none." variant), indexed by the count. Never edit
- * without the owner's approval of new wording.
+ * the owner 2026-10-08; 'none' is the D-71 "Feud: none." variant), indexed by the count; the 2a Places
+ * line uses eight, nine and ten (51.3.1.2-PROMPT-DRAFT section 3). Never edit without the owner's approval
+ * of new wording.
  */
 const FILL_COUNT_WORDS: readonly string[] = [
   'none',
@@ -845,10 +850,22 @@ function feudLine(i: Record<string, unknown>): string {
 }
 
 /**
- * Stage 2 of world generation. Tolerates an older stored input (missing
- * fields read "unknown", a missing people list is empty, a missing hub count
- * prints no Hubs line, a missing family count prints no Families or Feud line),
- * so a job queued before the stage split never throws.
+ * The Places line of the 2a request (Phase 51.3.1.2 D-03, PROMPT-DRAFT section 3), with its leading
+ * newline, or '' when the stored input has no whole place count in REGION_PLACES_MIN..REGION_PLACES_MAX
+ * (a job queued before this phase).
+ */
+function placesLine(i: Record<string, unknown>): string {
+  const count = i.placeCount;
+  if (!countIn(count, DENSITY_RULES.REGION_PLACES_MIN, DENSITY_RULES.REGION_PLACES_MAX)) return '';
+  return `\nPlaces: ${FILL_COUNT_WORDS[count]} in all, the arrival point included.`;
+}
+
+/**
+ * Stage 2a of world generation: the approved section 3 message of the 51.3.1.2 draft. Tolerates an older
+ * stored input (missing fields read "unknown", a missing people list is empty, a missing place count prints
+ * no Places line, a missing hub count prints no Hubs line), so a job queued before the stage split never
+ * throws. The Families and Feud lines moved to the 2b message (D-01): a stored familyCount or feudCount is
+ * ignored here.
  */
 export function buildWorldFillVolatile(input: WorldFillInput): string {
   const i = asRecord(input);
@@ -865,7 +882,7 @@ export function buildWorldFillVolatile(input: WorldFillInput): string {
       : 'none';
   return `Region: ${orUnknown(i.regionName)} (${orUnknown(i.biome)})
 Arrival point: ${orUnknown(start.name)} (${orUnknown(start.terrainType)}): ${orUnknownMulti(start.description)}
-People already there: ${present}${hubsLine(i)}${familiesLine(i)}${feudLine(i)}
+People already there: ${present}${placesLine(i)}${hubsLine(i)}
 
 ${worldCharacterLines(i)}
 
