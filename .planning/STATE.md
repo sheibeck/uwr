@@ -219,6 +219,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-07-combat-mock-effect-chips-update.md`: updated `UWR Combat.dc.html` changes the effect chips for players and enemies. Fold into Phase 51.4 (same design file as the loot rails).
 
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
+- `todos/pending/2026-10-09-widen-the-right-context-rail-so-names-and-long-lists-fit.md`: the right context rail (fixed 288px) cuts off place names and makes busy places a long scroll; the centre feed has spare width. Candidate home: 51.5.1 Motion and Polish.
 
 ### Blockers/Concerns
 
