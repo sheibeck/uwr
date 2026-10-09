@@ -1,12 +1,14 @@
 // Route level labels for the Here card (47-UI-SPEC "Context Rail Contract", CON-04).
 //
-// Rule from CONTEXT "Routes out" and the server's spawn rule (spacetimedb/src/helpers/location.ts,
-// computeLocationTargetLevel and the maxDiff check): the destination's level is
-// floor(region.dangerMultiplier / 100) + the destination's own levelOffset, never below 1.
+// Rule from CONTEXT "Routes out" and the server's spawn rule: the destination's target level is
+// placeTargetLevelFor (the server's computeLocationTargetLevel at base 1) and its band is
+// placeLevelBand, both imported from @game-data/enemy_rules so the client never copies them.
 // An offset of 0 spawns the exact level; any other offset spawns one level either side.
 // Research A5 offered a region-wide min/max variant; the per-location rule is used because
 // CONTEXT names the location's own levelOffset. Swapping is a change to routeLevel alone.
 // Number() is used for the math only.
+
+import { placeLevelBand, placeTargetLevelFor } from '@game-data/enemy_rules';
 
 export type RouteLevel = { safe: true } | { safe: false; lo: number; hi: number };
 
@@ -18,18 +20,15 @@ export interface RouteView {
 }
 
 /**
- * The place's target level, the server's computeLocationTargetLevel(ctx, locationId, 1n):
- * floor(region.dangerMultiplier / 100) + the place's levelOffset, never below 1. An unknown region
- * reads as the server's default multiplier of 100.
+ * The place's target level, the server's computeLocationTargetLevel(ctx, locationId, 1n), through
+ * the shared placeTargetLevelFor rule. An unknown region reads as the rule's default multiplier.
  */
 export function placeTargetLevel(
   place: { regionId: bigint; levelOffset: bigint },
   regions: readonly { id: bigint; dangerMultiplier: bigint }[],
 ): bigint {
   const region = regions.find((r) => r.id === place.regionId);
-  const multiplier = region ? region.dangerMultiplier : 100n;
-  const level = multiplier / 100n + place.levelOffset;
-  return level > 1n ? level : 1n;
+  return placeTargetLevelFor(region?.dangerMultiplier, place.levelOffset);
 }
 
 export function routeLevel(
@@ -37,9 +36,8 @@ export function routeLevel(
   regions: readonly { id: bigint; dangerMultiplier: bigint }[],
 ): RouteLevel {
   if (dest.isSafe) return { safe: true };
-  const level = Number(placeTargetLevel(dest, regions));
-  if (dest.levelOffset === 0n) return { safe: false, lo: level, hi: level };
-  return { safe: false, lo: Math.max(1, level - 1), hi: level + 1 };
+  const band = placeLevelBand(placeTargetLevel(dest, regions), dest.levelOffset);
+  return { safe: false, lo: Number(band.min), hi: Number(band.max) };
 }
 
 /** 'Safe', 'Lv 6' or 'Lv 5–7' (en dash). */

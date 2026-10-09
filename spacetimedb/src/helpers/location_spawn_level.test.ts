@@ -161,6 +161,38 @@ describe('a place no enemy type fits (Mother Pan Undercroft, +4)', () => {
   });
 });
 
+describe('computeLocationTargetLevel parity with the shared rule (review 2 WR-01)', () => {
+  // The client labels (src/rails/levelRange.ts) use placeTargetLevelFor from @game-data; the server
+  // helper must give the same answer for every region multiplier, offset and base level.
+  const fakeCtx = (region: { dangerMultiplier: bigint } | null, levelOffset: bigint) => ({
+    db: {
+      location: { id: { find: (id: bigint) => (id === 1n ? { id: 1n, regionId: 9n, levelOffset } : undefined) } },
+      region: { id: { find: (id: bigint) => (id === 9n && region ? { id: 9n, ...region } : undefined) } },
+    },
+  });
+
+  it('matches placeTargetLevelFor over a grid of multipliers, offsets and base levels', () => {
+    for (const multiplier of [0n, 50n, 100n, 149n, 300n, 650n, 800n, 1200n]) {
+      for (const offset of [-7n, -1n, 0n, 1n, 4n]) {
+        for (const base of [1n, 2n, 5n]) {
+          const ctx = fakeCtx({ dangerMultiplier: multiplier }, offset);
+          expect(loc.computeLocationTargetLevel(ctx, 1n, base)).toBe(
+            rules.placeTargetLevelFor(multiplier, offset, base),
+          );
+        }
+      }
+    }
+  });
+
+  it('matches the shared rule when the region row is missing', () => {
+    for (const offset of [-2n, 0n, 3n]) {
+      expect(loc.computeLocationTargetLevel(fakeCtx(null, offset), 1n, 1n)).toBe(
+        rules.placeTargetLevelFor(undefined, offset),
+      );
+    }
+  });
+});
+
 describe('a type that fits the band keeps its level', () => {
   it('a level 4 type at the +4 place spawns at level 4, not 5', () => {
     const ctx = build({ extraTemplates: [tpl(4n, 4n, 'Vault Warden')], linkExtraTo: [5n] });

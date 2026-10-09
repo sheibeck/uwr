@@ -3,7 +3,7 @@ import { Timestamp } from 'spacetimedb';
 import { findItemTemplateByName } from './items';
 import { regionalGatherEntries } from './regional_gather';
 import { EnemySpawn } from '../schema/tables';
-import { placeSpawnLevel } from '../data/enemy_rules';
+import { placeSpawnLevel, placeTargetLevelFor } from '../data/enemy_rules';
 import { MATERIAL_DEFS, CRAFTING_MODIFIER_DEFS, CRAFTING_MODIFIER_WEIGHT_MULTIPLIER } from '../data/crafting_rules';
 
 // One full day is an hour: 40 minutes of day, then 20 of night (owner, 2026-10-08).
@@ -15,11 +15,7 @@ export function computeLocationTargetLevel(ctx: any, locationId: bigint, baseLev
   const location = ctx.db.location.id.find(locationId);
   if (!location) return baseLevel;
   const region = ctx.db.region.id.find(location.regionId);
-  const multiplier = region?.dangerMultiplier ?? 100n;
-  const scaled = (baseLevel * multiplier) / 100n;
-  const offset = location.levelOffset ?? 0n;
-  const result = scaled + offset;
-  return result > 1n ? result : 1n;
+  return placeTargetLevelFor(region?.dangerMultiplier, location.levelOffset, baseLevel);
 }
 
 export function getWorldState(ctx: any) {

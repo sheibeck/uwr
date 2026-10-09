@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { placeLevelBand, placeTargetLevelFor } from '@game-data/enemy_rules';
 import { placeTargetLevel, routeLevel, routeLevelLabel, routesFrom } from './levelRange';
 
 const regions = [
@@ -15,6 +18,31 @@ describe('placeTargetLevel (the server computeLocationTargetLevel at base 1)', (
   });
   it('reads an unknown region as the default multiplier of 100', () => {
     expect(placeTargetLevel({ regionId: 99n, levelOffset: 1n }, regions)).toBe(2n);
+  });
+});
+
+describe('the server rule is imported, not copied (review 2 WR-01)', () => {
+  it('placeTargetLevel and routeLevel agree with the shared @game-data rules over a grid', () => {
+    for (const multiplier of [0n, 50n, 100n, 149n, 300n, 650n, 800n]) {
+      for (const offset of [-7n, -1n, 0n, 1n, 4n]) {
+        const rs = [{ id: 3n, dangerMultiplier: multiplier }];
+        const target = placeTargetLevelFor(multiplier, offset);
+        expect(placeTargetLevel({ regionId: 3n, levelOffset: offset }, rs)).toBe(target);
+        const band = placeLevelBand(target, offset);
+        expect(routeLevel({ isSafe: false, regionId: 3n, levelOffset: offset }, rs)).toEqual({
+          safe: false,
+          lo: Number(band.min),
+          hi: Number(band.max),
+        });
+      }
+    }
+  });
+
+  it('levelRange.ts holds no copy of the multiplier math', () => {
+    const source = readFileSync(resolve(__dirname, 'levelRange.ts'), 'utf8');
+    expect(source).toContain("from '@game-data/enemy_rules'");
+    expect(source).not.toMatch(/\/\s*100n/);
+    expect(source).not.toMatch(/level\s*[-+]\s*1/);
   });
 });
 

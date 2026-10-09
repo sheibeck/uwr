@@ -74,6 +74,21 @@ export function enemyStatsForLevel(level: bigint): {
   };
 }
 
+/**
+ * A place's target level: the base level scaled by the region's danger multiplier (floored, an
+ * unknown region reads as 100), plus the place's own levelOffset, never below 1. The server's
+ * computeLocationTargetLevel and the client's place labels both use this one rule.
+ */
+export function placeTargetLevelFor(
+  dangerMultiplier: bigint | null | undefined,
+  levelOffset: bigint | null | undefined,
+  baseLevel: bigint = 1n,
+): bigint {
+  const scaled = (baseLevel * (dangerMultiplier ?? 100n)) / 100n;
+  const level = scaled + (levelOffset ?? 0n);
+  return level > 1n ? level : 1n;
+}
+
 /** The level band of a place: exactly the target at an offset-0 place, else target -1 .. target +1. */
 export function placeLevelBand(target: bigint, levelOffset: bigint): { min: bigint; max: bigint } {
   const exact = levelOffset === 0n;

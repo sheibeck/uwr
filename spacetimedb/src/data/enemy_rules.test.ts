@@ -8,6 +8,7 @@ import {
   enemyStatsForLevel,
   placeLevelBand,
   placeSpawnLevel,
+  placeTargetLevelFor,
   effectiveEnemyLevel,
   templateAtLevel,
 } from './enemy_rules';
@@ -23,6 +24,24 @@ describe('enemyStatsForLevel', () => {
         xpReward: L * 15n + 10n,
       });
     }
+  });
+});
+
+describe('placeTargetLevelFor (review 2 WR-01: the one place target-level rule)', () => {
+  it('is floor(base * dangerMultiplier / 100) plus the offset, never below 1', () => {
+    expect(placeTargetLevelFor(600n, 0n)).toBe(6n);
+    expect(placeTargetLevelFor(600n, 2n)).toBe(8n);
+    expect(placeTargetLevelFor(650n, 0n)).toBe(6n);
+    expect(placeTargetLevelFor(349n, 0n)).toBe(3n);
+    expect(placeTargetLevelFor(100n, -3n)).toBe(1n);
+    expect(placeTargetLevelFor(300n, 1n, 2n)).toBe(7n);
+  });
+
+  it('reads a missing multiplier as 100 and a missing offset as 0', () => {
+    expect(placeTargetLevelFor(undefined, 1n)).toBe(2n);
+    expect(placeTargetLevelFor(null, null)).toBe(1n);
+    expect(placeTargetLevelFor(800n, undefined)).toBe(8n);
+    expect(placeTargetLevelFor(undefined, undefined, 4n)).toBe(4n);
   });
 });
 
