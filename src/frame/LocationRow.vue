@@ -23,6 +23,9 @@ const clock = computed(() => formatClock(timer.value.secondsLeft));
 const minutes = computed(() => `Region travel ready in ${aboutMinutes(timer.value.secondsLeft)}`);
 
 const rating = computed(() => here.value?.rating ?? null);
+// The level part renders only with a word or a range; the separator before it goes with it, so a
+// loading place reads 'Place · Woods', never 'Place · Woods ·' (review C IN-02).
+const showLevel = computed(() => rating.value !== null && (rating.value.word !== '' || rating.value.levelLabel !== ''));
 </script>
 
 <template>
@@ -31,8 +34,10 @@ const rating = computed(() => here.value?.rating ?? null);
     <span class="name" :title="props.locationName">{{ props.locationName }}</span>
     <template v-if="here">
       <!-- The separators are visual only: screen readers hear 'Woods', not 'dot Woods dot'. -->
-      <span class="terrain"><span aria-hidden="true">· </span>{{ here.terrain.word }}<span aria-hidden="true"> ·</span></span>
-      <span v-if="rating && (rating.word !== '' || rating.levelLabel !== '')" class="level"
+      <span class="terrain"
+        ><span aria-hidden="true">· </span>{{ here.terrain.word }}<span v-if="showLevel" aria-hidden="true"> ·</span></span
+      >
+      <span v-if="rating && showLevel" class="level"
         ><RatingMark v-if="rating.word !== ''" :rating="rating" :dot="false" :size="12" /><template
           v-if="rating.word !== '' && rating.levelLabel !== ''"
           >{{ ' ' }}</template

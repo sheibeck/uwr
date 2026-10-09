@@ -35,6 +35,8 @@ interface Options {
   applied?: boolean;
   /** The family's density level (default 2, Stable: Quiet for the level-4 hero at Lv 2-4). */
   familyLevel?: bigint;
+  /** No pool row at the place (default false). */
+  noPools?: boolean;
 }
 
 function build(options: Options = {}) {
@@ -55,9 +57,11 @@ function build(options: Options = {}) {
       },
     ]),
     regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 200n }]),
-    poolLevelsHere: ref([
-      { id: 1n, regionId: 1n, locationId: 10n, kind: 'creature', level: options.familyLevel ?? 2n, lvLo: 2n, lvHi: 4n },
-    ]),
+    poolLevelsHere: ref(
+      options.noPools
+        ? []
+        : [{ id: 1n, regionId: 1n, locationId: 10n, kind: 'creature', level: options.familyLevel ?? 2n, lvLo: 2n, lvHi: 4n }],
+    ),
     poolsAppliedFor: () => options.applied ?? true,
   } as unknown as GameData;
   const map = {
@@ -116,6 +120,13 @@ describe('LocationRow', () => {
     expect(w.get('.level').text()).toBe('Lv 2–4');
     expect(w.find('.level .rating-mark').exists()).toBe(false);
     expect(w.text()).not.toContain('Safe');
+  });
+
+  it('with no word and no range there is no level part and no dangling separator (review C IN-02)', () => {
+    const w = build({ applied: false, noPools: true });
+    expect(w.find('.level').exists()).toBe(false);
+    expect(w.get('.terrain').text()).toBe('· Woods');
+    expect(w.findAll('.terrain [aria-hidden="true"]')).toHaveLength(1);
   });
 
   it('an unknown terrain keeps the pin icon and its own word', () => {
