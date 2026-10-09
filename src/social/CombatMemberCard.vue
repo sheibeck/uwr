@@ -93,7 +93,7 @@ function onContextMenu(event: MouseEvent): void {
     >
       <span class="member-row">
         <PhCrosshairSimple v-if="selected" class="marker" weight="fill" :size="12" aria-hidden="true" />
-        <CharacterName class="member-name" :name="member.name" />
+        <CharacterName class="member-name" :name="member.name" :dead="member.hp === 0n" />
         <PhCrownSimple v-if="member.isLeader" class="crown" weight="fill" :size="12" aria-hidden="true" />
         <span class="member-class">{{ offline ? 'Offline' : member.className }}</span>
         <span class="right">

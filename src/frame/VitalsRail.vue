@@ -188,7 +188,7 @@ const bars = computed(() => [
           <component :is="tag" class="avatar" aria-hidden="true">{{ props.avatarInitial }}</component>
           <component :is="tag" class="identity-text">
             <component :is="tag" class="name-row">
-              <CharacterName class="name" :name="props.name" />
+              <CharacterName class="name" :name="props.name" :dead="props.hp === 0n" />
               <FollowIcon v-if="selfFollow !== null" class="self-follow" :state="selfFollow" :decorative="selfTarget" />
               <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
             </component>

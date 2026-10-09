@@ -217,7 +217,7 @@ function openSocial(): void {
   <section ref="stripEl" class="vitals-strip" aria-label="Vitals" tabindex="-1">
     <template v-if="props.compact">
       <div class="compact-row">
-        <div class="name" :title="props.name">{{ props.name }}</div>
+        <div class="name" :title="props.name"><CharacterName :name="props.name" :dead="props.hp === 0n" /></div>
         <div class="compact-bar" :class="flashClass">
           <div class="track" role="progressbar" aria-label="Health" aria-valuemin="0" :aria-valuenow="Number(props.hp)" :aria-valuemax="Number(props.maxHp)">
             <div class="fill fill-health" :style="{ width: `${barFraction(props.hp, props.maxHp) * 100}%` }"></div>
@@ -256,7 +256,7 @@ function openSocial(): void {
           <div class="avatar" aria-hidden="true">{{ props.avatarInitial }}</div>
           <div class="identity-text">
             <div class="name-row">
-              <div class="name" :title="props.name">{{ props.name }}</div>
+              <div class="name" :title="props.name"><CharacterName :name="props.name" :dead="props.hp === 0n" /></div>
               <PhCrownSimple v-if="leader" class="crown" weight="fill" :size="12" role="img" aria-label="Party leader" />
             </div>
             <div class="class-line">{{ props.classLine }}</div>
@@ -362,7 +362,7 @@ function openSocial(): void {
           >
             <span class="card-top">
               <span class="card-name">
-                <CharacterName class="card-name-text" :name="card.member.name" />
+                <CharacterName class="card-name-text" :name="card.member.name" :dead="card.member.known && card.member.hp === 0n" />
                 <!-- The title sits on a span: browsers show no tooltip for a title attribute on an svg
                      (51.1 review client-rest IN-04). The card's aria-label carries the pet. -->
                 <span

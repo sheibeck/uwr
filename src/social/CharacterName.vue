@@ -3,14 +3,19 @@
 // the name as a text node on one ellipsizing line, the full name in title, an optional " (you)"
 // suffix, and a trailing default slot. 51.1 passes nothing to the slot; Phase 52.2 puts the guild
 // tag there, in one place. Size and weight come from the host. Names are server text and are
-// rendered as text nodes only.
-defineProps<{ name: string; you?: boolean }>();
+// rendered as text nodes only. `dead` adds a small skull after the name (owner, 2026-10-09: "put a
+// little skull next [to the] name (or party members name) when they are dead"), with a screen-reader
+// " (dead)" and a "Dead" tooltip.
+import { PhSkull } from '@phosphor-icons/vue';
+
+defineProps<{ name: string; you?: boolean; dead?: boolean }>();
 </script>
 
 <template>
   <span class="character-name" :title="name">
     <span class="name">{{ name }}</span>
     <span v-if="you" class="you">{{ ' (you)' }}</span>
+    <span v-if="dead" class="dead" title="Dead"><PhSkull :size="12" weight="fill" aria-hidden="true" /><span class="sr-only">{{ ' (dead)' }}</span></span>
     <slot />
   </span>
 </template>
@@ -36,5 +41,24 @@ defineProps<{ name: string; you?: boolean }>();
 .you {
   flex: none;
   color: var(--color-neutral-500);
+}
+
+.dead {
+  flex: none;
+  display: inline-flex;
+  align-self: center;
+  color: var(--color-neutral-400);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
