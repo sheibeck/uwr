@@ -34,6 +34,7 @@ import spacetimedb, {
 } from './schema/tables';
 import { PASSAGE_SWEEP_INTERVAL_MICROS, sweepPassages } from './helpers/passages';
 import { DENSITY_RULES } from './data/density_rules';
+import { ensurePoolTickScheduled, runPoolTick } from './helpers/pool_tick';
 import { reconcileOnline, syncCharacterOnline } from './helpers/online';
 import { announcePartyPresence, sessionOnReconnect } from './helpers/party_presence';
 import { pruneFinishedReinviteWaits } from './helpers/group_invites';
@@ -447,19 +448,27 @@ scheduledReducers['sweep_passages'] = spacetimedb.reducer('sweep_passages', { ar
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + PASSAGE_SWEEP_INTERVAL_MICROS),
   });
+  // Arms the pool tick on a republished database (init does not run again on a republish).
+  ensurePoolTickScheduled(ctx);
   sweepPassages(ctx);
 });
 
-// Density pools (Phase 51.3.1.1): a private scheduled tick that settles regrowth and runs the
-// hunters, trends and migration. This plan only registers it, guarded and rescheduling one row;
-// Plan 14 adds the work and the arming (no pool_tick row is inserted anywhere yet).
-scheduledReducers['tick_pools'] = spacetimedb.reducer('tick_pools', { arg: PoolTick.rowType }, (ctx) => {
+// Density pools (Phase 51.3.1.1): a private scheduled tick once a minute that settles dirty pools,
+// runs the light background hunter and reports region trends (helpers/pool_tick.ts). The guard is
+// first; the one-row reschedule comes before the work, so a failing step never breaks the chain.
+// Armed in init, on connect and by the passage sweep (ensurePoolTickScheduled).
+scheduledReducers['tick_pools'] = spacetimedb.reducer('tick_pools', { arg: PoolTick.rowType }, (ctx, { arg }) => {
   if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
   ctx.db.pool_tick.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + DENSITY_RULES.POOL_TICK_MICROS),
     afterRegionId: 0n,
   });
+  try {
+    runPoolTick(ctx, arg, ctx.timestamp.microsSinceUnixEpoch);
+  } catch (error) {
+    console.error(`tick_pools: the pool work failed: ${String(error)}`);
+  }
 });
 
 spacetimedb.reducer('set_app_version',{ version: t.string() }, (ctx, { version }) => {
@@ -720,6 +729,7 @@ spacetimedb.init((ctx) => {
   initScheduledTables(ctx);
   ensureVendorRestockScheduled(ctx);
   ensurePassageSweepScheduled(ctx);
+  ensurePoolTickScheduled(ctx);
 });
 
 spacetimedb.clientConnected((ctx) => {
@@ -757,6 +767,7 @@ spacetimedb.clientConnected((ctx) => {
   ensureLlmSweepScheduled(ctx);
   ensureVendorRestockScheduled(ctx);
   ensurePassageSweepScheduled(ctx);
+  ensurePoolTickScheduled(ctx);
 });
 
 spacetimedb.clientDisconnected((_ctx) => {
