@@ -217,7 +217,7 @@ export function buildRegionContext(
   return results;
 }
 
-export type WorldGenStartOutcome = 'reused' | 'enqueued' | 'duplicate' | 'refused';
+export type WorldGenStartOutcome = 'reused' | 'held' | 'enqueued' | 'duplicate' | 'refused';
 
 /** The in-voice reason stored on a refused state. world_gen_state is public: no budget or provider detail. */
 const WORLD_GEN_REFUSED_MESSAGE = 'The Keeper strains but cannot shape this realm right now.';
@@ -226,7 +226,8 @@ const WORLD_GEN_REFUSED_MESSAGE = 'The Keeper strains but cannot shape this real
  * Start generation for a freshly inserted (PENDING) world_gen_state, in the caller's
  * transaction (Phase 41, plan 14, PIPE-01):
  *  - a starter state (sourceRegionId 0n) reuses an existing starter region for the character's
- *    race at no cost ('reused');
+ *    race at no cost: placed at once when the region is whole ('reused'), or waiting in creation (HELD,
+ *    the 7e line) while it is still being built or its build failed ('held'; Phase 51.3.1.2, D-15, D-17);
  *  - otherwise one world_gen_start job (stage 1) and its dispatch are enqueued and the state becomes
  *    GENERATING ('enqueued', or 'duplicate' when a job for this state is already active); the
  *    stage-1 apply enqueues the world_gen fill (stage 2);
@@ -237,8 +238,10 @@ const WORLD_GEN_REFUSED_MESSAGE = 'The Keeper strains but cannot shape this real
 export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutcome {
   const character = ctx.db.character.id.find(genState.characterId);
 
-  if (genState.sourceRegionId === 0n && character && reuseStarterRegion(ctx, genState, character)) {
-    return 'reused';
+  if (genState.sourceRegionId === 0n && character) {
+    const reuse = reuseStarterRegion(ctx, genState, character);
+    if (reuse === 'placed') return 'reused';
+    if (reuse === 'held') return 'held';
   }
 
   const sourceRegion = ctx.db.region.id.find(genState.sourceRegionId);
@@ -293,12 +296,15 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
  *                    (nothing written);
  *  - 'none':         the character has no starter state, or its newest one is not failed (nothing written);
  *  - 'started':      stage 1 failed (ERROR): a fresh starter state was created and its world_gen_start job enqueued;
- *  - 'reused':       that fresh starter state reused an existing starter region (no call);
+ *  - 'reused':       that fresh starter state reused an existing starter region (no call), or a HELD
+ *                    character whose region is already whole was placed now;
+ *  - 'held':         that fresh starter state waits on a starter region still being built (HELD, the 7e
+ *                    line posted; no call);
  *  - 'fill_started': stage 2a (FILL_ERROR) or 2b (FAMILIES_ERROR) failed: only that stage was re-enqueued on
  *                    the same state (Phase 51.3.1.2, D-17, D-18);
  *  - 'refused':      the enqueue was refused; the state is back in its error step and the refusal line is posted.
  */
-export type StarterRetryOutcome = 'busy' | 'none' | 'started' | 'reused' | 'fill_started' | 'refused';
+export type StarterRetryOutcome = 'busy' | 'none' | 'started' | 'reused' | 'held' | 'fill_started' | 'refused';
 
 /** The starter steps with a call in flight: an [explore] then asks for patience and enqueues nothing. */
 const STARTER_RUNNING_STEPS: readonly string[] = Object.freeze(['PENDING', 'GENERATING', 'FILLING', 'FILLING_FAMILIES']);
@@ -318,7 +324,9 @@ export const STARTER_RETRY_MESSAGES = Object.freeze({
  * Phase 51.3.1.2 (D-17, D-18): a new character waits in creation until the first region is whole, so the
  * newest starter state decides: FILL_ERROR or FAMILIES_ERROR re-runs only that stage on the same state
  * (handed to the asker, the character kept; 'fill_started'), never the region from the start; ERROR
- * (stage 1 failed, every starter state ERROR) starts a fresh state as before.
+ * (stage 1 failed, every starter state ERROR) starts a fresh state as before. A HELD newest state (the
+ * character waits on another character's starter region) is decided by that region's build states
+ * (retryHeldStarter): busy, the failed stage re-enqueued on the generating state, or placed now.
  * Writes nothing for 'busy' and 'none'.
  */
 export function retryStarterWorldGen(ctx: any, character: any, playerId: any): StarterRetryOutcome {
@@ -329,6 +337,7 @@ export function retryStarterWorldGen(ctx: any, character: any, playerId: any): S
   if (starters.some((s: any) => STARTER_RUNNING_STEPS.includes(s.step))) return 'busy';
   const newest = [...starters].sort(newestFirst)[0];
   if (!newest) return 'none';
+  if (newest.step === 'HELD') return retryHeldStarter(ctx, newest, character, playerId);
 
   if (newest.step === 'FILL_ERROR' || newest.step === 'FAMILIES_ERROR') {
     const handed = { ...newest, playerId, characterId: character.id, updatedAt: ctx.timestamp };
@@ -387,53 +396,50 @@ export function nowhereToGoLine(tx: any, locationId: bigint): string {
   return hint ? `There is nowhere to go from here yet. ${hint}` : 'There is nowhere to go from here.';
 }
 
-/**
- * The starter-region reuse branch: when another character of the same race already generated a
- * starter region, place this character in its home location and complete the state with no
- * model call. Returns true when the character was placed. A starter region whose fill is still
- * running or failed has a home location with no exits: the arrival then names the next step
- * (wait, or [explore] to retry the fill) instead of promising [travel] (review WR-B02).
- */
-function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
-  const raceLower = (character.race || '').toLowerCase();
-  if (!raceLower) return false;
-
-  let existingStarterRegion: any = null;
+/** The starter region of a race (starterForRace, compared lowercased), or null. */
+function starterRegionFor(ctx: any, race: unknown): any | null {
+  const raceLower = String(race ?? '').toLowerCase();
+  if (!raceLower) return null;
   for (const region of ctx.db.region.iter()) {
-    if (region.starterForRace && region.starterForRace.toLowerCase() === raceLower) {
-      existingStarterRegion = region;
-      break;
-    }
+    if (region.starterForRace && region.starterForRace.toLowerCase() === raceLower) return region;
   }
-  if (!existingStarterRegion) return false;
+  return null;
+}
 
-  // Home location: the region's charted hub (D-61); else the first safe, charted location; else any
-  // charted location.
-  let homeLocation: any = null;
+/**
+ * The home place of a region, where a reusing character is put: its charted hub (D-61; the lowest id),
+ * else the first safe charted place, else any charted place; null when it has none.
+ */
+function regionHomePlace(ctx: any, regionId: bigint): any | null {
+  let home: any = null;
   for (const loc of ctx.db.location.iter()) {
-    if (loc.regionId !== existingStarterRegion.id || loc.isHub !== true || loc.terrainType === 'uncharted') continue;
-    if (!homeLocation || loc.id < homeLocation.id) homeLocation = loc;
+    if (loc.regionId !== regionId || loc.isHub !== true || loc.terrainType === 'uncharted') continue;
+    if (!home || loc.id < home.id) home = loc;
   }
-  if (!homeLocation) {
-    for (const loc of ctx.db.location.iter()) {
-      if (loc.regionId === existingStarterRegion.id && loc.isSafe && loc.terrainType !== 'uncharted') {
-        homeLocation = loc;
-        break;
-      }
-    }
+  if (home) return home;
+  for (const loc of ctx.db.location.iter()) {
+    if (loc.regionId === regionId && loc.isSafe && loc.terrainType !== 'uncharted') return loc;
   }
-  if (!homeLocation) {
-    for (const loc of ctx.db.location.iter()) {
-      if (loc.regionId === existingStarterRegion.id && loc.terrainType !== 'uncharted') {
-        homeLocation = loc;
-        break;
-      }
-    }
+  for (const loc of ctx.db.location.iter()) {
+    if (loc.regionId === regionId && loc.terrainType !== 'uncharted') return loc;
   }
+  return null;
+}
+
+/**
+ * Put a new character at the home place of an existing starter region and complete his state, with no
+ * model call: location and bind point, a visited row with no origin, the place's pools, and the reuse
+ * arrival message. Shared by the reuse at creation (an open region), the completion of a held region
+ * (finishRegionFill places every HELD character) and the [explore] of a HELD character whose region is
+ * already whole. A home place with no exits names the next step (wait, or [explore] to retry the fill)
+ * instead of promising [travel] (review WR-B02). false when the region has no charted place.
+ */
+function placeAtHome(ctx: any, genState: any, character: any, region: any): boolean {
+  const homeLocation = regionHomePlace(ctx, region.id);
   if (!homeLocation) return false;
 
   ctx.db.character.id.update({
-    ...ctx.db.character.id.find(character.id),
+    ...(ctx.db.character.id.find(character.id) ?? character),
     locationId: homeLocation.id,
     boundLocationId: homeLocation.id,
   });
@@ -442,29 +448,110 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): boolean {
   ensurePoolsForLocation(ctx, homeLocation.id);
 
   ctx.db.world_gen_state.id.update({
-    ...genState,
+    ...(ctx.db.world_gen_state.id.find(genState.id) ?? genState),
     step: 'COMPLETE',
-    generatedRegionId: existingStarterRegion.id,
+    generatedRegionId: region.id,
     updatedAt: ctx.timestamp,
   });
 
-  const locationNpcs: { name: string; gender: NpcGender }[] = [];
-  for (const npc of ctx.db.npc.by_location.filter(homeLocation.id)) {
-    locationNpcs.push({ name: npc.name, gender: npcGender(npc) });
-  }
-  let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${existingStarterRegion.name}.`;
-  if (locationNpcs.length > 0) {
-    arrivalMsg += '\n\n' + npcNoticeLine(locationNpcs);
+  let arrivalMsg = `You open your eyes in ${homeLocation.name}, ${region.name}.`;
+  const people = peopleAt(ctx, homeLocation.id);
+  if (people.length > 0) {
+    arrivalMsg += '\n\n' + npcNoticeLine(people);
   }
   const hasExits = [...ctx.db.location_connection.by_from.filter(homeLocation.id)].length > 0;
   if (hasExits) {
     arrivalMsg += `\n\nTry [look] to examine your surroundings, or [travel] to move.`;
   } else {
-    const hint = regionFillHint(ctx, existingStarterRegion.id);
+    const hint = regionFillHint(ctx, region.id);
     arrivalMsg += `\n\nTry [look] to examine your surroundings.` + (hint ? ` ${hint}` : '');
   }
   appendPrivateEvent(ctx, character.id, character.ownerUserId, 'narrative', arrivalMsg);
   return true;
+}
+
+/** The creation-console line for a failed region-fill stage: the line failWorldFill / failWorldFamilies post. */
+function failedStageCreationLine(step: string, message: string | undefined): string {
+  if (message === LLM_RESTING_LINE) return `${LLM_RESTING_LINE}${EXPLORE_HINT}`;
+  if (step === 'FAMILIES_ERROR') return `${WORLD_FAMILIES_FAILED_MESSAGE}${EXPLORE_HINT}`;
+  return `${message || WORLD_FILL_FAILED_MESSAGE}${EXPLORE_HINT}`;
+}
+
+/** The states that build a region (every state naming it except HELD ones), newest first. */
+function regionBuildStates(tx: any, regionId: bigint): any[] {
+  // world_gen_state has no region index; the table is small and these paths are rare.
+  return [...tx.db.world_gen_state.iter()]
+    .filter((s: any) => s.generatedRegionId !== undefined && s.generatedRegionId !== null && s.generatedRegionId === regionId && s.step !== 'HELD')
+    .sort(newestFirst);
+}
+
+/**
+ * A new character whose race's starter region is still being built waits for it (Phase 51.3.1.2, D-15,
+ * D-17): his state becomes HELD with the region and his creation console gets the owner's 7e line once.
+ * When the region has already failed (FILL_ERROR or FAMILIES_ERROR), the failure line of that stage
+ * follows, so he knows [explore] retries it (T-51.3.1.2-43). No model call.
+ */
+function holdNewCharacter(ctx: any, genState: any, region: any, hold: 'held' | 'held_failed'): void {
+  ctx.db.world_gen_state.id.update({
+    ...(ctx.db.world_gen_state.id.find(genState.id) ?? genState),
+    step: 'HELD',
+    generatedRegionId: region.id,
+    errorMessage: undefined,
+    updatedAt: ctx.timestamp,
+  });
+  const lines: [string, string][] = [['creation', WORLD_START_MILESTONE_LINE]];
+  if (hold === 'held_failed') {
+    const failed = regionBuildStates(ctx, region.id).find((s: any) => s.step === 'FILL_ERROR' || s.step === 'FAMILIES_ERROR');
+    if (failed) lines.push(['creation_error', failedStageCreationLine(failed.step, failed.errorMessage)]);
+  }
+  for (const [kind, line] of lines) {
+    const segments = keeperFallback(line);
+    appendCreationEvent(ctx, genState.playerId, kind, flattenSegments(segments), segments);
+  }
+}
+
+/**
+ * The starter-region reuse branch: when another character of the same race already generated a starter
+ * region, this character uses it with no model call.
+ *  - 'placed': the region is open (whole, Phase 51.3.1.2): he is put at its home place now (placeAtHome);
+ *  - 'held':   the region is still being built or its build failed (regionHoldState not 'open'): he waits
+ *              in creation (HELD, the 7e line) and finishRegionFill places him when it is whole (D-15, D-17);
+ *  - false:    no starter region for his race, or it has no charted place: a new region is generated.
+ */
+function reuseStarterRegion(ctx: any, genState: any, character: any): 'placed' | 'held' | false {
+  const region = starterRegionFor(ctx, character.race);
+  if (!region) return false;
+  const hold = regionHoldState(ctx, region.id);
+  if (hold !== 'open') {
+    holdNewCharacter(ctx, genState, region, hold);
+    return 'held';
+  }
+  return placeAtHome(ctx, genState, character, region) ? 'placed' : false;
+}
+
+/**
+ * The [explore] of a new character waiting on someone else's starter region (his newest starter state is
+ * HELD; Phase 51.3.1.2, D-18): the region's build states decide.
+ *  - one is still running: 'busy' (nothing written);
+ *  - the newest failed one (FILL_ERROR or FAMILIES_ERROR) is handed to the asker (playerId only: the job is
+ *    charged to him, its character stays the one who generated it) and only its failed stage re-enqueued:
+ *    'fill_started', or 'refused' when the enqueue was refused (the failure lines already went out);
+ *  - otherwise the region is whole and he was missed: he is placed at its home place now ('reused').
+ * 'none' when the region is gone or has no charted place.
+ */
+function retryHeldStarter(ctx: any, held: any, character: any, playerId: any): StarterRetryOutcome {
+  const regionId = held.generatedRegionId;
+  const region = regionId !== undefined && regionId !== null ? ctx.db.region.id.find(regionId) : undefined;
+  if (!region) return 'none';
+  const builds = regionBuildStates(ctx, region.id);
+  if (builds.some((s: any) => STARTER_RUNNING_STEPS.includes(s.step))) return 'busy';
+  const failed = builds.find((s: any) => s.step === 'FILL_ERROR' || s.step === 'FAMILIES_ERROR');
+  if (failed) {
+    const handed = { ...failed, playerId, updatedAt: ctx.timestamp };
+    ctx.db.world_gen_state.id.update(handed);
+    return restartFailedStage(ctx, handed) === 'refused' ? 'refused' : 'fill_started';
+  }
+  return placeAtHome(ctx, held, character, region) ? 'reused' : 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -883,7 +970,8 @@ const EXPLORE_HINT = ' Type [explore] to try again.';
 /**
  * The lines of a stage-2a or stage-2b failure, by where the people are (D-15, D-18):
  *  - the triggering character still in creation (location 0, or gone): one creation_error Keeper segment
- *    with `creationLine`;
+ *    with `creationLine`; the same line to the player of every HELD state of the region whose character
+ *    still waits at location 0 (Phase 51.3.1.2, D-18), each player once;
  *  - otherwise the triggering character, wherever he is, and every character standing at the crossing
  *    (character.by_location of a non-zero sourceLocationId; location 0 is never a crossing) get the
  *    owner's 7d line (REGION_HOLD_FAILED_LINE), or the resting line with the [explore] hint when the
@@ -892,10 +980,23 @@ const EXPLORE_HINT = ' Type [explore] to try again.';
  */
 function postFillFailure(tx: any, genState: any, message: string, creationLine: string): void {
   const char = tx.db.character.id.find(genState.characterId);
-  if (!char || char.locationId === 0n) {
-    // Phase 46: the Keeper-voice line is one Keeper narration segment.
-    const segments = keeperFallback(creationLine);
-    appendCreationEvent(tx, genState.playerId, 'creation_error', flattenSegments(segments), segments);
+  // Phase 46: the Keeper-voice line is one Keeper narration segment.
+  const segments = keeperFallback(creationLine);
+  const told = new Set<string>();
+  const tellCreation = (playerId: any): void => {
+    const key = typeof playerId?.toHexString === 'function' ? playerId.toHexString() : String(playerId);
+    if (told.has(key)) return;
+    told.add(key);
+    appendCreationEvent(tx, playerId, 'creation_error', flattenSegments(segments), segments);
+  };
+  if (!char || char.locationId === 0n) tellCreation(genState.playerId);
+  // Every other new character still waiting in creation on this region (HELD) gets the same line (D-18).
+  const regionId = genState.generatedRegionId;
+  if (regionId !== undefined && regionId !== null) {
+    for (const held of heldStatesOf(tx, regionId)) {
+      const waiting = tx.db.character.id.find(held.characterId);
+      if (waiting && waiting.locationId === 0n) tellCreation(held.playerId);
+    }
   }
 
   const holdLine = message === LLM_RESTING_LINE ? `${LLM_RESTING_LINE}${EXPLORE_HINT}` : REGION_HOLD_FAILED_LINE;
@@ -944,6 +1045,8 @@ function errorName(err: unknown): string {
  *    creation at location 0, is placed at the arrival point now (placeWaitingCharacter, D-17) with the
  *    arrival message and then the discovery line. A starter character already placed (stage 1 placed it
  *    before the 51.3.1.2 publish) is left where he is, with no second arrival message.
+ *  - Every other new character who waited on this region (a HELD state naming it) is placed at its home
+ *    place with the reuse arrival message and his state completes (placeHeldCharacters, D-15, D-17).
  *  - The region economy starts after COMPLETE, never as part of the hold (D-16): startRegionEconomy
  *    (gated on the AI economy switch inside) in a try/catch that logs the error name only, so an economy
  *    bug never hides a completed region (T-51.3.1.2-28).
@@ -979,12 +1082,41 @@ export function finishRegionFill(tx: any, genState: any): void {
   if (region && (current.sourceLocationId ?? 0n) === 0n) {
     placeWaitingCharacter(tx, current, region);
   }
+  if (region) placeHeldCharacters(tx, region);
 
   try {
     const filledRegion = region ? (tx.db.region.id.find(region.id) ?? region) : region;
     startRegionEconomy(tx, filledRegion, { playerId: current.playerId, characterId: current.characterId });
   } catch (err) {
     console.error('Region economy start failed for region ' + String(regionId) + ': ' + errorName(err));
+  }
+}
+
+/**
+ * The HELD states waiting on a region (Phase 51.3.1.2): new characters whose race's starter region was
+ * still being built when they were created. By id, so the order is stable.
+ */
+function heldStatesOf(tx: any, regionId: bigint): any[] {
+  // world_gen_state has no region index; the table is small and these paths are rare.
+  return [...tx.db.world_gen_state.iter()]
+    .filter((s: any) => s.step === 'HELD' && s.generatedRegionId !== undefined && s.generatedRegionId !== null && s.generatedRegionId === regionId)
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * The region is whole: every new character waiting on it (HELD) is placed at its home place with the
+ * reuse arrival message and his state becomes COMPLETE (placeAtHome). A HELD character who is no longer
+ * at location 0, or is gone, is not placed; his state completes all the same. A region with no charted
+ * place leaves the state HELD ([explore] then retries the placement).
+ */
+function placeHeldCharacters(tx: any, region: any): void {
+  for (const held of heldStatesOf(tx, region.id)) {
+    const character = tx.db.character.id.find(held.characterId);
+    if (character && character.locationId === 0n) {
+      placeAtHome(tx, held, character, region);
+    } else {
+      tx.db.world_gen_state.id.update({ ...held, step: 'COMPLETE', updatedAt: tx.timestamp });
+    }
   }
 }
 

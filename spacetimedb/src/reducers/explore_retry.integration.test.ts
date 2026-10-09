@@ -287,3 +287,78 @@ describe('[explore] for a new character waiting in creation (D-17, D-18)', () =>
     expect(jobRoutes(ctx)).toEqual(['world_gen_families']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Creation console: a second new character waiting on someone else's starter region (HELD, Plan 13)
+// ---------------------------------------------------------------------------
+
+describe('[explore] for a new character waiting on a held starter region (HELD, D-15, D-17, D-18)', () => {
+  // Aldric (1, alice) generated the starter region; Bree (2, bob, same race) waits on it (HELD).
+  const STARTER = REGION;
+  const bobState = () => ({ id: 1n, playerId: bob, step: 'COMPLETE', characterName: 'Bree', createdAt: T, updatedAt: T });
+  const heldSeed = (generating: Record<string, unknown>) => ({
+    player: [{ id: alice, userId: 7n, activeCharacterId: 1n }, { id: bob, userId: 8n, activeCharacterId: 2n }],
+    region: [{ ...regions()[1], starterForRace: 'kobold' }],
+    location: regionPlaces(),
+    character: [character({ locationId: 0n }), character({ id: 2n, ownerUserId: 8n, name: 'Bree', locationId: 0n })],
+    character_creation_state: [bobState()],
+    world_gen_state: [
+      genRow({ id: 5n, sourceLocationId: 0n, sourceRegionId: 0n, generatedRegionId: STARTER, ...generating }),
+      genRow({ id: 6n, playerId: bob, characterId: 2n, sourceLocationId: 0n, sourceRegionId: 0n, generatedRegionId: STARTER, step: 'HELD', errorMessage: undefined }),
+    ],
+  });
+  const submitAsBob = (ctx: any, text: string) => handlers.submit_creation_input(ctx, { text });
+  const stateById = (ctx: any, id: bigint) => rows(ctx, 'world_gen_state').find((s: any) => s.id === id);
+  const bobCreationLines = (ctx: any) => rows(ctx, 'event_creation').filter((e: any) => e.playerId === bob).map((e: any) => [e.kind, e.message]);
+
+  it.each([
+    ['FAMILIES_ERROR', 'world_gen_families', 'FILLING_FAMILIES'],
+    ['FILL_ERROR', 'world_gen', 'FILLING'],
+  ])('%s: WORLD_FILL_RETRY_LINE, only that stage on the generating state, charged to bob; Aldric stays the character', (step, route, running) => {
+    const ctx = newCtx(heldSeed({ step, errorMessage: 'x' }), bob);
+    const before = regionLocationCount(ctx);
+    submitAsBob(ctx, 'explore');
+
+    expect(bobCreationLines(ctx)).toEqual([['creation', WORLD_FILL_RETRY_LINE]]);
+    expect(jobRoutes(ctx)).toEqual([route]);
+    expect(rows(ctx, 'llm_job')[0]).toMatchObject({ playerId: bob, characterId: 1n });
+    expect(rowColumnProblems('llm_job', rows(ctx, 'llm_job')[0])).toEqual([]);
+    expect(stateById(ctx, 5n)).toMatchObject({ step: running, playerId: bob, characterId: 1n });
+    expect(stateById(ctx, 6n).step).toBe('HELD');
+    expect(rows(ctx, 'world_gen_state')).toHaveLength(2);
+    expect(regionLocationCount(ctx)).toBe(before);
+    expect(rows(ctx, 'character').find((c: any) => c.id === 2n).locationId).toBe(0n);
+  });
+
+  it.each(['FILLING', 'FILLING_FAMILIES'])('while the region is %s: the busy line and nothing enqueued', (step) => {
+    const ctx = newCtx(heldSeed({ step, errorMessage: undefined }), bob);
+    submitAsBob(ctx, 'explore');
+
+    expect(bobCreationLines(ctx)).toEqual([['creation', STARTER_RETRY_MESSAGES.busy]]);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(stateById(ctx, 6n).step).toBe('HELD');
+  });
+
+  it('the region is COMPLETE but Bree still waits: she is placed at its home place now, no line on the console', () => {
+    const ctx = newCtx(heldSeed({ step: 'COMPLETE', errorMessage: undefined }), bob);
+    submitAsBob(ctx, 'explore');
+
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(bobCreationLines(ctx)).toEqual([]);
+    expect(rows(ctx, 'character').find((c: any) => c.id === 2n).locationId).toBe(101n);
+    expect(stateById(ctx, 6n).step).toBe('COMPLETE');
+    const arrival = rows(ctx, 'event_private').filter((e: any) => e.characterId === 2n);
+    expect(arrival.map((e: any) => e.kind)).toEqual(['narrative']);
+    expect(arrival[0].message.startsWith('You open your eyes in Brinegate, Saltmarsh Reach.')).toBe(true);
+  });
+
+  it('a refused retry (bob\'s day is spent): FAMILIES_ERROR again and one creation_error line for bob, no retry line', () => {
+    const ctx = newCtx(heldSeed({ step: 'FAMILIES_ERROR', errorMessage: WORLD_FAMILIES_FAILED_MESSAGE }), bob);
+    exhaustDay(ctx, bob);
+    submitAsBob(ctx, 'explore');
+
+    expect(bobCreationLines(ctx)).toEqual([['creation_error', `${WORLD_FAMILIES_FAILED_MESSAGE} Type [explore] to try again.`]]);
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    expect(stateById(ctx, 5n)).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: WORLD_FILL_REFUSED_MESSAGE });
+  });
+});

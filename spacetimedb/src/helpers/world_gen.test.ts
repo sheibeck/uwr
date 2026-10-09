@@ -36,6 +36,7 @@ import {
   startWorldFill,
   failWorldFill,
   retryWorldFill,
+  retryStarterWorldGen,
   WORLD_START_MILESTONE_LINE,
   WORLD_FILL_FAILED_MESSAGE,
   WORLD_FILL_REFUSED_MESSAGE,
@@ -879,28 +880,35 @@ describe('startWorldGeneration', () => {
     const firstState = (step: string) =>
       genStateRow({ id: 4n, characterId: 9n, step, generatedRegionId: 1n });
 
-    it('a failed fill: the arrival names [explore] instead of promising [travel], and explore retries the fill', () => {
-      const ctx = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILL_ERROR'), genStateRow()] });
-      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('reused');
-      const arrival = rows(ctx, 'event_private')[0].message as string;
-      expect(arrival).toContain(REGION_FILL_FAILED_HINT);
-      expect(arrival).not.toContain('[travel] to move');
+    // Phase 51.3.1.2 (D-15, D-17, D-18): nobody enters a starter region before it is whole. A later new
+    // character of the race waits in creation (HELD) instead of being placed into a region still in progress.
+    it('a failed fill: the new character waits (HELD), his console names [explore], and his explore retries the fill', () => {
+      const ctx = newCtx({ ...starterSeed(), world_gen_state: [{ ...firstState('FILL_ERROR'), errorMessage: WORLD_FILL_FAILED_MESSAGE }, genStateRow()] });
+      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('held');
+      expect(rows(ctx, 'world_gen_state')[1]).toMatchObject({ step: 'HELD', generatedRegionId: 1n });
+      expect(rows(ctx, 'character')[0].locationId).toBe(0n);
+      expect(rows(ctx, 'event_private')).toEqual([]);
+      expect(rows(ctx, 'event_creation').map((e: any) => [e.kind, e.message])).toEqual([
+        ['creation', WORLD_START_MILESTONE_LINE],
+        ['creation_error', `${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.`],
+      ]);
 
-      // The retry path is there for this later character too: the failed fill is handed over and re-enqueued.
-      const placed = rows(ctx, 'character')[0];
-      expect(placed.locationId).toBe(21n);
-      expect(retryWorldFill(ctx, placed, alice)).toBe('started');
+      // The retry path is there for this later character too: the failed fill is re-enqueued on the first
+      // character's state, charged to the asker; its character is kept.
+      expect(retryStarterWorldGen(ctx, rows(ctx, 'character')[0], alice)).toBe('fill_started');
       const failed = rows(ctx, 'world_gen_state').find((s: any) => s.id === 4n);
-      expect(failed).toMatchObject({ step: 'FILLING', characterId: 10n });
+      expect(failed).toMatchObject({ step: 'FILLING', characterId: 9n, playerId: alice });
       expect(rows(ctx, 'llm_job').map((j: any) => j.route)).toEqual(['world_gen']);
+      expect(rows(ctx, 'character')[0].locationId).toBe(0n);
     });
 
-    it('a fill still running: the arrival asks for a moment instead of promising [travel]', () => {
+    it('a fill still running: the new character waits (HELD) with the 7e line only, no placement and no call', () => {
       const ctx = newCtx({ ...starterSeed(), world_gen_state: [firstState('FILLING'), genStateRow()] });
-      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('reused');
-      const arrival = rows(ctx, 'event_private')[0].message as string;
-      expect(arrival).toContain(REGION_FILL_PENDING_HINT);
-      expect(arrival).not.toContain('[travel] to move');
+      expect(startWorldGeneration(ctx, rows(ctx, 'world_gen_state')[1])).toBe('held');
+      expect(rows(ctx, 'character')[0].locationId).toBe(0n);
+      expect(rows(ctx, 'event_private')).toEqual([]);
+      expect(rows(ctx, 'llm_job')).toEqual([]);
+      expect(rows(ctx, 'event_creation').map((e: any) => [e.kind, e.message])).toEqual([['creation', WORLD_START_MILESTONE_LINE]]);
     });
 
     it('a finished region with exits still offers [travel]', () => {

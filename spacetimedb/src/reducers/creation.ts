@@ -113,7 +113,8 @@ function retryStarterFromCreation(ctx: any, character: any, appendCreationEvent:
     // Phase 51.3.1.2 (D-17, D-18): only the failed stage (2a or 2b) of the first region was re-enqueued.
     appendCreationEvent(ctx, ctx.sender, 'creation', WORLD_FILL_RETRY_LINE);
   }
-  // 'refused' already posted its creation_error line; 'reused' placed the character in the world.
+  // 'refused' already posted its creation_error line; 'reused' placed the character in the world; 'held'
+  // (Phase 51.3.1.2, D-17: he waits on a starter region still being built) already posted the 7e line.
 }
 
 function parseArchetype(text: string): string | null {
@@ -351,6 +352,9 @@ export const registerCreationReducers = (deps: any) => {
       createdAt: ctx.timestamp,
       updatedAt: ctx.timestamp,
     });
+    // Phase 51.3.1.2 (D-15, D-17): the character stays at location 0 (the creation console) until his first
+    // region is whole: a new region ('enqueued'), or a starter region of his race still being built ('held',
+    // the 7e line is posted). Only an already whole starter region places him now ('reused').
     startWorldGeneration(ctx, starterGenState);
 
     // Online status (51.1): the last character-row writes of finalize (research Pitfall 1).

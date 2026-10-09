@@ -2517,6 +2517,85 @@ describe('staged world generation (LAT-03)', () => {
         expect(rowColumnProblems('location', loc)).toEqual([]);
       }
     });
+
+    // Phase 51.3.1.2, Plan 13 (D-15, D-17, SC2, SC6): two new characters of one race on one starter region.
+    it('two new characters of one race: both wait in creation (7e) until the families land, then both are placed; three calls in all', () => {
+      const bob = { toHexString: () => 'b'.repeat(64) };
+      const confirming = (id: bigint, playerId: any, characterName: string) => ({
+        id,
+        playerId,
+        step: 'CONFIRMING',
+        raceName: 'Saltkin',
+        raceNarrative: 'Marsh dwellers.',
+        raceBonuses: '{"primary":{"stat":"wis","value":2},"secondary":{"stat":"con","value":1},"flavor":""}',
+        archetype: 'mystic',
+        className: 'Tidecaller',
+        characterName,
+        createdAt: T,
+        updatedAt: T,
+      });
+      const proc = createMockProcCtx({
+        seed: {
+          player: [{ id: alice, userId: 7n }, { id: bob, userId: 8n }],
+          character_creation_state: [confirming(1n, alice, 'Mirel'), confirming(2n, bob, 'Tamsin')],
+          llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+        },
+        timestampMicros: T0,
+        responses: [okJsonReply(WORLD_START_JSON), okJsonReply(PLACES_JSON), okJsonReply(FAMILIES_JSON)],
+        strict: true,
+      });
+      const as = (sender: any) => ({
+        db: proc.db,
+        sender,
+        get timestamp() {
+          return proc.ctx.timestamp;
+        },
+      });
+      const consoleOf = (who: any) =>
+        rows(proc, 'event_creation').filter((e: any) => e.playerId === who).map((e: any) => e.message);
+      const charNamed = (name: string) => rows(proc, 'character').find((c: any) => c.name === name);
+      const stateOf = (characterId: bigint) => rows(proc, 'world_gen_state').find((s: any) => s.characterId === characterId);
+
+      // Mirel is created; her starter region's stage 1 and places land; she waits in creation.
+      handlers.submit_creation_input(as(alice), { text: 'confirm' });
+      expect(run(proc)).toBe('completed');
+      expect(consoleOf(alice)).toContain(WORLD_START_MILESTONE_LINE);
+      expect(run(proc)).toBe('completed');
+      const mirel = charNamed('Mirel');
+      expect(mirel.locationId).toBe(0n);
+      expect(stateOf(mirel.id).step).toBe('FILLING_FAMILIES');
+
+      // Tamsin (same race) is created while the region is held: HELD, no call, the 7e line on his console.
+      const jobsBefore = rows(proc, 'llm_job').length;
+      handlers.submit_creation_input(as(bob), { text: 'confirm' });
+      const tamsin = charNamed('Tamsin');
+      expect(tamsin.locationId).toBe(0n);
+      const region = rows(proc, 'region')[0];
+      expect(stateOf(tamsin.id)).toMatchObject({ step: 'HELD', generatedRegionId: region.id, playerId: bob });
+      expect(rows(proc, 'llm_job')).toHaveLength(jobsBefore);
+      expect(consoleOf(bob).filter((m: string) => m === WORLD_START_MILESTONE_LINE)).toHaveLength(1);
+      // A creation-console progress line stays on screen for Mirel: her families job is still active.
+      expect(rows(proc, 'llm_job').filter((j: any) => j.route === 'world_gen_families' && j.status === 'pending')).toHaveLength(1);
+
+      // The families land: the region is whole and both are placed.
+      expect(run(proc)).toBe('completed');
+      expect(stateOf(mirel.id).step).toBe('COMPLETE');
+      expect(stateOf(tamsin.id).step).toBe('COMPLETE');
+      const arrival = rows(proc, 'location').find((l: any) => l.name === 'Ember Hollow');
+      expect(charNamed('Mirel')).toMatchObject({ locationId: arrival.id, boundLocationId: arrival.id });
+      expect(charNamed('Tamsin')).toMatchObject({ locationId: arrival.id, boundLocationId: arrival.id });
+      const narrativeOf = (id: bigint) =>
+        rows(proc, 'event_private').filter((e: any) => e.characterId === id && e.kind === 'narrative').map((e: any) => e.message);
+      expect(narrativeOf(mirel.id)).toHaveLength(1);
+      expect(narrativeOf(mirel.id)[0]).toContain('Ash drifts down like a slow, grey snowfall.');
+      expect(narrativeOf(tamsin.id)).toHaveLength(1);
+      for (const msg of [...narrativeOf(mirel.id), ...narrativeOf(tamsin.id)]) {
+        expect(msg.startsWith('You open your eyes in Ember Hollow, Cinderfall.')).toBe(true);
+        expect(msg.endsWith('Try [look] to examine your surroundings, or [travel] to move.')).toBe(true);
+      }
+      expect(proc.http.calls).toHaveLength(3);
+      expect(allRowsMatchSchema(proc, ['world_gen_state', 'llm_job', 'llm_dispatch'])).toEqual([]);
+    });
   });
 });
 
