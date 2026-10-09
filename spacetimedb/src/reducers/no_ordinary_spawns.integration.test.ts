@@ -106,6 +106,17 @@ function flatsWorld(extra: Record<string, any[]> = {}) {
   });
 }
 
+/** A flats world at the first T0 offset where Alice's party moving flats, orchard, flats starts no fight. */
+function calmCtx() {
+  for (let i = 0n; i < 400n; i += 1n) {
+    const probe = poolCtx(flatsWorld(), ALICE, T0 + i);
+    for (const to of [FLATS_ID, ORCHARD_ID, FLATS_ID]) moveCharacter(probe, { characterId: 1n, locationId: to });
+    const alice = rows(probe, 'character').find((c: any) => c.id === 1n);
+    if (alice.locationId === FLATS_ID && rows(probe, 'combat_encounter').length === 0) return poolCtx(flatsWorld(), ALICE, T0 + i);
+  }
+  throw new Error('no calm timestamp for flats, orchard, flats');
+}
+
 describe('arrival seeds pools, never an ordinary spawn (D-01)', () => {
   it('a move to a non-safe place with linked ordinary types and no pools seeds families and pools and makes no spawn', () => {
     const ctx = poolCtx(flatsWorld(), ALICE);
@@ -126,7 +137,10 @@ describe('arrival seeds pools, never an ordinary spawn (D-01)', () => {
   });
 
   it('a second arrival at the same place inserts no place_pool row and no spawn', () => {
-    const ctx = poolCtx(flatsWorld(), ALICE);
+    // Travel rolls (Plan 13) can start a fight on entering or leaving the flats, which would block the
+    // next move; this case is about pool seeding, so it runs at the first timestamp whose three moves
+    // all go through without a fight (the encounters are covered by travel_encounter.integration.test.ts).
+    const ctx = calmCtx();
     moveCharacter(ctx, { characterId: 1n, locationId: FLATS_ID });
     const flatsPools = json(poolsAt(ctx, FLATS_ID));
     const families = rows(ctx, 'creature_family').length;

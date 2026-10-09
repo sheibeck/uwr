@@ -7,6 +7,27 @@ import { startWorldGeneration } from './world_gen';
 import { beginCombatCooldowns } from './combat_round_state';
 import { markLocationVisited } from './visited';
 import { collapsePassageIfEmpty } from './passages';
+import { drawGroup, rollEncounter, rosterLevel, startPoolFight } from './encounters';
+import { ambushLine, travelQuiet } from '../data/density_lines';
+
+/** A place a travel roll can happen at: charted and not safe (D-10). Uncharted places never roll. */
+function travelRollsAt(place: any): boolean {
+  return !!place && place.isSafe !== true && place.terrainType !== 'uncharted';
+}
+
+/** The ambush line of a travel hit (enter or leave), party wording for more than one traveller. */
+function travelAmbushText(phase: 'enter' | 'leave', party: boolean, placeName: string, family: any, count: number): string {
+  return ambushLine({
+    phase,
+    party,
+    placeName,
+    count,
+    singular: family.singularNoun,
+    plural: family.pluralNoun,
+    verb: family.ambushVerb ?? '',
+    rest: family.ambushRest ?? '',
+  });
+}
 
 /** The deps performTravel needs (the fight start comes in through startCombat, the bound form). */
 export interface TravelDeps {
@@ -67,6 +88,7 @@ export function performTravel(
     ensurePoolsForLocation,
     isGroupLeaderOrSolo,
     effectiveGroupId,
+    startCombat,
   } = deps;
 
   const fail = (msg: string) => {
@@ -172,6 +194,39 @@ export function performTravel(
     }
   }
 
+  // LEAVE ROLL (D-09, D-35): every travel check has passed and nothing is spent yet. Leaving a
+  // non-safe place rolls once for the whole party (seeded by the leader, the LOWEST level, D-56). A hit
+  // starts the fight where the party stands; no stamina, no cooldown, no move.
+  if (travelRollsAt(fromLocation)) {
+    const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+    const level = rosterLevel(travelingCharacters);
+    const hit = rollEncounter(ctx, {
+      locationId: originLocationId,
+      isSafe: false,
+      partyLevel: level,
+      phase: 'leave',
+      leaderId: character.id,
+      now,
+    });
+    const drawn = hit ? drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed }) : [];
+    if (hit && drawn.length > 0) {
+      startPoolFight({ startCombat }, ctx, {
+        leader: character,
+        candidates: travelingCharacters,
+        groupId: effectiveGroupId(character) ?? null,
+        pool: hit.pool,
+        family: hit.family,
+        drawn,
+        originKind: 'ambush_leave',
+        line: {
+          kind: 'ambush',
+          text: travelAmbushText('leave', travelingCharacters.length > 1, fromLocation!.name, hit.family, drawn.length),
+        },
+      });
+      return false;
+    }
+  }
+
   // Deduct stamina and apply cooldowns
   for (const traveler of travelingCharacters) {
     // The one stamina rule (data/travel_config.ts), shared with the client's displayed cost.
@@ -198,20 +253,13 @@ export function performTravel(
     }
   }
 
-  // Execute movement for each character
-  const moveOne = (charId: bigint) => {
-    const row = ctx.db.character.id.find(charId)!;
-    ctx.db.character.id.update({ ...row, locationId: location.id });
-    // Visited places: the origin gets a row when it has none, the destination records where this arrival came from.
-    markLocationVisited(ctx, row.id, originLocationId);
-    markLocationVisited(ctx, row.id, location.id, originLocationId);
-    appendPrivateEvent(ctx, row.id, row.ownerUserId, 'move', `You travel to ${location.name}.`);
-    appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
-    appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
-    ensurePoolsForLocation(ctx, location.id);
-    performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
+  // A non-safe destination rolls once after everyone has moved (D-09): its travel line and auto-look
+  // wait for the roll, so the ambush (or quiet) line comes first, then the place card, then the fight.
+  const enterRolls = travelRollsAt(location);
+  const arrivedIds: bigint[] = [];
 
-    // Auto-look: show full location overview after travel
+  /** The place card (auto-look) of a character at its current place. */
+  const autoLook = (charId: bigint) => {
     const arrivedChar = ctx.db.character.id.find(charId);
     if (arrivedChar) {
       const lookParts = buildLookOutput(ctx, arrivedChar);
@@ -219,6 +267,24 @@ export function performTravel(
         appendPrivateEvent(ctx, arrivedChar.id, arrivedChar.ownerUserId, 'look', lookParts.join('\n'));
       }
     }
+  };
+
+  // Execute movement for each character
+  const moveOne = (charId: bigint) => {
+    const row = ctx.db.character.id.find(charId)!;
+    ctx.db.character.id.update({ ...row, locationId: location.id });
+    // Visited places: the origin gets a row when it has none, the destination records where this arrival came from.
+    markLocationVisited(ctx, row.id, originLocationId);
+    markLocationVisited(ctx, row.id, location.id, originLocationId);
+    if (enterRolls) arrivedIds.push(row.id);
+    else appendPrivateEvent(ctx, row.id, row.ownerUserId, 'move', `You travel to ${location.name}.`);
+    appendLocationEvent(ctx, originLocationId, 'move', `${row.name} departs.`, row.id);
+    appendLocationEvent(ctx, location.id, 'move', `${row.name} arrives.`, row.id);
+    ensurePoolsForLocation(ctx, location.id);
+    performPassiveSearch(ctx, ctx.db.character.id.find(charId)!, location.id, appendPrivateEvent);
+
+    // Auto-look: show full location overview after travel (after the enter roll at a non-safe place)
+    if (!enterRolls) autoLook(charId);
 
     // AUTO-REGISTER for active world events in destination region
     const destLocation = ctx.db.location.id.find(location.id);
@@ -303,6 +369,53 @@ export function performTravel(
   // An explored passage collapses into a border crossing once its last traveller has left. Checked
   // once, after every traveller (leader and followers) has moved, so no follower targets a deleted place.
   collapsePassageIfEmpty(ctx, originLocationId);
+
+  // ENTER ROLL (D-09, D-14, D-56): once for the travelling party, seeded by the leader, by the
+  // LOWEST traveller level, against the destination's pools. Skipped when a traveller is already in
+  // an active fight here (group AUTO-JOIN above; Pitfall 10): no second fight on arrival.
+  if (enterRolls && arrivedIds.length > 0) {
+    const travellers = arrivedIds.map((id) => ctx.db.character.id.find(id)).filter(Boolean);
+    const party = travellers.length > 1;
+    const leader = ctx.db.character.id.find(character.id) ?? travellers[0];
+    const joinedFight = travellers.some((t: any) => !!activeCombatIdForCharacter(ctx, t.id));
+    let hit: ReturnType<typeof rollEncounter> = null;
+    let drawn: ReturnType<typeof drawGroup> = [];
+    const level = rosterLevel(travellers);
+    if (!joinedFight) {
+      hit = rollEncounter(ctx, {
+        locationId: location.id,
+        isSafe: false,
+        partyLevel: level,
+        phase: 'enter',
+        leaderId: character.id,
+        now: ctx.timestamp.microsSinceUnixEpoch,
+      });
+      if (hit) drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed });
+    }
+    for (const t of travellers) {
+      if (joinedFight) {
+        appendPrivateEvent(ctx, t.id, t.ownerUserId, 'move', `You travel to ${location.name}.`);
+      } else if (hit && drawn.length > 0) {
+        appendPrivateEvent(ctx, t.id, t.ownerUserId, 'ambush',
+          travelAmbushText('enter', party, location.name, hit.family, drawn.length));
+      } else {
+        appendPrivateEvent(ctx, t.id, t.ownerUserId, 'travel_quiet', travelQuiet(location.name, party));
+      }
+      autoLook(t.id);
+    }
+    if (hit && drawn.length > 0) {
+      startPoolFight({ startCombat }, ctx, {
+        leader,
+        candidates: travellers,
+        groupId: effectiveGroupId(leader) ?? null,
+        pool: hit.pool,
+        family: hit.family,
+        drawn,
+        originKind: 'ambush_enter',
+        line: null, // the ambush line is already printed, before the place card
+      });
+    }
+  }
 
   // Check if destination is uncharted -- trigger world generation
   const destLocation = ctx.db.location.id.find(targetLocationId);
