@@ -32,6 +32,8 @@ import {
 import { createPool, setPoolCount } from '../helpers/pools';
 import { rollEncounter } from '../helpers/encounters';
 import { myHarvestCapRows } from '../views/harvest';
+import { performPassiveSearch } from '../helpers/search';
+import { appendPrivateEvent } from '../helpers/events';
 import { DENSITY_RULES } from '../data/density_rules';
 import {
   exhaustedRefusal,
@@ -406,5 +408,68 @@ describe('legacy node gathers', () => {
     finish(ctx);
     expect(gathersOf(ctx, 1n)).toHaveLength(0);
     expect(rows(ctx, 'item_instance')).toHaveLength(0);
+  });
+});
+
+describe('passive search makes no resource nodes (D-26)', () => {
+  const nodeRow = (id: bigint, locationId: bigint) => ({
+    id,
+    locationId,
+    characterId: 1n,
+    itemTemplateId: IRON_ORE_ID,
+    name: 'Iron Ore',
+    timeOfDay: 'any',
+    quantity: 3n,
+    state: 'available',
+    lockedByCharacterId: undefined,
+    respawnAtMicros: undefined,
+  });
+
+  function searchAt(ts: bigint, extra: Record<string, any[]> = {}) {
+    const { ctx } = world({
+      mutate: (seed) => {
+        for (const [table, add] of Object.entries(extra)) seed[table] = [...(seed[table] ?? []), ...add];
+      },
+    });
+    at(ctx, MODULE, ts);
+    const alice = rows(ctx, 'character').find((c: any) => c.id === 1n);
+    performPassiveSearch(ctx, alice, ORCHARD_ID, appendPrivateEvent);
+    return ctx;
+  }
+
+  it('an arrival inserts no resource_node and never says it found resources; old personal nodes here are cleaned up', () => {
+    for (let i = 0n; i < 25n; i += 1n) {
+      const ctx = searchAt(T0 + i * 7_919n, { resource_node: [nodeRow(900n, ORCHARD_ID), nodeRow(901n, FLATS_ID)] });
+      expect(rows(ctx, 'resource_node').map((n: any) => n.id)).toEqual([901n]);
+      expect(feed(ctx, 1n)).not.toContain('You discover some resources.');
+      const results = rows(ctx, 'search_result');
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ characterId: 1n, locationId: ORCHARD_ID, foundResources: false });
+    }
+  });
+
+  it('an arrival still discovers a quest item', () => {
+    const ctx = searchAt(T0, {
+      quest_template: [{
+        id: 50n, name: 'The Lost Ledger', npcId: 5n, targetEnemyTemplateId: 0n, requiredCount: 1n, minLevel: 1n, maxLevel: 10n,
+        rewardXp: 10n, rewardGold: 0n, questType: 'explore', targetLocationId: ORCHARD_ID, targetItemName: 'Lost Ledger', characterId: 1n,
+      }],
+      quest_instance: [{ id: 60n, characterId: 1n, questTemplateId: 50n, progress: 0n, completed: false }],
+    });
+    expect(rows(ctx, 'quest_item')).toEqual([expect.objectContaining({ characterId: 1n, questTemplateId: 50n, locationId: ORCHARD_ID, name: 'Lost Ledger' })]);
+    expect(feed(ctx, 1n)).toContain('Your search reveals something: Lost Ledger!');
+    expect(rows(ctx, 'search_result')[0]).toMatchObject({ foundQuestItem: true, foundResources: false });
+  });
+
+  it('an arrival still reveals a living named enemy of a boss quest', () => {
+    const ctx = searchAt(T0, {
+      quest_template: [{
+        id: 51n, name: 'Old Greymaw', npcId: 5n, targetEnemyTemplateId: 101n, requiredCount: 1n, minLevel: 1n, maxLevel: 10n,
+        rewardXp: 10n, rewardGold: 0n, questType: 'boss_kill', targetLocationId: ORCHARD_ID, targetItemName: 'Old Greymaw', characterId: 1n,
+      }],
+      quest_instance: [{ id: 61n, characterId: 1n, questTemplateId: 51n, progress: 0n, completed: false }],
+      named_enemy: [{ id: 80n, characterId: 1n, name: 'Old Greymaw', enemyTemplateId: 101n, locationId: ORCHARD_ID, isAlive: true, lastKilledAt: undefined, respawnMinutes: 30n }],
+    });
+    expect(rows(ctx, 'search_result')[0]).toMatchObject({ foundNamedEnemy: true, namedEnemyId: 80n, foundResources: false });
   });
 });
