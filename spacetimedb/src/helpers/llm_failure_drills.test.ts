@@ -33,6 +33,7 @@ import { classifyClaudeResponse } from './claude_request';
 import { keeperMessageForJob, publicErrorBucket, LLM_RESTING_ERROR_CODES } from './llm_status';
 import { CLASS_FILL_FAILED_LINE, classFillRetryLine } from './creation_generation';
 import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { awardRenown } from './renown';
 import { appendPrivateEvent, appendCreationEvent, appendNpcDialog } from './events';
 import { estimateCostMicroUsd } from './measurement';
@@ -649,7 +650,10 @@ describe('world-gen failure for a placed character', () => {
     run(proc, jobId);
     const lines = playerLines();
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({ channel: 'private', kind: 'system', to: '1', text: r.line(false) });
+    // Phase 51.3.1.2 (D-18): a placed character whose fill failed gets the owner's 7d line; the creation
+    // console keeps today's line (r.line).
+    const text = route === 'world_gen' ? REGION_HOLD_FAILED_LINE : r.line(false);
+    expect(lines[0]).toMatchObject({ channel: 'private', kind: 'system', to: '1', text });
     expectPlayerSafe(playerTexts(proc));
   });
 

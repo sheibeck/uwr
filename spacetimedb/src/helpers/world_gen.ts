@@ -47,6 +47,7 @@ import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
+import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import {
   assignRegionFamilies,
   chooseHubs,
@@ -826,8 +827,9 @@ export function startWorldFill(tx: any, genState: any): 'enqueued' | 'duplicate'
 /**
  * Stage 2 failed (call failure, malformed reply, refused enqueue): the state becomes FILL_ERROR
  * with the in-voice message, the hubs of the region are placed by rule with their vendor and banker
- * (placeRegionHubs with no marks, then settleRegionServices; D-59 to D-64), and the player gets one
- * line that names [explore]. No stage-1 row is removed.
+ * (placeRegionHubs with no marks, then settleRegionServices; D-59 to D-64), and the failure lines go
+ * out (postFillFailure: today's line on the creation console, the 7d line at the crossing; D-18). No
+ * stage-1 row is removed.
  */
 export function failWorldFill(tx: any, genState: any, message: string): void {
   const current = tx.db.world_gen_state.id.find(genState.id);
@@ -851,14 +853,44 @@ export function failWorldFill(tx: any, genState: any, message: string): void {
     }
   }
 
+  postFillFailure(tx, stored, message, `${message} Type [explore] to try again.`);
+}
+
+/** The [explore] hint every failure line ends with (D-18). */
+const EXPLORE_HINT = ' Type [explore] to try again.';
+
+/**
+ * The lines of a stage-2a or stage-2b failure, by where the people are (D-15, D-18):
+ *  - the triggering character still in creation (location 0, or gone): one creation_error Keeper segment
+ *    with `creationLine`;
+ *  - otherwise the triggering character, wherever he is, and every character standing at the crossing
+ *    (character.by_location of a non-zero sourceLocationId; location 0 is never a crossing) get the
+ *    owner's 7d line (REGION_HOLD_FAILED_LINE), or the resting line with the [explore] hint when the
+ *    kill switch or the ceiling refused (message === LLM_RESTING_LINE). Nobody gets a line twice and
+ *    nobody elsewhere gets one.
+ */
+function postFillFailure(tx: any, genState: any, message: string, creationLine: string): void {
   const char = tx.db.character.id.find(genState.characterId);
-  const line = `${message} Type [explore] to try again.`;
-  if (char && char.locationId !== 0n) {
-    appendPrivateEvent(tx, genState.characterId, char.ownerUserId, 'system', line);
-  } else {
-    // Phase 46: the Keeper-voice line is one Keeper narration segment (wording unchanged).
-    const segments = keeperFallback(line);
+  if (!char || char.locationId === 0n) {
+    // Phase 46: the Keeper-voice line is one Keeper narration segment.
+    const segments = keeperFallback(creationLine);
     appendCreationEvent(tx, genState.playerId, 'creation_error', flattenSegments(segments), segments);
+  }
+
+  const holdLine = message === LLM_RESTING_LINE ? `${LLM_RESTING_LINE}${EXPLORE_HINT}` : REGION_HOLD_FAILED_LINE;
+  const told = new Set<bigint>();
+  const tell = (c: any): void => {
+    if (!c || c.locationId === 0n || told.has(c.id)) return;
+    told.add(c.id);
+    appendPrivateEvent(tx, c.id, c.ownerUserId, 'system', holdLine);
+  };
+  tell(char);
+  const crossing: bigint = genState.sourceLocationId ?? 0n;
+  if (crossing !== 0n) {
+    const here = [...tx.db.character.by_location.filter(crossing)].sort((a: any, b: any) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+    );
+    for (const c of here) tell(c);
   }
 }
 
@@ -1010,7 +1042,12 @@ export function startWorldFamilies(tx: any, genState: any): 'enqueued' | 'duplic
 
 /**
  * Stage 2b failed (call failure, malformed or empty reply, refused enqueue, unreadable input): the state
- * becomes FAMILIES_ERROR with the in-voice message (D-08, D-09). Never FILL_ERROR; no row is removed.
+ * becomes FAMILIES_ERROR with the in-voice message as its public errorMessage (D-08, D-09). Never
+ * FILL_ERROR, so the places stage 2a wrote are never written again; no hub is placed and no row is
+ * changed or removed (T-51.3.1.2-25). The lines (postFillFailure, D-18): a new character still in
+ * creation gets the owner's section 5 line (WORLD_FAMILIES_FAILED_MESSAGE with the [explore] hint), or the
+ * resting line with it when the kill switch or ceiling refused; the triggering character and everyone at
+ * the crossing get the 7d line (or that resting line).
  */
 export function failWorldFamilies(tx: any, genState: any, message: string): void {
   const current = tx.db.world_gen_state.id.find(genState.id);
@@ -1022,6 +1059,9 @@ export function failWorldFamilies(tx: any, genState: any, message: string): void
       updatedAt: tx.timestamp,
     });
   }
+  const creationLine =
+    message === LLM_RESTING_LINE ? `${LLM_RESTING_LINE}${EXPLORE_HINT}` : `${WORLD_FAMILIES_FAILED_MESSAGE}${EXPLORE_HINT}`;
+  postFillFailure(tx, current ?? genState, message, creationLine);
 }
 
 /**

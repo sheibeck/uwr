@@ -9112,7 +9112,7 @@ exports[`llm apply world_gen (fill) failure path > sets the state to FILL_ERROR,
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "message": "The storm on the horizon does not pass. It hangs over the land ahead and shows no sign of moving. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -10313,7 +10313,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > a FILLING state whose
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "message": "The storm on the horizon does not pass. It hangs over the land ahead and shows no sign of moving. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -10384,7 +10384,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > a locations value tha
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "message": "The storm on the horizon does not pass. It hangs over the land ahead and shows no sign of moving. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -11866,7 +11866,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > invalid JSON fails th
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "message": "The storm on the horizon does not pass. It hangs over the land ahead and shows no sign of moving. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],
@@ -12730,7 +12730,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > no locations key fail
       "createdAt": "ts:1700000000000000n",
       "id": "1n",
       "kind": "system",
-      "message": "The Keeper loses the thread of the rest of the map. What he has already shown you will hold. Type [explore] to try again.",
+      "message": "The storm on the horizon does not pass. It hangs over the land ahead and shows no sign of moving. Type [explore] to try again.",
       "ownerUserId": "7n"
     }
   ],

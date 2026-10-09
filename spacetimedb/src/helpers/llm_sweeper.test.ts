@@ -14,6 +14,7 @@ import { hasLlmDispatch, scheduledMicros } from './llm_schedule';
 import { LLM_SPEND_ID } from '../data/llm_limits';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -877,7 +878,8 @@ describe('stranded generation locks (a lost failure message)', () => {
       expect(rows(ctx, 'region')).toHaveLength(1);
       expect(rows(ctx, 'npc').map((n: any) => n.npcType).sort()).toEqual(['banker', 'vendor']);
       expect(appendPrivateEvent).toHaveBeenCalledTimes(1);
-      expect((appendPrivateEvent as any).mock.calls[0][4]).toBe(`${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.`);
+      // Phase 51.3.1.2 (D-18): a placed character gets the owner's 7d line; the stored message is unchanged.
+      expect((appendPrivateEvent as any).mock.calls[0][4]).toBe(REGION_HOLD_FAILED_LINE);
       // Idempotent, and nothing is ever re-enqueued by the sweeper.
       expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
       expect(rows(ctx, 'llm_job')).toHaveLength(0);

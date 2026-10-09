@@ -38,6 +38,7 @@ import { CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE, CLASS_FILL_RETRY_H
 import { serializePerkEffect } from './renown';
 import { LLM_RESTING_LINE } from './llm_queue';
 import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE } from './world_gen';
+import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { setLlmEnabled } from './llm_admin_state';
 import { utcDay } from './llm_budget';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
@@ -1049,7 +1050,8 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow']);
     const last = rows(ctx, 'event_private').slice(-1)[0];
-    expect(last.message).toBe(`${WORLD_FILL_REFUSED_MESSAGE} Type [explore] to try again.`);
+    // Phase 51.3.1.2 (D-18): a placed character gets the owner's 7d line; the stored message is unchanged.
+    expect(last.message).toBe(REGION_HOLD_FAILED_LINE);
   });
 
   function filling() {
@@ -1079,7 +1081,8 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(rows(ctx, 'npc').map((n: any) => n.name).sort()).toEqual(['The Ledger Keeper', 'Vessa']);
     expect(rows(ctx, 'llm_job')).toHaveLength(jobsBefore); // never retried on its own
     const last = rows(ctx, 'event_private').slice(-1)[0];
-    expect(last).toMatchObject({ kind: 'system', message: `${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.` });
+    // Phase 51.3.1.2 (D-18): a placed character gets the owner's 7d line; the stored message is unchanged.
+    expect(last).toMatchObject({ kind: 'system', message: REGION_HOLD_FAILED_LINE });
   });
 
   it('stage 2: a failed fill job (call failure, sweeper expiry) ends in FILL_ERROR and starts no new job', () => {
