@@ -76,3 +76,11 @@ Listing taken before the local publish on 2026-10-09 (`SELECT id, step, sourceLo
 None was FILL_ERROR or FAMILIES_ERROR, so no older region is held by this publish. If such a row appears before the world is regenerated: the region is held until someone types `[explore]` at its crossing, and a FILL_ERROR retry writes up to the new 8-10 places into that older region. The owner may prefer to leave it, since the world will be regenerated.
 
 Expected: nothing to do for this database; the listing above is unchanged after the publish (see below).
+
+## Published locally
+
+- 2026-10-09T14:18:38Z to 14:18:41Z UTC: `spacetime publish uwr -p spacetimedb --server local --break-clients < /dev/null`, exit 0, no `--clear-database`. Module log: `Updated program to 49ec61a85ea6e5fd0ea6927140f5386428d7284272fcf8da975927ef0ce621de` at 2026-10-09T14:18:41.264370Z.
+- Migration plan: empty (no table, column or reducer change). Bindings not regenerated.
+- Key check (`true | 108`) matched before and after. Panic count in the last 120 log lines: 0.
+- No data change and no call: llm_job 117 (113 completed, 4 failed), region 4, location 19 before and after; the world_gen_state listing (all five rows COMPLETE) is identical; in_flight 0.
+- Not published to maincloud (owner deploys maincloud by hand).
