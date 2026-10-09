@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   encounterHeading,
+  encounterSourceView,
+  encounterTitle,
   hostileViews,
   livingHostileIds,
   type HostileViewsInput,
@@ -88,7 +90,7 @@ describe('hostileViews target and defeated state', () => {
     );
     expect(view.defeated).toBe(true);
     expect(view.targeted).toBe(false);
-    expect(view.hpText).toBe('0/50');
+    expect(view.hpText).toBe('Down');
   });
 
   it('marks only the matching hostile', () => {
@@ -220,7 +222,7 @@ describe('hostileViews labels', () => {
         templates: [{ id: 100n, level: 4n }],
       }),
     );
-    expect(view.ariaLabel).toBe('Rotfang, level 4, Tough, 44% health');
+    expect(view.ariaLabel).toBe('Rotfang, Damage, level 4, Tough, 44% health');
     expect(view.title).toBe('Rotfang · Tough');
   });
 
@@ -234,14 +236,14 @@ describe('hostileViews labels', () => {
         ],
       }),
     );
-    expect(view.ariaLabel).toBe('Rotfang, level 4, Tough, 44% health, boss, winding up Bile Spray');
+    expect(view.ariaLabel).toBe('Rotfang, Boss, level 4, Tough, 44% health, boss, winding up Bile Spray');
   });
 
   it('omits the level part without a template', () => {
     const [view] = hostileViews(
       input({ enemies: [enemy(1n, { displayName: 'Rotfang', currentHp: 50n, maxHp: 100n })], templates: [] }),
     );
-    expect(view.ariaLabel).toBe('Rotfang, Even match, 50% health');
+    expect(view.ariaLabel).toBe('Rotfang, Damage, Even match, 50% health');
     expect(view.title).toBe('Rotfang · Even match');
   });
 
@@ -254,7 +256,7 @@ describe('hostileViews labels', () => {
     );
     expect(view.name).toBe(XSS);
     expect(view.title).toBe(`${XSS} · Even match`);
-    expect(view.ariaLabel.startsWith(`${XSS}, level 3`)).toBe(true);
+    expect(view.ariaLabel.startsWith(`${XSS}, Damage, level 3`)).toBe(true);
     expect(view.windups[0].lead).toBe(`${XSS} winds up `);
   });
 });
@@ -338,7 +340,7 @@ describe('hostileViews effects', () => {
     expect(view.effects[0].ariaText).toBe('Ignite on Rotfang, 3 rounds left');
     expect(view.effects[1].ariaText).toBe('Sunder on Rotfang, 1 round left');
     expect(view.ariaLabel).toBe(
-      'Rotfang, level 3, Even match, 100% health, Ignite on Rotfang, 3 rounds left, Sunder on Rotfang, 1 round left',
+      'Rotfang, Damage, level 3, Even match, 100% health, Ignite on Rotfang, 3 rounds left, Sunder on Rotfang, 1 round left',
     );
   });
 
@@ -373,9 +375,211 @@ describe('livingHostileIds and encounterHeading', () => {
     expect(livingHostileIds(views)).toEqual([1n, 3n]);
   });
 
-  it('words the heading for one, many and zero', () => {
-    expect(encounterHeading(1)).toBe('Encounter · 1 hostile');
-    expect(encounterHeading(3)).toBe('Encounter · 3 hostiles');
-    expect(encounterHeading(0)).toBe('Encounter · 0 hostiles');
+  it('builds the heading from the title and the living count (shared copy)', () => {
+    expect(encounterHeading('Goblins', 3)).toBe('Encounter · Goblins · 3 left');
+    expect(encounterHeading('', 2)).toBe('Encounter · 2 left');
+    expect(encounterHeading('   ', 1)).toBe('Encounter · 1 left');
+    expect(encounterHeading('Old Greymaw', 1)).toBe('Encounter · Old Greymaw · 1 left');
+    expect(encounterHeading('Goblins', 0)).toBe('Encounter · Goblins · 0 left');
+  });
+});
+
+describe('hostileViews role (D-40)', () => {
+  it('reads the template role, healer as Support, and a missing role as Damage', () => {
+    const views = hostileViews(
+      input({
+        enemies: [
+          enemy(1n, { enemyTemplateId: 101n }),
+          enemy(2n, { enemyTemplateId: 102n }),
+          enemy(3n, { enemyTemplateId: 103n }),
+          enemy(4n, { enemyTemplateId: 104n }),
+          enemy(5n, { enemyTemplateId: 999n }),
+        ],
+        templates: [
+          { id: 101n, level: 3n, role: 'tank' },
+          { id: 102n, level: 3n, role: 'healer' },
+          { id: 103n, level: 3n, role: 'caster' },
+          { id: 104n, level: 3n, role: 'melee' },
+        ],
+      }),
+    );
+    expect(views.map((v) => v.role.word)).toEqual(['Tank', 'Support', 'Caster', 'Damage', 'Damage']);
+  });
+
+  it('shows Boss for a boss template and Named for a named template or a named fight', () => {
+    const boss = hostileViews(input({ templates: [{ id: 100n, level: 3n, role: 'tank', isBoss: true }] }))[0];
+    expect(boss.role.key).toBe('boss');
+    const named = hostileViews(
+      input({ templates: [{ id: 100n, level: 3n, role: 'healer' }], namedTemplateIds: new Set([100n]) }),
+    )[0];
+    expect(named.role.key).toBe('named');
+    const namedFight = hostileViews(input({ templates: [{ id: 100n, level: 3n, role: 'tank' }], namedFight: true }))[0];
+    expect(namedFight.role.key).toBe('named');
+    const plain = hostileViews(
+      input({ templates: [{ id: 100n, level: 3n, role: 'tank' }], namedTemplateIds: new Set([7n]) }),
+    )[0];
+    expect(plain.role.key).toBe('tank');
+  });
+
+  it('puts the role word after the name in the aria label', () => {
+    const [view] = hostileViews(
+      input({
+        enemies: [enemy(1n, { displayName: 'Mender', currentHp: 50n, maxHp: 100n })],
+        templates: [{ id: 100n, level: 3n, role: 'healer' }],
+      }),
+    );
+    expect(view.ariaLabel).toBe('Mender, Support, level 3, Even match, 50% health');
+  });
+});
+
+describe('hostileViews intent (D-40 target line)', () => {
+  const names = new Map<bigint, string>([
+    [1n, 'Hero'],
+    [2n, 'Mara'],
+  ]);
+
+  it('reads Targeting you when the aggro target is the viewer', () => {
+    const [view] = hostileViews(
+      input({ enemies: [enemy(5n, { aggroTargetCharacterId: 1n })], selfId: 1n, characterNames: names }),
+    );
+    expect(view.intent).toEqual({ kind: 'targeting', name: 'you', self: true });
+    expect(view.ariaLabel.endsWith(', targeting you')).toBe(true);
+  });
+
+  it('reads Targeting {name} for another character', () => {
+    const [view] = hostileViews(
+      input({ enemies: [enemy(5n, { aggroTargetCharacterId: 2n })], selfId: 1n, characterNames: names }),
+    );
+    expect(view.intent).toEqual({ kind: 'targeting', name: 'Mara', self: false });
+    expect(view.ariaLabel.endsWith(', targeting Mara')).toBe(true);
+  });
+
+  it('checks the pet column first and shows the pet name', () => {
+    const [view] = hostileViews(
+      input({
+        enemies: [enemy(5n, { aggroTargetPetId: 7n, aggroTargetCharacterId: 1n })],
+        selfId: 1n,
+        characterNames: names,
+        petNames: new Map([[7n, 'Ember']]),
+      }),
+    );
+    expect(view.intent).toEqual({ kind: 'targeting', name: 'Ember', self: false });
+  });
+
+  it('shows no target line until a target is known, or while its name has not arrived', () => {
+    const none = hostileViews(input({ enemies: [enemy(5n)] }))[0];
+    expect(none.intent).toEqual({ kind: 'none', name: null, self: false });
+    expect(none.ariaLabel).not.toContain('targeting');
+    const zero = hostileViews(input({ enemies: [enemy(5n, { aggroTargetCharacterId: 0n, aggroTargetPetId: 0n })] }))[0];
+    expect(zero.intent.kind).toBe('none');
+    const unknown = hostileViews(
+      input({ enemies: [enemy(5n, { aggroTargetCharacterId: 9n })], selfId: 1n, characterNames: names }),
+    )[0];
+    expect(unknown.intent.kind).toBe('none');
+    const unknownPet = hostileViews(input({ enemies: [enemy(5n, { aggroTargetPetId: 8n })] }))[0];
+    expect(unknownPet.intent.kind).toBe('none');
+  });
+
+  it('reads Healing {ally} only with a living heal target, ahead of the aggro target', () => {
+    const views = hostileViews(
+      input({
+        enemies: [
+          enemy(5n, { displayName: 'Mender', healTargetEnemyId: 6n, aggroTargetCharacterId: 1n }),
+          enemy(6n, { displayName: 'Brute' }),
+        ],
+        selfId: 1n,
+        characterNames: names,
+      }),
+    );
+    expect(views[0].intent).toEqual({ kind: 'healing', name: 'Brute', self: false });
+    expect(views[0].ariaLabel.endsWith(', healing Brute')).toBe(true);
+  });
+
+  it('falls back to the aggro target when the heal target is gone or down', () => {
+    const down = hostileViews(
+      input({
+        enemies: [enemy(5n, { healTargetEnemyId: 6n, aggroTargetCharacterId: 2n }), enemy(6n, { currentHp: 0n })],
+        selfId: 1n,
+        characterNames: names,
+      }),
+    )[0];
+    expect(down.intent).toEqual({ kind: 'targeting', name: 'Mara', self: false });
+    const gone = hostileViews(input({ enemies: [enemy(5n, { healTargetEnemyId: 42n })] }))[0];
+    expect(gone.intent.kind).toBe('none');
+  });
+
+  it('a defeated enemy reads Down, has no intent and says out of the fight in its label', () => {
+    const [view] = hostileViews(
+      input({
+        enemies: [enemy(5n, { displayName: 'Brute', currentHp: 0n, maxHp: 480n, aggroTargetCharacterId: 1n })],
+        selfId: 1n,
+        characterNames: names,
+      }),
+    );
+    expect(view.defeated).toBe(true);
+    expect(view.hpText).toBe('Down');
+    expect(view.widthPercent).toBe('0%');
+    expect(view.intent).toEqual({ kind: 'none', name: null, self: false });
+    expect(view.ariaLabel.endsWith(', out of the fight')).toBe(true);
+  });
+
+  it('keeps markup-looking target names as plain strings', () => {
+    const [view] = hostileViews(
+      input({ enemies: [enemy(5n, { aggroTargetCharacterId: 2n })], characterNames: new Map([[2n, XSS]]) }),
+    );
+    expect(view.intent.name).toBe(XSS);
+  });
+});
+
+describe('encounterTitle and encounterSourceView (D-32)', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    origin: 'pull',
+    originName: 'Goblins',
+    originPlural: 'goblins',
+    originLevel: 2n,
+    ...over,
+  });
+
+  it('titles a family fight with the family name and a named fight with the enemy name', () => {
+    expect(encounterTitle(row(), [])).toBe('Goblins');
+    expect(encounterTitle(row({ origin: 'named', originName: 'Cave Rat' }), [{ name: 'Old Greymaw' }])).toBe(
+      'Old Greymaw',
+    );
+    expect(encounterTitle(row({ origin: 'named', originName: 'Cave Rat' }), [])).toBe('Cave Rat');
+    expect(encounterTitle(row({ origin: '', originName: '' }), [{ name: 'Rat' }])).toBe('');
+    expect(encounterTitle(null, [{ name: 'Rat' }])).toBe('');
+  });
+
+  it('reads a pull with the capitalised plural and the density word at pull time', () => {
+    expect(encounterSourceView(row())).toEqual({ text: 'Pulled from Goblins that read stable here.', tone: 'neutral' });
+    expect(encounterSourceView(row({ originLevel: 3n }))?.text).toBe('Pulled from Goblins that read overrun here.');
+    expect(encounterSourceView(row({ originLevel: 1n, originPlural: 'salt skitterers' }))?.text).toBe(
+      'Pulled from Salt skitterers that read scarce here.',
+    );
+  });
+
+  it('tones the ambush origins and words each origin from the shared copy', () => {
+    expect(encounterSourceView(row({ origin: 'ambush_enter' }))).toEqual({ text: 'Ambushed on the way in.', tone: 'ambush' });
+    expect(encounterSourceView(row({ origin: 'ambush_leave' }))).toEqual({ text: 'Ambushed on the way out.', tone: 'ambush' });
+    expect(encounterSourceView(row({ origin: 'ambush_gather' }))).toEqual({
+      text: 'Ambushed while you gather.',
+      tone: 'ambush',
+    });
+    expect(encounterSourceView(row({ origin: 'ambush_other' }))).toEqual({ text: 'Ambushed.', tone: 'ambush' });
+    expect(encounterSourceView(row({ origin: 'named' }))).toEqual({
+      text: 'A named fight. No one else comes.',
+      tone: 'neutral',
+    });
+  });
+
+  it('shows no source line without a recorded origin or row', () => {
+    expect(encounterSourceView(row({ origin: '' }))).toBeNull();
+    expect(encounterSourceView(row({ origin: 'pull', originPlural: '' }))).toBeNull();
+    expect(encounterSourceView(row({ origin: 'something_new' }))).toBeNull();
+    expect(encounterSourceView(null)).toBeNull();
+  });
+
+  it('keeps a markup-looking plural as a plain string', () => {
+    expect(encounterSourceView(row({ originPlural: XSS }))?.text).toBe(`Pulled from ${XSS} that read stable here.`);
   });
 });
