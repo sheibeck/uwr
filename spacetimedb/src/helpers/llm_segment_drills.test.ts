@@ -523,7 +523,7 @@ const WRAPPED: WrappedRoute[] = [
     seed: worldSeed,
     job: () => applyJob('world_gen_start', GEN_CTX),
     // the arrival line is written to the character's private events once the start location is placed
-    success: { reply: JSON.stringify(WORLD_START_JSON), table: 'event_private', kind: 'narrative' },
+    success: { reply: JSON.stringify(WORLD_START_JSON), table: 'event_creation', kind: 'creation' }, // 51.3.1.2-13: a starter character waits in creation; stage 1 posts the 7e line there
     malformed: [
       { name: 'not JSON', reply: NOT_JSON, table: 'event_creation', kind: 'creation_error', count: 1 },
       { name: 'debris', reply: `{"regionName": ${CANARY}`, table: 'event_creation', kind: 'creation_error', count: 1 },

@@ -568,7 +568,7 @@ describe('finishRegionFill (D-15, D-16; the discovery line moves to 7c)', () => 
     }
   });
 
-  it('a starter state (sourceLocationId 0n): COMPLETE and the economy start, but no 7c and no discovery line here', () => {
+  it('a starter state (sourceLocationId 0n): COMPLETE, the economy starts, and the waiting character is placed (arrival and discovery, no 7c) (51.3.1.2-13)', () => {
     const ctx = makeCtx({
       seed: {
         character: [{ id: 10n, ownerUserId: 7n, name: 'Aldric', race: 'Kobold', className: 'Ashweaver', locationId: 0n }],
@@ -579,7 +579,10 @@ describe('finishRegionFill (D-15, D-16; the discovery line moves to 7c)', () => 
     finishRegionFill(ctx, stateOf(ctx));
     expect(stateOf(ctx).step).toBe('COMPLETE');
     expect(econJobs(ctx)).toHaveLength(1);
-    expect(rows(ctx, 'event_private')).toHaveLength(0);
+    const OPENED_HERE = regionOpenedLine('Saltmarsh Reach');
+    const priv = rows(ctx, 'event_private');
+    expect(priv.map((r: any) => r.kind)).toEqual(['narrative', 'system']);
+    expect(priv.map((r: any) => r.message)).not.toContain(OPENED_HERE);
     expect(rows(ctx, 'event_creation')).toHaveLength(0);
   });
 
