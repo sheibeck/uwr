@@ -795,7 +795,7 @@ Plans:
   6. Every tunable number (encounter chance, group size, depletion, creature and resource regrowth, gather yield by density, the per-player harvest cap, hunter activity) lives as a named constant in one shared rules file, so Phase 52.5 Balance Dials can put dials on them later. No admin dial or command ships here (owner, 2026-10-08: "Move all balance dials for any phases to the end, after all relevant systems are in place.").
   7. Tests cover deterministic seeded rolls, chance by density, temperament and level gap, group composition, depletion and regrowth, vacuums, the hunter tick, party travel, safe places, resource pools, and the migration of existing enemies and nodes.
 
-**Plans**: 27 plans (run one at a time in number order; Plans 23-26 wait for the owner's approval of `51.3.1.1-PROMPT-DRAFT.md`)
+**Plans**: 30 plans (run one at a time in number order; Plans 23-26 wait for the owner's approval of `51.3.1.1-PROMPT-DRAFT.md`; Plan 30 waits for the owner's approval of its Revision 2)
 
 Plans:
 **Wave 1**
@@ -855,6 +855,7 @@ Plans:
 - [ ] 51.3.1.1-19-PLAN.md — Nearby: family, named and resource cards, density badges, lines, hints, Pull, Fight, Gather
 - [ ] 51.3.1.1-20-PLAN.md — Safety rating on header, Here card, exits, mobile chips (short names, 44px) and location line
 - [ ] 51.3.1.1-24-PLAN.md — Approved per-family economy wording, size constant, family job input, schema and validator
+- [ ] 51.3.1.1-28-PLAN.md — Family count by region size, 3-5 families per place, feud pick, rule family list and history lines, validator count and history cleaning, creature_family.history column, feud relations (D-66 to D-68, D-70)
 
 **Wave 13**
 
@@ -862,8 +863,13 @@ Plans:
 - [ ] 51.3.1.1-22-PLAN.md — Encounter role chips, target lines, Down, heading, source and foot; threat block removed
 - [ ] 51.3.1.1-25-PLAN.md — Family economy apply, one late job per family, quest families, migration of 51.3 per-type rows
 - [ ] 51.3.1.1-26-PLAN.md — Approved NPC rumour line fed from pool shifts
+- [ ] 51.3.1.1-29-PLAN.md — Region fill sizes families, fills by rule, links 3-5 per place, stores the feud and histories; feud partners in the vacuum; histories in examine
 
 **Wave 14**
+
+- [ ] 51.3.1.1-30-PLAN.md — Owner-approval checkpoint for prompt draft Revision 2, then the Families and Feud lines, histories and feud marks in the fill prompt (6144 tokens, pins), and the NPC family-history line
+
+**Wave 15**
 
 - [ ] 51.3.1.1-27-PLAN.md — Cleanup of retired paths, phase guards, the owner copy review (51.3.1.1-COPY-REVIEW.md), local publish C, validation map
 **UI hint**: yes (design source: `.planning/phases/51.3.1.1-density-pools/design/UWR Living Places.dc.html`, imported 2026-10-08; differences resolved in `51.3.1.1-MOCK-DIFF.md` and CONTEXT D-29 to D-45; the combat timer and lock-in parts of the mock are ignored)
