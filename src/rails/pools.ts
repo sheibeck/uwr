@@ -38,7 +38,7 @@ export const NEARBY_COPY = {
   actions: { pull: 'Pull', fight: 'Fight', gather: 'Gather' },
   named: { named: 'Named', boss: 'Boss', questPrefix: 'Quest: ', inCombat: 'In combat' },
   /** The place's pool subscription failed: one quiet line where the pool groups would be (WR-04). */
-  loadFailed: "Couldn't load what lives here. Reconnecting will retry.",
+  loadFailed: "The land here is hard to read right now. It will clear when you reconnect.",
 } as const;
 
 /** The disabled Gather reason while a gather runs (the existing wording of the exits and the server). */

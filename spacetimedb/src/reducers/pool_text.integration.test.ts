@@ -175,8 +175,8 @@ describe('look lists families, not individual ordinary enemies (D-03, D-22)', ()
     const { ctx } = world({ goblins: 90n, skitterersHere: 0n });
     const out = look(ctx);
     const goblinsLine = creatureLine({ plural: 'goblins', singular: 'goblin', temperament: 'aggressive', level: 3, place: 'the orchard' });
-    expect(out).toMatch(/\{\{color:#[0-9a-f]{6}\}\}\[Goblins\]\{\{\/color\}\} \(Lv 3-5, Overrun\)\. /);
-    expect(out).toContain(`[Goblins]{{/color}} (Lv 3-5, Overrun). ${goblinsLine}`);
+    expect(out).toMatch(/\{\{color:#[0-9a-f]{6}\}\}\[Goblins\]\{\{\/color\}\} \(Lv 3–5, Overrun\)\. /);
+    expect(out).toContain(`[Goblins]{{/color}} (Lv 3–5, Overrun). ${goblinsLine}`);
     const wipedLine = creatureLine({ plural: 'skitterers', singular: 'skitterer', temperament: 'skittish', level: 0, place: 'the orchard' });
     expect(out).toContain(wipedLine);
     expect(out).not.toContain('[Salt-Crust Skitterers]');
@@ -193,7 +193,7 @@ describe('look lists families, not individual ordinary enemies (D-03, D-22)', ()
   it('the family keyword takes the con colour of its top level against the looking character', () => {
     const { ctx } = world();
     // Goblins top out at 5 at the orchard; Alice is level 3 (diff 2: the yellow con colour).
-    expect(look(ctx)).toContain('{{color:#f6d365}}[Goblins]{{/color}} (Lv 3-5, Stable).');
+    expect(look(ctx)).toContain('{{color:#f6d365}}[Goblins]{{/color}} (Lv 3–5, Stable).');
   });
 
   it('a legacy ordinary standing spawn is never listed as an individual', () => {
@@ -285,7 +285,7 @@ describe('no count and no percentage reach the text (T-51.3.1.1-52)', () => {
       .filter((l) => /\[Goblins\]|skitterer|Gather |Safety:|iron ore|wild berries/i.test(l));
     expect(poolLines.length).toBeGreaterThanOrEqual(5);
     for (const l of poolLines) {
-      const stripped = l.replace(/\{\{color:#[0-9a-f]{6}\}\}/g, '').replace(/Lv \d+(-\d+)?/g, '');
+      const stripped = l.replace(/\{\{color:#[0-9a-f]{6}\}\}/g, '').replace(/Lv \d+(–\d+)?/g, '');
       expect(stripped).not.toMatch(/\d/);
       expect(stripped).not.toContain('%');
     }
@@ -307,7 +307,7 @@ describe('examine describes a family or a resource (D-03, D-26)', () => {
     const out = examine(ctx, target);
     const lines = out.split('\n');
     expect(lines[0]).toBe('Goblins');
-    expect(lines[1]).toBe('Lv 3-5, Stable.');
+    expect(lines[1]).toBe('Lv 3–5, Stable.');
     expect(lines[2]).toBe(creatureLine({ plural: 'goblins', singular: 'goblin', temperament: 'aggressive', level: 2, place: 'the orchard' }));
     expect(out).toContain('Members: Goblin Brute (tank), Goblin Cutter (damage), Goblin Mender (support), Goblin Hexer (caster).');
     expect(out).not.toMatch(/%/);
@@ -383,7 +383,7 @@ describe('typed enemies lists families, then individuals', () => {
     say(ctx, 'enemies');
     const out = lastMessage(ctx);
     expect(out).toContain('Enemies at this location:');
-    expect(out).toContain('[Goblins] (Lv 3-5, Stable)');
+    expect(out).toContain('[Goblins] (Lv 3–5, Stable)');
     expect(out).toContain('[Salt-Crust Skitterers] (Lv 3, Stable)');
     expect(out).toContain('[Old Greymaw]');
     expect(out.indexOf('[Goblins]')).toBeLessThan(out.indexOf('[Old Greymaw]'));

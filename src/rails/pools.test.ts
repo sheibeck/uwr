@@ -429,7 +429,7 @@ describe('nearbyGroups', () => {
   it('a failed pool subscription gives one quiet line (WR-04)', () => {
     const groups = nearbyGroups({ ...base, ready: false, failed: true });
     expect(groups.loadFailedLine).toBe(NEARBY_COPY.loadFailed);
-    expect(groups.loadFailedLine).toBe("Couldn't load what lives here. Reconnecting will retry.");
+    expect(groups.loadFailedLine).toBe("The land here is hard to read right now. It will clear when you reconnect.");
     expect(groups.named).toEqual(named);
     expect(groups.creatures).toBeNull();
     expect(groups.nothingAtAll).toBe(false);

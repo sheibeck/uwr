@@ -337,9 +337,9 @@ export function creaturePoolsByDanger(ctx: any, locationId: bigint, now: bigint)
   return creaturePoolsHere(ctx, locationId, now).sort(compareDanger);
 }
 
-/** `Lv a-b`, or `Lv a` when the range is one level (UI-SPEC family card). */
+/** `Lv a–b` (en dash, owner copy review 2026-10-09), or `Lv a` when the range is one level (UI-SPEC family card). */
 export function levelRangeLabel(lo: bigint, hi: bigint): string {
-  return lo === hi ? `Lv ${lo}` : `Lv ${lo}-${hi}`;
+  return lo === hi ? `Lv ${lo}` : `Lv ${lo}–${hi}`;
 }
 
 /** Every name a family answers to: its name, plural noun, singular noun and member names. */
