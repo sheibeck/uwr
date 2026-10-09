@@ -27,6 +27,7 @@ import {
 import { setPoolCount, createPool } from '../helpers/pools';
 import { drawForPull } from '../helpers/encounters';
 import { pullLeadIn, pullRefusal } from '../data/density_lines';
+import { encounterSeed, questTargetHit } from '../data/density_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -298,5 +299,37 @@ describe('start_combat, start_pull and resolve_pull serve individual spawns only
     const before = snapshotDb(ctx.db);
     handlers.resolve_pull(ctx, pullArg);
     expect(snapshotDb(ctx.db)).toBe(before);
+  });
+});
+
+describe('pull_family and a held kill quest (D-74)', () => {
+  /** Alice's kill quest on the Goblin caster (104), active or completed, as full rows. */
+  const withQuest = (completed: boolean) => (seed: Record<string, any[]>) => {
+    seed.quest_template = [
+      ...(seed.quest_template ?? []),
+      {
+        id: 70n, name: 'Hush the Hexer', npcId: 5n, targetEnemyTemplateId: 104n, requiredCount: 1n, minLevel: 1n, maxLevel: 10n,
+        rewardXp: 50n, questType: 'kill', targetLocationId: ORCHARD_ID, description: 'Silence the hexer.', rewardType: 'xp', characterId: 1n,
+      },
+    ];
+    seed.quest_instance = [
+      ...(seed.quest_instance ?? []),
+      { id: 90n, characterId: 1n, questTemplateId: 70n, progress: completed ? 1n : 0n, completed, acceptedAt: { microsSinceUnixEpoch: T0 } },
+    ];
+  };
+
+  it('at a moment whose slot-0 quest roll hits, a Scarce pull brings the target; with the quest done, the front-liner', () => {
+    let ts = T0;
+    while (!questTargetHit(encounterSeed(ts, 1n, ORCHARD_ID, 'pull'), 0)) ts += 1n;
+
+    const held = world(10n, ts, withQuest(false));
+    pull(held.ctx, held.goblins.id);
+    expect(rows(held.ctx, 'combat_enemy').map((e: any) => e.enemyTemplateId)).toEqual([104n]);
+
+    const done = world(10n, ts, withQuest(true));
+    pull(done.ctx, done.goblins.id);
+    const enemies = rows(done.ctx, 'combat_enemy');
+    expect(enemies).toHaveLength(1);
+    expect(['tank', 'damage']).toContain(ROLE_OF[enemies[0].enemyTemplateId.toString()]);
   });
 });

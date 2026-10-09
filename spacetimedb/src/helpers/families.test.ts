@@ -15,8 +15,8 @@ import {
   homeCount,
   poolSeed,
 } from '../data/density_rules';
-import { T0, REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_ID, poolWorld, poolCtx } from './pool_fixture';
-import { createPool } from './pools';
+import { T0, REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_ID, poolWorld, poolCtx, seedPools } from './pool_fixture';
+import { createPool, setPoolCount } from './pools';
 import {
   addResourcePoolsForRegion,
   buildRegionFamilies,
@@ -28,6 +28,9 @@ import {
   familyOfOne,
   isOrdinaryTemplate,
   linkFamilyToLocation,
+  placesByHops,
+  questPoolPlace,
+  resolveKillQuestTarget,
   regionFamilyHistories,
   ruleRelations,
   seedCreaturePools,
@@ -1090,5 +1093,135 @@ describe('regionFamilyHistories (D-68)', () => {
     const before = counts(ctx, [...FAMILY_TABLES, 'place_pool', 'pool_level']);
     regionFamilyHistories(ctx, REGION_ID, ORCHARD_ID);
     expect(counts(ctx, [...FAMILY_TABLES, 'place_pool', 'pool_level'])).toEqual(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plan 32 (D-74): reachable places and completable kill quests
+// ---------------------------------------------------------------------------
+
+describe('placesByHops, questPoolPlace and resolveKillQuestTarget (D-74)', () => {
+  // Region 1: Market (1, safe hub) - Orchard (10) - Flats (11) from the pool world, plus:
+  //   5 Quiet Chapel (safe) linked to the Market; 7 Ember Hollow (woods) linked to the chapel;
+  //   8 Toll House (safe) linked to the chapel only; 6 Lone Shrine (safe) linked to nothing;
+  //   30 Far Gate (region 2, woods) linked to the Market.
+  const link = (id: bigint, a: bigint, b: bigint) => [
+    { id, fromLocationId: a, toLocationId: b },
+    { id: id + 1n, fromLocationId: b, toLocationId: a },
+  ];
+  function hopSeed(extra: Record<string, any[]> = {}) {
+    return poolWorld({
+      extra: {
+        location: [
+          placeRow(5n, 'Quiet Chapel', 'town', true),
+          placeRow(6n, 'Lone Shrine', 'town', true),
+          placeRow(7n, 'Ember Hollow', 'woods', false),
+          placeRow(8n, 'Toll House', 'town', true),
+          { ...placeRow(30n, 'Far Gate', 'woods', false), regionId: 2n },
+        ],
+        location_connection: [...link(40n, MARKET_ID, 5n), ...link(42n, 5n, 7n), ...link(44n, 5n, 8n), ...link(46n, MARKET_ID, 30n)],
+        ...extra,
+      },
+    });
+  }
+  /** A pool-world ctx with the Goblins at the orchard and the Skitterers at the flats. */
+  function hopCtx(extra: Record<string, any[]> = {}) {
+    const ctx = poolCtx(hopSeed(extra));
+    const pools = seedPools(ctx);
+    return { ctx, pools };
+  }
+  const ids = (places: any[]) => places.map((p: any) => p.id);
+
+  it('placesByHops: the start first, then each hop by ascending id, inside the start region only', () => {
+    const { ctx } = hopCtx();
+    expect(ids(placesByHops(ctx, MARKET_ID))).toEqual([MARKET_ID, 5n, ORCHARD_ID, 7n, 8n, FLATS_ID]);
+    expect(ids(placesByHops(ctx, 8n))).toEqual([8n, 5n, MARKET_ID, 7n, ORCHARD_ID, FLATS_ID]);
+    expect(ids(placesByHops(ctx, 6n))).toEqual([6n]);
+    expect(placesByHops(ctx, 999n)).toEqual([]);
+  });
+
+  it('questPoolPlace: the quest place when it hosts creatures, else the nearest hosting place by hops, else null', () => {
+    const { ctx } = hopCtx();
+    expect(questPoolPlace(ctx, ORCHARD_ID)?.id).toBe(ORCHARD_ID);
+    expect(questPoolPlace(ctx, MARKET_ID)?.id).toBe(ORCHARD_ID); // hop 1: Chapel (safe), Orchard
+    expect(questPoolPlace(ctx, 8n)?.id).toBe(7n); // hop 1 Chapel (safe); hop 2 Market (hub), Ember Hollow
+    expect(questPoolPlace(ctx, 6n)).toBeNull();
+  });
+
+  it('a member template name resolves to that member at the nearest place its family is pooled', () => {
+    const { ctx } = hopCtx();
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'goblin hexer')).toEqual({ kind: 'pooled', templateId: 104n, placeId: ORCHARD_ID });
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, '  Salt-Crust Skitterer ')).toEqual({ kind: 'pooled', templateId: 201n, placeId: FLATS_ID });
+  });
+
+  it('a wiped-out pool still counts (it regrows)', () => {
+    const { ctx, pools } = hopCtx();
+    setPoolCount(ctx, pools.goblinsOrchard, 0n, T0);
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'Goblin Mender')).toEqual({ kind: 'pooled', templateId: 103n, placeId: ORCHARD_ID });
+  });
+
+  it("a family name, plural or singular noun resolves to the family's front-liner", () => {
+    const { ctx } = hopCtx();
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'Goblins')).toEqual({ kind: 'pooled', templateId: 101n, placeId: ORCHARD_ID });
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'goblin')).toEqual({ kind: 'pooled', templateId: 101n, placeId: ORCHARD_ID });
+    // The Skitterers have no tank: the damage member leads.
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'skitterers')).toEqual({ kind: 'pooled', templateId: 201n, placeId: FLATS_ID });
+  });
+
+  it('a name linked at a reachable place but in no reachable pooled family gives null', () => {
+    const { ctx } = hopCtx({
+      enemy_template: [enemyTemplate(501n, 'Cave Rat', 'damage', 'beast')],
+      location_enemy_template: [{ id: 70n, locationId: 7n, enemyTemplateId: 501n }],
+    });
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'Cave Rat')).toBeNull();
+  });
+
+  it('an unknown name is invented at questPoolPlace, or null when there is none', () => {
+    const { ctx } = hopCtx();
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'Gloomfang')).toEqual({ kind: 'invent', placeId: ORCHARD_ID });
+    expect(resolveKillQuestTarget(ctx, 8n, 'Gloomfang')).toEqual({ kind: 'invent', placeId: 7n });
+    expect(resolveKillQuestTarget(ctx, 6n, 'Gloomfang')).toBeNull();
+    // A template of another region with that name is not reachable: still invented here.
+    const far = hopCtx({
+      enemy_template: [enemyTemplate(502n, 'Gloomfang', 'damage', 'beast')],
+      location_enemy_template: [{ id: 71n, locationId: 30n, enemyTemplateId: 502n }],
+    });
+    expect(resolveKillQuestTarget(far.ctx, MARKET_ID, 'Gloomfang')).toEqual({ kind: 'invent', placeId: ORCHARD_ID });
+  });
+
+  it('a quest family of one matches by member name', () => {
+    const { ctx } = hopCtx({ enemy_template: [enemyTemplate(950n, 'Gloomfang', 'melee', 'beast', { terrainTypes: 'any', socialGroup: 'loner' })] });
+    familyOfOne(ctx, rows(ctx, 'enemy_template').find((t: any) => t.id === 950n), ORCHARD_ID, T0);
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, 'gloomfang')).toEqual({ kind: 'pooled', templateId: 950n, placeId: ORCHARD_ID });
+  });
+
+  it('no name: the front-liner of the first ordinary family pooled at the nearest hosting place, or null', () => {
+    const { ctx } = hopCtx();
+    expect(resolveKillQuestTarget(ctx, MARKET_ID)).toEqual({ kind: 'pooled', templateId: 101n, placeId: ORCHARD_ID });
+    expect(resolveKillQuestTarget(ctx, MARKET_ID, '   ')).toEqual({ kind: 'pooled', templateId: 101n, placeId: ORCHARD_ID });
+    // From Ember Hollow (no pools there) the walk reaches the orchard first.
+    expect(resolveKillQuestTarget(ctx, 7n)).toEqual({ kind: 'pooled', templateId: 101n, placeId: ORCHARD_ID });
+
+    const bare = poolCtx(hopSeed({ enemy_template: [enemyTemplate(950n, 'Gloomfang', 'melee', 'beast')] }));
+    expect(resolveKillQuestTarget(bare, MARKET_ID)).toBeNull();
+    // Only a quest family of one pooled: still nothing to offer without a name.
+    familyOfOne(bare, rows(bare, 'enemy_template').find((t: any) => t.id === 950n), ORCHARD_ID, T0);
+    const questOnly = rows(bare, 'place_pool').filter((p: any) => p.kind === 'creature');
+    for (const pool of questOnly) {
+      const fam = rows(bare, 'creature_family').find((f: any) => f.id === pool.refId);
+      expect(String(fam.key).startsWith('quest:')).toBe(true);
+    }
+    expect(resolveKillQuestTarget(bare, MARKET_ID)).toBeNull();
+  });
+
+  it('is read-only', () => {
+    const { ctx } = hopCtx();
+    const before = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    resolveKillQuestTarget(ctx, MARKET_ID, 'goblin hexer');
+    resolveKillQuestTarget(ctx, MARKET_ID, 'Gloomfang');
+    resolveKillQuestTarget(ctx, MARKET_ID);
+    placesByHops(ctx, MARKET_ID);
+    questPoolPlace(ctx, 8n);
+    expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).toBe(before);
   });
 });

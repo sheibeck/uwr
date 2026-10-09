@@ -1880,13 +1880,13 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
   });
 
-  it('kill at a safe town: the pool goes to the lowest-id hostile connected place', () => {
+  it('kill at a safe town: the pool goes to the nearest hosting place (lowest id at one hop), recorded on the quest (D-74)', () => {
     const ctx = strictCtx(questSeed(true));
     applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
     const template = invented(ctx);
     const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
     expect(creaturePools(ctx).filter((p: any) => p.refId === family.id).map((p: any) => p.locationId)).toEqual([101n]);
-    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: template.id, targetLocationId: 101n });
   });
 
   it('boss_kill: the new template stays an individual, with no family and no pool', () => {
@@ -1940,18 +1940,132 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     expect(rows(ctx, 'llm_job')).toEqual([]);
   });
 
-  it('kill naming an existing template linked here creates no new family', () => {
-    const wight = {
-      id: 900n, name: 'Bog Wight', role: 'melee', roleDetail: 'melee', abilityProfile: 'melee', terrainTypes: 'swamp', creatureType: 'undead',
-      timeOfDay: 'any', socialGroup: 'wights', socialRadius: 0n, awareness: 'normal', groupMin: 1n, groupMax: 1n, armorClass: 5n,
-      level: 2n, maxHp: 44n, baseDamage: 11n, xpReward: 40n,
-    };
+  it('kill naming an existing template linked here but in no pool creates no quest (D-74) and no new family', () => {
     const ctx = strictCtx(
-      questSeed(false, { enemy_template: [wight], location_enemy_template: [{ id: 1n, locationId: 100n, enemyTemplateId: 900n }] }),
+      questSeed(false, { enemy_template: [wightRow(900n, 'Bog Wight', 'damage')], location_enemy_template: [{ id: 1n, locationId: 100n, enemyTemplateId: 900n }] }),
     );
     applyNpcConversationResult(ctx, npcJob, killReply('kill', 'bog wight'));
     expect(rows(ctx, 'enemy_template')).toHaveLength(1);
     expect(rows(ctx, 'creature_family')).toEqual([]);
-    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(900n);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'quest_instance')).toEqual([]);
+  });
+
+  // -------------------------------------------------------------------------
+  // Plan 32 (D-74): a kill quest is created only when its target lives in a reachable pool.
+  // -------------------------------------------------------------------------
+
+  function wightRow(id: bigint, name: string, role: string) {
+    return {
+      id, name, role, roleDetail: role, abilityProfile: role, terrainTypes: 'swamp', creatureType: 'undead',
+      timeOfDay: 'any', socialGroup: 'wights', socialRadius: 0n, awareness: 'normal', groupMin: 1n, groupMax: 1n, armorClass: 5n,
+      level: 2n, maxHp: 44n, baseDamage: 11n, xpReward: 40n,
+    };
+  }
+  /** The Bog Wights (a damage member 900 and a tank 901) pooled at Reed Hollow (102), one hop from the town. */
+  const wightFamily = (): Record<string, any[]> => ({
+    enemy_template: [wightRow(900n, 'Bog Wight', 'damage'), wightRow(901n, 'Bog Brute', 'tank')],
+    creature_family: [{
+      id: 7n, regionId: 1n, key: '1:undead', name: 'Bog Wights', singularNoun: 'bog wight', pluralNoun: 'bog wights',
+      temperament: 'wary', iconKey: 'undead', creatureType: 'undead', ambushVerb: 'rise', ambushRest: 'from the bog', fitTerrains: 'swamp,woods', history: '',
+    }],
+    family_member: [
+      { id: 1n, familyId: 7n, enemyTemplateId: 900n, role: 'damage', filler: false },
+      { id: 2n, familyId: 7n, enemyTemplateId: 901n, role: 'tank', filler: false },
+    ],
+    place_pool: [{
+      id: 50n, regionId: 1n, locationId: 102n, kind: 'creature', refId: 7n, count: 50n, homeLevel: 2n,
+      wipedAtMicros: 0n, lastSettledMicros: T0, dirty: false, timeOfDay: 'any',
+    }],
+  });
+  const replyWith = (effects: any[]) =>
+    JSON.stringify({ dialogue: 'The fen keeps its own.', effects, memoryUpdate: {}, internalThought: '' });
+  const questLines = (ctx: any) => rows(ctx, 'event_private').filter((e: any) => String(e.message).startsWith('New quest'));
+
+  it.each(['kill', 'kill_loot'])('%s naming a pooled member: that member, the pool place on the quest, no new template', (questType) => {
+    const ctx = strictCtx(questSeed(true, wightFamily()));
+    applyNpcConversationResult(ctx, npcJob, killReply(questType, 'Bog Wight'));
+    expect(rows(ctx, 'enemy_template')).toHaveLength(2);
+    expect(rows(ctx, 'quest_template')).toEqual([
+      expect.objectContaining({ questType, targetEnemyTemplateId: 900n, targetLocationId: 102n }),
+    ]);
+    expect(rows(ctx, 'quest_instance')).toHaveLength(1);
+    expect(questLines(ctx)).toHaveLength(1);
+  });
+
+  it("naming the family resolves to its front-liner (the tank)", () => {
+    const ctx = strictCtx(questSeed(true, wightFamily()));
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'bog wights'));
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: 901n, targetLocationId: 102n });
+  });
+
+  it('an invented target two hops away: the family of one is pooled there and the quest records it', () => {
+    // Mill Square (100, safe) - Toll Bridge (103, safe) - Black Fen (101, hostile); Reed Hollow is gone.
+    const seed = questSeed(true, {
+      location_connection: [
+        { id: 1n, fromLocationId: 100n, toLocationId: 103n },
+        { id: 2n, fromLocationId: 103n, toLocationId: 101n },
+      ],
+    });
+    seed.location = [seed.location[0], { ...seed.location[0], id: 103n, name: 'Toll Bridge' }, seed.location[1]];
+    const ctx = strictCtx(seed);
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+    const template = invented(ctx);
+    const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
+    expect(creaturePools(ctx).filter((p: any) => p.refId === family.id).map((p: any) => p.locationId)).toEqual([101n]);
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: template.id, targetLocationId: 101n });
+    expect(rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === 100n && l.enemyTemplateId === template.id)).toBe(true);
+  });
+
+  it('no hosting place in reach: no template, no quest, no New quest line', () => {
+    const seed = questSeed(true);
+    seed.location = seed.location.map((l: any) => ({ ...l, isSafe: true, terrainType: 'town' }));
+    const ctx = strictCtx(seed);
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+    expect(rows(ctx, 'enemy_template')).toEqual([]);
+    expect(rows(ctx, 'creature_family')).toEqual([]);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'quest_instance')).toEqual([]);
+    expect(questLines(ctx)).toEqual([]);
+  });
+
+  it('no name with a pool in reach: the nearest ordinary family\'s front-liner', () => {
+    const ctx = strictCtx(questSeed(true, wightFamily()));
+    applyNpcConversationResult(ctx, npcJob, replyWith([{ type: 'offer_quest', questName: 'Clear the Hollow', questType: 'kill', targetCount: 2 }]));
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: 901n, targetLocationId: 102n });
+    expect(questLines(ctx)).toHaveLength(1);
+  });
+
+  it('no name and no pool in reach: no quest', () => {
+    const ctx = strictCtx(questSeed(true));
+    applyNpcConversationResult(ctx, npcJob, replyWith([{ type: 'offer_quest', questName: 'Clear the Hollow', questType: 'kill', targetCount: 2 }]));
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'quest_instance')).toEqual([]);
+  });
+
+  it('a skipped quest still lets the dialogue and the other effects of the reply apply', () => {
+    const ctx = strictCtx(questSeed(true));
+    applyNpcConversationResult(
+      ctx,
+      npcJob,
+      replyWith([
+        { type: 'offer_quest', questName: 'Clear the Hollow', questType: 'kill', targetEnemyName: 'Bog Wight', targetCount: 2 },
+        { type: 'affinity_change', amount: 2 },
+      ]),
+    );
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'npc_dialog').map((d: any) => d.text).join(' ')).toContain('The fen keeps its own.');
+    expect(rows(ctx, 'npc_affinity')[0].affinity).toBe(2n);
+    expect(rows(ctx, 'event_private').some((e: any) => String(e.message).includes('regards you with a hint of warmth'))).toBe(true);
+  });
+
+  it('boss_kill resolves exactly as before: the named template linked at the current or a connected place', () => {
+    const ctx = strictCtx(
+      questSeed(false, { enemy_template: [wightRow(900n, 'Bog Wight', 'damage')], location_enemy_template: [{ id: 1n, locationId: 102n, enemyTemplateId: 900n }] }),
+    );
+    applyNpcConversationResult(ctx, npcJob, killReply('boss_kill', 'bog wight'));
+    expect(rows(ctx, 'quest_template')).toEqual([expect.objectContaining({ questType: 'boss_kill', targetEnemyTemplateId: 900n })]);
+    expect(rows(ctx, 'quest_template')[0].targetLocationId).toBeUndefined();
+    expect(rows(ctx, 'creature_family')).toEqual([]);
   });
 });

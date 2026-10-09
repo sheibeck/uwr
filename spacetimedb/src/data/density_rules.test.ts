@@ -38,6 +38,8 @@ import {
   hunterActive,
   pickHunterTargets,
   pickSurgeTarget,
+  questTargetHit,
+  pickQuestTarget,
   regionTrend,
   creatureHomeLevels,
   resourceHomeLevel,
@@ -176,13 +178,20 @@ describe('POOL_ROLL', () => {
   });
 
   it('keeps the slot ranges clear of the other indexes', () => {
+    const SLOT_BASES = ['ROLE_BASE', 'MEMBER_BASE', 'QUEST_TARGET_BASE', 'QUEST_TARGET_PICK_BASE'];
     const singles = Object.entries(POOL_ROLL)
-      .filter(([k]) => k !== 'ROLE_BASE' && k !== 'MEMBER_BASE')
+      .filter(([k]) => !SLOT_BASES.includes(k))
       .map(([, v]) => v);
+    const slots: bigint[] = [];
     for (let i = 0n; i < 4n; i += 1n) {
-      expect(singles).not.toContain(POOL_ROLL.ROLE_BASE + i);
-      expect(singles).not.toContain(POOL_ROLL.MEMBER_BASE + i);
+      for (const base of SLOT_BASES) {
+        const index = (POOL_ROLL as Record<string, bigint>)[base]! + i;
+        expect(singles).not.toContain(index);
+        slots.push(index);
+      }
     }
+    // The four slot ranges do not overlap one another either.
+    expect(new Set(slots).size).toBe(slots.length);
   });
 
   it('gives independent values for two indexes on one seed', () => {
@@ -821,6 +830,8 @@ describe('family and feud constants (D-66, D-67, D-68, D-70)', () => {
     expect(POOL_ROLL.FEUD_PICK).toBe(86n);
     expect(POOL_ROLL.RULE_FAMILY_ORDER).toBe(87n);
     expect(POOL_ROLL.FEUD_CHANCE).toBe(88n);
+    expect(POOL_ROLL.QUEST_TARGET_BASE).toBe(100n);
+    expect(POOL_ROLL.QUEST_TARGET_PICK_BASE).toBe(110n);
     const values = Object.values(POOL_ROLL);
     expect(new Set(values).size).toBe(values.length);
   });
@@ -1043,5 +1054,48 @@ describe('assignRegionFamilies (D-67)', () => {
     const two = assignRegionFamilies({ regionId: 4n, places, families: families.slice(0, 2) });
     for (const keys of two.values()) expect([...keys].sort()).toEqual(['boars', 'wolves']);
     expect(assignRegionFamilies({ regionId: 4n, places: [], families })).toEqual(new Map());
+  });
+});
+
+describe('quest targets in a draw (D-74)', () => {
+  it('names the per-slot chance', () => {
+    expect(DENSITY_RULES.QUEST_TARGET_PULL_CHANCE_PCT).toBe(40);
+  });
+
+  it('questTargetHit is deterministic and hits about 40% of seeds at slot 0', () => {
+    let hits = 0;
+    for (let seed = 0n; seed < 1000n; seed += 1n) {
+      const hit = questTargetHit(seed, 0);
+      expect(questTargetHit(seed, 0)).toBe(hit);
+      if (hit) hits += 1;
+    }
+    expect(hits).toBeGreaterThanOrEqual(350);
+    expect(hits).toBeLessThanOrEqual(450);
+  });
+
+  it('slots 0..3 roll at distinct indexes', () => {
+    const patterns = [0, 1, 2, 3].map((slot) => {
+      let bits = '';
+      for (let seed = 0n; seed < 200n; seed += 1n) bits += questTargetHit(seed, slot) ? '1' : '0';
+      return bits;
+    });
+    expect(new Set(patterns).size).toBe(4);
+    const seed = encounterSeed(1_700_000_000_000_000n, 42n, 7n, 'pull');
+    for (let slot = 0; slot < 4; slot += 1) {
+      expect(questTargetHit(seed, slot)).toBe(economyRoll(seed, POOL_ROLL.QUEST_TARGET_BASE + BigInt(slot)) % 100n < 40n);
+    }
+  });
+
+  it('pickQuestTarget: null for none, the one target for one, a deterministic pick among several', () => {
+    expect(pickQuestTarget(5n, 0, [])).toBeNull();
+    expect(pickQuestTarget(5n, 0, [104n])).toBe(104n);
+    const seen = new Set<bigint>();
+    for (let seed = 0n; seed < 100n; seed += 1n) {
+      const pick = pickQuestTarget(seed, 1, [103n, 104n]);
+      expect(pickQuestTarget(seed, 1, [103n, 104n])).toBe(pick);
+      expect(pick).toBe([103n, 104n][Number(economyRoll(seed, POOL_ROLL.QUEST_TARGET_PICK_BASE + 1n) % 2n)]);
+      seen.add(pick!);
+    }
+    expect([...seen].sort()).toEqual([103n, 104n]);
   });
 });

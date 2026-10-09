@@ -939,6 +939,20 @@ const WOLF_TEMPLATE: Seed = {
   location_enemy_template: [{ id: 70n, locationId: 101n, enemyTemplateId: 60n }],
 };
 
+/** Plan 51.3.1.1-32 (D-74): the Wolf in a family pooled at the Old Mill (101), one hop from the market. */
+const WOLF_POOLED: Seed = {
+  ...WOLF_TEMPLATE,
+  creature_family: [{
+    id: 5n, regionId: 1n, key: '1:beast', name: 'Grey Wolves', singularNoun: 'grey wolf', pluralNoun: 'grey wolves', temperament: 'wary',
+    iconKey: 'beast', creatureType: 'beast', ambushVerb: 'lunge', ambushRest: 'from the grass', fitTerrains: 'plains', history: '',
+  }],
+  family_member: [{ id: 1n, familyId: 5n, enemyTemplateId: 60n, role: 'damage', filler: false }],
+  place_pool: [{
+    id: 50n, regionId: 1n, locationId: 101n, kind: 'creature', refId: 5n, count: 50n, homeLevel: 2n,
+    wipedAtMicros: 0n, lastSettledMicros: T_OLD, dirty: false, timeOfDay: 'any',
+  }],
+};
+
 function npcReply(over: Record<string, any> = {}) {
   return JSON.stringify({
     dialogue: 'The bread is warm today.',
@@ -1571,6 +1585,8 @@ describe('llm apply npc_conversation offer_quest effects', () => {
     expect(et).toHaveLength(1);
     expect(et[0]).toMatchObject({ name: 'Cellar Undead Rat', creatureType: 'undead', level: 3n, maxHp: 44n });
     expect(qt[0].targetEnemyTemplateId).toBe(et[0].id);
+    // Plan 32 (D-74): the quest records the place of its pool.
+    expect(qt[0].targetLocationId).toBe(101n);
     // Linked here, and (Plan 09, D-54) at the hostile neighbour that holds its family-of-one pool.
     expect(rows(ctx, 'location_enemy_template')).toEqual([
       { id: 1n, locationId: 100n, enemyTemplateId: et[0].id },
@@ -1581,43 +1597,53 @@ describe('llm apply npc_conversation offer_quest effects', () => {
     expect(rows(ctx, 'event_private').map((e: any) => e.message)).toContain('New quest: Rats in the Cellar');
   });
 
-  it('kill quest resolves an existing enemy template by name (case-insensitive) at a connected location', () => {
-    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE));
+  it('kill quest resolves an existing pooled enemy template by name (case-insensitive) at a connected location', () => {
+    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_POOLED), alice, true);
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'Wolf Trouble', targetEnemyName: 'WOLF' })] }) });
     expect(rows(ctx, 'enemy_template')).toHaveLength(1);
-    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(60n);
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: 60n, targetLocationId: 101n });
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
   });
 
-  it('kill quest without a target name falls back to the first enemy at the character location', () => {
-    const ctx = newCtx(
-      npcSeed(WORLD_LOCS, {
-        enemy_template: [{ id: 60n, name: 'Wolf', level: 3n }],
-        location_enemy_template: [{ id: 70n, locationId: 100n, enemyTemplateId: 60n }],
-      }),
-    );
-    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
-    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(60n);
+  it('kill quest naming an existing template with no pool in reach creates no quest (D-74)', () => {
+    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE), alice, true);
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'Wolf Trouble', targetEnemyName: 'WOLF' })] }) });
+    expect(rows(ctx, 'enemy_template')).toHaveLength(1);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'quest_instance')).toEqual([]);
+    expect(rows(ctx, 'event_private').map((e: any) => e.message).some((m: string) => m.startsWith('New quest'))).toBe(false);
   });
 
-  it('kill quest with no name and no enemy here keeps targetEnemyTemplateId 0', () => {
-    const ctx = newCtx(npcSeed(WORLD_LOCS));
+  it('kill quest without a target name takes the front-liner of the nearest pooled family', () => {
+    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_POOLED), alice, true);
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
-    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(0n);
-    expect(rows(ctx, 'quest_instance')).toHaveLength(1);
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: 60n, targetLocationId: 101n });
+  });
+
+  it('kill quest with no name and no pool in reach creates no quest (D-74)', () => {
+    const ctx = newCtx(npcSeed(WORLD_LOCS), alice, true);
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer()] }) });
+    expect(rows(ctx, 'quest_template')).toEqual([]);
+    expect(rows(ctx, 'quest_instance')).toEqual([]);
   });
 
   it('an invalid quest type falls back to kill', () => {
-    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE));
+    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_POOLED), alice, true);
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'dance', targetEnemyName: 'Wolf' })] }) });
     expect(rows(ctx, 'quest_template')[0].questType).toBe('kill');
     expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(60n);
   });
 
-  it.each(['kill_loot', 'boss_kill'])('%s quests resolve the enemy like kill quests', (questType) => {
+  it('kill_loot quests resolve the enemy like kill quests', () => {
+    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_POOLED), alice, true);
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'kill_loot', targetEnemyName: 'wolf' })] }) });
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ questType: 'kill_loot', targetEnemyTemplateId: 60n, targetLocationId: 101n });
+  });
+
+  it('boss_kill quests resolve the enemy by name at the current or a connected place, as before', () => {
     const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_TEMPLATE));
-    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType, targetEnemyName: 'wolf' })] }) });
-    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ questType, targetEnemyTemplateId: 60n });
+    exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questType: 'boss_kill', targetEnemyName: 'wolf' })] }) });
+    expect(rows(ctx, 'quest_template')[0]).toMatchObject({ questType: 'boss_kill', targetEnemyTemplateId: 60n });
   });
 
   it('delivery quest resolves the source location by name and the target NPC by name', () => {
@@ -1675,7 +1701,7 @@ describe('llm apply npc_conversation offer_quest effects', () => {
   });
 
   it('QUIRK: two offers in one reply create only the first (the per-NPC cap of 1 counts the new quest)', () => {
-    const ctx = newCtx(npcSeed(WORLD_LOCS));
+    const ctx = newCtx(npcSeed(WORLD_LOCS, WOLF_POOLED), alice, true);
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'First' }), offer({ questName: 'Second' })] }) });
     expect(rows(ctx, 'quest_template').map((q: any) => q.name)).toEqual(['First']);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
@@ -1721,10 +1747,12 @@ describe('llm apply npc_conversation offer_quest effects', () => {
 
   it('a completed quest does not count against the caps', () => {
     const ctx = newCtx(
-      npcSeed(WORLD_LOCS, {
+      npcSeed(WORLD_LOCS, WOLF_POOLED, {
         quest_template: [{ id: 201n, npcId: 20n, name: 'Done', characterId: 10n }],
         quest_instance: [{ id: 301n, characterId: 10n, questTemplateId: 201n, progress: 3n, completed: true, acceptedAt: ts(T_OLD) }],
       }),
+      alice,
+      true,
     );
     exec(ctx, applyJob('npc_conversation', NPC_CTX), { resultText: npcReply({ effects: [offer({ questName: 'Fresh Work' })] }) });
     expect(rows(ctx, 'quest_template').map((q: any) => q.name)).toEqual(['Done', 'Fresh Work']);

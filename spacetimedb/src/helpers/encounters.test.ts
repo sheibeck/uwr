@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
 import { readFileSync } from 'node:fs';
 import { placeSpawnLevel } from '../data/enemy_rules';
-import { encounterSeed } from '../data/density_rules';
+import { encounterSeed, questTargetHit, pickQuestTarget } from '../data/density_rules';
 import { computeLocationTargetLevel } from './location';
 import {
   T0,
@@ -30,6 +30,7 @@ import {
   drawGroup,
   drawForPull,
   startPoolFight,
+  activeKillTargets,
 } from './encounters';
 
 vi.mock('spacetimedb/server', async () =>
@@ -224,6 +225,194 @@ describe('drawGroup (D-11)', () => {
     const fam = family(ctx, GOBLINS_ID);
     const seed = encounterSeed(T0, 1n, ORCHARD_ID, 'pull');
     expect(drawForPull(ctx, goblins, fam, 3n, 1n, T0)).toEqual(drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Quest-aware draws (D-74)
+// ---------------------------------------------------------------------------
+
+/** A quest_template row with every column (strict mock). */
+function questTemplateRow(id: bigint, targetEnemyTemplateId: bigint, questType: string | undefined, characterId = 1n) {
+  return {
+    id,
+    name: `Quest ${id}`,
+    npcId: 5n,
+    targetEnemyTemplateId,
+    requiredCount: 3n,
+    minLevel: 1n,
+    maxLevel: 10n,
+    rewardXp: 50n,
+    questType,
+    targetLocationId: ORCHARD_ID,
+    sourceLocationId: undefined,
+    targetNpcId: undefined,
+    targetItemName: undefined,
+    itemDropChance: undefined,
+    description: 'Thin them out.',
+    rewardType: 'xp',
+    rewardItemName: undefined,
+    rewardItemDesc: undefined,
+    rewardGold: undefined,
+    characterId,
+  };
+}
+
+/** A quest_instance row with every column. */
+function questInstanceRow(id: bigint, characterId: bigint, questTemplateId: bigint, completed = false) {
+  return {
+    id,
+    characterId,
+    questTemplateId,
+    progress: completed ? 3n : 0n,
+    completed,
+    acceptedAt: { microsSinceUnixEpoch: T0 },
+    completedAt: undefined,
+  };
+}
+
+/** The pool world with quests: each entry is [templateId, questType, characterId, completed?]. */
+function questWorld(goblinCount: bigint, quests: [bigint, string | undefined, bigint, boolean?][]) {
+  const quest_template: any[] = [];
+  const quest_instance: any[] = [];
+  quests.forEach(([target, type, characterId, completed], i) => {
+    const id = 70n + BigInt(i);
+    quest_template.push(questTemplateRow(id, target, type, characterId));
+    quest_instance.push(questInstanceRow(90n + BigInt(i), characterId, id, completed === true));
+  });
+  return world(goblinCount, { extra: { quest_template, quest_instance } });
+}
+
+describe('quest-aware draws (D-74)', () => {
+  it('activeKillTargets: an active kill quest of a roster member on a family member', () => {
+    const { ctx } = questWorld(10n, [[104n, 'kill', 1n]]);
+    expect(activeKillTargets(ctx, [char(ctx, 1n)], GOBLIN_TEMPLATES)).toEqual([104n]);
+  });
+
+  it('activeKillTargets: completed, other quest types, other targets and other characters give nothing', () => {
+    const done = questWorld(10n, [[104n, 'kill', 1n, true]]);
+    expect(activeKillTargets(done.ctx, [char(done.ctx, 1n)], GOBLIN_TEMPLATES)).toEqual([]);
+    for (const type of ['boss_kill', 'delivery', 'explore']) {
+      const { ctx } = questWorld(10n, [[104n, type, 1n]]);
+      expect(activeKillTargets(ctx, [char(ctx, 1n)], GOBLIN_TEMPLATES), type).toEqual([]);
+    }
+    const other = questWorld(10n, [[201n, 'kill', 1n]]);
+    expect(activeKillTargets(other.ctx, [char(other.ctx, 1n)], GOBLIN_TEMPLATES)).toEqual([]);
+    const bobs = questWorld(10n, [[104n, 'kill', 2n]]);
+    expect(activeKillTargets(bobs.ctx, [char(bobs.ctx, 1n)], GOBLIN_TEMPLATES)).toEqual([]);
+    expect(activeKillTargets(bobs.ctx, [char(bobs.ctx, 1n), char(bobs.ctx, 2n)], GOBLIN_TEMPLATES)).toEqual([104n]);
+  });
+
+  it('activeKillTargets: kill_loot counts, a missing questType reads kill, duplicates collapse in ascending order', () => {
+    const { ctx } = questWorld(10n, [
+      [104n, 'kill_loot', 1n],
+      [103n, undefined, 2n],
+      [104n, 'kill', 2n],
+    ]);
+    const roster = [char(ctx, 1n), char(ctx, 2n), char(ctx, 1n)];
+    expect(activeKillTargets(ctx, roster, GOBLIN_TEMPLATES)).toEqual([103n, 104n]);
+  });
+
+  it("a Scarce draw is the target exactly when the slot-0 roll hits, else today's draw", () => {
+    const { ctx, goblins } = questWorld(10n, [[104n, 'kill', 1n]]);
+    const fam = family(ctx, GOBLINS_ID);
+    const roster = [char(ctx, 1n)];
+    let hits = 0;
+    const N = 400;
+    for (let seed = 0n; seed < BigInt(N); seed += 1n) {
+      const plain = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed });
+      const drawn = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster });
+      expect(drawn).toHaveLength(1);
+      if (questTargetHit(seed, 0)) {
+        expect(drawn).toEqual([{ enemyTemplateId: 104n, level: orchardLevel(ctx, 104n), spawnId: 0n, poolId: goblins.id }]);
+      } else {
+        expect(drawn).toEqual(plain);
+      }
+      if (drawn[0]!.enemyTemplateId === 104n) hits += 1;
+    }
+    // Measured 2026-10-09: the caster is the lone member in 42% of these seeds (the slot-0 quest roll; a
+    // Scarce plain draw never sends a caster, slot 0 is a front-liner).
+    expect(hits / N).toBeGreaterThanOrEqual(0.25);
+    expect(hits / N).toBeLessThanOrEqual(0.55);
+  });
+
+  it('an Overrun draw keeps its size; each slot is the target exactly when its own roll hits', () => {
+    const { ctx, goblins } = questWorld(90n, [[104n, 'kill', 1n]]);
+    const fam = family(ctx, GOBLINS_ID);
+    const roster = [char(ctx, 1n)];
+    let replaced = 0;
+    for (let seed = 0n; seed < 120n; seed += 1n) {
+      const plain = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed });
+      const drawn = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster });
+      expect(drawn).toHaveLength(plain.length);
+      drawn.forEach((d, slot) => {
+        if (questTargetHit(seed, slot)) {
+          expect(d).toEqual({ enemyTemplateId: 104n, level: orchardLevel(ctx, 104n), spawnId: 0n, poolId: goblins.id });
+          replaced += 1;
+        } else {
+          expect(d).toEqual(plain[slot]);
+        }
+      });
+    }
+    expect(replaced).toBeGreaterThan(0);
+  });
+
+  it('no roster, an empty roster or a roster with no matching quest draws exactly as today', () => {
+    for (const count of [10n, 50n, 90n]) {
+      const { ctx, goblins } = questWorld(count, [[201n, 'kill', 1n], [104n, 'kill', 1n, true]]);
+      const fam = family(ctx, GOBLINS_ID);
+      for (let seed = 0n; seed < 60n; seed += 1n) {
+        const plain = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed });
+        expect(drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster: [] })).toEqual(plain);
+        expect(
+          drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster: [char(ctx, 1n), char(ctx, 2n)] }),
+        ).toEqual(plain);
+      }
+    }
+  });
+
+  it('a healer target can be the lone Scarce slot on a hit (D-74 over the front-liner rule)', () => {
+    const { ctx, goblins } = questWorld(10n, [[103n, 'kill', 1n]]);
+    const fam = family(ctx, GOBLINS_ID);
+    let seen = 0;
+    for (let seed = 0n; seed < 60n; seed += 1n) {
+      const drawn = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster: [char(ctx, 1n)] });
+      if (questTargetHit(seed, 0)) {
+        expect(drawn.map((d) => d.enemyTemplateId)).toEqual([103n]);
+        seen += 1;
+      } else {
+        expect(['tank', 'damage']).toContain(ROLE_OF[drawn[0]!.enemyTemplateId.toString()]);
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it("with two targets a hit slot is pickQuestTarget's choice", () => {
+    const { ctx, goblins } = questWorld(90n, [[104n, 'kill', 1n], [103n, 'kill', 2n]]);
+    const fam = family(ctx, GOBLINS_ID);
+    const roster = [char(ctx, 1n), char(ctx, 2n)];
+    const picked = new Set<bigint>();
+    for (let seed = 0n; seed < 80n; seed += 1n) {
+      const drawn = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster });
+      drawn.forEach((d, slot) => {
+        if (!questTargetHit(seed, slot)) return;
+        const want = pickQuestTarget(seed, slot, [103n, 104n])!;
+        expect(d.enemyTemplateId).toBe(want);
+        expect(d.level).toBe(orchardLevel(ctx, want));
+        picked.add(want);
+      });
+    }
+    expect([...picked].sort()).toEqual([103n, 104n]);
+  });
+
+  it('drawForPull passes its roster on', () => {
+    const { ctx, goblins } = questWorld(90n, [[104n, 'kill', 1n]]);
+    const fam = family(ctx, GOBLINS_ID);
+    const roster = [char(ctx, 1n)];
+    const seed = encounterSeed(T0, 1n, ORCHARD_ID, 'pull');
+    expect(drawForPull(ctx, goblins, fam, 3n, 1n, T0, roster)).toEqual(
+      drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster }),
+    );
   });
 });
 
