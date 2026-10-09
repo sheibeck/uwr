@@ -209,13 +209,27 @@ describe('useMapGraph: the Map rates places from the pool rows (51.3.1.1-31)', (
       game: rated({
         groupMembers: ref([{ id: 1n, groupId: 1n, characterId: 1n }, { id: 2n, groupId: 1n, characterId: 2n }]),
         knownCharacters: ref([
-          { id: 1n, level: 4n, locationId: 10n },
-          { id: 2n, level: 1n, locationId: 10n },
+          { id: 1n, level: 4n, locationId: 10n, online: true },
+          { id: 2n, level: 1n, locationId: 10n, online: true },
         ]),
       }),
     });
     expect(nodeOf(graph, 11n).rating.word).toBe('Risky');
     expect(graph.legendLevel.value).toBe(1);
+  });
+
+  it('an offline party member at your place does not lower the Map rating level (fightRoster, WR-02)', () => {
+    const { graph } = build({
+      game: rated({
+        groupMembers: ref([{ id: 1n, groupId: 1n, characterId: 1n }, { id: 2n, groupId: 1n, characterId: 2n }]),
+        knownCharacters: ref([
+          { id: 1n, level: 4n, locationId: 10n, online: true },
+          { id: 2n, level: 1n, locationId: 10n, online: false },
+        ]),
+      }),
+    });
+    expect(graph.legendLevel.value).toBe(4);
+    expect(nodeOf(graph, 11n).rating.word).not.toBe('Risky');
   });
 
   it('the legend level is the character level solo, and the player level with no character', async () => {

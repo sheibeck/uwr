@@ -96,12 +96,13 @@ export function bossOrNamedAt(
 /**
  * The level a place is rated for: the viewer's own level, or in a party the LOWEST level among the
  * members standing with the viewer (D-56: the weakest member decides whether creatures take an
- * interest). Null with no character.
+ * interest). Only ONLINE members count, the server's fightRoster rule (D-14): the look text,
+ * encounter rolls and draws all rate for that roster. Null with no character.
  */
 export function viewerRatingLevel(
   self: { id: bigint; level: bigint; locationId: bigint } | null,
   groupMembers: readonly { characterId: bigint }[],
-  characters: readonly { id: bigint; level: bigint; locationId: bigint }[],
+  characters: readonly { id: bigint; level: bigint; locationId: bigint; online: boolean }[],
 ): bigint | null {
   if (self === null) return null;
   let lowest = self.level;
@@ -110,6 +111,7 @@ export function viewerRatingLevel(
   for (const member of groupMembers) inParty.add(member.characterId);
   for (const other of characters) {
     if (other.id === self.id || !inParty.has(other.id) || other.locationId !== self.locationId) continue;
+    if (other.online !== true) continue; // the server's fightRoster skips offline members (D-14)
     if (other.level < lowest) lowest = other.level;
   }
   return lowest;

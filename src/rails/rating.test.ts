@@ -162,11 +162,22 @@ describe('viewerRatingLevel', () => {
   it('in a party it is the LOWEST level among the members standing with you (D-56)', () => {
     const members = [{ characterId: 1n }, { characterId: 2n }, { characterId: 3n }];
     const characters = [
-      { id: 2n, level: 3n, locationId: 10n },
-      { id: 3n, level: 1n, locationId: 99n },
-      { id: 4n, level: 1n, locationId: 10n },
+      { id: 2n, level: 3n, locationId: 10n, online: true },
+      { id: 3n, level: 1n, locationId: 99n, online: true },
+      { id: 4n, level: 1n, locationId: 10n, online: true },
     ];
     // Mira (3) stands with you; Jory (1) is elsewhere; a stranger (1) here is not in the party.
     expect(viewerRatingLevel(me, members, characters)).toBe(3n);
+  });
+
+  it('an OFFLINE member at the place does not lower the level (fightRoster, D-14; WR-02)', () => {
+    const members = [{ characterId: 1n }, { characterId: 2n }, { characterId: 3n }];
+    const characters = [
+      { id: 2n, level: 1n, locationId: 10n, online: false },
+      { id: 3n, level: 4n, locationId: 10n, online: true },
+    ];
+    // The level-1 member logged off here; the online level-4 member is the lowest that counts.
+    expect(viewerRatingLevel(me, members, characters)).toBe(4n);
+    expect(viewerRatingLevel(me, members, [{ id: 2n, level: 1n, locationId: 10n, online: false }])).toBe(6n);
   });
 });
