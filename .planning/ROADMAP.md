@@ -910,20 +910,20 @@ Plans:
 
 Plans:
 
-- [ ] 51.3.1.2-01-PLAN.md — Approval record and the tested prompt-draft extract-and-compare script (wave 1)
-- [ ] 51.3.1.2-02-PLAN.md — Pure region rules: place count 8-10, floor, shape, hop gradient, host floor, boundary anchor (wave 1)
-- [ ] 51.3.1.2-03-PLAN.md — 10-place map fixtures and a 6-exit exits case (wave 1)
-- [ ] 51.3.1.2-04-PLAN.md — New route world_gen_families: approved 2b block and message, schema, budgets, indicators (wave 2)
-- [ ] 51.3.1.2-05-PLAN.md — Writer split: writeRegionPlaces (2a) and writeRegionFamilies (2b), legacy composition (wave 2)
-- [ ] 51.3.1.2-06-PLAN.md — Crossing hold: travel refused until COMPLETE, approved 7a-7d lines, held crossings kept (wave 2)
-- [ ] 51.3.1.2-07-PLAN.md — Medium economy for 8+ places; one late loot job per family past the cap (wave 2)
-- [ ] 51.3.1.2-08-PLAN.md — 2b input, start, FAMILIES_ERROR, hold-aware failure lines, finishRegionFill (wave 3)
-- [ ] 51.3.1.2-09-PLAN.md — scripts/llm proof and golden harness for the new route and flow (wave 3)
-- [ ] 51.3.1.2-10-PLAN.md — Approved 2a block, Places line, 2a reply shape and budget guard (wave 3)
-- [ ] 51.3.1.2-11-PLAN.md — Apply and sweeper wiring: 2a chains 2b, 2b completes, every 2b failure to FAMILIES_ERROR (wave 4)
-- [ ] 51.3.1.2-12-PLAN.md — [explore] retries only the failed stage, in game and in the creation console (wave 4)
-- [ ] 51.3.1.2-13-PLAN.md — New characters wait in creation until families land; HELD reuse and retry (wave 5)
-- [ ] 51.3.1.2-14-PLAN.md — Local publish with key check, evidence, deferred UAT items (wave 6)
+- [x] 51.3.1.2-01-PLAN.md — Approval record and the tested prompt-draft extract-and-compare script (wave 1)
+- [x] 51.3.1.2-02-PLAN.md — Pure region rules: place count 8-10, floor, shape, hop gradient, host floor, boundary anchor (wave 1)
+- [x] 51.3.1.2-03-PLAN.md — 10-place map fixtures and a 6-exit exits case (wave 1)
+- [x] 51.3.1.2-04-PLAN.md — New route world_gen_families: approved 2b block and message, schema, budgets, indicators (wave 2)
+- [x] 51.3.1.2-05-PLAN.md — Writer split: writeRegionPlaces (2a) and writeRegionFamilies (2b), legacy composition (wave 2)
+- [x] 51.3.1.2-06-PLAN.md — Crossing hold: travel refused until COMPLETE, approved 7a-7d lines, held crossings kept (wave 2)
+- [x] 51.3.1.2-07-PLAN.md — Medium economy for 8+ places; one late loot job per family past the cap (wave 2)
+- [x] 51.3.1.2-08-PLAN.md — 2b input, start, FAMILIES_ERROR, hold-aware failure lines, finishRegionFill (wave 3)
+- [x] 51.3.1.2-09-PLAN.md — scripts/llm proof and golden harness for the new route and flow (wave 3)
+- [x] 51.3.1.2-10-PLAN.md — Approved 2a block, Places line, 2a reply shape and budget guard (wave 3)
+- [x] 51.3.1.2-11-PLAN.md — Apply and sweeper wiring: 2a chains 2b, 2b completes, every 2b failure to FAMILIES_ERROR (wave 4)
+- [x] 51.3.1.2-12-PLAN.md — [explore] retries only the failed stage, in game and in the creation console (wave 4)
+- [x] 51.3.1.2-13-PLAN.md — New characters wait in creation until families land; HELD reuse and retry (wave 5)
+- [x] 51.3.1.2-14-PLAN.md — Local publish with key check, evidence, deferred UAT items (wave 6)
 
 ### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
 
@@ -1247,7 +1247,7 @@ Plans:
 | 51.1. Party | v3.0 | 16/16 | Code complete, UAT deferred | - |
 | 51.3. Regional Economy | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.3.1.1. Density Pools | v3.0 | 32/32 | Code complete, UAT deferred | - |
-| 51.3.1.2. Bigger Regions | v3.0 | 0/TBD | Not started | - |
+| 51.3.1.2. Bigger Regions | v3.0 | 14/14 | Code complete, UAT deferred | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
