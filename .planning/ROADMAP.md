@@ -1115,6 +1115,8 @@ Plans:
 **Design source**: Ledger `2h` (world events), re-imported fresh.
 **Notes**:
 
+  - **Family feuds (owner, 2026-10-08; seeded in 51.3.1.1 D-70):** every new region has 2-3 feuding families. Owner: "This would seed those families for the hunting parties where they may seek to attack each other, uprising, inter regional wars, etc." Build the behaviour here: feuding families skirmish (thinning each other's pools at shared places), uprisings, and wars between regions, as World events with their feed lines and contribution.
+
   - Renumbered from 51.2 to 51.6 (owner, 2026-10-07: "push world events to after character / level up"). Then renumbered from 51.6 to 52.4 (owner, 2026-10-08: "move log, world events, and parity and production to the very end, in that order so parity and production is last."). Older documents call it 51.2 or 51.6; its folder is `52.4-world-events` and its UI-SPEC is `52.4-UI-SPEC.md`.
 
   - Context: `51-CONTEXT.md` (Area 3 decisions).
