@@ -605,6 +605,109 @@ describe('the vacuum (D-20, D-36)', () => {
     }
     expect([...picks].sort()).toEqual([SKITTERERS_ID, 3n]);
   });
+
+  // Plan 29 (D-20, D-70): a feud partner is a vacuum candidate exactly like a rival.
+  const feudWorld = (rel: { familyId: bigint; otherFamilyId: bigint }, skitterersRegion = REGION_ID) => {
+    const seed = poolWorld({
+      bobLocationId: FLATS_ID,
+      noRelations: true,
+      extra: { family_relation: [{ id: 1n, ...rel, kind: 'feud' }] },
+    });
+    seed.creature_family = seed.creature_family.map((f: any) =>
+      f.id === SKITTERERS_ID ? { ...f, regionId: skitterersRegion } : f,
+    );
+    return poolCtx(seed);
+  };
+
+  it("a feud row on the wiped family's side makes the partner surge like a rival: count, home, the takeover line and the rumours", () => {
+    const ctx = feudWorld({ familyId: GOBLINS_ID, otherFamilyId: SKITTERERS_ID });
+    const { goblinsOrchard } = seedPools(ctx);
+    const partner = createPool(
+      ctx,
+      { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'creature', refId: SKITTERERS_ID, homeLevel: 1 },
+      T0,
+    );
+    applyDepletion(ctx, goblinsOrchard, 50n, T0, 'kill');
+    const surged = poolRow(ctx, partner.id);
+    expect(surged.count).toBe(DENSITY_RULES.OVERRUN_SURGE_COUNT);
+    expect(surged.homeLevel).toBe(BigInt(DENSITY_RULES.VACUUM_RIVAL_HOME_LEVEL));
+    expect(narrativeLines(ctx).map((l: any) => l.message)).toEqual([vacuumLine('goblins', 'skitterers', 'Glass Orchard')]);
+    expect(rows(ctx, 'pool_rumor').map((r: any) => r.kind)).toEqual(['family_wiped', 'vacuum_takeover', 'overrun_surge']);
+  });
+
+  it('a feud row that names the wiped family from the other side makes that family a candidate too', () => {
+    const ctx = feudWorld({ familyId: SKITTERERS_ID, otherFamilyId: GOBLINS_ID });
+    applyDepletion(ctx, seedPools(ctx).goblinsOrchard, 50n, T0, 'kill');
+    expect(poolOf(ctx, ORCHARD_ID, SKITTERERS_ID)).toMatchObject({
+      count: DENSITY_RULES.OVERRUN_SURGE_COUNT,
+      homeLevel: BigInt(DENSITY_RULES.VACUUM_RIVAL_HOME_LEVEL),
+    });
+  });
+
+  it('a feud partner of another region never moves in', () => {
+    for (const rel of [
+      { familyId: GOBLINS_ID, otherFamilyId: SKITTERERS_ID },
+      { familyId: SKITTERERS_ID, otherFamilyId: GOBLINS_ID },
+    ]) {
+      const ctx = feudWorld(rel, 2n);
+      applyDepletion(ctx, seedPools(ctx).goblinsOrchard, 50n, T0, 'kill');
+      expect(poolOf(ctx, ORCHARD_ID, SKITTERERS_ID)).toBeUndefined();
+      expect(narrativeLines(ctx)).toEqual([]);
+    }
+  });
+
+  it('a family that is both rival and feud partner is one candidate; a rival and a feud partner are picked among in id order', () => {
+    // Both a rival and a feud partner: one surge, one new pool, one takeover line.
+    const both = poolWorld({
+      noRelations: true,
+      extra: {
+        family_relation: [
+          { id: 1n, familyId: GOBLINS_ID, otherFamilyId: SKITTERERS_ID, kind: 'rival' },
+          { id: 2n, familyId: GOBLINS_ID, otherFamilyId: SKITTERERS_ID, kind: 'feud' },
+          { id: 3n, familyId: SKITTERERS_ID, otherFamilyId: GOBLINS_ID, kind: 'feud' },
+        ],
+      },
+    });
+    const ctxA = poolCtx(both);
+    const { goblinsOrchard } = seedPools(ctxA);
+    const before = rows(ctxA, 'place_pool').length;
+    applyDepletion(ctxA, goblinsOrchard, 50n, T0, 'kill');
+    expect(rows(ctxA, 'place_pool')).toHaveLength(before + 1);
+    expect(poolOf(ctxA, ORCHARD_ID, SKITTERERS_ID)?.count).toBe(DENSITY_RULES.OVERRUN_SURGE_COUNT);
+    expect(narrativeLines(ctxA)).toHaveLength(2); // Alice and Bob are online at the orchard
+
+    // A rival (the Skitterers) and a feud partner (a third family): the same pick as a rival pair.
+    const third = {
+      id: 3n,
+      regionId: REGION_ID,
+      key: '1:undead',
+      name: 'Hollow Pickers',
+      singularNoun: 'picker',
+      pluralNoun: 'pickers',
+      temperament: 'wary',
+      iconKey: 'undead',
+      creatureType: 'undead',
+      ambushVerb: 'lurch',
+      ambushRest: 'out of the rows',
+      fitTerrains: 'woods',
+    };
+    const pickWith = (kind: string, seedValue: bigint): bigint => {
+      const ctx = poolCtx(
+        poolWorld({
+          extra: { creature_family: [third], family_relation: [{ id: 2n, familyId: 3n, otherFamilyId: GOBLINS_ID, kind }] },
+        }),
+      );
+      const pools = seedPools(ctx);
+      setPoolCount(ctx, pools.goblinsOrchard, 0n, T0);
+      return runVacuum(ctx, poolRow(ctx, pools.goblinsOrchard.id), T0, seedValue)?.refId ?? 0n;
+    };
+    const picks = new Set<bigint>();
+    for (let s = 1n; s <= 40n; s += 1n) {
+      expect(pickWith('feud', s)).toBe(pickWith('rival', s));
+      picks.add(pickWith('feud', s));
+    }
+    expect([...picks].sort()).toEqual([SKITTERERS_ID, 3n]);
+  });
 });
 
 describe('settling lines', () => {

@@ -16,13 +16,14 @@ import {
   REGION_ID,
   ORCHARD_ID,
   MARKET_ID,
+  GOBLINS_ID,
   SKITTERERS_ID,
   poolWorld,
   poolCtx,
   seedPools,
 } from '../helpers/pool_fixture';
 import { createPool, setPoolCount } from '../helpers/pools';
-import { creatureLine, ratingLine, resourceLine } from '../data/density_lines';
+import { creatureLine, groupHint, ratingLine, resourceLine } from '../data/density_lines';
 import { placeRating } from '../data/place_rating';
 
 vi.mock('spacetimedb/server', async () =>
@@ -92,6 +93,8 @@ type WorldOpts = {
   aliceAt?: bigint;
   /** Drop Bob out of the group's place (so the roster is Alice alone). */
   bobAway?: boolean;
+  /** The Goblins family's stored history (Plan 29, D-68); the fixture row has none by default. */
+  goblinsHistory?: string;
 };
 
 function world(opts: WorldOpts = {}) {
@@ -128,6 +131,9 @@ function world(opts: WorldOpts = {}) {
 
   const seed = poolWorld({ extra, bobLocationId: opts.bobAway ? MARKET_ID : undefined });
   if (opts.night) seed.world_state = seed.world_state.map((w: any) => ({ ...w, isNight: true }));
+  if (opts.goblinsHistory !== undefined) {
+    seed.creature_family = seed.creature_family.map((f: any) => (f.id === GOBLINS_ID ? { ...f, history: opts.goblinsHistory } : f));
+  }
   if (opts.aliceAt !== undefined) {
     seed.character = seed.character.map((c: any) => (c.id === 1n ? { ...c, locationId: opts.aliceAt } : c));
   }
@@ -336,6 +342,26 @@ describe('examine describes a family or a resource (D-03, D-26)', () => {
   it('a named enemy is examined as an individual', () => {
     const { ctx } = world({ named: true });
     expect(examine(ctx, 'old greymaw')).toContain('You study Old Greymaw.');
+  });
+
+  it("a family's history reads on its own line after the group hint and before the members (Plan 29, D-68)", () => {
+    const history = 'The Goblins came down from the hills.';
+    const out = examine(world({ goblinsHistory: history }).ctx, 'goblins');
+    const lines = out.split('\n');
+    const at = lines.indexOf(history);
+    expect(at).toBeGreaterThan(2);
+    expect(lines[at + 1]!.startsWith('Members: ')).toBe(true);
+    const hint = groupHint(2);
+    if (hint) expect(lines[at - 1]).toBe(`${hint}.`);
+    else expect(lines[at - 1]).toBe(lines[2]);
+    // The history is the only line added.
+    expect(lines.filter((l) => l !== history)).toEqual(examine(world().ctx, 'goblins').split('\n'));
+  });
+
+  it('a family with an empty or blank history, or no history field, reads exactly as before (Plan 29, D-68)', () => {
+    const before = examine(world().ctx, 'goblins');
+    expect(examine(world({ goblinsHistory: '' }).ctx, 'goblins')).toBe(before);
+    expect(examine(world({ goblinsHistory: '   ' }).ctx, 'goblins')).toBe(before);
   });
 });
 
