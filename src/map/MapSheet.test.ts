@@ -325,7 +325,7 @@ describe('MapSheet: the Legend disclosure', () => {
     expect(w.find('.legend').exists()).toBe(false);
     await legendButton(w).trigger('click');
     expect(legendButton(w).attributes('aria-expanded')).toBe('true');
-    expect(w.get('.legend').text()).toContain('Danger vs Lv 6:');
+    expect(w.get('.legend').text()).toContain('Safety for Lv 6:');
     const disclosure = legendButton(w).element;
     expect(disclosure.compareDocumentPosition(w.get('.legend').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await legendButton(w).trigger('click');

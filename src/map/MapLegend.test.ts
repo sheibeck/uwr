@@ -61,27 +61,37 @@ describe('MapLegend', () => {
     for (const icon of icons) expect(icon.attributes('aria-hidden')).toBe('true');
   });
 
-  it('Danger: Safe with a shield, then Danger vs Lv {n}: and the four bands in their colours', () => {
+  it('Danger: Safe with a shield, then Safety for Lv {n}: and Quiet, Risky, Deadly in their rating colours', () => {
     const w = mountLegend(7);
     const danger = w.get('[data-group="danger"]');
-    expect(danger.text()).toContain('Safe');
+    expect(danger.get('.item-safe').text()).toBe('Safe');
     expect(danger.get('.item-safe svg').attributes('aria-hidden')).toBe('true');
-    expect(danger.get('.danger-label').text()).toBe('Danger vs Lv 7:');
-    const bands = danger.findAll('.band');
-    expect(bands.map((b) => b.text())).toEqual(['easy', 'even', 'tough', 'deadly']);
-    expect(bands.map((b) => b.attributes('style'))).toEqual([
-      expect.stringContaining('var(--color-con-light-green)'),
-      expect.stringContaining('var(--color-con-blue)'),
-      expect.stringContaining('var(--color-con-yellow)'),
-      expect.stringContaining('var(--color-con-red)'),
+    expect(danger.get('.danger-label').text()).toBe('Safety for Lv 7:');
+    const rates = danger.findAll('.rate');
+    expect(rates.map((r) => r.text())).toEqual(['Quiet', 'Risky', 'Deadly']);
+    expect(rates.map((r) => r.classes())).toEqual([
+      expect.arrayContaining(['rate-quiet']),
+      expect.arrayContaining(['rate-risky']),
+      expect.arrayContaining(['rate-deadly']),
     ]);
+    for (const r of rates) expect(r.attributes('style')).toBeUndefined();
+    expect(danger.findAll('.band')).toHaveLength(0);
+    expect(danger.text()).not.toMatch(/easy|even|tough/);
   });
 
-  it('Danger vs Lv reads the character level', async () => {
+  it('Safety for Lv reads the level it is given', async () => {
     const w = mountLegend(3);
-    expect(w.get('.danger-label').text()).toBe('Danger vs Lv 3:');
+    expect(w.get('.danger-label').text()).toBe('Safety for Lv 3:');
     await w.setProps({ playerLevel: 12 });
-    expect(w.get('.danger-label').text()).toBe('Danger vs Lv 12:');
+    expect(w.get('.danger-label').text()).toBe('Safety for Lv 12:');
+  });
+
+  it('source: the rate-* classes map to the rating tokens and the words come from the shared rule', () => {
+    expect(SOURCE).toMatch(/\.rate-quiet \{\s*color: var\(--color-con-blue\);/);
+    expect(SOURCE).toMatch(/\.rate-risky \{\s*color: var\(--color-con-yellow\);/);
+    expect(SOURCE).toMatch(/\.rate-deadly \{\s*color: var\(--color-con-red\);/);
+    expect(SOURCE).toContain('@game-data/place_rating');
+    expect(SOURCE).not.toContain('BAND_COLOR');
   });
 
   it('Marks: Region entrance, Bind and Crafting with aria-hidden icons', () => {
@@ -101,7 +111,7 @@ describe('MapLegend', () => {
   });
 
   it('source: Label 12 text, neutral-400, 1px by 12px dividers, gaps on the scale, no literal colour', () => {
-    expect(SOURCE).toContain('Danger vs Lv');
+    expect(SOURCE).toContain('Safety for Lv');
     expect(SOURCE).toContain('Region entrance');
     expect(SOURCE).toMatch(/column-gap:\s*16px/);
     expect(SOURCE).toMatch(/row-gap:\s*4px/);

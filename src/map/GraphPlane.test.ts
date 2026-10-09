@@ -8,7 +8,7 @@ import GraphPlane from './GraphPlane.vue';
 import { layoutGraph } from './graphLayout';
 import type { GraphLayout, LayoutNode, LayoutPlace } from './graphLayout';
 import { gateView, nodeViews, routePolylines } from './nodeView';
-import type { NodePlace } from './nodeView';
+import type { MapRatingSource, NodePlace } from './nodeView';
 import { regionChips } from './regionChips';
 import { adjacencyOf, shortestPath, stepsFrom } from './route';
 
@@ -48,7 +48,20 @@ const baseEdges = [
   { a: 3n, b: 6n },
 ];
 
+// A level 3 viewer: Gloamwood Risky (Lv 4–5), Ashgrove Quiet (Lv 2–3), Saltmarsh Gate Deadly.
+const RATING: MapRatingSource = {
+  pools: [
+    { locationId: 2n, kind: 'creature', level: 2n, lvLo: 4n, lvHi: 5n },
+    { locationId: 3n, kind: 'creature', level: 1n, lvLo: 2n, lvHi: 3n },
+    { locationId: 4n, kind: 'creature', level: 3n, lvLo: 6n, lvHi: 7n },
+  ],
+  poolsApplied: () => true,
+  ratingLevel: 3n,
+  bossOrNamed: () => false,
+};
+
 interface BuildOptions {
+  rating?: MapRatingSource | null;
   places?: NodePlace[];
   edges?: { a: bigint; b: bigint }[];
   selectedId?: bigint | null;
@@ -87,6 +100,7 @@ function build(options: BuildOptions = {}) {
     boundLocationId: null,
     playerLevel: 3,
     steps: currentId === null ? new Map() : stepsFrom(adjacency, currentId),
+    rating: options.rating === null ? undefined : (options.rating ?? RATING),
   });
   const chips = regionChips({
     drawn: places,
@@ -274,7 +288,7 @@ describe('GraphPlane: nodes and labels', () => {
 
     const wood = w.get('.label[data-node-id="2"]');
     expect(wood.get('.sub').text()).toContain('Woods');
-    expect(wood.get('.sub').text()).toContain('Lv 3–5');
+    expect(wood.get('.sub').text()).toContain('Risky · Lv 4–5');
 
     const far = w.get('.label[data-node-id="4"]');
     expect(far.get('.sub').text()).toContain('Saltmarsh · ');
@@ -617,6 +631,135 @@ describe('GraphPlane: keyboard', () => {
   });
 });
 
+describe('GraphPlane: the safety rating on the ring and caption (D-42)', () => {
+  it('puts the rating class on the node: rate-safe, rate-risky, rate-quiet, rate-deadly, rate-unknown', () => {
+    const { wrapper: w } = mountPlane();
+    expect(nodeButton(w, 1n).classes()).toContain('rate-safe');
+    expect(nodeButton(w, 2n).classes()).toContain('rate-risky');
+    expect(nodeButton(w, 3n).classes()).toContain('rate-quiet');
+    expect(nodeButton(w, 4n).classes()).toContain('rate-deadly');
+    expect(nodeButton(w, 5n).classes()).toContain('rate-unknown');
+    for (const button of w.findAll('button.node')) {
+      expect(button.classes().some((c) => c.startsWith('band-'))).toBe(false);
+    }
+  });
+
+  it('paints the caption in the rating class with its word, and the aria label ends with the word', () => {
+    const { wrapper: w } = mountPlane();
+    const caption = w.get('.label[data-node-id="2"] .sub .level');
+    expect(caption.classes()).toContain('rate-risky');
+    expect(caption.text()).toBe('Risky · Lv 4–5');
+    expect(caption.attributes('style')).toBeUndefined();
+    expect(nodeLabel(w, 2n)).toContain(', level 4 to 5, risky');
+    expect(nodeLabel(w, 1n)).toContain(', safe');
+  });
+
+  it('a place whose pool rows have not applied keeps the dashed neutral ring, no word, never Safe', () => {
+    const { wrapper: w } = mountPlane({ rating: { ...RATING, poolsApplied: (id) => id !== 2n } });
+    const button = nodeButton(w, 2n);
+    expect(button.classes()).toContain('rate-unknown');
+    expect(button.classes()).not.toContain('rate-safe');
+    const caption = w.get('.label[data-node-id="2"] .sub .level');
+    expect(caption.classes()).toContain('rate-unknown');
+    expect(caption.text()).toBe('Lv 4–5');
+    expect(w.get('.label[data-node-id="2"]').find('.sub-safe').exists()).toBe(false);
+    expect(nodeLabel(w, 2n)).not.toMatch(/risky|safe/);
+    expect(SOURCE).toMatch(
+      /\.rate-unknown\.state-visited \.circle,\s*\.rate-unknown\.state-heard \.circle \{\s*border: 1px dashed var\(--color-neutral-500\);/,
+    );
+  });
+
+  it('with no rating source a non-safe place is Unknown and a safe place stays Safe', () => {
+    const { wrapper: w } = mountPlane({ rating: null });
+    expect(nodeButton(w, 1n).classes()).toContain('rate-safe');
+    expect(nodeButton(w, 2n).classes()).toContain('rate-unknown');
+    expect(w.get('.label[data-node-id="2"]').find('.level').exists()).toBe(false);
+  });
+
+  it('maps the rate-* classes to the five tokens for the ring and the caption', () => {
+    const tokens: Record<string, string> = {
+      safe: '--color-con-light-green',
+      quiet: '--color-con-blue',
+      risky: '--color-con-yellow',
+      deadly: '--color-con-red',
+      unknown: '--color-neutral-500',
+    };
+    for (const [key, token] of Object.entries(tokens)) {
+      expect(SOURCE).toMatch(new RegExp(`\\.level\\.rate-${key} \\{\\s*color: var\\(${token}\\);`));
+      if (key === 'unknown') continue;
+      expect(SOURCE).toMatch(new RegExp(`\\.rate-${key}\\.state-visited \\.circle \\{\\s*border-color: var\\(${token}\\);`));
+      expect(SOURCE).toMatch(
+        new RegExp(
+          `\\.rate-${key}\\.state-heard \\.circle \\{\\s*border-color: color-mix\\(in srgb, var\\(${token}\\) 45%, transparent\\);`,
+        ),
+      );
+    }
+    expect(SOURCE).not.toMatch(/band-(safe|easy|even|tough|deadly|unknown)/);
+  });
+
+  it('draws no Overrun mark (B6) and keeps the gate pills on the band range (B9)', () => {
+    expect(SOURCE).not.toMatch(/[Oo]verrun/);
+    const { wrapper: w } = mountPlane();
+    expect(w.get('button.gate .gate-level').attributes('style')).toContain('var(--color-con-');
+  });
+
+  it('renders a hostile name in a rated place as text, the caption beside it', () => {
+    const places = basePlaces.map((p) => (p.id === 2n ? { ...p, name: XSS } : p));
+    const { wrapper: w } = mountPlane({ places });
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.get('.label[data-node-id="2"] .name').text()).toBe(XSS);
+    expect(w.get('.label[data-node-id="2"] .level').text()).toBe('Risky · Lv 4–5');
+  });
+
+  // UI Q10 overflow backstop: the densest region, every node rated, long names. Every caption keeps
+  // its rating class and its word, its label box is at most 144px wide and overlaps no other label,
+  // and the caption is a flex: none part of its line, so the name or the terrain text ellipsizes first.
+  it('backstop: at the densest region every caption keeps its class, its word and its room', () => {
+    const KEYS = ['quiet', 'risky', 'deadly'] as const;
+    const dense: NodePlace[] = [loc(1n, 'The Crossing', { terrainType: 'town', isSafe: true })];
+    const edges: { a: bigint; b: bigint }[] = [];
+    const pools: MapRatingSource['pools'][number][] = [];
+    for (let i = 2; i <= 16; i += 1) {
+      const id = BigInt(i);
+      dense.push(loc(id, `The Long Drowned Orchard of ${i}`));
+      edges.push({ a: BigInt(Math.max(1, Math.floor(i / 2))), b: id });
+      const key = KEYS[i % 3];
+      // Quiet: one Scarce family at your level; Risky: Stable two above; Deadly: Overrun far above.
+      if (key === 'quiet') pools.push({ locationId: id, kind: 'creature', level: 1n, lvLo: 2n, lvHi: 3n });
+      if (key === 'risky') pools.push({ locationId: id, kind: 'creature', level: 2n, lvLo: 4n, lvHi: 5n });
+      if (key === 'deadly') pools.push({ locationId: id, kind: 'creature', level: 3n, lvLo: 12n, lvHi: 14n });
+    }
+    for (const mobile of [false, true]) {
+      const { wrapper: w, props } = mountPlane({ places: dense, edges, mobile, rating: { ...RATING, pools } });
+      expect(props.views.length).toBe(16);
+      for (const view of props.views) {
+        if (view.id === 1n) continue;
+        const key = KEYS[Number(view.id) % 3];
+        const word = key.charAt(0).toUpperCase() + key.slice(1);
+        expect(view.levelColor).toBe(`rate-${key}`);
+        const caption = w.get(`.label[data-node-id="${view.id}"] ${mobile ? '.level-inline' : '.sub .level'}`);
+        expect(caption.classes()).toContain(`rate-${key}`);
+        expect(caption.text().startsWith(`${word} · Lv `)).toBe(true);
+        expect(nodeButton(w, view.id).classes()).toContain(`rate-${key}`);
+        expect(view.label.w).toBeLessThanOrEqual(144);
+      }
+      const boxes = props.views.map((v) => v.label);
+      for (let i = 0; i < boxes.length; i += 1) {
+        for (let j = i + 1; j < boxes.length; j += 1) {
+          const a = boxes[i];
+          const b = boxes[j];
+          const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+          expect(apart).toBe(true);
+        }
+      }
+      wrapper?.unmount();
+      wrapper = null;
+    }
+    expect(SOURCE).toMatch(/\.level-inline,\s*\.sub \.level \{\s*flex: none;/);
+    expect(SOURCE).toMatch(/\.sub-text \{[^}]*text-overflow: ellipsis;/);
+  });
+});
+
 describe('GraphPlane: source rules', () => {
   it('draws one svg with a viewBox and no preserveAspectRatio', () => {
     expect((SOURCE.match(/<svg/g) ?? []).length).toBe(1);
@@ -646,7 +789,7 @@ describe('GraphPlane: source rules', () => {
 });
 
 describe('GraphPlane: mobile labels and gate pills (plan 51-11)', () => {
-  it('shows the name and the level in its band colour on one line, with no sub-line', () => {
+  it('shows the name and the rating caption in its rating class on one line, with no sub-line', () => {
     const { wrapper: w, props } = mountPlane({ mobile: true });
     const label = w.get('.label[data-node-id="2"]');
     expect(label.classes()).toContain('mobile');
@@ -654,8 +797,10 @@ describe('GraphPlane: mobile labels and gate pills (plan 51-11)', () => {
     expect(label.get('.line .name').text()).toBe('Gloamwood');
     const level = label.get('.line .level-inline');
     const view = props.views.find((v) => v.id === 2n)!;
-    expect(level.text()).toBe(view.levelLabel);
-    expect(level.attributes('style')).toContain(view.levelColor);
+    expect(level.text()).toBe('Risky · Lv 4–5');
+    expect(level.text()).toBe(view.caption);
+    expect(level.classes()).toContain('rate-risky');
+    expect(level.attributes('style')).toBeUndefined();
     expect(label.text()).not.toContain('woods');
     expect(label.text()).not.toContain('heard of');
   });

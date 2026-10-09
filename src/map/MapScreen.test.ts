@@ -299,7 +299,7 @@ describe('MapScreen: graph', () => {
     expect(nodeIds(w).sort()).toEqual(['10', '11', '12', '20']);
     expect(w.get('[role="group"]').attributes('aria-label')).toBe('Ashfall Wilds route graph');
     expect(w.get('.caption').text()).toBe('Ashfall Wilds');
-    expect(w.get('.danger-label').text()).toBe('Danger vs Lv 6:');
+    expect(w.get('.danger-label').text()).toBe('Safety for Lv 6:');
     const legend = w.get('.legend').element;
     const canvas = w.get('.canvas').element;
     expect(legend.compareDocumentPosition(canvas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

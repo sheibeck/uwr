@@ -4,10 +4,9 @@ import { resolve } from 'node:path';
 import { PhMapPin } from '@phosphor-icons/vue';
 import { layoutGraph } from './graphLayout';
 import type { GraphLayout, LayoutPlace } from './graphLayout';
-import { gateView, nodeAriaLabel, nodeViews, routePolylines } from './nodeView';
-import type { NodePlace } from './nodeView';
+import { RATE_COLOR, gateView, mapPlaceRating, nodeAriaLabel, nodeViews, routePolylines } from './nodeView';
+import type { MapRatingSource, NodePlace } from './nodeView';
 import { adjacencyOf, stepsFrom } from './route';
-import { placeDanger } from './danger';
 import { regionChips } from './regionChips';
 
 const regions = [
@@ -46,6 +45,29 @@ const edges = [
 ];
 const adjacency = adjacencyOf(edges);
 
+const pool = (locationId: bigint, kind: string, level: bigint, lvLo: bigint, lvHi: bigint) => ({
+  locationId,
+  kind,
+  level,
+  lvLo,
+  lvHi,
+});
+
+// The rating for a level 3 viewer (D-08 weights): Gloamwood Risky (one Stable family two levels
+// above), Ashgrove Quiet, Saltmarsh Gate Deadly, Lost Hollow's rows have not applied (Unknown).
+const RATING: MapRatingSource = {
+  pools: [
+    pool(2n, 'creature', 2n, 4n, 5n),
+    pool(2n, 'resource', 3n, 1n, 1n),
+    pool(3n, 'creature', 1n, 2n, 3n),
+    pool(4n, 'creature', 3n, 6n, 7n),
+    pool(7n, 'creature', 1n, 3n, 3n),
+  ],
+  poolsApplied: (id) => [1n, 2n, 3n, 4n, 5n, 6n].includes(id),
+  ratingLevel: 3n,
+  bossOrNamed: () => false,
+};
+
 function build(over: Partial<Parameters<typeof nodeViews>[0]> = {}) {
   const layoutPlaces: LayoutPlace[] = places.map((p) => ({
     id: p.id,
@@ -66,6 +88,7 @@ function build(over: Partial<Parameters<typeof nodeViews>[0]> = {}) {
     boundLocationId: null,
     playerLevel: 3,
     steps: stepsFrom(adjacency, 1n),
+    rating: RATING,
     ...over,
   });
   return { layout, views, byId: (id: bigint) => views.find((v) => v.id === id) };
@@ -115,7 +138,9 @@ describe('nodeViews states', () => {
     const { byId } = build();
     expect(byId(5n)?.uncharted).toBe(true);
     expect(byId(5n)?.terrain.word).toBe('Uncharted');
-    expect(byId(5n)?.danger.kind).toBe('unknown');
+    expect(byId(5n)?.rating.key).toBe('unknown');
+    expect(byId(5n)?.rating.word).toBe('Danger unknown');
+    expect(byId(5n)?.levelColor).toBe('rate-unknown');
     expect(byId(5n)?.levelLabel).toBe('');
     expect(byId(6n)?.passage).toBe(true);
     expect(byId(6n)?.terrain.word).toBe('Passage');
@@ -148,14 +173,62 @@ describe('nodeViews states', () => {
     expect(build().byId(2n)?.crafting).toBe(false);
   });
 
-  it('reads Safe as the shield and other levels as Lv a-b in the band colour', () => {
+  it('reads Safe as the shield and other places as Lv a-b in the rating class (rate-*)', () => {
     const { byId } = build();
     expect(byId(1n)?.safe).toBe(true);
     expect(byId(1n)?.levelLabel).toBe('Safe');
+    expect(byId(1n)?.levelColor).toBe('rate-safe');
     expect(byId(2n)?.safe).toBe(false);
-    expect(byId(2n)?.levelLabel).toBe('Lv 3–5');
-    expect(byId(2n)?.levelColor).toBe('var(--color-con-yellow)');
-    expect(byId(4n)?.levelColor).toBe('var(--color-con-red)');
+    expect(byId(2n)?.rating).toMatchObject({ key: 'risky', word: 'Risky' });
+    expect(byId(2n)?.levelLabel).toBe('Lv 4–5');
+    expect(byId(2n)?.levelColor).toBe('rate-risky');
+    expect(byId(2n)?.caption).toBe('Risky · Lv 4–5');
+    expect(byId(3n)?.levelColor).toBe('rate-quiet');
+    expect(byId(3n)?.caption).toBe('Quiet · Lv 2–3');
+    expect(byId(4n)?.levelColor).toBe('rate-deadly');
+    expect(byId(4n)?.caption).toBe('Deadly · Lv 6–7');
+  });
+
+  it('a place whose pool rows have not applied is Unknown: no word, never Safe, the range in neutral', () => {
+    const v = build().byId(7n);
+    expect(v?.rating).toMatchObject({ key: 'unknown', word: '' });
+    expect(v?.safe).toBe(false);
+    expect(v?.levelColor).toBe('rate-unknown');
+    expect(v?.levelLabel).toBe('Lv 3');
+    expect(v?.caption).toBe('Lv 3');
+  });
+
+  it('with no rating source every non-safe place is Unknown (never guessed) and safe places stay Safe', () => {
+    const { byId } = build({ rating: undefined });
+    expect(byId(1n)?.rating.key).toBe('safe');
+    for (const id of [2n, 3n, 4n, 7n]) {
+      expect(byId(id)?.rating).toMatchObject({ key: 'unknown', word: '' });
+      expect(byId(id)?.caption).toBe('');
+    }
+  });
+
+  it('a living named enemy or boss raises the rating one step (D-34), and the lowest party level rates', () => {
+    const named = build({ rating: { ...RATING, bossOrNamed: (id) => id === 3n } }).byId(3n);
+    expect(named?.rating.key).toBe('risky');
+    const weakest = build({ rating: { ...RATING, ratingLevel: 1n } }).byId(3n);
+    expect(weakest?.rating.key).toBe('risky');
+  });
+
+  it('the rating uses the shared rule (mapPlaceRating = ratingForPlace over the place pools)', () => {
+    const r = mapPlaceRating({ id: 2n, isSafe: false, terrainType: 'woods' }, RATING);
+    expect(r.view).toMatchObject({ key: 'risky', word: 'Risky', levelLabel: 'Lv 4–5' });
+    expect(r.range).toEqual({ lo: 4n, hi: 5n });
+    expect(mapPlaceRating({ id: 9n, isSafe: false, terrainType: 'woods' }, RATING).view.key).toBe('unknown');
+  });
+
+  it('maps each rating to its token (the detail tag colour)', () => {
+    expect(RATE_COLOR).toEqual({
+      safe: 'var(--color-con-light-green)',
+      quiet: 'var(--color-con-blue)',
+      risky: 'var(--color-con-yellow)',
+      deadly: 'var(--color-con-red)',
+      unknown: 'var(--color-neutral-500)',
+    });
   });
 
   it('falls back to the map pin for an unknown terrain', () => {
@@ -244,7 +317,7 @@ describe('nodeViews states', () => {
 
 describe('aria-labels', () => {
   it('reads a visited place one step away', () => {
-    expect(build().byId(2n)?.ariaLabel).toBe('Gloamwood, visited, level 3 to 5, tough, 1 step from here');
+    expect(build().byId(2n)?.ariaLabel).toBe('Gloamwood, visited, level 4 to 5, risky, 1 step from here');
   });
 
   it('reads here with the bind point, crafting and safe in order', () => {
@@ -259,7 +332,7 @@ describe('aria-labels', () => {
 
   it('reads another region place two steps away', () => {
     expect(build().byId(4n)?.ariaLabel).toBe(
-      'Saltmarsh Gate, heard of, other region Saltmarsh, level 4 to 6, deadly, 2 steps from here',
+      'Saltmarsh Gate, heard of, other region Saltmarsh, level 6 to 7, deadly, 2 steps from here',
     );
   });
 
@@ -272,11 +345,15 @@ describe('aria-labels', () => {
   });
 
   it('ends with no known path for an unreachable place', () => {
-    expect(build().byId(7n)?.ariaLabel).toBe('Lost Hollow, heard of, level 3, even, no known path');
+    expect(build().byId(7n)?.ariaLabel).toBe('Lost Hollow, heard of, level 3, no known path');
+  });
+
+  it('reads a quiet place with its word and no rating word while the rows load', () => {
+    expect(build().byId(3n)?.ariaLabel).toBe('Ashgrove, heard of, level 2 to 3, quiet, 2 steps from here');
+    expect(build({ rating: undefined }).byId(3n)?.ariaLabel).toBe('Ashgrove, heard of, 2 steps from here');
   });
 
   it('reads a one-level range as level n', () => {
-    const danger = placeDanger({ terrainType: 'woods', isSafe: false, regionId: 2n, levelOffset: 0n }, regions, 4);
     expect(
       nodeAriaLabel({
         name: 'Plain',
@@ -288,14 +365,14 @@ describe('aria-labels', () => {
         bindPoint: false,
         bindStone: false,
         crafting: false,
-        danger,
+        rating: { key: 'quiet', word: 'Quiet' },
+        range: { lo: 4n, hi: 4n },
         steps: 1,
       }),
-    ).toBe('Plain, visited, level 4, even, 1 step from here');
+    ).toBe('Plain, visited, level 4, quiet, 1 step from here');
   });
 
   it('reads no known path when the steps are null', () => {
-    const danger = placeDanger({ terrainType: 'woods', isSafe: false, regionId: 1n, levelOffset: 0n }, regions, 3);
     const label = nodeAriaLabel({
       name: 'Far',
       stateWord: 'heard of',
@@ -306,7 +383,8 @@ describe('aria-labels', () => {
       bindPoint: false,
       bindStone: false,
       crafting: false,
-      danger,
+      rating: { key: 'risky', word: 'Risky' },
+      range: { lo: 3n, hi: 5n },
       steps: null,
     });
     expect(label.endsWith(', no known path')).toBe(true);

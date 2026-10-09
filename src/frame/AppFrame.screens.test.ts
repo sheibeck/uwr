@@ -431,7 +431,7 @@ describe('mobile sheet bodies (CON-03, CON-04)', () => {
     await settle();
     const dialog = w.get('[role="dialog"]');
     expect(dialog.get('h4').text()).toBe('Map');
-    expect(dialog.get('.legend').text()).toContain('Danger vs Lv 6:');
+    expect(dialog.get('.legend').text()).toContain('Safety for Lv 6:');
     expect(dialog.get('[role="group"]').attributes('aria-label')).toBe('Ashfall Wilds route graph');
     expect(dialog.findAll('button.node')).toHaveLength(2);
     expect(dialog.text()).not.toContain('No places discovered yet.');

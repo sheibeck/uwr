@@ -5,6 +5,7 @@ import { travelChecks } from './travelChecks';
 import type { TravellerLike } from './travelChecks';
 import { buildDetail, travelAction } from './detailModel';
 import type { BuildDetailInput, DetailLocation, DetailView } from './detailModel';
+import type { MapRatingSource } from './nodeView';
 
 const NOW = 1_000_000_000_000;
 const secondsFromNow = (s: number): bigint => BigInt(NOW + s * 1_000_000);
@@ -51,6 +52,18 @@ const EDGES = [
   { a: 10n, b: 50n },
 ];
 const ADJ = adjacencyOf(EDGES);
+
+// The rating for a level 4 viewer: Gloamwood is Risky (a Stable family two levels above), Far
+// Ridge's pool rows have not applied yet (Unknown, the range only).
+const RATING: MapRatingSource = {
+  pools: [
+    { locationId: 11n, kind: 'creature', level: 2n, lvLo: 4n, lvHi: 6n },
+    { locationId: 12n, kind: 'creature', level: 1n, lvLo: 2n, lvHi: 3n },
+  ],
+  poolsApplied: (id) => id !== 12n,
+  ratingLevel: 4n,
+  bossOrNamed: () => false,
+};
 const regionName = (id: bigint): string => REGIONS.find((r) => r.id === id)?.name ?? 'Unknown region';
 
 const me: TravellerLike = { id: 1n, name: 'Aldric', locationId: 10n, stamina: 50n, online: true };
@@ -109,6 +122,7 @@ function detail(selected: bigint, o: Overrides = {}, c: ChecksOpts = {}): Detail
     giverNpcs: [],
     checks: isNeighbour ? checksFor(selected, c) : null,
     connected: true,
+    rating: RATING,
     ...o,
   });
 }
@@ -336,12 +350,30 @@ describe('buildDetail, far places', () => {
 });
 
 describe('buildDetail, tags', () => {
-  it('danger tags use the band colour, Safe is green, unknown is a question', () => {
-    const tough = detail(11n).tags.find((t) => t.icon === 'sword');
-    expect(tough).toMatchObject({ text: 'Lv 3–5 · tough', color: 'var(--color-con-yellow)' });
+  it('the danger tag reads {Rating} · Lv a-b with the sword in the rating colour, Safe is green, unknown is a question', () => {
+    const risky = detail(11n).tags.find((t) => t.key === 'danger');
+    expect(risky).toMatchObject({ icon: 'sword', text: 'Risky · Lv 4–6', color: 'var(--color-con-yellow)' });
+    const deadly = detail(11n, { rating: { ...RATING, ratingLevel: 1n } }).tags.find((t) => t.key === 'danger');
+    expect(deadly).toMatchObject({ icon: 'sword', text: 'Deadly · Lv 4–6', color: 'var(--color-con-red)' });
     const safe = detail(50n).tags.find((t) => t.icon === 'shield');
     expect(safe).toMatchObject({ text: 'Safe', color: 'var(--color-con-light-green)' });
     expect(detail(30n).tags.find((t) => t.icon === 'question')?.text).toBe('Danger unknown');
+  });
+
+  it('a place whose pool rows have not applied is Unknown: the range only, neutral, never Safe', () => {
+    const loading = detail(12n).tags.find((t) => t.key === 'danger');
+    expect(loading).toMatchObject({ icon: 'question', text: 'Lv 2–3', color: 'var(--color-neutral-500)' });
+    expect(detail(11n, { rating: undefined }).tags.some((t) => t.key === 'danger')).toBe(false);
+    expect(detail(11n, { rating: undefined }).tags.some((t) => t.text === 'Safe')).toBe(false);
+  });
+
+  it('a quiet place with no family has the word alone', () => {
+    const quiet = detail(21n).tags.find((t) => t.key === 'danger');
+    expect(quiet).toMatchObject({ icon: 'sword', text: 'Quiet', color: 'var(--color-con-blue)' });
+  });
+
+  it('the region line and the crossing keep the band range of the region (B9)', () => {
+    expect(detail(11n).regionLine).toBe('Ashfall Wilds · Lv 3–5 · visited');
   });
 
   it('bind stone, your bind point and crafting', () => {
