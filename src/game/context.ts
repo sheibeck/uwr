@@ -30,8 +30,11 @@ import type {
   Location,
   LocationConnection,
   MyCombatAggroEntry,
+  MyHarvestCap,
   MyLlmJob,
+  NamedEnemy,
   Npc,
+  PoolLevel,
   QuestInstance,
   QuestTemplate,
   Region,
@@ -157,12 +160,33 @@ export interface GameData {
   /** From the current location. */
   readonly connections: List<LocationConnection>;
   readonly npcsHere: List<Npc>;
-  /** Raw; consumers apply visibleNodes (47-03). */
+  /** @deprecated Always empty (51.3.1.1-18: no resource_node binding); removed with its consumers. */
   readonly nodesHere: List<ResourceNode>;
   /** Raw enemy spawns at the location; consumers derive with src/rails/enemies.ts. */
   readonly enemiesHere: List<EnemySpawn>;
   /** Templates of the spawns here (level for the con color). */
   readonly enemyTemplatesHere: List<EnemyTemplate>;
+  /**
+   * pool_level rows of every loaded region: the regions of here, the exit destinations and the
+   * visited places (51.3.1.1 UI-SPEC P1). Public density only (level 0-3, no count; D-05).
+   */
+  readonly poolLevels: List<PoolLevel>;
+  /** pool_level rows of the current place (creature and resource pools). */
+  readonly poolLevelsHere: List<PoolLevel>;
+  /** The region ids whose pool rows have applied (the shown pool binding, once applied). */
+  readonly poolRegionsApplied: Readonly<Ref<ReadonlySet<bigint>>>;
+  /**
+   * True once the pool rows of this place's region have applied; false while loading, after a
+   * failed subscription and for a place outside the loaded regions. Reactive (reads refs). A place
+   * that is not ready rates Unknown, never Safe (UI-SPEC Q4/Q5/Q10 loading).
+   */
+  poolsAppliedFor(locationId: bigint): boolean;
+  /** The active character's own named_enemy rows, every place (filter by locationId and isAlive). */
+  readonly namedEnemies: List<NamedEnemy>;
+  /** my_harvest_caps: the active character's capped places (cappedUntilMicros), never an amount. */
+  readonly harvestCaps: List<MyHarvestCap>;
+  /** The active character's visited place ids (my_visited_locations). */
+  readonly visitedLocationIds: List<bigint>;
   /** Other characters at the location. */
   readonly playersHere: List<Character>;
   /** Whole party; consumers filter by characterId. */
@@ -353,6 +377,13 @@ export function createInertGame(): GameData {
     nodesHere: empty<ResourceNode>(),
     enemiesHere: empty<EnemySpawn>(),
     enemyTemplatesHere: empty<EnemyTemplate>(),
+    poolLevels: empty<PoolLevel>(),
+    poolLevelsHere: empty<PoolLevel>(),
+    poolRegionsApplied: constant<ReadonlySet<bigint>>(new Set()),
+    poolsAppliedFor: () => false,
+    namedEnemies: empty<NamedEnemy>(),
+    harvestCaps: empty<MyHarvestCap>(),
+    visitedLocationIds: empty<bigint>(),
     playersHere: empty<Character>(),
     effects: empty<CharacterEffect>(),
     quests: empty<QuestInstance>(),

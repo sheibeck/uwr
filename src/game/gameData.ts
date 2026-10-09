@@ -34,15 +34,18 @@ import type {
   Location,
   LocationConnection,
   MyCombatAggroEntry,
+  MyHarvestCap,
   MyLlmJob,
+  NamedEnemy,
   Npc,
+  PoolLevel,
   QuestInstance,
   QuestTemplate,
   Region,
   Renown,
   RenownPerk,
   ResourceGather,
-  ResourceNode,
+  VisitedLocation,
   WorldEvent,
 } from '../module_bindings/types';
 import type { ConnectionStatus } from '../net/connection';
@@ -62,12 +65,16 @@ import { createServerClock } from './serverClock';
 //
 // Scope of each subscription:
 //   once per connection  the five views, faction, active world events, event_world,
-//                        my_combat_aggro and my_combat_loot (the loot links, quick 261008-f3m)
+//                        my_combat_aggro and my_combat_loot (the loot links, quick 261008-f3m),
+//                        my_harvest_caps and my_visited_locations (51.3.1.1-18)
 //   by user              event_private
-//   by location          event_location, npc, enemy_spawn, resource_node, character,
-//                        location_connection
+//   by location          event_location, npc, enemy_spawn, character, location_connection
+//                        (resource_node is gone: resources are pools now, 51.3.1.1-18)
+//   by region list       pool_level, keyed by the regions of here, the exit destinations and the
+//                        visited places (51.3.1.1 UI-SPEC P1); a place outside them reads Unknown
 //   by character         hotbar, hotbar_slot, ability_template, ability_cooldown,
-//                        event_contribution, renown, renown_perk, resource_gather, character_cast
+//                        event_contribution, renown, renown_perk, resource_gather, character_cast,
+//                        named_enemy (the own named enemies, 51.3.1.1-18)
 //   by group             group, group_member, event_group
 //   by id list           party and inviter characters, quest templates, event objectives,
 //                        the enemy templates of the spawns here (level, for the con color)
@@ -105,7 +112,10 @@ export interface GameConn extends ConnLike {
     eventWorld: EventRow<EventWorld>;
     npc: Row<Npc>;
     enemySpawn: Row<EnemySpawn>;
-    resourceNode: Row<ResourceNode>;
+    poolLevel: Row<PoolLevel>;
+    namedEnemy: Row<NamedEnemy>;
+    myHarvestCaps: Row<MyHarvestCap>;
+    myVisitedLocations: Row<VisitedLocation>;
     character: Row<Character>;
     locationConnection: Row<LocationConnection>;
     hotbar: Row<Hotbar>;
@@ -198,6 +208,18 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     table: (c) => c.db.myCombatLoot,
     sql: [queries.myCombatLoot],
   });
+  // The harvest caps of the active character (51.3.1.1-18): where and until when, never an amount.
+  const harvestCaps = deps.bind<MyHarvestCap>({
+    table: (c) => c.db.myHarvestCaps,
+    sql: [queries.myHarvestCaps],
+  });
+  // The visited places (51.3.1.1-18), for the pool region key. The Map binds the same view with the
+  // same query; the shared cache holds the active character's rows, and visitedLocationIds below
+  // still keeps only the rows of the active character.
+  const visited = deps.bind<VisitedLocation>({
+    table: (c) => c.db.myVisitedLocations,
+    sql: [queries.myVisitedLocations],
+  });
   const staticBindings: AttachableBinding<C>[] = [
     effects,
     quests,
@@ -208,6 +230,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     worldEvents,
     combatAggro,
     combatLoot,
+    harvestCaps,
+    visited,
   ];
   const eventWorld = deps.bindEvent<EventWorld>({
     table: (c) => c.db.eventWorld,
@@ -338,12 +362,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     (row, k) => row.locationId === k,
   );
   const spawnRows = keyedRows(spawns);
-  const nodes = keyedTable<ResourceNode, bigint>(
-    locationKey,
-    (c) => c.db.resourceNode,
-    queries.resourceNodesAt,
-    (row, k) => row.locationId === k,
-  );
   const players = keyedTable<Character, bigint>(
     locationKey,
     (c) => c.db.character,
@@ -549,6 +567,74 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     (row) => row.id,
   );
 
+  // Density pools (51.3.1.1-18) ----------------------------------------------------------------
+  const connectionList = keyedRows(connectionRows);
+  const locationById = computed(
+    () => new Map(input.locations.value.map((location) => [location.id, location])),
+  );
+  const visitedLocationIds = computed<readonly bigint[]>(() => {
+    const me = characterKey.value;
+    if (me === null) return [];
+    return visited.rows.value.filter((row) => row.characterId === me).map((row) => row.locationId);
+  });
+  // The regions of the current place, every exit destination and every visited place (UI-SPEC P1),
+  // sorted and de-duplicated; a location id the session does not know is skipped.
+  const poolRegionKey = computed<string | null>(() => {
+    const here = locationKey.value;
+    if (here === null) return null;
+    const byId = locationById.value;
+    const regions: bigint[] = [];
+    const add = (locationId: bigint): void => {
+      const location = byId.get(locationId);
+      if (location !== undefined) regions.push(location.regionId);
+    };
+    add(here);
+    for (const connection of connectionList.value) add(connection.toLocationId);
+    for (const id of visitedLocationIds.value) add(id);
+    return idListKey(regions);
+  });
+  // keyedIdList on the region key (filter = membership of row.regionId, the shared-cache rule),
+  // written out to record each binding's region set: a place reads ready only once the binding
+  // covering its region has applied.
+  const poolRegionsOf = new WeakMap<object, ReadonlySet<bigint>>();
+  const pools = createKeyed<C, string, TableBinding<C, PoolLevel>>({
+    key: poolRegionKey,
+    conn: input.conn,
+    make: (k) => {
+      const ids = parseIdListKey(k);
+      const set = new Set(ids);
+      const binding = deps.bind<PoolLevel>({
+        table: (c) => c.db.poolLevel,
+        sql: [queries.poolLevelsInRegions(ids)],
+        filter: (row) => set.has(row.regionId),
+      });
+      poolRegionsOf.set(binding, set);
+      return binding;
+    },
+  });
+  const poolRows = keyedRows(pools);
+  const NO_REGIONS: ReadonlySet<bigint> = new Set();
+  const poolRegionsApplied = computed<ReadonlySet<bigint>>(() => {
+    const binding = pools.current.value;
+    if (binding === null || !binding.applied.value) return NO_REGIONS;
+    return poolRegionsOf.get(binding) ?? NO_REGIONS;
+  });
+  function poolsAppliedFor(locationId: bigint): boolean {
+    const location = locationById.value.get(locationId);
+    return location !== undefined && poolRegionsApplied.value.has(location.regionId);
+  }
+  const poolLevelsHere = computed<readonly PoolLevel[]>(() => {
+    const here = locationKey.value;
+    if (here === null) return [];
+    return poolRows.value.filter((row) => row.locationId === here);
+  });
+  const namedEnemies = keyedTable<NamedEnemy, bigint>(
+    characterKey,
+    (c) => c.db.namedEnemy,
+    queries.namedEnemiesOf,
+    (row, k) => row.characterId === k,
+  );
+
   const known = keyedIdList<Character>(
     partyKey,
     (c) => c.db.character,
@@ -575,7 +661,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     npcs,
     spawns,
     spawnTemplates,
-    nodes,
+    pools,
+    namedEnemies,
     players,
     connectionRows,
     hotbars,
@@ -701,6 +788,8 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     const conn = input.conn.value;
     return connected.value && conn !== null ? conn.reducers : null;
   });
+  // TEMPORARY until the Task 3 commit removes it with its consumers: no resource_node binding.
+  const NO_NODES = computed<readonly never[]>(() => []);
   const privateEventsApplied = computed(() => privateEvents.current.value?.applied.value ?? false);
 
   // The store follows the active character; a new character starts with an empty history.
@@ -722,11 +811,18 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     inCombat,
     locations: input.locations,
     regions: input.regions,
-    connections: keyedRows(connectionRows),
+    connections: connectionList,
     npcsHere: keyedRows(npcs),
-    nodesHere: keyedRows(nodes),
+    nodesHere: NO_NODES,
     enemiesHere: spawnRows,
     enemyTemplatesHere: keyedRows(spawnTemplates),
+    poolLevels: poolRows,
+    poolLevelsHere,
+    poolRegionsApplied,
+    poolsAppliedFor,
+    namedEnemies: keyedRows(namedEnemies),
+    harvestCaps: harvestCaps.rows,
+    visitedLocationIds,
     playersHere,
     effects: effects.rows,
     quests: quests.rows,

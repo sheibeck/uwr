@@ -10,6 +10,9 @@ import { tables } from '../module_bindings';
 // combat id (everything of the one fight); enemy templates and abilities are id-list OR
 // chains. The threat view my_combat_aggro is static: it is scoped server-side. So is the loot
 // view my_combat_loot (the active character's untaken drops, quick 261008-f3m).
+// Density pools (51.3.1.1-18): pool_level is keyed by region ids (an OR chain on region_id), the own
+// named_enemy rows by character_id; my_harvest_caps and my_visited_locations are per-sender views
+// (no WHERE). resource_node is no longer subscribed.
 
 export interface GameQueries {
   myCharacterEffects: string;
@@ -22,12 +25,15 @@ export interface GameQueries {
   activeWorldEvents: string;
   myCombatAggro: string;
   myCombatLoot: string;
+  /** The active character's harvest caps (per-sender view, no WHERE). */
+  myHarvestCaps: string;
+  /** The active character's visited places (per-sender view, no WHERE). */
+  myVisitedLocations: string;
   eventPrivate(userId: bigint): string;
   eventLocation(locationId: bigint): string;
   eventGroup(groupId: bigint): string;
   npcsAt(locationId: bigint): string;
   enemySpawnsAt(locationId: bigint): string;
-  resourceNodesAt(locationId: bigint): string;
   charactersAt(locationId: bigint): string;
   connectionsFrom(locationId: bigint): string;
   hotbars(characterId: bigint): string;
@@ -60,6 +66,9 @@ export interface GameQueries {
   enemyTemplatesById(ids: readonly bigint[]): string;
   /** Non-empty list: an OR chain on enemy_template_id. */
   enemyAbilitiesByTemplate(ids: readonly bigint[]): string;
+  /** Non-empty list: an OR chain on region_id. */
+  poolLevelsInRegions(ids: readonly bigint[]): string;
+  namedEnemiesOf(characterId: bigint): string;
 }
 
 function requireIds(ids: readonly bigint[]): void {
@@ -78,6 +87,8 @@ export function gameQueries(): GameQueries {
     activeWorldEvents: toSql(tables.worldEvent.where((r) => r.status.eq('active'))),
     myCombatAggro: toSql(tables.myCombatAggro),
     myCombatLoot: toSql(tables.myCombatLoot),
+    myHarvestCaps: toSql(tables.myHarvestCaps),
+    myVisitedLocations: toSql(tables.myVisitedLocations),
     eventPrivate: (userId) => toSql(tables.eventPrivate.where((r) => r.ownerUserId.eq(userId))),
     eventLocation: (locationId) =>
       toSql(tables.eventLocation.where((r) => r.locationId.eq(locationId))),
@@ -85,8 +96,6 @@ export function gameQueries(): GameQueries {
     npcsAt: (locationId) => toSql(tables.npc.where((r) => r.locationId.eq(locationId))),
     enemySpawnsAt: (locationId) =>
       toSql(tables.enemySpawn.where((r) => r.locationId.eq(locationId))),
-    resourceNodesAt: (locationId) =>
-      toSql(tables.resourceNode.where((r) => r.locationId.eq(locationId))),
     charactersAt: (locationId) => toSql(tables.character.where((r) => r.locationId.eq(locationId))),
     connectionsFrom: (locationId) =>
       toSql(tables.locationConnection.where((r) => r.fromLocationId.eq(locationId))),
@@ -157,5 +166,13 @@ export function gameQueries(): GameQueries {
         ),
       );
     },
+    poolLevelsInRegions: (ids) => {
+      requireIds(ids);
+      return toSql(
+        tables.poolLevel.where((r) => ids.map((id) => r.regionId.eq(id)).reduce((a, b) => a.or(b))),
+      );
+    },
+    namedEnemiesOf: (characterId) =>
+      toSql(tables.namedEnemy.where((r) => r.characterId.eq(characterId))),
   };
 }
