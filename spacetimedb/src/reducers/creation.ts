@@ -2,7 +2,12 @@ import { ensureDefaultHotbar } from '../helpers/items';
 import { computeCreationStats, findRaceDefinition, PLACEHOLDER_RACE_NAME } from '../data/race_bonuses';
 import { PLAYER_INPUT_MAX_CHARS, truncateCodePoints } from '../data/llm_layers';
 import { startCreationGeneration, retryClassFill, CLASS_FILL_PATIENCE_LINE } from '../helpers/creation_generation';
-import { retryStarterWorldGen, startWorldGeneration, STARTER_RETRY_MESSAGES } from '../helpers/world_gen';
+import {
+  retryStarterWorldGen,
+  startWorldGeneration,
+  STARTER_RETRY_MESSAGES,
+  WORLD_FILL_RETRY_LINE,
+} from '../helpers/world_gen';
 import { syncCharacterOnline } from '../helpers/online';
 
 // Character creation state machine — narrative flow from greeting to character finalization
@@ -104,6 +109,9 @@ function retryStarterFromCreation(ctx: any, character: any, appendCreationEvent:
     appendCreationEvent(ctx, ctx.sender, 'creation_error', STARTER_RETRY_MESSAGES.none);
   } else if (outcome === 'started') {
     appendCreationEvent(ctx, ctx.sender, 'creation', STARTER_RETRY_MESSAGES.started);
+  } else if (outcome === 'fill_started') {
+    // Phase 51.3.1.2 (D-17, D-18): only the failed stage (2a or 2b) of the first region was re-enqueued.
+    appendCreationEvent(ctx, ctx.sender, 'creation', WORLD_FILL_RETRY_LINE);
   }
   // 'refused' already posted its creation_error line; 'reused' placed the character in the world.
 }

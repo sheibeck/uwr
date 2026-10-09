@@ -1357,6 +1357,10 @@ export const registerIntentReducers = (deps: any) => {
           return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', STARTER_RETRY_MESSAGES.busy);
         }
         if (starter === 'none') return fail(ctx, character, STARTER_RETRY_MESSAGES.none);
+        // Phase 51.3.1.2 (D-17, D-18): only the failed stage (2a or 2b) of the first region was re-enqueued.
+        if (starter === 'fill_started') {
+          return appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', WORLD_FILL_RETRY_LINE);
+        }
         if (starter === 'started') {
           appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', STARTER_RETRY_MESSAGES.started);
         }

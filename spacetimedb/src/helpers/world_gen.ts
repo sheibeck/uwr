@@ -289,13 +289,19 @@ export function startWorldGeneration(ctx: any, genState: any): WorldGenStartOutc
 
 /**
  * What a first-region retry did:
- *  - 'busy':    a starter state for the character is still PENDING or GENERATING (nothing written);
- *  - 'none':    the character has no starter state, or one that is not ERROR (nothing written);
- *  - 'started': a fresh starter state was created and its world_gen job enqueued;
- *  - 'reused':  a fresh starter state reused an existing starter region (no call);
- *  - 'refused': the enqueue was refused; the fresh state is ERROR and the refusal line is posted.
+ *  - 'busy':         a starter state for the character is PENDING, GENERATING, FILLING or FILLING_FAMILIES
+ *                    (nothing written);
+ *  - 'none':         the character has no starter state, or its newest one is not failed (nothing written);
+ *  - 'started':      stage 1 failed (ERROR): a fresh starter state was created and its world_gen_start job enqueued;
+ *  - 'reused':       that fresh starter state reused an existing starter region (no call);
+ *  - 'fill_started': stage 2a (FILL_ERROR) or 2b (FAMILIES_ERROR) failed: only that stage was re-enqueued on
+ *                    the same state (Phase 51.3.1.2, D-17, D-18);
+ *  - 'refused':      the enqueue was refused; the state is back in its error step and the refusal line is posted.
  */
-export type StarterRetryOutcome = 'busy' | 'none' | 'started' | 'reused' | 'refused';
+export type StarterRetryOutcome = 'busy' | 'none' | 'started' | 'reused' | 'fill_started' | 'refused';
+
+/** The starter steps with a call in flight: an [explore] then asks for patience and enqueues nothing. */
+const STARTER_RUNNING_STEPS: readonly string[] = Object.freeze(['PENDING', 'GENERATING', 'FILLING', 'FILLING_FAMILIES']);
 
 /** The in-voice lines for a first-region retry (shared by the explore intent and the creation console). */
 export const STARTER_RETRY_MESSAGES = Object.freeze({
@@ -309,6 +315,10 @@ export const STARTER_RETRY_MESSAGES = Object.freeze({
  * Starter states are found by CHARACTER, not by the connecting identity, so a player on a
  * second device (another identity of the same user) can retry too. The fresh state belongs to
  * `playerId`, the identity asking, so the job's messages reach the device that asked.
+ * Phase 51.3.1.2 (D-17, D-18): a new character waits in creation until the first region is whole, so the
+ * newest starter state decides: FILL_ERROR or FAMILIES_ERROR re-runs only that stage on the same state
+ * (handed to the asker, the character kept; 'fill_started'), never the region from the start; ERROR
+ * (stage 1 failed, every starter state ERROR) starts a fresh state as before.
  * Writes nothing for 'busy' and 'none'.
  */
 export function retryStarterWorldGen(ctx: any, character: any, playerId: any): StarterRetryOutcome {
@@ -316,8 +326,16 @@ export function retryStarterWorldGen(ctx: any, character: any, playerId: any): S
   const starters = [...ctx.db.world_gen_state.iter()].filter(
     (s: any) => s.characterId === character.id && s.sourceRegionId === 0n,
   );
-  if (starters.some((s: any) => s.step === 'PENDING' || s.step === 'GENERATING')) return 'busy';
-  if (starters.length === 0 || starters.some((s: any) => s.step !== 'ERROR')) return 'none';
+  if (starters.some((s: any) => STARTER_RUNNING_STEPS.includes(s.step))) return 'busy';
+  const newest = [...starters].sort(newestFirst)[0];
+  if (!newest) return 'none';
+
+  if (newest.step === 'FILL_ERROR' || newest.step === 'FAMILIES_ERROR') {
+    const handed = { ...newest, playerId, characterId: character.id, updatedAt: ctx.timestamp };
+    ctx.db.world_gen_state.id.update(handed);
+    return restartFailedStage(ctx, handed) === 'refused' ? 'refused' : 'fill_started';
+  }
+  if (starters.some((s: any) => s.step !== 'ERROR')) return 'none';
 
   const fresh = ctx.db.world_gen_state.insert({
     id: 0n,
