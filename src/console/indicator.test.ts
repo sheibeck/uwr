@@ -51,11 +51,14 @@ describe('routeInConsoleScope', () => {
     expect(routeInConsoleScope('creation_class_reveal', 'game')).toBe(false);
     expect(routeInConsoleScope('creation_class', 'game')).toBe(false);
     expect(routeInConsoleScope('world_gen', 'game')).toBe(true);
+    expect(routeInConsoleScope('world_gen_families', 'game')).toBe(true);
     expect(routeInConsoleScope('npc_conversation', 'game')).toBe(true);
   });
 
   it('limits the creation console to creation and world generation', () => {
     expect(routeInConsoleScope('creation_race', 'creation')).toBe(true);
+    // Phase 51.3.1.2 (D-17): the starter region's families (stage 2b) show in the creation console.
+    expect(routeInConsoleScope('world_gen_families', 'creation')).toBe(true);
     expect(routeInConsoleScope('npc_conversation', 'creation')).toBe(false);
   });
 });
@@ -125,6 +128,19 @@ describe('queueGateActive', () => {
     expect(queueGateActive([row(1, 'world_gen', 'in_flight')])).toBe(false);
   });
 
+  it('is false for the exempt world_gen_families route: the families call never holds input (Phase 51.3.1.2, D-17)', () => {
+    expect(queueGateActive([row(1, 'world_gen_families', 'pending')])).toBe(false);
+    expect(queueGateActive([row(1, 'world_gen_families', 'in_flight'), row(2, 'world_gen', 'received')])).toBe(false);
+  });
+
+  it('shows the families line in the creation and game consoles', () => {
+    for (const scope of ['creation', 'game'] as const) {
+      const state = selectLlmIndicator([row(1, 'world_gen_families')], scope);
+      expect(state.route).toBe('world_gen_families');
+      expect(state.indicatorLine).toBe(LLM_INDICATOR_LINES.world_gen_families);
+    }
+  });
+
   it('is true for the stage-1 world_gen_start route', () => {
     expect(queueGateActive([row(1, 'world_gen_start')])).toBe(true);
   });
@@ -149,8 +165,8 @@ describe('queueGateActive', () => {
 });
 
 describe('QUEUE_EXEMPT_ROUTES', () => {
-  it('is world_gen only and every entry is a server route', () => {
-    expect([...QUEUE_EXEMPT_ROUTES]).toEqual(['world_gen']);
+  it('is the two fill routes world_gen and world_gen_families, and every entry is a server route', () => {
+    expect([...QUEUE_EXEMPT_ROUTES]).toEqual(['world_gen', 'world_gen_families']);
     for (const route of QUEUE_EXEMPT_ROUTES) {
       expect(Object.prototype.hasOwnProperty.call(LLM_INDICATOR_LINES, route)).toBe(true);
     }

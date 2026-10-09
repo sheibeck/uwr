@@ -44,6 +44,8 @@ const EXPECTED_LINES: Record<string, string | null> = {
   creation_class: 'The Keeper is sorting out the rest of what you can do...',
   world_gen_start: 'The Keeper is unrolling a map, with visible reluctance...',
   world_gen: 'The Keeper is filling in the rest of the map, grudgingly...',
+  // Phase 51.3.1.2 (owner's section 6 choice, the ALTERNATIVE): the one line moved from the world_gen pool.
+  world_gen_families: 'The Keeper is placing things that will want to eat you...',
   skill_gen: 'The Keeper is weighing what you might become...',
   renown_perk_gen: 'The Keeper is tallying what your name is worth...',
   npc_conversation: 'The Keeper leans in to listen...',
@@ -85,7 +87,7 @@ describe('LLM_INDICATOR_FALLBACK_LINE', () => {
 });
 
 describe('LLM_INDICATOR_PRIORITY and LLM_INDICATOR_SILENT_ROUTES', () => {
-  it('orders the eight non-silent routes world_gen_start first, npc_conversation last', () => {
+  it('orders the nine non-silent routes world_gen_start first, npc_conversation last', () => {
     // Phase 43 adds the stage-1 routes
     expect([...LLM_INDICATOR_PRIORITY]).toEqual([
       'world_gen_start',
@@ -93,6 +95,7 @@ describe('LLM_INDICATOR_PRIORITY and LLM_INDICATOR_SILENT_ROUTES', () => {
       'creation_class_reveal',
       'creation_class',
       'world_gen',
+      'world_gen_families', // Phase 51.3.1.2 (D-17): right after world_gen
       'skill_gen',
       'renown_perk_gen',
       'npc_conversation',
@@ -124,6 +127,7 @@ describe('console scoping routes (WR-02)', () => {
       'creation_class',
       'world_gen_start',
       'world_gen',
+      'world_gen_families', // Phase 51.3.1.2 (D-17): the starter region's families show here
     ]);
   });
 
@@ -133,6 +137,7 @@ describe('console scoping routes (WR-02)', () => {
     for (const route of LLM_CREATION_ONLY_ROUTES) expect(LLM_CREATION_CONSOLE_ROUTES).toContain(route);
     expect(LLM_CREATION_ONLY_ROUTES).not.toContain('world_gen');
     expect(LLM_CREATION_ONLY_ROUTES).not.toContain('world_gen_start');
+    expect(LLM_CREATION_ONLY_ROUTES).not.toContain('world_gen_families');
   });
 
   it('every scoped route is a real, non-silent route', () => {
@@ -156,9 +161,9 @@ describe('LLM_INDICATOR_ACTIVE_STATUSES', () => {
 });
 
 describe('indicator line voice and pronoun rule', () => {
-  it('has eight non-null lines to check', () => {
-    // Phase 43 adds the stage-1 routes
-    expect(nonNullLines).toHaveLength(8);
+  it('has nine non-null lines to check', () => {
+    // Phase 43 adds the stage-1 routes; Phase 51.3.1.2 adds world_gen_families
+    expect(nonNullLines).toHaveLength(9);
   });
 
   for (const [route, line] of nonNullLines) {
@@ -240,6 +245,15 @@ describe('LLM_INDICATOR_POOLS', () => {
       if (POOLS_WITH_AT_LEAST_THREE.includes(route)) continue;
       expect([...LLM_INDICATOR_POOLS[route]]).toEqual([line]);
     }
+  });
+
+  it('follows the owner section 6 choice: only the eat-you line moves to world_gen_families (Phase 51.3.1.2)', () => {
+    expect([...LLM_INDICATOR_POOLS.world_gen_families]).toEqual(['The Keeper is placing things that will want to eat you...']);
+    expect([...LLM_INDICATOR_POOLS.world_gen]).toEqual([
+      'The Keeper is filling in the rest of the map, grudgingly...',
+      'The Keeper is deciding who else lives out here...',
+      'The Keeper is remembering the roads between places...',
+    ]);
   });
 
   it('has unique lines within each pool', () => {
