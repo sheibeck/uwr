@@ -19,7 +19,10 @@ import {
   excerpt,
   expectedSmokeCount,
   plannedCallCounts,
+  proofPricingInput,
+  proofReservationMicroUsd,
   proofVerdict,
+  worstCaseMicroUsd,
   resolveProofDb,
   resolveProveMode,
   smokeAllOk,
@@ -37,7 +40,12 @@ import {
 import { REPO_ROOT } from './cli.mjs';
 import { INDICATIVE_BELOW } from './call_log_report.mjs';
 import { LLM_SMOKE_ROUTES } from '../../spacetimedb/src/data/llm_limits.ts';
-import { LLM_ROUTE_NAMES } from '../../spacetimedb/src/data/llm_routes.ts';
+import { LLM_ROUTE_NAMES, LLM_ROUTES } from '../../spacetimedb/src/data/llm_routes.ts';
+import { buildRouteLayers } from '../../spacetimedb/src/data/llm_layers.ts';
+import { buildClaudeRequest } from '../../spacetimedb/src/helpers/claude_request.ts';
+import { CLAUDE_PRICE_MICRO_USD_PER_TOKEN, reserveCostMicroUsd } from '../../spacetimedb/src/helpers/measurement.ts';
+import { smokeInputFor } from '../../spacetimedb/src/helpers/llm_inputs.ts';
+import { SWEEP_FIXTURES } from './sweep_fixtures.mjs';
 
 // A sample ceiling for the pure spend rule (the real one is the admin-set daily ceiling).
 const CAP = 2_000_000n;
@@ -51,6 +59,7 @@ describe('PROOF_STEPS', () => {
       'creation_class',
       'world_gen_start',
       'world_gen',
+      'world_gen_families',
       'explore_region',
       'npc_conversation',
       'npc_burst',
@@ -59,6 +68,12 @@ describe('PROOF_STEPS', () => {
       'skill_gen',
       'llm_stats',
     ]);
+  });
+
+  it('times the families call (Phase 51.3.1.2, D-01) as its own step, straight after the region fill', () => {
+    expect(PROOF_STEPS.indexOf('world_gen_families')).toBe(PROOF_STEPS.indexOf('world_gen') + 1);
+    expect(nextProofStep('world_gen')).toBe('world_gen_families');
+    expect(nextProofStep('world_gen_families')).toBe('explore_region');
   });
 
   it('is frozen', () => {
@@ -90,6 +105,13 @@ describe('PROOF_DOMAINS', () => {
     expect(new Set(named).size).toBe(named.length);
     expect(Object.keys(PROOF_DOMAINS)).toEqual(['smoke', 'creation', 'world_gen', 'npc_chat', 'combat_narration', 'renown', 'skills']);
     expect(PROOF_STEPS.filter((s) => !named.includes(s))).toEqual(['llm_stats']);
+  });
+
+  it('the world domain needs stage 1, the places fill, the families fill and the explored region (Phase 51.3.1.2)', () => {
+    expect([...PROOF_DOMAINS.world_gen]).toEqual(['world_gen_start', 'world_gen', 'world_gen_families', 'explore_region']);
+    const results = allGood().map((r) => (r.step === 'world_gen_families' ? { ...r, ok: false } : r));
+    expect(proofVerdict(results).domains.world_gen).toBe('failed');
+    expect(proofVerdict(allGood().filter((r) => r.step !== 'world_gen_families')).missingSteps.world_gen).toEqual(['world_gen_families']);
   });
 
   it('is frozen all the way down', () => {
@@ -174,17 +196,19 @@ describe('proofVerdict (a skipped, missing or unobserved step is a failure)', ()
 });
 
 describe('the smoke expectation', () => {
-  it('equals LLM_SMOKE_ROUTES.length (8) and is read from the server, never a literal', () => {
+  it('equals LLM_SMOKE_ROUTES.length (9 since Phase 51.3.1.2 added world_gen_families) and is read from the server, never a literal', () => {
     expect(expectedSmokeCount()).toBe(LLM_SMOKE_ROUTES.length);
-    expect(expectedSmokeCount()).toBe(8);
+    expect(expectedSmokeCount()).toBe(9);
+    expect(LLM_SMOKE_ROUTES).toContain('world_gen_families');
   });
 
   it('smokeAllOk needs exactly that many entries, every one ok', () => {
     const entries = (n, okAll = true) => Object.fromEntries(Array.from({ length: n }, (_, i) => ['r' + i, { ok: okAll || i > 0 }]));
-    expect(smokeAllOk(JSON.stringify(entries(8)))).toBe(true);
+    expect(smokeAllOk(JSON.stringify(entries(9)))).toBe(true);
     expect(smokeAllOk(JSON.stringify(entries(6)))).toBe(false); // the old six-route expectation is not enough
-    expect(smokeAllOk(JSON.stringify(entries(8, false)))).toBe(false);
-    expect(smokeAllOk(JSON.stringify(entries(9)))).toBe(false);
+    expect(smokeAllOk(JSON.stringify(entries(8)))).toBe(false); // nor the eight routes before Phase 51.3.1.2
+    expect(smokeAllOk(JSON.stringify(entries(9, false)))).toBe(false);
+    expect(smokeAllOk(JSON.stringify(entries(10)))).toBe(false);
     expect(smokeAllOk('{}')).toBe(false);
     expect(smokeAllOk('not json')).toBe(false);
     expect(smokeAllOk(undefined)).toBe(false);
@@ -294,6 +318,7 @@ describe('plannedCallCounts', () => {
       creation_class: 2,
       world_gen_start: 3,
       world_gen: 3,
+      world_gen_families: 3,
       skill_gen: 2,
       npc_conversation: 1 + NPC_BURST_TURNS,
       combat_narration: 1,
@@ -303,15 +328,100 @@ describe('plannedCallCounts', () => {
     for (const route of LLM_SMOKE_ROUTES) expect(counts[route], route).toBeGreaterThanOrEqual(1);
   });
 
-  it('pins the whole-run total (8 smoke + 31 domain calls)', () => {
-    expect(total).toBe(39);
-    expect(total).toBe(LLM_SMOKE_ROUTES.length + 31);
+  it('counts the families call (Phase 51.3.1.2, D-01) twice plus its smoke call, right after world_gen', () => {
+    // The starter region and the explored one each make one 2b call; the smoke test warms its grammar once.
+    expect(counts.world_gen_families).toBe(2 + (LLM_SMOKE_ROUTES.includes('world_gen_families') ? 1 : 0));
+    const keys = Object.keys(counts);
+    expect(keys.indexOf('world_gen_families')).toBe(keys.indexOf('world_gen') + 1);
+  });
+
+  it('pins the whole-run total (9 smoke + 33 domain calls)', () => {
+    expect(total).toBe(42);
+    expect(total).toBe(LLM_SMOKE_ROUTES.length + 33);
   });
 
   it('is frozen', () => {
     expect(Object.isFrozen(counts)).toBe(true);
   });
 });
+
+describe('worstCaseMicroUsd (the bound the harness prints before any spend)', () => {
+  it('sums calls x the per-call reservation, one line per route in the counts order', () => {
+    const each = { a: 100n, b: 7n };
+    const bound = worstCaseMicroUsd({ a: 2, b: 3 }, (route) => each[route]);
+    expect(bound.total).toBe(221n);
+    expect(bound.lines).toEqual([
+      { route: 'a', calls: 2, eachMicroUsd: 100n },
+      { route: 'b', calls: 3, eachMicroUsd: 7n },
+    ]);
+  });
+
+  it('accepts a plain-number reservation and returns bigints', () => {
+    const bound = worstCaseMicroUsd({ a: 1 }, () => 5);
+    expect(bound.total).toBe(5n);
+    expect(typeof bound.lines[0].eachMicroUsd).toBe('bigint');
+  });
+
+  it('is zero for no calls and counts a zero-call route as nothing', () => {
+    expect(worstCaseMicroUsd({}, () => 1n).total).toBe(0n);
+    expect(worstCaseMicroUsd({ a: 0 }, () => 9n).total).toBe(0n);
+  });
+
+  it('throws on a count that is not a whole, non-negative number (never silently under-counts)', () => {
+    for (const bad of [-1, 1.5, Number.NaN, '2', undefined, null]) {
+      expect(() => worstCaseMicroUsd({ a: bad }, () => 1n), String(bad)).toThrow(/call count/);
+    }
+  });
+
+  it('throws on a reservation that is not a whole, non-negative amount', () => {
+    for (const bad of [-1n, 1.5, Number.NaN, undefined]) {
+      expect(() => worstCaseMicroUsd({ a: 1 }, () => bad), String(bad)).toThrow(/reservation/);
+    }
+  });
+});
+
+describe('proofReservationMicroUsd (each call priced at its full reservation)', () => {
+  const routes = Object.keys(plannedCallCounts());
+
+  it('prices every planned route at its maxTokens plus its request, the server reservation rule', () => {
+    for (const route of routes) {
+      const input = proofPricingInput(route);
+      const request = buildClaudeRequest(route, buildRouteLayers(route, input));
+      const expected = BigInt(reserveCostMicroUsd(LLM_ROUTES[route].maxTokens, request.bodyText.length));
+      expect(proofReservationMicroUsd(route), route).toBe(expected);
+      expect(proofReservationMicroUsd(route) >= BigInt(LLM_ROUTES[route].maxTokens * CLAUDE_PRICE_MICRO_USD_PER_TOKEN.output), route).toBe(true);
+    }
+  });
+
+  it('prices from the first sweep fixture, else the server smoke input; the smoke test has an empty input', () => {
+    expect(proofPricingInput('world_gen')).toBe(SWEEP_FIXTURES.world_gen[0]);
+    expect(proofPricingInput('smoke_test')).toEqual({});
+    // Phase 51.3.1.2: no sweep fixture exists for the families route yet, so its smoke input prices it.
+    if (!SWEEP_FIXTURES.world_gen_families) expect(proofPricingInput('world_gen_families')).toEqual(smokeInputFor('world_gen_families'));
+  });
+
+  it('throws on an unknown route', () => {
+    expect(() => proofReservationMicroUsd('nonsense')).toThrow(/unknown route/);
+  });
+});
+
+{
+  const stop = PROOF_RUN_CAP_MICRO_USD - PROOF_SPEND_MARGIN_MICRO_USD;
+  const bound = worstCaseMicroUsd(plannedCallCounts());
+  const usd = (micro) => '$' + (Number(micro) / 1_000_000).toFixed(4);
+  describe('the planned run fits the run cap (Phase 51.3.1.2: the families call priced in)', () => {
+    it(`worst-case bound ${usd(bound.total)} (${bound.total} micro-USD) is under the ${usd(stop)} stop line`, () => {
+      expect(bound.total > 0n).toBe(true);
+      expect(bound.total < stop, `bound ${usd(bound.total)} vs stop ${usd(stop)}`).toBe(true);
+    });
+
+    it('includes the families route at three calls', () => {
+      const line = bound.lines.find((l) => l.route === 'world_gen_families');
+      expect(line?.calls).toBe(3);
+      expect(line?.eachMicroUsd).toBe(proofReservationMicroUsd('world_gen_families'));
+    });
+  });
+}
 
 describe('the NPC burst', () => {
   it('is 20 sequential turns, matching the report indicative threshold', () => {

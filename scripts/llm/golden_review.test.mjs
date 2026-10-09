@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest';
 import { GOLDEN_IDS, GOLDEN_SET, goldenItem } from './golden_set.mjs';
 import { KEEPER_IT_OR_THEY } from './golden_rules.mjs';
 import { buildGoldenRecord } from './golden_run.mjs';
-import { renderGoldenReview, reviewLines } from './golden_review.mjs';
+import { GROUP_LABELS, renderGoldenReview, reviewLines } from './golden_review.mjs';
+import { GOLDEN_SHAPE_CHANGED_ROUTES } from './golden_rules.mjs';
 
 const FAKE_KEY = ['sk', '-ant-', 'api03-', 'B'.repeat(30)].join('');
 
@@ -54,6 +55,19 @@ function codeOf(html) {
   const { found } = blocks(html);
   return found.find((m) => !/application\/json/.test(m[1]))[2];
 }
+
+describe('group labels', () => {
+  it('labels the families route (Phase 51.3.1.2, D-01) for the owner's re-recorded run', () => {
+    expect(GROUP_LABELS.world_gen_families).toBe('World: creature families');
+    expect(GROUP_LABELS.world_gen).toBe('World: region fill');
+  });
+
+  it('labels every golden route, every shape-changed route and the adversarial group, and is frozen', () => {
+    for (const item of GOLDEN_SET) expect(GROUP_LABELS[item.kind === 'adversarial' ? 'adversarial' : item.route], item.id).toBeTruthy();
+    for (const route of GOLDEN_SHAPE_CHANGED_ROUTES) expect(GROUP_LABELS[route], route).toBeTruthy();
+    expect(Object.isFrozen(GROUP_LABELS)).toBe(true);
+  });
+});
 
 describe('renderGoldenReview: structure', () => {
   const html = renderGoldenReview(recordWith());

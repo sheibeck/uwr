@@ -28,7 +28,7 @@ import path from 'node:path';
 import { REPO_ROOT } from './cli.mjs';
 import { PLAYER_INPUT_TAG_PATTERN, ROUTE_BLOCKS, buildRouteLayers } from '../../spacetimedb/src/data/llm_layers.ts';
 import { KEEPER_BIBLE, KEEPER_BIBLE_HEADINGS } from '../../spacetimedb/src/data/keeper_bible.ts';
-import { LLM_ROUTES } from '../../spacetimedb/src/data/llm_routes.ts';
+import { LLM_ROUTE_NAMES, LLM_ROUTES } from '../../spacetimedb/src/data/llm_routes.ts';
 import { LLM_JSON_SCHEMAS } from '../../spacetimedb/src/data/llm_schemas.ts';
 import { keeperMessageForJob } from '../../spacetimedb/src/helpers/llm_status.ts';
 import { clampToBudget } from '../../spacetimedb/src/helpers/skill_budget.ts';
@@ -1286,10 +1286,28 @@ describe('golden set: allowed speakers (Phase 46)', () => {
 describe('golden rules: replay-guard exports (Phase 46)', () => {
   it('exports the added rule ids and the shape-changed routes, frozen', () => {
     expect([...GOLDEN_RULES_ADDED_IN_46]).toEqual(['segments_invalid', 'keeper_first_person']);
-    expect([...GOLDEN_SHAPE_CHANGED_ROUTES]).toEqual(['npc_conversation', 'combat_narration', 'world_gen_start', 'world_gen']);
+    expect([...GOLDEN_SHAPE_CHANGED_ROUTES]).toEqual(['npc_conversation', 'combat_narration', 'world_gen_start', 'world_gen', 'world_gen_families']);
     expect(Object.isFrozen(GOLDEN_RULES_ADDED_IN_46)).toBe(true);
     expect(Object.isFrozen(GOLDEN_SHAPE_CHANGED_ROUTES)).toBe(true);
     for (const id of GOLDEN_RULES_ADDED_IN_46) expect(GOLDEN_RULES).toContain(id);
+  });
+
+  it('lists world_gen_families (Phase 51.3.1.2, D-01) for the owner to re-record, without adding a paid golden item', () => {
+    expect(GOLDEN_SHAPE_CHANGED_ROUTES).toContain('world_gen_families');
+    expect(GOLDEN_ROUTE_COUNTS.world_gen_families).toBeUndefined();
+    expect(GOLDEN_ROUTE_COUNTS).toEqual({
+      npc_conversation: 6,
+      creation_race: 2,
+      creation_class_reveal: 2,
+      creation_class: 1,
+      world_gen_start: 2,
+      world_gen: 2,
+      skill_gen: 3,
+      renown_perk_gen: 2,
+      combat_narration: 2,
+    });
+    expect(GOLDEN_SET.filter((i) => i.route === 'world_gen_families')).toHaveLength(0);
+    for (const route of GOLDEN_SHAPE_CHANGED_ROUTES) expect(LLM_ROUTE_NAMES, route).toContain(route);
   });
 });
 
