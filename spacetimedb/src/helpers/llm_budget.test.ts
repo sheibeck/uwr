@@ -106,9 +106,9 @@ function reserve(ctx: any, over: Record<string, unknown> = {}) {
 // ---------------------------------------------------------------------------
 
 describe('reservation estimate', () => {
-  it('equals BigInt(reserveCostMicroUsd(maxTokens, bible + route block + json)) for all eleven routes', () => {
-    // Phase 43 adds the stage-1 routes
-    expect(LLM_ROUTE_NAMES).toHaveLength(11);
+  it('equals BigInt(reserveCostMicroUsd(maxTokens, bible + route block + json)) for all twelve routes', () => {
+    // Phase 43 adds the stage-1 routes; Phase 51.3.1.2 adds world_gen_families
+    expect(LLM_ROUTE_NAMES).toHaveLength(12);
     for (const route of LLM_ROUTE_NAMES) {
       const chars = KEEPER_BIBLE.length + ROUTE_BLOCKS[route].length + JSON_BODY.length;
       expect(estimatePromptChars(route, JSON_BODY), route).toBe(chars);

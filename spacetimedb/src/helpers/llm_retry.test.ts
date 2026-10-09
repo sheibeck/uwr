@@ -45,9 +45,10 @@ describe('maxAttempts', () => {
     }
   });
 
-  it('covers all eleven routes with exactly the LLM_NO_AUTO_RETRY_ROUTES set at 1', () => {
-    // Phase 43 adds the stage-1 routes
-    expect(LLM_ROUTE_NAMES).toHaveLength(11);
+  it('covers all twelve routes with exactly the LLM_NO_AUTO_RETRY_ROUTES set at 1', () => {
+    // Phase 43 adds the stage-1 routes; Phase 51.3.1.2 adds world_gen_families (never auto-retried, D-01)
+    expect(LLM_ROUTE_NAMES).toHaveLength(12);
+    expect(maxAttempts('world_gen_families')).toBe(1);
     const ones = LLM_ROUTE_NAMES.filter((r) => maxAttempts(r) === 1).sort();
     expect(ones).toEqual([...LLM_NO_AUTO_RETRY_ROUTES].sort());
   });
