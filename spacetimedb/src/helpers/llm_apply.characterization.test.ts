@@ -872,6 +872,42 @@ const REGION_FILL_JSON = {
   ],
 };
 
+/** Phase 51.3.1.2: the stage-2b (world_gen_families) reply, the families of the region. */
+const WORLD_FAMILIES_JSON = {
+  families: [
+    {
+      name: 'Ember Wolves',
+      singularNoun: 'ember wolf',
+      pluralNoun: 'ember wolves',
+      creatureType: 'beast',
+      iconKey: 'beast',
+      temperament: 'aggressive',
+      ambushVerb: 'lunge',
+      ambushRest: 'out of the ash',
+      members: [{ role: 'damage', name: 'Ember Wolf' }, { role: 'tank', name: 'Ember Packleader' }],
+      fitLocations: ['Slag Road'],
+      relations: [{ family: 'Slag Casters', kind: 'rival' }],
+      history: 'The ash fell and the wolves came after it.',
+      inFeud: false,
+    },
+    {
+      name: 'Slag Casters',
+      singularNoun: 'slag caster',
+      pluralNoun: 'slag casters',
+      creatureType: 'humanoid',
+      iconKey: 'humanoid',
+      temperament: 'wary',
+      ambushVerb: 'rise',
+      ambushRest: 'from the slag',
+      members: [{ role: 'caster', name: 'Slag Caster' }],
+      fitLocations: ['Ashen Pit'],
+      relations: [],
+      history: 'Old smiths who stayed too long by the fire.',
+      inFeud: false,
+    },
+  ],
+};
+
 /** A character at location 0 waiting on stage 1 (the state is GENERATING). */
 function worldSeed(over: { gen?: Record<string, any>; char?: Record<string, any> | null } = {}): Seed {
   return {
@@ -1000,6 +1036,20 @@ function execStageOne(
 /** A context whose LLM calls gate is open (newCtx seeds the gate row empty, which fails closed). */
 function openGateCtx(seed: Seed) {
   return newCtx({ llm_admin_state: [defaultLlmAdminStateRow()], ...seed });
+}
+
+/**
+ * Phase 51.3.1.2: a world_gen (stage 2a) success enqueues the families job (stage 2b) in the same
+ * transaction, so the gate is open (strict mock) and the plumbing tables are summarized like stage 1.
+ */
+function openFillCtx(seed: Seed) {
+  return newCtx({ llm_admin_state: [defaultLlmAdminStateRow()], ...seed }, alice, true);
+}
+function execStage(ctx: any, domain: string, resultText: string) {
+  const before = tableLengths(ctx);
+  applyLlmResult(ctx, applyJob(domain, GEN_CTX), resultText);
+  expect(insertProblems(ctx, before)).toEqual([]);
+  expect(worldDump(ctx)).toMatchSnapshot();
 }
 
 describe('llm apply world_gen_start failure path', () => {
@@ -1171,9 +1221,10 @@ describe('llm apply world_gen_start success (stage 1)', () => {
     const links = rows(ctx, 'location_connection').map((c: any) => [c.fromLocationId, c.toLocationId]);
     expect(links).toContainEqual([start.id, 50n]);
     expect(links).toContainEqual([50n, start.id]);
-    // The character already had a location: no placement, no arrival message, still a discovery and a milestone line.
+    // The character already had a location: no placement, no arrival message. Phase 51.3.1.2 (owner choices):
+    // a traveller gets no milestone line, and the discovery line waits for 7c at COMPLETE.
     expect(rows(ctx, 'character')[0].locationId).toBe(50n);
-    expect(rows(ctx, 'event_private').map((e: any) => e.kind)).toEqual(['system', 'system']);
+    expect(rows(ctx, 'event_private')).toEqual([]);
     expect(rows(ctx, 'event_world')[0].message).toContain('Old Reach');
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING');
   });
@@ -1263,29 +1314,31 @@ describe('llm apply world_gen_start success (stage 1)', () => {
 });
 
 describe('llm apply world_gen success (stage 2, the fill)', () => {
-  it('writes the rest of the region around the stage-1 start location, completes the state and posts one line', () => {
-    const ctx = newCtx(fillSeed(), alice, true);
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_FILL_JSON) });
+  it('Phase 51.3.1.2: stage 2a writes the places around the stage-1 start location, starts the families job and posts no line', () => {
+    const ctx = openFillCtx(fillSeed());
+    execStage(ctx, 'world_gen', JSON.stringify(REGION_FILL_JSON));
 
-    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'COMPLETE', generatedRegionId: 1n });
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'FILLING_FAMILIES', generatedRegionId: 1n });
     expect(rows(ctx, 'region')[0]).toMatchObject({ name: 'Cinderfall', dominantFaction: 'Ash Court', starterForRace: 'ashkin' });
     const names = rows(ctx, 'location').map((l: any) => l.name);
     expect(names).toEqual(['Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall']);
-    expect(replyEnemyLevels(ctx)).toEqual([1n, 1n]);
+    // A reply without a families array is stage 2a: its enemies are never read, stage 2b writes the families.
+    expect(rows(ctx, 'enemy_template')).toHaveLength(0);
+    expect(rows(ctx, 'creature_family')).toHaveLength(0);
     // Stage-1 Vessa stays, Old Brann falls back to the start location, the banker is the safety net
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'Old Brann', 'The Ledger Keeper']);
     expect(rows(ctx, 'npc').every((n: any) => n.locationId === 1n)).toBe(true);
     // The character is not moved by stage 2
     expect(rows(ctx, 'character')[0].locationId).toBe(1n);
-    const priv = rows(ctx, 'event_private');
-    expect(priv.map((e: any) => e.kind)).toEqual(['system']);
-    expect(priv[0].message).toBe('The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.');
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
     expect(rows(ctx, 'event_world')).toHaveLength(0);
-    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    const jobs = rows(ctx, 'llm_job');
+    expect(jobs.map((j: any) => `${j.route}:${j.status}`)).toEqual(['world_gen_families:pending']);
+    expect(JSON.parse(jobs[0].requestJson).genStateId).toBe('5');
   });
 
-  it('non-starter region: clamps enemy levels from the stored region danger', () => {
-    const ctx = newCtx(fillSeed({ region: { dangerMultiplier: 400n, starterForRace: undefined } }), alice, true);
+  it('Phase 51.3.1.2: a stage-2a reply\'s enemies are never written, whatever their levels', () => {
+    const ctx = openFillCtx(fillSeed({ region: { dangerMultiplier: 400n, starterForRace: undefined } }));
     const reply = {
       ...REGION_FILL_JSON,
       enemies: [
@@ -1294,13 +1347,13 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
         { name: 'Just Right', role: 'melee', level: 4 },
       ],
     };
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
-    expect(replyEnemyLevels(ctx)).toEqual([5n, 3n, 4n]);
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    execStage(ctx, 'world_gen', JSON.stringify(reply));
+    expect(replyEnemyLevels(ctx)).toEqual([]);
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
   });
 
   it('never renames or duplicates stage-1 content', () => {
-    const ctx = newCtx(fillSeed(), alice, true);
+    const ctx = openFillCtx(fillSeed());
     const reply = {
       ...REGION_FILL_JSON,
       locations: [
@@ -1312,35 +1365,36 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
         ...REGION_FILL_JSON.npcs,
       ],
     };
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
+    execStage(ctx, 'world_gen', JSON.stringify(reply));
     expect(rows(ctx, 'location').filter((l: any) => l.name.toLowerCase() === 'ember hollow')).toHaveLength(1);
     expect(rows(ctx, 'location').find((l: any) => l.id === 1n)).toMatchObject({ name: 'Ember Hollow', description: 'A sheltered town.' });
     expect(rows(ctx, 'npc').filter((n: any) => n.name.toLowerCase() === 'vessa')).toHaveLength(1);
   });
 
   it('QUIRK: a missing character still gets the fill written, but no private events', () => {
-    const ctx = newCtx(fillSeed({ char: null }), alice, true);
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_FILL_JSON) });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    const ctx = openFillCtx(fillSeed({ char: null }));
+    execStage(ctx, 'world_gen', JSON.stringify(REGION_FILL_JSON));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
     expect(rows(ctx, 'event_private')).toHaveLength(0);
     expect(rows(ctx, 'location')).toHaveLength(4);
   });
 
   it('accepts a code-fenced reply', () => {
-    const ctx = newCtx(fillSeed(), alice, true);
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: '```json\n' + JSON.stringify(REGION_FILL_JSON) + '\n```' });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    const ctx = openFillCtx(fillSeed());
+    execStage(ctx, 'world_gen', '```json\n' + JSON.stringify(REGION_FILL_JSON) + '\n```');
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
   });
 
   it('an empty locations array is still a usable fill (services and boundary on the start location)', () => {
-    const ctx = newCtx(fillSeed(), alice, true);
-    exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify({ ...REGION_FILL_JSON, locations: [] }) });
-    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    // A job asked without a place count (this one has no stored input) has no floor (D-03).
+    const ctx = openFillCtx(fillSeed());
+    execStage(ctx, 'world_gen', JSON.stringify({ ...REGION_FILL_JSON, locations: [] }));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow', 'The Edge Beyond Cinderfall']);
     expect(rows(ctx, 'npc').map((n: any) => n.npcType).sort()).toEqual(['banker', 'lore', 'vendor']);
   });
 
-  it.each(['GENERATING', 'PENDING', 'FILL_ERROR', 'COMPLETE', 'ERROR'])(
+  it.each(['GENERATING', 'PENDING', 'FILL_ERROR', 'COMPLETE', 'ERROR', 'FILLING_FAMILIES', 'FAMILIES_ERROR'])(
     'QUIRK: a state in step %s returns silently',
     (step) => {
       const ctx = newCtx(fillSeed({ gen: { step } }), alice, true);
@@ -1385,6 +1439,96 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_FILL_JSON) });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILL_ERROR');
     expect(rows(ctx, 'location')).toHaveLength(1);
+  });
+
+  it('Phase 51.3.1.2: a reply that still carries families (queued before the publish) completes the region in one apply', () => {
+    const ctx = openFillCtx(fillSeed());
+    execStage(ctx, 'world_gen', JSON.stringify({ ...REGION_FILL_JSON, families: WORLD_FAMILIES_JSON.families }));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    expect(rows(ctx, 'creature_family').map((f: any) => f.name)).toEqual(expect.arrayContaining(['Ember Wolves', 'Slag Casters']));
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    // A starter state gets no line at COMPLETE (Plan 13 places the new character).
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// world_gen_families (stage 2b, Phase 51.3.1.2)
+// ---------------------------------------------------------------------------
+
+describe('llm apply world_gen_families success (stage 2b, the families)', () => {
+  /** Stage 2a has landed on `seed`: the places are written and the state is FILLING_FAMILIES. */
+  function familiesCtx(seed: Seed) {
+    const ctx = openFillCtx(seed);
+    applyLlmResult(ctx, applyJob('world_gen', GEN_CTX), JSON.stringify(REGION_FILL_JSON));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
+    return ctx;
+  }
+
+  it('starter region: writes the families, completes the state and posts no line', () => {
+    const ctx = familiesCtx(fillSeed());
+    execStage(ctx, 'world_gen_families', JSON.stringify(WORLD_FAMILIES_JSON));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    expect(rows(ctx, 'creature_family').map((f: any) => f.name)).toEqual(expect.arrayContaining(['Ember Wolves', 'Slag Casters']));
+    expect(rows(ctx, 'location')).toHaveLength(4);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+
+  it('non-starter region: the triggering character gets the region-opened line, then the discovery line', () => {
+    const ctx = familiesCtx(fillSeed({ gen: { sourceLocationId: 50n, sourceRegionId: 100n }, region: { starterForRace: undefined } }));
+    execStage(ctx, 'world_gen_families', JSON.stringify(WORLD_FAMILIES_JSON));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    const priv = rows(ctx, 'event_private');
+    expect(priv.map((e: any) => e.kind)).toEqual(['system', 'system']);
+    expect(priv[0].message).toContain('Cinderfall');
+  });
+
+  it.each([
+    ['unparseable text', 'the ash keeps its secrets'],
+    ['a reply without a families array', JSON.stringify({ creatures: [] })],
+    ['a reply whose families all fail validation', JSON.stringify({ families: [null, 'x', 7] })],
+  ])('%s: FAMILIES_ERROR, the places stay, no family', (_label, reply) => {
+    const ctx = familiesCtx(fillSeed());
+    execStage(ctx, 'world_gen_families', reply);
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: 'The land is remembered, but not yet what lives in it.' });
+    expect(rows(ctx, 'location')).toHaveLength(4);
+    expect(rows(ctx, 'creature_family')).toHaveLength(0);
+  });
+
+  it.each(['FILLING', 'FILL_ERROR', 'FAMILIES_ERROR', 'COMPLETE', 'ERROR'])('QUIRK: a state in step %s returns silently', (step) => {
+    const ctx = newCtx(fillSeed({ gen: { step } }), alice, true);
+    exec(ctx, applyJob('world_gen_families', GEN_CTX), { resultText: JSON.stringify(WORLD_FAMILIES_JSON) });
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe(step);
+    expect(rows(ctx, 'creature_family')).toHaveLength(0);
+  });
+});
+
+describe('llm apply world_gen_families failure path', () => {
+  it('sets the state to FAMILIES_ERROR and tells a placed character the region is held', () => {
+    const ctx = newCtx(fillSeed({ gen: { step: 'FILLING_FAMILIES' } }));
+    exec(ctx, applyJob('world_gen_families', GEN_CTX), { success: false });
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({
+      step: 'FAMILIES_ERROR',
+      generatedRegionId: 1n,
+      errorMessage: 'The land is remembered, but not yet what lives in it.',
+    });
+    expect(rows(ctx, 'npc')).toHaveLength(1);
+    expect(rows(ctx, 'event_private')).toHaveLength(1);
+    expect(rows(ctx, 'event_private')[0]).toMatchObject({ kind: 'system', characterId: 10n, ownerUserId: 7n });
+  });
+
+  it('a character still in creation gets the families line with the [explore] hint on the creation console', () => {
+    const ctx = newCtx(fillSeed({ gen: { step: 'FILLING_FAMILIES' }, char: { locationId: 0n } }));
+    exec(ctx, applyJob('world_gen_families', GEN_CTX), { success: false });
+    expect(rows(ctx, 'event_creation')).toHaveLength(1);
+    expect(rows(ctx, 'event_creation')[0].message).toBe('The land is remembered, but not yet what lives in it. Type [explore] to try again.');
+  });
+
+  it.each(['FILLING', 'FILL_ERROR', 'COMPLETE', 'ERROR', 'GENERATING'])('a state that is not FILLING_FAMILIES (%s) is left alone', (step) => {
+    const ctx = newCtx(fillSeed({ gen: { step } }));
+    exec(ctx, applyJob('world_gen_families', GEN_CTX), { success: false });
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe(step);
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
   });
 });
 

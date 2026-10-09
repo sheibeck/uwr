@@ -91,6 +91,41 @@ const REGION_FILL_JSON = {
 };
 const FILL_TEXT = JSON.stringify(REGION_FILL_JSON);
 
+/** One family of the stage-2b (world_gen_families) reply, with the member names the old enemies carried. */
+const familyItem = (name: string, singular: string, creatureType: string, member: { role: string; name: string }) => ({
+  name,
+  singularNoun: singular,
+  pluralNoun: `${singular}s`,
+  creatureType,
+  iconKey: creatureType,
+  temperament: 'aggressive',
+  ambushVerb: 'lunge',
+  ambushRest: 'out of the ash',
+  members: [member],
+  fitLocations: [],
+  relations: [],
+});
+const FAMILIES_TEXT = JSON.stringify({
+  families: [
+    familyItem('Ember Wolves', 'ember wolf', 'beast', { role: 'damage', name: 'Ember Wolf' }),
+    familyItem('Slag Casters', 'slag caster', 'humanoid', { role: 'caster', name: 'Slag Caster' }),
+  ],
+});
+const familiesJob = () => ({ domain: 'world_gen_families', playerId: alice, contextJson: GEN_CTX });
+
+/**
+ * Phase 51.3.1.2 (D-01): the region fill is two replies. The places (world_gen, stage 2a) start the families
+ * job; the families (world_gen_families, stage 2b) complete the region, and the economy starts after that.
+ * `between` runs after 2a (for example to halt the game before 2b lands).
+ */
+function fillRegion(ctx: any, between: (ctx: any) => void = () => {}): void {
+  apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
+  between(ctx);
+  apply.applyLlmResult(ctx, familiesJob(), FAMILIES_TEXT);
+}
+/** The jobs other than the families job the 2a apply enqueued. */
+const otherJobs = (ctx: any): any[] => rows(ctx, 'llm_job').filter((j: any) => j.route !== 'world_gen_families');
+
 /** Stage 1 has landed for region 1 (Cinderfall); the state is FILLING. */
 function fillSeed(extra: Seed = {}): Seed {
   return {
@@ -125,19 +160,21 @@ describe('fill hook: off by default (SC6, spend safety)', () => {
     ['aiEnabled false', { economy_dials: dialsOff() }],
   ])('%s: the fill completes and writes no region_economy row, job or dispatch', (_label, extra) => {
     const ctx = ctxFor(fillSeed(extra as Seed));
-    apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
+    fillRegion(ctx);
     expect(genStep(ctx)).toBe('COMPLETE');
     expect(rows(ctx, 'region_economy')).toHaveLength(0);
     expect(econJobs(ctx)).toHaveLength(0);
-    expect(rows(ctx, 'llm_job')).toHaveLength(0);
-    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    // Only the families job stage 2a enqueued (and its dispatch row): nothing for the economy.
+    expect(otherJobs(ctx)).toHaveLength(0);
+    const familiesIds = new Set(rows(ctx, 'llm_job').map((j: any) => j.id));
+    expect(rows(ctx, 'llm_dispatch').filter((d: any) => !familiesIds.has(d.jobId))).toHaveLength(0);
   });
 });
 
 describe('fill hook: on', () => {
   it('enqueues one region-mode job (phase_only, region:<id>) and writes the pending row', () => {
     const ctx = ctxFor(fillSeed({ economy_dials: dialsOn() }));
-    apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
+    fillRegion(ctx);
     expect(genStep(ctx)).toBe('COMPLETE');
 
     const jobs = econJobs(ctx);
@@ -164,17 +201,17 @@ describe('fill hook: on', () => {
     expect(econRows).toHaveLength(1);
     expect(econRows[0]).toMatchObject({ regionId: 1n, status: 'pending', jobId: job.id, otherRegionIds: '[]' });
 
-    // The fill itself is unchanged: the completion line is still written.
-    expect(rows(ctx, 'event_private').map((e: any) => e.message)).toContain(completionLine);
+    // Phase 51.3.1.2: the old completion line is gone; a starter state gets no line at COMPLETE (Plan 13).
+    expect(rows(ctx, 'event_private').map((e: any) => e.message)).not.toContain(completionLine);
   });
 
   it('adjacency: a second fill completion for the same region does not enqueue a second job', () => {
     const ctx = ctxFor(fillSeed({ economy_dials: dialsOn() }));
-    apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
-    // A FILL_ERROR retry completing later: the state is FILLING again and the fill applies again.
+    fillRegion(ctx);
+    // A FAMILIES_ERROR retry completing later: the state is FILLING_FAMILIES again and the families apply again.
     const state = rows(ctx, 'world_gen_state')[0];
-    ctx.db.world_gen_state.id.update({ ...state, step: 'FILLING' });
-    apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
+    ctx.db.world_gen_state.id.update({ ...state, step: 'FILLING_FAMILIES' });
+    apply.applyLlmResult(ctx, familiesJob(), FAMILIES_TEXT);
     expect(genStep(ctx)).toBe('COMPLETE');
     expect(econJobs(ctx)).toHaveLength(1);
     expect(rows(ctx, 'region_economy')).toHaveLength(1);
@@ -185,12 +222,17 @@ describe('fill hook: on', () => {
 
   it('a halted game (kill switch) refuses the enqueue: the fill completes, no row or job is written', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
-    const ctx = ctxFor(fillSeed({ economy_dials: dialsOn(), llm_admin_state: [{ ...defaultLlmAdminStateRow(), llmEnabled: false }] }));
-    apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
+    const ctx = ctxFor(fillSeed({ economy_dials: dialsOn() }));
+    // Phase 51.3.1.2: the game halts after the places landed and the families job was queued (a halt
+    // before 2a would refuse the families job itself); the families reply then completes the region.
+    fillRegion(ctx, (c) => {
+      const gate = rows(c, 'llm_admin_state')[0];
+      c.db.llm_admin_state.id.update({ ...gate, llmEnabled: false });
+    });
     expect(genStep(ctx)).toBe('COMPLETE');
     expect(rows(ctx, 'region_economy')).toHaveLength(0);
     expect(econJobs(ctx)).toHaveLength(0);
-    expect(rows(ctx, 'llm_dispatch')).toHaveLength(0);
+    expect(otherJobs(ctx)).toHaveLength(0);
     const lines = info.mock.calls.map((c) => String(c[0]));
     expect(lines.some((l) => l.includes('region_economy') && l.includes('halted') && l.includes('1'))).toBe(true);
     // No identity in the log line.
@@ -207,9 +249,9 @@ describe('fill hook: on', () => {
       },
     });
     const ctx = { ...base, db };
-    apply.applyLlmResult(ctx, fillJob(), FILL_TEXT);
+    fillRegion(ctx);
     expect(genStep(base)).toBe('COMPLETE');
-    expect(rows(base, 'event_private').map((e: any) => e.message)).toContain(completionLine);
+    expect(rows(base, 'event_private').map((e: any) => e.message)).not.toContain(completionLine);
     expect(rows(base, 'region_economy')).toHaveLength(0);
     expect(econJobs(base)).toHaveLength(0);
     expect(error.mock.calls.map((c) => String(c[0]))).toContain('Region economy start failed for region 1: Error');
@@ -729,7 +771,7 @@ describe('end to end: fill, then the real llm_run path with a scripted fetch', (
   it("writes the region's economy (status complete); the scripted fetch was the only fetch", () => {
     // A probe fill on a plain context builds the same stored region input (same seed, same clock).
     const probe = ctxFor(fillSeed({ economy_dials: dialsOn() }));
-    apply.applyLlmResult(probe, fillJob(), FILL_TEXT);
+    fillRegion(probe);
     const probeInput = requestOf(econJobs(probe)[0]).input;
     const proc = createMockProcCtx({
       seed: fillSeed({ economy_dials: dialsOn(), llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: ts(T0) }] }),
@@ -739,7 +781,7 @@ describe('end to end: fill, then the real llm_run path with a scripted fetch', (
       responses: [claudeReply(familyReplyFor(probeInput))],
       strict: true,
     });
-    proc.ctx.withTx((tx: any) => apply.applyLlmResult(tx, fillJob(), FILL_TEXT));
+    proc.ctx.withTx((tx: any) => fillRegion(tx));
     const prow = (t: string): any[] => proc.db._tables[t] ?? [];
     expect(prow('world_gen_state')[0].step).toBe('COMPLETE');
     const jobs = prow('llm_job').filter((j: any) => j.route === 'region_economy');

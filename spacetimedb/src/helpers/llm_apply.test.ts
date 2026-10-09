@@ -37,7 +37,7 @@ import {
 import { CLASS_REVEAL_MILESTONE_LINE, CLASS_FILL_FAILED_LINE, CLASS_FILL_RETRY_HINT } from './creation_generation';
 import { serializePerkEffect } from './renown';
 import { LLM_RESTING_LINE } from './llm_queue';
-import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE } from './world_gen';
+import { WORLD_FILL_FAILED_MESSAGE, WORLD_FILL_REFUSED_MESSAGE, WORLD_FAMILIES_FAILED_MESSAGE } from './world_gen';
 import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { setLlmEnabled } from './llm_admin_state';
 import { utcDay } from './llm_budget';
@@ -758,6 +758,15 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
     expect(events[0].message).not.toContain('thread');
   });
 
+  it.each(CODES)('world_gen_families (%s): FAMILIES_ERROR (never FILL_ERROR) with the resting errorMessage and one line naming [explore]', (code) => {
+    const ctx = moduleCtx({ character: [characterRow()], world_gen_state: [{ ...genRow(), step: 'FILLING_FAMILIES' }] });
+    applyLlmFailure(ctx, restingJob('world_gen_families', JSON.stringify({ genStateId: '5' }), code));
+    expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: LLM_RESTING_LINE });
+    const events = rows(ctx, 'event_private');
+    expect(events).toHaveLength(1);
+    expect(events[0].message).toBe(`${LLM_RESTING_LINE} Type [explore] to try again.`);
+  });
+
   it.each(CODES)('skill_gen (%s): one line that starts with the resting line and names [skills]', (code) => {
     const ctx = moduleCtx({ character: [characterRow()] });
     applyLlmFailure(ctx, restingJob('skill_gen', JSON.stringify({ characterId: '10' }), code));
@@ -810,6 +819,10 @@ describe('Phase 43: a failure caused by the kill switch or the ceiling shows the
       applyLlmFailure(fill, restingJob('world_gen', JSON.stringify({ genStateId: '5' }), code));
       expect(rows(fill, 'world_gen_state')[0].errorMessage).toBe(WORLD_FILL_FAILED_MESSAGE);
 
+      const families = moduleCtx({ character: [characterRow()], world_gen_state: [{ ...genRow(), step: 'FILLING_FAMILIES' }] });
+      applyLlmFailure(families, restingJob('world_gen_families', JSON.stringify({ genStateId: '5' }), code));
+      expect(rows(families, 'world_gen_state')[0]).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: WORLD_FAMILIES_FAILED_MESSAGE });
+
       const skills = moduleCtx({ character: [characterRow()] });
       applyLlmFailure(skills, restingJob('skill_gen', JSON.stringify({ characterId: '10' }), code));
       expect(rows(skills, 'event_private')[0].message).toBe(
@@ -858,6 +871,23 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     enemies: [
       { name: 'Ember Wolf', creatureType: 'beast', role: 'melee', terrainTypes: 'plains', groupMin: 1, groupMax: 2, level: 1 },
     ],
+  };
+  /** One family of a stage-2b (world_gen_families) reply. */
+  const FAMILY = {
+    name: 'Ember Wolves',
+    singularNoun: 'wolf',
+    pluralNoun: 'wolves',
+    creatureType: 'beast',
+    iconKey: 'beast',
+    temperament: 'aggressive',
+    ambushVerb: 'burst',
+    ambushRest: 'out of the smoke',
+    members: [
+      { role: 'tank', name: 'Ember Packleader' },
+      { role: 'damage', name: 'Ember Biter' },
+    ],
+    fitLocations: ['Slag Road'],
+    relations: [],
   };
 
   const genRow = (over: Record<string, unknown> = {}) => ({
@@ -916,25 +946,31 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     );
     expect(rows(ctx, 'event_world')).toHaveLength(1);
 
-    // Stage 2
+    // Stage 2a (Phase 51.3.1.2): the places only; a reply without a families array starts stage 2b.
     applyLlmResult(ctx, fillJob, JSON.stringify(FILL_REPLY));
-    expect(state(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: region.id });
+    expect(state(ctx)).toMatchObject({ step: 'FILLING_FAMILIES', generatedRegionId: region.id });
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual([
       'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
     ]);
-    // The reply's one enemy type plus its family's three server-made filler members (Plan 09).
-    expect(rows(ctx, 'enemy_template')).toHaveLength(4);
-    expect(rows(ctx, 'family_member').filter((m: any) => !m.filler)).toHaveLength(1);
+    // The reply's enemies are never read: stage 2b writes the families.
+    expect(rows(ctx, 'enemy_template')).toHaveLength(0);
+    expect(rows(ctx, 'creature_family')).toHaveLength(0);
     // The stage-1 NPC is not repeated, the safety net adds the banker, the model vendor is kept
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'Old Brann', 'The Ledger Keeper']);
     expect(rows(ctx, 'region')[0]).toMatchObject({ dominantFaction: 'Ash Court', name: 'Cinderfall' });
-    expect(rows(ctx, 'llm_job')).toHaveLength(1); // stage 2 enqueued nothing
+    expect(rows(ctx, 'llm_job').map((j: any) => j.route)).toEqual(['world_gen', 'world_gen_families']);
+    expect(rows(ctx, 'event_private')).toHaveLength(3); // nothing new while the families are pending
+
+    // Stage 2b: the families complete the region. A starter state posts no line here (Plan 13 places him).
+    const familiesJob = { domain: 'world_gen_families', playerId: alice, contextJson: CTX } as any;
+    applyLlmResult(ctx, familiesJob, JSON.stringify({ families: [FAMILY] }));
+    expect(state(ctx)).toMatchObject({ step: 'COMPLETE', generatedRegionId: region.id });
+    expect(rows(ctx, 'creature_family').map((f: any) => f.name)).toContain('Ember Wolves');
+    expect(rows(ctx, 'enemy_template').length).toBeGreaterThan(0);
+    expect(rows(ctx, 'llm_job')).toHaveLength(2); // stage 2b enqueued nothing (the economy switch is off)
     const all = rows(ctx, 'event_private');
-    expect(all[all.length - 1]).toMatchObject({
-      kind: 'system',
-      message: 'The rest of Cinderfall settles into place. Try [travel] to see where the roads lead.',
-    });
-    expect(all).toHaveLength(4);
+    expect(all.map((e: any) => e.message).join('\n')).not.toContain('settles into place');
+    expect(all).toHaveLength(3);
   });
 
   it('review WR-B01: stage 1 still reaches FILLING when the player already holds the stage-1 job and two others', () => {
@@ -961,17 +997,20 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     const conns = rows(ctx, 'location_connection').map((c: any) => [c.fromLocationId, c.toLocationId]);
     expect(conns).toContainEqual([start.id, 50n]);
     expect(conns).toContainEqual([50n, start.id]);
-    // The character already had a location: no placement, no arrival message; the discovery and milestone lines still post.
+    // The character already had a location: no placement, no arrival message. Phase 51.3.1.2 (owner choices):
+    // a traveller gets no milestone line, and the discovery line waits for 7c at COMPLETE.
     expect(rows(ctx, 'character')[0].locationId).toBe(50n);
-    expect(rows(ctx, 'event_private').map((e: any) => e.kind)).toEqual(['system', 'system']);
+    expect(rows(ctx, 'event_private')).toEqual([]);
     expect(rows(ctx, 'event_world')[0].message).toContain('Old Reach');
     expect(state(ctx).step).toBe('FILLING');
   });
 
   it('a late or stale result never touches a state that has moved on', () => {
+    const familiesJob = { domain: 'world_gen_families', playerId: alice, contextJson: CTX } as any;
     const results: [any, any, string[]][] = [
-      [startJob, START_REPLY, ['PENDING', 'FILLING', 'FILL_ERROR', 'COMPLETE', 'ERROR']],
-      [fillJob, FILL_REPLY, ['PENDING', 'GENERATING', 'FILL_ERROR', 'COMPLETE', 'ERROR']],
+      [startJob, START_REPLY, ['PENDING', 'FILLING', 'FILL_ERROR', 'COMPLETE', 'ERROR', 'FILLING_FAMILIES', 'FAMILIES_ERROR']],
+      [fillJob, FILL_REPLY, ['PENDING', 'GENERATING', 'FILL_ERROR', 'COMPLETE', 'ERROR', 'FILLING_FAMILIES', 'FAMILIES_ERROR']],
+      [familiesJob, { families: [FAMILY] }, ['PENDING', 'GENERATING', 'FILLING', 'FILL_ERROR', 'COMPLETE', 'ERROR', 'FAMILIES_ERROR']],
     ];
     for (const [j, reply, steps] of results) {
       for (const step of steps) {
@@ -988,6 +1027,10 @@ describe('Phase 43 (plan 08): staged world apply', () => {
       [fillJob, 'GENERATING'],
       [fillJob, 'COMPLETE'],
       [fillJob, 'FILL_ERROR'],
+      [fillJob, 'FILLING_FAMILIES'],
+      [familiesJob, 'FILLING'],
+      [familiesJob, 'COMPLETE'],
+      [familiesJob, 'FAMILIES_ERROR'],
     ];
     for (const [j, step] of failures) {
       const ctx = newCtx({ world_gen_state: [genRow({ step })] });
