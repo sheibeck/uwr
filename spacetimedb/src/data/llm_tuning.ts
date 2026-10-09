@@ -170,6 +170,7 @@ export const LLM_ROUTE_BASELINES: Readonly<Record<LlmRoute, RouteBaseline>> = Ob
   creation_class: baseline(4096, 90_000),
   world_gen_start: baseline(4096, 90_000),
   world_gen: baseline(8192, 150_000),
+  world_gen_families: baseline(8192, 150_000), // Phase 51.3.1.2 (D-01): as world_gen
   skill_gen: baseline(4096, 60_000),
   npc_conversation: baseline(1024, 30_000),
   combat_narration: baseline(1024, 20_000),
@@ -374,6 +375,10 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   // Plan 51.3.1.1-30 (prompt Revision 2): the reply grew again, by a history per family and by up to the
   // server's family count (seven today), so 6144. The owner decides when to run a paid measurement.
   world_gen: entry('low', 6144, 150_000, 'insufficient_data'),
+  // Phase 51.3.1.2 (D-01, D-12): the stage 2b families reply, up to fifteen families. The free reply-budget
+  // guard (llm_reply_budget.test.ts) holds the largest asked reply under 80% of this budget; insufficient_data
+  // until the owner's paid measurement at milestone end.
+  world_gen_families: entry('low', 7168, 150_000, 'insufficient_data'),
   skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
   // Plan 51.3.1.1-32 (deferred row 31): quest-offer replies passed the tuned 512 (jobs 8215-8217 stopped at
   // max_tokens). The owner set 1024 as the hard ceiling, and Plan 51.3.1.1-32 adds one automatic retry on
@@ -381,6 +386,8 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   npc_conversation: entry('low', 1024, 30_000, 'insufficient_data'),
   combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),
   renown_perk_gen: entry('low', 1024, 60_000, 'tuned', 756, 10, false),
-  region_economy: entry('low', 4096, 90_000, 'insufficient_data'),
+  // Phase 51.3.1.2 (D-10): the medium economy of a bigger region asks for more items, so 6144;
+  // insufficient_data until the milestone-end measurement (D-12).
+  region_economy: entry('low', 6144, 90_000, 'insufficient_data'),
   smoke_test: entry('low', 256, 30_000, 'not_swept'),
 });

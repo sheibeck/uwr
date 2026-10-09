@@ -25,6 +25,7 @@ import {
   CLASS_FILL_SCHEMA,
   WORLD_START_SCHEMA,
   REGION_FILL_SCHEMA,
+  WORLD_FAMILIES_SCHEMA,
   SKILL_GENERATION_SCHEMA,
   RENOWN_PERK_SCHEMA,
   COMBAT_NARRATION_SCHEMA,
@@ -38,6 +39,7 @@ export const LLM_ROUTE_NAMES = [
   'creation_class',
   'world_gen_start',
   'world_gen',
+  'world_gen_families', // Phase 51.3.1.2 (D-01): stage 2b, the region's creature families
   'skill_gen',
   'npc_conversation',
   'combat_narration',
@@ -79,6 +81,7 @@ export const LLM_ROUTES: Readonly<Record<LlmRoute, RouteConfig>> = deepFreeze({
   creation_class: route('creation_class', { kind: 'json', schema: CLASS_FILL_SCHEMA }),
   world_gen_start: route('world_gen_start', { kind: 'json', schema: WORLD_START_SCHEMA }),
   world_gen: route('world_gen', { kind: 'json', schema: REGION_FILL_SCHEMA }),
+  world_gen_families: route('world_gen_families', { kind: 'json', schema: WORLD_FAMILIES_SCHEMA }),
   skill_gen: route('skill_gen', { kind: 'json', schema: SKILL_GENERATION_SCHEMA }),
   npc_conversation: route('npc_conversation', { kind: 'text' }),
   combat_narration: route('combat_narration', { kind: 'json', schema: COMBAT_NARRATION_SCHEMA }),

@@ -48,6 +48,7 @@ export const ROUTE_BIGINT_PATHS: Readonly<Record<LlmRoute, readonly string[]>> =
   creation_class: Object.freeze([]),
   world_gen_start: Object.freeze([]),
   world_gen: Object.freeze([]),
+  world_gen_families: Object.freeze([]), // Phase 51.3.1.2: no bigint field
   skill_gen: Object.freeze(['level']),
   renown_perk_gen: Object.freeze([]),
   npc_conversation: Object.freeze([]),
@@ -146,6 +147,21 @@ export function smokeInputFor<R extends LlmRoute>(route: R): RouteInputMap[R] {
       characterArchetype: 'warrior',
       sourceRegionName: 'The Threshold',
       neighborRegions: [],
+    },
+    // Phase 51.3.1.2 (D-01): stage 2b, a fixed small region with one hub and no feud.
+    world_gen_families: {
+      regionName: 'The Threshold',
+      biome: 'plains',
+      dominantFaction: 'The Wardens',
+      threats: ['Wolves at night'],
+      places: [
+        { name: 'The Crossing', terrainType: 'town', flag: 'hub' },
+        { name: 'The Old Road', terrainType: 'plains', flag: 'ordinary' },
+        { name: 'The Low Wood', terrainType: 'woods', flag: 'ordinary' },
+      ],
+      hubNames: ['The Crossing'],
+      familyCount: 3,
+      feudCount: 0,
     },
     skill_gen: {
       characterName: 'Tester',

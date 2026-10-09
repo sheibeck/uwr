@@ -168,6 +168,8 @@ export const LLM_CAP_EXEMPT_ROUTES: readonly LlmRoute[] = Object.freeze([
   'world_gen',
   'creation_class',
   'region_economy',
+  // Phase 51.3.1.2 (D-01): stage 2b is enqueued inside the 2a apply while the 2a job still counts.
+  'world_gen_families',
 ] as LlmRoute[]);
 
 /**

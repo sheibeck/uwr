@@ -216,10 +216,10 @@ const TEXT_ROUTES = LLM_ROUTE_NAMES.filter((r) => LLM_ROUTES[r].output.kind === 
 // ---------------------------------------------------------------------------
 
 describe('buildClaudeRequest', () => {
-  it('covers nine json routes and two text routes', () => {
+  it('covers ten json routes and two text routes', () => {
     // Phase 43 adds the stage-1 routes; Phase 46 flips combat_narration to a json segments route;
-    // Phase 51.3 adds region_economy (json)
-    expect(JSON_ROUTES).toHaveLength(9);
+    // Phase 51.3 adds region_economy (json); Phase 51.3.1.2 adds world_gen_families (json)
+    expect(JSON_ROUTES).toHaveLength(10);
     expect(TEXT_ROUTES).toHaveLength(2);
   });
 

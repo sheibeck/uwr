@@ -45,6 +45,8 @@ export const LLM_NO_AUTO_RETRY_ROUTES: readonly LlmRoute[] = Object.freeze([
   'creation_class',
   'world_gen_start',
   'world_gen',
+  // Phase 51.3.1.2 (D-01): never auto-retried, like world_gen (a failure shows the families retry line)
+  'world_gen_families',
   'combat_narration',
   'smoke_test',
 ] as LlmRoute[]);
@@ -110,6 +112,7 @@ export const LLM_SMOKE_ROUTES: readonly LlmRoute[] = Object.freeze([
   'creation_class',
   'world_gen_start',
   'world_gen',
+  'world_gen_families', // Phase 51.3.1.2 (D-01): warms the 2b grammar
   'skill_gen',
   'renown_perk_gen',
 ] as LlmRoute[]);
