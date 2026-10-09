@@ -1,14 +1,12 @@
-// Nearby rows for the context rail (47-UI-SPEC "Nearby", CON-04).
-// Order: NPCs, bind stone, objects, resource nodes, players; alphabetical inside a group, ties by id.
+// Nearby rows for the context rail (47-UI-SPEC "Nearby", CON-04; 'Also here' since 51.3.1.1-19).
+// Order: NPCs, bind stone, objects, players; alphabetical inside a group, ties by id.
 // Objects have no subscribed source today (research Q3, A7), so the list defaults to [].
-// Node state vocabulary (spacetimedb items_gathering.ts): 'available' can be gathered,
-// 'harvesting' is in use while lockedByCharacterId is set, any other state is depleted.
+// Resources are density pools now (51.3.1.1-19 resource cards, pools.ts): the node kind is gone.
 // Offline characters drop out of Nearby (51.1 CONTEXT Area 2): a player is listed only when the
 // character row says online (exactly true), so presence here is shown by inclusion, with no dot
 // (UI-SPEC B16). A listed party member gets a party hint instead of the level.
 
-export type NearbyKind = 'npc' | 'bindStone' | 'object' | 'node' | 'player';
-export type NodeStatus = 'gather' | 'depleted' | 'inUse';
+export type NearbyKind = 'npc' | 'bindStone' | 'object' | 'player';
 
 export interface NearbyRow {
   kind: NearbyKind;
@@ -17,48 +15,16 @@ export interface NearbyRow {
   hint: string;
   /** True for vendor NPCs: the row gets a Trade action. */
   vendor: boolean;
-  nodeStatus: NodeStatus | null;
   /** True for the bind stone row of a place the character is bound to. */
   bound: boolean;
   /** Player level for player rows. */
   level: bigint | null;
 }
 
-const NODE_HINTS: Record<NodeStatus, string> = {
-  gather: 'Gather',
-  depleted: 'Depleted',
-  inUse: 'In use',
-};
-
-/** Nodes with no owner, or owned by the player (per-character nodes). */
-export function visibleNodes<T extends { characterId?: bigint | null }>(
-  nodes: readonly T[],
-  selfId: bigint | null,
-): T[] {
-  return nodes.filter((node) => {
-    const owner = node.characterId;
-    return owner === undefined || owner === null || (selfId !== null && owner === selfId);
-  });
-}
-
-export function nodeStatus(node: { state: string; lockedByCharacterId?: bigint | null }): NodeStatus {
-  const locked = node.lockedByCharacterId !== undefined && node.lockedByCharacterId !== null;
-  if (locked || node.state === 'harvesting') return 'inUse';
-  if (node.state === 'available') return 'gather';
-  return 'depleted';
-}
-
-const KIND_ORDER: Record<NearbyKind, number> = { npc: 0, bindStone: 1, object: 2, node: 3, player: 4 };
+const KIND_ORDER: Record<NearbyKind, number> = { npc: 0, bindStone: 1, object: 2, player: 3 };
 
 export function nearbyRows(input: {
   npcs: readonly { id: bigint; name: string; npcType: string }[];
-  nodes: readonly {
-    id: bigint;
-    name: string;
-    state: string;
-    lockedByCharacterId?: bigint | null;
-    characterId?: bigint | null;
-  }[];
   players: readonly { id: bigint; name: string; level: bigint; online?: boolean | null }[];
   /** Character ids of your party members: their hint marks the party. */
   partyIds?: ReadonlySet<bigint>;
@@ -67,7 +33,7 @@ export function nearbyRows(input: {
   bindStone?: { placeName: string; bound: boolean } | null;
   selfId: bigint | null;
 }): NearbyRow[] {
-  const { npcs, nodes, players, selfId } = input;
+  const { npcs, players, selfId } = input;
   const objects = input.objects ?? [];
   const rows: NearbyRow[] = [];
 
@@ -78,7 +44,6 @@ export function nearbyRows(input: {
       name: npc.name,
       hint: 'NPC',
       vendor: npc.npcType === 'vendor',
-      nodeStatus: null,
       bound: false,
       level: null,
     });
@@ -90,7 +55,6 @@ export function nearbyRows(input: {
       name: 'Bind stone',
       hint: input.bindStone.bound ? 'Bound here' : '',
       vendor: false,
-      nodeStatus: null,
       bound: input.bindStone.bound,
       level: null,
     });
@@ -102,20 +66,6 @@ export function nearbyRows(input: {
       name: object.name,
       hint: '',
       vendor: false,
-      nodeStatus: null,
-      bound: false,
-      level: null,
-    });
-  }
-  for (const node of visibleNodes(nodes, selfId)) {
-    const status = nodeStatus(node);
-    rows.push({
-      kind: 'node',
-      id: node.id,
-      name: node.name,
-      hint: NODE_HINTS[status],
-      vendor: false,
-      nodeStatus: status,
       bound: false,
       level: null,
     });
@@ -129,7 +79,6 @@ export function nearbyRows(input: {
       name: player.name,
       hint: input.partyIds?.has(player.id) ? 'In your party' : `Lv ${player.level}`,
       vendor: false,
-      nodeStatus: null,
       bound: false,
       level: player.level,
     });

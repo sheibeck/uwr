@@ -344,7 +344,7 @@ describe('nearbyGroups', () => {
   const families = familyRows([creature()], 4n, PLACE);
   const named = namedRows([{ id: 1n, name: 'Vesk', enemyTemplateId: 1n, isAlive: true }], [], [], [], 4n);
   const resources = resourceRows([resource()], false, [], false, 0n, PLACE);
-  const base = { isSafe: false, isUncharted: false, ready: true, families, named, resources, place: PLACE, others: 0 };
+  const base = { isSafe: false, isUncharted: false, ready: true, families, named, resources, place: PLACE, others: 1 };
 
   it('renders the three groups in order once ready', () => {
     const groups = nearbyGroups(base);
@@ -395,11 +395,14 @@ describe('nearbyGroups', () => {
   });
 
   it('Also here is labelled only when a group above renders; No one is nearby. only when everything is empty', () => {
-    const quiet = { ...base, isSafe: true, families: [], named: [], resources: [] };
+    const quiet = { ...base, isSafe: true, families: [], named: [], resources: [], others: 0 };
     expect(nearbyGroups({ ...quiet, others: 2 })).toMatchObject({ alsoHereLabel: false, nothingAtAll: false });
     expect(nearbyGroups(quiet)).toMatchObject({ alsoHereLabel: false, nothingAtAll: true });
     // A non-safe place with no families still renders its Creatures group (the empty line).
-    expect(nearbyGroups({ ...quiet, isSafe: false })).toMatchObject({ alsoHereLabel: true, nothingAtAll: false });
+    expect(nearbyGroups({ ...quiet, isSafe: false })).toMatchObject({ alsoHereLabel: false, nothingAtAll: false });
+    expect(nearbyGroups({ ...quiet, isSafe: false, others: 1 })).toMatchObject({ alsoHereLabel: true, nothingAtAll: false });
+    // No one else here: no label over an empty list.
+    expect(nearbyGroups({ ...base, others: 0 }).alsoHereLabel).toBe(false);
   });
 });
 

@@ -1,44 +1,13 @@
-// Enemy rows for Nearby and the enemy feed keywords (quick-261006-a0i, CON-02, CON-04, CMB-01).
-// Server spawn-state vocabulary (enemy_spawn.state): 'available' can be pulled, 'pulling' has a
-// pull in progress, 'engaged' is in a fight (lockedCombatId holds the fight id). Any other
-// state is not shown. Difficulty colors come from combat/difficulty (conFor), never from here.
-// The level comes from the spawn (enemy_spawn.level, scaled to its place), falling back to the
-// template's level for a spawn from before that column (level 0).
-import { effectiveEnemyLevel } from '@game-data/enemy_rules';
-import { conFor } from '../combat/difficulty';
-import type { ConView } from '../combat/difficulty';
+// Enemy spawn state for the individual enemies left in the world (quick-261006-a0i; slimmed in
+// 51.3.1.1-19). Ordinary enemies are density pools now: Nearby shows one card per family (pools.ts)
+// and never lists an ordinary spawn, so the per-spawn row model and the pullable-spawn list are gone
+// (pullTargets replaced the list in 51.3.1.1-18). What stays is the spawn-state mapping that
+// pullTargets and the named & quest cards (pools.ts namedRows) read for the World event spawns.
+// Server spawn-state vocabulary (enemy_spawn.state): 'available' can be fought, 'pulling' has a
+// pull in progress, 'engaged' is in a fight (lockedCombatId holds the fight id). Any other state
+// is not shown.
 
 export type EnemyStatus = 'available' | 'pulling' | 'inCombat';
-
-export interface EnemyRow {
-  id: bigint;
-  name: string;
-  status: EnemyStatus;
-  groupCount: bigint;
-  /** 'Lv n' from the spawn level (or the template's, for an old spawn); null while neither is known. */
-  levelText: string | null;
-  /** Difficulty view; null while the level or the player level is unknown (neutral row). */
-  con: ConView | null;
-  /** True once the level is known. The Pull button stays aria-disabled until then. */
-  levelKnown: boolean;
-  /** Level, group count and state, joined with ' · '. */
-  hint: string;
-  /** '{name} · {con meaning}' once difficulty is known, else just the name. */
-  title: string;
-  /** Pull button name: 'Pull {name} (Lv n, {meaning})', dropping what is not known yet. */
-  pullLabel: string;
-}
-
-interface SpawnLike {
-  id: bigint;
-  name: string;
-  state: string;
-  lockedCombatId?: bigint | null;
-  enemyTemplateId: bigint;
-  groupCount: bigint;
-  /** enemy_spawn.level; 0 (or absent) means a spawn from before the column. */
-  level?: bigint;
-}
 
 export function enemyStatus(spawn: {
   state: string;
@@ -49,69 +18,4 @@ export function enemyStatus(spawn: {
   if (spawn.state === 'pulling') return 'pulling';
   if (spawn.state === 'available') return 'available';
   return null;
-}
-
-function compareSpawns(a: { id: bigint; name: string }, b: { id: bigint; name: string }): number {
-  const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-  if (byName !== 0) return byName;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
-
-const STATUS_HINTS: Record<EnemyStatus, string> = {
-  available: '',
-  pulling: 'Being pulled',
-  inCombat: 'In combat',
-};
-
-export function enemyRows(input: {
-  spawns: readonly SpawnLike[];
-  templates: readonly { id: bigint; level: bigint }[];
-  playerLevel: bigint | null;
-}): EnemyRow[] {
-  const levels = new Map<bigint, bigint>();
-  for (const template of input.templates) levels.set(template.id, template.level);
-
-  const rows: EnemyRow[] = [];
-  for (const spawn of input.spawns) {
-    const status = enemyStatus(spawn);
-    if (status === null) continue;
-    const level = effectiveEnemyLevel(spawn.level, levels.get(spawn.enemyTemplateId));
-    const levelText = level === undefined ? null : `Lv ${level}`;
-    // No difficulty while the level (template via chained subscription) or the player level is unknown:
-    // a missing template must not read as "Even match" (review WR-02).
-    const con =
-      input.playerLevel === null || level === undefined ? null : conFor(level, input.playerLevel);
-    const pullDetail =
-      levelText === null ? '' : ` (${con === null ? levelText : `${levelText}, ${con.meaning}`})`;
-    const parts: string[] = [];
-    if (levelText !== null) parts.push(levelText);
-    if (spawn.groupCount > 1n) parts.push(`×${spawn.groupCount}`);
-    if (STATUS_HINTS[status] !== '') parts.push(STATUS_HINTS[status]);
-    rows.push({
-      id: spawn.id,
-      name: spawn.name,
-      status,
-      groupCount: spawn.groupCount,
-      levelText,
-      con,
-      levelKnown: level !== undefined,
-      hint: parts.join(' · '),
-      title: con === null ? spawn.name : `${spawn.name} · ${con.meaning}`,
-      pullLabel: `Pull ${spawn.name}${pullDetail}`,
-    });
-  }
-  rows.sort(compareSpawns);
-  return rows;
-}
-
-/** Spawns that can be pulled now, in row order. These feed the keyword vocabulary. */
-export function pullableSpawns(
-  spawns: readonly { id: bigint; name: string; state: string; lockedCombatId?: bigint | null }[],
-): { id: bigint; name: string }[] {
-  const out: { id: bigint; name: string }[] = [];
-  for (const spawn of spawns) {
-    if (enemyStatus(spawn) === 'available') out.push({ id: spawn.id, name: spawn.name });
-  }
-  out.sort(compareSpawns);
-  return out;
 }
