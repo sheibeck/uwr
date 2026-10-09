@@ -1,6 +1,32 @@
 import { getWorldState } from './location';
-import { isNodeVisibleTo } from './examine';
-import { effectiveEnemyLevel } from '../data/enemy_rules';
+import { getGroupOrSoloParticipants } from './group';
+import {
+  creaturePoolsByDanger,
+  individualsHere,
+  levelRangeLabel,
+  resourcePoolsNow,
+  rosterLevel,
+} from './encounters';
+import { creatureLine, densityWord, placeNounFor, ratingLine, resourceLine } from '../data/density_lines';
+import { placeRating } from '../data/place_rating';
+
+/** The label of the look safety line (PROPOSED, D-58: listed in 51.3.1.1-16-SUMMARY.md). */
+export const SAFETY_LABEL = 'Safety:';
+
+/**
+ * The con colour of an enemy level against a character level (the existing table: grey far below,
+ * green and blue below, white even, yellow, orange and red above).
+ */
+export function conColor(level: bigint, characterLevel: bigint): string {
+  const diff = Number(level) - Number(characterLevel);
+  if (diff <= -5) return '#6b7280';
+  if (diff <= -3) return '#b6f7c4';
+  if (diff <= -1) return '#8bd3ff';
+  if (diff === 0) return '#f8fafc';
+  if (diff <= 2) return '#f6d365';
+  if (diff <= 4) return '#f59e0b';
+  return '#f87171';
+}
 
 /**
  * Build the full LOOK output for a character at their current location.
@@ -62,47 +88,65 @@ export function buildLookOutput(ctx: any, character: any): string[] {
     }
   }
 
-  // 6. Enemies (with con colors)
-  const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-  const aliveSpawns = spawns.filter((s: any) => s.state === 'available' || s.state === 'engaged' || s.state === 'pulling');
-  if (aliveSpawns.length > 0) {
-    const enemyParts: string[] = [];
-    for (const spawn of aliveSpawns) {
-      const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
-      if (!template) continue;
-      const level = effectiveEnemyLevel(spawn.level, template.level);
-      const diff = Number(level) - Number(character.level);
-      let color: string;
-      if (diff <= -5) color = '#6b7280';
-      else if (diff <= -3) color = '#b6f7c4';
-      else if (diff <= -1) color = '#8bd3ff';
-      else if (diff === 0) color = '#f8fafc';
-      else if (diff <= 2) color = '#f6d365';
-      else if (diff <= 4) color = '#f59e0b';
-      else color = '#f87171';
-
-      const countSuffix = spawn.groupCount > 1n ? ` x${spawn.groupCount}` : '';
-      enemyParts.push(`{{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${level}){{/color}}`);
-    }
-    if (enemyParts.length > 0) {
-      parts.push(`\nEnemies nearby: ${enemyParts.join(', ')}.`);
-    }
+  // 6. Safety (D-34, UI-SPEC P2): the shared rating rule, for the party's LOWEST level here (D-56).
+  const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+  const individuals = individualsHere(ctx, character);
+  const creatures = creaturePoolsByDanger(ctx, character.locationId, now);
+  const rating = placeRating({
+    isSafe: location.isSafe === true,
+    isUncharted: location.terrainType === 'uncharted',
+    ready: true,
+    families: creatures.map((h) => ({ level: h.level, lvHi: h.lvHi })),
+    playerLevel: rosterLevel(getGroupOrSoloParticipants(ctx, character)),
+    bossOrNamedHere: individuals.some((i) => i.kind === 'named' || i.template?.isBoss === true),
+  });
+  if (rating.word) {
+    const line = ratingLine(rating.key);
+    parts.push(`\n${SAFETY_LABEL} ${rating.word}.${line ? ` ${line}` : ''}`);
   }
 
-  // 7. Resources
-  const resources = [...ctx.db.resource_node.by_location.filter(character.locationId)]
-    .filter((r: any) => r.state === 'available' && isNodeVisibleTo(r, character));
-  if (resources.length > 0) {
-    const resourceCounts = new Map<string, number>();
-    for (const r of resources) {
-      resourceCounts.set(r.name, (resourceCounts.get(r.name) || 0) + 1);
-    }
-    const resourceParts: string[] = [];
-    for (const [name, count] of resourceCounts) {
-      resourceParts.push(count > 1 ? `{{color:#22c55e}}[Gather ${name}]{{/color}} x${count}` : `{{color:#22c55e}}[Gather ${name}]{{/color}}`);
-    }
-    parts.push(`\nResources: ${resourceParts.join(', ')}.`);
+  // 6a. Individuals (D-07): the character's living named enemies here and individual spawns (World
+  // event enemies, bosses), in the old "Enemies nearby" form. Ordinary creatures are never listed.
+  if (individuals.length > 0) {
+    const enemyParts = individuals.map((i) => {
+      const countSuffix = i.spawn && i.spawn.groupCount > 1n ? ` x${i.spawn.groupCount}` : '';
+      return `{{color:${conColor(i.level, character.level)}}}[${i.name}]${countSuffix} (Lv ${i.level}){{/color}}`;
+    });
+    parts.push(`\nEnemies nearby: ${enemyParts.join(', ')}.`);
   }
+
+  // 6b. Creature families (D-03, D-22), in danger order: keyword, level range and density word, then
+  // the density line. A wiped-out family shows only its line (nothing to pull).
+  const place = placeNounFor(location);
+  creatures.forEach((h, index) => {
+    const line = creatureLine({
+      plural: h.family.pluralNoun,
+      singular: h.family.singularNoun,
+      temperament: h.family.temperament,
+      level: h.level,
+      place,
+    });
+    const lead = index === 0 ? '\n' : '';
+    if (h.level === 0) {
+      parts.push(`${lead}${line}`);
+    } else {
+      const label = `${levelRangeLabel(h.lvLo, h.lvHi)}, ${densityWord('creature', h.level)}`;
+      parts.push(`${lead}{{color:${conColor(h.lvHi, character.level)}}}[${h.family.name}]{{/color}} (${label}). ${line}`);
+    }
+  });
+
+  // 7. Resources available at this time of day (D-26, D-55): Gather keyword and supply word, then the
+  // line. An Exhausted resource shows only its line.
+  const resources = resourcePoolsNow(ctx, character.locationId, worldState?.isNight === true, now);
+  resources.forEach((r, index) => {
+    const line = resourceLine({ resource: r.name, level: r.level, place });
+    const lead = index === 0 ? '\n' : '';
+    if (r.level === 0) {
+      parts.push(`${lead}${line}`);
+    } else {
+      parts.push(`${lead}{{color:#22c55e}}[Gather ${r.name}]{{/color}} (${densityWord('resource', r.level)}). ${line}`);
+    }
+  });
 
   // 7.5 Quest items (discovered but not yet looted)
   const questItems = [...ctx.db.quest_item.by_location.filter(character.locationId)]

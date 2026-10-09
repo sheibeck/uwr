@@ -24,7 +24,7 @@ import {
 } from '../data/density_rules';
 import type { DensityLevel, EncounterPhase } from '../data/density_rules';
 import { rollBelow } from '../data/economy_rules';
-import { placeSpawnLevel } from '../data/enemy_rules';
+import { effectiveEnemyLevel, placeSpawnLevel } from '../data/enemy_rules';
 import { normalizeEnemyRole } from '../data/family_rules';
 import { activeCombatIdForCharacter, appendPrivateEvent } from './events';
 import { fightRoster } from './group';
@@ -44,6 +44,8 @@ type CombatOriginKind = import('../reducers/combat').CombatOriginKind;
 /** One member of a family as it fights at a place. */
 export interface PoolMember {
   templateId: bigint;
+  /** The template name (examine and typed commands match a family by a member name). */
+  name: string;
   /** The server role (tank, damage, healer, caster). */
   role: string;
   /** The level it fights at here (placeSpawnLevel of the place target and offset). */
@@ -115,6 +117,7 @@ function membersAt(ctx: any, familyId: bigint, locationId: bigint): PoolMember[]
     if (!template) continue;
     members.push({
       templateId: template.id,
+      name: String(template.name ?? ''),
       role: normalizeEnemyRole(row.role || template.role),
       level: placeSpawnLevel(template.level, target, offset),
     });
@@ -243,4 +246,148 @@ export function startPoolFight(deps: { startCombat: (...args: any[]) => any }, c
     plural: input.family.pluralNoun,
   };
   return deps.startCombat(ctx, input.leader, input.candidates, input.groupId, input.drawn, origin);
+}
+
+// ---------------------------------------------------------------------------
+// Reading a place (Plan 16: look, examine and the typed commands; D-03, D-07, D-26, D-55)
+// ---------------------------------------------------------------------------
+
+/**
+ * Danger order (UI-SPEC Nearby "Order"): the highest density first, then the family's top level
+ * (descending), then the name (case-insensitive), then the pool id. Wiped-out families sort last.
+ */
+export function compareDanger(a: PoolHere, b: PoolHere): number {
+  if (a.level !== b.level) return b.level - a.level;
+  if (a.lvHi !== b.lvHi) return a.lvHi > b.lvHi ? -1 : 1;
+  const an = String(a.family.name ?? '').toLowerCase();
+  const bn = String(b.family.name ?? '').toLowerCase();
+  if (an !== bn) return an < bn ? -1 : 1;
+  return a.pool.id < b.pool.id ? -1 : a.pool.id > b.pool.id ? 1 : 0;
+}
+
+/** creaturePoolsHere in danger order. */
+export function creaturePoolsByDanger(ctx: any, locationId: bigint, now: bigint): PoolHere[] {
+  return creaturePoolsHere(ctx, locationId, now).sort(compareDanger);
+}
+
+/** `Lv a-b`, or `Lv a` when the range is one level (UI-SPEC family card). */
+export function levelRangeLabel(lo: bigint, hi: bigint): string {
+  return lo === hi ? `Lv ${lo}` : `Lv ${lo}-${hi}`;
+}
+
+/** Every name a family answers to: its name, plural noun, singular noun and member names. */
+export function familyNames(here: PoolHere): string[] {
+  const names = [here.family.name, here.family.pluralNoun, here.family.singularNoun, ...here.members.map((m) => m.name)];
+  return names.map((n) => String(n ?? '').trim()).filter((n) => n !== '');
+}
+
+/** Whether a family answers to a name: exact (case-insensitive) or, when `exact` is false, contains. */
+export function familyMatches(here: PoolHere, name: string, exact: boolean): boolean {
+  const wanted = name.trim().toLowerCase();
+  if (!wanted) return false;
+  return familyNames(here).some((n) => {
+    const lower = n.toLowerCase();
+    return exact ? lower === wanted : lower.includes(wanted);
+  });
+}
+
+/** A resource pool of a place that can be gathered now (D-55), with its item template. */
+export interface ResourceHere {
+  pool: PlacePoolRow;
+  template: any;
+  name: string;
+  level: DensityLevel;
+}
+
+/** Whether a pool's time of day ('any', 'day', 'night') allows it now (D-55). */
+export function availableNow(timeOfDay: string, isNight: boolean): boolean {
+  const when = (timeOfDay || 'any').trim().toLowerCase();
+  if (when === 'night') return isNight;
+  if (when === 'day') return !isNight;
+  return true;
+}
+
+/**
+ * The resource pools of a place available at this time of day, settled, in id order. A pool whose
+ * item template is missing is skipped (it has no name to show).
+ */
+export function resourcePoolsNow(ctx: any, locationId: bigint, isNight: boolean, now: bigint): ResourceHere[] {
+  const result: ResourceHere[] = [];
+  for (const pool of poolsAt(ctx, locationId, 'resource', now)) {
+    if (!availableNow(pool.timeOfDay, isNight)) continue;
+    const template = ctx.db.item_template.id.find(pool.refId);
+    if (!template) continue;
+    result.push({ pool, template, name: String(template.name ?? ''), level: countToLevel(pool.count) });
+  }
+  return result;
+}
+
+/** A named enemy or an individual spawn at a place (D-07): never an ordinary family creature. */
+export interface IndividualHere {
+  kind: 'named' | 'spawn';
+  name: string;
+  /** The level it fights at here. */
+  level: bigint;
+  template: any;
+  named?: any;
+  spawn?: any;
+}
+
+const LIVING_SPAWN_STATES = new Set(['available', 'engaged', 'pulling']);
+
+/**
+ * An individual spawn: one linked to a World event, or one whose template belongs to no family
+ * (a boss, a named enemy's fight, a boss_kill target). A legacy ordinary standing spawn (its template
+ * is a family member) is not an individual and is never listed.
+ */
+export function isIndividualSpawn(ctx: any, spawn: any): boolean {
+  for (const _link of ctx.db.event_spawn_enemy.by_spawn.filter(spawn.id)) return true;
+  for (const _member of ctx.db.family_member.by_template.filter(spawn.enemyTemplateId)) return false;
+  return true;
+}
+
+const byIdAsc = (a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * The individuals a character sees at their place: their own living named enemies here first, then
+ * the living individual spawns here (isIndividualSpawn), each in id order.
+ */
+export function individualsHere(ctx: any, character: any): IndividualHere[] {
+  const result: IndividualHere[] = [];
+  const locationId: bigint = character.locationId;
+  const named = [...ctx.db.named_enemy.by_character.filter(character.id)]
+    .filter((row: any) => row.locationId === locationId && row.isAlive === true)
+    .sort(byIdAsc);
+  if (named.length > 0) {
+    const location = ctx.db.location.id.find(locationId);
+    const target: bigint = computeLocationTargetLevel(ctx, locationId, 1n);
+    const offset: bigint = location?.levelOffset ?? 0n;
+    for (const row of named) {
+      const template = ctx.db.enemy_template.id.find(row.enemyTemplateId);
+      if (!template) continue;
+      result.push({
+        kind: 'named',
+        name: String(row.name),
+        level: placeSpawnLevel(template.level, target, offset),
+        template,
+        named: row,
+      });
+    }
+  }
+  const spawns = [...ctx.db.enemy_spawn.by_location.filter(locationId)]
+    .filter((s: any) => LIVING_SPAWN_STATES.has(s.state))
+    .sort(byIdAsc);
+  for (const spawn of spawns) {
+    const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
+    if (!template) continue;
+    if (!isIndividualSpawn(ctx, spawn)) continue;
+    result.push({
+      kind: 'spawn',
+      name: String(spawn.name),
+      level: effectiveEnemyLevel(spawn.level, template.level),
+      template,
+      spawn,
+    });
+  }
+  return result;
 }

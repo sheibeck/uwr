@@ -1,9 +1,22 @@
-// Pure helper for the `look <target>` command: NPC, enemy, player, resource node, inventory
-// item, then (the last two categories, so every older answer is unchanged) a place connected to
-// this one and the bind stone. No spacetimedb/server or schema imports, so it stays unit-testable.
+// Helper for the `look <target>` command: NPC, enemy (individuals, then creature families), player,
+// resource pool, inventory item, then (the last two categories, so every older answer is unchanged)
+// a place connected to this one and the bind stone. Families and resource pools come from the density
+// pools (helpers/encounters.ts, Phase 51.3.1.1 D-03, D-26, D-55).
 import { sumItemStats } from '../data/item_stats';
 import type { ItemStatKey } from '../data/item_stats';
-import { effectiveEnemyLevel } from '../data/enemy_rules';
+import { creatureLine, densityWord, groupHint, placeNounFor, resourceLine } from '../data/density_lines';
+import { serverRoleToPrompt } from '../data/family_rules';
+import {
+  creaturePoolsByDanger,
+  familyNames,
+  individualsHere,
+  levelRangeLabel,
+  resourcePoolsNow,
+} from './encounters';
+import { getWorldState } from './location';
+
+/** The label before a family's member list (PROPOSED, D-58: listed in 51.3.1.1-16-SUMMARY.md). */
+export const FAMILY_MEMBERS_LABEL = 'Members:';
 
 const LOOK_REGEX = /^(?:look|l)(?:\s+(.+))?$/i;
 
@@ -70,40 +83,64 @@ function typeLabel(slot: unknown): string {
 
 type NameMatcher = (name: string) => boolean;
 
-/** A node is visible to its owner (a personal node) and to everyone when it has no owner. */
-export function isNodeVisibleTo(node: any, character: any): boolean {
-  const owner = node.characterId;
-  return owner === undefined || owner === null || owner === character.id;
+/**
+ * A resource pool here that can be gathered now (D-26, D-55): the name, the supply word, the density
+ * line, the yield and the item's description. Resource nodes are no longer read.
+ */
+function describeResource(ctx: any, character: any, matches: NameMatcher): string | null {
+  const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+  const isNight = getWorldState(ctx)?.isNight === true;
+  const hit = resourcePoolsNow(ctx, character.locationId, isNight, now).find((r) => matches(r.name));
+  if (!hit) return null;
+  const location = ctx.db.location.id.find(character.locationId);
+  const template = hit.template;
+  const rarity = String(template.rarity || 'common').toLowerCase();
+  const lines: string[] = [
+    hit.name,
+    `${densityWord('resource', hit.level)}.`,
+    resourceLine({ resource: hit.name, level: hit.level, place: placeNounFor(location ?? {}) }),
+    `Gathering yields ${template.name} (${rarity} ${typeLabel(template.slot)}).`,
+  ];
+  if (template.description) lines.push(String(template.description));
+  return lines.join('\n');
 }
 
-function describeNode(ctx: any, character: any, matches: NameMatcher): string | null {
-  const visible: any[] = [];
-  for (const n of ctx.db.resource_node.by_location.filter(character.locationId)) {
-    if (isNodeVisibleTo(n, character)) visible.push(n);
+/** The individuals here (D-07): the character's named enemies and individual spawns. */
+function describeIndividual(ctx: any, character: any, matches: NameMatcher): string | null {
+  for (const one of individualsHere(ctx, character)) {
+    if (!matches(one.name)) continue;
+    let desc = `You study ${one.name}. Level ${one.level}. ${one.template.role} ${one.template.creatureType}.`;
+    if (one.template.isBoss) desc += ' This creature carries the weight of something ancient and terrible.';
+    return desc;
   }
-  const pool = visible.filter((n) => matches(String(n.name)));
-  if (pool.length === 0) return null;
-  const node = pool.find((n) => n.state === 'available' && !n.lockedByCharacterId) ?? pool[0];
+  return null;
+}
 
-  const lines: string[] = [String(node.name)];
-  const locked = node.lockedByCharacterId;
-  if (locked !== undefined && locked !== null && locked === character.id) {
-    lines.push('You are gathering it now.');
-  } else if ((locked !== undefined && locked !== null) || node.state === 'harvesting') {
-    lines.push('Someone is gathering it.');
-  } else if (node.state === 'available') {
-    lines.push('Ready to gather.');
-  } else {
-    lines.push('Depleted.');
-  }
-
-  const template = ctx.db.item_template.id.find(node.itemTemplateId);
-  if (template) {
-    const rarity = String(template.rarity || 'common').toLowerCase();
-    lines.push(`Gathering yields ${template.name} (${rarity} ${typeLabel(template.slot)}).`);
-    if (template.description) lines.push(String(template.description));
-  } else {
-    lines.push(`Gathering yields ${node.name}.`);
+/**
+ * A creature family here (D-03), matched by its name, plural, singular or a member's name: the level
+ * range and population word, the density line, the group hint, and the members by prompt role.
+ */
+function describeFamily(ctx: any, character: any, matches: NameMatcher): string | null {
+  const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+  const hit = creaturePoolsByDanger(ctx, character.locationId, now).find((h) => familyNames(h).some((n) => matches(n)));
+  if (!hit) return null;
+  const location = ctx.db.location.id.find(character.locationId);
+  const lines: string[] = [
+    String(hit.family.name),
+    `${levelRangeLabel(hit.lvLo, hit.lvHi)}, ${densityWord('creature', hit.level)}.`,
+    creatureLine({
+      plural: hit.family.pluralNoun,
+      singular: hit.family.singularNoun,
+      temperament: hit.family.temperament,
+      level: hit.level,
+      place: placeNounFor(location ?? {}),
+    }),
+  ];
+  const hint = groupHint(hit.level);
+  if (hint) lines.push(`${hint}.`);
+  if (hit.members.length > 0) {
+    const members = hit.members.map((m) => `${m.name} (${serverRoleToPrompt(m.role)})`);
+    lines.push(`${FAMILY_MEMBERS_LABEL} ${members.join(', ')}.`);
   }
   return lines.join('\n');
 }
@@ -232,7 +269,7 @@ function describeBindStone(ctx: any, character: any, matches: NameMatcher): stri
 }
 
 /**
- * One pass over every category (NPC, enemy, player, node, item, then neighbouring place and bind
+ * One pass over every category (NPC, enemy, player, resource, item, then neighbouring place and bind
  * stone) with one name predicate. The last two come last so no existing answer changes.
  */
 function describeAll(ctx: any, character: any, matches: NameMatcher): string | null {
@@ -243,17 +280,11 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
     }
   }
 
-  // (b) Enemies
-  const targetSpawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-  for (const spawn of targetSpawns) {
-    if (matches(spawn.name)) {
-      const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
-      if (!template) continue;
-      let desc = `You study ${spawn.name}. Level ${effectiveEnemyLevel(spawn.level, template.level)}. ${template.role} ${template.creatureType}.`;
-      if (template.isBoss) desc += ' This creature carries the weight of something ancient and terrible.';
-      return desc;
-    }
-  }
+  // (b) Enemies: individuals (named, World event and boss spawns) first, then creature families
+  const individual = describeIndividual(ctx, character, matches);
+  if (individual) return individual;
+  const family = describeFamily(ctx, character, matches);
+  if (family) return family;
 
   // (c) Other players
   const locationChars = [...ctx.db.character.by_location.filter(character.locationId)];
@@ -264,10 +295,10 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
     }
   }
 
-  // (d) Resource nodes at the location, (e) the character's own inventory, then (f) a place
+  // (d) Resource pools at the location, (e) the character's own inventory, then (f) a place
   // connected to this one and (g) the bind stone
   return (
-    describeNode(ctx, character, matches) ??
+    describeResource(ctx, character, matches) ??
     describeItem(ctx, character, matches) ??
     describeNeighbourPlace(ctx, character, matches) ??
     describeBindStone(ctx, character, matches)
@@ -277,8 +308,8 @@ function describeAll(ctx: any, character: any, matches: NameMatcher): string | n
 /**
  * Text for appendPrivateEvent(..., 'look', text), or null when nothing matches.
  * Exact name matches win across every category before any partial match is tried, so a click on
- * the "Stone" node is never captured by a "Stone Golem" enemy. Inside a pass the category order
- * stays NPC, enemy, player, node, item, neighbouring place, bind stone.
+ * the "Stone" resource is never captured by a "Stone Golem" enemy. Inside a pass the category order
+ * stays NPC, enemy, player, resource, item, neighbouring place, bind stone.
  *
  * Kept on purpose (Phase 51 review IN-09): when something here has exactly the same name as a
  * neighbouring place, the earlier category answers, so no older answer changes. A place's own

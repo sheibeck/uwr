@@ -122,7 +122,7 @@ describe('describeLookTarget: resource pools (Phase 51.3.1.1 D-26, D-55)', () =>
   const ABUNDANT = [
     'Iron Shard',
     'Abundant.',
-    'Iron shard lies thick across the area.',
+    'Iron Shard lies thick across the area.',
     'Gathering yields Iron Shard (common material).',
     'A jagged shard of iron scavenged from ruins.',
   ].join('\n');
@@ -138,7 +138,7 @@ describe('describeLookTarget: resource pools (Phase 51.3.1.1 D-26, D-55)', () =>
       place_pool: [resourcePool()],
       item_template: [ironTemplate],
     });
-    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[2]).toBe('Iron shard lies thick across the orchard.');
+    expect(describeLookTarget(ctx, ME, 'Iron Shard')!.split('\n')[2]).toBe('Iron Shard lies thick across the orchard.');
   });
 
   it('matches case-insensitively', () => {
@@ -363,7 +363,7 @@ describe('describeLookTarget: check order and existing output', () => {
 
   it('a Stone resource click is not captured by a Stone Golem enemy at the same location', () => {
     const ctx = ctxWith({
-      enemy_spawn: [{ id: 1n, locationId: 1n, name: 'Stone Golem', enemyTemplateId: 5n }],
+      enemy_spawn: [{ id: 1n, locationId: 1n, name: 'Stone Golem', enemyTemplateId: 5n, state: 'available' }],
       enemy_template: [{ id: 5n, level: 3n, role: 'Brute', creatureType: 'Construct', isBoss: false }],
       place_pool: [resourcePool({ refId: 8n })],
       item_template: [{ ...ironTemplate, id: 8n, name: 'Stone' }],
@@ -406,7 +406,7 @@ describe('describeLookTarget: check order and existing output', () => {
 
   it('keeps the enemy line byte-identical', () => {
     const ctx = ctxWith({
-      enemy_spawn: [{ id: 1n, locationId: 1n, name: 'Ash Wolf', enemyTemplateId: 5n }],
+      enemy_spawn: [{ id: 1n, locationId: 1n, name: 'Ash Wolf', enemyTemplateId: 5n, state: 'available' }],
       enemy_template: [{ id: 5n, level: 3n, role: 'Brute', creatureType: 'Beast', isBoss: true }],
     });
     expect(describeLookTarget(ctx, ME, 'wolf')).toBe(
