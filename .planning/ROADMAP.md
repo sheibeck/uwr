@@ -1343,6 +1343,8 @@ TBD. Start with an audit:
 2. Fix the gaps.
 3. Then add new kinds (invisibility or stealth, lull) through the mechanical vocabulary with budgets, server rules and tests.
 
+**Related, 2026-10-09:** the todo `2026-10-09-travel-ability-gives-damage-buff.md` confirms the audit's first finding. Whisper Network (kind `travel`, no effect type) casts as a `damage_up` buff, `travel_discount` is not in EFFECT_TYPES so the AI cannot pick it, and no speed or reveal system exists. That todo proposes a vocabulary contract (same-category fallbacks; nothing on the AI's menu without a working system, proven by a contract test), suggested for Phase 51.3.2. This item keeps the new kinds (stealth, lull and the rest).
+
 This ties into Phase 52.5 Balance Dials (was 51.3.1 Combat Dials) (lull and invisibility interact with pull size and aggro), Phase 51.3 (gather and craft rates read the economy dials) and Phase 51.5 (new skill flow). Any new or changed generation prompt wording needs the owner's approval.
 
 **Merged in 2026-10-08 (owner): pets, and threat.** Owner, 2026-10-08: "We'll want a phase for combat to talk about threat and threat generation. Those threat numbers were based on the old system when we had set classes instead of the unique class generation system we have now. Let's revisit that when we revisit combat and pets. Pets should be added into the phase where we look at our class ability selection". This item is where class ability selection is revisited, so pets (backlog 999.27, folded in below) and the threat rework both live here.
