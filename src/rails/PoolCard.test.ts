@@ -84,7 +84,7 @@ describe('family card', () => {
     expect(name.text()).toBe('Goblins');
     expect(name.attributes('title')).toBe('Goblins · Tough');
     expect(name.classes()).toContain('con-yellow');
-    expect(w.get('.card-range').text()).toBe('Lv 4-5, Tough');
+    expect(w.get('.card-range').text()).toBe('Lv 4–5, Tough');
     expect(w.get('.card-range .sr-only').text()).toBe(', Tough');
     expect(w.get('.density-badge').text()).toBe('Population: Overrun');
     expect(w.get('.card-line').text()).toBe('Goblins swarm the pans, and every last goblin has noticed you.');
@@ -194,13 +194,13 @@ describe('resource card', () => {
     expect(w.get('.card-name').text()).toBe('Panlight Salt');
     expect(w.get('.card-name').attributes('title')).toBe('Panlight Salt');
     expect(w.get('.density-badge').text()).toBe('Supply: Abundant');
-    expect(w.get('.card-line').text()).toBe('Panlight salt lies thick across the pans.');
+    expect(w.get('.card-line').text()).toBe('Panlight Salt lies thick across the pans.');
     const button = w.get('button');
     expect(button.text()).toBe('Gather');
     expect(button.attributes('aria-label')).toBe('Gather Panlight Salt');
     expect(button.findComponent(PhHandGrabbing).exists()).toBe(true);
     expect(button.attributes('aria-disabled')).toBeUndefined();
-    expect(describedText(w, button)).toEqual(['Panlight salt lies thick across the pans.']);
+    expect(describedText(w, button)).toEqual(['Panlight Salt lies thick across the pans.']);
     expect(w.find('.card-reason').exists()).toBe(false);
     await button.trigger('click');
     expect(w.emitted('act')).toHaveLength(1);
@@ -257,7 +257,7 @@ describe('accessibility and privacy', () => {
       mountCard({ variant: 'resource', row: salt({ level: 1n }, { capped: true }) }).text(),
     ];
     for (const text of texts) {
-      expect(text.replace(/Lv \d+(-\d+)?/g, '')).not.toMatch(/\d|%/);
+      expect(text.replace(/Lv \d+(–\d+)?/g, '')).not.toMatch(/\d|%/);
     }
   });
 });

@@ -1012,7 +1012,7 @@ describe('pool cards: security, privacy and structure', () => {
         harvestCaps: ref([{ id: 5n, locationId: 11n, cappedUntilMicros: now + 123_456_789n }]),
       }),
     );
-    const text = w.get('section').text().replace(/Lv \d+(-\d+)?/g, '');
+    const text = w.get('section').text().replace(/Lv \d+(–\d+)?/g, '');
     expect(text).not.toMatch(/\d|%/);
   });
 });

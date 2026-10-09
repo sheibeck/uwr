@@ -6,15 +6,13 @@ import {
   PhChatCircle,
   PhChatCircleDots,
   PhCircleDashed,
-  PhCube,
   PhEye,
-  PhSkull,
   PhStorefront,
-  PhSword,
   PhUser,
   PhUserCircle,
 } from '@phosphor-icons/vue';
 import type { Component } from 'vue';
+import { placeNounFor } from '@game-data/density_lines';
 import {
   CONSOLE_KEY,
   FRAME_KEY,
@@ -25,24 +23,51 @@ import {
 } from '../game/context';
 import { createActionRunner, reportRejections } from '../ledger/actionRunner';
 import { keepFocus } from '../ledger/keepFocus';
-import { enemyRows } from './enemies';
-import type { EnemyRow } from './enemies';
 import { nearbyRows } from './nearby';
 import type { NearbyKind, NearbyRow } from './nearby';
 import CharacterName from '../social/CharacterName.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
+import PoolCard from './PoolCard.vue';
+import { NEARBY_COPY, familyRows, namedRows, nearbyGroups, resourceRows } from './pools';
+import type { FamilyRow, NamedRow, QuestTargetLike, ResourceRow } from './pools';
 
-// Nearby rows with one-click actions (47-UI-SPEC "Nearby", CON-04, CON-02; 51-UI-SPEC "Rail Row
-// Additions"). Names are server or player text, rendered as text nodes only. No table lists
-// examinable objects at a location (research Q3, UI-SPEC A7), so `objects` stays empty.
-// Nearby leads with enemies (quick-261006-a0i): they are the actionable threat. An available
-// enemy has one Pull icon button (a careful pull), disabled in a fight, offline and until its
-// level is known. Every row ends its action cluster with an Examine eye that sits beside the
-// row's main part, never inside it. NPC rows talk through a chat bubble button; a bind stone row
-// offers Bind (bind_location) and turns to 'Bound here' only when the character row says so.
-// A player row (51.1) lists only online characters and ends Whisper, Examine and the role-aware
-// menu (PlayerMenu, opening to the left in the rail); right-click opens that menu on desktop.
-// Invite lives in the menu now. Talk to uses the plain chat circle so Whisper keeps its own icon.
+// Nearby (47-UI-SPEC "Nearby", CON-04; 51-UI-SPEC "Rail Row Additions"; rebuilt around the density
+// pools in 51.3.1.1-19, UI-SPEC "Nearby" sections and UI Considerations Q1-Q3). Groups, in order:
+// - Creatures: one PoolCard per creature family here (never an individual ordinary enemy, D-01,
+//   D-03), danger first, wiped-out families last with their line and no button (D-30). Pull draws a
+//   group sized by the density; there is no careful single pull any more (D-12). Omitted at a safe
+//   or uncharted place; 'Nothing hunts here now.' at any other place with no family pools.
+// - Named & quest targets: the character's own named enemies here and the World event spawns here,
+//   each with Fight (D-07, D-39); a slain one reads 'Slain · back after a long rest' with no button.
+// - Resources: one card per resource pool of this time of day (D-26, D-55) with Gather; the harvest
+//   cap and a gather in progress disable it with a visible reason; every pool Exhausted adds one
+//   summary line under the cards.
+// - Also here: the NPC, bind stone, object and player rows as before; labelled only when a group
+//   above renders. 'No one is nearby.' only when all of it is empty.
+// The pool groups wait for the place's pool rows (poolsAppliedFor), so nothing flashes empty. Card
+// actions go through the console (consoleApi.pull / fight / gather) inside the action runner: inert
+// with aria-busy while pending, aria-disabled offline, a rejected send prints the send error line,
+// and nothing changes optimistically. The rail is the Encounter panel in a fight (and the Map sheet
+// cannot open in combat), so the cards carry no in-combat state of their own.
+// Rows: every row ends its action cluster with an Examine eye beside the row's main part, never
+// inside it. NPC rows talk through a chat bubble button; a bind stone row offers Bind (bind_location)
+// and turns to 'Bound here' only when the character row says so. A player row (51.1) lists only
+// online characters and ends Whisper, Examine and the role-aware menu (PlayerMenu, opening to the
+// left in the rail); right-click opens that menu on desktop. Invite lives in the menu. Talk to uses
+// the plain chat circle so Whisper keeps its own icon. Names are server or player text, rendered as
+// text nodes only. No table lists examinable objects at a location (research Q3, UI-SPEC A7).
+const props = withDefaults(
+  defineProps<{
+    /**
+     * Day or night (src/session/frameView.ts timeOfDay over world_state). Unknown (null) lists every
+     * resource pool; the server still refuses one out of its time. No host passes it yet (51.3.1.1-19
+     * hand-off: the frame needs to expose the time of day).
+     */
+    timeOfDay?: 'day' | 'night' | null;
+  }>(),
+  { timeOfDay: null },
+);
+
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const frame = inject(FRAME_KEY, createInertFrame());
@@ -51,7 +76,7 @@ const connected = computed(() => game.connected.value);
 
 const runner = createActionRunner({ online: connected });
 
-// A rejected Bind (the transport failed, or the reducer threw a SenderError) prints the client
+// A rejected Bind, Pull, Fight or Gather (the transport failed, or the call threw) prints the client
 // rejection line in the feed, where the rail's other results go (UI-SPEC copy: "Couldn't send that.
 // Try again."). Server refusals made with fail() arrive as their own feed lines.
 reportRejections(runner, game.feed);
@@ -74,8 +99,6 @@ const partyIds = computed(() => new Set(game.groupMembers.value.map((member) => 
 const rows = computed(() =>
   nearbyRows({
     npcs: game.npcsHere.value,
-    // Resources are pools now (51.3.1.1-18): no node rows; Plan 19 adds the resource cards.
-    nodes: [],
     players: game.playersHere.value,
     partyIds: partyIds.value,
     objects: [],
@@ -86,45 +109,141 @@ const rows = computed(() =>
   }),
 );
 
-const enemies = computed(() =>
-  enemyRows({
-    spawns: game.enemiesHere.value,
-    templates: game.enemyTemplatesHere.value,
-    playerLevel: game.character.value?.level ?? null,
+const inFight = computed(() => game.combat.active.value);
+
+// Pool cards (51.3.1.1-19) -------------------------------------------------------------------------
+const playerLevel = computed(() => game.character.value?.level ?? null);
+
+const placeNoun = computed(() =>
+  place.value === null
+    ? ''
+    : placeNounFor({ placeNoun: place.value.placeNoun, terrainType: place.value.terrainType }),
+);
+
+// The place's pool rows have applied (51.3.1.1-18): until then no pool group renders.
+const ready = computed(() => place.value !== null && game.poolsAppliedFor(place.value.id));
+
+const isNight = computed<boolean | null>(() =>
+  props.timeOfDay === null ? null : props.timeOfDay === 'night',
+);
+
+// The server clock for the harvest cap: refreshed whenever the caps change and again when the
+// soonest cap runs out, so Gather frees itself without a reload.
+function serverNow(): bigint {
+  return BigInt(Math.floor(game.clock.nowMicros()));
+}
+
+const nowMicros = ref(serverNow());
+let capTimer: ReturnType<typeof setTimeout> | null = null;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function clearCapTimer(): void {
+  if (capTimer !== null) clearTimeout(capTimer);
+  capTimer = null;
+}
+
+function refreshNow(): void {
+  clearCapTimer();
+  const now = serverNow();
+  nowMicros.value = now;
+  let soonest: bigint | null = null;
+  for (const cap of game.harvestCaps.value) {
+    if (cap.cappedUntilMicros > now && (soonest === null || cap.cappedUntilMicros < soonest)) {
+      soonest = cap.cappedUntilMicros;
+    }
+  }
+  if (soonest === null) return;
+  const ms = Math.min(Number((soonest - now) / 1000n) + 50, MAX_TIMEOUT_MS);
+  capTimer = setTimeout(refreshNow, ms);
+}
+
+watch(() => game.harvestCaps.value, refreshNow, { immediate: true });
+onBeforeUnmount(clearCapTimer);
+
+// Active quests that target an enemy template: the named card's 'Quest: {name}' part.
+const questTargets = computed<QuestTargetLike[]>(() => {
+  const templates = new Map(game.questTemplates.value.map((template) => [template.id, template]));
+  const out: QuestTargetLike[] = [];
+  for (const quest of game.quests.value) {
+    if (quest.completed) continue;
+    const template = templates.get(quest.questTemplateId);
+    if (!template || template.targetEnemyTemplateId <= 0n) continue;
+    out.push({ name: template.name, targetEnemyTemplateId: template.targetEnemyTemplateId });
+  }
+  return out;
+});
+
+const families = computed(() => familyRows(game.poolLevelsHere.value, playerLevel.value, placeNoun.value));
+
+const named = computed(() => {
+  const here = place.value?.id ?? null;
+  return namedRows(
+    game.namedEnemies.value.filter((enemy) => enemy.locationId === here),
+    game.enemiesHere.value,
+    game.enemyTemplatesHere.value,
+    questTargets.value,
+    playerLevel.value,
+  );
+});
+
+const resources = computed(() =>
+  resourceRows(
+    game.poolLevelsHere.value,
+    isNight.value,
+    game.harvestCaps.value,
+    game.gathers.value.length > 0,
+    nowMicros.value,
+    placeNoun.value,
+  ),
+);
+
+// With no place (no character yet, or a location row not loaded) there are no pools to wait for and
+// no Creatures group: only the Also here rows and, with none, the Phase 45 empty line.
+const groups = computed(() =>
+  nearbyGroups({
+    isSafe: place.value === null || place.value.isSafe,
+    isUncharted: place.value?.terrainType === 'uncharted',
+    ready: place.value === null || ready.value,
+    families: families.value,
+    named: named.value,
+    resources: resources.value,
+    place: placeNoun.value,
+    others: rows.value.length,
   }),
 );
 
-const inFight = computed(() => game.combat.active.value);
+const pullKey = (row: FamilyRow): string => `pull-${row.poolId}`;
+const fightKey = (row: NamedRow): string => `fight-${row.key}`;
+const gatherKey = (row: ResourceRow): string => `gather-${row.poolId}`;
 
-// Pull stays aria-disabled while the spawn's template level is unknown (the chained template
-// subscription is still loading), so the player never pulls blind (review WR-02).
-function pullBlocked(row: EnemyRow): boolean {
-  return !connected.value || inFight.value || !row.levelKnown;
+// Each call runs inside the action runner: a second click while pending is ignored, a synchronous
+// failure counts as a rejection (the send error line), and nothing changes optimistically. The
+// server's results and refusals arrive as feed lines and row updates.
+function pull(row: FamilyRow): void {
+  if (!connected.value || !row.pullable) return;
+  void runner.run(pullKey(row), async () => consoleApi.pull({ id: row.poolId, name: row.name }));
 }
 
-function pullDisabledFor(row: EnemyRow): 'true' | undefined {
-  return pullBlocked(row) ? 'true' : undefined;
+function fight(row: NamedRow): void {
+  if (!connected.value || !row.fightable) return;
+  void runner.run(fightKey(row), async () => consoleApi.fight({ kind: row.kind, id: row.id, name: row.name }));
 }
 
-// The enemy rows here are individual spawns (World event enemies, 51.3.1.1-18): their button fights
-// through start_combat, the same call as the feed keyword click. Plan 19 adds the family cards (Pull).
-function pull(row: EnemyRow): void {
-  if (pullBlocked(row)) return;
-  consoleApi.fight({ kind: 'event', id: row.id, name: row.name });
+function gather(row: ResourceRow): void {
+  if (!connected.value || !row.gatherable || row.reason !== null) return;
+  void runner.run(gatherKey(row), async () => consoleApi.gather({ id: row.poolId, name: row.name }));
 }
 
 const ICONS: Record<NearbyKind, Component> = {
   npc: PhUser,
   bindStone: PhCastleTurret,
   object: PhCircleDashed,
-  node: PhCube,
   player: PhUserCircle,
 };
 
 function rowKey(row: NearbyRow): string {
   return `${row.kind}-${row.id}`;
 }
-
 
 // The eye's target: the bind stone is looked at as 'bind stone' (the server's look category).
 function examineName(row: NearbyRow): string {
@@ -180,24 +299,34 @@ const disabledAttr = computed(() => (connected.value ? undefined : 'true'));
 
 const list = ref<HTMLElement | null>(null);
 
-// Focus after a row goes (51.1 review client-rest WR-03, the shared keepFocus rule): players drop
-// out when they log out or walk away, enemies when they die or leave, and a row's controls change
-// with its state. Focus held on a removed control moves to the first button of the row now at that
-// index (the next row, or the same row when only a control went), else the Nearby heading.
+// Focus after a row goes (51.1 review client-rest WR-03, the shared keepFocus rule; pool keys from
+// 51.3.1.1-19): players drop out when they log out or walk away, a family's Pull goes at level 0, a
+// named enemy's Fight when it is slain, and a row's controls change with its state. Focus held on a
+// removed control moves to the first button of the item now at that index across every group (the
+// next item, or the same one when only a control went), else the Nearby heading.
+function nearbyItems(area: HTMLElement): HTMLElement[] {
+  return Array.from(area.querySelectorAll<HTMLElement>('li.nearby-item'));
+}
+
 keepFocus<number>({
   source: () =>
     [
-      ...enemies.value.map((enemy) => `enemy-${enemy.id}-${enemy.status}`),
-      ...rows.value.map((row) => `${rowKey(row)}-${row.nodeStatus ?? ''}-${row.bound ? 1 : 0}`),
+      ...(groups.value.creatures?.rows ?? []).map((row) => `family-${row.poolId}-${row.badgeLevel}`),
+      groups.value.creatures?.emptyLine ?? '',
+      ...(groups.value.named ?? []).map((row) => `named-${row.key}-${row.state}`),
+      ...(groups.value.resources?.rows ?? []).map(
+        (row) => `resource-${row.poolId}-${row.badgeLevel}-${row.capped ? 1 : 0}`,
+      ),
+      ...rows.value.map((row) => `${rowKey(row)}-${row.bound ? 1 : 0}`),
     ].join(','),
   area: () => list.value,
   capture: (active, area) => {
-    const item = active.closest('li');
-    return item === null ? -1 : Array.from(area.children).indexOf(item);
+    const item = active.closest<HTMLElement>('li.nearby-item');
+    return item === null ? -1 : nearbyItems(area).indexOf(item);
   },
   restore: (index) => {
-    const items = list.value === null ? [] : Array.from(list.value.children).slice(Math.max(index, 0));
-    const next = items.map((item) => item.querySelector<HTMLElement>('button')).find((b) => b !== null);
+    const after = list.value === null ? [] : nearbyItems(list.value).slice(Math.max(index, 0));
+    const next = after.map((item) => item.querySelector<HTMLElement>('button')).find((b) => b !== null);
     return next ?? heading.value;
   },
 });
@@ -272,129 +401,142 @@ async function bind(): Promise<void> {
 <template>
   <section>
     <h6 ref="heading" tabindex="-1">Nearby</h6>
-    <p v-if="rows.length === 0 && enemies.length === 0" class="empty">No one is nearby.</p>
-    <ul v-else ref="list" class="rows">
-      <li
-        v-for="enemy in enemies"
-        :key="`enemy-${enemy.id}`"
-        class="nearby-row kind-enemy"
-        :class="{ 'in-combat': enemy.status === 'inCombat' }"
-      >
-        <div class="row-main static">
-          <PhSkull class="row-icon" :class="enemy.con?.className" :size="14" aria-hidden="true" />
-          <span class="row-name" :class="enemy.con?.className" :title="enemy.title">{{ enemy.name }}</span>
-          <span class="row-hint">{{ enemy.hint }}</span>
-        </div>
-        <div class="row-actions">
-          <button
-            v-if="enemy.status === 'available'"
-            type="button"
-            class="btn btn-ghost btn-icon"
-            :aria-label="enemy.pullLabel"
-            :title="enemy.pullLabel"
-            :aria-disabled="pullDisabledFor(enemy)"
-            @click="pull(enemy)"
-          >
-            <PhSword :size="16" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="btn btn-ghost btn-icon btn-eye"
-            :aria-label="`Examine ${enemy.name}`"
-            :title="`Examine ${enemy.name}`"
-            :aria-disabled="disabledAttr"
-            @click="examine(enemy.name)"
-          >
-            <PhEye :size="16" aria-hidden="true" />
-          </button>
-        </div>
-      </li>
-      <li
-        v-for="row in rows"
-        :key="rowKey(row)"
-        class="nearby-row"
-        :class="[`kind-${row.kind}`, { depleted: row.nodeStatus === 'depleted', bound: row.bound }]"
-        @contextmenu="onContextMenu($event, row)"
-      >
-        <!-- No row has a main-row click: the gatherable node rows went with resource_node (51.3.1.1-18). -->
-        <div class="row-main static">
-          <component :is="ICONS[row.kind]" class="row-icon" :size="14" aria-hidden="true" />
-          <!-- Player names go through the shared CharacterName (51.1 review client-rest IN-01). -->
-          <CharacterName v-if="row.kind === 'player'" class="row-name" :name="row.name" />
-          <span v-else class="row-name" :title="row.name">{{ row.name }}</span>
-          <span class="row-hint">{{ row.hint }}</span>
-        </div>
-
-        <div class="row-actions">
-          <button
-            v-if="row.kind === 'npc'"
-            type="button"
-            class="btn btn-ghost btn-icon"
-            :aria-label="`Talk to ${row.name}`"
-            :title="`Talk to ${row.name}`"
-            :aria-disabled="disabledAttr"
-            @click="talk(row)"
-          >
-            <PhChatCircle :size="16" aria-hidden="true" />
-          </button>
-          <button
-            v-if="row.kind === 'npc' && row.vendor"
-            type="button"
-            class="btn btn-ghost btn-icon"
-            :aria-label="`Trade with ${row.name}`"
-            :title="`Trade with ${row.name}`"
-            :aria-disabled="disabledAttr"
-            @click="trade(row)"
-          >
-            <PhStorefront :size="16" aria-hidden="true" />
-          </button>
-          <button
-            v-if="row.kind === 'bindStone' && !row.bound"
-            type="button"
-            class="btn btn-primary btn-bind"
-            :aria-label="`Bind to ${place?.name ?? 'this place'}`"
-            :title="bindTitle"
-            :aria-disabled="bindBlocked ? 'true' : undefined"
-            :aria-describedby="inFight ? bindReasonId : undefined"
-            @click="bind()"
-          >
-            Bind
-          </button>
-          <span v-if="row.kind === 'bindStone' && !row.bound && inFight" :id="bindReasonId" class="sr-only">{{
-            BIND_IN_COMBAT
-          }}</span>
-          <button
-            v-if="row.kind === 'player'"
-            type="button"
-            class="btn btn-ghost btn-icon"
-            :aria-label="`Whisper ${row.name}`"
-            :title="`Whisper ${row.name}`"
-            :aria-disabled="disabledAttr"
-            @click="whisper(row)"
-          >
-            <PhChatCircleDots :size="16" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="btn btn-ghost btn-icon btn-eye"
-            :aria-label="`Examine ${examineName(row)}`"
-            :title="`Examine ${examineName(row)}`"
-            :aria-disabled="disabledAttr"
-            @click="examine(examineName(row))"
-          >
-            <PhEye :size="16" aria-hidden="true" />
-          </button>
-          <PlayerMenu
-            v-if="row.kind === 'player'"
-            :ref="(instance) => setMenu(row.id, instance)"
-            :target-id="row.id"
-            side="left"
-            :size="frame.isDesktop.value ? 'rail' : 'sheet'"
-            :fallback-focus="headingFocus"
+    <p v-if="groups.nothingAtAll" class="empty">No one is nearby.</p>
+    <div v-else ref="list" class="groups">
+      <div v-if="groups.creatures" class="nearby-group">
+        <h6>{{ NEARBY_COPY.groups.creatures }}</h6>
+        <ul v-if="groups.creatures.rows.length > 0" class="cards">
+          <PoolCard
+            v-for="row in groups.creatures.rows"
+            :key="`family-${row.poolId}`"
+            variant="family"
+            :row="row"
+            :offline="!connected"
+            :busy="runner.isPending(pullKey(row))"
+            @act="pull(row)"
           />
-        </div>
-      </li>
-    </ul>
+        </ul>
+        <p v-if="groups.creatures.emptyLine" class="group-empty">{{ groups.creatures.emptyLine }}</p>
+      </div>
+      <div v-if="groups.named" class="nearby-group">
+        <h6>{{ NEARBY_COPY.groups.named }}</h6>
+        <ul class="cards">
+          <PoolCard
+            v-for="row in groups.named"
+            :key="row.key"
+            variant="named"
+            :row="row"
+            :offline="!connected"
+            :busy="runner.isPending(fightKey(row))"
+            @act="fight(row)"
+          />
+        </ul>
+      </div>
+      <div v-if="groups.resources" class="nearby-group">
+        <h6>{{ NEARBY_COPY.groups.resources }}</h6>
+        <ul class="cards">
+          <PoolCard
+            v-for="row in groups.resources.rows"
+            :key="`resource-${row.poolId}`"
+            variant="resource"
+            :row="row"
+            :offline="!connected"
+            :busy="runner.isPending(gatherKey(row))"
+            @act="gather(row)"
+          />
+        </ul>
+        <p v-if="groups.resources.summary" class="group-empty">{{ groups.resources.summary }}</p>
+      </div>
+      <div v-if="rows.length > 0" class="also-here" :class="{ 'nearby-group': groups.alsoHereLabel }">
+        <h6 v-if="groups.alsoHereLabel">{{ NEARBY_COPY.groups.alsoHere }}</h6>
+        <ul class="rows">
+          <li
+            v-for="row in rows"
+            :key="rowKey(row)"
+            class="nearby-row nearby-item"
+            :class="[`kind-${row.kind}`, { bound: row.bound }]"
+            @contextmenu="onContextMenu($event, row)"
+          >
+            <div class="row-main static">
+              <component :is="ICONS[row.kind]" class="row-icon" :size="14" aria-hidden="true" />
+              <!-- Player names go through the shared CharacterName (51.1 review client-rest IN-01). -->
+              <CharacterName v-if="row.kind === 'player'" class="row-name" :name="row.name" />
+              <span v-else class="row-name" :title="row.name">{{ row.name }}</span>
+              <span class="row-hint">{{ row.hint }}</span>
+            </div>
+
+            <div class="row-actions">
+              <button
+                v-if="row.kind === 'npc'"
+                type="button"
+                class="btn btn-ghost btn-icon"
+                :aria-label="`Talk to ${row.name}`"
+                :title="`Talk to ${row.name}`"
+                :aria-disabled="disabledAttr"
+                @click="talk(row)"
+              >
+                <PhChatCircle :size="16" aria-hidden="true" />
+              </button>
+              <button
+                v-if="row.kind === 'npc' && row.vendor"
+                type="button"
+                class="btn btn-ghost btn-icon"
+                :aria-label="`Trade with ${row.name}`"
+                :title="`Trade with ${row.name}`"
+                :aria-disabled="disabledAttr"
+                @click="trade(row)"
+              >
+                <PhStorefront :size="16" aria-hidden="true" />
+              </button>
+              <button
+                v-if="row.kind === 'bindStone' && !row.bound"
+                type="button"
+                class="btn btn-primary btn-bind"
+                :aria-label="`Bind to ${place?.name ?? 'this place'}`"
+                :title="bindTitle"
+                :aria-disabled="bindBlocked ? 'true' : undefined"
+                :aria-describedby="inFight ? bindReasonId : undefined"
+                @click="bind()"
+              >
+                Bind
+              </button>
+              <span v-if="row.kind === 'bindStone' && !row.bound && inFight" :id="bindReasonId" class="sr-only">{{
+                BIND_IN_COMBAT
+              }}</span>
+              <button
+                v-if="row.kind === 'player'"
+                type="button"
+                class="btn btn-ghost btn-icon"
+                :aria-label="`Whisper ${row.name}`"
+                :title="`Whisper ${row.name}`"
+                :aria-disabled="disabledAttr"
+                @click="whisper(row)"
+              >
+                <PhChatCircleDots :size="16" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon btn-eye"
+                :aria-label="`Examine ${examineName(row)}`"
+                :title="`Examine ${examineName(row)}`"
+                :aria-disabled="disabledAttr"
+                @click="examine(examineName(row))"
+              >
+                <PhEye :size="16" aria-hidden="true" />
+              </button>
+              <PlayerMenu
+                v-if="row.kind === 'player'"
+                :ref="(instance) => setMenu(row.id, instance)"
+                :target-id="row.id"
+                side="left"
+                :size="frame.isDesktop.value ? 'rail' : 'sheet'"
+                :fallback-focus="headingFocus"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -419,6 +561,39 @@ h6 {
   color: var(--color-neutral-500);
 }
 
+/* The groups stack 16 apart (UI-SPEC Spacing md); the cards inside a group 8 apart. */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 'Nothing hunts here now.' and the all-Exhausted summary: a quiet boxed line. */
+.group-empty {
+  margin: 0;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
+}
+
+.cards + .group-empty {
+  margin-top: 8px;
+}
+
 .rows {
   list-style: none;
   margin: 0;
@@ -434,11 +609,6 @@ h6 {
   gap: 4px;
   min-height: 32px;
   min-width: 0;
-}
-
-.nearby-row.depleted,
-.nearby-row.in-combat {
-  opacity: 0.45;
 }
 
 /* The name keeps its width first: the hint shrinks (min-width 0, overflow hidden) before the name does. */
@@ -457,27 +627,6 @@ h6 {
   font: inherit;
   font-size: 12px;
   text-align: left;
-}
-
-button.row-main {
-  cursor: pointer;
-}
-
-button.row-main:hover {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-}
-
-button.row-main:active {
-  background: color-mix(in srgb, var(--color-text) 14%, transparent);
-}
-
-button.row-main:focus-visible {
-  outline-offset: -2px;
-}
-
-button.row-main[aria-disabled='true'] {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .row-icon {
@@ -501,10 +650,6 @@ button.row-main[aria-disabled='true'] {
   color: var(--color-neutral-400);
 }
 
-.kind-node .row-icon {
-  color: var(--color-stamina);
-}
-
 .kind-player .row-icon {
   color: var(--color-line-whisper);
 }
@@ -517,34 +662,6 @@ button.row-main[aria-disabled='true'] {
   color: var(--color-text);
 }
 
-.kind-enemy .con-gray {
-  color: var(--color-con-gray);
-}
-
-.kind-enemy .con-light-green {
-  color: var(--color-con-light-green);
-}
-
-.kind-enemy .con-blue {
-  color: var(--color-con-blue);
-}
-
-.kind-enemy .con-white {
-  color: var(--color-con-white);
-}
-
-.kind-enemy .con-yellow {
-  color: var(--color-con-yellow);
-}
-
-.kind-enemy .con-orange {
-  color: var(--color-con-orange);
-}
-
-.kind-enemy .con-red {
-  color: var(--color-con-red);
-}
-
 .row-hint {
   flex-shrink: 100;
   min-width: 0;
@@ -554,7 +671,6 @@ button.row-main[aria-disabled='true'] {
   color: var(--color-neutral-500);
   white-space: nowrap;
 }
-
 
 /* One flex group of one to three icon buttons: the row's own actions, then the eye (a player row ends with the menu). */
 .row-actions {

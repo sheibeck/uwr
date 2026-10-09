@@ -75,7 +75,7 @@ describe('familyRows', () => {
       poolId: 7n,
       name: 'Goblins',
       iconKey: 'humanoid',
-      levelText: 'Lv 4-5',
+      levelText: 'Lv 4–5',
       con,
       badgeWord: 'Overrun',
       badgeLevel: 3,
@@ -441,6 +441,6 @@ describe('privacy (D-05)', () => {
     for (const row of res) strings.push(row.name, row.line, row.badgeWord, row.gatherLabel, row.title, row.reason ?? '');
     for (const row of nam) strings.push(row.name, row.fightLabel, row.title, row.subLine.replace(/Lv \d+/g, ''));
     for (const text of strings) expect(text).not.toMatch(/\d/);
-    for (const row of fam) expect(row.levelText).toMatch(/^Lv \d+(-\d+)?$/);
+    for (const row of fam) expect(row.levelText).toMatch(/^Lv \d+(–\d+)?$/);
   });
 });

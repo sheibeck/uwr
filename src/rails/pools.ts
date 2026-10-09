@@ -4,7 +4,7 @@
 // Pure: rows in, rows out. Every density word, line, hint and empty line comes from the shared
 // copy in @game-data/density_lines (PROPOSED, D-58); the group and action labels below are the
 // Nearby copy of the same review. Difficulty comes from combat/difficulty (conFor), never from
-// here. Numbers stay hidden (D-05): the only digits produced are the 'Lv a-b' range and the
+// here. Numbers stay hidden (D-05): the only digits produced are the 'Lv a–b' range and the
 // named sub-line's 'Lv n'; pool rows carry levels 0-3 only, and a harvest cap is only yes or no.
 //
 // Ordinary enemies are never individual rows: a family is one card with a Pull (D-01, D-03, D-12).
@@ -66,7 +66,7 @@ export interface FamilyRow {
   poolId: bigint;
   name: string;
   iconKey: string;
-  /** 'Lv 4-5', or 'Lv 4' when the range is one level. */
+  /** 'Lv 4–5', or 'Lv 4' when the range is one level. */
   levelText: string;
   /** Difficulty of the range top for the player; null while the player level is unknown. */
   con: ConView | null;
@@ -135,7 +135,7 @@ function desc(a: bigint, b: bigint): number {
 }
 
 function levelRange(lo: bigint, hi: bigint): string {
-  return lo === hi || lo <= 0n ? `Lv ${hi}` : `Lv ${lo}-${hi}`;
+  return lo === hi || lo <= 0n ? `Lv ${hi}` : `Lv ${lo}–${hi}`;
 }
 
 /** One card per creature family here, danger first; wiped-out families last. */

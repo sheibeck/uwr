@@ -3,13 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import ContextContent from './ContextContent.vue';
 import {
   CONSOLE_KEY,
   FRAME_KEY,
   GAME_KEY,
-  createInertCombatData,
   createInertConsole,
   createInertFrame,
   createInertGame,
@@ -52,6 +51,10 @@ const LOCATIONS = [
 ];
 
 const CHARACTER = { id: 1n, name: 'Hero', locationId: 10n, level: 6n };
+
+// Nearby's pool groups wait for the place's pool rows (51.3.1.1-19). An empty Nearby at a safe place
+// with its rows applied shows the Phase 45 empty line; a non-safe place would show 'Nothing hunts here now.'.
+const QUIET_HERE = { character: ref({ ...CHARACTER, locationId: 13n }), poolsAppliedFor: () => true };
 
 interface Setup {
   game?: Record<string, unknown>;
@@ -123,7 +126,7 @@ describe('ContextContent with no character data (Phase 45 lines)', () => {
   });
 
   it('keeps the Nearby and Tracking empty lines when a character exists but nothing is around', () => {
-    const { w } = mountContent();
+    const { w } = mountContent({ game: QUIET_HERE });
     expect(w.text()).toContain('No one is nearby.');
     expect(w.text()).toContain('No quests tracked.');
     expect(w.find('.event-card').exists()).toBe(false);
@@ -297,7 +300,7 @@ describe('Nearby list', () => {
   });
 
   it('shows the empty line with nobody and nothing here', () => {
-    const { w } = mountContent(lists({}));
+    const { w } = mountContent({ game: QUIET_HERE });
     expect(w.text()).toContain('No one is nearby.');
   });
 
@@ -308,7 +311,9 @@ describe('Nearby list', () => {
   });
 });
 
-describe('Nearby enemies (quick-261006-a0i)', () => {
+// 51.3.1.1-19: ordinary enemies are family cards now; the enemy spawns left at a place are World
+// event individuals, listed as named cards with Fight (NearbyList.test.ts covers the pool groups).
+describe('Nearby event enemies (51.3.1.1-19)', () => {
   const spawn = (id: bigint, name: string, state: string, extra: Record<string, unknown> = {}) => ({
     id,
     name,
@@ -316,174 +321,100 @@ describe('Nearby enemies (quick-261006-a0i)', () => {
     locationId: 10n,
     enemyTemplateId: 1n,
     groupCount: 1n,
+    level: 0n,
     ...extra,
   });
-  const ENEMIES = lists({
-    enemiesHere: [
-      spawn(3n, 'Goblin Scout', 'available', { groupCount: 3n }),
-      spawn(4n, 'Ash Wolf', 'pulling'),
-      spawn(5n, 'Bone Rat', 'engaged', { lockedCombatId: 1n }),
-      spawn(6n, 'Ghost', 'depleted'),
-    ],
-    enemyTemplatesHere: [{ id: 1n, level: 8n }],
-    npcsHere: [{ id: 2n, name: 'Marta', npcType: 'quest' }],
-  });
+  const ENEMIES = {
+    game: {
+      ...lists({
+        enemiesHere: [
+          spawn(3n, 'Goblin Scout', 'available', { groupCount: 3n }),
+          spawn(4n, 'Ash Wolf', 'pulling'),
+          spawn(5n, 'Bone Rat', 'engaged', { lockedCombatId: 1n }),
+          spawn(6n, 'Ghost', 'depleted'),
+        ],
+        enemyTemplatesHere: [{ id: 1n, level: 8n }],
+        npcsHere: [{ id: 2n, name: 'Marta', npcType: 'quest' }],
+      }).game,
+      poolsAppliedFor: () => true,
+    },
+  };
+  const named = (w: VueWrapper) =>
+    w.findAll('.nearby-group').find((group) => group.get('h6').text() === 'Named & quest targets')!;
 
-  it('lists enemy rows ahead of the other kinds, one per visible spawn', () => {
+  it('lists each visible spawn as a named card, never as a row, and the NPC under Also here', () => {
     const { w } = mountContent(ENEMIES);
-    const rows = w.findAll('.nearby-row');
-    expect(rows.map((r) => r.get('.row-name').text())).toEqual([
-      'Ash Wolf',
-      'Bone Rat',
-      'Goblin Scout',
-      'Marta',
-    ]);
-    for (const row of rows.slice(0, 3)) expect(row.classes()).toContain('kind-enemy');
+    expect(named(w).findAll('.card-name').map((n) => n.text())).toEqual(['Ash Wolf', 'Bone Rat', 'Goblin Scout']);
+    expect(w.findAll('.nearby-row').map((r) => r.get('.row-name').text())).toEqual(['Marta']);
+    expect(w.find('.kind-enemy').exists()).toBe(false);
     expect(w.text()).not.toContain('Ghost');
   });
 
-  it('colors the name and icon by con and shows title, level and group count', () => {
-    const { w } = mountContent(ENEMIES);
-    const row = w.findAll('.nearby-row')[2];
-    expect(row.get('.row-name').classes()).toContain('con-orange');
-    expect(row.get('.row-icon').classes()).toContain('con-orange');
-    expect(row.get('.row-name').attributes('title')).toBe('Goblin Scout · Hard');
-    expect(row.get('.row-hint').text()).toBe('Lv 8 · ×3');
-  });
-
-  it('gives an available enemy one always-visible Pull button that fights the spawn (51.3.1.1-18: an event enemy)', async () => {
+  it('colors the name by con, titles it, and gives an available spawn Fight', async () => {
     const { w, calls } = mountContent(ENEMIES);
-    const row = w.findAll('.nearby-row')[2];
-    expect(row.findAll('button').map((b) => b.attributes('aria-label'))).toEqual([
-      'Pull Goblin Scout (Lv 8, Hard)',
-      'Examine Goblin Scout',
-    ]);
-    const button = row.get('[aria-label^="Pull "]');
-    expect(button.classes()).toEqual(expect.arrayContaining(['btn', 'btn-ghost', 'btn-icon']));
-    expect(button.attributes('title')).toBe('Pull Goblin Scout (Lv 8, Hard)');
-    expect(button.attributes('aria-disabled')).toBeUndefined();
-    await button.trigger('click');
-    expect(calls.fight).toHaveBeenCalledTimes(1);
+    const card = named(w).findAll('.pool-card')[2];
+    expect(card.get('.card-name').classes()).toContain('con-orange');
+    expect(card.get('.card-name').attributes('title')).toBe('Goblin Scout · Hard');
+    expect(card.get('.card-sub').text()).toBe('Named · Lv 8');
+    const fight = card.get('button');
+    expect(fight.attributes('aria-label')).toBe('Fight Goblin Scout');
+    expect(fight.attributes('aria-disabled')).toBeUndefined();
+    await fight.trigger('click');
+    await flushPromises();
     expect(calls.fight).toHaveBeenCalledWith({ kind: 'event', id: 3n, name: 'Goblin Scout' });
     expect(calls.pull).not.toHaveBeenCalled();
   });
 
-  it('shows Being pulled and In combat without buttons, the in-combat row dimmed', () => {
-    const { w } = mountContent(ENEMIES);
-    const [pulling, engaged] = w.findAll('.nearby-row');
-    expect(pulling.get('.row-hint').text()).toBe('Lv 8 · Being pulled');
-    expect(pulling.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Examine Ash Wolf']);
-    expect(pulling.classes()).not.toContain('in-combat');
-    expect(engaged.get('.row-hint').text()).toBe('Lv 8 · In combat');
-    expect(engaged.findAll('button').map((b) => b.attributes('aria-label'))).toEqual(['Examine Bone Rat']);
-    expect(engaged.classes()).toContain('in-combat');
+  it('a spawn being pulled or in a fight shows In combat and an aria-disabled Fight', async () => {
+    const { w, calls } = mountContent(ENEMIES);
+    const [pulling, engaged] = named(w).findAll('.pool-card');
+    expect(pulling.get('.card-sub').text()).toBe('Named · Lv 8 · In combat');
+    expect(engaged.get('.card-sub').text()).toBe('Named · Lv 8 · In combat');
+    for (const card of [pulling, engaged]) {
+      expect(card.get('button').attributes('aria-disabled')).toBe('true');
+      await card.get('button').trigger('click');
+    }
+    expect(calls.fight).not.toHaveBeenCalled();
   });
 
-  it('disables the pull buttons in a fight and sends nothing', async () => {
+  it('disables Fight offline and sends nothing', async () => {
+    const { w, calls } = mountContent({ game: { ...ENEMIES.game, connected: ref(false) } });
+    const fight = w.get('[aria-label="Fight Goblin Scout"]');
+    expect(fight.attributes('aria-disabled')).toBe('true');
+    await fight.trigger('click');
+    await flushPromises();
+    expect(calls.fight).not.toHaveBeenCalled();
+  });
+
+  it('shows no difficulty while the template level is unknown and still fights', async () => {
     const { w, calls } = mountContent({
       game: {
-        ...ENEMIES.game,
-        combat: { ...createInertCombatData(), active: ref(true) },
+        ...lists({ enemiesHere: [spawn(3n, 'Rotfang', 'available')], enemyTemplatesHere: [] }).game,
+        poolsAppliedFor: () => true,
       },
     });
-    const buttons = w.findAll('[aria-label^="Pull "]');
-    expect(buttons).toHaveLength(1);
-    for (const button of buttons) {
-      expect(button.attributes('aria-disabled')).toBe('true');
-      await button.trigger('click');
-    }
-    expect(calls.pull).not.toHaveBeenCalled();
-    expect(calls.fight).not.toHaveBeenCalled();
-  });
-
-  it('disables the pull buttons offline and sends nothing', async () => {
-    const { w, calls } = mountContent({ game: { ...ENEMIES.game, connected: ref(false) } });
-    const buttons = w.findAll('[aria-label^="Pull "]');
-    expect(buttons).toHaveLength(1);
-    for (const button of buttons) {
-      expect(button.attributes('aria-disabled')).toBe('true');
-      await button.trigger('click');
-    }
-    expect(calls.pull).not.toHaveBeenCalled();
-    expect(calls.fight).not.toHaveBeenCalled();
-  });
-
-  it('shows no difficulty and keeps Pull aria-disabled while the template level is unknown', async () => {
-    const { w, calls } = mountContent(
-      lists({
-        enemiesHere: [spawn(3n, 'Rotfang', 'available')],
-        enemyTemplatesHere: [],
-        character: CHARACTER,
-      }),
-    );
-    const row = w.get('.nearby-row');
-    expect(row.get('.row-name').attributes('title')).toBe('Rotfang');
-    expect(row.get('.row-name').classes().filter((c) => c.startsWith('con-'))).toEqual([]);
-    expect(row.get('.row-icon').classes().filter((c) => c.startsWith('con-'))).toEqual([]);
-    expect(row.get('.row-hint').text()).toBe('');
+    const card = w.get('.pool-card');
+    expect(card.get('.card-name').attributes('title')).toBe('Rotfang');
+    expect(card.get('.card-name').classes().filter((c) => c.startsWith('con-'))).toEqual([]);
+    expect(card.get('.card-sub').text()).toBe('Named');
     expect(w.text()).not.toContain('Even match');
-    const button = row.get('button');
-    expect(button.attributes('aria-label')).toBe('Pull Rotfang');
-    expect(button.attributes('aria-disabled')).toBe('true');
-    await button.trigger('click');
-    expect(calls.pull).not.toHaveBeenCalled();
-    expect(calls.fight).not.toHaveBeenCalled();
-  });
-
-  it('shows the level but no difficulty word or color when the player level is unknown', async () => {
-    const { w, calls } = mountContent(
-      lists({
-        enemiesHere: [spawn(3n, 'Rotfang', 'available')],
-        enemyTemplatesHere: [{ id: 1n, level: 8n }],
-        character: null,
-      }),
-    );
-    const row = w.get('.nearby-row');
-    expect(row.get('.row-name').classes().filter((c) => c.startsWith('con-'))).toEqual([]);
-    expect(row.get('.row-name').attributes('title')).toBe('Rotfang');
-    expect(row.get('.row-hint').text()).toBe('Lv 8');
-    const button = row.get('button');
-    expect(button.attributes('aria-label')).toBe('Pull Rotfang (Lv 8)');
-    expect(button.attributes('aria-disabled')).toBeUndefined();
-    await button.trigger('click');
+    await card.get('[aria-label="Fight Rotfang"]').trigger('click');
+    await flushPromises();
     expect(calls.fight).toHaveBeenCalledWith({ kind: 'event', id: 3n, name: 'Rotfang' });
   });
 
-  it('enables Pull and shows the con once the template arrives', async () => {
-    const templates = ref<{ id: bigint; level: bigint }[]>([]);
-    const { w, calls } = mountContent({
-      game: {
-        ...lists({ enemiesHere: [spawn(3n, 'Rotfang', 'available')], character: CHARACTER }).game,
-        enemyTemplatesHere: templates,
-      },
-    });
-    expect(w.get('[aria-label^="Pull "]').attributes('aria-disabled')).toBe('true');
-    templates.value = [{ id: 1n, level: 8n }];
-    await w.vm.$nextTick();
-    const button = w.get('[aria-label^="Pull "]');
-    expect(button.attributes('aria-label')).toBe('Pull Rotfang (Lv 8, Hard)');
-    expect(button.attributes('aria-disabled')).toBeUndefined();
-    expect(w.get('.row-name').classes()).toContain('con-orange');
-    await button.trigger('click');
-    expect(calls.fight).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not show the empty line when only enemies are present, and still shows it when empty', () => {
-    const only = mountContent(lists({ enemiesHere: [spawn(3n, 'Goblin Scout', 'available')] }));
-    expect(only.w.text()).not.toContain('No one is nearby.');
-    wrapper?.unmount();
-    const none = mountContent();
-    expect(none.w.text()).toContain('No one is nearby.');
+  it('does not show the empty line when only an event enemy is present', () => {
+    const { w } = mountContent({ game: { ...QUIET_HERE, ...lists({ enemiesHere: [spawn(3n, 'Goblin Scout', 'available')] }).game } });
+    expect(w.text()).not.toContain('No one is nearby.');
   });
 
   it('renders a markup enemy name as text', () => {
-    const { w } = mountContent(lists({ enemiesHere: [spawn(3n, PAYLOAD, 'available')] }));
+    const { w } = mountContent({
+      game: { ...lists({ enemiesHere: [spawn(3n, PAYLOAD, 'available')] }).game, poolsAppliedFor: () => true },
+    });
     expect(w.find('img').exists()).toBe(false);
-    expect(w.get('.kind-enemy .row-name').text()).toBe(PAYLOAD);
-    expect(w.get('.kind-enemy [aria-label^="Pull "]').attributes('aria-label')).toBe(
-      `Pull ${PAYLOAD}`,
-    );
-    expect(w.get('.kind-enemy [aria-label^="Pull "]').attributes('title')).toBe(`Pull ${PAYLOAD}`);
+    expect(w.get('.pool-card .card-name').text()).toBe(PAYLOAD);
+    expect(w.get('.pool-card button').attributes('aria-label')).toBe(`Fight ${PAYLOAD}`);
   });
 });
 

@@ -71,7 +71,7 @@ describe('resourceIcon', () => {
 
 describe('icons exist in @phosphor-icons/vue 2.2.1', () => {
   it('every mapped component is an export of the installed package', () => {
-    const exported = new Set(Object.values(Phosphor));
+    const exported = new Set<unknown>(Object.values(Phosphor));
     for (const icon of [...Object.values(FAMILY_ICONS), ...Object.values(RESOURCE_ICONS), PhSkull, PhCube]) {
       expect(icon).toBeDefined();
       expect(exported.has(icon)).toBe(true);
