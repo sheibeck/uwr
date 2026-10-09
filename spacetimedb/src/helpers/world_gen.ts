@@ -47,7 +47,8 @@ import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
-import { REGION_HOLD_FAILED_LINE } from './region_hold';
+import { REGION_HOLD_FAILED_LINE, regionOpenedLine } from './region_hold';
+import { startRegionEconomy } from './region_economy';
 import {
   assignRegionFamilies,
   chooseHubs,
@@ -878,19 +879,85 @@ function postFillFailure(tx: any, genState: any, message: string, creationLine: 
   }
 
   const holdLine = message === LLM_RESTING_LINE ? `${LLM_RESTING_LINE}${EXPLORE_HINT}` : REGION_HOLD_FAILED_LINE;
-  const told = new Set<bigint>();
-  const tell = (c: any): void => {
-    if (!c || c.locationId === 0n || told.has(c.id)) return;
-    told.add(c.id);
+  for (const c of crossingAudience(tx, genState, char)) {
     appendPrivateEvent(tx, c.id, c.ownerUserId, 'system', holdLine);
+  }
+}
+
+/**
+ * Who hears about a region held at a crossing (D-15, D-18): the triggering character, wherever he is,
+ * then everyone standing at the crossing (character.by_location of a non-zero sourceLocationId) by id.
+ * Each once; a character at location 0 (still in creation) never, and location 0 is never a crossing.
+ */
+function crossingAudience(tx: any, genState: any, trigger: any): any[] {
+  const out: any[] = [];
+  const seen = new Set<bigint>();
+  const add = (c: any): void => {
+    if (!c || c.locationId === 0n || seen.has(c.id)) return;
+    seen.add(c.id);
+    out.push(c);
   };
-  tell(char);
+  add(trigger);
   const crossing: bigint = genState.sourceLocationId ?? 0n;
   if (crossing !== 0n) {
     const here = [...tx.db.character.by_location.filter(crossing)].sort((a: any, b: any) =>
       a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
     );
-    for (const c of here) tell(c);
+    for (const c of here) add(c);
+  }
+  return out;
+}
+
+/** A thrown value's name only (never its message), for a log line (T-51.3.1.2-28). */
+function errorName(err: unknown): string {
+  return err instanceof Error ? err.name : typeof err;
+}
+
+/**
+ * A region is whole (Phase 51.3.1.2): the state becomes COMPLETE and the hold at the crossing ends
+ * (D-15). Only a FILLING_FAMILIES state (the 2b apply) or a FILLING state (the legacy one-reply apply)
+ * finishes; any other step, COMPLETE included, is left as it is, so a second call adds nothing.
+ *  - The owner's 7c line (regionOpenedLine with the stored region name) goes to the triggering character,
+ *    wherever he is, and to everyone at the crossing, once each; the triggering character then gets the
+ *    discovery line (pickDiscoveryMessage; the owner's choice moves it here from stage 1).
+ *  - A starter state (sourceLocationId 0n) posts neither line here: Plan 13 places the new character.
+ *  - The region economy starts after COMPLETE, never as part of the hold (D-16): startRegionEconomy
+ *    (gated on the AI economy switch inside) in a try/catch that logs the error name only, so an economy
+ *    bug never hides a completed region (T-51.3.1.2-28).
+ * Plan 11 calls it from both applies.
+ */
+export function finishRegionFill(tx: any, genState: any): void {
+  const current = tx.db.world_gen_state.id.find(genState.id);
+  if (!current || (current.step !== 'FILLING_FAMILIES' && current.step !== 'FILLING')) return;
+
+  tx.db.world_gen_state.id.update({
+    ...current,
+    step: 'COMPLETE',
+    errorMessage: undefined,
+    updatedAt: tx.timestamp,
+  });
+
+  const regionId = current.generatedRegionId;
+  const region = regionId !== undefined && regionId !== null ? tx.db.region.id.find(regionId) : undefined;
+
+  if (region && (current.sourceLocationId ?? 0n) !== 0n) {
+    const regionName = String(region.name ?? '');
+    const opened = regionOpenedLine(regionName);
+    const trigger = tx.db.character.id.find(current.characterId);
+    for (const c of crossingAudience(tx, current, trigger)) {
+      appendPrivateEvent(tx, c.id, c.ownerUserId, 'system', opened);
+    }
+    if (trigger && trigger.locationId !== 0n) {
+      appendPrivateEvent(tx, trigger.id, trigger.ownerUserId, 'system',
+        pickDiscoveryMessage(regionName, tx.timestamp.microsSinceUnixEpoch));
+    }
+  }
+
+  try {
+    const filledRegion = region ? (tx.db.region.id.find(region.id) ?? region) : region;
+    startRegionEconomy(tx, filledRegion, { playerId: current.playerId, characterId: current.characterId });
+  } catch (err) {
+    console.error('Region economy start failed for region ' + String(regionId) + ': ' + errorName(err));
   }
 }
 
