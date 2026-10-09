@@ -410,7 +410,7 @@ describe('combat frame, desktop (1280)', () => {
     expect(cards.map((card) => card.get('.role-chip').text())).toEqual(['Support', 'Tank']);
     expect(cards.map((card) => card.get('.target-line').text())).toEqual(['Targeting you', 'Targeting Mara']);
     expect(cards[1].attributes('aria-label')).toBe(
-      'Rotfang, Tank, level 6, Hard, 44% health, winding up Bile Spray, targeting Mara',
+      'Rotfang, Tank, level 6, Deadly, 44% health, winding up Bile Spray, targeting Mara',
     );
     expect(panel.findAll('button button')).toHaveLength(0);
     expect(panel.get('p.encounter-foot .foot-text').text()).toBe('Ember Gate');

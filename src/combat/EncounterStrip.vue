@@ -3,13 +3,22 @@ import { computed, inject } from 'vue';
 import { PhCaretUp, PhDotsThree, PhHourglassMedium } from '@phosphor-icons/vue';
 import { COMBAT_KEY, GAME_KEY, createInertCombat, createInertGame } from '../game/context';
 import EffectChips from '../rails/EffectChips.vue';
-import { STRIP_EFFECT_LIMIT, encounterHeading, hostileViews, livingHostileIds } from './hostiles';
+import {
+  STRIP_EFFECT_LIMIT,
+  encounterHeading,
+  encounterRowOf,
+  encounterTitle,
+  hostileViews,
+  livingHostileIds,
+} from './hostiles';
 
 // The mobile encounter strip (48-UI-SPEC "Mobile (390 x 844), combat", CMB-01, CMB-03, CMB-05): a
 // header button that opens the encounter sheet, an account button that keeps Log out reachable
 // while the tab bar is hidden, and one chip per hostile. Names are server or model text and render
 // as text nodes only. The ring follows character.combatTargetEnemyId through the hostile view, so
-// nothing here is optimistic. A defeated chip never targets.
+// nothing here is optimistic. A defeated chip never targets. Each chip leads with its role icon (12,
+// role colour, aria-hidden); the role word is in the chip's accessible name (51.3.1.1 D-40). The
+// heading is the panel's string (family name and living count, D-32).
 const props = withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false });
 const emit = defineEmits<{ open: [opener: HTMLElement]; account: [opener: HTMLElement] }>();
 
@@ -17,6 +26,8 @@ const game = inject(GAME_KEY, createInertGame());
 const controller = inject(COMBAT_KEY, createInertCombat());
 
 const combat = game.combat;
+const encounter = computed(() => encounterRowOf(combat));
+const namedTemplateIds = computed(() => new Set(game.namedEnemies.value.map((row) => row.enemyTemplateId)));
 
 const hostiles = computed(() =>
   hostileViews({
@@ -31,10 +42,14 @@ const hostiles = computed(() =>
     selfId: game.characterId.value,
     characterNames: combat.characterNames.value,
     petNames: combat.petNames.value,
+    namedTemplateIds: namedTemplateIds.value,
+    namedFight: encounter.value?.origin === 'named',
   }),
 );
 
-const heading = computed(() => encounterHeading(livingHostileIds(hostiles.value).length));
+const heading = computed(() =>
+  encounterHeading(encounterTitle(encounter.value, hostiles.value), livingHostileIds(hostiles.value).length),
+);
 const showChips = computed(() => !props.collapsed && combat.applied.value);
 
 function onOpen(event: MouseEvent): void {
@@ -86,6 +101,7 @@ function onChip(id: bigint, defeated: boolean): void {
         @click="onChip(hostile.id, hostile.defeated)"
       >
         <span class="chip-top">
+          <component :is="hostile.role.icon" class="chip-role" :class="hostile.role.cls" :size="12" aria-hidden="true" />
           <span class="chip-name" :class="hostile.con.className">{{ hostile.name }}</span>
           <PhHourglassMedium v-if="hostile.windups.length > 0" class="chip-windup" :size="12" aria-hidden="true" />
         </span>
@@ -108,6 +124,7 @@ function onChip(id: bigint, defeated: boolean): void {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
   padding: 8px 16px 0;
 }
 
@@ -248,11 +265,41 @@ function onChip(id: bigint, defeated: boolean): void {
 
 .chip-name {
   min-width: 0;
+  max-width: 144px;
   overflow: hidden;
   font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chip-role {
+  flex-shrink: 0;
+}
+
+/* Role colours from existing tokens only (51.3.1.1 UI-SPEC Color table). */
+.chip-role.role-tank {
+  color: var(--color-neutral-200);
+}
+
+.chip-role.role-damage {
+  color: var(--color-con-orange);
+}
+
+.chip-role.role-caster {
+  color: var(--color-line-npc);
+}
+
+.chip-role.role-support {
+  color: var(--color-con-light-green);
+}
+
+.chip-role.role-named {
+  color: var(--color-line-quest);
+}
+
+.chip-role.role-boss {
+  color: var(--color-con-red);
 }
 
 .chip-windup {

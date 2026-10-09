@@ -320,6 +320,21 @@ export interface EncounterOriginRow {
 }
 
 /**
+ * The combat data the panel and strip read. `encounter` is the fight's combat_encounter row once the
+ * client binds it (the binding lives in src/game; see the 51.3.1.1-22 hand-off note). Until then the
+ * heading falls back to 'Encounter · {n} left' and no source line shows.
+ */
+export interface CombatWithEncounter {
+  readonly enemies: unknown;
+  readonly encounter?: { readonly value: EncounterOriginRow | null | undefined };
+}
+
+/** The fight's origin row, or null while it is not bound or has not applied. */
+export function encounterRowOf(combat: CombatWithEncounter): EncounterOriginRow | null {
+  return combat.encounter?.value ?? null;
+}
+
+/**
  * The heading title: the family name, or for a named fight the enemy's own name (the origin name is
  * the template name there). '' when no origin is recorded, so the heading falls back.
  */

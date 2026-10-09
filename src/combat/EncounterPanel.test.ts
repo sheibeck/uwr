@@ -486,7 +486,7 @@ describe('EncounterPanel rendering safety', () => {
     expect(wrapper!.get('.source').text()).toBe(`Pulled from ${XSS} that read stable here.`);
     const names = wrapper!.findAll('.target-name').map((n) => n.text());
     expect(names).toEqual([XSS, XSS]);
-    expect(wrapper!.get('.encounter-foot .foot-text').text()).toBe(`${XSS} · Risky`);
+    expect(wrapper!.get('.encounter-foot .foot-text').text()).toBe(`${XSS} · Deadly`);
   });
 
   it('no button nests inside another in the panel', () => {
@@ -528,7 +528,7 @@ describe('EncounterPanel role chips and target lines (UI Q6)', () => {
     expect(kids[2]).toContain('hp-track');
     expect(kids[kids.length - 1]).toContain('target-line');
     // the targeted marker sits in the role row now
-    expect(card.get('.row-role .marker').exists()).toBe(true);
+    expect(card.find('.row-role .marker').exists()).toBe(true);
     expect(card.get('.row-name .name').text()).toBe('Biter');
     expect(card.get('.row-name .level').text()).toBe('Lv 4');
   });
@@ -647,9 +647,9 @@ describe('EncounterPanel heading, source and foot (UI Q7, D-32)', () => {
   it('ends the rail with the foot line: dot, place and rating', () => {
     mountPanel({ place: { name: 'Ember Gate', ready: true } });
     const foot = wrapper!.get('p.encounter-foot');
-    expect(foot.get('.rating-mark').classes()).toContain('rate-risky');
+    expect(foot.get('.rating-mark').classes()).toContain('rate-deadly');
     expect(foot.get('.rating-mark .dot').attributes('aria-hidden')).toBe('true');
-    expect(foot.get('.foot-text').text()).toBe('Ember Gate · Risky');
+    expect(foot.get('.foot-text').text()).toBe('Ember Gate · Deadly');
     const section = wrapper!.get('section.encounter-panel').element;
     expect(section.lastElementChild).toBe(foot.element);
     expect(PANEL_SOURCE).toMatch(/\.encounter-foot\s*\{[^}]*margin-top:\s*auto/);
@@ -687,7 +687,7 @@ describe('EncounterPanel heading, source and foot (UI Q7, D-32)', () => {
 // name hold one line with an ellipsis inside a min-width 0 box.
 describe('EncounterPanel overflow backstop: four enemies, long names, effects and a wind-up each', () => {
   const LONG = 'The Extremely Long Named Bog Horror of the Hollowmere Depths';
-  const style = CARD_SOURCE.slice(CARD_SOURCE.indexOf('<style'));
+  const style = CARD_SOURCE.slice(CARD_SOURCE.indexOf('>', CARD_SOURCE.indexOf('<style')) + 1).replace(/\/\*[\s\S]*?\*\//g, '');
   const value = (selector: string, prop: string): string | null => {
     for (const match of style.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selectors = match[1].split(',').map((x) => x.trim());
@@ -717,7 +717,7 @@ describe('EncounterPanel overflow backstop: four enemies, long names, effects an
       expect(card.find('.windup').exists()).toBe(true);
       expect(card.get('.target-line .target-name').text()).toBe(`${LONG} the Wanderer`);
       expect(card.attributes('aria-label')).toContain(`targeting ${LONG} the Wanderer`);
-      expect(card.attributes('aria-label').startsWith(LONG)).toBe(true);
+      expect(card.attributes('aria-label')!.startsWith(LONG)).toBe(true);
     }
     for (const sel of ['.name', '.target-name']) {
       expect(value(sel, 'overflow')).toBe('hidden');

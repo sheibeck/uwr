@@ -9,21 +9,35 @@ import {
   createInertConsole,
   createInertGame,
 } from '../game/context';
-import { encounterHeading, hostileViews, livingHostileIds } from './hostiles';
-import { threatView } from './threat';
+import RatingMark from '../rails/RatingMark.vue';
+import { usePlaceView } from '../rails/useExits';
+import {
+  encounterHeading,
+  encounterRowOf,
+  encounterSourceView,
+  encounterTitle,
+  hostileViews,
+  livingHostileIds,
+} from './hostiles';
 import HostileCard from './HostileCard.vue';
-import ThreatBlock from './ThreatBlock.vue';
 
-// The Encounter panel (48-UI-SPEC "Encounter panel", CMB-01 to CMB-03): the desktop right rail
-// while in combat, and the body of the mobile encounter sheet. Targeting goes through the combat
+// The Encounter panel (48-UI-SPEC "Encounter panel", CMB-01 to CMB-03; 51.3.1.1 UI-SPEC "Encounter
+// panel", D-32, D-40): the desktop right rail while in combat, and the body of the mobile encounter
+// sheet. The heading names the family (or the named enemy) and the living count; the source line says
+// how the fight began; each card carries a role chip and a target line; the rail ends with the place
+// and its rating. The Phase 48 threat block is gone (D-40). Targeting goes through the combat
 // controller; the ring follows character.combatTargetEnemyId only.
-withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { variant: 'rail' });
+const props = withDefaults(defineProps<{ variant?: 'rail' | 'sheet' }>(), { variant: 'rail' });
 
 const game = inject(GAME_KEY, createInertGame());
 const controller = inject(COMBAT_KEY, createInertCombat());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
+const place = usePlaceView();
 
 const combat = game.combat;
+const encounter = computed(() => encounterRowOf(combat));
+
+const namedTemplateIds = computed(() => new Set(game.namedEnemies.value.map((row) => row.enemyTemplateId)));
 
 const hostiles = computed(() =>
   hostileViews({
@@ -38,22 +52,24 @@ const hostiles = computed(() =>
     selfId: game.characterId.value,
     characterNames: combat.characterNames.value,
     petNames: combat.petNames.value,
+    namedTemplateIds: namedTemplateIds.value,
+    namedFight: encounter.value?.origin === 'named',
   }),
 );
 
 const livingCount = computed(() => livingHostileIds(hostiles.value).length);
-const heading = computed(() => encounterHeading(livingCount.value));
-const target = computed(() => hostiles.value.find((hostile) => hostile.targeted) ?? null);
+const heading = computed(() => encounterHeading(encounterTitle(encounter.value, hostiles.value), livingCount.value));
+const source = computed(() => encounterSourceView(encounter.value));
 
-const threat = computed(() =>
-  threatView({
-    entries: combat.aggro.value,
-    target: target.value === null ? null : { id: target.value.id, name: target.value.name },
-    selfId: game.characterId.value,
-    characterNames: combat.characterNames.value,
-    applied: combat.aggroApplied.value,
-  }),
-);
+// '[dot] {Place} · {Rating}' (rail only). The dot carries the rating colour; until the place's pools
+// apply the rating is Unknown with no word, so the line reads the place alone, never Safe.
+const foot = computed(() => {
+  if (props.variant !== 'rail') return null;
+  const here = place.value;
+  if (!here) return null;
+  const word = here.rating.word;
+  return { key: here.rating.key, text: word === '' ? here.title : `${here.title} · ${word}` };
+});
 
 function select(id: bigint): void {
   controller.requestTarget(id);
@@ -72,6 +88,7 @@ function examine(name: string): void {
       <h6>{{ heading }}</h6>
       <span v-if="variant === 'rail'" class="hint">Tab to cycle</span>
     </div>
+    <p v-if="source" class="source" :class="{ ambush: source.tone === 'ambush' }">{{ source.text }}</p>
 
     <template v-if="combat.applied.value">
       <p v-if="livingCount === 0" class="empty">No hostiles left.</p>
@@ -90,8 +107,12 @@ function examine(name: string): void {
           </button>
         </div>
       </div>
-      <ThreatBlock v-if="threat.visible && livingCount > 0" :view="threat" />
     </template>
+
+    <p v-if="foot" class="encounter-foot">
+      <RatingMark :rating="{ key: foot.key, word: '' }" :size="12" />
+      <span class="foot-text">{{ foot.text }}</span>
+    </p>
   </section>
 </template>
 
@@ -114,11 +135,16 @@ function examine(name: string): void {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .panel-head h6 {
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
   color: var(--color-neutral-400);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hint {
@@ -126,6 +152,17 @@ function examine(name: string): void {
   font-size: 10px;
   color: var(--color-neutral-500);
   white-space: nowrap;
+}
+
+/* How the fight began (D-32): Label 12; ambushes in the con orange, the rest neutral. */
+.source {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.source.ambush {
+  color: var(--color-con-orange);
 }
 
 .hostiles {
@@ -169,5 +206,24 @@ function examine(name: string): void {
   margin: 0;
   font-size: 12px;
   color: var(--color-neutral-500);
+}
+
+/* The rail foot (51.3.1.1 "Rating Marks"): pinned to the rail bottom. */
+.encounter-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.foot-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

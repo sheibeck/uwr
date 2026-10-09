@@ -10,6 +10,8 @@ const FILES = [
   'src/combat/HostileCard.vue',
   'src/combat/EncounterStrip.vue',
   'src/combat/EncounterPanel.vue',
+  'src/combat/RoleChip.vue',
+  'src/combat/roles.ts',
   'src/rails/EffectChips.vue',
   'src/rails/PartyBlock.vue',
   'src/frame/VitalsRail.vue',
