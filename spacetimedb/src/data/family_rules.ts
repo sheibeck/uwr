@@ -250,3 +250,80 @@ export function familyKey(regionId: bigint, creatureType: string): string {
 export function questFamilyKey(templateId: bigint): string {
   return `quest:${templateId.toString()}`;
 }
+
+// ---------------------------------------------------------------------------
+// Rule families and rule histories (D-66, D-68, D-70). PROPOSED copy (D-58): Plan 27 lists every
+// name, noun, ambush phrase and history template below for the owner's one wording review.
+// ---------------------------------------------------------------------------
+
+/** One family the server makes by rule when the AI reply has fewer families than the region needs. */
+export interface RuleFamilyEntry {
+  name: string;
+  singularNoun: string;
+  pluralNoun: string;
+  creatureType: string;
+  iconKey: FamilyIconKey;
+  temperament: FamilyTemperament;
+  ambushVerb: string;
+  ambushRest: string;
+  fitTerrains: readonly string[];
+}
+
+function ruleEntry(
+  name: string,
+  singularNoun: string,
+  pluralNoun: string,
+  creatureType: string,
+  iconKey: FamilyIconKey,
+  temperament: FamilyTemperament,
+  ambushVerb: string,
+  ambushRest: string,
+  fitTerrains: string[],
+): RuleFamilyEntry {
+  return Object.freeze({
+    name,
+    singularNoun,
+    pluralNoun,
+    creatureType,
+    iconKey,
+    temperament,
+    ambushVerb,
+    ambushRest,
+    fitTerrains: Object.freeze(fitTerrains),
+  });
+}
+
+/** The rule family list (D-66): each wild terrain is covered by at least two entries. PROPOSED (D-58). */
+export const RULE_FAMILY_BANK: readonly RuleFamilyEntry[] = Object.freeze([
+  ruleEntry('Ridge Wolves', 'wolf', 'wolves', 'beast', 'beast', 'aggressive', 'lunge', 'out of the long grass', ['plains', 'woods', 'mountains']),
+  ruleEntry('Thornback Boars', 'boar', 'boars', 'beast', 'beast', 'wary', 'charge', 'out of the brush', ['woods', 'plains']),
+  ruleEntry('Mire Crawlers', 'crawler', 'crawlers', 'aberration', 'insect', 'aggressive', 'surge', 'up out of the mud', ['swamp', 'coastal']),
+  ruleEntry('Barrow Wights', 'wight', 'wights', 'undead', 'undead', 'aggressive', 'rise', 'from the cold earth', ['swamp', 'dungeon']),
+  ruleEntry('Cave Shriekers', 'shrieker', 'shriekers', 'beast', 'avian', 'skittish', 'swoop', 'down from the dark', ['dungeon', 'mountains']),
+  ruleEntry('Rubble Golems', 'golem', 'golems', 'construct', 'elemental', 'wary', 'shamble', 'out of the rubble', ['dungeon', 'mountains']),
+  ruleEntry('Ember Wisps', 'wisp', 'wisps', 'elemental', 'elemental', 'skittish', 'flare', 'out of the haze', ['mountains', 'dungeon']),
+  ruleEntry('Roadside Brigands', 'brigand', 'brigands', 'humanoid', 'humanoid', 'aggressive', 'step', 'out from cover', ['plains', 'woods']),
+  ruleEntry('Shore Harriers', 'harrier', 'harriers', 'beast', 'avian', 'wary', 'dive', 'out of the glare', ['coastal', 'plains']),
+  ruleEntry('Reef Snappers', 'snapper', 'snappers', 'beast', 'aquatic', 'wary', 'snap', 'up from the shallows', ['coastal', 'swamp']),
+  ruleEntry('Grave Hounds', 'hound', 'hounds', 'undead', 'undead', 'aggressive', 'lope', 'out of the fog', ['swamp', 'plains']),
+  ruleEntry('Crag Lurkers', 'lurker', 'lurkers', 'aberration', 'insect', 'wary', 'drop', 'from the rocks above', ['mountains', 'dungeon']),
+]);
+
+/** A family name without a leading "The ", so a template never reads "the The ...". */
+function bareFamilyName(name: string): string {
+  return name.trim().replace(/^the\s+/i, '');
+}
+
+/**
+ * The rule history line of a family with no usable AI history (D-68), naming the feud when the family
+ * is in one (D-70). PROPOSED (D-58). No pronoun in either template: the pronoun guard scans names.
+ */
+export function ruleFamilyHistory(args: { familyName: string; regionName: string; feudNames?: readonly string[] }): string {
+  const family = bareFamilyName(args.familyName);
+  const base = `The ${family} have roamed ${args.regionName.trim()} for longer than any traveler remembers.`;
+  const feud = (args.feudNames ?? []).map(bareFamilyName).filter((name) => name);
+  if (feud.length === 0) return base;
+  const all = [family, ...feud].map((name) => `the ${name}`);
+  const listed = `${all.slice(0, -1).join(', ')} and ${all[all.length - 1]}`;
+  return `${base} No truce has ever held between ${listed}.`;
+}
