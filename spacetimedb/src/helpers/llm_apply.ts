@@ -45,7 +45,7 @@ import {
   WORLD_FILL_FAILED_MESSAGE,
   worldFillCompleteLine,
 } from './world_gen';
-import { ensurePoolsForLocation } from './families';
+import { ensurePoolsForLocation, familyOfOne } from './families';
 import { markLocationVisited } from './visited';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { validateRenownActivePerk } from './renown_perk_validate';
@@ -917,6 +917,15 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
               enemyTemplateId: newEt.id,
             });
             resolvedEnemyTemplateId = newEt.id;
+            // Phase 51.3.1.1 (D-54): an invented kill or kill_loot target becomes a family of one with its
+            // own Scarce pool, pulled like any other creature. A boss_kill target stays an individual (D-07).
+            if (questType === 'kill' || questType === 'kill_loot') {
+              try {
+                familyOfOne(ctx, newEt, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
+              } catch (err) {
+                console.error('Quest family start failed for enemy ' + newEt.id + ': ' + errName(err));
+              }
+            }
             // Phase 51.3: a late enemy type in a designed region gets its own loot job (switch on only).
             try {
               const location = ctx.db.location.id.find(character.locationId);

@@ -107,6 +107,16 @@ function rows(ctx: any, table: string): any[] {
   return ctx.db._tables[table] ?? [];
 }
 
+/**
+ * The levels of the enemy types a fill reply named: every template except the server-made filler
+ * members of their families (Plan 09). Fill tests use the strict mock, whose family_member.by_template
+ * reads the real column.
+ */
+function replyEnemyLevels(ctx: any): bigint[] {
+  const fillers = new Set(rows(ctx, 'family_member').filter((m: any) => m.filler).map((m: any) => m.enemyTemplateId));
+  return rows(ctx, 'enemy_template').filter((e: any) => !fillers.has(e.id)).map((e: any) => e.level);
+}
+
 /** Sorted names of tables that hold rows (the mock creates empty tables on read). */
 function nonEmptyTables(ctx: any): string[] {
   return Object.entries<any[]>(ctx.db._tables)
@@ -1240,14 +1250,14 @@ describe('llm apply world_gen_start success (stage 1)', () => {
 
 describe('llm apply world_gen success (stage 2, the fill)', () => {
   it('writes the rest of the region around the stage-1 start location, completes the state and posts one line', () => {
-    const ctx = newCtx(fillSeed());
+    const ctx = newCtx(fillSeed(), alice, true);
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_FILL_JSON) });
 
     expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'COMPLETE', generatedRegionId: 1n });
     expect(rows(ctx, 'region')[0]).toMatchObject({ name: 'Cinderfall', dominantFaction: 'Ash Court', starterForRace: 'ashkin' });
     const names = rows(ctx, 'location').map((l: any) => l.name);
     expect(names).toEqual(['Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall']);
-    expect(rows(ctx, 'enemy_template').map((e: any) => e.level)).toEqual([1n, 1n]);
+    expect(replyEnemyLevels(ctx)).toEqual([1n, 1n]);
     // Stage-1 Vessa stays, Old Brann falls back to the start location, the banker is the safety net
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'Old Brann', 'The Ledger Keeper']);
     expect(rows(ctx, 'npc').every((n: any) => n.locationId === 1n)).toBe(true);
@@ -1261,7 +1271,7 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
   });
 
   it('non-starter region: clamps enemy levels from the stored region danger', () => {
-    const ctx = newCtx(fillSeed({ region: { dangerMultiplier: 400n, starterForRace: undefined } }));
+    const ctx = newCtx(fillSeed({ region: { dangerMultiplier: 400n, starterForRace: undefined } }), alice, true);
     const reply = {
       ...REGION_FILL_JSON,
       enemies: [
@@ -1271,12 +1281,12 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
       ],
     };
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
-    expect(rows(ctx, 'enemy_template').map((e: any) => e.level)).toEqual([5n, 3n, 4n]);
+    expect(replyEnemyLevels(ctx)).toEqual([5n, 3n, 4n]);
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
   });
 
   it('never renames or duplicates stage-1 content', () => {
-    const ctx = newCtx(fillSeed());
+    const ctx = newCtx(fillSeed(), alice, true);
     const reply = {
       ...REGION_FILL_JSON,
       locations: [
@@ -1295,7 +1305,7 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
   });
 
   it('QUIRK: a missing character still gets the fill written, but no private events', () => {
-    const ctx = newCtx(fillSeed({ char: null }));
+    const ctx = newCtx(fillSeed({ char: null }), alice, true);
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_FILL_JSON) });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
     expect(rows(ctx, 'event_private')).toHaveLength(0);
@@ -1303,13 +1313,13 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
   });
 
   it('accepts a code-fenced reply', () => {
-    const ctx = newCtx(fillSeed());
+    const ctx = newCtx(fillSeed(), alice, true);
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: '```json\n' + JSON.stringify(REGION_FILL_JSON) + '\n```' });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
   });
 
   it('an empty locations array is still a usable fill (services and boundary on the start location)', () => {
-    const ctx = newCtx(fillSeed());
+    const ctx = newCtx(fillSeed(), alice, true);
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify({ ...REGION_FILL_JSON, locations: [] }) });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow', 'The Edge Beyond Cinderfall']);
@@ -1319,7 +1329,7 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
   it.each(['GENERATING', 'PENDING', 'FILL_ERROR', 'COMPLETE', 'ERROR'])(
     'QUIRK: a state in step %s returns silently',
     (step) => {
-      const ctx = newCtx(fillSeed({ gen: { step } }));
+      const ctx = newCtx(fillSeed({ gen: { step } }), alice, true);
       exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(REGION_FILL_JSON) });
       expect(rows(ctx, 'world_gen_state')[0].step).toBe(step);
       expect(rows(ctx, 'location')).toHaveLength(1);
@@ -1334,7 +1344,7 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
   });
 
   it('invalid JSON fails the fill: state FILL_ERROR, every stage-1 row intact, one private line naming [explore]', () => {
-    const ctx = newCtx(fillSeed());
+    const ctx = newCtx(fillSeed(), alice, true);
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: 'the world did not say anything useful' });
     expect(rows(ctx, 'world_gen_state')[0]).toMatchObject({ step: 'FILL_ERROR', generatedRegionId: 1n });
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual(['Ember Hollow']);
@@ -1349,7 +1359,7 @@ describe('llm apply world_gen success (stage 2, the fill)', () => {
     ['no locations key', { ...REGION_FILL_JSON, locations: undefined }],
     ['a locations value that is not an array', { ...REGION_FILL_JSON, locations: 'Slag Road' }],
   ])('%s fails the fill and keeps stage 1', (_label, reply) => {
-    const ctx = newCtx(fillSeed());
+    const ctx = newCtx(fillSeed(), alice, true);
     exec(ctx, applyJob('world_gen', GEN_CTX), { resultText: JSON.stringify(reply) });
     expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILL_ERROR');
     expect(rows(ctx, 'location')).toHaveLength(1);
@@ -1547,7 +1557,8 @@ describe('llm apply npc_conversation success', () => {
 
 describe('llm apply npc_conversation offer_quest effects', () => {
   it('kill quest for an unknown enemy creates the enemy template, links it here and creates the instance', () => {
-    const ctx = newCtx(npcSeed(WORLD_LOCS));
+    // Strict: the family of one (Plan 09) reads family_member.by_template, which the lenient mock guesses wrong.
+    const ctx = newCtx(npcSeed(WORLD_LOCS), alice, true);
     exec(ctx, applyJob('npc_conversation', NPC_CTX), {
       resultText: npcReply({
         effects: [offer({ targetEnemyName: 'Cellar Undead Rat', targetCount: 3, questDescription: 'Clear the cellar.', rewardXp: 80 })],
@@ -1560,7 +1571,11 @@ describe('llm apply npc_conversation offer_quest effects', () => {
     expect(et).toHaveLength(1);
     expect(et[0]).toMatchObject({ name: 'Cellar Undead Rat', creatureType: 'undead', level: 3n, maxHp: 44n });
     expect(qt[0].targetEnemyTemplateId).toBe(et[0].id);
-    expect(rows(ctx, 'location_enemy_template')).toEqual([{ id: 1n, locationId: 100n, enemyTemplateId: et[0].id }]);
+    // Linked here, and (Plan 09, D-54) at the hostile neighbour that holds its family-of-one pool.
+    expect(rows(ctx, 'location_enemy_template')).toEqual([
+      { id: 1n, locationId: 100n, enemyTemplateId: et[0].id },
+      { id: 2n, locationId: 101n, enemyTemplateId: et[0].id },
+    ]);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
     expect(rows(ctx, 'quest_instance')[0]).toMatchObject({ characterId: 10n, questTemplateId: qt[0].id, progress: 0n, completed: false });
     expect(rows(ctx, 'event_private').map((e: any) => e.message)).toContain('New quest: Rats in the Cellar');

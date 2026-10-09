@@ -3674,9 +3674,38 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "undead",
+      "fitTerrains": "",
+      "iconKey": "undead",
+      "id": "1n",
+      "key": "quest:1",
+      "name": "Cellar Undead Rats",
+      "pluralNoun": "rats",
+      "regionId": "1n",
+      "singularNoun": "rat",
+      "temperament": "aggressive"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
+  "enemy_role_template": [
+    {
+      "abilityProfile": "damage",
+      "displayName": "Cellar Undead Rat",
+      "enemyTemplateId": "1n",
+      "id": "1n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    }
+  ],
   "enemy_template": [
     {
-      "abilityProfile": "basic",
+      "abilityProfile": "damage",
       "armorClass": "11n",
       "awareness": "normal",
       "baseDamage": "9n",
@@ -3687,8 +3716,8 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "level": "3n",
       "maxHp": "44n",
       "name": "Cellar Undead Rat",
-      "role": "melee",
-      "roleDetail": "standard",
+      "role": "damage",
+      "roleDetail": "damage",
       "socialGroup": "loner",
       "socialRadius": "0n",
       "terrainTypes": "any",
@@ -3722,6 +3751,16 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "id": "100n",
@@ -3762,8 +3801,14 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "enemyTemplateId": "1n",
       "id": "1n",
       "locationId": "100n"
+    },
+    {
+      "enemyTemplateId": "1n",
+      "id": "2n",
+      "locationId": "101n"
     }
   ],
+  "named_enemy": [],
   "npc": [
     {
       "description": "A baker.",
@@ -3804,6 +3849,39 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "npcId": "20n"
     }
   ],
+  "place_pool": [
+    {
+      "count": "25n",
+      "dirty": false,
+      "homeLevel": "1n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "101n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "undead",
+      "id": "1n",
+      "kind": "creature",
+      "level": "1n",
+      "locationId": "101n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Cellar Undead Rats",
+      "pluralNoun": "rats",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "rat",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    }
+  ],
   "quest_instance": [
     {
       "acceptedAt": "ts:1700000000000000n",
@@ -3829,7 +3907,8 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "rewardXp": "80n",
       "targetEnemyTemplateId": "1n"
     }
-  ]
+  ],
+  "region": []
 }"
 `;
 
@@ -8736,6 +8815,38 @@ exports[`llm apply world_gen (fill) failure path > writes nothing when the gener
 exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing character still gets the fill written, but no private events 1`] = `
 "{
   "character": [],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "1:beast",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive"
+    },
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "humanoid",
+      "fitTerrains": "mountains",
+      "iconKey": "humanoid",
+      "id": "2n",
+      "key": "1:humanoid",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "enemy_ability": [
     {
       "abilityKey": "slash",
@@ -8756,17 +8867,137 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
       "kind": "damage",
       "name": "Bolt",
       "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "3n",
+      "id": "4n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "5n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "4n",
+      "id": "6n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "7n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "8n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "6n",
+      "id": "9n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "6n",
+      "id": "10n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "7n",
+      "id": "11n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "7n",
+      "id": "12n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "8n",
+      "id": "13n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "8n",
+      "id": "14n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
     }
   ],
   "enemy_role_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "displayName": "Ember Wolf",
       "enemyTemplateId": "1n",
       "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
     },
     {
       "abilityProfile": "caster",
@@ -8776,11 +9007,65 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
       "role": "caster",
       "roleDetail": "caster",
       "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Wolf Raider",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Wolf Mender",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Wolf Hexer",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Caster Warder",
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Caster Raider",
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Caster Mender",
+      "enemyTemplateId": "8n",
+      "id": "8n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
     }
   ],
   "enemy_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "armorClass": "4n",
       "awareness": "normal",
       "baseDamage": "8n",
@@ -8791,8 +9076,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
       "level": "1n",
       "maxHp": "32n",
       "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "tank",
+      "roleDetail": "tank",
       "socialGroup": "Ember Wolf",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -8818,8 +9103,201 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
       "terrainTypes": "mountains",
       "timeOfDay": "any",
       "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "3n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "6n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "7n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "8n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "2n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "3n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "4n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "2n",
+      "filler": false,
+      "id": "5n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "6n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "7n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "8n",
+      "role": "healer"
+    }
+  ],
+  "family_relation": [
+    {
+      "familyId": "1n",
+      "id": "1n",
+      "kind": "rival",
+      "otherFamilyId": "2n"
+    },
+    {
+      "familyId": "2n",
+      "id": "2n",
+      "kind": "rival",
+      "otherFamilyId": "1n"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -8918,18 +9396,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "1n",
+      "enemyTemplateId": "3n",
       "id": "2n",
-      "locationId": "3n"
+      "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "4n",
       "id": "3n",
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "5n",
       "id": "4n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "5n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "id": "8n",
       "locationId": "3n"
     }
   ],
@@ -8963,6 +9461,68 @@ exports[`llm apply world_gen success (stage 2, the fill) > QUIRK: a missing char
       "name": "The Ledger Keeper",
       "npcType": "banker",
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "2n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "2n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "beast",
+      "id": "1n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "humanoid",
+      "id": "2n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "refId": "2n",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary",
+      "timeOfDay": "any"
     }
   ],
   "region": [
@@ -9541,6 +10101,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "1:beast",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive"
+    },
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "humanoid",
+      "fitTerrains": "mountains",
+      "iconKey": "humanoid",
+      "id": "2n",
+      "key": "1:humanoid",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "enemy_ability": [
     {
       "abilityKey": "slash",
@@ -9561,17 +10153,137 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "kind": "damage",
       "name": "Bolt",
       "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "3n",
+      "id": "4n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "5n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "4n",
+      "id": "6n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "7n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "8n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "6n",
+      "id": "9n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "6n",
+      "id": "10n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "7n",
+      "id": "11n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "7n",
+      "id": "12n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "8n",
+      "id": "13n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "8n",
+      "id": "14n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
     }
   ],
   "enemy_role_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "displayName": "Ember Wolf",
       "enemyTemplateId": "1n",
       "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
     },
     {
       "abilityProfile": "caster",
@@ -9581,11 +10293,65 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "role": "caster",
       "roleDetail": "caster",
       "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Wolf Raider",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Wolf Mender",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Wolf Hexer",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Caster Warder",
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Caster Raider",
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Caster Mender",
+      "enemyTemplateId": "8n",
+      "id": "8n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
     }
   ],
   "enemy_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "armorClass": "4n",
       "awareness": "normal",
       "baseDamage": "8n",
@@ -9596,8 +10362,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "level": "1n",
       "maxHp": "32n",
       "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "tank",
+      "roleDetail": "tank",
       "socialGroup": "Ember Wolf",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -9623,6 +10389,126 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "terrainTypes": "mountains",
       "timeOfDay": "any",
       "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "3n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "6n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "7n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "8n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
     }
   ],
   "event_private": [
@@ -9635,6 +10521,79 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "2n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "3n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "4n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "2n",
+      "filler": false,
+      "id": "5n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "6n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "7n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "8n",
+      "role": "healer"
+    }
+  ],
+  "family_relation": [
+    {
+      "familyId": "1n",
+      "id": "1n",
+      "kind": "rival",
+      "otherFamilyId": "2n"
+    },
+    {
+      "familyId": "2n",
+      "id": "2n",
+      "kind": "rival",
+      "otherFamilyId": "1n"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -9733,18 +10692,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "1n",
+      "enemyTemplateId": "3n",
       "id": "2n",
-      "locationId": "3n"
+      "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "4n",
       "id": "3n",
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "5n",
       "id": "4n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "5n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "id": "8n",
       "locationId": "3n"
     }
   ],
@@ -9778,6 +10757,68 @@ exports[`llm apply world_gen success (stage 2, the fill) > accepts a code-fenced
       "name": "The Ledger Keeper",
       "npcType": "banker",
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "2n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "2n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "beast",
+      "id": "1n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "humanoid",
+      "id": "2n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "refId": "2n",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary",
+      "timeOfDay": "any"
     }
   ],
   "region": [
@@ -9828,6 +10869,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "1:beast",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive"
+    },
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "humanoid",
+      "fitTerrains": "mountains",
+      "iconKey": "humanoid",
+      "id": "2n",
+      "key": "1:humanoid",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "enemy_ability": [
     {
       "abilityKey": "slash",
@@ -9848,17 +10921,137 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "kind": "damage",
       "name": "Bolt",
       "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "3n",
+      "id": "4n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "5n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "4n",
+      "id": "6n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "7n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "8n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "6n",
+      "id": "9n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "6n",
+      "id": "10n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "7n",
+      "id": "11n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "7n",
+      "id": "12n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "8n",
+      "id": "13n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "8n",
+      "id": "14n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
     }
   ],
   "enemy_role_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "displayName": "Ember Wolf",
       "enemyTemplateId": "1n",
       "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
     },
     {
       "abilityProfile": "caster",
@@ -9868,11 +11061,65 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "role": "caster",
       "roleDetail": "caster",
       "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Wolf Raider",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Wolf Mender",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Wolf Hexer",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Caster Warder",
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Caster Raider",
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Caster Mender",
+      "enemyTemplateId": "8n",
+      "id": "8n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
     }
   ],
   "enemy_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "armorClass": "4n",
       "awareness": "normal",
       "baseDamage": "8n",
@@ -9883,8 +11130,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "level": "1n",
       "maxHp": "32n",
       "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "tank",
+      "roleDetail": "tank",
       "socialGroup": "Ember Wolf",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -9910,6 +11157,126 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "terrainTypes": "mountains",
       "timeOfDay": "any",
       "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "3n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "6n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "7n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "8n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
     }
   ],
   "event_private": [
@@ -9922,6 +11289,79 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "2n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "3n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "4n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "2n",
+      "filler": false,
+      "id": "5n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "6n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "7n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "8n",
+      "role": "healer"
+    }
+  ],
+  "family_relation": [
+    {
+      "familyId": "1n",
+      "id": "1n",
+      "kind": "rival",
+      "otherFamilyId": "2n"
+    },
+    {
+      "familyId": "2n",
+      "id": "2n",
+      "kind": "rival",
+      "otherFamilyId": "1n"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -9995,6 +11435,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > an empty locations ar
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
     }
   ],
+  "place_pool": [],
   "region": [
     {
       "biome": "volcanic",
@@ -10135,6 +11576,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "1:beast",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive"
+    },
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "humanoid",
+      "fitTerrains": "mountains",
+      "iconKey": "humanoid",
+      "id": "2n",
+      "key": "1:humanoid",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "enemy_ability": [
     {
       "abilityKey": "slash",
@@ -10155,17 +11628,137 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "kind": "damage",
       "name": "Bolt",
       "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "3n",
+      "id": "4n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "5n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "4n",
+      "id": "6n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "7n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "8n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "6n",
+      "id": "9n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "6n",
+      "id": "10n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "7n",
+      "id": "11n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "7n",
+      "id": "12n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "8n",
+      "id": "13n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "8n",
+      "id": "14n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
     }
   ],
   "enemy_role_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "displayName": "Ember Wolf",
       "enemyTemplateId": "1n",
       "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
     },
     {
       "abilityProfile": "caster",
@@ -10175,11 +11768,65 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "role": "caster",
       "roleDetail": "caster",
       "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Wolf Raider",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Wolf Mender",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Wolf Hexer",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Caster Warder",
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Caster Raider",
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Caster Mender",
+      "enemyTemplateId": "8n",
+      "id": "8n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
     }
   ],
   "enemy_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "armorClass": "4n",
       "awareness": "normal",
       "baseDamage": "8n",
@@ -10190,8 +11837,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "level": "1n",
       "maxHp": "32n",
       "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "tank",
+      "roleDetail": "tank",
       "socialGroup": "Ember Wolf",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -10217,6 +11864,126 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "terrainTypes": "mountains",
       "timeOfDay": "any",
       "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "3n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "6n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "7n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "8n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
     }
   ],
   "event_private": [
@@ -10229,6 +11996,79 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "2n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "3n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "4n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "2n",
+      "filler": false,
+      "id": "5n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "6n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "7n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "8n",
+      "role": "healer"
+    }
+  ],
+  "family_relation": [
+    {
+      "familyId": "1n",
+      "id": "1n",
+      "kind": "rival",
+      "otherFamilyId": "2n"
+    },
+    {
+      "familyId": "2n",
+      "id": "2n",
+      "kind": "rival",
+      "otherFamilyId": "1n"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -10327,18 +12167,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "1n",
+      "enemyTemplateId": "3n",
       "id": "2n",
-      "locationId": "3n"
+      "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "4n",
       "id": "3n",
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "5n",
       "id": "4n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "5n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "id": "8n",
       "locationId": "3n"
     }
   ],
@@ -10372,6 +12232,68 @@ exports[`llm apply world_gen success (stage 2, the fill) > never renames or dupl
       "name": "The Ledger Keeper",
       "npcType": "banker",
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "2n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "2n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "beast",
+      "id": "1n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "humanoid",
+      "id": "2n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "refId": "2n",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary",
+      "timeOfDay": "any"
     }
   ],
   "region": [
@@ -10514,6 +12436,24 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "1:beast",
+      "name": "Way Too Bigs",
+      "pluralNoun": "bigs",
+      "regionId": "1n",
+      "singularNoun": "big",
+      "temperament": "aggressive"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "enemy_ability": [
     {
       "abilityKey": "slash",
@@ -10544,40 +12484,98 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "kind": "damage",
       "name": "Slash",
       "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "4n",
+      "id": "5n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "6n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "7n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
     }
   ],
   "enemy_role_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "displayName": "Way Too Big",
       "enemyTemplateId": "1n",
       "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
     },
     {
-      "abilityProfile": "ranged",
+      "abilityProfile": "damage",
       "displayName": "Way Too Small",
       "enemyTemplateId": "2n",
       "id": "2n",
-      "role": "ranged",
-      "roleDetail": "ranged",
-      "roleKey": "ranged"
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
     },
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "damage",
       "displayName": "Just Right",
       "enemyTemplateId": "3n",
       "id": "3n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Big Mender",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Big Hexer",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
     }
   ],
   "enemy_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "armorClass": "12n",
       "awareness": "normal",
       "baseDamage": "20n",
@@ -10588,8 +12586,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "level": "5n",
       "maxHp": "80n",
       "name": "Way Too Big",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "tank",
+      "roleDetail": "tank",
       "socialGroup": "Way Too Big",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -10597,7 +12595,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "xpReward": "85n"
     },
     {
-      "abilityProfile": "ranged",
+      "abilityProfile": "damage",
       "armorClass": "8n",
       "awareness": "normal",
       "baseDamage": "14n",
@@ -10608,8 +12606,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "level": "3n",
       "maxHp": "56n",
       "name": "Way Too Small",
-      "role": "ranged",
-      "roleDetail": "ranged",
+      "role": "damage",
+      "roleDetail": "damage",
       "socialGroup": "Way Too Small",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -10617,7 +12615,7 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "xpReward": "55n"
     },
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "damage",
       "armorClass": "10n",
       "awareness": "normal",
       "baseDamage": "17n",
@@ -10628,9 +12626,49 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "level": "4n",
       "maxHp": "68n",
       "name": "Just Right",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "damage",
+      "roleDetail": "damage",
       "socialGroup": "Just Right",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "70n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "10n",
+      "awareness": "normal",
+      "baseDamage": "17n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "4n",
+      "maxHp": "68n",
+      "name": "Big Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Way Too Bigs",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "70n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "10n",
+      "awareness": "normal",
+      "baseDamage": "17n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "4n",
+      "maxHp": "68n",
+      "name": "Big Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Way Too Bigs",
       "socialRadius": "0n",
       "terrainTypes": "plains",
       "timeOfDay": "any",
@@ -10647,6 +12685,44 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "2n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "3n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "4n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "5n",
+      "role": "caster"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -10745,29 +12821,24 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "1n",
+      "enemyTemplateId": "2n",
       "id": "2n",
-      "locationId": "3n"
+      "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "3n",
       "id": "3n",
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "4n",
       "id": "4n",
-      "locationId": "3n"
-    },
-    {
-      "enemyTemplateId": "3n",
-      "id": "5n",
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "3n",
-      "id": "6n",
-      "locationId": "3n"
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "locationId": "2n"
     }
   ],
   "npc": [
@@ -10800,6 +12871,39 @@ exports[`llm apply world_gen success (stage 2, the fill) > non-starter region: c
       "name": "The Ledger Keeper",
       "npcType": "banker",
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "beast",
+      "id": "1n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "4n",
+      "lvLo": "4n",
+      "name": "Way Too Bigs",
+      "pluralNoun": "bigs",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "big",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
     }
   ],
   "region": [
@@ -10855,6 +12959,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "iconKey": "beast",
+      "id": "1n",
+      "key": "1:beast",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive"
+    },
+    {
+      "ambushRest": "",
+      "ambushVerb": "",
+      "creatureType": "humanoid",
+      "fitTerrains": "mountains",
+      "iconKey": "humanoid",
+      "id": "2n",
+      "key": "1:humanoid",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary"
+    }
+  ],
+  "economy_item": [],
+  "economy_item_dial": [],
   "enemy_ability": [
     {
       "abilityKey": "slash",
@@ -10875,17 +13011,137 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "kind": "damage",
       "name": "Bolt",
       "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "3n",
+      "id": "4n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "4n",
+      "id": "5n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "4n",
+      "id": "6n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
+    },
+    {
+      "abilityKey": "family_bolt",
+      "castSeconds": "2n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "5n",
+      "id": "7n",
+      "kind": "damage",
+      "name": "Bolt",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_siphon",
+      "castSeconds": "2n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "5n",
+      "id": "8n",
+      "kind": "drain",
+      "name": "Siphon",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_bash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "6n",
+      "id": "9n",
+      "kind": "damage",
+      "name": "Bash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_brace",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "6n",
+      "id": "10n",
+      "kind": "shield",
+      "name": "Brace",
+      "targetRule": "self"
+    },
+    {
+      "abilityKey": "family_slash",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "7n",
+      "id": "11n",
+      "kind": "damage",
+      "name": "Slash",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_rend",
+      "castSeconds": "0n",
+      "cooldownSeconds": "12n",
+      "enemyTemplateId": "7n",
+      "id": "12n",
+      "kind": "dot",
+      "name": "Rend",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_strike",
+      "castSeconds": "0n",
+      "cooldownSeconds": "0n",
+      "enemyTemplateId": "8n",
+      "id": "13n",
+      "kind": "damage",
+      "name": "Strike",
+      "targetRule": "single_enemy"
+    },
+    {
+      "abilityKey": "family_mend",
+      "castSeconds": "2n",
+      "cooldownSeconds": "10n",
+      "enemyTemplateId": "8n",
+      "id": "14n",
+      "kind": "heal",
+      "name": "Mend",
+      "targetRule": "lowest_hp_ally"
     }
   ],
   "enemy_role_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "displayName": "Ember Wolf",
       "enemyTemplateId": "1n",
       "id": "1n",
-      "role": "melee",
-      "roleDetail": "melee",
-      "roleKey": "melee"
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
     },
     {
       "abilityProfile": "caster",
@@ -10895,11 +13151,65 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "role": "caster",
       "roleDetail": "caster",
       "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Wolf Raider",
+      "enemyTemplateId": "3n",
+      "id": "3n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Wolf Mender",
+      "enemyTemplateId": "4n",
+      "id": "4n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
+    },
+    {
+      "abilityProfile": "caster",
+      "displayName": "Wolf Hexer",
+      "enemyTemplateId": "5n",
+      "id": "5n",
+      "role": "caster",
+      "roleDetail": "caster",
+      "roleKey": "caster"
+    },
+    {
+      "abilityProfile": "tank",
+      "displayName": "Caster Warder",
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "role": "tank",
+      "roleDetail": "tank",
+      "roleKey": "tank"
+    },
+    {
+      "abilityProfile": "damage",
+      "displayName": "Caster Raider",
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "role": "damage",
+      "roleDetail": "damage",
+      "roleKey": "damage"
+    },
+    {
+      "abilityProfile": "healer",
+      "displayName": "Caster Mender",
+      "enemyTemplateId": "8n",
+      "id": "8n",
+      "role": "healer",
+      "roleDetail": "healer",
+      "roleKey": "healer"
     }
   ],
   "enemy_template": [
     {
-      "abilityProfile": "melee",
+      "abilityProfile": "tank",
       "armorClass": "4n",
       "awareness": "normal",
       "baseDamage": "8n",
@@ -10910,8 +13220,8 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "level": "1n",
       "maxHp": "32n",
       "name": "Ember Wolf",
-      "role": "melee",
-      "roleDetail": "melee",
+      "role": "tank",
+      "roleDetail": "tank",
       "socialGroup": "Ember Wolf",
       "socialRadius": "0n",
       "terrainTypes": "plains",
@@ -10937,6 +13247,126 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "terrainTypes": "mountains",
       "timeOfDay": "any",
       "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "3n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "4n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "caster",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "beast",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "5n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Wolf Hexer",
+      "role": "caster",
+      "roleDetail": "caster",
+      "socialGroup": "Ember Wolves",
+      "socialRadius": "0n",
+      "terrainTypes": "plains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "tank",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "6n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Warder",
+      "role": "tank",
+      "roleDetail": "tank",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "damage",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "7n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Raider",
+      "role": "damage",
+      "roleDetail": "damage",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
+    },
+    {
+      "abilityProfile": "healer",
+      "armorClass": "4n",
+      "awareness": "normal",
+      "baseDamage": "8n",
+      "creatureType": "humanoid",
+      "groupMax": "1n",
+      "groupMin": "1n",
+      "id": "8n",
+      "level": "1n",
+      "maxHp": "32n",
+      "name": "Caster Mender",
+      "role": "healer",
+      "roleDetail": "healer",
+      "socialGroup": "Slag Casters",
+      "socialRadius": "0n",
+      "terrainTypes": "mountains",
+      "timeOfDay": "any",
+      "xpReward": "25n"
     }
   ],
   "event_private": [
@@ -10949,6 +13379,79 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "1n",
+      "familyId": "1n",
+      "filler": false,
+      "id": "1n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "3n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "2n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "4n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "3n",
+      "role": "healer"
+    },
+    {
+      "enemyTemplateId": "5n",
+      "familyId": "1n",
+      "filler": true,
+      "id": "4n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "familyId": "2n",
+      "filler": false,
+      "id": "5n",
+      "role": "caster"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "6n",
+      "role": "tank"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "7n",
+      "role": "damage"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "familyId": "2n",
+      "filler": true,
+      "id": "8n",
+      "role": "healer"
+    }
+  ],
+  "family_relation": [
+    {
+      "familyId": "1n",
+      "id": "1n",
+      "kind": "rival",
+      "otherFamilyId": "2n"
+    },
+    {
+      "familyId": "2n",
+      "id": "2n",
+      "kind": "rival",
+      "otherFamilyId": "1n"
+    }
+  ],
+  "item_template": [],
   "location": [
     {
       "bindStone": true,
@@ -11047,18 +13550,38 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "1n",
+      "enemyTemplateId": "3n",
       "id": "2n",
-      "locationId": "3n"
+      "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "4n",
       "id": "3n",
       "locationId": "2n"
     },
     {
-      "enemyTemplateId": "2n",
+      "enemyTemplateId": "5n",
       "id": "4n",
+      "locationId": "2n"
+    },
+    {
+      "enemyTemplateId": "2n",
+      "id": "5n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "6n",
+      "id": "6n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "7n",
+      "id": "7n",
+      "locationId": "3n"
+    },
+    {
+      "enemyTemplateId": "8n",
+      "id": "8n",
       "locationId": "3n"
     }
   ],
@@ -11092,6 +13615,68 @@ exports[`llm apply world_gen success (stage 2, the fill) > writes the rest of th
       "name": "The Ledger Keeper",
       "npcType": "banker",
       "personalityJson": "{\\"traits\\":[\\"meticulous\\",\\"protective\\"],\\"speechPattern\\":\\"speaks in clipped precise sentences\\",\\"knowledgeDomains\\":[\\"banking\\",\\"valuables\\"],\\"secrets\\":[],\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "1n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "2n",
+      "refId": "1n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    },
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "2n",
+      "kind": "creature",
+      "lastSettledMicros": "1700000000000000n",
+      "locationId": "3n",
+      "refId": "2n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "pool_level": [
+    {
+      "iconKey": "beast",
+      "id": "1n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "2n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Ember Wolves",
+      "pluralNoun": "wolves",
+      "refId": "1n",
+      "regionId": "1n",
+      "singularNoun": "wolf",
+      "temperament": "aggressive",
+      "timeOfDay": "any"
+    },
+    {
+      "iconKey": "humanoid",
+      "id": "2n",
+      "kind": "creature",
+      "level": "2n",
+      "locationId": "3n",
+      "lvHi": "1n",
+      "lvLo": "1n",
+      "name": "Slag Casters",
+      "pluralNoun": "casters",
+      "refId": "2n",
+      "regionId": "1n",
+      "singularNoun": "caster",
+      "temperament": "wary",
+      "timeOfDay": "any"
     }
   ],
   "region": [

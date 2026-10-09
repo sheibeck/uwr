@@ -40,6 +40,7 @@ import {
 import { enqueueLlmJob, SOURCE_KEYS } from './llm_queue';
 import { encodeRouteInput } from './llm_inputs';
 import { getDials } from './economy_state';
+import { addResourcePoolsForRegion } from './families';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -89,7 +90,12 @@ export function regionTerrains(tx: any, regionId: bigint): string[] {
   return list.length > 0 ? list : ['plains'];
 }
 
-/** The distinct enemy templates placed at the region's locations, sorted by template id. */
+/**
+ * The distinct enemy templates placed at the region's locations, sorted by template id. Server-made
+ * filler members of a family (family_member.filler, Phase 51.3.1.1) are left out, so the region job's
+ * input and the late-enemy follow-up (one paid job per template) stay at today's size and cost until
+ * the family economy ships (Plan 25, T-51.3.1.1-27).
+ */
 export function regionEnemyTemplates(tx: any, regionId: bigint): any[] {
   const ids = new Set<bigint>();
   for (const loc of regionLocations(tx, regionId)) {
@@ -97,6 +103,7 @@ export function regionEnemyTemplates(tx: any, regionId: bigint): any[] {
   }
   const out: any[] = [];
   for (const id of [...ids].sort(compareBig)) {
+    if ([...tx.db.family_member.by_template.filter(id)].some((m: any) => m.filler === true)) continue;
     const template = tx.db.enemy_template.id.find(id);
     if (template) out.push(template);
   }
@@ -657,6 +664,14 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
   // Last: the region is complete only once every row above exists.
   const latest = ctx.db.region_economy.regionId.find(regionId) ?? statusRow;
   ctx.db.region_economy.regionId.update({ ...latest, status: 'complete', updatedAt: ctx.timestamp });
+
+  // The region's AI gatherables join the resource pools of every place of matching terrain (D-48).
+  // Never fails the apply.
+  try {
+    addResourcePoolsForRegion(ctx, regionId, ctx.timestamp.microsSinceUnixEpoch);
+  } catch (err) {
+    console.error(`Resource pools for region ${String(regionId)} failed: ${err instanceof Error ? err.name : typeof err}`);
+  }
 
   // Follow-up (SC1 late enemies): enemy types that joined while the job was pending, or that the reply
   // left out, get their own enemy-mode job. Never fails the apply.
