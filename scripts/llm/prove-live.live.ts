@@ -50,6 +50,7 @@ import {
   plannedCallCounts,
   worstCaseMicroUsd,
   proofCharacterName,
+  proofBoundReport,
   proofEmail,
   proofVerdict,
   resolveProofDb,
@@ -251,7 +252,8 @@ describe('live proof (local server only)', () => {
         `spend margin: ${PROOF_SPEND_MARGIN_MICRO_USD} micro-USD under the daily ceiling and under the run cap of ${PROOF_RUN_CAP_MICRO_USD} micro-USD ` +
           `(cap ${usd(PROOF_RUN_CAP_MICRO_USD)}, stop line ${usd(PROOF_RUN_CAP_MICRO_USD - PROOF_SPEND_MARGIN_MICRO_USD)})`,
       );
-      expect(bound.total, 'the worst-case bound must sit under the run stop line').toBeLessThan(PROOF_RUN_CAP_MICRO_USD - PROOF_SPEND_MARGIN_MICRO_USD);
+      // Owner deferral (51.3.1.2 D-19): print the bound and the note; the free dry run never fails on it (review B, WR-04).
+      out(proofBoundReport(bound.total));
       session.conn.disconnect();
       return;
     }

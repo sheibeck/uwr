@@ -256,6 +256,26 @@ export const PROOF_SPEND_MARGIN_MICRO_USD = 200_000n;
  */
 export const PROOF_RUN_CAP_MICRO_USD = 2_000_000n;
 
+/**
+ * The owner deferred the "worst-case bound under the stop line" check on 2026-10-09 (51.3.1.2 D-19: the
+ * region-creation output cap is generous on purpose; the bound is checked when all systems are in place, Phase 52.5
+ * or milestone end). The free dry run prints the bound with this note and never fails on it (code review B, WR-04),
+ * matching the skipped assertion in proof_rules.test.mjs. The paid mode's own spend checks (the daily ceiling and the
+ * run cap before every paid step) are unchanged.
+ */
+export const PROOF_BOUND_DEFERRED_NOTE =
+  'the bound check is deferred by the owner (2026-10-09, 51.3.1.2 D-19; checked at Phase 52.5 / milestone end). ' +
+  'The paid mode keeps its own spend checks (daily ceiling and run cap before each paid step).';
+
+/** The dry run's bound line: the bound, where it sits against the stop line, and the deferral note. Never throws. */
+export function proofBoundReport(totalMicroUsd, stopLineMicroUsd = PROOF_RUN_CAP_MICRO_USD - PROOF_SPEND_MARGIN_MICRO_USD) {
+  const fmt = (micro) => '$' + (Number(micro) / 1_000_000).toFixed(4);
+  const total = BigInt(totalMicroUsd);
+  const stop = BigInt(stopLineMicroUsd);
+  const where = total < stop ? 'under' : 'OVER';
+  return `worst-case bound ${fmt(total)} (${total} micro-USD) is ${where} the ${fmt(stop)} stop line; ${PROOF_BOUND_DEFERRED_NOTE}`;
+}
+
 /** Longest piece of player-visible text the harness prints or records. */
 export const PROOF_EXCERPT_MAX = 120;
 
