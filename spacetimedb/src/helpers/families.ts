@@ -28,10 +28,20 @@ import {
   normalizeEnemyRole,
   nounsFromTemplateName,
   questFamilyKey,
+  ruleFamilyHistory,
   temperamentForCreatureType,
 } from '../data/family_rules';
 import { WORLD_EVENT_DEFINITIONS } from '../data/world_event_data';
-import { DENSITY_RULES, POOL_ROLL, creatureHomeLevels, poolSeed, resourceHomeLevel } from '../data/density_rules';
+import {
+  DENSITY_RULES,
+  POOL_ROLL,
+  creatureHomeLevels,
+  familySeed,
+  feudCountFor,
+  pickFeud,
+  poolSeed,
+  resourceHomeLevel,
+} from '../data/density_rules';
 import { pickWithoutReplacement, pinPct, scaleWeights } from '../data/economy_rules';
 import { CRAFTING_MODIFIER_DEFS, MATERIAL_DEFS } from '../data/crafting_rules';
 import { loadItemPins } from './economy_state';
@@ -606,16 +616,36 @@ export function seedRegionPools(
 }
 
 /**
- * The region fill's families by rule (D-25), from the enemy types today's prompt returns:
- * familiesFromTemplates, createFamily at the region's base level, each family linked to its fit places
- * (familyFitPlaces), rule relations (every pair rivals, D-20), then seedRegionPools. `places` should
- * be the region's rows as they stand after the hub step (a hub is safe and hosts no creatures); a row
- * is re-read by id. Find-or-create throughout, so a second run inserts nothing. Returns the family
- * rows in definition order.
+ * The region fill's families by rule (D-25), from the enemy types an older fill reply returns:
+ * familiesFromTemplates; the region's feud picked by rule over the definitions (pickFeud with
+ * feudCountFor and familySeed(regionId): none when the D-71 roll misses or there is one family) and
+ * a rule history line for each definition, naming the feud for a feuding family (D-68, D-70, Plan 29);
+ * createFamily at the region's base level; each family linked to its fit places (familyFitPlaces);
+ * rule relations (every pair rivals, D-20); the feud stored (storeFeud); then seedRegionPools. `places`
+ * should be the region's rows as they stand after the hub step (a hub is safe and hosts no creatures);
+ * a row is re-read by id. Find-or-create throughout, so a second run inserts nothing. Returns the
+ * family rows in definition order.
  */
 export function buildRegionFamilies(ctx: any, region: any, templates: readonly any[], places: readonly any[], now: bigint): any[] {
   const current = places.map((place) => ctx.db.location.id.find(place.id) ?? place).filter((place) => !!place);
-  const defs = familiesFromTemplates(ctx, region.id, templates.filter((t) => !!t));
+  const ruleDefs = familiesFromTemplates(ctx, region.id, templates.filter((t) => !!t));
+  const seed = familySeed(region.id);
+  const feudKeys = pickFeud({
+    keys: ruleDefs.map((def) => def.key),
+    markedKeys: [],
+    count: feudCountFor(ruleDefs.length, seed),
+    seed,
+  });
+  const feudNames = ruleDefs.filter((def) => feudKeys.includes(def.key)).map((def) => def.name);
+  const regionName = String(region.name ?? '');
+  const defs = ruleDefs.map((def) => ({
+    ...def,
+    history: ruleFamilyHistory({
+      familyName: def.name,
+      regionName,
+      feudNames: feudKeys.includes(def.key) ? feudNames.filter((name) => name !== def.name) : [],
+    }),
+  }));
   const baseLevel = regionBaseLevel(ctx, region.id);
   const families = defs.map((def) => createFamily(ctx, region.id, def, baseLevel));
   const familiesByPlace = new Map<bigint, bigint[]>();
@@ -630,6 +660,10 @@ export function buildRegionFamilies(ctx: any, region: any, templates: readonly a
       relations.filter((r) => r.familyId === family.id),
     );
   }
+  storeFeud(
+    ctx,
+    families.filter((_, i) => feudKeys.includes(defs[i]!.key)).map((family) => family.id),
+  );
   seedRegionPools(ctx, current, familiesByPlace, now);
   return families;
 }

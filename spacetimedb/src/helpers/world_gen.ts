@@ -20,8 +20,15 @@ import {
   linkFamilyToPlaces,
   regionBaseLevel,
   seedRegionPools,
+  storeFeud,
 } from './families';
-import { validateFamilies, validatePlaceWords, type FamilyPlace, type ValidatedFamily } from './family_validate';
+import {
+  completeRegionFamilies,
+  validateFamilies,
+  validatePlaceWords,
+  type FamilyPlace,
+  type ValidatedFamily,
+} from './family_validate';
 import { nameKey } from '../data/economy_design_rules';
 import type { FamilyRelation } from '../data/mechanical_vocabulary';
 import { markLocationVisited } from './visited';
@@ -35,7 +42,17 @@ import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
 import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
-import { chooseHubs, hubCountFor, hubHasStation, hubSeed, stationSeed } from '../data/density_rules';
+import {
+  assignRegionFamilies,
+  chooseHubs,
+  familySeed,
+  feudCountFor,
+  hubCountFor,
+  hubHasStation,
+  hubSeed,
+  keptFamilyCount,
+  stationSeed,
+} from '../data/density_rules';
 
 /**
  * The /synccontent bootstrap: clears enemy spawns left at safe places, then seeds every place's
@@ -884,9 +901,10 @@ export function retryWorldFill(
  * skipped; an NPC whose name already stands at its location is skipped). Every new location ends up
  * connected to the region; the hubs of the region are placed by the server count with the reply's
  * marks, each with a vendor and a banker (D-59 to D-64); the reply's place words are stored (D-46);
- * the reply's creature families are validated and created with the server's numbers (Plan 23), or,
- * for an older reply, families are built by rule from its enemy types (Plan 09); and an uncharted
- * boundary closes the region.
+ * the reply's creature families are validated, completed by rule to the server's count for the
+ * region's size, placed 3-5 to each host place, given a history each and one seeded feud (Plan 23,
+ * Plan 29: D-66 to D-71), or, for an older reply, families are built by rule from its enemy types
+ * (Plan 09, with rule histories and a feud by rule); and an uncharted boundary closes the region.
  */
 export function writeRegionFill(
   tx: any,
@@ -980,19 +998,29 @@ export function writeRegionFill(
   //    step (a hub is safe and hosts no creatures; a non-safe, non-hub arrival point can, D-61).
   const now: bigint = tx.timestamp.microsSinceUnixEpoch;
   const regionPlaces = [startLocation, ...newLocations].map((loc: any) => tx.db.location.id.find(loc.id) ?? loc);
-  const aiFamilies = Array.isArray(fill.families)
-    ? validateFamilies(fill, {
-        regionId: region.id,
-        places: regionPlaces.map(familyPlace),
-        isTaken: takenNameCheck(tx),
-      }).families
-    : null;
-  if (aiFamilies) {
-    // 5a. The approved reply (Plan 23, D-25, D-46): the AI's families with the server's numbers.
-    buildAiFamilies(tx, region.id, aiFamilies, regionPlaces, now);
+  if (Array.isArray(fill.families)) {
+    // 5a. The approved reply (Plan 23, D-25, D-46) with the server's count (Plan 29, D-66): the AI's
+    //     first keptFamilyCount families in reply order, the rest by rule (completeRegionFamilies), so a
+    //     reply whose families all fail still gets the whole count; then the seeded feud (D-70, D-71)
+    //     and a history for every family (D-68). The places are all charted here (the boundary comes later).
+    const places = regionPlaces.map(familyPlace);
+    const isTaken = takenNameCheck(tx);
+    const familyCount = keptFamilyCount(regionPlaces.length);
+    const seed = familySeed(region.id);
+    const validated = validateFamilies(fill, { regionId: region.id, places, isTaken, familyCount }).families ?? [];
+    const { families, feudKeys } = completeRegionFamilies(validated, {
+      regionId: region.id,
+      regionName: String(current.name ?? ''),
+      places,
+      isTaken,
+      familyCount,
+      feudCount: feudCountFor(familyCount, seed),
+      seed,
+    });
+    buildAiFamilies(tx, region.id, families, feudKeys, regionPlaces, now);
   } else {
-    // 5b. An older reply (enemies, no families: a job in flight at publish) or a families array with no
-    //     usable family: today's enemy types, grouped into families by rule (Plan 09, D-20, D-25, D-26).
+    // 5b. An older reply (enemies, no families: a job in flight at publish): today's enemy types, grouped
+    //     into families by rule (Plan 09, D-20, D-25, D-26), with rule histories and a feud by rule (Plan 29).
     const enemyTemplateRows = insertReplyEnemyTemplates(tx, fill, dangerMultiplier);
     buildRegionFamilies(tx, current, enemyTemplateRows, regionPlaces, now);
   }
@@ -1067,24 +1095,53 @@ const INVERSE_RELATION: Readonly<Record<FamilyRelation, FamilyRelation>> = Objec
   predator: 'prey',
 });
 
+/** A place that hosts creature families at the fill (D-18, D-61): charted, neither safe nor a hub. */
+function hostsFamilies(place: any): boolean {
+  return !!place && place.isSafe !== true && place.isHub !== true && String(place.terrainType ?? '') !== 'uncharted';
+}
+
 /**
- * The AI families of a region fill (Plan 23, D-25, D-46): each validated family is created at the
- * region's base level (createFamily: new member templates with the AI's names, server stats and the
- * rule abilities), linked to its fit places, its relations stored both ways (the other family holds
- * the inverse), then the creature and resource pools are seeded with server home densities
- * (seedRegionPools). `places` are the region rows after the hub step. Returns the family rows.
+ * The families of a new-shape region fill (Plan 23, Plan 29; D-25, D-46, D-66 to D-70), `families` being
+ * completeRegionFamilies' list (the AI's first, then the rule-made ones):
+ * a. each family is created at the region's base level (createFamily: new member templates with the
+ *    given names, server stats and the rule abilities, and its history);
+ * b. assignRegionFamilies places 3-5 families at each host place (the AI's fit names first, then
+ *    terrain, then rule; D-67) and each is linked there, places in id order. Only this new-generation
+ *    path places families this way: existing worlds are never re-linked;
+ * c. the relations by key, stored both ways (the other family holds the inverse; the rule-made
+ *    families are rivals of each other);
+ * d. the feud families' mutual 'feud' rows (storeFeud, D-70);
+ * e. the creature and resource pools with server home densities (seedRegionPools).
+ * `places` are the region rows after the hub step. Returns the family rows.
  */
-function buildAiFamilies(tx: any, regionId: bigint, families: readonly ValidatedFamily[], places: readonly any[], now: bigint): any[] {
+function buildAiFamilies(
+  tx: any,
+  regionId: bigint,
+  families: readonly ValidatedFamily[],
+  feudKeys: readonly string[],
+  places: readonly any[],
+  now: bigint,
+): any[] {
   const baseLevel = regionBaseLevel(tx, regionId);
-  const placeByName = new Map<string, any>(places.map((place: any) => [String(place.name), place] as [string, any]));
-  const familiesByPlace = new Map<bigint, bigint[]>();
   const rowByKey = new Map<string, any>();
-  for (const def of families) {
-    const row = createFamily(tx, regionId, def, baseLevel);
-    rowByKey.set(def.key, row);
-    const fit = def.fitLocationNames.map((name) => placeByName.get(name)).filter((place: any) => !!place);
-    linkFamilyToPlaces(tx, row.id, fit, familiesByPlace);
+  for (const def of families) rowByKey.set(def.key, createFamily(tx, regionId, def, baseLevel));
+
+  const hosts = places
+    .filter(hostsFamilies)
+    .sort((a: any, b: any) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const assigned = assignRegionFamilies({
+    regionId,
+    places: hosts.map((place: any) => ({ id: place.id, name: String(place.name ?? ''), terrainType: String(place.terrainType ?? '') })),
+    families: families.map((def) => ({ key: def.key, aiFitNames: def.aiFitNames, fitTerrains: def.fitTerrains })),
+  });
+  const familiesByPlace = new Map<bigint, bigint[]>();
+  for (const place of hosts) {
+    for (const key of assigned.get(place.id) ?? []) {
+      const row = rowByKey.get(key);
+      if (row) linkFamilyToPlaces(tx, row.id, [place], familiesByPlace);
+    }
   }
+
   for (const def of families) {
     const row = rowByKey.get(def.key);
     for (const relation of def.relations) {
@@ -1094,6 +1151,12 @@ function buildAiFamilies(tx: any, regionId: bigint, families: readonly Validated
       createRelations(tx, other.id, [{ otherFamilyId: row.id, kind: INVERSE_RELATION[relation.kind] }]);
     }
   }
+  const feudIds: bigint[] = [];
+  for (const key of feudKeys) {
+    const row = rowByKey.get(key);
+    if (row) feudIds.push(row.id);
+  }
+  storeFeud(tx, feudIds);
   seedRegionPools(tx, places, familiesByPlace, now);
   return [...rowByKey.values()];
 }

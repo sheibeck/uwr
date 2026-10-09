@@ -2531,7 +2531,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
 
     it('a new-shape reply whose families all fail validation still writes six rule families, each with a history, and the feud (D-66, D-68, D-70)', () => {
       const regionId = feudRegion();
-      const { ctx } = sizedWorld(regionId, sizedReply({ families: [{ name: '<script></script>' }, {}, null, 'x'] }));
+      const { ctx } = sizedWorld(regionId, sizedReply({ families: [null, 'x', 7, []] }));
       const families = rows(ctx, 'creature_family');
       expect(families).toHaveLength(6);
       expect(families.every((f: any) => f.key.startsWith(`rule:${regionId}:`))).toBe(true);
