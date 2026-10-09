@@ -3,7 +3,12 @@ import { describe, it, expect } from 'vitest';
 // @ts-ignore
 import { readFileSync } from 'node:fs';
 // @ts-ignore
+import * as nodeFs from 'node:fs';
+// @ts-ignore
 import { fileURLToPath } from 'node:url';
+// The prompt-draft tool is plain .mjs with no types; vitest resolves it at runtime.
+// @ts-ignore
+import { findPhaseFile, ownerChoices, REQUIRED_CHOICES, RAW_BULLET_CHOICES } from '../../../scripts/llm/prompt_draft.mjs';
 import {
   REGION_HOLD_ARRIVING_LINE,
   REGION_HOLD_REFUSED_LINE,
@@ -32,10 +37,15 @@ const CHOSEN = {
 };
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)); // spacetimedb/src/helpers -> repo root
-const DRAFT = readFileSync(
-  REPO_ROOT + '.planning/phases/51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md',
-  'utf8',
-) as string;
+// The draft is in the phase folder until the milestone is archived, then in a *-phases archive; findPhaseFile
+// searches both and fails naming every place searched (code review B, WR-05).
+const DRAFT_PATH: string = findPhaseFile(
+  REPO_ROOT.replace(/[\\/]$/, ''),
+  '51.3.1.2-bigger-regions',
+  '51.3.1.2-PROMPT-DRAFT.md',
+  nodeFs,
+);
+const DRAFT = readFileSync(REPO_ROOT + DRAFT_PATH, 'utf8') as string;
 
 /**
  * A minimal ctx: world_gen_state rows behind the by_source_location index only. A scan of the
@@ -78,9 +88,12 @@ describe('the approved hold lines (7a to 7d)', () => {
     expect(regionOpenedLine('Kesterlane Basin')).toBe(CHOSEN['7c'].replace('{region name}', 'Kesterlane Basin'));
   });
 
-  it('appear verbatim in the approved draft (a wording drift fails here)', () => {
+  it('are exactly the owner\'s chosen variants of the approved draft (a wording drift fails here)', () => {
     expect(DRAFT).toMatch(/^Status: APPROVED \d{4}-\d{2}-\d{2}/m);
-    for (const line of Object.values(CHOSEN)) expect(DRAFT).toContain(line);
+    // ownerChoices refuses an unapproved draft and resolves each key to its chosen fence only (never the other
+    // variant, which a toContain on the whole draft would also accept).
+    const chosen = ownerChoices(DRAFT, { required: REQUIRED_CHOICES, raw: RAW_BULLET_CHOICES });
+    for (const key of ['7a', '7b', '7c', '7d'] as const) expect(chosen[key], key).toBe(CHOSEN[key]);
   });
 
   it('regionOpenedLine puts a name with a line break or markup on one line with no raw angle bracket', () => {
