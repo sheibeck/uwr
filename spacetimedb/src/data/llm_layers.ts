@@ -25,6 +25,7 @@ import type { RoundEventSummary } from '../helpers/combat_narration';
 import type { RegionEconomyInput } from './economy_design_rules';
 import { REGION_ECONOMY_SIZES, economyFamilies, gatherRef } from './economy_design_rules';
 import { clampToBudget } from '../helpers/skill_budget';
+import { DENSITY_RULES } from './density_rules';
 import {
   STAT_TYPES,
   ABILITY_KINDS,
@@ -208,6 +209,12 @@ export interface NpcConversationInput {
   nearbyLocationNames?: string[];
   nearbyEnemies?: { name: string; level: number; location: string }[];
   recentQuestNames?: string[];
+  /**
+   * 51.3.1.1-26 (D-22): recent word about population shifts in the NPC's region, as rule-based
+   * rumorItem clauses from pool_events.recentRumors (newest first). World data; at most
+   * DENSITY_RULES.RUMOR_PROMPT_MAX are used.
+   */
+  regionRumors?: string[];
 }
 
 /** Player-character names inside are tagged with wrapPlayerName; enemy names are world data. */
@@ -788,6 +795,22 @@ function unlocksForTier(affinityTier: string): string[] {
   return UNLOCKS_BY_MIN_TIER.filter((u) => tierIndex >= u.minTier).map((u) => u.unlock);
 }
 
+/**
+ * 51.3.1.1-26 (D-22, SC5): the owner-approved rumour line, PROMPT-DRAFT section C (APPROVED
+ * 2026-10-08), with its leading newline, or '' when the region has no recent word. It goes right
+ * after the "Enemies in the area" line (or where that line would be). Plan 30 adds the R2-C
+ * family-history line right after this one.
+ */
+function regionRumorsLine(input: NpcConversationInput): string {
+  const items = (input.regionRumors ?? [])
+    .slice(0, DENSITY_RULES.RUMOR_PROMPT_MAX)
+    .map(w)
+    .filter((item) => item.length > 0);
+  if (items.length === 0) return '';
+  return `
+Recent word in ${w(input.region.name)}: ${items.join('; ')}. ${w(input.npc.name)} may pass this on as rumour when it fits the conversation.`;
+}
+
 export function buildNpcConversationVolatile(input: NpcConversationInput): string {
   const { npc, region, location, personality } = input;
   const unlocks = unlocksForTier(input.affinityTier);
@@ -819,6 +842,7 @@ export function buildNpcConversationVolatile(input: NpcConversationInput): strin
           .map((e) => `${w(e.name)} (level ${String(e.level)}, at ${w(e.location)})`)
           .join('; ')}`
       : '';
+  const rumors = regionRumorsLine(input);
   const recent =
     input.recentQuestNames && input.recentQuestNames.length > 0
       ? `\nRecently completed quests: ${joinW(input.recentQuestNames, ', ')}.`
@@ -844,7 +868,7 @@ Memory of past interactions: ${memory}
 
 Quest history with this player: ${questHistory}${activeQuest}
 
-${questContext}${nearby}${enemies}${recent}
+${questContext}${nearby}${enemies}${rumors}${recent}
 
 The player says:
 ${wrapPlayerInput(input.playerMessage)}

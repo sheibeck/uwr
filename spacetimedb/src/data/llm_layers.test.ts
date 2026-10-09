@@ -306,6 +306,7 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       nearbyLocationNames: [`${world} nearby`],
       nearbyEnemies: [{ name: `${world} enemy`, level: 2, location: `${world} lair` }],
       recentQuestNames: [`${world} recent`],
+      regionRumors: [`${world} rumour`], // 51.3.1.1-26: the hostile-world checks cover the rumour line
     },
     combat_narration: combatRound(world, player),
     region_economy: {
@@ -577,6 +578,7 @@ describe('route blocks and volatile builders', () => {
       expect(routeBlock).not.toContain('SECRET-MARKER');
       expect(volatile).toContain('personal_lore'); // friendly tier unlock
       expect(volatile).toContain('"visits":"3"'); // bigint memory survives JSON
+      expect(volatile).toContain('\nRecent word in plain world text region: plain world text rumour. '); // 51.3.1.1-26
     });
 
     it('renders bigints and levels in skill_gen and renown volatile text', () => {
