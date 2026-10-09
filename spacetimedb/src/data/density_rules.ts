@@ -148,6 +148,16 @@ export const DENSITY_RULES = deepFreeze({
   FEUD_FAMILIES_MAX: 3, // D-70
   FEUD_CHANCE_PCT: 35, // D-71: a new region seeds a feud only on this chance, so not every region has one
   NPC_FAMILY_HISTORIES_MAX: 4, // D-68: family histories fed to one NPC conversation
+
+  // --- Region size and shape (Phase 51.3.1.2: D-03, D-04, D-05, D-10; dials arrive in Phase 52.5) ---
+  REGION_PLACES_MIN: 8, // D-03: the fewest places the server rolls for a region, the arrival point included (the Edge Beyond doorway does not count)
+  REGION_PLACES_MAX: 10, // D-03: the most places it rolls
+  REGION_PLACES_FLOOR: 6, // D-03: a short reply is accepted down to this many places in all; below it the fill fails
+  LEVEL_HOPS_PER_STEP: 2, // D-04: a new place's level offset rises by one per this many hops from the arrival point
+  LEVEL_OFFSET_MAX: 2, // D-04: and by at most this much
+  EXIT_DEGREE_CAP: 4, // D-05: in-region exits per place, trimmed only where the edge is not a bridge
+  MIN_HOST_PLACES: 4, // D-05: places that can host creatures (non-safe, non-hub); the farthest safe places flip to reach it
+  ECONOMY_MEDIUM_MIN_PLACES: 8, // D-10: a region this big gets the medium economy (5 gatherables, 5 recipes)
 });
 
 // ---------------------------------------------------------------------------
@@ -174,6 +184,7 @@ export const POOL_ROLL = Object.freeze({
   FEUD_PICK: 86n, // D-70: pick i rolls at FEUD_PICK + i
   RULE_FAMILY_ORDER: 87n, // D-66: the order of the rule family list (helpers/family_validate.ts)
   FEUD_CHANCE: 88n, // D-71
+  PLACE_COUNT: 89n, // D-03
   QUEST_TARGET_BASE: 100n, // D-74: slot i rolls the quest-target chance at QUEST_TARGET_BASE + i
   QUEST_TARGET_PICK_BASE: 110n, // D-74: slot i picks among several targets at QUEST_TARGET_PICK_BASE + i
 });
