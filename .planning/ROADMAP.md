@@ -2761,3 +2761,22 @@ Plans:
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.35: Backpack search and bags that add inventory space (BACKLOG)
+
+**Goal:** Players can search their backpack, and find, craft, buy or sell bags that add inventory space.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+**Source (owner, 2026-10-09):** "Add a search to backpack. Add bags as something we can find in the world taht increases inventory space. Craftable, droppable (but rare), and sellable for a hefty price based on how big they are."
+
+**Notes for discuss:**
+
+  - **Search:** a search box on the Inventory screen's backpack grid that filters by item name (and maybe type, rarity or stat words), alongside the existing All and Usable filters; keyboard and 390x844 behaviour; the bank screen (52.1.1) may want the same.
+  - **Bags today:** the backpack is a flat 50 slots (`MAX_INVENTORY_SLOTS` in `data/inventory_rules.ts`, used by every space check: loot, quest rewards, crafting, buying). There are no bag items or bag slots.
+  - **Bags as items:** a new gear kind with a size (for example 4, 6, 8, 12 extra slots) worn in a few bag slots; total capacity = base + equipped bags; every space check reads one capacity rule. Decide: how many bag slots; whether a bag holding items can be removed (refuse until emptied); whether bags carry rarity.
+  - **Where bags come from:** crafting recipes (tailoring or leatherwork style materials), rare drops (rarer for bigger bags; region economy and family loot rules), and vendors that buy them for a hefty price scaled by size (the sell price rule, `data/vendor_pricing.ts`). Item names come from the AI economy where it makes items; the rules (sizes, drop rates, prices) are server constants, tuned in 52.5.
+  - Ties: Phase 52.1.1 Bank (vault space, same capacity rule?), 51.4 Loot Rails (bags as drops), the crafting screen (recipes), the economy design prompt (wording needs owner approval if it changes).
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
