@@ -22,7 +22,7 @@ import {
   vacuumLine,
 } from '../data/density_lines';
 import { placeSpawnLevel } from '../data/enemy_rules';
-import { resourceIconKey } from '../data/family_rules';
+import { normalizeEnemyRole, resourceIconKey } from '../data/family_rules';
 import { materialKind } from '../data/recipe_rules';
 import { appendPrivateEvent } from './events';
 import { computeLocationTargetLevel } from './location';
@@ -386,6 +386,34 @@ export function applyDepletion(
     runVacuum(ctx, shift.pool, now, seed ?? poolSeed(now, shift.pool.id));
   }
   return shift;
+}
+
+/**
+ * Settles a fight's kills against their pools (D-16, D-17, Pitfall 3; T-51.3.1.1-30). Called once,
+ * first thing in clearCombatArtifacts, the single place a fight's combat_enemy rows are deleted, so
+ * victory, defeat, end_combat and the failure close all settle here and a second clear finds no rows.
+ * Every enemy of the fight with a pool (poolId > 0n) and currentHp 0n is a kill worth
+ * DEPLETION_BY_ROLE of its template's role; living enemies deplete nothing. Points are summed per
+ * pool and applied with one applyDepletion each, in pool id order; a missing pool is skipped.
+ */
+export function settlePoolKills(ctx: any, combatId: bigint, now: bigint): PoolCountShift[] {
+  const pointsByPool = new Map<bigint, bigint>();
+  for (const enemy of ctx.db.combat_enemy.by_combat.filter(combatId)) {
+    const poolId: bigint = enemy.poolId ?? 0n;
+    if (poolId <= 0n || enemy.currentHp !== 0n) continue;
+    const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
+    const points = DENSITY_RULES.DEPLETION_BY_ROLE[normalizeEnemyRole(template?.role)] ?? 0n;
+    pointsByPool.set(poolId, (pointsByPool.get(poolId) ?? 0n) + points);
+  }
+  const shifts: PoolCountShift[] = [];
+  const poolIds = [...pointsByPool.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const poolId of poolIds) {
+    const pool: PlacePoolRow | undefined = ctx.db.place_pool.id.find(poolId);
+    const points = pointsByPool.get(poolId) ?? 0n;
+    if (!pool || points <= 0n) continue;
+    shifts.push(applyDepletion(ctx, pool, points, now, 'kill'));
+  }
+  return shifts;
 }
 
 function fitsTerrain(fitTerrains: string, terrainType: string): boolean {

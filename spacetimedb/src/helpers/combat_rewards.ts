@@ -171,13 +171,19 @@ export const applyDeathPenalties = (
 };
 
 /**
- * Handle spawn cleanup after combat ends.
+ * Handle spawn cleanup after combat ends (individual spawns only: named enemies, World event spawns
+ * and legacy spawns).
  *
- * Victory path (lines ~2703-2720): For each enemy, if spawn has groupCount > 0
- * set available; else delete spawn + members and schedule respawn.
+ * Pool enemies (spawnId 0n, Phase 51.3.1.1) have no spawn row; they are skipped before any lookup,
+ * and their kills settle against their pool in clearCombatArtifacts (settlePoolKills).
  *
- * Defeat path (lines ~3366-3407): Additionally re-inserts surviving enemies
- * (currentHp > 0) back into the spawn group.
+ * Victory path: for each spawn, if it has groupCount > 0 set it available; else delete the spawn and
+ * its members.
+ *
+ * Defeat path: additionally re-inserts surviving enemies (currentHp > 0) back into the spawn group.
+ *
+ * No respawn is scheduled: ordinary creatures are pools now and respawn_enemy only drains its old
+ * rows (Phase 51.3.1.1 Plan 08), so an enemy_respawn_tick row would do nothing.
  *
  * @param reinsertSurvivors - If true, re-insert surviving combat enemies into
  *   the spawn group before checking count. Used by defeat path.
@@ -185,11 +191,11 @@ export const applyDeathPenalties = (
 export const resetSpawnAfterCombat = (
   ctx: any,
   enemies: any[],
-  ScheduleAt: any,
-  ENEMY_RESPAWN_MICROS: bigint,
   reinsertSurvivors: boolean
 ) => {
-  const spawnIds = new Set(enemies.map((e: any) => e.spawnId));
+  const spawnIds = new Set<bigint>(
+    enemies.map((e: any) => e.spawnId).filter((id: any) => id !== undefined && id !== null && id !== 0n)
+  );
   for (const spawnId of spawnIds) {
     const spawn = ctx.db.enemy_spawn.id.find(spawnId);
     if (!spawn) continue;
@@ -217,35 +223,24 @@ export const resetSpawnAfterCombat = (
           groupCount: count,
         });
       } else {
-        for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
-          ctx.db.enemy_spawn_member.id.delete(member.id);
-        }
-        ctx.db.enemy_spawn.id.delete(spawn.id);
-        const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-        ctx.db.enemy_respawn_tick.insert({
-          scheduledId: 0n,
-          scheduledAt: ScheduleAt.time(respawnAt),
-          locationId: spawn.locationId,
-        });
+        deleteSpawnAndMembers(ctx, spawn.id);
       }
     } else {
       // Victory path: simple groupCount check
       if (spawn.groupCount > 0n) {
         ctx.db.enemy_spawn.id.update({ ...spawn, state: 'available', lockedCombatId: undefined });
       } else {
-        for (const member of ctx.db.enemy_spawn_member.by_spawn.filter(spawn.id)) {
-          ctx.db.enemy_spawn_member.id.delete(member.id);
-        }
-        ctx.db.enemy_spawn.id.delete(spawn.id);
-        const respawnAt = ctx.timestamp.microsSinceUnixEpoch + ENEMY_RESPAWN_MICROS;
-        ctx.db.enemy_respawn_tick.insert({
-          scheduledId: 0n,
-          scheduledAt: ScheduleAt.time(respawnAt),
-          locationId: spawn.locationId,
-        });
+        deleteSpawnAndMembers(ctx, spawn.id);
       }
     }
   }
+};
+
+const deleteSpawnAndMembers = (ctx: any, spawnId: bigint) => {
+  for (const member of [...ctx.db.enemy_spawn_member.by_spawn.filter(spawnId)]) {
+    ctx.db.enemy_spawn_member.id.delete(member.id);
+  }
+  ctx.db.enemy_spawn.id.delete(spawnId);
 };
 
 // Compute all racial contributions for a character at a given level.

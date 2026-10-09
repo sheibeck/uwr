@@ -24,6 +24,7 @@ import {
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
 import { absorbEnemyShield, addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
+import { settlePoolKills } from '../helpers/pools';
 import { partyMembersInLocation } from '../helpers/character';
 import { fightRoster } from '../helpers/group';
 import { activeCombatIdForCharacter as activeFightOf } from '../helpers/events';
@@ -56,7 +57,6 @@ const PULL_DELAY_CAREFUL = 2_000_000n;
 const PULL_DELAY_BODY = 1_000_000n;
 const PULL_ADD_DELAY_ROUNDS = 2n;
 const PULL_ALLOW_EXTERNAL_ADDS = true;
-const ENEMY_RESPAWN_MICROS = 5n * 60n * 1_000_000n;
 
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
   const spawn = ctx.db.enemy_spawn.id.find(spawnId);
@@ -484,6 +484,13 @@ export const registerCombatReducers = (deps: any) => {
   };
 
   const clearCombatArtifacts = (ctx: any, combatId: bigint) => {
+    // Kills settle against their pools first, before any combat_enemy row is deleted (Phase 51.3.1.1
+    // D-16, Pitfall 3). A pool error is logged and never blocks the cleanup (T-51.3.1.1-32).
+    try {
+      settlePoolKills(ctx, combatId, ctx.timestamp.microsSinceUnixEpoch);
+    } catch (error) {
+      console.error(`clearCombatArtifacts: pool kills failed in combat ${combatId}: ${redactSecrets(String(error))}`);
+    }
     // Rows are collected before they are deleted, so the delete never disturbs the iteration.
     const loopTable = ctx.db.combat_loop_tick;
     if (loopTable && loopTable.iter && loopTable.scheduledId) {
@@ -2120,7 +2127,7 @@ export const registerCombatReducers = (deps: any) => {
     for (const enemyRow of enemies) {
       enemySpawnIds.set(enemyRow.id, enemyRow.spawnId);
     }
-    resetSpawnAfterCombat(ctx, enemies, ScheduleAt, ENEMY_RESPAWN_MICROS, false);
+    resetSpawnAfterCombat(ctx, enemies, false);
     const combatLoc = ctx.db.location.id.find(combat.locationId);
     for (const p of participants) {
       const character = ctx.db.character.id.find(p.characterId);
@@ -2302,7 +2309,7 @@ export const registerCombatReducers = (deps: any) => {
         markParticipantDead(ctx, currentParticipant, character, enemyName);
       }
     }
-    resetSpawnAfterCombat(ctx, enemies, ScheduleAt, ENEMY_RESPAWN_MICROS, true);
+    resetSpawnAfterCombat(ctx, enemies, true);
     const killedEnemies = enemies.filter((e: any) => e.currentHp === 0n);
     if (killedEnemies.length > 0) {
       const deathCombatLoc = ctx.db.location.id.find(combat.locationId);
