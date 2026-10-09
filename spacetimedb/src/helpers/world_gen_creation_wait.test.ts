@@ -564,12 +564,12 @@ describe('[explore] from a HELD character\'s creation console (retryStarterWorld
   it.each([
     ['FAMILIES_ERROR', 'world_gen_families', 'FILLING_FAMILIES'],
     ['FILL_ERROR', 'world_gen', 'FILLING'],
-  ] as const)('%s: only the failed stage is re-enqueued on the generating state, charged to the asker; Aldric stays the character of the state', (step, route, running) => {
+  ] as const)('%s: only the failed stage is re-enqueued on the generating state, charged to the asker; the state stays with Aldric (review A WR-05)', (step, route, running) => {
     const ctx = heldOn(step);
     const before = rows(ctx, 'llm_job').filter((j: any) => j.route === route).length;
     expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('fill_started');
 
-    expect(stateOf(ctx)).toMatchObject({ step: running, playerId: bob, characterId: 10n });
+    expect(stateOf(ctx)).toMatchObject({ step: running, playerId: alice, characterId: 10n });
     expect(stateOf(ctx, B_STATE).step).toBe('HELD');
     const jobs = jobsOf(ctx, route);
     expect(jobs).toHaveLength(before + 1);
@@ -814,5 +814,52 @@ describe('a second new character while the first starter region is still in stag
     const state = ctx.db.world_gen_state.insert(starterState({ id: 0n, step: 'PENDING' }));
     expect(startWorldGeneration(ctx, state)).toBe('reused');
     expect(charOf(ctx).locationId).toBe(30n);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review A WR-05: a HELD retrier pays for the retry but never takes the creator's state over
+// ---------------------------------------------------------------------------
+
+describe('a HELD character retries the build of another player (review A WR-05)', () => {
+  function heldFamiliesError() {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmFailure(ctx, familiesJob);
+    expect(stateOf(ctx).step).toBe('FAMILIES_ERROR');
+    return ctx;
+  }
+
+  it('a second failure reaches the console of the creator as well as hers', () => {
+    const ctx = heldFamiliesError();
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('fill_started');
+    const aliceBefore = creationOf(ctx, alice).length;
+    const bobBefore = creationOf(ctx, bob).length;
+    applyLlmFailure(ctx, { ...familiesJob, playerId: bob });
+    expect(creationOf(ctx, alice).slice(aliceBefore)).toEqual([failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
+    expect(creationOf(ctx, bob).slice(bobBefore)).toEqual([failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
+  });
+
+  it('on success the creator keeps the stored stage-1 region description in his arrival message', () => {
+    const ctx = heldFamiliesError();
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('fill_started');
+    applyLlmResult(ctx, { ...familiesJob, playerId: bob }, JSON.stringify(familiesReply()));
+    expect(stateOf(ctx)).toMatchObject({ step: 'COMPLETE', playerId: alice });
+    expect(privateOf(ctx)[0].message).toBe(expectedArrival(ctx, REGION_DESCRIPTION));
+    expect(charOf(ctx, B_CHAR).locationId).toBe(findRegionStart(ctx, theRegion(ctx).id).id);
+  });
+
+  it('a retried places call (2a) charges its follow-on families call (2b) to the retrier too', () => {
+    const ctx = starterCtx();
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    startWorldGeneration(ctx, addSecond(ctx));
+    applyLlmFailure(ctx, fillJobFor(theRegion(ctx).id));
+    expect(retryStarterWorldGen(ctx, charOf(ctx, B_CHAR), bob)).toBe('fill_started');
+    applyLlmResult(ctx, { ...fillJobFor(theRegion(ctx).id), playerId: bob }, JSON.stringify(placesReply(9)));
+    expect(stateOf(ctx)).toMatchObject({ step: 'FILLING_FAMILIES', playerId: alice });
+    const families = jobsOf(ctx, 'world_gen_families');
+    expect(families).toHaveLength(1);
+    expect(families[0]).toMatchObject({ playerId: bob, characterId: 10n });
   });
 });

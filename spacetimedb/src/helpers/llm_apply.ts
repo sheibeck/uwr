@@ -671,9 +671,10 @@ export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string
   }
 
   // Stage 2b, in this same transaction: FILLING_FAMILIES with one pending job, or FAMILIES_ERROR when
-  // refused. A throw is caught so a chain bug never rolls back the paid places (Pitfall 2).
+  // refused. A throw is caught so a chain bug never rolls back the paid places (Pitfall 2). The 2b job is
+  // charged to whoever paid for this 2a job (a HELD retrier pays without owning the state, review A WR-05).
   try {
-    startWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState);
+    startWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState, job.playerId ?? undefined);
   } catch (err) {
     console.error('World families start failed for state ' + String(genStateId) + ': ' + errName(err));
     failWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState, WORLD_FAMILIES_FAILED_MESSAGE);

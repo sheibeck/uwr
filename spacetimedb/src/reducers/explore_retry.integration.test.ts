@@ -314,7 +314,7 @@ describe('[explore] for a new character waiting on a held starter region (HELD, 
   it.each([
     ['FAMILIES_ERROR', 'world_gen_families', 'FILLING_FAMILIES'],
     ['FILL_ERROR', 'world_gen', 'FILLING'],
-  ])('%s: WORLD_FILL_RETRY_LINE, only that stage on the generating state, charged to bob; Aldric stays the character', (step, route, running) => {
+  ])('%s: WORLD_FILL_RETRY_LINE, only that stage on the generating state, charged to bob; the state stays with Aldric (review A WR-05)', (step, route, running) => {
     const ctx = newCtx(heldSeed({ step, errorMessage: 'x' }), bob);
     const before = regionLocationCount(ctx);
     submitAsBob(ctx, 'explore');
@@ -323,7 +323,7 @@ describe('[explore] for a new character waiting on a held starter region (HELD, 
     expect(jobRoutes(ctx)).toEqual([route]);
     expect(rows(ctx, 'llm_job')[0]).toMatchObject({ playerId: bob, characterId: 1n });
     expect(rowColumnProblems('llm_job', rows(ctx, 'llm_job')[0])).toEqual([]);
-    expect(stateById(ctx, 5n)).toMatchObject({ step: running, playerId: bob, characterId: 1n });
+    expect(stateById(ctx, 5n)).toMatchObject({ step: running, playerId: alice, characterId: 1n });
     expect(stateById(ctx, 6n).step).toBe('HELD');
     expect(rows(ctx, 'world_gen_state')).toHaveLength(2);
     expect(regionLocationCount(ctx)).toBe(before);

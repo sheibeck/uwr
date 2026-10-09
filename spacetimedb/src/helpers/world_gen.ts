@@ -630,8 +630,9 @@ function reuseStarterRegion(ctx: any, genState: any, character: any): 'placed' |
  * The [explore] of a new character waiting on someone else's starter region (his newest starter state is
  * HELD; Phase 51.3.1.2, D-18): the region's build states decide.
  *  - one is still running: 'busy' (nothing written);
- *  - the newest failed one (FILL_ERROR or FAMILIES_ERROR) is handed to the asker (playerId only: the job is
- *    charged to him, its character stays the one who generated it) and only its failed stage re-enqueued:
+ *  - the newest failed one (FILL_ERROR or FAMILIES_ERROR) has only its failed stage re-enqueued, the job
+ *    charged to the asker (the payer); the state stays the creator's (playerId and character), so his
+ *    console, his failure lines and his stage-1 description lookup stay right (review A WR-05):
  *    'fill_started', or 'refused' when the enqueue was refused (the failure lines already went out);
  *  - otherwise the region is whole and he was missed: he is placed at its home place now ('reused').
  * 'none' when the region is gone or has no charted place.
@@ -660,9 +661,8 @@ function retryHeldStarter(ctx: any, held: any, character: any, playerId: any): S
   if (builds.some((s: any) => STARTER_RUNNING_STEPS.includes(s.step))) return 'busy';
   const failed = builds.find((s: any) => s.step === 'FILL_ERROR' || s.step === 'FAMILIES_ERROR');
   if (failed) {
-    const handed = { ...failed, playerId, updatedAt: ctx.timestamp };
-    ctx.db.world_gen_state.id.update(handed);
-    return restartFailedStage(ctx, handed) === 'refused' ? 'refused' : 'fill_started';
+    // The state is not handed over (review A WR-05): only the job is charged to the asker.
+    return restartFailedStage(ctx, failed, playerId) === 'refused' ? 'refused' : 'fill_started';
   }
   return placeAtHome(ctx, held, character, region) ? 'reused' : 'none';
 }
@@ -1007,9 +1007,11 @@ export function buildWorldFillInput(tx: any, genState: any): WorldFillInput {
  * Stage 2 start, in the caller's transaction: enqueue the world_gen fill job for this state and
  * move it to FILLING. A refused enqueue (kill switch, ceiling, budget, cap) or an unreadable
  * stage 1 fails the fill instead (FILL_ERROR, stage-1 region stays playable). Nothing retries
- * itself: the only callers are the stage-1 apply and the player's explore.
+ * itself: the only callers are the stage-1 apply and the player's explore. `payer` is the identity the
+ * job is enqueued for (charged to), when it is not the state's own player: a HELD new character's
+ * [explore] retries another character's build without taking the state over (review A WR-05).
  */
-export function startWorldFill(tx: any, genState: any): 'enqueued' | 'duplicate' | 'refused' {
+export function startWorldFill(tx: any, genState: any, payer?: any): 'enqueued' | 'duplicate' | 'refused' {
   let input: WorldFillInput;
   try {
     input = buildWorldFillInput(tx, genState);
@@ -1020,7 +1022,7 @@ export function startWorldFill(tx: any, genState: any): 'enqueued' | 'duplicate'
 
   const result = enqueueLlmJob(tx, {
     route: 'world_gen',
-    playerId: genState.playerId,
+    playerId: payer ?? genState.playerId,
     characterId: genState.characterId,
     sourceKey: SOURCE_KEYS.worldGen(genState.id),
     request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
@@ -1324,10 +1326,12 @@ function newestFirst(a: any, b: any): number {
  * FILL_ERROR re-enqueues the places call (startWorldFill), FAMILIES_ERROR the families call only
  * (startWorldFamilies), so a families failure never reopens the places call and the places are never
  * written twice (T-51.3.1.2-39). 'refused' when the enqueue was refused (the stage's fail function
- * already put the state back in its error step and posted the line).
+ * already put the state back in its error step and posted the line). `payer` charges the job to another
+ * identity without handing the state over (review A WR-05).
  */
-function restartFailedStage(tx: any, handed: any): 'started' | 'refused' {
-  const result = handed.step === 'FAMILIES_ERROR' ? startWorldFamilies(tx, handed) : startWorldFill(tx, handed);
+function restartFailedStage(tx: any, handed: any, payer?: any): 'started' | 'refused' {
+  const result =
+    handed.step === 'FAMILIES_ERROR' ? startWorldFamilies(tx, handed, payer) : startWorldFill(tx, handed, payer);
   return result === 'refused' ? 'refused' : 'started';
 }
 
@@ -1443,8 +1447,9 @@ export function buildWorldFamiliesInput(tx: any, genState: any): WorldFamiliesIn
  * refused line) or an input that cannot be built fails the families instead: FAMILIES_ERROR, never
  * FILL_ERROR, so the places are never written twice (D-08, T-51.3.1.2-25). Plan 11 calls it from the 2a
  * apply; the [explore] retries (retryWorldFill, retryStarterWorldGen) call it for a FAMILIES_ERROR state.
+ * `payer` is the identity the job is charged to when it is not the state's own player (review A WR-05).
  */
-export function startWorldFamilies(tx: any, genState: any): 'enqueued' | 'duplicate' | 'refused' {
+export function startWorldFamilies(tx: any, genState: any, payer?: any): 'enqueued' | 'duplicate' | 'refused' {
   let input: WorldFamiliesInput;
   try {
     input = buildWorldFamiliesInput(tx, genState);
@@ -1455,7 +1460,7 @@ export function startWorldFamilies(tx: any, genState: any): 'enqueued' | 'duplic
 
   const result = enqueueLlmJob(tx, {
     route: 'world_gen_families',
-    playerId: genState.playerId,
+    playerId: payer ?? genState.playerId,
     characterId: genState.characterId,
     sourceKey: SOURCE_KEYS.worldGen(genState.id),
     request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
