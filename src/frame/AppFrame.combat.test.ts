@@ -200,13 +200,33 @@ function combatGame(names: Names): { game: GameData; reducers: Reducers } {
     self: ref(self),
     participants: ref([self, maraParticipant]),
     enemies: ref([
-      { id: 9n, combatId: COMBAT_ID, enemyTemplateId: 100n, displayName: names.hostile, currentHp: 212n, maxHp: 480n },
-      { id: 3n, combatId: COMBAT_ID, enemyTemplateId: 101n, displayName: 'Gnawer', currentHp: 50n, maxHp: 100n },
+      {
+        id: 9n,
+        combatId: COMBAT_ID,
+        enemyTemplateId: 100n,
+        displayName: names.hostile,
+        currentHp: 212n,
+        maxHp: 480n,
+        aggroTargetCharacterId: MARA_ID,
+        healTargetEnemyId: 0n,
+      },
+      {
+        id: 3n,
+        combatId: COMBAT_ID,
+        enemyTemplateId: 101n,
+        displayName: 'Gnawer',
+        currentHp: 50n,
+        maxHp: 100n,
+        aggroTargetCharacterId: CHARACTER_ID,
+        healTargetEnemyId: 0n,
+      },
     ]),
     enemyTemplates: ref([
-      { id: 100n, level: 6n },
-      { id: 101n, level: 3n },
+      { id: 100n, level: 6n, role: 'tank' },
+      { id: 101n, level: 3n, role: 'healer' },
     ]),
+    // The fight's combat_encounter origin columns (51.3.1.1 D-32).
+    encounter: ref({ origin: 'pull', originName: 'Rotlings', originPlural: 'rotlings', originLevel: 2n }),
     enemyAbilities: ref([{ enemyTemplateId: 100n, abilityKey: 'bile_spray', name: names.windupAbility }]),
     rounds: ref([openRound]),
     openRound: ref<typeof openRound | null>(openRound),
@@ -361,14 +381,17 @@ describe('combat frame, desktop (1280)', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('swaps the context rail for the Encounter panel: cards, wind-up row and threat', async () => {
+  // Was '... cards, wind-up row and threat': the threat block is removed (51.3.1.1 D-40, P4); each
+  // card carries a role chip and a Targeting line instead, and the rail ends with the foot line.
+  it('swaps the context rail for the Encounter panel: cards, role chips, wind-up row and target lines', async () => {
     const { game } = combatGame(PLAIN);
     const w = mountFrame(true, game);
     await settle();
 
     const rail = w.get('.context-rail');
     const panel = rail.get('section.encounter-panel');
-    expect(panel.get('h6').text()).toBe('Encounter · 2 hostiles');
+    expect(panel.get('h6').text()).toBe('Encounter · Rotlings · 2 left');
+    expect(panel.get('p.source').text()).toBe('Pulled from Rotlings that read stable here.');
     expect(rail.find('.event-card').exists()).toBe(false);
 
     const cards = panel.findAll('.hostile-card');
@@ -381,12 +404,16 @@ describe('combat frame, desktop (1280)', () => {
     expect(windups).toHaveLength(1);
     expect(windups[0].text()).toBe('Rotfang winds up Bile Spray → Ember · lands in 2 rounds');
 
-    expect(panel.get('.threat-heading').text()).toBe('Threat on Rotfang');
-    const rows = panel.findAll('.threat-row');
-    expect(rows).toHaveLength(2);
-    expect(rows[0].classes()).toContain('self');
-    expect(rows[0].get('.threat-name').text()).toBe('You');
-    expect(rows[1].get('.threat-name').text()).toBe('Mara');
+    expect(panel.find('.threat').exists()).toBe(false);
+    expect(panel.text()).not.toContain('Threat');
+    // cards in ascending id: Gnawer (3, healer) then Rotfang (9, tank)
+    expect(cards.map((card) => card.get('.role-chip').text())).toEqual(['Support', 'Tank']);
+    expect(cards.map((card) => card.get('.target-line').text())).toEqual(['Targeting you', 'Targeting Mara']);
+    expect(cards[1].attributes('aria-label')).toBe(
+      'Rotfang, Tank, level 6, Hard, 44% health, winding up Bile Spray, targeting Mara',
+    );
+    expect(panel.findAll('button button')).toHaveLength(0);
+    expect(panel.get('p.encounter-foot .foot-text').text()).toBe('Ember Gate');
   });
 
   it('puts the round row before the hotbar row, with the chip, the timer and a rounds cooldown slot', async () => {
@@ -493,7 +520,7 @@ describe('combat frame, desktop (1280)', () => {
     expect(w.get('.encounter-panel .hostile-card[aria-pressed="true"] .name').text()).toBe(XSS);
     expect(w.get('.encounter-panel .windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
     expect(w.get('.hotbar-row button.slot .slot-name').text()).toBe(XSS);
-    expect(w.get('.encounter-panel .threat-row:not(.self) .threat-name').text()).toBe(XSS);
+    expect(w.get('.encounter-panel .target-name:not(.self)').text()).toBe(XSS);
     expect(w.get('.vitals-rail .member-card .member-name').text()).toBe(XSS);
     expect(w.get('.vitals-rail .member-card .member-target').attributes('aria-label')).toContain(`Target ${XSS} with`);
     expect(w.get('.line-windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
@@ -514,6 +541,9 @@ describe('combat frame, mobile (390)', () => {
     expect(precedes(strip.element, w.get('main.feed').element)).toBe(true);
     const chips = strip.findAll('button.hostile-chip');
     expect(chips).toHaveLength(2);
+    expect(strip.get('button.strip-open').text()).toBe('Encounter · Rotlings · 2 left');
+    expect(chips.map((chip) => chip.find('.chip-role').exists())).toEqual([true, true]);
+    expect(chips[0].attributes('aria-label')!.startsWith('Gnawer, Support, ')).toBe(true);
     expect(chips.filter((chip) => chip.attributes('aria-pressed') === 'true')).toHaveLength(1);
     expect(w.find('.context-rail').exists()).toBe(false);
   });
@@ -585,7 +615,8 @@ describe('combat frame, mobile (390)', () => {
     expect(feed.get('.line-windup').text()).toContain('winds up Bile Spray');
   });
 
-  it('the encounter sheet shows the panel with the wind-up row and the threat block', async () => {
+  // Was '... and the threat block': the sheet now shows the source line first and the target lines (D-40).
+  it('the encounter sheet shows the panel with the source line, the wind-up row and the target lines', async () => {
     const { game } = combatGame(PLAIN);
     const w = mountFrame(false, game);
     await settle();
@@ -596,7 +627,10 @@ describe('combat frame, mobile (390)', () => {
     expect(dialog.get('.sheet-meta').text()).toBe('Round 3 · 6s');
     expect(dialog.findAll('.hostile-card')).toHaveLength(2);
     expect(dialog.get('.windup').text()).toContain('winds up Bile Spray');
-    expect(dialog.get('.threat-heading').text()).toBe('Threat on Rotfang');
+    expect(dialog.find('.threat').exists()).toBe(false);
+    expect(dialog.get('p.source').text()).toBe('Pulled from Rotlings that read stable here.');
+    expect(dialog.findAll('.target-line').map((line) => line.text())).toEqual(['Targeting you', 'Targeting Mara']);
+    expect(dialog.find('.encounter-foot').exists()).toBe(false);
   });
 
   it('the account button opens a More sheet with only Log out', async () => {
@@ -631,7 +665,7 @@ describe('combat frame, mobile (390)', () => {
     await settle();
     const dialog = w.get('[role="dialog"]');
     expect(dialog.get('.windup').text()).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 2 rounds`);
-    expect(dialog.get('.threat-row:not(.self) .threat-name').text()).toBe(XSS);
+    expect(dialog.get('.target-name:not(.self)').text()).toBe(XSS);
     expect(w.findAll('img')).toHaveLength(0);
     expect(document.body.querySelectorAll('img')).toHaveLength(0);
     expect(errorSpy).not.toHaveBeenCalled();
