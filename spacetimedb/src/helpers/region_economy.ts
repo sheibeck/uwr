@@ -350,7 +350,9 @@ export interface EconomyJobContext {
   familyId: bigint;
   /**
    * Region mode (Plan 25): the region's families past the design cap, which the apply writes by rule.
-   * [] when absent (jobs stored before Plan 25); malformed entries are skipped.
+   * [] when absent (jobs stored before Plan 25); malformed entries are skipped. New jobs send []
+   * since Phase 51.3.1.2 (D-11: those families get late-family jobs); a stored non-empty list is still
+   * honoured so in-flight jobs complete unchanged.
    */
   ruleFamilyIds: bigint[];
   input: RegionEconomyInput;
@@ -1242,19 +1244,28 @@ function familyNeedsLoot(tx: any, familyId: bigint): boolean {
 /**
  * After a region apply: every family of the region with a member lacking enemy_loot_entry rows gets
  * ONE family-mode job (startFamilyLoot), never one per member, for the same player as the region job:
- * families that joined while the region job was pending, and families the reply left out. Families in
- * id order. Each start is in try/catch; never fails the apply.
+ * families past the design cap (Phase 51.3.1.2 D-11), families that joined while the region job was
+ * pending, and families the reply left out. Families in id order. Rule loot (writeRuleLootForFamily)
+ * instead when the AI economy switch is off, or when a start is refused or throws. Each family is in
+ * try/catch; never fails the apply.
  */
 function startLateFamilies(ctx: any, regionId: bigint, job: EconomyApplyJob): void {
   try {
-    if (getDials(ctx).aiEnabled !== true) return;
+    const aiOn = getDials(ctx).aiEnabled === true;
     const who = { playerId: job ? job.playerId : undefined, characterId: storedCharacterId(job ? job.contextJson : undefined) };
     const families = [...ctx.db.creature_family.by_region.filter(regionId)].sort((a: any, b: any) => compareBig(a.id, b.id));
     for (const family of families) {
       try {
-        if (familyNeedsLoot(ctx, family.id)) startFamilyLoot(ctx, family, regionId, who);
+        if (!familyNeedsLoot(ctx, family.id)) continue;
+        if (!aiOn) {
+          writeRuleLootForFamily(ctx, regionId, family.id);
+          continue;
+        }
+        const started = startFamilyLoot(ctx, family, regionId, who);
+        if (started.startsWith('refused:')) writeRuleLootForFamily(ctx, regionId, family.id);
       } catch (err) {
         console.error(`Family loot start failed for family ${String(family.id)}: ${err instanceof Error ? err.name : typeof err}`);
+        writeRuleLootForFamily(ctx, regionId, family.id);
       }
     }
   } catch (err) {
@@ -1303,8 +1314,6 @@ export function startRegionEconomy(
   if (regionLocations(tx, regionId).length === 0) return 'no_region';
 
   const input = buildRegionEconomyInput(tx, region, 'region');
-  // The families past the design cap (coordinator, D-66): the apply writes them by rule.
-  const ruleFamilyIds = economyDesignFamilies(tx, regionId).ruleFamilyIds;
   const result = enqueueLlmJob(tx, {
     route: 'region_economy',
     playerId: who.playerId,
@@ -1316,7 +1325,9 @@ export function startRegionEconomy(
       mode: 'region',
       enemyTemplateId: '0',
       characterId: who.characterId.toString(),
-      ruleFamilyIds: ruleFamilyIds.map((id) => id.toString()),
+      // Phase 51.3.1.2 D-11: no rule families. The families past the design cap get one late-family
+      // job each after the region apply (startLateFamilies), with rule loot only when that job fails.
+      ruleFamilyIds: [],
       input: encodeRouteInput(input),
     },
   });
@@ -1438,16 +1449,55 @@ function applyLateFamilyResult(ctx: any, c: EconomyJobContext, resultText: strin
   const own = new Set<string>([keys.drop, keys.trophy, ...memberIds.map((id) => `gear:${id}`)]);
   const book = openBook(ctx, c.input, regionId, (slotKey) => own.has(slotKey), () => false);
   const entry = validateLateFamily(c.input, parseReplyText(resultText), isTakenIn(book));
-  if (entry === null || entry.familyId !== familyId) return;
+  if (entry === null || entry.familyId !== familyId) {
+    // Phase 51.3.1.2 D-11: an unusable reply leaves the family to the rule.
+    writeRuleLootForFamily(ctx, regionId, familyId);
+    return;
+  }
   writeFamily(book, entry, memberIds, levelOf(listed ? listed.level : 1), bookGatherableIds(ctx, book));
 }
 
 /**
+ * Rule loot for one family (Phase 51.3.1.2 D-11), the safety net of its late-family job: its drop,
+ * trophy, one gear piece per member and the members' loot tables from the rule fallback
+ * (writeRuleFamily), over the region's existing gatherables. Writes only when the region's economy is
+ * complete, the region and the family exist and a member of the family still lacks enemy_loot_entry
+ * rows; every write is looked up first, so a second call writes nothing new. Never throws: an error is
+ * logged by name only. True when the rule write ran.
+ */
+export function writeRuleLootForFamily(ctx: any, regionId: bigint, familyId: bigint): boolean {
+  try {
+    const statusRow = ctx.db.region_economy.regionId.find(regionId);
+    if (!statusRow || statusRow.status !== 'complete') return false;
+    const family = ctx.db.creature_family.id.find(familyId);
+    if (!family || !familyNeedsLoot(ctx, familyId)) return false;
+    const region = ctx.db.region.id.find(regionId);
+    if (!region) return false;
+    const input = buildRegionEconomyInput(ctx, region, 'family', family);
+    const memberIds = familyMemberIds(ctx, familyId, []);
+    const keys = familySlotKeys(familyId, 0n);
+    const own = new Set<string>([keys.drop, keys.trophy, ...memberIds.map((id) => `gear:${id}`)]);
+    const book = openBook(ctx, input, regionId, (slotKey) => own.has(slotKey), () => false);
+    writeRuleFamily(book, input, familyId, bookGatherableIds(ctx, book));
+    return true;
+  } catch (err) {
+    console.error(`Rule loot failed for family ${String(familyId)}: ${err instanceof Error ? err.name : typeof err}`);
+    return false;
+  }
+}
+
+/**
  * The failure path of a region economy job: a pending region-mode row becomes 'failed' (fallbacks keep
- * serving; /economy shows it). Enemy mode, a missing row and any non-pending row change nothing. Silent.
+ * serving; /economy shows it). A failed family-mode job (Phase 51.3.1.2 D-11) gives its family rule
+ * loot (writeRuleLootForFamily; nothing new on a second failure). Enemy mode, a missing row and any
+ * non-pending row change nothing. Silent.
  */
 export function failRegionEconomy(ctx: any, job: EconomyApplyJob): void {
   const c = readEconomyJobContext(job ? job.contextJson : undefined);
+  if (c !== null && c.mode === 'family' && c.familyId > 0n) {
+    writeRuleLootForFamily(ctx, c.regionId, c.familyId);
+    return;
+  }
   if (c === null || c.mode !== 'region') return;
   const row = ctx.db.region_economy.regionId.find(c.regionId);
   if (!row || row.status !== 'pending') return;

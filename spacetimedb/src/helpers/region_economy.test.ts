@@ -1365,16 +1365,19 @@ describe('buildRegionEconomyInput: families (D-47)', () => {
     expect(econ.readEconomyJobContext(JSON.stringify({ regionId: '1', mode: 'family', familyId: 'x', input: encodeRouteInput(input) }))).toBeNull();
   });
 
-  it('a family-mode job ignores a 51.3 late-creature reply (it reads lateFamily only)', () => {
+  it('a family-mode job ignores a 51.3 late-creature reply (it reads lateFamily only); the rule fills the family', () => {
     const seed = familyWorld();
     seed.region_economy.push(econRow(1n, 'complete'));
     seed.enemy_loot_entry = [];
     const ctx = ctxFor(seed);
     const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', ctx.db.creature_family.id.find(1n));
     const contextJson = JSON.stringify({ regionId: '1', mode: 'family', familyId: '1', input: encodeRouteInput(input) });
-    const before = APPLY_TABLES.map((t) => rows(ctx, t).length);
     econ.applyRegionEconomyResult(ctx, { domain: 'region_economy', contextJson }, replyText('late'));
-    expect(APPLY_TABLES.map((t) => rows(ctx, t).length)).toEqual(before);
+    // The late-creature reply is unusable here: no name of it is written, and the family gets rule
+    // loot instead (Phase 51.3.1.2, D-11).
+    expect(rows(ctx, 'item_template').some((t: any) => t.name === 'Tollman Brine')).toBe(false);
+    const d = familyItem(ctx, 'drop', 1n);
+    expect(itemOf(ctx, d.itemTemplateId).name).toMatch(/^Kesterlane Basin /);
   });
 });
 
@@ -1580,15 +1583,38 @@ describe('applyRegionEconomyResult: a family reply (D-47)', () => {
     expectNoDuplicates(ctx);
   });
 
-  it('a family the reply left out gets no rows (a late family job designs it); the region still completes', () => {
+  it('a family the reply left out gets no rows while its late family job is queued; the region still completes', () => {
+    const seed = familyApplyWorld();
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+    seed.llm_job = [];
+    const ctx = ctxFor(seed);
+    const reply = familyEconomyReply();
+    reply.region.families = [SKITTER_FAMILY];
+    const { job } = regionJob(ctx, 1n);
+    const owner = { toHexString: () => 'a'.repeat(64) };
+    econ.applyRegionEconomyResult(ctx, { ...job, playerId: owner }, JSON.stringify(reply));
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    expect(familyItem(ctx, 'drop', 2n)).toBeUndefined();
+    for (const member of SENTINEL_MEMBERS) expect(lootOf(ctx, member)).toEqual([]);
+    for (const member of SKITTER_MEMBERS) expect(lootOf(ctx, member).length).toBeGreaterThan(0);
+    expect(rows(ctx, 'llm_job').map((j: any) => JSON.parse(j.dedupeKey)[2])).toEqual(['family:2']);
+  });
+
+  it('with the AI economy switch off at apply time, a family the reply left out gets rule loot at once (Phase 51.3.1.2, D-11)', () => {
     const ctx = ctxFor(familyApplyWorld());
     const reply = familyEconomyReply();
     reply.region.families = [SKITTER_FAMILY];
     econ.applyRegionEconomyResult(ctx, regionJob(ctx, 1n).job, JSON.stringify(reply));
     expect(econRowOf(ctx, 1n).status).toBe('complete');
-    expect(familyItem(ctx, 'drop', 2n)).toBeUndefined();
-    for (const member of SENTINEL_MEMBERS) expect(lootOf(ctx, member)).toEqual([]);
-    for (const member of SKITTER_MEMBERS) expect(lootOf(ctx, member).length).toBeGreaterThan(0);
+    const d = familyItem(ctx, 'drop', 2n);
+    expect(itemOf(ctx, d.itemTemplateId).name).toMatch(/^Kesterlane Basin /);
+    for (const member of SENTINEL_MEMBERS) {
+      expect(memberGear(ctx, member)).toBeDefined();
+      expect(lootOf(ctx, member).map((e: any) => e.role)).toEqual(expect.arrayContaining(['drop', 'trophy', 'gear']));
+    }
+    expect(rows(ctx, 'llm_job')).toEqual([]);
+    expectWellFormed(ctx);
+    expectNoDuplicates(ctx);
   });
 
   it('idempotent: applying the same family reply twice changes nothing', () => {
@@ -1723,7 +1749,7 @@ describe('applyLateFamilyResult (a family-mode job, D-47)', () => {
     expect(recorder.snapshotDb(ctx.db)).toBe(recorder.snapshotDb(fresh.ctx.db));
   });
 
-  it('writes nothing when the region is not complete, the family is gone, or the reply is unusable', () => {
+  it('writes nothing when the region is not complete or the family is gone', () => {
     const mutations: ((ctx: any) => void)[] = [
       (ctx) => {
         econRowOf(ctx, 1n).status = 'pending';
@@ -1739,12 +1765,41 @@ describe('applyLateFamilyResult (a family-mode job, D-47)', () => {
       econ.applyRegionEconomyResult(ctx, job, LATE_FAMILY_REPLY);
       expect(recorder.snapshotDb(ctx.db)).toBe(before);
     }
+  });
+
+  it('an unusable reply writes rule loot for the family once (Phase 51.3.1.2, D-11)', () => {
     for (const reply of ['not json', '{}', JSON.stringify({ region: null, lateFamily: null })]) {
       const { ctx, job } = lateFamilyWorld();
-      const before = recorder.snapshotDb(ctx.db);
       econ.applyRegionEconomyResult(ctx, job, reply);
-      expect(recorder.snapshotDb(ctx.db)).toBe(before);
+      const d = familyItem(ctx, 'drop', 2n);
+      expect(itemOf(ctx, d.itemTemplateId).name).toMatch(/^Kesterlane Basin /);
+      for (const member of SENTINEL_MEMBERS) {
+        expect(lootOf(ctx, member).map((e: any) => e.role)).toEqual(expect.arrayContaining(['drop', 'trophy', 'gear']));
+      }
+      const once = recorder.snapshotDb(ctx.db);
+      econ.applyRegionEconomyResult(ctx, job, reply);
+      econ.failRegionEconomy(ctx, job);
+      expect(recorder.snapshotDb(ctx.db)).toBe(once);
+      expectWellFormed(ctx);
+      expectNoDuplicates(ctx);
     }
+  });
+
+  it('a failed family-mode job writes rule loot for the family once; nothing while the region is not complete', () => {
+    const { ctx, job } = lateFamilyWorld();
+    econ.failRegionEconomy(ctx, { ...job, errorCode: 'refusal' });
+    expect(itemOf(ctx, familyItem(ctx, 'drop', 2n).itemTemplateId).name).toMatch(/^Kesterlane Basin /);
+    for (const member of SENTINEL_MEMBERS) expect(lootOf(ctx, member).length).toBeGreaterThan(0);
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    const once = recorder.snapshotDb(ctx.db);
+    econ.failRegionEconomy(ctx, { ...job, errorCode: 'refusal' });
+    expect(recorder.snapshotDb(ctx.db)).toBe(once);
+
+    const pending = lateFamilyWorld();
+    econRowOf(pending.ctx, 1n).status = 'pending';
+    const before = recorder.snapshotDb(pending.ctx.db);
+    econ.failRegionEconomy(pending.ctx, pending.job);
+    expect(recorder.snapshotDb(pending.ctx.db)).toBe(before);
   });
 
   it('an enemy-mode job (51.3, queued before publish) still goes to the late-creature apply', () => {
