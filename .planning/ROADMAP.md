@@ -75,7 +75,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 
 **Execution order:** Phases 45 and 46 are independent and can run in parallel; 47 needs both. Phase 46.1 (backend) needs 46 and can run alongside 45 and 47; 48 needs 46.1. After 47, phases 48, 49, 50 and 51 do not depend on each other (49 also needs 46). Phases 51.1, 51.3, 51.3.1, 51.3.1.1, 51.3.2, 51.4, 51.5 and 51.5.1 follow 51 in that order (51.3.1 Combat Dials reuses the 51.3 dial pattern; 51.3.2 is the promoted wind-up item 999.17; 51.4 needs 51.3). Then 52.1 Hotbar Manager, 52.1.1 Bank, 52.1.2 Trade, 52.2 Social and Guilds, 52.3 Log, 52.4 World Events, and 53 Parity and Production last (owner, 2026-10-08). The numbers 51.2, 51.6, 51.7 and 52 are unused after renumbering.
 
-**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.2 Wind-Up, Cooldowns and Durations → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
+**v3.0 run order from 2026-10-08 (owner, 2026-10-08: "admin and dials should be last. Systems first, then UX (since UX needs the system in place), then tuning"):** 51.3.1.1 Density Pools → 51.3.1.2 Bigger Regions → 51.3.2 Wind-Up, Cooldowns and Durations → 52.1.1 Bank → 52.1.2 Trade → 52.2 Social and Guilds → 52.3 Log → 52.4 World Events → 51.4 Loot Rails → 51.5 Character, Level Up and New Skill → 52.1 Hotbar Manager → 51.5.1 Motion and Polish → 52.5 Admin and Balance Dials → 53 Parity and Production. Systems first (each keeps its own screen), then UX, then admin and tuning, then the release. Phase numbers are kept; this explicit order overrides numeric order, so the remaining phases run one at a time in this sequence.
 
 - [ ] **Phase 45: Foundation, Frame and Auth** - Old UI deleted; fresh client at the repo root with Nocturne tokens, the three-column frame, drawer and sheet shells, mobile tab bar and sign-in
 - [ ] **Phase 46: Structured Keeper Replies** - Speaker-attributed narration and dialogue segments from every narrative LLM route, in the second-person narrator voice, with owner tone sign-off
@@ -88,6 +88,7 @@ Known gaps (QUAL-01, QUAL-02, Phase 41/43 live checks, maincloud) are listed in 
 - [ ] **Phase 51.1: Party** (INSERTED) - Online status, offline members left behind, pets and follow indicators, invites that expire, party and player menus, and the login and user security fixes
 - [ ] **Phase 51.3: Regional Economy** (INSERTED) - One AI job per region designs materials, gatherables, drops, loot tables and recipes within server rules, with cross-region rare recipes and fallbacks
 - [ ] **Phase 51.3.1.1: Density Pools** (INSERTED) - Places hold living populations of creature families and resources at density levels; dangerous travel, group pulls, depletion and regrowth (promoted backlog 999.29)
+- [ ] **Phase 51.3.1.2: Bigger Regions** (INSERTED) - Regions of 8-10 places, generated across several calls; families scale with region size
 - [ ] **Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds** (INSERTED) - Cast times, cooldowns and effect durations share one rounds rule; wind-ups with cancel on the hotbar slot (backlog 999.17)
 - [ ] **Phase 51.4: Loot Rails** (INSERTED) - The designed loot rails: see and take drops after a kill
 - [ ] **Phase 51.5: Character, Level Up and New Skill** (INSERTED) - Level up and new skill flows, and the Character screen (formerly Stats)
@@ -874,6 +875,32 @@ Plans:
   - Schema: additive tables and defaulted columns only; existing `enemy_spawn` rows for ordinary creatures and resource nodes are migrated or retired without `--clear-database`.
   - Its folder was `999.29-dangerous-travel-mob-density`; it is now `51.3.1.1-density-pools`.
 
+### Phase 51.3.1.2: Bigger Regions (INSERTED)
+
+**Goal**: A newly generated region has 8-10 places instead of 3-5, generated across several AI calls so each reply stays within its budget, with families scaling to the region's size (D-66/D-67 of 51.3.1.1).
+**Depends on**: Phase 51.3.1.1 (families, hubs, density pools and the approved generation prompts)
+**Requirements**: TBD (owner request 2026-10-08)
+**Success Criteria** (what must be TRUE):
+
+  1. A new region has 8-10 places (a named constant range, dial in 52.5), connected so every place is reachable, with its hubs (D-62) placed among them.
+  2. Region generation is split across calls (for example places first, then NPCs and families) so no single reply exceeds its token budget; each call is cap-exempt like world_gen, counted in the daily ceiling, and fails over to rules as today.
+  3. The family count follows the 51.3.1.1 rule (about 1.5 per place, 3 to 15), so an 8-10 place region gets 12-15 families with histories, each place hosting 3-5 by fit.
+  4. Existing regions keep their size; no paid backfill (owner).
+  5. Every new or changed prompt's exact wording is approved by the owner before it ships, and pinned by tests; no paid calls in tests.
+  6. Tests cover the place count, connectivity, the split-call flow and its failure paths, family scaling, and that existing regions are untouched.
+
+**Plans:** 0 plans
+**Notes**:
+
+  - Owner, 2026-10-08: "Regions needs to be bigger than 3-5. we decided on max 10, but that means we should be looking at 8-10 locations. That still leaves room to go above that for hidden locations and sub-locations within dungeons, towers, cities (like a sewer, etc)". Then chose "Own phase next" and "Leave them as they are" for existing regions.
+  - Pulled from backlog 999.26 (the 8-10 place size only). Typed sub-regions, hidden places and sub-locations (sewers, tower floors) stay in 999.26.
+  - The economy job size (D-50/D-57 of 51.3.1.1) and the hub and station rolls may need to scale with the bigger regions; settle in discuss.
+  - Server changes are additive, published locally only with the key check, never clearing the database.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 51.3.1.2 to break down)
+
 ### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
 
 **Goal**: An ability's cast time decides how many rounds it takes to go off, for characters and enemies alike, and cooldowns and effect durations use the same seconds-to-rounds rule. A player can cancel a wind-up from the ability's hotbar slot.
@@ -1194,6 +1221,7 @@ Plans:
 | 51.1. Party | v3.0 | 16/16 | Code complete, UAT deferred | - |
 | 51.3. Regional Economy | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.3.1.1. Density Pools | v3.0 | 0/TBD | Not started | - |
+| 51.3.1.2. Bigger Regions | v3.0 | 0/TBD | Not started | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
 | 51.5. Character, Level Up and New Skill | v3.0 | 0/TBD | Not started | - |
@@ -2401,6 +2429,8 @@ Plans:
 **Requirements:** TBD
 **Plans:** 0 plans
 
+**Status (owner, 2026-10-08):** the 8-10 place region size is pulled into Phase 51.3.1.2 Bigger Regions (owner: "Regions needs to be bigger than 3-5. we decided on max 10, but that means we should be looking at 8-10 locations. That still leaves room to go above that for hidden locations and sub-locations within dungeons, towers, cities (like a sewer, etc)"). Typed sub-regions, hidden places and sub-locations stay here.
+
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
@@ -2569,4 +2599,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after setting the v3.0 run order to systems, then UX, then admin and tuning, then release (owner); admin screens moved from 53 to 52.5 Admin and Balance Dials*
+*Last updated: 2026-10-08 after inserting Phase 51.3.1.2 Bigger Regions (8-10 places per region; owner) and pulling that size out of backlog 999.26*
