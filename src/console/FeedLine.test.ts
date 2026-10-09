@@ -616,3 +616,63 @@ describe('FeedLine loot links (quick 261008-f3m)', () => {
     expect(coarse![1]).toMatch(/inset: -12px 0;/);
   });
 });
+
+describe('FeedLine density kinds (51.3.1.1 Feed Contract)', () => {
+  const source = readFileSync(resolve(process.cwd(), 'src/console/FeedLine.vue'), 'utf8');
+  const XSS = '<img src=x onerror=alert(1)>';
+  const fromServer = (kind: string, message: string): FeedLineView =>
+    classifyEntry({ key: 'p:1', source: 'private', kind, message, segments: null }, { partyNames: [] })[0];
+
+  it('draws an ambush as the tinted band: PhWarning 16 then the text', () => {
+    const w = render(fromServer('ambush', 'Three goblins break from the brush as you reach Gloamwood!'));
+    const band = w.get('div.line.line-ambush');
+    const icon = band.get('svg.icon-ambush');
+    expect(icon.attributes('aria-hidden')).toBe('true');
+    expect(icon.attributes('width')).toBe('16');
+    expect(band.get('.body').text()).toBe('Three goblins break from the brush as you reach Gloamwood!');
+    expect(w.findAll('button')).toHaveLength(0);
+  });
+
+  it.each([
+    ['density_down', 'densityDown', 'icon-density-down', 'The goblins at Gloamwood thin out.'],
+    ['density_gone', 'densityGone', 'icon-density-gone', 'No goblins are left at Gloamwood.'],
+    ['travel_quiet', 'travelQuiet', 'icon-travel-quiet', 'You reach Gloamwood. Nothing stirs.'],
+  ])('draws %s as an icon line: a 12px icon then the Label 12 text', (kind, lineKind, iconClass, text) => {
+    const w = render(fromServer(kind, text));
+    const line = w.get(`div.line.line-${lineKind}`);
+    const icon = line.get(`svg.${iconClass}`);
+    expect(icon.attributes('aria-hidden')).toBe('true');
+    expect(icon.attributes('width')).toBe('12');
+    expect(line.get('.body').text()).toBe(text);
+    expect(w.findAll('button')).toHaveLength(0);
+  });
+
+  it('renders an img onerror fixture in every density line literally', () => {
+    for (const kind of ['ambush', 'density_down', 'density_gone', 'travel_quiet']) {
+      const w = render(fromServer(kind, `Four ${XSS} rush you in ${XSS}!`));
+      expect(w.find('img').exists()).toBe(false);
+      expect(w.text()).toContain(`Four ${XSS} rush you in ${XSS}!`);
+      w.unmount();
+      wrapper = null;
+    }
+  });
+
+  it('no event, no line: a blank density row gives no line to draw', () => {
+    expect(classifyEntry({ key: 'p:1', source: 'private', kind: 'ambush', message: ' ', segments: null }, { partyNames: [] })).toEqual([]);
+  });
+
+  it('source: the ambush band recipe and the icon tones are tokens only', () => {
+    expect(source).toMatch(
+      /\.line-ambush \{[^}]*display: flex;[^}]*gap: 8px;[^}]*padding: 8px 16px;[^}]*border-radius: var\(--radius-md\);[^}]*background: color-mix\(in srgb, var\(--color-health\) 24%, var\(--color-surface\)\);[^}]*\}/,
+    );
+    expect(source).toMatch(/\.line-ambush \.body \{[^}]*font-weight: 500;[^}]*color: var\(--color-text\);/);
+    expect(source).toMatch(/\.icon-ambush \{[^}]*color: var\(--color-con-orange\);/);
+    expect(source).toMatch(/\.icon-density-down,\s*\.icon-travel-quiet \{[^}]*color: var\(--color-neutral-500\);/);
+    expect(source).toMatch(/\.icon-density-gone \{[^}]*color: var\(--color-neutral-400\);/);
+    expect(source).toMatch(/\.line-densityDown,\s*\.line-travelQuiet \{[^}]*color: var\(--color-neutral-400\);/);
+    expect(source).toMatch(/\.line-densityGone \{[^}]*color: var\(--color-neutral-300\);/);
+    expect(source).toMatch(/\.line-densityDown,\s*\.line-densityGone,\s*\.line-travelQuiet \{[^}]*font-size: 12px;/);
+    for (const icon of ['PhWarning', 'PhTrendDown', 'PhSkull', 'PhFootprints']) expect(source).toContain(icon);
+    expect(source).not.toMatch(/@keyframes|animation:|transition:/);
+  });
+});

@@ -630,3 +630,73 @@ describe('loot lines (quick 261008-f3m)', () => {
     expect(line.parts!.some((p) => p.entry?.kind === 'npc')).toBe(true);
   });
 });
+
+describe('density line kinds (51.3.1.1 Feed Contract, D-22, D-32)', () => {
+  const vocabulary = buildVocabulary({
+    npcs: [],
+    places: [{ id: 2n, name: 'Gloamwood' }],
+    enemies: [{ id: 7n, name: 'Goblins', target: 'family' }],
+    items: [],
+    players: [],
+    nodes: [],
+  });
+
+  it('classifies the four server kinds, none keyword-eligible', () => {
+    expect(first(row('ambush', 'Three goblins break from the brush as you reach Gloamwood!'))).toMatchObject({
+      kind: 'ambush',
+      text: 'Three goblins break from the brush as you reach Gloamwood!',
+      keywordEligible: false,
+    });
+    expect(first(row('density_down', 'The goblins at Gloamwood thin out. Scarce now.'))).toMatchObject({
+      kind: 'densityDown',
+      keywordEligible: false,
+    });
+    expect(first(row('density_gone', 'No goblins are left at Gloamwood.'))).toMatchObject({
+      kind: 'densityGone',
+      keywordEligible: false,
+    });
+    expect(first(row('travel_quiet', 'You reach Gloamwood. Nothing stirs.'))).toMatchObject({
+      kind: 'travelQuiet',
+      keywordEligible: false,
+    });
+  });
+
+  it('a family or place name inside a density line is never linked', () => {
+    const lines = buildFeedLines(
+      [
+        row('ambush', 'Goblins rush you in Gloamwood!', { key: 'a' }),
+        row('density_down', 'The Goblins at Gloamwood thin out.', { key: 'b' }),
+        row('density_gone', 'No Goblins are left at Gloamwood.', { key: 'c' }),
+        row('travel_quiet', 'You reach Gloamwood. Nothing stirs.', { key: 'd' }),
+      ],
+      { vocabulary, partyNames: [], npcsHere: [] },
+    );
+    expect(lines.map((l) => l.kind)).toEqual(['ambush', 'densityDown', 'densityGone', 'travelQuiet']);
+    for (const line of lines) {
+      expect(line.keywordEligible).toBe(false);
+      expect(line.parts).toBeNull();
+    }
+  });
+
+  it('draws whatever text arrives: the server builders own the number words, nouns and the area', () => {
+    const text = 'Four skitterers drop on the party in the area!';
+    expect(first(row('ambush', text)).text).toBe(text);
+    expect(first(row('density_down', 'The Skitterers at the area thin out.')).text).toBe(
+      'The Skitterers at the area thin out.',
+    );
+  });
+
+  it('keeps markup in a density line as literal text after the old colour tokens go', () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    expect(first(row('density_gone', `No ${payload} are left.`)).text).toBe(`No ${payload} are left.`);
+  });
+
+  it('no event, no line: a blank density row draws nothing', () => {
+    expect(classify(row('density_down', '   '))).toEqual([]);
+    expect(classify(row('travel_quiet', ''))).toEqual([]);
+  });
+
+  it('unknown kinds still fall back to the system line', () => {
+    expect(first(row('density_sideways', 'Something odd.'))).toMatchObject({ kind: 'system', keywordEligible: true });
+  });
+});
