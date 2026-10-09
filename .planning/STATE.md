@@ -221,6 +221,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
 - `todos/pending/2026-10-09-widen-the-right-context-rail-so-names-and-long-lists-fit.md`: the right context rail (fixed 288px) cuts off place names and makes busy places a long scroll; the centre feed has spare width. Owner chose a rail that grows with the screen; folded into Phase 51.5.1.
 - `todos/pending/2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`: a successful flee ends with only a system line; if anyone flees, the end-of-fight summary notes their cowardice in a funny, sarcastic way (owner). Folded into Phase 51.3.2; prompt wording needs the owner's approval.
+- `todos/pending/2026-10-09-region-discoverer-named-in-world-event-with-renown.md`: the new-region World event names the discoverer, sarcastically, and they get credit and server-first renown (owner). Folded into Phase 52.4; announcement wording needs the owner's approval.
 
 ### Blockers/Concerns
 
