@@ -219,11 +219,15 @@ describe('rows without segments', () => {
       'buff',
       'debuff',
       'combat',
-      'combat_prompt',
       'combat_status',
     ]) {
       expect(first(row(kind, 'Text.'))).toMatchObject({ kind: 'combat', keywordEligible: false });
     }
+  });
+
+  it('combat_prompt is no longer a combat line (the server stopped sending it, 51.3.1.1-31)', () => {
+    expect(first(row('combat_prompt', 'Text.'))).not.toMatchObject({ kind: 'combat' });
+    expect(first(row('combat_prompt', 'Text.'))).toMatchObject({ kind: 'system' });
   });
 
   it('renders nothing for combat_round_header and combat_resolving (the client draws the headers)', () => {

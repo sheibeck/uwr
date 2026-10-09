@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { effectScope, nextTick, ref } from 'vue';
+import type { EffectScope, Ref } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { PhChatCircle, PhChatCircleDots, PhEye, PhUserPlus } from '@phosphor-icons/vue';
+import { PhChatCircle, PhChatCircleDots, PhEye, PhSkull, PhUserPlus } from '@phosphor-icons/vue';
 import NearbyList from './NearbyList.vue';
 import {
   CONSOLE_KEY,
@@ -15,13 +16,19 @@ import {
   createInertGame,
 } from '../game/context';
 import type { ConsoleApi, FrameControls, GameData } from '../game/context';
+import { createConsole } from '../console/useConsole';
+import type { TimeOfDay } from '../session/frameView';
 
 let wrapper: VueWrapper | null = null;
+let consoleScope: EffectScope | null = null;
 
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  consoleScope?.stop();
+  consoleScope = null;
   document.body.innerHTML = '';
+  vi.restoreAllMocks();
 });
 
 const PAYLOAD = '<img src=x onerror=alert(1)>';
@@ -38,7 +45,14 @@ function character(over: Record<string, unknown> = {}) {
 function mountList(
   game: Record<string, unknown> = {},
   bindLocation = vi.fn(() => Promise.resolve()),
-  options: { desktop?: boolean; props?: Record<string, unknown> } = {},
+  options: {
+    desktop?: boolean;
+    props?: Record<string, unknown>;
+    /** The frame's time of day (51.3.1.1-31): a value or a live ref; default null (unknown). */
+    timeOfDay?: TimeOfDay | null | Ref<TimeOfDay | null>;
+    /** Builds the console from the game and the frame (the real createConsole), instead of mocks. */
+    console?: (game: GameData, frame: FrameControls) => ConsoleApi;
+  } = {},
 ) {
   const calls = {
     hail: vi.fn(),
@@ -61,13 +75,19 @@ function mountList(
     poolsAppliedFor: () => true,
     ...game,
   } as unknown as GameData;
-  const consoleApi = { ...createInertConsole(), ...calls } as unknown as ConsoleApi;
   const openScreen = vi.fn();
+  const given = options.timeOfDay;
+  const timeOfDay =
+    given !== null && typeof given === 'object' ? given : ref<TimeOfDay | null>(given ?? null);
   const frame = {
     ...createInertFrame(),
     openScreen,
     isDesktop: ref(options.desktop ?? true),
+    timeOfDay,
   } as unknown as FrameControls;
+  const consoleApi = options.console
+    ? options.console(data, frame)
+    : ({ ...createInertConsole(), ...calls } as unknown as ConsoleApi);
   wrapper = mount(NearbyList, {
     attachTo: document.body,
     props: options.props ?? {},
@@ -79,7 +99,7 @@ function mountList(
       },
     },
   });
-  return { w: wrapper, calls, bindLocation, characterRef, data };
+  return { w: wrapper, calls, bindLocation, characterRef, data, timeOfDay };
 }
 
 const labels = (row: { findAll: (s: string) => { attributes: (n: string) => string | undefined }[] }) =>
@@ -750,6 +770,59 @@ describe('pool groups', () => {
     expect(pull.attributes('aria-busy')).toBeUndefined();
   });
 
+  describe('a rejected reducer promise prints the send error line (51.3.1.1-31)', () => {
+    const SEND_ERROR = "Couldn't send that. Try again.";
+    const cases: Array<[string, 'pull' | 'fight' | 'gather']> = [
+      ['Pull Goblins', 'pull'],
+      ['Fight Old Brannoc', 'fight'],
+      ['Gather Panlight Salt', 'gather'],
+    ];
+    for (const [label, call] of cases) {
+      it(`${label}: once, and the button re-enables`, async () => {
+        const { w, calls, data } = mountList(poolsGame());
+        calls[call].mockImplementation(() => Promise.reject(new Error('refused')));
+        const before = data.feed.entries.value.length;
+        await w.get(`[aria-label="${label}"]`).trigger('click');
+        await vi.waitFor(() => expect(data.feed.entries.value.length).toBe(before + 1));
+        await flushPromises();
+        const errors = data.feed.entries.value.filter((entry) => entry.message === SEND_ERROR);
+        expect(errors).toHaveLength(1);
+        const button = w.get(`[aria-label="${label}"]`);
+        expect(button.attributes('aria-disabled')).toBeUndefined();
+        expect(button.attributes('aria-busy')).toBeUndefined();
+      });
+    }
+
+    it('with the real console: a rejecting pullFamily prints the line once and logs the warning', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const error = new Error('refused');
+      const pullFamily = vi.fn(() => Promise.reject(error));
+      const { w, data } = mountList(
+        poolsGame({ reducers: ref({ pullFamily }) }),
+        undefined,
+        {
+          console: (game, frame) => {
+            consoleScope = effectScope();
+            return consoleScope.run(() => createConsole({ game, frame }))!;
+          },
+        },
+      );
+      await w.get('[aria-label="Pull Goblins"]').trigger('click');
+      await vi.waitFor(() =>
+        expect(data.feed.entries.value.some((entry) => entry.message === SEND_ERROR)).toBe(true),
+      );
+      await flushPromises();
+      expect(pullFamily).toHaveBeenCalledWith({ characterId: 1n, poolId: 1n });
+      expect(data.feed.entries.value.filter((entry) => entry.message === SEND_ERROR)).toHaveLength(1);
+      expect(warn).toHaveBeenCalledWith('[console]', 'pullFamily', error);
+      // The error detail never reaches the feed (T-51.3.1.1-110).
+      expect(data.feed.entries.value.some((entry) => entry.message.includes('refused'))).toBe(false);
+      const pull = w.get('[aria-label="Pull Goblins"]');
+      expect(pull.attributes('aria-disabled')).toBeUndefined();
+      expect(pull.attributes('aria-busy')).toBeUndefined();
+    });
+  });
+
   it('renders nothing pool-based until the place pool rows have applied, and no empty line', () => {
     const { w } = mountList(poolsGame({ poolsAppliedFor: () => false, npcsHere: ref([]) }));
     expect(groupLabels(w)).toEqual(['Nearby']);
@@ -856,6 +929,31 @@ describe('Named & quest targets group (UI Q2)', () => {
     expect(named.get('[aria-label="Fight Cinder Maw"]').attributes('aria-disabled')).toBe('true');
   });
 
+  it('a named enemy shows its template level, con colour and Boss once the template is known (D-39, 51.3.1.1-31)', () => {
+    const { w } = mountList(
+      poolsGame({ namedEnemyTemplates: ref([{ id: 9n, name: 'Wight', level: 8n, isBoss: true }]) }),
+    );
+    const card = groupNamed(w, 'Named & quest targets').get('.pool-card');
+    expect(card.get('.card-sub').text()).toBe('Boss · Lv 8');
+    expect(card.get('.card-name').classes().some((c) => c.startsWith('con-'))).toBe(true);
+    expect(card.findComponent(PhSkull).exists()).toBe(true);
+  });
+
+  it('a named enemy whose template is not known keeps Named and no level', () => {
+    const { w } = mountList(poolsGame({ namedEnemyTemplates: ref([]) }));
+    const card = groupNamed(w, 'Named & quest targets').get('.pool-card');
+    expect(card.get('.card-sub').text()).toBe('Named');
+    expect(card.findComponent(PhSkull).exists()).toBe(false);
+  });
+
+  it('a template in both the spawn and the named lists is harmless', () => {
+    const template = { id: 9n, name: 'Wight', level: 8n, isBoss: false };
+    const { w } = mountList(
+      poolsGame({ enemyTemplatesHere: ref([template]), namedEnemyTemplates: ref([template]) }),
+    );
+    expect(groupNamed(w, 'Named & quest targets').get('.card-sub').text()).toBe('Named · Lv 8');
+  });
+
   it('a completed quest adds no quest part', () => {
     const { w } = mountList(
       poolsGame({
@@ -873,21 +971,47 @@ describe('Resources group (UI Q3)', () => {
     expect(groupLabels(w)).not.toContain('Resources');
   });
 
-  it('lists only pools of this time of day', () => {
-    const pools = ref([
-      resourcePool({ id: 3n, name: 'Moonmoss', timeOfDay: 'night' }),
-      resourcePool({ id: 4n, name: 'Sunwort', timeOfDay: 'day' }),
-    ]);
-    const day = mountList(poolsGame({ poolLevelsHere: pools }), undefined, { props: { timeOfDay: 'day' } }).w;
-    const dayNames = day.findAll('.card-name').map((n) => n.text());
-    expect(dayNames).toContain('Sunwort');
-    expect(dayNames).not.toContain('Moonmoss');
-    day.unmount();
-    wrapper = null;
-    const night = mountList(poolsGame({ poolLevelsHere: pools }), undefined, { props: { timeOfDay: 'night' } }).w;
-    const nightNames = night.findAll('.card-name').map((n) => n.text());
-    expect(nightNames).toContain('Moonmoss');
-    expect(nightNames).not.toContain('Sunwort');
+  describe("time of day from the frame (D-55, 51.3.1.1-31)", () => {
+    const timedPools = () =>
+      ref([
+        resourcePool({ id: 3n, name: 'Moonmoss', timeOfDay: 'night' }),
+        resourcePool({ id: 4n, name: 'Sunwort', timeOfDay: 'day' }),
+        resourcePool({ id: 5n, name: 'Salt', timeOfDay: 'any' }),
+      ]);
+    const resourceNames = (w: VueWrapper) => groupNamed(w, 'Resources').findAll('.card-name').map((n) => n.text());
+
+    it('by day lists the day and any-time pools, not the night ones', () => {
+      const { w } = mountList(poolsGame({ poolLevelsHere: timedPools() }), undefined, { timeOfDay: 'day' });
+      expect(resourceNames(w)).toEqual(expect.arrayContaining(['Sunwort', 'Salt']));
+      expect(resourceNames(w)).not.toContain('Moonmoss');
+    });
+
+    it('by night lists the night and any-time pools, not the day ones', () => {
+      const { w } = mountList(poolsGame({ poolLevelsHere: timedPools() }), undefined, { timeOfDay: 'night' });
+      expect(resourceNames(w)).toEqual(expect.arrayContaining(['Moonmoss', 'Salt']));
+      expect(resourceNames(w)).not.toContain('Sunwort');
+    });
+
+    it('with no known time of day lists every pool', () => {
+      const { w } = mountList(poolsGame({ poolLevelsHere: timedPools() }));
+      expect(resourceNames(w)).toEqual(expect.arrayContaining(['Moonmoss', 'Sunwort', 'Salt']));
+    });
+
+    it('follows a day/night flip live, without a remount', async () => {
+      const time = ref<TimeOfDay | null>('day');
+      const { w } = mountList(poolsGame({ poolLevelsHere: timedPools() }), undefined, { timeOfDay: time });
+      expect(resourceNames(w)).not.toContain('Moonmoss');
+      time.value = 'night';
+      await nextTick();
+      expect(resourceNames(w)).toContain('Moonmoss');
+      expect(resourceNames(w)).not.toContain('Sunwort');
+    });
+
+    it('has no timeOfDay prop any more: the frame is the one source', () => {
+      const source = readFileSync(resolve(process.cwd(), 'src/rails/NearbyList.vue'), 'utf8');
+      expect(source).not.toContain('defineProps');
+      expect(source).toContain('frame.timeOfDay');
+    });
   });
 
   it('every pool Exhausted keeps the cards and adds one summary line', () => {

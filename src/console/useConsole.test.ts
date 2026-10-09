@@ -1016,6 +1016,109 @@ describe('keyword and rail actions', () => {
     expect(s.feed.entries.value).toHaveLength(0);
   });
 
+  describe('pull, fight and gather return the reducer promise (51.3.1.1-31, send errors)', () => {
+    type Send = (s: ReturnType<typeof setup>) => Promise<void>;
+    const sends: Array<[string, string, Send]> = [
+      ['pull', 'pullFamily', (s) => s.api.pull({ id: 5n, name: 'Goblins' })],
+      ['fight named', 'pullNamedEnemy', (s) => s.api.fight({ kind: 'named', id: 3n, name: 'Old Brannoc' })],
+      ['fight event', 'startCombat', (s) => s.api.fight({ kind: 'event', id: 4n, name: 'Ash Wraith' })],
+      ['gather', 'gatherPool', (s) => s.api.gather({ id: 9n, name: 'Panlight Salt' })],
+    ];
+
+    for (const [label, reducer, send] of sends) {
+      it(`${label}: resolves when the reducer resolves`, async () => {
+        const s = setup();
+        let done = false;
+        const promise = send(s).then(() => {
+          done = true;
+        });
+        await flush();
+        expect(done).toBe(false);
+        s.settle(reducer);
+        await promise;
+        expect(done).toBe(true);
+      });
+
+      it(`${label}: rejects with the reducer error and still logs one warning`, async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const s = setup();
+        const error = new Error('nope');
+        s.reducers[reducer].mockImplementationOnce(() => Promise.reject(error));
+        const tick = s.api.sendTick.value;
+        await expect(send(s)).rejects.toBe(error);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalledWith('[console]', reducer, error);
+        // The echo and the re-pin happen as before; no copy is added for the failure.
+        expect(s.api.sendTick.value).toBe(tick + 1);
+        expect(lines(s.feed).every((l) => l.kind === 'echo')).toBe(true);
+      });
+
+      it(`${label}: a synchronous throw is logged and returned as a rejection`, async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const s = setup();
+        const error = new Error('boom');
+        s.reducers[reducer].mockImplementationOnce(() => {
+          throw error;
+        });
+        await expect(send(s)).rejects.toBe(error);
+        expect(warn).toHaveBeenCalledTimes(1);
+      });
+
+      it(`${label}: resolves at once and calls nothing offline or with no character`, async () => {
+        const offline = setup();
+        offline.connected.value = false;
+        await expect(send(offline)).resolves.toBeUndefined();
+        expect(offline.reducers[reducer]).not.toHaveBeenCalled();
+        const nobody = setup();
+        nobody.characterId.value = null;
+        await expect(send(nobody)).resolves.toBeUndefined();
+        expect(nobody.reducers[reducer]).not.toHaveBeenCalled();
+      });
+    }
+
+    it('pull and fight resolve at once in a fight, calling nothing', async () => {
+      const s = setup();
+      s.combatActive.value = true;
+      await expect(s.api.pull({ id: 5n, name: 'Goblins' })).resolves.toBeUndefined();
+      await expect(s.api.fight({ kind: 'named', id: 3n, name: 'Old Brannoc' })).resolves.toBeUndefined();
+      expect(s.reducers.pullFamily).not.toHaveBeenCalled();
+      expect(s.reducers.pullNamedEnemy).not.toHaveBeenCalled();
+    });
+
+    it('an enemy keyword whose call rejects logs the warning and leaves no unhandled rejection', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const unhandled = vi.fn();
+      process.on('unhandledRejection', unhandled);
+      try {
+        const s = setup();
+        s.reducers.pullFamily.mockImplementationOnce(() => Promise.reject(new Error('family')));
+        s.reducers.pullNamedEnemy.mockImplementationOnce(() => Promise.reject(new Error('named')));
+        s.reducers.startCombat.mockImplementationOnce(() => {
+          throw new Error('event');
+        });
+        s.api.actOnKeyword({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+        s.api.actOnKeyword({ kind: 'enemy', id: 3n, name: 'Old Brannoc', target: 'named' });
+        s.api.actOnKeyword({ kind: 'enemy', id: 4n, name: 'Ash Wraith', target: 'event' });
+        await flush();
+        await new Promise((done) => setTimeout(done, 0));
+        expect(warn).toHaveBeenCalledTimes(3);
+        expect(unhandled).not.toHaveBeenCalled();
+        expect(lines(s.feed).every((l) => l.kind === 'echo')).toBe(true);
+      } finally {
+        process.off('unhandledRejection', unhandled);
+      }
+    });
+
+    it('other reducer paths (invite) still never reject', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const s = setup();
+      s.reducers.inviteToGroup.mockImplementationOnce(() => Promise.reject(new Error('nope')));
+      expect(s.api.invite('Bo')).toBeUndefined();
+      await flush();
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('never calls the retired spawn-pull or node-gather reducers', () => {
     // Built from parts so a repo-wide grep for the retired names finds only real call sites.
     const retired = ['start' + 'Pull', 'start' + 'GatherResource'];
