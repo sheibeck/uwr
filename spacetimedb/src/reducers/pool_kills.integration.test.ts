@@ -204,6 +204,23 @@ describe('kills settle against their pool when the fight ends (D-16, Pitfall 3)'
     expect(poolCount(ctx, goblins.id)).toBe(50n - 8n - 5n);
   });
 
+  it('startCombat refuses an empty draw: null, and no encounter, participant or tick is written (review B IN-06)', () => {
+    const { ctx } = world();
+    const leader = char(ctx, 1n);
+    const before = {
+      encounters: rows(ctx, 'combat_encounter').length,
+      participants: rows(ctx, 'combat_participant').length,
+      ticks: (ctx.db._tables.round_timer_tick ?? []).length,
+    };
+    const result = startCombat(deps, ctx, leader, [leader], null, [], { kind: 'pull', familyId: GOBLINS_ID, level: 2, name: 'Goblins', plural: 'goblins' });
+    expect(result).toBeNull();
+    expect({
+      encounters: rows(ctx, 'combat_encounter').length,
+      participants: rows(ctx, 'combat_participant').length,
+      ticks: (ctx.db._tables.round_timer_tick ?? []).length,
+    }).toEqual(before);
+  });
+
   it('a named or event fight (poolId 0) changes no pool, and its spawn writes no respawn tick', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { ctx, goblins } = world({

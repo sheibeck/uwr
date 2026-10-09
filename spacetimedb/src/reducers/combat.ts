@@ -260,7 +260,8 @@ export const startCombatForSpawn = (
 /**
  * Starts every fight (Phase 51.3.1.1 D-01, D-14, D-32): the roster, the encounter row with its
  * origin, one combat_enemy per drawn enemy (through addEnemyToCombat, the one insert), the
- * participants and their round cooldowns, the opening lines, pets, and round 1. Returns the fight.
+ * participants and their round cooldowns, the opening lines, pets, and round 1. Returns the fight, or
+ * null (writing nothing) for an empty draw.
  */
 export const startCombat = (
   deps: any,
@@ -271,6 +272,8 @@ export const startCombat = (
   drawn: DrawnEnemy[],
   origin: CombatOrigin
 ) => {
+  // An empty draw starts nothing: no encounter, no participants, no instant victory (review B IN-06).
+  if (!Array.isArray(drawn) || drawn.length === 0) return null;
   const { appendPrivateEvent } = deps;
   // The one fight rule (helpers/group.ts fightRoster): the initiator, plus members who are online
   // and at the initiator's place. Applied here as well, so no caller can pull an offline member in.
