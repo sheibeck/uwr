@@ -13,6 +13,7 @@
 // comes in through deps.startCombat, the bound form index.ts builds.
 
 import {
+  DENSITY_RULES,
   POOL_ROLL,
   composeGroupRoles,
   countToLevel,
@@ -219,8 +220,10 @@ export function activeKillTargets(ctx: any, roster: readonly any[], memberTempla
  *
  * D-74: with a roster, when the family holds an active kill or kill_loot target of a roster member
  * (activeKillTargets), each slot whose questTargetHit roll hits becomes that target (pickQuestTarget among
- * several) at its place level; a lone Scarce slot included. Size, roles and the other slots are unchanged,
- * and the rolls are index-based, so without a roster or a target the draw is exactly today's.
+ * several) at its place level; a lone Scarce slot included. A support target never replaces slot 0 of a
+ * group of 2 or more and never takes the group over the D-11 support cap (that slot keeps its member).
+ * Size, roles and the other slots are unchanged, and the rolls are index-based, so without a roster or a
+ * target the draw is exactly today's.
  */
 export function drawGroup(
   ctx: any,
@@ -238,16 +241,33 @@ export function drawGroup(
     input.roster && input.roster.length > 0
       ? activeKillTargets(ctx, input.roster, members.map((m) => m.templateId))
       : [];
-  return roles.map((role, slot) => {
+  const picked = roles.map((role, slot) => {
     const ofRole = members.filter((m) => m.role === role);
     const from = ofRole.length > 0 ? ofRole : members;
-    let member = from[Number(rollBelow(input.seed, POOL_ROLL.MEMBER_BASE + BigInt(slot), BigInt(from.length)))]!;
-    if (targets.length > 0 && questTargetHit(input.seed, slot)) {
-      const targetId = pickQuestTarget(input.seed, slot, targets);
-      member = members.find((m) => m.templateId === targetId) ?? member;
-    }
-    return { enemyTemplateId: member.templateId, level: member.level, spawnId: 0n, poolId: input.pool.id };
+    return from[Number(rollBelow(input.seed, POOL_ROLL.MEMBER_BASE + BigInt(slot), BigInt(from.length)))]!;
   });
+  if (targets.length > 0) {
+    // D-11 still holds under the D-74 swap (review A IN-05): in a group of 2 or more, slot 0 keeps its
+    // front-liner when the target is a support member, and a swap never takes the group over the
+    // support cap. A lone Scarce slot may still be any target (D-74).
+    const cap = picked.length >= 4 ? DENSITY_RULES.HEALER_CAP_FOUR : DENSITY_RULES.HEALER_CAP_UP_TO_THREE;
+    let healers = picked.filter((m) => m.role === 'healer').length;
+    picked.forEach((member, slot) => {
+      if (!questTargetHit(input.seed, slot)) return;
+      const targetId = pickQuestTarget(input.seed, slot, targets);
+      const target = members.find((m) => m.templateId === targetId);
+      if (!target) return;
+      if (target.role === 'healer' && member.role !== 'healer') {
+        if (picked.length > 1 && slot === 0) return;
+        if (healers + 1 > cap) return;
+        healers += 1;
+      } else if (member.role === 'healer' && target.role !== 'healer') {
+        healers -= 1;
+      }
+      picked[slot] = target;
+    });
+  }
+  return picked.map((member) => ({ enemyTemplateId: member.templateId, level: member.level, spawnId: 0n, poolId: input.pool.id }));
 }
 
 /**

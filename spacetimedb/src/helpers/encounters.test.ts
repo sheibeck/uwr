@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 // @ts-ignore node types are not part of this module's tsconfig (same as other source-reading tests)
 import { readFileSync } from 'node:fs';
 import { placeSpawnLevel } from '../data/enemy_rules';
-import { encounterSeed, questTargetHit, pickQuestTarget } from '../data/density_rules';
+import { DENSITY_RULES, encounterSeed, questTargetHit, pickQuestTarget } from '../data/density_rules';
 import { computeLocationTargetLevel } from './location';
 import {
   T0,
@@ -387,7 +387,7 @@ describe('quest-aware draws (D-74)', () => {
     expect(seen).toBeGreaterThan(0);
   });
 
-  it("with two targets a hit slot is pickQuestTarget's choice", () => {
+  it("with two targets a hit slot is pickQuestTarget's choice (a support target only where D-11 allows it)", () => {
     const { ctx, goblins } = questWorld(90n, [[104n, 'kill', 1n], [103n, 'kill', 2n]]);
     const fam = family(ctx, GOBLINS_ID);
     const roster = [char(ctx, 1n), char(ctx, 2n)];
@@ -397,12 +397,33 @@ describe('quest-aware draws (D-74)', () => {
       drawn.forEach((d, slot) => {
         if (!questTargetHit(seed, slot)) return;
         const want = pickQuestTarget(seed, slot, [103n, 104n])!;
+        if (want === 103n && d.enemyTemplateId !== 103n) return; // the D-11 support rules kept this slot
         expect(d.enemyTemplateId).toBe(want);
         expect(d.level).toBe(orchardLevel(ctx, want));
         picked.add(want);
       });
     }
     expect([...picked].sort()).toEqual([103n, 104n]);
+  });
+
+  it('a support target keeps D-11 in a group: slot 0 stays a front-liner and the support cap holds (review A IN-05)', () => {
+    for (const count of [50n, 90n]) {
+      const { ctx, goblins } = questWorld(count, [[103n, 'kill', 1n]]);
+      const fam = family(ctx, GOBLINS_ID);
+      let swapped = 0;
+      for (let seed = 0n; seed < 400n; seed += 1n) {
+        const drawn = drawGroup(ctx, { pool: goblins, family: fam, partyLevel: 3n, seed, roster: [char(ctx, 1n)] });
+        if (drawn.length < 2) continue;
+        const roles = drawn.map((d) => ROLE_OF[d.enemyTemplateId.toString()]);
+        expect(['tank', 'damage'], `seed ${seed}`).toContain(roles[0]);
+        const cap = drawn.length >= 4 ? DENSITY_RULES.HEALER_CAP_FOUR : DENSITY_RULES.HEALER_CAP_UP_TO_THREE;
+        expect(roles.filter((r) => r === 'healer').length, `seed ${seed}`).toBeLessThanOrEqual(cap);
+        expect(roles.some((r) => r !== 'healer')).toBe(true);
+        swapped += drawn.filter((d, slot) => slot > 0 && questTargetHit(seed, slot) && d.enemyTemplateId === 103n).length;
+      }
+      // The target still comes in where the cap leaves room.
+      expect(swapped, `count ${count}`).toBeGreaterThan(0);
+    }
   });
 
   it('drawForPull passes its roster on', () => {
