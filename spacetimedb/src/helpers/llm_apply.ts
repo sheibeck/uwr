@@ -52,6 +52,7 @@ import {
   startWorldFamilies,
   failWorldFamilies,
   finishRegionFill,
+  settleStageStartThrow,
   joinStarterHolds,
   starterBuildWaiters,
   WORLD_START_MILESTONE_LINE,
@@ -677,7 +678,9 @@ export function applyWorldFillResult(ctx: any, job: ApplyJob, resultText: string
     startWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState, job.playerId ?? undefined);
   } catch (err) {
     console.error('World families start failed for state ' + String(genStateId) + ': ' + errName(err));
-    failWorldFamilies(ctx, ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState, WORLD_FAMILIES_FAILED_MESSAGE);
+    // Review A IN-05: a throw after the 2b enqueue leaves its job live, so the state stays FILLING_FAMILIES
+    // (never FAMILIES_ERROR beside a live paid job); with no live job the families fail as before.
+    settleStageStartThrow(ctx, 'world_gen_families', ctx.db.world_gen_state.id.find(genStateId) ?? currentGenState, job.playerId ?? undefined);
   }
 }
 

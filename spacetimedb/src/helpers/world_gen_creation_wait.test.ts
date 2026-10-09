@@ -24,6 +24,7 @@ import {
   retryStarterWorldGen,
   retryWorldFill,
   regionFillHint,
+  settleStageStartThrow,
 } from './world_gen';
 import { regionHoldState } from './region_hold';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
@@ -861,5 +862,71 @@ describe('a HELD character retries the build of another player (review A WR-05)'
     const families = jobsOf(ctx, 'world_gen_families');
     expect(families).toHaveLength(1);
     expect(families[0]).toMatchObject({ playerId: bob, characterId: 10n });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review A IN-05: a throw after the 2b enqueue never leaves FAMILIES_ERROR beside a live 2b job
+// ---------------------------------------------------------------------------
+
+/** Make the first world_gen_state update to `step` throw (once), as a write after the enqueue might. */
+function throwOnceOnStateStep(ctx: any, step: string): () => void {
+  const realDb = ctx.db;
+  let armed = true;
+  ctx.db = new Proxy(realDb, {
+    get: (_t: any, name: string) => {
+      const table = realDb[name];
+      if (name !== 'world_gen_state') return table;
+      return new Proxy(table, {
+        get: (tt: any, prop: string) => {
+          const value = tt[prop];
+          if (prop !== 'id') return value;
+          return new Proxy(value, {
+            get: (index: any, method: string) =>
+              method === 'update'
+                ? (row: any) => {
+                    if (armed && row.step === step) {
+                      armed = false;
+                      throw new TypeError('state write exploded');
+                    }
+                    return index.update(row);
+                  }
+                : index[method],
+          });
+        },
+      });
+    },
+  });
+  return () => {
+    ctx.db = realDb;
+  };
+}
+
+describe('the 2b start throws after its enqueue (review A IN-05)', () => {
+  it('a live 2b job keeps the state FILLING_FAMILIES (no FAMILIES_ERROR, no failure line); its reply then completes the region', () => {
+    const ctx = starterCtx();
+    applyLlmResult(ctx, startJob, JSON.stringify(START_REPLY));
+    const disarm = throwOnceOnStateStep(ctx, 'FILLING_FAMILIES');
+    applyLlmResult(ctx, fillJobFor(theRegion(ctx).id), JSON.stringify(placesReply(9)));
+    disarm();
+
+    expect(stateOf(ctx)).toMatchObject({ step: 'FILLING_FAMILIES', errorMessage: undefined });
+    expect(jobsOf(ctx, 'world_gen_families').map((j: any) => j.status)).toEqual(['pending']);
+    expect(creationOf(ctx)).toEqual([['creation', LINE_7E]]);
+    expect(errorSpy).toHaveBeenCalledWith('World families start failed for state 5: TypeError');
+
+    applyLlmResult(ctx, familiesJob, JSON.stringify(familiesReply()));
+    expect(stateOf(ctx).step).toBe('COMPLETE');
+    expect(charOf(ctx).locationId).toBe(findRegionStart(ctx, theRegion(ctx).id).id);
+  });
+
+  it('with no live 2b job the families fail as before: FAMILIES_ERROR with the section 5 message and its line', () => {
+    const ctx = starterCtx();
+    throughPlaces(ctx);
+    // The job is gone (expired): nothing live for this state.
+    for (const j of jobsOf(ctx, 'world_gen_families')) ctx.db.llm_job.id.update({ ...j, status: 'expired' });
+    expect(settleStageStartThrow(ctx, 'world_gen_families', stateOf(ctx))).toBe('failed');
+    expect(stateOf(ctx)).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: WORLD_FAMILIES_FAILED_MESSAGE });
+    expect(creationOf(ctx).slice(-1)).toEqual([failureLine(WORLD_FAMILIES_FAILED_MESSAGE)]);
   });
 });

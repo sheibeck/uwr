@@ -34,7 +34,8 @@ import { resolveRouteInput } from './llm_inputs';
 import { buildRouteLayers } from '../data/llm_layers';
 import { utcDay } from './llm_budget';
 import { setLlmEnabled } from './llm_admin_state';
-import { LLM_RESTING_LINE } from './llm_queue';
+import { LLM_RESTING_LINE, LLM_REQUEST_JSON_MAX_CHARS } from './llm_queue';
+import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 
 beforeAll(async () => {
@@ -421,5 +422,41 @@ describe('retryStarterWorldGen: a new character in creation retries the failed s
     expect(rows(ctx, 'llm_job')).toHaveLength(0);
     expect(creationLines(ctx)).toEqual([[bob, 'creation_error', line]]);
     expect(rows(ctx, 'event_private')).toHaveLength(0);
+  });
+});
+
+describe('an enqueue that throws on the [explore] path fails with the approved line (review A WR-07)', () => {
+  const huge = 'x'.repeat(LLM_REQUEST_JSON_MAX_CHARS + 1000);
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  beforeAll(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('FAMILIES_ERROR with an input over the size limit: refused, FAMILIES_ERROR with the section 5 message, the 7d line, no job, no throw', () => {
+    const ctx = gameCtx();
+    const region = rows(ctx, 'region').find((r: any) => r.id === REGION);
+    ctx.db.region.id.update({ ...region, threats: JSON.stringify([huge]) });
+    let outcome: string | undefined;
+    expect(() => {
+      outcome = retryWorldFill(ctx, explorer(ctx), bob);
+    }).not.toThrow();
+    expect(outcome).toBe('refused');
+    expect(stateById(ctx, 5n)).toMatchObject({ step: 'FAMILIES_ERROR', errorMessage: WORLD_FAMILIES_FAILED_MESSAGE });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    const lines = rows(ctx, 'event_private').filter((e: any) => e.characterId === 11n);
+    expect(lines.map((e: any) => e.message)).toEqual([REGION_HOLD_FAILED_LINE]);
+    expect(errorSpy).toHaveBeenCalledWith('World families enqueue failed for state 5: Error');
+  });
+
+  it('FILL_ERROR with an input over the size limit: refused, FILL_ERROR with the fill-failed message, the 7d line, no job', () => {
+    const ctx = gameCtx({ states: [{ step: 'FILL_ERROR', errorMessage: 'x' }] });
+    const start = rows(ctx, 'location').find((l: any) => l.id === 101n);
+    ctx.db.location.id.update({ ...start, description: huge });
+    expect(retryWorldFill(ctx, explorer(ctx), bob)).toBe('refused');
+    expect(stateById(ctx, 5n)).toMatchObject({ step: 'FILL_ERROR', errorMessage: WORLD_FILL_FAILED_MESSAGE });
+    expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    const lines = rows(ctx, 'event_private').filter((e: any) => e.characterId === 11n);
+    expect(lines.map((e: any) => e.message)).toEqual([REGION_HOLD_FAILED_LINE]);
+    expect(errorSpy).toHaveBeenCalledWith('World fill enqueue failed for state 5: Error');
   });
 });

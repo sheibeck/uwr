@@ -40,7 +40,7 @@ import { markLocationVisited } from './visited';
 import type { WorldGenInput, WorldFillInput, WorldFamiliesInput } from '../data/llm_layers';
 import { appendCreationEvent, appendPrivateEvent } from './events';
 import { keeperFallback, keeperSegments, flattenSegments, parseReplyObject } from './segments';
-import { buildDedupeKey, enqueueLlmJob, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
+import { buildDedupeKey, enqueueLlmJob, isActiveJobStatus, llmRefusalMessage, LLM_RESTING_LINE, SOURCE_KEYS } from './llm_queue';
 import { isRestingErrorCode } from './llm_status';
 import { archetypeForCharacter, archetypeForPlayer, encodeRouteInput } from './llm_inputs';
 import { resolveNpcGender, npcGender, npcNoticeLine } from '../data/npc_gender';
@@ -1021,13 +1021,21 @@ export function startWorldFill(tx: any, genState: any, payer?: any): 'enqueued' 
     return 'refused';
   }
 
-  const result = enqueueLlmJob(tx, {
-    route: 'world_gen',
-    playerId: payer ?? genState.playerId,
-    characterId: genState.characterId,
-    sourceKey: SOURCE_KEYS.worldGen(genState.id),
-    request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
-  });
+  let result: ReturnType<typeof enqueueLlmJob>;
+  try {
+    result = enqueueLlmJob(tx, {
+      route: 'world_gen',
+      playerId: payer ?? genState.playerId,
+      characterId: genState.characterId,
+      sourceKey: SOURCE_KEYS.worldGen(genState.id),
+      request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
+    });
+  } catch (err) {
+    // Review A WR-07: an enqueue throw (a request over the size limit, a bad identity) is a refusal with
+    // the approved failure line, never an internal error that leaves the region stuck.
+    console.error('World fill enqueue failed for state ' + String(genState.id) + ': ' + errorName(err));
+    return settleStageStartThrow(tx, 'world_gen', genState, payer) === 'running' ? 'enqueued' : 'refused';
+  }
 
   if (result.refused) {
     failWorldFill(
@@ -1459,13 +1467,21 @@ export function startWorldFamilies(tx: any, genState: any, payer?: any): 'enqueu
     return 'refused';
   }
 
-  const result = enqueueLlmJob(tx, {
-    route: 'world_gen_families',
-    playerId: payer ?? genState.playerId,
-    characterId: genState.characterId,
-    sourceKey: SOURCE_KEYS.worldGen(genState.id),
-    request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
-  });
+  let result: ReturnType<typeof enqueueLlmJob>;
+  try {
+    result = enqueueLlmJob(tx, {
+      route: 'world_gen_families',
+      playerId: payer ?? genState.playerId,
+      characterId: genState.characterId,
+      sourceKey: SOURCE_KEYS.worldGen(genState.id),
+      request: { genStateId: genState.id.toString(), input: encodeRouteInput(input) },
+    });
+  } catch (err) {
+    // Review A WR-07: an enqueue throw is a refusal with the approved failure line (FAMILIES_ERROR), never an
+    // internal error that leaves the region held for good.
+    console.error('World families enqueue failed for state ' + String(genState.id) + ': ' + errorName(err));
+    return settleStageStartThrow(tx, 'world_gen_families', genState, payer) === 'running' ? 'enqueued' : 'refused';
+  }
 
   if (result.refused) {
     failWorldFamilies(
@@ -1484,6 +1500,57 @@ export function startWorldFamilies(tx: any, genState: any, payer?: any): 'enqueu
     updatedAt: tx.timestamp,
   });
   return result.created ? 'enqueued' : 'duplicate';
+}
+
+/** The two stage-2 routes of a region (2a places, 2b families). */
+type FillStageRoute = 'world_gen' | 'world_gen_families';
+
+/**
+ * A live (pending, in flight or received) job of this route for the state, charged to `payer` or its
+ * player. Never throws: a lookup that fails counts as no live job.
+ */
+function stageJobLive(tx: any, stage: FillStageRoute, state: any, payer?: any): boolean {
+  try {
+    for (const who of [payer, state.playerId]) {
+      if (who === undefined || who === null) continue;
+      const key = buildDedupeKey(who, stage, SOURCE_KEYS.worldGen(state.id));
+      for (const job of tx.db.llm_job.by_dedupe_key.filter(key)) {
+        if (isActiveJobStatus(job.status)) return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * A stage-2 start threw (review A WR-07, IN-05): the state must agree with the jobs. When a live job of
+ * the stage exists for the state (the throw came after its insert), the state is put in that stage's
+ * running step (FILLING or FILLING_FAMILIES) so its reply is applied, never an error step beside a live
+ * paid job. Otherwise the stage fails with its approved line (failWorldFill with WORLD_FILL_FAILED_MESSAGE,
+ * failWorldFamilies with WORLD_FAMILIES_FAILED_MESSAGE), so the region is never silently stuck and
+ * [explore] retries it. `payer` is the identity the job was charged to (review A WR-05).
+ */
+export function settleStageStartThrow(
+  tx: any,
+  stage: FillStageRoute,
+  genState: any,
+  payer?: any,
+): 'running' | 'failed' {
+  const current = tx.db.world_gen_state.id.find(genState.id) ?? genState;
+  if (stageJobLive(tx, stage, current, payer)) {
+    tx.db.world_gen_state.id.update({
+      ...current,
+      step: stage === 'world_gen' ? 'FILLING' : 'FILLING_FAMILIES',
+      errorMessage: undefined,
+      updatedAt: tx.timestamp,
+    });
+    return 'running';
+  }
+  if (stage === 'world_gen') failWorldFill(tx, current, WORLD_FILL_FAILED_MESSAGE);
+  else failWorldFamilies(tx, current, WORLD_FAMILIES_FAILED_MESSAGE);
+  return 'failed';
 }
 
 /**
