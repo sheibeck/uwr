@@ -191,6 +191,8 @@ export interface GameData {
    * that is not ready rates Unknown, never Safe (UI-SPEC Q4/Q5/Q10 loading).
    */
   poolsAppliedFor(locationId: bigint): boolean;
+  /** The shown pool binding's subscription failed (its rows are empty until a reconnect). */
+  readonly poolsFailed: Readonly<Ref<boolean>>;
   /** The active character's own named_enemy rows, every place (filter by locationId and isAlive). */
   readonly namedEnemies: List<NamedEnemy>;
   /**
@@ -415,6 +417,7 @@ export function createInertGame(): GameData {
     poolLevelsHere: empty<PoolLevel>(),
     poolRegionsApplied: constant<ReadonlySet<bigint>>(new Set()),
     poolsAppliedFor: () => false,
+    poolsFailed: constant(false),
     namedEnemies: empty<NamedEnemy>(),
     namedEnemyTemplates: empty<EnemyTemplate>(),
     harvestCaps: empty<MyHarvestCap>(),

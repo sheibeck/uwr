@@ -414,13 +414,27 @@ describe('nearbyGroups', () => {
     expect(groups.nothingAtAll).toBe(false);
   });
 
-  it('shows nothing at all until the place pool rows have applied', () => {
+  it('shows no pool group until the place pool rows have applied; the named group does not wait (WR-04)', () => {
     const groups = nearbyGroups({ ...base, ready: false });
     expect(groups.creatures).toBeNull();
-    expect(groups.named).toBeNull();
+    expect(groups.named).toEqual(named);
     expect(groups.resources).toBeNull();
-    expect(groups.alsoHereLabel).toBe(false);
+    expect(groups.alsoHereLabel).toBe(true);
     expect(groups.nothingAtAll).toBe(false);
+    expect(groups.loadFailedLine).toBeNull();
+    const bare = nearbyGroups({ ...base, ready: false, named: [] });
+    expect(bare).toMatchObject({ named: null, alsoHereLabel: false, nothingAtAll: false, loadFailedLine: null });
+  });
+
+  it('a failed pool subscription gives one quiet line (WR-04)', () => {
+    const groups = nearbyGroups({ ...base, ready: false, failed: true });
+    expect(groups.loadFailedLine).toBe(NEARBY_COPY.loadFailed);
+    expect(groups.loadFailedLine).toBe("Couldn't load what lives here. Reconnecting will retry.");
+    expect(groups.named).toEqual(named);
+    expect(groups.creatures).toBeNull();
+    expect(groups.nothingAtAll).toBe(false);
+    // Once ready the line is gone.
+    expect(nearbyGroups({ ...base, failed: true }).loadFailedLine).toBeNull();
   });
 
   it('has no Creatures group at a safe or uncharted place', () => {

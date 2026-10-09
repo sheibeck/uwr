@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { PhChatCircle, PhChatCircleDots, PhEye, PhSkull, PhUserPlus } from '@phosphor-icons/vue';
 import NearbyList from './NearbyList.vue';
+import { NEARBY_COPY } from './pools';
 import {
   CONSOLE_KEY,
   FRAME_KEY,
@@ -825,12 +826,33 @@ describe('pool groups', () => {
     });
   });
 
-  it('renders nothing pool-based until the place pool rows have applied, and no empty line', () => {
-    const { w } = mountList(poolsGame({ poolsAppliedFor: () => false, npcsHere: ref([]) }));
+  it('renders no pool group until the place pool rows have applied, and no empty line', () => {
+    const { w } = mountList(poolsGame({ poolsAppliedFor: () => false, npcsHere: ref([]), namedEnemies: ref([]) }));
     expect(groupLabels(w)).toEqual(['Nearby']);
     expect(w.find('.pool-card').exists()).toBe(false);
     expect(w.text()).not.toContain('No one is nearby.');
     expect(w.text()).not.toContain('Nothing hunts here now.');
+  });
+
+  it('the Named & quest targets group does not wait on the pool rows (WR-04)', () => {
+    const { w } = mountList(poolsGame({ poolsAppliedFor: () => false }));
+    expect(groupLabels(w)).toEqual(['Nearby', 'Named & quest targets', 'Also here']);
+    expect(groupNamed(w, 'Named & quest targets').findAll('.pool-card')).toHaveLength(1);
+    expect(groupLabels(w)).not.toContain('Creatures');
+    expect(groupLabels(w)).not.toContain('Resources');
+  });
+
+  it('a failed pool subscription shows one quiet line, and the named cards still show (WR-04)', () => {
+    const { w } = mountList(poolsGame({ poolsAppliedFor: () => false, poolsFailed: ref(true) }));
+    const line = w.get('.group-empty[role="status"]');
+    expect(line.text()).toBe(NEARBY_COPY.loadFailed);
+    expect(groupLabels(w)).toContain('Named & quest targets');
+    expect(w.text()).not.toContain('No one is nearby.');
+  });
+
+  it('no failure line while the pool rows are only loading', () => {
+    const { w } = mountList(poolsGame({ poolsAppliedFor: () => false, poolsFailed: ref(false) }));
+    expect(w.text()).not.toContain(NEARBY_COPY.loadFailed);
   });
 
   it('reads the pools-applied state for the current place', () => {

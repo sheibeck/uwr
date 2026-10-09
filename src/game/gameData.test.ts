@@ -1308,6 +1308,13 @@ describe('createGameData: density pools (51.3.1.1-18)', () => {
     expect(h.game.poolsAppliedFor(3n)).toBe(false);
   });
 
+  it('exposes a failed pool subscription as poolsFailed (WR-04)', () => {
+    const h = world();
+    expect(h.game.poolsFailed.value).toBe(false);
+    h.find('Q_POOLS_1').failed.value = true;
+    expect(h.game.poolsFailed.value).toBe(true);
+  });
+
   it('subscribes the own named enemies by character, with a character filter', () => {
     const h = world();
     expect(h.live('Q_NAMED_5')).toHaveLength(1);

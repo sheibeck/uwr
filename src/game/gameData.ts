@@ -853,6 +853,7 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     poolLevelsHere,
     poolRegionsApplied,
     poolsAppliedFor,
+    poolsFailed: pools.failed,
     namedEnemies: namedEnemyRows,
     namedEnemyTemplates: keyedRows(namedTemplates),
     harvestCaps: harvestCaps.rows,

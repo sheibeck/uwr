@@ -37,6 +37,8 @@ export const NEARBY_COPY = {
   },
   actions: { pull: 'Pull', fight: 'Fight', gather: 'Gather' },
   named: { named: 'Named', boss: 'Boss', questPrefix: 'Quest: ', inCombat: 'In combat' },
+  /** The place's pool subscription failed: one quiet line where the pool groups would be (WR-04). */
+  loadFailed: "Couldn't load what lives here. Reconnecting will retry.",
 } as const;
 
 /** The disabled Gather reason while a gather runs (the existing wording of the exits and the server). */
@@ -382,12 +384,17 @@ export interface NearbyGroups {
   alsoHereLabel: boolean;
   /** 'No one is nearby.': ready, and no families, named, resources or anyone else. */
   nothingAtAll: boolean;
+  /** The pool subscription failed (not ready and failed): NEARBY_COPY.loadFailed; else null. */
+  loadFailedLine: string | null;
 }
 
 /**
- * The Nearby groups of a place (UI Considerations Q1-Q3). Nothing pool-based renders until the
- * place's pool rows have applied (`ready`), so no group flashes empty. A safe or uncharted place has
- * no Creatures group; any other place shows its families or 'Nothing hunts here now.'.
+ * The Nearby groups of a place (UI Considerations Q1-Q3). The pool groups (Creatures, Resources)
+ * wait until the place's pool rows have applied (`ready`), so no group flashes empty. The Named &
+ * quest targets group reads named_enemy and enemy_spawn, not the pools, so it never waits on them
+ * (WR-04). A failed pool subscription shows one quiet line instead of the pool groups. A safe or
+ * uncharted place has no Creatures group; any other place shows its families or 'Nothing hunts here
+ * now.'.
  */
 export function nearbyGroups(input: {
   isSafe: boolean;
@@ -400,15 +407,25 @@ export function nearbyGroups(input: {
   place: string;
   /** NPC, bind stone, object and player rows ('Also here'). */
   others: number;
+  /** The pool subscription failed (GameData.poolsFailed); omitted means false. */
+  failed?: boolean;
 }): NearbyGroups {
+  const named = input.named.length === 0 ? null : [...input.named];
   if (!input.ready) {
-    return { creatures: null, named: null, resources: null, alsoHereLabel: false, nothingAtAll: false };
+    const loadFailedLine = input.failed === true ? NEARBY_COPY.loadFailed : null;
+    return {
+      creatures: null,
+      named,
+      resources: null,
+      alsoHereLabel: (named !== null || loadFailedLine !== null) && input.others > 0,
+      nothingAtAll: false,
+      loadFailedLine,
+    };
   }
   const creatures =
     input.isSafe || input.isUncharted
       ? null
       : { rows: [...input.families], emptyLine: input.families.length === 0 ? NOTHING_HUNTS : null };
-  const named = input.named.length === 0 ? null : [...input.named];
   const resources =
     input.resources.length === 0
       ? null
@@ -420,5 +437,6 @@ export function nearbyGroups(input: {
     resources,
     alsoHereLabel: anyGroup && input.others > 0,
     nothingAtAll: !anyGroup && input.others === 0,
+    loadFailedLine: null,
   };
 }

@@ -109,8 +109,10 @@ const placeNoun = computed(() =>
     : placeNounFor({ placeNoun: place.value.placeNoun, terrainType: place.value.terrainType }),
 );
 
-// The place's pool rows have applied (51.3.1.1-18): until then no pool group renders.
+// The place's pool rows have applied (51.3.1.1-18): until then no pool group renders. The named
+// group does not wait on them (WR-04); a failed pool subscription shows one quiet line.
 const ready = computed(() => place.value !== null && game.poolsAppliedFor(place.value.id));
+const poolsFailed = computed(() => place.value !== null && game.poolsFailed.value);
 
 // Day or night (D-55): the frame carries it from world_state, the value the header shows
 // (51.3.1.1-31). Unknown (null) lists every resource pool; the server still refuses a gather out of
@@ -215,6 +217,7 @@ const groups = computed(() =>
     resources: resources.value,
     place: placeNoun.value,
     others: rows.value.length,
+    failed: poolsFailed.value,
   }),
 );
 
@@ -410,6 +413,7 @@ async function bind(): Promise<void> {
     <h6 ref="heading" tabindex="-1">Nearby</h6>
     <p v-if="groups.nothingAtAll" class="empty">No one is nearby.</p>
     <div v-else ref="list" class="groups">
+      <p v-if="groups.loadFailedLine" class="group-empty" role="status">{{ groups.loadFailedLine }}</p>
       <div v-if="groups.creatures" class="nearby-group">
         <h6>{{ NEARBY_COPY.groups.creatures }}</h6>
         <ul v-if="groups.creatures.rows.length > 0" class="cards">
