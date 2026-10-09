@@ -24,8 +24,11 @@ import { buildRouteLayers } from '../data/llm_layers';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 import { PLAYER_INPUT_MAX_CHARS } from '../data/llm_layers';
 import { STRANDED_CHARACTER_HINT } from './creation';
-import { WORLD_FILL_RETRY_LINE } from '../helpers/world_gen';
-import { REGION_HOLD_ARRIVING_LINE } from '../helpers/region_hold';
+import { WORLD_FILL_RETRY_LINE, WORLD_START_MILESTONE_LINE, pickDiscoveryMessage } from '../helpers/world_gen';
+import { REGION_HOLD_ARRIVING_LINE, REGION_HOLD_REFUSED_LINE, regionOpenedLine } from '../helpers/region_hold';
+import { placeCountFor } from '../data/region_shape';
+import { familyCountFor } from '../data/density_rules';
+import { DEFAULT_DIALS } from '../data/economy_rules';
 import {
   CLASS_FILL_FAILED_LINE,
   CLASS_FILL_PATIENCE_LINE,
@@ -2360,6 +2363,150 @@ describe('staged world generation (LAT-03)', () => {
         'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
       ]);
       expect(proc.http.calls).toHaveLength(3);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 51.3.1.2 (D-01, D-15, D-16, SC2): the three-call chain from the travel trigger
+  // -------------------------------------------------------------------------
+  describe('the three-call chain from the travel trigger (Phase 51.3.1.2)', () => {
+    const PLACE_NAMES = ['Slag Road', 'Ashen Pit', 'Cinder Steps', 'The Glass Field', 'Smoke Hollow', 'Ember Ford', 'Charwood', 'Kiln Rise', 'The Black Sill'];
+    /** The approved 2a reply shape (no families): nine places in a chain from the arrival point. */
+    const PLACES_JSON = {
+      dominantFaction: 'Ash Court',
+      landmarks: ['The Slag Spire'],
+      threats: ['ember wolves'],
+      arrival: { shortName: 'Ember Hollow', placeNoun: 'the hollow', isHub: true },
+      locations: PLACE_NAMES.map((name, i) => ({
+        name,
+        shortName: name.replace(/^The /, ''),
+        placeNoun: 'the ash',
+        description: `About ${name}.`,
+        terrainType: i % 2 === 0 ? 'plains' : 'mountains',
+        isHub: false,
+        isSafe: false,
+        connectsTo: [i === 0 ? 'Ember Hollow' : PLACE_NAMES[i - 1]],
+      })),
+      npcs: [
+        { name: 'Old Brann', gender: 'male', npcType: 'lore', locationName: 'Slag Road', description: 'A hermit.', greeting: 'Hm.', personality: PERSONALITY },
+      ],
+    };
+    /** The 2b reply: thirteen families with rule-like names (the server keeps the region's count). */
+    const FAMILY_BASES = ['Ash', 'Cinder', 'Slag', 'Smoke', 'Ember', 'Kiln', 'Char', 'Soot', 'Flint', 'Basalt', 'Pumice', 'Scoria', 'Obsidian'];
+    const FAMILIES_JSON = {
+      families: FAMILY_BASES.map((base) => ({
+        name: `${base} Brood`,
+        singularNoun: `${base.toLowerCase()} beast`,
+        pluralNoun: `${base.toLowerCase()} beasts`,
+        creatureType: 'beast',
+        iconKey: 'beast',
+        temperament: 'aggressive',
+        ambushVerb: 'lunge',
+        ambushRest: 'out of the ash',
+        members: [
+          { role: 'tank', name: `${base} Warden` },
+          { role: 'damage', name: `${base} Biter` },
+        ],
+        fitLocations: [],
+        relations: [],
+        history: 'The ash fell for a season and these came with it.',
+        inFeud: false,
+      })),
+    };
+
+    const chainSetup = () => {
+      const world = worldSeed();
+      const proc = createMockProcCtx({
+        seed: {
+          ...playerSeed(),
+          region: world.region,
+          location: [
+            ...world.location,
+            { id: 11n, name: 'The Edge Beyond', description: 'Mist.', zone: 'Uncharted', regionId: 1n, isSafe: true, terrainType: 'uncharted' },
+          ],
+          location_connection: [
+            { id: 1n, fromLocationId: 10n, toLocationId: 11n },
+            { id: 2n, fromLocationId: 11n, toLocationId: 10n },
+          ],
+          ...characterSeed({ stamina: 100n, maxStamina: 100n, perception: 0n, level: 1n }),
+          economy_dials: [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }],
+          llm_config: [{ id: 1n, apiKey: FAKE_KEY, updatedAt: { microsSinceUnixEpoch: T0 } }],
+        },
+        timestampMicros: T0,
+        responses: [okJsonReply(WORLD_START_JSON), okJsonReply(PLACES_JSON), okJsonReply(FAMILIES_JSON)],
+        strict: true,
+      });
+      const reducerCtx = {
+        db: proc.db,
+        sender: alice,
+        get timestamp() {
+          return proc.ctx.timestamp;
+        },
+      };
+      return { proc, reducerCtx };
+    };
+    const myLines = (proc: any): string[] =>
+      rows(proc, 'event_private').filter((e: any) => e.characterId === 1n && e.kind === 'system').map((e: any) => e.message);
+
+    it('GENERATING, FILLING, FILLING_FAMILIES, COMPLETE in exactly three calls; 7a, no stage-1 lines, then 7c and the discovery line; the hold refuses then lets the player in', () => {
+      const { proc, reducerCtx } = chainSetup();
+      const go = (where: string) => handlers.submit_intent(reducerCtx, { characterId: 1n, text: `go ${where}` });
+
+      // The trigger: the character steps onto the uncharted edge (7a).
+      go('The Edge Beyond');
+      expect(rows(proc, 'character')[0].locationId).toBe(11n);
+      expect(state(proc).step).toBe('GENERATING');
+      expect(myLines(proc)).toEqual([REGION_HOLD_ARRIVING_LINE]);
+
+      // Call 1: stage 1. No milestone line and no discovery line for a traveller.
+      expect(run(proc)).toBe('completed');
+      expect(state(proc).step).toBe('FILLING');
+      const region = rows(proc, 'region').find((r: any) => r.name === 'Cinderfall');
+      expect(region).toBeDefined();
+      expect(myLines(proc)).toEqual([REGION_HOLD_ARRIVING_LINE]);
+      expect(rows(proc, 'event_private').map((e: any) => e.message)).not.toContain(WORLD_START_MILESTONE_LINE);
+
+      // Held: travel into the region is refused with 7b; the character stays at the crossing.
+      go('Ember Hollow');
+      expect(rows(proc, 'character')[0].locationId).toBe(11n);
+      expect(rows(proc, 'event_private').map((e: any) => e.message)).toContain(REGION_HOLD_REFUSED_LINE);
+
+      // Call 2: stage 2a, the places; the families job is queued in the same transaction.
+      expect(run(proc)).toBe('completed');
+      expect(state(proc).step).toBe('FILLING_FAMILIES');
+      const charted = rows(proc, 'location').filter((l: any) => l.regionId === region.id && l.terrainType !== 'uncharted');
+      expect(charted).toHaveLength(placeCountFor(region.id));
+      expect(rows(proc, 'creature_family')).toHaveLength(0);
+      expect(rows(proc, 'llm_job').filter((j: any) => j.route === 'world_gen_families' && j.status === 'pending')).toHaveLength(1);
+      expect(myLines(proc)).not.toContain(regionOpenedLine('Cinderfall'));
+
+      // Call 3: stage 2b, the families; the region completes and opens.
+      expect(run(proc)).toBe('completed');
+      expect(state(proc).step).toBe('COMPLETE');
+      expect(rows(proc, 'creature_family').filter((f: any) => f.regionId === region.id)).toHaveLength(familyCountFor(charted.length));
+      expect(proc.http.calls).toHaveLength(3);
+      expect(rows(proc, 'llm_job').map((j: any) => [j.route, j.status])).toEqual([
+        ['world_gen_start', 'completed'],
+        ['world_gen', 'completed'],
+        ['world_gen_families', 'completed'],
+        ['region_economy', 'pending'],
+      ]);
+      const lines = myLines(proc);
+      const discoveries = new Set(Array.from({ length: 20 }, (_, i) => pickDiscoveryMessage('Cinderfall', BigInt(i))));
+      expect(lines.slice(-2)[0]).toBe(regionOpenedLine('Cinderfall'));
+      expect(discoveries.has(lines.slice(-1)[0])).toBe(true);
+      expect(lines.filter((l) => l === regionOpenedLine('Cinderfall'))).toHaveLength(1);
+
+      // Open: the same travel now succeeds.
+      go('Ember Hollow');
+      const arrival = rows(proc, 'location').find((l: any) => l.name === 'Ember Hollow');
+      expect(rows(proc, 'character')[0].locationId).toBe(arrival.id);
+      expect(proc.http.calls).toHaveLength(3);
+      // Every row the chain wrote matches the recorded schema (the seeded source places predate some columns).
+      expect(allRowsMatchSchema(proc, ['world_gen_state', 'llm_job', 'llm_dispatch', 'creature_family'])).toEqual([]);
+      for (const loc of rows(proc, 'location').filter((l: any) => l.regionId === region.id)) {
+        expect(rowColumnProblems('location', loc)).toEqual([]);
+      }
     });
   });
 });

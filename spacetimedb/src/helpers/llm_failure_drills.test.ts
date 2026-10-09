@@ -32,13 +32,13 @@ import { retryDelayMs, msToMicros } from './llm_retry';
 import { classifyClaudeResponse } from './claude_request';
 import { keeperMessageForJob, publicErrorBucket, LLM_RESTING_ERROR_CODES } from './llm_status';
 import { CLASS_FILL_FAILED_LINE, classFillRetryLine } from './creation_generation';
-import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { WORLD_FILL_FAILED_MESSAGE, WORLD_FAMILIES_FAILED_MESSAGE } from './world_gen';
 import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { awardRenown } from './renown';
 import { appendPrivateEvent, appendCreationEvent, appendNpcDialog } from './events';
 import { estimateCostMicroUsd } from './measurement';
 import { LLM_ROUTES, type LlmRoute } from '../data/llm_routes';
-import { LLM_NO_AUTO_RETRY_ROUTES, LLM_SWEEP_IN_FLIGHT_GRACE_MICROS, LLM_RETRY_MAX_MS } from '../data/llm_limits';
+import { LLM_NO_AUTO_RETRY_ROUTES, LLM_SWEEP_IN_FLIGHT_GRACE_MICROS, LLM_RETRY_MAX_MS, LLM_APPLY_MAX_ATTEMPTS } from '../data/llm_limits';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -360,6 +360,18 @@ const LOCK_ROUTES: LockRoute[] = [
     line: (resting) => `${resting ? LLM_RESTING_LINE : WORLD_FILL_FAILED_MESSAGE} ${EXPLORE_HINT}`,
     kind: 'creation_error',
   },
+  {
+    // Phase 51.3.1.2 (D-08): stage 2b holds FILLING_FAMILIES; every failure is FAMILIES_ERROR, never FILL_ERROR.
+    route: 'world_gen_families',
+    holds: 'FILLING_FAMILIES',
+    after: 'FAMILIES_ERROR',
+    table: 'world_gen_state',
+    sourceKey: SOURCE_KEYS.worldGen(5n),
+    seed: () => ({ world_gen_state: [worldState('FILLING_FAMILIES')] }),
+    request: () => ({ genStateId: '5', input: inputOf('world_gen_families') }),
+    line: (resting) => `${resting ? LLM_RESTING_LINE : WORLD_FAMILIES_FAILED_MESSAGE} ${EXPLORE_HINT}`,
+    kind: 'creation_error',
+  },
 ];
 
 const stepOf = (proc: Proc, r: LockRoute): string => rows(proc, r.table)[0].step;
@@ -634,7 +646,8 @@ describe('the line a player reads through my_llm_jobs, by class', () => {
     expect(keeperMessageForJob('failed', 'ceiling', 'npc_conversation')).toBe(LLM_RESTING_LINE);
   });
 
-  it('a lock route that is NOT in the no-retry list would be a defect: all five are', () => {
+  it('a lock route that is NOT in the no-retry list would be a defect: all of them are', () => {
+    expect(LOCK_ROUTES.map((r) => r.route)).toContain('world_gen_families');
     for (const r of LOCK_ROUTES) expect((LLM_NO_AUTO_RETRY_ROUTES as readonly string[]).includes(r.route)).toBe(true);
   });
 });
@@ -642,7 +655,7 @@ describe('the line a player reads through my_llm_jobs, by class', () => {
 // ---- a placed character gets the world-gen failure as a private line --------------
 
 describe('world-gen failure for a placed character', () => {
-  it.each(['world_gen_start', 'world_gen'])('%s: the line goes to the character, not the creation log', (route) => {
+  it.each(['world_gen_start', 'world_gen', 'world_gen_families'])('%s: the line goes to the character, not the creation log', (route) => {
     const r = LOCK_ROUTES.find((x) => x.route === route)!;
     const { proc, jobId } = lockJob(r, [reply('err_500')], {
       character: [{ ...characterRow(1n, 7n, 'Aldric'), locationId: 10n }],
@@ -652,7 +665,7 @@ describe('world-gen failure for a placed character', () => {
     expect(lines).toHaveLength(1);
     // Phase 51.3.1.2 (D-18): a placed character whose fill failed gets the owner's 7d line; the creation
     // console keeps today's line (r.line).
-    const text = route === 'world_gen' ? REGION_HOLD_FAILED_LINE : r.line(false);
+    const text = route === 'world_gen' || route === 'world_gen_families' ? REGION_HOLD_FAILED_LINE : r.line(false);
     expect(lines[0]).toMatchObject({ channel: 'private', kind: 'system', to: '1', text });
     expectPlayerSafe(playerTexts(proc));
   });
@@ -663,6 +676,84 @@ describe('world-gen failure for a placed character', () => {
     run(proc, jobId);
     expect(stepOf(proc, r)).toBe('ERROR');
     expect(playerLines()).toHaveLength(1);
+  });
+});
+
+// ---- Phase 51.3.1.2 (D-08, Pitfall 1): a families job fails into FAMILIES_ERROR with the places kept ----
+
+describe('world_gen_families drills on a region whose places are written', () => {
+  const r = LOCK_ROUTES.find((x) => x.route === 'world_gen_families')!;
+  /** Stage 2a has landed: three places of region 40 and the state at FILLING_FAMILIES. */
+  const placedSeed = () => ({
+    region: [{ id: 40n, name: 'Saltmarsh Reach', dangerMultiplier: 150n }],
+    location: [
+      { id: 401n, name: 'Brinegate', regionId: 40n, terrainType: 'town', isSafe: true, isHub: true },
+      { id: 402n, name: 'Reedwatch', regionId: 40n, terrainType: 'swamp' },
+      { id: 403n, name: 'Gull Rock', regionId: 40n, terrainType: 'swamp' },
+    ],
+    location_connection: [
+      { id: 1n, fromLocationId: 401n, toLocationId: 402n },
+      { id: 2n, fromLocationId: 402n, toLocationId: 401n },
+    ],
+    world_gen_state: [worldState('FILLING_FAMILIES', { generatedRegionId: 40n })],
+  });
+  const placesOf = (proc: Proc) =>
+    JSON.stringify([rows(proc, 'location'), rows(proc, 'location_connection')], (_k, v) => (typeof v === 'bigint' ? `${v}n` : v));
+  /** The ok_json reply carrying a usable families reply (the route schema needs its families key). */
+  const familiesReply = (): any => {
+    const ok = fixture('ok_json');
+    const families = [{ name: 'Reed Hounds', singularNoun: 'reed hound', pluralNoun: 'reed hounds', creatureType: 'beast', iconKey: 'beast', temperament: 'aggressive', ambushVerb: 'lunge', ambushRest: 'from the reeds', members: [{ role: 'damage', name: 'Reed Biter' }], fitLocations: [], relations: [] }];
+    return { ...ok, body: { ...ok.body, content: [{ type: 'text', text: JSON.stringify({ families }) }] } };
+  };
+
+  const DRILLS: Array<[string, () => Array<MockReply | MockThrow>, string]> = [
+    ['a 500', () => [reply('err_500')], 'server'],
+    ['an overloaded 529', () => [reply('err_529')], 'overloaded'],
+    ['a timeout', () => [{ throw: 'timeout' }], 'timeout'],
+    ['a max_tokens truncation', () => [reply('max_tokens')], 'truncated'],
+  ];
+
+  it.each(DRILLS)('%s: the job fails, FAMILIES_ERROR, the places unchanged, one call, no retry', (_label, script, code) => {
+    const { proc, jobId } = lockJob(r, script(), placedSeed());
+    const before = placesOf(proc);
+    expect(run(proc, jobId)).toBe('failed');
+    expect(jobOf(proc, jobId)).toMatchObject({ status: 'failed', errorCode: code });
+    expect(stepOf(proc, r)).toBe('FAMILIES_ERROR');
+    expect(stepOf(proc, r)).not.toBe('FILL_ERROR');
+    expect(placesOf(proc)).toBe(before);
+    expect(rows(proc, 'creature_family')).toEqual([]);
+    expect(proc.http.calls).toHaveLength(1);
+    expect(rows(proc, 'llm_dispatch')).toHaveLength(0);
+    expect(rows(proc, 'llm_job')).toHaveLength(1); // no world_gen job, no retry job
+    expectLines(playerLines(), [{ channel: 'creation', kind: 'creation_error', text: r.line(false) }]);
+    expectPlayerSafe(playerTexts(proc));
+  });
+
+  it(`an apply that throws on every attempt: apply_error after LLM_APPLY_MAX_ATTEMPTS, FAMILIES_ERROR, the places unchanged, one call`, () => {
+    const { proc, jobId } = lockJob(r, [familiesReply()], placedSeed());
+    const before = placesOf(proc);
+    const apply = vi.fn(() => {
+      throw new Error('apply broke');
+    });
+    const deps = realDeps(proc, { apply } as any);
+    expect(run(proc, jobId, deps)).toBe('apply_failed');
+    expect(apply).toHaveBeenCalledTimes(LLM_APPLY_MAX_ATTEMPTS);
+    expect(jobOf(proc, jobId)).toMatchObject({ status: 'failed', errorCode: 'apply_error' });
+    expect(deps.applyFailure).toHaveBeenCalledTimes(1);
+    expect(stepOf(proc, r)).toBe('FAMILIES_ERROR');
+    expect(placesOf(proc)).toBe(before);
+    expect(rows(proc, 'creature_family')).toEqual([]);
+    expect(proc.http.calls).toHaveLength(1);
+    expect(rows(proc, 'llm_job')).toHaveLength(1);
+    expectLines(playerLines(), [{ channel: 'creation', kind: 'creation_error', text: r.line(false) }]);
+  });
+
+  it('a usable reply through the real apply completes the region (the control case)', () => {
+    const { proc, jobId } = lockJob(r, [familiesReply()], placedSeed());
+    expect(run(proc, jobId)).toBe('completed');
+    expect(stepOf(proc, r)).toBe('COMPLETE');
+    expect(rows(proc, 'creature_family').length).toBeGreaterThan(0);
+    expect(proc.http.calls).toHaveLength(1);
   });
 });
 

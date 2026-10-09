@@ -617,10 +617,68 @@ describe('SEG-04 matrix: world_gen (stage 2) writes its existing system line and
     expectNoDebris(ctx);
   });
 
-  it('a success writes only its static completion line and no segments', () => {
+  it('a success (stage 2a, Phase 51.3.1.2) writes no line and no segments: it starts the families job', () => {
     const ctx = newCtx(fillSeed());
     expect(() => applyLlmResult(ctx, applyJob('world_gen', GEN_CTX), JSON.stringify(REGION_FILL_JSON))).not.toThrow();
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
+    expect(rows(ctx, 'event_private')).toHaveLength(0);
     expect(segmentRows(ctx)).toHaveLength(0);
     expectSegmentInvariant(ctx, []);
+  });
+});
+
+describe('SEG-04 matrix: world_gen_families (stage 2b, Phase 51.3.1.2) writes no segment of its own', () => {
+  /** A traveller's region whose places stage 2a wrote: the state is FILLING_FAMILIES. */
+  const familiesCtx = () => {
+    const seed = fillSeed();
+    seed.world_gen_state = [genState({ step: 'FILLING', generatedRegionId: 1n, sourceLocationId: 50n, sourceRegionId: 100n })];
+    const ctx = newCtx(seed);
+    applyLlmResult(ctx, applyJob('world_gen', GEN_CTX), JSON.stringify(REGION_FILL_JSON));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
+    return ctx;
+  };
+  const FAMILIES_JSON = {
+    families: [
+      {
+        name: 'Ember Wolves', singularNoun: 'ember wolf', pluralNoun: 'ember wolves', creatureType: 'beast', iconKey: 'beast',
+        temperament: 'aggressive', ambushVerb: 'lunge', ambushRest: 'out of the ash',
+        members: [{ role: 'damage', name: 'Ember Wolf' }], fitLocations: ['Slag Road'], relations: [],
+      },
+    ],
+  };
+
+  it.each([
+    ['not JSON', NOT_JSON],
+    ['valid JSON missing the fields', UNRELATED],
+    ['debris', `{"families": ${CANARY}`],
+  ])('%s: FAMILIES_ERROR with one system line and no segments', (_label, reply) => {
+    const ctx = familiesCtx();
+    expect(() => applyLlmResult(ctx, applyJob('world_gen_families', GEN_CTX), reply)).not.toThrow();
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FAMILIES_ERROR');
+    const system = rows(ctx, 'event_private').filter((r) => r.kind === 'system');
+    expect(system).toHaveLength(1);
+    expect(system[0].segments).toBeUndefined();
+    expect(segmentRows(ctx)).toHaveLength(0);
+    expect(rows(ctx, 'event_creation')).toHaveLength(0);
+    expectNoDebris(ctx);
+  });
+
+  it('a success writes only the lines finishRegionFill posts (the region-opened and discovery lines), with no segments', () => {
+    const ctx = familiesCtx();
+    expect(() => applyLlmResult(ctx, applyJob('world_gen_families', GEN_CTX), JSON.stringify(FAMILIES_JSON))).not.toThrow();
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('COMPLETE');
+    const lines = rows(ctx, 'event_private');
+    expect(lines.map((r) => r.kind)).toEqual(['system', 'system']);
+    for (const line of lines) expect(line.segments).toBeUndefined();
+    expect(segmentRows(ctx)).toHaveLength(0);
+    expectSegmentInvariant(ctx, []);
+  });
+
+  it('a failed families job writes one system line and no segments', () => {
+    const ctx = familiesCtx();
+    applyLlmFailure(ctx, applyJob('world_gen_families', GEN_CTX));
+    expect(rows(ctx, 'world_gen_state')[0].step).toBe('FAMILIES_ERROR');
+    expect(rows(ctx, 'event_private').map((r) => r.segments)).toEqual([undefined]);
+    expect(segmentRows(ctx)).toHaveLength(0);
   });
 });

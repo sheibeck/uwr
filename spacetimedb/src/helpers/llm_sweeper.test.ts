@@ -13,7 +13,7 @@ import { applyLlmFailure } from './llm_apply';
 import { hasLlmDispatch, scheduledMicros } from './llm_schedule';
 import { LLM_SPEND_ID } from '../data/llm_limits';
 import { appendCreationEvent, appendPrivateEvent } from './events';
-import { WORLD_FILL_FAILED_MESSAGE } from './world_gen';
+import { WORLD_FILL_FAILED_MESSAGE, WORLD_FAMILIES_FAILED_MESSAGE } from './world_gen';
 import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { CLASS_FILL_FAILED_LINE } from './creation_generation';
 import { readFileSync } from 'node:fs';
@@ -933,5 +933,97 @@ describe('stranded generation locks (a lost failure message)', () => {
   it('never retries stage 2 by itself: the sweeper source has no fill enqueue', () => {
     const source = readFileSync(fileURLToPath(new URL('./llm_sweeper.ts', import.meta.url)), 'utf8');
     expect(source).not.toMatch(/startWorldFill\(|retryWorldFill\(|enqueueLlmJob\(/);
+    expect(source).not.toMatch(/startWorldFamilies\(|retryWorldFamilies\(/);
+  });
+
+  // ---- Phase 51.3.1.2 (D-08, Pitfall 1): a stranded stage-2b lock becomes FAMILIES_ERROR, never FILL_ERROR ----
+  describe('a FILLING_FAMILIES world-gen state (stage 2b)', () => {
+    const familiesSeed = (over: Record<string, any> = {}, updatedAt: bigint = NOW - 5n * MIN) => ({
+      character: [{ ...character(), locationId: 10n }],
+      region: [{ id: 7n, name: 'Emberdeep', dangerMultiplier: 100n }],
+      location: [
+        { id: 10n, name: 'The Gate', regionId: 7n, terrainType: 'town', isHub: true, isSafe: true },
+        { id: 11n, name: 'The Slag Road', regionId: 7n, terrainType: 'plains' },
+      ],
+      npc: [
+        { id: 1n, name: 'Vessa', npcType: 'vendor', locationId: 10n },
+        { id: 2n, name: 'The Ledger Keeper', npcType: 'banker', locationId: 10n },
+      ],
+      world_gen_state: [genState('FILLING_FAMILIES', updatedAt, { generatedRegionId: 7n, ...over })],
+    });
+    const familiesJob = (over: Record<string, any> = {}) =>
+      jobRow({ route: 'world_gen_families', requestJson: JSON.stringify({ genStateId: '5', input: {} }), ...over });
+
+    it('with no active world_gen_families job past the grace becomes FAMILIES_ERROR with the families message and one line; no row changes', () => {
+      const ctx = makeCtx(familiesSeed());
+      const placesBefore = JSON.stringify(rows(ctx, 'location'), (_k, v) => (typeof v === 'bigint' ? `${v}n` : v));
+      const report = sweepLlmJobs(ctx, makeDeps());
+
+      expect(report).toEqual({ ...ZERO, releasedLocks: 1 });
+      const state = rows(ctx, 'world_gen_state')[0];
+      expect(state.step).toBe('FAMILIES_ERROR');
+      expect(state.step).not.toBe('FILL_ERROR');
+      expect(state.errorMessage).toBe(WORLD_FAMILIES_FAILED_MESSAGE);
+      expect(state.generatedRegionId).toBe(7n);
+      expect(rowColumnProblems('world_gen_state', state)).toEqual([]);
+      // The places stay exactly as stage 2a wrote them; no hub, service or job is added.
+      expect(JSON.stringify(rows(ctx, 'location'), (_k, v) => (typeof v === 'bigint' ? `${v}n` : v))).toBe(placesBefore);
+      expect(rows(ctx, 'npc')).toHaveLength(2);
+      expect(appendPrivateEvent).toHaveBeenCalledTimes(1);
+      expect((appendPrivateEvent as any).mock.calls[0][4]).toBe(REGION_HOLD_FAILED_LINE);
+      // Idempotent, and nothing is ever re-enqueued by the sweeper.
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+      expect(rows(ctx, 'llm_job')).toHaveLength(0);
+    });
+
+    it('whose world_gen_families job ended (failed or expired) is released too', () => {
+      for (const status of ['failed', 'expired']) {
+        vi.clearAllMocks();
+        const ctx = makeCtx(familiesSeed());
+        ctx.db.llm_job.insert(familiesJob({ status }));
+        expect(sweepLlmJobs(ctx, makeDeps())).toEqual({ ...ZERO, releasedLocks: 1 });
+        expect(rows(ctx, 'world_gen_state')[0].step).toBe('FAMILIES_ERROR');
+      }
+    });
+
+    it.each(['pending', 'in_flight', 'received'])('with a %s world_gen_families job is left alone', (status) => {
+      const ctx = makeCtx(familiesSeed());
+      ctx.db.llm_job.insert(familiesJob({ status, createdAt: ts(NOW - 10n * SEC), startedAt: ts(NOW - 10n * SEC) }));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
+      expect(appendPrivateEvent).not.toHaveBeenCalled();
+    });
+
+    it('an active world_gen (2a) job of the same state does not hold FILLING_FAMILIES, nor another state\'s families job', () => {
+      for (const job of [
+        jobRow({ route: 'world_gen', status: 'in_flight', startedAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '5', input: {} }) }),
+        familiesJob({ status: 'in_flight', startedAt: ts(NOW - 10n * SEC), requestJson: JSON.stringify({ genStateId: '6', input: {} }) }),
+      ]) {
+        const ctx = makeCtx(familiesSeed());
+        ctx.db.llm_job.insert(job);
+        sweepLlmJobs(ctx, makeDeps());
+        expect(rows(ctx, 'world_gen_state')[0].step).toBe('FAMILIES_ERROR');
+      }
+    });
+
+    it('an active world_gen_families job does not hold a FILLING state (FILLING still goes to FILL_ERROR)', () => {
+      const ctx = makeCtx({ ...familiesSeed(), world_gen_state: [genState('FILLING', NOW - 5n * MIN, { generatedRegionId: 7n })] });
+      ctx.db.llm_job.insert(familiesJob({ status: 'in_flight', startedAt: ts(NOW - 10n * SEC) }));
+      sweepLlmJobs(ctx, makeDeps());
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILL_ERROR');
+    });
+
+    it('younger than the grace is left alone', () => {
+      const ctx = makeCtx(familiesSeed({}, NOW - 30n * SEC));
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+      expect(rows(ctx, 'world_gen_state')[0].step).toBe('FILLING_FAMILIES');
+    });
+
+    it.each(['FAMILIES_ERROR', 'FILL_ERROR', 'ERROR', 'HELD', 'COMPLETE'])('a %s state is never touched', (step) => {
+      const ctx = makeCtx({ ...familiesSeed(), world_gen_state: [genState(step, NOW - HOUR, { generatedRegionId: 7n, errorMessage: 'kept' })] });
+      const before = snap(ctx);
+      expect(sweepLlmJobs(ctx, makeDeps())).toEqual(ZERO);
+      expect(snap(ctx)).toBe(before);
+    });
   });
 });
