@@ -51,9 +51,19 @@ import {
   regionHubCount,
   readHubMarks,
 } from './world_gen';
-import { hubCountFor, hubHasStation, hubSeed, stationSeed } from '../data/density_rules';
+import {
+  familySeed,
+  feudCountFor,
+  feudHappens,
+  hubCountFor,
+  hubHasStation,
+  hubSeed,
+  keptFamilyCount,
+  stationSeed,
+} from '../data/density_rules';
 import { enemyStatsForLevel } from '../data/enemy_rules';
-import { memberAbilities } from '../data/family_rules';
+import { memberAbilities, ruleFamilyHistory } from '../data/family_rules';
+import { FAMILY_FEUD_KIND } from '../data/mechanical_vocabulary';
 import { createMockDb, createMockCtx } from './test-utils';
 import { rowColumnProblems } from './schema_recorder';
 import { resolveRouteInput } from './llm_inputs';
@@ -609,7 +619,12 @@ describe('writeRegionFill builds families and pools by rule (Plan 09 Task 1)', (
     expect(linkedAt(startLocation)).toEqual([]);
     expect(linkedAt(camp)).toEqual([]);
 
-    expect(rowsOf(tx, 'family_relation').map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([
+    // Plan 29: a region may also hold a seeded feud (D-70, D-71); the rule rivals are unchanged.
+    expect(
+      rowsOf(tx, 'family_relation')
+        .filter((r: any) => r.kind === 'rival')
+        .map((r: any) => [r.familyId, r.otherFamilyId, r.kind]),
+    ).toEqual([
       [beast.id, undead.id, 'rival'],
       [undead.id, beast.id, 'rival'],
     ]);
@@ -637,6 +652,8 @@ describe('writeRegionFill builds families and pools by rule (Plan 09 Task 1)', (
   it('every family and pool row it writes matches the recorded schema', () => {
     const tx = createStrictTx();
     writeBoth(tx, baseStartReply(), familyFillReply());
+    // Plan 29: every rule-path family now carries a history (D-68).
+    for (const family of rowsOf(tx, 'creature_family')) expect(family.history).not.toBe('');
     for (const table of ['creature_family', 'family_member', 'family_relation', 'place_pool', 'pool_level']) {
       expect(rowsOf(tx, table).length).toBeGreaterThan(0);
       for (const row of rowsOf(tx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
@@ -1949,6 +1966,15 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     rows(ctx, 'location_enemy_template').filter((l: any) => l.locationId === loc.id).map((l: any) => l.enemyTemplateId);
   const creaturePools = (ctx: any, loc: any) =>
     rows(ctx, 'place_pool').filter((p: any) => p.locationId === loc.id && p.kind === 'creature').map((p: any) => p.refId);
+  /** The relation rows between two families other than the seeded feud (Plan 29, D-70), as [from, to, kind]. */
+  const aiPairRelations = (ctx: any, a: any, b: any) =>
+    rows(ctx, 'family_relation')
+      .filter(
+        (r: any) =>
+          r.kind !== FAMILY_FEUD_KIND &&
+          ((r.familyId === a.id && r.otherFamilyId === b.id) || (r.familyId === b.id && r.otherFamilyId === a.id)),
+      )
+      .map((r: any) => [r.familyId, r.otherFamilyId, r.kind]);
 
   function stageOne(ctx: any, reply: any = baseStartReply()) {
     const out = writeRegionStart(ctx, reply, stateOf(ctx));
@@ -2021,7 +2047,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     };
   }
 
-  it('two AI families: their names, nouns and words, 7 new members with server stats and rule abilities, linked and pooled only at their fit places, rivals both ways; place words stored', () => {
+  it('two AI families: their names, nouns and words, 7 new members with server stats and rule abilities, linked and pooled at their fit places, rivals both ways; place words stored', () => {
     const regionId = regionIdWithHubCount(150n, 1);
     const ctx = aiCtx(regionId, 150n);
     const { startLocation } = both(ctx, aiFillReply());
@@ -2031,8 +2057,11 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     const camp = locRow(ctx, 'Reed Camp');
     expect(camp).toMatchObject({ isHub: true, isSafe: true });
 
+    // Plan 29 (D-66): five places keep keptFamilyCount(5) families; the AI's two come first, the rest by rule.
     const families = rows(ctx, 'creature_family');
-    expect(families.map((f: any) => f.name)).toEqual(['Saltcrust Skitterers', 'Drowned Tollmen']);
+    expect(families).toHaveLength(keptFamilyCount(5));
+    expect(families.slice(0, 2).map((f: any) => f.name)).toEqual(['Saltcrust Skitterers', 'Drowned Tollmen']);
+    for (const f of families.slice(2)) expect(f.key.startsWith(`rule:${regionId}:`)).toBe(true);
     const [skitter, toll] = families;
     expect(skitter).toMatchObject({
       key: `ai:${regionId}:saltcrust skitterers`,
@@ -2047,9 +2076,10 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     });
     expect(toll).toMatchObject({ singularNoun: 'tollman', pluralNoun: 'tollmen', temperament: 'wary', ambushVerb: 'rise' });
 
-    // 7 member templates, all new, AI-named, canonical roles (support -> healer), server stats and abilities.
+    // 7 AI member templates, all new, AI-named, canonical roles (support -> healer), server stats and
+    // abilities; the rule families add four filler members each (Plan 29).
     const templates = rows(ctx, 'enemy_template');
-    expect(templates).toHaveLength(7);
+    expect(templates).toHaveLength(7 + 4 * (keptFamilyCount(5) - 2));
     expect(membersOf(ctx, skitter).map((m: any) => [m.role, m.filler])).toEqual([
       ['tank', false],
       ['damage', false],
@@ -2068,26 +2098,28 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
       expect(keys).toEqual(memberAbilities(m.role).map((a) => a.abilityKey));
     }
 
-    // Links and creature pools only at the fit places.
+    // Links and creature pools at the fit places first (Plan 29, D-67: 3-5 families at every host
+    // place, so the other host places hold families too); never the safe arrival point or the hub.
     for (const m of membersOf(ctx, skitter)) {
       expect(linkedAt(ctx, wood)).toContain(m.enemyTemplateId);
       expect(linkedAt(ctx, fen)).toContain(m.enemyTemplateId);
     }
-    for (const m of membersOf(ctx, toll)) {
-      expect(linkedAt(ctx, fen)).toContain(m.enemyTemplateId);
-      expect(linkedAt(ctx, wood)).not.toContain(m.enemyTemplateId);
+    for (const m of membersOf(ctx, toll)) expect(linkedAt(ctx, fen)).toContain(m.enemyTemplateId);
+    for (const loc of [camp, startLocation]) expect(linkedAt(ctx, loc)).toEqual([]);
+    expect(creaturePools(ctx, wood)).toContain(skitter.id);
+    expect(creaturePools(ctx, fen)).toEqual(expect.arrayContaining([skitter.id, toll.id]));
+    for (const loc of [wood, fen, moor]) {
+      expect(creaturePools(ctx, loc).length).toBeGreaterThanOrEqual(3);
+      expect(creaturePools(ctx, loc).length).toBeLessThanOrEqual(5);
     }
-    for (const loc of [moor, camp, startLocation]) expect(linkedAt(ctx, loc)).toEqual([]);
-    expect(creaturePools(ctx, wood)).toEqual([skitter.id]);
-    expect(creaturePools(ctx, fen)).toEqual([skitter.id, toll.id]);
-    for (const loc of [moor, camp, startLocation]) expect(creaturePools(ctx, loc)).toEqual([]);
+    for (const loc of [camp, startLocation]) expect(creaturePools(ctx, loc)).toEqual([]);
     // Home densities are the server's (creatureHomeLevels), never from the reply.
     for (const p of rows(ctx, 'place_pool').filter((x: any) => x.kind === 'creature')) {
       expect([1n, 2n, 3n]).toContain(p.homeLevel);
     }
 
-    // The relation, stored both ways.
-    expect(rows(ctx, 'family_relation').map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([
+    // The relation, stored both ways (Plan 29: rows between the two AI families other than a feud).
+    expect(aiPairRelations(ctx, skitter, toll)).toEqual([
       [skitter.id, toll.id, 'rival'],
       [toll.id, skitter.id, 'rival'],
     ]);
@@ -2109,7 +2141,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     fill.families[0].relations = [{ family: 'Drowned Tollmen', kind: 'prey' }];
     both(ctx, fill);
     const [skitter, toll] = rows(ctx, 'creature_family');
-    expect(rows(ctx, 'family_relation').map((r: any) => [r.familyId, r.otherFamilyId, r.kind])).toEqual([
+    expect(aiPairRelations(ctx, skitter, toll)).toEqual([
       [skitter.id, toll.id, 'prey'],
       [toll.id, skitter.id, 'predator'],
     ]);
@@ -2150,9 +2182,12 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
         ],
       }),
     );
+    // Plan 29 (D-66): the one AI family that survives comes first; the rest of the count is by rule.
     const families = rows(ctx, 'creature_family');
-    expect(families).toHaveLength(1);
+    expect(families).toHaveLength(keptFamilyCount(5));
     const [family] = families;
+    expect(family.key.startsWith(`ai:${regionId}:`)).toBe(true);
+    expect(families.slice(1).every((f: any) => f.key.startsWith(`rule:${regionId}:`))).toBe(true);
     expect(family.name).not.toMatch(/[<>{}]/);
     expect(family.name).toContain('Gloom');
     expect(family).toMatchObject({ creatureType: 'beast', temperament: 'wary', iconKey: '' });
@@ -2161,11 +2196,14 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
       expect(t).toMatchObject({ level: 1n, groupMin: 1n, groupMax: 1n, maxHp: enemyStatsForLevel(1n).maxHp });
     }
     expect(rows(ctx, 'enemy_template').some((t: any) => t.name === 'Rat God')).toBe(false);
-    expect(rows(ctx, 'family_relation')).toEqual([]);
+    // No relation from the reply: the AI family holds only the seeded feud, if any (D-70).
+    const own = rows(ctx, 'family_relation').filter((r: any) => r.familyId === family.id || r.otherFamilyId === family.id);
+    expect(own.every((r: any) => r.kind === FAMILY_FEUD_KIND)).toBe(true);
     // Never the safe arrival point or the hub: placed by its usual terrain (beast: woods, plains, swamp).
     const hostIds = ['Sallow Wood', 'Black Fen', 'Grey Moor'].map((n) => locRow(ctx, n).id);
-    const pooled = rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature').map((p: any) => p.locationId);
-    expect([...pooled].sort()).toEqual([...hostIds].sort());
+    const pooled = rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature' && p.refId === family.id).map((p: any) => p.locationId);
+    expect(pooled.length).toBeGreaterThan(0);
+    for (const id of pooled) expect(hostIds).toContain(id);
     expect(creaturePools(ctx, startLocation)).toEqual([]);
     expect(creaturePools(ctx, locRow(ctx, 'Reed Camp'))).toEqual([]);
     // Unusable place words are stored clean or empty, never as markup.
@@ -2183,7 +2221,9 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     const arrival = rows(ctx, 'location').find((l: any) => l.id === startLocation.id);
     expect(arrival).toMatchObject({ isSafe: false, isHub: false, bindStone: false, craftingAvailable: false });
     const toll = rows(ctx, 'creature_family').find((f: any) => f.name === 'Drowned Tollmen');
-    expect(creaturePools(ctx, arrival)).toEqual([toll.id]);
+    // Plan 29 (D-67): the arrival point is a host place, so it holds 3-5 families, the fitting one among them.
+    expect(creaturePools(ctx, arrival)).toContain(toll.id);
+    expect(creaturePools(ctx, arrival).length).toBeGreaterThanOrEqual(3);
     for (const m of membersOf(ctx, toll)) expect(linkedAt(ctx, arrival)).toContain(m.enemyTemplateId);
     expect(servicesAt(ctx, arrival.id)).toEqual([]);
   });
@@ -2276,11 +2316,14 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     expect(rows(ctx, 'enemy_template').some((t: any) => t.name === 'Stray Wolf')).toBe(false);
   });
 
-  it('a families array with no usable family falls back to the rule path from the enemies', () => {
+  it('a families array with no usable family gets the whole count by rule, never the stray enemies (Plan 29, D-66)', () => {
     const regionId = regionIdWithHubCount(150n, 1);
     const ctx = aiCtx(regionId, 150n);
     const { region } = both(ctx, aiFillReply({ families: [null, 'x', 7], enemies: familyFillReply().enemies }));
-    expect(rows(ctx, 'creature_family').map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
+    const keys = rows(ctx, 'creature_family').map((f: any) => f.key);
+    expect(keys).toHaveLength(keptFamilyCount(5));
+    expect(keys.every((k: string) => k.startsWith(`rule:${region.id}:`))).toBe(true);
+    expect(rows(ctx, 'enemy_template').some((t: any) => t.name === 'Fen Stalker' || t.name === 'Drowned Seer')).toBe(false);
   });
 
   it('a name already taken by an existing enemy template or family is made unique', () => {
@@ -2306,7 +2349,7 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     });
     both(ctx, aiFillReply());
     const fresh = rows(ctx, 'creature_family').filter((f: any) => f.id !== 900n);
-    expect(fresh).toHaveLength(2);
+    expect(fresh).toHaveLength(keptFamilyCount(5));
     expect(fresh.map((f: any) => f.name)).not.toContain('Drowned Tollmen');
     const names = rows(ctx, 'enemy_template').map((t: any) => t.name);
     expect(names.filter((n: string) => n === 'Skitter Pincer')).toHaveLength(1);
@@ -2320,5 +2363,253 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
       expect(rows(ctx, table).length, table).toBeGreaterThan(0);
       for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Plan 29: the family count, 3-5 families per host place, the feud and the histories
+  // (D-66, D-67, D-68, D-70, D-71)
+  // -------------------------------------------------------------------------
+
+  describe('family count, places per family, feud and histories (Plan 29)', () => {
+    function regionIdWhere(danger: bigint, hubCount: number, pred: (id: bigint) => boolean, from = 2n): bigint {
+      for (let id = from; id < from + 5000n; id += 1n) {
+        if (hubCountFor(danger, false, hubSeed(id)) === hubCount && pred(id)) return id;
+      }
+      throw new Error(`no region id at danger ${danger} with hub count ${hubCount} matches`);
+    }
+    const feudSize = (id: bigint, families: number) => feudCountFor(families, familySeed(id));
+    const HISTORY = 'The skitterers crawled up out of the salt flats long ago.';
+    const feudRows = (ctx: any) => rows(ctx, 'family_relation').filter((r: any) => r.kind === FAMILY_FEUD_KIND);
+    const feudIds = (ctx: any): bigint[] => [...new Set<bigint>(feudRows(ctx).map((r: any) => r.familyId))];
+
+    /** Four places: the unsafe woods arrival point, Sallow Wood, Black Fen and the marked safe hub Reed Camp. */
+    function sizedReply(overrides: any = {}): any {
+      const base = aiFillReply();
+      return {
+        ...base,
+        locations: base.locations.filter((l: any) => l.name !== 'Grey Moor'),
+        families: [
+          { ...base.families[0], fitLocations: ['Black Fen'], relations: [], inFeud: true, history: HISTORY },
+          { ...base.families[1], fitLocations: ['Sallow Wood'], relations: [] },
+        ],
+        ...overrides,
+      };
+    }
+    const unsafeArrival = () => startReply({ terrainType: 'woods', isSafe: false });
+    const feudRegion = () => regionIdWhere(150n, 1, (id) => feudSize(id, keptFamilyCount(4)) >= 2);
+
+    function sizedWorld(regionId = feudRegion(), fill: any = sizedReply()) {
+      const ctx = aiCtx(regionId, 150n);
+      const out = both(ctx, fill, unsafeArrival());
+      return { ctx, regionId, ...out };
+    }
+
+    it('a region of four places keeps keptFamilyCount(4) = 6 families: the two AI ones, then four by rule with four fillers each (D-66)', () => {
+      const { ctx, regionId } = sizedWorld();
+      expect(keptFamilyCount(4)).toBe(6);
+      const families = rows(ctx, 'creature_family');
+      expect(families).toHaveLength(6);
+      expect(families.slice(0, 2).map((f: any) => f.key)).toEqual([
+        `ai:${regionId}:saltcrust skitterers`,
+        `ai:${regionId}:drowned tollmen`,
+      ]);
+      for (const family of families.slice(2)) {
+        expect(family.key.startsWith(`rule:${regionId}:`)).toBe(true);
+        const members = membersOf(ctx, family);
+        expect(members.map((m: any) => m.role)).toEqual(['tank', 'damage', 'healer', 'caster']);
+        expect(members.every((m: any) => m.filler === true)).toBe(true);
+      }
+    });
+
+    it('each host place holds 3-5 families, linked and pooled; the AI fit place holds its family; the safe hub none; every family placed (D-67)', () => {
+      const { ctx } = sizedWorld();
+      const arrival = locRow(ctx, 'Safe Haven');
+      const wood = locRow(ctx, 'Sallow Wood');
+      const fen = locRow(ctx, 'Black Fen');
+      const camp = locRow(ctx, 'Reed Camp');
+      expect(arrival).toMatchObject({ isSafe: false, isHub: false });
+      expect(camp).toMatchObject({ isSafe: true, isHub: true });
+      const families = rows(ctx, 'creature_family');
+      const [skitter, toll] = families;
+      for (const host of [arrival, wood, fen]) {
+        const pooled = creaturePools(ctx, host);
+        expect(pooled.length).toBeGreaterThanOrEqual(3);
+        expect(pooled.length).toBeLessThanOrEqual(5);
+        const linked = new Set<bigint>(
+          rows(ctx, 'family_member')
+            .filter((m: any) => linkedAt(ctx, host).includes(m.enemyTemplateId))
+            .map((m: any) => m.familyId),
+        );
+        expect([...linked].sort()).toEqual([...pooled].sort());
+        for (const id of pooled) {
+          for (const m of membersOf(ctx, { id })) expect(linkedAt(ctx, host)).toContain(m.enemyTemplateId);
+        }
+      }
+      expect(creaturePools(ctx, fen)).toContain(skitter.id);
+      expect(creaturePools(ctx, wood)).toContain(toll.id);
+      expect(creaturePools(ctx, camp)).toEqual([]);
+      expect(linkedAt(ctx, camp)).toEqual([]);
+      for (const family of families) {
+        expect(rows(ctx, 'place_pool').some((p: any) => p.kind === 'creature' && p.refId === family.id)).toBe(true);
+      }
+    });
+
+    it('one feud of feudCountFor(6, familySeed) families as mutual feud rows, the marked AI family among them (D-70)', () => {
+      const { ctx, regionId } = sizedWorld();
+      const n = feudSize(regionId, 6);
+      expect(n).toBeGreaterThanOrEqual(2);
+      const ids = feudIds(ctx);
+      expect(ids).toHaveLength(n);
+      expect(feudRows(ctx)).toHaveLength(n * (n - 1));
+      for (const a of ids) {
+        for (const b of ids) {
+          if (a !== b) expect(feudRows(ctx).some((r: any) => r.familyId === a && r.otherFamilyId === b)).toBe(true);
+        }
+      }
+      expect(ids).toContain(rows(ctx, 'creature_family')[0].id);
+    });
+
+    it('a region whose feud roll misses stores no feud row, and no history names a feud (D-71)', () => {
+      const regionId = regionIdWhere(150n, 1, (id) => feudSize(id, 6) === 0);
+      const { ctx } = sizedWorld(regionId);
+      expect(feudRows(ctx)).toEqual([]);
+      for (const family of rows(ctx, 'creature_family')) expect(family.history).not.toContain('No truce');
+    });
+
+    it('histories: the clean AI history is kept; every other family gets the rule line, naming the feud for a feuding family; no digit (D-68)', () => {
+      const { ctx, region } = sizedWorld();
+      const families = rows(ctx, 'creature_family');
+      const [skitter] = families;
+      expect(skitter.history).toBe(HISTORY);
+      const ids = feudIds(ctx);
+      const feudNames = families.filter((f: any) => ids.includes(f.id)).map((f: any) => f.name);
+      for (const family of families.slice(1)) {
+        const others = ids.includes(family.id) ? feudNames.filter((name: string) => name !== family.name) : [];
+        expect(family.history).toBe(ruleFamilyHistory({ familyName: family.name, regionName: region.name, feudNames: others }));
+      }
+      expect(families.some((f: any) => f.id !== skitter.id && ids.includes(f.id) && f.history.includes('No truce'))).toBe(true);
+      for (const family of families) {
+        expect(family.history).not.toBe('');
+        expect(family.history).not.toMatch(/[0-9]/);
+      }
+    });
+
+    it('a reply with nine AI families in a region of four places keeps the first six and writes nothing for the other three', () => {
+      const names = [
+        ['Ashen Crawlers', 'crawler', 'crawlers', 'Ash'],
+        ['Bog Hounds', 'hound', 'hounds', 'Bog'],
+        ['Cinder Moths', 'moth', 'moths', 'Cinder'],
+        ['Dusk Herons', 'heron', 'herons', 'Dusk'],
+        ['Ember Toads', 'toad', 'toads', 'Ember'],
+        ['Frost Newts', 'newt', 'newts', 'Frost'],
+        ['Gloam Bats', 'bat', 'bats', 'Gloam'],
+        ['Husk Beetles', 'beetle', 'beetles', 'Husk'],
+        ['Iron Rooks', 'rook', 'rooks', 'Iron'],
+      ];
+      const families = names.map(([name, singular, plural, word]) => ({
+        name,
+        singularNoun: singular,
+        pluralNoun: plural,
+        creatureType: 'beast',
+        iconKey: 'beast',
+        temperament: 'wary',
+        ambushVerb: 'rush',
+        ambushRest: 'out of the brush',
+        members: [member('tank', `${word} Brute`), member('damage', `${word} Biter`)],
+        fitLocations: ['Sallow Wood'],
+        relations: [],
+      }));
+      const { ctx, regionId } = sizedWorld(feudRegion(), sizedReply({ families }));
+      const stored = rows(ctx, 'creature_family');
+      expect(stored.map((f: any) => f.name)).toEqual(names.slice(0, 6).map(([name]) => name));
+      expect(stored.every((f: any) => f.key.startsWith(`ai:${regionId}:`))).toBe(true);
+      const templateNames = rows(ctx, 'enemy_template').map((t: any) => t.name);
+      for (const word of ['Gloam', 'Husk', 'Iron']) {
+        expect(templateNames.some((n: string) => n.startsWith(word))).toBe(false);
+      }
+    });
+
+    it('a new-shape reply whose families all fail validation still writes six rule families, each with a history, and the feud (D-66, D-68, D-70)', () => {
+      const regionId = feudRegion();
+      const { ctx } = sizedWorld(regionId, sizedReply({ families: [{ name: '<script></script>' }, {}, null, 'x'] }));
+      const families = rows(ctx, 'creature_family');
+      expect(families).toHaveLength(6);
+      expect(families.every((f: any) => f.key.startsWith(`rule:${regionId}:`))).toBe(true);
+      for (const family of families) expect(family.history).not.toBe('');
+      const n = feudSize(regionId, 6);
+      expect(feudRows(ctx)).toHaveLength(n * (n - 1));
+    });
+
+    it('the same reply in two fresh worlds with the same region id writes identical families, relations, links and pools', () => {
+      const regionId = feudRegion();
+      const a = sizedWorld(regionId).ctx;
+      const b = sizedWorld(regionId).ctx;
+      for (const table of ['creature_family', 'family_member', 'family_relation', 'location_enemy_template', 'place_pool', 'pool_level']) {
+        expect(rows(b, table), table).toEqual(rows(a, table));
+      }
+    });
+
+    it('an older-shape reply gets rule histories and, when the feud roll hits, a feud of its two families (D-68, D-70)', () => {
+      const regionId = regionIdWhere(150n, 1, (id) => feudHappens(familySeed(id)));
+      const ctx = aiCtx(regionId, 150n);
+      const { region } = both(ctx, familyFillReply());
+      const families = rows(ctx, 'creature_family');
+      expect(families.map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
+      const [beast, undead] = families;
+      expect(feudRows(ctx).map((r: any) => [r.familyId, r.otherFamilyId])).toEqual([
+        [beast.id, undead.id],
+        [undead.id, beast.id],
+      ]);
+      expect(beast.history).toBe(ruleFamilyHistory({ familyName: beast.name, regionName: region.name, feudNames: [undead.name] }));
+      expect(undead.history).toBe(ruleFamilyHistory({ familyName: undead.name, regionName: region.name, feudNames: [beast.name] }));
+      // The rule rivals stay as Plan 09 built them.
+      expect(aiPairRelations(ctx, beast, undead)).toEqual([
+        [beast.id, undead.id, 'rival'],
+        [undead.id, beast.id, 'rival'],
+      ]);
+    });
+
+    it('an older-shape reply where the feud roll misses, or with a single family, stores no feud and plain histories', () => {
+      const missId = regionIdWhere(150n, 1, (id) => !feudHappens(familySeed(id)));
+      const miss = aiCtx(missId, 150n);
+      const missOut = both(miss, familyFillReply());
+      expect(feudRows(miss)).toEqual([]);
+      for (const family of rows(miss, 'creature_family')) {
+        expect(family.history).toBe(ruleFamilyHistory({ familyName: family.name, regionName: missOut.region.name }));
+      }
+
+      const hitId = regionIdWhere(150n, 1, (id) => feudHappens(familySeed(id)));
+      const single = aiCtx(hitId, 150n);
+      const singleOut = both(single, familyFillReply({ enemies: [familyFillReply().enemies[0]] }));
+      const families = rows(single, 'creature_family');
+      expect(families).toHaveLength(1);
+      expect(feudRows(single)).toEqual([]);
+      expect(families[0].history).toBe(ruleFamilyHistory({ familyName: families[0].name, regionName: singleOut.region.name }));
+    });
+
+    it('every row the sized fill writes matches the recorded schema', () => {
+      const { ctx } = sizedWorld();
+      for (const table of ['creature_family', 'family_member', 'family_relation', 'location_enemy_template', 'place_pool', 'pool_level']) {
+        expect(rows(ctx, table).length, table).toBeGreaterThan(0);
+        for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
+      }
+    });
+
+    it('only world_gen.ts calls assignRegionFamilies in production code (D-67: existing worlds are not re-linked)', () => {
+      const root = fileURLToPath(new URL('..', import.meta.url));
+      const callers: string[] = [];
+      const walk = (dir: string, rel: string) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const path = `${dir}/${entry.name}`;
+          const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) walk(path, relPath);
+          else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && relPath !== 'data/density_rules.ts') {
+            if (readFileSync(path, 'utf8').includes('assignRegionFamilies(')) callers.push(relPath);
+          }
+        }
+      };
+      walk(root.replace(/[\\/]$/, ''), '');
+      expect(callers).toEqual(['helpers/world_gen.ts']);
+    });
   });
 });

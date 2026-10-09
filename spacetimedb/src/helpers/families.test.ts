@@ -5,8 +5,16 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { rowColumnProblems } from './schema_recorder';
 import { enemyStatsForLevel } from '../data/enemy_rules';
-import { memberAbilities } from '../data/family_rules';
-import { DENSITY_RULES, creatureHomeLevels, homeCount, poolSeed } from '../data/density_rules';
+import { memberAbilities, ruleFamilyHistory } from '../data/family_rules';
+import {
+  DENSITY_RULES,
+  creatureHomeLevels,
+  familySeed,
+  feudCountFor,
+  feudHappens,
+  homeCount,
+  poolSeed,
+} from '../data/density_rules';
 import { T0, REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_ID, poolWorld, poolCtx } from './pool_fixture';
 import { createPool } from './pools';
 import {
@@ -786,22 +794,22 @@ describe('ruleRelations (D-20 rule default)', () => {
 
 describe('buildRegionFamilies (Plan 09)', () => {
   const NEW_REGION = 2n;
-  const regionPlace = (id: bigint, name: string, terrainType: string, isSafe: boolean, isHub = false) => ({
+  const regionPlace = (id: bigint, name: string, terrainType: string, isSafe: boolean, isHub = false, regionId = NEW_REGION) => ({
     ...placeRow(id, name, terrainType, isSafe, isHub),
-    regionId: NEW_REGION,
+    regionId,
   });
-  const fillSeed = () =>
+  const fillSeed = (regionId = NEW_REGION) =>
     poolWorld({
       extra: {
         region: [
-          { id: NEW_REGION, name: 'Mirefold', dangerMultiplier: 200n, regionType: 'generated', biome: 'swamp', landmarks: '[]', threats: '[]' },
+          { id: regionId, name: 'Mirefold', dangerMultiplier: 200n, regionType: 'generated', biome: 'swamp', landmarks: '[]', threats: '[]' },
         ],
         location: [
-          regionPlace(20n, 'Reed Landing', 'town', true),
-          regionPlace(21n, 'Sallow Wood', 'woods', false),
-          regionPlace(22n, 'Black Fen', 'swamp', false),
-          regionPlace(23n, 'Lantern Post', 'town', true, true),
-          regionPlace(24n, 'Mist Edge', 'uncharted', true),
+          regionPlace(20n, 'Reed Landing', 'town', true, false, regionId),
+          regionPlace(21n, 'Sallow Wood', 'woods', false, false, regionId),
+          regionPlace(22n, 'Black Fen', 'swamp', false, false, regionId),
+          regionPlace(23n, 'Lantern Post', 'town', true, true, regionId),
+          regionPlace(24n, 'Mist Edge', 'uncharted', true, false, regionId),
         ],
         enemy_template: [
           enemyTemplate(960n, 'Fen Stalker', 'melee', 'beast', { terrainTypes: 'woods, swamp' }),
@@ -810,8 +818,8 @@ describe('buildRegionFamilies (Plan 09)', () => {
         item_template: [itemRow(370n, 'Wood'), itemRow(371n, 'Peat'), itemRow(372n, 'Scrap Cloth')],
       },
     });
-  const regionRow = (ctx: any) => rows(ctx, 'region').find((r: any) => r.id === NEW_REGION);
-  const places = (ctx: any) => rows(ctx, 'location').filter((l: any) => l.regionId === NEW_REGION);
+  const regionRow = (ctx: any, regionId = NEW_REGION) => rows(ctx, 'region').find((r: any) => r.id === regionId);
+  const places = (ctx: any, regionId = NEW_REGION) => rows(ctx, 'location').filter((l: any) => l.regionId === regionId);
   const templates = (ctx: any) => rows(ctx, 'enemy_template').filter((t: any) => t.id === 960n || t.id === 961n);
   const linksAt = (ctx: any, locationId: bigint) =>
     rows(ctx, 'location_enemy_template')
@@ -844,8 +852,9 @@ describe('buildRegionFamilies (Plan 09)', () => {
     }
     for (const id of [20n, 23n, 24n]) expect(linksAt(ctx, id)).toEqual([]);
 
+    // Plan 29: the seeded feud (D-70, D-71) may add 'feud' rows; the rule rivals are unchanged.
     const relations = rows(ctx, 'family_relation')
-      .filter((r: any) => r.familyId === beast.id || r.familyId === undead.id)
+      .filter((r: any) => (r.familyId === beast.id || r.familyId === undead.id) && r.kind === 'rival')
       .map((r: any) => [r.familyId, r.otherFamilyId, r.kind]);
     expect(relations).toEqual([
       [beast.id, undead.id, 'rival'],
@@ -897,6 +906,47 @@ describe('buildRegionFamilies (Plan 09)', () => {
     expect(familyFitPlaces(['swamp'], all).map((p: any) => p.id)).toEqual([22n]);
     expect(familyFitPlaces(['mountains'], all).map((p: any) => p.id)).toEqual([21n, 22n]);
     expect(familyFitPlaces([], all).map((p: any) => p.id)).toEqual([21n, 22n]);
+  });
+
+  // Plan 29 (D-68, D-70, D-71): the older reply shape gets rule histories and a feud by rule.
+  const regionWhere = (pred: (id: bigint) => boolean): bigint => {
+    for (let id = 2n; id < 2000n; id += 1n) if (pred(id)) return id;
+    throw new Error('no region id matches');
+  };
+  const feudRows = (ctx: any) => rows(ctx, 'family_relation').filter((r: any) => r.kind === FAMILY_FEUD_KIND);
+
+  it('a region whose feud roll hits: its two families feud both ways and each history names the other (Plan 29)', () => {
+    const regionId = regionWhere((id) => feudCountFor(2, familySeed(id)) === 2);
+    const ctx = poolCtx(fillSeed(regionId));
+    const [beast, undead] = buildRegionFamilies(ctx, regionRow(ctx, regionId), templates(ctx), places(ctx, regionId), T0);
+    expect(feudRows(ctx).map((r: any) => [r.familyId, r.otherFamilyId])).toEqual([
+      [beast.id, undead.id],
+      [undead.id, beast.id],
+    ]);
+    const stored = (id: bigint) => rows(ctx, 'creature_family').find((f: any) => f.id === id);
+    expect(stored(beast.id).history).toBe(ruleFamilyHistory({ familyName: beast.name, regionName: 'Mirefold', feudNames: [undead.name] }));
+    expect(stored(undead.id).history).toBe(ruleFamilyHistory({ familyName: undead.name, regionName: 'Mirefold', feudNames: [beast.name] }));
+  });
+
+  it('a region whose feud roll misses: no feud row and plain rule histories (Plan 29)', () => {
+    const regionId = regionWhere((id) => !feudHappens(familySeed(id)));
+    const ctx = poolCtx(fillSeed(regionId));
+    const families = buildRegionFamilies(ctx, regionRow(ctx, regionId), templates(ctx), places(ctx, regionId), T0);
+    expect(feudRows(ctx)).toEqual([]);
+    for (const family of families) {
+      const stored = rows(ctx, 'creature_family').find((f: any) => f.id === family.id);
+      expect(stored.history).toBe(ruleFamilyHistory({ familyName: family.name, regionName: 'Mirefold' }));
+    }
+  });
+
+  it('a single family never feuds, even when the roll hits (Plan 29)', () => {
+    const regionId = regionWhere((id) => feudHappens(familySeed(id)));
+    const ctx = poolCtx(fillSeed(regionId));
+    const [only] = buildRegionFamilies(ctx, regionRow(ctx, regionId), templates(ctx).filter((t: any) => t.id === 960n), places(ctx, regionId), T0);
+    expect(feudRows(ctx)).toEqual([]);
+    expect(rows(ctx, 'creature_family').find((f: any) => f.id === only.id).history).toBe(
+      ruleFamilyHistory({ familyName: only.name, regionName: 'Mirefold' }),
+    );
   });
 });
 
