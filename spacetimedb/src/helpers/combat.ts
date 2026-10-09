@@ -578,7 +578,9 @@ export function resolveAbility(
     if (actor.type === 'enemy') {
       // Enemy heal (D-53): an ally enemy of this fight, never a player.
       if (!combatId) return;
-      const ally = namedAlly() ?? mostHurtAlly();
+      // A named ally back at full health falls back to the most hurt ally (review B WR-04).
+      const named = namedAlly();
+      const ally = named && named.currentHp < named.maxHp ? named : mostHurtAlly();
       if (!ally || ally.currentHp >= ally.maxHp) return;
       const power = scaledPower();
       const healAmount = calculateHealingPower(power, actor.stats);

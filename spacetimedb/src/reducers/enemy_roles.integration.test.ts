@@ -289,6 +289,48 @@ describe('a support heals the most hurt ally of its own fight (D-53)', () => {
     expect(rows(ctx, 'combat_enemy_cast')).toHaveLength(0);
     expect(enemyRow(ctx, 2n).healTargetEnemyId).toBe(0n);
   });
+
+  it('when the stored ally is back at full health before landing, the heal lands on another hurt ally (review B WR-04)', () => {
+    const seed = roleFight(
+      [
+        RAT,
+        { id: 2n, name: 'Cave Bat', role: 'damage', hp: 50n, maxHp: 100n },
+        { id: 3n, name: 'Mender', role: 'healer', hp: BIG, abilities: [mend()] },
+      ],
+      { targetEnemyId: 3n },
+    );
+    const ctx = fightCtx(seed);
+    fire(ctx, passingNow(1n, 3n));
+    expect(rows(ctx, 'combat_enemy_cast')[0]).toMatchObject({ enemyId: 3n, targetEnemyId: 1n });
+
+    ctx.db.combat_enemy.id.update({ ...enemyRow(ctx, 1n), currentHp: 100n });
+    fire(ctx, T0 + 2n * TEN_S);
+    expect(enemyRow(ctx, 1n).currentHp).toBe(100n);
+    expect(enemyRow(ctx, 2n).currentHp).toBeGreaterThan(50n);
+    expect(lines(ctx, 1n, /^Mender mends Cave Bat\.$/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /^Mender mends Cave Rat\.$/)).toHaveLength(0);
+    expect(enemyRow(ctx, 3n).healTargetEnemyId).toBe(2n);
+  });
+
+  it('when the stored ally is back at full health and nobody else is hurt, the heal fizzles and the card clears (review B WR-04)', () => {
+    const seed = roleFight(
+      [RAT, { id: 2n, name: 'Mender', role: 'healer', hp: BIG, abilities: [mend()] }],
+      { playerHp: BIG / 2n, extra: { ability_template: [REST] } },
+    );
+    const ctx = fightCtx(seed);
+    restIn(ctx, 1n);
+    fire(ctx, passingNow(1n, 2n));
+    expect(rows(ctx, 'combat_enemy_cast')[0]).toMatchObject({ enemyId: 2n, targetEnemyId: 1n });
+    expect(enemyRow(ctx, 2n).healTargetEnemyId).toBe(1n);
+
+    ctx.db.combat_enemy.id.update({ ...enemyRow(ctx, 1n), currentHp: 100n });
+    restIn(ctx, 2n);
+    fire(ctx, T0 + 2n * TEN_S);
+    expect(lines(ctx, 1n, /^Mender's Mend fizzles\.$/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /mends|recovers/)).toHaveLength(0);
+    expect(rows(ctx, 'combat_enemy_cast')).toHaveLength(0);
+    expect(enemyRow(ctx, 2n).healTargetEnemyId).toBe(0n);
+  });
 });
 
 describe('a tank shields an unshielded ally (D-53)', () => {

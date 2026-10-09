@@ -2289,11 +2289,13 @@ export const registerCombatReducers = (deps: any) => {
         let target: { characterId?: bigint; petId?: bigint; allyEnemyId?: bigint } | undefined;
         const allyCast = isEnemyAllyKind(ability.kind);
         if (allyCast) {
-          // A heal or shield lands on its stored ally while that ally lives; it re-picks by the same
-          // rule only when the ally is gone, and never lands on a player (D-53).
+          // A heal or shield lands on its stored ally while that ally lives (a heal only while the ally
+          // is still hurt, review B WR-04); otherwise it re-picks by the same rule (a heal with nobody
+          // hurt fizzles), and never lands on a player (D-53).
           const storedAllyId = cast.targetEnemyId ?? 0n;
           const storedAlly = storedAllyId !== 0n ? ctx.db.combat_enemy.id.find(storedAllyId) : undefined;
-          if (storedAlly && storedAlly.combatId === combat.id && storedAlly.currentHp > 0n) {
+          const stillNeeded = ability.kind !== 'heal' || (storedAlly && storedAlly.currentHp < storedAlly.maxHp);
+          if (storedAlly && storedAlly.combatId === combat.id && storedAlly.currentHp > 0n && stillNeeded) {
             target = { allyEnemyId: storedAlly.id };
           }
         } else {

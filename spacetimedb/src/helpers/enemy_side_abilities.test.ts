@@ -163,6 +163,13 @@ describe('enemy heal targets an ally enemy, never a player', () => {
     expect(enemyHp(ctx, ALLY_LOW)).toBeGreaterThan(40n);
   });
 
+  it('falls back to the lowest-fraction ally when the named ally is back at full HP (review B WR-04)', () => {
+    const ctx = makeCtx({ allyHighHp: 100n });
+    resolveAbility(ctx, COMBAT, enemyActor, ability('heal'), undefined, undefined, ALLY_HIGH);
+    expect(enemyHp(ctx, ALLY_HIGH)).toBe(100n);
+    expect(enemyHp(ctx, ALLY_LOW)).toBeGreaterThan(40n);
+  });
+
   it('does nothing when every ally is at full HP', () => {
     const ctx = makeCtx({ allyLowHp: 100n, allyHighHp: 100n, charHp: 50n });
     const before = snapshotEnemies(ctx);
