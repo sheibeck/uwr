@@ -262,6 +262,38 @@ describe('a reward or defeat path that throws does not brick the fight', () => {
     expect(error).toHaveBeenCalledWith(expect.stringContaining('resolveRound: defeat failed in combat 1'));
   });
 
+  /** Phase 51.3.1.1 Plan 10: the fight's enemy came from pool 7 (count 50, a damage member: 5 points a kill). */
+  const withPool = (seed: Record<string, any[]>) => {
+    seed.combat_enemy = seed.combat_enemy.map((e: any) => ({ ...e, spawnId: 0n, poolId: 7n }));
+    seed.place_pool = [
+      {
+        id: 7n, regionId: 1n, locationId: 10n, kind: 'creature', refId: 1n, count: 50n, homeLevel: 2n,
+        wipedAtMicros: 0n, lastSettledMicros: T0, dirty: false, timeOfDay: 'any',
+      },
+    ];
+    return seed;
+  };
+  const poolCount = (ctx: any) => rows(ctx, 'place_pool')[0].count;
+
+  it('victory failure close: the dead pool enemy is settled against its pool once', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ctx = fightCtx(withPool(victorySeed()), MODULE, T0 + TEN_S);
+    breakTable(ctx, 'combat_loot');
+    fire(ctx);
+    closed(ctx);
+    expect(poolCount(ctx)).toBe(45n);
+  });
+
+  it('defeat failure close: a living pool enemy depletes nothing', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const now = killingNow(() => withPool(defeatSeed()));
+    const ctx = fightCtx(withPool(defeatSeed()), MODULE, now);
+    breakTable(ctx, 'combat_result');
+    fire(ctx);
+    closed(ctx);
+    expect(poolCount(ctx)).toBe(50n);
+  });
+
   it('control: the same victory without the fault still pays out and closes the fight', () => {
     const ctx = fightCtx(victorySeed(), MODULE, T0 + TEN_S);
     fire(ctx);
