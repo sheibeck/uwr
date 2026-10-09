@@ -13,7 +13,7 @@ export interface WindupParts {
   lead: string;
   /** The ability name, emphasised by the feed block. */
   ability: string;
-  /** Text after the ability name, ' → you · lands in 2 rounds'. */
+  /** Text after the ability name, ' → you · lands in 2 rounds' (no arrow for an empty target). */
   tail: string;
   /** lead + ability + tail. */
   text: string;
@@ -39,7 +39,8 @@ export function landsInAtAnnouncement(cast: { announcedRound: bigint; landsAtRou
  * Who the cast is aimed at: an enemy ally's name (a heal or shield wind-up, Plan 05), 'you', a
  * member name, a pet name, or 'the party'. The ally is checked first: the server writes
  * `targetEnemyId` (0 = none) with no player or pet target for a support cast, which must never
- * read as aimed at the party.
+ * read as aimed at the party. An ally whose name has not loaded yet gives '' (review 2 IN-03):
+ * windupParts then leaves the arrow out instead of naming the party, and no new copy is needed.
  */
 export function windupTarget(input: {
   targetCharacterId?: bigint | null;
@@ -55,7 +56,7 @@ export function windupTarget(input: {
   const { targetCharacterId, targetPetId, targetEnemyId, enemyNames, selfId, characterNames, petNames } = input;
   if (targetEnemyId !== null && targetEnemyId !== undefined && targetEnemyId > 0n) {
     const ally = enemyNames?.get(targetEnemyId);
-    if (ally !== undefined && ally !== '') return ally;
+    return ally !== undefined && ally !== '' ? ally : '';
   }
   if (targetCharacterId !== null && targetCharacterId !== undefined) {
     if (selfId !== null && targetCharacterId === selfId) return 'you';
@@ -69,7 +70,10 @@ export function windupTarget(input: {
   return 'the party';
 }
 
-/** '{enemy} winds up {ability} → {target} · lands in {N} rounds' split around the ability name. */
+/**
+ * '{enemy} winds up {ability} → {target} · lands in {N} rounds' split around the ability name. An empty
+ * target (an ally whose name has not loaded) drops the ' → {target}' part.
+ */
 export function windupParts(input: {
   enemy: string;
   ability: string;
@@ -78,7 +82,8 @@ export function windupParts(input: {
 }): WindupParts {
   const landing = input.rounds <= ONE ? 'lands this round' : `lands in ${input.rounds} rounds`;
   const lead = `${input.enemy} winds up `;
-  const tail = ` → ${input.target} · ${landing}`;
+  const aim = input.target === '' ? '' : ` → ${input.target}`;
+  const tail = `${aim} · ${landing}`;
   return { lead, ability: input.ability, tail, text: lead + input.ability + tail };
 }
 

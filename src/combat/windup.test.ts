@@ -47,6 +47,12 @@ describe('windupParts', () => {
     expect(windupParts({ enemy: 'a', ability: 'b', target: 'c', rounds: 0n }).tail).toContain('lands this round');
     expect(windupParts({ enemy: 'a', ability: 'b', target: 'c', rounds: -2n }).tail).toContain('lands this round');
   });
+  it('leaves the arrow out for an empty target (review 2 IN-03)', () => {
+    const parts = windupParts({ enemy: 'Goblin Mender', ability: 'Mend', target: '', rounds: 2n });
+    expect(parts.tail).toBe(' · lands in 2 rounds');
+    expect(parts.text).toBe('Goblin Mender winds up Mend · lands in 2 rounds');
+    expect(parts.text).not.toContain('→');
+  });
   it('passes markup-looking names through as plain strings', () => {
     const parts = windupParts({ enemy: XSS, ability: XSS, target: XSS, rounds: 3n });
     expect(parts.text).toBe(`${XSS} winds up ${XSS} → ${XSS} · lands in 3 rounds`);
@@ -89,6 +95,16 @@ describe('windupTarget', () => {
     expect(windupTarget({ ...base, targetEnemyId: 2n, targetCharacterId: null, targetPetId: null, enemyNames })).toBe(
       'Goblin Brute',
     );
+  });
+  it("an ally whose name has not loaded never reads as 'the party': the target is empty (review 2 IN-03)", () => {
+    const loaded = new Map<bigint, string>([[2n, 'Goblin Brute']]);
+    expect(windupTarget({ ...base, targetEnemyId: 7n, enemyNames: loaded })).toBe('');
+    expect(windupTarget({ ...base, targetEnemyId: 7n })).toBe('');
+    expect(windupTarget({ ...base, targetEnemyId: 2n, enemyNames: new Map([[2n, '']]) })).toBe('');
+    expect(windupTarget({ ...base, targetEnemyId: 7n, targetCharacterId: null, targetPetId: null, enemyNames: loaded })).toBe('');
+    const parts = windupParts({ enemy: 'Goblin Mender', ability: 'Mend', target: windupTarget({ ...base, targetEnemyId: 7n }), rounds: 1n });
+    expect(parts.text).toBe('Goblin Mender winds up Mend · lands this round');
+    expect(parts.text).not.toContain('the party');
   });
   it('ignores a zero ally id and falls back to the player and pet targets', () => {
     const enemyNames = new Map<bigint, string>([[2n, 'Goblin Brute']]);
