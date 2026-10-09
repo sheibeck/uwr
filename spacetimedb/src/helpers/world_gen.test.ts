@@ -72,6 +72,7 @@ import { placeCountFor } from '../data/region_shape';
 import { utcDay } from './llm_budget';
 import { setLlmEnabled, patchAdminState } from './llm_admin_state';
 import { LLM_RESTING_LINE } from './llm_queue';
+import { REGION_HOLD_FAILED_LINE } from './region_hold';
 import { LLM_PLAYER_DAILY_COST_MICRO_USD } from '../data/llm_limits';
 
 beforeAll(async () => {
@@ -1335,7 +1336,7 @@ describe('staged world fill (Phase 43)', () => {
       expect(here).toEqual(expect.arrayContaining(['vendor', 'banker']));
     });
 
-    it('any other refusal stores the refused message (no digits, no budget words) and posts one line that names [explore]', () => {
+    it('any other refusal stores the refused message (no digits, no budget words) and posts the 7d line, which names [explore]', () => {
       const ctx = newCtx({ character: [charRow({ locationId: 100n })] });
       landStageOne(ctx);
       exhaustDay(ctx);
@@ -1348,7 +1349,8 @@ describe('staged world fill (Phase 43)', () => {
       expect(stateOf(ctx).errorMessage).not.toMatch(/budget|limit|daily/i);
       const events = rows(ctx, 'event_private');
       expect(events).toHaveLength(1);
-      expect(events[0].message).toBe(`${WORLD_FILL_REFUSED_MESSAGE} Type [explore] to try again.`);
+      // Phase 51.3.1.2 (D-18): a placed character gets the owner's 7d line; the stored message is unchanged.
+      expect(events[0].message).toBe(REGION_HOLD_FAILED_LINE);
     });
 
     it('a state whose stage 1 cannot be read fails the fill with the failed message and enqueues nothing', () => {
@@ -1369,7 +1371,7 @@ describe('staged world fill (Phase 43)', () => {
   });
 
   describe('failWorldFill', () => {
-    it('sets FILL_ERROR, keeps every stage-1 row, adds the vendor and banker and posts one private line for a placed character', () => {
+    it('sets FILL_ERROR, keeps every stage-1 row, adds the vendor and banker and posts the 7d line to a placed character', () => {
       const ctx = newCtx({ character: [charRow({ locationId: 100n })] });
       const { startLocation, region } = landStageOne(ctx);
       const before = stageOneRowNames(ctx);
@@ -1386,7 +1388,8 @@ describe('staged world fill (Phase 43)', () => {
         kind: 'system',
         characterId: 10n,
         ownerUserId: 7n,
-        message: `${WORLD_FILL_FAILED_MESSAGE} Type [explore] to try again.`,
+        // Phase 51.3.1.2 (D-18): the owner's 7d line for a placed character.
+        message: REGION_HOLD_FAILED_LINE,
       });
       expect(rows(ctx, 'event_creation')).toHaveLength(0);
     });
@@ -1491,7 +1494,8 @@ describe('staged world fill (Phase 43)', () => {
       expect(rows(ctx, 'llm_job')).toHaveLength(0);
       const lines = rows(ctx, 'event_private').filter((e: any) => e.characterId === 11n);
       expect(lines).toHaveLength(1);
-      expect(lines[0].message).toBe(`${WORLD_FILL_REFUSED_MESSAGE} Type [explore] to try again.`);
+      // Phase 51.3.1.2 (D-18): the owner's 7d line for a placed character.
+      expect(lines[0].message).toBe(REGION_HOLD_FAILED_LINE);
     });
   });
 });
