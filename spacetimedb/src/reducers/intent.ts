@@ -38,6 +38,7 @@ import {
 import { findRaceDefinition } from '../data/race_bonuses';
 import { RESPAWN_COMMAND, allowedWhileDead } from '../data/death_lines';
 import { refuseWhileDead, respawnDeadCharacter } from '../helpers/character';
+import { cleanupDecayedCorpses } from '../helpers/corpse';
 import { turnInCompletedQuest, turnInQuestsAtNpc, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
@@ -86,7 +87,8 @@ export const registerIntentReducers = (deps: any) => {
 
     // --- RESPAWN: the placeholder for a death screen (owner, 2026-10-09); the death prompt's [respawn] sends it ---
     if (lower === RESPAWN_COMMAND) {
-      respawnDeadCharacter(ctx, character);
+      // Clean up decayed corpses opportunistically
+      if (respawnDeadCharacter(ctx, character)) cleanupDecayedCorpses(ctx);
       return;
     }
 

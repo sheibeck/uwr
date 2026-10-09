@@ -1,7 +1,7 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
-import { appendPrivateEvent, appendLocationEvent, appendGroupEvent, activeCombatIdForCharacter } from './events';
-import { cleanupDecayedCorpses } from './corpse';
+import { appendPrivateEvent, appendLocationEvent, appendGroupEvent, activeCombatIdForCharacter, respawnPlaceName } from './events';
+export { respawnPlaceName } from './events';
 import { DEAD_IN_FIGHT, deathPromptLine, RESPAWN_IN_COMBAT, RESPAWN_NOT_DEAD } from '../data/death_lines';
 import { markLocationVisited } from './visited';
 import { collapsePassageAfterLeaving } from './passages';
@@ -227,12 +227,6 @@ export function grantRaceAbility(ctx: any, character: any, raceData: any): void 
   });
 }
 
-/** The name of the place a dead character would wake at: the bind point, else where he fell. */
-export function respawnPlaceName(ctx: any, character: any): string {
-  const nextLocationId = character.boundLocationId ?? character.locationId;
-  return ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
-}
-
 /**
  * The death prompt with its clickable [respawn] (owner, 2026-10-09), written privately when the
  * character is dead and no fight holds him. Called after a fight in which he fell, when he comes back
@@ -285,9 +279,6 @@ export function respawnDeadCharacter(ctx: any, character: any): boolean {
     appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', RESPAWN_IN_COMBAT);
     return false;
   }
-
-  // Clean up decayed corpses opportunistically
-  cleanupDecayedCorpses(ctx);
 
   for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
     ctx.db.character_effect.id.delete(effect.id);

@@ -7,7 +7,7 @@
  */
 
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from '../data/xp';
-import { recomputeCharacterDerived, respawnPlaceName } from './character';
+import { recomputeCharacterDerived } from './character';
 import { deathPromptLine } from '../data/death_lines';
 import { appendPrivateEvent as appendPrivateEventHelper } from './events';
 
@@ -173,7 +173,12 @@ export const applyDeathPenalties = (
         character.id,
         character.ownerUserId,
         'system',
-        deathPromptLine(respawnPlaceName(ctx, character), ctx.timestamp.microsSinceUnixEpoch + character.id)
+        // The bind point, else where he fell (respawnPlaceName in events.ts; inlined so this module stays
+        // free of runtime imports that need the server mock in its unit test).
+        deathPromptLine(
+          ctx.db.location.id.find(character.boundLocationId ?? character.locationId)?.name ?? 'your bind point',
+          ctx.timestamp.microsSinceUnixEpoch + character.id
+        )
       );
     }
   }

@@ -289,7 +289,8 @@ export const registerCharacterReducers = (deps: any) => {
   spacetimedb.reducer('respawn_character', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     if (character.hp > 0n) return;
-    respawnDeadCharacter(ctx, character);
+    // Clean up decayed corpses opportunistically
+    if (respawnDeadCharacter(ctx, character)) cleanupDecayedCorpses(ctx);
   });
 
   scheduledReducers['character_logout'] = spacetimedb.reducer(

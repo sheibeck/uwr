@@ -46,6 +46,12 @@ export function activeCombatIdForCharacter(ctx: any, characterId: bigint): bigin
   return null;
 }
 
+/** The name of the place a dead character would wake at: the bind point, else where he fell. */
+export function respawnPlaceName(ctx: any, character: any): string {
+  const nextLocationId = character.boundLocationId ?? character.locationId;
+  return ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
+}
+
 export function appendWorldEvent(ctx: any, kind: string, message: string) {
   return ctx.db.event_world.insert({
     id: 0n,
