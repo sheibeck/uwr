@@ -35,15 +35,28 @@ export function landsInAtAnnouncement(cast: { announcedRound: bigint; landsAtRou
   return atLeastOne(cast.landsAtRound - cast.announcedRound);
 }
 
-/** Who the cast is aimed at: 'you', a member name, a pet name, or 'the party'. */
+/**
+ * Who the cast is aimed at: an enemy ally's name (a heal or shield wind-up, Plan 05), 'you', a
+ * member name, a pet name, or 'the party'. The ally is checked first: the server writes
+ * `targetEnemyId` (0 = none) with no player or pet target for a support cast, which must never
+ * read as aimed at the party.
+ */
 export function windupTarget(input: {
   targetCharacterId?: bigint | null;
   targetPetId?: bigint | null;
+  /** combat_enemy_cast.targetEnemyId; 0 or absent means no ally target. */
+  targetEnemyId?: bigint | null;
+  /** Display names of the fight's enemies by combat_enemy id. */
+  enemyNames?: ReadonlyMap<bigint, string>;
   selfId: bigint | null;
   characterNames: ReadonlyMap<bigint, string>;
   petNames: ReadonlyMap<bigint, string>;
 }): string {
-  const { targetCharacterId, targetPetId, selfId, characterNames, petNames } = input;
+  const { targetCharacterId, targetPetId, targetEnemyId, enemyNames, selfId, characterNames, petNames } = input;
+  if (targetEnemyId !== null && targetEnemyId !== undefined && targetEnemyId > 0n) {
+    const ally = enemyNames?.get(targetEnemyId);
+    if (ally !== undefined && ally !== '') return ally;
+  }
   if (targetCharacterId !== null && targetCharacterId !== undefined) {
     if (selfId !== null && targetCharacterId === selfId) return 'you';
     const name = characterNames.get(targetCharacterId);

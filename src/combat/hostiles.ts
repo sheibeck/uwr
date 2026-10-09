@@ -61,6 +61,8 @@ export interface HostileCastRow {
   abilityKey: string;
   targetCharacterId?: bigint | null;
   targetPetId?: bigint | null;
+  /** The enemy ally of a heal or shield wind-up; 0n (or absent) = none (Plan 05). */
+  targetEnemyId?: bigint | null;
   announcedRound: bigint;
   landsAtRound: bigint;
 }
@@ -199,7 +201,11 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
   }
 
   const enemyById = new Map<bigint, HostileEnemyRow>();
-  for (const enemy of input.enemies) enemyById.set(enemy.id, enemy);
+  const enemyNames = new Map<bigint, string>();
+  for (const enemy of input.enemies) {
+    enemyById.set(enemy.id, enemy);
+    enemyNames.set(enemy.id, enemy.displayName);
+  }
 
   // Healing a living ally first; then the aggro target (pet column first). A target whose name has
   // not arrived yet shows no line until the character or pet rows apply.
@@ -255,6 +261,8 @@ export function hostileViews(input: HostileViewsInput): HostileView[] {
           target: windupTarget({
             targetCharacterId: cast.targetCharacterId,
             targetPetId: cast.targetPetId,
+            targetEnemyId: cast.targetEnemyId,
+            enemyNames,
             selfId: input.selfId,
             characterNames: input.characterNames,
             petNames: input.petNames,

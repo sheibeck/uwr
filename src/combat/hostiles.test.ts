@@ -198,6 +198,22 @@ describe('hostileViews wind-ups', () => {
     expect(views[0].windups.map((w) => w.ability)).toEqual(['Bile Spray', 'rot cloud']);
   });
 
+  it("names the enemy ally of a heal wind-up, never 'the party' (WR-01)", () => {
+    const views = hostileViews(
+      input({
+        enemies: [enemy(5n, { displayName: 'Hexer' }), enemy(2n, { displayName: 'Goblin Brute' })],
+        abilities: [{ enemyTemplateId: 100n, abilityKey: 'mending_light', name: 'Mending Light' }],
+        casts: [
+          { ...cast, abilityKey: 'mending_light', targetCharacterId: null, targetPetId: null, targetEnemyId: 2n },
+        ],
+        currentRound: 4n,
+      }),
+    );
+    const hexer = views.find((view) => view.id === 5n)!;
+    expect(hexer.windups[0].text).toBe('Hexer winds up Mending Light → Goblin Brute · lands in 2 rounds');
+    expect(hexer.windups[0].tail).not.toContain('the party');
+  });
+
   it('reads a pet target by its name', () => {
     const views = hostileViews(
       input({

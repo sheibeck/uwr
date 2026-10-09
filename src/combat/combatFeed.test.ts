@@ -131,6 +131,18 @@ describe('wireCombatFeed: wind-up blocks', () => {
     expect(t.feed.entries.value[0].message).toBe('Rotfang winds up Bile Spray → Ally · lands this round');
   });
 
+  it("names the enemy ally of a heal wind-up, never 'the party' (WR-01)", () => {
+    const t = setup();
+    t.refs.enemies.value = [
+      { id: 2n, combatId: 10n, enemyTemplateId: 3n, displayName: 'Rotfang' },
+      { id: 4n, combatId: 10n, enemyTemplateId: 3n, displayName: 'Goblin Brute' },
+    ];
+    t.refs.castsApplied.value = true;
+    t.refs.casts.value = [cast(7, { targetCharacterId: undefined, targetEnemyId: 4n })];
+    expect(t.feed.entries.value[0].message).toBe('Rotfang winds up Bile Spray → Goblin Brute · lands in 2 rounds');
+    expect(t.feed.entries.value[0].message).not.toContain('the party');
+  });
+
   it('places the block at the start of round announcedRound + 1 when that row is present', () => {
     const t = setup();
     t.refs.castsApplied.value = true;

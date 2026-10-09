@@ -87,9 +87,13 @@ export function wireCombatFeed(input: CombatFeedInput): () => void {
           enemy === undefined ? 0n : enemy.enemyTemplateId,
           cast.abilityKey,
         );
+        const enemyNames = new Map<bigint, string>();
+        for (const row of combat.enemies.value) enemyNames.set(row.id, row.displayName);
         const target = windupTarget({
           targetCharacterId: cast.targetCharacterId,
           targetPetId: cast.targetPetId,
+          targetEnemyId: cast.targetEnemyId,
+          enemyNames,
           selfId: selfId.value,
           characterNames: combat.characterNames.value,
           petNames: combat.petNames.value,

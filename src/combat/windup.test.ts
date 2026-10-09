@@ -83,6 +83,18 @@ describe('windupTarget', () => {
   it('does not call a character self when selfId is null', () => {
     expect(windupTarget({ ...base, selfId: null, targetCharacterId: 1n })).toBe('Mira');
   });
+  it("names an enemy ally for a heal or shield wind-up, never 'the party' (WR-01)", () => {
+    const enemyNames = new Map<bigint, string>([[2n, 'Goblin Brute']]);
+    expect(windupTarget({ ...base, targetEnemyId: 2n, enemyNames })).toBe('Goblin Brute');
+    expect(windupTarget({ ...base, targetEnemyId: 2n, targetCharacterId: null, targetPetId: null, enemyNames })).toBe(
+      'Goblin Brute',
+    );
+  });
+  it('ignores a zero ally id and falls back to the player and pet targets', () => {
+    const enemyNames = new Map<bigint, string>([[2n, 'Goblin Brute']]);
+    expect(windupTarget({ ...base, targetEnemyId: 0n, targetCharacterId: 1n, enemyNames })).toBe('you');
+    expect(windupTarget({ ...base, targetEnemyId: 0n, enemyNames })).toBe('the party');
+  });
   it('passes a markup-looking name through unchanged', () => {
     const names = new Map<bigint, string>([[5n, XSS]]);
     expect(windupTarget({ ...base, characterNames: names, targetCharacterId: 5n })).toBe(XSS);
