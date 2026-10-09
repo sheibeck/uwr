@@ -189,6 +189,43 @@ describe('enemy keywords (quick-261006-a0i)', () => {
   });
 });
 
+describe('enemy targets (51.3.1.1-18)', () => {
+  it('carries the target of a family, named or event entry', () => {
+    const v = vocab({
+      enemies: [
+        { id: 5n, name: 'Goblins', target: 'family' },
+        { id: 3n, name: 'Old Brannoc', target: 'named' },
+        { id: 4n, name: 'Ash Wraith', target: 'event' },
+      ],
+    });
+    const parts = findKeywords('Goblins watch Old Brannoc and the Ash Wraith.', v);
+    expect(parts[0].entry).toEqual({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+    expect(parts[2].entry).toEqual({ kind: 'enemy', id: 3n, name: 'Old Brannoc', target: 'named' });
+    expect(parts[4].entry).toEqual({ kind: 'enemy', id: 4n, name: 'Ash Wraith', target: 'event' });
+  });
+
+  it('adds no target key to an entry without one', () => {
+    const v = vocab({ npcs: [{ id: 1n, name: 'Ferryman' }], enemies: [{ id: 2n, name: 'Rat' }] });
+    const parts = findKeywords('Ferryman and Rat', v);
+    expect(parts[0].entry).toEqual({ kind: 'npc', id: 1n, name: 'Ferryman' });
+    expect(parts[2].entry).toEqual({ kind: 'enemy', id: 2n, name: 'Rat' });
+    expect(Object.keys(parts[2].entry!)).not.toContain('target');
+  });
+
+  it('finds a family name inside the server keyword brackets', () => {
+    const v = vocab({
+      enemies: [{ id: 5n, name: 'Goblins', target: 'family' }],
+      nodes: [{ id: 9n, name: 'Panlight Salt' }],
+    });
+    expect(summary(findKeywords('[Goblins] (Lv 3-5, Many).', v))).toEqual(['[', '[enemy:Goblins]', '] (Lv 3-5, Many).']);
+    expect(summary(findKeywords('[Gather Panlight Salt] (Some).', v))).toEqual([
+      '[Gather ',
+      '[node:Panlight Salt]',
+      '] (Some).',
+    ]);
+  });
+});
+
 describe('foldText', () => {
   it('keeps the UTF-16 length', () => {
     for (const s of ['İstanbul', 'ΑΣ', 'ß', '😀', '\ud800', 'It’s']) {

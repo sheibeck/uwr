@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { computed, effectScope, nextTick, ref, shallowRef } from 'vue';
 import type { EffectScope } from 'vue';
 import { createConsole, QUEUE_FULL_LINE, QUEUE_LOST_LINE } from './useConsole';
@@ -24,8 +26,10 @@ const REDUCER_NAMES: (keyof GameReducers)[] = [
   'switchHotbar',
   'useAbility',
   'moveCharacter',
-  'startGatherResource',
-  'startPull',
+  'pullFamily',
+  'gatherPool',
+  'pullNamedEnemy',
+  'startCombat',
   'takeLoot',
   'takeAllLoot',
 ];
@@ -882,72 +886,99 @@ describe('keyword and rail actions', () => {
     expect(s.api.draft.value).toBe('whisper Marisol ');
   });
 
-  it('gather, invite and trade', () => {
+  it('gather (a resource pool), invite and trade', () => {
     const s = setup();
-    s.api.gather({ id: 6n, name: 'Ironwood' });
-    expect(s.reducers.startGatherResource).toHaveBeenCalledWith({ characterId: 1n, nodeId: 6n });
+    s.api.gather({ id: 9n, name: 'Panlight Salt' });
+    expect(s.reducers.gatherPool).toHaveBeenCalledTimes(1);
+    expect(s.reducers.gatherPool).toHaveBeenCalledWith({ characterId: 1n, poolId: 9n });
     s.api.invite('Bo');
     expect(s.reducers.inviteToGroup).toHaveBeenCalledWith({ characterId: 1n, targetName: 'Bo' });
-    expect(lines(s.feed).map((l) => l.message)).toEqual(['gather Ironwood', 'invite Bo']);
+    expect(lines(s.feed).map((l) => l.message)).toEqual(['gather Panlight Salt', 'invite Bo']);
     s.api.trade();
     expect(s.openScreen).toHaveBeenCalledWith('vendor');
   });
 
-  it('pull: starts a careful or body pull with an echo, closes the screen, clears the conversation', () => {
+  it('pull: pulls a family by pool id with an echo, closes the screen, clears the conversation (D-12)', () => {
     const s = setup();
     s.api.hail({ id: 3n, name: 'Ferryman' });
     const tick = s.api.sendTick.value;
     s.closeScreen.mockClear();
-    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'careful');
-    expect(s.reducers.startPull).toHaveBeenCalledWith({
-      characterId: 1n,
-      enemySpawnId: 9n,
-      pullType: 'careful',
-    });
+    s.api.pull({ id: 5n, name: 'Goblins' });
+    expect(s.reducers.pullFamily).toHaveBeenCalledTimes(1);
+    expect(s.reducers.pullFamily).toHaveBeenCalledWith({ characterId: 1n, poolId: 5n });
     expect(s.closeScreen).toHaveBeenCalled();
     expect(s.api.conversation.value).toBeNull();
     expect(s.api.sendTick.value).toBe(tick + 1);
-    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'body');
-    expect(s.reducers.startPull).toHaveBeenLastCalledWith({
-      characterId: 1n,
-      enemySpawnId: 9n,
-      pullType: 'body',
-    });
-    expect(lines(s.feed).map((l) => l.message)).toContain('pull Goblin Scout');
-    expect(lines(s.feed).map((l) => l.message)).toContain('body pull Goblin Scout');
+    expect(lines(s.feed).map((l) => l.message)).toContain('pull Goblins');
   });
 
-  it('enemy keyword: one click is a careful pull', () => {
+  it('fight: a named enemy calls pullNamedEnemy, an event enemy calls startCombat, each with an echo', () => {
     const s = setup();
-    s.api.actOnKeyword({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
-    expect(s.reducers.startPull).toHaveBeenCalledWith({
-      characterId: 1n,
-      enemySpawnId: 9n,
-      pullType: 'careful',
-    });
-    expect(lines(s.feed)).toEqual([{ kind: 'echo', message: 'pull Goblin Scout', queued: false }]);
+    s.api.fight({ kind: 'named', id: 3n, name: 'Old Brannoc' });
+    expect(s.reducers.pullNamedEnemy).toHaveBeenCalledTimes(1);
+    expect(s.reducers.pullNamedEnemy).toHaveBeenCalledWith({ characterId: 1n, namedEnemyId: 3n });
+    s.api.fight({ kind: 'event', id: 4n, name: 'Ash Wraith' });
+    expect(s.reducers.startCombat).toHaveBeenCalledTimes(1);
+    expect(s.reducers.startCombat).toHaveBeenCalledWith({ characterId: 1n, enemySpawnId: 4n });
     expect(s.closeScreen).toHaveBeenCalled();
+    expect(lines(s.feed).map((l) => l.message)).toEqual(['fight Old Brannoc', 'fight Ash Wraith']);
   });
 
-  it('pull and the enemy keyword do nothing in a fight', () => {
+  it("enemy keyword: target 'family' pulls the family; 'named' and 'event' fight", () => {
+    const s = setup();
+    s.api.actOnKeyword({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+    expect(s.reducers.pullFamily).toHaveBeenCalledWith({ characterId: 1n, poolId: 5n });
+    s.api.actOnKeyword({ kind: 'enemy', id: 3n, name: 'Old Brannoc', target: 'named' });
+    expect(s.reducers.pullNamedEnemy).toHaveBeenCalledWith({ characterId: 1n, namedEnemyId: 3n });
+    s.api.actOnKeyword({ kind: 'enemy', id: 4n, name: 'Ash Wraith', target: 'event' });
+    expect(s.reducers.startCombat).toHaveBeenCalledWith({ characterId: 1n, enemySpawnId: 4n });
+    expect(lines(s.feed).map((l) => l.message)).toEqual(['pull Goblins', 'fight Old Brannoc', 'fight Ash Wraith']);
+  });
+
+  it('a clicked family keyword and the Pull action reach the same reducer call (UI-SPEC P3)', () => {
+    const a = setup();
+    a.api.actOnKeyword({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+    const b = setup();
+    b.api.pull({ id: 5n, name: 'Goblins' });
+    expect(a.reducers.pullFamily).toHaveBeenCalledTimes(1);
+    expect(a.reducers.pullFamily.mock.calls).toEqual(b.reducers.pullFamily.mock.calls);
+    expect(lines(a.feed)).toEqual(lines(b.feed));
+  });
+
+  it('pull, fight and the enemy keyword do nothing in a fight', () => {
     const s = setup();
     s.combatActive.value = true;
-    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'careful');
-    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'body');
-    s.api.actOnKeyword({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
-    expect(s.reducers.startPull).not.toHaveBeenCalled();
+    s.api.pull({ id: 5n, name: 'Goblins' });
+    s.api.fight({ kind: 'named', id: 3n, name: 'Old Brannoc' });
+    s.api.fight({ kind: 'event', id: 4n, name: 'Ash Wraith' });
+    s.api.actOnKeyword({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+    s.api.actOnKeyword({ kind: 'enemy', id: 3n, name: 'Old Brannoc', target: 'named' });
+    expect(s.reducers.pullFamily).not.toHaveBeenCalled();
+    expect(s.reducers.pullNamedEnemy).not.toHaveBeenCalled();
+    expect(s.reducers.startCombat).not.toHaveBeenCalled();
     expect(s.closeScreen).not.toHaveBeenCalled();
     expect(s.feed.entries.value).toHaveLength(0);
   });
 
-  it('pull and the enemy keyword do nothing while offline', () => {
+  it('pull, fight, gather and the enemy keyword do nothing while offline', () => {
     const s = setup();
     s.connected.value = false;
-    s.api.pull({ id: 9n, name: 'Goblin Scout' }, 'careful');
-    s.api.actOnKeyword({ kind: 'enemy', id: 9n, name: 'Goblin Scout' });
-    expect(s.reducers.startPull).not.toHaveBeenCalled();
+    s.api.pull({ id: 5n, name: 'Goblins' });
+    s.api.fight({ kind: 'event', id: 4n, name: 'Ash Wraith' });
+    s.api.gather({ id: 9n, name: 'Panlight Salt' });
+    s.api.actOnKeyword({ kind: 'enemy', id: 5n, name: 'Goblins', target: 'family' });
+    expect(s.reducers.pullFamily).not.toHaveBeenCalled();
+    expect(s.reducers.startCombat).not.toHaveBeenCalled();
+    expect(s.reducers.gatherPool).not.toHaveBeenCalled();
     expect(s.closeScreen).not.toHaveBeenCalled();
     expect(s.feed.entries.value).toHaveLength(0);
+  });
+
+  it('never calls the retired startPull or startGatherResource reducers', () => {
+    const source = readFileSync(resolve(__dirname, 'useConsole.ts'), 'utf8');
+    expect(source).not.toMatch(/startPull|startGatherResource/);
+    const context = readFileSync(resolve(__dirname, '../game/context.ts'), 'utf8');
+    expect(context).not.toMatch(/startPull|startGatherResource/);
   });
 
   it('every action does nothing while offline', () => {
@@ -958,6 +989,7 @@ describe('keyword and rail actions', () => {
     s.api.actOnKeyword({ kind: 'node', id: 5n, name: 'Old Well' });
     s.api.actOnKeyword({ kind: 'player', id: 8n, name: 'Marisol' });
     s.api.gather({ id: 6n, name: 'Ironwood' });
+    s.api.fight({ kind: 'named', id: 3n, name: 'Old Brannoc' });
     s.api.invite('Bo');
     s.api.trade();
     expect(s.closeScreen).not.toHaveBeenCalled();
