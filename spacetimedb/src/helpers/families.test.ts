@@ -1216,12 +1216,18 @@ describe('placesByHops, questPoolPlace and resolveKillQuestTarget (D-74)', () =>
 
   it('is read-only', () => {
     const { ctx } = hopCtx();
-    const before = JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    // The mock adds an empty array the first time a table is read, so compare the tables holding rows.
+    const dump = () =>
+      JSON.stringify(
+        Object.entries(ctx.db._tables as Record<string, any[]>).filter(([, list]) => list.length > 0).sort(([a], [b]) => (a < b ? -1 : 1)),
+        (_k, v) => (typeof v === 'bigint' ? v.toString() : v),
+      );
+    const before = dump();
     resolveKillQuestTarget(ctx, MARKET_ID, 'goblin hexer');
     resolveKillQuestTarget(ctx, MARKET_ID, 'Gloomfang');
     resolveKillQuestTarget(ctx, MARKET_ID);
     placesByHops(ctx, MARKET_ID);
     questPoolPlace(ctx, 8n);
-    expect(JSON.stringify(ctx.db._tables, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))).toBe(before);
+    expect(dump()).toBe(before);
   });
 });

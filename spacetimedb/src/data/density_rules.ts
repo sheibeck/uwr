@@ -73,6 +73,7 @@ export const DENSITY_RULES = deepFreeze({
   ENCOUNTER_MAX_PCT: 60, // D-10: the combined chance never passes this
   GATHER_AMBUSH_FACTOR_PCT: 60, // D-13: a gather ambush rolls at this share of the place chance
   QUEST_ITEM_AMBUSH_FACTOR_PCT: 100, // the quest-item pickup ambush draws from the pools
+  QUEST_TARGET_PULL_CHANCE_PCT: 40, // D-74: each drawn slot of a family holding a roster member's kill target is that target on this chance; dial in Phase 52.5
 
   // --- Groups (D-11) ---
   GROUP_SIZE_BY_LEVEL: { 1: [1, 1], 2: [1, 2], 3: [2, 4] } as Record<number, [number, number]>, // D-11
@@ -171,6 +172,8 @@ export const POOL_ROLL = Object.freeze({
   FEUD_PICK: 86n, // D-70: pick i rolls at FEUD_PICK + i
   RULE_FAMILY_ORDER: 87n, // D-66: the order of the rule family list (helpers/family_validate.ts)
   FEUD_CHANCE: 88n, // D-71
+  QUEST_TARGET_BASE: 100n, // D-74: slot i rolls the quest-target chance at QUEST_TARGET_BASE + i
+  QUEST_TARGET_PICK_BASE: 110n, // D-74: slot i picks among several targets at QUEST_TARGET_PICK_BASE + i
 });
 
 // ---------------------------------------------------------------------------
@@ -419,6 +422,20 @@ export function composeGroupRoles(size: number, available: readonly string[], se
     result.push(pick);
   }
   return result;
+}
+
+/**
+ * Whether drawn slot `slot` of a family holding a roster member's active kill target is that target
+ * (D-74): a seeded roll at POOL_ROLL.QUEST_TARGET_BASE + slot, below QUEST_TARGET_PULL_CHANCE_PCT out of 100.
+ */
+export function questTargetHit(seed: bigint, slot: number): boolean {
+  return rollBelow(seed, POOL_ROLL.QUEST_TARGET_BASE + BigInt(slot), 100n) < BigInt(DENSITY_RULES.QUEST_TARGET_PULL_CHANCE_PCT);
+}
+
+/** Which target a hit slot becomes when several are held (D-74, POOL_ROLL.QUEST_TARGET_PICK_BASE + slot); null for none. */
+export function pickQuestTarget<T>(seed: bigint, slot: number, targets: readonly T[]): T | null {
+  if (targets.length === 0) return null;
+  return targets[Number(rollBelow(seed, POOL_ROLL.QUEST_TARGET_PICK_BASE + BigInt(slot), BigInt(targets.length)))]!;
 }
 
 /** The party level every roll uses: the LOWEST member (PARTY_LEVEL_RULE 'lowest', D-56); 1 when empty. */

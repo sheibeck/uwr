@@ -113,7 +113,7 @@ export const registerPoolReducers = (deps: any) => {
         factorPct: DENSITY_RULES.GATHER_AMBUSH_FACTOR_PCT,
       });
       if (hit) {
-        const drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed });
+        const drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed, roster });
         if (drawn.length > 0) {
           const family = hit.family;
           startPoolFight(deps, ctx, {

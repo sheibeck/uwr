@@ -45,7 +45,7 @@ import {
   WORLD_FILL_FAILED_MESSAGE,
   worldFillCompleteLine,
 } from './world_gen';
-import { ensurePoolsForLocation, familyOfOne } from './families';
+import { ensurePoolsForLocation, familyOfOne, resolveKillQuestTarget } from './families';
 import { markLocationVisited } from './visited';
 import { parseSkillGenResult, insertPendingSkills } from './skill_gen';
 import { validateRenownActivePerk } from './renown_perk_validate';
@@ -782,6 +782,75 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
       }
       if (isDuplicate) continue;
 
+      // Phase 51.3.1.1 D-74: a kill or kill_loot quest is created only when its target lives in a creature
+      // pool the player can reach in the region (resolveKillQuestTarget). An existing pooled member (or a
+      // family named by the model, its front-liner) is the target; an unknown name becomes a family of one
+      // pooled at the nearest hosting place; anything else skips this quest (no player line, D-58), while
+      // the NPC's dialogue and the reply's other effects still apply.
+      let killTarget: { templateId: bigint; placeId: bigint } | null = null;
+      if (questType === 'kill' || questType === 'kill_loot') {
+        const resolved = resolveKillQuestTarget(ctx, character.locationId, effect.targetEnemyName);
+        if (!resolved) {
+          console.log(`offer_quest "${questName}": no reachable creature pool (D-74); quest skipped`);
+          continue;
+        }
+        if (resolved.kind === 'pooled') {
+          killTarget = { templateId: resolved.templateId, placeId: resolved.placeId };
+        } else {
+          // The model invented the creature: a template with sensible defaults, linked here as before.
+          const charLevel = Number(character.level);
+          const newEt = ctx.db.enemy_template.insert({
+            id: 0n,
+            name: effect.targetEnemyName,
+            role: 'melee',
+            roleDetail: 'standard',
+            abilityProfile: 'basic',
+            terrainTypes: 'any',
+            creatureType: String(effect.targetEnemyName).toLowerCase().includes('undead') ? 'undead' : 'beast',
+            timeOfDay: 'any',
+            socialGroup: 'loner',
+            socialRadius: 0n,
+            awareness: 'normal',
+            groupMin: 1n,
+            groupMax: 1n,
+            armorClass: BigInt(8 + charLevel),
+            level: character.level,
+            maxHp: BigInt(20 + charLevel * 8),
+            baseDamage: BigInt(3 + charLevel * 2),
+            xpReward: BigInt(charLevel * 10 + 15),
+          });
+          ctx.db.location_enemy_template.insert({
+            id: 0n,
+            locationId: character.locationId,
+            enemyTemplateId: newEt.id,
+          });
+          // D-54: its family of one, with its own Scarce pool at the resolved place.
+          let family: any = null;
+          try {
+            family = familyOfOne(ctx, newEt, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
+          } catch (err) {
+            console.error('Quest family start failed for enemy ' + newEt.id + ': ' + errName(err));
+          }
+          const pooledThere =
+            !!family &&
+            [...ctx.db.place_pool.by_location.filter(resolved.placeId)].some(
+              (pool: any) => pool.kind === 'creature' && pool.refId === family.id,
+            );
+          if (!pooledThere) {
+            console.log(`offer_quest "${questName}": the invented target has no pool (D-74); quest skipped`);
+            continue;
+          }
+          // Phase 51.3.1.1 (D-47, D-54): the family of one gets the same late family economy job as any
+          // family in a designed region (switch on only).
+          try {
+            startFamilyLoot(ctx, family, family.regionId, { playerId: job.playerId, characterId: character.id });
+          } catch (err) {
+            console.error('Family loot start failed for family ' + family.id + ': ' + errName(err));
+          }
+          killTarget = { templateId: newEt.id, placeId: resolved.placeId };
+        }
+      }
+
       // Create QuestTemplate. Model-supplied numbers never throw: a fractional or non-finite
       // value is floored or replaced, and a zero reward keeps the level-based default.
       const defaultRewardXp = BigInt(Number(character.level) * 15 + 10);
@@ -791,12 +860,14 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
         id: 0n,
         name: questName,
         npcId: npcIdVal,
-        targetEnemyTemplateId: 0n,
+        targetEnemyTemplateId: killTarget?.templateId ?? 0n,
         requiredCount: toBigIntSafe(effect.targetCount, { min: 1n, max: 1_000n, fallback: 1n }),
         minLevel: character.level,
         maxLevel: character.level + 5n,
         rewardXp: questRewardXp,
         questType,
+        // D-74: a kill or kill_loot quest records its pool's place (the Map shows it as the goal).
+        targetLocationId: killTarget?.placeId,
         description: effect.questDescription,
         rewardType: effect.rewardType || 'xp',
         rewardItemName: effect.rewardItemName,
@@ -863,8 +934,9 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
         }
       }
 
-      // For kill-type quests, resolve targetEnemyName from LLM against real enemy templates
-      if (['kill', 'kill_loot', 'boss_kill'].includes(questType)) {
+      // boss_kill: resolve targetEnemyName from the LLM against real enemy templates (kill and kill_loot
+      // were resolved against the pools before the insert, D-74). A boss stays an individual (D-07).
+      if (questType === 'boss_kill') {
         let resolvedEnemyTemplateId: bigint | null = null;
 
         if (effect.targetEnemyName) {
@@ -917,25 +989,6 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
               enemyTemplateId: newEt.id,
             });
             resolvedEnemyTemplateId = newEt.id;
-            // Phase 51.3.1.1 (D-54): an invented kill or kill_loot target becomes a family of one with its
-            // own Scarce pool, pulled like any other creature. A boss_kill target stays an individual (D-07).
-            if (questType === 'kill' || questType === 'kill_loot') {
-              let family: any = null;
-              try {
-                family = familyOfOne(ctx, newEt, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
-              } catch (err) {
-                console.error('Quest family start failed for enemy ' + newEt.id + ': ' + errName(err));
-              }
-              // Phase 51.3.1.1 (D-47, D-54): the family of one gets the same late family economy job as
-              // any family in a designed region (switch on only). boss_kill gets no family and no job.
-              if (family) {
-                try {
-                  startFamilyLoot(ctx, family, family.regionId, { playerId: job.playerId, characterId: character.id });
-                } catch (err) {
-                  console.error('Family loot start failed for family ' + family.id + ': ' + errName(err));
-                }
-              }
-            }
           }
         }
 

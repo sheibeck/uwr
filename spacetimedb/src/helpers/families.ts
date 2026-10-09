@@ -729,26 +729,139 @@ export function ensurePoolsForLocation(ctx: any, locationId: bigint): void {
   seedCreaturePools(ctx, location, familyIds, now);
 }
 
-/** Where a quest family's pool goes: the quest place when it hosts creatures, else its lowest-id such neighbour. */
-function questPoolPlace(ctx: any, questLocationId: bigint): any | null {
-  const here = ctx.db.location.id.find(questLocationId);
-  if (hostsCreatures(here)) return here;
-  let best: any = null;
-  for (const link of ctx.db.location_connection.by_from.filter(questLocationId)) {
-    const place = ctx.db.location.id.find(link.toLocationId);
-    if (!hostsCreatures(place)) continue;
-    if (!best || place.id < best.id) best = place;
+/**
+ * The places reachable from a place inside its own region, nearest first (D-74): a breadth-first walk
+ * over location_connection.by_from, hop by hop, each hop in ascending id, each place once. The start
+ * place is hop 0. A place of another region is never entered. A missing start gives []. Read-only.
+ */
+export function placesByHops(ctx: any, fromLocationId: bigint): any[] {
+  const start = ctx.db.location.id.find(fromLocationId);
+  if (!start) return [];
+  const regionId: bigint = start.regionId;
+  const seen = new Set<bigint>([start.id]);
+  const result: any[] = [start];
+  let frontier: any[] = [start];
+  while (frontier.length > 0) {
+    const next: any[] = [];
+    for (const place of frontier) {
+      for (const link of ctx.db.location_connection.by_from.filter(place.id)) {
+        const toId: bigint = link.toLocationId;
+        if (seen.has(toId)) continue;
+        const to = ctx.db.location.id.find(toId);
+        if (!to || to.regionId !== regionId) continue;
+        seen.add(toId);
+        next.push(to);
+      }
+    }
+    next.sort(byId);
+    result.push(...next);
+    frontier = next;
   }
-  return best;
+  return result;
+}
+
+/**
+ * Where a quest family's pool goes (D-54, D-74): the quest place when it hosts creatures, else the
+ * nearest hosting place in the region by connection hops (ties to the lower id), else null.
+ */
+export function questPoolPlace(ctx: any, questLocationId: bigint): any | null {
+  for (const place of placesByHops(ctx, questLocationId)) {
+    if (hostsCreatures(place)) return place;
+  }
+  return null;
+}
+
+/** How a kill or kill_loot quest target resolves (D-74): an existing pooled member, or a new family of one. */
+export type KillQuestTarget =
+  | { kind: 'pooled'; templateId: bigint; placeId: bigint }
+  | { kind: 'invent'; placeId: bigint };
+
+/** A family's front-liner: its first member in ROLE_ORDER (lowest family_member id within a role) whose template exists. */
+function frontLiner(ctx: any, familyId: bigint): bigint | null {
+  const members = [...ctx.db.family_member.by_family.filter(familyId)]
+    .filter((m: any) => !!ctx.db.enemy_template.id.find(m.enemyTemplateId))
+    .sort(byId);
+  if (members.length === 0) return null;
+  const rank = (m: any) => {
+    const i = ROLE_ORDER.indexOf(normalizeEnemyRole(m.role));
+    return i < 0 ? ROLE_ORDER.length : i;
+  };
+  let best = members[0]!;
+  for (const m of members) if (rank(m) < rank(best)) best = m;
+  return best.enemyTemplateId;
+}
+
+const sameName = (a: unknown, b: string) => String(a ?? '').trim().toLowerCase() === b;
+
+/**
+ * Resolves a kill or kill_loot quest target to a creature pool the player can reach (D-74). Read-only.
+ * Walks the hosting places (charted, not safe, not a hub) of placesByHops from the quest place in order,
+ * with each place's creature place_pool rows in id order (a wiped-out pool counts: it regrows).
+ * With a target name (trimmed, case-insensitive):
+ *   1. a member template of that name in a pooled family (quest families included): that member at the
+ *      nearest place its family is pooled;
+ *   2. a family whose name, plural or singular noun is that name: its front-liner (first member in
+ *      ROLE_ORDER) at the nearest place it is pooled;
+ *   3. a template of that name linked (location_enemy_template) at any reachable place: null, it exists
+ *      but has no reachable pool;
+ *   otherwise a new family of one at questPoolPlace ({ kind: 'invent' }), or null when there is none.
+ * With no name: the front-liner of the first ordinary (non-quest) family pool, or null.
+ */
+export function resolveKillQuestTarget(ctx: any, questLocationId: bigint, targetName?: string): KillQuestTarget | null {
+  const reachable = placesByHops(ctx, questLocationId);
+  const pooled: { placeId: bigint; family: any }[] = [];
+  for (const place of reachable) {
+    if (!hostsCreatures(place)) continue;
+    const pools = [...ctx.db.place_pool.by_location.filter(place.id)].filter((p: any) => p.kind === 'creature').sort(byId);
+    for (const pool of pools) {
+      const family = ctx.db.creature_family.id.find(pool.refId);
+      if (family) pooled.push({ placeId: place.id, family });
+    }
+  }
+
+  const name = String(targetName ?? '').trim().toLowerCase();
+  if (name === '') {
+    for (const { placeId, family } of pooled) {
+      if (isQuestFamily(family)) continue;
+      const templateId = frontLiner(ctx, family.id);
+      if (templateId !== null) return { kind: 'pooled', templateId, placeId };
+    }
+    return null;
+  }
+
+  // 1. A member of a pooled family by its template name.
+  for (const { placeId, family } of pooled) {
+    const members = [...ctx.db.family_member.by_family.filter(family.id)].sort(byId);
+    for (const member of members) {
+      const template = ctx.db.enemy_template.id.find(member.enemyTemplateId);
+      if (template && sameName(template.name, name)) return { kind: 'pooled', templateId: template.id, placeId };
+    }
+  }
+  // 2. A pooled family by its name or nouns: the front-liner.
+  for (const { placeId, family } of pooled) {
+    if (!sameName(family.name, name) && !sameName(family.pluralNoun, name) && !sameName(family.singularNoun, name)) continue;
+    const templateId = frontLiner(ctx, family.id);
+    if (templateId !== null) return { kind: 'pooled', templateId, placeId };
+  }
+  // 3. It exists in reach but lives in no reachable pool: no quest.
+  for (const place of reachable) {
+    for (const link of ctx.db.location_enemy_template.by_location.filter(place.id)) {
+      const template = ctx.db.enemy_template.id.find(link.enemyTemplateId);
+      if (template && sameName(template.name, name)) return null;
+    }
+  }
+  const poolPlace = questPoolPlace(ctx, questLocationId);
+  return poolPlace ? { kind: 'invent', placeId: poolPlace.id } : null;
 }
 
 /**
  * A pool of its own for an AI-invented quest kill or kill_loot target (D-54; boss_kill targets never
  * come here, D-07). Family key quest:<templateId>, one member (the template itself, role by
  * normalizeEnemyRole), nouns from the template name, temperament and icon by creature type. The pool
- * (home Scarce) goes at the quest place when it is non-safe, else at the lowest-id non-safe connected
- * place, else nowhere. That place is seeded first (ensurePoolsForLocation) so its ordinary families
- * keep their pools, and the template is linked there. Find-or-create by key; returns the family row.
+ * (home Scarce) goes at the quest place when it hosts creatures, else at the nearest hosting place in the
+ * region by connection hops (ties to the lower id; questPoolPlace, D-74), else nowhere. That place is
+ * seeded first (ensurePoolsForLocation) so its ordinary families keep their pools, and the template is
+ * linked there. Find-or-create by key; returns the family row.
  */
 export function familyOfOne(ctx: any, template: any, questLocationId: bigint, now: bigint): any {
   const key = questFamilyKey(template.id);

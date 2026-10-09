@@ -208,7 +208,7 @@ export function performTravel(
       leaderId: character.id,
       now,
     });
-    const drawn = hit ? drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed }) : [];
+    const drawn = hit ? drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed, roster: travelingCharacters }) : [];
     if (hit && drawn.length > 0) {
       startPoolFight({ startCombat }, ctx, {
         leader: character,
@@ -390,7 +390,7 @@ export function performTravel(
         leaderId: character.id,
         now: ctx.timestamp.microsSinceUnixEpoch,
       });
-      if (hit) drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed });
+      if (hit) drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed, roster: travellers });
     }
     for (const t of travellers) {
       if (joinedFight) {

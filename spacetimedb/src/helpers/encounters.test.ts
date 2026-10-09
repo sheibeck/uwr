@@ -330,7 +330,7 @@ describe('quest-aware draws (D-74)', () => {
       }
       if (drawn[0]!.enemyTemplateId === 104n) hits += 1;
     }
-    // Measured 2026-10-09: the caster is the lone member in 42% of these seeds (the slot-0 quest roll; a
+    // Measured 2026-10-09: the caster is the lone member in 158 of these 400 seeds (39.5%) (the slot-0 quest roll; a
     // Scarce plain draw never sends a caster, slot 0 is a front-liner).
     expect(hits / N).toBeGreaterThanOrEqual(0.25);
     expect(hits / N).toBeLessThanOrEqual(0.55);

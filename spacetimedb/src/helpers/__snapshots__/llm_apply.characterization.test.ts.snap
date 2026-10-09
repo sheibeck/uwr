@@ -2160,6 +2160,30 @@ exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in o
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "from the grass",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "",
+      "iconKey": "beast",
+      "id": "5n",
+      "key": "1:beast",
+      "name": "Grey Wolves",
+      "pluralNoun": "grey wolves",
+      "regionId": "1n",
+      "singularNoun": "grey wolf",
+      "temperament": "wary"
+    }
+  ],
+  "enemy_template": [
+    {
+      "id": "60n",
+      "level": "3n",
+      "name": "Wolf"
+    }
+  ],
   "event_private": [
     {
       "characterId": "10n",
@@ -2184,6 +2208,15 @@ exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in o
       "kind": "quest",
       "message": "New quest: First",
       "ownerUserId": "7n"
+    }
+  ],
+  "family_member": [
+    {
+      "enemyTemplateId": "60n",
+      "familyId": "5n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
     }
   ],
   "location": [
@@ -2221,7 +2254,13 @@ exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in o
       "toLocationId": "100n"
     }
   ],
-  "location_enemy_template": [],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "60n",
+      "id": "70n",
+      "locationId": "101n"
+    }
+  ],
   "npc": [
     {
       "description": "A baker.",
@@ -2262,6 +2301,21 @@ exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in o
       "npcId": "20n"
     }
   ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "50n",
+      "kind": "creature",
+      "lastSettledMicros": "1600000000000000n",
+      "locationId": "101n",
+      "refId": "5n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
   "quest_instance": [
     {
       "acceptedAt": "ts:1700000000000000n",
@@ -2284,7 +2338,8 @@ exports[`llm apply npc_conversation offer_quest effects > QUIRK: two offers in o
       "requiredCount": "1n",
       "rewardType": "xp",
       "rewardXp": "55n",
-      "targetEnemyTemplateId": "0n"
+      "targetEnemyTemplateId": "60n",
+      "targetLocationId": "101n"
     }
   ]
 }"
@@ -2305,6 +2360,30 @@ exports[`llm apply npc_conversation offer_quest effects > a completed quest does
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
+    }
+  ],
+  "creature_family": [
+    {
+      "ambushRest": "from the grass",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "",
+      "iconKey": "beast",
+      "id": "5n",
+      "key": "1:beast",
+      "name": "Grey Wolves",
+      "pluralNoun": "grey wolves",
+      "regionId": "1n",
+      "singularNoun": "grey wolf",
+      "temperament": "wary"
+    }
+  ],
+  "enemy_template": [
+    {
+      "id": "60n",
+      "level": "3n",
+      "name": "Wolf"
     }
   ],
   "event_private": [
@@ -2333,6 +2412,15 @@ exports[`llm apply npc_conversation offer_quest effects > a completed quest does
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "60n",
+      "familyId": "5n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
+    }
+  ],
   "location": [
     {
       "id": "100n",
@@ -2368,7 +2456,13 @@ exports[`llm apply npc_conversation offer_quest effects > a completed quest does
       "toLocationId": "100n"
     }
   ],
-  "location_enemy_template": [],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "60n",
+      "id": "70n",
+      "locationId": "101n"
+    }
+  ],
   "npc": [
     {
       "description": "A baker.",
@@ -2407,6 +2501,21 @@ exports[`llm apply npc_conversation offer_quest effects > a completed quest does
       "lastUpdated": "ts:1700000000000000n",
       "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
       "npcId": "20n"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "50n",
+      "kind": "creature",
+      "lastSettledMicros": "1600000000000000n",
+      "locationId": "101n",
+      "refId": "5n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
     }
   ],
   "quest_instance": [
@@ -2445,7 +2554,8 @@ exports[`llm apply npc_conversation offer_quest effects > a completed quest does
       "requiredCount": "1n",
       "rewardType": "xp",
       "rewardXp": "55n",
-      "targetEnemyTemplateId": "0n"
+      "targetEnemyTemplateId": "60n",
+      "targetLocationId": "101n"
     }
   ]
 }"
@@ -2614,6 +2724,23 @@ exports[`llm apply npc_conversation offer_quest effects > an invalid quest type 
       "xp": "0n"
     }
   ],
+  "creature_family": [
+    {
+      "ambushRest": "from the grass",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "",
+      "iconKey": "beast",
+      "id": "5n",
+      "key": "1:beast",
+      "name": "Grey Wolves",
+      "pluralNoun": "grey wolves",
+      "regionId": "1n",
+      "singularNoun": "grey wolf",
+      "temperament": "wary"
+    }
+  ],
   "enemy_template": [
     {
       "id": "60n",
@@ -2645,6 +2772,15 @@ exports[`llm apply npc_conversation offer_quest effects > an invalid quest type 
       "kind": "quest",
       "message": "New quest: Rats in the Cellar",
       "ownerUserId": "7n"
+    }
+  ],
+  "family_member": [
+    {
+      "enemyTemplateId": "60n",
+      "familyId": "5n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
     }
   ],
   "location": [
@@ -2729,6 +2865,21 @@ exports[`llm apply npc_conversation offer_quest effects > an invalid quest type 
       "npcId": "20n"
     }
   ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "50n",
+      "kind": "creature",
+      "lastSettledMicros": "1600000000000000n",
+      "locationId": "101n",
+      "refId": "5n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
   "quest_instance": [
     {
       "acceptedAt": "ts:1700000000000000n",
@@ -2751,13 +2902,14 @@ exports[`llm apply npc_conversation offer_quest effects > an invalid quest type 
       "requiredCount": "1n",
       "rewardType": "xp",
       "rewardXp": "55n",
-      "targetEnemyTemplateId": "60n"
+      "targetEnemyTemplateId": "60n",
+      "targetLocationId": "101n"
     }
   ]
 }"
 `;
 
-exports[`llm apply npc_conversation offer_quest effects > boss_kill quests resolve the enemy like kill quests 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > boss_kill quests resolve the enemy by name at the current or a connected place, as before 1`] = `
 "{
   "character": [
     {
@@ -3906,14 +4058,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
       "requiredCount": "3n",
       "rewardType": "xp",
       "rewardXp": "80n",
-      "targetEnemyTemplateId": "1n"
+      "targetEnemyTemplateId": "1n",
+      "targetLocationId": "101n"
     }
   ],
   "region": []
 }"
 `;
 
-exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an existing enemy template by name (case-insensitive) at a connected location 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest naming an existing template with no pool in reach creates no quest (D-74) 1`] = `
 "{
   "character": [
     {
@@ -3928,6 +4081,153 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
+    }
+  ],
+  "enemy_template": [
+    {
+      "id": "60n",
+      "level": "3n",
+      "name": "Wolf"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "npc",
+      "message": "Marta says, \\"The bread is warm today.\\"",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "id": "100n",
+      "isSafe": true,
+      "name": "Market Square",
+      "regionId": "1n",
+      "terrainType": "town"
+    },
+    {
+      "id": "101n",
+      "isSafe": false,
+      "name": "Old Mill",
+      "regionId": "1n",
+      "terrainType": "plains"
+    },
+    {
+      "id": "102n",
+      "isSafe": false,
+      "name": "Far Field",
+      "regionId": "2n",
+      "terrainType": "plains"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "100n",
+      "id": "1n",
+      "toLocationId": "101n"
+    },
+    {
+      "fromLocationId": "101n",
+      "id": "2n",
+      "toLocationId": "100n"
+    }
+  ],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "60n",
+      "id": "70n",
+      "locationId": "101n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A baker.",
+      "greeting": "Hello.",
+      "id": "20n",
+      "locationId": "100n",
+      "name": "Marta",
+      "npcType": "lore",
+      "personalityJson": "{\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "npc_affinity": [
+    {
+      "affinity": "0n",
+      "characterId": "10n",
+      "conversationCount": "0n",
+      "giftsGiven": "0n",
+      "id": "40n",
+      "lastInteraction": "ts:1700000000000000n",
+      "npcId": "20n"
+    }
+  ],
+  "npc_dialog": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "npcId": "20n",
+      "text": "Marta: \\"The bread is warm today.\\""
+    }
+  ],
+  "npc_memory": [
+    {
+      "characterId": "10n",
+      "id": "30n",
+      "lastUpdated": "ts:1700000000000000n",
+      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
+      "npcId": "20n"
+    }
+  ],
+  "place_pool": [],
+  "quest_instance": [],
+  "quest_template": []
+}"
+`;
+
+exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an existing pooled enemy template by name (case-insensitive) at a connected location 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "creature_family": [
+    {
+      "ambushRest": "from the grass",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "",
+      "iconKey": "beast",
+      "id": "5n",
+      "key": "1:beast",
+      "name": "Grey Wolves",
+      "pluralNoun": "grey wolves",
+      "regionId": "1n",
+      "singularNoun": "grey wolf",
+      "temperament": "wary"
     }
   ],
   "enemy_template": [
@@ -3963,6 +4263,15 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an
       "ownerUserId": "7n"
     }
   ],
+  "family_member": [
+    {
+      "enemyTemplateId": "60n",
+      "familyId": "5n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
+    }
+  ],
   "location": [
     {
       "id": "100n",
@@ -4043,6 +4352,21 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an
       "lastUpdated": "ts:1700000000000000n",
       "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
       "npcId": "20n"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "50n",
+      "kind": "creature",
+      "lastSettledMicros": "1600000000000000n",
+      "locationId": "101n",
+      "refId": "5n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
     }
   ],
   "quest_instance": [
@@ -4067,13 +4391,14 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest resolves an
       "requiredCount": "1n",
       "rewardType": "xp",
       "rewardXp": "55n",
-      "targetEnemyTemplateId": "60n"
+      "targetEnemyTemplateId": "60n",
+      "targetLocationId": "101n"
     }
   ]
 }"
 `;
 
-exports[`llm apply npc_conversation offer_quest effects > kill quest with no name and no enemy here keeps targetEnemyTemplateId 0 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest with no name and no pool in reach creates no quest (D-74) 1`] = `
 "{
   "character": [
     {
@@ -4106,14 +4431,6 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest with no nam
           "text": "The bread is warm today."
         }
       ]
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "quest",
-      "message": "New quest: Rats in the Cellar",
-      "ownerUserId": "7n"
     }
   ],
   "location": [
@@ -4151,7 +4468,6 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest with no nam
       "toLocationId": "100n"
     }
   ],
-  "location_enemy_template": [],
   "npc": [
     {
       "description": "A baker.",
@@ -4192,35 +4508,13 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest with no nam
       "npcId": "20n"
     }
   ],
-  "quest_instance": [
-    {
-      "acceptedAt": "ts:1700000000000000n",
-      "characterId": "10n",
-      "completed": false,
-      "id": "1n",
-      "progress": "0n",
-      "questTemplateId": "1n"
-    }
-  ],
-  "quest_template": [
-    {
-      "characterId": "10n",
-      "id": "1n",
-      "maxLevel": "8n",
-      "minLevel": "3n",
-      "name": "Rats in the Cellar",
-      "npcId": "20n",
-      "questType": "kill",
-      "requiredCount": "1n",
-      "rewardType": "xp",
-      "rewardXp": "55n",
-      "targetEnemyTemplateId": "0n"
-    }
-  ]
+  "place_pool": [],
+  "quest_instance": [],
+  "quest_template": []
 }"
 `;
 
-exports[`llm apply npc_conversation offer_quest effects > kill quest without a target name falls back to the first enemy at the character location 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest without a target name takes the front-liner of the nearest pooled family 1`] = `
 "{
   "character": [
     {
@@ -4235,6 +4529,23 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest without a t
       "ownerUserId": "7n",
       "race": "Ashkin",
       "xp": "0n"
+    }
+  ],
+  "creature_family": [
+    {
+      "ambushRest": "from the grass",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "",
+      "iconKey": "beast",
+      "id": "5n",
+      "key": "1:beast",
+      "name": "Grey Wolves",
+      "pluralNoun": "grey wolves",
+      "regionId": "1n",
+      "singularNoun": "grey wolf",
+      "temperament": "wary"
     }
   ],
   "enemy_template": [
@@ -4270,164 +4581,13 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest without a t
       "ownerUserId": "7n"
     }
   ],
-  "location": [
-    {
-      "id": "100n",
-      "isSafe": true,
-      "name": "Market Square",
-      "regionId": "1n",
-      "terrainType": "town"
-    },
-    {
-      "id": "101n",
-      "isSafe": false,
-      "name": "Old Mill",
-      "regionId": "1n",
-      "terrainType": "plains"
-    },
-    {
-      "id": "102n",
-      "isSafe": false,
-      "name": "Far Field",
-      "regionId": "2n",
-      "terrainType": "plains"
-    }
-  ],
-  "location_connection": [
-    {
-      "fromLocationId": "100n",
-      "id": "1n",
-      "toLocationId": "101n"
-    },
-    {
-      "fromLocationId": "101n",
-      "id": "2n",
-      "toLocationId": "100n"
-    }
-  ],
-  "location_enemy_template": [
+  "family_member": [
     {
       "enemyTemplateId": "60n",
-      "id": "70n",
-      "locationId": "100n"
-    }
-  ],
-  "npc": [
-    {
-      "description": "A baker.",
-      "greeting": "Hello.",
-      "id": "20n",
-      "locationId": "100n",
-      "name": "Marta",
-      "npcType": "lore",
-      "personalityJson": "{\\"affinityMultiplier\\":1}"
-    }
-  ],
-  "npc_affinity": [
-    {
-      "affinity": "0n",
-      "characterId": "10n",
-      "conversationCount": "0n",
-      "giftsGiven": "0n",
-      "id": "40n",
-      "lastInteraction": "ts:1700000000000000n",
-      "npcId": "20n"
-    }
-  ],
-  "npc_dialog": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
+      "familyId": "5n",
+      "filler": false,
       "id": "1n",
-      "npcId": "20n",
-      "text": "Marta: \\"The bread is warm today.\\""
-    }
-  ],
-  "npc_memory": [
-    {
-      "characterId": "10n",
-      "id": "30n",
-      "lastUpdated": "ts:1700000000000000n",
-      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
-      "npcId": "20n"
-    }
-  ],
-  "quest_instance": [
-    {
-      "acceptedAt": "ts:1700000000000000n",
-      "characterId": "10n",
-      "completed": false,
-      "id": "1n",
-      "progress": "0n",
-      "questTemplateId": "1n"
-    }
-  ],
-  "quest_template": [
-    {
-      "characterId": "10n",
-      "id": "1n",
-      "maxLevel": "8n",
-      "minLevel": "3n",
-      "name": "Rats in the Cellar",
-      "npcId": "20n",
-      "questType": "kill",
-      "requiredCount": "1n",
-      "rewardType": "xp",
-      "rewardXp": "55n",
-      "targetEnemyTemplateId": "60n"
-    }
-  ]
-}"
-`;
-
-exports[`llm apply npc_conversation offer_quest effects > kill_loot quests resolve the enemy like kill quests 1`] = `
-"{
-  "character": [
-    {
-      "boundLocationId": "100n",
-      "cha": "10n",
-      "className": "Emberblade",
-      "gold": "0n",
-      "id": "10n",
-      "level": "3n",
-      "locationId": "100n",
-      "name": "Tester",
-      "ownerUserId": "7n",
-      "race": "Ashkin",
-      "xp": "0n"
-    }
-  ],
-  "enemy_template": [
-    {
-      "id": "60n",
-      "level": "3n",
-      "name": "Wolf"
-    }
-  ],
-  "event_private": [
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "1n",
-      "kind": "npc",
-      "message": "Marta says, \\"The bread is warm today.\\"",
-      "ownerUserId": "7n",
-      "segments": [
-        {
-          "kind": "dialogue",
-          "speaker": "Marta",
-          "speakerNpcId": "20n",
-          "text": "The bread is warm today."
-        }
-      ]
-    },
-    {
-      "characterId": "10n",
-      "createdAt": "ts:1700000000000000n",
-      "id": "2n",
-      "kind": "quest",
-      "message": "New quest: Rats in the Cellar",
-      "ownerUserId": "7n"
+      "role": "damage"
     }
   ],
   "location": [
@@ -4512,6 +4672,223 @@ exports[`llm apply npc_conversation offer_quest effects > kill_loot quests resol
       "npcId": "20n"
     }
   ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "50n",
+      "kind": "creature",
+      "lastSettledMicros": "1600000000000000n",
+      "locationId": "101n",
+      "refId": "5n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
+  "quest_instance": [
+    {
+      "acceptedAt": "ts:1700000000000000n",
+      "characterId": "10n",
+      "completed": false,
+      "id": "1n",
+      "progress": "0n",
+      "questTemplateId": "1n"
+    }
+  ],
+  "quest_template": [
+    {
+      "characterId": "10n",
+      "id": "1n",
+      "maxLevel": "8n",
+      "minLevel": "3n",
+      "name": "Rats in the Cellar",
+      "npcId": "20n",
+      "questType": "kill",
+      "requiredCount": "1n",
+      "rewardType": "xp",
+      "rewardXp": "55n",
+      "targetEnemyTemplateId": "60n",
+      "targetLocationId": "101n"
+    }
+  ]
+}"
+`;
+
+exports[`llm apply npc_conversation offer_quest effects > kill_loot quests resolve the enemy like kill quests 1`] = `
+"{
+  "character": [
+    {
+      "boundLocationId": "100n",
+      "cha": "10n",
+      "className": "Emberblade",
+      "gold": "0n",
+      "id": "10n",
+      "level": "3n",
+      "locationId": "100n",
+      "name": "Tester",
+      "ownerUserId": "7n",
+      "race": "Ashkin",
+      "xp": "0n"
+    }
+  ],
+  "creature_family": [
+    {
+      "ambushRest": "from the grass",
+      "ambushVerb": "lunge",
+      "creatureType": "beast",
+      "fitTerrains": "plains",
+      "history": "",
+      "iconKey": "beast",
+      "id": "5n",
+      "key": "1:beast",
+      "name": "Grey Wolves",
+      "pluralNoun": "grey wolves",
+      "regionId": "1n",
+      "singularNoun": "grey wolf",
+      "temperament": "wary"
+    }
+  ],
+  "enemy_template": [
+    {
+      "id": "60n",
+      "level": "3n",
+      "name": "Wolf"
+    }
+  ],
+  "event_private": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "kind": "npc",
+      "message": "Marta says, \\"The bread is warm today.\\"",
+      "ownerUserId": "7n",
+      "segments": [
+        {
+          "kind": "dialogue",
+          "speaker": "Marta",
+          "speakerNpcId": "20n",
+          "text": "The bread is warm today."
+        }
+      ]
+    },
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "2n",
+      "kind": "quest",
+      "message": "New quest: Rats in the Cellar",
+      "ownerUserId": "7n"
+    }
+  ],
+  "family_member": [
+    {
+      "enemyTemplateId": "60n",
+      "familyId": "5n",
+      "filler": false,
+      "id": "1n",
+      "role": "damage"
+    }
+  ],
+  "location": [
+    {
+      "id": "100n",
+      "isSafe": true,
+      "name": "Market Square",
+      "regionId": "1n",
+      "terrainType": "town"
+    },
+    {
+      "id": "101n",
+      "isSafe": false,
+      "name": "Old Mill",
+      "regionId": "1n",
+      "terrainType": "plains"
+    },
+    {
+      "id": "102n",
+      "isSafe": false,
+      "name": "Far Field",
+      "regionId": "2n",
+      "terrainType": "plains"
+    }
+  ],
+  "location_connection": [
+    {
+      "fromLocationId": "100n",
+      "id": "1n",
+      "toLocationId": "101n"
+    },
+    {
+      "fromLocationId": "101n",
+      "id": "2n",
+      "toLocationId": "100n"
+    }
+  ],
+  "location_enemy_template": [
+    {
+      "enemyTemplateId": "60n",
+      "id": "70n",
+      "locationId": "101n"
+    }
+  ],
+  "npc": [
+    {
+      "description": "A baker.",
+      "greeting": "Hello.",
+      "id": "20n",
+      "locationId": "100n",
+      "name": "Marta",
+      "npcType": "lore",
+      "personalityJson": "{\\"affinityMultiplier\\":1}"
+    }
+  ],
+  "npc_affinity": [
+    {
+      "affinity": "0n",
+      "characterId": "10n",
+      "conversationCount": "0n",
+      "giftsGiven": "0n",
+      "id": "40n",
+      "lastInteraction": "ts:1700000000000000n",
+      "npcId": "20n"
+    }
+  ],
+  "npc_dialog": [
+    {
+      "characterId": "10n",
+      "createdAt": "ts:1700000000000000n",
+      "id": "1n",
+      "npcId": "20n",
+      "text": "Marta: \\"The bread is warm today.\\""
+    }
+  ],
+  "npc_memory": [
+    {
+      "characterId": "10n",
+      "id": "30n",
+      "lastUpdated": "ts:1700000000000000n",
+      "memoryJson": "{\\"topics\\":[],\\"questsCompleted\\":[],\\"secretsShared\\":[],\\"giftsGiven\\":[],\\"lastConversationSummary\\":\\"\\"}",
+      "npcId": "20n"
+    }
+  ],
+  "place_pool": [
+    {
+      "count": "50n",
+      "dirty": false,
+      "homeLevel": "2n",
+      "id": "50n",
+      "kind": "creature",
+      "lastSettledMicros": "1600000000000000n",
+      "locationId": "101n",
+      "refId": "5n",
+      "regionId": "1n",
+      "timeOfDay": "any",
+      "wipedAtMicros": "0n"
+    }
+  ],
   "quest_instance": [
     {
       "acceptedAt": "ts:1700000000000000n",
@@ -4534,7 +4911,8 @@ exports[`llm apply npc_conversation offer_quest effects > kill_loot quests resol
       "requiredCount": "1n",
       "rewardType": "xp",
       "rewardXp": "55n",
-      "targetEnemyTemplateId": "60n"
+      "targetEnemyTemplateId": "60n",
+      "targetLocationId": "101n"
     }
   ]
 }"

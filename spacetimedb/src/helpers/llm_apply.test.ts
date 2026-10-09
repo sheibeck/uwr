@@ -2044,7 +2044,10 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
   });
 
   it('a skipped quest still lets the dialogue and the other effects of the reply apply', () => {
-    const ctx = strictCtx(questSeed(true));
+    // Every place is a safe town: nothing in reach can host the creature, so the quest is skipped.
+    const seed = questSeed(true);
+    seed.location = seed.location.map((l: any) => ({ ...l, isSafe: true, terrainType: 'town' }));
+    const ctx = strictCtx(seed);
     applyNpcConversationResult(
       ctx,
       npcJob,

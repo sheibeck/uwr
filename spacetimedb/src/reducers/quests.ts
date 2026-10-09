@@ -469,7 +469,7 @@ function questItemAmbush(
       factorPct: DENSITY_RULES.QUEST_ITEM_AMBUSH_FACTOR_PCT,
     });
     if (!hit) return;
-    const drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed });
+    const drawn = drawGroup(ctx, { pool: hit.pool, family: hit.family, partyLevel: level, seed: hit.seed, roster });
     if (drawn.length === 0) return;
     const family = hit.family;
     startPoolFight({ startCombat: aggro.startCombat }, ctx, {

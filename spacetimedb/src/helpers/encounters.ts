@@ -3,11 +3,12 @@
 // encounter (a family pull, a travel ambush, a gather ambush, the quest-item ambush) goes through it:
 //   - creaturePoolsHere: the settled creature pools of a place with their family and members;
 //   - rollEncounter: one seeded roll over those pools (density x temperament x level gap);
-//   - drawGroup / drawForPull: the group a hit family sends, sized by density, roles by rule;
+//   - drawGroup / drawForPull: the group a hit family sends, sized by density, roles by rule; with the
+//     fight roster given, each slot may be a roster member's active kill target (D-74);
 //   - startPoolFight: the lead-in or ambush line to the fight roster, then deps.startCombat.
 //
 // Deterministic: every roll is seeded from (server timestamp, leader, place, phase) through the
-// density rules (encounterSeed + a fixed POOL_ROLL index); no Math.random, no timestamp modulo.
+// density rules (encounterSeed + a fixed POOL_ROLL index); no unseeded random source, no timestamp modulo.
 // It never imports reducers/combat.ts at run time (that would be an import cycle): the fight start
 // comes in through deps.startCombat, the bound form index.ts builds.
 
@@ -21,6 +22,8 @@ import {
   groupSizeFor,
   partyLevel,
   pickEncounterPool,
+  pickQuestTarget,
+  questTargetHit,
 } from '../data/density_rules';
 import type { DensityLevel, EncounterPhase } from '../data/density_rules';
 import { rollBelow } from '../data/economy_rules';
@@ -182,15 +185,46 @@ export function rollEncounter(ctx: any, input: RollEncounterInput): EncounterHit
 }
 
 /**
+ * The kill targets the roster is hunting among the given member templates (D-74): the targets of each
+ * distinct roster character's unfinished quest instances whose template is a kill or kill_loot quest (a
+ * missing questType reads kill) and whose target is in memberTemplateIds. Unique ids, ascending.
+ * Read-only.
+ */
+export function activeKillTargets(ctx: any, roster: readonly any[], memberTemplateIds: readonly bigint[]): bigint[] {
+  const members = new Set(memberTemplateIds);
+  const seen = new Set<bigint>();
+  const targets = new Set<bigint>();
+  for (const character of roster) {
+    const characterId: bigint | undefined = character?.id;
+    if (characterId === undefined || seen.has(characterId)) continue;
+    seen.add(characterId);
+    for (const instance of ctx.db.quest_instance.by_character.filter(characterId)) {
+      if (instance.completed) continue;
+      const template = ctx.db.quest_template.id.find(instance.questTemplateId);
+      if (!template) continue;
+      const questType = template.questType ?? 'kill';
+      if (questType !== 'kill' && questType !== 'kill_loot') continue;
+      if (members.has(template.targetEnemyTemplateId)) targets.add(template.targetEnemyTemplateId);
+    }
+  }
+  return [...targets].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/**
  * The group a family sends (D-11): the size from its density level (Scarce 1, Stable 1-2, Overrun
  * 2-4), one fewer when its top level here is GROUP_TRIM_GAP or more above the party; the roles by
  * composeGroupRoles (slot 0 a tank or damage member, support capped, never only support); for each
  * slot a member of that role (POOL_ROLL.MEMBER_BASE + slot). Each enemy fights at its place level,
  * with spawnId 0n and poolId = the pool. Empty for a wiped-out family or one without members.
+ *
+ * D-74: with a roster, when the family holds an active kill or kill_loot target of a roster member
+ * (activeKillTargets), each slot whose questTargetHit roll hits becomes that target (pickQuestTarget among
+ * several) at its place level; a lone Scarce slot included. Size, roles and the other slots are unchanged,
+ * and the rolls are index-based, so without a roster or a target the draw is exactly today's.
  */
 export function drawGroup(
   ctx: any,
-  input: { pool: PlacePoolRow; family: any; partyLevel: bigint; seed: bigint },
+  input: { pool: PlacePoolRow; family: any; partyLevel: bigint; seed: bigint; roster?: readonly any[] },
 ): DrawnEnemy[] {
   const members = membersAt(ctx, input.family.id, input.pool.locationId);
   if (members.length === 0) return [];
@@ -200,15 +234,26 @@ export function drawGroup(
   if (size <= 0) return [];
   const available = [...new Set(members.map((m) => m.role))];
   const roles = composeGroupRoles(size, available, input.seed);
+  const targets =
+    input.roster && input.roster.length > 0
+      ? activeKillTargets(ctx, input.roster, members.map((m) => m.templateId))
+      : [];
   return roles.map((role, slot) => {
     const ofRole = members.filter((m) => m.role === role);
     const from = ofRole.length > 0 ? ofRole : members;
-    const member = from[Number(rollBelow(input.seed, POOL_ROLL.MEMBER_BASE + BigInt(slot), BigInt(from.length)))]!;
+    let member = from[Number(rollBelow(input.seed, POOL_ROLL.MEMBER_BASE + BigInt(slot), BigInt(from.length)))]!;
+    if (targets.length > 0 && questTargetHit(input.seed, slot)) {
+      const targetId = pickQuestTarget(input.seed, slot, targets);
+      member = members.find((m) => m.templateId === targetId) ?? member;
+    }
     return { enemyTemplateId: member.templateId, level: member.level, spawnId: 0n, poolId: input.pool.id };
   });
 }
 
-/** The draw of a family pull: drawGroup seeded with the 'pull' phase of the leader at the pool's place. */
+/**
+ * The draw of a family pull: drawGroup seeded with the 'pull' phase of the leader at the pool's place,
+ * with the fight roster (D-74: the roster's active kill targets get their per-slot chance).
+ */
 export function drawForPull(
   ctx: any,
   pool: PlacePoolRow,
@@ -216,9 +261,10 @@ export function drawForPull(
   partyLevelValue: bigint,
   leaderId: bigint,
   now: bigint,
+  roster?: readonly any[],
 ): DrawnEnemy[] {
   const seed = encounterSeed(now, leaderId, pool.locationId, 'pull');
-  return drawGroup(ctx, { pool, family, partyLevel: partyLevelValue, seed });
+  return drawGroup(ctx, { pool, family, partyLevel: partyLevelValue, seed, roster });
 }
 
 // ---------------------------------------------------------------------------
@@ -538,7 +584,7 @@ export function pullFamilyFor(
   // The fight roster (online, here, not in another fight) and its LOWEST level (D-56).
   const candidates = getGroupOrSoloParticipants(ctx, character);
   const roster = fightRoster(character, candidates, (characterId: bigint) => activeCombatIdForCharacter(ctx, characterId) !== null);
-  const drawn = drawForPull(ctx, pool, family, rosterLevel(roster), character.id, now);
+  const drawn = drawForPull(ctx, pool, family, rosterLevel(roster), character.id, now, roster);
   if (drawn.length === 0) return pullRefusal(family.pluralNoun);
 
   startPoolFight(deps, ctx, {
