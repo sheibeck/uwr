@@ -118,6 +118,21 @@ describe('source pin: the guard is the first statement of each scheduled reducer
   }
 });
 
+describe('tick_pools reschedules its one row before the pool work (51.3.1.1-14, T-51.3.1.1-47)', () => {
+  it('the guard, then pool_tick.insert, then runPoolTick(ctx', () => {
+    const source = readFileSync(new URL('../index.ts', import.meta.url), 'utf-8');
+    const start = source.indexOf(`scheduledReducers['tick_pools']`);
+    const body = source.slice(start, start + 700);
+    const guardAt = body.indexOf(GUARD);
+    const insertAt = body.indexOf('ctx.db.pool_tick.insert(');
+    const workAt = body.indexOf('runPoolTick(ctx');
+    expect(guardAt).toBeGreaterThan(0);
+    expect(insertAt).toBeGreaterThan(guardAt);
+    expect(workAt).toBeGreaterThan(insertAt);
+    expect(body.indexOf('ctx.db.pool_tick.insert(', insertAt + 1)).toBe(-1);
+  });
+});
+
 describe('no scheduled table escapes the guard list (CR-01)', () => {
   it('every scheduled table in tables.ts is covered here or guarded by the round engine tests', () => {
     const tables = readFileSync(new URL('../schema/tables.ts', import.meta.url), 'utf-8');

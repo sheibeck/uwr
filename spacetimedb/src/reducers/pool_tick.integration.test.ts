@@ -9,6 +9,8 @@ import { DENSITY_RULES, hunterActive, poolSeed } from '../data/density_rules';
 import { overrunSettleLine, worldEventName } from '../data/density_lines';
 import {
   T0,
+  MODULE,
+  ALICE,
   REGION_ID,
   ORCHARD_ID,
   GOBLINS_ID,
@@ -18,20 +20,38 @@ import {
   seedPools,
 } from '../helpers/pool_fixture';
 import { createPool, setPoolCount } from '../helpers/pools';
+import { capturedReducer } from '../helpers/schema_recorder';
 import {
   poolState,
   runPoolTick,
   runHunters,
   runRegionTrends,
   settleDirtyPools,
+  ensurePoolTickScheduled,
 } from '../helpers/pool_tick';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
 );
 
+let tickPools: (...args: any[]) => any;
+let onInit: (...args: any[]) => any;
+let onConnect: (...args: any[]) => any;
+let sweepPassagesTick: (...args: any[]) => any;
+
 beforeAll(async () => {
-  await import('../schema/tables');
+  await import('../index');
+  const grab = (name: string) => {
+    const h = capturedReducer(name);
+    if (typeof h !== 'function') {
+      throw new Error(`capturedReducer('${name}') is not a function: STOP and report; never edit production code to fix this.`);
+    }
+    return h;
+  };
+  tickPools = grab('tick_pools');
+  onInit = grab('__init__');
+  onConnect = grab('__client_connected__');
+  sweepPassagesTick = grab('sweep_passages');
 }, 120_000);
 
 afterEach(() => {
@@ -358,5 +378,99 @@ describe('runPoolTick and poolState', () => {
     tickAt(ctx, t);
     expect(poolState(ctx)).toMatchObject({ lastHunterMicros: t, lastTrendMicros: t });
     expect(rows(ctx, 'pool_region')).toHaveLength(1);
+  });
+});
+
+describe('tick_pools: the guarded scheduled reducer', () => {
+  const pendingTicks = (ctx: any) => rows(ctx, 'pool_tick');
+
+  it('with the module sender it reschedules exactly one row (now + POOL_TICK_MICROS, afterRegionId 0n), then does the work', () => {
+    const ctx = poolCtx(quietWorld(), MODULE, T0 + MIN);
+    const { goblinsOrchard } = seedPools(ctx);
+    setPoolCount(ctx, goblinsOrchard, 30n, T0);
+    tickPools(ctx, { arg: ARG });
+
+    const ticks = pendingTicks(ctx);
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0].afterRegionId).toBe(0n);
+    expect(ticks[0].scheduledAt.value.microsSinceUnixEpoch).toBe(T0 + MIN + DENSITY_RULES.POOL_TICK_MICROS);
+    expect(poolRow(ctx, goblinsOrchard.id).count).toBe(34n);
+  });
+
+  it('a failing step is logged and the reschedule stays', () => {
+    const ctx = poolCtx(quietWorld(), MODULE, T0 + MIN);
+    const { goblinsOrchard } = seedPools(ctx);
+    setPoolCount(ctx, goblinsOrchard, 30n, T0);
+    interceptPlacePool(ctx, {
+      update: () => {
+        throw new Error('boom');
+      },
+    });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => tickPools(ctx, { arg: ARG })).not.toThrow();
+    expect(errors).toHaveBeenCalled();
+    expect(pendingTicks(ctx)).toHaveLength(1);
+  });
+
+  it('a forged client call schedules nothing and settles nothing', () => {
+    const ctx = poolCtx(quietWorld(), ALICE, T0 + MIN);
+    const { goblinsOrchard } = seedPools(ctx);
+    setPoolCount(ctx, goblinsOrchard, 30n, T0);
+    tickPools(ctx, { arg: ARG });
+    expect(pendingTicks(ctx)).toHaveLength(0);
+    expect(poolRow(ctx, goblinsOrchard.id).count).toBe(30n);
+    expect(rows(ctx, 'pool_state')).toHaveLength(1); // only the seeded row
+  });
+});
+
+describe('arming the pool tick (init, clientConnected, sweep_passages)', () => {
+  const pendingTicks = (ctx: any) => rows(ctx, 'pool_tick');
+  const existing = { scheduledId: 9n, scheduledAt: { tag: 'Time', value: { microsSinceUnixEpoch: T0 + MIN } }, afterRegionId: 0n };
+
+  it('ensurePoolTickScheduled inserts one row due now only when none is pending', () => {
+    const ctx = poolCtx(poolWorld());
+    ensurePoolTickScheduled(ctx);
+    ensurePoolTickScheduled(ctx);
+    const ticks = pendingTicks(ctx);
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0].scheduledAt.value.microsSinceUnixEpoch).toBe(T0);
+    expect(ticks[0].afterRegionId).toBe(0n);
+  });
+
+  it('init arms exactly one pool tick when none exists, and none when one exists', () => {
+    const fresh = poolCtx({}, MODULE);
+    onInit(fresh);
+    expect(pendingTicks(fresh)).toHaveLength(1);
+
+    const armed = poolCtx({ pool_tick: [existing] }, MODULE);
+    onInit(armed);
+    expect(pendingTicks(armed)).toEqual([existing]);
+  });
+
+  it('clientConnected arms exactly one pool tick when none exists, and none when one exists', () => {
+    const fresh = poolCtx(poolWorld(), ALICE);
+    onConnect(fresh);
+    expect(pendingTicks(fresh)).toHaveLength(1);
+    onConnect(fresh);
+    expect(pendingTicks(fresh)).toHaveLength(1);
+
+    const armed = poolCtx(poolWorld({ extra: { pool_tick: [existing] } }), ALICE);
+    onConnect(armed);
+    expect(pendingTicks(armed)).toEqual([existing]);
+  });
+
+  it('sweep_passages (module sender) arms the pool tick when none exists, so a republished database starts the chain', () => {
+    const fresh = poolCtx(poolWorld(), MODULE);
+    sweepPassagesTick(fresh, { arg: { scheduledId: 1n } });
+    expect(pendingTicks(fresh)).toHaveLength(1);
+    expect(pendingTicks(fresh)[0].scheduledAt.value.microsSinceUnixEpoch).toBe(T0);
+
+    const armed = poolCtx(poolWorld({ extra: { pool_tick: [existing] } }), MODULE);
+    sweepPassagesTick(armed, { arg: { scheduledId: 1n } });
+    expect(pendingTicks(armed)).toEqual([existing]);
+
+    const forged = poolCtx(poolWorld(), ALICE);
+    sweepPassagesTick(forged, { arg: { scheduledId: 1n } });
+    expect(pendingTicks(forged)).toHaveLength(0);
   });
 });
