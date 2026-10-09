@@ -28,6 +28,7 @@ const TEN_S = 10_000_000n;
 const handlers: Record<string, (...args: any[]) => any> = {};
 let startCombat: any;
 let startCombatForSpawn: any;
+let settlePoolKills: any;
 let deps: any;
 
 beforeAll(async () => {
@@ -40,6 +41,7 @@ beforeAll(async () => {
     handlers[name] = h;
   }
   ({ startCombat, startCombatForSpawn } = await import('./combat'));
+  ({ settlePoolKills } = await import('../helpers/pools'));
   const { computeEnemyStats } = await import('../helpers/combat_enemies');
   const { appendPrivateEvent } = await import('../helpers/events');
   deps = { SenderError: Error, computeEnemyStats, appendPrivateEvent };
@@ -202,6 +204,53 @@ describe('kills settle against their pool when the fight ends (D-16, Pitfall 3)'
     expect(resolved(ctx, combat.id)).toBe(true);
     expect(rows(ctx, 'combat_enemy')).toHaveLength(0);
     expect(poolCount(ctx, goblins.id)).toBe(50n - 8n - 5n);
+  });
+
+  it('one pool that fails to settle does not lose the depletion of the other pools of the fight (review 2 IN-01)', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, goblins } = world();
+    const skitterers = rows(ctx, 'place_pool').find((p: any) => p.kind === 'creature' && p.id !== goblins.id);
+    const combat = startPoolFight(ctx, goblins.id, [TANK, DAMAGE]);
+    kill(ctx, combat.id, [TANK, DAMAGE]);
+    // The damage kill came from the second pool: the fight touches two pools.
+    ctx.db._tables.combat_enemy = rows(ctx, 'combat_enemy').map((e: any) =>
+      e.combatId === combat.id && e.enemyTemplateId === DAMAGE ? { ...e, poolId: skitterers.id } : e,
+    );
+    const first = goblins.id < skitterers.id ? goblins : skitterers;
+    const second = first === goblins ? skitterers : goblins;
+    const secondPoints = first === goblins ? 5n : 8n;
+    const secondBefore = poolCount(ctx, second.id);
+    const firstBefore = poolCount(ctx, first.id);
+    // The first pool in id order throws when it is looked up for its write.
+    const real = ctx.db;
+    const failingPools = new Proxy(real.place_pool, {
+      get(target, prop) {
+        if (prop !== 'id') return Reflect.get(target, prop);
+        const index = Reflect.get(target, prop);
+        return new Proxy(index, {
+          get(ix, key) {
+            const value = Reflect.get(ix, key);
+            if (key !== 'find') return typeof value === 'function' ? value.bind(ix) : value;
+            return (id: bigint) => {
+              if (id === first.id) throw new Error('injected pool failure');
+              return value.call(ix, id);
+            };
+          },
+        });
+      },
+    });
+    ctx.db = new Proxy(real, { get: (target, prop) => (prop === 'place_pool' ? failingPools : Reflect.get(target, prop)) });
+
+    expect(() => settlePoolKills(ctx, combat.id, T0 + TEN_S)).not.toThrow();
+    ctx.db = real;
+    expect(error).toHaveBeenCalledWith(expect.stringContaining(`settlePoolKills: pool ${first.id}`));
+    expect(poolCount(ctx, second.id)).toBe(secondBefore - secondPoints);
+    expect(poolCount(ctx, first.id)).toBe(firstBefore);
+    // Every counted kill was unlinked, so a second settle depletes nothing (no double count).
+    expect(rows(ctx, 'combat_enemy').filter((e: any) => e.combatId === combat.id).map((e: any) => e.poolId)).toEqual([0n, 0n]);
+    settlePoolKills(ctx, combat.id, T0 + TEN_S);
+    expect(poolCount(ctx, second.id)).toBe(secondBefore - secondPoints);
+    expect(poolCount(ctx, first.id)).toBe(firstBefore);
   });
 
   it('startCombat refuses an empty draw: null, and no encounter, participant or tick is written (review B IN-06)', () => {
