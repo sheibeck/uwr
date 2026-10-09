@@ -18,6 +18,9 @@ import { createMockCtx } from './test-utils';
 import { encodeRouteInput } from './llm_inputs';
 import { REGION_ECONOMY_BIGINT_PATHS, type RegionEconomyInput } from '../data/economy_design_rules';
 import { DEFAULT_DIALS } from '../data/economy_rules';
+import { LATE_FAMILY_MAX_TOKENS } from '../data/llm_tuning';
+import { estimatePromptChars } from './llm_budget';
+import { reserveCostMicroUsd } from './measurement';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -1904,6 +1907,10 @@ describe('the AI economy job designs at most ECONOMY_DESIGN_FAMILIES_MAX familie
     expect(jobs.map((j: any) => JSON.parse(j.dedupeKey)[2])).toEqual(['family:2', 'family:4']);
     for (const j of jobs) expect(JSON.parse(j.requestJson)).toMatchObject({ regionId: '1', mode: 'family', characterId: '10' });
     expect(jobs.every((j: any) => j.budgetDay === '')).toBe(true);
+    // Review A WR-01: each late-family job reserves at LATE_FAMILY_MAX_TOKENS, not the 20000 region cap.
+    for (const j of jobs) {
+      expect(j.reservedMicroUsd).toBe(BigInt(reserveCostMicroUsd(LATE_FAMILY_MAX_TOKENS, estimatePromptChars('region_economy', j.requestJson))));
+    }
     // A second trigger finds the jobs still pending: deduped.
     const family2 = ctx.db.creature_family.id.find(2n);
     expect(econ.startFamilyLoot(ctx, family2, 1n, { playerId: alice, characterId: 10n })).toBe('duplicate');

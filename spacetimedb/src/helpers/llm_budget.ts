@@ -30,7 +30,7 @@
 // in the tested measurement helpers.
 // ============================================================================
 
-import { LLM_ROUTES, type LlmRoute } from '../data/llm_routes';
+import { jobMaxTokens, type LlmRoute } from '../data/llm_routes';
 import { KEEPER_BIBLE } from '../data/keeper_bible';
 import { ROUTE_BLOCKS } from '../data/llm_layers';
 import {
@@ -72,9 +72,24 @@ export function estimatePromptChars(route: LlmRoute, requestJson: string): numbe
   return KEEPER_BIBLE.length + ROUTE_BLOCKS[route].length + requestJson.length;
 }
 
-/** Up-front reservation in whole micro-USD (the helper already rounds up). */
+/**
+ * Up-front reservation in whole micro-USD (the helper already rounds up). The output share uses the
+ * job's max_tokens (jobMaxTokens), so a late family-mode region_economy job reserves at
+ * LATE_FAMILY_MAX_TOKENS, as its call is sent (Phase 51.3.1.2, review A WR-01).
+ */
 export function reservationMicroUsd(route: LlmRoute, requestJson: string): bigint {
-  return BigInt(reserveCostMicroUsd(LLM_ROUTES[route].maxTokens, estimatePromptChars(route, requestJson)));
+  return BigInt(reserveCostMicroUsd(jobMaxTokens(route, storedRouteInput(route, requestJson)), estimatePromptChars(route, requestJson)));
+}
+
+/** The stored `input` of a region_economy request (the only route whose max_tokens varies per job). */
+function storedRouteInput(route: LlmRoute, requestJson: string): unknown {
+  if (route !== 'region_economy') return undefined;
+  try {
+    const req: unknown = JSON.parse(requestJson);
+    return req !== null && typeof req === 'object' ? (req as { input?: unknown }).input : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------

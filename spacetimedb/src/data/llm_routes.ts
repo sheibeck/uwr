@@ -18,7 +18,7 @@
 // ============================================================================
 
 import { CLAUDE_MODEL, ANTHROPIC_MAX_TIMEOUT_MS } from './llm_models';
-import { LLM_TUNING } from './llm_tuning';
+import { LLM_TUNING, LATE_FAMILY_MAX_TOKENS } from './llm_tuning';
 import {
   RACE_SCHEMA,
   CLASS_REVEAL_SCHEMA,
@@ -89,6 +89,20 @@ export const LLM_ROUTES: Readonly<Record<LlmRoute, RouteConfig>> = deepFreeze({
   region_economy: route('region_economy', { kind: 'json', schema: REGION_ECONOMY_SCHEMA }),
   smoke_test: route('smoke_test', { kind: 'text' }),
 });
+
+/**
+ * The max_tokens of one job (Phase 51.3.1.2, review A WR-01): the route's, except a late family-mode
+ * region_economy job (input mode 'family', or a stored 51.3 'enemy' job), which takes
+ * LATE_FAMILY_MAX_TOKENS. The request builder and the budget reservation both read it, so the
+ * reservation matches the call. `input` is the job's route input (decoded or stored JSON).
+ */
+export function jobMaxTokens(route: LlmRoute, input: unknown): number {
+  if (route === 'region_economy' && input !== null && typeof input === 'object') {
+    const mode = (input as { mode?: unknown }).mode;
+    if (mode === 'family' || mode === 'enemy') return LATE_FAMILY_MAX_TOKENS;
+  }
+  return LLM_ROUTES[route].maxTokens;
+}
 
 export function isLlmRoute(x: unknown): x is LlmRoute {
   return typeof x === 'string' && (LLM_ROUTE_NAMES as readonly string[]).includes(x);

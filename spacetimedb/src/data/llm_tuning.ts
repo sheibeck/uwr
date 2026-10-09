@@ -73,6 +73,14 @@ export const LLM_NO_RETRY_HEADROOM_TOKENS = 512;
  */
 export const REGION_CREATION_MAX_TOKENS = 20_000;
 
+/**
+ * Phase 51.3.1.2 (review A WR-01): the max_tokens of a late family-mode region_economy job (one family's
+ * drop, trophy and gear). Those jobs share the region_economy route with the region-mode design but are
+ * not region creation, so they do not take REGION_CREATION_MAX_TOKENS: their in-flight reservation
+ * stays small. Generous for one family, not a tuned budget. Read through llm_routes.jobMaxTokens.
+ */
+export const LATE_FAMILY_MAX_TOKENS = 4096;
+
 /** Dispatch allowance added to each class-reveal API latency (enqueue to apply, beyond the API call), in ms. */
 export const LLM_DISPATCH_ALLOWANCE_MS = 300;
 

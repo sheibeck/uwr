@@ -27,7 +27,7 @@
 // ============================================================================
 
 import { Timestamp, TimeDuration } from 'spacetimedb';
-import type { LlmRoute } from '../data/llm_routes';
+import { jobMaxTokens, type LlmRoute } from '../data/llm_routes';
 import { ANTHROPIC_MESSAGES_URL } from '../data/llm_models';
 import { buildRouteLayers } from '../data/llm_layers';
 import {
@@ -678,7 +678,7 @@ export function runLlmJob(ctx: any, arg: DispatchArg, deps?: Partial<ExecutorDep
   let request: ReturnType<typeof buildClaudeRequest>;
   let headers: Record<string, string>;
   try {
-    request = buildClaudeRequest(c.route, buildRouteLayers(c.route, c.input as never));
+    request = buildClaudeRequest(c.route, buildRouteLayers(c.route, c.input as never), jobMaxTokens(c.route, c.input));
     headers = buildClaudeHeaders(c.apiKey);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

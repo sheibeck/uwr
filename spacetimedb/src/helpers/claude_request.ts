@@ -173,7 +173,7 @@ export function assertValidClaudeBody(body: unknown, route: LlmRoute): void {
  * tail is the only per-call text and lives in the user message; system and
  * output_config depend on the route alone (the cache guard).
  */
-export function buildClaudeRequest(route: LlmRoute, layers: ClaudeLayers): ClaudeRequest {
+export function buildClaudeRequest(route: LlmRoute, layers: ClaudeLayers, maxTokens?: number): ClaudeRequest {
   const cfg = LLM_ROUTES[route];
   if (!cfg) throw new Error(`buildClaudeRequest: unknown route ${String(route)}`);
 
@@ -184,7 +184,8 @@ export function buildClaudeRequest(route: LlmRoute, layers: ClaudeLayers): Claud
 
   const body: ClaudeBody = {
     model: CLAUDE_MODEL,
-    max_tokens: cfg.maxTokens,
+    // The job's cap when given (llm_routes.jobMaxTokens, review A WR-01), else the route's.
+    max_tokens: maxTokens ?? cfg.maxTokens,
     system: [
       { type: 'text', text: KEEPER_BIBLE, cache_control: { type: 'ephemeral' } },
       { type: 'text', text: layers.routeBlock, cache_control: { type: 'ephemeral' } },
