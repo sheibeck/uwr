@@ -183,9 +183,10 @@ const NPC_PERSONALITY: Node = obj({
 });
 
 /**
- * A region location (stage 2): its place words (a short map label and the noun a sentence points
+ * A region location (stage 2a): its place words (a short map label and the noun a sentence points
  * with, Phase 51.3.1.1 D-46), its hub mark (D-62: the server keeps at most its own hub count), its
- * safety flag and the names it connects to.
+ * safety flag and the names it connects to. No levelOffset (Phase 51.3.1.2 D-04): the server sets every
+ * level by the hop gradient from the arrival point.
  */
 const LOCATION_ITEM: Node = obj({
   name: S,
@@ -195,7 +196,6 @@ const LOCATION_ITEM: Node = obj({
   terrainType: LOCATION_TERRAIN,
   isHub: BOOL,
   isSafe: BOOL,
-  levelOffset: INT,
   connectsTo: strs,
 });
 
@@ -275,9 +275,10 @@ export const WORLD_START_SCHEMA: Node = deepFreeze(
 );
 
 /**
- * Stage 2: everything else in the region, for the region and arrival point stage 1 already named: the
- * arrival point's place words and hub mark, the new locations, the people and the creature families
- * (Phase 51.3.1.1: families replace the enemy types, D-46).
+ * Stage 2a (Phase 51.3.1.2, D-01, D-04): the places and people of the region, for the region and arrival
+ * point stage 1 already named: the dominant faction, landmarks and threats, the arrival point's place
+ * words and hub mark, the new locations (no levelOffset) and the people. The creature families are asked
+ * in their own call, stage 2b (WORLD_FAMILIES_SCHEMA).
  */
 export const REGION_FILL_SCHEMA: Node = deepFreeze(
   obj({
@@ -287,7 +288,6 @@ export const REGION_FILL_SCHEMA: Node = deepFreeze(
     arrival: ARRIVAL_ITEM,
     locations: { type: 'array', items: LOCATION_ITEM },
     npcs: { type: 'array', items: REGION_NPC_ITEM },
-    families: { type: 'array', items: FAMILY_ITEM },
   }),
 );
 

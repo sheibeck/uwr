@@ -916,8 +916,7 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
     "threats",
     "arrival",
     "locations",
-    "npcs",
-    "families"
+    "npcs"
   ],
   "properties": {
     "dominantFaction": {
@@ -968,7 +967,6 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
           "terrainType",
           "isHub",
           "isSafe",
-          "levelOffset",
           "connectsTo"
         ],
         "properties": {
@@ -1001,9 +999,6 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
           },
           "isSafe": {
             "type": "boolean"
-          },
-          "levelOffset": {
-            "type": "integer"
           },
           "connectsTo": {
             "type": "array",
@@ -1096,138 +1091,6 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
                 "type": "number"
               }
             }
-          }
-        }
-      }
-    },
-    "families": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "singularNoun",
-          "pluralNoun",
-          "creatureType",
-          "iconKey",
-          "temperament",
-          "ambushVerb",
-          "ambushRest",
-          "members",
-          "fitLocations",
-          "relations",
-          "history",
-          "inFeud"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "singularNoun": {
-            "type": "string"
-          },
-          "pluralNoun": {
-            "type": "string"
-          },
-          "creatureType": {
-            "type": "string",
-            "enum": [
-              "beast",
-              "undead",
-              "humanoid",
-              "elemental",
-              "construct",
-              "aberration"
-            ]
-          },
-          "iconKey": {
-            "type": "string",
-            "enum": [
-              "humanoid",
-              "beast",
-              "insect",
-              "spirit",
-              "undead",
-              "avian",
-              "aquatic",
-              "elemental"
-            ]
-          },
-          "temperament": {
-            "type": "string",
-            "enum": [
-              "aggressive",
-              "wary",
-              "skittish"
-            ]
-          },
-          "ambushVerb": {
-            "type": "string"
-          },
-          "ambushRest": {
-            "type": "string"
-          },
-          "members": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "role",
-                "name"
-              ],
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": [
-                    "tank",
-                    "damage",
-                    "support",
-                    "caster"
-                  ]
-                },
-                "name": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "fitLocations": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "relations": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "family",
-                "kind"
-              ],
-              "properties": {
-                "family": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "enum": [
-                    "rival",
-                    "prey",
-                    "predator"
-                  ]
-                }
-              }
-            }
-          },
-          "history": {
-            "type": "string"
-          },
-          "inFeud": {
-            "type": "boolean"
           }
         }
       }

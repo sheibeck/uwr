@@ -374,7 +374,11 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   // measured enemies reply (p99 1988), so 4096 and insufficient_data until a paid re-measurement.
   // Plan 51.3.1.1-30 (prompt Revision 2): the reply grew again, by a history per family and by up to the
   // server's family count (seven today), so 6144. The owner decides when to run a paid measurement.
-  world_gen: entry('low', 6144, 150_000, 'insufficient_data'),
+  // Phase 51.3.1.2 Plan 10 (D-01, D-12): stage 2a, places and people only (no families, no levelOffset),
+  // for up to ten places and nine NPCs. The free reply-budget guard (llm_reply_budget.test.ts) estimates
+  // the largest asked reply at 5065 tokens, over 80% of 4096 and of 6144, so 6656, the smallest multiple
+  // of 512 it accepts. insufficient_data: the owner's paid region at the milestone-end UAT sets the real budget.
+  world_gen: entry('low', 6656, 150_000, 'insufficient_data'),
   // Phase 51.3.1.2 (D-01, D-12): the stage 2b families reply, up to fifteen families. The free reply-budget
   // guard (llm_reply_budget.test.ts) holds the largest asked reply under 80% of this budget; insufficient_data
   // until the owner's paid measurement at milestone end.

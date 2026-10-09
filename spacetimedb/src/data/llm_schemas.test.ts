@@ -440,8 +440,9 @@ describe('region fill place words and hubs, and the creature family item (Phase 
     const json = JSON.stringify(families);
     expect(json).not.toMatch(/"type":"(integer|number)"/);
     expect(JSON.stringify(WORLD_FAMILIES_SCHEMA)).not.toMatch(/groupMin|groupMax|"level"/);
-    // Stage 2a asks for no number at all now that levelOffset is gone (D-04).
-    expect(JSON.stringify(fill)).not.toMatch(/"type":"(integer|number)"/);
+    // Stage 2a asks for no integer now that levelOffset is gone (D-04); its only number is the NPC
+    // affinityMultiplier.
+    expect(JSON.stringify(fill)).not.toMatch(/"type":"integer"/);
   });
 
   it('carries no description text and no bounds (all wording lives in the approved route block)', () => {
