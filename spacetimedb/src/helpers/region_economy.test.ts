@@ -705,6 +705,9 @@ describe('applyRegionEconomyResult: idempotency', () => {
     const a = ctxFor(k0World());
     const b = ctxFor(k0World());
     const { job } = regionJob(a, 1n);
+    // The input build only reads, but the strict mock lists every table it touched (creature_family
+    // since Plan 24), so b reads the same tables before the comparison.
+    regionJob(b, 1n);
     econ.applyRegionEconomyResult(a, job, replyText('region_k0'));
     econ.applyRegionEconomyResult(b, job, replyText('region_k0'));
     expect(recorder.snapshotDb(a.db)).toBe(recorder.snapshotDb(b.db));

@@ -187,7 +187,8 @@ export function smokeInputFor<R extends LlmRoute>(route: R): RouteInputMap[R] {
       hasNearDeath: false,
       participantHpSummary: [],
     },
-    // Typed-map entry only: region_economy is never smoked (not in LLM_SMOKE_ROUTES).
+    // Typed-map entry only: region_economy is never smoked (not in LLM_SMOKE_ROUTES). A small region
+    // with one family (Phase 51.3.1.1, D-47).
     region_economy: {
       mode: 'region',
       regionId: 1n,
@@ -198,7 +199,21 @@ export function smokeInputFor<R extends LlmRoute>(route: R): RouteInputMap[R] {
       landmarks: [],
       threats: [],
       terrains: ['plains'],
-      enemies: [{ ref: 'E1', templateId: 1n, name: 'Field Rat', creatureType: 'beast', level: 1 }],
+      enemies: [],
+      families: [
+        {
+          ref: 'E1',
+          familyId: 1n,
+          name: 'Field Rats',
+          creatureType: 'beast',
+          level: 1,
+          members: [
+            { ref: 'E1.tank', templateId: 1n, role: 'tank', name: 'Field Rat Brute' },
+            { ref: 'E1.damage', templateId: 2n, role: 'damage', name: 'Field Rat' },
+          ],
+        },
+      ],
+      gatherSlots: ['common', 'uncommon', 'rare'],
       recipeSlots: [
         { tier: 'common', foreignRegionIndexes: [] },
         { tier: 'common', foreignRegionIndexes: [] },

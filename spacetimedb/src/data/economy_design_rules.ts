@@ -13,6 +13,7 @@
 import { CRAFTING_MODIFIER_DEFS, ESSENCE_TIER_THRESHOLDS, MATERIAL_DEFS, MODIFIER_REAGENT_THRESHOLDS } from './crafting_rules';
 import { STARTER_ITEM_NAMES } from './combat_constants';
 import { BASIC_RESOURCE_DEFS, JUNK_DEFS } from './equipment_rules';
+import { serverRoleToPrompt } from './family_rules';
 import { QUALITY_TIERS, type QualityTier } from './mechanical_vocabulary';
 import {
   ACCESSORY_FORMS,
@@ -188,6 +189,33 @@ export interface RegionEconomyEnemy {
   level: number;
 }
 
+/**
+ * One member of a creature family, as the model sees it (Phase 51.3.1.1, D-47). The model refers to
+ * it by ref (E1.tank, E1.damage, E1.support, E1.caster; a second member of one role is E1.damage2).
+ * role is the prompt role word (tank, damage, support, caster), never the server word healer.
+ */
+export interface RegionEconomyMember {
+  ref: string;
+  templateId: bigint;
+  role: string;
+  name: string;
+}
+
+/**
+ * One creature family of the region, as the model sees it (D-47). The model refers to it by ref
+ * (E1..), and to its drop as D:E1. level is the family's base level (its lowest member level).
+ */
+export interface RegionEconomyFamily {
+  ref: string;
+  /** creature_family.id; 0n for a family of one read from a 51.3 enemy entry. */
+  familyId: bigint;
+  name: string;
+  creatureType: string;
+  level: number;
+  /** In the order tank, damage, support, caster. */
+  members: RegionEconomyMember[];
+}
+
 /** Another region with a complete economy that may supply a foreign material. */
 export interface RegionEconomyForeignRegion {
   regionId: bigint;
@@ -206,11 +234,17 @@ export interface RegionEconomyForeign {
 
 /**
  * What the region_economy route sends the model. Ids the model must never see as numbers are kept
- * to the bigint paths in REGION_ECONOMY_BIGINT_PATHS; the model writes handles (G1..G3 for its
- * gatherables, E1.. for enemies, D:E1 for an enemy's drop, F1.. for foreign materials).
+ * to the bigint paths in REGION_ECONOMY_BIGINT_PATHS; the model writes handles (G1.. for its
+ * gatherables, E1.. for families, E1.tank.. for members, D:E1 for a family's drop, F1.. for foreign
+ * materials).
+ *
+ * Modes: 'region' designs the whole region; 'family' designs one family added after the region was
+ * designed (Phase 51.3.1.1). 'enemy' is kept only to read jobs stored before the family economy (51.3
+ * late creatures). An input stored before Phase 51.3.1.1 has no families and no gatherSlots: read it
+ * through economyFamilies, and treat missing gatherSlots as the small size.
  */
 export interface RegionEconomyInput {
-  mode: 'region' | 'enemy';
+  mode: 'region' | 'family' | 'enemy';
   regionId: bigint;
   regionName: string;
   biome: string;
@@ -219,7 +253,12 @@ export interface RegionEconomyInput {
   landmarks: string[];
   threats: string[];
   terrains: string[];
+  /** The 51.3 per-template list; region mode keeps it for the 51.3 apply until the family apply ships (Plan 25). */
   enemies: RegionEconomyEnemy[];
+  /** The region's creature families (Phase 51.3.1.1); absent in an input stored before it. */
+  families?: RegionEconomyFamily[];
+  /** The rarity of each gatherable slot G1, G2, ... from the economy size; [] in family mode. */
+  gatherSlots?: string[];
   recipeSlots: { tier: string; foreignRegionIndexes: number[] }[];
   foreignRegions: RegionEconomyForeignRegion[];
   foreign: RegionEconomyForeign[];
@@ -230,21 +269,63 @@ export interface RegionEconomyInput {
 export const REGION_ECONOMY_BIGINT_PATHS: readonly string[] = Object.freeze([
   'regionId',
   'enemies[].templateId',
+  'families[].familyId',
+  'families[].members[].templateId',
   'foreignRegions[].regionId',
   'foreign[].templateId',
 ]);
 
-/** The "Small" size of a region economy. */
+/**
+ * The economy sizes (D-50): the rarity of each gatherable slot and the number of recipes. The server
+ * fills the counts into the region_economy user message; the approved route block states none.
+ */
+export const REGION_ECONOMY_SIZES = Object.freeze({
+  small: Object.freeze({ gatherSlots: Object.freeze(['common', 'uncommon', 'rare']), recipes: 3 }),
+  medium: Object.freeze({
+    gatherSlots: Object.freeze(['common', 'common', 'uncommon', 'uncommon', 'rare']),
+    recipes: 5,
+  }),
+  large: Object.freeze({
+    gatherSlots: Object.freeze(['common', 'common', 'common', 'uncommon', 'uncommon', 'rare', 'rare']),
+    recipes: 7,
+  }),
+});
+
+export type RegionEconomySize = keyof typeof REGION_ECONOMY_SIZES;
+
+/**
+ * The economy size (D-50) is a named constant (D-57); Phase 52.5 adds the admin setting. 'small' gives
+ * today's counts: three gatherables and three recipes.
+ */
+export const REGION_ECONOMY_SIZE: keyof typeof REGION_ECONOMY_SIZES = 'small';
+
+function sizeOf(size: string): (typeof REGION_ECONOMY_SIZES)[RegionEconomySize] {
+  return Object.prototype.hasOwnProperty.call(REGION_ECONOMY_SIZES, size)
+    ? REGION_ECONOMY_SIZES[size as RegionEconomySize]
+    : REGION_ECONOMY_SIZES.small;
+}
+
+/** The rarity of each gatherable slot of a size (a fresh array); an unknown size reads as small. */
+export function gatherSlotsForSize(size: string): string[] {
+  return [...sizeOf(size).gatherSlots];
+}
+
+/** The number of recipes of a size; an unknown size reads as small. */
+export function recipeCountForSize(size: string): number {
+  return sizeOf(size).recipes;
+}
+
+/** The counts of a region economy: gatherables and recipes from REGION_ECONOMY_SIZE, the rest fixed. */
 export const REGION_ECONOMY_COUNTS = Object.freeze({
-  gatherables: 3,
-  recipes: 3,
+  gatherables: REGION_ECONOMY_SIZES[REGION_ECONOMY_SIZE].gatherSlots.length,
+  recipes: REGION_ECONOMY_SIZES[REGION_ECONOMY_SIZE].recipes,
   lootEntriesMin: 4,
   lootEntriesMax: 6,
   maxForeignRegions: 3,
   maxOfferPerRegion: 4,
 });
 
-/** The rarity of each gatherable slot (G1, G2, G3). */
+/** The rarity of each gatherable slot of the 51.3 "Small" economy (G1, G2, G3); see gatherSlotsForSize. */
 export const GATHER_SLOTS: readonly string[] = Object.freeze(['common', 'uncommon', 'rare']);
 
 /** The gather pool weight of each slot rarity, next to the terrain pool weights (RESEARCH A6). */
@@ -268,6 +349,46 @@ export function dropRef(enemy: string): string {
 export function foreignRef(index: number): string {
   return `F${index + 1}`;
 }
+/** The handle of a family: familyRef(0) is E1 (a family's drop is dropRef('E1'), D:E1). */
+export function familyRef(index: number): string {
+  return `E${index + 1}`;
+}
+/**
+ * The handle of a family member: the family handle, a dot and the prompt role word, so
+ * memberRef('E1', 'healer') is 'E1.support'. The second member of one role is numbered from 2
+ * (occurrence is zero-based): memberRef('E1', 'damage', 1) is 'E1.damage2'.
+ */
+export function memberRef(family: string, serverRole: string, occurrence = 0): string {
+  const n = typeof occurrence === 'number' && Number.isInteger(occurrence) && occurrence > 0 ? String(occurrence + 1) : '';
+  return `${family}.${serverRoleToPrompt(serverRole)}${n}`;
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * The families of a stored input. An input built since Phase 51.3.1.1 carries them; a 51.3 input
+ * (no families key) reads each enemy entry as a family of one with a single damage member, named
+ * after the enemy, handle <ref>.damage. Entries that are not objects are skipped. Never throws.
+ */
+export function economyFamilies(input: RegionEconomyInput): RegionEconomyFamily[] {
+  if (!isRecord(input)) return [];
+  if (Array.isArray(input.families)) return input.families.filter(isRecord) as RegionEconomyFamily[];
+  const enemies: unknown[] = Array.isArray(input.enemies) ? input.enemies : [];
+  return enemies.filter(isRecord).map((e) => {
+    const ref = asText(e.ref);
+    const name = asText(e.name);
+    return {
+      ref,
+      familyId: 0n,
+      name,
+      creatureType: asText(e.creatureType),
+      level: typeof e.level === 'number' ? e.level : 1,
+      members: [{ ref: memberRef(ref, 'damage'), templateId: e.templateId, role: 'damage', name }],
+    };
+  });
+}
 
 // ---------------------------------------------------------------------------
 // RECIPE TIERS AND CROSS-REGION REQUIREMENTS
@@ -284,6 +405,18 @@ export function recipeTierSlots(k: bigint): string[] {
   if (n === 2n) return ['uncommon', 'rare', 'epic'];
   if (n === 1n) return ['common', 'uncommon', 'rare'];
   return ['common', 'common', 'uncommon'];
+}
+
+/**
+ * The tier of each recipe of a size: the first three follow recipeTierSlots(k); a fourth and later
+ * recipe alternates common and uncommon. A count below three keeps the first tiers; a count that is
+ * not an integer reads as three.
+ */
+export function recipeTierSlotsForSize(k: bigint, count: number): string[] {
+  const n = typeof count === 'number' && Number.isInteger(count) ? Math.max(0, count) : 3;
+  const out = recipeTierSlots(k).slice(0, n);
+  for (let i = out.length; i < n; i++) out.push(i % 2 === 1 ? 'common' : 'uncommon');
+  return out;
 }
 
 /** How many distinct OTHER regions a recipe of each tier must draw a material from. */

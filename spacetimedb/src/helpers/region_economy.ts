@@ -13,23 +13,32 @@ import {
   GATHER_SLOTS,
   REGION_ECONOMY_BIGINT_PATHS,
   REGION_ECONOMY_COUNTS,
+  REGION_ECONOMY_SIZE,
   enemyRef,
+  familyRef,
   foreignOffer,
   foreignRef,
+  gatherSlotsForSize,
   gearTemplate,
   materialTemplate,
+  memberRef,
   nameKey,
   orderForeignRegions,
-  recipeTierSlots,
+  recipeCountForSize,
+  recipeTierSlotsForSize,
   regionalOutputTemplate,
   scrollTemplate,
   slotForeignIndexes,
   trophyTemplate,
   type ForeignMaterial,
   type RegionEconomyEnemy,
+  type RegionEconomyFamily,
   type RegionEconomyForeign,
   type RegionEconomyInput,
+  type RegionEconomyMember,
 } from '../data/economy_design_rules';
+import { serverRoleToPrompt } from '../data/family_rules';
+import { FAMILY_PROMPT_ROLES } from '../data/mechanical_vocabulary';
 import { aiLootTable, SCROLL_TIER_WEIGHTS } from '../data/economy_rules';
 import { areaLevel, materialKey, type GeneratedItemTemplate } from '../data/recipe_rules';
 import {
@@ -170,22 +179,82 @@ function enemyEntry(template: any, index: number): RegionEconomyEnemy {
   };
 }
 
+/** Rank of a prompt role in the listing order tank, damage, support, caster. */
+function promptRoleRank(role: string): number {
+  const i = (FAMILY_PROMPT_ROLES as readonly string[]).indexOf(role);
+  return i === -1 ? FAMILY_PROMPT_ROLES.length : i;
+}
+
+/**
+ * One family of the job input (D-47): its members whose enemy_template exists, in the order tank,
+ * damage, support, caster (member id within a role; fillers included), each with its handle
+ * (E1.tank; a second member of one role is E1.damage2) and prompt role word. The level is the base
+ * level, the lowest member level (1 with no members).
+ */
+function familyEntry(tx: any, family: any, ref: string): RegionEconomyFamily {
+  const rows = [...tx.db.family_member.by_family.filter(family.id)].sort((a: any, b: any) => compareBig(a.id, b.id));
+  const listed: { serverRole: string; role: string; template: any }[] = [];
+  for (const m of rows) {
+    const template = tx.db.enemy_template.id.find(m.enemyTemplateId);
+    if (template) listed.push({ serverRole: text(m.role), role: serverRoleToPrompt(text(m.role)), template });
+  }
+  // A stable sort keeps member id order within a role.
+  listed.sort((a, b) => promptRoleRank(a.role) - promptRoleRank(b.role));
+  const seen = new Map<string, number>();
+  const members: RegionEconomyMember[] = listed.map((x) => {
+    const n = seen.get(x.role) ?? 0;
+    seen.set(x.role, n + 1);
+    return { ref: memberRef(ref, x.serverRole, n), templateId: x.template.id, role: x.role, name: text(x.template.name) };
+  });
+  let level: bigint | null = null;
+  for (const x of listed) {
+    const l: bigint = typeof x.template.level === 'bigint' ? x.template.level : 1n;
+    if (level === null || l < level) level = l;
+  }
+  return {
+    ref,
+    familyId: family.id,
+    name: text(family.name),
+    creatureType: text(family.creatureType),
+    level: Number(level ?? 1n),
+    members,
+  };
+}
+
+/**
+ * The region's creature families (creature_family.by_region, id order) as job input entries E1, E2,
+ * ...; a family with no member whose template exists is left out and takes no handle.
+ */
+export function regionEconomyFamilies(tx: any, regionId: bigint): RegionEconomyFamily[] {
+  const families = [...tx.db.creature_family.by_region.filter(regionId)].sort((a: any, b: any) => compareBig(a.id, b.id));
+  const out: RegionEconomyFamily[] = [];
+  for (const family of families) {
+    const entry = familyEntry(tx, family, familyRef(out.length));
+    if (entry.members.length > 0) out.push(entry);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Input builder
 // ---------------------------------------------------------------------------
 
 /**
  * The stored route input of a region, from database rows only. Region mode carries the region's
- * creatures, the recipe tier slots (from the number of other regions with a complete economy) and up
- * to three foreign regions (neighbors first) offering up to four materials each. Enemy mode (an enemy
- * type added after the region was designed) carries that one enemy and the region's existing
- * materials. Strings are stored as they are in the rows; the prompt builder sanitizes them.
+ * creature families with their members (D-47), the gatherable slots and recipe tier slots of the
+ * economy size (REGION_ECONOMY_SIZE; the tiers also depend on the number of other regions with a
+ * complete economy) and up to three foreign regions (neighbors first) offering up to four materials
+ * each. It still lists the 51.3 enemies for the 51.3 apply until the family apply ships (Plan 25).
+ * Family mode (a family added after the region was designed) carries that one family as E1 and the
+ * region's existing materials. Enemy mode (the 51.3 late creature, kept until Plan 25 moves the late
+ * jobs to families) carries one enemy. Strings are stored as they are in the rows; the prompt builder
+ * sanitizes them.
  */
 export function buildRegionEconomyInput(
   tx: any,
   region: any,
-  mode: 'region' | 'enemy',
-  enemyTemplate?: any,
+  mode: 'region' | 'family' | 'enemy',
+  subject?: any,
 ): RegionEconomyInput {
   const regionId: bigint = region.id;
   const danger: bigint = typeof region.dangerMultiplier === 'bigint' ? region.dangerMultiplier : 100n;
@@ -200,21 +269,26 @@ export function buildRegionEconomyInput(
     threats: stringList(region.threats),
     terrains: regionTerrains(tx, regionId),
     enemies: [],
+    families: [],
+    gatherSlots: [],
     recipeSlots: [],
     foreignRegions: [],
     foreign: [],
     existingMaterials: [],
   };
 
-  if (mode === 'enemy') {
-    if (enemyTemplate) base.enemies = [enemyEntry(enemyTemplate, 0)];
+  if (mode === 'family' || mode === 'enemy') {
+    if (mode === 'family' && subject) base.families = [familyEntry(tx, subject, familyRef(0))];
+    if (mode === 'enemy' && subject) base.enemies = [enemyEntry(subject, 0)];
     base.existingMaterials = regionMaterials(tx, regionId).map((m) => ({ name: m.name, kind: m.kind }));
     return base;
   }
 
   base.enemies = regionEnemyTemplates(tx, regionId).map((t, i) => enemyEntry(t, i));
+  base.families = regionEconomyFamilies(tx, regionId);
+  base.gatherSlots = gatherSlotsForSize(REGION_ECONOMY_SIZE);
   const candidates = foreignCandidates(tx, regionId);
-  const tiers = recipeTierSlots(BigInt(candidates.length));
+  const tiers = recipeTierSlotsForSize(BigInt(candidates.length), recipeCountForSize(REGION_ECONOMY_SIZE));
   const take = Math.min(REGION_ECONOMY_COUNTS.maxForeignRegions, candidates.length);
   const picked = orderForeignRegions(regionId, candidates).slice(0, take);
   base.foreignRegions = picked.map((id) => ({ regionId: id, name: text(tx.db.region.id.find(id)?.name) }));
@@ -237,9 +311,11 @@ export function buildRegionEconomyInput(
 
 export interface EconomyJobContext {
   regionId: bigint;
-  mode: 'region' | 'enemy';
-  /** 0n in region mode. */
+  mode: 'region' | 'family' | 'enemy';
+  /** 0n unless enemy mode (a 51.3 late creature). */
   enemyTemplateId: bigint;
+  /** 0n unless family mode (a late family, Phase 51.3.1.1). */
+  familyId: bigint;
   input: RegionEconomyInput;
 }
 
@@ -277,9 +353,9 @@ function reviveAt(node: unknown, segments: string[]): void {
 }
 
 /**
- * The stored request of a region economy job, `{ regionId, mode, enemyTemplateId, input }`, with the
- * bigint paths of the input (REGION_ECONOMY_BIGINT_PATHS) and the top-level ids revived. Null on any
- * parse failure, an unknown mode, a non-integer region id or a missing input.
+ * The stored request of a region economy job, `{ regionId, mode, enemyTemplateId?, familyId?, input }`,
+ * with the bigint paths of the input (REGION_ECONOMY_BIGINT_PATHS) and the top-level ids revived. Null
+ * on any parse failure, an unknown mode, a non-integer id or a missing input.
  */
 export function readEconomyJobContext(contextJson: string | undefined): EconomyJobContext | null {
   if (typeof contextJson !== 'string') return null;
@@ -291,16 +367,18 @@ export function readEconomyJobContext(contextJson: string | undefined): EconomyJ
   }
   if (!isPlainObject(parsed)) return null;
   const mode = parsed.mode;
-  if (mode !== 'region' && mode !== 'enemy') return null;
+  if (mode !== 'region' && mode !== 'family' && mode !== 'enemy') return null;
   const regionId = toBig(parsed.regionId);
   if (regionId === null) return null;
   const enemyTemplateId = parsed.enemyTemplateId === undefined ? 0n : toBig(parsed.enemyTemplateId);
   if (enemyTemplateId === null) return null;
+  const familyId = parsed.familyId === undefined ? 0n : toBig(parsed.familyId);
+  if (familyId === null) return null;
   const input = parsed.input;
   if (!isPlainObject(input)) return null;
   for (const path of REGION_ECONOMY_BIGINT_PATHS) reviveAt(input, path.split('.'));
   if (input.regionId !== regionId) return null;
-  return { regionId, mode, enemyTemplateId, input: input as unknown as RegionEconomyInput };
+  return { regionId, mode, enemyTemplateId, familyId, input: input as unknown as RegionEconomyInput };
 }
 
 // ---------------------------------------------------------------------------
@@ -557,6 +635,8 @@ export function applyRegionEconomyResult(ctx: any, job: EconomyApplyJob, resultT
     applyLateCreatureResult(ctx, c, resultText);
     return;
   }
+  // A late-family job (Phase 51.3.1.1): no job is started for one yet, and Plan 25 writes its reply.
+  if (c.mode === 'family') return;
   const regionId = c.regionId;
   const statusRow = ctx.db.region_economy.regionId.find(regionId);
   if (!statusRow || statusRow.status !== 'pending') return;
