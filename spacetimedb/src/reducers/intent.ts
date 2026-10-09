@@ -20,7 +20,21 @@ import {
 } from '../helpers/world_gen';
 import { npcGender, npcPronouns, npcRegardLine } from '../data/npc_gender';
 import { getWorldState } from '../helpers/location';
-import { effectiveEnemyLevel } from '../data/enemy_rules';
+import { densityWord } from '../data/density_lines';
+import { conColor } from '../helpers/look';
+import {
+  FIGHT_TEXT,
+  creaturePoolsByDanger,
+  familyConLine,
+  fightIndividualFor,
+  findFightTarget,
+  firstFightTarget,
+  individualConLine,
+  individualsHere,
+  levelRangeLabel,
+  nearbyFightNames,
+  pullFamilyFor,
+} from '../helpers/encounters';
 import { findRaceDefinition } from '../data/race_bonuses';
 import { turnInCompletedQuest, turnInQuestsAtNpc, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
@@ -655,34 +669,31 @@ export const registerIntentReducers = (deps: any) => {
     }
 
     // --- ENEMIES ---
+    // Families first, in danger order (Phase 51.3.1.1 D-03), then the individuals (D-07): the
+    // character's named enemies and individual spawns. Ordinary creatures are never listed one by one.
     if (lower === 'enemies' || lower === 'mobs') {
-      const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-      const aliveSpawns = spawns.filter((s: any) =>
-        s.state === 'available' || s.state === 'engaged' || s.state === 'pulling'
-      );
-      if (aliveSpawns.length === 0) {
+      const families = creaturePoolsByDanger(ctx, character.locationId, ctx.timestamp.microsSinceUnixEpoch);
+      const individuals = individualsHere(ctx, character);
+      if (families.length === 0 && individuals.length === 0) {
         appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', 'No enemies nearby.');
         return;
       }
       const parts: string[] = ['{{color:#fbbf24}}Enemies at this location:{{/color}}'];
-      for (const spawn of aliveSpawns) {
-        const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
-        if (!template) continue;
-        const level = effectiveEnemyLevel(spawn.level, template.level);
-        const diff = Number(level) - Number(character.level);
-        let color: string;
-        if (diff <= -5) color = '#6b7280';
-        else if (diff <= -3) color = '#b6f7c4';
-        else if (diff <= -1) color = '#8bd3ff';
-        else if (diff === 0) color = '#f8fafc';
-        else if (diff <= 2) color = '#f6d365';
-        else if (diff <= 4) color = '#f59e0b';
-        else color = '#f87171';
-        const countSuffix = spawn.groupCount > 1n ? ` x${spawn.groupCount}` : '';
-        let line = `  {{color:${color}}}[${spawn.name}]${countSuffix} (Lv ${level}) - ${template.role} ${template.creatureType}`;
-        if (template.isBoss) line += ' [BOSS]';
-        if (spawn.state === 'engaged') line += ' [In Combat]';
-        if (spawn.state === 'pulling') line += ' [Pulling]';
+      for (const h of families) {
+        const label = `${levelRangeLabel(h.lvLo, h.lvHi)}, ${densityWord('creature', h.level)}`;
+        if (h.level === 0) {
+          // A wiped-out family keeps its place in the list, without a keyword (nothing to pull).
+          parts.push(`  {{color:#6b7280}}${h.family.name} (${label}){{/color}}`);
+        } else {
+          parts.push(`  {{color:${conColor(h.lvHi, character.level)}}}[${h.family.name}] (${label}){{/color}}`);
+        }
+      }
+      for (const one of individuals) {
+        const countSuffix = one.spawn && one.spawn.groupCount > 1n ? ` x${one.spawn.groupCount}` : '';
+        let line = `  {{color:${conColor(one.level, character.level)}}}[${one.name}]${countSuffix} (Lv ${one.level}) - ${one.template.role} ${one.template.creatureType}`;
+        if (one.template.isBoss) line += ' [BOSS]';
+        if (one.spawn?.state === 'engaged') line += ' [In Combat]';
+        if (one.spawn?.state === 'pulling') line += ' [Pulling]';
         line += '{{/color}}';
         parts.push(line);
       }
@@ -1535,69 +1546,43 @@ export const registerIntentReducers = (deps: any) => {
         return;
       }
 
-      // Check enemy spawns at this location
-      const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-      for (const spawn of spawns) {
-        if (spawn.name.toLowerCase().includes(targetName)) {
-          const template = ctx.db.enemy_template.id.find(spawn.enemyTemplateId);
-          if (!template) continue;
-          const levelDiff = Number(effectiveEnemyLevel(spawn.level, template.level)) - Number(character.level);
-          let threat: string;
-          if (levelDiff <= -10) threat = `${spawn.name} would be trivial prey. Hardly worth the effort.`;
-          else if (levelDiff <= -5) threat = `${spawn.name} poses little threat. You could handle this in your sleep.`;
-          else if (levelDiff <= -2) threat = `${spawn.name} is beneath you, but not entirely without teeth.`;
-          else if (levelDiff <= 1) threat = `${spawn.name} appears to be an even match. A fair fight awaits.`;
-          else if (levelDiff <= 4) threat = `${spawn.name} looks dangerous. Proceed with caution.`;
-          else if (levelDiff <= 8) threat = `${spawn.name} radiates menace. This would be a brutal fight — you may not survive.`;
-          else threat = `${spawn.name} would wipe the floor with you. Turn back unless you have a death wish.`;
-
-          if (template.isBoss) threat += ' This creature carries the weight of something ancient and terrible.';
-          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', threat);
-          return;
-        }
+      // Individuals (named, event and boss spawns), then a creature family by its name, plural,
+      // singular or a member's name (Phase 51.3.1.1 D-03, D-07): exact names before partial ones.
+      const conTarget = findFightTarget(ctx, character, targetName, ctx.timestamp.microsSinceUnixEpoch);
+      if (conTarget) {
+        const line = conTarget.kind === 'family'
+          ? familyConLine(conTarget.here, character.level)
+          : individualConLine(conTarget.one, character.level);
+        appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', line);
+        return;
       }
 
       return fail(ctx, character, `You see no one named "${conMatch[1].trim()}" here to consider.`);
     }
 
-    // --- ATTACK / FIGHT / KILL ---
-    const attackMatch = lower.match(/^(?:attack|fight|kill)\s*(.*)$/);
+    // --- ATTACK / FIGHT / KILL / PULL ---
+    // Phase 51.3.1.1 (D-07, D-12, UI-SPEC P3): a named, event or boss individual starts its own fight;
+    // a creature family is pulled through the same helper as the Pull button (pullFamilyFor). With no
+    // name, the first living family in danger order is pulled. The careful-pull prompt is retired.
+    const attackMatch = raw.match(/^(?:attack|fight|kill|pull)(?:\s+(.*))?$/i);
     if (attackMatch) {
       if (activeCombatIdForCharacter(ctx, character.id)) {
         return fail(ctx, character, 'You are already in combat. Use your abilities.');
       }
-
-      // Check for enemies at this location via enemy_spawn
-      const spawns = [...ctx.db.enemy_spawn.by_location.filter(character.locationId)];
-      const aliveSpawns = spawns.filter((s: any) => s.state === 'available' || s.state === 'pulling');
-      if (aliveSpawns.length === 0) {
-        return fail(ctx, character, 'There is nothing to fight here.');
+      const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
+      const typedName = (attackMatch[1] ?? '').trim();
+      const target = typedName
+        ? findFightTarget(ctx, character, typedName, now)
+        : firstFightTarget(ctx, character, now);
+      if (!target) {
+        if (!typedName) return fail(ctx, character, FIGHT_TEXT.nothing);
+        const nearby = nearbyFightNames(ctx, character, now).map((n) => `[${n}]`).join(', ');
+        return fail(ctx, character, nearby ? FIGHT_TEXT.unknownNearby(typedName, nearby) : FIGHT_TEXT.unknown(typedName));
       }
-
-      const targetName = attackMatch[1]?.trim().toLowerCase();
-      let targetSpawn: any = null;
-
-      if (targetName) {
-        // Match by name
-        for (const spawn of aliveSpawns) {
-          if (spawn.name.toLowerCase() === targetName) { targetSpawn = spawn; break; }
-          if (spawn.name.toLowerCase().includes(targetName) && !targetSpawn) { targetSpawn = spawn; }
-        }
-        if (!targetSpawn) {
-          const names = aliveSpawns.map((s: any) => `[${s.name}]`).join(', ');
-          return fail(ctx, character, `No enemy named "${attackMatch[1].trim()}" here. Nearby: ${names}.`);
-        }
-      } else {
-        // No target specified — pick the first available
-        targetSpawn = aliveSpawns[0];
-      }
-
-      const template = ctx.db.enemy_template.id.find(targetSpawn.enemyTemplateId);
-      const enemyName = targetSpawn.name;
-      const levelStr = template ? ` (L${effectiveEnemyLevel(targetSpawn.level, template.level)})` : '';
-
-      appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat_prompt',
-        `You prepare to engage ${enemyName}${levelStr}. Approach carefully or charge in?\n\n  [Careful Pull] — Measured approach, longer pull time\n  [Charge In] — Rush in immediately`);
+      const refusal = target.kind === 'family'
+        ? pullFamilyFor(deps, ctx, character, target.here.pool, now)
+        : fightIndividualFor(deps, ctx, character, target.one);
+      if (refusal) return fail(ctx, character, refusal, 'combat');
       return;
     }
 

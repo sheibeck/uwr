@@ -26,10 +26,11 @@ import type { DensityLevel, EncounterPhase } from '../data/density_rules';
 import { rollBelow } from '../data/economy_rules';
 import { effectiveEnemyLevel, placeSpawnLevel } from '../data/enemy_rules';
 import { normalizeEnemyRole } from '../data/family_rules';
+import { DENSITY_SR_PREFIX, densityWord, pullLeadIn, pullRefusal } from '../data/density_lines';
 import { activeCombatIdForCharacter, appendPrivateEvent } from './events';
-import { fightRoster } from './group';
-import { computeLocationTargetLevel } from './location';
-import { poolsAt } from './pools';
+import { effectiveGroupId, fightRoster, getGroupOrSoloParticipants } from './group';
+import { computeLocationTargetLevel, spawnEnemyWithTemplate } from './location';
+import { poolsAt, settlePool } from './pools';
 import type { PlacePoolRow } from './pools';
 
 // ---------------------------------------------------------------------------
@@ -390,4 +391,209 @@ export function individualsHere(ctx: any, character: any): IndividualHere[] {
     });
   }
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Finding and fighting by name (Plan 16: typed con and attack/fight/kill/pull; D-07, D-12, P3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Refusal lines of a family pull, shared by pull_family and the typed pull (PROPOSED, D-58: listed in
+ * 51.3.1.1-11-SUMMARY.md). A wiped-out family uses density_lines pullRefusal.
+ */
+export const PULL_REFUSALS = Object.freeze({
+  notHere: 'That is not here.',
+  safe: 'Nothing will fight you here.',
+  fighting: 'You are already in a fight.',
+  gathering: 'Finish gathering first.',
+});
+
+/**
+ * Lines of the typed fight commands (PROPOSED, D-58: listed in 51.3.1.1-16-SUMMARY.md). `nothing` and
+ * `notHere` keep the existing wording of the old typed attack and of start_combat.
+ */
+export const FIGHT_TEXT = Object.freeze({
+  nothing: 'There is nothing to fight here.',
+  notHere: 'That enemy is not here to fight.',
+  unknown: (name: string) => `No enemy named "${name}" here.`,
+  unknownNearby: (name: string, nearby: string) => `No enemy named "${name}" here. Nearby: ${nearby}.`,
+});
+
+/**
+ * The con threat phrasing by level difference (target level minus the character's level). The
+ * singular lines are today's typed con wording; the plural forms (a family name such as "Goblins")
+ * are PROPOSED (D-58).
+ */
+export function threatLine(subject: string, levelDiff: number, plural = false): string {
+  const v = (one: string, many: string) => (plural ? many : one);
+  if (levelDiff <= -10) return `${subject} would be trivial prey. Hardly worth the effort.`;
+  if (levelDiff <= -5) return `${subject} ${v('poses', 'pose')} little threat. You could handle this in your sleep.`;
+  if (levelDiff <= -2) return `${subject} ${v('is', 'are')} beneath you, but not entirely without teeth.`;
+  if (levelDiff <= 1) return `${subject} ${v('appears', 'appear')} to be an even match. A fair fight awaits.`;
+  if (levelDiff <= 4) return `${subject} ${v('looks', 'look')} dangerous. Proceed with caution.`;
+  if (levelDiff <= 8) return `${subject} ${v('radiates', 'radiate')} menace. This would be a brutal fight — you may not survive.`;
+  return `${subject} would wipe the floor with you. Turn back unless you have a death wish.`;
+}
+
+/** The typed con answer for a family: the threat for its top level here, then its population word. */
+export function familyConLine(here: PoolHere, characterLevel: bigint): string {
+  const threat = threatLine(String(here.family.name), Number(here.lvHi - characterLevel), true);
+  return `${threat} ${DENSITY_SR_PREFIX.creature}${densityWord('creature', here.level)}.`;
+}
+
+/** The typed con answer for an individual (today's wording, plus the boss line). */
+export function individualConLine(one: IndividualHere, characterLevel: bigint): string {
+  let line = threatLine(one.name, Number(one.level - characterLevel));
+  if (one.template?.isBoss) line += ' This creature carries the weight of something ancient and terrible.';
+  return line;
+}
+
+/**
+ * The creature pool at a place whose family answers to a name (family name, plural, singular or a
+ * member's name), case-insensitive: an exact match first, then a contains match, each in danger order.
+ * Only the pools at `locationId` are searched (T-51.3.1.1-51); wiped-out families are included, so a
+ * pull on one refuses with the pull refusal.
+ */
+export function findFamilyPoolByName(ctx: any, locationId: bigint, name: string, now: bigint): PoolHere | null {
+  const families = creaturePoolsByDanger(ctx, locationId, now);
+  return (
+    families.find((h) => familyMatches(h, name, true)) ??
+    families.find((h) => familyMatches(h, name, false)) ??
+    null
+  );
+}
+
+/** What a typed name resolves to at the character's place. */
+export type FightTarget = { kind: 'individual'; one: IndividualHere } | { kind: 'family'; here: PoolHere };
+
+/**
+ * A typed name at the character's place: exact matches first (individuals, named before spawns, then
+ * families in danger order), then contains matches in the same order. Null when nothing answers.
+ */
+export function findFightTarget(ctx: any, character: any, name: string, now: bigint): FightTarget | null {
+  const wanted = name.trim().toLowerCase();
+  if (!wanted) return null;
+  const individuals = individualsHere(ctx, character);
+  const families = creaturePoolsByDanger(ctx, character.locationId, now);
+  for (const exact of [true, false]) {
+    const one = individuals.find((i) => {
+      const lower = i.name.toLowerCase();
+      return exact ? lower === wanted : lower.includes(wanted);
+    });
+    if (one) return { kind: 'individual', one };
+    const here = families.find((h) => familyMatches(h, wanted, exact));
+    if (here) return { kind: 'family', here };
+  }
+  return null;
+}
+
+/**
+ * The target of a bare `attack`: the first living family in danger order, else the first individual
+ * that can be fought (a named enemy, or an available spawn). Null when there is nothing to fight.
+ */
+export function firstFightTarget(ctx: any, character: any, now: bigint): FightTarget | null {
+  const here = creaturePoolsByDanger(ctx, character.locationId, now).find((h) => h.level > 0);
+  if (here) return { kind: 'family', here };
+  const one = individualsHere(ctx, character).find((i) => i.kind === 'named' || i.spawn?.state === 'available');
+  return one ? { kind: 'individual', one } : null;
+}
+
+/** The names a refusal lists as nearby: living families in danger order, then the individuals. */
+export function nearbyFightNames(ctx: any, character: any, now: bigint): string[] {
+  const families = creaturePoolsByDanger(ctx, character.locationId, now)
+    .filter((h) => h.level > 0)
+    .map((h) => String(h.family.name));
+  return [...families, ...individualsHere(ctx, character).map((i) => i.name)];
+}
+
+/**
+ * Pulls a creature family (SC3, D-11, D-12, D-32, D-56): the one body of the pull_family reducer and
+ * the typed pull, so their refusals and draws are identical. Checks, in order: fighting, gathering,
+ * the pool (missing, foreign, a resource pool or a missing family: not here), a safe place, then the
+ * settled density (wiped out: the pull refusal), then draws from the fight roster's LOWEST level and
+ * starts the fight with origin 'pull' and the lead-in line. Returns the refusal text, or null when
+ * the fight started. `deps.startCombat` is the bound fight start from index.ts.
+ */
+export function pullFamilyFor(
+  deps: { startCombat: (...args: any[]) => any },
+  ctx: any,
+  character: any,
+  stored: PlacePoolRow | null | undefined,
+  now: bigint,
+): string | null {
+  if (activeCombatIdForCharacter(ctx, character.id)) return PULL_REFUSALS.fighting;
+  for (const _gather of ctx.db.resource_gather.by_character.filter(character.id)) return PULL_REFUSALS.gathering;
+
+  // The pool must be a creature pool at the character's place, at a place that is not safe
+  // (T-51.3.1.1-34, T-51.3.1.1-51). A missing, foreign or resource pool reads the same: not here.
+  if (!stored || stored.kind !== 'creature' || stored.locationId !== character.locationId) return PULL_REFUSALS.notHere;
+  const location = ctx.db.location.id.find(character.locationId);
+  if (!location || location.isSafe) return PULL_REFUSALS.safe;
+  const family = ctx.db.creature_family.id.find(stored.refId);
+  if (!family) return PULL_REFUSALS.notHere;
+
+  const pool = settlePool(ctx, stored, now).pool;
+  if (countToLevel(pool.count) === 0) return pullRefusal(family.pluralNoun);
+
+  // The fight roster (online, here, not in another fight) and its LOWEST level (D-56).
+  const candidates = getGroupOrSoloParticipants(ctx, character);
+  const roster = fightRoster(character, candidates, (characterId: bigint) => activeCombatIdForCharacter(ctx, characterId) !== null);
+  const drawn = drawForPull(ctx, pool, family, rosterLevel(roster), character.id, now);
+  if (drawn.length === 0) return pullRefusal(family.pluralNoun);
+
+  startPoolFight(deps, ctx, {
+    leader: character,
+    candidates,
+    groupId: effectiveGroupId(character) ?? null,
+    pool,
+    family,
+    drawn,
+    originKind: 'pull',
+    line: { kind: 'combat', text: pullLeadIn(drawn.length, family.singularNoun, family.pluralNoun) },
+  });
+  return null;
+}
+
+/**
+ * Starts the fight with an individual (D-07): a named enemy as pull_named_enemy does (spawn one with
+ * spawnEnemyWithTemplate, mark it slain, startCombatForSpawn, "You engage {name}!"), or an available
+ * spawn as start_combat does. Returns the refusal text, or null when the fight started.
+ * `deps.startCombatForSpawn` is the bound form from index.ts.
+ */
+export function fightIndividualFor(
+  deps: { startCombatForSpawn: (...args: any[]) => any },
+  ctx: any,
+  character: any,
+  one: IndividualHere,
+): string | null {
+  if (activeCombatIdForCharacter(ctx, character.id)) return PULL_REFUSALS.fighting;
+  for (const _gather of ctx.db.resource_gather.by_character.filter(character.id)) return PULL_REFUSALS.gathering;
+  const groupId = effectiveGroupId(character) ?? null;
+
+  if (one.kind === 'named') {
+    const named = ctx.db.named_enemy.id.find(one.named.id);
+    if (!named || named.characterId !== character.id || named.isAlive !== true || named.locationId !== character.locationId) {
+      return FIGHT_TEXT.notHere;
+    }
+    let spawn: any;
+    try {
+      // Throws before any write (safe place, not tracked here, wrong time of day).
+      spawn = spawnEnemyWithTemplate(ctx, character.locationId, named.enemyTemplateId);
+    } catch (err: any) {
+      return String(err?.message ?? FIGHT_TEXT.notHere);
+    }
+    ctx.db.named_enemy.id.update({ ...named, isAlive: false, lastKilledAt: ctx.timestamp });
+    deps.startCombatForSpawn(ctx, character, spawn, getGroupOrSoloParticipants(ctx, character), groupId);
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat', `You engage ${named.name}!`);
+    return null;
+  }
+
+  const spawn = ctx.db.enemy_spawn.id.find(one.spawn.id);
+  if (!spawn || spawn.locationId !== character.locationId || spawn.state !== 'available') return FIGHT_TEXT.notHere;
+  const participants = getGroupOrSoloParticipants(ctx, character);
+  for (const p of participants) {
+    if (activeCombatIdForCharacter(ctx, p.id)) return `${p.name} is already in combat`;
+  }
+  deps.startCombatForSpawn(ctx, character, spawn, participants, groupId);
+  return null;
 }

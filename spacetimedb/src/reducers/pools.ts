@@ -16,10 +16,8 @@ import {
   harvestCapRefusal,
   outOfTimeRefusal,
   placeNounFor,
-  pullLeadIn,
-  pullRefusal,
 } from '../data/density_lines';
-import { drawForPull, drawGroup, rollEncounter, rosterLevel, startPoolFight } from '../helpers/encounters';
+import { drawGroup, pullFamilyFor, rollEncounter, rosterLevel, startPoolFight } from '../helpers/encounters';
 import { fightRoster, getGroupOrSoloParticipants } from '../helpers/group';
 import { gatherDurationMicros, harvestCappedFor } from '../helpers/harvest';
 import { isNightTime } from '../helpers/location';
@@ -27,14 +25,9 @@ import { settlePool } from '../helpers/pools';
 
 /**
  * Refusal lines of pull_family (PROPOSED, D-58: listed in 51.3.1.1-11-SUMMARY.md for the one copy
- * review). A wiped-out family uses density_lines pullRefusal ("There are no {plural} here to pull.").
+ * review). They live in helpers/encounters.ts with the shared pull body (pullFamilyFor) since Plan 16.
  */
-export const PULL_REFUSALS = Object.freeze({
-  notHere: 'That is not here.',
-  safe: 'Nothing will fight you here.',
-  fighting: 'You are already in a fight.',
-  gathering: 'Finish gathering first.',
-});
+export { PULL_REFUSALS } from '../helpers/encounters';
 
 /**
  * Refusal lines of gather_pool (PROPOSED, D-58: listed in 51.3.1.1-12-SUMMARY.md for the one copy
@@ -64,42 +57,10 @@ export const registerPoolReducers = (deps: any) => {
   spacetimedb.reducer('pull_family', { characterId: t.u64(), poolId: t.u64() }, (ctx: any, args: any) => {
     // Ownership first (T-51.3.1.1-33): a foreign character id throws before anything is read.
     const character = requireCharacterOwnedBy(ctx, args.characterId);
-    if (activeCombatIdForCharacter(ctx, character.id)) return refuse(ctx, character, PULL_REFUSALS.fighting);
-    for (const _gather of ctx.db.resource_gather.by_character.filter(character.id)) {
-      return refuse(ctx, character, PULL_REFUSALS.gathering);
-    }
-
-    // The pool must be a creature pool at the character's place, at a place that is not safe
-    // (T-51.3.1.1-34). A missing, foreign or resource pool reads the same: it is not here.
+    // The one pull body, shared with the typed pull (helpers/encounters.ts, Plan 16).
     const stored = ctx.db.place_pool.id.find(args.poolId);
-    if (!stored || stored.kind !== 'creature' || stored.locationId !== character.locationId) {
-      return refuse(ctx, character, PULL_REFUSALS.notHere);
-    }
-    const location = ctx.db.location.id.find(character.locationId);
-    if (!location || location.isSafe) return refuse(ctx, character, PULL_REFUSALS.safe);
-    const family = ctx.db.creature_family.id.find(stored.refId);
-    if (!family) return refuse(ctx, character, PULL_REFUSALS.notHere);
-
-    const now: bigint = ctx.timestamp.microsSinceUnixEpoch;
-    const pool = settlePool(ctx, stored, now).pool;
-    if (countToLevel(pool.count) === 0) return refuse(ctx, character, pullRefusal(family.pluralNoun));
-
-    // The fight roster (online, here, not in another fight) and its LOWEST level (D-56).
-    const candidates = getGroupOrSoloParticipants(ctx, character);
-    const roster = fightRoster(character, candidates, (characterId: bigint) => activeCombatIdForCharacter(ctx, characterId) !== null);
-    const drawn = drawForPull(ctx, pool, family, rosterLevel(roster), character.id, now);
-    if (drawn.length === 0) return refuse(ctx, character, pullRefusal(family.pluralNoun));
-
-    startPoolFight(deps, ctx, {
-      leader: character,
-      candidates,
-      groupId: effectiveGroupId(character) ?? null,
-      pool,
-      family,
-      drawn,
-      originKind: 'pull',
-      line: { kind: 'combat', text: pullLeadIn(drawn.length, family.singularNoun, family.pluralNoun) },
-    });
+    const refusal = pullFamilyFor(deps, ctx, character, stored, ctx.timestamp.microsSinceUnixEpoch);
+    if (refusal) return refuse(ctx, character, refusal);
   });
 
   spacetimedb.reducer('gather_pool', { characterId: t.u64(), poolId: t.u64() }, (ctx: any, args: any) => {
