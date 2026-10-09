@@ -7,6 +7,11 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 // @ts-ignore
 import { readFileSync } from 'node:fs';
 // @ts-ignore
+import * as nodeFs from 'node:fs';
+// The prompt-draft tool is plain .mjs with no types; vitest resolves it at runtime.
+// @ts-ignore
+import { findPhaseFile } from '../../../scripts/llm/prompt_draft.mjs';
+// @ts-ignore
 import { fileURLToPath } from 'node:url';
 
 vi.mock('./location', async (importOriginal) => ({
@@ -310,10 +315,15 @@ describe('startWorldFamilies (D-01, D-08)', () => {
  */
 const CHOSEN_5 = 'The land is remembered, but not yet what lives in it. Type [explore] to try again.';
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)); // spacetimedb/src/helpers -> repo root
-const DRAFT = readFileSync(
-  REPO_ROOT + '.planning/phases/51.3.1.2-bigger-regions/51.3.1.2-PROMPT-DRAFT.md',
-  'utf8',
-) as string;
+// The draft is in the phase folder until the milestone is archived, then in a *-phases archive; findPhaseFile
+// searches both (code review B, WR-05).
+const DRAFT_PATH: string = findPhaseFile(
+  REPO_ROOT.replace(/[\\/]$/, ''),
+  '51.3.1.2-bigger-regions',
+  '51.3.1.2-PROMPT-DRAFT.md',
+  nodeFs,
+);
+const DRAFT = readFileSync(REPO_ROOT + DRAFT_PATH, 'utf8') as string;
 const RESTING_EXPLORE = `${LLM_RESTING_LINE} Type [explore] to try again.`;
 const IN_REGION = 105n;
 
