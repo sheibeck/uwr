@@ -592,6 +592,21 @@ describe('completeRegionFamilies (D-66, D-68, D-70)', () => {
     expect(lone.families[0]!.inFeud).toBe(false);
   });
 
+  it('stores no feud when the region has none (D-71): marks cleared, no feud line', () => {
+    const marked = validateFamilies(
+      { families: [skitterers({ inFeud: true }), goblins({ inFeud: true })] },
+      input({ places: SWAMP_ONLY }),
+    ).families!;
+    const none = completeRegionFamilies(marked, base({ feudCount: 0 }));
+    expect(none.feudKeys).toEqual([]);
+    for (const f of none.families) {
+      expect(f.inFeud).toBe(false);
+      expect(f.history).toBe(ruleFamilyHistory({ familyName: f.name, regionName: 'Kesterlane Basin' }));
+      expect(f.history).not.toMatch(/truce/);
+    }
+    expect(marked.every((f) => f.inFeud)).toBe(true);
+  });
+
   it('keeps a clean AI history and gives every other family the rule history', () => {
     const kept = validateFamilies(
       { families: [skitterers({ history: 'The skitterers came up out of the salt.' }), goblins({ history: 'The goblins came in 1042.' })] },

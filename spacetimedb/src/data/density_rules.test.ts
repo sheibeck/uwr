@@ -18,6 +18,7 @@ import {
   askedFamilyCount,
   keptFamilyCount,
   feudCountFor,
+  feudHappens,
   pickFeud,
   pickPlaceFamilies,
   assignRegionFamilies,
@@ -787,6 +788,7 @@ describe('family and feud constants (D-66, D-67, D-68, D-70)', () => {
     expect(R.FEUD_FAMILIES_MIN).toBe(2);
     expect(R.FEUD_FAMILIES_MAX).toBe(3);
     expect(R.NPC_FAMILY_HISTORIES_MAX).toBe(4);
+    expect(R.FEUD_CHANCE_PCT).toBe(35);
     expect(Object.isFrozen(DENSITY_RULES)).toBe(true);
   });
 
@@ -796,6 +798,7 @@ describe('family and feud constants (D-66, D-67, D-68, D-70)', () => {
     expect(POOL_ROLL.FEUD_COUNT).toBe(85n);
     expect(POOL_ROLL.FEUD_PICK).toBe(86n);
     expect(POOL_ROLL.RULE_FAMILY_ORDER).toBe(87n);
+    expect(POOL_ROLL.FEUD_CHANCE).toBe(88n);
     const values = Object.values(POOL_ROLL);
     expect(new Set(values).size).toBe(values.length);
   });
@@ -834,24 +837,41 @@ describe('familySeed and placeFamiliesSeed', () => {
   });
 });
 
-describe('feudCountFor (D-70)', () => {
-  const regionSeeds = Array.from({ length: 200 }, (_, i) => familySeed(BigInt(i + 1)));
+describe('feudHappens and feudCountFor (D-70, D-71)', () => {
+  const regionSeeds = Array.from({ length: 1000 }, (_, i) => familySeed(BigInt(i + 1)));
+  const hits = regionSeeds.filter((s) => feudHappens(s));
+  const misses = regionSeeds.filter((s) => !feudHappens(s));
 
-  it('gives no feud below two families, and two at most for two', () => {
-    for (const s of regionSeeds.slice(0, 20)) {
-      expect(feudCountFor(0, s)).toBe(0);
-      expect(feudCountFor(1, s)).toBe(0);
-      expect(feudCountFor(2, s)).toBe(2);
+  it('seeds a feud in about FEUD_CHANCE_PCT of regions, the same for the same seed (D-71)', () => {
+    const share = (hits.length * 100) / regionSeeds.length;
+    expect(share).toBeGreaterThan(R.FEUD_CHANCE_PCT - 5);
+    expect(share).toBeLessThan(R.FEUD_CHANCE_PCT + 5);
+    expect(regionSeeds.filter((s) => feudHappens(s))).toEqual(hits);
+  });
+
+  it('gives no feud when the chance misses', () => {
+    expect(misses.length).toBeGreaterThan(0);
+    for (const s of misses.slice(0, 50)) {
+      expect(feudCountFor(7, s)).toBe(0);
+      expect(feudCountFor(15, s)).toBe(0);
     }
   });
 
-  it('gives 2 or 3 feuding families, both over many regions, the same for the same seed', () => {
-    const counts = regionSeeds.map((s) => feudCountFor(7, s));
+  it('gives no feud below two families, and two at most for two', () => {
+    for (const s of [...hits.slice(0, 20), ...misses.slice(0, 20)]) {
+      expect(feudCountFor(0, s)).toBe(0);
+      expect(feudCountFor(1, s)).toBe(0);
+    }
+    for (const s of hits.slice(0, 20)) expect(feudCountFor(2, s)).toBe(2);
+  });
+
+  it('gives 2 or 3 feuding families when the chance hits, both over many regions, the same for the same seed', () => {
+    const counts = hits.map((s) => feudCountFor(7, s));
     for (const n of counts) expect([2, 3]).toContain(n);
     expect(counts).toContain(2);
     expect(counts).toContain(3);
-    expect(regionSeeds.map((s) => feudCountFor(7, s))).toEqual(counts);
-    for (const s of regionSeeds.slice(0, 20)) expect([2, 3]).toContain(feudCountFor(3, s));
+    expect(hits.map((s) => feudCountFor(7, s))).toEqual(counts);
+    for (const s of hits.slice(0, 20)) expect([2, 3]).toContain(feudCountFor(3, s));
   });
 });
 
