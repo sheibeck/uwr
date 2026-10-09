@@ -17,10 +17,11 @@ Today a successful flee removes you from the fight (aggro, pets, cooldowns, choi
 
 ## Solution
 
-TBD (discuss with the owner). Notes:
+**Decided (owner, 2026-10-09):** "If anyone flees, the combat summary should include their cowardice in a funny, sarcastic way. Add it to 51.3.2". The Keeper's end-of-fight summary names whoever fled and mocks the retreat; a fight that ends because everyone fled still gets a summary. Pulled into Phase 51.3.2 (ROADMAP success criterion 6).
+
+Earlier notes (superseded where they differ):
 - Add a `'fled'` outro type: when a character escapes, the Keeper narrates a short summary of the fight so far that wryly notes the retreat (the Keeper's sardonic voice fits here, unlike the action-oriented victory outro the owner asked for in `2026-10-07-combat-outro-tells-how-the-fight-unfolded.md`; reuse that todo's fight digest so the summary knows what happened before the escape).
 - Decide who gets it: only the one who fled (private), or the group too, and what happens when the whole party flees (the fight ends; one outro for everyone) versus one member fleeing while others keep fighting (a private line for the fleer only, so the fight's feed is not interrupted).
 - A failed flee stays a system line (no extra call).
 - Second person, no first person, gendered pronouns for people, no numbers or HP, one segment. Keep it gently mocking, never cruel (the owner can tune the tone).
 - **Prompt wording needs the owner's explicit approval of the exact text** (new route block or a branch of the outro block); re-check the golden tests and the `claude_request` snapshot. One more paid call per successful flee; it goes through the existing narration budget and no-retry rules. No paid calls in tests.
-Candidate home: Phase 51.3.2 Wind-Up (combat rework) alongside the victory-outro todo, or wherever that outro todo lands.

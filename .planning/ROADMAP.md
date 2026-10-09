@@ -937,7 +937,8 @@ Plans:
   3. The hotbar slot shows a winding-up state with a rounds badge and toggles cancel during the decision window (a second press resumes with no progress lost); the round row chip is the fallback when the ability is not on the active hotbar; enemies never cancel.
   4. Effects end after their final tick in their final round, and cooldowns and effects running at fight start and end convert exactly both ways.
   5. Each enemy's panel in a fight shows who it is targeting (a party member, you, or a pet), using the same rule the server uses to pick the target, and it updates when the target changes (taunt, threat overtaken, target falls or flees). A wind-up shows who it is aimed at.
-  6. Tests cover the bucket table, landing rounds, feed lines, the wind-up bonus with a balance check at several levels, cancel and resume, stun interrupts, retarget or fizzle, cooldown start, enemy parity, conversions, the slot state and label, and the enemy target shown matching the server's choice.
+  6. When anyone flees a fight, the Keeper's end-of-fight summary notes their cowardice in a funny, sarcastic way; a fight that ends because everyone fled still gets that summary.
+  7. Tests cover the bucket table, landing rounds, feed lines, the wind-up bonus with a balance check at several levels, cancel and resume, stun interrupts, retarget or fizzle, cooldown start, enemy parity, conversions, the slot state and label, the enemy target shown matching the server's choice, and the fled fighters reaching the summary input (including an all-fled ending).
 
 **Plans**: TBD
 **UI hint**: yes (hotbar slot state; no new screen)
@@ -950,6 +951,8 @@ Plans:
   - Its folder was `999.17-combat-round-wind-up-for-cast-times-with-hotbar-slot-cancel`; it is now `51.3.2-combat-wind-up-cooldowns-and-durations`.
 
   - **Density pools impact (owner, 2026-10-08; Phase 51.3.1.1, was backlog 999.29):** drawn groups mean more multi-enemy fights; the enemy-target display and enemy wind-ups must read well with 2-4 enemies at once. No change to scope.
+
+  - **Fleeing in the combat summary (owner, 2026-10-09):** "when you flee combat, the keeper should definitely summarize the combat by noting your cowardice." Then: "If anyone flees, the combat summary should include their cowardice in a funny, sarcastic way. Add it to 51.3.2". Today a successful flee logs only "You successfully flee." and the outro runs only on victory or defeat (`enqueueCombatOutroNarration`, `reducers/combat.ts` near lines 1935 and 2038), so fled fighters never reach it. Plan: record who fled (and in which round) on the fight, pass them to the outro summary input, and run an outro when the fight ends because everyone fled. **The prompt wording needs the owner's explicit approval of the exact text** (the outro instruction); re-check the golden tests and the `claude_request` snapshot. Discuss: whether to fold in the related todo `2026-10-07-combat-outro-tells-how-the-fight-unfolded.md` (fight digest from the abilities used, action-oriented victory story), since both change the same outro prompt. Todo `2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md` (pulled into this phase).
 
 ### Phase 51.4: Loot Rails (INSERTED)
 

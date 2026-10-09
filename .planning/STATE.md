@@ -220,7 +220,7 @@ See MILESTONES.md for full delivery summaries.
 
 - `todos/pending/2026-10-08-friends-in-different-starting-zones-can-find-each-other.md`: friends who start in different race zones need a way to meet (owner idea; touches 999.11, 999.26, 51.1, 52.2).
 - `todos/pending/2026-10-09-widen-the-right-context-rail-so-names-and-long-lists-fit.md`: the right context rail (fixed 288px) cuts off place names and makes busy places a long scroll; the centre feed has spare width. Owner chose a rail that grows with the screen; folded into Phase 51.5.1.
-- `todos/pending/2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`: a successful flee ends with only a system line; the owner wants a Keeper summary of the fight that notes your cowardice. Prompt wording needs the owner's approval. Pairs with the victory-outro todo.
+- `todos/pending/2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`: a successful flee ends with only a system line; if anyone flees, the end-of-fight summary notes their cowardice in a funny, sarcastic way (owner). Folded into Phase 51.3.2; prompt wording needs the owner's approval.
 
 ### Blockers/Concerns
 
@@ -354,7 +354,7 @@ Phase 51.3.1.2 (Bigger Regions) is code-complete and verified in code. 51.3.1.2-
 
 ### Resume note (2026-10-09, after 51.3.1.2)
 
-- **51.3.1.2 is DONE in code** (UAT deferred). **Next: 51.3.2 Combat Wind-Up, Cooldowns and Durations in Rounds** (backlog 999.17): needs the owner for its discuss. Bring to that discuss: the todo `2026-10-09-travel-ability-gives-damage-buff.md` (ability vocabulary contract: same-category fallbacks, nothing on the AI's menu without a working system, contract test, the travel_discount fix) proposed as added scope; 999.4 Ability Expansion stays in the backlog (owner). Also the three combat todos from 51.3.1.1.
+- **51.3.1.2 is DONE in code** (UAT deferred). **Next: 51.3.2 Combat Wind-Up, Cooldowns and Durations in Rounds** (backlog 999.17): needs the owner for its discuss. Bring to that discuss: the todo `2026-10-09-travel-ability-gives-damage-buff.md` (ability vocabulary contract: same-category fallbacks, nothing on the AI's menu without a working system, contract test, the travel_discount fix) proposed as added scope; 999.4 Ability Expansion stays in the backlog (owner). Also the three combat todos from 51.3.1.1. Already in scope (owner, 2026-10-09): if anyone flees, the end-of-fight summary notes their cowardice in a funny, sarcastic way (todo `2026-10-09-keeper-mocks-your-cowardice-when-you-flee.md`; outro wording needs approval; consider folding in the victory-outro todo).
 - **Practice (owner, 2026-10-09):** run the full suite once after all lanes finish, never alongside them (memory full-suite-after-lanes); no tuning of AI caps/budgets and no paid checks until all systems exist (memory systems-then-ux-then-tuning). Executor rules for 51.3.1.2 are in `scratchpad/p51312/rules.md` (copy and adapt per phase).
 - **Owner-approved this session:** 51.3.1.1 COPY-REVIEW (en dash; new Nearby load line), 51.3.1.2 PROMPT-DRAFT with Owner choices.
 
