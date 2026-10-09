@@ -8,6 +8,7 @@ import type { DetailLocation, DetailView } from './detailModel';
 import { MAP_KEY, createInertMap } from './mapContext';
 import { travelChecks } from './travelChecks';
 import type { TravelChecks, TravellerLike } from './travelChecks';
+import { useMapRatingSource } from './useMapGraph';
 
 // The selected destination as one model (51-UI-SPEC "Destination detail", "Checklist" and "Travel
 // button"). The desktop detail column and, in plan 51-11, the mobile dock both read this, so the two
@@ -19,6 +20,9 @@ import type { TravelChecks, TravellerLike } from './travelChecks';
 // character row by the Map screen, never from this call.
 //
 // The checks and the button are a prediction. The server re-checks every trip.
+//
+// The danger tag rates the place from the Map's rating source (useMapRatingSource, built once here):
+// the pool rows, the party's lowest level standing with you (D-56) and the boss/named step (D-34).
 
 export interface Destination {
   /** Travel checks for a neighbour selection; null for your place, far places and no selection. */
@@ -49,6 +53,7 @@ export function useDestination(): Destination {
   const map = inject(MAP_KEY, createInertMap());
 
   const runner = makeRunner({ online: game.connected });
+  const rating = useMapRatingSource();
   // Where this Map's own Travel last sent the character; cleared by the next arrival or a rejection.
   let sentTo: bigint | null = null;
 
@@ -125,6 +130,7 @@ export function useDestination(): Destination {
       giverNpcs: map.giverNpcs.value,
       checks: checks.value,
       connected: game.connected.value,
+      rating: rating.value,
     });
   });
 

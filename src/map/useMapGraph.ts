@@ -6,7 +6,9 @@ import type { CanvasSize, GraphLayout, LayoutPlace } from './graphLayout';
 import { MAP_KEY, createInertMap } from './mapContext';
 import type { KnownPlacesResult } from './mapContext';
 import { gateView, nodeViews, routePolylines } from './nodeView';
-import type { GateView, NodeView } from './nodeView';
+import type { GateView, MapRatingSource, NodeView } from './nodeView';
+import { bossOrNamedAt } from '../rails/rating';
+import { useRatingLevel } from '../rails/useExits';
 import { regionChips } from './regionChips';
 import type { RegionChip } from './regionChips';
 import { shortestPath, stepsFrom } from './route';
@@ -25,6 +27,11 @@ import { shortestPath, stepsFrom } from './route';
 // which useMapGraph builds on. The header chips (MapMeta, rendered by the frame outside the Map
 // screen) read useShownRegion too, so the chips and the graph cannot disagree about the shown region
 // (review IN-01). It holds no layout, so the header never lays out a graph.
+//
+// The places are rated (51.3.1.1 D-08, D-42) from useMapRatingSource: the pool_level rows of the
+// loaded regions, game.poolsAppliedFor, the party's lowest level standing with you (D-56) and the
+// boss/named step (D-34), the same inputs the exit rows read. useMapGraph and useDestination each
+// build it once; useShownRegion stays free of it (MapMeta reads only the chips).
 
 export interface ShownRegion {
   currentId: ComputedRef<bigint | null>;
@@ -50,6 +57,25 @@ export interface MapGraph extends ShownRegion {
   views: ComputedRef<NodeView[]>;
   routes: ComputedRef<string[]>;
   gates: ComputedRef<GateView[]>;
+  /** The level the Map rates for (D-56, the party's lowest standing with you); the legend names it. */
+  legendLevel: ComputedRef<number>;
+}
+
+/**
+ * The rating source of the Map's nodes and the destination detail (51.3.1.1-31). useRatingLevel
+ * is called once here, at setup; the closures read the reactive rows when nodeViews or buildDetail
+ * call them inside their own computeds, so an applied region or a named enemy re-rates the places.
+ */
+export function useMapRatingSource(): ComputedRef<MapRatingSource> {
+  const game = inject(GAME_KEY, createInertGame());
+  const ratingLevel = useRatingLevel();
+  return computed<MapRatingSource>(() => ({
+    pools: game.poolLevels.value,
+    poolsApplied: (id) => game.poolsAppliedFor(id),
+    ratingLevel: ratingLevel.value,
+    bossOrNamed: (id) =>
+      bossOrNamedAt(id, game.namedEnemies.value, game.enemiesHere.value, game.enemyTemplatesHere.value),
+  }));
 }
 
 export function useShownRegion(): ShownRegion {
@@ -93,6 +119,11 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
   const game = inject(GAME_KEY, createInertGame());
   const map = inject(MAP_KEY, createInertMap());
   const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, chips } = useShownRegion();
+  const rating = useMapRatingSource();
+  const legendLevel = computed(() => {
+    const level = rating.value.ratingLevel;
+    return level === null ? playerLevel.value : Number(level);
+  });
 
   const boundId = computed<bigint | null>(() => {
     const id = game.character.value?.boundLocationId ?? 0n;
@@ -162,6 +193,7 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
       boundLocationId: boundId.value,
       playerLevel: playerLevel.value,
       steps: steps.value,
+      rating: rating.value,
     });
   });
 
@@ -199,5 +231,6 @@ export function useMapGraph(mobile: () => boolean): MapGraph {
     routes,
     chips,
     gates,
+    legendLevel,
   };
 }

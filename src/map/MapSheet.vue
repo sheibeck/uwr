@@ -122,7 +122,7 @@ defineExpose({ focusCurrent, scrollToNode, focusName });
       <span>Legend</span>
       <PhCaretDown class="caret" :class="{ open: legendOpen }" :size="16" aria-hidden="true" />
     </button>
-    <MapLegend v-if="legendOpen" :player-level="props.graph.playerLevel.value" :mobile="true" />
+    <MapLegend v-if="legendOpen" :player-level="props.graph.legendLevel.value" :mobile="true" />
 
     <div class="canvas-block">
       <div class="canvas-scroll">

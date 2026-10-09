@@ -66,7 +66,7 @@ function surface(): Surface | null {
 // ---------------------------------------------------------------------------
 
 const graph = useMapGraph(() => !frame.isDesktop.value);
-const { currentId, playerLevel, placeById, drawnIds, currentRegionId, shownId, startIdFor, layout, regionName, regionNameOf } = graph;
+const { currentId, legendLevel, placeById, drawnIds, currentRegionId, shownId, startIdFor, layout, regionName, regionNameOf } = graph;
 const { views, routes, gates } = graph;
 
 // ---------------------------------------------------------------------------
@@ -274,7 +274,7 @@ function centerOnYou(): void {
     />
     <div v-else-if="map.ready.value && layout !== null" class="map-body">
       <div class="map-main">
-        <MapLegend :player-level="playerLevel" :mobile="false" />
+        <MapLegend :player-level="legendLevel" :mobile="false" />
         <div class="canvas">
           <div class="canvas-scroll">
             <GraphPlane
