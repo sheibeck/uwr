@@ -312,6 +312,7 @@ Items acknowledged and deferred at the v2.2 close on 2026-10-05 (owner chose to 
 | 51 | verification_deferred_human | /gsd-verify-work 51 |
 | 51.1 | verification_deferred_human | /gsd-verify-work 51.1 |
 | 51.3 | verification_deferred_human | /gsd-verify-work 51.3 |
+| 51.3.1.1 | verification_deferred_human | /gsd-verify-work 51.3.1.1 |
 | quick 2026-10-08 | passed (owner, 2026-10-08: "all approved.") | `.planning/quick/2026-10-08-UAT.md` |
 
 Phase 41 is code-complete and verified at code level (41-VERIFICATION.md: human_needed, no gaps). The user deferred the live checks on 2026-09-30 ("we can skip the live proof for now") and chose to keep going: the local live proof (41-LOCAL-PROOF.md), the browser network-tab check and the maincloud checklist (41-MAINCLOUD-CHECKLIST.md). Phase 44 live verification picks them up. The key is set locally (length 108, not yet verified by a smoke test).
@@ -343,6 +344,8 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 ### Run order decision (2026-10-05)
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
+
+Phase 51.3.1.1 (Density Pools) is code-complete and verified in code. 51.3.1.1-VERIFICATION.md is human_needed: SC1-SC7 hold in code and tests, 0 gaps. 32 plans (27 planned, plus 28-30 for family scaling, histories and feuds, 31 for client follow-ups, 32 for live-test fixes), two review rounds (A/B/C then a fix pass; 2 blockers and 13 warnings fixed, then 2 more warnings fixed), five local publishes (A-E), all key-checked and never cleared; the full suite passes apart from the 3 known baseline files. Deferred to the end-of-milestone pass: 51.3.1.1-UAT.md (6 items: the owner's wording review in 51.3.1.1-COPY-REVIEW.md, visual checks, live play, and two paid checks). Three small combat items became todos (perk damage vs enemy shields, dead pet aggro, AI-written enemy fear/hot/buff).
 
 ### Resume note (2026-10-09, overnight; owner asleep: "Keep going. I'm going to bed.")
 

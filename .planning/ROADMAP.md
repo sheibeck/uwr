@@ -1233,7 +1233,7 @@ Plans:
 | 51. Ledger Screens: Map and Travel | v3.0 | 13/13 | Code complete, UAT deferred | - |
 | 51.1. Party | v3.0 | 16/16 | Code complete, UAT deferred | - |
 | 51.3. Regional Economy | v3.0 | 13/13 | Code complete, UAT deferred | - |
-| 51.3.1.1. Density Pools | v3.0 | 0/TBD | Not started | - |
+| 51.3.1.1. Density Pools | v3.0 | 32/32 | Code complete, UAT deferred | - |
 | 51.3.1.2. Bigger Regions | v3.0 | 0/TBD | Not started | - |
 | 51.3.2. Combat Wind-Up, Cooldowns and Durations in Rounds | v3.0 | 0/TBD | Not started | - |
 | 51.4. Loot Rails | v3.0 | 0/TBD | Not started | - |
@@ -2612,4 +2612,4 @@ Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
-*Last updated: 2026-10-08 after inserting Phase 51.3.1.2 Bigger Regions (8-10 places per region; owner) and pulling that size out of backlog 999.26*
+*Last updated: 2026-10-09 after Phase 51.3.1.1 Density Pools went code-complete (32 plans, two review rounds, verification human_needed, UAT and the owner wording review deferred)*
