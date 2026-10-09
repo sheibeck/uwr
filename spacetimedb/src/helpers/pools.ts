@@ -398,18 +398,25 @@ export function applyDepletion(
  * first thing in clearCombatArtifacts, the single place a fight's combat_enemy rows are deleted, so
  * victory, defeat, end_combat and the failure close all settle here and a second clear finds no rows.
  * Every enemy of the fight with a pool (poolId > 0n) and currentHp 0n is a kill worth
- * DEPLETION_BY_ROLE of its template's role; living enemies deplete nothing. Points are summed per
+ * DEPLETION_BY_ROLE of its template's role, and its poolId is set to 0n once counted, so it is never
+ * settled twice; living enemies deplete nothing. Points are summed per
  * pool and applied with one applyDepletion each, in pool id order; a missing pool is skipped.
  */
 export function settlePoolKills(ctx: any, combatId: bigint, now: bigint): PoolCountShift[] {
   const pointsByPool = new Map<bigint, bigint>();
+  const counted: any[] = [];
   for (const enemy of ctx.db.combat_enemy.by_combat.filter(combatId)) {
     const poolId: bigint = enemy.poolId ?? 0n;
     if (poolId <= 0n || enemy.currentHp !== 0n) continue;
     const template = ctx.db.enemy_template.id.find(enemy.enemyTemplateId);
     const points = DENSITY_RULES.DEPLETION_BY_ROLE[normalizeEnemyRole(template?.role)] ?? 0n;
     pointsByPool.set(poolId, (pointsByPool.get(poolId) ?? 0n) + points);
+    counted.push(enemy);
   }
+  // One-shot per kill (review B WR-03): a counted row loses its pool link before any pool is written,
+  // so a second clear after a failure part way through the cleanup (closeFightAfterFailure) finds
+  // nothing left to deplete, even while the killed rows still exist.
+  for (const enemy of counted) ctx.db.combat_enemy.id.update({ ...enemy, poolId: 0n });
   const shifts: PoolCountShift[] = [];
   const poolIds = [...pointsByPool.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   for (const poolId of poolIds) {

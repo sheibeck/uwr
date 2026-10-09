@@ -183,6 +183,27 @@ describe('kills settle against their pool when the fight ends (D-16, Pitfall 3)'
     expect(poolCount(ctx, goblins.id)).toBe(37n);
   });
 
+  it('a cleanup that fails after settling, then the failure close: the kills deplete the pool once (review B WR-03)', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, goblins } = world();
+    const combat = startPoolFight(ctx, goblins.id, [TANK, DAMAGE]);
+    kill(ctx, combat.id, [TANK, DAMAGE]);
+    // aggro_entry is deleted in clearCombatArtifacts after the settle and before the combat_enemy
+    // deletes: throw there once, after the pool dropped, while the killed rows still exist.
+    let thrown = false;
+    breakTable(ctx, 'aggro_entry', () => {
+      if (thrown || poolCount(ctx, goblins.id) === 50n || rows(ctx, 'combat_enemy').length === 0) return false;
+      thrown = true;
+      return true;
+    });
+    fire(ctx, combat.id);
+    expect(thrown).toBe(true);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('resolveRound: victory failed in combat'));
+    expect(resolved(ctx, combat.id)).toBe(true);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(0);
+    expect(poolCount(ctx, goblins.id)).toBe(50n - 8n - 5n);
+  });
+
   it('a named or event fight (poolId 0) changes no pool, and its spawn writes no respawn tick', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { ctx, goblins } = world({
