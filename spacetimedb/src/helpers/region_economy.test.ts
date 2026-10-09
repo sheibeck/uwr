@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { createMockCtx } from './test-utils';
 import { encodeRouteInput } from './llm_inputs';
 import { REGION_ECONOMY_BIGINT_PATHS, type RegionEconomyInput } from '../data/economy_design_rules';
+import { DEFAULT_DIALS } from '../data/economy_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -420,6 +421,8 @@ function k0World(): Seed {
   seed.recipe_template = [];
   seed.enemy_loot_entry = [];
   seed.region_recipe = [];
+  // Read by regionEnemyTemplates (filler members, Plan 09); seeded so two fresh databases snapshot alike.
+  seed.family_member = [];
   return seed;
 }
 
@@ -1001,5 +1004,103 @@ describe('AI-table loot check: a designed enemy rolls from its written loot tabl
       }
     }
     expect(commons).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.1 Plan 09: filler members stay out of the economy; gatherables join the pools (D-48)
+// ---------------------------------------------------------------------------
+
+/** Two server-made filler members (110, 111) of a family whose real members are 101 and 102, linked at place 10. */
+function addFillers(target: { enemy_template: any[]; location_enemy_template: any[]; family_member?: any[] }): void {
+  target.enemy_template.push(
+    enemyRow(110n, 'Salt-Crust Skitterer Mender', 'beast', 1n, { role: 'healer' }),
+    enemyRow(111n, 'Salt-Crust Skitterer Hexer', 'beast', 1n, { role: 'caster' }),
+  );
+  target.location_enemy_template.push(
+    { id: 50n, locationId: 10n, enemyTemplateId: 110n },
+    { id: 51n, locationId: 10n, enemyTemplateId: 111n },
+  );
+  target.family_member = [
+    ...(target.family_member ?? []),
+    { id: 1n, familyId: 1n, enemyTemplateId: 101n, role: 'tank', filler: false },
+    { id: 2n, familyId: 1n, enemyTemplateId: 102n, role: 'damage', filler: false },
+    { id: 3n, familyId: 1n, enemyTemplateId: 110n, role: 'healer', filler: true },
+    { id: 4n, familyId: 1n, enemyTemplateId: 111n, role: 'caster', filler: true },
+  ];
+}
+
+describe('filler members stay out of the region economy (Plan 09, T-51.3.1.1-27)', () => {
+  it('regionEnemyTemplates and the region input list exactly the 2 real members of a migrated family', () => {
+    const seed = baseWorld();
+    addFillers(seed as any);
+    const ctx = ctxFor(seed);
+    expect(econ.regionEnemyTemplates(ctx, 1n).map((t: any) => t.id)).toEqual([101n, 102n]);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.enemies.map((e: any) => e.templateId)).toEqual([101n, 102n]);
+  });
+});
+
+describe('applyRegionEconomyResult: gatherables join the resource pools (Plan 09, D-48)', () => {
+  /** The region_k0 reply with its three gatherables on woods, swamp and town. */
+  function k0ReplyOnTerrains(): string {
+    const reply = JSON.parse(replyText('region_k0'));
+    reply.region.gatherables.common.terrain = 'woods';
+    reply.region.gatherables.uncommon.terrain = 'swamp';
+    reply.region.gatherables.rare.terrain = 'town';
+    return JSON.stringify(reply);
+  }
+
+  function poolWorldK0(): Seed {
+    const seed = k0World();
+    seed.location.push(locationRow(14n, 1n, 'woods'));
+    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, aiEnabled: true }];
+    seed.llm_job = [];
+    return seed;
+  }
+
+  const gatherId = (ctx: any, rarity: string): bigint =>
+    rows(ctx, 'economy_item').find((r: any) => r.regionId === 1n && r.slotKey === `gather:${rarity}`).itemTemplateId;
+  const resourceRefs = (ctx: any, locationId: bigint): bigint[] =>
+    rows(ctx, 'place_pool')
+      .filter((p: any) => p.locationId === locationId && p.kind === 'resource')
+      .map((p: any) => p.refId);
+
+  it('each place of matching terrain gets a resource pool for its gatherable, and a rerun adds none', () => {
+    const ctx = ctxFor(poolWorldK0());
+    const { job } = regionJob(ctx, 1n);
+    econ.applyRegionEconomyResult(ctx, job, k0ReplyOnTerrains());
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+
+    const woods = gatherId(ctx, 'common');
+    const swamp = gatherId(ctx, 'uncommon');
+    const town = gatherId(ctx, 'rare');
+    expect(resourceRefs(ctx, 14n)).toContain(woods);
+    expect(resourceRefs(ctx, 10n)).toContain(swamp);
+    expect(resourceRefs(ctx, 11n)).toContain(swamp);
+    expect(resourceRefs(ctx, 13n)).toContain(town);
+    expect(resourceRefs(ctx, 12n)).toEqual([]);
+    expect(resourceRefs(ctx, 14n)).not.toContain(swamp);
+    for (const row of rows(ctx, 'place_pool')) expect(recorder.rowColumnProblems('place_pool', row)).toEqual([]);
+
+    const before = rows(ctx, 'place_pool').length;
+    econ.applyRegionEconomyResult(ctx, job, k0ReplyOnTerrains());
+    expect(rows(ctx, 'place_pool')).toHaveLength(before);
+  });
+
+  it('the late-enemy follow-up enqueues nothing for filler members that joined while the job was pending', () => {
+    const ctx = ctxFor(poolWorldK0());
+    const { job } = regionJob(ctx, 1n);
+    const alice = { toHexString: () => 'a'.repeat(64) };
+    const ownedJob = { ...job, playerId: alice, contextJson: JSON.stringify({ ...JSON.parse(job.contextJson), characterId: '10' }) };
+    // A migrated family's filler members appear while the region job is pending, and so does one real
+    // late enemy type (the Drowned Tollman, 103), the control that the follow-up does enqueue.
+    addFillers(ctx.db._tables);
+    ctx.db._tables.location_enemy_template.push({ id: 52n, locationId: 12n, enemyTemplateId: 103n });
+    econ.applyRegionEconomyResult(ctx, ownedJob, k0ReplyOnTerrains());
+    expect(econRowOf(ctx, 1n).status).toBe('complete');
+    // 101 and 102 got their loot from the reply; 110 and 111 are fillers: only 103 gets a late job.
+    const late = rows(ctx, 'llm_job').filter((j: any) => j.route === 'region_economy');
+    expect(late.map((j: any) => JSON.parse(j.requestJson).enemyTemplateId)).toEqual(['103']);
   });
 });

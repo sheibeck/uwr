@@ -920,7 +920,9 @@ describe('Phase 43 (plan 08): staged world apply', () => {
     expect(rows(ctx, 'location').map((l: any) => l.name)).toEqual([
       'Ember Hollow', 'Slag Road', 'Ashen Pit', 'The Edge Beyond Cinderfall',
     ]);
-    expect(rows(ctx, 'enemy_template')).toHaveLength(1);
+    // The reply's one enemy type plus its family's three server-made filler members (Plan 09).
+    expect(rows(ctx, 'enemy_template')).toHaveLength(4);
+    expect(rows(ctx, 'family_member').filter((m: any) => !m.filler)).toHaveLength(1);
     // The stage-1 NPC is not repeated, the safety net adds the banker, the model vendor is kept
     expect(rows(ctx, 'npc').map((n: any) => n.name)).toEqual(['Vessa', 'Old Brann', 'The Ledger Keeper']);
     expect(rows(ctx, 'region')[0]).toMatchObject({ dominantFaction: 'Ash Court', name: 'Cinderfall' });
@@ -1799,5 +1801,116 @@ describe('Phase 46: Keeper narration segments on server-composed rows', () => {
     expect(rows(ctx, 'event_private')[0].message).toBe(
       'The page flickers. Your potential eludes crystallization. Type [skills] when you want another attempt.',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.1 Plan 09: invented quest kill targets become families of one (D-54); boss_kill stays
+// an individual (D-07). Strict mock db; no LLM call.
+// ---------------------------------------------------------------------------
+
+describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-07)', () => {
+  beforeEach(async () => {
+    await import('../schema/tables');
+  });
+
+  const placeRow = (id: bigint, name: string, terrainType: string, isSafe: boolean) => ({
+    id,
+    name,
+    description: `${name}.`,
+    zone: 'z',
+    regionId: 1n,
+    levelOffset: 0n,
+    isSafe,
+    terrainType,
+    bindStone: false,
+    craftingAvailable: false,
+    shortName: '',
+    placeNoun: '',
+    isHub: false,
+  });
+  /** The character and Marta stand at place 100 (safe or not); 101 and 102 are hostile neighbours. */
+  const questSeed = (hereSafe: boolean, extra: Record<string, any[]> = {}) => ({
+    character: [characterRow()],
+    region: [{ id: 1n, name: 'Mirefold', dangerMultiplier: 200n, regionType: 'generated', biome: 'swamp', landmarks: '[]', threats: '[]' }],
+    location: [
+      placeRow(100n, 'Mill Square', hereSafe ? 'town' : 'swamp', hereSafe),
+      placeRow(101n, 'Black Fen', 'swamp', false),
+      placeRow(102n, 'Reed Hollow', 'woods', false),
+    ],
+    location_connection: [
+      { id: 1n, fromLocationId: 100n, toLocationId: 102n },
+      { id: 2n, fromLocationId: 100n, toLocationId: 101n },
+    ],
+    npc: [{ id: 20n, name: 'Marta', npcType: 'lore', locationId: 100n, description: 'A baker.', greeting: 'Hello.', personalityJson: '{}' }],
+    npc_memory: [{ id: 30n, characterId: 10n, npcId: 20n, memoryJson: '{}', lastUpdated: ts(1_600_000_000_000_000n) }],
+    npc_affinity: [
+      { id: 40n, characterId: 10n, npcId: 20n, affinity: 0n, lastInteraction: ts(1_600_000_000_000_000n), giftsGiven: 0n, conversationCount: 0n },
+    ],
+    ...extra,
+  });
+  const strictCtx = (seed: Record<string, any[]>) =>
+    createMockCtx({ seed, sender: moduleIdentity, timestampMicros: T0, strict: true } as any);
+  const npcJob = job('npc_conversation', JSON.stringify({ characterId: '10', npcId: '20', memoryId: '30' }));
+  const killReply = (questType: string, targetEnemyName: string) =>
+    JSON.stringify({
+      dialogue: 'Hi.',
+      effects: [{ type: 'offer_quest', questName: 'Cull the Fen', questType, targetEnemyName, targetCount: 3 }],
+      memoryUpdate: {},
+      internalThought: '',
+    });
+  const invented = (ctx: any) => rows(ctx, 'enemy_template').find((t: any) => t.name === 'Gloomfang');
+  const creaturePools = (ctx: any) => rows(ctx, 'place_pool').filter((p: any) => p.kind === 'creature');
+
+  it.each(['kill', 'kill_loot'])('%s at a hostile place: the new template, family quest:<id> of one and a Scarce pool there', (questType) => {
+    const ctx = strictCtx(questSeed(false));
+    applyNpcConversationResult(ctx, npcJob, killReply(questType, 'Gloomfang'));
+
+    const template = invented(ctx);
+    expect(template).toBeTruthy();
+    const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
+    expect(family).toBeTruthy();
+    expect(rows(ctx, 'family_member').filter((m: any) => m.familyId === family.id)).toEqual([
+      expect.objectContaining({ enemyTemplateId: template.id, filler: false }),
+    ]);
+    const pools = creaturePools(ctx).filter((p: any) => p.refId === family.id);
+    expect(pools).toHaveLength(1);
+    expect(pools[0]).toMatchObject({ locationId: 100n, homeLevel: 1n });
+    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
+  });
+
+  it('kill at a safe town: the pool goes to the lowest-id hostile connected place', () => {
+    const ctx = strictCtx(questSeed(true));
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+    const template = invented(ctx);
+    const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
+    expect(creaturePools(ctx).filter((p: any) => p.refId === family.id).map((p: any) => p.locationId)).toEqual([101n]);
+    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
+  });
+
+  it('boss_kill: the new template stays an individual, with no family and no pool', () => {
+    const ctx = strictCtx(questSeed(false));
+    applyNpcConversationResult(ctx, npcJob, killReply('boss_kill', 'Gloomfang'));
+    const template = invented(ctx);
+    expect(template).toBeTruthy();
+    expect(rows(ctx, 'creature_family')).toEqual([]);
+    expect(rows(ctx, 'family_member')).toEqual([]);
+    expect(creaturePools(ctx)).toEqual([]);
+    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(template.id);
+  });
+
+  it('kill naming an existing template linked here creates no new family', () => {
+    const wight = {
+      id: 900n, name: 'Bog Wight', role: 'melee', roleDetail: 'melee', abilityProfile: 'melee', terrainTypes: 'swamp', creatureType: 'undead',
+      timeOfDay: 'any', socialGroup: 'wights', socialRadius: 0n, awareness: 'normal', groupMin: 1n, groupMax: 1n, armorClass: 5n,
+      level: 2n, maxHp: 44n, baseDamage: 11n, xpReward: 40n,
+    };
+    const ctx = strictCtx(
+      questSeed(false, { enemy_template: [wight], location_enemy_template: [{ id: 1n, locationId: 100n, enemyTemplateId: 900n }] }),
+    );
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'bog wight'));
+    expect(rows(ctx, 'enemy_template')).toHaveLength(1);
+    expect(rows(ctx, 'creature_family')).toEqual([]);
+    expect(rows(ctx, 'quest_template')[0].targetEnemyTemplateId).toBe(900n);
   });
 });
