@@ -1,6 +1,8 @@
 import { SenderError } from 'spacetimedb/server';
 import { Character } from '../schema/tables';
-import { appendPrivateEvent, appendLocationEvent, appendGroupEvent } from './events';
+import { appendPrivateEvent, appendLocationEvent, appendGroupEvent, activeCombatIdForCharacter } from './events';
+import { cleanupDecayedCorpses } from './corpse';
+import { deathPromptLine, RESPAWN_IN_COMBAT, RESPAWN_NOT_DEAD } from '../data/death_lines';
 import { markLocationVisited } from './visited';
 import { collapsePassageAfterLeaving } from './passages';
 import { syncCharacterOnline } from './online';
@@ -223,6 +225,94 @@ export function grantRaceAbility(ctx: any, character: any, raceData: any): void 
     source: 'Race',
     abilityKey: raceData.abilityKey,
   });
+}
+
+/** The name of the place a dead character would wake at: the bind point, else where he fell. */
+export function respawnPlaceName(ctx: any, character: any): string {
+  const nextLocationId = character.boundLocationId ?? character.locationId;
+  return ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
+}
+
+/**
+ * The death prompt with its clickable [respawn] (owner, 2026-10-09), written privately when the
+ * character is dead and no fight holds him. Called after a fight in which he fell, when he comes back
+ * in (set_active_character, a reconnect) and when the command is refused for being early. Returns
+ * whether a line was written.
+ */
+export function promptRespawnIfDead(ctx: any, character: any): boolean {
+  if (!character || character.hp > 0n) return false;
+  if (activeCombatIdForCharacter(ctx, character.id)) return false;
+  appendPrivateEvent(
+    ctx,
+    character.id,
+    character.ownerUserId,
+    'system',
+    deathPromptLine(respawnPlaceName(ctx, character), ctx.timestamp.microsSinceUnixEpoch + character.id),
+  );
+  return true;
+}
+
+/**
+ * Brings a dead character back at his bind point (else where he fell) with 1 hp, mana and stamina:
+ * effects, pending casts and travel cooldowns cleared, the place marked visited, a passage he died in
+ * collapsed once empty, and his corpses listed. The one path for the respawn_character reducer and the
+ * typed respawn command. Refuses (with a private line, returning false) when he is alive or a fight
+ * still holds him.
+ */
+export function respawnDeadCharacter(ctx: any, character: any): boolean {
+  if (character.hp > 0n) {
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', RESPAWN_NOT_DEAD);
+    return false;
+  }
+  if (activeCombatIdForCharacter(ctx, character.id)) {
+    appendPrivateEvent(ctx, character.id, character.ownerUserId, 'system', RESPAWN_IN_COMBAT);
+    return false;
+  }
+
+  // Clean up decayed corpses opportunistically
+  cleanupDecayedCorpses(ctx);
+
+  for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
+    ctx.db.character_effect.id.delete(effect.id);
+  }
+  for (const cast of ctx.db.character_cast.by_character.filter(character.id)) {
+    ctx.db.character_cast.id.delete(cast.id);
+  }
+  for (const cd of ctx.db.travel_cooldown.by_character.filter(character.id)) {
+    ctx.db.travel_cooldown.id.delete(cd.id);
+  }
+  const nextLocationId = character.boundLocationId ?? character.locationId;
+  const respawnLocation = respawnPlaceName(ctx, character);
+  ctx.db.character.id.update({
+    ...character,
+    locationId: nextLocationId,
+    hp: 1n,
+    mana: character.maxMana > 0n ? 1n : 0n,
+    stamina: character.maxStamina > 0n ? 1n : 0n,
+  });
+  // Visited places: the respawn place counts as stood in (no origin).
+  markLocationVisited(ctx, character.id, nextLocationId);
+  // A passage the character died in collapses once nobody is left in it.
+  collapsePassageAfterLeaving(ctx, character.locationId, nextLocationId);
+  appendPrivateEvent(ctx, character.id, character.ownerUserId, 'combat', `You awaken at ${respawnLocation}, shaken but alive.`);
+
+  const corpses = [...ctx.db.corpse.by_character.filter(character.id)];
+  if (corpses.length > 0) {
+    const locationNames = corpses.map((c: any) => ctx.db.location.id.find(c.locationId)?.name ?? 'unknown');
+    const unique = [...new Set(locationNames)];
+    appendPrivateEvent(
+      ctx,
+      character.id,
+      character.ownerUserId,
+      'system',
+      `You have ${corpses.length} corpse(s) containing your belongings at: ${unique.join(', ')}.`,
+    );
+  }
+
+  if (character.groupId) {
+    appendGroupEvent(ctx, character.groupId, character.id, 'combat', `${character.name} awakens at ${respawnLocation}, shaken but alive.`);
+  }
+  return true;
 }
 
 export function autoRespawnDeadCharacter(ctx: any, character: any): void {

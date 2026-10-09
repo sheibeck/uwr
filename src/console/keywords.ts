@@ -9,10 +9,11 @@
 //     or underscore (so "St." and "C++" work); neighbors are tested with Unicode property classes
 //   - the vocabulary is capped at KEYWORD_LIMIT, higher-priority kinds first
 // findKeywords is total: it never throws and the joined part texts always equal the input.
+// The command kind comes only from commandLinks.ts ([respawn] in a server system line).
 // The loot kinds (loot, lootAll) come only from lootLine.ts (parsed server reward lines, quick
 // 261008-f3m), never from the vocabulary.
 
-export type KeywordKind = 'npc' | 'enemy' | 'place' | 'node' | 'player' | 'loot' | 'lootAll';
+export type KeywordKind = 'npc' | 'enemy' | 'place' | 'node' | 'player' | 'loot' | 'lootAll' | 'command';
 /**
  * What an enemy keyword reaches (51.3.1.1-18): a family pull by pool id, a named enemy or a World
  * event spawn. Set only on enemy entries (src/rails/pullTargets.ts); absent on every other kind.

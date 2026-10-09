@@ -34,6 +34,7 @@
 import { parseLootLine } from '@game-data/loot_line';
 import type { LootLinePiece } from '@game-data/loot_line';
 import { cleanServerText } from './cleanServerText';
+import { withCommandParts } from './commandLinks';
 import { findKeywords } from './keywords';
 import type { KeywordEntry, KeywordPart, KeywordVocabulary } from './keywords';
 import { lootParts, lootPlainText } from './lootLine';
@@ -410,15 +411,18 @@ export function buildFeedLines(
         built.push({ ...line, parts: lootParts(line.loot, options.availableLoot ?? EMPTY_LOOT) });
         continue;
       }
+      // Command links ([respawn]) only in server system lines, never in player-typed text.
+      const commandLine = line.kind === 'system' && line.playerAuthored !== true && line.text.includes('[');
       if (!line.keywordEligible) {
-        built.push(line);
+        built.push(commandLine ? { ...line, parts: withCommandParts([{ text: line.text, entry: null }]) } : line);
         continue;
       }
       const speakerNpc =
         line.speakerNpcId === null ? undefined : options.npcsHere.find((npc) => npc.id === line.speakerNpcId);
+      const found = findKeywords(line.text, options.vocabulary);
       built.push({
         ...line,
-        parts: findKeywords(line.text, options.vocabulary),
+        parts: commandLine ? withCommandParts(found) : found,
         titleParts: line.title === null ? null : findKeywords(line.title, options.vocabulary),
         speakerKeyword: speakerNpc ? { kind: 'npc', id: speakerNpc.id, name: speakerNpc.name } : null,
       });

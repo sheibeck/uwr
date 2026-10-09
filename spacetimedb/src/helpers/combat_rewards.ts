@@ -7,7 +7,8 @@
  */
 
 import { MAX_LEVEL, xpModifierForDiff, xpRequiredForLevel } from '../data/xp';
-import { recomputeCharacterDerived } from './character';
+import { recomputeCharacterDerived, respawnPlaceName } from './character';
+import { deathPromptLine } from '../data/death_lines';
 import { appendPrivateEvent as appendPrivateEventHelper } from './events';
 
 /**
@@ -114,10 +115,9 @@ export const buildFallenNamesSuffix = (
  * Extracted from victory path (lines ~2979-3005) and defeat path (lines ~3477-3505).
  * Both paths: (1) create corpses for hp===0, (2) apply XP penalty + log.
  *
- * The defeat path also calls autoRespawnDeadCharacter after XP penalty, but
  * clearCombatArtifacts ordering differs between paths (victory: corpse->penalty->clear,
- * defeat: corpse->clear->penalty->respawn). To preserve exact ordering, this helper
- * only handles the corpse creation step. The caller handles the rest.
+ * defeat: corpse->clear->penalty). Nothing respawns on its own: applyDeathPenalties writes the death
+ * prompt and the player types (or clicks) [respawn]. This helper only handles the corpse creation step.
  */
 export const createCorpsesForDead = (
   ctx: any,
@@ -166,6 +166,15 @@ export const applyDeathPenalties = (
           `${character.name} lost ${loss} XP from the defeat.`
         );
       }
+      // The fight is over: the death prompt with its [respawn] (owner, 2026-10-09). Nothing respawns
+      // on its own since quick-299, and the old death modal went with the old UI.
+      appendPrivateEvent(
+        ctx,
+        character.id,
+        character.ownerUserId,
+        'system',
+        deathPromptLine(respawnPlaceName(ctx, character), ctx.timestamp.microsSinceUnixEpoch + character.id)
+      );
     }
   }
 };

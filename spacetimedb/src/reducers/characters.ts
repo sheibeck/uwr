@@ -4,6 +4,7 @@ import { collapsePassageAfterLeaving } from '../helpers/passages';
 import { syncCharacterOnline } from '../helpers/online';
 import { announcePartyPresence } from '../helpers/party_presence';
 import { endInvite, settleGroupAfterLeave } from '../helpers/group_invites';
+import { promptRespawnIfDead, respawnDeadCharacter } from '../helpers/character';
 
 export const registerCharacterReducers = (deps: any) => {
   const {
@@ -119,6 +120,8 @@ export const registerCharacterReducers = (deps: any) => {
       announcePartyPresence(ctx, previousActiveId, 'logged_out');
     }
     if (syncCharacterOnline(ctx, character.id)) announcePartyPresence(ctx, character.id, 'back');
+    // Coming back in dead: the death prompt again, with its [respawn] (owner, 2026-10-09).
+    promptRespawnIfDead(ctx, ctx.db.character.id.find(character.id));
   });
 
   spacetimedb.reducer('clear_active_character', {}, (ctx, _) => {
@@ -285,72 +288,7 @@ export const registerCharacterReducers = (deps: any) => {
   spacetimedb.reducer('respawn_character', { characterId: t.u64() }, (ctx, args) => {
     const character = requireCharacterOwnedBy(ctx, args.characterId);
     if (character.hp > 0n) return;
-    if (activeCombatIdForCharacter(ctx, character.id)) {
-      fail(ctx, character, 'Cannot respawn during combat');
-      return;
-    }
-
-    // Clean up decayed corpses opportunistically
-    deps.cleanupDecayedCorpses(ctx);
-
-    for (const effect of ctx.db.character_effect.by_character.filter(character.id)) {
-      ctx.db.character_effect.id.delete(effect.id);
-    }
-    // Clear any pending casts on respawn
-    for (const cast of ctx.db.character_cast.by_character.filter(character.id)) {
-      ctx.db.character_cast.id.delete(cast.id);
-    }
-    // Clear travel cooldown on respawn
-    for (const cd of ctx.db.travel_cooldown.by_character.filter(character.id)) {
-      ctx.db.travel_cooldown.id.delete(cd.id);
-    }
-    const nextLocationId = character.boundLocationId ?? character.locationId;
-    const respawnLocation = ctx.db.location.id.find(nextLocationId)?.name ?? 'your bind point';
-    ctx.db.character.id.update({
-      ...character,
-      locationId: nextLocationId,
-      hp: 1n,
-      mana: character.maxMana > 0n ? 1n : 0n,
-      stamina: character.maxStamina > 0n ? 1n : 0n,
-    });
-    // Visited places: the respawn place counts as stood in (no origin).
-    markLocationVisited(ctx, character.id, nextLocationId);
-    // A passage the character died in collapses once nobody is left in it.
-    collapsePassageAfterLeaving(ctx, character.locationId, nextLocationId);
-    appendPrivateEvent(
-      ctx,
-      character.id,
-      character.ownerUserId,
-      'combat',
-      `You awaken at ${respawnLocation}, shaken but alive.`
-    );
-
-    // Check for corpses and notify player
-    const corpses = [...ctx.db.corpse.by_character.filter(character.id)];
-    if (corpses.length > 0) {
-      const locationNames = corpses.map(c => {
-        const loc = ctx.db.location.id.find(c.locationId);
-        return loc?.name ?? 'unknown';
-      });
-      const unique = [...new Set(locationNames)];
-      appendPrivateEvent(
-        ctx,
-        character.id,
-        character.ownerUserId,
-        'system',
-        `You have ${corpses.length} corpse(s) containing your belongings at: ${unique.join(', ')}.`
-      );
-    }
-
-    if (character.groupId) {
-      appendGroupEvent(
-        ctx,
-        character.groupId,
-        character.id,
-        'combat',
-        `You awaken at ${respawnLocation}, shaken but alive.`
-      );
-    }
+    respawnDeadCharacter(ctx, character);
   });
 
   scheduledReducers['character_logout'] = spacetimedb.reducer(

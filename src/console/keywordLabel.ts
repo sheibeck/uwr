@@ -11,6 +11,7 @@ const VERBS: Readonly<Record<KeywordKind, string>> = {
   player: 'Whisper',
   loot: 'Take',
   lootAll: 'Take',
+  command: '',
 };
 
 // An enemy keyword reads like the Nearby card it acts as (51.3.1.1 D-39): a named or World event enemy
@@ -21,6 +22,8 @@ function enemyVerb(entry: KeywordEntry): string {
 }
 
 export function keywordActionLabel(entry: KeywordEntry): string {
+  // A command link reads as the command itself: 'Respawn'.
+  if (entry.kind === 'command') return entry.name.charAt(0).toUpperCase() + entry.name.slice(1);
   const verb = entry.kind === 'enemy' ? enemyVerb(entry) : VERBS[entry.kind];
   return `${verb} ${entry.name}`;
 }

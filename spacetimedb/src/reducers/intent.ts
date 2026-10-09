@@ -36,6 +36,8 @@ import {
   pullFamilyFor,
 } from '../helpers/encounters';
 import { findRaceDefinition } from '../data/race_bonuses';
+import { RESPAWN_COMMAND } from '../data/death_lines';
+import { respawnDeadCharacter } from '../helpers/character';
 import { turnInCompletedQuest, turnInQuestsAtNpc, questTurnInNpcId, pickUpQuestItem, isQuestTurnedIn } from './quests';
 
 // Re-export for any existing consumers that import from intent.ts
@@ -81,6 +83,12 @@ export const registerIntentReducers = (deps: any) => {
     }
 
     const lower = raw.toLowerCase();
+
+    // --- RESPAWN: the placeholder for a death screen (owner, 2026-10-09); the death prompt's [respawn] sends it ---
+    if (lower === RESPAWN_COMMAND) {
+      respawnDeadCharacter(ctx, character);
+      return;
+    }
 
     // --- HELP ---
     if (lower === 'help' || lower === 'h' || lower === '?') {

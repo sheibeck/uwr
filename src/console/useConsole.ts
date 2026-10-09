@@ -510,6 +510,13 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     bump();
   }
 
+  /** A command link in a server line ([respawn]): sent as if typed, with its echo. */
+  function runCommand(command: string): void {
+    if (!ready()) return;
+    conversation.value = null;
+    if (narrativeSend({ text: command, mode: 'intent', echo: command }) !== 'refused') bump();
+  }
+
   function actOnKeyword(entry: KeywordEntry): void {
     switch (entry.kind) {
       case 'npc':
@@ -540,6 +547,9 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
         break;
       case 'lootAll':
         takeAllLoot();
+        break;
+      case 'command':
+        runCommand(entry.name);
         break;
     }
   }

@@ -180,6 +180,7 @@ import {
   friendUserIds,
   findCharacterByName,
   autoRespawnDeadCharacter,
+  promptRespawnIfDead,
   campCharacter,
   grantRaceAbility,
 } from './helpers/character';
@@ -759,6 +760,8 @@ spacetimedb.clientConnected((ctx) => {
   if (syncCharacterOnline(ctx, existing?.activeCharacterId)) {
     announcePartyPresence(ctx, existing?.activeCharacterId, 'back');
   }
+  // A refresh or reconnect while dead: the death prompt again, with its [respawn] (owner, 2026-10-09).
+  if (existing?.activeCharacterId) promptRespawnIfDead(ctx, ctx.db.character.id.find(existing.activeCharacterId));
   ensureHealthRegenScheduled(ctx);
   ensureEffectTickScheduled(ctx);
   ensureHotTickScheduled(ctx);
