@@ -467,14 +467,14 @@ describe('an enemy shield absorbs player auto-attacks and pet attacks (D-53, T-5
     expect(n).toBeGreaterThan(0n);
     expect(enemyRow(ctx, 1n).currentHp).toBe(BIG);
     expect(shieldOf(ctx).magnitude).toBe(1_000n - n);
-    expect(lines(ctx, 1n, /^Your fists (hit|crits) Cave Rat for 0 damage/)).toHaveLength(1);
+    expect(lines(ctx, 1n, /^Your fists (hits|crits) Cave Rat for 0 damage/)).toHaveLength(1);
   });
 
   it('a shield smaller than the hit is used up and the rest reaches the enemy', () => {
     const ctx = fightCtx(wardedFight(1n));
     fire(ctx, T0 + TEN_S);
     expect(lines(ctx, 1n, /^A ward on Cave Rat absorbs 1 damage\.$/)).toHaveLength(1);
-    const hit = lines(ctx, 1n, /^Your fists (hit|crits) Cave Rat for \d+ damage/);
+    const hit = lines(ctx, 1n, /^Your fists (hits|crits) Cave Rat for \d+ damage/);
     expect(hit).toHaveLength(1);
     const dealt = numberIn(hit[0].message);
     expect(dealt).toBeGreaterThan(0n);

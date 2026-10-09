@@ -20,7 +20,7 @@ import {
   windupRounds, cooldownRounds, enemyAbilityReady, petAbilityDue, roundsToEstimateMicros,
 } from '../helpers/combat_rounds';
 import { awardRenown, awardServerFirst, calculatePerkBonuses, getPerkBonusByField } from '../helpers/renown';
-import { addCharacterEffect, addEnemyEffect } from '../helpers/combat';
+import { absorbEnemyShield, addCharacterEffect, addEnemyEffect } from '../helpers/combat';
 import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { fightRoster } from '../helpers/group';
@@ -616,6 +616,7 @@ export const registerCombatReducers = (deps: any) => {
       logOwnerId,
       messages,
       applyHp,
+      absorb,
       targetCharacterId,
       groupId,
       groupActorId,
@@ -647,6 +648,8 @@ export const registerCombatReducers = (deps: any) => {
         crit?: string | ((damage: bigint) => string);
       };
       applyHp: (nextHp: bigint) => void;
+      /** An enemy target's damage_shield (D-53): takes the hit first and returns the damage left for HP. */
+      absorb?: (damage: bigint) => bigint;
       targetCharacterId?: bigint;
       groupId?: bigint;
       groupActorId?: bigint;
@@ -697,6 +700,12 @@ export const registerCombatReducers = (deps: any) => {
         );
       }
     }
+    let absorbed = 0n;
+    if (absorb && finalDamage > 0n) {
+      const left = absorb(finalDamage);
+      absorbed = finalDamage - left;
+      finalDamage = left;
+    }
     const nextHp = currentHp > finalDamage ? currentHp - finalDamage : 0n;
     applyHp(nextHp);
 
@@ -714,8 +723,11 @@ export const registerCombatReducers = (deps: any) => {
       appendGroupEvent(ctx, groupId, groupActorId, type, groupMessage);
     }
 
-    return { outcome: outcome.outcome, finalDamage, nextHp };
+    return { outcome: outcome.outcome, finalDamage, nextHp, absorbed };
   };
+
+  /** PROPOSED copy (D-58), the same line as an ability into a ward (helpers/combat.ts applyDamageToEnemy). */
+  const wardAbsorbLine = (enemyName: string, absorbed: bigint) => `A ward on ${enemyName} absorbs ${absorbed} damage.`;
 
   const pickTemplate = (templates: any[], seed: bigint) => {
     if (templates.length === 0) return null;
@@ -1638,9 +1650,14 @@ export const registerCombatReducers = (deps: any) => {
             const abilityMult = getAbilityMultiplier(0n, 1n);
             const scaledDmg = ((abilityBase + statScale) * abilityMult) / 100n;
             const dmg = (scaledDmg * AOE_DAMAGE_MULTIPLIER) / 100n;
-            const actualDmg = en.currentHp > dmg ? dmg : en.currentHp;
+            // An enemy damage_shield takes its share first (D-53).
+            const toHp = absorbEnemyShield(ctx, en.combatId, en, dmg);
+            if (toHp < dmg) {
+              appendPrivateEvent(ctx, bard.id, bard.ownerUserId, 'ability', wardAbsorbLine(en.displayName ?? 'enemy', dmg - toHp));
+            }
+            const actualDmg = en.currentHp > toHp ? toHp : en.currentHp;
             totalDamage += actualDmg;
-            const nextHp = en.currentHp > dmg ? en.currentHp - dmg : 0n;
+            const nextHp = en.currentHp > toHp ? en.currentHp - toHp : 0n;
             ctx.db.combat_enemy.id.update({ ...en, currentHp: nextHp });
           }
           // Small mana drain per pulse
@@ -1919,7 +1936,7 @@ export const registerCombatReducers = (deps: any) => {
       const current = alive(target.id);
       if (!current) continue; // the ability finished the target; nothing left to swing at
       const targetName = current.displayName ?? 'enemy';
-      const { finalDamage } = resolveAttack(ctx, {
+      const { finalDamage, absorbed } = resolveAttack(ctx, {
         seed: roundSeed(nowMicros + pet.id + current.id, roundNumber),
         baseDamage: pet.attackDamage ?? PET_BASE_DAMAGE,
         targetArmor: current.armorClass,
@@ -1936,13 +1953,23 @@ export const registerCombatReducers = (deps: any) => {
           block: (damage) => `${targetName} blocks ${pet.name}'s attack for ${damage}.`,
           hit: (damage) => `${pet.name} hits ${targetName} for ${damage}.`,
         },
+        // An enemy damage_shield takes the hit first (D-53); the owner sees what it absorbed.
+        absorb: (damage: bigint) => {
+          const left = absorbEnemyShield(ctx, combat.id, current, damage);
+          if (left < damage) {
+            appendPrivateEvent(ctx, owner.id, owner.ownerUserId, 'ability', wardAbsorbLine(targetName, damage - left));
+          }
+          return left;
+        },
         applyHp: (updatedHp) => {
           ctx.db.combat_enemy.id.update({ ...current, currentHp: updatedHp });
         },
         groupId: combat.groupId,
         groupActorId: owner.id,
       });
-      if (finalDamage > 0n) {
+      // Threat counts the whole hit, a blow into a ward included (as applyDamageToEnemy does).
+      const threatDamage = finalDamage + absorbed;
+      if (threatDamage > 0n) {
         let petEntry: typeof deps.AggroEntry.rowType | null = null;
         for (const entry of ctx.db.aggro_entry.by_combat.filter(combat.id)) {
           if (entry.enemyId !== current.id) continue;
@@ -1952,7 +1979,7 @@ export const registerCombatReducers = (deps: any) => {
           }
         }
         const tauntBonus = pet.abilityKey === 'pet_taunt' ? 5n : 0n;
-        const aggroGain = finalDamage + tauntBonus;
+        const aggroGain = threatDamage + tauntBonus;
         if (petEntry) {
           ctx.db.aggro_entry.id.update({ ...petEntry, value: petEntry.value + aggroGain });
         } else {
@@ -2277,6 +2304,14 @@ export const registerCombatReducers = (deps: any) => {
         block: (d: bigint) => `${eName} blocks your ${weaponLabel} swing, taking ${d} damage.`,
         hit: (d: bigint) => `Your ${weaponLabel} hits ${eName} for ${d} damage.`,
         crit: (d: bigint) => `Your ${weaponLabel} crits ${eName} for ${d} damage!`,
+      },
+      // An enemy damage_shield takes the hit first (D-53).
+      absorb: (damage: bigint) => {
+        const left = absorbEnemyShield(ctx, combat.id, targetEnemy, damage);
+        if (left < damage) {
+          appendPrivateEvent(ctx, character.id, character.ownerUserId, 'ability', wardAbsorbLine(eName, damage - left));
+        }
+        return left;
       },
       applyHp: (nextHp: bigint) => {
         ctx.db.combat_enemy.id.update({ ...targetEnemy, currentHp: nextHp });
