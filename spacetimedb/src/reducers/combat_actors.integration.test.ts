@@ -10,6 +10,9 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer, rowColumnProblems, snapshotDb } from '../helpers/schema_recorder';
 import { roundSeed } from '../helpers/combat_rounds';
+import { spawnEnemyWithTemplate, computeLocationTargetLevel } from '../helpers/location';
+import { computeEnemyStats } from '../helpers/combat_enemies';
+import { placeSpawnLevel, templateAtLevel } from '../data/enemy_rules';
 import {
   T0,
   MODULE,
@@ -29,7 +32,7 @@ const handlers: Record<string, (...args: any[]) => any> = {};
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['resolve_round_timer', 'resolve_pull']) {
+  for (const name of ['resolve_round_timer', 'resolve_pull', 'pull_named_enemy']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(`capturedReducer('${name}') is not a function: the schema recorder could not capture it.`);
@@ -549,5 +552,73 @@ describe('resolve_pull: module-identity guard and adds in rounds', () => {
     fire(ctx, T0 + 2n * TEN_S);
     expect(rows(ctx, 'combat_enemy')).toHaveLength(2);
     expect(rows(ctx, 'combat_pending_add')).toHaveLength(0);
+  });
+});
+
+// ── Phase 51.3.1.1 Plan 05: named enemies, bosses and quest targets are single individuals ─────────
+
+describe('a named, boss or quest-boss fight starts with exactly one enemy (D-07, D-52, D-53)', () => {
+  /** Character 1 at location 10 in a danger-500 region (place target level 5), a group-sized template. */
+  const namedSeed = () => {
+    const seed = startSeed({
+      location_enemy_template: [{ id: 95n, locationId: 10n, enemyTemplateId: 1n }],
+      enemy_role_template: [
+        { id: 1n, enemyTemplateId: 1n, roleKey: 'alpha', displayName: 'Old Greymaw', role: 'damage', roleDetail: '', abilityProfile: '' },
+      ],
+      named_enemy: [
+        { id: 99n, characterId: 1n, enemyTemplateId: 1n, name: 'Old Greymaw', locationId: 10n, isAlive: true, lastKilledAt: undefined, respawnMinutes: 30n },
+      ],
+    });
+    seed.region[0] = { ...seed.region[0], dangerMultiplier: 500n };
+    seed.enemy_template[0] = { ...seed.enemy_template[0], groupMin: 4n, groupMax: 6n };
+    return seed;
+  };
+  const spawnsOf = (ctx: any) => rows(ctx, 'enemy_spawn').filter((s: any) => s.id !== 1n);
+
+  it('spawnEnemyWithTemplate (groupMin 3, groupMax 5) inserts one enemy_spawn with groupCount 1 and one member', () => {
+    const seed = namedSeed();
+    seed.enemy_template[0] = { ...seed.enemy_template[0], groupMin: 3n, groupMax: 5n };
+    const ctx = fightCtx(seed, ALICE);
+    const spawn = spawnEnemyWithTemplate(ctx, 10n, 1n) as any;
+
+    expect(spawnsOf(ctx)).toHaveLength(1);
+    expect(spawnsOf(ctx)[0]).toMatchObject({ id: spawn.id, enemyTemplateId: 1n, state: 'available', groupCount: 1n });
+    const members = rows(ctx, 'enemy_spawn_member');
+    expect(members).toHaveLength(1);
+    expect(members[0]).toMatchObject({ spawnId: spawn.id, enemyTemplateId: 1n, roleTemplateId: 1n });
+    expect(rowColumnProblems('enemy_spawn', spawnsOf(ctx)[0])).toEqual([]);
+  });
+
+  it('pull_named_enemy for a template with groupMin 4 starts a fight with exactly one combat_enemy', () => {
+    const ctx = fightCtx(namedSeed(), ALICE);
+    handlers.pull_named_enemy(ctx, { characterId: 1n, namedEnemyId: 99n });
+
+    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+    expect(rows(ctx, 'combat_enemy')).toHaveLength(1);
+    // no spare copies of the named foe are left standing at the place
+    expect(spawnsOf(ctx)).toHaveLength(1);
+    expect(spawnsOf(ctx)[0].state).toBe('engaged');
+    expect(rows(ctx, 'named_enemy')[0].isAlive).toBe(false);
+  });
+
+  it('the named enemy fights at the place-scaled level and stats, with no boss bonus', () => {
+    const ctx = fightCtx(namedSeed(), ALICE);
+    handlers.pull_named_enemy(ctx, { characterId: 1n, namedEnemyId: 99n });
+
+    const template = rows(ctx, 'enemy_template')[0];
+    const level = placeSpawnLevel(template.level, computeLocationTargetLevel(ctx, 10n, 1n), 0n);
+    expect(level).toBe(5n); // the type is level 1; the danger-500 place scales it to 5
+    expect(spawnsOf(ctx)[0].level).toBe(level);
+
+    const enemy = rows(ctx, 'combat_enemy')[0];
+    const role = rows(ctx, 'enemy_role_template')[0];
+    const character = rows(ctx, 'character').find((c: any) => c.id === 1n);
+    const expected = computeEnemyStats(templateAtLevel(template, level), role, [character]);
+    expect(enemy.level).toBe(level);
+    expect(enemy.maxHp).toBe(expected.maxHp);
+    expect(enemy.currentHp).toBe(expected.maxHp);
+    expect(enemy.attackDamage).toBe(expected.attackDamage);
+    expect(enemy.armorClass).toBe(expected.armorClass);
+    expect(enemy.displayName).toBe('Old Greymaw');
   });
 });
