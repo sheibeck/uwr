@@ -354,7 +354,7 @@ Phase 51.3.1.1 (Density Pools) is code-complete and verified in code. 51.3.1.1-V
 - **Executor practice:** rules `scratchpad/p5131/rules.md`, hand-off `scratchpad/p5131/handoff.md`. Lanes run in parallel only when files_modified are disjoint and there is one publisher. Executors run their own tests and vue-tsc; the coordinator runs the full suite with `CI=true` in the snapshot worktree `scratchpad/suitewt`, whose node_modules are JUNCTIONS to the real repo (never delete its contents recursively; remove the junctions with rmdir first before removing the worktree).
 - **Deferred items:** `.planning/phases/51.3.1.1-density-pools/deferred-items.md` (rows 1-33).
 - **Approvals done:** prompt draft (including Revision 2 and the Feud none variant) APPROVED 2026-10-08; the NPC no-open-task line approved 2026-10-09. The owner's local aiEnabled is ON: no paid calls without the owner.
-- **Next phase 51.3.1.2 Bigger Regions** needs the owner for its discuss; if the run reaches it while the owner is away, prepare research only and wait.
+- **51.3.1.1 is DONE in code** (6b15dbc4; UAT + wording review deferred). **Next: 51.3.1.2 Bigger Regions.** Pre-discuss research is committed (51.3.1.2-RESEARCH.md, Owner Questions Q1-Q10). When the owner is back: run the smart discuss from those questions (Q1-Q6 feed the prompt draft), write CONTEXT, then plan (research exists), get the new prompt wording approved, execute, review, verify.
 - **Owner notes this session:** the world will be regenerated from scratch (memory); feuds are a 35% chance; hubs, stations and bind stones per D-59..D-64; the NPC memory graph (999.9) is the real cure for stale NPC memory, not yet scheduled.
 
 ### Resume note (2026-10-08, fourth compact)
