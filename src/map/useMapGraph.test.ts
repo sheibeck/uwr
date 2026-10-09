@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { GAME_KEY, createInertGame } from '../game/context';
 import type { GameData } from '../game/context';
 import type { Location } from '../module_bindings/types';
@@ -40,7 +42,7 @@ afterEach(() => {
   wrapper = null;
 });
 
-function build(options: { mobile?: boolean } = {}) {
+function build(options: { mobile?: boolean; game?: Record<string, unknown> } = {}) {
   const mobile = ref(options.mobile ?? false);
   const character = ref<Record<string, unknown>>({ id: 1n, locationId: 10n, level: 4n, stamina: 40n, boundLocationId: 0n });
   const locations = [
@@ -81,6 +83,7 @@ function build(options: { mobile?: boolean } = {}) {
       { id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 300n },
       { id: 2n, name: 'Saltmarsh', dangerMultiplier: 400n },
     ]),
+    ...options.game,
   } as unknown as GameData;
 
   let graph: MapGraph | null = null;
@@ -147,5 +150,100 @@ describe('useMapGraph (51-12)', () => {
     expect(graph.startIdFor(1n)).toBe(10n);
     expect(graph.startIdFor(9n)).toBeNull();
     expect(graph.layout.value?.regionId).toBe(1n);
+  });
+});
+
+// One level-2 family at Lv 3 (place_rating: weight = level x band; Quiet up to 22, Risky up to 44):
+// a Lv 4 viewer (gap -1, band 10) reads Quiet (20); a Lv 1 viewer (gap 2, band 16) reads Risky (32).
+const GOBLINS_AT_11 = {
+  id: 1n,
+  regionId: 1n,
+  locationId: 11n,
+  kind: 'creature',
+  refId: 1n,
+  level: 2n,
+  lvLo: 3n,
+  lvHi: 3n,
+  name: 'Goblins',
+  iconKey: 'goblin',
+  temperament: 'aggressive',
+  singularNoun: 'goblin',
+  pluralNoun: 'goblins',
+  timeOfDay: 'any',
+};
+
+const rated = (over: Record<string, unknown> = {}) => ({
+  poolLevels: ref([GOBLINS_AT_11]),
+  poolsAppliedFor: (id: bigint) => id === 11n,
+  ...over,
+});
+
+const nodeOf = (graph: MapGraph, id: bigint) => graph.views.value.find((view) => view.id === id)!;
+
+describe('useMapGraph: the Map rates places from the pool rows (51.3.1.1-31)', () => {
+  it('rates a place whose pool rows applied, for the character level', () => {
+    const { graph } = build({ game: rated() });
+    const node = nodeOf(graph, 11n);
+    expect(node.rating.key).toBe('quiet');
+    expect(node.rating.word).toBe('Quiet');
+    expect(node.caption).toBe('Quiet · Lv 3');
+    expect(node.levelColor).toBe('rate-quiet');
+    expect(node.ariaLabel).toContain('level 3, quiet');
+  });
+
+  it('reads Unknown (no word) until the place rows apply, and the safe gate still reads Safe', () => {
+    const { graph } = build({ game: rated({ poolsAppliedFor: () => false }) });
+    expect(nodeOf(graph, 11n).rating.key).toBe('unknown');
+    expect(nodeOf(graph, 11n).rating.word).toBe('');
+    expect(nodeOf(graph, 10n).rating.word).toBe('Safe');
+  });
+
+  it('a living named enemy of yours at the place steps it up (D-34)', () => {
+    const named = [{ id: 4n, characterId: 1n, locationId: 11n, enemyTemplateId: 9n, isAlive: true, name: 'Old Brannoc' }];
+    const { graph } = build({ game: rated({ namedEnemies: ref(named) }) });
+    expect(nodeOf(graph, 11n).rating.word).toBe('Risky');
+  });
+
+  it('rates for the lowest level of the party standing with you (D-56), and the legend names it', () => {
+    const { graph } = build({
+      game: rated({
+        groupMembers: ref([{ id: 1n, groupId: 1n, characterId: 1n }, { id: 2n, groupId: 1n, characterId: 2n }]),
+        knownCharacters: ref([
+          { id: 1n, level: 4n, locationId: 10n },
+          { id: 2n, level: 1n, locationId: 10n },
+        ]),
+      }),
+    });
+    expect(nodeOf(graph, 11n).rating.word).toBe('Risky');
+    expect(graph.legendLevel.value).toBe(1);
+  });
+
+  it('the legend level is the character level solo, and the player level with no character', async () => {
+    const { graph, character } = build({ game: rated() });
+    expect(graph.legendLevel.value).toBe(4);
+    character.value = null as unknown as Record<string, unknown>;
+    await nextTick();
+    expect(graph.legendLevel.value).toBe(graph.playerLevel.value);
+    expect(graph.legendLevel.value).toBe(1);
+  });
+
+  it('re-rates when a place applies, without a new layout', async () => {
+    const applied = ref(false);
+    const { graph } = build({ game: rated({ poolsAppliedFor: (id: bigint) => applied.value && id === 11n }) });
+    const layout = graph.layout.value;
+    expect(nodeOf(graph, 11n).rating.key).toBe('unknown');
+    applied.value = true;
+    await nextTick();
+    expect(nodeOf(graph, 11n).rating.word).toBe('Quiet');
+    expect(graph.layout.value).toBe(layout);
+  });
+
+  it('calls useRatingLevel once at setup, outside the computeds, and leaves useShownRegion light', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/map/useMapGraph.ts'), 'utf8');
+    expect(source.split('useRatingLevel()').length - 1).toBe(1);
+    const shown = source.slice(source.indexOf('export function useShownRegion'), source.indexOf('export function useMapGraph'));
+    expect(shown).not.toContain('useMapRatingSource');
+    expect(shown).not.toContain('poolLevels');
+    expect(source).toMatch(/rating: rating\.value/);
   });
 });

@@ -61,7 +61,15 @@ afterEach(() => {
   wrapper = null;
 });
 
-function rig(over: { at?: bigint; stamina?: bigint; moveImpl?: () => Promise<void>; selected?: bigint | null } = {}): Rig {
+function rig(
+  over: {
+    at?: bigint;
+    stamina?: bigint;
+    moveImpl?: () => Promise<void>;
+    selected?: bigint | null;
+    game?: Record<string, unknown>;
+  } = {},
+): Rig {
   const character = ref<Record<string, unknown>>({
     id: 1n,
     name: 'Brannoch',
@@ -130,6 +138,7 @@ function rig(over: { at?: bigint; stamina?: bigint; moveImpl?: () => Promise<voi
     ]),
     gathers,
     reducers: computed(() => (connected.value ? { moveCharacter } : null)),
+    ...over.game,
   } as unknown as GameData;
 
   const travelSpy = vi.fn();
@@ -193,6 +202,34 @@ describe('useDestination: the detail model', () => {
     expect(detail.trip.stamina).toBe('5 stamina');
     expect(r.result().checks.value?.block).toBeNull();
     expect(detail.checks?.map((c) => c.key)).toEqual(['stamina', 'activity']);
+  });
+
+  it('tags the destination with its rating from the pool rows, for your level (51.3.1.1-31)', () => {
+    // One level-2 family at Lv 3: a Lv 6 viewer (gap -3, band 5) reads Quiet.
+    const pool = {
+      id: 1n,
+      regionId: 1n,
+      locationId: 11n,
+      kind: 'creature',
+      refId: 1n,
+      level: 2n,
+      lvLo: 3n,
+      lvHi: 3n,
+      name: 'Goblins',
+      iconKey: 'goblin',
+      temperament: 'aggressive',
+      singularNoun: 'goblin',
+      pluralNoun: 'goblins',
+      timeOfDay: 'any',
+    };
+    const r = rig({ selected: 11n, game: { poolLevels: ref([pool]), poolsAppliedFor: (id: bigint) => id === 11n } });
+    const danger = r.result().detail.value!.tags.find((tag) => tag.key === 'danger');
+    expect(danger?.text).toBe('Quiet · Lv 3');
+  });
+
+  it('has no danger tag for a place whose pool rows have not applied (Unknown, never guessed)', () => {
+    const r = rig({ selected: 11n });
+    expect(r.result().detail.value!.tags.find((tag) => tag.key === 'danger')).toBeUndefined();
   });
 
   it('a neighbour in another region says Cross into and costs the cross-region stamina', () => {
@@ -391,5 +428,10 @@ describe('useDestination: source', () => {
     expect(SOURCE.match(/createActionRunner/g)).toHaveLength(1);
     expect(SOURCE).toContain("run('travel'");
     expect(SOURCE).not.toMatch(/consoleApi|CONSOLE_KEY|\.travel\(/);
+  });
+
+  it('builds the rating source once at setup and passes it to the detail (51.3.1.1-31)', () => {
+    expect(SOURCE.split('useMapRatingSource()').length - 1).toBe(1);
+    expect(SOURCE).toMatch(/rating: rating\.value/);
   });
 });

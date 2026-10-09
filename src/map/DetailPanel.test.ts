@@ -165,6 +165,26 @@ function build(over: Options = {}) {
     questTemplates: ref(questTemplates),
     feed,
     reducers: computed(() => (connected.value ? { moveCharacter } : null)),
+    // One level-2 family at Lv 3 in Gloamwood: a Lv 6 viewer reads Quiet (51.3.1.1-31).
+    poolLevels: ref([
+      {
+        id: 1n,
+        regionId: 1n,
+        locationId: 11n,
+        kind: 'creature',
+        refId: 1n,
+        level: 2n,
+        lvLo: 3n,
+        lvHi: 3n,
+        name: 'Goblins',
+        iconKey: 'goblin',
+        temperament: 'aggressive',
+        singularNoun: 'goblin',
+        pluralNoun: 'goblins',
+        timeOfDay: 'any',
+      },
+    ]),
+    poolsAppliedFor: (id: bigint) => id === 11n,
   } as unknown as GameData;
 
   const Host = defineComponent({
@@ -243,7 +263,7 @@ describe('DetailPanel: populated states', () => {
     const tagTexts = w.findAll('.tags li').map((t) => t.text());
     expect(tagTexts).toContain('Woods');
     expect(tagTexts).toContain('Crafting');
-    expect(tagTexts.some((t) => t.startsWith('Lv 3'))).toBe(true);
+    expect(tagTexts).toContain('Quiet · Lv 3');
     expect(w.find('.crossing').exists()).toBe(false);
     expect(w.get('.description').text()).toBe('Pines lean over a narrow trail.');
     const grid = w.get('dl.trip').text();
