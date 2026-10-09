@@ -61,7 +61,9 @@ export const GOLDEN_RULES_ADDED_IN_46 = Object.freeze(['segments_invalid', 'keep
  *   - world_gen_start and world_gen: Phase 51.3.1.1 (Plans 23 and 30) reshaped the world-gen replies
  *     (startLocation.isSafe, the arrival words and hub marks, families with histories and feud marks);
  *   - world_gen_families: Phase 51.3.1.2 (D-01) split the families out of world_gen into their own 2b route.
- *     It has no golden item (GOLDEN_ROUTE_COUNTS is unchanged); it is listed so the re-record covers it.
+ *     It has no golden item (GOLDEN_ROUTE_COUNTS is unchanged), so the re-record does NOT exercise the 2b prompt
+ *     until a world_gen_families item is added (code review B, IN-06: a known gap, open); listing it here only keeps
+ *     a replay from judging the route by the old shape.
  * The Phase 44 record predates all of these, so these routes stay skipped until the owner re-records the paid
  * golden run at the end of the milestone.
  */
