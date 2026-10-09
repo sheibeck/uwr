@@ -388,7 +388,7 @@ describe('ExitChips card', () => {
 // is estimated at Inter's widest average glyph (0.62em) for the 10px Micro size.
 describe('ExitChips measured at 390x844', () => {
   const MOBILE_WIDTH = 390;
-  const style = SOURCE.slice(SOURCE.indexOf('<style'));
+  const style = SOURCE.slice(SOURCE.indexOf('>', SOURCE.indexOf('<style')) + 1).replace(/\/\*[\s\S]*?\*\//g, '');
 
   /** The value of `prop` in the top-level rule (or a rule whose @media holds at 390px) for exactly `selector`. */
   function mobileValue(selector: string, prop: string): string | null {

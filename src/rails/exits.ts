@@ -1,5 +1,10 @@
 // The rail exits model (51-UI-SPEC "Rail Travel Panel", Console 12a): one row per neighbour with its
-// danger ring, region suffix, right-hand text, open-row note and Travel or Cross button state.
+// rating ring, region suffix, rating and range, open-row note and Travel or Cross button state.
+//
+// 51.3.1.1 (UI-SPEC "Exits, Here card and mobile chips", D-33, D-41): each row carries the place's
+// safety rating from the shared rule (rating.ts over @game-data/place_rating), computed from the
+// destination's own pool rows and the viewer's rating level; Unknown until those rows apply, never
+// Safe. The band (danger) stays for the Map's region chips and gate pills (B9).
 //
 // Pure, no Vue. The costs and blocks come from travelChecks (the same prediction the Map's detail
 // column uses, built on the shared stamina rule in @game-data/travel_config); the danger band and
@@ -13,6 +18,8 @@ import { terrainOf } from '../map/terrain';
 import type { TerrainInfo } from '../map/terrain';
 import type { TravelChecks } from '../map/travelChecks';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
+import { ratingForPlace } from './rating';
+import type { PlaceRatingView, RatingPool } from './rating';
 
 export interface ExitLocation {
   id: bigint;
@@ -24,6 +31,13 @@ export interface ExitLocation {
   terrainType: string;
   bindStone: boolean;
   craftingAvailable: boolean;
+  /** The place's short name for the mobile chip; '' when it has none. */
+  shortName: string;
+}
+
+/** A pool_level row as the exits read it: its place and its public density only. */
+export interface ExitPool extends RatingPool {
+  locationId: bigint;
 }
 
 export interface ExitRegion {
@@ -57,14 +71,19 @@ export interface ExitButton {
 
 export interface ExitRow {
   locationId: bigint;
+  /** The full place name (accessible name, row label, open card). */
   name: string;
+  /** The chip's line 1: the short name, or the full name when the place has none. */
+  shortName: string;
   /** The place description when it is not empty, else ''. */
   title: string;
   terrain: TerrainInfo;
+  /** The Map band (kept for the region chips and gate pills; places show the rating). */
   danger: PlaceDanger;
+  /** The safety rating of the destination for this viewer (word, line, level label). */
+  rating: PlaceRatingView;
   crossing: boolean;
   regionName: string;
-  rightText: string;
   /** Your own region timer runs and this row is a crossing (the right side shows a lock and the clock). */
   locked: boolean;
   timeText: string | null;
@@ -85,6 +104,14 @@ export interface ExitRowsInput {
   regions: readonly ExitRegion[];
   heardOf: ReadonlySet<bigint>;
   playerLevel: number;
+  /** pool_level rows of every loaded region (game.poolLevels); each destination reads its own. */
+  pools: readonly ExitPool[];
+  /** game.poolsAppliedFor: the destination's pool rows have applied. */
+  poolsApplied: (locationId: bigint) => boolean;
+  /** The level places are rated for (viewerRatingLevel); null rates Unknown. */
+  ratingLevel: bigint | null;
+  /** A living boss or named enemy of the viewer at the place (D-34). */
+  bossOrNamed: (locationId: bigint) => boolean;
   checksFor: (destination: ExitLocation) => TravelChecks;
   connected: boolean;
 }
@@ -154,6 +181,13 @@ function noteFor(
 }
 
 export function exitRows(input: ExitRowsInput): ExitRow[] {
+  const poolsByPlace = new Map<bigint, ExitPool[]>();
+  for (const pool of input.pools) {
+    const list = poolsByPlace.get(pool.locationId);
+    if (list) list.push(pool);
+    else poolsByPlace.set(pool.locationId, [pool]);
+  }
+
   const rows: ExitRow[] = [];
   for (const route of input.routes) {
     const destination = input.locations.get(route.locationId);
@@ -174,18 +208,25 @@ export function exitRows(input: ExitRowsInput): ExitRow[] {
     const ariaLabel = crossing ? `Cross into ${regionName}` : `Travel to ${destination.name}`;
 
     const locked = crossing && checks.selfTimer.running;
+    const rating = ratingForPlace({
+      location: destination,
+      poolsHere: poolsByPlace.get(destination.id) ?? [],
+      ready: input.poolsApplied(destination.id),
+      playerLevel: input.ratingLevel,
+      bossOrNamedHere: input.bossOrNamed(destination.id),
+    });
+    const short = (destination.shortName ?? '').trim();
 
     rows.push({
       locationId: destination.id,
       name: destination.name,
+      shortName: short !== '' ? short : destination.name,
       title: destination.description ? destination.description : '',
       terrain,
       danger,
+      rating,
       crossing,
       regionName,
-      // An uncharted place has no level: the right column says 'Danger unknown', as the location line
-      // and the chip do, instead of staying blank (review IN-08).
-      rightText: danger.levelLabel !== '' ? danger.levelLabel : danger.word,
       locked,
       timeText: locked ? formatClock(checks.selfTimer.secondsLeft) : null,
       lockText: locked ? `Region travel ready in ${aboutMinutes(checks.selfTimer.secondsLeft)}` : null,
@@ -219,15 +260,18 @@ export function dangerText(danger: PlaceDanger): string {
 }
 
 /**
- * The accessible name of an exit row or chip: the full place and region (the visible text
- * ellipsizes), the level and band (colour is never the only cue) and, for a locked crossing, the
- * minute-level sentence.
+ * The accessible name of an exit row or chip: '{place}{ (Region)}, {Rating}, {level label}{, lock
+ * text}', for example 'Glass Orchard, Deadly, Lv 12–14'; Safe reads '{place}, Safe'. The full place
+ * name always (the chip shows the short name and the visible text ellipsizes); the rating word, as
+ * colour is never the only cue; an Unknown rating has no word and keeps the range; for a locked
+ * crossing the minute-level sentence.
  */
 export function exitLabel(row: ExitRow): string {
-  const place = row.crossing ? `${row.name} (${row.regionName})` : row.name;
-  const level = row.danger.kind === 'band' ? `${row.danger.levelLabel}, ${row.danger.word}` : row.danger.word;
+  const parts = [row.crossing ? `${row.name} (${row.regionName})` : row.name];
+  if (row.rating.word !== '') parts.push(row.rating.word);
+  if (row.rating.levelLabel !== '') parts.push(row.rating.levelLabel);
   // From your own timer whenever the row shows the lock, even when gathering outranks the timer as
   // the block and the note says something else (review IN-04).
-  const wait = row.lockText !== null ? `, ${row.lockText}` : '';
-  return `${place}, ${level}${wait}`;
+  if (row.lockText !== null) parts.push(row.lockText);
+  return parts.join(', ');
 }

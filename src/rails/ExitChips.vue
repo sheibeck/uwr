@@ -3,8 +3,10 @@ import { computed, inject, nextTick, ref, watch } from 'vue';
 import { PhDoorOpen, PhLockSimple, PhSignpost } from '@phosphor-icons/vue';
 import { CONSOLE_KEY, createInertConsole } from '../game/context';
 import { aboutMinutes } from '../map/travelTimer';
-import { dangerClass, dangerText, exitLabel } from './exits';
+import { exitLabel } from './exits';
 import type { ExitRow } from './exits';
+import { ratingClass } from './rating';
+import RatingMark from './RatingMark.vue';
 import { useExits } from './useExits';
 
 // The mobile exit chip strip and its open card (51-UI-SPEC "Mobile (Story screen, 12a A.6)"), under
@@ -13,7 +15,9 @@ import { useExits } from './useExits';
 // button. Travel goes through the console (consoleApi.travel); the server's arrival lines are the
 // feed. The costs, blocks and times come from travelChecks through useExits. The frame hides this
 // in combat, with a sheet open and with the software keyboard open. Names are server text, rendered
-// as text nodes only.
+// as text nodes only. 51.3.1.1 (UI-SPEC "Rating Marks", D-41): line 1 is the place's short name (the
+// full name when it has none; the full name stays in the accessible name and the open card), line 2
+// the rating word and the level range, the ring the rating colour; Unknown until the pools apply.
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const { character, ready, here, rows, pending, beginTravel } = useExits();
 
@@ -58,8 +62,9 @@ function buttonAria(row: ExitRow): string {
   return `Region travel locked for ${aboutMinutes(row.button.secondsLeft)}`;
 }
 
+// 'Woods · heard of', then the rating word and the range in the template.
 function terrainLine(row: ExitRow): string {
-  return `${row.terrain.word}${row.heardOf ? ' · heard of' : ''} · ${dangerText(row.danger)}`;
+  return `${row.terrain.word}${row.heardOf ? ' · heard of' : ''}`;
 }
 
 // The status line: the crossing, the cost, or why the trip is blocked; ' · n following' when you lead.
@@ -90,19 +95,27 @@ function go(row: ExitRow): void {
             :aria-label="exitLabel(row)"
             @click="toggle(row)"
           >
-            <span class="ring" :class="dangerClass(row.danger)">
+            <span class="ring" :class="ratingClass(row.rating.key)">
               <component :is="row.terrain.icon" :size="12" aria-hidden="true" />
             </span>
             <span class="chip-text">
               <span class="chip-name">
-                <span class="chip-name-text">{{ row.name }}</span>
+                <span class="chip-name-text">{{ row.shortName }}</span>
                 <PhDoorOpen v-if="row.crossing" class="chip-door" :size="12" aria-hidden="true" />
               </span>
               <span v-if="row.locked" class="chip-line locked">
                 <PhLockSimple :size="12" aria-hidden="true" />
                 <span>{{ row.timeText }}</span>
               </span>
-              <span v-else class="chip-line" :class="dangerClass(row.danger)">{{ dangerText(row.danger) }}</span>
+              <span v-else class="chip-line"
+                ><RatingMark v-if="row.rating.word !== ''" :rating="row.rating" :dot="false" /><span
+                  v-if="row.rating.word !== '' && row.rating.levelLabel !== ''"
+                  class="chip-sep"
+                  aria-hidden="true"
+                >
+                  · </span
+                ><span v-if="row.rating.levelLabel !== ''" class="chip-range">{{ row.rating.levelLabel }}</span></span
+              >
             </span>
           </button>
         </li>
@@ -110,7 +123,15 @@ function go(row: ExitRow): void {
 
       <div v-if="openRow" :id="cardId(openRow)" class="exit-card">
         <div class="card-name">{{ openRow.name }}</div>
-        <div class="card-terrain">{{ terrainLine(openRow) }}</div>
+        <div class="card-terrain">
+          {{ terrainLine(openRow)
+          }}<template v-if="openRow.rating.word !== ''"
+            ><span aria-hidden="true"> · </span><RatingMark :rating="openRow.rating" :dot="false" /></template
+          ><template v-if="openRow.rating.levelLabel !== ''"
+            ><span aria-hidden="true"> · </span><span class="card-range">{{ openRow.rating.levelLabel }}</span></template
+          >
+        </div>
+        <p v-if="openRow.rating.line !== ''" class="card-rating-line">{{ openRow.rating.line }}</p>
         <div
           v-if="openRow.note.timeText !== null"
           :id="statusId(openRow)"
@@ -245,34 +266,46 @@ function go(row: ExitRow): void {
 .chip-line {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  min-width: 0;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chip-line.locked {
+  gap: 4px;
   color: var(--color-neutral-500);
 }
 
-.lv-easy,
-.lv-safe {
+.chip-sep {
+  white-space: pre;
+  color: var(--color-neutral-500);
+}
+
+.chip-range,
+.card-range {
+  color: var(--color-neutral-500);
+}
+
+.rate-safe {
   color: var(--color-con-light-green);
 }
 
-.lv-even {
+.rate-quiet {
   color: var(--color-con-blue);
 }
 
-.lv-tough {
+.rate-risky {
   color: var(--color-con-yellow);
 }
 
-.lv-deadly {
+.rate-deadly {
   color: var(--color-con-red);
 }
 
-.lv-unknown {
+.rate-unknown {
   color: var(--color-neutral-500);
 }
 
@@ -293,12 +326,18 @@ function go(row: ExitRow): void {
 }
 
 .card-terrain,
-.card-status {
+.card-status,
+.card-rating-line {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
 
+.card-rating-line {
+  margin: 0;
+}
+
 .card-terrain,
+.card-rating-line,
 .tone-neutral {
   color: var(--color-neutral-400);
 }

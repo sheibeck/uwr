@@ -12,6 +12,8 @@ import { UNKNOWN_PLACE, describePlace } from '../session/frameView';
 import { exitRows } from './exits';
 import type { ExitLocation, ExitRow } from './exits';
 import { routesFrom } from './levelRange';
+import { bossOrNamedAt, ratingForPlace, viewerRatingLevel } from './rating';
+import type { PlaceRatingView } from './rating';
 
 // The rail travel panel's data, shared by the Here card (desktop rail and the mobile Map sheet) and
 // the mobile exit chips (plan 51-10). One source for the exit rows so the two surfaces never
@@ -25,6 +27,11 @@ export interface HereView {
   regionName: string;
   terrain: TerrainInfo;
   danger: PlaceDanger;
+  /**
+   * The place's safety rating for this viewer (51.3.1.1 D-08, D-33): Unknown (no word) until the
+   * place's pool rows apply, never Safe; a living boss or named enemy here raises it a step (D-34).
+   */
+  rating: PlaceRatingView;
 }
 
 export interface ExitsPanel {
@@ -44,8 +51,17 @@ export interface ExitsPanel {
   beginTravel(row: ExitRow): boolean;
 }
 
+/** The level places are rated for: the viewer's, or the lowest of the party standing with them (D-56). */
+export function useRatingLevel(): ComputedRef<bigint | null> {
+  const game = inject(GAME_KEY, createInertGame());
+  return computed(() =>
+    viewerRatingLevel(game.character.value, game.groupMembers.value, game.knownCharacters.value),
+  );
+}
+
 export function usePlaceView(): ComputedRef<HereView | null> {
   const game = inject(GAME_KEY, createInertGame());
+  const ratingLevel = useRatingLevel();
   return computed<HereView | null>(() => {
     const character = game.character.value;
     if (!character) return null;
@@ -60,6 +76,18 @@ export function usePlaceView(): ComputedRef<HereView | null> {
       regionName: region ? region.name : UNKNOWN_PLACE,
       terrain: terrainOf(location.terrainType ?? ''),
       danger: placeDanger(location, game.regions.value, Number(character.level)),
+      rating: ratingForPlace({
+        location,
+        poolsHere: game.poolLevelsHere.value,
+        ready: game.poolsAppliedFor(location.id),
+        playerLevel: ratingLevel.value,
+        bossOrNamedHere: bossOrNamedAt(
+          location.id,
+          game.namedEnemies.value,
+          game.enemiesHere.value,
+          game.enemyTemplatesHere.value,
+        ),
+      }),
     };
   });
 }
@@ -72,6 +100,7 @@ export function useExits(): ExitsPanel {
   const connected = computed(() => game.connected.value);
   const ready = computed(() => map.ready.value);
   const here = usePlaceView();
+  const ratingLevel = useRatingLevel();
   const timer = computed(() => map.selfTimer.value);
 
   const locationsById = computed(() => {
@@ -107,6 +136,11 @@ export function useExits(): ExitsPanel {
       regions,
       heardOf: map.known.value.heardOf,
       playerLevel: Number(me.level),
+      pools: game.poolLevels.value,
+      poolsApplied: (id) => game.poolsAppliedFor(id),
+      ratingLevel: ratingLevel.value,
+      bossOrNamed: (id) =>
+        bossOrNamedAt(id, game.namedEnemies.value, game.enemiesHere.value, game.enemyTemplatesHere.value),
       connected: connected.value,
       checksFor: (destination) =>
         travelChecks({

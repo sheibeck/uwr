@@ -145,25 +145,33 @@ describe('Here card', () => {
     expect(missingRegion.w.get('.here-card .card-title').text()).toBe('Unknown place');
   });
 
-  it('renders one exit row per destination with the ring, the name and a level or Safe text', () => {
-    const { w } = mountContent(
-      lists({
-        connections: [
-          { fromLocationId: 10n, toLocationId: 11n },
-          { fromLocationId: 10n, toLocationId: 12n },
-          { fromLocationId: 10n, toLocationId: 13n },
-          { fromLocationId: 11n, toLocationId: 10n },
-        ],
-      }),
-    );
+  it('renders one exit row per destination with the ring, the name and its safety rating (51.3.1.1-20)', () => {
+    const setup = lists({
+      connections: [
+        { fromLocationId: 10n, toLocationId: 11n },
+        { fromLocationId: 10n, toLocationId: 12n },
+        { fromLocationId: 10n, toLocationId: 13n },
+        { fromLocationId: 11n, toLocationId: 10n },
+      ],
+      // Cinder Road: Stable at Lv 6 for the level-6 hero (Quiet); Ridge Pass: Overrun at Lv 7-9 (Deadly).
+      poolLevels: [
+        { id: 1n, regionId: 1n, locationId: 11n, kind: 'creature', level: 2n, lvLo: 6n, lvHi: 6n },
+        { id: 2n, regionId: 1n, locationId: 12n, kind: 'creature', level: 3n, lvLo: 7n, lvHi: 9n },
+      ],
+    });
+    const { w } = mountContent({ game: { ...setup.game, poolsAppliedFor: () => true } });
     const rows = w.findAll('button.exit-row');
     expect(rows.map((r) => r.get('.exit-name').text())).toEqual(['Cinder Road', 'Hearthstead', 'Ridge Pass']);
     for (const row of rows) expect(row.find('.ring svg').exists()).toBe(true);
-    const rights = rows.map((r) => r.get('.exit-right'));
-    expect(rights.map((t) => t.text())).toEqual(['Lv 6', 'Safe', 'Lv 7–9']);
-    expect(rights[0].classes()).toContain('lv-even');
-    expect(rights[1].classes()).toContain('lv-safe');
-    expect(rights[2].classes()).toContain('lv-deadly');
+    expect(rows.map((r) => r.get('.exit-right .rating-mark').text())).toEqual(['Quiet', 'Safe', 'Deadly']);
+    expect(rows.map((r) => r.find('.exit-right .exit-range').exists() ? r.get('.exit-range').text() : '')).toEqual([
+      'Lv 6',
+      '',
+      'Lv 7–9',
+    ]);
+    expect(rows[0].get('.ring').classes()).toContain('rate-quiet');
+    expect(rows[1].get('.ring').classes()).toContain('rate-safe');
+    expect(rows[2].get('.ring').classes()).toContain('rate-deadly');
   });
 
   it('shows No known routes. with no connections', () => {

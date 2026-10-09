@@ -4,8 +4,10 @@ import { PhDoorOpen, PhEye, PhHourglassMedium, PhLockSimple, PhSignpost } from '
 import { CONSOLE_KEY, createInertConsole } from '../game/context';
 import { UNKNOWN_PLACE } from '../session/frameView';
 import { aboutMinutes, formatClock } from '../map/travelTimer';
-import { dangerClass, dangerText, exitLabel } from './exits';
+import { exitLabel } from './exits';
 import type { ExitRow } from './exits';
+import { ratingClass } from './rating';
+import RatingMark from './RatingMark.vue';
 import { useExits } from './useExits';
 
 // The rail travel panel (51-UI-SPEC "Rail Travel Panel", Console 12a): the Here card with the place,
@@ -14,6 +16,9 @@ import { useExits } from './useExits';
 // refusals and arrival lines print in the feed. Place, region and terrain names are server text,
 // rendered as text nodes and bound attributes only. The costs, blocks and times come from
 // travelChecks through useExits (the same prediction the Map uses); the server re-checks every trip.
+// 51.3.1.1 (UI-SPEC "Rating Marks"): the sub-line, the rating line, each exit's ring and right column,
+// its title and the open panel's first line carry the place's safety rating (rating.ts); Unknown
+// until the pool rows apply, never Safe.
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const { character, connected, ready, here, rows, timer, pending, beginTravel } = useExits();
 
@@ -30,6 +35,9 @@ const isOpen = (row: ExitRow): boolean => openId.value === row.locationId;
 const rowId = (row: ExitRow): string => `exit-row-${row.locationId}`;
 const panelId = (row: ExitRow): string => `exit-panel-${row.locationId}`;
 const noteId = (row: ExitRow): string => `exit-note-${row.locationId}`;
+// Hover text: the rating line, or the description while the rating has none.
+const rowTitle = (row: ExitRow): string | undefined =>
+  row.rating.line !== '' ? row.rating.line : row.title !== '' ? row.title : undefined;
 
 function toggle(row: ExitRow): void {
   openId.value = isOpen(row) ? null : row.locationId;
@@ -104,9 +112,16 @@ watch(
     <div v-if="here" class="sub-line">
       <component :is="here.terrain.icon" :size="12" aria-hidden="true" />
       <span class="sub-terrain">{{ here.terrain.word }}</span>
-      <span class="sub-sep" aria-hidden="true"> · </span>
-      <span class="sub-danger" :class="dangerClass(here.danger)">{{ dangerText(here.danger) }}</span>
+      <template v-if="here.rating.word !== ''">
+        <span class="sub-sep" aria-hidden="true"> · </span>
+        <RatingMark class="sub-rating" :rating="here.rating" :dot="false" />
+      </template>
+      <template v-if="here.rating.levelLabel !== ''">
+        <span class="sub-sep" aria-hidden="true"> · </span>
+        <span class="sub-range">{{ here.rating.levelLabel }}</span>
+      </template>
     </div>
+    <p v-if="here && here.rating.line !== ''" class="rating-line">{{ here.rating.line }}</p>
 
     <template v-if="ready">
       <ul v-if="rows.length > 0" class="exits">
@@ -119,10 +134,10 @@ watch(
               :aria-expanded="isOpen(row) ? 'true' : 'false'"
               :aria-controls="isOpen(row) ? panelId(row) : undefined"
               :aria-label="exitLabel(row)"
-              :title="row.title !== '' ? row.title : undefined"
+              :title="rowTitle(row)"
               @click="toggle(row)"
             >
-              <span class="ring" :class="dangerClass(row.danger)">
+              <span class="ring" :class="ratingClass(row.rating.key)">
                 <component :is="row.terrain.icon" :size="12" aria-hidden="true" />
               </span>
               <span class="exit-label">
@@ -136,7 +151,10 @@ watch(
                 <PhLockSimple :size="12" aria-hidden="true" />
                 <span>{{ row.timeText }}</span>
               </span>
-              <span v-else class="exit-right" :class="dangerClass(row.danger)">{{ row.rightText }}</span>
+              <span v-else class="exit-right">
+                <RatingMark v-if="row.rating.word !== ''" :rating="row.rating" :dot="false" :size="10" />
+                <span v-if="row.rating.levelLabel !== ''" class="exit-range">{{ row.rating.levelLabel }}</span>
+              </span>
             </button>
             <button
               type="button"
@@ -151,6 +169,7 @@ watch(
           </div>
 
           <div v-if="isOpen(row)" :id="panelId(row)" class="exit-panel">
+            <p v-if="row.rating.line !== ''" class="panel-rating-line">{{ row.rating.line }}</p>
             <p :id="noteId(row)" class="note" :class="`tone-${row.note.tone}`">
               <template v-if="row.note.timeText !== null"
                 ><span aria-hidden="true">{{ row.note.text }}{{ row.note.timeText }}</span
@@ -282,12 +301,25 @@ h6 {
   flex-shrink: 0;
 }
 
-.sub-terrain,
-.sub-danger {
+/* The terrain gives way first; the rating word and the range keep their width (fixed short words). */
+.sub-terrain {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sub-rating,
+.sub-range {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.rating-line {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
 }
 
 .sub-sep {
@@ -350,7 +382,7 @@ h6 {
   outline-offset: -2px;
 }
 
-/* A 24px ring in the band colour (currentColor), the terrain icon in its own neutral colour. */
+/* A 24px ring in the rating colour (currentColor), the terrain icon in its own neutral colour. */
 .ring {
   flex-shrink: 0;
   width: 24px;
@@ -390,42 +422,59 @@ h6 {
 .exit-right {
   flex-shrink: 0;
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
 .exit-right.locked {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
   color: var(--color-neutral-500);
 }
 
-.lv-easy,
-.lv-safe {
+.exit-range {
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+.rate-safe {
   color: var(--color-con-light-green);
 }
 
-.lv-even {
+.rate-quiet {
   color: var(--color-con-blue);
 }
 
-.lv-tough {
+.rate-risky {
   color: var(--color-con-yellow);
 }
 
-.lv-deadly {
+.rate-deadly {
   color: var(--color-con-red);
 }
 
-.lv-unknown {
+.rate-unknown {
   color: var(--color-neutral-500);
 }
 
+/* The rating line takes the first line; the note and the Travel / Cross button share the next. */
 .exit-panel {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 0 8px 8px 32px;
+}
+
+.panel-rating-line {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
 }
 
 .note {
