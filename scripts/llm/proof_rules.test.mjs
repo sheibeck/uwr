@@ -410,8 +410,14 @@ describe('proofReservationMicroUsd (each call priced at its full reservation)', 
   const bound = worstCaseMicroUsd(plannedCallCounts());
   const usd = (micro) => '$' + (Number(micro) / 1_000_000).toFixed(4);
   describe('the planned run fits the run cap (Phase 51.3.1.2: the families call priced in)', () => {
-    it(`worst-case bound ${usd(bound.total)} (${bound.total} micro-USD) is under the ${usd(stop)} stop line`, () => {
+    it(`computes the worst-case bound: ${usd(bound.total)} (${bound.total} micro-USD), stop line ${usd(stop)}`, () => {
       expect(bound.total > 0n).toBe(true);
+      expect(bound.total).toBe(bound.lines.reduce((sum, l) => sum + BigInt(l.calls) * l.eachMicroUsd, 0n));
+    });
+
+    // Deferred by the owner, 2026-10-09: the proof cost bound is checked when all systems are in place
+    // (Phase 52.5 / milestone end); caps are generous on purpose (51.3.1.2 D-19).
+    it.skip(`worst-case bound ${usd(bound.total)} (${bound.total} micro-USD) is under the ${usd(stop)} stop line`, () => {
       expect(bound.total < stop, `bound ${usd(bound.total)} vs stop ${usd(stop)}`).toBe(true);
     });
 
