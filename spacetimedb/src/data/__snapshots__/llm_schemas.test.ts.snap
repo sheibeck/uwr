@@ -1116,7 +1116,9 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
           "ambushRest",
           "members",
           "fitLocations",
-          "relations"
+          "relations",
+          "history",
+          "inFeud"
         ],
         "properties": {
           "name": {
@@ -1220,6 +1222,12 @@ exports[`lint and determinism > REGION_FILL_SCHEMA serialization is deterministi
                 }
               }
             }
+          },
+          "history": {
+            "type": "string"
+          },
+          "inFeud": {
+            "type": "boolean"
           }
         }
       }

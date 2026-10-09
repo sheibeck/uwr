@@ -162,6 +162,17 @@ export interface WorldFillInput {
   hubCount?: number;
   /** True when the arrival point is already a hub (the starter region, or a fill retried after a failure). */
   arrivalIsHub?: boolean;
+  /**
+   * D-66 (Plan 51.3.1.1-30): the server's family count for the region, 3-15 (askedFamilyCount), printed
+   * as the approved Families line (PROMPT-DRAFT R2-A2). Missing on a job stored before Revision 2: no
+   * Families line and no Feud line then (the server still applies its own counts when it writes the reply).
+   */
+  familyCount?: number;
+  /**
+   * D-70, D-71 (Plan 51.3.1.1-30): the server's feud size for the region, 0 (no feud) or 2-3
+   * (feudCountFor), printed as the approved Feud line. Missing on a job stored before Revision 2: no Feud line.
+   */
+  feudCount?: number;
 }
 
 export interface SkillGenInput {
@@ -361,7 +372,7 @@ A new region of the world is being remembered into existence. Its name, biome, a
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every location should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you. Descriptions read as narration in the voice of a book: no I, me or my, and never the Keeper by name.
 
-Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and 2-3 creature families. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
+Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and as many creature families as the Families line of the user message says. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
 
 Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType, a levelOffset and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
 
@@ -371,7 +382,9 @@ Hubs: the Hubs line of the user message says how many hubs this region has. A hu
 
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
-Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. Never give a family levels, group sizes or any other number: the server sets every number.
+Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. In history, write one or two sentences of the family's past in this region, such as where it came from and its feud or tie with a hub, the dominant faction or a rival family; use no numbers, and call any person he or she, never it or they. Never give a family levels, group sizes or any other number: the server sets every number.
+
+Feud: the Feud line of the user message says how many families are locked in a feud, an old hatred that no truce has ever held. Set inFeud to true on exactly that many families and to false on every other family. Choose families whose lands or hungers cross, and let the history of each feuding family name the feud and the families it hates.
 
 ${WORLD_NAMING_RULES}
 
@@ -715,9 +728,62 @@ function hubsLine(i: Record<string, unknown>): string {
 }
 
 /**
+ * The approved count words of the Families and Feud lines (PROMPT-DRAFT R2-A2, Revision 2 approved by
+ * the owner 2026-10-08; 'none' is the D-71 "Feud: none." variant), indexed by the count. Never edit
+ * without the owner's approval of new wording.
+ */
+const FILL_COUNT_WORDS: readonly string[] = [
+  'none',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+];
+
+/** True for an integer stored count within lo..hi (never a number from storage outside the approved words). */
+function countIn(value: unknown, lo: number, hi: number): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= lo && value <= hi;
+}
+
+/**
+ * The Families line of the fill request (D-66), with its leading newline, or '' when the stored input
+ * has no usable family count (a job queued before Revision 2).
+ */
+function familiesLine(i: Record<string, unknown>): string {
+  const count = i.familyCount;
+  if (!countIn(count, DENSITY_RULES.FAMILY_COUNT_MIN, DENSITY_RULES.FAMILY_COUNT_MAX)) return '';
+  return `\nFamilies: ${FILL_COUNT_WORDS[count]}.`;
+}
+
+/**
+ * The Feud line of the fill request (D-70), with its leading newline: "Feud: none." for a region that
+ * rolled no feud (D-71), "Feud: two families." or "Feud: three families." otherwise. '' when the Families
+ * line does not print or the stored feud count is not 0, 2 or 3.
+ */
+function feudLine(i: Record<string, unknown>): string {
+  if (familiesLine(i) === '') return '';
+  const count = i.feudCount;
+  if (count === 0) return `\nFeud: ${FILL_COUNT_WORDS[0]}.`;
+  if (!countIn(count, DENSITY_RULES.FEUD_FAMILIES_MIN, DENSITY_RULES.FEUD_FAMILIES_MAX)) return '';
+  return `\nFeud: ${FILL_COUNT_WORDS[count]} families.`;
+}
+
+/**
  * Stage 2 of world generation. Tolerates an older stored input (missing
  * fields read "unknown", a missing people list is empty, a missing hub count
- * prints no Hubs line), so a job queued before the stage split never throws.
+ * prints no Hubs line, a missing family count prints no Families or Feud line),
+ * so a job queued before the stage split never throws.
  */
 export function buildWorldFillVolatile(input: WorldFillInput): string {
   const i = asRecord(input);
@@ -734,7 +800,7 @@ export function buildWorldFillVolatile(input: WorldFillInput): string {
       : 'none';
   return `Region: ${orUnknown(i.regionName)} (${orUnknown(i.biome)})
 Arrival point: ${orUnknown(start.name)} (${orUnknown(start.terrainType)}): ${orUnknownMulti(start.description)}
-People already there: ${present}${hubsLine(i)}
+People already there: ${present}${hubsLine(i)}${familiesLine(i)}${feudLine(i)}
 
 ${worldCharacterLines(i)}
 

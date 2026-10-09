@@ -224,8 +224,10 @@ const FAMILY_RELATION_ITEM: Node = obj({ family: S, kind: enumOf(FAMILY_RELATION
 
 /**
  * A creature family (Phase 51.3.1.1 D-46, PROMPT-DRAFT A3): names, nouns, enums, the ambush words,
- * its members, the places it lives at and its relations. No number of any kind: levels, group sizes,
- * densities, stats and abilities are the server's (helpers/family_validate.ts, helpers/families.ts).
+ * its members, the places it lives at and its relations; plus, from Revision 2 (R2-A3, Plan 30), its
+ * history in the region (D-68, cleaned by family_validate.ts cleanFamilyHistory) and whether it is in
+ * the region's feud (D-70). No number of any kind: levels, group sizes, densities, stats, abilities
+ * and the feud size are the server's (helpers/family_validate.ts, helpers/families.ts).
  */
 const FAMILY_ITEM: Node = obj({
   name: S,
@@ -239,6 +241,8 @@ const FAMILY_ITEM: Node = obj({
   members: { type: 'array', items: FAMILY_MEMBER_ITEM },
   fitLocations: strs,
   relations: { type: 'array', items: FAMILY_RELATION_ITEM },
+  history: S,
+  inFeud: BOOL,
 });
 
 /**

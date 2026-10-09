@@ -496,7 +496,10 @@ describe('route blocks and volatile builders', () => {
       expect(block).toMatch(/"vendor"/);
       expect(block).toMatch(/"banker"/);
       // Plan 51.3.1.1-23 (D-46, D-59 to D-62, D-65): families replace enemy types; hubs carry the services.
-      expect(block).toMatch(/2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and 2-3 creature families/);
+      // Plan 51.3.1.1-30 (D-66, Revision 2): the family count comes from the Families line of the user message.
+      expect(block).toMatch(
+        /2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and as many creature families as the Families line of the user message says/,
+      );
       expect(block).toMatch(/Each hub MUST end up with at least one NPC with npcType "vendor"/);
       expect(block).not.toMatch(/enemy types/);
       expect(block).toMatch(/use the given names exactly/i);

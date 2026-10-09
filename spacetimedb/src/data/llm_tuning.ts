@@ -370,7 +370,9 @@ export const LLM_TUNING: Readonly<Record<LlmRoute, TunedRoute>> = Object.freeze(
   world_gen_start: entry('low', 1536, 90_000, 'tuned', 818, 10, true),
   // Plan 51.3.1.1-23: the fill reply now carries families, place words and hub marks, larger than the
   // measured enemies reply (p99 1988), so 4096 and insufficient_data until a paid re-measurement.
-  world_gen: entry('low', 4096, 150_000, 'insufficient_data'),
+  // Plan 51.3.1.1-30 (prompt Revision 2): the reply grew again, by a history per family and by up to the
+  // server's family count (seven today), so 6144. The owner decides when to run a paid measurement.
+  world_gen: entry('low', 6144, 150_000, 'insufficient_data'),
   skill_gen: entry('low', 1024, 60_000, 'tuned', 624, 10, true),
   npc_conversation: entry('low', 512, 30_000, 'tuned', 379, 10, true),
   combat_narration: entry('low', 768, 20_000, 'tuned', 168, 5, true),

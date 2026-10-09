@@ -43,6 +43,7 @@ import type { NpcGender } from '../data/npc_gender';
 import { toBigIntSafe } from './safe_numbers';
 import { enemyStatsForLevel } from '../data/enemy_rules';
 import {
+  askedFamilyCount,
   assignRegionFamilies,
   chooseHubs,
   familySeed,
@@ -767,6 +768,10 @@ export function buildWorldFillInput(tx: any, genState: any): WorldFillInput {
     // The Hubs line (D-62): the same count placeRegionHubs enforces when the reply is written.
     hubCount: regionHubCount(region, genState.sourceRegionId === 0n),
     arrivalIsHub: start.isHub === true,
+    // The Families and Feud lines (D-66, D-70, D-71): the server's own counts. writeRegionFill recomputes
+    // them from the same seed (keptFamilyCount, feudCountFor), so the request and the write agree.
+    familyCount: askedFamilyCount(),
+    feudCount: feudCountFor(askedFamilyCount(), familySeed(region.id)),
   };
 }
 

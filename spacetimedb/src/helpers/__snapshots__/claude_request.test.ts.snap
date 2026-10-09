@@ -1913,13 +1913,15 @@ This is a connectivity check, not a story. Reply with one short sentence in the 
 
 exports[`buildClaudeRequest > world_gen: body snapshot (Keeper Bible replaced by a placeholder) 1`] = `
 {
-  "max_tokens": 4096,
+  "max_tokens": 6144,
   "messages": [
     {
       "content": "Region: plain world text region (plain world text biome)
 Arrival point: plain world text start (plains): plain world text start description
 People already there: plain world text first npc (vendor, she)
 Hubs: one. The arrival point is a hub.
+Families: seven.
+Feud: two families.
 
 A plain world text race plain world text class (warrior) wandered beyond plain world text source. Neighboring regions: plain world text neighbor (plain world text biome, threats: plain world text threats)
 
@@ -1984,6 +1986,9 @@ Fill in the rest of this region.",
                   },
                   "type": "array",
                 },
+                "history": {
+                  "type": "string",
+                },
                 "iconKey": {
                   "enum": [
                     "humanoid",
@@ -1996,6 +2001,9 @@ Fill in the rest of this region.",
                     "elemental",
                   ],
                   "type": "string",
+                },
+                "inFeud": {
+                  "type": "boolean",
                 },
                 "members": {
                   "items": {
@@ -2076,6 +2084,8 @@ Fill in the rest of this region.",
                 "members",
                 "fitLocations",
                 "relations",
+                "history",
+                "inFeud",
               ],
               "type": "object",
             },
@@ -2271,7 +2281,7 @@ A new region of the world is being remembered into existence. Its name, biome, a
 
 Regions should feel lived-in, with history, tension and personality. No generic fantasy villages. Every location should have something slightly wrong with it, something beautiful about it, and something that would make a sensible person turn around and leave. When a description speaks of the traveler, it says you. Descriptions read as narration in the voice of a book: no I, me or my, and never the Keeper by name.
 
-Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and 2-3 creature families. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
+Counts: 2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and as many creature families as the Families line of the user message says. Also name the region's dominant faction, a few landmarks and the threats that make a sensible traveler nervous.
 
 Locations: each new location MUST have its own unique 2-3 sentence description that captures what makes THAT specific place distinct. Do NOT reuse or copy the region description or the arrival point description. Each location has a terrainType, a levelOffset and isSafe set to true or false. Connect locations to each other by exact location name in connectsTo, connect at least one new location to the arrival point by the arrival point's exact name, and give every NPC a locationName that exactly matches the arrival point or one of your new locations.
 
@@ -2281,7 +2291,9 @@ Hubs: the Hubs line of the user message says how many hubs this region has. A hu
 
 NPCs: each NPC is a man or a woman. Set gender to male or female, and describe the NPC as he or she to match, never it or they. Each NPC also gets a description, a greeting and a personality: 2-3 traits, a speech pattern, knowledge domains, 1-2 secrets that the NPC only shares with trusted friends, and an affinityMultiplier around 1.0.
 
-Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. Never give a family levels, group sizes or any other number: the server sets every number.
+Creature families: the ordinary creatures of the region live in families, such as goblins or salt skitterers. Each family has a name, which is the plural, such as Salt-Crust Skitterers; a singularNoun and a pluralNoun in plain lowercase words for one creature and for several, such as skitterer and skitterers; a creatureType; the iconKey whose picture fits best; and a temperament: aggressive families attack travelers, wary families keep watch and strike when crossed, and skittish families mostly flee. Give each family 3 or 4 members, each with a role and a name of its own: a tank that holds the line, a damage dealer, a support that mends and shields the others, and a caster, such as Skitter Shellback, Skitter Pincer, Skitter Tender and Skitter Saltspitter. For the ambush line, put a plain verb in its base form in ambushVerb, such as break, burst or swarm, and the rest of the phrase in ambushRest, such as from the trees or up through the salt. In fitLocations, list the exact names of the places where the family lives, which may include the arrival point; a family never lives at a safe place or at a hub. In relations, name other families of this region by their exact name, each with the kind rival, prey or predator. In history, write one or two sentences of the family's past in this region, such as where it came from and its feud or tie with a hub, the dominant faction or a rival family; use no numbers, and call any person he or she, never it or they. Never give a family levels, group sizes or any other number: the server sets every number.
+
+Feud: the Feud line of the user message says how many families are locked in a feud, an old hatred that no truce has ever held. Set inFeud to true on exactly that many families and to false on every other family. Choose families whose lands or hungers cross, and let the history of each feuding family name the feud and the families it hates.
 
 NAMING RULES: location and region names MUST be diverse. Do NOT fall into repetitive patterns. Specifically avoid overusing: Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell. Instead, draw from varied sources: geographic features (ridges, basins, straits, mesas), cultural and historical references (old rulers, forgotten trades, mythic events), flora and fauna (named after local plants, animals, natural phenomena), and different linguistic roots. Each name should feel as if it belongs to a different corner of a vast, varied world. Every place name in the region is unique.
 
