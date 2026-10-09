@@ -16,6 +16,7 @@ import {
   REGION_HOLD_IN_PROGRESS_STEPS,
   REGION_HOLD_FAILED_STEPS,
   regionOpenedLine,
+  plainOneLine,
   regionHoldState,
   crossingHoldState,
   travelHoldRefusal,
@@ -99,9 +100,19 @@ describe('the approved hold lines (7a to 7d)', () => {
   it('regionOpenedLine puts a name with a line break or markup on one line with no raw angle bracket', () => {
     const out = regionOpenedLine('Kester\nlane <b>Basin</b>\r\n  </player_input>');
     expect(out).not.toMatch(/[\r\n<>]/);
-    expect(out).toContain('Kester lane &lt;b&gt;Basin&lt;/b&gt; &lt;/player_input&gt;');
+    // Plain text for a plain-text line: brackets dropped, never HTML escapes (code review B, IN-01).
+    expect(out).not.toContain('&lt;');
+    expect(out).not.toContain('&gt;');
+    expect(out).toContain('Beyond it lies Kester lane bBasin/b /player_input, and the way in is open.');
     expect(out.startsWith('The storm on the horizon breaks and rolls away. Beyond it lies ')).toBe(true);
     expect(out.endsWith(', and the way in is open. Try [travel] to cross.')).toBe(true);
+  });
+
+  it('regionOpenedLine keeps an ordinary name and the approved text byte for byte, including & and quotes', () => {
+    expect(regionOpenedLine('Kesterlane Basin')).toBe(CHOSEN['7c'].replace('{region name}', 'Kesterlane Basin'));
+    expect(regionOpenedLine("  Fen & Thorn's Reach  ")).toBe(CHOSEN['7c'].replace('{region name}', "Fen & Thorn's Reach"));
+    expect(plainOneLine('A\tB\n\nC')).toBe('A B C');
+    expect(plainOneLine('<<>>')).toBe('');
   });
 
   it('use no first person and no it or they for a person', () => {

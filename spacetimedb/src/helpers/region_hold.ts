@@ -27,8 +27,6 @@
 // until it is whole, so the travel check never reads the starter states.
 // ============================================================================
 
-import { sanitizeWorldData } from '../data/llm_layers';
-
 /** 7a: whoever arrives at a crossing while its region is being made. */
 export const REGION_HOLD_ARRIVING_LINE =
   'You stand at the edge of the known world, preparing to travel into an unknown region. The sky beyond is darkening.';
@@ -45,10 +43,22 @@ export const REGION_HOLD_FAILED_LINE =
 const REGION_OPENED_TEMPLATE =
   'The storm on the horizon breaks and rolls away. Beyond it lies {region name}, and the way in is open. Try [travel] to cross.';
 
-/** 7c filled with the stored region name, sanitized to one line (no raw angle bracket). */
+/**
+ * A stored name made safe for a plain-text player line: angle brackets dropped, every run of
+ * whitespace (line breaks included) one space, trimmed. The client renders event text as text, so
+ * the prompt sanitizer's HTML escapes (`&lt;`) would show literally (code review B, IN-01);
+ * sanitizeWorldData stays for prompt inputs only.
+ */
+export function plainOneLine(text: string): string {
+  return String(text ?? '')
+    .replace(/[<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** 7c filled with the stored region name, on one line with no angle bracket. */
 export function regionOpenedLine(regionName: string): string {
-  const name = sanitizeWorldData(regionName, { singleLine: true });
-  return REGION_OPENED_TEMPLATE.split('{region name}').join(name);
+  return REGION_OPENED_TEMPLATE.split('{region name}').join(plainOneLine(regionName));
 }
 
 /** Steps of a region still being made: travel into it is held (PENDING included, as at the crossing). */
