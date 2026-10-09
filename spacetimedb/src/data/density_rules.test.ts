@@ -864,6 +864,39 @@ describe('familyCountFor, askedFamilyCount, keptFamilyCount (D-66)', () => {
     expect(keptFamilyCount(5)).toBe(7);
     expect(keptFamilyCount(9)).toBe(7);
   });
+
+  it('gives a bigger region of 8, 9 or 10 places 12, 13 or 15 families (Phase 51.3.1.2, SC3)', () => {
+    expect(familyCountFor(8)).toBe(12);
+    expect(familyCountFor(9)).toBe(13);
+    expect(familyCountFor(10)).toBe(15);
+  });
+});
+
+describe('region size and shape constants (Phase 51.3.1.2: D-03, D-04, D-05, D-10)', () => {
+  it('names every new number', () => {
+    expect(R.REGION_PLACES_MIN).toBe(8);
+    expect(R.REGION_PLACES_MAX).toBe(10);
+    expect(R.REGION_PLACES_FLOOR).toBe(6);
+    expect(R.LEVEL_HOPS_PER_STEP).toBe(2);
+    expect(R.LEVEL_OFFSET_MAX).toBe(2);
+    expect(R.EXIT_DEGREE_CAP).toBe(4);
+    expect(R.MIN_HOST_PLACES).toBe(4);
+    expect(R.ECONOMY_MEDIUM_MIN_PLACES).toBe(8);
+    expect(Object.isFrozen(DENSITY_RULES)).toBe(true);
+  });
+
+  it('keeps the floor below the range and the medium-economy size inside it', () => {
+    expect(R.REGION_PLACES_FLOOR).toBeLessThan(R.REGION_PLACES_MIN);
+    expect(R.REGION_PLACES_MIN).toBeLessThanOrEqual(R.REGION_PLACES_MAX);
+    expect(R.ECONOMY_MEDIUM_MIN_PLACES).toBeLessThanOrEqual(R.REGION_PLACES_MIN);
+    expect(R.MIN_HOST_PLACES).toBeLessThan(R.REGION_PLACES_FLOOR);
+  });
+
+  it('adds the place-count roll index 89n without a duplicate (D-03)', () => {
+    expect(POOL_ROLL.PLACE_COUNT).toBe(89n);
+    const others = Object.entries(POOL_ROLL).filter(([k]) => k !== 'PLACE_COUNT').map(([, v]) => v);
+    expect(others).not.toContain(89n);
+  });
 });
 
 describe('familySeed and placeFamiliesSeed', () => {
