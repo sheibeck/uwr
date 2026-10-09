@@ -473,26 +473,31 @@ describe('route blocks and volatile builders', () => {
 
     const NAMING = /Verge, Veil, Ashen, Dusk, Shadow, Gloom, Hollow, Mire, Blight, Fell/;
 
-    it('world_gen_start keeps the remembered framing, naming rules, the safe arrival point and the first NPC', () => {
+    it('world_gen_start keeps the remembered framing, naming rules, the arrival point with its own isSafe and the first NPC', () => {
       const block = ROUTE_BLOCKS.world_gen_start;
       expect(block).toMatch(NAMING);
       expect(block).toMatch(/remembered/);
       expect(block).toMatch(/unique 2-3 sentence description/);
-      expect(block).toMatch(/safe place where a traveler first arrives/);
+      // Plan 51.3.1.1-23 (D-61): the arrival point is no longer always safe; the model sets isSafe.
+      expect(block).toMatch(/Start location: the place where a traveler first arrives\./);
+      expect(block).toMatch(/isSafe set to true or false/);
       expect(block).toMatch(/first NPC/);
       expect(block).toMatch(/a man or a woman/);
       expect(block).not.toMatch(/3-5 locations/);
       expect(block).not.toMatch(/enemy types/);
     });
 
-    it('world_gen (fill) keeps naming rules, the vendor and banker rule and the counts, and never renames stage-1 facts', () => {
+    it('world_gen (fill) keeps naming rules, the vendor and banker rule per hub and the counts, and never renames stage-1 facts', () => {
       const block = ROUTE_BLOCKS.world_gen;
       expect(block).toMatch(NAMING);
       expect(block).toMatch(/unique 2-3 sentence description/);
       expect(block).toMatch(/arrival point/);
       expect(block).toMatch(/"vendor"/);
       expect(block).toMatch(/"banker"/);
-      expect(block).toMatch(/2-4 more locations, 1-2 more NPCs and 2-3 enemy types/);
+      // Plan 51.3.1.1-23 (D-46, D-59 to D-62, D-65): families replace enemy types; hubs carry the services.
+      expect(block).toMatch(/2-4 more locations, 1-3 more NPCs besides the vendor and banker each hub needs, and 2-3 creature families/);
+      expect(block).toMatch(/Each hub MUST end up with at least one NPC with npcType "vendor"/);
+      expect(block).not.toMatch(/enemy types/);
       expect(block).toMatch(/use the given names exactly/i);
       expect(block).toMatch(/never rename the region or the arrival point/);
       expect(block).toMatch(/repeat a person already present/);
@@ -676,6 +681,19 @@ describe('route blocks and volatile builders', () => {
       expect(text).toContain('wandered beyond plain world text source');
       expect(text).toContain('Neighboring regions: plain world text neighbor');
       expect(text.trimEnd().endsWith('Fill in the rest of this region.')).toBe(true);
+      // No hubCount in this input (a job stored before Plan 51.3.1.1-23): no Hubs line.
+      expect(text).not.toContain('Hubs:');
+    });
+
+    it('buildWorldFillVolatile prints the server hub count right after the People line (Plan 51.3.1.1-23, D-62)', () => {
+      const text = buildRouteLayers('world_gen', { ...benign.world_gen, hubCount: 1, arrivalIsHub: true }).volatile;
+      expect(text).toContain(
+        'People already there: plain world text greeter (lore, she); plain world text smith (vendor, he)\nHubs: one. The arrival point is a hub.\n',
+      );
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 0 })).toContain(
+        '\nHubs: none, this region is too wild for settlements.\n',
+      );
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 2, arrivalIsHub: false })).toContain('\nHubs: two.\n');
     });
 
     it('buildCreationClassFillVolatile renders the class and the first ability and asks for stats and two more abilities', () => {

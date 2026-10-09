@@ -95,6 +95,9 @@ function makeInputs(world: string, player: string): { [R in LlmRoute]: any } {
       biome: `${world} biome`,
       startLocation: { name: `${world} start`, description: `${world} start description`, terrainType: 'plains' },
       npcsPresent: [{ name: `${world} first npc`, npcType: 'vendor', gender: 'female' }],
+      // Plan 51.3.1.1-23 (D-62): the server's hub count and the arrival note print the Hubs line.
+      hubCount: 1,
+      arrivalIsHub: true,
       characterRace: `${world} race`,
       characterClass: `${world} class`,
       characterArchetype: 'warrior',

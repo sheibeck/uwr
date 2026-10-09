@@ -424,7 +424,36 @@ describe('lat06Decision', () => {
 // LLM_TUNING and the route table
 // ---------------------------------------------------------------------------
 
+/**
+ * Routes whose reply shape changed after the committed sweep, so their recorded p99 no longer applies:
+ * each keeps an explicit budget marked insufficient_data until a paid re-measurement (RESEARCH Pitfall 2).
+ *   - world_gen (Phase 51.3.1.1 Plan 23): the fill reply now carries creature families, place words and
+ *     hub marks, larger than the measured enemies reply (p99 1988), so 4096 output tokens.
+ */
+const RESHAPED_ROUTES: Partial<Record<LlmRoute, { maxTokens: number; timeoutMs: number }>> = {
+  world_gen: { maxTokens: 4096, timeoutMs: 150_000 },
+};
+
 describe('LLM_TUNING', () => {
+  it('world_gen is 4096 output tokens and insufficient_data until a paid measurement (Plan 51.3.1.1-23)', () => {
+    expect(LLM_TUNING.world_gen).toEqual({
+      effort: 'low',
+      maxTokens: 4096,
+      timeoutMs: 150_000,
+      status: 'insufficient_data',
+      source: LLM_TUNING_SOURCE,
+      p99OutputTokens: null,
+      samples: 0,
+      tie: false,
+    });
+    expect(LLM_ROUTES.world_gen.maxTokens).toBe(4096);
+    // Within the route baseline, as for region_economy.
+    expect(LLM_TUNING.world_gen.maxTokens).toBeLessThanOrEqual(LLM_ROUTE_BASELINES.world_gen.maxTokens);
+    for (const [name, want] of Object.entries(RESHAPED_ROUTES) as [LlmRoute, { maxTokens: number; timeoutMs: number }][]) {
+      expect(LLM_TUNING[name], name).toMatchObject({ ...want, status: 'insufficient_data', p99OutputTokens: null, samples: 0 });
+    }
+  });
+
   it('has one frozen entry per route', () => {
     expect(Object.keys(LLM_TUNING).sort()).toEqual([...LLM_ROUTE_NAMES].sort());
     expect(Object.isFrozen(LLM_TUNING)).toBe(true);
@@ -484,6 +513,8 @@ describe('traceability: llm_measurements.json', () => {
 
   it('every LLM_TUNING entry traces to the record (applied) or to the no-data derivation (any other status)', () => {
     for (const name of LLM_ROUTE_NAMES as readonly LlmRoute[]) {
+      // A route whose reply shape changed after the sweep has no valid record yet (asserted below).
+      if (name in RESHAPED_ROUTES) continue;
       const rec = RECORD.status === 'applied' ? RECORD.routes[name] : undefined;
       const expected = deriveRouteTuning(name, rec, LLM_ROUTE_BASELINES[name]);
       expect(LLM_TUNING[name]).toEqual(expected);

@@ -31,6 +31,10 @@ import {
   TARGET_RULES,
   ARMOR_TYPES,
   WEAPON_TYPES,
+  FAMILY_TEMPERAMENTS,
+  FAMILY_RELATIONS,
+  FAMILY_ICON_KEYS,
+  FAMILY_PROMPT_ROLES,
 } from './mechanical_vocabulary';
 
 const ALL: Array<[string, any]> = [
@@ -270,14 +274,16 @@ describe('staged generation schemas (Plan 43-04)', () => {
     expect((WORLD_START_SCHEMA as any).additionalProperties).toBe(false);
   });
 
-  it('WORLD_START_SCHEMA is the smallest reveal: no landmarks, threats, enemies, extra locations or isSafe', () => {
-    for (const key of ['landmarks', 'threats', 'enemies', 'locations', 'npcs', 'dominantFaction']) {
+  it('WORLD_START_SCHEMA is the smallest reveal: no landmarks, threats, enemies, families or extra locations', () => {
+    for (const key of ['landmarks', 'threats', 'enemies', 'families', 'locations', 'npcs', 'dominantFaction']) {
       expect(props(WORLD_START_SCHEMA)).not.toContain(key);
     }
     const loc = (WORLD_START_SCHEMA as any).properties.startLocation;
-    expect(loc.required).toEqual(['name', 'description', 'terrainType', 'levelOffset']);
+    // Plan 51.3.1.1-23 (D-61): the model says whether the arrival point is safe.
+    expect(loc.required).toEqual(['name', 'description', 'terrainType', 'levelOffset', 'isSafe']);
+    expect(loc.properties.isSafe).toEqual({ type: 'boolean' });
     expect(loc.properties.terrainType.enum).toEqual(['mountains', 'woods', 'plains', 'swamp', 'dungeon', 'town', 'city']);
-    expect(props(loc)).not.toContain('isSafe');
+    expect(props(loc)).not.toContain('isHub');
     expect(props(loc)).not.toContain('connectsTo');
   });
 
@@ -317,11 +323,12 @@ describe('staged generation schemas (Plan 43-04)', () => {
       'dominantFaction',
       'landmarks',
       'threats',
+      'arrival',
       'locations',
       'npcs',
-      'enemies',
+      'families',
     ]);
-    for (const key of ['regionName', 'regionDescription', 'biome']) {
+    for (const key of ['regionName', 'regionDescription', 'biome', 'enemies']) {
       expect(props(REGION_FILL_SCHEMA)).not.toContain(key);
     }
     const item = (REGION_FILL_SCHEMA as any).properties.npcs.items;
@@ -330,7 +337,20 @@ describe('staged generation schemas (Plan 43-04)', () => {
     expect(item.required[1]).toBe('gender');
     expect(item.required).toContain('locationName');
     const loc = (REGION_FILL_SCHEMA as any).properties.locations.items;
-    expect(loc.required).toEqual(['name', 'description', 'terrainType', 'isSafe', 'levelOffset', 'connectsTo']);
+    expect(loc.required).toEqual([
+      'name',
+      'shortName',
+      'placeNoun',
+      'description',
+      'terrainType',
+      'isHub',
+      'isSafe',
+      'levelOffset',
+      'connectsTo',
+    ]);
+    expect(loc.properties.shortName).toEqual({ type: 'string' });
+    expect(loc.properties.placeNoun).toEqual({ type: 'string' });
+    expect(loc.properties.isHub).toEqual({ type: 'boolean' });
   });
 
   it('CLASS_REVEAL_SCHEMA carries no stats and exactly one ability object', () => {
@@ -352,6 +372,70 @@ describe('staged generation schemas (Plan 43-04)', () => {
     const src = readFileSync(join(REPO_ROOT, 'spacetimedb/src/data/llm_schemas.ts'), 'utf8');
     expect(src).not.toContain('REGION_GENERATION' + '_SCHEMA');
     expect(src).not.toMatch(/export const CLASS_SCHEMA/);
+  });
+});
+
+describe('region fill families, place words and hubs (Phase 51.3.1.1 Plan 23, D-46, D-61, D-62)', () => {
+  const fill = REGION_FILL_SCHEMA as any;
+  const family = fill.properties.families.items;
+  const member = family.properties.members.items;
+  const relation = family.properties.relations.items;
+
+  it('the arrival node has exactly shortName, placeNoun and isHub', () => {
+    const arrival = fill.properties.arrival;
+    expect(arrival.type).toBe('object');
+    expect(arrival.additionalProperties).toBe(false);
+    expect(arrival.required).toEqual(['shortName', 'placeNoun', 'isHub']);
+    expect(arrival.properties).toEqual({ shortName: { type: 'string' }, placeNoun: { type: 'string' }, isHub: { type: 'boolean' } });
+  });
+
+  it('a family has exactly the section A3 fields', () => {
+    expect(fill.properties.families.type).toBe('array');
+    expect(family.additionalProperties).toBe(false);
+    expect(family.required).toEqual([
+      'name',
+      'singularNoun',
+      'pluralNoun',
+      'creatureType',
+      'iconKey',
+      'temperament',
+      'ambushVerb',
+      'ambushRest',
+      'members',
+      'fitLocations',
+      'relations',
+    ]);
+    expect(member.required).toEqual(['role', 'name']);
+    expect(member.additionalProperties).toBe(false);
+    expect(relation.required).toEqual(['family', 'kind']);
+    expect(relation.additionalProperties).toBe(false);
+    expect(family.properties.fitLocations).toEqual({ type: 'array', items: { type: 'string' } });
+  });
+
+  it('the enums come from mechanical_vocabulary', () => {
+    expect(member.properties.role.enum).toEqual([...FAMILY_PROMPT_ROLES]);
+    expect(relation.properties.kind.enum).toEqual([...FAMILY_RELATIONS]);
+    expect(family.properties.temperament.enum).toEqual([...FAMILY_TEMPERAMENTS]);
+    expect(family.properties.iconKey.enum).toEqual([...FAMILY_ICON_KEYS]);
+    expect(family.properties.creatureType.enum).toEqual(['beast', 'undead', 'humanoid', 'elemental', 'construct', 'aberration']);
+  });
+
+  it('asks for no number about creatures (the server sets every number, D-46)', () => {
+    const json = JSON.stringify(fill.properties.families);
+    expect(json).not.toMatch(/"type":"(integer|number)"/);
+    expect(JSON.stringify(fill)).not.toMatch(/groupMin|groupMax|"level"/);
+  });
+
+  it('carries no description text and no bounds (all wording lives in the approved route block)', () => {
+    const json = JSON.stringify(fill);
+    expect(json).not.toMatch(/maxItems|minItems|maxLength|minLength|minimum|maximum/);
+    expect(json).not.toContain('"description":"');
+  });
+
+  it('the old enemy item is gone from the source', () => {
+    const src = readFileSync(join(REPO_ROOT, 'spacetimedb/src/data/llm_schemas.ts'), 'utf8');
+    expect(src).not.toContain('ENEMY_' + 'ITEM');
+    expect(src).not.toContain("enemies: { type: " + "'array'");
   });
 });
 
