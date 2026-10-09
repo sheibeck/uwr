@@ -148,6 +148,7 @@ export const DENSITY_RULES = deepFreeze({
   PLACE_FAMILIES_MAX: 5, // D-67
   FEUD_FAMILIES_MIN: 2, // D-70: families in a region's one seeded feud
   FEUD_FAMILIES_MAX: 3, // D-70
+  FEUD_CHANCE_PCT: 35, // D-71: a new region seeds a feud only on this chance, so not every region has one
   NPC_FAMILY_HISTORIES_MAX: 4, // D-68: family histories fed to one NPC conversation
 });
 
@@ -174,6 +175,7 @@ export const POOL_ROLL = Object.freeze({
   FEUD_COUNT: 85n, // D-70
   FEUD_PICK: 86n, // D-70: pick i rolls at FEUD_PICK + i
   RULE_FAMILY_ORDER: 87n, // D-66: the order of the rule family list (helpers/family_validate.ts)
+  FEUD_CHANCE: 88n, // D-71
 });
 
 // ---------------------------------------------------------------------------
@@ -743,14 +745,22 @@ export function keptFamilyCount(actualPlaces: number): number {
 }
 
 /**
- * How many families a region's one feud holds (D-70): FEUD_FAMILIES_MIN to FEUD_FAMILIES_MAX by a
- * FEUD_COUNT roll, never more than the families; 0 when there are fewer than FEUD_FAMILIES_MIN. Seed
- * with familySeed(regionId).
+ * Whether a new region seeds a feud at all (D-71): a FEUD_CHANCE roll below FEUD_CHANCE_PCT. Seed with
+ * familySeed(regionId) (no timestamp, so the fill request and the reply write agree).
+ */
+export function feudHappens(seed: bigint): boolean {
+  return rollBelow(seed, POOL_ROLL.FEUD_CHANCE, 100n) < BigInt(DENSITY_RULES.FEUD_CHANCE_PCT);
+}
+
+/**
+ * How many families a region's one feud holds (D-70, D-71): 0 when the feud chance misses
+ * (feudHappens) or there are fewer than FEUD_FAMILIES_MIN families; otherwise FEUD_FAMILIES_MIN to
+ * FEUD_FAMILIES_MAX by a FEUD_COUNT roll, never more than the families. Seed with familySeed(regionId).
  */
 export function feudCountFor(familyCount: number, seed: bigint): number {
   const families = wholeCount(familyCount);
   const min = DENSITY_RULES.FEUD_FAMILIES_MIN;
-  if (families < min) return 0;
+  if (families < min || !feudHappens(seed)) return 0;
   const span = BigInt(DENSITY_RULES.FEUD_FAMILIES_MAX - min + 1);
   return Math.min(families, min + Number(rollBelow(seed, POOL_ROLL.FEUD_COUNT, span)));
 }
