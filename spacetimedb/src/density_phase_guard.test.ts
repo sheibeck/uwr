@@ -127,6 +127,20 @@ describe('every density number lives in data/density_rules.ts (SC6)', () => {
     }
   });
 
+  it('DENSITY_RULES carries the region size and shape constants (Phase 51.3.1.2)', () => {
+    const shapeNames = [
+      'REGION_PLACES_MIN',
+      'REGION_PLACES_MAX',
+      'REGION_PLACES_FLOOR',
+      'LEVEL_HOPS_PER_STEP',
+      'LEVEL_OFFSET_MAX',
+      'EXIT_DEGREE_CAP',
+      'MIN_HOST_PLACES',
+      'ECONOMY_MEDIUM_MIN_PLACES',
+    ];
+    for (const name of shapeNames) expect(NAMES).toContain(name);
+  });
+
   it('no other source file assigns one of its names', () => {
     const files = sourceFiles();
     delete files['spacetimedb/src/data/density_rules.ts'];
@@ -152,6 +166,7 @@ describe('the pool modules are deterministic', () => {
     'helpers/pool_migration.ts',
     'helpers/families.ts',
     'helpers/harvest.ts',
+    'data/region_shape.ts', // Phase 51.3.1.2 (D-03, D-04, D-05)
   ];
   for (const file of POOL_MODULES) {
     it(`${file} has no Math.random or Date.now`, () => {
