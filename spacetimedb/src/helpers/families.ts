@@ -47,7 +47,7 @@ import { CRAFTING_MODIFIER_DEFS, MATERIAL_DEFS } from '../data/crafting_rules';
 import { loadItemPins } from './economy_state';
 import { getGatherableResourceTemplates } from './location';
 import { regionalGatherEntries } from './regional_gather';
-import { createPool, type PlacePoolRow } from './pools';
+import { createPool, mirrorLevel, type PlacePoolRow } from './pools';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -188,9 +188,24 @@ function insertMemberTemplate(ctx: any, def: FamilyDefinition, member: FamilyMem
 }
 
 /**
+ * Rewrites the public pool_level mirror of every creature pool of a family in its region (mirrorLevel
+ * writes only when the level range or a display string differs). Call after the family's members change.
+ */
+export function refreshFamilyMirrors(ctx: any, family: { id: bigint; regionId: bigint }): number {
+  let refreshed = 0;
+  for (const row of [...ctx.db.place_pool.by_region.filter(family.regionId)]) {
+    if (row.kind !== 'creature' || row.refId !== family.id) continue;
+    mirrorLevel(ctx, row);
+    refreshed += 1;
+  }
+  return refreshed;
+}
+
+/**
  * A family from one definition (D-02, D-25, D-46). Find-or-create by `def.key`: when the family
  * exists, nothing is inserted except a member row for an existing template of the definition that is
- * in no family yet (a rerun inserts nothing). For a new family:
+ * in no family yet (a rerun inserts nothing); when one joins, the family's pool mirrors are refreshed.
+ * For a new family:
  *   - a member with `existingTemplateId` joins with its template's role fields (and its role template)
  *     rewritten to the canonical role, and keeps its own stats and abilities;
  *   - every other member gets a new enemy_template at `baseLevel` (at least 1) with stats from
@@ -201,6 +216,7 @@ export function createFamily(ctx: any, regionId: bigint, def: FamilyDefinition, 
   const level = baseLevel < 1n ? 1n : baseLevel;
   const existing = ctx.db.creature_family.key.find(def.key);
   if (existing) {
+    let joinedAny = false;
     for (const member of def.members) {
       if (member.existingTemplateId === undefined) continue;
       const template = ctx.db.enemy_template.id.find(member.existingTemplateId);
@@ -208,7 +224,11 @@ export function createFamily(ctx: any, regionId: bigint, def: FamilyDefinition, 
       const role = normalizeEnemyRole(member.role);
       setTemplateRole(ctx, template, role);
       ctx.db.family_member.insert({ id: 0n, familyId: existing.id, enemyTemplateId: template.id, role, filler: member.filler });
+      joinedAny = true;
     }
+    // A new member can widen the family's level range, so its public mirrors at every place it is
+    // pooled are refreshed (mirrorLevel writes only on a difference; review A WR-03).
+    if (joinedAny) refreshFamilyMirrors(ctx, existing);
     return existing;
   }
 

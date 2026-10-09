@@ -16,7 +16,8 @@ import {
   poolSeed,
 } from '../data/density_rules';
 import { T0, REGION_ID, ORCHARD_ID, FLATS_ID, MARKET_ID, GOBLINS_ID, SKITTERERS_ID, poolWorld, poolCtx, seedPools } from './pool_fixture';
-import { createPool, setPoolCount } from './pools';
+import { createPool, familyRangeAt, setPoolCount } from './pools';
+import { computeLocationTargetLevel } from './location';
 import {
   addResourcePoolsForRegion,
   buildRegionFamilies,
@@ -217,6 +218,46 @@ describe('createFamily', () => {
     expect(roleRow).toMatchObject({ role: 'tank', roleKey: 'tank', roleDetail: 'tank', abilityProfile: 'tank' });
     const members = rows(ctx, 'family_member').filter((m: any) => m.familyId === family.id);
     expect(members).toEqual([{ id: members[0].id, familyId: family.id, enemyTemplateId: 501n, role: 'tank', filler: false }]);
+  });
+
+  /** The pool world with level offsets (so members of different levels read different levels), a family at the orchard target and an elder one level above. */
+  function rangeWorld() {
+    const seed = poolWorld();
+    seed.location = seed.location.map((l: any) => ({ ...l, levelOffset: 1n }));
+    const ctx = poolCtx(seed);
+    const target: bigint = computeLocationTargetLevel(ctx, ORCHARD_ID, 1n);
+    const family = createFamily(ctx, REGION_ID, wolfDefinition(), target);
+    const elder = ctx.db.enemy_template.insert({ ...enemyTemplate(0n, 'Ash Wolf Elder', 'melee', 'beast'), level: target + 1n });
+    return { ctx, family, elder, target };
+  }
+  const mirrorOf = (ctx: any, id: bigint) => rows(ctx, 'pool_level').find((r: any) => r.id === id);
+
+  it("a member joining an existing pooled family refreshes the family's pool_level range everywhere (review A WR-03)", () => {
+    const { ctx, family, elder, target } = rangeWorld();
+    const orchard = createPool(ctx, { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'creature', refId: family.id, homeLevel: 2 }, T0);
+    const flats = createPool(ctx, { regionId: REGION_ID, locationId: FLATS_ID, kind: 'creature', refId: family.id, homeLevel: 1 }, T0);
+    expect(mirrorOf(ctx, orchard.id)).toMatchObject({ lvLo: target, lvHi: target });
+    const levels = { orchard: mirrorOf(ctx, orchard.id).level, flats: mirrorOf(ctx, flats.id).level };
+
+    createFamily(ctx, REGION_ID, { ...wolfDefinition(), members: [{ role: 'tank', name: 'Ash Wolf Elder', existingTemplateId: elder.id, filler: false }] }, 1n);
+
+    expect(mirrorOf(ctx, orchard.id)).toMatchObject({ lvLo: target, lvHi: target + 1n, level: levels.orchard });
+    const flatsRange = familyRangeAt(ctx, family.id, FLATS_ID);
+    expect(mirrorOf(ctx, flats.id)).toMatchObject({ lvLo: flatsRange.lo, lvHi: flatsRange.hi, level: levels.flats });
+  });
+
+  it("createPool's find branch refreshes a stale mirror and inserts nothing (review A WR-03)", () => {
+    const { ctx, family, elder, target } = rangeWorld();
+    const input = { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'creature' as const, refId: family.id, homeLevel: 2 };
+    const pool = createPool(ctx, input, T0);
+    expect(mirrorOf(ctx, pool.id)).toMatchObject({ lvLo: target, lvHi: target });
+    // A member row written by some other path, with no mirror refresh.
+    ctx.db.family_member.insert({ id: 0n, familyId: family.id, enemyTemplateId: elder.id, role: 'tank', filler: false });
+    const poolsBefore = rows(ctx, 'place_pool').length;
+
+    expect(createPool(ctx, input, T0).id).toBe(pool.id);
+    expect(rows(ctx, 'place_pool')).toHaveLength(poolsBefore);
+    expect(mirrorOf(ctx, pool.id)).toMatchObject({ lvLo: target, lvHi: target + 1n });
   });
 
   it('marks filler members as filler', () => {

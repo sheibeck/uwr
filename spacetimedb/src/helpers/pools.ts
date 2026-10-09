@@ -201,12 +201,16 @@ export function mirrorLevel(ctx: any, pool: PlacePoolRow): Record<string, any> {
 
 /**
  * Find-or-create the pool of (locationId, kind, refId): an existing pool is returned unchanged and
- * nothing is inserted. A new pool starts at its home count (or `count`), settled at `now`, with its
- * public mirror.
+ * nothing is inserted but its public mirror, which is refreshed (written only on a difference, so a
+ * family that gained members shows its new level range; review A WR-03). A new pool starts at its
+ * home count (or `count`), settled at `now`, with its public mirror.
  */
 export function createPool(ctx: any, input: CreatePoolInput, now: bigint): PlacePoolRow {
   for (const row of ctx.db.place_pool.by_location.filter(input.locationId)) {
-    if (row.kind === input.kind && row.refId === input.refId) return row;
+    if (row.kind === input.kind && row.refId === input.refId) {
+      mirrorLevel(ctx, row);
+      return row;
+    }
   }
   const kind = input.kind;
   const homeLevel = BigInt(Math.max(0, Math.floor(Number(input.homeLevel) || 0)));
