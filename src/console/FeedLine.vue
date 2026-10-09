@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
+  PhFootprints,
   PhGlobeHemisphereWest,
   PhHourglassMedium,
+  PhSkull,
+  PhTrendDown,
   PhUsersThree,
   PhWarning,
   PhWarningCircle,
@@ -18,6 +21,9 @@ import { rarityColor } from '../ledger/itemModel';
 // with no raw HTML, no markup interpretation and no color tokens (T-47-01). Keyword buttons come only from
 // `parts` that lines.ts builds for eligible kinds (T-47-06). Loot links (quick 261008-f3m) are keyword
 // buttons too, text only, colored by the rarity tokens through rarityColor (the Inventory helper).
+// The density lines (51.3.1.1 Feed Contract): an ambush is the tinted band of the wind-up recipe;
+// density_down, density_gone and travel_quiet are 12px icon lines. Their text is a text node and
+// never holds a keyword. No animation.
 const props = defineProps<{ line: FeedLineView; disabled: boolean; currentRound?: boolean }>();
 const emit = defineEmits<{ keyword: [entry: KeywordEntry] }>();
 
@@ -77,6 +83,10 @@ function lootStyle(part: KeywordPart): { color: string } | undefined {
     <PhWarning class="icon-windup" :size="16" aria-hidden="true" />
     <span class="body">{{ line.windup.lead }}<span class="ability">{{ line.windup.ability }}</span>{{ line.windup.tail }}</span>
   </div>
+  <div v-else-if="line.kind === 'ambush'" class="line line-ambush">
+    <PhWarning class="icon-ambush" :size="16" aria-hidden="true" />
+    <span class="body">{{ line.text }}</span>
+  </div>
   <div
     v-else
     class="line"
@@ -101,6 +111,19 @@ function lootStyle(part: KeywordPart): { color: string } | undefined {
       <PhUsersThree class="icon icon-party" :size="12" aria-hidden="true" />
       <span class="sr-only">Party</span>
     </template>
+    <PhTrendDown
+      v-else-if="line.kind === 'densityDown'"
+      class="icon icon-density-down"
+      :size="12"
+      aria-hidden="true"
+    />
+    <PhSkull v-else-if="line.kind === 'densityGone'" class="icon icon-density-gone" :size="12" aria-hidden="true" />
+    <PhFootprints
+      v-else-if="line.kind === 'travelQuiet'"
+      class="icon icon-travel-quiet"
+      :size="12"
+      aria-hidden="true"
+    />
     <PhWarningCircle
       v-else-if="line.kind === 'warning' || line.kind === 'error'"
       class="icon"
@@ -422,6 +445,60 @@ function lootStyle(part: KeywordPart): { color: string } | undefined {
 .line-windup .ability {
   font-weight: 500;
   color: var(--color-text);
+}
+
+/* Ambush band (51.3.1.1): the wind-up recipe on a health-tinted surface, Body 14 / 500. */
+.line-ambush {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-health) 24%, var(--color-surface));
+}
+
+.line-ambush .body {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.icon-ambush {
+  flex: none;
+  color: var(--color-con-orange);
+}
+
+/* Density and quiet-travel lines (51.3.1.1): a 12px icon then Label 12 text. */
+.line-densityDown,
+.line-densityGone,
+.line-travelQuiet {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.line-densityDown,
+.line-travelQuiet {
+  color: var(--color-neutral-400);
+}
+
+.line-densityGone {
+  color: var(--color-neutral-300);
+}
+
+.line-densityDown .icon,
+.line-densityGone .icon,
+.line-travelQuiet .icon {
+  margin-top: 4px;
+}
+
+.icon-density-down,
+.icon-travel-quiet {
+  color: var(--color-neutral-500);
+}
+
+.icon-density-gone {
+  color: var(--color-neutral-400);
 }
 
 /* Late narration: the round it describes, after the Keeper label. */

@@ -20,6 +20,9 @@
 //   - buildFeedLines gives the first Keeper line of an entry carrying narratedRound a roundTag when
 //     that round differs from the nearest preceding round header, or no header precedes it
 //     (late narration, 48-UI-SPEC A22).
+//   - The density kinds (51.3.1.1 Feed Contract): ambush, density_down, density_gone and
+//     travel_quiet are server lines drawn as their own kinds. None is keyword-eligible: they carry
+//     family and place names, not links (D-22, D-32).
 //   - The Error line for failed jobs is not produced here (research S1: the server already writes
 //     its own in-voice failure line).
 //   - Loot tokens (quick 261008-f3m) are parsed only on server-authored private rows of kind
@@ -80,7 +83,11 @@ export type LineKind =
   | 'damage'
   | 'heal'
   | 'round'
-  | 'windup';
+  | 'windup'
+  | 'ambush'
+  | 'densityDown'
+  | 'densityGone'
+  | 'travelQuiet';
 
 export interface FeedLineView {
   /** `${source.key}:${index}` */
@@ -136,6 +143,13 @@ const COMBAT_KINDS = new Set([
   'combat',
   'combat_prompt',
   'combat_status',
+]);
+// The density lines (51.3.1.1): server kind -> line kind. Never keyword-eligible.
+const DENSITY_KINDS: ReadonlyMap<string, LineKind> = new Map<string, LineKind>([
+  ['ambush', 'ambush'],
+  ['density_down', 'densityDown'],
+  ['density_gone', 'densityGone'],
+  ['travel_quiet', 'travelQuiet'],
 ]);
 // Rendered nothing: the client draws the round headers and the server writes no such rows.
 const RENDER_NOTHING_KINDS = new Set(['combat_round_header', 'combat_resolving']);
@@ -295,6 +309,9 @@ function classifyByKind(entry: LineSource, key: string, partyNames: readonly str
   // Server-authored kinds: old markup removed.
   const text = cleanServerText(raw);
   if (isBlank(text)) return [];
+
+  const densityKind = DENSITY_KINDS.get(kind);
+  if (densityKind !== undefined) return [makeLine(key, { kind: densityKind, text, keywordEligible: false })];
 
   if (KEEPER_KINDS.has(kind)) {
     return [makeLine(key, { kind: 'keeper', label: KEEPER_LABEL, text, keywordEligible: true })];

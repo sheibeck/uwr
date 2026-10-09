@@ -636,7 +636,6 @@ describe('density line kinds (51.3.1.1 Feed Contract, D-22, D-32)', () => {
     npcs: [],
     places: [{ id: 2n, name: 'Gloamwood' }],
     enemies: [{ id: 7n, name: 'Goblins', target: 'family' }],
-    items: [],
     players: [],
     nodes: [],
   });
