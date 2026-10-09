@@ -2014,7 +2014,35 @@ describe('Plan 09: invented quest kill targets get a pool of their own (D-54, D-
     const family = rows(ctx, 'creature_family').find((f: any) => f.key === `quest:${template.id}`);
     expect(creaturePools(ctx).filter((p: any) => p.refId === family.id).map((p: any) => p.locationId)).toEqual([101n]);
     expect(rows(ctx, 'quest_template')[0]).toMatchObject({ targetEnemyTemplateId: template.id, targetLocationId: 101n });
-    expect(rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === 100n && l.enemyTemplateId === template.id)).toBe(true);
+    // Linked at the pool's place only, never at the quest place (review A IN-09, B IN-01).
+    expect(rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === 101n && l.enemyTemplateId === template.id)).toBe(true);
+    expect(rows(ctx, 'location_enemy_template').some((l: any) => l.locationId === 100n && l.enemyTemplateId === template.id)).toBe(false);
+  });
+
+  it('an invented target whose family of one fails leaves no template, link, family, pool or quest (review A IN-09, B IN-01)', () => {
+    const ctx = strictCtx(questSeed(true));
+    const realDb = ctx.db;
+    // createPool fails inside familyOfOne, after the family, its member and its link were written.
+    ctx.db = new Proxy(realDb, {
+      get(target: any, name: string) {
+        if (name !== 'place_pool') return target[name];
+        return new Proxy(target[name], {
+          get(t2: any, prop: string) {
+            if (prop === 'insert') return () => { throw new Error('boom'); };
+            return t2[prop];
+          },
+        });
+      },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    applyNpcConversationResult(ctx, npcJob, killReply('kill', 'Gloomfang'));
+    ctx.db = realDb;
+    expect(rows(ctx, 'enemy_template')).toEqual([]);
+    expect(rows(ctx, 'enemy_role_template')).toEqual([]);
+    expect(rows(ctx, 'creature_family')).toEqual([]);
+    expect(rows(ctx, 'family_member')).toEqual([]);
+    expect(rows(ctx, 'location_enemy_template')).toEqual([]);
+    expect(rows(ctx, 'quest_template')).toEqual([]);
   });
 
   it('no hosting place in reach: no template, no quest, no New quest line', () => {

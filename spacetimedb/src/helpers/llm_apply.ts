@@ -45,7 +45,7 @@ import {
   WORLD_FILL_FAILED_MESSAGE,
   worldFillCompleteLine,
 } from './world_gen';
-import { ensurePoolsForLocation, familyOfOne, resolveKillQuestTarget } from './families';
+import { discardInventedQuestTarget, ensurePoolsForLocation, familyOfOne, resolveKillQuestTarget } from './families';
 import { cleanQuestTargetName, freeCreatureName } from './family_validate';
 import { nameKey } from '../data/economy_design_rules';
 import { nounsFromTemplateName } from '../data/family_rules';
@@ -856,12 +856,8 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
             baseDamage: BigInt(3 + charLevel * 2),
             xpReward: BigInt(charLevel * 10 + 15),
           });
-          ctx.db.location_enemy_template.insert({
-            id: 0n,
-            locationId: questPlaceId,
-            enemyTemplateId: newEt.id,
-          });
-          // D-54: its family of one, with its own Scarce pool at the resolved place.
+          // D-54: its family of one, with its own Scarce pool at the resolved place. familyOfOne links the
+          // template at the pool's place; no link is made at the quest place (review A IN-09, B IN-01).
           let family: any = null;
           try {
             family = familyOfOne(ctx, newEt, questPlaceId, ctx.timestamp.microsSinceUnixEpoch);
@@ -874,6 +870,9 @@ export function applyNpcConversationResult(ctx: any, job: ApplyJob, resultText: 
               (pool: any) => pool.kind === 'creature' && pool.refId === family.id,
             );
           if (!pooledThere) {
+            // Nothing of the skipped target stays behind: no orphan template, link or pool-less family
+            // that could later fold into an ordinary family or block quests naming it (review A IN-09, B IN-01).
+            discardInventedQuestTarget(ctx, newEt.id, [questPlaceId, resolved.placeId]);
             console.log(`offer_quest "${questName}": the invented target has no pool (D-74); quest skipped`);
             continue;
           }

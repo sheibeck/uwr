@@ -1570,7 +1570,7 @@ describe('llm apply npc_conversation success', () => {
 });
 
 describe('llm apply npc_conversation offer_quest effects', () => {
-  it('kill quest for an unknown enemy creates the enemy template, links it here and creates the instance', () => {
+  it('kill quest for an unknown enemy creates the enemy template, links it at its pool and creates the instance', () => {
     // Strict: the family of one (Plan 09) reads family_member.by_template, which the lenient mock guesses wrong.
     const ctx = newCtx(npcSeed(WORLD_LOCS), alice, true);
     exec(ctx, applyJob('npc_conversation', NPC_CTX), {
@@ -1587,10 +1587,10 @@ describe('llm apply npc_conversation offer_quest effects', () => {
     expect(qt[0].targetEnemyTemplateId).toBe(et[0].id);
     // Plan 32 (D-74): the quest records the place of its pool.
     expect(qt[0].targetLocationId).toBe(101n);
-    // Linked here, and (Plan 09, D-54) at the hostile neighbour that holds its family-of-one pool.
+    // Linked (Plan 09, D-54) only at the hostile neighbour that holds its family-of-one pool; no link at
+    // the quest place (review A IN-09, B IN-01).
     expect(rows(ctx, 'location_enemy_template')).toEqual([
-      { id: 1n, locationId: 100n, enemyTemplateId: et[0].id },
-      { id: 2n, locationId: 101n, enemyTemplateId: et[0].id },
+      { id: 1n, locationId: 101n, enemyTemplateId: et[0].id },
     ]);
     expect(rows(ctx, 'quest_instance')).toHaveLength(1);
     expect(rows(ctx, 'quest_instance')[0]).toMatchObject({ characterId: 10n, questTemplateId: qt[0].id, progress: 0n, completed: false });

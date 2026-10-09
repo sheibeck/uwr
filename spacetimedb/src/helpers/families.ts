@@ -923,6 +923,36 @@ export function familyOfOne(ctx: any, template: any, questLocationId: bigint, no
   return family;
 }
 
+/**
+ * Removes an invented quest kill target that ended up with no pool (review A IN-09, B IN-01), so a
+ * skipped quest leaves no orphan behind: its family of one (key quest:<templateId>) with that family's
+ * pools, their pool_level mirrors, members and relations; the template's links at the given places;
+ * its role templates and abilities; and the template itself. The ordinary pools that
+ * ensurePoolsForLocation seeded at the place stay (they belong to the place, not to this target).
+ */
+export function discardInventedQuestTarget(ctx: any, templateId: bigint, placeIds: readonly bigint[]): void {
+  const family = ctx.db.creature_family.key.find(questFamilyKey(templateId));
+  if (family) {
+    for (const pool of [...ctx.db.place_pool.by_region.filter(family.regionId)]) {
+      if (pool.kind !== 'creature' || pool.refId !== family.id) continue;
+      ctx.db.pool_level.id.delete(pool.id);
+      ctx.db.place_pool.id.delete(pool.id);
+    }
+    for (const member of [...ctx.db.family_member.by_family.filter(family.id)]) ctx.db.family_member.id.delete(member.id);
+    for (const rel of [...ctx.db.family_relation.by_family.filter(family.id)]) ctx.db.family_relation.id.delete(rel.id);
+    ctx.db.creature_family.id.delete(family.id);
+  }
+  for (const member of [...ctx.db.family_member.by_template.filter(templateId)]) ctx.db.family_member.id.delete(member.id);
+  for (const placeId of new Set(placeIds)) {
+    for (const link of [...ctx.db.location_enemy_template.by_location.filter(placeId)]) {
+      if (link.enemyTemplateId === templateId) ctx.db.location_enemy_template.id.delete(link.id);
+    }
+  }
+  for (const row of [...ctx.db.enemy_role_template.by_template.filter(templateId)]) ctx.db.enemy_role_template.id.delete(row.id);
+  for (const row of [...ctx.db.enemy_ability.by_template.filter(templateId)]) ctx.db.enemy_ability.id.delete(row.id);
+  ctx.db.enemy_template.id.delete(templateId);
+}
+
 // ---------------------------------------------------------------------------
 // The seeded feud (D-70) and the NPC history selection (D-68), Plan 28
 // ---------------------------------------------------------------------------

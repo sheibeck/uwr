@@ -3809,7 +3809,7 @@ exports[`llm apply npc_conversation offer_quest effects > explore quest targets 
 }"
 `;
 
-exports[`llm apply npc_conversation offer_quest effects > kill quest for an unknown enemy creates the enemy template, links it here and creates the instance 1`] = `
+exports[`llm apply npc_conversation offer_quest effects > kill quest for an unknown enemy creates the enemy template, links it at its pool and creates the instance 1`] = `
 "{
   "character": [
     {
@@ -3953,11 +3953,6 @@ exports[`llm apply npc_conversation offer_quest effects > kill quest for an unkn
     {
       "enemyTemplateId": "1n",
       "id": "1n",
-      "locationId": "100n"
-    },
-    {
-      "enemyTemplateId": "1n",
-      "id": "2n",
       "locationId": "101n"
     }
   ],
