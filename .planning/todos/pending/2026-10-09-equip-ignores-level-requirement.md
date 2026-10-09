@@ -19,5 +19,4 @@ By design today, gear has no level gate. An older "world-tier" decision removed 
 
 **Decided (owner, 2026-10-09): "Enforce it. Phase 51.5".** Pulled into Phase 51.5 (success criterion 5). Plan:
 - **Enforce:** `canEquipItem` returns not ok with reason 'level' when `levelShort` (message for example "You must be level 4 to wear this."; wording needs approval); `equip_item` refuses through it; the client's Equip action shows the reason and the "Usable by you" filter treats level-short gear as not usable now (still listed, maybe "Usable soon"). Decide: can you still buy or craft gear above your level (yes, probably, to grow into it)? Already-equipped level-short gear (this owner's boots) stays on, or is unequipped at the next equip check (probably stays).
-- **Or drop the label:** keep the world-tier design and stop showing "Requires Lv n" anywhere.
 Tests for the server rule and the client reason.
