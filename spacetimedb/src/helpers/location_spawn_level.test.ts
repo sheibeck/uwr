@@ -2,8 +2,10 @@
  * Quick 261008-ag8: a spawn takes the level of its place. Owner bug: Mother Pan Undercroft (region
  * danger 100, levelOffset 4) is a level 4-6 place but only level-1 types are linked to it, so every
  * nearby enemy was level 1. When no type fits the place's band the spawn now takes the place's target
- * level; a type that fits keeps its own level. The strict mock db throws on an unknown table or
- * accessor, so the seed lists every table the spawn paths touch.
+ * level; a type that fits keeps its own level. Since Phase 51.3.1.1 Plan 27 the only spawn path is
+ * spawnEnemyWithTemplate (named enemies, World events, quest targets); ordinary creatures are pools.
+ * The strict mock db throws on an unknown table or accessor, so the seed lists every table the spawn
+ * paths touch.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx } from './test-utils';
@@ -152,27 +154,6 @@ describe('a place no enemy type fits (Mother Pan Undercroft, +4)', () => {
     expect(rules.placeLevelBand(target, 4n)).toEqual({ min: 4n, max: 6n });
   });
 
-  it('spawnEnemy writes level 5 at several timestamps', () => {
-    for (let i = 0n; i < 8n; i += 1n) {
-      const ctx = build({ timestampMicros: T0 + i * 7_919_003n });
-      const spawn = loc.spawnEnemy(ctx, 5n, 1n);
-      expect((spawn as any).level).toBe(5n);
-      for (const row of spawnsAt(ctx, 5n)) expect((row as any).level).toBe(5n);
-    }
-  });
-
-  it('never lands below the band for danger 100 or 300 and offsets 1..6', () => {
-    for (const dangerMultiplier of [100n, 300n]) {
-      for (let offset = 1n; offset <= 6n; offset += 1n) {
-        const ctx = build({ dangerMultiplier, levelOffset: offset });
-        const spawn = loc.spawnEnemy(ctx, 5n, 1n) as any;
-        const target = loc.computeLocationTargetLevel(ctx, 5n, 1n);
-        const band = rules.placeLevelBand(target, offset);
-        expect(spawn.level >= band.min && spawn.level <= band.max, `${dangerMultiplier}/${offset}`).toBe(true);
-      }
-    }
-  });
-
   it('spawnEnemyWithTemplate gives level 5', () => {
     const ctx = build();
     const spawn = loc.spawnEnemyWithTemplate(ctx, 5n, 1n) as any;
@@ -181,9 +162,9 @@ describe('a place no enemy type fits (Mother Pan Undercroft, +4)', () => {
 });
 
 describe('a type that fits the band keeps its level', () => {
-  it('picks a level 4 type at the +4 place and spawns it at level 4, not 5', () => {
+  it('a level 4 type at the +4 place spawns at level 4, not 5', () => {
     const ctx = build({ extraTemplates: [tpl(4n, 4n, 'Vault Warden')], linkExtraTo: [5n] });
-    const spawn = loc.spawnEnemy(ctx, 5n, 1n) as any;
+    const spawn = loc.spawnEnemyWithTemplate(ctx, 5n, 4n) as any;
     expect(spawn.enemyTemplateId).toBe(4n);
     expect(spawn.level).toBe(4n);
   });
@@ -193,53 +174,9 @@ describe('a type that fits the band keeps its level', () => {
     const ctx = build({ extraTemplates: [tpl(5n, 3n, 'Gate Ghoul')], linkExtraTo: [6n] });
     const target = loc.computeLocationTargetLevel(ctx, 6n, 1n);
     expect(target).toBe(3n);
-    const spawn = loc.spawnEnemy(ctx, 6n, 1n) as any;
+    const spawn = loc.spawnEnemyWithTemplate(ctx, 6n, 5n) as any;
     expect(spawn.enemyTemplateId).toBe(5n);
     expect(spawn.level).toBe(3n);
-  });
-});
-
-describe('ensureAvailableSpawn reads the spawn level', () => {
-  it('does not reuse a legacy level-1 spawn at the level 5 place; it spawns a new level 5 one', () => {
-    const ctx = build({ spawns: [spawnRow(30n, 1n)] });
-    const got = loc.ensureAvailableSpawn(ctx, 5n, 1n) as any;
-    expect(got.id).not.toBe(30n);
-    expect(got.level).toBe(5n);
-  });
-
-  it('reuses an available spawn that already carries level 5', () => {
-    const ctx = build({ spawns: [spawnRow(31n, 1n, { level: 5n })] });
-    const got = loc.ensureAvailableSpawn(ctx, 5n, 1n) as any;
-    expect(got.id).toBe(31n);
-  });
-});
-
-describe('relevelLegacySpawns re-levels legacy spawns', () => {
-  it('re-levels available legacy rows only; engaged and event rows are left alone', () => {
-    const ctx = build({
-      withPlayer: true,
-      extraTemplates: [tpl(4n, 4n, 'Vault Warden')],
-      linkExtraTo: [5n],
-      spawns: [
-        spawnRow(40n, 1n), // available legacy, type does not fit -> 5
-        spawnRow(41n, 4n), // available legacy, type fits -> 4
-        spawnRow(42n, 1n, { state: 'engaged' }), // engaged -> unchanged
-        spawnRow(43n, 1n), // event-linked -> unchanged
-      ],
-      eventSpawnIds: [43n],
-    });
-    loc.relevelLegacySpawns(ctx, 5n);
-    const byId = (id: bigint) => ctx.db.enemy_spawn.id.find(id) as any;
-    expect(byId(40n).level).toBe(5n);
-    expect(byId(41n).level).toBe(4n);
-    expect(byId(42n).level).toBeUndefined();
-    expect(byId(43n).level).toBeUndefined();
-  });
-
-  it('does not touch a row that already has a positive level', () => {
-    const ctx = build({ withPlayer: true, spawns: [spawnRow(44n, 1n, { level: 6n })] });
-    loc.relevelLegacySpawns(ctx, 5n);
-    expect((ctx.db.enemy_spawn.id.find(44n) as any).level).toBe(6n);
   });
 });
 

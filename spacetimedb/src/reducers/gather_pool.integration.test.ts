@@ -124,8 +124,8 @@ function gatherOnce(ctx: any, poolId: bigint, characterId = 1n, ts: bigint = T0)
   finish(ctx, characterId);
 }
 
-describe('gather_pool and finish_gather pay out by density (D-26, D-38)', () => {
-  it('a Plentiful pool: a pool gather row and tick, then 2 of the item, 17 points off, one harvest recorded', () => {
+describe('gather_pool and finish_gather pay out one per gather (D-26, D-72)', () => {
+  it('a Plentiful pool: a pool gather row and tick, then 1 of the item, 17 points off, one harvest recorded', () => {
     const { ctx, pools } = world({ iron: 66n });
     start(ctx, pools.ironOrchard.id);
 
@@ -138,16 +138,16 @@ describe('gather_pool and finish_gather pay out by density (D-26, D-38)', () => 
 
     finish(ctx);
     expect(gathersOf(ctx, 1n)).toHaveLength(0);
-    expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(2n);
-    expect(feed(ctx, 1n)).toContain(gatherResult('Iron Ore', 2n));
+    expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(1n);
+    expect(feed(ctx, 1n)).toContain(gatherResult('Iron Ore', 1n));
     expect(poolRow(ctx, pools.ironOrchard.id).count).toBe(66n - DENSITY_RULES.GATHER_DEPLETION_POINTS);
     expect(rows(ctx, 'pool_harvest')).toEqual([
       expect.objectContaining({ characterId: 1n, locationId: ORCHARD_ID, gathers: 1n, cappedUntilMicros: 0n }),
     ]);
   });
 
-  it('an Abundant pool yields 3 and a Sparse pool 1', () => {
-    for (const [count, want] of [[100n, 3n], [80n, 3n], [40n, 2n], [33n, 1n], [5n, 1n]] as const) {
+  it('every non-zero density yields one (D-72: density sets how many gathers, not the yield)', () => {
+    for (const [count, want] of [[100n, 1n], [80n, 1n], [40n, 1n], [33n, 1n], [5n, 1n]] as const) {
       const { ctx, pools } = world({ iron: count });
       gatherOnce(ctx, pools.ironOrchard.id);
       expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(want);
@@ -158,8 +158,8 @@ describe('gather_pool and finish_gather pay out by density (D-26, D-38)', () => 
     const { ctx, pools } = world();
     gatherOnce(ctx, pools.ironOrchard.id, 1n, T0);
     gatherOnce(ctx, pools.ironOrchard.id, 2n, T0 + 20n * SEC);
-    expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(3n);
-    expect(bag(ctx, 2n, IRON_ORE_ID)).toBe(3n);
+    expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(1n);
+    expect(bag(ctx, 2n, IRON_ORE_ID)).toBe(1n);
     expect(poolRow(ctx, pools.ironOrchard.id).count).toBe(100n - 2n * DENSITY_RULES.GATHER_DEPLETION_POINTS);
   });
 
@@ -189,7 +189,7 @@ describe('the per-player harvest cap (D-27, D-28; T-51.3.1.1-37)', () => {
     for (let i = 0n; i < DENSITY_RULES.HARVEST_CAP_GATHERS; i += 1n) {
       gatherOnce(ctx, pools.ironOrchard.id, 1n, T0 + i * 20n * SEC);
     }
-    expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(3n + 3n + 2n + 2n);
+    expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(DENSITY_RULES.HARVEST_CAP_GATHERS); // one per gather (D-72)
     expect(myHarvestCapRows({ db: ctx.db, sender: ALICE })).toEqual([
       // The window starts when the first gather pays out (T0 + 8 s).
       expect.objectContaining({ locationId: ORCHARD_ID, cappedUntilMicros: T0 + GATHER_MICROS + DENSITY_RULES.HARVEST_WINDOW_MICROS }),
@@ -228,7 +228,7 @@ describe('time of day (D-55)', () => {
   it('a night pool gathers at night', () => {
     const { ctx, pools } = world({ night: true });
     gatherOnce(ctx, pools.berriesOrchard.id);
-    expect(bag(ctx, 1n, BERRIES_ID)).toBe(2n);
+    expect(bag(ctx, 1n, BERRIES_ID)).toBe(1n);
   });
 
   it('a day pool refuses at night', () => {
@@ -248,7 +248,7 @@ describe('time of day (D-55)', () => {
     for (const night of [false, true]) {
       const { ctx, pools } = world({ night });
       gatherOnce(ctx, pools.ironOrchard.id);
-      expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(3n);
+      expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(1n);
     }
   });
 });

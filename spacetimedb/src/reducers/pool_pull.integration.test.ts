@@ -7,8 +7,8 @@
  *   - the fight row records origin 'pull' with the pull-time density level, and the roster reads
  *     the lead-in "You make some noise. {Count} {noun} answer(s).";
  *   - every refusal is a visible fail() line and starts nothing; a foreign character id throws.
- * Task 3 adds the retired careful pull: start_combat without the spawn fallback, start_pull at once,
- * resolve_pull draining.
+ * Task 3 adds the retired careful pull: start_combat without the spawn fallback, resolve_pull draining;
+ * start_pull itself was removed in Plan 27.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { capturedReducer, snapshotDb } from '../helpers/schema_recorder';
@@ -38,7 +38,7 @@ let PULL_REFUSALS: Record<string, string>;
 
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['pull_family', 'start_combat', 'start_pull', 'resolve_pull']) {
+  for (const name of ['pull_family', 'start_combat', 'resolve_pull']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(`capturedReducer('${name}') is not a function: STOP and report; never edit production code to fix this.`);
@@ -202,7 +202,7 @@ describe('pull_family refusals start nothing (T-51.3.1.1-33, T-51.3.1.1-34)', ()
 
 // ── Task 3: the careful pull and the ordinary spawn fallback are retired (D-12, SC3) ────────────────
 
-describe('start_combat, start_pull and resolve_pull serve individual spawns only', () => {
+describe('start_combat and resolve_pull serve individual spawns only; start_pull is gone', () => {
   const SPAWN_ID = 900n;
   /** The pool world with one individual spawn (a Goblin Brute) at the orchard, in `state`. */
   function spawnWorld(state = 'available', locationId: bigint = ORCHARD_ID, extra: Record<string, any[]> = {}) {
@@ -239,32 +239,8 @@ describe('start_combat, start_pull and resolve_pull serve individual spawns only
     });
   }
 
-  for (const pullType of ['careful', 'body']) {
-    it(`start_pull (${pullType}) starts the fight at once: no pull_state, no pull_tick`, () => {
-      const ctx = spawnWorld();
-      handlers.start_pull(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID, pullType });
-      expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
-      expect(rows(ctx, 'combat_enemy').map((e: any) => e.enemyTemplateId)).toEqual([101n]);
-      expect(rows(ctx, 'combat_participant').map((p: any) => p.characterId).sort()).toEqual([1n, 2n]);
-      expect(rows(ctx, 'pull_state')).toHaveLength(0);
-      expect(rows(ctx, 'pull_tick')).toHaveLength(0);
-    });
-  }
-
-  it('start_pull on an unavailable spawn refuses and starts nothing', () => {
-    const ctx = spawnWorld('engaged');
-    handlers.start_pull(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID, pullType: 'careful' });
-    expect(feed(ctx, 1n)).toContain('Enemy is not available to pull');
-    expect(rows(ctx, 'combat_encounter')).toHaveLength(0);
-  });
-
-  it('start_pull while already fighting refuses (no second fight)', () => {
-    const ctx = spawnWorld();
-    handlers.start_combat(ctx, { characterId: 1n, enemySpawnId: SPAWN_ID });
-    ctx.db._tables.enemy_spawn.push({ id: 901n, locationId: ORCHARD_ID, enemyTemplateId: 102n, name: 'Goblin Cutter', state: 'available', lockedCombatId: undefined, groupCount: 1n, level: 4n });
-    handlers.start_pull(ctx, { characterId: 1n, enemySpawnId: 901n, pullType: 'body' });
-    expect(feed(ctx, 1n)).toContain('Already in combat');
-    expect(rows(ctx, 'combat_encounter')).toHaveLength(1);
+  it('start_pull is no longer registered (Plan 27: retired, D-12)', () => {
+    expect(capturedReducer('start_pull')).toBeUndefined();
   });
 
   const pendingPull = {

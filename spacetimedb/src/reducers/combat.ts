@@ -53,12 +53,9 @@ const PET_BASE_DAMAGE = 3n;
 const DEFAULT_AI_CHANCE = 50;
 const DEFAULT_AI_WEIGHT = 50;
 const DEFAULT_AI_RANDOMNESS = 15;
-// Unused since the careful pull was retired (Phase 51.3.1.1 D-12); kept for a careful-pull ability in
-// 999.4, with WIS_PULL_BONUS_PER_POINT and the pull_veil effect (Pitfall 9).
-const PULL_DELAY_CAREFUL = 2_000_000n;
-const PULL_DELAY_BODY = 1_000_000n;
-const PULL_ADD_DELAY_ROUNDS = 2n;
-const PULL_ALLOW_EXTERNAL_ADDS = true;
+// The careful pull is retired (Phase 51.3.1.1 D-12; start_pull and start_tracked_combat removed in
+// Plan 27). WIS_PULL_BONUS_PER_POINT (data/combat_scaling.ts) and the pull_veil effect stay for a
+// careful-pull ability in 999.4 (Pitfall 9).
 
 const refreshSpawnGroupCount = (ctx: any, spawnId: bigint) => {
   const spawn = ctx.db.enemy_spawn.id.find(spawnId);
@@ -998,75 +995,6 @@ export const registerCombatReducers = (deps: any) => {
   });
 
   spacetimedb.reducer(
-    'start_tracked_combat',
-    { characterId: t.u64(), enemyTemplateId: t.u64() },
-    (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const _player = ctx.db.player.id.find(ctx.sender);
-      if (_player) {
-        ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
-      }
-      const activeGather = [...ctx.db.resource_gather.by_character.filter(character.id)][0];
-      if (activeGather) {
-        return failCombat(ctx, character, 'Cannot start combat while gathering');
-      }
-      if (activeCombatIdForCharacter(ctx, character.id)) {
-        return failCombat(ctx, character, 'Already in combat');
-      }
-      const locationId = character.locationId;
-      // Anyone in a group can start combat (puller restriction removed)
-      const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
-      let groupId: bigint | null = membership ? membership.groupId : null;
-      const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
-      if (participants.length === 0) return failCombat(ctx, character, 'No participants available');
-      for (const p of participants) {
-        if (activeCombatIdForCharacter(ctx, p.id)) {
-          return failCombat(ctx, character, `${p.name} is already in combat`);
-        }
-      }
-      const spawn = deps.spawnEnemyWithTemplate(ctx, locationId, args.enemyTemplateId);
-      startCombatForSpawn(deps, ctx, character, spawn, participants, groupId);
-    }
-  );
-
-  spacetimedb.reducer(
-    'start_pull',
-    { characterId: t.u64(), enemySpawnId: t.u64(), pullType: t.string() },
-    (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      const _player = ctx.db.player.id.find(ctx.sender);
-      if (_player) {
-        ctx.db.player.id.update({ ..._player, lastActivityAt: ctx.timestamp });
-      }
-      const activeGather = [...ctx.db.resource_gather.by_character.filter(character.id)][0];
-      if (activeGather) {
-        return failCombat(ctx, character, 'Cannot pull while gathering');
-      }
-      // The careful pull is retired (D-12): a careful single pull may return as an ability in 999.4.
-      // start_pull stays for the client until Plan 27 and now starts the individual's fight at once:
-      // no pull_state, no pull_tick, no WIS or pull_veil odds.
-      if (activeCombatIdForCharacter(ctx, character.id)) {
-        return failCombat(ctx, character, 'Already in combat');
-      }
-      const locationId = character.locationId;
-      const pullType = args.pullType.trim().toLowerCase();
-      if (pullType !== 'careful' && pullType !== 'body') {
-        return failCombat(ctx, character, 'Invalid pull type');
-      }
-
-      const spawn = ctx.db.enemy_spawn.id.find(args.enemySpawnId);
-      if (!spawn || spawn.locationId !== locationId || spawn.state !== 'available') {
-        return failCombat(ctx, character, 'Enemy is not available to pull');
-      }
-
-      const membership = [...ctx.db.group_member.by_character.filter(character.id)][0];
-      const groupId: bigint | null = membership ? membership.groupId : null;
-      const participants: typeof deps.Character.rowType[] = getGroupOrSoloParticipants(ctx, character);
-      startCombatForSpawn(deps, ctx, character, spawn, participants, groupId);
-    }
-  );
-
-  spacetimedb.reducer(
     'set_combat_target',
     { characterId: t.u64(), enemyId: t.u64().optional() },
     (ctx, args) => {
@@ -1090,7 +1018,7 @@ export const registerCombatReducers = (deps: any) => {
     if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
     // The careful pull is retired (D-12): nothing schedules a pull any more. An old pending pull
     // drains here: its row goes and a spawn it held is released; no fight starts. The reducer and its
-    // tables stay registered (Pitfall 9) until Plan 27.
+    // tables stay registered (Pitfall 9): a scheduled reducer is never removed.
     const pull = ctx.db.pull_state.id.find(arg.pullId);
     if (!pull) return;
     const spawn = ctx.db.enemy_spawn.id.find(pull.enemySpawnId);

@@ -86,7 +86,9 @@ describe('retired reducers are gone; the scheduled drains and pool reducers stay
 
   it('no source names the retired spawn and node helpers', () => {
     const files = sourceFiles();
-    expect(hits(files, /\b(spawnResourceNode|ensureAvailableSpawn|relevelLegacySpawns)\b/)).toEqual([]);
+    // Built from parts so a repo-wide grep for the retired names finds nothing, this file included.
+    const retired = ['spawn' + 'ResourceNode', 'ensure' + 'AvailableSpawn', 'relevel' + 'LegacySpawns'];
+    expect(hits(files, new RegExp(`\\b(${retired.join('|')})\\b`))).toEqual([]);
   });
 
   it('the client calls none of the retired reducers', () => {

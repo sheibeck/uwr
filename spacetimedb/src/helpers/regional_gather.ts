@@ -1,7 +1,7 @@
 // A region's AI gatherables in the resource node pool (Phase 51.3 Plan 07, CONTEXT Area 3).
 //
 // The economy design for a region tags its generated gatherable item templates in economy_item with
-// role 'gather', a terrain and a time of day. spawnResourceNode adds them to the pool of a location in
+// role 'gather', a terrain and a time of day. The resource pools (Phase 51.3.1.1) add them to the gather table of a location in
 // that region whose terrain matches, next to today's terrain gatherables, MATERIAL_DEFS and reagents,
 // which stay as they are. Resolution is by item template id through economy_item, never by name, so a
 // same-named template cannot take a generated one's place. Another region's rows are never read.

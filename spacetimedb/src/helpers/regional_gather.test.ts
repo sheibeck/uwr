@@ -6,7 +6,6 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createMockCtx } from './test-utils';
-import { DEFAULT_DIALS, gatherYield } from '../data/economy_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('./schema_recorder')).createRecordingServerMock(),
@@ -130,86 +129,6 @@ describe('getGatherableResourceTemplates with a region', () => {
   });
 });
 
-describe('spawnResourceNode', () => {
-  it('can create a node for a regional gatherable at a region-1 swamp location, never for another region', () => {
-    const ctx = ctxFor();
-    const made = new Set<bigint>();
-    for (let offset = 0n; offset < 120n; offset += 1n) {
-      const node = location.spawnResourceNode(ctx, 10n, undefined, offset);
-      if (node) made.add(node.itemTemplateId);
-    }
-    expect(made.has(50n) || made.has(51n)).toBe(true);
-    expect(made.has(1n)).toBe(true);
-    for (const never of [52n, 53n, 60n, 61n]) expect(made.has(never)).toBe(false);
-  });
-
-  // Review A WR-04: an admin item pin scales a node's weight in the spawn pool (0 = never).
-  it('an item pinned at 0 never spawns as a node; the rest still do', () => {
-    const seed = world();
-    seed.economy_item_dial = [
-      { itemTemplateId: 50n, dropRatePct: 0n },
-      { itemTemplateId: 1n, dropRatePct: 0n },
-    ];
-    const ctx = ctxFor(seed);
-    const made = new Set<bigint>();
-    for (let offset = 0n; offset < 200n; offset += 1n) {
-      const node = location.spawnResourceNode(ctx, 10n, undefined, offset);
-      if (node) made.add(node.itemTemplateId);
-    }
-    expect(made.has(50n)).toBe(false);
-    expect(made.has(1n)).toBe(false);
-    expect(made.has(51n)).toBe(true);
-  });
-
-  it('a pool whose every entry is pinned at 0 spawns nothing and never throws', () => {
-    const seed = world();
-    const ctx0 = ctxFor(seed);
-    const ids = location.getGatherableResourceTemplates(ctx0, 'swamp', 'day', 1, 1n).map((e: any) => e.template.id as bigint);
-    seed.economy_item_dial = ids.map((id: bigint) => ({ itemTemplateId: id, dropRatePct: 0n }));
-    const ctx = ctxFor(seed);
-    expect(location.spawnResourceNode(ctx, 10n, undefined, 0n)).toBeUndefined();
-  });
-
-  // Review A WR-06: the gather dial applies when the node is found and is stored on it.
-  it('stores the quantity scaled by the gather dial at spawn', () => {
-    const plain = ctxFor(world());
-    const seed = world();
-    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, gatherRatePct: 300n }];
-    const tripled = ctxFor(seed);
-    let compared = 0;
-    for (let offset = 0n; offset < 60n; offset += 1n) {
-      const a = location.spawnResourceNode(plain, 10n, undefined, offset);
-      const b = location.spawnResourceNode(tripled, 10n, undefined, offset);
-      expect(b.itemTemplateId).toBe(a.itemTemplateId);
-      expect(a.quantity >= 2n && a.quantity <= 6n).toBe(true);
-      expect(b.quantity).toBe(gatherYield(a.quantity, 300n));
-      compared += 1;
-    }
-    expect(compared).toBe(60);
-  });
-
-  it('a region override of the gather dial applies at spawn, never below 1', () => {
-    const seed = world();
-    seed.economy_dials = [{ id: 1n, ...DEFAULT_DIALS, gatherRatePct: 300n }];
-    seed.economy_region_dial = [{ regionId: 1n, gatherRatePct: 50n }];
-    const ctx = ctxFor(seed);
-    const plain = ctxFor(world());
-    for (let offset = 0n; offset < 30n; offset += 1n) {
-      const a = location.spawnResourceNode(plain, 10n, undefined, offset);
-      const b = location.spawnResourceNode(ctx, 10n, undefined, offset);
-      expect(b.quantity).toBe(gatherYield(a.quantity, 50n));
-      expect(b.quantity >= 1n).toBe(true);
-    }
-  });
-
-  it('at a region-2 swamp location only region 2 gatherables join the pool', () => {
-    const ctx = ctxFor();
-    const made = new Set<bigint>();
-    for (let offset = 0n; offset < 120n; offset += 1n) {
-      const node = location.spawnResourceNode(ctx, 20n, undefined, offset);
-      if (node) made.add(node.itemTemplateId);
-    }
-    expect(made.has(60n)).toBe(true);
-    for (const never of [50n, 51n, 52n, 53n]) expect(made.has(never)).toBe(false);
-  });
-});
+// The resource node spawner was retired in Phase 51.3.1.1 Plan 27: regional gatherables now
+// reach players through the resource pools (helpers/families.ts seedResourcePools), which read the
+// same getGatherableResourceTemplates table tested above.

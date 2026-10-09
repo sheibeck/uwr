@@ -1,8 +1,9 @@
 /**
  * Code review CR-02 (Phase 51.1): offline party members are never pulled into a fight, on EVERY
  * fight-start path, not only start_combat. Runs the real handlers captured from index.ts on the
- * strict mock db for the three paths the review found (the gathering ambush, the quest-item aggro
- * and pull_named_enemy).
+ * strict mock db for the paths the review found (the quest-item aggro and pull_named_enemy). The node
+ * gathering ambush left with start_gather_resource (Phase 51.3.1.1 Plan 27); the pool gather ambush
+ * goes through startPoolFight to startCombat, whose roster rule is the startCombat block below.
  *
  * Group 5: Mirel (1, the initiator), Bran (2, online, same place), Cora (3, OFFLINE, same place),
  * Dax (4, online, another place). Every fight must hold exactly Mirel and Bran.
@@ -22,7 +23,7 @@ const alice = { toHexString: () => 'a'.repeat(64) };
 const handlers: Record<string, (...args: any[]) => any> = {};
 beforeAll(async () => {
   await import('../index');
-  for (const name of ['start_gather_resource', 'loot_quest_item', 'pull_named_enemy']) {
+  for (const name of ['loot_quest_item', 'pull_named_enemy']) {
     const h = capturedReducer(name);
     if (typeof h !== 'function') {
       throw new Error(`capturedReducer('${name}') is not a function: STOP and report; never edit production code to fix this.`);
@@ -124,16 +125,6 @@ function expectOnlyMirelAndBran(ctx: any) {
 }
 
 describe('offline members are never pulled into a fight (code review CR-02)', () => {
-  it('the gathering ambush pulls only online members at the place', () => {
-    // The ambush roll is (timestamp + characterId) % 100; T0 is a multiple of 100, so T0 rolls 1 (< 20).
-    const ctx = newCtx(T0);
-    handlers.start_gather_resource(ctx, { characterId: 1n, nodeId: 70n });
-    expect(rows(ctx, 'event_private').map((e) => e.message)).toContain(
-      'As you reach for Copper Vein, Cave Rat notices you and attacks!',
-    );
-    expectOnlyMirelAndBran(ctx);
-  });
-
   it('the quest-item aggro pulls only online members at the place', () => {
     // Phase 51.3.1.1 Plan 11: the aggro is the seeded pool roll (helpers/encounters.ts) over the Cave
     // Rat pool that ensurePoolsForLocation builds here; questAggroTs() is a timestamp where it hits.
@@ -169,7 +160,6 @@ describe('a member already in another fight is not pulled in (review 2 IN-04)', 
       .map((p) => p.characterId);
 
   const PATHS = [
-    ['the gathering ambush', () => T0, (ctx: any) => handlers.start_gather_resource(ctx, { characterId: 1n, nodeId: 70n })],
     ['the quest-item aggro', () => questAggroTs(), (ctx: any) => handlers.loot_quest_item(ctx, { characterId: 1n, questItemId: 71n })],
     ['pull_named_enemy', () => T0 + 7n, (ctx: any) => handlers.pull_named_enemy(ctx, { characterId: 1n, namedEnemyId: 99n })],
   ] as const;

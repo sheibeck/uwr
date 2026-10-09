@@ -55,7 +55,8 @@ export const DENSITY_RULES = deepFreeze({
   WIPED_RETURN_COUNT: 20n, // D-37: then returns Scarce at this count
   RESOURCE_REGROW_MICROS_PER_POINT: 216_000_000n, // D-28: resources regrow over hours, no long reset
   GATHER_DEPLETION_POINTS: 17n, // D-38: about two gathers drop a level
-  YIELD_BY_LEVEL: { 0: 0n, 1: 1n, 2: 2n, 3: 3n } as Record<number, bigint>, // D-38: gather yield by density
+  YIELD_BY_LEVEL: { 0: 0n, 1: 1n, 2: 1n, 3: 1n } as Record<number, bigint>, // D-72 (supersedes D-38's 1/2/3): one per gather at any non-zero density; density sets how many gathers a place supports
+  GATHER_YIELD_MULTIPLIER: 1n, // D-72: times the base yield; the Phase 52.5 admin dial (default x1)
   HARVEST_CAP_GATHERS: 4n, // D-27: gathers per player per place per window
   HARVEST_WINDOW_MICROS: 1_800_000_000n, // D-28: the harvest window (30 minutes)
 
@@ -509,9 +510,13 @@ export function settleCount(p: SettleInput, now: bigint): SettleResult {
 // Gather yield and the harvest window (D-27, D-28, D-38)
 // ---------------------------------------------------------------------------
 
-/** Items one gather yields at a resource pool's density level (D-38). */
-export function yieldForLevel(level: number): bigint {
-  return DENSITY_RULES.YIELD_BY_LEVEL[levelKey(level)] ?? 0n;
+/**
+ * Items one gather yields at a resource pool's density level (D-72): 1 at any non-zero level, 0 at
+ * level 0, times GATHER_YIELD_MULTIPLIER (default 1; pass another multiplier only in tests or the
+ * future Phase 52.5 dial). Gather perks and racial bonuses add on top in finish_gather.
+ */
+export function yieldForLevel(level: number, multiplier: bigint = DENSITY_RULES.GATHER_YIELD_MULTIPLIER): bigint {
+  return (DENSITY_RULES.YIELD_BY_LEVEL[levelKey(level)] ?? 0n) * multiplier;
 }
 
 export interface HarvestState {

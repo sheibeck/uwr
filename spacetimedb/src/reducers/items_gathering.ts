@@ -1,13 +1,12 @@
 import { scheduledReducers } from '../schema/tables';
 import { getPerkBonusByField } from '../helpers/renown';
-import { getGroupOrSoloParticipants } from '../helpers/group';
 import { CRAFTING_MODIFIER_DEFS } from '../data/crafting_rules';
 import { DENSITY_RULES, countToLevel, yieldForLevel } from '../data/density_rules';
 import { exhaustedRefusal, gatherResult, lastGatherLine, placeNounFor } from '../data/density_lines';
 import { gatherYield } from '../data/economy_rules';
 import { loadEffectiveDials } from '../helpers/economy_state';
 import { applyDepletion, settlePool } from '../helpers/pools';
-import { gatherDurationMicros, recordHarvest } from '../helpers/harvest';
+import { recordHarvest } from '../helpers/harvest';
 
 const isModifierReagent = (name: string): boolean => CRAFTING_MODIFIER_DEFS.some((d) => d.name === name);
 
@@ -49,133 +48,26 @@ function applyGatherBonuses(ctx: any, character: any, quantity: bigint, seedId: 
 export const registerItemGatheringReducers = (deps: any) => {
   const {
     spacetimedb,
-    t,
-    ScheduleAt,
-    requireCharacterOwnedBy,
     appendPrivateEvent,
     addItemToInventory,
     activeCombatIdForCharacter,
     logPrivateAndGroup,
-    startCombatForSpawn,
-    effectiveGroupId,
     ResourceGatherTick,
-    fail,
   } = deps;
 
-  const failItem = (ctx: any, character: any, message: string) =>
-    fail(ctx, character, message, 'system');
-
-  // Gathering aggro tuning (percent chance).
-  // Base chance applies at dangerMultiplier 100. Each +100 danger adds per-step.
-  const GATHER_AGGRO_BASE_CHANCE = 20;
-  const GATHER_AGGRO_PER_DANGER_STEP = 5;
-  const GATHER_AGGRO_MAX_CHANCE = 45;
-
+  // A legacy node with no stored quantity yields today's 2 to 6 roll (finish_gather's node branch).
   const RESOURCE_GATHER_MIN_QTY = 2n;
   const RESOURCE_GATHER_MAX_QTY = 6n;
 
-  // Demo flow: gather_resources -> research_recipes -> craft_recipe -> use_item (Bandage).
-  spacetimedb.reducer(
-    'start_gather_resource',
-    { characterId: t.u64(), nodeId: t.u64() },
-    (ctx, args) => {
-      const character = requireCharacterOwnedBy(ctx, args.characterId);
-      if (activeCombatIdForCharacter(ctx, character.id)) {
-        return failItem(ctx, character, 'Cannot gather during combat');
-      }
-      const node = ctx.db.resource_node.id.find(args.nodeId);
-      if (!node) return failItem(ctx, character, 'Resource not found');
-      if (node.locationId !== character.locationId) {
-        return failItem(ctx, character, 'Resource is not here');
-      }
-      if (node.state !== 'available') {
-        return failItem(ctx, character, 'Resource is not available');
-      }
-      for (const gather of ctx.db.resource_gather.by_character.filter(character.id)) {
-        return failItem(ctx, character, 'Already gathering');
-      }
-
-      const location = ctx.db.location.id.find(character.locationId);
-      const region = location ? ctx.db.region.id.find(location.regionId) : null;
-      if (location && !location.isSafe) {
-        const availableSpawns = [
-          ...ctx.db.enemy_spawn.by_location.filter(character.locationId),
-        ].filter((row) => {
-          if (row.state !== 'available') return false;
-          if (row.groupCount > 0n) return true;
-          return ctx.db.enemy_spawn_member.by_spawn.filter(row.id).length > 0;
-        });
-        if (availableSpawns.length > 0) {
-          const danger = Number(region?.dangerMultiplier ?? 100n);
-          const dangerSteps = Math.max(0, Math.floor((danger - 100) / 100));
-          const aggroChance = Math.min(
-            GATHER_AGGRO_MAX_CHANCE,
-            GATHER_AGGRO_BASE_CHANCE + dangerSteps * GATHER_AGGRO_PER_DANGER_STEP
-          );
-          const roll = Number(
-            (ctx.timestamp.microsSinceUnixEpoch + character.id) % 100n
-          );
-          if (roll < aggroChance) {
-            const spawnIndex = Number(
-              (ctx.timestamp.microsSinceUnixEpoch + node.id) %
-              BigInt(availableSpawns.length)
-            );
-            const spawnToUse = availableSpawns[spawnIndex] ?? availableSpawns[0];
-            // Same fight rule as start_combat: offline members are never pulled in (CR-02).
-            const participants = getGroupOrSoloParticipants(ctx, character);
-            appendPrivateEvent(
-              ctx,
-              character.id,
-              character.ownerUserId,
-              'system',
-              `As you reach for ${node.name}, ${spawnToUse.name} notices you and attacks!`
-            );
-            startCombatForSpawn(
-              ctx,
-              character,
-              spawnToUse,
-              participants,
-              effectiveGroupId(character)
-            );
-            return;
-          }
-        }
-      }
-
-      const endsAt = ctx.timestamp.microsSinceUnixEpoch + gatherDurationMicros(ctx, character);
-      ctx.db.resource_node.id.update({
-        ...node,
-        state: 'harvesting',
-        lockedByCharacterId: character.id,
-      });
-      const gather = ctx.db.resource_gather.insert({
-        id: 0n,
-        characterId: character.id,
-        nodeId: node.id,
-        endsAtMicros: endsAt,
-        poolId: 0n,
-      });
-      ctx.db.resource_gather_tick.insert({
-        scheduledId: 0n,
-        scheduledAt: ScheduleAt.time(endsAt),
-        gatherId: gather.id,
-      });
-      logPrivateAndGroup(
-        ctx,
-        character,
-        'system',
-        `You begin gathering ${node.name}.`,
-        `${character.name} begins gathering ${node.name}.`
-      );
-    }
-  );
+  // start_gather_resource and its spawn-based ambush are retired (Phase 51.3.1.1 Plan 27): gathering is
+  // gather_pool (reducers/pools.ts). finish_gather keeps its legacy node branch, which drains old rows.
 
   /**
    * The pool path of finish_gather (Phase 51.3.1.1, D-26, D-27, D-38): the gather row goes first; a
    * character who left the pool's place or is fighting gets nothing. The pool is settled, and an
-   * Exhausted pool prints the exhausted line and pays nothing. Otherwise the yield is the pool's
-   * density level at the finish (YIELD_BY_LEVEL: Abundant 3, Plentiful 2, Sparse 1), then the 51.3
-   * gather dial of the pool's region (gatherYield), then the perk and racial bonuses; a modifier
+   * Exhausted pool prints the exhausted line and pays nothing. Otherwise the yield is one at any
+   * non-zero density (yieldForLevel, D-72, times the named multiplier), then the 51.3 gather dial of
+   * the pool's region (gatherYield), then the perk and racial bonuses; a modifier
    * reagent yields exactly 1. The pool loses GATHER_DEPLETION_POINTS (shared by every gatherer), the
    * player's harvest is recorded (the per-player cap), and the gather that empties the pool adds the
    * last-gather line.
@@ -257,7 +149,7 @@ export const registerItemGatheringReducers = (deps: any) => {
         quantity = 1n;
       } else if (typeof node.quantity === 'bigint' && node.quantity > 0n) {
         // Phase 51.3 review A WR-06: the node keeps the quantity it was found with. The gather dial was
-        // applied when the node spawned (spawnResourceNode), so a dial change after that, or while this
+        // applied when the node spawned (the retired node spawner), so a dial change after that, or while this
         // gather was in flight, never changes the yield (CONTEXT Area 1: nodes already found keep their rolls).
         quantity = node.quantity;
       } else {

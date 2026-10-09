@@ -2,7 +2,7 @@
  * Phase 51.3 Plan 07 (SC2, SC5), review A WR-06: the REAL finish_gather scheduled reducer, captured
  * from index.ts on the strict mock db. CONTEXT Area 1: "a dial change takes effect on the next roll
  * only. Loot already dropped and nodes already found keep their rolls." The gather dial therefore
- * applies when a node is spawned (helpers/location.ts spawnResourceNode stores the scaled quantity),
+ * applied when a node was spawned (the node spawner, retired in Phase 51.3.1.1 Plan 27, stored the scaled quantity),
  * and finish_gather yields the node's stored quantity before the perk bonuses, whatever the dial says
  * by then. A modifier reagent node still yields exactly 1; a node with no stored quantity falls back
  * to today's 2 to 6 roll.
@@ -137,8 +137,8 @@ describe('a modifier reagent still yields exactly 1', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 51.3.1.1 Plan 12 (D-38): the pool path. A pool gather (poolId > 0) yields by the pool's
-// density level at the finish (YIELD_BY_LEVEL), then the 51.3 gather dial (gatherYield, the region's
+// Phase 51.3.1.1 Plan 12 (D-38), Plan 27 (D-72): the pool path. A pool gather (poolId > 0) yields one
+// at any non-zero density level at the finish (yieldForLevel), then the 51.3 gather dial (gatherYield, the region's
 // effective gatherRatePct), then the same perk and racial bonuses as the node path. A modifier
 // reagent still yields exactly 1.
 // ---------------------------------------------------------------------------
@@ -172,13 +172,13 @@ const ownBag = (ctx: any, templateId: bigint): bigint =>
     .filter((r: any) => r.ownerCharacterId === 1n && r.templateId === templateId)
     .reduce((n: bigint, r: any) => n + (r.quantity ?? 1n), 0n);
 
-describe('the pool path: density yield, then the gather dial (Phase 51.3.1.1 D-38)', () => {
+describe('the pool path: one per gather, then the gather dial (Phase 51.3.1.1 D-72)', () => {
   const cases: [bigint, bigint | undefined, bigint][] = [
-    [66n, undefined, 2n], // Plentiful, no dial row (default 100)
-    [66n, 100n, 2n],
-    [66n, 200n, 4n], // the dial doubles the density yield
-    [100n, 300n, 9n], // Abundant x3, then x3
-    [100n, 50n, 1n], // 3 * 50% = 1 (rounded down)
+    [66n, undefined, 1n], // Plentiful, no dial row (default 100): one per gather (D-72)
+    [66n, 100n, 1n],
+    [66n, 200n, 2n], // the dial doubles the one
+    [100n, 300n, 3n], // Abundant is still one, then x3
+    [100n, 50n, 1n], // never below 1
     [20n, 50n, 1n], // Sparse never drops below 1
   ];
   for (const [count, dial, want] of cases) {
@@ -192,13 +192,13 @@ describe('the pool path: density yield, then the gather dial (Phase 51.3.1.1 D-3
   it('the region override is the effective dial', () => {
     const { ctx, gatherId } = poolGatherCtx({ count: 66n, dial: 100n, regionDial: 300n });
     finish(ctx, { arg: { scheduledId: 1n, gatherId } });
-    expect(ownBag(ctx, IRON_ORE_ID)).toBe(6n);
+    expect(ownBag(ctx, IRON_ORE_ID)).toBe(3n);
   });
 
   it('the racial bonus still applies after the dial', () => {
     const { ctx, gatherId } = poolGatherCtx({ count: 66n, dial: 200n, racialLootBonus: 100n });
     finish(ctx, { arg: { scheduledId: 1n, gatherId } });
-    expect(ownBag(ctx, IRON_ORE_ID)).toBe(5n);
+    expect(ownBag(ctx, IRON_ORE_ID)).toBe(3n); // 1 x 2 (dial) + 1 (racial: bonuses still add, D-72)
   });
 
   for (const pct of [50n, 100n, 300n]) {

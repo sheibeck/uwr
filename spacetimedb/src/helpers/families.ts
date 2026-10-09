@@ -6,7 +6,7 @@
 //   - isOrdinaryTemplate / familiesFromTemplates: today's enemy types grouped into families by rule;
 //   - seedCreaturePools / seedResourcePools / addResourcePoolsForRegion: pools at a place, with home
 //     densities set by rule only (the AI never sets a number, D-46);
-//   - ensurePoolsForLocation: the lazy safety net that replaces ensureSpawnsForLocation (Plan 08);
+//   - ensurePoolsForLocation: the lazy safety net that replaced the standing spawns (Plan 08);
 //   - buildRegionFamilies (with ruleRelations, familyFitPlaces, linkFamilyToPlaces, seedRegionPools):
 //     a freshly filled region's families and pools by rule (Plan 09);
 //   - familyOfOne: a pool of its own for an AI-invented quest kill target (D-54);
@@ -430,7 +430,7 @@ export function resourceRarity(ctx: any, template: any): string {
   return 'common';
 }
 
-/** The zone tier of a region's gather table, as spawnResourceNode computes it. */
+/** The zone tier of a region's gather table, as the old resource node spawner computed it. */
 function zoneTierFor(ctx: any, regionId: bigint): number {
   const dm: bigint = ctx.db.region.id.find(regionId)?.dangerMultiplier ?? 100n;
   return dm < 130n ? 1 : dm < 190n ? 2 : 3;
@@ -674,7 +674,7 @@ function isQuestFamily(family: any): boolean {
 }
 
 /**
- * The lazy safety net and the new body of every former ensureSpawnsForLocation call (Plan 08).
+ * The lazy safety net and the new body of every former standing-spawn arrival call (Plan 08).
  * Uncharted or missing places are left alone. When the place already has a resource pool and (a
  * creature pool, or it hosts no creatures) it returns after one index lookup. Otherwise:
  *   - resource pools are seeded when the place has none;

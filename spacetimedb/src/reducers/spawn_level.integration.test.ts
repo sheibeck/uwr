@@ -208,7 +208,8 @@ describe('every insert writes a level (source scan)', () => {
 
   it('enemy_spawn.insert sites all carry a level key', () => {
     const sites = literals('enemy_spawn.insert(');
-    expect(sites.length).toBeGreaterThanOrEqual(3);
+    // Two sites since Phase 51.3.1.1 Plan 27 retired spawnEnemy: spawnEnemyWithTemplate and World events.
+    expect(sites.length).toBeGreaterThanOrEqual(2);
     for (const site of sites) expect(site).toMatch(/\blevel\b/);
   });
 

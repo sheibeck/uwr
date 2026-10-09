@@ -187,10 +187,8 @@ import {
 import {
   DAY_DURATION_MICROS,
   NIGHT_DURATION_MICROS,
-  DEFAULT_LOCATION_SPAWNS,
   RESOURCE_GATHER_CAST_MICROS,
   getGatherableResourceTemplates,
-  spawnResourceNode,
   computeLocationTargetLevel,
   getWorldState,
   isNightTime,
@@ -201,9 +199,7 @@ import {
   pickRoleTemplate,
   seedSpawnMembers,
   refreshSpawnGroupCount,
-  spawnEnemy,
   spawnEnemyWithTemplate,
-  ensureAvailableSpawn,
 } from './helpers/location';
 import { ensurePoolsForLocation } from './helpers/families';
 import { ensureLocationRuntimeBootstrap } from './helpers/world_gen';
@@ -843,7 +839,6 @@ const reducerDeps = {
   appendPrivateAndGroupEvent,
   appendLocationEvent,
   ensurePoolsForLocation,
-  ensureAvailableSpawn,
   computeEnemyStats,
   activeCombatIdForCharacter,
   recomputeCharacterDerived,
@@ -867,7 +862,6 @@ const reducerDeps = {
   sumEnemyEffect,
   applyArmorMitigation,
   applyVariance,
-  spawnEnemy,
   spawnEnemyWithTemplate,
   getEquippedWeaponStats,
   addItemToInventory,
@@ -877,7 +871,6 @@ const reducerDeps = {
   ensureStarterItemTemplates,
   ensureLocationRuntimeBootstrap,
   initScheduledTables,
-  spawnResourceNode,
   awardXp,
   xpRequiredForLevel,
   MAX_LEVEL,

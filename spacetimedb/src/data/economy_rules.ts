@@ -489,7 +489,7 @@ export function scaledChancePct(basePct: bigint, dropPct: bigint): bigint {
   return raw > 100n ? 100n : raw;
 }
 
-/** The material tier a zone supports, from its danger multiplier (the spawnResourceNode rule): below 130 is 1, below 190 is 2, else 3. */
+/** The material tier a zone supports, from its danger multiplier (the old resource node rule): below 130 is 1, below 190 is 2, else 3. */
 export function zoneTierOf(dangerMultiplier: bigint): bigint {
   if (dangerMultiplier < 130n) return 1n;
   if (dangerMultiplier < 190n) return 2n;
