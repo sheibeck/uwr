@@ -1091,6 +1091,23 @@ describe('Resources group (UI Q3)', () => {
     expect(busy.get('.card-reason').text()).toBe('Finish gathering first.');
   });
 
+  it('a gather in progress disables Pull and Fight with the same visible reason, and sends nothing (review C IN-04)', async () => {
+    const { w, calls } = mountList(
+      poolsGame({ gathers: ref([{ id: 1n, characterId: 1n, nodeId: 0n, endsAtMicros: 0n, poolId: 3n }]) }),
+    );
+    for (const group of ['Creatures', 'Named & quest targets']) {
+      for (const card of groupNamed(w, group).findAll('.pool-card')) {
+        const button = card.find('button');
+        if (!button.exists()) continue;
+        expect(button.attributes('aria-disabled')).toBe('true');
+        expect(card.get('.card-reason').text()).toBe('Finish gathering first.');
+        await button.trigger('click');
+      }
+    }
+    expect(calls.pull).not.toHaveBeenCalled();
+    expect(calls.fight).not.toHaveBeenCalled();
+  });
+
   it('an expired cap does not disable Gather', () => {
     const { w } = mountList(poolsGame({ harvestCaps: ref([{ id: 1n, locationId: 11n, cappedUntilMicros: 1n }]) }));
     expect(w.get('[aria-label="Gather Panlight Salt"]').attributes('aria-disabled')).toBeUndefined();

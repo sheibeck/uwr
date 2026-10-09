@@ -240,6 +240,42 @@ describe('resource card', () => {
   });
 });
 
+describe('a gather in progress blocks Pull and Fight (review C IN-04)', () => {
+  const BUSY = 'Finish gathering first.';
+
+  it('a family card shows the visible reason, aria-disabled, described by it, and emits nothing', async () => {
+    const w = mountCard({ variant: 'family', row: family(), blockedReason: BUSY });
+    expect(w.get('.card-reason').text()).toBe(BUSY);
+    const button = w.get('button');
+    expect(button.attributes('aria-disabled')).toBe('true');
+    expect(describedText(w, button)).toContain(BUSY);
+    await button.trigger('click');
+    expect(w.emitted('act')).toBeUndefined();
+  });
+
+  it('a named card shows the visible reason under its sub-line and Fight is aria-disabled', async () => {
+    const w = mountCard({ variant: 'named', row: named(), blockedReason: BUSY });
+    expect(w.get('.card-reason').text()).toBe(BUSY);
+    const button = w.get('button');
+    expect(button.attributes('aria-disabled')).toBe('true');
+    expect(describedText(w, button)).toEqual(['Named · Lv 7', BUSY]);
+    await button.trigger('click');
+    expect(w.emitted('act')).toBeUndefined();
+  });
+
+  it('a card with no button shows no reason (wiped-out family, slain named)', () => {
+    expect(mountCard({ variant: 'family', row: family({ level: 0n }), blockedReason: BUSY }).find('.card-reason').exists()).toBe(false);
+    wrapper?.unmount();
+    expect(mountCard({ variant: 'named', row: named(false), blockedReason: BUSY }).find('.card-reason').exists()).toBe(false);
+  });
+
+  it('no block: no reason and the button is live', () => {
+    const w = mountCard({ variant: 'family', row: family(), blockedReason: null });
+    expect(w.find('.card-reason').exists()).toBe(false);
+    expect(w.get('button').attributes('aria-disabled')).toBeUndefined();
+  });
+});
+
 describe('accessibility and privacy', () => {
   it('no card nests a button and each holds at most one', () => {
     for (const props of [

@@ -25,6 +25,12 @@ const props = defineProps<{
   offline?: boolean;
   /** The call is pending: the button is inert with aria-busy. */
   busy?: boolean;
+  /**
+   * A block the list predicts for Pull and Fight (a gather in progress, GATHER_BUSY_REASON; review C
+   * IN-04): the button is aria-disabled and the reason shows as visible text, as on the resource
+   * cards. Resource cards carry their own reason and ignore this.
+   */
+  blockedReason?: string | null;
 }>();
 
 const emit = defineEmits<{ act: [] }>();
@@ -59,12 +65,25 @@ const badge = computed(() => {
 
 const line = computed(() => family.value?.line ?? resource.value?.line ?? '');
 const hint = computed(() => family.value?.hint ?? '');
-const reason = computed(() => resource.value?.reason ?? null);
+// The predicted block of a family or named card shows only where the card has a button.
+const predicted = computed(() => {
+  if (resource.value) return null;
+  const blocked = props.blockedReason ?? null;
+  if (blocked === null) return null;
+  if (family.value) return family.value.pullable ? blocked : null;
+  return named.value !== null && named.value.state !== 'slain' ? blocked : null;
+});
+const reason = computed(() => resource.value?.reason ?? predicted.value);
 
 const action = computed<{ label: string; name: string; icon: Component; blocked: boolean } | null>(() => {
   if (family.value) {
     if (!family.value.pullable) return null;
-    return { label: NEARBY_COPY.actions.pull, name: family.value.pullLabel, icon: PhTarget, blocked: false };
+    return {
+      label: NEARBY_COPY.actions.pull,
+      name: family.value.pullLabel,
+      icon: PhTarget,
+      blocked: predicted.value !== null,
+    };
   }
   if (named.value) {
     if (named.value.state === 'slain') return null;
@@ -72,7 +91,7 @@ const action = computed<{ label: string; name: string; icon: Component; blocked:
       label: NEARBY_COPY.actions.fight,
       name: named.value.fightLabel,
       icon: PhSword,
-      blocked: !named.value.fightable,
+      blocked: !named.value.fightable || predicted.value !== null,
     };
   }
   if (resource.value) {
@@ -90,7 +109,7 @@ const action = computed<{ label: string; name: string; icon: Component; blocked:
 const disabled = computed(() => props.offline === true || action.value?.blocked === true);
 
 const describedBy = computed(() => {
-  if (named.value) return subId;
+  if (named.value) return reason.value === null ? subId : `${subId} ${reasonId}`;
   const ids = [lineId];
   if (hint.value !== '') ids.push(hintId);
   if (reason.value !== null) ids.push(reasonId);
@@ -110,6 +129,7 @@ function act(): void {
       <div class="card-col">
         <span class="card-name" :class="conClass" :title="named.title">{{ named.name }}</span>
         <span :id="subId" class="card-sub" :title="named.subLine">{{ named.subLine }}</span>
+        <span v-if="reason !== null" :id="reasonId" class="card-reason">{{ reason }}</span>
       </div>
       <button
         v-if="action"

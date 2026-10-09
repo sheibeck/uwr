@@ -28,7 +28,7 @@ import type { NearbyKind, NearbyRow } from './nearby';
 import CharacterName from '../social/CharacterName.vue';
 import PlayerMenu from '../social/PlayerMenu.vue';
 import PoolCard from './PoolCard.vue';
-import { NEARBY_COPY, familyRows, namedRows, nearbyGroups, resourceRows } from './pools';
+import { GATHER_BUSY_REASON, NEARBY_COPY, familyRows, namedRows, nearbyGroups, resourceRows } from './pools';
 import type { FamilyRow, NamedPlace, NamedRow, QuestTargetLike, ResourceRow } from './pools';
 import { placeTargetLevel } from './levelRange';
 
@@ -194,12 +194,17 @@ const named = computed(() => {
   );
 });
 
+// A gather in progress: the server refuses a pull, a spawn fight and a second gather (review C IN-04),
+// so Pull, Fight and Gather all show the same visible reason.
+const gathering = computed(() => game.gathers.value.length > 0);
+const gatherBlock = computed(() => (gathering.value ? GATHER_BUSY_REASON : null));
+
 const resources = computed(() =>
   resourceRows(
     game.poolLevelsHere.value,
     isNight.value,
     game.harvestCaps.value,
-    game.gathers.value.length > 0,
+    gathering.value,
     nowMicros.value,
     placeNoun.value,
   ),
@@ -230,12 +235,12 @@ const gatherKey = (row: ResourceRow): string => `gather-${row.poolId}`;
 // rejection (the send error line), and nothing changes optimistically. The server's results and
 // refusals arrive as feed lines and row updates.
 function pull(row: FamilyRow): void {
-  if (!connected.value || !row.pullable) return;
+  if (!connected.value || !row.pullable || gathering.value) return;
   void runner.run(pullKey(row), async () => consoleApi.pull({ id: row.poolId, name: row.name }));
 }
 
 function fight(row: NamedRow): void {
-  if (!connected.value || !row.fightable) return;
+  if (!connected.value || !row.fightable || gathering.value) return;
   void runner.run(fightKey(row), async () => consoleApi.fight({ kind: row.kind, id: row.id, name: row.name }));
 }
 
@@ -423,6 +428,7 @@ async function bind(): Promise<void> {
             variant="family"
             :row="row"
             :offline="!connected"
+            :blocked-reason="gatherBlock"
             :busy="runner.isPending(pullKey(row))"
             @act="pull(row)"
           />
@@ -438,6 +444,7 @@ async function bind(): Promise<void> {
             variant="named"
             :row="row"
             :offline="!connected"
+            :blocked-reason="gatherBlock"
             :busy="runner.isPending(fightKey(row))"
             @act="fight(row)"
           />
