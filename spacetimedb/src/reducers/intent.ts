@@ -643,7 +643,7 @@ export const registerIntentReducers = (deps: any) => {
       if (match) {
         // Same pickup as the loot_quest_item reducer (looted, quest completed, messages, 30% aggro roll)
         pickUpQuestItem(ctx, character, match, appendPrivateEvent, {
-          ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
+          ensurePoolsForLocation: deps.ensurePoolsForLocation,
           effectiveGroupId: deps.effectiveGroupId,
           startCombatForSpawn: deps.startCombatForSpawn,
         });
@@ -1460,7 +1460,7 @@ export const registerIntentReducers = (deps: any) => {
         appendGroupEvent: deps.appendGroupEvent,
         areLocationsConnected,
         activeCombatIdForCharacter,
-        ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
+        ensurePoolsForLocation: deps.ensurePoolsForLocation,
         isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
         effectiveGroupId: deps.effectiveGroupId,
       }, character, matchedLocation.id);
@@ -1645,7 +1645,7 @@ export const registerIntentReducers = (deps: any) => {
         appendGroupEvent: deps.appendGroupEvent,
         areLocationsConnected,
         activeCombatIdForCharacter,
-        ensureSpawnsForLocation: deps.ensureSpawnsForLocation,
+        ensurePoolsForLocation: deps.ensurePoolsForLocation,
         isGroupLeaderOrSolo: deps.isGroupLeaderOrSolo,
         effectiveGroupId: deps.effectiveGroupId,
       }, character, implicitDest.id);

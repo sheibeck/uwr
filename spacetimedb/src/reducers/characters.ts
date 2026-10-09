@@ -18,7 +18,7 @@ export const registerCharacterReducers = (deps: any) => {
     appendGroupEvent,
     appendLocationEvent,
     campCharacter,
-    ensureSpawnsForLocation,
+    ensurePoolsForLocation,
     recomputeCharacterDerived,
     ScheduleAt,
     CharacterLogoutTick,
@@ -109,7 +109,7 @@ export const registerCharacterReducers = (deps: any) => {
       `${character.name} steps into the area.`,
       character.id
     );
-    ensureSpawnsForLocation(ctx, character.locationId);
+    ensurePoolsForLocation(ctx, character.locationId);
 
     // Online status (51.1): the last character-row writes of the reducer (research Pitfall 1).
     // The previous character goes offline unless another session still holds it.

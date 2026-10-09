@@ -399,7 +399,7 @@ export function pickUpQuestItem(
   character: any,
   questItem: any,
   appendPrivateEvent: any,
-  aggro: { ensureSpawnsForLocation: any; effectiveGroupId: any; startCombatForSpawn: any },
+  aggro: { ensurePoolsForLocation: any; effectiveGroupId: any; startCombatForSpawn: any },
 ): void {
   ctx.db.quest_item.id.update({ ...questItem, looted: true });
 
@@ -433,7 +433,7 @@ export function pickUpQuestItem(
   const roll = (BigInt(character.id) ^ ctx.timestamp.microsSinceUnixEpoch) % 100n;
   if (roll < 30n) {
     try {
-      aggro.ensureSpawnsForLocation(ctx, character.locationId);
+      aggro.ensurePoolsForLocation(ctx, character.locationId);
       // Find an available spawn at the character's location
       let availableSpawn: any = null;
       for (const spawn of ctx.db.enemy_spawn.by_location.filter(character.locationId)) {
@@ -461,7 +461,7 @@ export const registerQuestReducers = (deps: any) => {
     requireCharacterOwnedBy,
     appendPrivateEvent,
     fail,
-    ensureSpawnsForLocation,
+    ensurePoolsForLocation,
     startCombatForSpawn,
     spawnEnemyWithTemplate,
     effectiveGroupId,
@@ -485,7 +485,7 @@ export const registerQuestReducers = (deps: any) => {
       if (!questItem.discovered) { fail(ctx, character, 'You have not yet discovered this item'); return; }
       if (questItem.looted) { fail(ctx, character, 'You have already looted this item'); return; }
 
-      pickUpQuestItem(ctx, character, questItem, appendPrivateEvent, { ensureSpawnsForLocation, effectiveGroupId, startCombatForSpawn });
+      pickUpQuestItem(ctx, character, questItem, appendPrivateEvent, { ensurePoolsForLocation, effectiveGroupId, startCombatForSpawn });
     }
   );
 

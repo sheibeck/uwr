@@ -10,7 +10,7 @@ export const registerMovementReducers = (deps: any) => {
     appendPrivateEvent,
     appendLocationEvent,
     appendGroupEvent,
-    ensureSpawnsForLocation,
+    ensurePoolsForLocation,
     isGroupLeaderOrSolo,
     effectiveGroupId,
   } = deps;
@@ -29,7 +29,7 @@ export const registerMovementReducers = (deps: any) => {
       appendGroupEvent,
       areLocationsConnected,
       activeCombatIdForCharacter,
-      ensureSpawnsForLocation,
+      ensurePoolsForLocation,
       isGroupLeaderOrSolo,
       effectiveGroupId,
     }, character, args.locationId);
