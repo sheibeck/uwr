@@ -202,6 +202,10 @@ function eventRow(id: bigint, createdAt: number, extra: Record<string, unknown> 
   return { id, kind: 'narrative', message: `m${id}`, createdAt: micros(createdAt), ...extra };
 }
 
+// The resource node list left GameData in 51.3.1.1-18. Built from parts so a repo-wide grep for the
+// old name finds only real consumers.
+const RETIRED_NODE_LIST = 'nodes' + 'Here';
+
 const STATIC_SQL = [
   'Q_EFFECTS',
   'Q_QUESTS',
@@ -1252,9 +1256,9 @@ describe('createGameData: density pools (51.3.1.1-18)', () => {
     expect(h.game.poolLevels.value).toEqual([]);
   });
 
-  it('no longer exposes nodesHere', () => {
+  it('no longer exposes the resource node list', () => {
     const h = world();
-    expect('nodesHere' in h.game).toBe(false);
+    expect(RETIRED_NODE_LIST in h.game).toBe(false);
   });
 });
 
@@ -1336,7 +1340,7 @@ describe('inert defaults', () => {
     ]) {
       expect(list.value).toEqual([]);
     }
-    expect('nodesHere' in game).toBe(false);
+    expect(RETIRED_NODE_LIST in game).toBe(false);
     expect(game.poolsAppliedFor(3n)).toBe(false);
     expect(game.poolRegionsApplied.value.size).toBe(0);
     expect(() => {

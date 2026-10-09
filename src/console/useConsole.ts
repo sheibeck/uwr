@@ -23,7 +23,7 @@ import { QUEUE_MAX, createNarrativeQueue } from '../input/narrativeQueue';
 import type { QueuedLine } from '../input/narrativeQueue';
 import { routeInput } from '../input/routeInput';
 import type { InfoCommand, ReducerCall, RouteContext } from '../input/routeInput';
-import { visibleNodes } from '../rails/nearby';
+import { gatherTargets } from '../rails/pullTargets';
 import type { ConsoleApi, ConversationTarget, FrameControls, GameData, GameReducers, SubmitResult } from '../game/context';
 import type { KeywordEntry } from './keywords';
 import { queueGateActive } from './indicator';
@@ -118,7 +118,8 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
       conversation: conversation.value ? { id: conversation.value.npcId, name: conversation.value.name } : null,
       npcsHere: game.npcsHere.value.map((n) => ({ id: n.id, name: n.name })),
       placeNames,
-      nodeNames: visibleNodes(game.nodesHere.value, game.characterId.value).map((n) => n.name),
+      // The gatherable resource pools here (level above 0, 51.3.1.1-18).
+      nodeNames: gatherTargets(game.poolLevelsHere.value).map((pool) => pool.name),
       pendingInviterNames: pendingInviters.value,
     };
   });

@@ -41,7 +41,6 @@ import type {
   Renown,
   RenownPerk,
   ResourceGather,
-  ResourceNode,
   WorldEvent,
 } from '../module_bindings/types';
 import { createFeedStore } from '../console/feedStore';
@@ -166,8 +165,6 @@ export interface GameData {
   /** From the current location. */
   readonly connections: List<LocationConnection>;
   readonly npcsHere: List<Npc>;
-  /** @deprecated Always empty (51.3.1.1-18: no resource_node binding); removed with its consumers. */
-  readonly nodesHere: List<ResourceNode>;
   /** Raw enemy spawns at the location; consumers derive with src/rails/enemies.ts. */
   readonly enemiesHere: List<EnemySpawn>;
   /** Templates of the spawns here (level for the con color). */
@@ -386,7 +383,6 @@ export function createInertGame(): GameData {
     regions: empty<Region>(),
     connections: empty<LocationConnection>(),
     npcsHere: empty<Npc>(),
-    nodesHere: empty<ResourceNode>(),
     enemiesHere: empty<EnemySpawn>(),
     enemyTemplatesHere: empty<EnemyTemplate>(),
     poolLevels: empty<PoolLevel>(),

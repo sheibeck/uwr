@@ -74,7 +74,8 @@ const partyIds = computed(() => new Set(game.groupMembers.value.map((member) => 
 const rows = computed(() =>
   nearbyRows({
     npcs: game.npcsHere.value,
-    nodes: game.nodesHere.value,
+    // Resources are pools now (51.3.1.1-18): no node rows; Plan 19 adds the resource cards.
+    nodes: [],
     players: game.playersHere.value,
     partyIds: partyIds.value,
     objects: [],
@@ -124,15 +125,6 @@ function rowKey(row: NearbyRow): string {
   return `${row.kind}-${row.id}`;
 }
 
-// Only a gatherable node keeps a main-row click; every other row is static.
-function hasAction(row: NearbyRow): boolean {
-  return row.kind === 'node' && row.nodeStatus === 'gather';
-}
-
-function act(row: NearbyRow): void {
-  if (!connected.value) return;
-  if (row.kind === 'node') consoleApi.gather({ id: row.id, name: row.name });
-}
 
 // The eye's target: the bind stone is looked at as 'bind stone' (the server's look category).
 function examineName(row: NearbyRow): string {
@@ -324,18 +316,8 @@ async function bind(): Promise<void> {
         :class="[`kind-${row.kind}`, { depleted: row.nodeStatus === 'depleted', bound: row.bound }]"
         @contextmenu="onContextMenu($event, row)"
       >
-        <button
-          v-if="hasAction(row)"
-          type="button"
-          class="row-main"
-          :aria-disabled="disabledAttr"
-          @click="act(row)"
-        >
-          <component :is="ICONS[row.kind]" class="row-icon" :size="14" aria-hidden="true" />
-          <span class="row-name" :title="row.name">{{ row.name }}</span>
-          <span class="row-hint">{{ row.hint }}</span>
-        </button>
-        <div v-else class="row-main static">
+        <!-- No row has a main-row click: the gatherable node rows went with resource_node (51.3.1.1-18). -->
+        <div class="row-main static">
           <component :is="ICONS[row.kind]" class="row-icon" :size="14" aria-hidden="true" />
           <!-- Player names go through the shared CharacterName (51.1 review client-rest IN-01). -->
           <CharacterName v-if="row.kind === 'player'" class="row-name" :name="row.name" />

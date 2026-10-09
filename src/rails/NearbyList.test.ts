@@ -88,11 +88,6 @@ const FULL = {
     { id: 2n, name: 'Marta', npcType: 'vendor' },
     { id: 3n, name: 'Aldric', npcType: 'quest' },
   ]),
-  // A legacy field the list must ignore: resources are pools now (51.3.1.1-18; Plan 19 adds the cards).
-  nodesHere: ref([
-    { id: 20n, name: 'Iron Vein', state: 'available' },
-    { id: 21n, name: 'Empty Vein', state: 'depleted' },
-  ]),
   playersHere: ref([
     { ...PERSON, id: 1n, name: 'Hero', level: 6n },
     { ...PERSON, id: 4n, name: 'Bo', level: 3n },

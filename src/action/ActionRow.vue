@@ -20,7 +20,7 @@ const { action, progress } = useActionProgress({
   characterId: game.characterId,
   gathers: game.gathers,
   casts: game.characterCasts,
-  nodes: game.nodesHere,
+  pools: game.poolLevels,
   abilities: game.abilities,
   inCombat: game.combat.active,
   clock: game.clock,

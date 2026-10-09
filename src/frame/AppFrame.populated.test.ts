@@ -131,7 +131,6 @@ function populatedGame(): { game: GameData; reducers: Reducers } {
     regions: ref([{ id: 1n, name: 'Ashfall Wilds', dangerMultiplier: 600n }]),
     connections: ref([{ id: 1n, fromLocationId: 10n, toLocationId: 11n }]),
     npcsHere: ref([{ id: 2n, name: 'The Ferryman', npcType: 'vendor' }]),
-    nodesHere: ref([{ id: 20n, name: 'Iron Vein', state: 'available', characterId: null }]),
     playersHere: ref([character, marisol]),
     effects: ref([
       { id: 1n, characterId: CHARACTER_ID, effectType: 'armor_up', magnitude: 2n, roundsRemaining: 3n, sourceAbility: 'Bless' },
@@ -307,9 +306,9 @@ describe('populated frame, desktop', () => {
     // Context rail: a route row, Nearby rows, a tracked quest and the world event card.
     const context = w.get('.context-rail');
     expect(context.findAll('button.exit-row').map((r) => r.get('.exit-name').text())).toEqual(['Gloamwood']);
+    // No resource node row (51.3.1.1-18): resources are pools now; Plan 19 adds the resource cards.
     expect(context.findAll('.nearby-row').map((r) => r.get('.row-name').text())).toEqual([
       'The Ferryman',
-      'Iron Vein',
       'Marisol',
     ]);
     expect(context.get('.quest-name').text()).toBe('Wolf pelts');
@@ -349,7 +348,8 @@ describe('populated frame, desktop', () => {
       const isPlayer = row.classes().includes('kind-player');
       expect(buttons[buttons.length - (isPlayer ? 2 : 1)].attributes('aria-label')).toMatch(/^Examine /);
     }
-    expect(context.find('.nearby-row button.row-main').exists()).toBe(true);
+    // No row has a main-row click: the gatherable node rows went with resource_node (51.3.1.1-18).
+    expect(context.find('.nearby-row button.row-main').exists()).toBe(false);
     await context.get('[aria-label="Talk to The Ferryman"]').trigger('click');
     await settle();
     expect(sentIntents(reducers)).toContain('hail The Ferryman');
@@ -425,7 +425,8 @@ describe('populated frame, mobile', () => {
     await openHereTab(w);
     const sheet = w.get('[role="dialog"]');
     expect(sheet.findAll('button.exit-row')).toHaveLength(1);
-    expect(sheet.findAll('.nearby-row')).toHaveLength(3);
+    // The Ferryman and Marisol; no resource node row (51.3.1.1-18).
+    expect(sheet.findAll('.nearby-row')).toHaveLength(2);
     expect(sheet.get('.quest-name').text()).toBe('Wolf pelts');
     expect(sheet.get('.event-card').text()).toContain('The Hollowmere Siege');
 

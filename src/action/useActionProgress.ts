@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 import type { Ref } from 'vue';
+import type { PoolLevel, ResourceGather } from '../module_bindings/types';
 import { useCooldownTicker } from '../hotbar/useCooldownTicker';
 import type { ServerClock } from '../game/serverClock';
 import type { ActionFirstSeen } from './actionFirstSeen';
@@ -14,15 +15,21 @@ import type {
   NodeRow,
 } from './actionProgress';
 
+/** A resource_gather row with its pool (51.3.1.1-18): poolId > 0 for a pool gather, 0 for a legacy node gather. */
+export type PoolGatherRow = GatherRow & Pick<ResourceGather, 'poolId'>;
+/** The pool name source: pool_level rows (game.poolLevels). */
+export type PoolNameRow = Pick<PoolLevel, 'id' | 'name'>;
+
 // The shown action, its progress and the single shared ticker for the action row (quick task
 // 261006-a13). First-seen times come from the data layer (createActionFirstSeen), so they survive a
 // remount. Call it inside a component setup or an effect scope: the interval is stopped on scope dispose.
 
 export interface ActionProgressInput {
   characterId: Readonly<Ref<bigint | null>>;
-  gathers: Readonly<Ref<readonly GatherRow[]>>;
+  gathers: Readonly<Ref<readonly PoolGatherRow[]>>;
   casts: Readonly<Ref<readonly CastRow[]>>;
-  nodes: Readonly<Ref<readonly NodeRow[]>>;
+  /** pool_level rows: a pool gather is labelled with the name of the row whose id is its poolId. */
+  pools: Readonly<Ref<readonly PoolNameRow[]>>;
   abilities: Readonly<Ref<readonly AbilityRow[]>>;
   /** The Phase 48 round row owns the composer slot during the character's own fight. */
   inCombat: Readonly<Ref<boolean>>;
@@ -36,13 +43,31 @@ export function useActionProgress(input: ActionProgressInput): {
   action: Readonly<Ref<ActionView | null>>;
   progress: Readonly<Ref<ActionProgress | null>>;
 } {
-  const sources = computed<ActionSources>(() => ({
-    characterId: input.characterId.value,
-    gathers: input.gathers.value,
-    casts: input.casts.value,
-    nodes: input.nodes.value,
-    abilities: input.abilities.value,
-  }));
+  // Resources are pools now (51.3.1.1-18) and resource_node is no longer subscribed. currentAction
+  // names a gather by the node row whose id is its nodeId, so each pool gather gets a name row keyed
+  // by a negative id (minus the gather row id, which no real node id can equal) and is passed with
+  // that key as its nodeId. A legacy node gather keeps its nodeId and finds no row: 'Gathering'.
+  const sources = computed<ActionSources>(() => {
+    const gathers: GatherRow[] = [];
+    const nodes: NodeRow[] = [];
+    for (const gather of input.gathers.value) {
+      if (gather.poolId <= 0n) {
+        gathers.push(gather);
+        continue;
+      }
+      const key = -gather.id;
+      gathers.push({ ...gather, nodeId: key });
+      const pool = input.pools.value.find((row) => row.id === gather.poolId);
+      if (pool !== undefined) nodes.push({ id: key, name: pool.name });
+    }
+    return {
+      characterId: input.characterId.value,
+      gathers,
+      casts: input.casts.value,
+      nodes,
+      abilities: input.abilities.value,
+    };
+  });
 
   const action = computed<ActionView | null>(() => (input.inCombat.value ? null : currentAction(sources.value)));
 

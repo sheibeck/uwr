@@ -205,11 +205,6 @@ describe('Nearby list', () => {
       { id: 2n, name: 'Marta', npcType: 'vendor' },
       { id: 3n, name: 'Aldric', npcType: 'quest' },
     ],
-    nodesHere: [
-      { id: 20n, name: 'Iron Vein', state: 'available' },
-      { id: 21n, name: 'Empty Vein', state: 'depleted' },
-      { id: 22n, name: 'Busy Vein', state: 'harvesting', lockedByCharacterId: 5n },
-    ],
     playersHere: [
       { ...PERSON, id: 1n, name: 'Hero', level: 6n },
       { ...PERSON, id: 5n, name: 'Zed', level: 7n },
@@ -218,23 +213,12 @@ describe('Nearby list', () => {
     ],
   });
 
-  it('orders NPCs, nodes and players, hides the active character, and shows hints', () => {
+  it('orders NPCs and players, lists no resource node, hides the active character, and shows hints', () => {
     const { w } = mountContent(NEARBY);
     const rows = w.findAll('.nearby-row');
-    expect(rows.map((r) => r.get('.row-name').text())).toEqual([
-      'Aldric',
-      'Marta',
-      'Busy Vein',
-      'Empty Vein',
-      'Iron Vein',
-      'Bo',
-      'Zed',
-    ]);
+    expect(rows.map((r) => r.get('.row-name').text())).toEqual(['Aldric', 'Marta', 'Bo', 'Zed']);
     expect(rows[0].get('.row-hint').text()).toBe('NPC');
-    expect(rows[2].get('.row-hint').text()).toBe('In use');
-    expect(rows[3].get('.row-hint').text()).toBe('Depleted');
-    expect(rows[4].get('.row-hint').text()).toBe('Gather');
-    expect(rows[5].get('.row-hint').text()).toBe('Lv 3');
+    expect(rows[2].get('.row-hint').text()).toBe('Lv 3');
     // 'Away' is offline, so Nearby does not list it (51.1 CONTEXT Area 2).
     expect(w.text()).not.toContain('Away');
     expect(w.text()).not.toContain('No one is nearby.');
@@ -274,20 +258,17 @@ describe('Nearby list', () => {
     expect(calls.trade).not.toHaveBeenCalled();
   });
 
-  it('gathers a node on row click; Depleted and In use rows have no button and Depleted is dimmed', async () => {
+  it('has no node row and no row click that gathers (51.3.1.1-18)', () => {
     const { w, calls } = mountContent(NEARBY);
-    const rows = w.findAll('.nearby-row');
-    await rows[4].get('button.row-main').trigger('click');
-    expect(calls.gather).toHaveBeenCalledWith({ id: 20n, name: 'Iron Vein' });
-    expect(rows[2].find('button.row-main').exists()).toBe(false);
-    expect(rows[3].find('button.row-main').exists()).toBe(false);
-    expect(rows[3].classes()).toContain('depleted');
-    expect(rows[2].classes()).not.toContain('depleted');
+    expect(w.text()).not.toContain('Vein');
+    expect(w.find('button.row-main').exists()).toBe(false);
+    expect(w.find('.nearby-row.depleted').exists()).toBe(false);
+    expect(calls.gather).not.toHaveBeenCalled();
   });
 
   it('gives players always-visible Whisper, Examine and menu buttons and no row action', async () => {
     const { w, calls } = mountContent(NEARBY);
-    const bo = w.findAll('.nearby-row')[5];
+    const bo = w.findAll('.nearby-row')[2];
     expect(bo.find('button.row-main').exists()).toBe(false);
     expect(bo.findAll('button').map((b) => b.attributes('aria-label'))).toEqual([
       'Whisper Bo',
@@ -307,10 +288,8 @@ describe('Nearby list', () => {
     expect(w.text()).not.toContain('Examine');
   });
 
-  it('does not show a node owned by another character', () => {
-    const { w } = mountContent(
-      lists({ nodesHere: [{ id: 30n, name: 'Private Vein', state: 'available', characterId: 9n }] }),
-    );
+  it('shows the empty line with nobody and nothing here', () => {
+    const { w } = mountContent(lists({}));
     expect(w.text()).toContain('No one is nearby.');
   });
 
@@ -563,7 +542,6 @@ describe('offline', () => {
         connected: ref(false),
         connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
         npcsHere: ref([{ id: 2n, name: 'Marta', npcType: 'vendor' }]),
-        nodesHere: ref([{ id: 20n, name: 'Iron Vein', state: 'available' }]),
         playersHere: ref([{ ...PERSON, id: 4n, name: 'Bo', level: 3n }]),
       },
     });
@@ -601,7 +579,6 @@ describe('text rendering', () => {
         regions: ref([{ id: 1n, name: PAYLOAD, dangerMultiplier: 600n }]),
         connections: ref([{ fromLocationId: 10n, toLocationId: 11n }]),
         npcsHere: ref([{ id: 2n, name: PAYLOAD, npcType: 'vendor' }]),
-        nodesHere: ref([{ id: 20n, name: PAYLOAD, state: 'available' }]),
         playersHere: ref([{ ...PERSON, id: 4n, name: PAYLOAD, level: 3n }]),
         quests: ref([
           { id: 1n, characterId: 1n, questTemplateId: 100n, progress: 1n, completed: false, acceptedAt: { microsSinceUnixEpoch: 1n } },

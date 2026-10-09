@@ -788,8 +788,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     const conn = input.conn.value;
     return connected.value && conn !== null ? conn.reducers : null;
   });
-  // TEMPORARY until the Task 3 commit removes it with its consumers: no resource_node binding.
-  const NO_NODES = computed<readonly never[]>(() => []);
   const privateEventsApplied = computed(() => privateEvents.current.value?.applied.value ?? false);
 
   // The store follows the active character; a new character starts with an empty history.
@@ -813,7 +811,6 @@ export function createGameData<C extends GameConn>(deps: GameDeps<C>, input: Gam
     regions: input.regions,
     connections: connectionList,
     npcsHere: keyedRows(npcs),
-    nodesHere: NO_NODES,
     enemiesHere: spawnRows,
     enemyTemplatesHere: keyedRows(spawnTemplates),
     poolLevels: poolRows,
