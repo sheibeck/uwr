@@ -15,8 +15,16 @@
 // region_hold.test.ts compares them with the draft.
 //
 // This module imports nothing from helpers/world_gen.ts or helpers/passages.ts (both use it).
-// world_gen_state has no region index; the table is small and the region read runs only on
-// cross-region travel.
+//
+// Every read goes through world_gen_state.by_source_location, never a scan (code review B, WR-02):
+// the table gains a row per character created and per crossing attempt, and the travel check runs
+// on every cross-region trip. The states that generated a region are found by the place they
+// started from: a region made beyond a crossing has its state at that crossing (the only place
+// outside the region linked to its arrival point while it is held), and a starter region has its
+// states at source 0 (STARTER_SOURCE_LOCATION_ID). So a trip into a held region always leaves from
+// its crossing, and travelHoldRefusal reads only the states at the place being left. A starter
+// region is never reachable by travel while held: nobody stands in it and no crossing leads in
+// until it is whole, so the travel check never reads the starter states.
 // ============================================================================
 
 import { sanitizeWorldData } from '../data/llm_layers';
@@ -66,12 +74,26 @@ function holdOf(steps: Iterable<string>): RegionHold | null {
   return failed ? 'held_failed' : null;
 }
 
-/** Whether a region is open, held, or held after a failure, from every state that generated it. */
-export function regionHoldState(tx: any, regionId: bigint): RegionHold | 'open' {
+/** The source location of every starter state (a first region has no crossing). */
+export const STARTER_SOURCE_LOCATION_ID = 0n;
+
+/**
+ * Whether a region is open, held, or held after a failure, from the states that generated it and
+ * started at one of `sources` (index lookups through by_source_location only). The default reads
+ * the starter states, which is what the starter-region reuse in creation asks about; a region made
+ * beyond a crossing is asked about with that crossing's id.
+ */
+export function regionHoldState(
+  tx: any,
+  regionId: bigint,
+  sources: readonly bigint[] = [STARTER_SOURCE_LOCATION_ID],
+): RegionHold | 'open' {
   const steps: string[] = [];
-  for (const s of tx.db.world_gen_state.iter()) {
-    if (s.generatedRegionId === undefined || s.generatedRegionId === null || s.generatedRegionId !== regionId) continue;
-    steps.push(s.step);
+  for (const source of sources) {
+    for (const s of tx.db.world_gen_state.by_source_location.filter(source)) {
+      if (s.generatedRegionId === undefined || s.generatedRegionId === null || s.generatedRegionId !== regionId) continue;
+      steps.push(s.step);
+    }
   }
   return holdOf(steps) ?? 'open';
 }
@@ -85,12 +107,13 @@ export function crossingHoldState(tx: any, locationId: bigint): RegionHold | nul
 
 /**
  * The refusal line for a trip into a held region, or null when the trip may go: inside one region
- * nothing is ever held, and travel back toward an older (open) region stays open.
+ * nothing is ever held, and travel back toward an older (open) region stays open. Only the states
+ * at the place being left are read (its crossing states, one index lookup; see the header).
  */
 export function travelHoldRefusal(tx: any, fromLocation: any, toLocation: any): string | null {
   if (!fromLocation || !toLocation) return null;
   if (fromLocation.regionId === toLocation.regionId) return null;
-  const hold = regionHoldState(tx, toLocation.regionId);
+  const hold = regionHoldState(tx, toLocation.regionId, [fromLocation.id]);
   if (hold === 'held') return REGION_HOLD_REFUSED_LINE;
   if (hold === 'held_failed') return REGION_HOLD_FAILED_LINE;
   return null;

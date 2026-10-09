@@ -14,6 +14,7 @@ import {
   regionHoldState,
   crossingHoldState,
   travelHoldRefusal,
+  STARTER_SOURCE_LOCATION_ID,
 } from './region_hold';
 
 // ============================================================================
@@ -36,12 +37,17 @@ const DRAFT = readFileSync(
   'utf8',
 ) as string;
 
-/** A minimal ctx: world_gen_state rows with iter() and the by_source_location index. */
+/**
+ * A minimal ctx: world_gen_state rows behind the by_source_location index only. A scan of the
+ * table throws (code review B, WR-02: the hold reads go through the index, never iter()).
+ */
 function ctxWith(states: any[], locations: any[] = []) {
   return {
     db: {
       world_gen_state: {
-        iter: () => states[Symbol.iterator](),
+        iter: () => {
+          throw new Error('world_gen_state scanned: the hold must read through by_source_location');
+        },
         by_source_location: { filter: (id: bigint) => states.filter((s) => s.sourceLocationId === id) },
       },
       location: { id: { find: (id: bigint) => locations.find((l) => l.id === id) } },
@@ -105,34 +111,52 @@ describe('the held step sets', () => {
 describe('regionHoldState', () => {
   for (const step of ['PENDING', 'GENERATING', 'FILLING', 'FILLING_FAMILIES']) {
     it(`a region with a ${step} state is held`, () => {
-      expect(regionHoldState(ctxWith([state(step)]), 2n)).toBe('held');
+      expect(regionHoldState(ctxWith([state(step)]), 2n, [50n])).toBe('held');
     });
   }
 
   for (const step of ['FILL_ERROR', 'FAMILIES_ERROR']) {
     it(`a region with a ${step} state (none in progress) is held_failed`, () => {
-      expect(regionHoldState(ctxWith([state(step)]), 2n)).toBe('held_failed');
+      expect(regionHoldState(ctxWith([state(step)]), 2n, [50n])).toBe('held_failed');
     });
   }
 
   for (const step of ['COMPLETE', 'ERROR', 'HELD']) {
     it(`a region with only a ${step} state is open`, () => {
-      expect(regionHoldState(ctxWith([state(step)]), 2n)).toBe('open');
+      expect(regionHoldState(ctxWith([state(step)]), 2n, [50n])).toBe('open');
     });
   }
 
   it('a region with no state is open', () => {
-    expect(regionHoldState(ctxWith([]), 2n)).toBe('open');
+    expect(regionHoldState(ctxWith([]), 2n, [50n])).toBe('open');
   });
 
   it('in progress wins over failed', () => {
-    expect(regionHoldState(ctxWith([state('FAMILIES_ERROR'), state('FILLING_FAMILIES')]), 2n)).toBe('held');
-    expect(regionHoldState(ctxWith([state('FILLING'), state('FILL_ERROR')]), 2n)).toBe('held');
+    expect(regionHoldState(ctxWith([state('FAMILIES_ERROR'), state('FILLING_FAMILIES')]), 2n, [50n])).toBe('held');
+    expect(regionHoldState(ctxWith([state('FILLING'), state('FILL_ERROR')]), 2n, [50n])).toBe('held');
+  });
+
+  it('reads the starter states (source 0) by default, the case of the starter-region reuse in creation', () => {
+    const starter = (step: string) => state(step, { sourceLocationId: STARTER_SOURCE_LOCATION_ID, sourceRegionId: 0n });
+    expect(STARTER_SOURCE_LOCATION_ID).toBe(0n);
+    expect(regionHoldState(ctxWith([starter('FILLING')]), 2n)).toBe('held');
+    expect(regionHoldState(ctxWith([starter('FAMILIES_ERROR'), starter('HELD')]), 2n)).toBe('held_failed');
+    expect(regionHoldState(ctxWith([starter('COMPLETE'), starter('HELD')]), 2n)).toBe('open');
+    // A crossing state is not a starter state: the default does not read it.
+    expect(regionHoldState(ctxWith([state('FILLING')]), 2n)).toBe('open');
+  });
+
+  it('reads only the sources it is given, each through one index lookup', () => {
+    const states = [state('FILLING', { sourceLocationId: 70n }), state('FILL_ERROR')];
+    expect(regionHoldState(ctxWith(states), 2n, [50n])).toBe('held_failed');
+    expect(regionHoldState(ctxWith(states), 2n, [70n])).toBe('held');
+    expect(regionHoldState(ctxWith(states), 2n, [50n, 70n])).toBe('held');
+    expect(regionHoldState(ctxWith(states), 2n, [])).toBe('open');
   });
 
   it('only states of the asked region count', () => {
-    expect(regionHoldState(ctxWith([state('FILLING', { generatedRegionId: 3n })]), 2n)).toBe('open');
-    expect(regionHoldState(ctxWith([state('PENDING', { generatedRegionId: undefined })]), 2n)).toBe('open');
+    expect(regionHoldState(ctxWith([state('FILLING', { generatedRegionId: 3n })]), 2n, [50n])).toBe('open');
+    expect(regionHoldState(ctxWith([state('PENDING', { generatedRegionId: undefined })]), 2n, [50n])).toBe('open');
   });
 });
 
@@ -198,6 +222,29 @@ describe('travelHoldRefusal', () => {
       expect(travelHoldRefusal(ctxWith([state(step)]), P, X)).toBeNull();
     }
     expect(travelHoldRefusal(ctxWith([]), P, X)).toBeNull();
+  });
+
+  it('reads only the crossing states of the place being left (one index lookup, no scan)', () => {
+    const seen: bigint[] = [];
+    const ctx = ctxWith([state('FILLING')]);
+    const filter = ctx.db.world_gen_state.by_source_location.filter;
+    ctx.db.world_gen_state.by_source_location.filter = (id: bigint) => {
+      seen.push(id);
+      return filter(id);
+    };
+    expect(travelHoldRefusal(ctx, P, X)).toBe(REGION_HOLD_REFUSED_LINE);
+    expect(seen).toEqual([P.id]);
+    // A held region seen from a place that is not its crossing (no such link exists while it is held).
+    const elsewhere = { id: 52n, regionId: 1n, name: 'Cinder Steps', terrainType: 'plains' };
+    expect(travelHoldRefusal(ctx, elsewhere, X)).toBeNull();
+  });
+
+  it('region_hold.ts never scans world_gen_state (code review B, WR-02)', () => {
+    const src = readFileSync(fileURLToPath(new URL('./region_hold.ts', import.meta.url)), 'utf8') as string;
+    const code = src.replace(/\/\/[^\n]*/g, '');
+    expect(code).not.toMatch(/world_gen_state\s*\.\s*iter\s*\(/);
+    expect(code).not.toMatch(/\.iter\s*\(/);
+    expect(code).toMatch(/world_gen_state\.by_source_location\.filter\(/);
   });
 
   it('is null when either place is missing', () => {
