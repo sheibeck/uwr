@@ -25,10 +25,13 @@ vi.mock('spacetimedb/server', async () =>
 import {
   writeRegionStart,
   writeRegionPlaces,
+  writeRegionFamilies,
+  writeRegionFill,
   regionChartedPlaces,
   regionHubCount,
 } from './world_gen';
-import { hubCountFor, hubSeed } from '../data/density_rules';
+import { familyCountFor, hubCountFor, hubSeed } from '../data/density_rules';
+import { FAMILY_FEUD_KIND } from '../data/mechanical_vocabulary';
 import { DENSITY_RULES } from '../data/density_rules';
 import { shapeRegionEdges } from '../data/region_shape';
 import { createMockCtx } from './test-utils';
@@ -470,5 +473,168 @@ describe('regionChartedPlaces', () => {
     const got = regionChartedPlaces(ctx, region.id);
     expect(got.map((l: any) => l.id)).toEqual([startLocation.id, ...out.locations.map((l: any) => l.id)]);
     expect(got.some((l: any) => l.terrainType === 'uncharted')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 2: writeRegionFamilies and the legacy writeRegionFill
+// ---------------------------------------------------------------------------
+
+const member = (role: string, name: string) => ({ role, name });
+/** Two valid AI families (the approved 2b reply shape), fit to Place 2 and Place 3. */
+function aiFamilies(): any[] {
+  return [
+    {
+      name: 'Saltcrust Skitterers',
+      singularNoun: 'skitterer',
+      pluralNoun: 'skitterers',
+      creatureType: 'beast',
+      iconKey: 'insect',
+      temperament: 'aggressive',
+      ambushVerb: 'swarm',
+      ambushRest: 'up through the salt',
+      members: [member('tank', 'Skitter Shellback'), member('damage', 'Skitter Pincer'), member('caster', 'Skitter Saltspitter')],
+      fitLocations: ['Place 2', 'Place 3'],
+      relations: [{ family: 'Drowned Tollmen', kind: 'rival' }],
+    },
+    {
+      name: 'Drowned Tollmen',
+      singularNoun: 'tollman',
+      pluralNoun: 'tollmen',
+      creatureType: 'undead',
+      iconKey: 'undead',
+      temperament: 'wary',
+      ambushVerb: 'rise',
+      ambushRest: 'from the black water',
+      members: [member('tank', 'Tollman Warden'), member('damage', 'Tollman Hook')],
+      fitLocations: ['Place 3'],
+      relations: [],
+    },
+  ];
+}
+
+const FAMILY_TABLES = ['creature_family', 'family_member', 'enemy_template', 'location_enemy_template', 'family_relation', 'place_pool', 'pool_level'];
+const familyRowsEmpty = (ctx: any) => {
+  for (const table of FAMILY_TABLES) expect(rows(ctx, table), table).toEqual([]);
+};
+const creaturePools = (ctx: any, loc: any) =>
+  rows(ctx, 'place_pool').filter((p: any) => p.locationId === loc.id && p.kind === 'creature').map((p: any) => p.refId);
+
+/** A region of `places` charted places (arrival included) written by stage 2a, with its doorway. */
+function placedWorld(places: number, opts: { hubs?: number } = {}) {
+  const w = world({ hubs: opts.hubs ?? 1 });
+  const out = places2a(w.ctx, w.region, w.startLocation, placesReply(chain(places - 1)), places);
+  expect(out.ok).toBe(true);
+  if (!out.ok) throw new Error('stage 2a refused');
+  expect(regionChartedPlaces(w.ctx, w.region.id)).toHaveLength(places);
+  return { ...w, boundary: out.boundary };
+}
+
+describe('writeRegionFamilies (stage 2b; D-08, D-66, D-67, D-68, D-70, SC3)', () => {
+  for (const [places, expected] of [[8, 12], [9, 13], [10, 15]] as const) {
+    it(`${places} charted places (the doorway present, not counted) get familyCountFor(${places}) = ${expected} families: the AI ones first, the rest by rule`, () => {
+      const { ctx, region, boundary } = placedWorld(places);
+      expect(boundary).toBeDefined();
+      expect(familyCountFor(places)).toBe(expected);
+      const out = writeRegionFamilies(ctx, { families: aiFamilies() }, region, { ruleOnlyAllowed: false });
+      expect(out.ok).toBe(true);
+      const families = rows(ctx, 'creature_family');
+      expect(families).toHaveLength(expected);
+      if (out.ok) expect(out.families).toHaveLength(expected);
+      expect(families.slice(0, 2).map((f: any) => f.key)).toEqual([`ai:${region.id}:saltcrust skitterers`, `ai:${region.id}:drowned tollmen`]);
+      for (const family of families.slice(2)) expect(family.key.startsWith(`rule:${region.id}:`)).toBe(true);
+    });
+  }
+
+  it('every host place holds 3-5 families; every family is placed; the feud has 0 or 2-3 families; every family has a history; the doorway hosts nothing', () => {
+    const { ctx, region, boundary } = placedWorld(9);
+    expect(writeRegionFamilies(ctx, { families: aiFamilies() }, region, { ruleOnlyAllowed: false }).ok).toBe(true);
+    const hosts = regionChartedPlaces(ctx, region.id).filter((l: any) => !l.isSafe && !l.isHub);
+    expect(hosts.length).toBeGreaterThanOrEqual(DENSITY_RULES.MIN_HOST_PLACES);
+    for (const host of hosts) {
+      const n = creaturePools(ctx, host).length;
+      expect(n, host.name).toBeGreaterThanOrEqual(3);
+      expect(n, host.name).toBeLessThanOrEqual(5);
+    }
+    for (const safe of regionChartedPlaces(ctx, region.id).filter((l: any) => l.isSafe || l.isHub)) {
+      expect(creaturePools(ctx, safe)).toEqual([]);
+    }
+    const families = rows(ctx, 'creature_family');
+    for (const family of families) {
+      expect(rows(ctx, 'place_pool').some((p: any) => p.kind === 'creature' && p.refId === family.id), family.name).toBe(true);
+      expect(family.history).not.toBe('');
+    }
+    const feudIds = new Set(rows(ctx, 'family_relation').filter((r: any) => r.kind === FAMILY_FEUD_KIND).map((r: any) => r.familyId));
+    expect([0, 2, 3]).toContain(feudIds.size);
+    expect(rows(ctx, 'place_pool').filter((p: any) => p.locationId === boundary.id)).toEqual([]);
+    expect(rows(ctx, 'location_enemy_template').filter((l: any) => l.locationId === boundary.id)).toEqual([]);
+  });
+
+  it('a reply with no families array returns malformed and writes no family, member, template, link, relation or pool row', () => {
+    for (const reply of [{}, { families: 'many' }, null, { families: { name: 'x' } }]) {
+      const { ctx, region } = placedWorld(8);
+      expect(writeRegionFamilies(ctx, reply, region, { ruleOnlyAllowed: true })).toEqual({ ok: false, reason: 'malformed' });
+      familyRowsEmpty(ctx);
+    }
+  });
+
+  it('families that all fail validation: empty with nothing written when rule completion is not allowed; the whole count by rule when it is', () => {
+    const refused = placedWorld(9);
+    expect(writeRegionFamilies(refused.ctx, { families: [null, 'x', 7] }, refused.region, { ruleOnlyAllowed: false })).toEqual({
+      ok: false,
+      reason: 'empty',
+    });
+    familyRowsEmpty(refused.ctx);
+
+    const ruled = placedWorld(9);
+    expect(writeRegionFamilies(ruled.ctx, { families: [null, 'x', 7] }, ruled.region, { ruleOnlyAllowed: true }).ok).toBe(true);
+    const keys = rows(ruled.ctx, 'creature_family').map((f: any) => f.key);
+    expect(keys).toHaveLength(familyCountFor(9));
+    expect(keys.every((k: string) => k.startsWith(`rule:${ruled.region.id}:`))).toBe(true);
+  });
+
+  it('every row it writes matches the recorded schema', () => {
+    const { ctx, region } = placedWorld(10);
+    writeRegionFamilies(ctx, { families: aiFamilies() }, region, { ruleOnlyAllowed: false });
+    for (const table of FAMILY_TABLES) {
+      expect(rows(ctx, table).length, table).toBeGreaterThan(0);
+      for (const row of rows(ctx, table)) expect(rowColumnProblems(table, row)).toEqual([]);
+    }
+  });
+});
+
+describe('writeRegionFill: the legacy one-reply path (a world_gen job queued before the publish)', () => {
+  const legacy = (ctx: any, region: any, startLocation: any, fill: any) => writeRegionFill(ctx, fill, stateOf(ctx), region, startLocation);
+
+  it('a one-reply with families and 4 locations writes 5 places (no floor) and familyCountFor(5) = 7 families, AI first', () => {
+    const { ctx, region, startLocation } = world();
+    const out = legacy(ctx, region, startLocation, { ...placesReply(chain(4)), families: aiFamilies() });
+    expect(out.locations).toHaveLength(4);
+    expect(out.boundary).toMatchObject({ terrainType: 'uncharted' });
+    expect(regionChartedPlaces(ctx, region.id)).toHaveLength(5);
+    const families = rows(ctx, 'creature_family');
+    expect(families).toHaveLength(7);
+    expect(familyCountFor(5)).toBe(7);
+    expect(families[0].key).toBe(`ai:${region.id}:saltcrust skitterers`);
+  });
+
+  it('a one-reply with 2 locations still completes the region: 3 places and familyCountFor(3) families by the same shape rules', () => {
+    const { ctx, region, startLocation } = world({ start: startReply({ levelOffset: 1 }) });
+    const out = legacy(ctx, region, startLocation, { ...placesReply(chain(2)), families: [] });
+    expect(out.locations.map((l: any) => l.name)).toEqual(['Place 1', 'Place 2']);
+    expect(rows(ctx, 'creature_family')).toHaveLength(familyCountFor(3));
+    expect(locRow(ctx, 'Place 2').levelOffset).toBe(2n);
+  });
+
+  it('an older reply with enemies and no families keeps the rule path (one family per creature type)', () => {
+    const { ctx, region, startLocation } = world();
+    legacy(ctx, region, startLocation, {
+      ...placesReply([place('Sallow Wood', { terrainType: 'woods', connectsTo: ['Safe Haven'] }), place('Black Fen', { terrainType: 'swamp', connectsTo: ['Sallow Wood'] })]),
+      enemies: [
+        { name: 'Fen Stalker', creatureType: 'beast', role: 'melee', terrainTypes: 'woods, swamp', groupMin: 1, groupMax: 2, level: 2 },
+        { name: 'Drowned Seer', creatureType: 'undead', role: 'caster', terrainTypes: 'swamp', groupMin: 1, groupMax: 1, level: 2 },
+      ],
+    });
+    expect(rows(ctx, 'creature_family').map((f: any) => f.key)).toEqual([`${region.id}:beast`, `${region.id}:undead`]);
   });
 });
