@@ -12,9 +12,11 @@
 // Dry mode connects, reads the admin status row, prints the step plan and the worst-case cost bound, calls no
 // reducer and disconnects. Paid mode drives the REAL player reducers through the generated bindings as the CLI
 // identity (an admin), waits on the player's own job view (my_llm_jobs) and on domain tables, and runs the Phase 43
-// staged flow: creation race, class reveal (stage 1), class fill (stage 2), world start (stage 1), world fill
-// (stage 2), a second region reached by exploring, NPC chat plus a burst of sequential turns, combat narration,
-// renown, skills and the /llm stats command. Stage 1 and stage 2 are timed separately. Before every paid step it
+// staged flow: creation race, class reveal (stage 1), class fill (stage 2), world start (stage 1), places fill
+// (stage 2a) and creature families (stage 2b, Phase 51.3.1.2 D-01), a second region reached by exploring, NPC chat
+// plus a burst of sequential turns, combat narration, renown, skills and the /llm stats command. Each stage is timed
+// separately. Since Phase 51.3.1.2 a new character is placed only once the families land (D-17), and travel from the
+// crossing into a new region is refused until that region is COMPLETE (D-15). Before every paid step it
 // checks both today's held spend against the global daily ceiling and this run's own spend against the fixed
 // PROOF_RUN_CAP_MICRO_USD (the admin-set ceiling is never the harness's only bound).
 //
@@ -46,6 +48,7 @@ import {
   heldTodayMicroUsd,
   isTerminalJobStatus,
   plannedCallCounts,
+  worstCaseMicroUsd,
   proofCharacterName,
   proofEmail,
   proofVerdict,
@@ -58,12 +61,7 @@ import {
   todayUtcString,
 } from './proof_rules.mjs';
 import { observedRuleIds } from './proof_observed.mjs';
-import { SWEEP_FIXTURES } from './sweep_fixtures.mjs';
-import { buildRouteLayers } from '../../spacetimedb/src/data/llm_layers';
-import { buildClaudeRequest } from '../../spacetimedb/src/helpers/claude_request';
-import { reserveCostMicroUsd } from '../../spacetimedb/src/helpers/measurement';
-import { LLM_ROUTES } from '../../spacetimedb/src/data/llm_routes';
-import type { LlmRoute } from '../../spacetimedb/src/data/llm_routes';
+import { REGION_HOLD_REFUSED_LINE } from '../../spacetimedb/src/helpers/region_hold';
 
 // Throw on an unknown mode or database before anything else runs.
 const MODE = resolveProveMode(process.env.PROVE_LIVE_RUN);
@@ -208,24 +206,13 @@ function statusLine(s: Row): string {
 const json = (v: unknown) => JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x), 2);
 const usd = (micro: bigint | number): string => '$' + (Number(micro) / 1_000_000).toFixed(4);
 
-/** A representative request per route (the first sweep fixture) to price each planned call at its reservation. */
-function reservationFor(route: LlmRoute): bigint {
-  const input = route === 'smoke_test' ? {} : (SWEEP_FIXTURES as Record<string, any[]>)[route][0];
-  const request = buildClaudeRequest(route, buildRouteLayers(route, input as never));
-  return BigInt(reserveCostMicroUsd(LLM_ROUTES[route].maxTokens, request.bodyText.length));
-}
-
-/** The worst-case cost of the whole planned run: every planned call at its full reservation (no retries exist). */
+/**
+ * The worst-case cost of the whole planned run: every planned call at its full reservation (no retries exist).
+ * The pricing is proof_rules.mjs worstCaseMicroUsd, so the free unit test checks the same bound this prints.
+ */
 function worstCaseBound(): { total: bigint; lines: string[] } {
-  const counts = plannedCallCounts() as Record<string, number>;
-  let total = 0n;
-  const lines: string[] = [];
-  for (const [route, n] of Object.entries(counts)) {
-    const each = reservationFor(route as LlmRoute);
-    total += each * BigInt(n);
-    lines.push(`  ${route}: ${n} call(s) x ${usd(each)}`);
-  }
-  return { total, lines };
+  const bound = worstCaseMicroUsd(plannedCallCounts());
+  return { total: bound.total, lines: bound.lines.map((l: { route: string; calls: number; eachMicroUsd: bigint }) => `  ${l.route}: ${l.calls} call(s) x ${usd(l.eachMicroUsd)}`) };
 }
 
 describe('live proof (local server only)', () => {
@@ -500,7 +487,29 @@ describe('live proof (local server only)', () => {
       rows(session.conn, 'npcDialog').filter((d) => d.characterId === characterId && d.npcId === npcId && !String(d.text).startsWith('You:'));
 
     const proofName = proofCharacterName(Date.now());
-    const starter: { characterId?: bigint; regionId?: bigint; fillBefore?: Set<bigint>; classFillBefore?: Set<bigint>; fillStartedAt?: number } = {};
+    const starter: {
+      characterId?: bigint;
+      regionId?: bigint;
+      fillBefore?: Set<bigint>;
+      familiesBefore?: Set<bigint>;
+      classFillBefore?: Set<bigint>;
+      fillStartedAt?: number;
+      familiesStartedAt?: number;
+      confirmedAt?: number;
+    } = {};
+
+    // World generation states (helpers/world_gen.ts). Phase 51.3.1.2 (D-01, D-08) put the families fill (2b) in its
+    // own FILLING_FAMILIES state with its own FAMILIES_ERROR; HELD is a new character waiting on another region (D-17).
+    const STAGE1_LANDED_STEPS = ['FILLING', 'FILLING_FAMILIES', 'COMPLETE', 'FILL_ERROR', 'FAMILIES_ERROR', 'ERROR', 'HELD'];
+    const PLACES_DONE_STEPS = ['FILLING_FAMILIES', 'COMPLETE', 'FAMILIES_ERROR', 'FILL_ERROR', 'ERROR'];
+    const REGION_DONE_STEPS = ['COMPLETE', 'FAMILIES_ERROR', 'FILL_ERROR', 'ERROR'];
+    /** A region that did not complete, as a step note: its state and the stored error, capped at PROOF_EXCERPT_MAX. */
+    const regionFailureNote = (st: Row | null | undefined): string => {
+      if (!st) return 'the region never reached COMPLETE';
+      const message = typeof st.errorMessage === 'string' ? scrub(st.errorMessage, needle) : '';
+      const head = st.step === 'FAMILIES_ERROR' ? 'families failed (FAMILIES_ERROR)' : `region state ${String(st.step)}`;
+      return excerpt(head + (message ? ': ' + message : ''));
+    };
     let chatNpc: Row | undefined;
 
     /** One NPC chat turn: call, wait for the job and the reply line, check the line. Returns the observed result. */
@@ -648,7 +657,9 @@ describe('live proof (local server only)', () => {
         });
       },
 
-      // Stage 1 of the starter region: confirm, then time to the first playable state. Also the tab-close check.
+      // Stage 1 of the starter region: confirm, then time to the stage 1 landing (FILLING). Also the tab-close check.
+      // Phase 51.3.1.2 (D-17): a new character is placed only once the places and the families are in, so it is
+      // normally still at location 0 here; that is expected and never fails this step.
       world_gen_start: async () => {
         if (!creationReached('CONFIRMING') || myCharacter()) {
           failStep('world_gen_start', 'world_gen_start', myCharacter() ? 'a character already exists before confirm' : 'creation never reached CONFIRMING');
@@ -659,36 +670,28 @@ describe('live proof (local server only)', () => {
           const regionsBefore = rows(session.conn, 'region').length;
           const before = jobIds('world_gen_start');
           starter.fillBefore = jobIds('world_gen');
+          starter.familiesBefore = jobIds('world_gen_families');
           const tConfirm = Date.now();
+          starter.confirmedAt = tConfirm;
           markCall('world_gen_start');
           await session.conn.reducers.submitCreationInput({ text: 'confirm' });
           const character = await waitFor(() => myCharacter(), 30_000);
           if (!character) return { ok: false, jobStatus: 'none', note: 'no character after confirm' };
           starter.characterId = character.id;
-          const playable = await waitFor(() => {
+          // Stage 1 has landed once the state leaves PENDING and GENERATING (FILLING, or later if the fills are quick).
+          const landed = await waitFor(() => {
             const st = genStatesFor(character.id)[0];
-            const c = myCharacter();
-            if (st && (st.step === 'ERROR' || st.step === 'FILL_ERROR')) return st;
-            return st && (st.step === 'FILLING' || st.step === 'COMPLETE') && c && c.locationId !== 0n ? st : null;
+            return st && STAGE1_LANDED_STEPS.includes(String(st.step)) ? st : null;
           }, 120_000);
-          timeToPlayableMs = playable ? Date.now() - tConfirm : null;
-          stages.worldStartMs = timeToPlayableMs;
-          if (!playable) return { ok: false, jobStatus: await settleJob('world_gen_start', before, 2_000, 5_000), note: 'the character never became playable' };
-          if (playable.step === 'ERROR') return { ok: false, jobStatus: await settleJob('world_gen_start', before, 2_000, 5_000), note: 'stage 1 failed (ERROR)' };
+          const stage1Ms = landed ? Date.now() - tConfirm : null;
+          stages.worldStartMs = stage1Ms;
+          if (!landed) return { ok: false, jobStatus: await settleJob('world_gen_start', before, 2_000, 5_000), note: 'stage 1 never landed (no FILLING state)' };
+          if (landed.step === 'ERROR') return { ok: false, jobStatus: await settleJob('world_gen_start', before, 2_000, 5_000), note: 'stage 1 failed (ERROR)' };
+          if (landed.step === 'HELD') return { ok: false, jobStatus: await settleJob('world_gen_start', before, 2_000, 5_000), note: 'held behind another starter region: the scratch database must start empty' };
           starter.fillStartedAt = Date.now();
-          starter.regionId = locationById(myCharacter()!.locationId)?.regionId;
-
-          // Acting while the fill runs works: one free, non-model action (a plain say).
-          let acted = false;
-          if (genStatesFor(character.id)[0]?.step === 'FILLING') {
-            try {
-              await session.conn.reducers.say({ characterId: character.id, message: 'Is anyone about?' });
-              acted = true;
-            } catch {
-              acted = false;
-            }
-          }
-          detailFlags.actedDuringFill = acted;
+          starter.regionId = landed.generatedRegionId ?? locationById(myCharacter()?.locationId ?? 0n)?.regionId;
+          // D-17: the character waits in creation until the families land (recorded, never a failure here).
+          detailFlags.unplacedAfterStage1 = (myCharacter()?.locationId ?? 0n) === 0n;
 
           // Tab-close check (PIPE-02): drop the connection while the fill runs, wait, reconnect, the region exists once.
           session.conn.disconnect();
@@ -703,15 +706,17 @@ describe('live proof (local server only)', () => {
           detailFlags.tabCloseRegionOnce = oneRegion;
           const jobStatus = await settleJob('world_gen_start', before, 5_000, 30_000);
           return {
-            ok: jobStatus === 'completed' && oneRegion && (playable.step === 'COMPLETE' || acted),
+            ok: jobStatus === 'completed' && oneRegion,
             jobStatus,
-            note: `playable in ${timeToPlayableMs}ms, acted during fill: ${acted}, reconnected after 20s, new regions ${regionsAfter - regionsBefore}, states ${states}`,
-            detail: { timeToPlayableMs, stage1Ms: timeToPlayableMs },
+            note: excerpt(
+              `stage 1 landed in ${stage1Ms}ms (${landed.step}), unplaced: ${detailFlags.unplacedAfterStage1}, reconnected after 20s, new regions ${regionsAfter - regionsBefore}, states ${states}`,
+            ),
+            detail: { stage1Ms },
           };
         });
       },
 
-      // Stage 2 of the starter region: the fill, timed from playable to COMPLETE.
+      // Stage 2a of the starter region: the places fill, timed from the stage 1 landing until the families start.
       world_gen: async () => {
         const characterId = starter.characterId;
         if (characterId === undefined) {
@@ -723,22 +728,59 @@ describe('live proof (local server only)', () => {
           const t0 = starter.fillStartedAt ?? Date.now();
           const done = await waitFor(() => {
             const st = genStatesFor(characterId)[0];
-            return st && (st.step === 'COMPLETE' || st.step === 'FILL_ERROR' || st.step === 'ERROR') ? st : null;
+            return st && PLACES_DONE_STEPS.includes(String(st.step)) ? st : null;
           }, 180_000);
-          const complete = done?.step === 'COMPLETE';
-          stages.worldFillMs = complete ? Date.now() - t0 : null;
+          // FAMILIES_ERROR also means the places are in: the families step records that failure, not this one.
+          const placesIn = !!done && (done.step === 'FILLING_FAMILIES' || done.step === 'COMPLETE' || done.step === 'FAMILIES_ERROR');
+          stages.worldFillMs = placesIn ? Date.now() - t0 : null;
+          starter.familiesStartedAt = Date.now();
           const jobStatus = await settleJob('world_gen', starter.fillBefore ?? new Set<bigint>(), 5_000, 30_000);
-          if (complete && starter.regionId !== undefined) observeRegion(starter.regionId);
           return {
-            ok: !!complete,
+            ok: placesIn,
             jobStatus,
-            note: `fill ${complete ? 'complete' : 'state ' + (done?.step ?? 'none')}`,
+            note: `places fill ${placesIn ? 'in' : 'not in'}, state ${done?.step ?? 'none'}`,
             detail: { stage2Ms: stages.worldFillMs },
           };
         });
       },
 
-      // A second region reached by exploring: move onto uncharted ground, then a stage 1 plus fill pair completes.
+      // Stage 2b of the starter region (Phase 51.3.1.2, D-01): the families fill, timed until COMPLETE. The new
+      // character is placed only now (D-17), so time to playable is measured from the confirm to this placement.
+      world_gen_families: async () => {
+        const characterId = starter.characterId;
+        if (characterId === undefined) {
+          failStep('world_gen_families', 'world_gen_families', 'no starter region was generated');
+          return;
+        }
+        if (!paidStep('world_gen_families')) return;
+        await timed('world_gen_families', 'world_gen_families', async () => {
+          const t0 = starter.familiesStartedAt ?? Date.now();
+          const done = await waitFor(() => {
+            const st = genStatesFor(characterId)[0];
+            return st && REGION_DONE_STEPS.includes(String(st.step)) ? st : null;
+          }, 180_000);
+          const complete = done?.step === 'COMPLETE';
+          stages.worldFamiliesMs = complete ? Date.now() - t0 : null;
+          const jobStatus = await settleJob('world_gen_families', starter.familiesBefore ?? new Set<bigint>(), 5_000, 30_000);
+          if (!complete) return { ok: false, jobStatus, note: regionFailureNote(done) };
+          const placed = await waitFor(() => {
+            const c = myCharacter();
+            return c && c.locationId !== 0n ? c : null;
+          }, 15_000);
+          timeToPlayableMs = placed && starter.confirmedAt !== undefined ? Date.now() - starter.confirmedAt : null;
+          if (placed) starter.regionId = locationById(placed.locationId)?.regionId ?? starter.regionId;
+          if (starter.regionId !== undefined) observeRegion(starter.regionId);
+          return {
+            ok: jobStatus === 'completed' && !!placed,
+            jobStatus,
+            note: placed ? `families in, character placed; playable ${timeToPlayableMs}ms after confirm` : 'families in, but the character was never placed',
+            detail: { stage2bMs: stages.worldFamiliesMs, timeToPlayableMs },
+          };
+        });
+      },
+
+      // A second region reached by exploring: move onto uncharted ground (the crossing), wait for stage 1, the places
+      // and the families, and only then travel into the new region (D-15: travel is refused while it is held).
       explore_region: async () => {
         const character = myCharacter();
         if (!character || starter.regionId === undefined) {
@@ -752,6 +794,7 @@ describe('live proof (local server only)', () => {
           const target = path[path.length - 1];
           const startBefore = jobIds('world_gen_start');
           const fillBefore = jobIds('world_gen');
+          const familiesBefore = jobIds('world_gen_families');
           const statesBefore = new Set(rows(session.conn, 'worldGenState').map((s) => s.id));
           const t0 = Date.now();
           markCall('world_gen_start');
@@ -762,29 +805,60 @@ describe('live proof (local server only)', () => {
           );
           if (!state) return { ok: false, jobStatus: 'none', note: 'moving onto uncharted ground started no world generation' };
           const stateNow = () => rows(session.conn, 'worldGenState').find((s) => s.id === state.id);
-          const playable = await waitFor(() => {
+          const landed = await waitFor(() => {
             const s = stateNow();
-            return s && (s.step === 'FILLING' || s.step === 'COMPLETE' || s.step === 'ERROR' || s.step === 'FILL_ERROR') ? s : null;
+            return s && STAGE1_LANDED_STEPS.includes(String(s.step)) ? s : null;
           }, 120_000);
-          stages.exploreStartMs = playable && playable.step !== 'ERROR' ? Date.now() - t0 : null;
+          stages.exploreStartMs = landed && landed.step !== 'ERROR' ? Date.now() - t0 : null;
           const t1 = Date.now();
+          const placesIn = await waitFor(() => {
+            const s = stateNow();
+            return s && PLACES_DONE_STEPS.includes(String(s.step)) ? s : null;
+          }, 180_000);
+          stages.exploreFillMs =
+            placesIn && (placesIn.step === 'FILLING_FAMILIES' || placesIn.step === 'COMPLETE' || placesIn.step === 'FAMILIES_ERROR') ? Date.now() - t1 : null;
+          const t2 = Date.now();
           const done = await waitFor(() => {
             const s = stateNow();
-            return s && (s.step === 'COMPLETE' || s.step === 'FILL_ERROR' || s.step === 'ERROR') ? s : null;
+            return s && REGION_DONE_STEPS.includes(String(s.step)) ? s : null;
           }, 180_000);
           const complete = done?.step === 'COMPLETE';
-          stages.exploreFillMs = complete ? Date.now() - t1 : null;
+          stages.exploreFamiliesMs = complete ? Date.now() - t2 : null;
           const startStatus = await settleJob('world_gen_start', startBefore, 5_000, 30_000);
           const fillStatus = await settleJob('world_gen', fillBefore, 5_000, 30_000);
+          const familiesStatus = await settleJob('world_gen_families', familiesBefore, 5_000, 30_000);
           const newRegionId = stateNow()?.generatedRegionId;
           const distinct = newRegionId !== undefined && newRegionId !== null && newRegionId !== starter.regionId;
-          if (complete && distinct) observeRegion(newRegionId);
-          const jobStatus = startStatus === 'completed' && fillStatus === 'completed' ? 'completed' : startStatus !== 'completed' ? startStatus : fillStatus;
+          const statuses = [startStatus, fillStatus, familiesStatus];
+          const jobStatus = statuses.find((s) => s !== 'completed') ?? 'completed';
+          const timing = { stage1Ms: stages.exploreStartMs, stage2Ms: stages.exploreFillMs, stage2bMs: stages.exploreFamiliesMs };
+          if (!complete) return { ok: false, jobStatus, note: regionFailureNote(done), detail: timing };
+
+          // Only now step from the crossing into the new region. A hold refusal (7b) is a note, never a failure.
+          let entered = false;
+          let refusedNote = '';
+          for (let attempt = 1; attempt <= 2 && !entered && distinct; attempt += 1) {
+            const here = myCharacter();
+            if (!here) break;
+            const hops = findPath(here.locationId, (l) => l.regionId === newRegionId && !isUncharted(l), 4);
+            if (!hops || hops.length === 0) break;
+            const seqBefore = eventSeq;
+            entered = await travelPath(here.id, hops);
+            const refused = privateEvents.find((e) => e.seq > seqBefore && e.characterId === here.id && e.message.includes(REGION_HOLD_REFUSED_LINE));
+            if (refused) {
+              refusedNote = `travel refused while held (7b) on attempt ${attempt}`;
+              notes.push('explore_region: ' + refusedNote);
+              if (!entered) await sleep(5_000);
+            }
+          }
+          if (distinct) observeRegion(newRegionId);
           return {
-            ok: !!complete && distinct && jobStatus === 'completed',
+            ok: distinct && entered && jobStatus === 'completed',
             jobStatus,
-            note: `second region ${complete ? 'complete' : 'state ' + (done?.step ?? 'none')}, distinct from the starter: ${distinct}`,
-            detail: { stage1Ms: stages.exploreStartMs, stage2Ms: stages.exploreFillMs },
+            note: excerpt(
+              `second region complete, distinct from the starter: ${distinct}, entered: ${entered}` + (refusedNote ? `; ${refusedNote}` : ''),
+            ),
+            detail: timing,
           };
         });
       },

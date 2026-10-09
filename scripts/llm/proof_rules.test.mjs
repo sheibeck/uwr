@@ -688,6 +688,31 @@ describe('the live harness source', () => {
     expect(harness).toContain('proofVerdict(results)');
   });
 
+  it('prints the bound from worstCaseMicroUsd, the same pure pricing this file checks against the stop line', () => {
+    expect(harness).toContain('worstCaseMicroUsd(plannedCallCounts())');
+    expect(harness).not.toContain('SWEEP_FIXTURES as Record');
+  });
+
+  it('follows the Phase 51.3.1.2 flow: families settled as their own step, placement after them, travel after COMPLETE', () => {
+    const body = (step, next) => harness.slice(harness.indexOf('      ' + step + ': async () => {'), harness.indexOf('      ' + next + ': async () => {'));
+    const start = body('world_gen_start', 'world_gen');
+    const families = body('world_gen_families', 'explore_region');
+    const explore = body('explore_region', 'npc_conversation');
+    // D-17: stage 1 no longer needs the character placed; the families step does.
+    expect(start).not.toContain('c.locationId !== 0n');
+    expect(families).toContain("settleJob('world_gen_families'");
+    expect(families).toContain('c.locationId !== 0n');
+    expect(families).toContain('timeToPlayableMs =');
+    expect(harness).toContain("'FAMILIES_ERROR'");
+    expect(harness).toMatch(/excerpt\(head \+/);
+    // D-15: the explored region's families settle before the character travels into it; a 7b refusal is only a note.
+    const settled = explore.indexOf("settleJob('world_gen_families'");
+    expect(settled).toBeGreaterThan(0);
+    expect(explore.indexOf('entered = await travelPath(')).toBeGreaterThan(settled);
+    expect(explore).toContain('REGION_HOLD_REFUSED_LINE');
+    expect(harness).toContain("import { REGION_HOLD_REFUSED_LINE } from '../../spacetimedb/src/helpers/region_hold'");
+  });
+
   it('never records a reply: observed checks keep rule ids, the id and the kind only', () => {
     expect(harness).toContain('observed.hits.push({ kind, source, id: String(id), rules })');
   });
