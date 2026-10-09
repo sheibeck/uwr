@@ -189,7 +189,8 @@ describe('the per-player harvest cap (D-27, D-28; T-51.3.1.1-37)', () => {
     }
     expect(bag(ctx, 1n, IRON_ORE_ID)).toBe(3n + 3n + 2n + 2n);
     expect(myHarvestCapRows({ db: ctx.db, sender: ALICE })).toEqual([
-      expect.objectContaining({ locationId: ORCHARD_ID, cappedUntilMicros: T0 + DENSITY_RULES.HARVEST_WINDOW_MICROS }),
+      // The window starts when the first gather pays out (T0 + 8 s).
+      expect.objectContaining({ locationId: ORCHARD_ID, cappedUntilMicros: T0 + GATHER_MICROS + DENSITY_RULES.HARVEST_WINDOW_MICROS }),
     ]);
 
     start(ctx, pools.ironOrchard.id, 1n, T0 + 200n * SEC);
@@ -207,7 +208,9 @@ describe('the per-player harvest cap (D-27, D-28; T-51.3.1.1-37)', () => {
     for (let i = 0n; i < DENSITY_RULES.HARVEST_CAP_GATHERS; i += 1n) {
       gatherOnce(ctx, pools.ironOrchard.id, 1n, T0 + i * 20n * SEC);
     }
-    start(ctx, pools.ironOrchard.id, 1n, T0 + DENSITY_RULES.HARVEST_WINDOW_MICROS);
+    start(ctx, pools.ironOrchard.id, 1n, T0 + GATHER_MICROS + DENSITY_RULES.HARVEST_WINDOW_MICROS - 1n);
+    expect(gathersOf(ctx, 1n)).toHaveLength(0);
+    start(ctx, pools.ironOrchard.id, 1n, T0 + GATHER_MICROS + DENSITY_RULES.HARVEST_WINDOW_MICROS);
     expect(gathersOf(ctx, 1n)).toHaveLength(1);
   });
 });

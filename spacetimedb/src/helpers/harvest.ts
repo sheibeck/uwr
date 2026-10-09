@@ -8,6 +8,21 @@
 
 import { isHarvestCapped, nextHarvest } from '../data/density_rules';
 import type { HarvestState } from '../data/density_rules';
+import { RESOURCE_GATHER_CAST_MICROS } from './location';
+import { getPerkBonusByField } from './renown';
+
+/** The shortest a gather can take, whatever the perks. */
+export const MIN_GATHER_MICROS = 500_000n;
+
+/**
+ * How long a gather takes for this character: the 8 s cast, shortened by the gatherSpeedBonus perk
+ * (percent), never below MIN_GATHER_MICROS. Shared by gather_pool and start_gather_resource.
+ */
+export function gatherDurationMicros(ctx: any, character: any): bigint {
+  const gatherSpeedBonus = getPerkBonusByField(ctx, character.id, 'gatherSpeedBonus', character.level);
+  const raw = BigInt(Math.round(Number(RESOURCE_GATHER_CAST_MICROS) * (1 - gatherSpeedBonus / 100)));
+  return raw < MIN_GATHER_MICROS ? MIN_GATHER_MICROS : raw;
+}
 
 /** The pool_harvest row of a character at a place, or null. */
 export function harvestRow(ctx: any, characterId: bigint, locationId: bigint): any | null {
