@@ -228,7 +228,7 @@ See MILESTONES.md for full delivery summaries.
 - `todos/pending/2026-10-09-region-level-ramp-across-the-world.md`: the owner asked how region levels are set. Not by the discoverer: source danger +50..100 per crossing, cap 800, place offsets 0..+2 by hops. It climbs, but a crossing steps down from the previous region's far end, the climb is slow, and it goes flat at the cap. Own Phase 51.3.2.2 World Danger Growth (owner).
 - `todos/pending/2026-10-09-regions-need-distinct-atmospheres.md`: the world drifted into one theme (salt, brine, ships); each region needs its own culture and atmosphere, distinct from its neighbours (owner). Folded into Phase 51.3.2.1.
 - `todos/pending/2026-10-09-here-card-drops-the-rating-sentence.md`: the Here card drops the danger rating sentence to save rail space (owner). Folded into Phase 51.5.1.
-- `todos/pending/2026-10-09-equip-ignores-level-requirement.md`: gear shows "Requires Lv n" but equips at any level (an older world-tier decision removed the gate; the label stayed). Owner to choose: enforce or drop the label. Candidate home: 51.5 or a quick task.
+- `todos/pending/2026-10-09-equip-ignores-level-requirement.md`: gear shows "Requires Lv n" but equips at any level (an older world-tier decision removed the gate; the label stayed). Owner: enforce it, in Phase 51.5.
 - `todos/pending/2026-10-09-nearby-lists-npcs-first.md`: NPCs (quest hooks) move to the top of Nearby, before Creatures (owner). Client only. Folded into Phase 51.5.1 (owner).
 
 ### Blockers/Concerns

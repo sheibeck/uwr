@@ -1039,6 +1039,7 @@ Plans:
   2. A banked second level is claimed only after the current skill is chosen.
   3. Stats is renamed Character everywhere (header button, More row, screen registry, drawer and sheet titles) and follows `UWR Character.dc.html`: Overview, Abilities, Renown and factions, and Achievements tabs, using the data the server has today; content the server does not store is decided per item (built, deferred or a server follow-up).
   4. At 390x844 Character and Level Up open as full-height sheets and every action works.
+  5. Gear enforces its level requirement: the server refuses to equip an item above your level with a clear reason, and the client's Equip action and "Usable by you" filter follow the same rule. Gear above your level can still be bought, crafted and kept to grow into, and gear already worn stays on.
 
 **Plans**: TBD
 **UI hint**: yes
@@ -1050,6 +1051,7 @@ Plans:
   - Server gaps the mock shows (class card fields, achievements content, skill flavor line, the Keeper's assessment, server firsts by character, HP and mana preview) need owner calls in the discuss.
   - Owner calls: first-person Keeper quotes in the mock (voice rule), 40px and 30px level numerals and other off-scale sizes, the positive-green token.
   - Related todos: `2026-10-06-renown-passive-perks-no-effect.md`, `2026-10-06-race-ability-source-as-chip.md`, `2026-10-06-hotbar-hover-shows-ability-description.md`.
+  - **Gear level requirement (owner, 2026-10-09):** "I crafter Scrap Cloth Boots of the Arcane. They have a Level 4 requirement, but it let me equip it anyway." Then: "Enforce it. Phase 51.5". An older world-tier decision removed the gate (`equip_item` keeps the check commented out) while the client still shows "Requires Lv n". Re-enable it through the shared `canEquipItem` (reason 'level'), so server and client use one rule; the refusal wording needs the owner's approval. Todo `2026-10-09-equip-ignores-level-requirement.md` (pulled into this phase).
 
 ### Phase 51.5.1: Motion and Polish (INSERTED)
 
