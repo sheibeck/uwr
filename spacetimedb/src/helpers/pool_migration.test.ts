@@ -13,9 +13,11 @@ import {
   POOL_MIGRATION_VERSION,
   isInventedQuestKillTarget,
   markLegacyHub,
+  migrateEconomyToFamilies,
   migrateRegion,
   planMigrationStep,
   retireStandingState,
+  runMigrationStep,
 } from './pool_migration';
 import { DENSITY_RULES } from '../data/density_rules';
 
@@ -252,8 +254,8 @@ const templateById = (ctx: any, id: bigint) => rows(ctx, 'enemy_template').find(
 const placeById = (ctx: any, id: bigint) => rows(ctx, 'location').find((l: any) => l.id === id);
 
 describe('POOL_MIGRATION_VERSION', () => {
-  it('is the data version 1n (Plan 25 raises it with the economy step)', () => {
-    expect(POOL_MIGRATION_VERSION).toBe(1n);
+  it('is the data version 2n (Plan 25 raised it with the family economy step)', () => {
+    expect(POOL_MIGRATION_VERSION).toBe(2n);
   });
 });
 
@@ -591,5 +593,184 @@ describe('planMigrationStep (the cursor plan, planRestockBatch pattern)', () => 
       nextAt: T0 + DENSITY_RULES.POOL_TICK_MICROS,
       nextAfterRegionId: 0n,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51.3.1.1 Plan 25: the 51.3 per-type economy rows move to families (D-47, D-49), no paid call
+// ---------------------------------------------------------------------------
+
+/** One economy_item origin tag (51.3 shape: per enemy template, familyId 0n). */
+function econTag(itemTemplateId: bigint, role: string, enemyTemplateId: bigint, rarity = 'common') {
+  return {
+    itemTemplateId,
+    regionId: REGION,
+    role,
+    slotKey: role === 'gather' ? `gather:${rarity}` : `${role}:${enemyTemplateId}`,
+    kind: role === 'gather' ? 'metal' : role === 'gear' ? 'weapon' : role === 'drop' ? 'hide' : 'trophy',
+    rarity,
+    terrain: role === 'gather' ? 'swamp' : '',
+    timeOfDay: 'any',
+    enemyTemplateId,
+    familyId: 0n,
+  };
+}
+
+/** One 51.3 AI loot row. */
+function lootRow(id: bigint, enemyTemplateId: bigint, itemTemplateId: bigint, role: string, weight: bigint) {
+  return { id, enemyTemplateId, regionId: REGION, itemTemplateId, role, weight };
+}
+
+const DROP = 501n;
+const TROPHY = 502n;
+const GEAR = 503n;
+const ORE = 504n;
+const SALT = 505n;
+const ARCHER_GEAR = 506n;
+
+/**
+ * preWorld with a complete 51.3 region economy: the Skitterer (the beast family's base member, 11) has
+ * a drop, trophy and gear row and a 5-row loot table; the Brine Archer (12) has only a gear row and a
+ * 4-row loot table; the undead have no economy rows; two region gatherables.
+ */
+function economyWorld(): Record<string, any[]> {
+  const seed = preWorld();
+  seed.item_template.push(
+    itemRow(DROP, 'Skitter Chitin'),
+    itemRow(TROPHY, 'Skitterer Eyestalk'),
+    itemRow(GEAR, 'Pincer Blade'),
+    itemRow(ORE, 'Reach Ore'),
+    itemRow(SALT, 'Reach Salt'),
+    itemRow(ARCHER_GEAR, 'Archer Bow'),
+  );
+  seed.region_economy = [
+    { regionId: REGION, status: 'complete', jobId: 1n, otherRegionIds: '[]', createdAt: { microsSinceUnixEpoch: T0 }, updatedAt: { microsSinceUnixEpoch: T0 } },
+  ];
+  seed.economy_item = [
+    econTag(DROP, 'drop', SKITTERER),
+    econTag(TROPHY, 'trophy', SKITTERER),
+    econTag(GEAR, 'gear', SKITTERER),
+    econTag(ORE, 'gather', 0n, 'common'),
+    econTag(SALT, 'gather', 0n, 'uncommon'),
+    { ...econTag(ARCHER_GEAR, 'gear', ARCHER), slotKey: `gear:${ARCHER}` },
+  ];
+  seed.enemy_loot_entry = [
+    lootRow(1n, SKITTERER, DROP, 'drop', 40n),
+    lootRow(2n, SKITTERER, TROPHY, 'trophy', 25n),
+    lootRow(3n, SKITTERER, GEAR, 'gear', 10n),
+    lootRow(4n, SKITTERER, ORE, 'gatherable', 15n),
+    lootRow(5n, SKITTERER, SALT, 'gatherable', 15n),
+    lootRow(6n, ARCHER, ARCHER_GEAR, 'gear', 10n),
+    lootRow(7n, ARCHER, ORE, 'gatherable', 15n),
+    lootRow(8n, ARCHER, SALT, 'gatherable', 15n),
+    lootRow(9n, ARCHER, DROP, 'drop', 40n),
+  ];
+  seed.llm_job = [];
+  return seed;
+}
+
+const lootFor = (ctx: any, templateId: bigint) => rows(ctx, 'enemy_loot_entry').filter((e: any) => e.enemyTemplateId === templateId);
+const tagOf = (ctx: any, itemTemplateId: bigint) => rows(ctx, 'economy_item').find((r: any) => r.itemTemplateId === itemTemplateId);
+
+describe('migrateEconomyToFamilies (D-47, D-49, T-51.3.1.1-77)', () => {
+  it("tags the members' 51.3 rows with the family; fillers get loot tables from the base member's drop and trophy and no gear", () => {
+    const ctx = ctxFor(economyWorld());
+    migrateRegion(ctx, REGION, T0);
+    const beast = familyByKey(ctx, '1:beast');
+    for (const id of [DROP, TROPHY, GEAR, ARCHER_GEAR]) expect(tagOf(ctx, id).familyId).toBe(beast.id);
+    for (const id of [ORE, SALT]) expect(tagOf(ctx, id).familyId).toBe(0n);
+
+    // The base member and the archer keep their 51.3 tables exactly.
+    expect(lootFor(ctx, SKITTERER).map((e: any) => e.id)).toEqual([1n, 2n, 3n, 4n, 5n]);
+    expect(lootFor(ctx, ARCHER).map((e: any) => e.id)).toEqual([6n, 7n, 8n, 9n]);
+
+    const fillers = membersOf(ctx, beast.id).filter((m: any) => m.filler);
+    expect(fillers).toHaveLength(2);
+    for (const filler of fillers) {
+      const loot = lootFor(ctx, filler.enemyTemplateId);
+      expect(loot.length).toBeGreaterThanOrEqual(3);
+      expect(loot.length).toBeLessThanOrEqual(5);
+      expect(loot.filter((e: any) => e.role === 'drop').map((e: any) => e.itemTemplateId)).toEqual([DROP]);
+      expect(loot.filter((e: any) => e.role === 'trophy').map((e: any) => e.itemTemplateId)).toEqual([TROPHY]);
+      expect(loot.some((e: any) => e.role === 'gear')).toBe(false);
+      for (const e of loot.filter((x: any) => x.role === 'gatherable')) expect([ORE, SALT]).toContain(e.itemTemplateId);
+      for (const e of loot) expect(e.regionId).toBe(REGION);
+    }
+  });
+
+  it('a family with no economy rows at all is left alone (its members keep the rule fallback loot)', () => {
+    const ctx = ctxFor(economyWorld());
+    migrateRegion(ctx, REGION, T0);
+    const undead = familyByKey(ctx, '1:undead');
+    for (const member of membersOf(ctx, undead.id)) expect(lootFor(ctx, member.enemyTemplateId)).toEqual([]);
+    const leech = familyByKey(ctx, `quest:${LEECH}`);
+    expect(lootFor(ctx, LEECH)).toEqual([]);
+    expect(leech).toBeDefined();
+  });
+
+  it('a second run changes nothing, and no llm_job is ever inserted', () => {
+    const ctx = ctxFor(economyWorld());
+    migrateRegion(ctx, REGION, T0);
+    const first = snapshotDb(ctx.db);
+    migrateRegion(ctx, REGION, T0 + 5_000_000n);
+    expect(snapshotDb(ctx.db)).toBe(first);
+    expect(migrateEconomyToFamilies(ctx, REGION)).toEqual({ tagged: 0, tables: 0 });
+    expect(rows(ctx, 'llm_job')).toEqual([]);
+  });
+
+  it('reports what it did: four rows tagged, two filler tables', () => {
+    // Families first (the region pass without the economy rows), then the economy step on its own.
+    const bare = economyWorld();
+    const { economy_item: tags, enemy_loot_entry: loot } = bare;
+    bare.economy_item = [];
+    bare.enemy_loot_entry = [];
+    const migrated = ctxFor(bare);
+    migrateRegion(migrated, REGION, T0);
+    migrated.db._tables.economy_item = tags;
+    migrated.db._tables.enemy_loot_entry = loot;
+    expect(migrateEconomyToFamilies(migrated, REGION)).toEqual({ tagged: 4, tables: 2 });
+  });
+
+  it('a region with no region economy or no families is a no-op', () => {
+    const ctx = ctxFor(preWorld());
+    migrateRegion(ctx, REGION, T0);
+    const before = snapshotDb(ctx.db);
+    expect(migrateEconomyToFamilies(ctx, REGION)).toEqual({ tagged: 0, tables: 0 });
+    expect(migrateEconomyToFamilies(ctx, 99n)).toEqual({ tagged: 0, tables: 0 });
+    expect(snapshotDb(ctx.db)).toBe(before);
+  });
+});
+
+describe('POOL_MIGRATION_VERSION 2n re-runs the region pass on a version-1 world (Plan 25)', () => {
+  it('a world migrated at version 1 runs the pass again: pools unchanged, filler loot added, then the version reads 2n', () => {
+    // A version-1 world: the Plan 15 pass ran before the 51.3 economy rows were tagged.
+    const bare = economyWorld();
+    const { economy_item: tags, enemy_loot_entry: loot } = bare;
+    bare.economy_item = [];
+    bare.enemy_loot_entry = [];
+    const ctx = ctxFor(bare);
+    migrateRegion(ctx, REGION, T0);
+    ctx.db._tables.economy_item = tags;
+    ctx.db._tables.enemy_loot_entry = loot;
+    ctx.db._tables.pool_state = [{ id: 1n, version: 1n, lastHunterMicros: 0n, lastTrendMicros: 0n }];
+    const poolsBefore = JSON.stringify(rows(ctx, 'place_pool').map((p: any) => [p.id, p.locationId, p.kind, p.refId, p.count, p.homeLevel]));
+    const familiesBefore = rows(ctx, 'creature_family').length;
+    const membersBefore = rows(ctx, 'family_member').length;
+
+    const step = planMigrationStep(ctx, { afterRegionId: 0n }, T0 + 1_000_000n);
+    expect(step.migrating).toBe(true);
+    expect(step.batch).toEqual([REGION]);
+    expect(runMigrationStep(ctx, step, undefined, T0 + 1_000_000n)).toBe(true);
+
+    expect(rows(ctx, 'pool_state')[0].version).toBe(2n);
+    expect(JSON.stringify(rows(ctx, 'place_pool').map((p: any) => [p.id, p.locationId, p.kind, p.refId, p.count, p.homeLevel]))).toBe(poolsBefore);
+    expect(rows(ctx, 'creature_family')).toHaveLength(familiesBefore);
+    expect(rows(ctx, 'family_member')).toHaveLength(membersBefore);
+    const beast = familyByKey(ctx, '1:beast');
+    for (const filler of membersOf(ctx, beast.id).filter((m: any) => m.filler)) {
+      expect(lootFor(ctx, filler.enemyTemplateId).length).toBeGreaterThan(0);
+    }
+    expect(rows(ctx, 'llm_job')).toEqual([]);
+    expect(planMigrationStep(ctx, { afterRegionId: 0n }, T0 + 2_000_000n).migrating).toBe(false);
   });
 });
