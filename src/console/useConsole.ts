@@ -75,6 +75,26 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
     }
   }
 
+  /**
+   * Runs one card action's reducer call (Pull, Fight, Gather; 51.3.1.1-31) like fire, but passes a
+   * failure on: a rejected call is logged and rethrown, and a synchronous throw is logged and returned
+   * as a rejected promise, so the caller's action runner prints the send error line. With no
+   * reducers it resolves.
+   */
+  function send(name: string, run: (reducers: GameReducers) => Promise<void> | undefined): Promise<void> {
+    const reducers = game.reducers.value;
+    if (reducers === null) return Promise.resolve();
+    try {
+      return Promise.resolve(run(reducers)).catch((error: unknown) => {
+        warn(name, error);
+        throw error;
+      });
+    } catch (error) {
+      warn(name, error);
+      return Promise.reject(error);
+    }
+  }
+
   function ready(): boolean {
     return game.connected.value && game.reducers.value !== null && game.characterId.value !== null;
   }
@@ -411,45 +431,48 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
   }
 
   // Gathers from a resource pool (51.3.1.1-18): the id is the pool_level id (= place_pool id).
-  function gather(pool: { id: bigint; name: string }): void {
+  // Pull, Fight and Gather return the reducer promise (51.3.1.1-31): it rejects when the call does.
+  function gather(pool: { id: bigint; name: string }): Promise<void> {
     const characterId = game.characterId.value;
-    if (!ready() || characterId === null) return;
+    if (!ready() || characterId === null) return Promise.resolve();
     frame.closeScreen();
     conversation.value = null;
     echo(`gather ${pool.name}`);
-    void fire('gatherPool', (r) => r.gatherPool({ characterId, poolId: pool.id }));
+    const sent = send('gatherPool', (r) => r.gatherPool({ characterId, poolId: pool.id }));
     bump();
+    return sent;
   }
 
   // Pulls a family from its pool (51.3.1.1 D-12): one pull, no pull type. The id is the pool_level id.
-  function pull(target: { id: bigint; name: string }): void {
+  function pull(target: { id: bigint; name: string }): Promise<void> {
     const characterId = game.characterId.value;
-    if (!ready() || characterId === null) return;
+    if (!ready() || characterId === null) return Promise.resolve();
     // Actions are disabled in a fight (quick-261006-a0i).
-    if (game.combat.active.value) return;
+    if (game.combat.active.value) return Promise.resolve();
     frame.closeScreen();
     conversation.value = null;
     // The echo mirrors the typed form, which the server also accepts ('pull goblins').
     echo(`pull ${target.name}`);
-    void fire('pullFamily', (r) => r.pullFamily({ characterId, poolId: target.id }));
+    const sent = send('pullFamily', (r) => r.pullFamily({ characterId, poolId: target.id }));
     bump();
+    return sent;
   }
 
   // Fights an individual (51.3.1.1-18, D-39): a named enemy of the character's own (pull_named_enemy)
   // or a World event spawn (start_combat).
-  function fight(target: { kind: 'named' | 'event'; id: bigint; name: string }): void {
+  function fight(target: { kind: 'named' | 'event'; id: bigint; name: string }): Promise<void> {
     const characterId = game.characterId.value;
-    if (!ready() || characterId === null) return;
-    if (game.combat.active.value) return;
+    if (!ready() || characterId === null) return Promise.resolve();
+    if (game.combat.active.value) return Promise.resolve();
     frame.closeScreen();
     conversation.value = null;
     echo(`fight ${target.name}`);
-    if (target.kind === 'named') {
-      void fire('pullNamedEnemy', (r) => r.pullNamedEnemy({ characterId, namedEnemyId: target.id }));
-    } else {
-      void fire('startCombat', (r) => r.startCombat({ characterId, enemySpawnId: target.id }));
-    }
+    const sent =
+      target.kind === 'named'
+        ? send('pullNamedEnemy', (r) => r.pullNamedEnemy({ characterId, namedEnemyId: target.id }))
+        : send('startCombat', (r) => r.startCombat({ characterId, enemySpawnId: target.id }));
     bump();
+    return sent;
   }
 
   function invite(name: string): void {
@@ -495,10 +518,12 @@ export function createConsole(deps: { game: GameData; frame: FrameControls }): C
       case 'enemy':
         // One click is one action, the same call as the Nearby button (UI-SPEC P3): a family is
         // pulled; a named or World event enemy is fought. An entry without a target is a family.
+        // A keyword click adds no copy for a failed send (the warning is already logged), so the
+        // rejection is caught here and never goes unhandled (51.3.1.1-31).
         if (entry.target === 'named' || entry.target === 'event') {
-          fight({ kind: entry.target, id: entry.id, name: entry.name });
+          fight({ kind: entry.target, id: entry.id, name: entry.name }).catch(() => {});
         } else {
-          pull({ id: entry.id, name: entry.name });
+          pull({ id: entry.id, name: entry.name }).catch(() => {});
         }
         break;
       case 'place':

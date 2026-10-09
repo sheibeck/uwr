@@ -257,7 +257,7 @@ describe('FeedView keywords', () => {
       ingest(h, keeperLine('A Goblin Scout prowls the road.'));
       await settle();
       const button = w.get('button.keyword');
-      expect(button.attributes('aria-label')).toBe('Pull Goblin Scout');
+      expect(button.attributes('aria-label')).toBe('Fight Goblin Scout');
       await button.trigger('click');
       expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Goblin Scout', target: 'event' });
     });
@@ -328,7 +328,7 @@ describe('FeedView keywords', () => {
       await settle();
       const buttons = w.findAll('button.keyword');
       expect(buttons).toHaveLength(1);
-      expect(buttons[0].attributes('aria-label')).toBe('Pull Marisol');
+      expect(buttons[0].attributes('aria-label')).toBe('Fight Marisol');
       await buttons[0].trigger('click');
       expect(h.actOnKeyword).toHaveBeenCalledWith({ kind: 'enemy', id: 9n, name: 'Marisol', target: 'event' });
     });

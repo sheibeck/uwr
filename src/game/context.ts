@@ -333,15 +333,23 @@ export interface ConsoleApi {
   examine(name: string): void;
   /** A bare look at the place (the Here card title eye). No-op offline. */
   look(): void;
-  /** Gathers from a resource pool (gather_pool; id = pool_level id). No-op offline. */
-  gather(pool: { id: bigint; name: string }): void;
-  /** Pulls a family from its pool (pull_family; id = pool_level id). No-op offline and while game.combat.active. */
-  pull(target: { id: bigint; name: string }): void;
+  /**
+   * Gathers from a resource pool (gather_pool; id = pool_level id). No-op offline (resolved). The
+   * promise rejects when the reducer call rejects, so a caller's action runner can print the send
+   * error line (51.3.1.1-31).
+   */
+  gather(pool: { id: bigint; name: string }): Promise<void>;
+  /**
+   * Pulls a family from its pool (pull_family; id = pool_level id). No-op (resolved) offline and while
+   * game.combat.active. Rejects when the reducer call rejects (the send error line).
+   */
+  pull(target: { id: bigint; name: string }): Promise<void>;
   /**
    * Fights a named enemy (pull_named_enemy; id = named_enemy id) or a World event spawn (start_combat;
-   * id = enemy_spawn id). No-op offline and while game.combat.active.
+   * id = enemy_spawn id). No-op (resolved) offline and while game.combat.active. Rejects when the
+   * reducer call rejects (the send error line).
    */
-  fight(target: { kind: 'named' | 'event'; id: bigint; name: string }): void;
+  fight(target: { kind: 'named' | 'event'; id: bigint; name: string }): Promise<void>;
   whisperTo(name: string): void;
   invite(name: string): void;
   trade(): void;
@@ -491,9 +499,9 @@ export function createInertConsole(): ConsoleApi {
     travel() {},
     examine() {},
     look() {},
-    gather() {},
-    pull() {},
-    fight() {},
+    gather: () => Promise.resolve(),
+    pull: () => Promise.resolve(),
+    fight: () => Promise.resolve(),
     whisperTo() {},
     invite() {},
     trade() {},

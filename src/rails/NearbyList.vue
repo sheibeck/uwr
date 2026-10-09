@@ -56,18 +56,6 @@ import type { FamilyRow, NamedRow, QuestTargetLike, ResourceRow } from './pools'
 // left in the rail); right-click opens that menu on desktop. Invite lives in the menu. Talk to uses
 // the plain chat circle so Whisper keeps its own icon. Names are server or player text, rendered as
 // text nodes only. No table lists examinable objects at a location (research Q3, UI-SPEC A7).
-const props = withDefaults(
-  defineProps<{
-    /**
-     * Day or night (src/session/frameView.ts timeOfDay over world_state). Unknown (null) lists every
-     * resource pool; the server still refuses one out of its time. No host passes it yet (51.3.1.1-19
-     * hand-off: the frame needs to expose the time of day).
-     */
-    timeOfDay?: 'day' | 'night' | null;
-  }>(),
-  { timeOfDay: null },
-);
-
 const game = inject(GAME_KEY, createInertGame());
 const consoleApi = inject(CONSOLE_KEY, createInertConsole());
 const frame = inject(FRAME_KEY, createInertFrame());
@@ -123,9 +111,13 @@ const placeNoun = computed(() =>
 // The place's pool rows have applied (51.3.1.1-18): until then no pool group renders.
 const ready = computed(() => place.value !== null && game.poolsAppliedFor(place.value.id));
 
-const isNight = computed<boolean | null>(() =>
-  props.timeOfDay === null ? null : props.timeOfDay === 'night',
-);
+// Day or night (D-55): the frame carries it from world_state, the value the header shows
+// (51.3.1.1-31). Unknown (null) lists every resource pool; the server still refuses a gather out of
+// its time.
+const isNight = computed<boolean | null>(() => {
+  const time = frame.timeOfDay.value;
+  return time === null ? null : time === 'night';
+});
 
 // The server clock for the harvest cap: refreshed whenever the caps change and again when the
 // soonest cap runs out, so Gather frees itself without a reload.
@@ -175,12 +167,14 @@ const questTargets = computed<QuestTargetLike[]>(() => {
 
 const families = computed(() => familyRows(game.poolLevelsHere.value, playerLevel.value, placeNoun.value));
 
+// The templates of the spawns here and of the own named enemies (51.3.1.1-31, D-39): level, con
+// colour and Boss for the named cards. namedRows maps them by id, so a template in both is harmless.
 const named = computed(() => {
   const here = place.value?.id ?? null;
   return namedRows(
     game.namedEnemies.value.filter((enemy) => enemy.locationId === here),
     game.enemiesHere.value,
-    game.enemyTemplatesHere.value,
+    [...game.enemyTemplatesHere.value, ...game.namedEnemyTemplates.value],
     questTargets.value,
     playerLevel.value,
   );
@@ -216,9 +210,10 @@ const pullKey = (row: FamilyRow): string => `pull-${row.poolId}`;
 const fightKey = (row: NamedRow): string => `fight-${row.key}`;
 const gatherKey = (row: ResourceRow): string => `gather-${row.poolId}`;
 
-// Each call runs inside the action runner: a second click while pending is ignored, a synchronous
-// failure counts as a rejection (the send error line), and nothing changes optimistically. The
-// server's results and refusals arrive as feed lines and row updates.
+// Each call runs inside the action runner: a second click while pending is ignored, a rejected
+// reducer promise (the console passes it on, 51.3.1.1-31) and a synchronous failure both count as a
+// rejection (the send error line), and nothing changes optimistically. The server's results and
+// refusals arrive as feed lines and row updates.
 function pull(row: FamilyRow): void {
   if (!connected.value || !row.pullable) return;
   void runner.run(pullKey(row), async () => consoleApi.pull({ id: row.poolId, name: row.name }));

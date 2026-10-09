@@ -141,7 +141,6 @@ const COMBAT_KINDS = new Set([
   'buff',
   'debuff',
   'combat',
-  'combat_prompt',
   'combat_status',
 ]);
 // The density lines (51.3.1.1): server kind -> line kind. Never keyword-eligible.
