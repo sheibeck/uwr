@@ -344,6 +344,16 @@ Owner, going offline: "Just keep going. I'm going to bed. Compact as needed, kee
 
 The owner chose to run Phase 47 before Phase 46.1, then PAUSE after Phase 47 so the owner can try the playable new UX with an existing character, then continue with 46.1, 48, 49, 50, 51, 52. All other testing stays deferred to the end of the milestone. Roadmap dependencies allow this (47 needs 45 and 46; 46.1 must finish before 48).
 
+### Resume note (2026-10-09, overnight; owner asleep: "Keep going. I'm going to bed.")
+
+- **Run:** `/gsd-autonomous` v3.0, explicit run order (owner: systems, then UX, then admin/tuning, then release): 51.3.1.1 Density Pools → 51.3.1.2 Bigger Regions → 51.3.2 → 52.1.1 → 52.1.2 → 52.2 → 52.3 → 52.4 → 51.4 → 51.5 → 52.1 → 51.5.1 → 52.5 Admin and Balance Dials → 53.
+- **51.3.1.1 status:** 32 plans. Done: 01-26 and 28-31 (31 includes the live Map rating wiring and the combat-pets query fix). Left: **Plan 32** (live-test fixes: D-73 level-first rating, D-74 quest targets completable plus a 40% pull chance, D-75 the approved NPC no-open-task line, NPC reply cap 1024 plus one retry and one line per family, golden test fixtures), then **Plan 27** (cleanup, D-72 one resource per gather, guards, COPY-REVIEW.md for the owner, local publish C with live checks, VALIDATION). Then code review and fix, verification, the UAT file (deferred to milestone end), and the owner's one wording review (COPY-REVIEW.md, D-58).
+- **Executor practice:** rules `scratchpad/p5131/rules.md`, hand-off `scratchpad/p5131/handoff.md`. Lanes run in parallel only when files_modified are disjoint and there is one publisher. Executors run their own tests and vue-tsc; the coordinator runs the full suite with `CI=true` in the snapshot worktree `scratchpad/suitewt`, whose node_modules are JUNCTIONS to the real repo (never delete its contents recursively; remove the junctions with rmdir first before removing the worktree).
+- **Deferred items:** `.planning/phases/51.3.1.1-density-pools/deferred-items.md` (rows 1-33).
+- **Approvals done:** prompt draft (including Revision 2 and the Feud none variant) APPROVED 2026-10-08; the NPC no-open-task line approved 2026-10-09. The owner's local aiEnabled is ON: no paid calls without the owner.
+- **Next phase 51.3.1.2 Bigger Regions** needs the owner for its discuss; if the run reaches it while the owner is away, prepare research only and wait.
+- **Owner notes this session:** the world will be regenerated from scratch (memory); feuds are a 35% chance; hubs, stations and bind stones per D-59..D-64; the NPC memory graph (999.9) is the real cure for stale NPC memory, not yet scheduled.
+
 ### Resume note (2026-10-08, fourth compact)
 
 - **Done since the third compact:**
