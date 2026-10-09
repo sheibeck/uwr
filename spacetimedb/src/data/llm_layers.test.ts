@@ -698,6 +698,23 @@ describe('route blocks and volatile builders', () => {
       expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 2, arrivalIsHub: false })).toContain('\nHubs: two.\n');
     });
 
+    it('buildWorldFillVolatile prints the Families and Feud lines right after the Hubs line (Plan 51.3.1.1-30, R2-A2)', () => {
+      // The draft's R2-A2 examples and the D-71 variant, copied exactly.
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, familyCount: 7, feudCount: 2 })).toContain(
+        '(vendor, he)\nHubs: one.\nFamilies: seven.\nFeud: two families.\n\n',
+      );
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 0, familyCount: 7, feudCount: 3 })).toContain(
+        '\nHubs: none, this region is too wild for settlements.\nFamilies: seven.\nFeud: three families.\n\n',
+      );
+      expect(buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1, familyCount: 7, feudCount: 0 })).toContain(
+        '\nHubs: one.\nFamilies: seven.\nFeud: none.\n\n',
+      );
+      // No counts on the stored input (a job queued before Revision 2): neither line.
+      const old = buildWorldFillVolatile({ ...benign.world_gen, hubCount: 1 });
+      expect(old).not.toContain('Families:');
+      expect(old).not.toContain('Feud:');
+    });
+
     it('buildCreationClassFillVolatile renders the class and the first ability and asks for stats and two more abilities', () => {
       const text = buildRouteLayers('creation_class', benign.creation_class).volatile;
       expect(text).toContain('Race: plain world text race');

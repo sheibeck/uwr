@@ -389,7 +389,7 @@ describe('region fill families, place words and hubs (Phase 51.3.1.1 Plan 23, D-
     expect(arrival.properties).toEqual({ shortName: { type: 'string' }, placeNoun: { type: 'string' }, isHub: { type: 'boolean' } });
   });
 
-  it('a family has exactly the section A3 fields', () => {
+  it('a family has exactly the section A3 fields plus the Revision 2 history and inFeud (R2-A3, D-68, D-70)', () => {
     expect(fill.properties.families.type).toBe('array');
     expect(family.additionalProperties).toBe(false);
     expect(family.required).toEqual([
@@ -404,7 +404,11 @@ describe('region fill families, place words and hubs (Phase 51.3.1.1 Plan 23, D-
       'members',
       'fitLocations',
       'relations',
+      'history',
+      'inFeud',
     ]);
+    expect(family.properties.history).toEqual({ type: 'string' });
+    expect(family.properties.inFeud).toEqual({ type: 'boolean' });
     expect(member.required).toEqual(['role', 'name']);
     expect(member.additionalProperties).toBe(false);
     expect(relation.required).toEqual(['family', 'kind']);

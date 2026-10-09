@@ -52,6 +52,7 @@ import {
   readHubMarks,
 } from './world_gen';
 import {
+  askedFamilyCount,
   familySeed,
   feudCountFor,
   feudHappens,
@@ -1245,6 +1246,9 @@ describe('staged world fill (Phase 43)', () => {
         // Plan 51.3.1.1-23 (D-62): the server's hub count and whether the arrival point is a hub.
         hubCount: regionHubCount(rows(ctx, 'region').find((r: any) => r.name === 'Test Region'), false),
         arrivalIsHub: false,
+        // Plan 51.3.1.1-30 (D-66, D-70): the Families and Feud lines carry the server's own counts.
+        familyCount: askedFamilyCount(),
+        feudCount: feudCountFor(askedFamilyCount(), familySeed(rows(ctx, 'region').find((r: any) => r.name === 'Test Region').id)),
       });
       expect(() => buildRouteLayers('world_gen', input)).not.toThrow();
     });
@@ -2295,6 +2299,30 @@ describe('AI families, place words and the arrival isSafe (Plan 23)', () => {
     const starterInput = buildWorldFillInput(starter, stateOf(starter));
     expect(starterInput).toMatchObject({ hubCount: 1, arrivalIsHub: true });
     expect(buildRouteLayers('world_gen', starterInput).volatile).toContain('\nHubs: one. The arrival point is a hub.\n');
+  });
+
+  it('buildWorldFillInput asks for askedFamilyCount() families and the feud count of the region seed (Plan 30, D-66, D-70, D-71)', () => {
+    expect(askedFamilyCount()).toBe(7);
+    // One region whose seed rolls a feud and one whose seed rolls none, so both Feud line forms are covered.
+    const firstId = (pred: (n: number) => boolean): bigint => {
+      for (let id = 2n; id < 400n; id++) if (pred(feudCountFor(7, familySeed(id)))) return id;
+      throw new Error('no region id matches');
+    };
+    const withFeud = firstId((n) => n >= 2);
+    const noFeud = firstId((n) => n === 0);
+    for (const regionId of [withFeud, noFeud]) {
+      const ctx = aiCtx(regionId, 150n);
+      const { region } = stageOne(ctx);
+      expect(region.id).toBe(regionId);
+      const input = buildWorldFillInput(ctx, stateOf(ctx));
+      expect(input.familyCount).toBe(7);
+      expect(input.feudCount).toBe(feudCountFor(askedFamilyCount(), familySeed(regionId)));
+      const volatile = buildRouteLayers('world_gen', input).volatile;
+      const feudLine = input.feudCount === 0 ? 'Feud: none.' : `Feud: ${input.feudCount === 2 ? 'two' : 'three'} families.`;
+      expect(volatile).toContain(`\nFamilies: seven.\n${feudLine}\n\n`);
+    }
+    expect(feudCountFor(7, familySeed(withFeud))).toBeGreaterThanOrEqual(2);
+    expect(feudCountFor(7, familySeed(noFeud))).toBe(0);
   });
 
   it('an old-shape reply (enemies, no families) still builds families by rule and stores empty place words', () => {
