@@ -25,7 +25,6 @@ import { applyPerkProcs } from '../helpers/combat_perks';
 import { partyMembersInLocation } from '../helpers/character';
 import { fightRoster } from '../helpers/group';
 import { activeCombatIdForCharacter as activeFightOf } from '../helpers/events';
-import { getLocationSpawnCap } from '../helpers/location';
 import { RENOWN_GAIN } from '../data/renown_data';
 import { buildDisplayName, getEquippedBonuses } from '../helpers/items';
 import { buildVictoryLootContext, rollEnemyLoot, rollEnemyGold } from '../helpers/loot';
@@ -1246,16 +1245,11 @@ export const registerCombatReducers = (deps: any) => {
     submitCombatChoice(ctx, character, { actionType: 'flee' });
   });
 
-  scheduledReducers['respawn_enemy'] = spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx, { arg }) => {
+  scheduledReducers['respawn_enemy'] = spacetimedb.reducer('respawn_enemy', { arg: EnemyRespawnTick.rowType }, (ctx) => {
     if (ctx.sender.toHexString() !== ctx.databaseIdentity.toHexString()) return;
-    const location = ctx.db.location.id.find(arg.locationId);
-    if (location?.isSafe) return;
-    // Respect spawn cap — event spawns don't count against it
-    const nonEventCount = [...ctx.db.enemy_spawn.by_location.filter(arg.locationId)]
-      .filter(row => [...ctx.db.event_spawn_enemy.by_spawn.filter(row.id)].length === 0).length;
-    const cap = getLocationSpawnCap(ctx, arg.locationId);
-    if (nonEventCount >= cap) return;
-    deps.spawnEnemy(ctx, arg.locationId, 1n);
+    // Ordinary creatures are pools now (Phase 51.3.1.1); pending enemy_respawn_tick rows drain here;
+    // the reducer and its table stay registered.
+    return;
   });
 
   spacetimedb.reducer(
