@@ -440,3 +440,66 @@ describe('the enemy target is written on its row (D-40)', () => {
     expect(enemyRow(ctx, 1n).aggroTargetCharacterId).toBe(other);
   });
 });
+
+describe('an enemy shield absorbs player auto-attacks and pet attacks (D-53, T-51.3.1.1-14)', () => {
+  const ward = (magnitude: bigint) => ({
+    id: 1n, combatId: 1n, enemyId: 1n, effectType: 'damage_shield', magnitude, roundsRemaining: 50n,
+    sourceAbility: 'Brace', ownerCharacterId: undefined,
+  });
+  const shieldOf = (ctx: any) =>
+    rows(ctx, 'combat_enemy_effect').find((e: any) => e.enemyId === 1n && e.effectType === 'damage_shield');
+  const numberIn = (message: string): bigint => BigInt(/(\d+) damage/.exec(message)![1]);
+  /** One Cave Rat with a ward; the player is level 30 so a fist hit is bigger than 1. */
+  const wardedFight = (magnitude: bigint, extra: Record<string, any[]> = {}) => {
+    const seed = roleFight([{ id: 1n, name: 'Cave Rat', role: 'damage', hp: BIG }], {
+      extra: { combat_enemy_effect: [ward(magnitude)], ...extra },
+    });
+    seed.character[0].level = 30n;
+    return seed;
+  };
+
+  it('a player auto-attack into a large shield leaves the enemy HP untouched and drains the shield', () => {
+    const ctx = fightCtx(wardedFight(1_000n));
+    fire(ctx, T0 + TEN_S);
+    const absorbed = lines(ctx, 1n, /^A ward on Cave Rat absorbs \d+ damage\.$/);
+    expect(absorbed).toHaveLength(1);
+    const n = numberIn(absorbed[0].message);
+    expect(n).toBeGreaterThan(0n);
+    expect(enemyRow(ctx, 1n).currentHp).toBe(BIG);
+    expect(shieldOf(ctx).magnitude).toBe(1_000n - n);
+    expect(lines(ctx, 1n, /^Your fists (hit|crits) Cave Rat for 0 damage/)).toHaveLength(1);
+  });
+
+  it('a shield smaller than the hit is used up and the rest reaches the enemy', () => {
+    const ctx = fightCtx(wardedFight(1n));
+    fire(ctx, T0 + TEN_S);
+    expect(lines(ctx, 1n, /^A ward on Cave Rat absorbs 1 damage\.$/)).toHaveLength(1);
+    const hit = lines(ctx, 1n, /^Your fists (hit|crits) Cave Rat for \d+ damage/);
+    expect(hit).toHaveLength(1);
+    const dealt = numberIn(hit[0].message);
+    expect(dealt).toBeGreaterThan(0n);
+    expect(enemyRow(ctx, 1n).currentHp).toBe(BIG - dealt);
+    expect(shieldOf(ctx)).toBeUndefined();
+  });
+
+  it('a pet attack into a shield is absorbed: the enemy HP stays and the owner sees the ward', () => {
+    const pet = {
+      id: 1n, characterId: 1n, combatId: 1n, name: 'Rex', level: 1n, currentHp: 5_000n, maxHp: 5_000n,
+      attackDamage: 20n, abilityKey: undefined, nextAbilityAt: undefined, abilityCooldownSeconds: undefined,
+      targetEnemyId: 1n, nextAutoAttackAt: undefined, expiresAtMicros: undefined,
+    };
+    const ctx = fightCtx(wardedFight(1_000n, { ability_template: [REST], active_pet: [pet] }));
+    for (let round = 1n; round <= 3n; round++) {
+      restIn(ctx, round);
+      fire(ctx, T0 + round * TEN_S);
+    }
+    const petHits = lines(ctx, 1n, /^Rex hits Cave Rat for \d+\.$/);
+    const wards = lines(ctx, 1n, /^A ward on Cave Rat absorbs \d+ damage\.$/);
+    expect(wards.length).toBeGreaterThan(0);
+    expect(petHits.length).toBe(wards.length);
+    for (const line of petHits) expect(line.message).toBe('Rex hits Cave Rat for 0.');
+    const absorbed = wards.reduce((sum: bigint, w: any) => sum + numberIn(w.message), 0n);
+    expect(enemyRow(ctx, 1n).currentHp).toBe(BIG);
+    expect(shieldOf(ctx).magnitude).toBe(1_000n - absorbed);
+  });
+});
