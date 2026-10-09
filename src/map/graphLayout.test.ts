@@ -111,11 +111,113 @@ const ORROWMERE: LayoutInput = {
   ],
 };
 
+// ---- 10-place fixtures (Phase 51.3.1.2, SC1: bigger regions) ----
+// A generated region now holds an arrival point, eight new places and The Edge Beyond doorway, plus
+// the border place of the region it was entered from. A tree, a chain and a ring with a chord cover
+// the shapes the server's region shaping can produce. Stars are left out on purpose: the server's
+// exit degree cap (EXIT_DEGREE_CAP) prevents them.
+
+const TREE10: LayoutInput = {
+  regionId: 9001n,
+  places: [
+    place(9101n, 'Saltreach Landing', 9001n, { terrainType: 'plains', bindStone: true }),
+    place(9102n, 'Corran Market', 9001n, { terrainType: 'town' }),
+    place(9103n, 'Thistle Downs', 9001n, { terrainType: 'plains' }),
+    place(9104n, 'Gallow Fen', 9001n, { terrainType: 'swamp' }),
+    place(9105n, 'Ashen Rise', 9001n, { terrainType: 'mountains' }),
+    place(9106n, 'Briar Hollow', 9001n),
+    place(9107n, 'The Sunken Vault', 9001n, { terrainType: 'dungeon' }),
+    place(9108n, 'Hollin Pass', 9001n, { terrainType: 'mountains' }),
+    place(9109n, 'Cinder Steps', 9001n, { terrainType: 'plains' }),
+    place(9110n, 'The Edge Beyond Saltreach', 9001n, { terrainType: 'uncharted' }),
+    place(9050n, 'Fennick Hollow', 9000n),
+  ],
+  edges: [
+    edge(9101n, 9102n),
+    edge(9102n, 9103n),
+    edge(9102n, 9104n),
+    edge(9102n, 9105n),
+    edge(9103n, 9106n),
+    edge(9104n, 9107n),
+    edge(9105n, 9108n),
+    edge(9108n, 9109n),
+    edge(9109n, 9110n),
+    edge(9101n, 9050n),
+  ],
+};
+
+const CHAIN10: LayoutInput = {
+  regionId: 9002n,
+  places: [
+    place(9201n, 'Marrow Landing', 9002n, { terrainType: 'plains', bindStone: true }),
+    place(9202n, 'Wyck Crossing', 9002n, { terrainType: 'town' }),
+    place(9203n, 'Reedmere', 9002n, { terrainType: 'swamp' }),
+    place(9204n, 'Oldwood Verge', 9002n),
+    place(9205n, 'Grey Scarp', 9002n, { terrainType: 'mountains' }),
+    place(9206n, 'The Choked Mine', 9002n, { terrainType: 'dungeon' }),
+    place(9207n, 'Lantern Moor', 9002n, { terrainType: 'plains' }),
+    place(9208n, 'Hagstone Bog', 9002n, { terrainType: 'swamp' }),
+    place(9209n, 'Thornback Ridge', 9002n, { terrainType: 'mountains' }),
+    place(9210n, 'The Edge Beyond Marrow', 9002n, { terrainType: 'uncharted' }),
+    place(9060n, 'Dunmore Gate', 9000n, { terrainType: 'town' }),
+  ],
+  edges: [
+    edge(9201n, 9202n),
+    edge(9202n, 9203n),
+    edge(9203n, 9204n),
+    edge(9204n, 9205n),
+    edge(9205n, 9206n),
+    edge(9206n, 9207n),
+    edge(9207n, 9208n),
+    edge(9208n, 9209n),
+    edge(9209n, 9210n),
+    edge(9201n, 9060n),
+  ],
+};
+
+const RING10: LayoutInput = {
+  regionId: 9003n,
+  places: [
+    place(9301n, 'Kelp Harbour', 9003n, { terrainType: 'town', bindStone: true }),
+    place(9302n, 'Shingle Walk', 9003n, { terrainType: 'plains' }),
+    place(9303n, 'Gullcry Woods', 9003n),
+    place(9304n, 'Tidewrack Marsh', 9003n, { terrainType: 'swamp' }),
+    place(9305n, 'Spindle Crag', 9003n, { terrainType: 'mountains' }),
+    place(9306n, 'The Salt Cellars', 9003n, { terrainType: 'dungeon' }),
+    place(9307n, 'Driftwood Heath', 9003n, { terrainType: 'plains' }),
+    place(9308n, 'Mossback Wood', 9003n),
+    place(9309n, 'Netmender Row', 9003n, { terrainType: 'town' }),
+    place(9310n, 'The Edge Beyond Kelp Harbour', 9003n, { terrainType: 'uncharted' }),
+    place(9070n, 'Brine Steps', 9000n),
+    place(9080n, 'Cold Orchard', 9004n),
+  ],
+  edges: [
+    edge(9301n, 9302n),
+    edge(9302n, 9303n),
+    edge(9303n, 9304n),
+    edge(9304n, 9305n),
+    edge(9305n, 9306n),
+    edge(9306n, 9307n),
+    edge(9307n, 9308n),
+    edge(9308n, 9309n),
+    edge(9309n, 9301n),
+    // the chord
+    edge(9303n, 9307n),
+    // the doorway on the place farthest from the arrival point (four hops)
+    edge(9305n, 9310n),
+    edge(9301n, 9070n),
+    edge(9307n, 9080n),
+  ],
+};
+
 const FIXTURES: [string, LayoutInput][] = [
   ['Sennet Basin', SENNET],
   ['Tessarine Shelf', TESSARINE],
   ['Kesterlane Basin', KESTERLANE],
   ['Orrowmere Teeth', ORROWMERE],
+  ['TREE10 (10-place tree)', TREE10],
+  ['CHAIN10 (10-place chain)', CHAIN10],
+  ['RING10 (10-place ring with a chord)', RING10],
 ];
 
 const DESK: CanvasSize = { width: 652, height: 600 };
