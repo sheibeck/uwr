@@ -890,7 +890,7 @@ Plans:
 
 **Goal**: A newly generated region has 8-10 places instead of 3-5, generated across several AI calls so each reply stays within its budget, with families scaling to the region's size (D-66/D-67 of 51.3.1.1).
 **Depends on**: Phase 51.3.1.1 (families, hubs, density pools and the approved generation prompts)
-**Requirements**: TBD (owner request 2026-10-08)
+**Requirements**: 51.3.1.2-SC1, 51.3.1.2-SC2, 51.3.1.2-SC3, 51.3.1.2-SC4, 51.3.1.2-SC5, 51.3.1.2-SC6 (phase-local, the success criteria below; owner request 2026-10-08)
 **Success Criteria** (what must be TRUE):
 
   1. A new region has 8-10 places (a named constant range, dial in 52.5), connected so every place is reachable, with its hubs (D-62) placed among them.
@@ -900,7 +900,7 @@ Plans:
   5. Every new or changed prompt's exact wording is approved by the owner before it ships, and pinned by tests; no paid calls in tests.
   6. Tests cover the place count, connectivity, the split-call flow and its failure paths, family scaling, and that existing regions are untouched.
 
-**Plans:** 0 plans
+**Plans:** 14 plans
 **Notes**:
 
   - Owner, 2026-10-08: "Regions needs to be bigger than 3-5. we decided on max 10, but that means we should be looking at 8-10 locations. That still leaves room to go above that for hidden locations and sub-locations within dungeons, towers, cities (like a sewer, etc)". Then chose "Own phase next" and "Leave them as they are" for existing regions.
@@ -910,7 +910,20 @@ Plans:
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 51.3.1.2 to break down)
+- [ ] 51.3.1.2-01-PLAN.md — Approval record and the tested prompt-draft extract-and-compare script (wave 1)
+- [ ] 51.3.1.2-02-PLAN.md — Pure region rules: place count 8-10, floor, shape, hop gradient, host floor, boundary anchor (wave 1)
+- [ ] 51.3.1.2-03-PLAN.md — 10-place map fixtures and a 6-exit exits case (wave 1)
+- [ ] 51.3.1.2-04-PLAN.md — New route world_gen_families: approved 2b block and message, schema, budgets, indicators (wave 2)
+- [ ] 51.3.1.2-05-PLAN.md — Writer split: writeRegionPlaces (2a) and writeRegionFamilies (2b), legacy composition (wave 2)
+- [ ] 51.3.1.2-06-PLAN.md — Crossing hold: travel refused until COMPLETE, approved 7a-7d lines, held crossings kept (wave 2)
+- [ ] 51.3.1.2-07-PLAN.md — Medium economy for 8+ places; one late loot job per family past the cap (wave 2)
+- [ ] 51.3.1.2-08-PLAN.md — 2b input, start, FAMILIES_ERROR, hold-aware failure lines, finishRegionFill (wave 3)
+- [ ] 51.3.1.2-09-PLAN.md — scripts/llm proof and golden harness for the new route and flow (wave 3)
+- [ ] 51.3.1.2-10-PLAN.md — Approved 2a block, Places line, 2a reply shape and budget guard (wave 3)
+- [ ] 51.3.1.2-11-PLAN.md — Apply and sweeper wiring: 2a chains 2b, 2b completes, every 2b failure to FAMILIES_ERROR (wave 4)
+- [ ] 51.3.1.2-12-PLAN.md — [explore] retries only the failed stage, in game and in the creation console (wave 4)
+- [ ] 51.3.1.2-13-PLAN.md — New characters wait in creation until families land; HELD reuse and retry (wave 5)
+- [ ] 51.3.1.2-14-PLAN.md — Local publish with key check, evidence, deferred UAT items (wave 6)
 
 ### Phase 51.3.2: Combat Wind-Up, Cooldowns and Durations in Rounds (INSERTED)
 
