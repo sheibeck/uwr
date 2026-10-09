@@ -14,3 +14,7 @@ Collected by the coordinator from executor reports. Each needs a home before the
 | 8 | Plan 08 | `relevelLegacySpawns` has no production caller; `DEFAULT_LOCATION_SPAWNS` is still exported and imported by `index.ts`. Two doc comments in `helpers/families.ts` (L9, L539) still name the deleted spawn functions. | Plan 27 cleanup |
 | 9 | Plan 08 | `pickUpQuestItem` aggro still looks for an `enemy_spawn`, so quest-item aggro finds nothing until Plan 11's pool draw; `start_combat` still uses `ensureAvailableSpawn` / `spawnEnemy`. | Plan 11 (pool draw) / Plan 27 (retire) |
 | 10 | Plan 08 | Fixed by the coordinator (a12c3b65): `helpers/online.test.ts` single-writer guard now allows the test fixture `helpers/pool_fixture.ts`. | done |
+| 11 | Plan 11 | PROPOSED refusal copy kept in `reducers/pools.ts` `PULL_REFUSALS` ("That is not here.", "Nothing will fight you here.", "You are already in a fight.", "Finish gathering first.") and "That enemy is not here to fight." in `start_combat`. | Plan 27 copy review (D-58) |
+| 12 | Plan 11 | `ensureAvailableSpawn` and `spawnEnemy` have no production caller in `combat.ts`. | Plan 16 or 27 cleanup |
+| 13 | Plan 11 | Typed `loot <item>` intent did not pass `startCombat` to `pickUpQuestItem`, so no quest-item ambush from the typed path. | assigned to Plan 13 (lists intent.ts) |
+| 14 | Plan 11 | `pull_family` reaches `src/module_bindings` only at Plan 17's regeneration. | Plan 17 |
