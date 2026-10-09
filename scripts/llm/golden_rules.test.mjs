@@ -426,6 +426,8 @@ const WORLD_START = {
     personality: PERSONALITY,
   },
 };
+// Phase 51.3.1.2 (Plan 10): the 2a reply carries places only: no families array and no per-place levelOffset
+// (the server derives the gradient). The families are the separate 2b route (world_gen_families).
 const WORLD_FILL = {
   dominantFaction: 'The Ferrymen',
   landmarks: ['The Drowned Lighthouse'],
@@ -440,7 +442,6 @@ const WORLD_FILL = {
       terrainType: 'swamp',
       isHub: false,
       isSafe: false,
-      levelOffset: 1,
       connectsTo: ['Gull Steps'],
     },
     {
@@ -451,7 +452,6 @@ const WORLD_FILL = {
       terrainType: 'plains',
       isHub: false,
       isSafe: true,
-      levelOffset: 0,
       connectsTo: ['Tarpit Shallows'],
     },
   ],
@@ -464,45 +464,6 @@ const WORLD_FILL = {
       description: 'He counts coins the way others count sins.',
       greeting: 'Deposits are free. Withdrawals are a conversation.',
       personality: PERSONALITY,
-    },
-  ],
-  families: [
-    {
-      name: 'Sea Wolves',
-      singularNoun: 'sea wolf',
-      pluralNoun: 'sea wolves',
-      creatureType: 'beast',
-      iconKey: 'beast',
-      temperament: 'aggressive',
-      ambushVerb: 'lunge',
-      ambushRest: 'out of the reeds',
-      members: [
-        { role: 'tank', name: 'Sea Wolf Packleader' },
-        { role: 'damage', name: 'Sea Wolf' },
-        { role: 'support', name: 'Sea Wolf Elder' },
-      ],
-      fitLocations: ['Tarpit Shallows'],
-      relations: [{ family: 'Reef Crawlers', kind: 'rival' }],
-      history: 'The Sea Wolves came ashore with the first fog and never went back. The ferrymen say the tide owes them a debt.',
-      inFeud: true,
-    },
-    {
-      name: 'Reef Crawlers',
-      singularNoun: 'reef crawler',
-      pluralNoun: 'reef crawlers',
-      creatureType: 'beast',
-      iconKey: 'aquatic',
-      temperament: 'wary',
-      ambushVerb: 'scuttle',
-      ambushRest: 'from under the planks',
-      members: [
-        { role: 'tank', name: 'Shellback Crawler' },
-        { role: 'caster', name: 'Brine Crawler' },
-      ],
-      fitLocations: ['Tarpit Shallows'],
-      relations: [{ family: 'Sea Wolves', kind: 'rival' }],
-      history: 'The Reef Crawlers have nested under the flats since before the road was laid.',
-      inFeud: true,
     },
   ],
 };

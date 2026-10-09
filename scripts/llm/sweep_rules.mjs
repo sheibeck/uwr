@@ -331,16 +331,21 @@ export function structuralCheck(route, parsedOrText) {
       if (!isObject(p) || !isObject(p.startLocation) || !isNonEmptyString(p.startLocation.name)) bad.push('missing_start_location');
       if (!isObject(p) || !isObject(p.firstNpc) || !GENDERS.includes(p.firstNpc.gender)) bad.push('npc_gender_missing');
       break;
-    case 'world_gen':
-      if (!isObject(p) || !inRange(p.locations, 2, 4)) bad.push('locations_count');
+    case 'world_gen': {
+      // Phase 51.3.1.2 (D-01, Plan 10): the 2a reply carries places only, up to REGION_PLACES_MAX - 1 new places,
+      // and no creatures (the families are the separate world_gen_families route). The older shapes keep their checks.
+      const placesOnly = isObject(p) && !Array.isArray(p.families) && !Array.isArray(p.enemies);
+      const maxLocations = placesOnly ? DENSITY_RULES.REGION_PLACES_MAX - 1 : 4;
+      if (!isObject(p) || !inRange(p.locations, 2, maxLocations)) bad.push('locations_count');
       // Phase 51.3.1.1 (Plans 23, 30): the fill reply carries families, not enemies; the older shape keeps its check.
       if (isObject(p) && Array.isArray(p.families)) {
         if (!inRange(p.families, 1, DENSITY_RULES.FAMILY_COUNT_MAX)) bad.push('families_count');
-      } else if (!isObject(p) || !inRange(p.enemies, 2, 3)) bad.push('enemies_count');
+      } else if (!placesOnly && (!isObject(p) || !inRange(p.enemies, 2, 3))) bad.push('enemies_count');
       if (!isObject(p) || (Array.isArray(p.npcs) && p.npcs.some((x) => !isObject(x) || !GENDERS.includes(x.gender)))) {
         bad.push('npc_gender_missing');
       }
       break;
+    }
     case 'skill_gen':
       if (!isObject(p) || !Array.isArray(p.skills) || p.skills.length < 1) bad.push('missing_skills');
       break;

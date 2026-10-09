@@ -33,6 +33,7 @@ import { REPO_ROOT } from './cli.mjs';
 import { buildRouteLayers } from '../../spacetimedb/src/data/llm_layers.ts';
 import { buildClaudeRequest } from '../../spacetimedb/src/helpers/claude_request.ts';
 import { LLM_SWEEP_ROUTES, LLM_SWEEP_EFFORTS, LLM_ROUTE_BASELINES, deriveRouteTuning } from '../../spacetimedb/src/data/llm_tuning.ts';
+import { DENSITY_RULES } from '../../spacetimedb/src/data/density_rules.ts';
 
 // ---------------------------------------------------------------------------
 // Clean replies, one per route (each must lint clean)
@@ -335,6 +336,16 @@ describe('structuralCheck', () => {
     expect(structuralCheck('world_gen', { locations: [{}, {}], families: fams(15), npcs: [] })).toEqual([]);
     expect(structuralCheck('world_gen', { locations: [{}, {}], families: [], npcs: [] })).toEqual(['families_count']);
     expect(structuralCheck('world_gen', { locations: [{}, {}], families: fams(16), npcs: [] })).toEqual(['families_count']);
+  });
+
+  it('a world_gen reply in the Phase 51.3.1.2 2a shape (places only) needs 2 to REGION_PLACES_MAX - 1 places and no creatures', () => {
+    const locs = (n) => Array.from({ length: n }, () => ({}));
+    const most = DENSITY_RULES.REGION_PLACES_MAX - 1;
+    expect(structuralCheck('world_gen', { locations: locs(2), npcs: [] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: locs(most), npcs: [{ gender: 'female' }] })).toEqual([]);
+    expect(structuralCheck('world_gen', { locations: locs(1), npcs: [] })).toEqual(['locations_count']);
+    expect(structuralCheck('world_gen', { locations: locs(most + 1), npcs: [] })).toEqual(['locations_count']);
+    expect(structuralCheck('world_gen', { locations: locs(5), npcs: [{}] })).toEqual(['npc_gender_missing']);
   });
 
   it('skill_gen needs a skill and renown_perk_gen needs a perk', () => {
