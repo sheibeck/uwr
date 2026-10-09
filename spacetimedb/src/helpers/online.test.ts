@@ -139,12 +139,13 @@ describe('reconcileOnline', () => {
 
 describe('single writer (source guard)', () => {
   // Only these files may write character.online or character.lastOnlineAtMicros: the helper, the
-  // column definitions, the creation insert's initial values and the shared test fixture.
+  // column definitions, the creation insert's initial values and the shared test fixtures.
   const ALLOWED = new Set([
     'helpers/online.ts',
     'schema/tables.ts',
     'reducers/creation.ts',
     'helpers/combat_fight_fixture.ts',
+    'helpers/pool_fixture.ts',
   ]);
   const SRC = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/');
 
