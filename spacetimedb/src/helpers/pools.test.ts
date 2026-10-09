@@ -494,6 +494,41 @@ describe('the vacuum (D-20, D-36)', () => {
     expect(poolRow(ctx, goblinsOrchard.id)).toMatchObject({ count: 0n, homeLevel: 2n });
   });
 
+  it('a rival pooled here but wiped out never surges back; it keeps its long reset (review A CR-01, D-37)', () => {
+    const ctx = poolCtx(poolWorld({ bobLocationId: FLATS_ID }));
+    const { goblinsOrchard } = seedPools(ctx);
+    const rival = createPool(
+      ctx,
+      { regionId: REGION_ID, locationId: ORCHARD_ID, kind: 'creature', refId: SKITTERERS_ID, homeLevel: 1 },
+      T0,
+    );
+
+    // Wipe the goblins: the skitterers surge.
+    applyDepletion(ctx, goblinsOrchard, 50n, T0, 'kill');
+    expect(poolRow(ctx, rival.id).count).toBe(DENSITY_RULES.OVERRUN_SURGE_COUNT);
+    const goblinsWipedAt = poolRow(ctx, goblinsOrchard.id).wipedAtMicros;
+    expect(goblinsWipedAt).toBe(T0);
+    const poolsBefore = rows(ctx, 'place_pool').length;
+
+    // Wipe the skitterers minutes later: the wiped goblins are the only candidate and stay gone.
+    const later = T0 + 5n * MIN;
+    applyDepletion(ctx, poolRow(ctx, rival.id), 200n, later, 'kill');
+    expect(poolRow(ctx, rival.id).count).toBe(0n);
+    expect(poolRow(ctx, goblinsOrchard.id)).toMatchObject({ count: 0n, wipedAtMicros: goblinsWipedAt });
+    expect(levelRow(ctx, goblinsOrchard.id).level).toBe(0n);
+    expect(rows(ctx, 'place_pool')).toHaveLength(poolsBefore);
+    expect(rows(ctx, 'pool_rumor').map((r: any) => r.kind)).toEqual([
+      'family_wiped',
+      'vacuum_takeover',
+      'overrun_surge',
+      'family_wiped',
+    ]);
+
+    // Still gone just before the long reset; back only once it has passed.
+    expect(settlePool(ctx, poolRow(ctx, goblinsOrchard.id), T0 + DENSITY_RULES.WIPED_RESET_MICROS - MIN).pool.count).toBe(0n);
+    expect(settlePool(ctx, poolRow(ctx, goblinsOrchard.id), T0 + DENSITY_RULES.WIPED_RESET_MICROS).pool.count).toBeGreaterThan(0n);
+  });
+
   it('with no rival here, a region rival that fits the terrain gets a new Overrun pool with home Stable', () => {
     const ctx = poolCtx(poolWorld());
     const { goblinsOrchard } = seedPools(ctx);

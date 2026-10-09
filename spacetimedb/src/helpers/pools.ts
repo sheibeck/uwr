@@ -457,9 +457,9 @@ function vacuumCandidates(ctx: any, wipedFamilyId: bigint, regionId: bigint): an
 
 /**
  * The vacuum after a creature family is wiped out at a place (D-20, D-36): a rival or predator
- * family already pooled at the place surges to Overrun (OVERRUN_SURGE_COUNT, its home raised to at
+ * family already pooled at the place and still living (count above 0) surges to Overrun (OVERRUN_SURGE_COUNT, its home raised to at
  * least VACUUM_RIVAL_HOME_LEVEL so it settles back to Stable); else a same-region rival or predator
- * whose fitTerrains include the place's terrain gets a new pool there at Overrun with home Stable;
+ * not pooled here whose fitTerrains include the place's terrain gets a new pool there at Overrun with home Stable;
  * else nothing. One deterministic pick (pickSurgeTarget). The online characters at the place get the
  * Keeper takeover line, and onPoolShift records vacuum_takeover then overrun_surge. The wiped family
  * keeps its own pool and home and returns on the long reset (D-37). Returns the surged pool or null.
@@ -480,8 +480,18 @@ export function runVacuum(
   for (const row of ctx.db.place_pool.by_location.filter(wipedPool.locationId)) {
     if (row.kind === 'creature' && row.refId !== wipedFamily.id) pooledHere.set(row.refId, row);
   }
-  const here = candidates.filter((family: any) => pooledHere.has(family.id));
-  const choices = here.length > 0 ? here : candidates.filter((family: any) => fitsTerrain(family.fitTerrains, location.terrainType));
+  // Only a LIVING rival here can surge: a family pooled here but wiped out keeps its long reset
+  // (D-37), and the terrain fallback never picks a family that already has a pool here.
+  const here = candidates.filter((family: any) => {
+    const row = pooledHere.get(family.id);
+    return !!row && settlePool(ctx, row, now).pool.count > 0n;
+  });
+  const choices =
+    here.length > 0
+      ? here
+      : candidates.filter(
+          (family: any) => !pooledHere.has(family.id) && fitsTerrain(family.fitTerrains, location.terrainType),
+        );
   const target = pickSurgeTarget(seed, choices);
   if (!target) return null;
 
