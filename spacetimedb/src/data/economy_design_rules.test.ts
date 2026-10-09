@@ -38,6 +38,7 @@ import {
   scrollTemplate,
   REGION_ECONOMY_SIZES,
   REGION_ECONOMY_SIZE,
+  regionEconomySizeFor,
   gatherSlotsForSize,
   recipeTierSlotsForSize,
   familyRef,
@@ -56,6 +57,7 @@ import {
   weaponGrowth,
 } from './recipe_rules';
 import { BASIC_RESOURCE_DEFS, JUNK_DEFS } from './equipment_rules';
+import { DENSITY_RULES } from './density_rules';
 
 vi.mock('spacetimedb/server', async () =>
   (await import('../helpers/schema_recorder')).createRecordingServerMock(),
@@ -367,6 +369,16 @@ describe('economy size (D-50, D-57: a named constant)', () => {
 
   it('the server sets small today', () => {
     expect(REGION_ECONOMY_SIZE).toBe('small');
+  });
+
+  it('regionEconomySizeFor: medium from ECONOMY_MEDIUM_MIN_PLACES (8) charted places, else REGION_ECONOMY_SIZE (D-10)', () => {
+    expect(DENSITY_RULES.ECONOMY_MEDIUM_MIN_PLACES).toBe(8);
+    expect(regionEconomySizeFor(7)).toBe(REGION_ECONOMY_SIZE);
+    expect(regionEconomySizeFor(7)).toBe('small');
+    for (const n of [8, 9, 10, 40]) expect(regionEconomySizeFor(n)).toBe('medium');
+    for (const n of [0, 1, 4, -3, -8, 7.9, NaN]) expect(regionEconomySizeFor(n)).toBe('small');
+    expect(regionEconomySizeFor(8.5)).toBe('medium');
+    expect(regionEconomySizeFor(Infinity)).toBe('small');
   });
 
   it('REGION_ECONOMY_COUNTS takes its gatherables and recipes from the size', () => {

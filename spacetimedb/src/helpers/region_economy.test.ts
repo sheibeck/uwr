@@ -25,11 +25,13 @@ vi.mock('spacetimedb/server', async () =>
 
 let econ: typeof import('./region_economy');
 let recorder: typeof import('./schema_recorder');
+let layers: typeof import('../data/llm_layers');
 
 beforeAll(async () => {
   await import('../schema/tables');
   recorder = await import('./schema_recorder');
   econ = await import('./region_economy');
+  layers = await import('../data/llm_layers');
 }, 120_000);
 
 const FIXTURE_DIR = fileURLToPath(new URL('./__fixtures__/economy/', import.meta.url));
@@ -1263,6 +1265,43 @@ describe('buildRegionEconomyInput: families (D-47)', () => {
     expect(input.gatherSlots).toEqual(['common', 'uncommon', 'rare']);
     expect(input.recipeSlots.map((s) => s.tier)).toEqual(['common', 'uncommon', 'rare']);
     expect(input.recipeSlots).toHaveLength(3);
+  });
+
+  it('a region of 9 charted places plus the uncharted doorway gets the medium size: 5 gatherable slots and 5 recipe slots (D-10)', () => {
+    const seed = oneNeighbor();
+    for (let id = 14n; id <= 18n; id += 1n) seed.location.push(locationRow(id, 1n, 'swamp'));
+    seed.location.push(locationRow(19n, 1n, 'Uncharted'));
+    const ctx = ctxFor(seed);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.gatherSlots).toEqual(['common', 'common', 'uncommon', 'uncommon', 'rare']);
+    expect(input.recipeSlots).toHaveLength(5);
+    expect(input.recipeSlots.map((s) => s.tier)).toEqual(['common', 'uncommon', 'rare', 'common', 'uncommon']);
+    // The approved region_economy builder prints the medium counts and slot lists unchanged.
+    const text = layers.buildRegionEconomyVolatile(input);
+    expect(text).toContain('- five gatherables: G1 common, G2 common, G3 uncommon, G4 uncommon and G5 rare;');
+    expect(text).toContain('- five recipes:');
+  });
+
+  it('the doorway is not counted: 7 charted places plus the uncharted doorway stay small (3 and 3)', () => {
+    const seed = oneNeighbor();
+    for (let id = 14n; id <= 16n; id += 1n) seed.location.push(locationRow(id, 1n, 'swamp'));
+    seed.location.push(locationRow(19n, 1n, 'uncharted'));
+    const ctx = ctxFor(seed);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'region');
+    expect(input.gatherSlots).toEqual(['common', 'uncommon', 'rare']);
+    expect(input.recipeSlots).toHaveLength(3);
+    seed.location.push(locationRow(17n, 1n, 'woods'));
+    const eight = ctxFor(seed);
+    expect(econ.buildRegionEconomyInput(eight, region(eight, 1n), 'region').gatherSlots).toHaveLength(5);
+  });
+
+  it('family mode is unchanged in a big region: no slots', () => {
+    const seed = familyWorld();
+    for (let id = 14n; id <= 18n; id += 1n) seed.location.push(locationRow(id, 1n, 'swamp'));
+    const ctx = ctxFor(seed);
+    const input = econ.buildRegionEconomyInput(ctx, region(ctx, 1n), 'family', ctx.db.creature_family.id.find(1n));
+    expect(input.gatherSlots).toEqual([]);
+    expect(input.recipeSlots).toEqual([]);
   });
 
   it('region mode lists no 51.3 enemies once the family apply ships (Plan 25)', () => {
