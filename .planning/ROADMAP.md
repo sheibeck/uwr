@@ -1138,7 +1138,7 @@ Plans:
   3. The detail shows the player's contribution and percentile, the party's contribution and the bronze, silver and gold thresholds, with Travel there and Track (stored on the server; the tracked event leads the rail's Tracking).
   4. `increment_event_counter` is admin-only, the failure status mismatch is fixed, and `collect_event_item` no longer crashes.
   5. At 390×844 World events opens from More and every action above works.
-  6. When a player discovers a new region, the World event announcement names them and makes much of them, sarcastically (owner-approved wording); the discoverer gets the credit (shown with the region) and renown as a server first, once per region.
+  6. When a player discovers a new region, the World event announcement names them and makes much of them, sarcastically, and names the new region (owner-approved wording); the discoverer gets the credit (shown with the region) and renown as a server first, once per region.
 
 **Plans**: TBD
 **UI hint**: yes
@@ -1149,7 +1149,7 @@ Plans:
 
   - Renumbered from 51.2 to 51.6 (owner, 2026-10-07: "push world events to after character / level up"). Then renumbered from 51.6 to 52.4 (owner, 2026-10-08: "move log, world events, and parity and production to the very end, in that order so parity and production is last."). Older documents call it 51.2 or 51.6; its folder is `52.4-world-events` and its UI-SPEC is `52.4-UI-SPEC.md`.
 
-  - **Region discoverer named (owner, 2026-10-09):** "When a player explores a new region for the first time, the world event anouncement should make much of their name ... sarcastically so. And they should get credit for the discovery + renown! The world event anouncment should anounce their name." Today the new-region line names only the region it lies beyond, and the discoverer gets only a private line, with no renown. Reuse `awardServerFirst` (`renown_server_first`). Draft lines, open questions (party share, starter regions) and the test list are in the todo `2026-10-09-region-discoverer-named-in-world-event-with-renown.md` (pulled into this phase). The announcement wording needs the owner's explicit approval.
+  - **Region discoverer named (owner, 2026-10-09):** "When a player explores a new region for the first time, the world event anouncement should make much of their name ... sarcastically so. And they should get credit for the discovery + renown! The world event anouncment should anounce their name." Then: "And it should also anounce the name of the new Region". Today the new-region line names only the region it lies beyond (not the new region), and the discoverer gets only a private line, with no renown. Reuse `awardServerFirst` (`renown_server_first`). Draft lines, open questions (party share, starter regions) and the test list are in the todo `2026-10-09-region-discoverer-named-in-world-event-with-renown.md` (pulled into this phase). The announcement wording needs the owner's explicit approval.
   - Context: `51-CONTEXT.md` (Area 3 decisions).
   - Server: a scheduled event starter with the module-identity guard, kept history, timeline storage, and generic per-character tracking (reused by the Phase 53 Journal). All changes are additive and published locally only.
   - Tests: the starter is deterministic per tick, upcoming to active to resolved, history kept, percentile math, reward tiers, tracking, and the bug fixes.

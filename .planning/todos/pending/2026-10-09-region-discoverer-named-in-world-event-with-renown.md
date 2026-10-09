@@ -21,7 +21,7 @@ Today:
 
 ## Solution
 
-Decided by the owner: the announcement names the discoverer and makes much of them, sarcastically; the discoverer gets credit and renown.
+Decided by the owner: the announcement names the discoverer and makes much of them, sarcastically; it also names the new region (owner, 2026-10-09: "And it should also anounce the name of the new Region"); the discoverer gets credit and renown. Folded into Phase 52.4 (success criterion 6).
 
 Build notes:
 1. **Announcement:** new World event templates with `{playerName}`, `{regionName}` and `{sourceRegion}`; send it when the region is COMPLETE (finishRegionFill), not when the places land, so the name and the region arrive together with the crossing opening (7c). Static templates (no LLM call, deterministic pick as today). No first person, never "ripple", no pronouns for the player (use the name). **Exact wording needs the owner's approval.** Drafts to react to:
@@ -34,4 +34,3 @@ Build notes:
 3. **Renown:** `awardServerFirst(ctx, character, 'region_discovery', 'region_{id}', RENOWN_GAIN.REGION_DISCOVERY_BASE, 'Discovered {regionName}')` then `awardRenown`, with a new named constant (amount for discuss, for example 100; tuning waits for 52.5). A private reward line with the renown gained.
 4. **Who counts:** the character whose travel started the generation (`world_gen_state.playerId`). Decide: does the party waiting at the crossing share the credit; does a race's starter region (made at character creation, sourceRegionId 0) count as a discovery (probably not, it is a starting home).
 5. Tests: the template pick names player, region and source; one award per region (never twice on a retry or a HELD join); renown and server-first rows written; starter regions excluded (if so decided); the announcement sent once at COMPLETE.
-Candidate home: Phase 52.4 World Events (the announcement system and its history), pulled in there.
