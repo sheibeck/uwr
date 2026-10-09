@@ -57,7 +57,7 @@ function codeOf(html) {
 }
 
 describe('group labels', () => {
-  it('labels the families route (Phase 51.3.1.2, D-01) for the owner's re-recorded run', () => {
+  it('labels the families route (Phase 51.3.1.2, D-01) for the run the owner re-records', () => {
     expect(GROUP_LABELS.world_gen_families).toBe('World: creature families');
     expect(GROUP_LABELS.world_gen).toBe('World: region fill');
   });

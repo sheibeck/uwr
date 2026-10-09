@@ -30,13 +30,15 @@ function safeJson(value) {
   return JSON.stringify(value).replace(new RegExp('[<>&' + String.fromCharCode(0x2028, 0x2029) + ']', 'g'), (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 }
 
-const GROUP_LABELS = Object.freeze({
+/** The review page's group headings, by route (and 'adversarial'). */
+export const GROUP_LABELS = Object.freeze({
   npc_conversation: 'NPC conversation',
   creation_race: 'Creation: race',
   creation_class_reveal: 'Creation: class reveal',
   creation_class: 'Creation: class fill',
   world_gen_start: 'World: first glimpse',
   world_gen: 'World: region fill',
+  world_gen_families: 'World: creature families', // Phase 51.3.1.2 (D-01): the 2b route
   skill_gen: 'Skills',
   renown_perk_gen: 'Renown perks',
   combat_narration: 'Combat narration',

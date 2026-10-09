@@ -5,11 +5,19 @@
 // resolveLiveDb in cli.mjs; neither is copied here.
 
 import { resolveLiveDb } from './cli.mjs';
+import { SWEEP_FIXTURES } from './sweep_fixtures.mjs';
 import { LLM_SMOKE_ROUTES } from '../../spacetimedb/src/data/llm_limits.ts';
+import { buildRouteLayers } from '../../spacetimedb/src/data/llm_layers.ts';
+import { LLM_ROUTES } from '../../spacetimedb/src/data/llm_routes.ts';
+import { buildClaudeRequest } from '../../spacetimedb/src/helpers/claude_request.ts';
+import { smokeInputFor } from '../../spacetimedb/src/helpers/llm_inputs.ts';
+import { reserveCostMicroUsd } from '../../spacetimedb/src/helpers/measurement.ts';
 
 /**
  * The live-proof steps, in the order the harness runs them: the Phase 43 staged flow. Stage 1 (reveal, start)
- * and stage 2 (fill) are separate steps so they are timed separately.
+ * and stage 2 (fill) are separate steps so they are timed separately. Phase 51.3.1.2 (D-01) split the region
+ * fill into 2a (places, world_gen) and 2b (creature families, world_gen_families), so the families call is a
+ * step of its own right after world_gen.
  */
 export const PROOF_STEPS = Object.freeze([
   'smoke',
@@ -18,6 +26,7 @@ export const PROOF_STEPS = Object.freeze([
   'creation_class',
   'world_gen_start',
   'world_gen',
+  'world_gen_families', // Phase 51.3.1.2 (D-01): stage 2b, the creature families
   'explore_region',
   'npc_conversation',
   'npc_burst',
@@ -34,7 +43,8 @@ export const PROOF_STEPS = Object.freeze([
 export const PROOF_DOMAINS = Object.freeze({
   smoke: Object.freeze(['smoke']),
   creation: Object.freeze(['creation_race', 'creation_class_reveal', 'creation_class']),
-  world_gen: Object.freeze(['world_gen_start', 'world_gen', 'explore_region']),
+  // Phase 51.3.1.2 (D-01): a region is only complete once its families land, so the families step belongs here.
+  world_gen: Object.freeze(['world_gen_start', 'world_gen', 'world_gen_families', 'explore_region']),
   npc_chat: Object.freeze(['npc_conversation', 'npc_burst']),
   combat_narration: Object.freeze(['combat_narration']),
   renown: Object.freeze(['renown_perk_gen']),
@@ -102,9 +112,9 @@ export function burstSampleVerdict(okCount) {
 
 /**
  * Real model calls the whole run makes, per route, in the server route order: the smoke routes once each, then
- * creation race, class reveal and fill once each, world start and fill twice each (the starter region and the
- * explored one), one NPC chat turn plus the burst, one narration, one renown call and one skill call.
- * The harness prices these for the worst-case bound it prints before any spend.
+ * creation race, class reveal and fill once each, world start, places fill and families fill twice each (the
+ * starter region and the explored one), one NPC chat turn plus the burst, one narration, one renown call and one
+ * skill call. The harness prices these for the worst-case bound it prints before any spend (worstCaseMicroUsd).
  */
 export function plannedCallCounts() {
   const counts = {};
@@ -117,6 +127,7 @@ export function plannedCallCounts() {
   add('creation_class', 1);
   add('world_gen_start', 2);
   add('world_gen', 2);
+  add('world_gen_families', 2); // Phase 51.3.1.2 (D-01): one 2b call per region (the smoke list adds its own)
   add('npc_conversation', 1 + NPC_BURST_TURNS);
   add('combat_narration', 1);
   add('renown_perk_gen', 1);
@@ -127,6 +138,7 @@ export function plannedCallCounts() {
     'creation_class',
     'world_gen_start',
     'world_gen',
+    'world_gen_families', // Phase 51.3.1.2 (D-01): the server route order puts it right after world_gen
     'skill_gen',
     'npc_conversation',
     'combat_narration',
@@ -137,6 +149,48 @@ export function plannedCallCounts() {
   for (const route of order) if (counts[route] !== undefined) ordered[route] = counts[route];
   for (const route of Object.keys(counts)) if (ordered[route] === undefined) ordered[route] = counts[route];
   return Object.freeze(ordered);
+}
+
+/**
+ * The input that prices one call of a route: the first sweep fixture, else the server's fixed smoke input
+ * (Phase 51.3.1.2: world_gen_families has no sweep fixture yet), and an empty input for the smoke test itself.
+ */
+export function proofPricingInput(route) {
+  if (route === 'smoke_test') return {};
+  const fixtures = SWEEP_FIXTURES[route];
+  if (Array.isArray(fixtures) && fixtures.length > 0) return fixtures[0];
+  return smokeInputFor(route);
+}
+
+/**
+ * The reservation one call of a route holds, by the server's own rule: reserveCostMicroUsd over the route's
+ * maxTokens (LLM_ROUTES) and the built request's length. Every planned call is priced at this full amount.
+ */
+export function proofReservationMicroUsd(route) {
+  if (!Object.prototype.hasOwnProperty.call(LLM_ROUTES, route)) throw new Error('unknown route: ' + String(route));
+  const request = buildClaudeRequest(route, buildRouteLayers(route, proofPricingInput(route)));
+  return BigInt(reserveCostMicroUsd(LLM_ROUTES[route].maxTokens, request.bodyText.length));
+}
+
+/**
+ * The worst-case cost of a planned run: each route's call count times its full reservation (no retries exist).
+ * Pure over its arguments. Returns { total, lines: [{ route, calls, eachMicroUsd }] } in the counts order, with
+ * bigint amounts. A count or reservation that is not a whole, non-negative amount throws, so the bound can never
+ * silently under-count (T-51.3.1.2-29).
+ */
+export function worstCaseMicroUsd(counts, reservationFor = proofReservationMicroUsd) {
+  let total = 0n;
+  const lines = [];
+  for (const [route, calls] of Object.entries(counts ?? {})) {
+    if (typeof calls !== 'number' || !Number.isInteger(calls) || calls < 0) throw new Error('bad call count for ' + route);
+    const raw = reservationFor(route);
+    const ok = typeof raw === 'bigint' ? raw >= 0n : typeof raw === 'number' && Number.isInteger(raw) && raw >= 0;
+    if (!ok) throw new Error('bad reservation for ' + route);
+    const eachMicroUsd = BigInt(raw);
+    total += eachMicroUsd * BigInt(calls);
+    lines.push({ route, calls, eachMicroUsd });
+  }
+  return { total, lines };
 }
 
 const isObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
