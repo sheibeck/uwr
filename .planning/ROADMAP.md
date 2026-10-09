@@ -2738,3 +2738,22 @@ Plans:
 
 ---
 *Last updated: 2026-10-09 after Phase 51.3.1.1 Density Pools went code-complete (32 plans, two review rounds, verification human_needed, UAT and the owner wording review deferred)*
+
+### Phase 999.34: Day, night and weather change who lives in a place (BACKLOG)
+
+**Goal:** A place transforms with the time of day and the weather: some creature families and resources appear only at night, by day, or in certain weather, so the same place feels and plays differently as the world turns.
+**Requirements:** TBD
+**Plans:** 0 plans
+**Depends on:** Phase 999.14 (World calendar, day/night timing and the weather system); goes after it.
+
+**Source (owner, 2026-10-09):** "nighttime / daytime enemy families and resources. We want to be able to transform a location based on day/night and even weather. We have a weather system on the backlog, so this would go after that."
+
+**Notes for discuss:**
+
+  - Today: resource pools already carry a time of day (`timeOfDay` 'any' | 'day' | 'night', 51.3.1.1 D-55): outside their time they are hidden from Nearby and cannot be gathered. Creature families have no such rule; every family is present at all hours.
+  - Extend the same pool rule to creature families (night hunters, day grazers), and add weather conditions (for example only in fog or storms) once 999.14 brings weather. Families or resources out of their time or weather are hidden and cannot be pulled or gathered; a change of time or weather could bring a feed line ("As night falls, ...") and fit the 51.5.1 calm transitions.
+  - Generation: the families and resources prompts (region creation, stage 2b) would say which members come out at night or in certain weather; prompt wording needs the owner's approval. Density, depletion and regrowth (Density Pools) keep working per pool.
+  - Ties: 999.14 (calendar, weather), Phase 52.4 World events (weather or night surges), the Map and Here card safety ratings (a place may be Risky by day and Deadly by night).
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
